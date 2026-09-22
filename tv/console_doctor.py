@@ -6241,7 +6241,17 @@ def _check_the_door_and_the_writers_name_the_same_tree():
         if not planner or not writer:
             return UNKNOWN, ("the %s root has no path on one side (planner=%r writer=%r), so "
                              "agreement cannot be measured" % (name, planner, writer))
-        if os.path.realpath(planner) != os.path.realpath(writer):
+        # ⚠ v3412 — realpath RAISES on a path with an embedded NUL (ValueError) and on a symlink
+        # parent this process cannot search (OSError). v3410 left it outside the try, so either
+        # aborted the whole check instead of reporting that agreement was NOT MEASURED. Named by
+        # the cross-family review of v3410. A row that dies is not a row that answered UNKNOWN.
+        try:
+            same = os.path.realpath(planner) == os.path.realpath(writer)
+        except Exception as e:
+            return UNKNOWN, ("the %s root's path could not be resolved (%s), so whether the door "
+                             "and the writers agree is UNKNOWN, not measured"
+                             % (name, type(e).__name__))
+        if not same:
             bad.append("%s: the planners read %s and the writers open %s"
                        % (name, planner, writer))
     if bad:

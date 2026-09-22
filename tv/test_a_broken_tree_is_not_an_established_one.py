@@ -195,6 +195,42 @@ class TestHalfAHarnessIsNotHalfATree(unittest.TestCase):
                           "a REFUSED root still named a path, which is the one outcome worse "
                           "than no tree")
 
+    def test_a_root_has_exactly_ONE_state__even_when_the_derived_one_FAILS(self):
+        """⚠⚠ v3412, NAMED BY THE CROSS-FAMILY REVIEW OF v3410 ON CODE ONE HOUR OLD.
+
+        v3410 appended a FOUND/CREATED row for the derived hist root BEFORE the attempt ran, and
+        the loop then appended a SECOND row when the write failed. REPRODUCED: two rows for one
+        root, `found` and `unusable`. A reader taking the first hit archives into a directory
+        whose write had just failed. A root has exactly one state and it is the MEASURED one.
+        """
+        d = tempfile.mkdtemp(prefix="v3412one_")
+        f = os.path.join(d, "watch")
+        os.makedirs(f)
+        h = os.path.join(f, "hist")
+        os.makedirs(h)
+        os.chmod(h, 0o555)                      # exists, but a write will not land
+        try:
+            rows = self._establish(frames=f)
+        finally:
+            os.chmod(h, 0o755)
+        hist_rows = [r for r in rows if r["root"] == "frames/hist"]
+        self.assertEqual(len(hist_rows), 1,
+                         "the derived root reported %d rows (%s) — two states for one root, and "
+                         "a first-hit reader believes the optimistic one"
+                         % (len(hist_rows), [r["state"] for r in hist_rows]))
+        self.assertEqual(hist_rows[0]["state"], MT.UNUSABLE,
+                         "the single row must carry the MEASURED state, not the hoped-for one")
+
+    def test_a_SUCCEEDING_derived_root_still_reports_ONE_row__and_says_it_was_derived(self):
+        d = tempfile.mkdtemp(prefix="v3412ok_")
+        f = os.path.join(d, "watch")
+        rows = self._establish(frames=f)
+        hist_rows = [r for r in rows if r["root"] == "frames/hist"]
+        self.assertEqual(len(hist_rows), 1, "one root, one row, on the happy path too")
+        self.assertIn("derived", (hist_rows[0].get("why") or "").lower(),
+                      "the row lost the provenance that says this path was DERIVED rather than "
+                      "named by the harness")
+
     def test_BOTH_set_still_establishes_both_and_derives_nothing(self):
         d = tempfile.mkdtemp(prefix="v3410both_")
         f, h = os.path.join(d, "w"), os.path.join(d, "h")
@@ -205,6 +241,42 @@ class TestHalfAHarnessIsNotHalfATree(unittest.TestCase):
         self.assertTrue(os.path.isdir(f) and os.path.isdir(h))
         self.assertEqual(len([r for r in rows if r["root"] == "frames/hist"]), 1,
                          "the derived row and the env row were both reported")
+
+
+class TestTheAgreementRowCannotDieInsteadOfAnswering(unittest.TestCase):
+    """⚠ v3412 — `os.path.realpath` RAISES on a path with an embedded NUL (ValueError) and on a
+    symlink parent this process cannot search (OSError). v3410 left the comparison outside the
+    try, so either aborted the whole check instead of reporting UNKNOWN. A row that dies is not
+    a row that answered."""
+
+    def test_an_unresolvable_path_reads_UNKNOWN_and_does_not_raise(self):
+        """⚠ MY FIRST TRIGGER WAS WRONG AND THE CODE WAS FINE. I used a path with an embedded
+        NUL believing realpath would raise; MEASURED, `os.path.realpath('/tmp/has\x00nul/hist')`
+        returns the string unchanged on this Python, so the row correctly compared two different
+        paths and answered `missing`. A trigger that does not do what I think it does proves
+        nothing about the guard. [[sabotage-is-usually-the-wrong-one]]
+
+        So this makes realpath itself raise — which is the condition the try/except exists for,
+        stated directly instead of hoped for through a proxy.
+        """
+        import console_doctor as CD
+        real = os.path.realpath
+
+        def _boom(_p):
+            raise OSError(13, "a symlink parent this process cannot search")
+
+        os.path.realpath = _boom
+        try:
+            st, why = CD._check_the_door_and_the_writers_name_the_same_tree()
+        except Exception as e:
+            self.fail("the row RAISED %s instead of answering UNKNOWN — it aborts the whole "
+                      "doctor tick instead of reporting that agreement was not measured"
+                      % type(e).__name__)
+        finally:
+            os.path.realpath = real
+        self.assertEqual(st, CD.UNKNOWN,
+                         "an unresolvable path must read UNKNOWN, never a measured agreement")
+        self.assertIn("UNKNOWN", why)
 
 
 RED_PROOF = [
@@ -245,6 +317,26 @@ RED_PROOF = [
         "file": "machine_tree.py",
         "find": "                rows.append({\"root\": name, \"anchor\": \"env\", \"path\": None, \"state\": REFUSED,",
         "replace": "                continue\n                rows.append({\"root\": name, \"anchor\": \"env\", \"path\": None, \"state\": REFUSED,",
+        "matches": 1,
+    },
+    {
+        "why": "v3412 — THE OPTIMISTIC ROW, RESTORED. Appending FOUND/CREATED for the derived "
+               "root BEFORE the attempt means a failure adds a SECOND row beside it, so one root "
+               "reports two states and a first-hit reader believes the hopeful one. Named by the "
+               "cross-family review of v3410, reproduced at mode 0555.",
+        "file": "machine_tree.py",
+        "find": "        derived_hist = False\n        if frames and not hist:",
+        "replace": "        derived_hist = False\n        if frames and not hist:\n            rows.append({\"root\": \"frames/hist\", \"anchor\": \"env\",\n                         \"path\": os.path.join(frames, \"hist\"), \"state\": FOUND,\n                         \"why\": \"optimistic\"})",
+        "matches": 1,
+    },
+    {
+        "why": "v3412 — realpath BACK OUTSIDE THE TRY. A path with an embedded NUL raises "
+               "ValueError and an unsearchable symlink parent raises OSError; either then aborts "
+               "the whole check rather than reporting UNKNOWN. A row that dies is not a row that "
+               "answered.",
+        "file": "console_doctor.py",
+        "find": "        try:\n            same = os.path.realpath(planner) == os.path.realpath(writer)\n        except Exception as e:",
+        "replace": "        if True:\n            same = os.path.realpath(planner) == os.path.realpath(writer)\n        if False:",
         "matches": 1,
     },
 ]

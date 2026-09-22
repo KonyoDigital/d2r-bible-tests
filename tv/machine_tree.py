@@ -240,11 +240,20 @@ def establish():
         #     tree, and provisioning that from inside an isolated harness is this module's
         #     risk 1, arriving as a writer. So it is REFUSED and NAMED, never skipped.
         # [[unknown-stays-unknown]] — a root nobody established must not read as one that was.
+        # ⚠⚠ v3412 — DERIVE THE PATH, NEVER THE VERDICT. v3410 appended a FOUND/CREATED row for
+        # the derived hist root BEFORE the attempt ran, and the loop below then appended a SECOND
+        # row for the same root when the write failed. REPRODUCED: with TV_FRAMES_DIR set and
+        # <frames>/hist existing at mode 0555, establish() returned
+        #   root=frames/hist state=found      why=derived from TV_FRAMES_DIR...
+        #   root=frames/hist state=unusable   why=a write does not land here (PermissionError)
+        # — two states for one root, and a reader taking the first hit archives into a directory
+        # whose write had just failed. Named by the cross-family review of v3410, on code one
+        # hour old. The provenance is carried in a FLAG and spent in the ONE row the loop writes.
+        # [[unknown-stays-unknown]] — a root has exactly one state, and it is the measured one.
+        derived_hist = False
         if frames and not hist:
             hist = os.path.join(frames, "hist")
-            rows.append({"root": "frames/hist", "anchor": "env", "path": hist,
-                         "state": FOUND if os.path.isdir(hist) else CREATED,
-                         "why": "derived from TV_FRAMES_DIR, inside the harness's own tree"})
+            derived_hist = True
         for name, p in (("frames", frames), ("frames/hist", hist)):
             if not p:
                 rows.append({"root": name, "anchor": "env", "path": None, "state": REFUSED,
@@ -252,9 +261,6 @@ def establish():
                                      "and this root cannot be derived from it without pointing "
                                      "at the live tree — set both or neither")})
                 continue
-            if name == "frames/hist" and any(x.get("root") == name for x in rows):
-                # already derived above; make it and prove it, but do not double-report
-                pass
             existed = os.path.isdir(p)
             try:
                 os.makedirs(p, exist_ok=True)
@@ -267,10 +273,12 @@ def establish():
             if not ok:
                 rows.append({"root": name, "anchor": "env", "path": p,
                              "state": UNUSABLE, "why": why})
-            elif not any(x.get("root") == name for x in rows):
+            else:
                 rows.append({"root": name, "anchor": "env", "path": p,
                              "state": CREATED if not existed else FOUND,
-                             "why": "scratch tree for an isolated harness"})
+                             "why": ("derived from TV_FRAMES_DIR, inside the harness's own tree"
+                                     if (derived_hist and name == "frames/hist")
+                                     else "scratch tree for an isolated harness")})
         return rows
     return ensure(create=True)
 
