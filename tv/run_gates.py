@@ -1234,6 +1234,20 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_cap_must_be_a_size_the_eye_has_finished",
+         [sys.executable, os.path.join(HERE, "test_a_cap_must_be_a_size_the_eye_has_finished.py")], 60,
+         why="v3418 - HIS RULING, 2026-09-22: raise the second-eye cap 9,000 -> 26,000, the call "
+             "#143 had been waiting on since v3299 left the cost with him. ⚠ THE OLD NUMBER'S "
+             "EVIDENCE HAD EXPIRED WITHOUT THE NUMBER MOVING: 9,000 was justified by 24,000 "
+             "chars timing out at 240s, measured against an EYE_TIMEOUT_S later raised to 1200, "
+             "so the ceiling it protected against no longer existed. MEASURED COST of the old "
+             "cap on three versions in one day - v3413 cannot-tell at 8,622 then 5 findings at "
+             "25,074; v3414 never sent control_ui.html, the file the version is ABOUT; v3417 "
+             "sent 4 of 5 files not at all. THE LAW THIS PINS, and it cuts both ways: a cap may "
+             "only be a size the eye has actually been SEEN to finish at, so it can neither be "
+             "raised blindly nor lowered quietly. An EMPTY SEAT is not a witness - it proves the "
+             "payload was sent, never that the eye could chew it. Builds its OWN temp ledger, so "
+             "it never reads the untracked .second_eye.jsonl and never becomes a runner skip."),
     Gate("test_a_behind_tree_is_not_a_false_all_clear",
          [sys.executable, os.path.join(HERE, "test_a_behind_tree_is_not_a_false_all_clear.py")], 60,
          why="v3416 (#163) - FOUND BY THE SECOND EYE AT FULL REACH, AND ONLY THERE. At the "

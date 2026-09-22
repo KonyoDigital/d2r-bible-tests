@@ -6484,6 +6484,61 @@ def _check_the_eye_audit_agrees_with_the_ship_gate():
                 % (len(scope), min(NEWEST, len(ordered)), len(ordered), cant))
 
 
+def _check_the_eye_cap_is_a_size_the_eye_has_finished():
+    """v3418 - IS THE SHIPPED SECOND-EYE CAP A SIZE THE EYE HAS ACTUALLY FINISHED AT?
+
+    THE DOCTOR HALF of v3418. The gate pins the LAW on a temp ledger; this asks the live
+    question a gate cannot, because `tv/.second_eye.jsonl` is untracked and a case reading it
+    would skip on a runner - and a skip reads as a pass.
+
+    Konyo raised the cap 9,000 -> 26,000 on 2026-09-22. The number it replaced was justified by
+    "24,000 chars timed out at 240s" - measured against an EYE_TIMEOUT_S that was later raised to
+    1200, so the evidence had expired while the number stayed. This row exists so that can never
+    happen quietly again in either direction: it compares the SHIPPED cap against the largest
+    payload the eye has actually been seen to answer, on THIS machine, now.
+
+    ⚠ AN EMPTY SEAT IS NOT A WITNESS, and `cap_is_witnessed` already refuses to count one. A
+    payload that was sent and never answered is evidence the eye could NOT chew that size.
+
+    ⚠ UNKNOWN IS A REAL ANSWER HERE. A machine whose ledger has no finished look cannot vouch for
+    any cap, and saying so is the honest reading - not a fault, and never an OK.
+    [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+    """
+    try:
+        import second_eye_ledger as _sel
+        import second_eye_run as _ser
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the eye (%s), so whether its cap is "
+                         "reachable is UNKNOWN, not fine" % type(e).__name__)
+    cap = getattr(_ser, "MAX_FENCE_CHARS", None)
+    if not isinstance(cap, int) or isinstance(cap, bool):
+        return MISSING, ("the eye no longer exposes a numeric MAX_FENCE_CHARS (%r), so nothing "
+                         "bounds what is sent and nothing can be checked against it" % (cap,))
+    fn = getattr(_sel, "cap_is_witnessed", None)
+    big_fn = getattr(_sel, "largest_finished_look", None)
+    if not callable(fn) or not callable(big_fn):
+        return MISSING, ("the ledger no longer answers whether a cap has been witnessed, so the "
+                         "cap is back to being a number nobody measured")
+    try:
+        big = big_fn()
+        ok = fn(cap)
+    except Exception as e:
+        return UNKNOWN, ("the ledger refused to answer (%s: %s), so whether the cap is reachable "
+                         "is UNKNOWN" % (type(e).__name__, str(e)[:60]))
+    if ok is None:
+        return UNKNOWN, ("this machine has no FINISHED look on record, so it cannot vouch for a "
+                         "cap of %d - that is silence, not agreement. An empty seat does not "
+                         "count, on purpose." % cap)
+    if ok is False:
+        return MISSING, ("the shipped cap is %d but the largest payload this eye has ever "
+                         "ANSWERED is %s - a threshold above the ceiling, which turns every look "
+                         "into a non-look. Raise the evidence or lower the cap."
+                         % (cap, big))
+    return OK, ("the cap is %d and the eye has finished a look at %s, so the bound is inside "
+                "witnessed territory - and an empty seat was never allowed to vouch for it"
+                % (cap, big))
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6545,6 +6600,7 @@ CHECKS = [
     ("the resume agrees with git", _check_the_resume_agrees_with_git_right_now),
     ("the chip can say nobody looked", _check_the_chip_can_say_nobody_looked),
     ("the eye audit agrees with the gate", _check_the_eye_audit_agrees_with_the_ship_gate),
+    ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -7093,6 +7149,7 @@ WATCHES = {
     "the resume agrees with git": (),
     "the chip can say nobody looked": ("heart-chip",),
     "the eye audit agrees with the gate": (),
+    "the eye cap is a size it has finished": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody

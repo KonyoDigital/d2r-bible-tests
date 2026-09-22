@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1145 — the cap was 9,000 on evidence that had expired, and nothing noticed
+
+**v3418, 2026-09-22.** Konyo's ruling: *"raise the cap to 26000"* — the call #143 had been waiting
+on since v3299 left the cost with him.
+
+**The old number's justification had died while the number lived.** The comment above
+`MAX_FENCE_CHARS` read: *"24,000 chars timed out at 240s and was correctly recorded as an EMPTY
+SEAT."* True when written — and measured against an `EYE_TIMEOUT_S` **that was later raised to
+1200**, after a 22,519-char payload was killed at 300s. So the ceiling 9,000 was protecting against
+no longer existed, and the evidence sitting in the comment had quietly stopped being about the eye
+at all. A comment stating a rule the code no longer follows is worse than none: it makes the next
+reader re-derive a dead conclusion. [[feedback-comments-vs-code]] [[stale-reading]]
+
+**What 9,000 actually cost, on three versions in one day:**
+
+| version | at the shipped cap | at full reach |
+|---|---|---|
+| v3413 | 8,622 chars → **cannot-tell, 0 findings** | 25,074 → **5 findings, 3 real** |
+| v3414 | 8,947 chars → `tv/control_ui.html`, the file the version is ABOUT, **never sent** | 26,959 → 6 findings, 4 real |
+| v3417 | 8,976 chars → **4 of 5 changed files never sent** | 31,930 → 7 findings |
+
+Measured after the raise: v3417's payload goes **8,976 → 25,990 chars, reach 34% → 99.2%**.
+
+**26,000 is inside witnessed territory, not a guess.** The ledger holds **seven completed looks at
+≥26,000 chars**, the largest **37,973** (v2824, clean).
+
+**The law this ships with, and it cuts both ways:** *a cap may only be a size the eye has actually
+been SEEN to finish at.* It refuses a blind raise — the `threshold-above-the-ceiling` scar — and it
+equally refuses a quiet lowering to a size the evidence does not support. ⚠ **An EMPTY SEAT is not
+a witness:** a payload that was sent and never answered proves the payload left, never that the eye
+could chew it, which is the entire question.
+
+**Gate:** `tv/test_a_cap_must_be_a_size_the_eye_has_finished.py` — 10 cases, one a BASELINE. It
+builds its **own temp ledger** rather than reading the untracked `.second_eye.jsonl`, which on a
+runner would be a permanent skip reading as a pass. 3 RED_PROOFs, all PROVEN.
+**Heart:** `console_doctor` row `the eye cap is a size it has finished` — compares the SHIPPED cap
+against the largest payload this machine has actually seen answered. Live: **OK, 26 ms**, cap 26000
+against a witness of 37973. All 6 branches driven, 5 of them non-OK. UNKNOWN is a real answer: a
+machine with no finished look cannot vouch for any cap, and says so.
+
+⚠ **RESIDUAL, NOT FIXED HERE:** at 26,000 `bible.html` and `tv/control_ui.html` still do not reach
+the eye on a v3417-sized diff — `MIN_USEFUL_SLICE = 1500` drops a file whose fair share falls below
+1,500 rather than sending a sliver. That is a share-allocation question, not a cap question.
+
 ### REG-1144 — v3414's own defect class, reproduced inside v3414, plus a race its fix created
 
 **v3417, 2026-09-22.** The second eye looked at v3414 **at full reach** and returned 6 findings.

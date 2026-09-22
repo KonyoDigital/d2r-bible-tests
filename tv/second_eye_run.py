@@ -74,11 +74,30 @@ EYE_CWD = os.environ.get("THIRD_EYE_CWD") or tempfile.mkdtemp(prefix="second_eye
 
 # A prompt has to fit. Truncation is allowed; SILENT truncation is not — what was dropped is
 # reported in the row, so a thin look can never read as a thorough one.
-# MEASURED, not guessed: a 7,366-char payload came back in seconds; 24,000 chars timed out at
-# 240s and was correctly recorded as an EMPTY SEAT. A cap above what the eye can actually chew
-# turns every look into a non-look, which is the same "threshold above the ceiling" that made the
-# runaway guard unreachable. [[feedback-threshold-above-the-ceiling]]
-MAX_FENCE_CHARS = 9000
+#
+# ⚠⚠ v3418 — 9,000 -> 26,000, HIS RULING, 2026-09-22: *"raise the cap to 26000"*. v3299 had left
+# the cost with him and #143 had been waiting on exactly this call.
+#
+# ⚠ AND THE OLD NUMBER'S OWN REASONING HAD EXPIRED. The comment here read: *"24,000 chars timed
+# out at 240s and was correctly recorded as an EMPTY SEAT"*. True when written — and measured
+# against a 240s bound THAT NO LONGER EXISTS. `EYE_TIMEOUT_S` is 1200 (see above, raised after a
+# 22,519-char v3404 payload was killed at 300s), so the evidence for 9,000 was evidence about a
+# bound, not about the eye. A comment stating a rule the code no longer follows is worse than no
+# comment: it makes the next reader re-derive a conclusion that is already dead.
+# [[feedback-comments-vs-code]] [[stale-reading]]
+#
+# ⚠ WHAT THE COST OF 9,000 ACTUALLY WAS, measured on three versions in one day — at the old cap
+# the eye never saw the subject of the change, and at full reach it found real defects every time:
+#     v3413   8,622 chars -> cannot-tell, 0 findings   |   25,074 -> 5 findings, 3 real
+#     v3414   8,947 chars -> control_ui.html, the file the version is ABOUT, never sent
+#     v3417   8,976 chars -> 4 of 5 changed files never sent   |   31,930 -> 7 findings
+#
+# ⚠ AND 26,000 IS INSIDE WITNESSED TERRITORY, not a guess. The ledger holds SEVEN completed looks
+# at >= 26,000 chars, the largest 37,973 (v2824, clean). That is the law the new gate pins: a cap
+# may only be a size the eye has actually been SEEN to finish at, so this can never be raised
+# blindly into "threshold above the ceiling" — nor lowered back without noticing what it costs.
+# [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+MAX_FENCE_CHARS = 26000
 
 # ⚠ THAT CEILING BELONGS TO ONE TRANSPORT, NOT TO THE TRUTH. 9,000 is what the CLI can chew in an
 # INLINE fence. A file-upload transport is a different pipe with a different ceiling, and holding

@@ -1091,6 +1091,57 @@ def looked_at_commit(sha, path=None):
     return False if any_stamped else None
 
 
+def largest_finished_look(path=None):
+    """The biggest payload the eye has ever ANSWERED, in characters. -> int | None
+
+    ⚠ None is a THIRD STATE and the important one: an empty ledger has witnessed nothing, so it
+    cannot vouch for any cap. Returning 0 would make every cap look unwitnessed, and returning a
+    large number would make every cap look fine — both are answers nobody measured.
+    [[unknown-stays-unknown]]
+
+    Only a row that was REACHED and came back with a verdict counts. An empty seat proves the
+    payload was SENT, never that the eye could chew it, which is the whole question here.
+    """
+    best = None
+    for r in _rows(path):
+        if not isinstance(r, dict):
+            continue
+        if r.get("reached") is not True:
+            continue
+        if not str(r.get("verdict") or "").strip():
+            continue
+        sc = r.get("sentCode")
+        n = sc.get("chars") if isinstance(sc, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool):
+            if best is None or n > best:
+                best = n
+    return best
+
+
+def cap_is_witnessed(cap, path=None):
+    """Has the eye ever FINISHED a look at least this large? -> True | False | None
+
+    v3418 — THE LAW BEHIND THE CAP, after Konyo raised it 9,000 -> 26,000 on 2026-09-22.
+
+    A cap is a threshold, and this repo has paid twice for thresholds nobody measured against the
+    thing they bound: `feedback-threshold-above-the-ceiling`. The old 9,000 was justified by
+    "24,000 timed out at 240s" — true, and measured against a bound (EYE_TIMEOUT_S) that was later
+    raised to 1200, so the evidence had quietly expired while the number stayed.
+
+    So the rule is neither "9,000 is safe" nor "bigger is better": **a cap may only be a size the
+    eye has actually been SEEN to finish at.** That can be checked, because every row records what
+    was really sent. It refuses a blind raise, and it equally refuses a quiet lowering to a size
+    the evidence does not support.
+    """
+    big = largest_finished_look(path)
+    if big is None:
+        return None
+    try:
+        return big >= int(cap)
+    except Exception:
+        return None
+
+
 def owes_a_look(version, path=None):
     """True when `version` shipped and no different family has looked at it."""
     return not looked_at(version, path)
