@@ -136,12 +136,26 @@ names a dead address is how a fresh session dumps a brief where nobody reads it,
 failure this harness exists to end. Name ONE wire, and let the doc be where it is named.
 [[copy-drift]] [[stale-reading]]
 
+⚠⚠ **AND IT HAPPENED AGAIN, TO THIS VERY SECTION — 2026-09-23.** The paragraph above warns that
+*"a skill that names a dead address is how a fresh session dumps a brief where nobody reads it"*
+— and then this table went on naming #179/#180 after both were **rotated CLOSED on 2026-09-18**.
+Measured: #179 and #180 are closed; #230 carries 162 comments and is the live handoff queue.
+⚠ GitHub ACCEPTS COMMENTS ON CLOSED ISSUES, so posting there looks exactly like working, which
+is why `handoff.py` still drains them. Same failure, one generation later.
+[[copy-drift]] [[stale-reading]]
+
 **THE LIVE WIRES:**
 
 | issue | queue | ids |
 |---|---|---|
-| **#179** | backend third-eye, version by version | `GB-B-n` |
-| **#180** | live console / eyes, version by version | `GB-L-n` |
+| **#230** | the handoff queue — GrokBot drives the live console and posts what it SAW | `GB-L`, `GB-L-MAC`, `GB-L-GUEST` |
+| **#231** | the second eye — cross-family review of a shipped version, one comment per look | `SECOND-EYE` |
+| ~~#179~~ | ~~backend~~ | **CLOSED 2026-09-18 — never post** |
+| ~~#180~~ | ~~live/eyes~~ | **CLOSED 2026-09-18 — never post** |
+
+⚠ **EVERY COMMENT IN THIS REPO SHOWS `KonyoDigital` AS ITS AUTHOR.** GitHub cannot tell the
+seats apart, so the TAG ON THE FIRST LINE is the only thing identifying who posted — which is
+why four distinct seats read as one to a fresh session.
 
 **#3 is HISTORY** — 492 comments, last useful on 2026-08-28. Read it to understand a past finding;
 never post to it.
@@ -153,7 +167,8 @@ prompt, you will keep getting the #3 dump."* Paste this verbatim — do not para
 paraphrase is a second source and the two will drift:
 
 ```
-WIRE: #179 backend (GB-B-n) · #180 live/eyes (GB-L-n). #3 is CLOSED — never post there.
+WIRE: #230 handoff/eyes · #231 second eye. #3, #179 and #180 are CLOSED — never post there.
+TAG your seat on the FIRST line: every comment here shows KonyoDigital as its author.
 ROLES: Grok Bot LOOKS and never edits the tree. Claude CODES and never drives :17772.
 DON'T TOUCH: no relaunch, no kill, no pid. The prune stays OFF — that is HIS call, not ours.
 UNKNOWN is a first-class answer. An eye that did not look is an EMPTY SEAT, never agreement.

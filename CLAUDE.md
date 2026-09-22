@@ -20,6 +20,36 @@ model choosing to act on it. This file is context. It arrives whether anyone rem
 **Always, in this repo, no exceptions.** Loading a carved skill at verification time only shapes the
 check; loading it at step 0 shapes the build.
 
+### ⚠⚠ STEP 0 IS A SCRIPT, NOT A REMINDER — RUN IT BEFORE THE FIRST TOOL CALL
+
+**This block exists because the TABLE BELOW WAS ALREADY HERE AND DID NOT WORK.** On 2026-09-23 a
+session read this file on every single turn, could name every skill in it, and had loaded **eight**
+— then built for hours without `grok-second-eye`, `process-port-discipline`, `copy-drift`,
+`d2r-bible` or `human-eyes-harness`. Konyo had to say it twice: *"i want you loading the skills
+please"*, then *"keep loading the rest of the skills!"* — which is the same correction that made
+this file exist on 2026-09-01. **A list of what to load is not a load.** So it is now a sequence to
+execute, at the one place no session can go around:
+
+```
+Skill(grok-second-eye)  ·  Skill(process-port-discipline)  ·  Skill(copy-drift)
+Skill(test-venue)  ·  Skill(regression-guard)  ·  Skill(the-unjoined-end)
+Skill(unknown-stays-unknown)  ·  Skill(stale-reading)  ·  Skill(heart-first)
+Skill(sweep-dont-ask)  ·  Skill(source-reading-guard)
+cat .claude/skills/d2r-bible/SKILL.md          # directory-scoped — Skill() answers "Unknown skill"
+cat .claude/skills/human-eyes-harness/SKILL.md #   and that is NOT absence
+```
+
+**What the four unloaded ones cost in that one session, measured:**
+
+| skill | what it caught within minutes of loading |
+|---|---|
+| `grok-second-eye` | I was re-deriving a read-only mechanism `claude_vision.sh` already ships (`--deny Edit --deny Write --deny MultiEdit`) |
+| `process-port-discipline` | **1,062 leaked scratch dirs**, oldest Sep 9, that nothing was looking for |
+| `human-eyes-harness` | its own wire map named **#179/#180**, closed since 2026-09-18 — the exact defect it warns about |
+| `d2r-bible` | this file claimed **30 gates**; the registry says **523** |
+
+⚠ **Loading eight and stopping reads exactly like loading none, for the two that mattered.**
+
 | Skill | Why it is mandatory here |
 |---|---|
 | **d2r-bible** | a push to main PUBLISHES the live site · a version is four stamps · `bible.html` has a second writer · his ticks are testimony · the gate set fails by going silent |

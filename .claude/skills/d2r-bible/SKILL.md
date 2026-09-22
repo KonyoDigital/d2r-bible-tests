@@ -132,8 +132,19 @@ RotW authority. A "correct" vanilla fact can be wrong here, and that is not a da
 
 ## 8. The gate set is the verdict — and its failure mode is SILENCE
 
-`python3 tv/run_gates.py` runs **30 gates** and returns one verdict. CI runs the same file, so the
-two cannot drift (they did: CI hand-listed 7 while the file knew 26).
+`python3 tv/run_gates.py` runs the whole registered set and returns one verdict. CI runs the same
+file, so the two cannot drift (they did: CI hand-listed 7 while the file knew 26).
+
+⚠⚠ **DO NOT QUOTE A GATE COUNT FROM THIS FILE — ASK THE REGISTRY.** This section said **30** for
+months; measured 2026-09-23 it is **523**. A number in prose is a snapshot that ages the moment a
+gate is added, and every session that quoted 30 was wrong by an order of magnitude while sounding
+precise. The registry is the only honest source:
+
+```bash
+python3 -c "import sys;sys.path.insert(0,'tv');import run_gates as r;print(len(r.GATES))"
+```
+
+[[stale-reading]] — a figure with no way to re-derive it is a claim, not a measurement.
 
 - `TestNoOrphanSuite` fails on any `tv/test_*.py` missing from the list — so **a new suite must be
   registered in `run_gates.py`**, and a runnable check that is *not* a `tv/test_*.py` can never be
@@ -155,7 +166,7 @@ two cannot drift (they did: CI hand-listed 7 while the file knew 26).
 ### The gate set does not LOOK at the page — `tv/render_check.py` does
 
 `run_gates.py` proves the page parses, keeps its type tokens and serves the right files. **None of
-it opens the page.** Every visual defect Konyo has reported was green in all 30 gates, because the
+it opens the page.** Every visual defect Konyo has reported was green in EVERY ONE of them, because the
 things they measure were all correct.
 
 ```bash
