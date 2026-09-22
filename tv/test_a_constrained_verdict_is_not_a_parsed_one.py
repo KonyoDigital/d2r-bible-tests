@@ -152,6 +152,88 @@ class TestAConstrainedVerdictIsNotAParsedOne(unittest.TestCase):
                           "the eye is not denied the %s tool" % tool)
 
 
+class TestTheRowAnswersAboutTODAY(unittest.TestCase):
+    """v3423 - THE DOCTOR HALF, REWRITTEN AFTER THE SECOND EYE REVIEWED v3420 AND NAMED IT.
+
+    v3420 shipped `if schema: return OK`, so ONE constrained row anywhere in a window of twelve
+    held the row green. A window of twelve spans WEEKS on this ledger, so the transport could break
+    today and the row would keep answering OK until eleven more looks had pushed the good one out.
+    **A check that answers about a POPULATION cannot detect a CHANGE.** It also never read a time,
+    so a look from last month counted exactly like one from this morning.
+
+    ⚠ MEASURED ON HIS REAL LEDGER: `1 of the last 12 constrained, 11 predate the field`. That is
+    precisely the shape where the old law said OK on the strength of a single row.
+    """
+
+    def _row(self):
+        import console_doctor as cd
+        return dict(cd.CHECKS)["the eye answers in a field"]
+
+    def _drive(self, rows):
+        """Answer the row from a fabricated ledger. ⚠ ts is MILLISECONDS - the same unit that
+        already cost a reading in the G5 budget lane."""
+        import console_doctor as cd
+        import second_eye_ledger as _sel
+        orig = _sel._rows
+        try:
+            _sel._rows = lambda: rows
+            return self._row()()
+        finally:
+            _sel._rows = orig
+
+    @staticmethod
+    def _look(route, days_old, verdict="clean"):
+        import time
+        r = {"reached": True, "verdict": verdict,
+             "ts": int((time.time() - days_old * 86400) * 1000)}
+        if route:
+            r["verdictFrom"] = route
+        return r
+
+    def test_a_prose_newest_look_is_RED_even_behind_eleven_constrained_ones(self):
+        """THE v3420 DEFECT ITSELF. The population is overwhelmingly good and the answer is still
+        no: the constraint stopped being applied on the most recent look, which is the only one
+        that can report that it broke."""
+        rows = [self._look("schema", 20 - i) for i in range(11)] + [self._look("prose", 0.1)]
+        st, say = self._drive(rows)
+        import console_doctor as cd
+        self.assertEqual(st, cd.MISSING,
+                         "eleven constrained looks masked a prose newest one: %s" % say)
+
+    def test_a_constrained_newest_look_is_GREEN_even_behind_eleven_prose_ones(self):
+        """The mirror, so the law is not simply "go red more often" - a lane that has just been
+        FIXED must read green immediately, not after eleven more looks."""
+        rows = [self._look("prose", 20 - i) for i in range(11)] + [self._look("schema", 0.1)]
+        st, say = self._drive(rows)
+        import console_doctor as cd
+        self.assertEqual(st, cd.OK, "a repaired lane still read broken: %s" % say)
+
+    def test_a_STALE_newest_look_is_UNKNOWN_and_never_a_clean_bill(self):
+        """⚠ A ROUTE IS A FACT ABOUT THE LOOK THAT CARRIED IT. A constrained look from a month ago
+        says nothing about the eye today, and a lane nobody is asking cannot report that it broke.
+        [[stale-reading]] 4 - a verdict with no expiry is not a verdict."""
+        st, say = self._drive([self._look("schema", 31)])
+        import console_doctor as cd
+        self.assertEqual(st, cd.UNKNOWN, "a month-old look was served as today's answer: %s" % say)
+        self.assertIn("days old", say, "the row does not say how stale its evidence is")
+
+    def test_a_look_with_no_timestamp_is_UNKNOWN(self):
+        """An undatable reading cannot be ordered against anything, and 0 would be 1970 - before
+        everything - which silently admits the whole store."""
+        bad = self._look("schema", 0.1)
+        bad["ts"] = 0
+        st, _say = self._drive([bad])
+        import console_doctor as cd
+        self.assertEqual(st, cd.UNKNOWN, "a look with no usable stamp was treated as current")
+
+    def test_a_row_predating_the_field_is_UNKNOWN_not_prose(self):
+        """Nobody recorded how those verdicts were obtained. Reading them either way invents
+        evidence."""
+        st, _say = self._drive([self._look(None, 0.1)])
+        import console_doctor as cd
+        self.assertEqual(st, cd.UNKNOWN, "an unrecorded route was resolved by assumption")
+
+
 RED_PROOF = [
     {
         "why": "v3420 - THE ENUM CHECK REMOVED. Accepting whatever string the field holds means a "
@@ -178,6 +260,25 @@ RED_PROOF = [
         "file": "second_eye_run.py",
         "find": '    if _verdict_from == "prose":',
         "replace": '    if True:',
+        "matches": 1,
+    },
+    {
+        "why": "v3423 - THE POPULATION LAW, PUT BACK. v3420 answered `if schema: return OK`, so one "
+               "constrained row anywhere in a window of twelve - which spans WEEKS on this ledger - "
+               "held the row green while the transport was already broken. A check that answers "
+               "about a population cannot detect a change.",
+        "file": "console_doctor.py",
+        "find": "    route = str(newest.get(\"verdictFrom\") or \"\")",
+        "replace": "    route = \"schema\" if schema else (\"prose\" if prose else \"\")",
+        "matches": 1,
+    },
+    {
+        "why": "v3423 - THE EXPIRY, REMOVED. Without it a constrained look from last month is "
+               "served as today's answer, and a lane nobody is asking reads exactly like a lane "
+               "that is working.",
+        "file": "console_doctor.py",
+        "find": "    if age_d > 7.0:",
+        "replace": "    if False:",
         "matches": 1,
     },
 ]

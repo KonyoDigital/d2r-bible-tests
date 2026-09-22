@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3422",
+  "ver": "v3423",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3422: EYE_CWD was a module-level mkdtemp, so 31 importers minted one each and a full gate run left 30 behind; three BARE imports proved it with no look asked. It is now a computed per-process path, created at use and removed in a finally AND at atexit. The sweep behind it found 110,447 scratch dirs and 4.8 GB of ours on his Mac, oldest 20.6 days; 94,635 removed, the rest filed as 171",
+  "note": "v3423: v3420 answered if schema return OK, so one constrained row in a window of twelve - which spans weeks - held the row green while the transport could already be broken; it never read a time either. The verdict is now the NEWEST looks, a newest look over 7 days old is UNKNOWN with its age stated, and the repaired-lane mirror is pinned so the law is not merely stricter",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

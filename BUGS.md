@@ -7,6 +7,42 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1150 - A CHECK THAT ANSWERS ABOUT A POPULATION CANNOT DETECT A CHANGE
+
+**v3423 - the second eye's own finding on v3420, folded back in.** The row that watches whether the
+eye's verdicts are still schema-constrained was written as:
+
+```python
+if schema:                      # ANY constrained row among the last twelve
+    return OK
+```
+
+A window of twelve spans **weeks** on this ledger. So the transport could break today - `--json-schema`
+stops being accepted, the envelope shape changes, the CLI is swapped - and the row would keep
+answering OK until eleven more looks had pushed the single good row out of the window. **MEASURED on
+his real ledger the same hour: `1 of the last 12 constrained, 11 predate the field`** - exactly the
+shape where one row was carrying the verdict.
+
+⚠ **AND IT NEVER READ A TIME.** A route is a fact about the look that carried it; a constrained look
+from last month says nothing about the eye today, and a lane nobody is asking cannot report that it
+broke. [[stale-reading]] §4 - a verdict with no expiry is not a verdict.
+
+**Now:** the verdict is the NEWEST answered look's, the tally stays as context, and a newest look
+older than 7 days is `UNKNOWN` with its age stated. ⚠ `ts` is MILLISECONDS - divided once, at the
+one site, because that unit confusion already cost a reading in the G5 budget lane.
+
+⚠ **AND THE MIRROR IS PINNED TOO, DELIBERATELY.** A law that only ever goes red more often is not
+the same law: a lane that has just been REPAIRED must read green immediately, not after eleven more
+looks. Both directions are cases.
+
+**Gate** `test_a_constrained_verdict_is_not_a_parsed_one` - now 16 cases, **5/5 red-proofs PROVEN**
+(the population law put back, and the expiry removed, each turning its own case red).
+
+⚠ **A SUSPICION RAISED AND REFUTED, recorded so nobody re-chases it:** `second_eye_ledger` sorts
+descending at one site, so `rows[-12:]` looked like it might be reading the OLDEST twelve. It is
+not - `_rows()` returns file order, ascending (verified: `rows[0]` = v2142 2026-08-26, `rows[-1]` =
+v3420 2026-09-23). v3420 was reading the right end.
+
 ### REG-1149 - A DIRECTORY CREATED AT IMPORT IS CREATED BY EVERY READER, FOREVER
 
 **v3422 - task #170, whose own premise the measurement refuted.** The task read *"EYE_CWD makes a

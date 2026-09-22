@@ -6732,19 +6732,47 @@ def _check_the_eye_is_still_answering_in_a_constrained_field():
     schema = sum(1 for r in recent if str(r.get("verdictFrom") or "") == "schema")
     prose = sum(1 for r in recent if str(r.get("verdictFrom") or "") == "prose")
     silent = len(recent) - schema - prose
+    tally = ("%d of the last %d answered look(s) constrained, %d parsed from prose, %d predate the "
+             "field" % (schema, len(recent), prose, silent))
+
+    # ⚠⚠ v3423 - THE VERDICT IS THE NEWEST LOOK'S, NOT A TALLY'S, AND THE SECOND EYE FOUND THAT.
+    # v3420 wrote `if schema: return OK`, so ONE constrained row anywhere in the last twelve held
+    # this green - and since a window of twelve spans weeks, the transport could break today and
+    # this row would keep saying OK until eleven more looks had pushed the good one out. A check
+    # that answers about a POPULATION cannot detect a CHANGE. [[a-law-about-a-row-must-drive-the-row]]
+    newest = recent[-1]                     # _rows() is file order, ascending - verified, not assumed
+    route = str(newest.get("verdictFrom") or "")
+
+    # ⚠ AND IT NEVER READ A TIME. A route is a fact about the look that carried it, and a look from
+    # last month says nothing about whether the eye is constrained NOW. [[stale-reading]] 4 - a
+    # verdict with no expiry is not a verdict.
+    # ⚠ `ts` IS MILLISECONDS. The G5 budget lane already cost a reading by treating one unit as
+    # the other; divide once, here, and never compare a ms stamp to a seconds clock.
+    try:
+        age_d = (time.time() - (float(newest.get("ts") or 0) / 1000.0)) / 86400.0
+    except Exception:
+        age_d = None
+    if age_d is None or age_d < 0 or not newest.get("ts"):
+        return UNKNOWN, ("the newest answered look carries no usable timestamp, so whether the eye "
+                         "is being constrained TODAY cannot be established (%s)" % tally)
+    if age_d > 7.0:
+        return UNKNOWN, ("the newest answered look is %.1f days old, so this says nothing about "
+                         "the eye's route today - a lane that is not being asked cannot report "
+                         "that it broke (%s)" % (age_d, tally))
+
     # ⚠ A ROW FROM BEFORE v3420 CARRIES NO verdictFrom AT ALL, and that is not "prose" - nobody
-    # recorded how it was obtained. Counting it either way would invent evidence.
-    if schema:
-        return OK, ("%d of the last %d answered look(s) carried a CONSTRAINED verdict (%d parsed "
-                    "from prose, %d predate the field and say nothing about their route)"
-                    % (schema, len(recent), prose, silent))
-    if prose:
-        return MISSING, ("the last %d answered look(s) were ALL parsed from prose and none was "
-                         "constrained - the schema stopped being applied, and the verdict is back "
-                         "to being inferred by the parser whose own history includes filing a "
-                         "clean look as findings" % prose)
-    return UNKNOWN, ("%d recent look(s) predate the route field entirely, so how their verdicts "
-                     "were obtained is unrecorded - not prose, not schema, unknown" % silent)
+    # recorded how it was obtained. Reading it either way would invent evidence.
+    if route == "schema":
+        return OK, ("the newest look (%.1f days old) carried a CONSTRAINED verdict; %s"
+                    % (age_d, tally))
+    if route == "prose":
+        return MISSING, ("the newest look (%.1f days old) was PARSED FROM PROSE, not constrained - "
+                         "the schema has stopped being applied and the verdict is back to being "
+                         "inferred by the parser whose own history includes filing a clean look as "
+                         "findings; %s" % (age_d, tally))
+    return UNKNOWN, ("the newest look (%.1f days old) predates the route field, so how its verdict "
+                     "was obtained is unrecorded - not prose, not schema, unknown; %s"
+                     % (age_d, tally))
 
 
 CHECKS = [
