@@ -18,6 +18,14 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC_PATH = os.path.join(HERE, "control_app.py")
 
+# ⚠⚠ v3409 — THE GATE READ ONE FILE AND THE FAULT LIVED IN TWO. The cross-family review of v3404
+# named a site v3407 could not reach: console_doctor.py spawns git as well (`git show
+# --name-only`, and `git rev-list --count HEAD..origin/main` on the eagle tick). This guard only
+# ever opened control_app.py, so it was green while two more console-popping spawns survived in a
+# file it never looked at. A guard's REACH is part of its verdict.
+SRC_PATHS = (SRC_PATH, os.path.join(HERE, "console_doctor.py"))
+DOOR_PATH = os.path.join(HERE, "git_quiet.py")
+
 
 def _is_git_argv(node):
     """True when the call's first positional arg is an argv whose first element is 'git'.
@@ -39,48 +47,97 @@ def _is_git_argv(node):
     return False
 
 
+# Aliases the one door is imported under. `git_quiet.run` and `_gq.run` are the door;
+# `subprocess.run` is the thing the door exists to replace.
+DOOR_MODULES = ("git_quiet", "_git_quiet", "_gq", "GQ")
+
+
 def _callee_name(node):
+    """A DOTTED name, because the last segment alone cannot tell the door from the hole.
+
+    ⚠⚠ v3409 — THIS EXACT BLINDNESS WAS CAUGHT BY heart2, ONE HOUR AFTER I INTRODUCED IT.
+    Widening the gate to accept the door's new home, `_gq.run(...)`, I accepted the bare callee
+    name "run" — and `subprocess.run(...)` is ALSO an Attribute whose attr is "run". So the guard
+    admitted precisely the call it exists to ban, and its own red-proof stayed GREEN through its
+    own defeat: `BLIND ← stayed GREEN through its own defeat (1 match(es))`. The match count was
+    1, so the sabotage was sound and the LAW was weak. [[sabotage-is-usually-the-wrong-one]]
+    (the mirror case) [[source-reading-guard]]
+    """
     func = node.func
     if isinstance(func, ast.Name):
         return func.id
     if isinstance(func, ast.Attribute):
-        return func.attr
+        base = func.value
+        if isinstance(base, ast.Name):
+            return "%s.%s" % (base.id, func.attr)
+        return "?.%s" % func.attr
     return None
 
 
+def _is_the_one_door(name):
+    if name == "_git_run":
+        return True
+    if not name or "." not in name:
+        return False
+    mod, _, attr = name.rpartition(".")
+    return attr == "run" and mod in DOOR_MODULES
+
+
 class TestWindowsGitSpawnsHideTheConsole(unittest.TestCase):
-    def test_every_git_argv_goes_through__git_run(self):
-        with io.open(SRC_PATH, encoding="utf-8") as fh:
-            src = fh.read()
-        tree = ast.parse(src)
-        offenders = []
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            if not _is_git_argv(node):
-                continue
-            name = _callee_name(node)
-            if name != "_git_run":
-                offenders.append("L%s %s(... ['git', ...])" % (node.lineno, name or "?"))
+    def test_every_git_argv_goes_through_the_ONE_door(self):
+        offenders, total = [], 0
+        for p in SRC_PATHS:
+            with io.open(p, encoding="utf-8") as fh:
+                src = fh.read()
+            for node in ast.walk(ast.parse(src)):
+                if not isinstance(node, ast.Call):
+                    continue
+                if not _is_git_argv(node):
+                    continue
+                total += 1
+                name = _callee_name(node)
+                if not _is_the_one_door(name):
+                    offenders.append("%s L%s %s(... ['git', ...])"
+                                     % (os.path.basename(p), node.lineno, name or "?"))
         self.assertEqual(
             offenders,
             [],
-            "git is spawned without _git_run, so Windows will pop a console and steal focus:\n  "
-            + "\n  ".join(offenders),
+            "git is spawned outside the one door, so Windows will pop a console and steal "
+            "focus:\n  " + "\n  ".join(offenders),
         )
+        self.assertGreaterEqual(total, 14,
+                                "only %d git argv site(s) were found across %d file(s) — the walk "
+                                "has stopped reaching them, which is a green that means nothing"
+                                % (total, len(SRC_PATHS)))
+        print("git argv sites across %d file(s): %d, all through the one door"
+              % (len(SRC_PATHS), total))
 
-    def test__git_run_hides_the_window_on_windows(self):
-        with io.open(SRC_PATH, encoding="utf-8") as fh:
+    def test_there_is_exactly_ONE_door_body(self):
+        """⚠ [[copy-drift]] — two bodies means one of them eventually stops matching."""
+        bodies = []
+        for name in sorted(os.listdir(HERE)):
+            if not name.endswith(".py") or name.startswith("test_"):
+                continue
+            with io.open(os.path.join(HERE, name), encoding="utf-8") as fh:
+                code = "\n".join(l.split("#", 1)[0] for l in fh.read().split("\n"))
+            if "mingw64" in code and "STARTF_USESHOWWINDOW" in code:
+                bodies.append(name)
+        self.assertEqual(bodies, ["git_quiet.py"],
+                         "the mingw redirect exists in more than one place, so a fix to one leaves "
+                         "the other popping windows: %s" % bodies)
+
+    def test_the_one_door_hides_the_window_on_windows(self):
+        with io.open(DOOR_PATH, encoding="utf-8") as fh:
             src = fh.read()
-        i = src.find("def _git_run(")
-        self.assertGreater(i, -1, "_git_run is gone, so nothing hides git consoles")
+        i = src.find("def run(")
+        self.assertGreater(i, -1, "git_quiet.run is gone, so nothing hides git consoles")
         blk = src[i:src.find("\ndef ", i + 1)]
-        self.assertIn("_WIN_CREATE", blk, "_git_run dropped CREATE_NO_WINDOW")
-        self.assertIn("_GIT_MINGW", blk, "_git_run no longer calls mingw64 git directly")
+        self.assertIn("WIN_CREATE", blk, "the one door dropped CREATE_NO_WINDOW")
+        self.assertIn("GIT_MINGW", blk, "the one door no longer calls mingw64 git directly")
         self.assertNotIn("headless-git", blk,
                          "headless-git.exe still spawns a CUI git.exe child that WT focuses")
-        self.assertIn("STARTF_USESHOWWINDOW", blk, "_git_run dropped SW_HIDE")
-        self.assertIn("GIT_TERMINAL_PROMPT", blk, "_git_run can still prompt and steal focus")
+        self.assertIn("STARTF_USESHOWWINDOW", blk, "the one door dropped SW_HIDE")
+        self.assertIn("GIT_TERMINAL_PROMPT", blk, "the one door can still prompt and steal focus")
 
 
 RED_PROOF = [
@@ -101,8 +158,8 @@ RED_PROOF = [
                "Windows' PATH git is a 46 KB CUI WRAPPER that spawns the real git WITHOUT "
                "inheriting CREATE_NO_WINDOW, so hiding the wrapper hides nothing. Dropping "
                "_GIT_MINGW leaves a helper that looks careful and still alt-tabs him off the game.",
-        "file": "control_app.py",
-        "find": '        if argv and argv[0] == "git" and os.path.isfile(_GIT_MINGW):\n            argv[0] = _GIT_MINGW\n',
+        "file": "git_quiet.py",
+        "find": '        if argv and argv[0] == "git" and os.path.isfile(GIT_MINGW):\n            argv[0] = GIT_MINGW\n',
         "replace": "",
         "matches": 1,
     },
@@ -111,7 +168,7 @@ RED_PROOF = [
                "allocated; STARTF_USESHOWWINDOW + wShowWindow 0 governs whether any window the "
                "child does create is shown. Dropping it leaves the case that Windows Terminal "
                "takes the focus anyway.",
-        "file": "control_app.py",
+        "file": "git_quiet.py",
         "find": "        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW\n        si.wShowWindow = 0\n",
         "replace": "",
         "matches": 1,

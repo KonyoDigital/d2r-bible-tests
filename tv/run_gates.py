@@ -1234,6 +1234,31 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_failed_pull_is_not_a_pull_that_found_nothing",
+         [sys.executable, os.path.join(HERE, "test_a_failed_pull_is_not_a_pull_that_found_nothing.py")], 60,
+         why="v3409 - EVERY LAW HERE WAS NAMED BY THE CROSS-FAMILY REVIEW OF v3404, reading the "
+             "shipped diff cold, and all four were real. (1) _pull_once ran git fetch and git "
+             "merge --ff-only and read NEITHER return code; only a timeout reached its except, so "
+             "an offline fetch, a credential refusal, a FETCH_HEAD.lock held by "
+             "fleet_origin_status on the SAME 300s cadence, a diverged history or a refused "
+             "fast-forward all left HEAD unmoved - and moved = before != after is False for "
+             "nothing-to-do and for it-did-not-work ALIKE, so the lane published 'already level "
+             "with origin/main', the one sentence it must never say falsely. Its own None "
+             "(cannot ask) was unreachable code, and it is STICKY: a SIGKILLed fetch can leave a "
+             "lock behind so every later attempt takes the same false-clean path. (2) git status "
+             "exit 128 with EMPTY stdout is how git reports dubious ownership, a broken index or "
+             "a held lock, and reading only stdout turned each into 'nothing is modified, go "
+             "ahead and pull' - on a console that EXECS THE WORKING TREE. (3) the heart row dated "
+             "`behind` from FETCH_HEAD, which any fetch of any OTHER ref rewrites, so a machine "
+             "whose main was a day stale could read 'level, fetched 0.0h ago'. ⚠ AND THE OBVIOUS "
+             "FIX WAS WORSE, MEASURED BEFORE IT SHIPPED: swapping in the ref's mtime made the row "
+             "read MISSING 32.1h on a machine that had fetched minutes earlier, because a fetch "
+             "bringing nothing NEW does not rewrite the ref - a row crying wolf is a row someone "
+             "silences. Both ages are now reported and NEITHER answers the other's question. "
+             "(4) three checks added in ONE session shipped without a WATCHES declaration, which "
+             "reads ABSENT in the organ table - indistinguishable from a check nobody wrote. That "
+             "law is now executable rather than remembered. 7 cases incl. a BASELINE, 3 "
+             "red-proofs."),
     Gate("test_the_eye_is_a_cli_seat_outside_the_repo",
          [sys.executable, os.path.join(HERE, "test_the_eye_is_a_cli_seat_outside_the_repo.py")], 60,
          why="v3408 (#154) - EVERY EYE IS A CLI SEAT ON HIS OWN SUBSCRIPTION, AND IT STANDS "

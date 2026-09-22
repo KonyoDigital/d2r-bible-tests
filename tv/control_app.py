@@ -989,24 +989,18 @@ _WIN_CREATE = 0x00000200 | 0x08000000 if IS_WIN else 0
 # ⚠ AND ONE OF THE TWO BURSTS IS MINE: v3404 put `_pull_once()` in the drift beat at 300 s
 # alongside the 120 s fleet cache, which is exactly the cadence he reported. A fix that makes a
 # machine keep itself current must not cost him the window he is playing in.
-_GIT_MINGW = r"C:\Program Files\Git\mingw64\bin\git.exe"
+# ⚠⚠ v3409 — THE DOOR MOVED TO ITS OWN MODULE AND THIS IS NOW A ONE-LINE FORWARD. The
+# cross-family review of v3404 named a site v3407 could not reach: console_doctor.py spawns git
+# too, and v3407's gate reads only THIS file, so the guard was green while two more
+# console-popping spawns survived in a file it never opened. Giving that module its own copy
+# would be [[copy-drift]] — two bodies, one of which eventually stops matching. One module, every
+# caller, and the gate now scans both files.
+import git_quiet as _git_quiet
 
 
 def _git_run(argv, **kw):
-    """subprocess.run for git. On Windows the child must not own a console."""
-    argv = list(argv)
-    if IS_WIN:
-        if argv and argv[0] == "git" and os.path.isfile(_GIT_MINGW):
-            argv[0] = _GIT_MINGW
-        kw["creationflags"] = kw.get("creationflags", 0) | _WIN_CREATE
-        env = dict(kw.get("env") or os.environ)
-        env["GIT_TERMINAL_PROMPT"] = "0"
-        kw["env"] = env
-        si = kw.get("startupinfo") or subprocess.STARTUPINFO()
-        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        si.wShowWindow = 0
-        kw["startupinfo"] = si
-    return subprocess.run(argv, **kw)
+    """subprocess.run for git. On Windows the child must not own a console. See tv/git_quiet.py."""
+    return _git_quiet.run(argv, **kw)
 
 # v1418 — FLEET UNITY: how far is this install behind GitHub origin/main?
 # Cached so /api/status never blocks on a slow fetch every 12s poll.
@@ -18872,8 +18866,19 @@ def _pull_once():
         _set(on=None, say="this tree is not a git checkout, so whether it is current is UNKNOWN")
         return None
     try:
-        _dirty = (_git_run(["git", "status", "--porcelain", "--untracked-files=no"],
-                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
+        # ⚠⚠ v3409 — EXIT 128 WITH EMPTY STDOUT IS NOT A CLEAN TREE. `git status` fails that way on
+        # "detected dubious ownership", a broken index, or a held lock, and reading only stdout
+        # turns every one of those into "nothing is modified, go ahead and pull". Named by the
+        # cross-family review of v3404. [[unknown-stays-unknown]] [[exit-status-of-the-block]]
+        _st = _git_run(["git", "status", "--porcelain", "--untracked-files=no"],
+                       cwd=REPO, capture_output=True, text=True, timeout=20)
+        if _st.returncode != 0:
+            _set(on=True, say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
+                               "this lane does not pull over a tree it cannot see"
+                               % (_st.returncode,
+                                  ((_st.stderr or "").strip().splitlines() or [""])[-1][:90])))
+            return None
+        _dirty = (_st.stdout or "").strip()
     except Exception as e:
         _set(on=True, say="could not read the working tree (%s), so this is UNMEASURED - not clean"
                           % type(e).__name__)
@@ -18885,10 +18890,25 @@ def _pull_once():
     try:
         before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                            cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
-        _git_run(["git", "fetch", "origin", "main", "--quiet"],
-                 cwd=REPO, capture_output=True, text=True, timeout=45)
-        _git_run(["git", "merge", "--ff-only", "origin/main"],
-                 cwd=REPO, capture_output=True, text=True, timeout=45)
+        # ⚠⚠ v3409 — A FAILED FETCH USED TO READ AS "ALREADY LEVEL", WHICH IS THE ONE SENTENCE
+        # THIS LANE MUST NEVER SAY FALSELY. Neither call was checked, so an offline fetch, a
+        # credential refusal, a FETCH_HEAD.lock held by fleet_origin_status on the SAME 300s
+        # cadence, a diverged history or a refused fast-forward all left HEAD unmoved — and
+        # `moved = before != after` is False for "nothing to do" and for "it did not work"
+        # alike, so `say` became "already level with origin/main". The docstring's own None
+        # ("cannot ask") was unreachable. Named by the cross-family review of v3404, and it is
+        # STICKY: one SIGKILLed fetch can leave a lock behind and every later attempt takes the
+        # same false-clean path. [[unknown-stays-unknown]] [[the-unjoined-end]]
+        for _a, _t, _what in (
+                (["git", "fetch", "origin", "main", "--quiet"], 45, "the fetch"),
+                (["git", "merge", "--ff-only", "origin/main"], 45, "the fast-forward")):
+            _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
+            if _r.returncode != 0:
+                _set(on=True, before=before, after=None, pulled=None,
+                     say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date"
+                          % (_what, _r.returncode,
+                             ((_r.stderr or "").strip().splitlines() or [""])[-1][:90])))
+                return None
         after = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
     except Exception as e:
@@ -31140,7 +31160,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3408",
+        "ver": "v3409",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

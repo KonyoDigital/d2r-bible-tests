@@ -211,12 +211,14 @@ def _check_behind_the_fleet():
     last fetched three days ago means "0 behind what I knew three days ago", and saying it plainly
     is the difference between a fact and a reassurance. [[stale-reading]]
     """
-    import subprocess as _sp
     import time as _t
+    import git_quiet as _gq
 
     def _git(*args):
         try:
-            r = _sp.run(("git",) + args, cwd=ROOT, capture_output=True, text=True, timeout=15)
+            # v3409 — the THIRD git spawn in this module, found only after the one-door gate
+            # stopped accepting `subprocess.run` as the door. See tv/git_quiet.py.
+            r = _gq.run(("git",) + args, cwd=ROOT, capture_output=True, text=True, timeout=15)
             return (r.stdout or "").strip() if r.returncode == 0 else None
         except Exception:
             return None
@@ -4945,7 +4947,8 @@ def _check_the_eye_asks_for_every_code_extension():
     sha = str(looked[-1].get("sha"))
     ver = str(looked[-1].get("version") or "?")
     try:
-        p = _sp.run(["git", "show", "--format=", "--name-only", sha],
+        import git_quiet as _gq
+        p = _gq.run(["git", "show", "--format=", "--name-only", sha],
                     cwd=os.path.dirname(here), capture_output=True, text=True, timeout=60)
     except Exception as e:
         return UNKNOWN, "git would not run (%s), so the changed-file set is unmeasured" % type(e).__name__
@@ -5863,7 +5866,8 @@ def _check_this_machine_is_keeping_itself_current():
     if not os.path.isdir(g):
         return UNKNOWN, ("this tree is not a git checkout, so whether it is current is UNKNOWN")
     try:
-        r = _sp.run(["git", "rev-list", "--count", "HEAD..origin/main"],
+        import git_quiet as _gq
+        r = _gq.run(["git", "rev-list", "--count", "HEAD..origin/main"],
                     cwd=ROOT, capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             return UNKNOWN, ("git could not compare this tree against origin/main (%s), so how far "
@@ -5873,32 +5877,58 @@ def _check_this_machine_is_keeping_itself_current():
     except Exception as e:
         return UNKNOWN, ("could not ask git how far behind this machine is (%s) — UNKNOWN, never "
                          "a measured zero" % type(e).__name__)
-    fh = os.path.join(g, "FETCH_HEAD")
-    age_h = None
+    # ⚠⚠ v3409 — TWO AGES, TWO QUESTIONS, AND THE OLD ROW ATTACHED ONE TO THE OTHER. `behind` is
+    # `rev-list HEAD..origin/main`, which reads the LOCAL refs/remotes/origin/main and never
+    # touches the network. Dating THAT number from FETCH_HEAD was dating a different file: any
+    # `git fetch origin some-feature` rewrites FETCH_HEAD and leaves origin/main where it was, so
+    # a machine whose main is a day stale could report "level ... fetched 0.0h ago". Named by the
+    # cross-family review of v3404. [[stale-reading]] §1 — stamp the measurement, not the fetch.
+    #
+    # ⚠⚠ AND THE OBVIOUS FIX WAS WORSE, MEASURED BEFORE IT SHIPPED. Swapping in the REF's mtime
+    # made this row read MISSING "32.1h (by packed-refs)" on a machine that had fetched minutes
+    # earlier — because a fetch that brings nothing NEW does not rewrite the ref at all. That is a
+    # row crying wolf on correct behaviour, which is the row someone silences.
+    # [[strictness-that-closes-the-lane]]
+    #
+    # So both are reported and NEITHER is allowed to answer the other's question:
+    #   FETCH_HEAD age  -> IS ANYTHING STILL FETCHING HERE   (the lane-alive question)
+    #   ref age         -> WHEN origin/main ITSELF LAST MOVED (not when we last looked)
+    fetch_h = ref_h = None
     try:
+        fh = os.path.join(g, "FETCH_HEAD")
         if os.path.exists(fh):
-            age_h = (time.time() - os.path.getmtime(fh)) / 3600.0
+            fetch_h = (time.time() - os.path.getmtime(fh)) / 3600.0
     except Exception:
-        age_h = None
-    if age_h is None:
+        fetch_h = None
+    for _p in (os.path.join(g, "refs", "remotes", "origin", "main"),
+               os.path.join(g, "packed-refs")):
+        try:
+            if os.path.exists(_p):
+                ref_h = (time.time() - os.path.getmtime(_p)) / 3600.0
+                break
+        except Exception:
+            pass
+    if fetch_h is None:
         return UNKNOWN, ("this checkout has never recorded a fetch, so whether anything pulls here "
                          "is UNKNOWN — not a clean bill")
+    _moved = ("origin/main last moved %.1fh ago" % ref_h) if ref_h is not None \
+        else "when origin/main last moved is UNKNOWN"
     if behind > 0:
-        return MISSING, ("this machine is %d commit(s) BEHIND origin/main and the last fetch was "
-                         "%.1fh ago, so it is running code the fleet has moved past. Every "
-                         "automatic pull lives in a launcher — if this console was started another "
-                         "way (raw pythonw, a shortcut, a supervisor) nothing here pulls at all"
-                         % (behind, age_h))
-    if age_h > 24:
-        return MISSING, ("this machine is level with the origin/main it last heard about, but that "
-                         "was %.1fh ago — so 'up to date' is a statement about yesterday. Nothing "
-                         "appears to be fetching here" % age_h)
+        return MISSING, ("this machine is %d commit(s) BEHIND origin/main and the last fetch of "
+                         "any ref was %.1fh ago, so it is running code the fleet has moved past. "
+                         "Every automatic pull lives in a launcher — if this console was started "
+                         "another way (raw pythonw, a shortcut, a supervisor) nothing here pulls "
+                         "at all" % (behind, fetch_h))
+    if fetch_h > 24:
+        return MISSING, ("nothing has fetched here in %.1fh, so 'not behind' is a statement about "
+                         "the last time anyone looked, not about now (%s)" % (fetch_h, _moved))
     # ⚠ "NOTHING TO PULL", NOT "LEVEL". `rev-list HEAD..origin/main` counts only what is BEHIND,
     # so it answers 0 for a machine that is level AND for one that is several commits AHEAD — his
     # Mac is normally ahead, mid-arc. Saying "level" there is a right number under a word that no
     # longer describes it. [[label-outlived-referent]]
-    return OK, ("nothing to pull — this machine is not behind origin/main, fetched %.1fh ago"
-                % age_h)
+    return OK, ("nothing to pull — this machine is not behind origin/main. Last fetch of any ref "
+                "%.1fh ago, and %s. ⚠ neither age dates the other: a fetch that brings nothing "
+                "new leaves the ref untouched" % (fetch_h, _moved))
 
 
 def _check_his_window_has_a_keyboard_door():
@@ -6722,6 +6752,18 @@ def run(include_slow=True, include_periodic=None, tick=None):
 #:     here forever matching nothing and looking like considered coverage.
 #: [[unknown-stays-unknown]] [[the-unjoined-end]] [[source-reading-guard]]
 WATCHES = {
+    # ⚠⚠ v3409 — THREE OF MINE SHIPPED INTO CHECKS WITHOUT A DECLARATION HERE, AND THE
+    # CROSS-FAMILY REVIEW OF v3404 IS WHAT CAUGHT THEM. `set(CHECKS) - set(WATCHES)` must be
+    # empty; a MISSING key reads ABSENT in the organ table, which is indistinguishable from a
+    # check nobody wrote — the exact state v3190 and v3340 were carved over. The empty tuple is
+    # not an omission, it is the honest DECLARATION that the row owns no element of its own.
+    # v3406 — it drives one stubbed call at the real sweep door and grades the harness that
+    # scores it; there is no element of its own.
+    "sweep attack reaches its door": (),
+    # v3407 — it counts git argv sites in source text; no element of its own.
+    "no git child steals his screen": (),
+    # v3408 — it asks whether THIS machine has a CLI eye on disk; no element of its own.
+    "this machine can get a second opinion": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody
