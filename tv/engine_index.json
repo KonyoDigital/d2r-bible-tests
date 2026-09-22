@@ -2069,5 +2069,34 @@
     "purpose": "Derives the live half of RESUME_HERE.md so a resume cannot go stale, the way BLUEPRINT.md and HEART.md cannot. CLAUDE.md points every new session at that file FIRST, and on 2026-09-20 it was FOUR DAYS OLD, opening with 6 commits are built and UNPUSHED while naming five that had shipped long before. Nothing noticed because nothing could: it was prose.",
     "gotcha": "It NEVER fetches. origin/main is whatever the last fetch left in the ref, so the block SAYS how old that knowledge is rather than implying it is current - a generator that reached the network would make every bump wait on it and could hang a ship. Staleness is judged on a FINGERPRINT OF THE FACTS (head, origin, version), never the whole block, because the block also prints a derive timestamp and a fetch age that move every minute and a gate that is always red is switched off as fast as one that is always green. dirty is excluded on purpose: uncommitted files are ordinary mid-work. The narrative OUTSIDE the markers is never touched - a resume that is only derived state cannot say WHY anything is blocked. And it prints non-ASCII, so it enables console_safe or it crashes a cp1255 console WHILE reporting.",
     "territory": "resume-state"
+  },
+  "git_quiet.py": {
+    "entryPoints": [
+      "run"
+    ],
+    "gotcha": "Git for Windows' PATH git (Git\\cmd\\git.exe) is a 46 KB CUI WRAPPER and pythonw owns no console, so a CUI child ALLOCATES one — a real terminal on top of D2R. MEASURED 2026-09-21: windows stealing focus 2-3 in a row every couple of minutes. CREATE_NO_WINDOW on the wrapper is NOT enough because it respawns the real git without the flag, and headless-git.exe still starts a CUI git.exe child — so this calls mingw64\\bin\\git.exe DIRECTLY. It is a module rather than a helper inside control_app because console_doctor spawns git too and a second copy would drift; test_windows_git_spawns_hide_the_console pins that there may only ever be ONE body of the mingw redirect.",
+    "purpose": "The ONE door every git spawn in this codebase walks through, so no git child ever owns a console.",
+    "territory": "routines-infra"
+  },
+  "route_lane_wilson.py": {
+    "entryPoints": [
+      "main"
+    ],
+    "gotcha": "It attacks the predicates routes() actually calls, so a mutation is one idea about one guard rather than another copy of 'delete the file'. A mutation the predicate still accepts is a LEAK and is not banked. Nothing here edits his bible or his rosters — chronicle's check is pointed at a temp file. Written on the Windows box during the 2026-09-22 hardening arc.",
+    "purpose": "Thirty-one distinct mutations of each route lane's OWN predicate — chronicle _source_ok, fleet _defines, roster _declared — counting which ones the predicate still accepts.",
+    "territory": "routing"
+  },
+  "crossfamily_claude.py": {
+    "entryPoints": [
+      "seat_is_dead",
+      "parse_verdict",
+      "ask_claude",
+      "bank_held",
+      "wait_and_review",
+      "main"
+    ],
+    "gotcha": "It does NOT invent the look — it reads a verdict Claude wrote and banks attacks=1 only for a surface whose answer says the claim held. A seat that is signed out, over quota or silent banks NOTHING, because an unreachable eye is an empty seat and never agreement. --wait retries until 20:00 local, the window after the 19:00 renewal.",
+    "purpose": "Banks a recorded Claude verdict as a cross-family attack against the locks that already cleared their attack bar.",
+    "territory": "gates-proofs"
   }
 }
