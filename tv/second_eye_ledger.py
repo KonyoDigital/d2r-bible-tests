@@ -1182,17 +1182,28 @@ def audit(path=None, tasks_path=None, state=None):
     for v in _shipped:
         if _floor is None or _vnum(v) >= _floor:
             seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
-                                "looks": 0, "bound": 0, "unbound": 0})
+                                "looks": 0, "cannot": 0, "bound": 0, "unbound": 0})
     for r in _snapshot:
         v = norm_version(r.get("version")) or (str(r.get("version") or "?").strip() or "?")
         st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
-                                 "looks": 0, "bound": 0, "unbound": 0})
+                                 "looks": 0, "cannot": 0, "bound": 0, "unbound": 0})
         st["attempts"] += 1
         fam = family_of(r.get("model"))          # re-derived, exactly as the verdict does it
         if r.get("reached") is not True:
             st["empty"] += 1
         elif fam == AUTHOR_FAMILY:
             st["author"] += 1
+        elif fam and _has_evidence(r) and is_not_a_look(r.get("verdict")):
+            # ⚠⚠ v3415 — A COULD-NOT-JUDGE IS NOT A LOOK, AND THIS SURFACE WAS THE LAST TO
+            # LEARN IT. v3403 taught `looked_at` (and therefore the push gate) that
+            # `cannot-tell` does not count; audit() kept counting it, so ONE row was read two
+            # ways: MEASURED on v3413 — looked_at() 0, owes_a_look() True, audit() looks=1.
+            # The gate refused the push while its own refusal message pointed at --audit, the
+            # one screen calling that row fine. `looks` feeds THREE surfaces (the --audit mark,
+            # the --audit headline, and --backlog's queue), so all three were blind together
+            # and fixing them separately would have been three chances to drift again.
+            # [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
+            st["cannot"] += 1
         elif fam and _has_evidence(r):
             st["looks"] += 1
             # ⚠ v2708 — AND SAY WHETHER THE LOOK IS BOUND TO BYTES. `looks=1` was printed
@@ -1262,8 +1273,10 @@ def main(argv):
                  (" — newest owing: " + ", ".join(reversed(_newest))) if _newest else ""))
         for s in rows:
             mark = "OK " if s["looks"] else "OWED"
-            print("  %-6s %-8s looks=%d  empty-seats=%d  author-only=%d"
-                  % (mark, s["version"], s["looks"], s["empty"], s["author"]))
+            print("  %-6s %-8s looks=%d  empty-seats=%d  author-only=%d%s"
+                  % (mark, s["version"], s["looks"], s["empty"], s["author"],
+                     ("  cannot-tell=%d \u2014 recorded, and NOT a look"
+                      % s["cannot"]) if s.get("cannot") else ""))
         return 0
 
     print(__doc__.strip().split("\n")[0])

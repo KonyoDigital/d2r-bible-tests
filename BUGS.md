@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1142 — one ledger row, two readings: --audit said OK where the ship gate said OWED
+
+**v3415, 2026-09-22.** v3403 taught `looked_at` — and therefore `owes_a_look`, and therefore the
+pre-push gate — that a verdict of `cannot-tell` is **not a look**. `audit()` never learned it. So
+one row was read two ways, and I walked straight into it: read `OK`, pushed, got refused.
+
+Measured on the real v3413 row:
+
+```
+verdict=cannot-tell  reached=True  family=xai  _has_evidence=True
+looked_at('v3413')  -> 0        owes_a_look('v3413') -> True     the gate: OWED
+audit() row         -> looks: 1                                  the audit: OK
+```
+
+**And the gate's own refusal points at the screen that disagrees with it:** *"To see the state:
+python3 tv/second_eye_ledger.py --audit"*. [[the-unjoined-end]] — the fix landed on one end of a
+two-ended thing, and the other end went on contradicting it for twelve versions.
+
+**It was three surfaces, not one.** `looks` feeds the `--audit` mark, the `--audit` headline
+(`_owed`), and `--backlog`'s queue in `second_eye_run.py`. All three were blind together, so a
+could-not-judge version was invisible in every list that exists to surface it. Fixed at the
+classification, once, rather than at three call sites. [[copy-drift]]
+
+**Fixed:** a row whose verdict `is_not_a_look` now increments its own `cannot` counter instead of
+`looks`, and the `--audit` line prints `cannot-tell=N — recorded, and NOT a look` so a version it
+marks OWED says *why*. Verified across the whole ledger: **0 disagreements over 1,083 versions.**
+
+**Gate:** `tv/test_the_audit_and_the_gate_read_one_row_one_way.py` — 8 cases, 2 of them BASELINEs,
+and it builds its **own temp ledger** holding all five row kinds rather than reading his untracked
+`.second_eye.jsonl`, which on a runner would have been a permanent skip reading as a pass.
+3 RED_PROOFs, all PROVEN.
+**Heart:** `console_doctor` row `the eye audit agrees with the gate` — a real corroborator with two
+independent engines. Its reach is **bounded and stated**: the full compare costs 9,234 ms, more
+than the entire 9,000 ms cheap-subset budget (#150), so it examines the newest 80 plus every
+version carrying a could-not-judge, and says both numbers. Live on his Mac: **OK, 751 ms, 83
+versions, 11 could-not-judge rows, 0 disagreements.** All 5 branches driven, 4 of them non-OK.
+
+⚠ Ordered by `_vnum`, never by the rendered string — `audit()` sorts by version TEXT, where v999
+sorts above v1000, so "the newest 80" taken off that order would be the wrong 80. [[stale-reading]]
+
+[[feedback-contradiction-is-the-finding]] [[the-unjoined-end]] [[copy-drift]]
+
 ### REG-1141 — the heart chip said the same word for a census nobody took and a clean one
 
 **v3414, 2026-09-22.** Found by measuring a dash. All four of GrokBot's native visual passes signed

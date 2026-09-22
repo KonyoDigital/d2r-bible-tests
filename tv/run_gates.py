@@ -1234,6 +1234,17 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_the_audit_and_the_gate_read_one_row_one_way",
+         [sys.executable, os.path.join(HERE, "test_the_audit_and_the_gate_read_one_row_one_way.py")], 60,
+         why="v3415 (#162) - THE CONTRADICTION WAS THE FINDING. v3403 taught looked_at (and so "
+             "the push gate) that a cannot-tell verdict is NOT a look; audit() never learned it, "
+             "so ONE row was read two ways. MEASURED on v3413: looked_at() 0, owes_a_look() True, "
+             "audit() looks=1 - the gate refused the push while its own refusal message said to "
+             "run --audit, the one screen calling that row fine. And `looks` feeds THREE "
+             "surfaces (the --audit mark, the --audit headline, and --backlog), so all three "
+             "were blind together. This gate builds its OWN temp ledger holding all five row "
+             "kinds and asks BOTH predicates about each, so it never reads his untracked "
+             "ledger and never becomes a permanent skip on a runner."),
     Gate("test_a_census_nobody_took_is_not_a_clean_one",
          [sys.executable, os.path.join(HERE, "test_a_census_nobody_took_is_not_a_clean_one.py")], 90,
          why="v3414 (#161) - FOUND BY MEASURING A DASH IN GROKBOT'S FOURTH VISUAL PASS. Every "

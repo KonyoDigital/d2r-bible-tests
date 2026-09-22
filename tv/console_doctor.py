@@ -6381,6 +6381,77 @@ def _check_the_chip_can_say_nobody_looked():
                    c.get("DARK") or 0, c.get("UNKNOWN") or 0))
 
 
+def _check_the_eye_audit_agrees_with_the_ship_gate():
+    """v3415 - DO THE TWO SURFACES READ ONE LEDGER ROW THE SAME WAY?
+
+    A TRUE CORROBORATOR: `audit()` classifies rows itself, and `owes_a_look()` goes through
+    `looked_at()`. Two engines, one question - which is the [[heart-first]] 1 test, and the pair
+    was never compared until a push was refused by one while the other called the row fine.
+
+    MEASURED on v3413 before the fix: looked_at() 0, owes_a_look() True, audit() looks=1. The
+    gate refused, and its own refusal message told the reader to run --audit, the single screen
+    that disagreed with it.
+
+    ⚠ ITS REACH IS BOUNDED AND SAID OUT LOUD. The full comparison costs 9,234 ms - more than the
+    ENTIRE 9,000 ms cheap-subset budget (#150) - because owes_a_look walks the ledger per version
+    across 1,083 of them. So it examines the newest 80 (686 ms measured) PLUS every version
+    carrying a could-not-judge, wherever it sits in history, and the answer names both numbers. A
+    row that quietly looked at a subset would be the defect this file keeps paying for.
+
+    ⚠ ORDERED BY NUMBER, NEVER BY THE RENDERED STRING. audit() sorts by the version TEXT, where
+    v999 sorts above v1000, so "the newest 80" taken off that order would be the wrong 80.
+    [[stale-reading]] 3
+
+    ⚠ PERIODIC: the answer can only change when an eye writes a row, which happens a few times a
+    day at most. Hourly is honest; 686 ms on every eagle tick is not.
+    """
+    try:
+        import second_eye_ledger as _sel
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the eye ledger (%s), so whether its two "
+                         "surfaces agree is UNKNOWN, not fine" % type(e).__name__)
+    try:
+        rows = _sel.audit()
+    except Exception as e:
+        return UNKNOWN, ("the audit refused to build (%s: %s), so there is nothing to compare the "
+                         "ship gate against" % (type(e).__name__, str(e)[:60]))
+    if not rows:
+        return UNKNOWN, ("the ledger is empty, so the two surfaces have nothing to disagree "
+                         "about - that is silence, not agreement")
+    NEWEST = 80
+    try:
+        ordered = sorted(rows, key=lambda s: _sel._vnum(s.get("version")))
+    except Exception:
+        ordered = list(rows)
+    scope = list(ordered[-NEWEST:])
+    seen = set(s.get("version") for s in scope)
+    for s in ordered:
+        if s.get("cannot") and s.get("version") not in seen:
+            scope.append(s)
+            seen.add(s.get("version"))
+    bad = []
+    for s in scope:
+        v = s.get("version")
+        try:
+            gate_ok = not _sel.owes_a_look(v)
+        except Exception as e:
+            return UNKNOWN, ("the ship gate predicate refused on %s (%s), so agreement is UNKNOWN "
+                             "rather than proven" % (v, type(e).__name__))
+        if bool(s.get("looks")) != gate_ok:
+            bad.append("%s (audit %s, gate %s)"
+                       % (v, "OK" if s.get("looks") else "OWED", "OK" if gate_ok else "OWED"))
+    cant = sum(1 for s in scope if s.get("cannot"))
+    if bad:
+        return MISSING, ("%d of %d version(s) examined are read ONE way by --audit and the other "
+                         "by the ship gate - one row, two readings, and the gate sends him to the "
+                         "audit to understand its own refusal: %s"
+                         % (len(bad), len(scope), "; ".join(bad[:4])))
+    return OK, ("the audit and the ship gate agree on all %d version(s) examined - the newest %d "
+                "of %d, plus every one carrying a could-not-judge wherever it sits; %d such "
+                "row(s) in scope, and both surfaces call every one a non-look"
+                % (len(scope), min(NEWEST, len(ordered)), len(ordered), cant))
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6441,6 +6512,7 @@ CHECKS = [
     # 14,168 ms against a 9,000 ms budget (#150).
     ("the resume agrees with git", _check_the_resume_agrees_with_git_right_now),
     ("the chip can say nobody looked", _check_the_chip_can_say_nobody_looked),
+    ("the eye audit agrees with the gate", _check_the_eye_audit_agrees_with_the_ship_gate),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -6684,7 +6756,10 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "the door and the writers agree",
             "the resume agrees with git",
             # v3414 - the census costs ~2.5 s cold; the chip reads it once, 4 s after boot.
-            "the chip can say nobody looked")
+            "the chip can say nobody looked",
+            # v3415 - 686 ms for the newest 80; the FULL compare is 9,234 ms, over the
+            # whole cheap-subset budget. It can only change when an eye writes a row.
+            "the eye audit agrees with the gate")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6985,6 +7060,7 @@ WATCHES = {
     # v3413 — DECLARED, NOT OMITTED. It compares a generated file against git; no element.
     "the resume agrees with git": (),
     "the chip can say nobody looked": ("heart-chip",),
+    "the eye audit agrees with the gate": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody
