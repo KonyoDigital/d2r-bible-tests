@@ -180,6 +180,34 @@ def _transport_errors():
 _TRANSPORT_ERRORS = _transport_errors()
 
 
+# ⚠⚠ THE HANDLER FOR THIS EXISTED FOR VERSIONS AND COULD NEVER FIRE. _transport_errors() names a
+# "read that times out on the CDP socket" as unambiguously "the browser went away", and main()
+# reports exactly that as `⚪ UNKNOWN — the browser connection was lost mid-render`. But
+# create_connection() was never given a timeout, so the socket inherited a blocking read with no
+# bound and `send()`'s `while True: self.ws.recv()` could never raise. Two halves each written
+# correctly and never joined, so the UNKNOWN arm was dead code from the day it shipped.
+# [[the-unjoined-end]]
+#
+# MEASURED 2026-09-23, and this is the failure it exists to name. The v3434 push rendered target 1
+# of 20 (`advanced`, green at all six widths), then went silent. hooks/pre-push killed the gate at
+# its 300s bound and printed `render HUNG` — a sentence that names no link — and the kill took the
+# shared Chrome on :9224 down with the process group, so `crest-loudness` then refused with "no
+# Chrome on :9224". ONE stalled read, reported as two failures and diagnosed as neither.
+# `send()`'s own comment already knew the shape: "a native dialog blocks the renderer AND every
+# Runtime.evaluate with it; the socket just goes quiet, which reads exactly like a crashed tab".
+#
+# WHY 90s, stated so the next reader can re-derive it rather than trust it:
+#  · the whole 20-target set rendered green in 248s on an idle Mac, ~2s per target-width, and a
+#    target-width is already SEVERAL CDP round trips — so 90s is ~45x the observed cost of a unit
+#    of work that is itself bigger than one call. No legitimate single reply is near it.
+#  · it must sit BELOW hooks/pre-push's render bound (300s) by enough that the gate can REPORT a
+#    stall and move on instead of being killed mid-verdict with nothing said. A bound above the
+#    thing that kills you is an absent detector.
+# ⚠ It is a bound on ONE read, not on the run: every event that arrives (an exceptionThrown, a
+# dialog) is a live socket and resets the next read's clock. A page throwing steadily is answering.
+_CDP_READ_TIMEOUT = 90.0
+
+
 def _transport_exclusions():
     """Types that LOOK like transport by inheritance but are not. -> tuple
 
@@ -2440,8 +2468,11 @@ class _Tab(object):
         req = urllib.request.Request("http://127.0.0.1:%d/json/new?%s" % (PORT, url), method="PUT")
         info = json.load(urllib.request.urlopen(req))
         self.id = info["id"]
+        # ⚠ `timeout=` IS LOAD-BEARING — see _CDP_READ_TIMEOUT. Without it this socket blocks
+        # forever and the UNKNOWN arm in main() can never be reached.
         self.ws = websocket.create_connection(info["webSocketDebuggerUrl"],
-                                              origin="http://127.0.0.1:%d" % PORT)
+                                              origin="http://127.0.0.1:%d" % PORT,
+                                              timeout=_CDP_READ_TIMEOUT)
         self.n = 0
         # ⚠⚠ v3051 — THE PAGE'S OWN UNCAUGHT ERRORS. `Runtime.enable` is already sent (see the
         # heart target below), so Chrome has been BROADCASTING every uncaught exception in the

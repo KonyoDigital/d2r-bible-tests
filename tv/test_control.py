@@ -31361,6 +31361,90 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                                    "%s/%s is exempted from clipping with no reason worth the name"
                                    % (name, cls))
 
+    # ── v3435 · THE CDP SOCKET MUST BE ABLE TO GIVE UP ──────────────────────────────────────────
+    # _transport_errors() names "a read that times out on the CDP socket" as the browser going
+    # away, and main() reports it as `⚪ UNKNOWN — the browser connection was lost mid-render`.
+    # That arm was UNREACHABLE: create_connection() took no timeout, so recv() blocked forever and
+    # no timeout could ever be raised. The v3434 push rendered 1 of 20 targets and went silent;
+    # the hook killed it at 300s saying `render HUNG`, which names no link, and the kill took the
+    # shared Chrome down so crest-loudness refused too. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    def test_the_cdp_socket_carries_a_read_bound_so_the_UNKNOWN_arm_can_fire(self):
+        """PARSED WITH ast, NOT GREPPED — the word `timeout` appears in prose all over this file,
+        and a comment about a bound is not a bound. [[source-reading-guard]] §1
+
+        ⚠ The callee is compared as a DOTTED name. Matching the bare attribute `create_connection`
+        would be one rename away from useless, and the sibling scar is exact: a guard widened to
+        accept `_gq.run` also accepted `subprocess.run`, because both are attributes named `run`.
+        [[a-widened-guard-admits-what-it-bans]]
+        """
+        rc = os.path.join(self.TV, "render_check.py")
+        self.assertTrue(os.path.isfile(rc), "render_check.py is gone")
+        with io.open(rc, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+
+        calls = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            if not (isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name)):
+                continue
+            if "%s.%s" % (f.value.id, f.attr) != "websocket.create_connection":
+                continue
+            calls.append(node)
+
+        # ⚠ A ZERO NEEDS A DENOMINATOR. "no unbounded socket" over zero sockets parsed is a broken
+        # reader wearing the clothes of a pass. [[zero-needs-a-denominator]]
+        self.assertEqual(len(calls), 1,
+                         "expected exactly ONE websocket.create_connection in render_check.py, "
+                         "parsed %d — if the CDP socket moved or gained a sibling this law could "
+                         "not reach it, which is UNRESOLVED, not clean" % len(calls))
+
+        kw = dict((k.arg, k.value) for k in calls[0].keywords if k.arg)
+        self.assertIn("timeout", kw,
+                      "the CDP websocket is created with NO timeout, so recv() blocks forever and "
+                      "render_check.py's own UNKNOWN arm for a stalled browser can never fire. A "
+                      "silent socket then reads as a 300s hang that names no link.")
+        self.assertIsInstance(kw["timeout"], ast.Name,
+                              "the read bound must be the named module constant, not a literal "
+                              "spelled at the call site where nothing can state its derivation")
+        self.assertEqual(kw["timeout"].id, "_CDP_READ_TIMEOUT",
+                         "the read bound must be _CDP_READ_TIMEOUT, whose comment carries the "
+                         "measurement it was derived from")
+
+    def test_the_read_bound_sits_under_the_prepush_render_bound(self):
+        """PIN THE LAW, NOT THE NUMBER. The law is: a stalled read must be REPORTABLE — the gate
+        has to be able to name at least two stalled targets before the hook kills it. So the bound
+        is read out of hooks/pre-push rather than hardcoded here, and if someone retunes the hook
+        this law still means the same thing. [[regression-guard]] §4
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        hook = os.path.join(os.path.dirname(self.TV), "hooks", "pre-push")
+        self.assertTrue(os.path.isfile(hook), "hooks/pre-push is gone — the render bound is "
+                                              "UNKNOWN, and this law cannot be evaluated")
+        with io.open(hook, encoding="utf-8") as fh:
+            raw = fh.read()
+        # ⚠ strip comments first: this hook DOCUMENTS its own gate_run lines in prose, and a guard
+        # that reads its subject's explanation as its subject is the repeat defect here.
+        code = "\n".join(l.split("#", 1)[0] for l in raw.split("\n"))
+        found = re.findall(r'gate_run\s+"render"\s+"[^"]*"\s+([0-9]+)', code)
+        self.assertEqual(len(found), 1,
+                         "could not read the render gate's bound out of hooks/pre-push (%d match) "
+                         "— UNRESOLVED, not clean" % len(found))
+        bound = int(found[0])
+
+        self.assertLess(render_check._CDP_READ_TIMEOUT, bound,
+                        "the CDP read bound (%s) is not under the hook's render bound (%d), so a "
+                        "stalled socket is killed before it can ever be reported"
+                        % (render_check._CDP_READ_TIMEOUT, bound))
+        self.assertLessEqual(2 * render_check._CDP_READ_TIMEOUT, bound,
+                             "a single stall would eat more than half the render budget (%s x2 vs "
+                             "%d), so the gate could name at most one and would still be killed "
+                             "mid-verdict" % (render_check._CDP_READ_TIMEOUT, bound))
+
 
 class TestFixedChromeGutterIsReserved(unittest.TestCase):
     """v2221 — content must stop BEFORE the gutter the viewport-anchored chrome sits in.
