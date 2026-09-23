@@ -1008,7 +1008,39 @@ def agreement(version, path=None):
         if isinstance(_n, (int, float)) and _n > 0:
             _sizes.append(float(_n))
     _ratio = (max(_sizes) / min(_sizes)) if len(_sizes) >= 2 else None
-    if _ratio is not None and _ratio >= _PAYLOAD_SPLIT:
+    # ⚠⚠ v3461 — max/min OVER EVERY LOOK LETS ONE SMALL LOOK HIDE A REAL DISAGREEMENT.
+    # Caught by the cross-family eye on the v3459 diff BEFORE it shipped, and then MEASURED on
+    # v3401, which has THREE reached looks:
+    #       8,885 chars  cannot-tell
+    #      33,447 chars  cannot-tell
+    #      33,447 chars  clean        <- IDENTICAL payload, DIFFERENT verdict
+    # Two looks at exactly the same 33,447 chars disagree — a genuine unsteady eye, the sharpest
+    # finding this function produces. But max/min across all three is 3.8x, so v3459 called the
+    # whole version INCOMPARABLE and the real finding disappeared. A fix that swallows the defect
+    # it was written beside is [[the-cure-that-kills-the-patient]].
+    # SO THE QUESTION IS PER-PAIR, NOT PER-VERSION: if ANY pair that DISAGREES is also comparable,
+    # that disagreement is real and the version stays DISAGREE. INCOMPARABLE is reserved for the
+    # case where every disagreeing pair is a payload split.
+    _real_split = False
+    if _ratio is not None:
+        _pairs = [(r, ((r.get("sentCode") or {}).get("chars")
+                       if isinstance(r.get("sentCode"), dict) else None))
+                  for r in reached]
+        _pairs = [(r, n) for r, n in _pairs if isinstance(n, (int, float)) and n > 0]
+        _comparable_disagreement = False
+        for _i in range(len(_pairs)):
+            for _j in range(_i + 1, len(_pairs)):
+                _ra, _na = _pairs[_i]
+                _rb, _nb = _pairs[_j]
+                if str(_ra.get("verdict") or "") == str(_rb.get("verdict") or ""):
+                    continue                      # they agree; not the pair in question
+                if (max(_na, _nb) / min(_na, _nb)) < _PAYLOAD_SPLIT:
+                    _comparable_disagreement = True
+                    break
+            if _comparable_disagreement:
+                break
+        _real_split = not _comparable_disagreement
+    if _ratio is not None and _ratio >= _PAYLOAD_SPLIT and _real_split:
         return {"version": version, "looks": len(verdicts), "empty": empty,
                 "state": "INCOMPARABLE",
                 "verdicts": verdicts, "partial": len(_partial),
@@ -1219,6 +1251,19 @@ def agreement_census(path=None, recent=40):
     # the other is a corroboration that was never actually taken. Folding them together would hide
     # both. [[zero-needs-a-denominator]]
     echoed = [v for v in recent_v if _states[v] == "ECHO"]
+    # ⚠⚠ v3461 — THE CENSUS DROPPED THE STATE v3459 HAD JUST ADDED, AND THAT MADE THE EYE LOOK
+    # STEADIER. Found by the cross-family eye on the v3459 diff BEFORE it shipped, in one sentence:
+    # "the new state is only half-joined". MEASURED on the live ledger the same minute:
+    #     census said   disagreed=9  echoed=20
+    #     actually      DISAGREE 9 · ECHO 20 · AGREE 4 · INCOMPARABLE 7
+    # Seven versions counted by NOTHING. A reader watching `disagreed` fall from 19 to 12 reads it
+    # as the instrument settling down, when those seven were RECLASSIFIED, not resolved — a number
+    # improving because its denominator quietly lost rows.
+    # ⚠ AND THIS FILE'S OWN VOCABULARY NOTE WARNS ABOUT EXACTLY THIS, a few hundred lines up:
+    # "a reader that pattern-matches these strings and has never heard of a new one is the
+    # unjoined end this repo keeps paying for". It was read, and the census was still missed.
+    # [[the-unjoined-end]] [[zero-needs-a-denominator]]
+    incomparable = [v for v in recent_v if _states[v] == "INCOMPARABLE"]
     # v3315 — the provenance rides WITH the rate. A disagreement rate computed over rows whose
     # verdicts were written by three different generations of the parser is a measurement of the
     # parser's history as much as of the eye's steadiness, and saying so is cheaper than the
@@ -1227,6 +1272,8 @@ def agreement_census(path=None, recent=40):
     return {"versions": len(seen), "askedTwice": len(asked_twice),
             "recent": len(recent_v), "disagreed": len(dis), "which": sorted(dis, key=_vnum),
             "echoed": len(echoed), "whichEchoed": sorted(echoed, key=_vnum),
+            "incomparable": len(incomparable),
+            "whichIncomparable": sorted(incomparable, key=_vnum),
             "provenance": _prov,
             # ⚠⚠ THE RATE IS AN UPPER BOUND, CONTAMINATED BY MY OWN WORKFLOW, AND MUST SAY SO.
             # A second ROW is not always a second OPINION. Measured 2026-09-18: v3300's two rows

@@ -67,6 +67,45 @@ class AReachDifferenceIsNotAnUnsteadyEye(unittest.TestCase):
                          "it still asserts ONE payload with a size it never measured: %s" % a["say"])
         self.assertIn("UNKNOWN size", a["say"])
 
+    def test_a_SMALL_third_look_cannot_hide_a_real_disagreement(self):
+        """⚠⚠ THE CURE ALMOST KILLED THE PATIENT, and the cross-family eye caught it pre-push.
+
+        max/min over EVERY look lets one small look set the state for the whole version. MEASURED
+        on v3401, which has three reached looks:
+              8,885 chars  cannot-tell
+             33,447 chars  cannot-tell
+             33,447 chars  clean        <- IDENTICAL payload, DIFFERENT verdict
+        Two looks at exactly the same size disagree — the sharpest finding this function makes —
+        and max/min across all three is 3.8x, so the version was labelled INCOMPARABLE and the
+        real finding vanished. The question is PER-PAIR, not per-version.
+        """
+        a = self._agree([_row("cannot-tell", 8885),
+                         _row("cannot-tell", 33447),
+                         _row("clean", 33447)])
+        self.assertEqual(
+            a["state"], "DISAGREE",
+            "two looks at an IDENTICAL payload disagreed and a third smaller look buried it as "
+            "INCOMPARABLE — the fix swallowed the very defect it sits beside: %s" % a.get("say"))
+
+    def test_every_disagreeing_pair_split_still_reads_INCOMPARABLE(self):
+        """The other half: when NO disagreeing pair is comparable, it really is a payload split."""
+        a = self._agree([_row("clean", 5000), _row("clean", 5200), _row("findings", 60000)])
+        self.assertEqual(a["state"], "INCOMPARABLE",
+                         "every disagreeing pair was a >2x split and it was still called an "
+                         "unsteady eye: %s" % a.get("say"))
+
+    def test_the_census_COUNTS_the_new_state(self):
+        """v3459 added a state and the census counted DISAGREE and ECHO only, so seven versions
+        were counted by NOTHING and `disagreed` falling read as the instrument settling down."""
+        import second_eye_ledger as _L
+        c = _L.agreement_census()
+        self.assertIn("incomparable", c,
+                      "agreement_census does not report INCOMPARABLE, so versions in that state "
+                      "are counted by nothing and the disagreement count silently improves")
+        total = (c.get("disagreed", 0) + c.get("echoed", 0) + c.get("incomparable", 0))
+        self.assertLessEqual(total, c.get("recent", 0),
+                             "the census counts more versions than it looked at")
+
     def test_INCOMPARABLE_is_in_the_named_vocabulary(self):
         """A state no reader has heard of is the unjoined end this repo keeps paying for."""
         self.assertIn("INCOMPARABLE", L.AGREEMENT_STATES)
