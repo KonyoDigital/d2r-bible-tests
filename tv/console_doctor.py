@@ -7122,11 +7122,116 @@ def _check_the_eye_is_still_answering_in_a_constrained_field():
                      % (age_d, tally))
 
 
+def _check_the_handoff_lanes_are_being_drained():
+    """Are #230 and #231 being READ, or are answers piling up in a queue nobody opens?
+
+    ⚠⚠ HIS ORDER, 2026-09-23, after #230 reached FORTY-ONE unread: *"make sure they both get done
+    inbetween and DONT stack up like it just did 41 times"*. The reason it stacked is that NOTHING
+    WAS WATCHING — the drainer existed and only ran when someone remembered, which is not a
+    mechanism. This row is the watcher. It reads; it never drains and never marks anything read,
+    because a check that silenced the backlog would be the truncation regression-guard names.
+
+    ⚠ MEASURED when this was written: #230's watermark sat at 05:40:31Z against a 20:43 clock —
+    FIFTEEN HOURS — and the 41 unread ticks carried live answers to open items: #172's theatre
+    freeze still firing at v3456 (`freeze=AFTER_REOPEN_PAINT·58756`), the `Fleet PARTIAL` state
+    that #157 needs, and ASK digests for #37/#45/#113. Not noise. Answers.
+
+    ⚠ THREE STATES, AND UNKNOWN IS ONE. A lane whose watermark cannot be read is UNKNOWN, never
+    "nothing pending" — an unreadable store must not look like an empty queue.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    import time as _t
+    try:
+        import handoff as _H
+    except Exception as _e:
+        return UNKNOWN, ("handoff.py would not import (%s), so whether the lanes are being drained "
+                         "is UNMEASURED — not clear" % type(_e).__name__)
+    marks = _H._marks()
+    if marks is None:
+        return UNKNOWN, ("the handoff watermark store could not be read, so the backlog on #230 "
+                         "and #231 is UNKNOWN rather than empty")
+    now = _t.time()
+    stale, said = [], []
+
+    # ⚠⚠ THE TWO LANES ARE READ BY DIFFERENT MECHANISMS AND ASKING ONE STORE ABOUT BOTH CRIES WOLF.
+    # #231 is drained by tv/second_eye_drain.py, which is idempotent through the LEDGER (verdictFrom
+    # "gh#231 comment <id>") and never touches handoff's watermark — deliberately, so a human drain
+    # of the same issue cannot be silently skipped. So handoff has NO mark for 231 and never will.
+    # The first cut of this row asked handoff about both and reported "#231 has NO watermark at
+    # all" while the drain was working perfectly. A row that accuses a healthy lane is one he stops
+    # reading, which costs more than the backlog it was written to catch.
+    # [[strictness-that-closes-the-lane]] [[the-obvious-fix-cried-wolf]]
+    try:
+        import second_eye_drain as _SD
+        _filed = len(_SD.already_recorded())
+        _pending = None
+        try:
+            _rows = _SD._handoff._gh("repos/%s/issues/%d/comments?per_page=100"
+                                     % (_SD._handoff.REPO, _SD.ISSUE))
+            import second_eye_ledger as _SL
+            _seen = _SD.already_recorded()
+            _pending = 0
+            for _c in _rows:
+                _got = _SD.parse_comment(_c.get("body"))
+                if not _got:
+                    continue
+                # ⚠ A LOOK NAMING NO VERSION IS DELIBERATELY NEVER FILED (the seat writes
+                # `version: unknown` for a stampless commit). Counting those as "pending" would
+                # make this row nag forever about work that is correctly refused — the first cut
+                # did exactly that and reported 5. Never-filed is not a backlog.
+                if _SL.norm_version(_got.get("version")) == "":
+                    continue
+                if str(_c.get("id")) not in _seen:
+                    _pending += 1
+        except Exception:
+            _pending = None            # GitHub unreachable: UNKNOWN, never "nothing pending"
+        if _pending is None:
+            said.append("#231 could not be asked (%d look(s) already filed)" % _filed)
+        elif _pending:
+            said.append("#231 has %d look(s) NOT yet in the ledger" % _pending)
+            stale.append("231")
+        else:
+            said.append("#231 fully drained (%d filed)" % _filed)
+    except Exception as _e:
+        said.append("#231 drain could not be asked (%s)" % type(_e).__name__)
+
+    for issue in ("230",):
+        ts = (marks.get(issue) or {}).get("ts")
+        if not ts:
+            stale.append(issue)
+            said.append("#%s has NO watermark at all" % issue)
+            continue
+        try:
+            age_h = (now - _t.mktime(_t.strptime(ts, "%Y-%m-%dT%H:%M:%SZ"))
+                     + _t.timezone) / 3600.0
+        except Exception:
+            said.append("#%s watermark %r will not parse" % (issue, ts))
+            stale.append(issue)
+            continue
+        said.append("#%s last read %.1fh ago" % (issue, age_h))
+        if age_h > _LANE_STALE_HOURS:
+            stale.append(issue)
+    if stale:
+        return MISSING, ("a handoff lane is piling up: %s. These carry ANSWERS — the 41-comment "
+                         "backlog on #230 held #172's live freeze and the Fleet PARTIAL state #157 "
+                         "needs. Drain with: python3 tv/handoff.py --issue <n>  (and "
+                         "tv/second_eye_drain.py for #231). Reading does NOT mark them read."
+                         % "; ".join(said))
+    return OK, "both handoff lanes read recently (%s)" % "; ".join(said)
+
+
+#: a lane read less often than this is piling up. 6h is generous: #230 ticks every
+#: ~15-20 minutes, so six hours is already ~20 unread.
+_LANE_STALE_HOURS = 6.0
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
     # than hashing its own import.
     ("running code matches disk", _check_the_running_code_is_the_code_on_disk),
+    # v3458 — his 2026-09-23 order after #230 reached 41 unread: the lanes must not stack up.
+    # Nothing was watching them, so nothing noticed. This watches.
+    ("handoff lanes drained", _check_the_handoff_lanes_are_being_drained),
     # v3406 (#152) — the harness that proves the paid sweep door can be answered by the
     # LOCK instead of the door. One call, worker stubbed, and it distinguishes UNREACHED
     # from refused. See the docstring for the sandbox measurement that found it.

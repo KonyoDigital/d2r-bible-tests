@@ -6453,6 +6453,20 @@ GATES = [
              "one; one-sided rows are counted separately, and a rate over nothing is UNKNOWN, "
              "never 0.0.",
          skip_ok=()),
+    Gate("test_a_handoff_lane_must_not_pile_up",
+         [sys.executable, os.path.join(HERE, "test_a_handoff_lane_must_not_pile_up.py")], 90,
+         needs_app=False,
+         why="#199 - HIS ORDER 2026-09-23 after #230 reached FORTY-ONE unread: 'make sure they both "
+             "get done inbetween and DONT stack up like it just did 41 times'. The drainers existed "
+             "and only ran when someone remembered, which is not a mechanism - NOTHING WATCHED them, "
+             "so nothing noticed. MEASURED: #230's watermark sat 16.1h stale while its 41 unread "
+             "ticks carried live answers to open items - freeze=AFTER_REOPEN_PAINT-58756 (#172, "
+             "still firing at v3456), the Fleet PARTIAL state #157 needs, and ASK digests for "
+             "#37/#45/#113. This law pins the watcher: a stale lane is NAMED and goes MISSING, an "
+             "unreadable watermark is UNKNOWN and never an empty queue, each lane is judged by ITS "
+             "OWN mechanism (#231 through the ledger, #230 through handoff) so a healthy lane is "
+             "never accused, and the watcher NEVER drains or marks anything read.",
+         skip_ok=()),
     Gate("test_a_look_on_github_is_not_a_look_in_the_ledger",
          [sys.executable, os.path.join(HERE, "test_a_look_on_github_is_not_a_look_in_the_ledger.py")],
          120,

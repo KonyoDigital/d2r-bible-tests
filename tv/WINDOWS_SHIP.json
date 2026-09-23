@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3457",
+  "ver": "v3458",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3457: The cross-family eye read the SHIPPED v3454 bytes and found three. 1 reach was passed to record as a STRING and record keeps it only when it is a dict, so reach was NULL on 39 of 39 drained rows - the drain built because a ledger row preserves reach where a GitHub comment loses it was losing it. 2 sentCode claimed fences 1 when the drain sends no code fence at all. 3 the idempotency guard did not test idempotency: deleting the skip-if-seen check left all 7 cases green, because the assertions read the live ledger and the mocked half only checked one write carried verdict_from. All three reproduced before being believed, and the 39 historical rows were repaired from the source comments.",
+  "note": "v3458: His order after 230 reached FORTY-ONE unread: make sure they both get done inbetween and DONT stack up like it just did 41 times. The drainers existed and only ran when someone remembered, which is not a mechanism - nothing WATCHED them so nothing noticed. Measured: 230 watermark 16.1h stale while its 41 unread ticks carried live answers to open items - the 172 theatre freeze still firing at v3456, the Fleet PARTIAL state 157 needs, and ASK digests for 37 45 113. New console_doctor row names a stale lane and goes MISSING, treats an unreadable watermark as UNKNOWN, judges each lane by its OWN mechanism so a healthy one is never accused, and NEVER drains or marks anything read.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
