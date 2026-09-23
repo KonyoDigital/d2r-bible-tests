@@ -6398,6 +6398,30 @@ GATES = [
              "thread ticking) joins `there is work owed` to `this lane did a unit of work`. "
              "One predicate, not a second opinion. #59.",
          skip_ok=()),
+    # ⚠ MIND THE SEPARATING COMMA ON EVERY Gate(...) INSERT — dropping it has produced a
+    # SyntaxError twice in this file. [[gate-insert-missing-comma]]
+    Gate("test_a_tab_opener_is_bounded",
+         [sys.executable, os.path.join(HERE, "test_a_tab_opener_is_bounded.py")], 120,
+         needs_app=False,
+         why="#185 - the PUT /json/new that opens a CDP tab had NO timeout in roster_sync.py "
+             "while the create_connection on the very NEXT line was bounded. urllib blocks "
+             "FOREVER by default and nothing calls socket.setdefaulttimeout, so a Chrome that "
+             "accepts the TCP connection and never answers wedges the caller with no bound and "
+             "no message. Third file in the same class in one day (render_check v3436, then "
+             "this), and it was found by a SWEEP rather than by a failure - which is the whole "
+             "argument for closing a class instead of a site.",
+         skip_ok=()),
+    Gate("test_an_echo_is_not_a_corroboration",
+         [sys.executable, os.path.join(HERE, "test_an_echo_is_not_a_corroboration.py")], 120,
+         needs_app=False,
+         why="#182 - agreement() decided AGREE/DISAGREE/SINGLE and NEVER READ WHO LOOKED. "
+             "Measured on 940 rows: of 55 versions asked twice, 41 (75%) were SAME-FAMILY pairs, "
+             "all xai - and console_doctor mapped AGREE to OK, so one witness asked twice read "
+             "as corroboration. Two derivations of one source agreeing is one number wearing two "
+             "names. ECHO is its own state on purpose: making a same-family pair report DISAGREE "
+             "would turn 8 historical versions red at once and the row would be silenced within "
+             "a week, which costs more than the defect.",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

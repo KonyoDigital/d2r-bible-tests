@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3438",
+  "ver": "v3439",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3438: roster_sync.py opened a CDP tab with an unbounded urlopen while the create_connection on the NEXT line was bounded. Third file in this class in one day, found by a sweep rather than a failure. New gate parses with ast, compares the DOTTED name, and prints its own denominator. 3 red-proofs.",
+  "note": "v3439: agreement() decided AGREE/DISAGREE/SINGLE and never read WHO LOOKED. Of 55 versions asked twice, 41 were SAME-FAMILY pairs, all xai, and console_doctor maps AGREE to OK. ECHO is now its own state, NOT a red: DISAGREE would turn 8 historical versions red at once. 7 red-proofs, and a cross-family AGREE still reads AGREE.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

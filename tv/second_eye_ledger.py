@@ -778,8 +778,46 @@ def blind_to(row):
     return out
 
 
+#: ⚠ THE WHOLE VOCABULARY, IN ONE PLACE. A reader that pattern-matches these strings and has
+#: never heard of a new one is the unjoined end this repo keeps paying for, so the set is named
+#: rather than left implicit in five return statements.
+#: MEASURED 2026-09-23, before ECHO existed, by grepping every caller of agreement() in the tree:
+#:   · console_doctor._check_the_second_eye_was_asked_twice — DISAGREE/SINGLE -> MISSING,
+#:     AGREE -> OK, and EVERYTHING ELSE falls through to UNKNOWN. A new state is therefore
+#:     absorbed as "unknown", never as a pass and never as a red.
+#:   · agreement_census() below — counts DISAGREE, and now ECHO beside it.
+#:   · tv/test_two_looks_are_two_rows.py, tv/test_a_partial_look_is_not_agreement.py and
+#:     tv/test_a_stamp_is_not_a_blind_spot.py — they pin AGREE/DISAGREE/SINGLE/NONE for rows that
+#:     carry no model at all, which is the UNKNOWN-family case and is deliberately left on its
+#:     old state (see below).
+#: ECHO lands in the fall-through ON PURPOSE. [[the-unjoined-end]]
+AGREEMENT_STATES = ("NONE", "SINGLE", "AGREE", "ECHO", "DISAGREE")
+
+
 def agreement(version, path=None):
-    """Did two looks at ONE payload agree? -> dict. His #56 ruling: ask twice and KEEP BOTH.
+    """Did two looks at ONE payload agree, and were they two WITNESSES? -> dict.
+
+    His #56 ruling: ask twice and KEEP BOTH.
+
+    FIVE STATES, and the fourth is the one #182 added:
+
+        NONE      no reached look carries a verdict.
+        SINGLE    asked once. One look cannot show whether the eye is steady.
+        AGREE     two or more looks, same verdict, and at least two DIFFERENT families named —
+                  or the families are UNKNOWN, which is stated in `say` rather than assumed.
+        ECHO      two or more looks, same verdict, and every one of them MEASURED to be the SAME
+                  family. One witness asked twice. Not a failure, not corroboration.
+        DISAGREE  two or more looks, different verdicts — a finding about the INSTRUMENT, and
+                  sharper still when the family is the same on both sides.
+
+    ⚠⚠ ECHO IS NOT A RED STATE AND MUST NOT BECOME ONE. Eighteen of the twenty-nine multi-look
+    versions on his ledger are same-family; making them report DISAGREE or MISSING would turn a
+    whole population red on one day, and a row that cries wolf gets silenced — which costs more
+    than the defect. ECHO withdraws exactly one claim: that these looks corroborate each other.
+
+    ⚠ family None/"" IS UNKNOWN. It is never read as "some other family" (which would manufacture
+    corroboration) and never as "the same family" (which would manufacture an echo). It blocks the
+    ECHO claim, keeps the verdict-driven state, and is COUNTED in `say`. [[unknown-stays-unknown]]
 
     ⚠⚠ THIS EXISTS BECAUSE I WAS NOT ACTUALLY KEEPING BOTH. All through the v3301-v3309 arc I
     reported "asked twice, both looks agree" — and the ledger contains no such pairs, because I
@@ -802,8 +840,33 @@ def agreement(version, path=None):
     seen = [r for r in _rows(path) if norm_version(r.get("version") or "") == version]
     reached = [r for r in seen if r.get("reached") is not False]
     empty = len(seen) - len(reached)
-    verdicts = [str(r.get("verdict") or "").strip() for r in reached]
-    verdicts = [v for v in verdicts if v]
+    # ⚠ THE ROWS ARE KEPT, NOT ONLY THEIR VERDICTS. #182 has to ask WHO looked, and a list of
+    # bare strings has already thrown that away by the time the decision is made.
+    _spoke = [r for r in reached if str(r.get("verdict") or "").strip()]
+    verdicts = [str(r.get("verdict") or "").strip() for r in _spoke]
+    # ⚠⚠ #182 — THIS FUNCTION DECIDED AGREE/DISAGREE/SINGLE AND NEVER READ WHO LOOKED.
+    # MEASURED 2026-09-23 over the live 941-row ledger: `family` is xai on 907 rows, openai on 22,
+    # anthropic on 2 and UNKNOWN on 10. Of the 29 versions carrying two or more reached looks with
+    # a verdict, EIGHTEEN are same-family (all xai), THREE are genuinely cross-family and EIGHT
+    # cannot be told apart. Eight of those eighteen answered AGREE — and console_doctor maps AGREE
+    # -> OK with no family filter, so "the looks agree" has been reported for one witness asked
+    # twice. The carved rule, twice over: two derivations of one source agreeing is one number
+    # wearing two names, and same-family agreement is ONE witness, not two.
+    #
+    # ⚠ RE-DERIVED FROM THE MODEL ID, NEVER FROM THE ROW'S OWN `family` FIELD. v2143.1 already
+    # paid for that: a hand-written line claiming family:"xai" satisfied the gate built to stop it.
+    # The stored field is evidence for a human reading the file; the DECISION comes from
+    # family_of(), exactly as looked_at() does it.
+    # ⚠ AND AN UNRECOGNISED id IS UNKNOWN, NEVER "some other family". It is counted apart, it
+    # BLOCKS the ECHO claim (never assumed same) and it buys no corroboration either (never
+    # assumed cross). [[unknown-stays-unknown]]
+    _fams = [family_of(r.get("model")) for r in _spoke]
+    _known = [f for f in _fams if f]
+    _distinct = sorted(set(_known))
+    _fam_unknown = len(_fams) - len(_known)
+    #: MEASURED same-family: two or more looks, exactly ONE family named, and NOTHING
+    #: unattributable. A single unknown id is enough to withdraw the claim.
+    _same_family = (len(_spoke) >= 2 and len(_distinct) == 1 and _fam_unknown == 0)
     # ⚠⚠ v3349 — A LOOK THAT NEVER REACHED THE CHANGE IS NOT AN OPINION ABOUT IT. This is the
     # companion to the empty-seat rule above, and it is the quieter of the two: an empty seat is
     # visibly absent, while a PARTIAL look answers fluently about the fraction it was handed. On
@@ -854,30 +917,76 @@ def agreement(version, path=None):
                   % (len(_partial), len(reached),
                      ", ".join(_names[:6]) +
                      (" +%d more" % (len(_names) - 6) if len(_names) > 6 else "")))
+    # ⚠ THE DENOMINATOR TRAVELS WITH THE VERDICT: how many looks there were, and how many of
+    # them the model id could attribute at all. A state that says AGREE while nobody knows who
+    # looked is the confident number this file argues against on every other axis.
+    # [[zero-needs-a-denominator]]
+    _fnote = ""
+    if _spoke:
+        _fnote = (" · %d look(s), %d naming a family%s"
+                  % (len(_spoke), len(_known),
+                     (" (%s)" % ", ".join("%s %d" % (f, _known.count(f)) for f in _distinct))
+                     if _distinct else ""))
+        if _fam_unknown:
+            _fnote += (" ⚠ %d of them name NO recognisable family, so whether this is one "
+                       "witness or %d is UNKNOWN — not assumed cross-family, not assumed same"
+                       % (_fam_unknown, len(_spoke)))
     if not verdicts:
         return {"version": version, "looks": 0, "empty": empty, "state": "NONE",
                 "verdicts": [], "partial": len(_partial), "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+                "families": _distinct, "familyKnown": len(_known),
+                "familyUnknown": _fam_unknown, "sameFamily": _same_family,
                 "say": "no look with a verdict is recorded for %s%s" % (
-                    version, (" (%d empty seat(s))" % empty) if empty else "") + _pnote}
+                    version, (" (%d empty seat(s))" % empty) if empty else "") + _fnote + _pnote}
     if len(verdicts) == 1:
         return {"version": version, "looks": 1, "empty": empty, "state": "SINGLE",
                 "verdicts": verdicts, "partial": len(_partial),
                 "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+                "families": _distinct, "familyKnown": len(_known),
+                "familyUnknown": _fam_unknown, "sameFamily": _same_family,
                 "say": "%s was looked at ONCE (%s) — asked twice is his #56 ruling, and one look "
                        "cannot show whether the eye is steady on this payload"
-                       % (version, verdicts[0]) + _pnote}
+                       % (version, verdicts[0]) + _fnote + _pnote}
     if len(set(verdicts)) == 1:
+        # ⚠⚠ #182 — SAME FAMILY IS ONE WITNESS, AND IT GETS ITS OWN STATE RATHER THAN A RED
+        # ONE. ECHO is deliberately NOT DISAGREE and NOT "no look": the eighteen same-family
+        # versions on his ledger are real looks that really did agree, and reporting them as a
+        # failure would turn a whole population red at once — a row that cries wolf gets silenced
+        # inside a week, which costs more than the defect it was shouting about. The vocabulary
+        # had room for a fifth word; SINGLE proves it. What ECHO refuses is the one claim that was
+        # never earned: that these looks CORROBORATE each other.
+        if _same_family:
+            return {"version": version, "looks": len(verdicts), "empty": empty, "state": "ECHO",
+                    "verdicts": verdicts, "partial": len(_partial),
+                    "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+                    "families": _distinct, "familyKnown": len(_known),
+                    "familyUnknown": _fam_unknown, "sameFamily": _same_family,
+                    "say": ("%d looks at %s say the same thing (%s) and every one of them is %s "
+                            "— that is ONE witness asked %d times, not corroboration. Two "
+                            "derivations of one source agreeing is one number wearing two names."
+                            % (len(verdicts), version, verdicts[0], _distinct[0], len(verdicts)))
+                           + _fnote + _pnote}
         return {"version": version, "looks": len(verdicts), "empty": empty, "state": "AGREE",
                 "verdicts": verdicts, "partial": len(_partial),
                 "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+                "families": _distinct, "familyKnown": len(_known),
+                "familyUnknown": _fam_unknown, "sameFamily": _same_family,
                 "say": ("%d looks at %s AGREE (%s)" % (len(verdicts), version, verdicts[0]))
-                       + _pnote}
+                       + _fnote + _pnote}
+    # ⚠ A SAME-FAMILY DISAGREEMENT STAYS DISAGREE, and it is the sharper version of the same
+    # finding: one family answering two ways about one payload is an unsteady INSTRUMENT, which is
+    # exactly what this branch exists to say. ECHO is only ever reached when the verdicts match,
+    # so nothing that used to read DISAGREE was moved out of it. MEASURED on his ledger: 10 of the
+    # 29 multi-look versions are same-family disagreements and every one of them still reads
+    # DISAGREE. `_fnote` now names the family, so the reader can tell the two shapes apart.
     return {"version": version, "looks": len(verdicts), "empty": empty, "state": "DISAGREE",
             "verdicts": verdicts, "partial": len(_partial),
             "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+            "families": _distinct, "familyKnown": len(_known),
+            "familyUnknown": _fam_unknown, "sameFamily": _same_family,
             "say": "%d looks at ONE payload DISAGREE (%s) — the eye is not steady here, and which "
                    "verdict shipped was decided by timing. That is a finding about the "
-                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts)) + _pnote}
+                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts)) + _fnote + _pnote}
 
 
 #: ⚠⚠ v3315 — WHICH PARSER WROTE THIS VERDICT. Bump this string whenever `_verdict_for` or
@@ -1051,7 +1160,16 @@ def agreement_census(path=None, recent=40):
                    if len([x for x in rs if x.get("reached") is not False
                            and str(x.get("verdict") or "").strip()]) >= 2]
     recent_v = sorted(asked_twice, key=_vnum)[-int(recent):]
-    dis = [v for v in recent_v if agreement(v, path)["state"] == "DISAGREE"]
+    # ⚠ ONE agreement() CALL PER VERSION, NOT ONE PER QUESTION. It re-reads the whole ledger on
+    # every call, so asking it twice would double a walk over 941 rows to answer two halves of one
+    # measurement.
+    _states = dict((v, agreement(v, path)["state"]) for v in recent_v)
+    dis = [v for v in recent_v if _states[v] == "DISAGREE"]
+    # #182 — AND HOW MANY OF THE PAIRS ARE ONE EYE ASKED TWICE. Kept apart from `disagreed`
+    # because they are different findings with different remedies: one is an unsteady instrument,
+    # the other is a corroboration that was never actually taken. Folding them together would hide
+    # both. [[zero-needs-a-denominator]]
+    echoed = [v for v in recent_v if _states[v] == "ECHO"]
     # v3315 — the provenance rides WITH the rate. A disagreement rate computed over rows whose
     # verdicts were written by three different generations of the parser is a measurement of the
     # parser's history as much as of the eye's steadiness, and saying so is cheaper than the
@@ -1059,6 +1177,7 @@ def agreement_census(path=None, recent=40):
     _prov = verdict_provenance(path)
     return {"versions": len(seen), "askedTwice": len(asked_twice),
             "recent": len(recent_v), "disagreed": len(dis), "which": sorted(dis, key=_vnum),
+            "echoed": len(echoed), "whichEchoed": sorted(echoed, key=_vnum),
             "provenance": _prov,
             # ⚠⚠ THE RATE IS AN UPPER BOUND, CONTAMINATED BY MY OWN WORKFLOW, AND MUST SAY SO.
             # A second ROW is not always a second OPINION. Measured 2026-09-18: v3300's two rows
@@ -1070,11 +1189,14 @@ def agreement_census(path=None, recent=40):
             # The honest use is the PER-VERSION verdict; this census exists to state the reach.
             # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
             "say": ("%d of %d version(s) were ever asked twice (%.1f%%); of the %d most recent of "
-                    "those, %d differed. ⚠ UPPER BOUND: a second ROW is not always a second "
-                    "OPINION — re-files and corrections against one version read as DISAGREE here, "
-                    "so this is not a measurement of the eye's steadiness. %s"
+                    "those, %d differed and %d were SAME-FAMILY (ECHO) — one witness asked "
+                    "twice, which is not corroboration. ⚠ UPPER BOUND: a second ROW is not "
+                    "always a second OPINION — re-files and corrections against one version "
+                    "read as DISAGREE here, so this is not a measurement of the eye's steadiness. "
+                    "%s"
                     % (len(asked_twice), len(seen),
                        100.0 * len(asked_twice) / max(1, len(seen)), len(recent_v), len(dis),
+                       len(echoed),
                        _prov.get("say") or _prov.get("why") or ""))}
 
 
