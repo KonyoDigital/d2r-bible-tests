@@ -4030,12 +4030,64 @@ def _check_the_second_eye_was_asked_twice():
     second opinion that lives inside the first opinion's prose is not data. This is heart-first
     rule 6 committed inside the mechanism built to catch it. [[the-unjoined-end]]
 
-    THREE STATES, and collapsing any two is the defect this file is full of:
-      AGREE    -> two reached looks, same verdict. The eye is steady on this payload.
+    FOUR STATES, and collapsing any two is the defect this file is full of:
+      AGREE    -> two reached looks, same verdict, and at least two DIFFERENT families named (or
+                  a family nobody could attribute, which is stated rather than assumed). Two
+                  witnesses, and the eye is steady on this payload.
       DISAGREE -> two reached looks, different verdicts. ⚠ THE FINDING IS ABOUT THE INSTRUMENT:
                   which verdict shipped was decided by timing, not by the code.
       SINGLE   -> asked once. Not a failure of the code and NOT his to act on — it is mine, so
                   this check is named in MINE and does not bill him. [[his #35 ruling]]
+      ECHO     -> v3439 (#182). Asked twice, both looks agree, and every one of them MEASURED to
+                  be the SAME family. One witness asked twice. That is SINGLE wearing a second
+                  coat, and it reaches him as the SAME state for the same reason: the
+                  corroborating look was never taken, and taking it is MINE.
+
+    ⚠⚠ ECHO IS `MISSING`, AND IT IS NOT A FIFTH WORD. BOTH HALVES WERE MEASURED, NOT ARGUED.
+
+    1. A FIFTH WORD IS INVISIBLE TO THE EAGLE — MEASURED 2026-09-23 by DRIVING
+       `control_app.eagle_partition()` and the `unk` line of `_eagle_once` with a row named
+       "second eye asked twice", one state per run:
+
+           state        bad  mine  byDesign  unk   the eagle's own sentence
+           ok            0    0      0        0    "all clear across N check(s)"
+           missing       0    1      0        0    "all clear across N check(s)"   (MINE, see 2)
+           unknown       0    0      0        1    "1 check(s) could not be measured"
+           unmeasured    0    0      0        1    "1 check(s) could not be measured"
+           echo          0    0      0        0    "all clear across N check(s)"   ⚠⚠
+           any new word  0    0      0        0    "all clear across N check(s)"   ⚠⚠
+
+       The eagle buckets on exactly four literal strings. A word it has never heard is counted by
+       NOTHING and folds straight into ALL CLEAR — while `control_ui.html._vxHealthRow` still
+       DRAWS the row (it hides only `state === 'ok'`), under the fallback word 'UNKNOWN', and
+       `_sortRow` files it in `youRows` = WAITING ON YOU, because `mineWhat` only ever carries
+       rows whose state is `missing`. So a new word would be simultaneously uncounted and shown
+       as HIS — which is the v3309 counter-vs-panel divergence rebuilt by hand. Same shape as the
+       UNMEASURED row that tripped `test_UNKNOWN_is_never_folded_into_all_clear` and stopped the
+       live site deploying for a whole day while the code was right throughout.
+       [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+    2. "EIGHT HISTORICAL VERSIONS TURN RED" IS TRUE AND IS NOT WOLF-CRYING HERE — MEASURED over
+       all 877 versions on his 942-row ledger, 2026-09-23:
+
+           SINGLE 842 · DISAGREE 14 · ECHO 8 · AGREE 7 · NONE 6
+           this row today (ECHO -> UNKNOWN):   ok 7 · missing 856 (97.6%) · unknown 14
+           this row after (ECHO -> MISSING):   ok 7 · missing 864 (98.5%) · unknown  6
+
+       +8 rows, +0.9 of a percentage point, on a row that is ALREADY red on 97.6% of versions —
+       and the eight land beside the 842 SINGLEs they are a variant of. ⚠ AND IT NEVER REACHES
+       THE COUNT HE ACTS ON: this check is in MINE, so `bad` stays 0, `needsYou` does not move
+       and the eagle sentence is unchanged (table above). The MINE entry for this exact row
+       already rules it: *"It still renders red, because the omission is real."* A row he is
+       never billed for cannot be silenced by him.
+
+    3. WHY NOT THE OTHER THREE. `ok` is refused because `_vxHealthRow` returns '' for it — the
+       row would not be drawn at all, so the ledger's sentence would reach no screen, and the
+       check would be asserting the corroboration #182 measured was never earned. `unknown`
+       (CAN'T ASK) and `unmeasured` (NEVER / NOT THIS TICK) are refused because both are FALSE:
+       the eye WAS asked, twice, both looks reached, both carried a verdict, and the family was
+       re-derived from the model id. ECHO is a measurement. UNKNOWN means nobody could look, and
+       collapsing those two is the lie this file exists to refuse.
     """
     try:
         import second_eye_ledger as L
@@ -4061,6 +4113,23 @@ def _check_the_second_eye_was_asked_twice():
         return OK, a.get("say", "the looks agree") + tail
     if st == "SINGLE":
         return MISSING, a.get("say", "looked at once") + tail
+    # ⚠⚠ v3439 (#182) — AN ECHO IS A MEASURED FACT, SO IT MUST NOT LEAVE HERE AS UNKNOWN.
+    # Before this branch existed ECHO fell through to the line below and reached his screen as
+    # CAN'T ASK, carrying the ledger's own (correct) sentence underneath a word that contradicts
+    # it. Not a false OK and not a false red — WRONG IN KIND, which is the collapse this file
+    # spends forty other checks refusing. The state and the two measurements behind it are in the
+    # docstring above; this branch only has to keep the SAY naming what the state does not.
+    if st == "ECHO":
+        return MISSING, ((a.get("say") or
+                          ("two or more looks at this version agree and every one of them is the "
+                           "SAME family — one witness asked twice, which is measured, and is not "
+                           "corroboration"))
+                         # ⚠ A REFUSAL THAT NAMES NO ACTION IS FURNITURE. The row is in MINE, so
+                         # the sentence has to say whose move it is and what the move IS, or it
+                         # reads as a complaint nobody can close.
+                         + " · the half that is missing is MINE to take: one more look from a "
+                           "DIFFERENT model family, recorded as its own ledger row"
+                         + tail)
     return UNKNOWN, (a.get("say") or "nothing recorded") + tail
 
 

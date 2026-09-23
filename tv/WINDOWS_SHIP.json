@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3444",
+  "ver": "v3445",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3444: v3436 got one stalled target from 4 read-bounds down to 1; the loop multiplied it back by twenty, because dead is per-instance and the UNKNOWN arm continued to the next target, which built a new _Tab against the same silent Chrome. A globally quiet browser cost up to 20 x 90s against a 300s kill, so the gate was SIGTERMed mid-loop and the verdict lines were never written. The run now stops at the first transport death and names the target. Also: 18 CDP sites sat inside a broad except Exception, so after v3436s short-circuit the selector poll spun out its budget and returned a confident RED naming a CSS SELECTOR about a dead socket — transport errors are now caught before the broad handler. And the budget law it certifies no longer asserts 2xT arithmetic; it drives the behaviour.",
+  "note": "v3445: agreement() gained ECHO in v3439 and console_doctor let it fall through to UNKNOWN — wrong in kind, because ECHO is measured and UNKNOWN means nobody could ask. DRIVEN, not read: control_app.eagle_partition buckets on four literal strings, so a FIFTH state is counted by nothing and folds into ALL CLEAR while control_ui still draws the row under WAITING ON YOU — uncounted and shown as his at once, the same shape as the UNMEASURED row that cost a day of deploys. So ECHO maps to MISSING. My brief said not to, on the grounds that 8 historical versions turn red; measured over all 877 versions that row is ALREADY MISSING on 856 (97.6 percent), so the eight are +0.9pp. The agent measured my premise and refuted it. 7 red-proofs including the over-broad fix and the fifth-state fix.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
