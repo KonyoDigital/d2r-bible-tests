@@ -6453,6 +6453,22 @@ GATES = [
              "one; one-sided rows are counted separately, and a rate over nothing is UNKNOWN, "
              "never 0.0.",
          skip_ok=()),
+    Gate("test_a_reach_difference_is_not_an_unsteady_eye",
+         [sys.executable, os.path.join(HERE, "test_a_reach_difference_is_not_an_unsteady_eye.py")],
+         90,
+         needs_app=False,
+         why="#168 - agreement() said '2 looks at ONE payload DISAGREE ... a finding about the "
+             "INSTRUMENT' about pairs whose payloads differed 2.9x (v3413: 8,622 vs 25,074) and "
+             "9.9x (v3451: 7,744 vs 76,810). An eye shown a TENTH of the change answering "
+             "differently from one shown all of it is not an unsteady eye - it is the cap doing "
+             "what the cap does, and blaming the instrument is the conclusion that stops anyone "
+             "looking at the cap. The data was in the rows the whole time: `sentCode` and `chars` "
+             "appeared NOWHERE in agreement()'s body, checked by AST over every string constant. "
+             "MEASURED when this shipped: SEVEN versions moved out of DISAGREE (19 -> 12). This "
+             "law pins BOTH halves - a 2x+ split reads INCOMPARABLE and NAMES both sizes, while a "
+             "1.1x pair still reads DISAGREE, because an exemption that swallowed every "
+             "disagreement would delete the unsteady-eye finding it exists to sharpen.",
+         skip_ok=()),
     Gate("test_a_handoff_lane_must_not_pile_up",
          [sys.executable, os.path.join(HERE, "test_a_handoff_lane_must_not_pile_up.py")], 90,
          needs_app=False,

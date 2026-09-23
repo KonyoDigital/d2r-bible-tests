@@ -4119,6 +4119,17 @@ def _check_the_second_eye_was_asked_twice():
     # it. Not a false OK and not a false red — WRONG IN KIND, which is the collapse this file
     # spends forty other checks refusing. The state and the two measurements behind it are in the
     # docstring above; this branch only has to keep the SAY naming what the state does not.
+    # ⚠⚠ #168 (v3459) — INCOMPARABLE IS `MISSING`, FOR ECHO'S REASON EXACTLY.
+    # Two looks whose payloads differ 2x+ answered different questions, so the corroborating look
+    # at COMPARABLE reach was never taken — and taking it is MINE, like SINGLE and ECHO. It must
+    # NOT fall through to UNKNOWN: UNKNOWN means nobody could ask, and this is a MEASUREMENT (the
+    # ratio is on the row). MEASURED when this shipped: SEVEN versions moved out of DISAGREE into
+    # it, so seven "the eye is not steady" verdicts were payload differences wearing the
+    # instrument's name. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    if st == "INCOMPARABLE":
+        return MISSING, ((a.get("say") or "two looks over payloads too different to compare")
+                         + " · the half that is missing is MINE to take: one more look at "
+                           "COMPARABLE reach, recorded as its own ledger row") + tail
     if st == "ECHO":
         return MISSING, ((a.get("say") or
                           ("two or more looks at this version agree and every one of them is the "

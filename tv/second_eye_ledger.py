@@ -790,8 +790,20 @@ def blind_to(row):
 #:     tv/test_a_stamp_is_not_a_blind_spot.py — they pin AGREE/DISAGREE/SINGLE/NONE for rows that
 #:     carry no model at all, which is the UNKNOWN-family case and is deliberately left on its
 #:     old state (see below).
-#: ECHO lands in the fall-through ON PURPOSE. [[the-unjoined-end]]
-AGREEMENT_STATES = ("NONE", "SINGLE", "AGREE", "ECHO", "DISAGREE")
+#: ⚠ CORRECTED v3459: an earlier version of this note said "ECHO lands in the fall-through ON
+#: PURPOSE". That is no longer true — console_doctor now carries an explicit
+#: `if st == "ECHO": return (MISSING, ...)` branch, because UNKNOWN means nobody could ask and
+#: ECHO is a MEASUREMENT. The note outlived the code it described, which is the one thing a
+#: comment must never do. [[feedback-comments-vs-code]]
+#: INCOMPARABLE (v3459) is mapped the same way and for the same reason: it is measured, and the
+#: comparable second look it is still owed is MINE to take, exactly like SINGLE.
+#: Two looks whose payloads differ by this much are not answering the same question. 2.0x is
+#: deliberately conservative: the two real pairs that provoked this were 2.9x and 9.9x, so the
+#: bar sits below both without reclassifying a merely-slightly-larger look. #168.
+_PAYLOAD_SPLIT = 2.0
+
+AGREEMENT_STATES = ("NONE", "SINGLE", "AGREE", "ECHO", "DISAGREE",
+                    "INCOMPARABLE")
 
 
 def agreement(version, path=None):
@@ -979,14 +991,51 @@ def agreement(version, path=None):
     # so nothing that used to read DISAGREE was moved out of it. MEASURED on his ledger: 10 of the
     # 29 multi-look versions are same-family disagreements and every one of them still reads
     # DISAGREE. `_fnote` now names the family, so the reader can tell the two shapes apart.
+    # ⚠⚠ #168 (v3459) — "AT ONE PAYLOAD" WAS A CLAIM THIS FUNCTION NEVER CHECKED.
+    # MEASURED on two real pairs it called unsteady:
+    #     v3413   8,622 chars (cannot-tell)  vs  25,074 chars (findings)   — 2.9x
+    #     v3451   7,744 chars (clean)        vs  76,810 chars (findings)   — 9.9x
+    # An eye shown a tenth of the change answering differently from one shown all of it is not an
+    # unsteady instrument; it is the CAP doing what the cap does. Blaming the eye points the reader
+    # at the wrong subject and is precisely the conclusion that stops anyone looking at the cap.
+    # ⚠ THE DATA WAS ALREADY IN THE ROWS AND THIS FUNCTION NEVER READ IT: `sentCode` and `chars`
+    # appear NOWHERE in its body (checked by AST over every string constant, not by eye).
+    # [[feedback-suspect-the-instrument]] [[label-outlived-referent]]
+    _sizes = []
+    for _r in reached:
+        _sc = _r.get("sentCode")
+        _n = (_sc or {}).get("chars") if isinstance(_sc, dict) else None
+        if isinstance(_n, (int, float)) and _n > 0:
+            _sizes.append(float(_n))
+    _ratio = (max(_sizes) / min(_sizes)) if len(_sizes) >= 2 else None
+    if _ratio is not None and _ratio >= _PAYLOAD_SPLIT:
+        return {"version": version, "looks": len(verdicts), "empty": empty,
+                "state": "INCOMPARABLE",
+                "verdicts": verdicts, "partial": len(_partial),
+                "reachUnknown": len(_unknown_reach), "cut": len(_cut),
+                "families": _distinct, "familyKnown": len(_known),
+                "familyUnknown": _fam_unknown, "sameFamily": _same_family,
+                "payloadRatio": round(_ratio, 1),
+                "say": ("%d looks at %s reached DIFFERENT VERDICTS (%s) over payloads that differ "
+                        "%.1fx (%d vs %d chars). That is NOT an unsteady eye — it is a different "
+                        "question asked twice, and the comparable second look is still owed."
+                        % (len(verdicts), version, ", ".join(verdicts), _ratio,
+                           int(max(_sizes)), int(min(_sizes)))) + _fnote + _pnote}
+    # ⚠ AND WHEN THE SIZES ARE UNKNOWN, THE "ONE PAYLOAD" CLAIM IS STILL UNEARNED. It is not
+    # INCOMPARABLE either — nobody measured. The verdict stays DISAGREE and the sentence stops
+    # asserting what was never checked. [[unknown-stays-unknown]]
+    _one = ("at ONE payload" if _ratio is not None
+            else "at payloads of UNKNOWN size (no sentCode.chars on %d of %d look(s))"
+                 % (len(reached) - len(_sizes), len(reached)))
     return {"version": version, "looks": len(verdicts), "empty": empty, "state": "DISAGREE",
             "verdicts": verdicts, "partial": len(_partial),
             "reachUnknown": len(_unknown_reach), "cut": len(_cut),
             "families": _distinct, "familyKnown": len(_known),
             "familyUnknown": _fam_unknown, "sameFamily": _same_family,
-            "say": "%d looks at ONE payload DISAGREE (%s) — the eye is not steady here, and which "
+            "payloadRatio": (round(_ratio, 1) if _ratio is not None else None),
+            "say": "%d looks %s DISAGREE (%s) — the eye is not steady here, and which "
                    "verdict shipped was decided by timing. That is a finding about the "
-                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts)) + _fnote + _pnote}
+                   "INSTRUMENT." % (len(verdicts), _one, ", ".join(verdicts)) + _fnote + _pnote}
 
 
 #: ⚠⚠ v3315 — WHICH PARSER WROTE THIS VERDICT. Bump this string whenever `_verdict_for` or
