@@ -218,7 +218,13 @@ def _check_behind_the_fleet():
         try:
             # v3409 — the THIRD git spawn in this module, found only after the one-door gate
             # stopped accepting `subprocess.run` as the door. See tv/git_quiet.py.
-            r = _gq.run(("git",) + args, cwd=ROOT, capture_output=True, text=True, timeout=15)
+            # ⚠ v3437 — THREE of CPython's NINE posix_spawn conditions were violated here and
+            # this site forked after v3429, because only close_fds was ever recorded as the law.
+            # `git -C ROOT` replaces cwd=ROOT (condition six); _spawnable gives argv[0] a dirname.
+            # ⚠ Resolved AT THE CALL SITE on purpose — doing it inside git_quiet would be invisible
+            # here and the gate would have to report this site UNKNOWN rather than green.
+            r = _gq.run([_spawnable("git"), "-C", ROOT] + list(args), close_fds=False,
+                        capture_output=True, text=True, timeout=15)
             return (r.stdout or "").strip() if r.returncode == 0 else None
         except Exception:
             return None
@@ -4952,8 +4958,9 @@ def _check_the_eye_asks_for_every_code_extension():
     ver = str(looked[-1].get("version") or "?")
     try:
         import git_quiet as _gq
-        p = _gq.run(["git", "show", "--format=", "--name-only", sha],
-                    cwd=os.path.dirname(here), capture_output=True, text=True, timeout=60)
+        p = _gq.run([_spawnable("git"), "-C", os.path.dirname(here),
+                     "show", "--format=", "--name-only", sha],
+                    close_fds=False, capture_output=True, text=True, timeout=60)
     except Exception as e:
         return UNKNOWN, "git would not run (%s), so the changed-file set is unmeasured" % type(e).__name__
     if p.returncode != 0:
@@ -5898,8 +5905,8 @@ def _check_this_machine_is_keeping_itself_current():
         return UNKNOWN, ("this tree is not a git checkout, so whether it is current is UNKNOWN")
     try:
         import git_quiet as _gq
-        r = _gq.run(["git", "rev-list", "--count", "HEAD..origin/main"],
-                    cwd=ROOT, capture_output=True, text=True, timeout=20)
+        r = _gq.run([_spawnable("git"), "-C", ROOT, "rev-list", "--count", "HEAD..origin/main"],
+                    close_fds=False, capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             return UNKNOWN, ("git could not compare this tree against origin/main (%s), so how far "
                              "behind it is UNKNOWN, not zero"
@@ -6310,10 +6317,10 @@ def _check_the_resume_agrees_with_git_right_now():
     fp_unknown = (said_head == "UNKNOWN" or said_origin == "UNKNOWN")
     try:
         import git_quiet as _gq
-        _h = _gq.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-                     capture_output=True, text=True, timeout=20)
-        _o = _gq.run(["git", "rev-parse", "--short", "origin/main"], cwd=ROOT,
-                     capture_output=True, text=True, timeout=20)
+        _h = _gq.run([_spawnable("git"), "-C", ROOT, "rev-parse", "--short", "HEAD"],
+                     close_fds=False, capture_output=True, text=True, timeout=20)
+        _o = _gq.run([_spawnable("git"), "-C", ROOT, "rev-parse", "--short", "origin/main"],
+                     close_fds=False, capture_output=True, text=True, timeout=20)
         # ⚠⚠ v3416 — COUNT THE UNPUSHED COMMITS; THE HASHES WERE A PROXY AND THE PROXY WAS
         # WRONG. "Nothing is waiting to be pushed" is a claim about UNPUSHED COMMITS, and
         # derived() writes it whenever `origin/main..HEAD` is empty — which is ALSO true when
@@ -6321,8 +6328,8 @@ def _check_the_resume_agrees_with_git_right_now():
         # file a FALSE all-clear on every behind tree, and behind is the ordinary state here
         # the moment the Windows box or the other family pushes before this machine pulls.
         # Ask the question the sentence actually makes. [[feedback-verify-not-proxy]]
-        _a = _gq.run(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=ROOT,
-                     capture_output=True, text=True, timeout=20)
+        _a = _gq.run([_spawnable("git"), "-C", ROOT, "rev-list", "--count", "origin/main..HEAD"],
+                     close_fds=False, capture_output=True, text=True, timeout=20)
     except Exception as e:
         return UNKNOWN, ("git could not be asked (%s), so whether the resume agrees with it is "
                          "UNKNOWN" % type(e).__name__)

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3440",
+  "ver": "v3441",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3440: Four declared red-proof anchors matched ZERO lines, so those proofs never ran while the gates they certify read as proven. Re-anchored, each at exactly one match, each driven to RED. A fifth was found in this batch with a different cause: a parallel edit rewrapped a print and silently disarmed a neighbouring proof.",
+  "note": "v3441: CPythons posix_spawn gate has NINE conditions; this repo recorded TWO. cwd= is condition six, and six git spawns in console_doctor all passed cwd=ROOT and therefore STILL FORKED after v3429. The gate could not see them: its receiver allowlist excluded the very door the fix routed everything through. All six repaired at the CALL SITE because a fix hidden in the wrapper could only be graded UNKNOWN. cd.run now 8.2s/109 rows.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
