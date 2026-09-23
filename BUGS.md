@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1171 - THE LAW THAT GUARDS THE PUSH READ SHELL WRONG FOUR WAYS — THE EYE FOUND THEM IN ONE LOOK
+
+**v3471 - the cross-family eye (grok-cli, schema, 8,866 chars) on the SHIPPED v3469 bytes: 7 findings,
+adjudicated.** Refuted with evidence: F1 (RED_PROOF after `unittest.main()` "unreachable" — heart2
+reads it by AST without executing, and proved both) and F6 (an unbalanced `if` in a tamper — the
+prover text-tampers a sandbox and runs the LAW, never the hook). Real and fixed: a `<<` inside quotes
+froze the counter; `{ }` bodies at column 0 were not counted; `split("#")` cut `echo "#"`; and a
+comment NAMING the census beside a different script satisfied presence. Presence is now judged on
+what EXECUTES (the argv after `--`, continuation lines joined, comments stripped quote-aware), and
+the counter proves it is not blind: every heredoc must terminate and the hook must balance to 0.
+⚠ The first cut of that self-check caught MY OWN new bug at once: bash opens a fresh quoting context
+inside `$( … )`, so `x="$(python3 - <<'PYGATE' …)"` is a real heredoc my quote-aware scanner had
+missed. 4 driven parser cases; 4 red-proofs, all PROVEN.
+
 ### REG-1170 - SEVEN TEST SUITES WROTE FAKE CHECKS INTO HIS LIVE EAGLE LEDGERS ON EVERY RUN
 
 **v3470.** The doctor suites drive `console_doctor` / `unknown_age` with fake checks, and seven never

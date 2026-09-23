@@ -36,45 +36,131 @@ HOOK = os.path.join(os.path.dirname(HERE), "hooks", "pre-push")
 CALL = 'if ! gate_run "red-proof anchors"'
 
 
+INVOCATION = ('test_the_heart_can_see_its_own_instruments.py" '
+              'TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed')
+
+
+def _code(line):
+    """The line with its shell COMMENT removed — quote-aware. v3471: a `#` starts a comment only
+    outside quotes and at the start of a word; `split("#")` cut `echo "#"` in half (eye on v3469)."""
+    q, out = None, []
+    for i, ch in enumerate(line):
+        if q:
+            if ch == q and (q == "'" or line[i - 1] != "\\"):
+                q = None
+        elif ch in ("'", '"'):
+            q = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            break
+        out.append(ch)
+    return "".join(out).rstrip()
+
+
+_HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
+
+
+def _heredoc_tag(code):
+    """A heredoc opener OUTSIDE quotes, or None. v3471: `echo "a << note"` is not an opener."""
+    q, i = None, 0
+    while i < len(code):
+        ch = code[i]
+        if code.startswith("$(", i):
+            # ⚠ bash starts a FRESH quoting context inside $( ... ), even inside double quotes, so
+            # `x="$(python3 - <<'PYGATE' ...)"` IS a real heredoc. The first v3471 cut read it as text
+            # inside quotes, skipped nothing, and the hook stopped balancing — its own check caught it.
+            q = None
+            i += 2
+            continue
+        if q:
+            if ch == q:
+                q = None
+        elif ch in ("'", '"'):
+            q = ch
+        elif code.startswith("<<", i) and not code.startswith("<<<", i):
+            m = _HEREDOC.match(code, i)
+            return m.group(1) if m else None
+        i += 1
+    return None
+
+
+def _walk(lines, stop=None):
+    """-> (depth at `stop` (or at EOF), unterminated heredoc tag or None). COLUMN-0 grammar.
+
+    ⚠ SIX CUTS, EACH WRONG FOR A NAMED REASON. v3469's three (a python heredoc at column 0, Perl in a
+    multi-line `perl -e` string, continued `if ... \\` conditions) and the cross-family eye's three on
+    v3469 (a `<<` inside quotes froze the counter; `{ }` bodies at column 0 were not counted; a `#`
+    inside quotes was read as a comment). The walk now reports its own blindness: a heredoc that never
+    terminates, or a file that does not balance to depth 0, is the counter failing — said loudly."""
+    depth, tag = 0, None
+    for n, l in enumerate(lines):
+        if stop is not None and n >= stop:
+            break
+        if tag is not None:
+            if l.strip() == tag:
+                tag = None
+            continue
+        code = _code(l)
+        t = _heredoc_tag(code)
+        if t:
+            tag = t
+        if (re.match(r"^(if|for|while|until|case)\b", code)
+                and not re.search(r"\b(fi|done|esac)$", code)):
+            depth += 1
+        elif re.match(r"^(fi|done|esac)\b", code):
+            depth -= 1
+        elif re.match(r"^[A-Za-z_][A-Za-z0-9_]*\(\)\s*\{$", code) or code in ("{", "("):
+            depth += 1                                   # a function body or group at column 0
+        elif code in ("}", ")"):
+            depth -= 1
+    return depth, tag
+
+
+def _call_block(lines, i):
+    """The call line and its `\\` continuations, comments stripped. -> str"""
+    out, k = [], i
+    while k < len(lines):
+        out.append(_code(lines[k]))
+        if not lines[k].rstrip().endswith("\\"):
+            break
+        k += 1
+    return " ".join(x.rstrip("\\ ") for x in out)
+
+
 class EveryPushChecksEveryProofAnchor(unittest.TestCase):
 
     def _lines(self):
         return io.open(HOOK, encoding="utf-8").read().split("\n")
 
-    def test_the_hook_runs_the_anchor_census(self):
+    def test_the_hook_EXECUTES_the_anchor_census(self):
         lines = self._lines()
         hits = [i for i, l in enumerate(lines) if l.startswith(CALL)]
-        self.assertEqual(len(hits), 1, "the hook does not run the red-proof anchor census exactly "
-                                       "once at top level (found %d)" % len(hits))
-        body = "\n".join(lines[hits[0]:hits[0] + 3])
-        self.assertIn("test_every_declared_red_proof_is_well_formed", body,
-                      "the gate is named but does not run the census case: %r" % body)
+        self.assertEqual(len(hits), 1, "the hook does not run the red-proof anchor census exactly once "
+                                       "at top level (found %d)" % len(hits))
+        block = _call_block(lines, hits[0])
+        # v3471 — what RUNS is what follows `--`; the first quoted argument is only the reproduce
+        # hint, and a comment beside a different script named the census too (eye on v3469).
+        self.assertIn(" -- ", block, "the call has no `--` argv to execute: %r" % block)
+        runs = block.split(" -- ", 1)[1]
+        self.assertIn(INVOCATION, runs, "the census is NAMED but not EXECUTED by this call: %r" % runs)
 
-    @staticmethod
-    def _depth_before(lines, idx):
-        """Top-level block depth at line idx, read from COLUMN-0 openers/closers only.
+    def test_the_parser_reads_shell_the_way_bash_does(self):
+        """v3471 — the eye on v3469 named each of these; each is now DRIVEN, not argued."""
+        self.assertEqual(_code('echo "#" here'), 'echo "#" here', "a # inside quotes was read as a comment")
+        self.assertEqual(_code("x=1 # note"), "x=1", "a real trailing comment survived")
+        self.assertIsNone(_heredoc_tag('echo "a << note"'), "a << inside quotes was read as a heredoc")
+        self.assertEqual(_heredoc_tag('x="$(python3 - <<\'PYGATE\' 2>/dev/null)"'), "PYGATE",
+                         "a heredoc inside $( ) was missed — bash opens a fresh quote context there")
+        self.assertEqual(_walk(["f() {", "  if x; then", "  fi", "}"])[0], 0)
+        self.assertEqual(_walk(["f() {", "if ! gate_run \"x\" y -- z; then"], stop=1)[0], 1,
+                         "a call inside a column-0 function body read as top level")
 
-        ⚠ THREE CUTS, EACH WRONG FOR A NAMED REASON, before this one discriminated: (1) the python
-        heredoc's column-0 `for`/`if` counted as bash — heredoc bodies are now skipped; (2) Perl's
-        `if (!$p) {` inside a multi-line `perl -e '...'` string counted; (3) requiring `then` on the
-        same line mis-counted every continued `if ... \\` condition, reading -5. This hook indents
-        every nested statement, so column 0 IS the top-level grammar here — and the baseline case
-        below proves the counter can say NESTED before its "top level" is believed."""
-        depth, tag = 0, None
-        for l in lines[:idx]:
-            if tag is not None:
-                if l.strip() == tag:
-                    tag = None
-                continue
-            m = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?", l)
-            if m and "<<<" not in l:
-                tag = m.group(1)
-            code = l.split("#", 1)[0].rstrip()
-            if re.match(r"^(if|for|while|until|case)\b", code) and not re.search(r"\b(fi|done|esac)$", code):
-                depth += 1
-            elif re.match(r"^(fi|done|esac)\b", code):
-                depth -= 1
-        return depth
+    def test_the_counter_can_see_the_whole_hook(self):
+        """The instrument proves it is not blind before its verdict is believed."""
+        depth, tag = _walk(self._lines())
+        self.assertIsNone(tag, "a heredoc opened with %r never terminates — the counter skipped the "
+                               "rest of the hook" % tag)
+        self.assertEqual(depth, 0, "the hook does not balance to depth 0 (%d): the counter misread "
+                                   "its structure somewhere" % depth)
 
     def test_it_runs_on_every_push_not_only_when_a_test_changed(self):
         lines = self._lines()
@@ -82,10 +168,10 @@ class EveryPushChecksEveryProofAnchor(unittest.TestCase):
         self.assertTrue(call, "no top-level call to measure")
         inner = [k for k, l in enumerate(lines) if 'tv/heart2.py" --prove $_gates' in l]
         self.assertTrue(inner, "the changed-law prove call is gone, so the baseline cannot be taken")
-        self.assertGreaterEqual(self._depth_before(lines, inner[0]), 1,
+        self.assertGreaterEqual(_walk(lines, inner[0])[0], 1,
                                 "BASELINE: the prove call INSIDE the changed-tests block read as top "
                                 "level, so this counter cannot tell nested from not")
-        self.assertEqual(self._depth_before(lines, call[0]), 0,
+        self.assertEqual(_walk(lines, call[0])[0], 0,
                          "the anchor census sits inside a block, so some pushes skip it")
 
 if __name__ == "__main__":
@@ -105,6 +191,20 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": "if ! gate_run \"red-proof anchors\"",
         "replace": "if [ -n \"${_chg_live:-}\" ]; then\nif ! gate_run \"red-proof anchors\"",
+        "matches": 1,
+    },
+    {
+        "why": "v3471 — the census only NAMED in a comment beside a different script (eye on v3469)",
+        "file": "hooks/pre-push",
+        "find": "     python3 \"$REPO/tv/test_the_heart_can_see_its_own_instruments.py\" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then\n",
+        "replace": "     python3 \"$REPO/tv/review_lite.py\"; then  # test_the_heart_can_see_its_own_instruments.py\" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3471 — a heredoc that never terminates blinds the counter to the rest of the hook",
+        "file": "hooks/pre-push",
+        "find": "if ! gate_run \"red-proof anchors\"",
+        "replace": "cat <<NEVER_TERMINATED\nif ! gate_run \"red-proof anchors\"",
         "matches": 1,
     },
 ]
