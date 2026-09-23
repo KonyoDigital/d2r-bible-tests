@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1169 - THE PUSH RE-PROVED ONLY THE LAWS WHOSE TEST CHANGED, SO FOUR PROOFS DIED IN ONE DAY
+
+**v3469 - the structural fix for REG-1163.** `hooks/pre-push` re-proves a law only when its TEST
+file is in the push. A red-proof anchors on a line in ANOTHER file, so an ordinary edit to that line
+never names the proof, and it goes INVALID silently. Four on 2026-09-24: v3455, v3456, v3462 and
+v3464 (that last one mine, caught by hand the same hour). The census case
+`test_every_declared_red_proof_is_well_formed` knew every one and never ran at push time. It now
+runs on EVERY push (~5s), at top level. ⚠ Reach: INVALID (anchor matches nothing), not BLIND (anchor
+matches, law stays green) — that still needs a full `heart2 --prove`.
+
+The law's depth counter was wrong three times before it discriminated — a python heredoc at column
+0, Perl inside a multi-line `perl -e` string, continued `if … \` conditions (read -5) — and the
+fourth pins a BASELINE (the changed-tests prove call must read nested) before "top level" is believed.
+
 ### REG-1168 - 23 DOCTOR ROWS WERE EXPLAINED NOWHERE, SO A CI GATE WAS RED FOR AS LONG AS ANYONE READ IT
 
 **v3468 - #208, part of #123.** `test_every_doctor_check_is_explained` requires every live doctor row

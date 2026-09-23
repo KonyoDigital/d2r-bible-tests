@@ -6555,6 +6555,14 @@ GATES = [
              "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
              "six literal characters in the one message he reads when a push fails.",
          skip_ok=()),
+    Gate("test_every_push_checks_every_proof_anchor",
+         [sys.executable, os.path.join(HERE, "test_every_push_checks_every_proof_anchor.py")], 60,
+         needs_app=False,
+         why="REG-1163 - four red-proofs went INVALID in one day because an ordinary edit changed "
+             "a line another gate's proof pins, and the hook re-proves only laws whose TEST file "
+             "changed. The census case knew all four and never ran at push time. This pins that "
+             "the hook runs it on EVERY push, at top level, not inside the changed-tests block.",
+         skip_ok=()),
     Gate("test_two_eyes_are_compared",
          [sys.executable, os.path.join(HERE, "test_two_eyes_are_compared.py")], 60,
          needs_app=False,

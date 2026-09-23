@@ -411,6 +411,23 @@ PYGATE
   fi
 fi
 
+# ══ v3469 — EVERY PUSH CHECKS EVERY RED-PROOF ANCHOR, NOT ONLY THE CHANGED LAWS' ════════════════
+# The block above re-proves a law only when its TEST file is in the push. A proof lives in one test
+# file and anchors on a line in ANOTHER, so an ordinary edit to that line never names the proof —
+# and it silently changes nothing while the law reads as proven. FOUR on 2026-09-24 (v3455, v3456,
+# v3462, v3464 — REG-1163). The census case knew every one; it never ran here. ~5s.
+# ⚠ Its reach: an anchor that matches NOTHING (INVALID). A proof that still matches and no longer
+# turns red (BLIND) needs a full `heart2 --prove`. ⚠ TOP LEVEL ON PURPOSE — inside the changed-
+# tests block it would skip exactly the pushes that edit only the code a proof pins.
+if ! gate_run "red-proof anchors" "python3 tv/test_the_heart_can_see_its_own_instruments.py TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed" 120 -- \
+     python3 "$REPO/tv/test_the_heart_can_see_its_own_instruments.py" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then
+  echo "          ↑ a red-proof's anchor no longer matches the file it tampers — usually an ordinary"
+  echo "            edit to a line ANOTHER gate's proof pins (REG-1163). Re-anchor it to the SAME"
+  echo "            property; never delete the proof to get green."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ every declared red-proof still matches its anchor."
+
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
   echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
   echo "            actually does. Fix it, or say why it is now correct, then push again."

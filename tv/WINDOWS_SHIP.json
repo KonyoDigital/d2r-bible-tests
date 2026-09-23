@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3468",
+  "ver": "v3469",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3468: every doctor row now says what it reads and what an independent second source would be; the explained-exactly-once gate, red on CI for as long as it was read, is green",
+  "note": "v3469: every push now checks every declared red-proof anchor at top level, the structural fix for four proofs that went invalid in one day",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
