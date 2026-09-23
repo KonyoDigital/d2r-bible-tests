@@ -6545,6 +6545,16 @@ GATES = [
              "at all. The simulator reported 'no KNOWN host dependency' for both. That gap once "
              "cost a full day of deploys.",
          skip_ok=()),
+    Gate("test_every_push_line_carries_its_elapsed_time",
+         [sys.executable, os.path.join(HERE, "test_every_push_line_carries_its_elapsed_time.py")], 60,
+         needs_app=False,
+         why="#193 - every pre-push status line was untimed, so a gate's duration could only be "
+             "BOUNDED from outside by polling ps; the v3447-v3451 prover, the one run that most "
+             "needed a number, could only be reported as '<=20 min'. Two starvation refusals on "
+             "2026-09-24 left logs that could not say how long the stages before them took. The "
+             "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
+             "six literal characters in the one message he reads when a push fails.",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

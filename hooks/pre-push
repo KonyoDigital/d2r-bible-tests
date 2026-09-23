@@ -28,6 +28,13 @@
 set -u
 
 REPO="$(git rev-parse --show-toplevel)" || exit 1
+# v3465 (#193) — EVERY STATUS LINE CARRIES ITS ELAPSED TIME. Untimed, a gate's duration could
+# only be BOUNDED from outside by polling ps; the v3447-v3451 prover could only be reported as
+# "<=20 min". Elapsed since the hook started, from bash's own $SECONDS — no date, no fork.
+# ⚠ No EXIT trap for a total: the console gate sets its own `trap ... EXIT` further down, and
+# a second trap would REPLACE it silently. The last stamped line already carries the total.
+_PP_T0=$SECONDS
+_pp_el() { local s=$((SECONDS - _PP_T0)); printf '%dm%02ds' $((s / 60)) $((s % 60)); }
 
 # v1576 — KEEP THE EVIDENCE. Every gate below used to run with `>/dev/null 2>&1`, so a
 # blocked push told you only *that* a suite failed, never *which test*. The output was
@@ -107,13 +114,13 @@ gate_run() {
     _load1="$(uptime | sed 's/.*averages*: *//' | awk '{print $1}' | tr -d ',')"
     _busy="$(printf '%.0f' "${_load1:-0}" 2>/dev/null || echo 0)"
     if [ "${_busy:-0}" -ge 6 ]; then
-      echo "pre-push: \u23f1 ${label} DID NOT FINISH in ${limit}s — load average ${_load1}. Push blocked."
+      echo "pre-push: [$(_pp_el)] ⏱ ${label} DID NOT FINISH in ${limit}s — load average ${_load1}. Push blocked."
       echo "          ⚠ STARVED, not hung: this machine was busy (load ${_load1}). The suite has"
       echo "            never wedged; it has been slowed. Re-push when the machine is quiet"
       echo "            rather than raising the ceiling — a ceiling above every real load is an"
       echo "            absent hang detector."
     else
-      echo "pre-push: \u23f1 ${label} HUNG — killed after ${limit}s on an IDLE machine (load ${_load1}). Push blocked."
+      echo "pre-push: [$(_pp_el)] ⏱ ${label} HUNG — killed after ${limit}s on an IDLE machine (load ${_load1}). Push blocked."
     fi
     echo "          Partial output kept at: ${log}"
     echo "          ── last 25 lines before the kill ───────────────────────────"
@@ -121,7 +128,7 @@ gate_run() {
     echo "          ────────────────────────────────────────────────────────────"
     return 1
   fi
-  echo "pre-push: ❌ ${label} FAILED (exit ${rc}) — push blocked."
+  echo "pre-push: [$(_pp_el)] ❌ ${label} FAILED (exit ${rc}) — push blocked."
   echo "          Reproduce: ${rerun}"
   echo "          Full output kept at: ${log}"
   echo "          ── last 40 lines ───────────────────────────────────────────"
@@ -181,7 +188,7 @@ fi
 # that has nothing to do with what was being checked.
 # It is the same definition (console_safe.audit), not a copy: test_control calls it too.
 if ! python3 "$REPO/tv/console_safe.py"; then
-  echo "pre-push: ❌ a script prints non-ASCII and never makes stdout encoding-safe — push blocked."
+  echo "pre-push: [$(_pp_el)] ❌ a script prints non-ASCII and never makes stdout encoding-safe — push blocked."
   echo "          Reproduce: python3 tv/console_safe.py"
   echo "          On a cp1255 console it crashes WHILE REPORTING, so a clean tree exits non-zero"
   echo "          for a reason unrelated to the check. Add at the top of the file named above:"
@@ -253,7 +260,7 @@ except Exception:
     # ⚠ UNREADABLE IS A REFUSAL, NOT A SKIP. Every way of failing to read a version used to
     # degrade to silence, so a WINDOWS_SHIP.json that would not parse DELETED this gate instead
     # of tripping it. Unknown exits non-zero here, like everywhere else in this repo.
-    echo "pre-push: ❌ cannot read the version stamp in the commit being pushed, so I cannot tell"
+    echo "pre-push: [$(_pp_el)] ❌ cannot read the version stamp in the commit being pushed, so I cannot tell"
     echo "          whether this is a ship. Refusing rather than guessing."
     echo "          (deliberate exception: git push --no-verify)"
     exit 1
@@ -268,7 +275,7 @@ except Exception:
   if [ -z "$_prev_ver" ] \
      && [ -n "$_se_remote" ] \
      && [ "$_se_remote" != "0000000000000000000000000000000000000000" ]; then
-    echo "pre-push: ❌ origin/main is at a commit whose version stamp cannot be read, so I cannot"
+    echo "pre-push: [$(_pp_el)] ❌ origin/main is at a commit whose version stamp cannot be read, so I cannot"
     echo "          tell which version is currently live or whether anyone looked at it."
     echo "          Refusing rather than skipping — a version nobody can name is not a version"
     echo "          anybody looked at."
@@ -278,7 +285,7 @@ except Exception:
   if [ -n "$_prev_ver" ] && [ "$_prev_ver" != "$_this_ver" ]; then
     if ! gate_run "second-eye" "python3 tv/second_eye_ledger.py --check $_prev_ver --gate" 30 -- \
          python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" --gate; then
-      echo "pre-push: ❌ $_this_ver may not ship while $_prev_ver has never been looked at by a"
+      echo "pre-push: [$(_pp_el)] ❌ $_this_ver may not ship while $_prev_ver has never been looked at by a"
       echo "          different model family. Render it, hand the pixels to Grok COLD (no hint of"
       echo "          what it should show), and record what came back. To see the state:"
       echo "              python3 tv/second_eye_ledger.py --audit"
@@ -286,7 +293,7 @@ except Exception:
       echo "          (deliberate exception: git push --no-verify)"
       exit 1
     fi
-    echo "pre-push: ✅ the second eye looked at $_prev_ver."
+    echo "pre-push: [$(_pp_el)] ✅ the second eye looked at $_prev_ver."
   fi
   # ⚠⚠ v2794 — THE MAP GOES STALE SILENTLY, AND IT DID: measured 2026-09-08, BLUEPRINT.md had not
   # been regenerated since Sep 2 and knew nothing of the river or the printer — `station` 0
@@ -299,13 +306,13 @@ except Exception:
   # second-eye gate above. [[d2r-push-grades-the-working-tree]]
   if ! gate_run "blueprint" "python3 tv/blueprint.py --check" 60 -- \
        python3 "$REPO/tv/blueprint.py" --check; then
-    echo "pre-push: ❌ BLUEPRINT.md no longer matches the code."
+    echo "pre-push: [$(_pp_el)] ❌ BLUEPRINT.md no longer matches the code."
     echo "          The map is generated so it cannot go stale — but only if it is regenerated."
     echo "              python3 tv/blueprint.py     (then commit it and push again)"
     echo "          (deliberate exception: git push --no-verify)"
     exit 1
   fi
-  echo "pre-push: ✅ the blueprint matches the code."
+  echo "pre-push: [$(_pp_el)] ✅ the blueprint matches the code."
 
   # ⚠⚠ v3206 — THE HEART GETS THE BLUEPRINT'S ENFORCEMENT, because it is the half that drifted.
   # His standing order is JOIN -> GATE -> HEART -> BANK, carved as prose on 2026-09-06 — and on
@@ -316,11 +323,11 @@ except Exception:
   # it is grading and leave the stale file in the commit being pushed.
   if ! gate_run "heart" "python3 tv/heart_map.py --check" 60 -- \
        python3 "$REPO/tv/heart_map.py" --check; then
-    echo "pre-push: ❌ the heart map does not match the code, or coverage FELL."
+    echo "pre-push: [$(_pp_el)] ❌ the heart map does not match the code, or coverage FELL."
     echo "              python3 tv/heart_map.py     (then commit it and push again)"
     exit 1
   fi
-  echo "pre-push: ✅ the heart map matches the code."
+  echo "pre-push: [$(_pp_el)] ✅ the heart map matches the code."
   # ⚠ KNOWN AND DELIBERATE LIMIT: a batched push crossing several version stamps is judged on the
   # BOUNDARY version only — the one that was actually live and therefore actually lookable. The
   # intermediate stamps never shipped on their own, so nothing ever displayed them to a second eye.
@@ -353,7 +360,7 @@ if git rev-parse --verify --quiet '@{push}' >/dev/null 2>&1; then
 elif git rev-parse --verify --quiet 'origin/main' >/dev/null 2>&1; then
   _chg_tests="$(git diff --name-only 'origin/main..HEAD' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
 else
-  echo "pre-push: ⚠ neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
+  echo "pre-push: [$(_pp_el)] ⚠ neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
   echo "          and no red-proof was exercised. THIS IS A SKIP, NOT A PASS."
 fi
 # a test file deleted in this push has no law left to prove — drop it before deriving gates
@@ -382,15 +389,15 @@ print(" ".join(sorted(set(out))))
 PYGATE
 )"
   if [ -z "$_gates" ]; then
-    echo "pre-push: ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
+    echo "pre-push: [$(_pp_el)] ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
     echo "          exercised. THIS IS A SKIP, NOT A PASS."
   else
     _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
     if python3 "$REPO/tv/heart2.py" --prove $_gates > "$_prove_log" 2>&1; then
-      echo "pre-push: ✅ every changed law demonstrated it can still go red."
+      echo "pre-push: [$(_pp_el)] ✅ every changed law demonstrated it can still go red."
       rm -f "$_prove_log"
     else
-      echo "pre-push: ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
+      echo "pre-push: [$(_pp_el)] ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
       echo "          Reproduce: python3 tv/heart2.py --prove $_gates"
       echo "          ── last 24 lines ───────────────────────────────────────────"
       tail -24 "$_prove_log" | sed 's/^/          /'
@@ -415,7 +422,7 @@ if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE
   echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
   exit 1
 fi
-echo "pre-push: ✅ visual-lock intact."
+echo "pre-push: [$(_pp_el)] ✅ visual-lock intact."
 
 # v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
 # BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
@@ -432,12 +439,12 @@ if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list t
   echo "            manifest disagree. OPEN the image before re-blessing any hash."
   exit 1
 fi
-echo "pre-push: ✅ boss portraits are the pictures a human opened, and bible.html serves them."
+echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
 
 # v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
-  echo "pre-push: tv/ python touched — running the agent+control suites…"
+  echo "pre-push: [$(_pp_el)] tv/ python touched — running the agent+control suites…"
   if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
     exit 1
   fi
@@ -471,7 +478,7 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
        python3 "$REPO/tv/test_chronicle_seal.py"; then
     exit 1
   fi
-  echo "pre-push: ✅ tv suites green."
+  echo "pre-push: [$(_pp_el)] ✅ tv suites green."
   # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the
   # demonstration journeys must pass. App down → skip with a note (never block on an environment
   # the push didn't break). Konyo's "full test system" law.
@@ -576,7 +583,7 @@ if [ "$_px_touched" = "1" ]; then
     gate_run "render" "python3 tv/render_check.py" 300 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
     gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
   else
-    echo "pre-push: 🔴 a visual file is shipping and NO browser could be started — this push was"
+    echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"
     echo "          never looked at. That is UNKNOWN, not a pass."
     _px_fail=1
   fi
@@ -602,10 +609,10 @@ if [ "$_px_touched" = "1" ]; then
     */d2r-render-profile*) rm -rf "$_px_profile" >/dev/null 2>&1 || true ;;
   esac
   if [ "${_px_fail:-0}" = "1" ]; then
-    echo "pre-push: BLOCKED — the rendered page did not pass. LOOK AT THE PNGs in tv/.render_shots."
+    echo "pre-push: [$(_pp_el)] BLOCKED — the rendered page did not pass. LOOK AT THE PNGs in tv/.render_shots."
     exit 1
   fi
-  echo "pre-push: ✅ the page was rendered and looked at."
+  echo "pre-push: [$(_pp_el)] ✅ the page was rendered and looked at."
 fi
 
   _range=""
@@ -677,21 +684,21 @@ else:
 ' 2>/dev/null || echo "unknown|could not ask the console")"
     case "$_fresh" in
       stale\|*)
-        echo "pre-push: ⚠ the console on :17772 is running code OLDER than tv/control_app.py."
+        echo "pre-push: [$(_pp_el)] ⚠ the console on :17772 is running code OLDER than tv/control_app.py."
         echo "          It says so itself: ${_fresh#stale|}"
         echo "          The demos below are testing the SERVER AS IT WAS. Page changes are still"
         echo "          seen (control_ui.html is read per request); server changes are NOT."
         echo "          Restart it with 'bash tv/tvd-scan.sh' to make this gate mean what it says."
         ;;
       unknown\|*)
-        echo "pre-push: ⚠ whether the console on :17772 runs the current server is UNKNOWN"
+        echo "pre-push: [$(_pp_el)] ⚠ whether the console on :17772 runs the current server is UNKNOWN"
         echo "          (${_fresh#unknown|}). That is not a pass and not a failure — the demos"
         echo "          below are ungraded on server-side changes."
         ;;
     esac
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
       if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
-        echo "pre-push: ✅ console demos green."
+        echo "pre-push: [$(_pp_el)] ✅ console demos green."
       else
         exit 1
       fi
@@ -711,7 +718,7 @@ else:
       #     console from ours and has cost him a live window before.
       # A headless console cannot capture the GAME (no Screen Recording grant from this shell),
       # which does not matter here: J1-J9 exercise the UI and its routes, not the capture.
-      echo "pre-push: ▶  :17772 is silent — starting a headless console for the gate (his window is not touched)."
+      echo "pre-push: [$(_pp_el)] ▶  :17772 is silent — starting a headless console for the gate (his window is not touched)."
       _own_console=""
       # A run that dies between here and the stop below LEAKS a console that survives for days.
       # It binds whatever port is free — one was found alive on :17994 at 1d11h — so a leak is
@@ -722,7 +729,7 @@ else:
         case "$(ps -o args= -p "$_stale" 2>/dev/null)" in
           *control_app.py*--no-open*)
             kill "$_stale" 2>/dev/null || true
-            echo "pre-push: 🧹 reaped a leaked gate console (pid $_stale) left by an earlier run." ;;
+            echo "pre-push: [$(_pp_el)] 🧹 reaped a leaked gate console (pid $_stale) left by an earlier run." ;;
         esac
       fi
       rm -f /tmp/tvd_gate_console.pid
@@ -751,13 +758,13 @@ else:
       done
       if [ "$_up" = "1" ]; then
         if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
-          echo "pre-push: ✅ console demos green (on a console this gate started)."
+          echo "pre-push: [$(_pp_el)] ✅ console demos green (on a console this gate started)."
           _demo_rc=0
         else
           _demo_rc=1
         fi
       else
-        echo "pre-push: ❌ could not start a console on :17772 — see /tmp/tvd_gate_console.log"
+        echo "pre-push: [$(_pp_el)] ❌ could not start a console on :17772 — see /tmp/tvd_gate_console.log"
         echo "           This is a FAILURE, not a skip: the UI changed and nothing verified it."
         _demo_rc=1
       fi
@@ -776,7 +783,7 @@ else:
                if git show --name-only --pretty=format: "$_c" 2>/dev/null | grep -q "tv/control_ui.html"; then break; fi
                echo x
              done | wc -l | tr -d ' ')
-    echo "pre-push: ⏭  console demos not run — tv/control_ui.html is unchanged (${_since} commit(s) since it last was)."
+    echo "pre-push: [$(_pp_el)] ⏭  console demos not run — tv/control_ui.html is unchanged (${_since} commit(s) since it last was)."
   fi
 fi
 cd "$REPO" || exit 1
@@ -849,12 +856,12 @@ done <<< "$_PUSH_REFS"
 
 # ── 1. Smoke gate (blocks the push on failure) ───────────────────────────────
 if [ "$run" -eq 0 ]; then
-  echo "pre-push: no bible.html / spec changes in this push — skipping smoke."
+  echo "pre-push: [$(_pp_el)] no bible.html / spec changes in this push — skipping smoke."
 elif ! command -v npx >/dev/null 2>&1; then
-  echo "pre-push: WARNING — npx not found on PATH; cannot run the smoke gate."
+  echo "pre-push: [$(_pp_el)] WARNING — npx not found on PATH; cannot run the smoke gate."
   echo "          Allowing the push, but please run 'npx playwright test' manually."
 else
-  echo "pre-push: running critical-path Playwright smoke (~1-2 min)…"
+  echo "pre-push: [$(_pp_el)] running critical-path Playwright smoke (~1-2 min)…"
   echo "          (emergency bypass: git push --no-verify)"
   echo ""
   # v1583 — the smoke gate goes through gate_run like every other gate. It was the ONE left
@@ -868,14 +875,14 @@ else
   if gate_run "smoke" "npx playwright test ${SMOKE_SPECS[*]} --workers=2" 900 -- \
        npx playwright test "${SMOKE_SPECS[@]}" --workers=2 --reporter=line; then
     echo ""
-    echo "pre-push: smoke GREEN — push allowed."
+    echo "pre-push: [$(_pp_el)] smoke GREEN — push allowed."
   else
     rc=$?
     echo ""
     # 143 = SIGTERM. A killed run is NOT a red spec, and telling him to "fix the failing spec"
     # sends him hunting for a bug that does not exist.
     if [ "$rc" -eq 143 ] || [ "$rc" -eq 137 ]; then
-      echo "pre-push: smoke was KILLED (SIGTERM), not failed — no spec went red."
+      echo "pre-push: [$(_pp_el)] smoke was KILLED (SIGTERM), not failed — no spec went red."
       echo "          Something outside the hook terminated it (a reaped background job, a closed"
       echo "          terminal). Re-run the push in the foreground."
     # v1688 — A MISSING BROWSER IS NOT A RED SPEC, and this hook said it was. On 2026-08-09
@@ -886,7 +893,7 @@ else
     # Same family as the SIGTERM branch above: a gate that cannot RUN must block, but it
     # must never blame the subject for its own missing dependency.
     elif grep -qE "Executable doesn.t exist|Looks like Playwright was just installed|npx playwright install" "$log" 2>/dev/null; then
-      echo "pre-push: smoke could NOT RUN — Playwright has no browser installed."
+      echo "pre-push: [$(_pp_el)] smoke could NOT RUN — Playwright has no browser installed."
       echo "          This is a MISSING DEPENDENCY, not a failing spec. Every test in the run"
       echo "          died at browserType.launch before touching the app, so the spec names"
       echo "          above say nothing about your code."
@@ -895,7 +902,7 @@ else
       echo ""
       echo "          Full log: ${log}"
     else
-      echo "pre-push: smoke FAILED — push BLOCKED."
+      echo "pre-push: [$(_pp_el)] smoke FAILED — push BLOCKED."
       echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
     fi
     echo "          Emergency override (NOT recommended): git push --no-verify"
@@ -926,7 +933,7 @@ fi
 #     bash deploy.sh
 if [ "$deploy" -eq 1 ]; then
   echo ""
-  echo "pre-push: deployable change — CI will publish (see the Publish workflow)."
+  echo "pre-push: [$(_pp_el)] deployable change — CI will publish (see the Publish workflow)."
   echo "          if CI is down, publish by hand: bash deploy.sh"
 fi
 

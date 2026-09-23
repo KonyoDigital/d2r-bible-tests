@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1165 - THE PUSH LOG SAID WHAT EACH GATE DECIDED AND NEVER WHEN — AND ITS STOPWATCH WAS SIX LETTERS
+
+**v3465 - #193.** Every `pre-push:` line was untimed, so a gate's duration could only be BOUNDED
+from outside by polling `ps`. The v3447-v3451 prover — the one run that most needed a per-gate
+number — could only be reported as "<=20 min". On 2026-09-24 two refusals in a row (render starved
+at 300s; test_control 589s of 600s) left logs that could not say how long the stages before them
+took. All 39 status lines now carry elapsed-since-hook-start from bash's own `$SECONDS`.
+⚠ NO EXIT TRAP for a total: the console gate installs its own `trap … EXIT` further down and a second
+one would REPLACE it silently; the last stamped line already carries the total.
+
+And the stopwatch glyph had NEVER rendered: both starvation lines wrote `\u23f1` in a bash
+double-quoted string, which bash does not interpret — the v3462 refusal printed the six literal
+characters, in the one message he reads when a push fails. The one red-proof pinning hook echo
+text was re-anchored in the same commit (REG-1163's lesson, applied before it could recur).
+
 ### REG-1164 - THE DRAIN KEPT THE REACH AS A SENTENCE, SO A 3.4% LOOK WAS FILED AS AGREEMENT
 
 **v3464 - the cross-family eye on the SHIPPED v3457 bytes, four findings, all reproduced.**

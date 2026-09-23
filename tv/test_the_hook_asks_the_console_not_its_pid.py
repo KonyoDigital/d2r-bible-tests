@@ -133,8 +133,8 @@ RED_PROOF = [
         "why": "letting UNKNOWN fall through to the stale branch prints a warning about a state "
                "nobody measured, which is the noise this version removes",
         "file": "hooks/pre-push",
-        "find": "      unknown\\|*)\n        echo \"pre-push: ⚠ whether the console on :17772 runs the current server is UNKNOWN\"",
-        "replace": "      unknown\\|*)\n        echo \"pre-push: ⚠ the console on :17772 is running code OLDER than tv/control_app.py.\"\n        echo \"          Restart it with 'bash tv/tvd-scan.sh'.\"\n        echo \"pre-push: (was UNKNOWN)\"",
+        "find": "      unknown\\|*)\n        echo \"pre-push: [$(_pp_el)] ⚠ whether the console on :17772 runs the current server is UNKNOWN\"",
+        "replace": "      unknown\\|*)\n        echo \"pre-push: [$(_pp_el)] ⚠ the console on :17772 is running code OLDER than tv/control_app.py.\"\n        echo \"          Restart it with 'bash tv/tvd-scan.sh'.\"\n        echo \"pre-push: [$(_pp_el)] (was UNKNOWN)\"",
         "matches": 1,
     },
     {

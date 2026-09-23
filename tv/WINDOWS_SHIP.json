@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3464",
+  "ver": "v3465",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3464: one reach parser for the drain and for agreement: 399 per-file sizes recovered, the v3449 3.4 percent look is now a cut, absent is passed, refused looks are not a measured zero",
+  "note": "v3465: all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
