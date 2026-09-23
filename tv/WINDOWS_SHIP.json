@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3461",
+  "ver": "v3462",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3461: The cross-family eye reviewed the v3459 diff BEFORE it shipped and found two half-joined ends. First: the ratio was max over min across EVERY look, so one small look set the state for the whole version. Measured on v3401 - three looks, two of them at an IDENTICAL 33447 chars with DIFFERENT verdicts, which is the sharpest finding this function makes - and the 8885-char third look dragged max over min to 3.8x, so v3459 called it INCOMPARABLE and the real disagreement vanished. The question is per PAIR, not per version. Second: agreement_census counted DISAGREE and ECHO only, so seven versions were counted by nothing and a reader watching disagreements fall from 19 to 12 would read it as the instrument settling down.",
+  "note": "v3462: The cross-family eye read the SHIPPED v3458 bytes and found three, all reproduced. One: the lane age used mktime plus time.timezone, which is the STANDARD offset while DST is in effect - measured 1.385h against a true 0.385h, exactly one hour high, so a lane read 5.1h ago tripped the 6h bar. The original cases used 0.5h and 40h and could not see it. Two: an unreachable 231 fell through to OK and printed both lanes read recently about a lane it never reached, while the comment three lines above said an unreachable GitHub is UNKNOWN. Three: the row shells out to gh and sat on the EVERY-TICK roster with no deadline, so a stall would hold up console boot and bill a network round trip to the cheap subset.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

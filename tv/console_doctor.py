@@ -7151,6 +7151,7 @@ def _check_the_handoff_lanes_are_being_drained():
     "nothing pending" — an unreadable store must not look like an empty queue.
     [[unknown-stays-unknown]] [[the-unjoined-end]]
     """
+    import calendar as _cal
     import time as _t
     try:
         import handoff as _H
@@ -7162,7 +7163,7 @@ def _check_the_handoff_lanes_are_being_drained():
         return UNKNOWN, ("the handoff watermark store could not be read, so the backlog on #230 "
                          "and #231 is UNKNOWN rather than empty")
     now = _t.time()
-    stale, said = [], []
+    stale, said, _unreachable = [], [], []
 
     # ⚠⚠ THE TWO LANES ARE READ BY DIFFERENT MECHANISMS AND ASKING ONE STORE ABOUT BOTH CRIES WOLF.
     # #231 is drained by tv/second_eye_drain.py, which is idempotent through the LEDGER (verdictFrom
@@ -7177,8 +7178,13 @@ def _check_the_handoff_lanes_are_being_drained():
         _filed = len(_SD.already_recorded())
         _pending = None
         try:
+            # ⚠ BOUNDED, BELT AND BRACES. Moving off the every-tick roster stops a stall
+            # reaching console boot; it does not stop a stall hanging the PERIODIC tick. `gh` has
+            # no deadline of its own, so one is imposed here. A timeout lands in the `except`
+            # below and reports UNKNOWN, which is the honest answer for a lane nobody reached.
             _rows = _SD._handoff._gh("repos/%s/issues/%d/comments?per_page=100"
-                                     % (_SD._handoff.REPO, _SD.ISSUE))
+                                     % (_SD._handoff.REPO, _SD.ISSUE),
+                                     timeout=_LANE_GH_TIMEOUT)
             import second_eye_ledger as _SL
             _seen = _SD.already_recorded()
             _pending = 0
@@ -7197,7 +7203,15 @@ def _check_the_handoff_lanes_are_being_drained():
         except Exception:
             _pending = None            # GitHub unreachable: UNKNOWN, never "nothing pending"
         if _pending is None:
-            said.append("#231 could not be asked (%d look(s) already filed)" % _filed)
+            # ⚠⚠ v3462 — AN UNREACHABLE #231 USED TO FALL THROUGH TO OK. The branch said
+            # "could not be asked" and did NOT mark the lane stale, so with a fresh #230 watermark
+            # the row printed "both handoff lanes read recently" about a lane it never reached —
+            # while the comment three lines up says an unreachable GitHub is UNKNOWN, never
+            # nothing pending. The comment and the code disagreed, in code written the same night.
+            # [[feedback-comments-vs-code]] [[feedback-silence-is-not-evidence]]
+            said.append("#231 could NOT BE ASKED (%d look(s) already filed) — UNKNOWN, not clear"
+                        % _filed)
+            _unreachable.append("231")
         elif _pending:
             said.append("#231 has %d look(s) NOT yet in the ledger" % _pending)
             stale.append("231")
@@ -7213,8 +7227,15 @@ def _check_the_handoff_lanes_are_being_drained():
             said.append("#%s has NO watermark at all" % issue)
             continue
         try:
-            age_h = (now - _t.mktime(_t.strptime(ts, "%Y-%m-%dT%H:%M:%SZ"))
-                     + _t.timezone) / 3600.0
+            # ⚠⚠ v3462 — `mktime(...) + time.timezone` IS AN HOUR WRONG UNDER DST, and this row
+            # exists to stop cry-wolf. `time.timezone` is the STANDARD offset (-7200 here) while
+            # DST is in effect (`altzone` -10800, tm_isdst=1). MEASURED on a real watermark: the
+            # formula said 1.385h where the true age was 0.385h — exactly 1.000h high. A lane read
+            # 5.1h ago then reports 6.1h and trips the 6h bar. The stamp is UTC, so the UTC-native
+            # inverse is the right tool and it needs no offset arithmetic at all.
+            # ⚠ The first tests used 0.5h and 40h, which cannot see a one-hour error.
+            # Found by the cross-family eye on the SHIPPED v3458 bytes.
+            age_h = (now - _cal.timegm(_t.strptime(ts, "%Y-%m-%dT%H:%M:%SZ"))) / 3600.0
         except Exception:
             said.append("#%s watermark %r will not parse" % (issue, ts))
             stale.append(issue)
@@ -7222,6 +7243,11 @@ def _check_the_handoff_lanes_are_being_drained():
         said.append("#%s last read %.1fh ago" % (issue, age_h))
         if age_h > _LANE_STALE_HOURS:
             stale.append(issue)
+    # ⚠ AN UNREACHED LANE IS UNKNOWN, AND UNKNOWN OUTRANKS A CLEAN OK. It is NOT reported as
+    # piling up either — nobody measured whether it is.
+    if _unreachable and not stale:
+        return UNKNOWN, ("a handoff lane could not be reached, so whether it is piling up is "
+                         "UNMEASURED — not clear: %s" % "; ".join(said))
     if stale:
         return MISSING, ("a handoff lane is piling up: %s. These carry ANSWERS — the 41-comment "
                          "backlog on #230 held #172's live freeze and the Fleet PARTIAL state #157 "
@@ -7234,6 +7260,8 @@ def _check_the_handoff_lanes_are_being_drained():
 #: a lane read less often than this is piling up. 6h is generous: #230 ticks every
 #: ~15-20 minutes, so six hours is already ~20 unread.
 _LANE_STALE_HOURS = 6.0
+#: `gh` has no deadline of its own; without this a GitHub stall becomes a doctor stall.
+_LANE_GH_TIMEOUT = 20
 
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
@@ -7517,6 +7545,13 @@ SLOW = ("the other doctors",)
 # include_slow=False, so "SLOW is exactly where sweep would find went to die". A row moved
 # to SLOW stops being supervision. PERIODIC keeps it running on a cadence.
 PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
+            # ⚠⚠ v3462 — THIS ROW SHELLS OUT TO `gh` AND WAS ON THE EVERY-TICK ROSTER.
+            # A stalled gh would stall the whole doctor tick — which runs at every console
+            # BOOT and on the ten-minute watchdog — so a GitHub hiccup could hold up his
+            # console. It also billed a network round trip to the cheap subset that #194
+            # is about. The staleness bar is SIX HOURS, so an hourly cadence loses nothing.
+            # Found by the cross-family eye on the SHIPPED v3458 bytes.
+            "handoff lanes drained",
             "the compare panel can name a difference",
             # v3397 — MEASURED 268 ms on this file. The cheap subset runs every eagle
             # tick, and v3392 already cost that subset 1,877 ms by not measuring first.

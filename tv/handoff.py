@@ -36,7 +36,13 @@ MARKS = os.path.join(HERE, ".handoff_seen.json")
 OWED = ("ACT", "ASK")
 
 
-def _gh(path, method=None, fields=None):
+def _gh(path, method=None, fields=None, timeout=None):
+    # ⚠⚠ v3462 — `gh` HAS NO DEADLINE OF ITS OWN, so a GitHub stall became a CALLER stall. The
+    # console_doctor lane row shells through here on a timer; unbounded, one hung call would hold
+    # up a doctor tick. Bounded HERE rather than in the caller, because a caller that bypasses this
+    # function to add its own timeout also bypasses the utf-8 decode and the empty-stdout refusal
+    # below — which is exactly what the first cut of that row did, and it silently made every test
+    # stub inert and put a real network call inside the suite. One owner for the read.
     cmd = ["gh", "api", path, "--paginate"]
     if method:
         cmd = ["gh", "api", "-X", method, path]
@@ -49,7 +55,8 @@ def _gh(path, method=None, fields=None):
     # zero, not a failure to look." It was exactly a failure to look.
     # ⚠ This same file already passes encoding="utf-8" at three OTHER sites; the one call that
     # talks to GitHub was the one that did not. [[copy-drift]] [[zero-needs-a-denominator]]
-    p = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")
+    p = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace",
+                       timeout=timeout)
     if p.returncode != 0:
         raise RuntimeError((p.stderr or "").strip()[:300])
     body = (p.stdout or "").strip()

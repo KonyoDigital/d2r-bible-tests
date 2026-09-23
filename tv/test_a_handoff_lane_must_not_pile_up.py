@@ -87,6 +87,54 @@ class AHandoffLaneMustNotPileUp(unittest.TestCase):
         self.assertEqual(state, D.UNKNOWN,
                          "an unreadable watermark store was graded as a fact: %r %s" % (state, why))
 
+    def test_the_age_is_right_UNDER_DST_and_not_an_hour_high(self):
+        """⚠⚠ v3462 — `mktime(...) + time.timezone` IS AN HOUR WRONG WHILE DST IS IN EFFECT.
+
+        time.timezone is the STANDARD offset; under DST the real one is altzone. MEASURED on a
+        real watermark: the old formula said 1.385h where the true age was 0.385h — exactly 1.000h
+        high. A lane read 5.1h ago then reports 6.1h and trips the 6h bar, so the row that exists
+        to stop cry-wolf cried wolf.
+        ⚠ THE ORIGINAL CASES USED 0.5h AND 40h, WHICH CANNOT SEE A ONE-HOUR ERROR. This one sits
+        just inside the bar on purpose: at the true age it must be OK, and one hour of drift flips
+        it. Found by the cross-family eye on the SHIPPED v3458 bytes.
+        """
+        # 5.1h ago: comfortably inside the 6h bar, but 6.1h under the old off-by-one-hour formula
+        self._H._marks = lambda: {"230": {"ts": _stamp(5.1)}}
+        self._drain_stub(pending=False)
+        state, why = self.fn()
+        self.assertEqual(state, D.OK,
+                         "a lane read 5.1h ago was reported over the 6h bar — the age is drifting "
+                         "(DST offset): %s" % why)
+
+    def test_an_UNREACHABLE_second_eye_lane_is_UNKNOWN_and_never_OK(self):
+        """⚠ v3462 — it used to fall through to OK and print "both handoff lanes read recently"
+        about a lane it never reached, while the comment beside it said the opposite.
+        [[feedback-comments-vs-code]] [[feedback-silence-is-not-evidence]]"""
+        import second_eye_drain as SD
+        self._H._marks = lambda: {"230": {"ts": _stamp(0.5)}}
+        real_gh, real_seen = SD._handoff._gh, SD.already_recorded
+        try:
+            SD.already_recorded = lambda: set()
+            def _boom(*_a, **_k):
+                raise RuntimeError("github unreachable")
+            SD._handoff._gh = _boom
+            state, why = self.fn()
+        finally:
+            SD._handoff._gh, SD.already_recorded = real_gh, real_seen
+        self.assertEqual(state, D.UNKNOWN,
+                         "#231 could not be reached and the row still graded it: %r %s"
+                         % (state, why))
+        self.assertNotIn("read recently", why,
+                         "it claimed both lanes were read while one was never reached: %s" % why)
+
+    def test_the_row_is_NOT_on_the_every_tick_roster(self):
+        """It shells out to `gh`. A stall would hold up the doctor tick — which runs at every
+        console BOOT and on the ten-minute watchdog — and bills a network round trip to the cheap
+        subset #194 is about. The staleness bar is SIX HOURS; hourly loses nothing."""
+        self.assertIn("handoff lanes drained", D.PERIODIC,
+                      "the lane watcher is back on the every-tick roster, so a GitHub stall can "
+                      "hold up his console boot")
+
     def test_the_row_NEVER_drains_and_never_marks_anything_read(self):
         """A watcher that silenced the backlog would be the truncation regression-guard names."""
         import inspect
