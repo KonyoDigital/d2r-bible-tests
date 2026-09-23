@@ -6555,6 +6555,15 @@ GATES = [
              "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
              "six literal characters in the one message he reads when a push fails.",
          skip_ok=()),
+    Gate("test_no_test_writes_his_eagle_ledgers",
+         [sys.executable, os.path.join(HERE, "test_no_test_writes_his_eagle_ledgers.py")], 60,
+         needs_app=False,
+         why="v3470 - seven doctor suites drove console_doctor / unknown_age with fake checks and "
+             "never redirected TV_UNKNOWN_AGE / TV_EAGLE_SLOW, so every run appended 'exploder' "
+             "(813) and 'exploding check' (803) to his LIVE ledgers, and _LIVE_STATE never named "
+             "either file, so CI filed it as 'also touched'. One helper (fixture_ledgers) called "
+             "at import by all seven; both ledgers joined the watcher; driven, AST-read law.",
+         skip_ok=()),
     Gate("test_every_push_checks_every_proof_anchor",
          [sys.executable, os.path.join(HERE, "test_every_push_checks_every_proof_anchor.py")], 60,
          needs_app=False,
@@ -6957,7 +6966,11 @@ _LIVE_STATE = ("tooltip_find.json",      # v2321 — did a located tooltip reall
                # review_lite blocked the push that added it. [[feedback-fixtures-never-touch-live-data]]
                "chron_hunt_memory.json",
                # v2189 — the board's tally, POSTed by bible.html. Live state naming his counts.
-               "board_tally.json")   # v1895 — new live state joins on day one
+               "board_tally.json",   # v1895 — new live state joins on day one
+               # v3470 — the two eagle ledgers never joined. Seven
+               # suites wrote fixture checks into them on every run and this list never
+               # named them, so CI filed it under "also touched", never as a failure.
+               ".unknown_age.json", ".eagle_slow.json")
 
 
 def _console_is_running(port=17772):

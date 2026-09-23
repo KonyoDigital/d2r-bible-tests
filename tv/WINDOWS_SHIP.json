@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3469",
+  "ver": "v3470",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3469: every push now checks every declared red-proof anchor at top level, the structural fix for four proofs that went invalid in one day",
+  "note": "v3470: one fixture helper redirects both ledgers for every suite that drives the doctor, both files joined the live-state watcher, counts proven not to move",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

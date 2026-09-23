@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3469** | `(this commit)` | v3469 — every push now checks every declared red-proof anchor at top level, the structural fix for four proofs that went invalid in one day |
+| **v3470** | `(this commit)` | v3470 — one fixture helper redirects both ledgers for every suite that drives the doctor, both files joined the live-state watcher, counts proven not to move |
+| **v3469** | `42c119ac` | v3469 — every push now checks every declared red-proof anchor at top level, the structural fix for four proofs that went invalid in one day |
 | **v3468** | `fcbe3a8a` | v3468 — every doctor row now says what it reads and what an independent second source would be; the explained-exactly-once gate, red on CI for as long as it was read, is green |
 | **v3467** | `e9a6fbd7` | v3467 — doctor row two eyes compared reads the shadow reducer: PRIMARY on a comparison 9 days old, 67.5 percent of reads vs 40 percent of frames disagree, both shown; two rows of this arc explained |
 | **v3466** | `038e8538` | v3466 — an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind |

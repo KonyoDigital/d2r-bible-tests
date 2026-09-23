@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1170 - SEVEN TEST SUITES WROTE FAKE CHECKS INTO HIS LIVE EAGLE LEDGERS ON EVERY RUN
+
+**v3470.** The doctor suites drive `console_doctor` / `unknown_age` with fake checks, and seven never
+redirected `TV_UNKNOWN_AGE` / `TV_EAGLE_SLOW` — so every run appended them to his LIVE
+`tv/.unknown_age.json` and `tv/.eagle_slow.json`. MEASURED: `exploder` unknownCount 813 → 814 and
+`exploding check` 803 → 804 during the v3469 push's own pre-push test_control. `unknown_age.py:21`
+claimed "Tests set TV_UNKNOWN_AGE to a tempfile" — seven did not. And `run_gates._LIVE_STATE`, whose
+own comment says "new live state joins on day one", never named either file, so CI filed the writes
+under "also touched" rather than failing.
+
+One helper, `tv/fixture_ledgers.redirect()`, called at import by all seven (an explicit per-test
+redirect still wins; children inherit it); both ledgers joined `_LIVE_STATE`. Driven proof: the seven
+suites + the 13 test_control cases that inject the fakes ran green and the counts DID NOT MOVE
+(814/804 before and after). AST-read law, 3/3 red-proofs PROVEN. The 8 fixture keys already in his
+ledgers (in tests only, never in production, never in console_doctor history) are removed separately,
+with a backup; `shelf leads with reels` is a real retired check and stays.
+
 ### REG-1169 - THE PUSH RE-PROVED ONLY THE LAWS WHOSE TEST CHANGED, SO FOUR PROOFS DIED IN ONE DAY
 
 **v3469 - the structural fix for REG-1163.** `hooks/pre-push` re-proves a law only when its TEST

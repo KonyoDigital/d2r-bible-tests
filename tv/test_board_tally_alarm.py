@@ -47,6 +47,10 @@ newly-sighted code says. [[sweep-dont-ask]]
 simply no longer read as his.
 """
 import os
+import sys as _fx_sys
+_fx_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixture_ledgers as _fx_ledgers  # noqa: E402  v3470 — never HIS eagle ledgers
+_fx_ledgers.redirect()
 import sys
 import time
 import unittest
