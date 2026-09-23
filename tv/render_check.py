@@ -2604,7 +2604,19 @@ class _Tab(object):
             if self.dead is None:
                 self.ws.close()
             else:
-                self.ws.abort()
+                # ⚠⚠ v3437 — shutdown(), NOT abort(). Measured on websocket-client 1.9.0:
+                #     def abort(self):     if self.connected: self.sock.shutdown(SHUT_RDWR)
+                #     def shutdown(self):  if self.sock: self.sock.close(); sock=None; connected=False
+                # abort() only shuts the socket DIRECTION — it does not close the fd, does not
+                # clear .sock and does not clear .connected. The library only nulls .sock for
+                # WebSocketConnectionClosedException, and a quiet socket raises
+                # WebSocketTimeoutException instead, so after v3436's close() the fd was STILL
+                # OPEN: one leaked CDP descriptor per timed-out tab, plus a FIN the silent peer
+                # will never ACK, held until cyclic GC. shutdown() is the one that closes it.
+                # Found by the cross-family eye on the SHIPPED v3436 bytes; v3436's own test
+                # could not see it because its stub abort() merely incremented a counter.
+                # [[process-port-discipline]] — I own every descriptor I open.
+                self.ws.shutdown()
         except Exception:
             pass
         try:

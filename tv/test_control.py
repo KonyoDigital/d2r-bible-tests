@@ -31439,6 +31439,9 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                 self.sends = 0
                 self.recvs = 0
                 self.aborted = 0
+                self.shut_direction = 0
+                self.connected = True
+                self.fd_open = True
 
             def send(self, payload):
                 self.sends += 1
@@ -31452,8 +31455,21 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
             def close(self):
                 raise TimeoutError("a close handshake also waits for a reply")
 
+            # ⚠⚠ v3437 — THE STUB NOW MIMICS websocket-client 1.9.0 FOR REAL. v3436's version
+            # had abort() merely increment a counter, so it could not tell abort() (which only
+            # shuts the socket DIRECTION and leaves the fd open) from shutdown() (which closes
+            # it). The cross-family eye caught the leak on the shipped bytes; this stub is why
+            # the test could not. A stub that is kinder than the library is a fixture that hides
+            # the defect.
             def abort(self):
                 self.aborted += 1
+                if self.connected:
+                    self.shut_direction += 1      # exactly what the library does: no fd close
+
+            def shutdown(self):
+                if self.fd_open:
+                    self.fd_open = False          # the library closes the fd here
+                    self.connected = False
 
         tab = render_check._Tab.__new__(render_check._Tab)   # no __init__, so no Chrome
         tab.ws = _QuietSocket()
@@ -31477,9 +31493,16 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "can report. It must be read exactly ONCE." % tab.ws.recvs)
 
         tab.close()
-        self.assertEqual(tab.ws.aborted, 1,
-                         "close() on a dead transport must abort(), not complete a close "
-                         "handshake — the handshake waits for a reply that is never coming")
+        # ⚠ ASSERT THE FD IS RELEASED, not that a method was called. v3436 asserted the CALL and
+        # shipped a leak: abort() satisfies "a method ran" while leaving the descriptor open.
+        self.assertFalse(tab.ws.fd_open,
+                         "close() on a dead transport left the socket fd OPEN. websocket-client's "
+                         "abort() only shuts the direction; shutdown() is what closes it. One "
+                         "leaked CDP descriptor per timed-out tab, plus a FIN the silent peer will "
+                         "never ACK.")
+        self.assertFalse(tab.ws.connected,
+                         "the dead transport still reports connected, so nothing downstream can "
+                         "tell it is gone")
 
     def test_a_page_exception_does_NOT_mark_the_transport_dead(self):
         """THE BASELINE, and it is the half that keeps the fix from becoming the disease.
@@ -31559,6 +31582,75 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         self.assertIsNone(tab3.dead,
                           "a NON-transport error on the WRITE side marked the transport dead. "
                           "Same defect as the read side, different method.")
+
+    def test_the_REAL_websocket_timeout_type_is_in_the_transport_family(self):
+        """The cases above raise builtin TimeoutError, which the REAL library never raises.
+
+        ⚠⚠ THE EYE CAUGHT THIS ON THE SHIPPED v3436 BYTES: websocket.WebSocket.recv turns a socket
+        timeout into WebSocketTimeoutException — NOT TimeoutError and NOT OSError. So every case in
+        this class could pass while `_TRANSPORT_ERRORS` covered TimeoutError and OMITTED the type
+        production actually sees, and a silent Chrome would never set `dead`. The fixtures agree
+        with each other and say nothing about the library. [[feedback-verify-not-proxy]]
+
+        The production code IS correct today — measured: WebSocketTimeoutException subclasses
+        WebSocketException, which _transport_errors() lists. Nothing pinned it. Now something does.
+
+        ⚠ And it states its own reach: websocket-client may be absent in a venue (render_check
+        refuses with "the websocket client is not installed, so nothing was rendered"), so this
+        case reports UNKNOWN rather than passing quietly. A skip is not a pass.
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        try:
+            import websocket
+            import websocket._exceptions as _wsx
+        except Exception as _e:                      # pragma: no cover - venue without the client
+            self.skipTest("websocket-client absent, so the production exception type is UNKNOWN "
+                          "here — not verified, not clean (%s)" % str(_e)[:60])
+            return
+
+        real = _wsx.WebSocketTimeoutException
+        self.assertTrue(issubclass(real, tuple(render_check._TRANSPORT_ERRORS)),
+                        "WebSocketTimeoutException — the type websocket.WebSocket.recv ACTUALLY "
+                        "raises on a socket timeout — is not in _TRANSPORT_ERRORS. A quiet Chrome "
+                        "would therefore never mark the tab dead, every later probe would pay the "
+                        "full read bound again, and the UNKNOWN arm would stay unreachable.")
+        self.assertFalse(issubclass(real, tuple(render_check._TRANSPORT_EXCLUDE)),
+                         "WebSocketTimeoutException is being EXCLUDED from the transport family, "
+                         "so a stalled browser would be reported as a bug in render_check")
+
+        # and prove it end to end on the real type, not a stand-in
+        class _RealQuietSocket(object):
+            def __init__(self):
+                self.recvs = 0
+                self.connected = True
+                self.fd_open = True
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                self.recvs += 1
+                raise real("timed out")
+
+            def shutdown(self):
+                self.fd_open = False
+                self.connected = False
+
+        tab = render_check._Tab.__new__(render_check._Tab)
+        tab.ws = _RealQuietSocket()
+        tab.n = 0
+        tab.page_errors = []
+        with self.assertRaises(real):
+            tab.send("Runtime.evaluate", expression="1")
+        self.assertIsNotNone(tab.dead, "the REAL timeout type did not mark the tab dead")
+        for _ in range(3):
+            with self.assertRaises(real):
+                tab.send("Runtime.evaluate", expression="1")
+        self.assertEqual(tab.ws.recvs, 1,
+                         "with the REAL exception type, a quiet socket was read %d time(s) across "
+                         "4 sends instead of once" % tab.ws.recvs)
 
     def test_the_tab_OPENER_is_bounded_too_not_just_the_socket(self):
         """PARSED WITH ast. The PUT /json/new that opens the tab sits in the same constructor as
