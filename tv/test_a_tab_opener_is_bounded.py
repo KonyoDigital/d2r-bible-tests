@@ -63,6 +63,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ MUST come after the sys.path insert above — console_safe lives in tv/. This file prints ⚠/✅
+# and his Windows console is cp1255, where an emoji raises UnicodeEncodeError WHILE THE GATE IS
+# REPORTING — so a clean tree exits non-zero for a reason that has nothing to do with the check.
+# The pre-push gate caught this one and named the file and the fix, which is what a good gate does.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 SUBJECT = "roster_sync.py"
 TARGET = "urllib.request.urlopen"
 
