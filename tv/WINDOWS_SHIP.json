@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3447",
+  "ver": "v3448",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3447: heart2 proved every red-proof SERIALLY — a doubly nested loop, zero concurrency primitives — and that was 24 of a 38m42s push and 26 of a 41m25s one. Now 4 lanes, each in its OWN sandbox, because the per-gate split I proposed is measurably unsafe: 67 files are claimed by more than one gate and 446 of 497 gates (90 percent) tamper a file another gate also tampers. A/B on 25 gates / 74 proofs: at x2 deadline 0 of 25 gate verdicts and 0 of 74 per-proof verdicts differ; tree byte drift 0 files across all six legs with 444 tampers. Speedup 1.51x, or 1.72x once the one gate that is 96 percent of the parallel wall is excluded; an independent 3-gate A/B measured 1.58x. ONE proof flipped at x1 deadline and the cause was the MARGIN, not the concurrency — 2 lanes flipped it identically and only 1 lane avoided it, so the worker count was NOT reduced and the gate timeout was raised instead. 8 red-proofs.",
+  "note": "v3448: test_a_cached_absence_is_not_an_absence was registered at 120s while its CLEAN run measures 110-130s, so its proofs were UNPROVABLE-by-timeout at random — in the serial control too. Raised to 300s. A gate whose verdict depends on ten seconds of headroom is measuring the machine, not the code.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
