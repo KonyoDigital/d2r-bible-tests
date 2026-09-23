@@ -7,6 +7,45 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1158 - #37's DOOR ANSWERED ON HIS LIVE CONSOLE, AND DRIVING IT FOUND TWO NULLS THAT WERE MISSES
+
+**v3430.** `GET /api/board_build` (v3428) was proven by gate and **never driven against his window**
+— the console was still on older Python and answered `not found`. It has since re-exec'd onto
+v3429, and the door answered:
+
+```json
+{"ok": true, "id": "v3429", "profile": null, "machine": null, "typeofBuild": "object",
+ "keys": ["D2R_INBOX_FOLD","D2R_MACHINE","D2R_PROFILE","D2R_BUILD","D2R_SIGIL"],
+ "hopped": true, "why": null}
+```
+
+✅ **THAT IS THE LIVE `window.D2R_BUILD.id` READ #37 HAS BEEN BLOCKED ON FOR WEEKS** — from the
+heap, not the served HTML, and `hopped: true` means it went through the `#tvd-eng` contentWindow
+the seat reported as having no bridge. It does have one, from the console's own process.
+⚠ And this time it is a RECEIPT, not an inference: I called this blocker lifted once before on a
+SOURCE-ONLY read and was wrong.
+
+⚠⚠ **AND THE ANSWER CARRIED TWO NULLS THAT WERE MISSES, NOT ABSENCES.** `profile` and `machine`
+came back `null` **beside a key list that names `D2R_PROFILE` and `D2R_MACHINE`**. They are their
+OWN globals on the board, not fields on `D2R_BUILD`, so `b.profile` looked in the wrong object —
+and "I did not find it HERE" rendered as "it is not there". **That is exactly the collapse this
+door was built to refuse, inside the door itself.** [[unknown-stays-unknown]] Both spellings now
+answer, so a later board that moves them onto `D2R_BUILD` does not silently break the other shape.
+
+⚠ **A GATE OVER THE PYTHON COULD NOT HAVE SEEN IT** — the defect was entirely inside a JS string.
+Three new cases EXECUTE the shipped expression in node against a window shaped like his.
+
+⚠ **THE FIRST CUT OF THAT HARNESS REGEX-EXTRACTED THE JS FROM SOURCE AND GRABBED THE WRONG BLOCK.**
+`control_app` is 40k lines with many JS strings; node came back with
+`var R=%s;THEY HAVE - YOU DO NOT...`, which is not this door at all. Parsing the file was a guess.
+It now **CAPTURES the string `board_build` actually hands to `_ejs`** — asking the function what it
+sends is the fact. [[feedback-verify-not-proxy]]
+
+⚠ **AND I WROTE `//` COMMENTS INSIDE A PYTHON STRING BLOCK** on the way, which the parse refused at
+once. JS comments in a JS string being built by Python are still Python.
+
+**Gate** `test_a_live_build_read_is_never_the_banner` - now 12 cases, **3/3 red-proofs PROVEN**.
+
 ### REG-1157 - `test_control HUNG` IS A DEADLOCK, NOT A COST, AND IT REFUSED FOUR PUSHES
 
 **v3429 - #150, and the standing diagnosis was wrong.** `test_control HUNG — killed after 1500s on

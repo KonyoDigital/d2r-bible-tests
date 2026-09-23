@@ -13534,8 +13534,19 @@ def board_build():
           "if(_cw&&typeof _cw.D2R_BUILD!=='undefined')_ctx=_cw;}catch(_hop){}}"
           "var b=_ctx.D2R_BUILD;"
           "var ks=[];try{for(var k in _ctx){if(k.indexOf('D2R')===0)ks.push(k);}}catch(_k){}"
+          # ⚠⚠ v3430 — PROFILE AND MACHINE ARE THEIR OWN GLOBALS, NOT FIELDS ON D2R_BUILD, AND
+          # DRIVING THE DOOR IS WHAT SHOWED IT. The first live call against his console answered
+          # `{"ok":true,"id":"v3429","profile":null,"machine":null,...,"keys":["D2R_INBOX_FOLD",
+          # "D2R_MACHINE","D2R_PROFILE","D2R_BUILD","D2R_SIGIL"]}` — two nulls sitting beside a
+          # key list that NAMES both of them. Reading `b.profile` looked in the wrong object, so
+          # the answer meant "I did not find it here", and it rendered as "it is not there".
+          # That is precisely the collapse this door was built to refuse, inside the door itself.
+          # [[unknown-stays-unknown]] The `b.*` fallback stays: if a later board moves them onto
+          # D2R_BUILD, both spellings answer rather than one silently winning.
+          "var pf=(_ctx.D2R_PROFILE!=null?_ctx.D2R_PROFILE:((b&&b.profile)!=null?b.profile:null));"
+          "var mc=(_ctx.D2R_MACHINE!=null?_ctx.D2R_MACHINE:((b&&b.machine)!=null?b.machine:null));"
           "return JSON.stringify({typeofBuild:(typeof b),"
-          "id:(b&&b.id)||null,profile:(b&&b.profile)||null,machine:(b&&b.machine)||null,"
+          "id:(b&&b.id)||null,profile:pf,machine:mc,"
           "keys:ks,hopped:(_ctx!==window)});"
           "}catch(e){return JSON.stringify({err:String((e&&e.message)||e)});}})()")
     try:
@@ -31282,7 +31293,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3429",
+        "ver": "v3430",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

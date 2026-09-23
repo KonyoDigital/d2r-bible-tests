@@ -151,6 +151,94 @@ class TestALiveBuildReadIsNeverTheBanner(unittest.TestCase):
                          "to inject: %r" % sig)
 
 
+class TestTheShippedExpressionLooksWhereTheValuesLIVE(unittest.TestCase):
+    """v3430 — THE JS IS EXTRACTED FROM control_app.py AND EXECUTED, not read.
+
+    ⚠ DRIVING THE DOOR AGAINST HIS LIVE CONSOLE IS WHAT FOUND THIS. The first real call answered:
+
+        {"ok":true,"id":"v3429","profile":null,"machine":null,"typeofBuild":"object",
+         "keys":["D2R_INBOX_FOLD","D2R_MACHINE","D2R_PROFILE","D2R_BUILD","D2R_SIGIL"],
+         "hopped":true,"why":null}
+
+    Two nulls sitting beside a key list that NAMES both of them. `profile` and `machine` are their
+    OWN globals on the board, not fields on `D2R_BUILD`, so reading `b.profile` looked in the wrong
+    object — and the answer, which meant "I did not find it HERE", rendered as "it is not there".
+    That is exactly the collapse this door was built to refuse, inside the door itself.
+    [[unknown-stays-unknown]]
+
+    A gate that only checked the Python could not see this: the bug was entirely inside a JS string.
+    """
+
+    def _run_shipped_js(self, window_js):
+        """CAPTURE the JS `board_build` actually hands to `_ejs`, then run THAT in node.
+
+        ⚠ THE FIRST CUT REGEX-EXTRACTED IT FROM THE SOURCE AND GRABBED THE WRONG BLOCK. control_app
+        is 40k lines with many JS strings, and `js = (` matched a different one — node came back
+        with `var R=%s;THEY HAVE - YOU DO NOT...`, which is not this door at all. Parsing the file
+        was a guess; asking the function what it sends is the fact. [[feedback-verify-not-proxy]]
+        """
+        import subprocess as sp
+        seen = {}
+
+        def spy(w, code, timeout=4.0):
+            seen["code"] = code
+            return None            # the door treats None as a timeout; we only want the string
+
+        g = CA.__dict__
+        old = (g.get("_BOARD_WIN"), g.get("_MAIN_WIN"), g.get("_WINDOW_LIVE"), g.get("_ejs"))
+        try:
+            g["_BOARD_WIN"], g["_MAIN_WIN"], g["_WINDOW_LIVE"] = object(), None, True
+            g["_ejs"] = spy
+            CA.board_build()
+        finally:
+            (g["_BOARD_WIN"], g["_MAIN_WIN"], g["_WINDOW_LIVE"], g["_ejs"]) = old
+        self.assertIn("code", seen, "board_build never called the evaluator — nothing to drive")
+        self.assertIn("D2R_BUILD", seen["code"], "the captured expression is not this door's")
+        prog = ("%s\nvar out = (%s);\n"
+                "console.log(typeof out === 'string' ? out : JSON.stringify(out));\n"
+                % (window_js, seen["code"]))
+        r = sp.run(["node", "-e", prog], stdout=sp.PIPE, stderr=sp.STDOUT,
+                   close_fds=False, timeout=60)
+        self.assertEqual(r.returncode, 0,
+                         "node refused the SHIPPED expression: %s"
+                         % r.stdout.decode("utf-8", "replace")[:400])
+        return json.loads(r.stdout.decode("utf-8", "replace").strip())
+
+    def test_profile_and_machine_are_read_from_their_OWN_globals(self):
+        """His board's real shape: D2R_PROFILE and D2R_MACHINE are siblings of D2R_BUILD."""
+        win = ("global.window = global;\n"
+               "global.document = { getElementById: function(){ return null; } };\n"
+               "global.D2R_BUILD = { id: 'v3429' };\n"
+               "global.D2R_PROFILE = 'MAIN+LADDER';\n"
+               "global.D2R_MACHINE = 'LINUX';\n")
+        got = self._run_shipped_js(win)
+        self.assertEqual(got["id"], "v3429")
+        self.assertEqual(got["profile"], "MAIN+LADDER",
+                         "profile came back %r while window.D2R_PROFILE was set — the door is "
+                         "looking in the wrong object and calling the miss an absence" % got["profile"])
+        self.assertEqual(got["machine"], "LINUX",
+                         "machine came back %r while window.D2R_MACHINE was set" % got["machine"])
+
+    def test_the_D2R_BUILD_spelling_still_answers(self):
+        """⚠ THE FALLBACK IS NOT DECORATION. If a later board moves these ONTO D2R_BUILD, both
+        spellings must answer — otherwise fixing one shape silently breaks the other."""
+        win = ("global.window = global;\n"
+               "global.document = { getElementById: function(){ return null; } };\n"
+               "global.D2R_BUILD = { id: 'v1', profile: 'ONBUILD', machine: 'MACBUILD' };\n")
+        got = self._run_shipped_js(win)
+        self.assertEqual(got["profile"], "ONBUILD")
+        self.assertEqual(got["machine"], "MACBUILD")
+
+    def test_a_board_with_NEITHER_reports_null_and_not_a_guess(self):
+        win = ("global.window = global;\n"
+               "global.document = { getElementById: function(){ return null; } };\n"
+               "global.D2R_BUILD = { id: 'v2' };\n")
+        got = self._run_shipped_js(win)
+        self.assertIsNone(got["profile"], "it invented a profile from nowhere")
+        self.assertIsNone(got["machine"], "it invented a machine from nowhere")
+        self.assertEqual(got["id"], "v2", "the id it DID have was lost")
+
+
 RED_PROOF = [
     {
         "why": "v3428 - THE TIMEOUT COLLAPSED INTO AN ABSENCE. _ejs returns None when the window "
@@ -167,6 +255,17 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    out = {\"ok\": bool(got.get(\"id\")), \"id\": got.get(\"id\"),",
         "replace": "    out = {\"ok\": True, \"id\": got.get(\"id\"),",
+        "matches": 1,
+    },
+    {
+        "why": "v3430 - THE DOOR LOOKING IN THE WRONG OBJECT AGAIN. profile and machine are their "
+               "OWN globals on his board, not fields on D2R_BUILD - measured live: the door "
+               "answered profile:null, machine:null beside a key list naming D2R_PROFILE and "
+               "D2R_MACHINE. A miss reported as an absence is the collapse this door exists to "
+               "refuse.",
+        "file": "control_app.py",
+        "find": "          \"var pf=(_ctx.D2R_PROFILE!=null?_ctx.D2R_PROFILE:((b&&b.profile)!=null?b.profile:null));\"",
+        "replace": "          \"var pf=((b&&b.profile)!=null?b.profile:null);\"",
         "matches": 1,
     },
 ]
