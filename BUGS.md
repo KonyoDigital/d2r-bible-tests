@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1172 - THE GATE SET OUTGREW ITS CI CEILING, AND THE GUARD OF THAT CEILING HAD NEVER BEEN PROVEN
+
+**v3472 - #184.** The agent-suite ran **25m18s against `timeout-minutes: 25`** on d9bdb682 and was
+CANCELLED: the shipped v3463 got no verdict (the v3446 verdict job correctly turned that into a red
+NO VERDICT — its first observed real-timeout firing). The workflow's own ruling — "shard the gate
+set, never raise the ceiling" — is now implemented: `run_gates.py --shard K/N` (deterministic
+longest-first split on declared timeout, disjoint, complete, never empty — `run()` reads `[]` as
+EVERY gate) and a 2-way matrix. ⚠ A matrix job's `outputs:` keep only the LAST shard to finish, so a
+red shard could be overwritten by a green one: each shard publishes its gate-set fact as an
+ARTIFACT, and one verdict step reads EVERY shard (a missing file is a shard that never reached its
+end, never a green one) before the unchanged, already-driven verdict body runs.
+
+⚠⚠ AND THE WORKFLOW'S GUARD HAD NEVER BEEN PROVEN. Every `file` in its RED_PROOF was `WF_REL`, a
+NAME; heart2 reads RED_PROOF with `ast.literal_eval`, which throws on a name, so the prover reported
+"0 declare a red-proof" and the census never counted them. Swept: the ONLY gate with that shape.
+Literals now — 11/11 PROVEN on first execution (8 older + 3 new). The census rose 1,344 → 1,358,
+11 of which it had never been able to see. The reader's silence is fixed next (v3473).
+
 ### REG-1171 - THE LAW THAT GUARDS THE PUSH READ SHELL WRONG FOUR WAYS — THE EYE FOUND THEM IN ONE LOOK
 
 **v3471 - the cross-family eye (grok-cli, schema, 8,866 chars) on the SHIPPED v3469 bytes: 7 findings,

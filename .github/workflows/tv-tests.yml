@@ -13,6 +13,16 @@ on:
 jobs:
   agent-suite:
     runs-on: ubuntu-latest
+    # ⚠⚠ v3472 (#184) — SHARDED, NOT RAISED. The whole gate set ran 25m18s against the 25-minute
+    # ceiling on d9bdb682 and was CANCELLED: the shipped version got no verdict at all. This job's
+    # own watchdog already says it — "The fix is to shard the gate set, never to raise the ceiling"
+    # — so each shard runs a deterministic, cost-balanced HALF (tv/run_gates.py --shard K/N) inside
+    # the same 25 minutes. ⚠ N lives in TWO places — the list below and GATE_SHARDS in the verdict
+    # job — and test_a_cut_off_gate_set_is_not_a_verdict goes red if they ever disagree.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     # ⚠ 25, NOT 20 — RAISED WITH THE CHROMIUM STEPS BELOW, because the pair of them is what
     # reproduces v1810 otherwise. MEASURED: the agent-suite job runs 7m18s (08:53:32 -> 09:00:50 on
     # be704dc7). The two new steps are bounded at 6 + 5 = 11, so a double stall would reach ~18.3
@@ -21,12 +31,9 @@ jobs:
     # **cancelled**, which reads as "a person cancelled this" rather than "something stalled".
     # 25 matches publish.yml, which learned this the same way.
     timeout-minutes: 25
-    outputs:
-      # ⚠ `reached` is written ONLY by the gate-set step itself, so an empty value means that step
-      # never got to the end — whatever the job-level conclusion says. See the step for the two
-      # paths that make `result == failure` without a red gate set.
-      gate_set_reached: ${{ steps.gateset.outputs.reached }}
-      gate_set_red: ${{ steps.gateset.outputs.red }}
+    # ⚠⚠ v3472 — NO JOB `outputs:` ANY MORE, ON PURPOSE. A matrix job's outputs keep only the LAST
+    # shard to finish, so a red shard 1 overwritten by a green shard 2 would read as a PASS. Each
+    # shard publishes its gate-set fact as an ARTIFACT instead, and the verdict job reads EVERY shard.
     env:
       # ⚠ ONE COPY OF THE CEILING, AT JOB SCOPE, AND IT MUST EQUAL `timeout-minutes` ABOVE.
       # Two steps below quote this number in what they print. A step-local copy was the first
@@ -189,7 +196,7 @@ jobs:
         run: |
           _t0=$(date -u +%s)
           set +e
-          python3 tv/run_gates.py
+          python3 tv/run_gates.py --shard ${{ matrix.shard }}/2
           _rc=$?
           set -e
           echo "GATE_SET_SECONDS=$(( $(date -u +%s) - _t0 ))" >> "$GITHUB_ENV"
@@ -213,13 +220,26 @@ jobs:
           # the gate set never graded anything. Three states, and UNKNOWN is one of them.
           # [[unknown-stays-unknown]]
           if [ "$_rc" -eq 2 ]; then
-            echo "reached=false" >> "$GITHUB_OUTPUT"
-            echo "red=unknown" >> "$GITHUB_OUTPUT"
+            _reached=false; _red=unknown
           else
-            echo "reached=true" >> "$GITHUB_OUTPUT"
-            if [ "$_rc" -eq 0 ]; then echo "red=false" >> "$GITHUB_OUTPUT"; else echo "red=true" >> "$GITHUB_OUTPUT"; fi
+            _reached=true
+            if [ "$_rc" -eq 0 ]; then _red=false; else _red=true; fi
           fi
+          echo "reached=$_reached" >> "$GITHUB_OUTPUT"
+          echo "red=$_red" >> "$GITHUB_OUTPUT"
+          # v3472 — the same fact, as a file this shard publishes (see the artifact step below)
+          mkdir -p gate-verdict
+          printf 'reached=%s\nred=%s\n' "$_reached" "$_red" > "gate-verdict/shard-${{ matrix.shard }}.txt"
           exit $_rc
+      - name: Publish this shard's gate-set fact (the verdict reads EVERY shard, not the last)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: gate-verdict-${{ matrix.shard }}
+          path: gate-verdict/
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof
@@ -298,12 +318,55 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      # ⚠ MUST EQUAL the agent-suite matrix list — test_a_cut_off_gate_set_is_not_a_verdict pins it.
+      GATE_SHARDS: "1 2"
     steps:
+      - name: Fetch every shard's gate-set fact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          pattern: gate-verdict-*
+          merge-multiple: true
+          path: gate-verdict
+
+      - name: Every shard must have reached its end, and one red shard is a red gate set
+        id: shards
+        run: |
+          # v3472 — ONE shard's silence is the WHOLE set's silence. reached=true only when EVERY
+          # expected shard published reached=true; red=true when ANY reached shard was red; red=false
+          # only when every shard reached and none was red; anything else is unknown. A missing file
+          # is a shard that never got to the end of its gate set — never a green one.
+          _dir="${VERDICT_DIR:-gate-verdict}"
+          _all=true; _anyred=false; _unknown=false
+          for _k in ${GATE_SHARDS}; do
+            _f="${_dir}/shard-${_k}.txt"
+            if [ ! -f "$_f" ]; then
+              echo "shard ${_k}: NO FACT PUBLISHED - it never reached the end of its gate set"
+              _all=false; continue
+            fi
+            _r=$(sed -n 's/^reached=//p' "$_f" | tail -1)
+            _d=$(sed -n 's/^red=//p' "$_f" | tail -1)
+            echo "shard ${_k}: reached=${_r:-<none>} red=${_d:-<none>}"
+            [ "$_r" = "true" ] || _all=false
+            [ "$_d" = "true" ] && _anyred=true
+            [ "$_d" = "true" ] || [ "$_d" = "false" ] || _unknown=true
+          done
+          if [ "$_all" = true ]; then
+            echo "reached=true" >> "$GITHUB_OUTPUT"
+            if [ "$_anyred" = true ]; then echo "red=true" >> "$GITHUB_OUTPUT"
+            elif [ "$_unknown" = true ]; then echo "red=unknown" >> "$GITHUB_OUTPUT"
+            else echo "red=false" >> "$GITHUB_OUTPUT"; fi
+          else
+            echo "reached=false" >> "$GITHUB_OUTPUT"
+            if [ "$_anyred" = true ]; then echo "red=true" >> "$GITHUB_OUTPUT"; else echo "red=unknown" >> "$GITHUB_OUTPUT"; fi
+          fi
+
       - name: A conclusion that is not a pass must not read like one
         env:
           SUITE_RESULT: ${{ needs.agent-suite.result }}
-          GATE_SET_REACHED: ${{ needs.agent-suite.outputs.gate_set_reached }}
-          GATE_SET_RED: ${{ needs.agent-suite.outputs.gate_set_red }}
+          GATE_SET_REACHED: ${{ steps.shards.outputs.reached }}
+          GATE_SET_RED: ${{ steps.shards.outputs.red }}
         run: |
           echo "agent-suite conclusion: ${SUITE_RESULT:-<none>}"
           echo "gate set reached a verdict: ${GATE_SET_REACHED:-<no>}  (red: ${GATE_SET_RED:-<unknown>})"

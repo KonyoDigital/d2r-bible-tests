@@ -6555,6 +6555,14 @@ GATES = [
              "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
              "six literal characters in the one message he reads when a push fails.",
          skip_ok=()),
+    Gate("test_the_gate_set_shards_cleanly",
+         [sys.executable, os.path.join(HERE, "test_the_gate_set_shards_cleanly.py")], 60,
+         needs_app=False,
+         why="#184 - the gate set ran 25m18s against its 25-minute CI ceiling and was CANCELLED, so "
+             "a shipped version got no verdict. CI now runs run_gates.py --shard K/N as a matrix; "
+             "this pins that the slices are disjoint, complete, order-independent, cost-balanced, "
+             "never empty (run() reads [] as EVERY gate), and that a bad slice is refused.",
+         skip_ok=()),
     Gate("test_no_test_writes_his_eagle_ledgers",
          [sys.executable, os.path.join(HERE, "test_no_test_writes_his_eagle_ledgers.py")], 60,
          needs_app=False,
@@ -7160,10 +7168,55 @@ def _tree_diff(before, after):
     return sorted(_live_state_diff(before, after, names=sorted(set(before) | set(after))))
 
 
+def shard_names(k, n, gates=None):
+    """The K-th (1-based) of N deterministic, cost-balanced slices of the gate set. -> sorted names
+
+    v3472 (#184) — THE GATE SET OUTGREW ITS CI CEILING. The agent-suite job ran 25m18s against
+    timeout-minutes 25 on d9bdb682 and GitHub CANCELLED it: no verdict for the shipped version. The
+    workflow's own words are the ruling — "The fix is to shard the gate set, never to raise the
+    ceiling" — and test_a_cut_off_gate_set_is_not_a_verdict caps the ceiling at 25 to hold it.
+
+    Longest-processing-time greedy on each gate's DECLARED timeout: heaviest first into the lightest
+    slice, ties by name, so every run on every machine cuts the SAME slices. The union of all N slices
+    is the whole set and they are disjoint — both pinned by test_the_gate_set_shards_cleanly.
+    ⚠ Declared timeout is a proxy for cost, not a measurement; the per-gate durations the run prints
+    are what would tune it.
+    """
+    gates = list(GATES if gates is None else gates)
+    if not (1 <= int(k) <= int(n)) or int(n) > len(gates):
+        raise ValueError("shard %s/%s is not a slice of %d gates" % (k, n, len(gates)))
+    bins = [[0.0, i, []] for i in range(int(n))]
+    for g in sorted(gates, key=lambda g: (-float(g.timeout or 0), g.name)):
+        b = min(bins, key=lambda b: (b[0], b[1]))
+        b[0] += float(g.timeout or 0)
+        b[2].append(g.name)
+    return sorted(bins[int(k) - 1][2])
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="run the gate set and return one verdict")
     ap.add_argument("--only", nargs="*", help="run only these gate names")
+    ap.add_argument("--shard", help="K/N — run the K-th of N deterministic cost-balanced slices (#184)")
     a = ap.parse_args(argv[1:])
+    only = a.only
+    if a.shard:
+        # ⚠ exit 2 is "NO GATE RAN" everywhere this file's verdict is read, and each refusal below is
+        # exactly that. An EMPTY list would be worse than a refusal: `run()` reads `if only and ...`,
+        # so [] means EVERY gate, and a mis-cut slice would silently run the whole set twice.
+        if a.only:
+            print("⛔ REFUSED — --shard and --only together name two different selections; NO gate ran")
+            return 2
+        try:
+            _k, _n = [int(x) for x in str(a.shard).split("/")]
+            only = shard_names(_k, _n)
+        except Exception as e:
+            print("⛔ REFUSED — --shard %r is not a slice of the gate set (%s); NO gate ran" % (a.shard, e))
+            return 2
+        if not only:
+            print("⛔ REFUSED — shard %s is EMPTY; NO gate ran" % a.shard)
+            return 2
+        print("── SHARD %d/%d: %d of %d gates (balanced by declared timeout) ──"
+              % (_k, _n, len(only), len(GATES)))
 
     busy = _claim_the_tree()
     if busy:
@@ -7178,7 +7231,7 @@ def main(argv):
     _live_before = _live_fingerprint()
     _tree_before = _tree_fingerprint()
     # hand the run what else is writing, so a gate is not blamed for his console's work
-    results = run(a.only, live_writer=([("the console" if _console_live else None)] +
+    results = run(only, live_writer=([("the console" if _console_live else None)] +
                                        list(_sweep_live or []) if (_console_live or _sweep_live)
                                        else None) and
                   [x for x in ([("the console" if _console_live else None)] +

@@ -56,6 +56,7 @@ that runs before any verdict built on it is believed. [[source-reading-guard]] �
 """
 from __future__ import annotations
 
+import io
 import os
 import re
 import shutil
@@ -101,12 +102,16 @@ CONCLUSIONS = {
 }
 
 
+# ⚠⚠ v3472 — EVERY `file` BELOW WAS `WF_REL`, A NAME, AND heart2 READS THIS LIST WITH
+# ast.literal_eval — which throws on a name, so the prover reported this gate as declaring NO
+# red-proof and not one of its proofs had ever been executed. Literals now; the reader is fixed
+# to call an unreadable list UNREADABLE rather than absent (v3473).
 RED_PROOF = [
     {
         "why": "board #184 itself: the verdict job stops running when agent-suite is cancelled, so "
                "a job cut off by its own ceiling goes back to being silent - no red X, no "
                "annotation, and a run that checked nothing reads as a scheduling hiccup",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "    if: ${{ always() }}\n",
         "replace": "    if: ${{ success() }}\n",
         "matches": 1,
@@ -114,7 +119,7 @@ RED_PROOF = [
     {
         "why": "the loudest possible version of the defect: the verdict job still runs, reads "
                "'cancelled', and exits 0 - so NO VERDICT reports as a PASS",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "            cancelled|skipped|\"\")\n",
         "replace": "            cancelled|skipped|\"\")\n              exit 0\n",
         "matches": 1,
@@ -122,7 +127,7 @@ RED_PROOF = [
     {
         "why": "the in-job announcement stops being conditioned on a cancel, so the one surface "
                "that can speak from inside the dying job never fires",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "        if: cancelled()\n",
         "replace": "        if: failure()\n",
         "matches": 1,
@@ -130,7 +135,7 @@ RED_PROOF = [
     {
         "why": "the watchdog's copy of the ceiling drifts away from the job's real one, so every "
                "margin it prints is measured against a number nobody uses",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "      CEILING_MINUTES: 25\n",
         "replace": "      CEILING_MINUTES: 45\n",
         "matches": 1,
@@ -138,7 +143,7 @@ RED_PROOF = [
     {
         "why": "the ceiling is simply RAISED, which is the fix board #184 forbids: a ceiling above "
                "every real load is an absent detector",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "    timeout-minutes: 25\n",
         "replace": "    timeout-minutes: 45\n",
         "matches": 1,
@@ -146,7 +151,7 @@ RED_PROOF = [
     {
         "why": "an absent gate-set duration is read as ZERO instead of UNKNOWN, so a run that was "
                "cut off mid-suite prints the most reassuring margin it has ever had",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "          if [ -z \"${GATE_SET_SECONDS:-}\" ] || [ -z \"${JOB_STARTED_AT:-}\" ]; then\n",
         "replace": "          if false; then\n",
         "matches": 1,
@@ -155,7 +160,7 @@ RED_PROOF = [
         "why": "a step takes back its own copy of the ceiling, which SHADOWS the job-scope one and "
                "then drifts from it unwatched - the shape the first cut of this file shipped, "
                "where the cancelled-path step fell back to a hardcoded 25 nothing checked",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "      - name: How much of the ceiling was left (a thin margin is the next silent run)\n"
                 "        if: always()\n",
         "replace": "      - name: How much of the ceiling was left (a thin margin is the next silent run)\n"
@@ -166,9 +171,30 @@ RED_PROOF = [
         "why": "the workflow stops watching itself, so a change to the verdict machinery lands "
                "without ever being run - the exact shape test_control.py polices for the five "
                "routine workflows",
-        "file": WF_REL,
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
         "find": "      - '.github/workflows/tv-tests.yml'\n",
         "replace": "      # - '.github/workflows/tv-tests.yml'\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3472 — a shard that never reached its end (exit 2) reads as reached in the aggregator",
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
+        "find": "            [ \"$_r\" = \"true\" ] || _all=false\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3472 — the verdict job expects fewer shards than the matrix runs",
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
+        "find": "      GATE_SHARDS: \"1 2\"\n",
+        "replace": "      GATE_SHARDS: \"1\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3472 — every shard runs the WHOLE set again, so the ceiling is crossed twice over",
+        "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
+        "find": "          python3 tv/run_gates.py --shard ${{ matrix.shard }}/2\n",
+        "replace": "          python3 tv/run_gates.py\n",
         "matches": 1,
     },
 ]
@@ -751,6 +777,80 @@ class TestTheWorkflowWatchesItself(unittest.TestCase):
                       "the workflow does not watch ITSELF, so a change to the cancelled-path "
                       "machinery lands without ever being exercised - the same defect "
                       "TestEveryRoutineCanSeeTheInputItPolices polices for the five routines")
+
+
+
+class TestAShardedGateSetIsStillOneVerdict(unittest.TestCase):
+    """v3472 (#184) — the gate set outgrew the 25-minute ceiling (25m18s on d9bdb682, CANCELLED, no
+    verdict for a shipped version) and is now SHARDED. Sharding must not let one shard's silence or
+    one shard's red disappear: a matrix job's `outputs:` keep only the LAST shard to finish, so the
+    facts travel as artifacts and one step reads every shard. Each case DRIVES the shipped step."""
+
+    def _matrix(self):
+        js, lines = jobs(_wf())
+        # read_lines gives (indent, CODE, raw); CODE is already comment-stripped by this file's own
+        # stripper, so prose explaining the matrix can never satisfy a case about it
+        body = "\n".join(code for _i, code, _raw in lines[js["agent-suite"]:js["verdict"]])
+        m = re.search(r"^\s*shard:\s*\[([^\]]*)\]", body, re.M)
+        self.assertIsNotNone(m, "agent-suite has no shard matrix")
+        return [x.strip() for x in m.group(1).split(",") if x.strip()], body, lines, js
+
+    def test_the_matrix_and_the_verdict_count_the_same_shards(self):
+        shards, _b, lines, js = self._matrix()
+        self.assertGreaterEqual(len(shards), 2, "a one-shard matrix is not a shard")
+        env = job_env(lines, js["verdict"])
+        self.assertEqual(env.get("GATE_SHARDS", "").strip().strip("\"'").split(), shards,
+                         "the verdict expects shards %r but the matrix runs %r — a shard the verdict "
+                         "never asks about is a shard whose silence reads as nothing"
+                         % (env.get("GATE_SHARDS"), shards))
+
+    def test_every_shard_runs_its_own_slice_of_the_WHOLE_set(self):
+        shards, body, _l, _j = self._matrix()
+        want = "python3 tv/run_gates.py --shard ${{ matrix.shard }}/%d" % len(shards)
+        self.assertIn(want, body, "the gate-set step does not run a %d-way slice: %r" % (len(shards), want))
+
+    def test_no_matrix_output_carries_a_verdict(self):
+        _s, body, _l, _j = self._matrix()
+        head = body.split("    steps:")[0]
+        self.assertNotIn("steps.gateset.outputs", head,
+                         "agent-suite still publishes the gate-set fact as a JOB output — a matrix "
+                         "keeps only the last shard's, so a red shard can be overwritten by a green one")
+
+    def _aggregate(self, files):
+        import tempfile
+        st = _step_named("Every shard must have reached its end", job="verdict")
+        self.assertIsNotNone(st, "the verdict job lost the step that reads every shard")
+        d = tempfile.mkdtemp(prefix="shard-verdict-")
+        out = os.path.join(d, "GITHUB_OUTPUT")
+        try:
+            os.mkdir(os.path.join(d, "v"))
+            for k, (r, red) in files.items():
+                io.open(os.path.join(d, "v", "shard-%s.txt" % k), "w").write("reached=%s\nred=%s\n" % (r, red))
+            rc, log = run_script(st["run"], {"GATE_SHARDS": "1 2", "VERDICT_DIR": os.path.join(d, "v"),
+                                             "GITHUB_OUTPUT": out})
+            got = (dict(l.split("=", 1) for l in io.open(out).read().split() if "=" in l)
+                   if os.path.exists(out) else {})
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(rc, 0, log)
+        return got
+
+    def test_the_aggregator_reads_every_shard(self):
+        if a_shell()[0] is None:
+            self.skipTest("no bash or sh on this venue - UNMEASURED, not passing")
+        self.assertEqual(self._aggregate({1: ("true", "false"), 2: ("true", "false")}),
+                         {"reached": "true", "red": "false"}, "two green shards did not read as green")
+        self.assertEqual(self._aggregate({1: ("true", "false")}),
+                         {"reached": "false", "red": "unknown"},
+                         "a shard that published NOTHING read as reached — its silence became a pass")
+        self.assertEqual(self._aggregate({1: ("true", "true"), 2: ("true", "false")}),
+                         {"reached": "true", "red": "true"}, "one red shard did not make the set red")
+        self.assertEqual(self._aggregate({1: ("false", "unknown"), 2: ("true", "false")}),
+                         {"reached": "false", "red": "unknown"},
+                         "a shard that never reached its end (exit 2) read as reached")
+        self.assertEqual(self._aggregate({2: ("true", "true")}),
+                         {"reached": "false", "red": "true"},
+                         "a red shard beside a SILENT one lost the red")
 
 
 if __name__ == "__main__":

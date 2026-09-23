@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3471** | `(this commit)` | v3471 — the anchor-census law judges what executes, reads quotes and heredocs the way bash does, and proves its own counter is not blind |
+| **v3472** | `(this commit)` | v3472 — CI runs the gate set as two cost-balanced shards whose facts are aggregated from every shard, and the workflow guard proofs run for the first time |
+| **v3471** | `9cca0d82` | v3471 — the anchor-census law judges what executes, reads quotes and heredocs the way bash does, and proves its own counter is not blind |
 | **v3470** | `0da4d209` | v3470 — one fixture helper redirects both ledgers for every suite that drives the doctor, both files joined the live-state watcher, counts proven not to move |
 | **v3469** | `42c119ac` | v3469 — every push now checks every declared red-proof anchor at top level, the structural fix for four proofs that went invalid in one day |
 | **v3468** | `fcbe3a8a` | v3468 — every doctor row now says what it reads and what an independent second source would be; the explained-exactly-once gate, red on CI for as long as it was read, is green |

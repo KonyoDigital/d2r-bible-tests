@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3471",
+  "ver": "v3472",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3471: the anchor-census law judges what executes, reads quotes and heredocs the way bash does, and proves its own counter is not blind",
+  "note": "v3472: CI runs the gate set as two cost-balanced shards whose facts are aggregated from every shard, and the workflow guard proofs run for the first time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
