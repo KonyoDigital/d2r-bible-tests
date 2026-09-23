@@ -208,6 +208,18 @@ REGISTRY = {
     "tv_diablo.py:_VISION_CWD": (
         "TV_VISION_CWD", "import-bound",
         "0 call-time readers; a scratch dir under tempfile.gettempdir(), not live state."),
+    # ⚠ v3442 — REGISTERED, NOT SILENCED. EYE_CWD reads THIRD_EYE_CWD once at import
+    # (second_eye_run.py:107) and _EYE_CWD_IS_OURS is derived from the SAME env read at :112, so
+    # the two must not be allowed to disagree — patch the attribute, never the environment, or a
+    # test can end up with a directory it thinks it owns and did not mint.
+    # MEASURED: 2 env reads, both at import; 14 consumers of the constant; ZERO call-time readers.
+    # ⚠ The ownership half is load-bearing: a directory HE supplied via THIRD_EYE_CWD is never
+    # removed (v3422/#170), and v3408's rule that the eye stands OUTSIDE the repo rides on this
+    # same value.
+    "second_eye_run.py:EYE_CWD": (
+        "THIRD_EYE_CWD", "import-bound",
+        "0 call-time readers; 14 consumers. The scratch cwd the cross-family eye runs in - outside "
+        "the repo by v3408, and removable only when WE minted it. Patch the attribute."),
     "tv_diablo.py:OCR_BIN": (
         "TV_OCR_BIN", "call-time",
         "1 call-time reader (_ocr_worker_cmd). A binary that is executed, never written."),

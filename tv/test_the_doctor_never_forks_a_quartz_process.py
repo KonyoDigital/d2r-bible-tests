@@ -437,19 +437,43 @@ def classify_spawn_call(call, func, tree, aliases):
             violations.append("close_fds-is-False")
 
     # ---- conditions 2, 4, 5, 9 and the identity tail ------------------------------------
-    for kw, must_be_falsy in (("preexec_fn", True), ("pass_fds", True), ("cwd", True),
-                              ("start_new_session", True), ("user", True), ("group", True),
-                              ("extra_groups", True)):
+    # ⚠⚠ v3442 — IDENTITY AND TRUTHINESS ARE NOT THE SAME CONDITION, AND CONFLATING THEM WAS A
+    # FALSE ALL-CLEAR. Found by the cross-family eye on the SHIPPED v3441 bytes. CPython 3.9.6's
+    # guard, read verbatim from inspect.getsource(subprocess.Popen._execute_child), is:
+    #     preexec_fn is None · cwd is None · gid is None · gids is None · uid is None   <- IDENTITY
+    #     not close_fds · not pass_fds · not start_new_session                          <- falsy
+    # The first cut ran all seven through one `elif val:` — a TRUTHINESS test — and the loop
+    # variable `must_be_falsy` was declared and NEVER READ, so the distinction its own name
+    # promises was not encoded anywhere.
+    # THE COST, and it is the dangerous direction: user=0 (run as root — the realistic case),
+    # group=0, cwd="" and extra_groups=() are all FALSY, so they passed and the site was reported
+    # SPAWNS. CPython tests `uid is None`, and 0 is not None, so every one of them FORKS.
+    # A gate written to catch forking sites was blind to a whole family of them.
+    IDENTITY_KWS = ("preexec_fn", "cwd", "user", "group", "extra_groups")
+    FALSY_KWS = ("pass_fds", "start_new_session")
+    for kw in IDENTITY_KWS + FALSY_KWS:
         if kw not in kws:
             continue
+        must_be_none = kw in IDENTITY_KWS
         known, val = _literal(kws[kw])
         if not known:
-            # A non-literal cwd=ROOT / preexec_fn=f is a VALUE, and every value but None/falsy
-            # violates. Only an expression that could legitimately be None is unknown.
+            # ⚠ DELIBERATELY FAILS CLOSED, and this is NOT the same defect as the one above.
+            # A non-literal `cwd=ROOT` or `preexec_fn=_nice` is overwhelmingly a real value, and
+            # calling it UNKNOWN would have let the six console_doctor sites v3441 just repaired
+            # sail through — the gate would have been honest and useless in the same breath.
+            # The residual false positive is `x = None` then `cwd=x`, which is rare and SAFE:
+            # it over-reports a fork that is not there, never under-reports one that is.
+            # [[the-cure-that-kills-the-patient]] [[unknown-stays-unknown]]
             violations.append(KW_TO_CONDITION[kw])
-            notes.append("%s=<expression> is not None" % kw)
-        elif val:
+            notes.append("%s=<expression> cannot be proven %s"
+                         % (kw, "None" if must_be_none else "falsy"))
+        elif (val is not None) if must_be_none else bool(val):
             violations.append(KW_TO_CONDITION[kw])
+            if must_be_none and not val:
+                # the exact case the truthiness test missed — say so, because `user=0` reads
+                # harmless and is not
+                notes.append("%s=%r is FALSY BUT NOT None, and CPython tests `is None`"
+                             % (kw, val))
     if "umask" in kws:
         known, val = _literal(kws["umask"])
         if not known:
@@ -903,6 +927,47 @@ class TestTheDoctorNeverForksAQuartzProcess(unittest.TestCase):
                                  "%s was classified as violating %r — the probe is impure, so "
                                  "the red is not attributable to %r"
                                  % (expr, got["violations"], cond))
+
+    def test_a_FALSY_BUT_NOT_NONE_value_is_a_fork_not_a_pass(self):
+        """IDENTITY IS NOT TRUTHINESS, and conflating them was a FALSE ALL-CLEAR.
+
+        ⚠⚠ Found by the cross-family eye on the SHIPPED v3441 bytes, not by this suite. The first
+        classifier ran preexec_fn / cwd / user / group / extra_groups through one `elif val:` — a
+        truthiness test — while CPython 3.9.6 tests `uid is None`, `gid is None`, `gids is None`,
+        `cwd is None`, `preexec_fn is None`. So `user=0` (running as ROOT — the realistic case),
+        `group=0`, `cwd=""` and `extra_groups=()` are all FALSY, passed the check, and the site was
+        reported SPAWNS. Every one of them forks. A gate written to catch forking sites was blind
+        to an entire family of them, and its loop variable `must_be_falsy` was declared and never
+        read — the distinction was named and not encoded.
+
+        ⚠ THE BASELINE IS HALF THIS CASE: cwd=None and preexec_fn=None must still read SPAWNS, and
+        a non-literal cwd=ROOT must still read FORKS. A fix that reddened those would have blinded
+        the gate to the six console_doctor sites v3441 had just repaired — the cure killing the
+        patient. [[the-cure-that-kills-the-patient]]
+        """
+        import ast as _ast
+        cases = [
+            # the four the truthiness test waved through — ALL fork
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, user=0)', "FORKS"),
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, group=0)', "FORKS"),
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, cwd="")', "FORKS"),
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, extra_groups=())', "FORKS"),
+            # the baseline — these genuinely satisfy the condition and must stay green
+            ('subprocess.run(["/usr/bin/git"], close_fds=False)', "SPAWNS"),
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, cwd=None)', "SPAWNS"),
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, preexec_fn=None)', "SPAWNS"),
+            # still caught: the shape the six repaired sites had
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, cwd=ROOT)', "FORKS"),
+            # truthiness conditions keep working
+            ('subprocess.run(["/usr/bin/git"], close_fds=False, start_new_session=True)', "FORKS"),
+        ]
+        for srcline, want in cases:
+            tree = _ast.parse(srcline)
+            got = classify_spawn_call(tree.body[0].value, "subprocess.run", tree, {})
+            self.assertEqual(
+                got.get("verdict"), want,
+                "%s\n  classified %s, expected %s\n  violations=%s notes=%s"
+                % (srcline, got.get("verdict"), want, got.get("violations"), got.get("notes")))
 
     def test_the_classifier_agrees_with_the_REAL_SYSCALL_on_each_condition(self):
         """⚠ CLASSIFY, THEN DRIVE. An AST predicate that nobody ever compared against the
