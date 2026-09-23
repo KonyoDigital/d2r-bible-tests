@@ -158,15 +158,68 @@ class TheJoinIsMade(unittest.TestCase):
             "payload_for no longer returns the absent LIST alongside the prose, so the caller has "
             "only a sentence to pass on and the row is back to storing a truncated summary")
 
-    def test_record_answer_passes_it_to_the_ledger(self):
-        self.assertIn("absent", inspect.signature(R.record_answer).parameters,
-                      "record_answer cannot accept the list, so it cannot forward it")
+    @staticmethod
+    def _run_code():
+        """second_eye_run.py with its prose removed. [[source-reading-guard]] §4"""
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
-        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        return "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+
+    def _assert_the_record_call_carries_the_list(self, code):
+        """THE ONE COPY OF THIS LAW, so the red-proof below can be DRIVEN through it.
+
+        ⚠ The needle is the three names that must travel together on the recording call — NOT the
+        tail of the argument list and NOT the closing paren. v3375 and v3392 each appended a
+        kwarg here; an anchor that reached to the end of the call went red, or silently inert,
+        over a widening that broke nothing. [[regression-guard]] §4 PIN THE LAW, NOT THE NUMBER.
+        """
         self.assertIn(
             "sha=sha, absent=absent, reach=reach", code,
             "the LOOKED path records without the absent list. That is the unjoined end this "
             "version exists to close: computed, used in the prompt, dropped before the row.")
+
+    def test_record_answer_passes_it_to_the_ledger(self):
+        self.assertIn("absent", inspect.signature(R.record_answer).parameters,
+                      "record_answer cannot accept the list, so it cannot forward it")
+        self._assert_the_record_call_carries_the_list(self._run_code())
+
+    def test_its_own_red_proof_still_defeats_that_law(self):
+        """⚠⚠ board #187 — A DECLARED PROOF THAT MATCHES NOTHING READS EXACTLY LIKE A PROVEN ONE.
+
+        Four proofs across three gates fell to ZERO matches at once, and every one of them was
+        anchored on a LITERAL PAYLOAD a later version was entitled to change — here, the tail of
+        this very call plus its closing paren, widened by v3375 and again by v3392. The gates went
+        on being counted as proven the entire time. Third occurrence: v2852 (REG-816), v3375, this.
+
+        The heart's census is the tree-wide net that eventually found it. This is the LOCAL one,
+        inside the gate that owns the proof, so a widening that disarms the tamper goes red in the
+        gate it disarmed rather than in another file's summary.
+
+        ⚠ AND IT DOES NOT MERELY COUNT THE ANCHOR — a count is arithmetic ABOUT the proof. It
+        applies the tamper to a copy of the target in memory and DRIVES the law above against the
+        result, which must refuse it. So the proof and the law can no longer drift apart: if a
+        future hand re-anchors this onto formatting again, the tamper stops defeating the law and
+        this case goes red. [[a-law-about-a-row-must-drive-the-row]] [[the-unjoined-end]]
+        """
+        import heart2 as _H2          # the ONE reader and the ONE resolver [[copy-drift]]
+        proofs = _H2.red_proofs_in(os.path.basename(__file__))
+        self.assertTrue(proofs, "this gate declares no RED_PROOF this reader can parse, so the "
+                                "heart cannot tamper with it at all")
+        pr = proofs[0]
+        tgt = _H2.resolve_proof_target(HERE, str(pr.get("file") or ""))
+        self.assertTrue(os.path.isfile(tgt),
+                        "RED_PROOF[0] names a file that does not exist: %r" % (pr.get("file"),))
+        raw = io.open(tgt, encoding="utf-8").read()
+        n = raw.count(str(pr.get("find") or ""))
+        print("\n   RED_PROOF[0] anchor matches %d time(s) in %s" % (n, pr.get("file")))
+        self.assertEqual(
+            n, 1,
+            "RED_PROOF[0]'s anchor matches %d time(s) in %s. A tamper that matches nothing "
+            "changes nothing and proves nothing, and this gate then reads as proven while it is "
+            "UNPROVEN." % (n, pr.get("file")))
+        tampered = raw.replace(str(pr["find"]), str(pr["replace"]))
+        code = "\n".join(l.split("#", 1)[0] for l in tampered.split("\n"))
+        with self.assertRaises(AssertionError):
+            self._assert_the_record_call_carries_the_list(code)
 
 
 class HisRealLedgerIsNotAssumedComplete(unittest.TestCase):
@@ -196,8 +249,18 @@ RED_PROOF = [
         # ⚠ v3363 RE-ANCHORED. payload_for now also hands back the per-file reach map, so this
         # call gained a third argument. v3354 changed a line under this same law and left its
         # proof inert; re-anchoring in the SAME change is the correction to that.
-        "find": "               sha=sha, absent=absent, reach=reach, stripped=stripped)",
-        "replace": "               sha=sha)",
+        #
+        # ⚠⚠ v3401 — AND IT HAPPENED AGAIN, FOR THE SAME REASON THE 3363 NOTE DESCRIBES.
+        # v3375 added `stripped=stripped`; v3392 added `verdict_from=_verdict_from`; each time the
+        # anchor ended at the closing paren, so each widening left this tamper matching ZERO lines
+        # and the gate read as proven while nothing could be tampered (board #187).
+        #
+        # ⛔ RE-ANCHORING ON A NEWER LINE ONLY BUYS WEEKS. The `find` is now the EXACT string
+        # `test_record_answer_passes_it_to_the_ledger` asserts and nothing more, so the proof and
+        # the law are one string: a widened call moves neither, a broken join moves both. A law
+        # below pins that identity.
+        "find": "sha=sha, absent=absent, reach=reach",
+        "replace": "sha=sha, reach=reach",
         "matches": 1,
     },
     {

@@ -274,19 +274,71 @@ class TheRowCarriesIt(unittest.TestCase):
     def test_the_join_is_made_at_the_recording_call(self):
         """[[the-unjoined-end]] — computed, used, and dropped before the row is this repo's most
         repeated defect, and #104 is the same wire one field along."""
+        self._assert_the_record_call_carries_the_map(self._run_code())
+        self.assertIn("reach", inspect.signature(R.record_answer).parameters,
+                      "record_answer cannot accept the map, so it cannot forward it")
+
+    @staticmethod
+    def _run_code():
+        """second_eye_run.py with its prose removed. [[source-reading-guard]] §4"""
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
-        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-        # ⚠ v3375 — THE TRAILING PAREN WAS PART OF THE ANCHOR, SO WIDENING THE CALL READ AS
-        # BREAKING IT. v3375 appends `stripped=stripped` to this same call; the join is intact and
-        # carries one more field. Anchor the JOIN (sha + absent + reach together on one call),
-        # never the punctuation that happens to follow the last argument today.
-        # [[regression-guard]] §4 PIN THE LAW, NOT THE NUMBER.
+        return "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+
+    def _assert_the_record_call_carries_the_map(self, code):
+        """THE ONE COPY OF THIS LAW, so the red-proof below can be DRIVEN through it.
+
+        ⚠ v3375 — THE TRAILING PAREN WAS PART OF THE ANCHOR, SO WIDENING THE CALL READ AS
+        BREAKING IT. v3375 appends `stripped=stripped` to this same call and v3392 appends
+        `verdict_from=_verdict_from`; the join is intact and carries two more fields. Anchor the
+        JOIN (sha + absent + reach together on one call), never the punctuation that happens to
+        follow the last argument today. [[regression-guard]] §4 PIN THE LAW, NOT THE NUMBER.
+        """
         self.assertIn(
             "sha=sha, absent=absent, reach=reach", code,
             "the LOOKED path records without the reach map. Computing it and dropping it before "
             "the row is precisely what v3341 did with the absent list for 8 versions.")
-        self.assertIn("reach", inspect.signature(R.record_answer).parameters,
-                      "record_answer cannot accept the map, so it cannot forward it")
+
+    def test_its_own_red_proof_still_defeats_that_law(self):
+        """⚠⚠ board #187 — A DECLARED PROOF THAT MATCHES NOTHING READS EXACTLY LIKE A PROVEN ONE.
+
+        Four proofs across three gates fell to ZERO matches at once, and every one of them was
+        anchored on a LITERAL PAYLOAD a later version was entitled to change — here, the tail of
+        this very call plus its closing paren. The comment above already says not to do that, and
+        the RED_PROOF below did it anyway: it was re-anchored at v3363 onto
+        `... reach=reach, stripped=stripped)` and v3392 appended one more kwarg, dropping it to
+        ZERO matches. The gate went on being counted as proven. Third occurrence of the shape:
+        v2852 (REG-816), v3375, this.
+
+        The heart's census is the tree-wide net that eventually found it. This is the LOCAL one,
+        inside the gate that owns the proof, so a widening that disarms the tamper goes red in the
+        gate it disarmed rather than in another file's summary.
+
+        ⚠ AND IT DOES NOT MERELY COUNT THE ANCHOR — a count is arithmetic ABOUT the proof. It
+        applies the tamper to a copy of the target in memory and DRIVES the law above against the
+        result, which must refuse it. If a future hand re-anchors this onto formatting again, the
+        tamper stops defeating the law and this case goes red.
+        [[a-law-about-a-row-must-drive-the-row]] [[the-unjoined-end]]
+        """
+        import heart2 as _H2          # the ONE reader and the ONE resolver [[copy-drift]]
+        proofs = _H2.red_proofs_in(os.path.basename(__file__))
+        self.assertTrue(proofs, "this gate declares no RED_PROOF this reader can parse, so the "
+                                "heart cannot tamper with it at all")
+        pr = proofs[0]
+        tgt = _H2.resolve_proof_target(HERE, str(pr.get("file") or ""))
+        self.assertTrue(os.path.isfile(tgt),
+                        "RED_PROOF[0] names a file that does not exist: %r" % (pr.get("file"),))
+        raw = io.open(tgt, encoding="utf-8").read()
+        n = raw.count(str(pr.get("find") or ""))
+        print("\n   RED_PROOF[0] anchor matches %d time(s) in %s" % (n, pr.get("file")))
+        self.assertEqual(
+            n, 1,
+            "RED_PROOF[0]'s anchor matches %d time(s) in %s. A tamper that matches nothing "
+            "changes nothing and proves nothing, and this gate then reads as proven while it is "
+            "UNPROVEN." % (n, pr.get("file")))
+        tampered = raw.replace(str(pr["find"]), str(pr["replace"]))
+        code = "\n".join(l.split("#", 1)[0] for l in tampered.split("\n"))
+        with self.assertRaises(AssertionError):
+            self._assert_the_record_call_carries_the_map(code)
 
 
 class HisRealLedgerIsNotBackFilled(unittest.TestCase):
@@ -313,8 +365,19 @@ RED_PROOF = [
         "why": "dropping the map at the record call puts the row back to knowing nothing about "
                "how much of each arrived file the eye actually got",
         "file": "tv/second_eye_run.py",
-        "find": "               sha=sha, absent=absent, reach=reach, stripped=stripped)",
-        "replace": "               sha=sha, absent=absent, stripped=stripped)",
+        # ⚠⚠ v3401 — RE-ANCHORED, AND THIS IS THE THIRD TIME (v3363, v3375, board #187).
+        # Every previous anchor here carried the END of the argument list — the last kwarg plus
+        # the closing paren — so every version that legitimately WIDENED the call disarmed the
+        # proof. v3392 appended `verdict_from=_verdict_from` and this tamper dropped to ZERO
+        # matches: the gate above read as proven while nothing could be tampered.
+        #
+        # ⛔ THE FIX IS NOT A NEWER LINE. The tamper's `find` is now the EXACT string
+        # `test_the_join_is_made_at_the_recording_call` asserts, and nothing more. The proof and
+        # the law can no longer drift apart, because they are the same string: widen the call and
+        # both still hold; break the join and both go red. A law below pins that identity so a
+        # future hand cannot quietly re-attach this to formatting again.
+        "find": "sha=sha, absent=absent, reach=reach",
+        "replace": "sha=sha, absent=absent",
         "matches": 1,
     },
     {

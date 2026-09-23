@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3439",
+  "ver": "v3440",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3439: agreement() decided AGREE/DISAGREE/SINGLE and never read WHO LOOKED. Of 55 versions asked twice, 41 were SAME-FAMILY pairs, all xai, and console_doctor maps AGREE to OK. ECHO is now its own state, NOT a red: DISAGREE would turn 8 historical versions red at once. 7 red-proofs, and a cross-family AGREE still reads AGREE.",
+  "note": "v3440: Four declared red-proof anchors matched ZERO lines, so those proofs never ran while the gates they certify read as proven. Re-anchored, each at exactly one match, each driven to RED. A fifth was found in this batch with a different cause: a parallel edit rewrapped a print and silently disarmed a neighbouring proof.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -168,8 +168,17 @@ RED_PROOF = [
     {
         "why": "a census that drops its upper-bound caveat presents artifacts as a measurement",
         "file": "tv/second_eye_ledger.py",
-        "find": '"those, %d differed. ⚠ UPPER BOUND: a second ROW is not always a second "',
-        "replace": '"those, %d differed. ("',
+        # ⚠⚠ RE-ANCHORED v3437. The old anchor quoted ONE WRAPPED LINE of the census print,
+        # and a parallel change to second_eye_ledger.py (the ECHO state, board #182) rewrapped
+        # that print across different line boundaries. The anchor then matched ZERO and this
+        # red-proof silently stopped running — the gate it certifies reading as proven while
+        # being unproven. Same class as board #187's four rotted anchors, arriving from a
+        # DIFFERENT direction: not a refactor of the subject, but a neighbouring edit to the
+        # same file. ONE-OWNER-PER-FILE DOES NOT PROTECT A PROOF WHOSE ANCHOR LIVES IN SOMEONE
+        # ELSE'S FILE. Anchored now on the shortest span that carries the LAW ("upper bound"),
+        # not on a whole wrapped line, so re-wrapping cannot break it again.
+        "find": '⚠ UPPER BOUND: a second ROW is not ',
+        "replace": '(',
         "matches": 1,
     },
 ]

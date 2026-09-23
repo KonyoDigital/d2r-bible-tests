@@ -182,6 +182,24 @@ class AWorkerReadHasADeadline(unittest.TestCase):
 
     # ---------- behaviour ----------
 
+    def _assert_no_reading(self, got, why):
+        """NO READING CAME BACK — asked of the VALUE's meaning, never of one literal shape.
+
+        ⚠⚠ THIS FILE WAS RED ON A CLEAN TREE FOR THE IMPROVEMENT. Every case below pinned the
+        literal `{}`. v3392 then replaced three of `_ocr_ask`'s bare `{}` returns with
+        `{"_unasked": <why>}`, so a caller that COUNTS frames can tell "nobody could ask" from
+        "asked, and there was nothing" [[unknown-stays-unknown]] — strictly better behaviour, and
+        two laws here went red accusing it. A law that cries wolf on correct behaviour gets
+        silenced, which costs more than the defect it was written for.
+
+        The law was never "the dict is empty". It is "no reading was fabricated". So: a dict
+        carrying nothing but the optional `_unasked` marker. A fabricated `{"lines": [...]}`
+        still fails, and so does any other key.
+        """
+        self.assertIsInstance(got, dict, "%s — got %r" % (why, got))
+        self.assertEqual(sorted(set(got) - {"_unasked"}), [],
+                         "%s — a reading came back instead: %r" % (why, got))
+
     def test_a_worker_that_never_answers_cannot_hold_the_reader(self):
         """THE WHOLE POINT. A bare readline waits for ever here; this must come back."""
         p, path = _spawn(DEAF_WORKER)
@@ -189,7 +207,7 @@ class AWorkerReadHasADeadline(unittest.TestCase):
         t0 = time.monotonic()
         got = self._ask_bounded(p, "/nonexistent/frame.png", timeout=2.0, wait=20.0)
         elapsed = time.monotonic() - t0
-        self.assertEqual(got, {}, "a silent worker must yield {}, never a fabricated reading")
+        self._assert_no_reading(got, "a silent worker must yield no reading")
         self.assertLess(elapsed, 30.0,
                         "did not return within 30s - this is the hang that blocked the push "
                         "(measured %.1fs)" % elapsed)
@@ -242,7 +260,7 @@ class AWorkerReadHasADeadline(unittest.TestCase):
         t0 = time.monotonic()
         got = self._ask_bounded(p, big, timeout=2.0, wait=25.0)
         elapsed = time.monotonic() - t0
-        self.assertEqual(got, {}, "a worker that never reads must yield {}, never a reading")
+        self._assert_no_reading(got, "a worker that never reads must yield no reading")
         self.assertLess(elapsed, 30.0,
                         "the WRITE held the caller %.1fs past a 2s deadline - this is the wedge "
                         "that refused three pushes" % elapsed)
@@ -258,7 +276,8 @@ class AWorkerReadHasADeadline(unittest.TestCase):
                         "the worker was not marked dead, so the next call may read a reply that "
                         "belongs to the abandoned write")
         t0 = time.monotonic()
-        self.assertEqual(self._ask_bounded(p, "/small.png", timeout=5.0, wait=25.0), {})
+        self._assert_no_reading(self._ask_bounded(p, "/small.png", timeout=5.0, wait=25.0),
+                                "a poisoned worker must yield no reading")
         self.assertLess(time.monotonic() - t0, 1.0,
                         "a poisoned worker was asked again and cost another wait")
 
@@ -281,14 +300,15 @@ class AWorkerReadHasADeadline(unittest.TestCase):
         t0 = time.monotonic()
         got = CA._ocr_ask(p, "/some/frame.png", timeout=20.0)
         elapsed = time.monotonic() - t0
-        self.assertEqual(got, {})
+        self._assert_no_reading(got, "a worker that has exited must yield no reading")
         self.assertLess(elapsed, 15.0,
                         "waited %.1fs for a worker that had already exited - EOF is not being "
                         "turned into a value" % elapsed)
 
     def test_a_dead_handle_is_answered_not_crashed(self):
         """None must be survivable: the callers reach here on paths where the worker never spawned."""
-        self.assertEqual(CA._ocr_ask(None, "/x.png", timeout=1.0), {})
+        self._assert_no_reading(CA._ocr_ask(None, "/x.png", timeout=1.0),
+                                "a dead handle must yield no reading")
 
     # ---------- structure ----------
 
@@ -316,6 +336,46 @@ class AWorkerReadHasADeadline(unittest.TestCase):
         self.assertEqual(n, 0,
                          "%d bare wp.stdout.readline() call(s) are back in control_app - each one "
                          "can wait for ever and will be reported as a 1500s timeout" % n)
+
+    def test_its_own_red_proofs_still_match_the_file_they_tamper(self):
+        """⚠⚠ board #187 — A DECLARED PROOF THAT MATCHES NOTHING READS EXACTLY LIKE A PROVEN ONE.
+
+        TWO of this file's seven proofs fell to ZERO matches, and neither of them was re-aimed by
+        hand: v3392 improved three of `_ocr_ask`'s bare `return {}` lines into
+        `return {"_unasked": <why>}` [[unknown-stays-unknown]], and both tampers had swallowed
+        that literal as part of their anchor. From that commit on, the heart applied two tampers
+        that changed nothing and this gate was counted as proven while it was UNPROVEN.
+
+        The proofs here are BEHAVIOURAL — they wedge a real subprocess — so they cannot be driven
+        in-process the way a source-text law can. What can be asked here is the one thing that
+        went wrong: does every anchor still find its line, exactly once?
+
+        This is heart2's own reader and heart2's own resolver, scoped to this file — deliberately
+        NOT a second implementation of either. [[copy-drift]] The heart's census is the tree-wide
+        net; this is the signal in the gate that OWNS the proof, so the refactor that disarms a
+        tamper goes red where it was disarmed. And the count is PRINTED, because the count is the
+        tell. [[feedback-suspect-the-instrument]]
+        """
+        import heart2 as _H2
+        proofs = _H2.red_proofs_in(os.path.basename(__file__))
+        self.assertTrue(proofs, "this gate declares no RED_PROOF this reader can parse, so the "
+                                "heart cannot tamper with it at all")
+        bad = []
+        for i, pr in enumerate(proofs):
+            tgt = _H2.resolve_proof_target(HERE, str(pr.get("file") or ""))
+            if not os.path.isfile(tgt):
+                bad.append("[%d] names a file that does not exist: %r" % (i, pr.get("file")))
+                continue
+            with io.open(tgt, encoding="utf-8") as fh:
+                n = fh.read().count(str(pr.get("find") or ""))
+            print("\n   RED_PROOF[%d] anchor matches %d time(s) in %s"
+                  % (i, n, pr.get("file")))
+            if n != 1:
+                bad.append("[%d] matches %d time(s) in %s" % (i, n, pr.get("file")))
+        self.assertEqual(bad, [],
+                         "%d of this gate's %d red-proofs no longer find the line they tamper, so "
+                         "they change nothing and prove nothing while the gate reads as proven: %s"
+                         % (len(bad), len(proofs), bad))
 
     def test_every_worker_ask_goes_through_the_bounded_helper(self):
         """A helper nobody calls is documentation. [[the-unjoined-end]]"""
@@ -365,19 +425,32 @@ RED_PROOF = [
         "why": "v3381 bounded the READ and left the WRITE unbounded with the deadline computed "
                "after it; restoring that is the exact wedge that refused three pushes",
         "file": "tv/control_app.py",
+        # ⚠⚠ v3401 — THE ANCHOR CARRIED THE RETURNED PAYLOAD, AND THE PAYLOAD MOVED.
+        # This `find` ended `            return {}`. v3392 made that return say WHY nobody could
+        # ask — `return {"_unasked": "the worker did not accept the path inside the deadline"}` —
+        # and the tamper silently stopped matching anything. Third time in this repo (v2852 /
+        # REG-816, v3375, board #187): each time the anchor had swallowed a LITERAL VALUE that a
+        # later version was entitled to improve.
+        #
+        # ⛔ SO THE ANCHOR IS THE MECHANISM, NEVER THE MESSAGE: the thread hand-off and the
+        # bounded wait on it. A version may rewrite every string in this function and these two
+        # lines still mean "the write is bounded". [[regression-guard]] §4 PIN THE LAW.
         "find": "        _th.Thread(target=_send, args=(wp, _sent), daemon=True, name=\"ocr-send\").start()\n"
-                "        if _sent.get(timeout=max(0.05, deadline - _tm.monotonic())) is not True:\n"
-                "            return {}",
+                "        if _sent.get(timeout=max(0.05, deadline - _tm.monotonic())) is not True:",
         "replace": "        wp.stdin.write(path + \"\\n\")\n"
-                   "        wp.stdin.flush()",
+                   "        wp.stdin.flush()\n"
+                   "        if False:",
         "matches": 1,
     },
     {
         "why": "without poisoning, an abandoned writer can later push a stale path into the pipe "
                "and every following reply belongs to the wrong request",
         "file": "tv/control_app.py",
-        "find": "    if getattr(wp, \"_ocr_dead\", False):\n        return {}",
-        "replace": "    if False:\n        return {}",
+        # ⚠ v3401 — same re-anchoring, same cause: this `find` carried `return {}` and v3392
+        # replaced it with `{"_unasked": ...}`. The CONDITION is the mechanism; the value under
+        # it is not. Disarming the condition is the whole sabotage.
+        "find": "    if getattr(wp, \"_ocr_dead\", False):",
+        "replace": "    if False:",
         "matches": 1,
     },
     {
