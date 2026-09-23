@@ -172,10 +172,29 @@ def drain(limit=None, dry=False, say=print):
         ver, sha = got.get("version"), got.get("sha")
         verdict = (got.get("verdict") or "").strip().lower() or "cannot-tell"
         n = _chars(got.get("chars"))
-        reach = got.get("reach")
+        # ⚠⚠ v3457 — REACH MUST BE A DICT OR THE LEDGER THROWS IT AWAY SILENTLY.
+        # record() stores it as `dict(reach) if isinstance(reach, dict) else None`, and the first
+        # cut of this drain passed the seat's reach LINE as a string. MEASURED: reach was null on
+        # 39 of 39 drained rows. The whole argument of #180 is that a ledger row PRESERVES reach
+        # where a GitHub comment loses it — and the drain built to close that gap was losing it.
+        # Found by the cross-family eye on the SHIPPED v3454 bytes. [[the-unjoined-end]]
+        _reach_line = got.get("reach")
         notshown = got.get("not shown")
+        reach = {}
+        if _reach_line:
+            reach["line"] = _reach_line
+            for _part in str(_reach_line).split(","):
+                _part = _part.strip()
+                if _part.lower().startswith("absent:"):
+                    reach["absent"] = _part.split(":", 1)[1].strip()
+                elif "/" in _part or _part.endswith(".md"):
+                    reach.setdefault("files", []).append(_part)
         if notshown:
-            reach = ("%s || NOT SHOWN: %s" % (reach or "", notshown)).strip()
+            # ⚠ ITS OWN KEY, not concatenated onto the reach line. "what was NOT shown" is the half
+            # that tells a consumer the look was partial, and burying it inside a sentence makes it
+            # unaskable. [[heart-first]] §6
+            reach["notShown"] = notshown
+        reach = reach or None
         if dry:
             say("  [dry] %s %s  %s  %s  chars=%s" % (ver, (sha or "")[:8], verdict,
                                                      got.get("model"), n))
@@ -189,7 +208,11 @@ def drain(limit=None, dry=False, say=print):
             reached=True,
             # ⚠ the seat's OWN measured payload size. None stays None — an unparseable `chars:`
             # must not become a confident 0.
-            sent=({"chars": n, "fences": 1, "unsent": []} if n is not None else None),
+            # ⚠ `fences: 0` — THE DRAIN SENDS NO CODE FENCE. The seat measured its own payload
+            # and reported a char count; claiming "1 fence" asserts a transmission shape this path
+            # never uses, and that field exists precisely to stop a thin look being filed as a
+            # thorough one. chars is measured; fences is not ours to claim.
+            sent=({"chars": n, "fences": 0, "unsent": []} if n is not None else None),
             reach=reach,
             answer_head=got.get("findings") or "",
             asked="posted by the #%d seat; this row is a COPY of what it said, not a re-judgement"

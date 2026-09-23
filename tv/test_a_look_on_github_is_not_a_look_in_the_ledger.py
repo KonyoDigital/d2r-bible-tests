@@ -103,18 +103,42 @@ class AGitHubLookBecomesALedgerRow(unittest.TestCase):
     def test_the_drain_is_idempotent_because_the_row_names_its_comment(self):
         """A second drain must record NOTHING. The ledger is append-only, so a drainer that could
         double-record would inflate `looks` and turn ONE witness into a false corroboration."""
-        rows = L._rows()
-        froms = [str(r.get("verdictFrom") or "") for r in rows]
-        ids = [f for f in froms if "gh#231 comment" in f]
-        self.assertTrue(ids,
-                        "no drained row names its source comment, so a re-drain cannot tell what "
-                        "it already filed and WILL duplicate every look")
+        # ⚠⚠ v3457 — THIS CASE DID NOT TEST IDEMPOTENCY AND ITS NAME SAID IT DID.
+        # Found by the cross-family eye on the SHIPPED v3454 bytes, then REPRODUCED: deleting
+        # `if got["_id"] not in seen` from the drain left all 7 cases GREEN. The assertions below
+        # read the live ledger (gitignored, so EMPTY on a clean checkout — the first assert would
+        # fail there for an unrelated reason) and the mocked half only checked that ONE write
+        # carried verdict_from. The skip itself was never exercised.
+        # So the skip is now DRIVEN: the same comment is offered TWICE and the second pass must
+        # write nothing. [[source-reading-guard]] §4c cause 2 [[a-law-about-a-row-must-drive-the-row]]
+        wrote = []
+        real_gh, real_rec, real_seen = D._handoff._gh, D._led.record, D.already_recorded
+        try:
+            D._handoff._gh = lambda *_a, **_k: [{"id": 777001, "created_at": "2026-09-23T00:00:00Z",
+                                                 "body": _REAL}]
+            D._led.record = lambda **kw: wrote.append(kw) or {}
+            D.already_recorded = lambda: set()               # pass 1: nothing filed yet
+            D.drain(say=lambda *_a: None)
+            self.assertEqual(len(wrote), 1, "the first drain did not file the look at all")
+            D.already_recorded = lambda: {"777001"}          # pass 2: it IS filed now
+            out2 = D.drain(say=lambda *_a: None)
+        finally:
+            D._handoff._gh, D._led.record, D.already_recorded = real_gh, real_rec, real_seen
+        self.assertEqual(
+            len(wrote), 1,
+            "the SAME #231 comment was filed twice. The ledger is append-only, so a re-drain then "
+            "inflates `looks` and agreement() reads ONE witness as two — a false corroboration, "
+            "which is the exact failure #182 was built to end. Wrote %d row(s)." % len(wrote))
+        self.assertEqual(out2.get("recorded"), 0,
+                         "the second drain reported recording %r rows for an already-filed look"
+                         % (out2.get("recorded"),))
+
+        # and the ledger's own history must stay free of duplicates
+        ids = [str(r.get("verdictFrom") or "") for r in L._rows()
+               if "gh#231 comment" in str(r.get("verdictFrom") or "")]
         self.assertEqual(len(ids), len(set(ids)),
-                         "the same #231 comment was filed more than once: %d rows, %d distinct"
+                         "the same #231 comment appears in %d rows, %d distinct"
                          % (len(ids), len(set(ids))))
-        # and the reader that enforces it must actually find them
-        self.assertTrue(D.already_recorded(),
-                        "already_recorded() reads nothing back, so every drain starts from zero")
 
         # ⚠⚠ AND IT MUST DRIVE A FRESH DRAIN. The assertions above read rows ALREADY WRITTEN, so
         # deleting verdict_from= from the writer leaves them untouched and this case stays GREEN —
