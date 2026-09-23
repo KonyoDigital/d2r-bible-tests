@@ -18,8 +18,27 @@ tests depend on his machine. It does NOT modify any test — it only reveals.
 something not listed in HOST_STUBS will still pass here and fail there — so a green run of this is
 "none of the KNOWN host traps", never "CI will pass". Saying otherwise would make this the very kind
 of over-claiming gate it exists to catch. [[unknown-stays-unknown]]
+
+A HOST PROVIDES THREE KINDS OF THING, AND UNTIL v3425 THIS FILE COULD EXPRESS ONE.
+  1. a python MODULE ATTRIBUTE      -> HOST_STUBS      (patchable; all three original entries)
+  2. a PATH ON DISK                 -> HOST_PATHS      (stubbable ABSENT or NOT-EXECUTABLE)
+  3. a PLATFORM FACT about this      -> PLATFORM_FACTS  (NOT stubbable - reported UNKNOWN)
+     interpreter, kernel or CPU
+Neither CI-vs-Mac disagreement found in the week of 2026-09-23 was kind 1, so this tool said
+"no KNOWN host dependency" about both of them. Kind 3 has no fix and must not pretend to one:
+**you cannot patch a Mac into being Linux**, so the answer there is UNKNOWN, never green.
+
+EXIT CODES, and 3 is NOT a failure:
+  0  ran, and nothing KNOWN to differ on a runner was touched
+  1  ran, and something failed once the known host things were taken away
+  2  NOTHING was simulated - a stub is inert, or the name could not be loaded. UNKNOWN.
+  3  ran clean, but part of what ran turns on a platform fact no stub can neutralise, so the
+     green is not earned. UNKNOWN, and deliberately distinct from 2 (which means "no run").
 """
 
+import ast
+import inspect
+import io
 import os
 import sys
 import unittest
@@ -57,6 +76,60 @@ HOST_STUBS = (
      "is not in the diff"),
 )
 
+# ─── KIND 2: A PATH ON DISK ─────────────────────────────────────────────────────────
+# ⚠⚠ EVERY HOST_STUBS ENTRY ABOVE PATCHES `module.attribute`, AND "THIS EXECUTABLE CANNOT RUN
+# HERE" IS NOT ONE. It is a filesystem fact, so the simulator could not express it and answered
+# "🟢 no KNOWN host dependency" about a suite whose dependency it had no vocabulary for -
+# exactly the shape the v3319 comment above describes, which cost a day of red Publish runs over
+# code that was correct throughout.
+#
+# Each entry: (path relative to tv/, mode, why a runner sees it differently).
+#
+#   "absent"          the file is NOT in a runner's checkout: os.path.exists / os.path.isfile /
+#                     os.access read False for it, and exec raises FileNotFoundError.
+#   "not-executable"  the file IS in the checkout, exec bit and all - so exists/isfile/access are
+#                     left UNCHANGED, because that is what CI really sees - and only the EXEC fails.
+#
+# ⚠ NEITHER MODE EVER SUPPLIES A WORKING STAND-IN. A stub that answers is a fixture that hides
+# the case; the whole point is that the runner gets nothing back. [[unknown-stays-unknown]]
+HOST_PATHS = (
+    ("bin/ocr_mac", "not-executable",
+     "MEASURED 2026-09-23 rather than assumed: `git ls-files` TRACKS tv/bin/ocr_mac and `file` "
+     "calls it 'Mach-O 64-bit executable arm64'. So on ubuntu-latest that path is PRESENT with "
+     "its exec bit - tv_diablo._ocr_worker_cmd()'s `os.path.isfile(OCR_BIN) and "
+     "os.access(OCR_BIN, os.X_OK)` guard passes there and the fast lane IS taken - and the "
+     "failure arrives one step later at exec, as OSError errno 8 'Exec format error'. Stubbing "
+     "it ABSENT would simulate a world CI does not have and would hide that guard being taken"),
+)
+
+# ─── KIND 3: A PLATFORM FACT, WHICH CANNOT BE STUBBED AT ALL ────────────────────────────
+# "this interpreter takes fork_exec where Linux takes posix_spawn" is a fact about CPython and
+# this kernel. There is no attribute to patch and no path to hide. The honest move is not a
+# cleverer stub, it is a DIFFERENT ANSWER: name the tests and report UNKNOWN (exit 3).
+#
+# ⚠ MEASURED BEFORE THE MARKERS WERE CHOSEN, because a row that cries wolf gets silenced and
+# that costs more than the defect. Across every tv/test_*.py: **8,111 test methods scanned, 64
+# flagged (0.79%)**; inside test_control.py alone, 16. Both spawning tests of
+# TestABrokenPipeMustNotSkipTheReap are flagged, including
+# `test_closing_the_worker_stdin_CANNOT_BLOCK_THE_CALLER` - GREEN here in 5.3s, RED on the
+# runner at 25.4s against its own >20s bound.
+PLATFORM_FACTS = (
+    (("subprocess.Popen", "subprocess.run", "subprocess.call",
+      "subprocess.check_call", "subprocess.check_output"),
+     "spawns a REAL child, so the outcome turns on how THIS CPython starts one (posix_spawn vs "
+     "fork_exec, chosen per platform AND per argument shape) and on this kernel's pipe, fd and "
+     "signal semantics"),
+    (("os.fork", "os.forkpty", "pty.fork", "os.posix_spawn", "os.spawnv", "os.spawnvp",
+      "os.system", "os.execv", "os.execve", "os.execvp", "os.execvpe",
+      "multiprocessing.Process"),
+     "forks or execs directly, so WHAT the child inherits and WHEN the parent is woken belong to "
+     "the platform and not to the code under test"),
+)
+
+_PATH_MODES = ("absent", "not-executable")
+_STUBBED_PATHS = {}          # realpath -> mode
+_REAL_IO = {}                # the originals; presence here means the wrappers are installed
+
 
 def apply_stubs(verbose=True):
     """Bind every host stub. -> [(name, ok, why)]"""
@@ -82,6 +155,203 @@ def apply_stubs(verbose=True):
         for name, ok, why in out:
             print("  %s %-38s %s" % ("✓" if ok else "✗", name, why[:88]))
     return out
+
+
+def _path_mode(p):
+    """-> the stub mode recorded for `p`, else None. Compares REALPATHS, never text."""
+    try:
+        return _STUBBED_PATHS.get(os.path.realpath(os.fspath(p)))
+    except Exception:
+        return None
+
+
+def _install_path_interception(hide_from_filesystem):
+    """Wrap exec (always) and the filesystem (only when an ABSENT path is recorded). Idempotent.
+
+    ⚠ REACH, STATED RATHER THAN ASSUMED. `subprocess.run` / `call` / `check_call` /
+    `check_output` all resolve `Popen` out of the subprocess module's globals at CALL time, so
+    one wrapper covers all five. A direct `os.execv` / `os.posix_spawn` is NOT intercepted - it
+    is reported as a PLATFORM FACT instead, which is the honest bucket for it anyway.
+    """
+    import subprocess
+    if "Popen" not in _REAL_IO:
+        _REAL_IO["Popen"] = subprocess.Popen
+
+        def Popen(args, *a, **k):
+            argv0 = None
+            if isinstance(args, (list, tuple)) and args:
+                argv0 = args[0]
+            elif isinstance(args, str) and args.split():
+                argv0 = args.split()[0]
+            m = _path_mode(argv0) if argv0 is not None else None
+            if m == "absent":
+                raise FileNotFoundError(2, "No such file or directory", str(argv0))
+            if m == "not-executable":
+                # ⚠ WHAT A LINUX RUNNER REALLY RAISES for a checked-in Mach-O binary. Not a
+                # stand-in that works, and not a silent no-op: the call fails, the way it fails
+                # there.
+                raise OSError(8, "Exec format error", str(argv0))
+            return _REAL_IO["Popen"](args, *a, **k)
+
+        Popen._ci_sim_path_stub = True
+        subprocess.Popen = Popen
+    if hide_from_filesystem and "exists" not in _REAL_IO:
+        _REAL_IO["exists"] = os.path.exists
+        _REAL_IO["isfile"] = os.path.isfile
+        _REAL_IO["access"] = os.access
+
+        def exists(p):
+            return False if _path_mode(p) == "absent" else _REAL_IO["exists"](p)
+
+        def isfile(p):
+            return False if _path_mode(p) == "absent" else _REAL_IO["isfile"](p)
+
+        def access(p, mode, *a, **k):
+            return False if _path_mode(p) == "absent" else _REAL_IO["access"](p, mode, *a, **k)
+
+        for _f in (exists, isfile, access):
+            _f._ci_sim_path_stub = True
+        os.path.exists, os.path.isfile, os.access = exists, isfile, access
+
+
+def apply_path_stubs(entries=None, verbose=True):
+    """Make every recorded host PATH read the way a RUNNER sees it. -> [(name, ok, why)]
+
+    The sibling of apply_stubs() for kind 2. It carries the same refusal, for the same reason:
+    a stub with no target measures nothing.
+    """
+    rows, hide = [], False
+    for rel, mode, why in (HOST_PATHS if entries is None else entries):
+        full = os.path.join(HERE, rel)
+        name = "%s [%s]" % (rel, mode)
+        if mode not in _PATH_MODES:
+            rows.append((name, False,
+                         "unrecognised mode %r - this entry stubs nothing" % (mode,)))
+            continue
+        # ⚠ THE EQUIVALENT OF THE ATTRIBUTE-NO-LONGER-EXISTS REFUSAL, and it is not optional.
+        # A path stub whose path has been renamed, moved or deleted is INERT: nothing is being
+        # neutralised, yet the run would print a verdict as if it had been. `lexists` is used
+        # deliberately - it is NOT one of the calls this file wraps, so the check cannot be
+        # blinded by an interception installed on an earlier pass.
+        if not os.path.lexists(full):
+            rows.append((name, False,
+                         "the path is not on THIS machine, so stubbing it neutralises nothing - "
+                         "the record is stale and the simulation is weaker than it claims"))
+            continue
+        try:
+            _STUBBED_PATHS[os.path.realpath(full)] = mode
+        except Exception as e:
+            rows.append((name, False, "could not resolve the path: %s" % str(e)[:60]))
+            continue
+        hide = hide or (mode == "absent")
+        rows.append((name, True, why))
+    if any(ok for _n, ok, _w in rows):
+        _install_path_interception(hide)
+    if verbose:
+        for name, ok, why in rows:
+            print("  %s %-38s %s" % ("\u2713" if ok else "\u2717", name, why[:88]))
+    return rows
+
+
+_SRC_INDEX = {}          # source file -> (module alias map, {(class, method): FunctionDef})
+
+
+def _alias_map(tree):
+    """import aliases -> dotted module paths, so `sp.Popen` and `subprocess.Popen` compare equal."""
+    m = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                m[a.asname or a.name.split(".")[0]] = a.name
+        elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
+            for a in n.names:
+                m[a.asname or a.name] = "%s.%s" % (n.module, a.name)
+    return m
+
+
+def _dotted(call, aliases):
+    """-> the DOTTED name a Call actually names, or None. Never a bare attribute."""
+    f, parts = call.func, []
+    while isinstance(f, ast.Attribute):
+        parts.append(f.attr)
+        f = f.value
+    if not isinstance(f, ast.Name):
+        return None
+    parts.append(aliases.get(f.id, f.id))
+    return ".".join(reversed(parts))
+
+
+def _source_index(path):
+    """-> (alias map, {(class, method): FunctionDef}) for one file, parsed once."""
+    if path not in _SRC_INDEX:
+        try:
+            with io.open(path, encoding="utf-8", errors="replace") as fh:
+                tree = ast.parse(fh.read())
+        except Exception:
+            _SRC_INDEX[path] = ({}, {})
+            return _SRC_INDEX[path]
+        idx = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                for b in node.body:
+                    if isinstance(b, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        idx[(node.name, b.name)] = b
+        _SRC_INDEX[path] = (_alias_map(tree), idx)
+    return _SRC_INDEX[path]
+
+
+def _platform_dependent(suite):
+    """Tests turning on a fact NO stub can neutralise. -> ([(name, [markers])], [unreadable])
+
+    ⚠ THE COMPILER, NOT THE TEXT. `ocr_mac` inside a docstring is prose; `sp.Popen(...)` is a
+    call. This walks each test METHOD's AST and compares DOTTED names with import aliases
+    resolved, so `import subprocess as sp` cannot hide a spawn and a string constant cannot
+    invent one. [[source-reading-guard]] §1
+
+    ⚠ ITS REACH, STATED IN THE SAME BREATH AS ITS ANSWER: the method's OWN body. A spawn inside
+    a helper the method calls is not seen, and any method whose definition could not be found is
+    returned as UNREADABLE - unchecked, never clear. [[unknown-stays-unknown]]
+    """
+    marks = {}
+    for names, why in PLATFORM_FACTS:
+        for n in names:
+            marks[n] = why
+    found, unread = [], []
+
+    def defining(cls, method):
+        for k in getattr(cls, "__mro__", None) or [cls]:
+            if method in getattr(k, "__dict__", {}):
+                return k
+        return cls
+
+    def walk(s):
+        for t in s:
+            if isinstance(t, unittest.TestSuite):
+                walk(t)
+                continue
+            name = getattr(t, "_testMethodName", str(t))
+            try:
+                k = defining(type(t), name)
+                aliases, idx = _source_index(inspect.getfile(k))
+                node = idx.get((k.__name__, name))
+            except Exception:
+                node = None
+            if node is None:
+                unread.append(name)
+                continue
+            al = dict(aliases)
+            al.update(_alias_map(node))
+            hits = set()
+            for c in ast.walk(node):
+                if isinstance(c, ast.Call):
+                    d = _dotted(c, al)
+                    if d in marks:
+                        hits.add(d)
+            if hits:
+                found.append((name, sorted(hits)))
+
+    walk(suite)
+    return found, unread
 
 
 
@@ -173,7 +443,11 @@ def main(argv=None):
         pass
     print("CI SIMULATION — the suite as a runner sees it\n")
     stubs = apply_stubs()
-    inert = [n for n, ok, _w in stubs if not ok]
+    paths = apply_path_stubs()
+    # ⚠ ONE REFUSAL FOR BOTH KINDS. A path stub whose path has moved is exactly as inert as
+    # an attribute stub whose attribute was renamed, and a run that simulates less than it
+    # claims is the failure this whole file is against.
+    inert = [n for n, ok, _w in list(stubs) + list(paths) if not ok]
     if inert:
         print("\n\U0001f534 %d stub(s) could not bind, so this run simulates LESS than it says: %s"
               % (len(inert), ", ".join(inert)))
@@ -224,14 +498,51 @@ def main(argv=None):
         for d in sorted(dropped)[:8]:
             print("      %s" % d)
     print()
+    # ⚠ READ THE SUITE BEFORE IT IS RUN. `unittest.TestSuite._cleanup` is True by
+    # default, so the suite REPLACES EACH TEST WITH None as it finishes it - asked
+    # afterwards it yields ten Nones, `type(None)` has no source file, and every test
+    # came back "could not be read". MEASURED: 10 of 10 unreadable, which is the count
+    # being the tell - a detector that fails on ALL of its input is broken, not strict.
+    # [[feedback-suspect-the-instrument]]
+    plat, unread = _platform_dependent(suite)
     r = unittest.TextTestRunner(verbosity=1).run(suite)
     bad = [t.id().split(".")[-1] for t, _ in list(r.failures) + list(r.errors)]
     print()
+    if unread:
+        print("\u26a0 %d test(s) could not be read for platform facts \u2014 UNCHECKED, not "
+              "clear." % len(unread))
     if bad:
         print("\U0001f534 %d test(s) depend on something only HIS machine has:" % len(bad))
         for b in bad[:20]:
             print("     %s" % b)
+        # ⚠ AND SAY WHICH OF THEM THAT CLAIM IS UNPROVEN FOR. A test that spawns a real child
+        # may be failing because of THIS kernel rather than because of anything his Mac has,
+        # and attributing it anyway is the same over-claim in the other direction.
+        _pn = {_n for _n, _h in plat}
+        _both = [b for b in bad if b in _pn]
+        if _both:
+            print("   \u26aa %d of those also turn on a PLATFORM FACT this tool cannot "
+                  "neutralise, so \"only HIS machine\" is UNPROVEN for them:" % len(_both))
+            for b in _both[:8]:
+                print("     \u26aa %s" % b)
         return 1
+    # ⚠⚠ UNKNOWN IS A THIRD ANSWER, NOT A SOFT GREEN. Every test below ran and passed; the
+    # point is that passing HERE is not evidence about a runner when the subject is how this
+    # interpreter, kernel or CPU behaves. Printing the green verdict over that is precisely the
+    # over-claim the header of this file forbids. [[unknown-stays-unknown]]
+    if plat:
+        print("\u26aa UNKNOWN — no KNOWN host dependency in %d test(s), but %d of them turn "
+              "on a PLATFORM FACT" % (r.testsRun, len(plat)))
+        print("   this tool CANNOT neutralise, so their result here is not evidence about CI:")
+        for _n, _hits in plat[:12]:
+            print("     \u26aa %-56s %s" % (_n[:56], ", ".join(_hits)))
+        if len(plat) > 12:
+            print("     \u26aa … and %d more" % (len(plat) - 12))
+        print("   That is not the same as \"CI will pass\" — only the stubs above were "
+              "neutralised, and")
+        print("   no stub can make this interpreter, kernel or CPU into a runner's. Exit 3 "
+              "is UNKNOWN, not failure.")
+        return 3
     print("\U0001f7e2 no KNOWN host dependency in %d test(s)." % r.testsRun)
     print("   That is not the same as \"CI will pass\" — only the stubs above were neutralised.")
     return 0

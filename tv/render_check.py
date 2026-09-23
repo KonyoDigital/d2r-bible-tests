@@ -236,19 +236,156 @@ _CLEAN_RUN_COST = 264.0
 #: the wall clock, from the top of main(), by which a verdict MUST have been PRINTED. Derived: the
 #: hook kills at 300s, so this leaves 20s for the verdict lines, .render_verdict.json and tearing
 #: down Chrome and any served console (_chrome_down alone waits up to 5s on its kill).
-#: ⚠ IT IS NOT A BOUND ON THE WORK. Nothing is interrupted when it passes — a hand-run on a loaded
-#: machine legitimately takes longer than a push's budget, and killing it would be this file
-#: refusing to measure the exact condition it exists for. It bounds only how long a read that is
-#: NOT BEING ANSWERED may be waited on. [[strictness-that-closes-the-lane]]
+#: ⚠ IT DOES NOT INTERRUPT THE WORK. No target is cut short when this passes and nothing raises
+#: — a hand-run on a loaded machine legitimately takes longer than a push's budget, and killing it
+#: would be this file refusing to measure the exact condition it exists for.
+#: ⚠⚠ v3445 (board #190 F1) — BUT IT IS NOT FREE EITHER, AND THE FIRST SPELLING OF THIS COMMENT
+#: SAID IT WAS. "IT IS NOT A BOUND ON THE WORK. Nothing is interrupted when it passes" is TRUE of
+#: the loop and FALSE of the tolerance, and a reader who believed the first sentence had no reason
+#: to look at the second. What it DOES bound is every CDP read: the bound is 90s until
+#: t = _RUN_REPORT_BY - _CDP_READ_TIMEOUT, then shrinks, and from
+#: t = _RUN_REPORT_BY - _read_floor() it is the floor — which on a clean pass is THE LAST TARGET.
+#: A read that expires under a bound THIS FILE shortened is not the browser going away; see
+#: _read_floor() for the arithmetic and _budget_shortened_the_read() for what is printed.
+#: A half-true comment is how the next reader gets it wrong. [[feedback-comments-vs-code]]
+#: [[strictness-that-closes-the-lane]]
 _RUN_REPORT_BY = 280.0
 
-#: and the clamp has a FLOOR, because a bound that shrinks toward zero turns a healthy call into a
-#: false UNKNOWN — the cry-wolf failure that gets a row silenced, which costs more than the defect.
-#: DERIVED, not picked: a clean pass renders len(TARGETS) x len(WIDTHS) target-widths in
-#: _CLEAN_RUN_COST, i.e. ~2.2s per target-width, and a target-width is already SEVERAL CDP round
-#: trips. 16s is ~7x a whole target-width, and it can only ever apply in the closing seconds of a
-#: run that has answered every read up to that point.
-_CDP_READ_FLOOR = 16.0
+#: the default patience ONE page operation gets when a target does not declare its own. Named
+#: because it already had copies that drifted: v3126 records a sibling keeping a hardcoded 12.0
+#: while the target declared 30.0, so the two `spec.get("activate_budget")` sites and
+#: _declared_page_patience() now read one name. [[copy-drift]]
+_ACTIVATE_BUDGET_DEFAULT = 12.0
+
+#: the bound the LAST CDP read was issued at, and the bound of the read that KILLED the transport.
+#: None means no read has been bounded / no read has died. Written by _read_bound_now() and
+#: _Tab._ws_recv, read by _budget_shortened_the_read(). Reset per run by main().
+_LAST_READ_BOUND = None
+_DIED_AT_BOUND = None
+
+#: HOW OLD THE RUN WAS WHEN THAT BOUND WAS CHOSEN, which is not the same instant as when it
+#: expired — the read then burns the bound on top of it. Measured: the first spelling of the
+#: clamped verdict printed _run_age() AT THE REPORT and read "280s of the run's 280s budget was
+#: already spent", which makes a stall at t=264 look like a run that was already over. A right
+#: number under the wrong word. [[label-outlived-referent]] [[measured-true-read-wrong]]
+_LAST_READ_AGE = None
+_DIED_AT_AGE = None
+
+#: the most expensive CDP read that ACTUALLY ANSWERED this run, in seconds, and how many answered.
+#: ⚠⚠ v3445 — THE MEASUREMENT NOBODY HAD. Every argument about the floor below was made from the
+#: cost of a whole TARGET-WIDTH (_CLEAN_RUN_COST / target-widths) because the cost of ONE READ had
+#: never been recorded anywhere in this tree — so a floor was defended with a number about a
+#: different unit. This is written into .render_verdict.json every run, which is how the next
+#: reader gets to derive the bound from an observation instead of an argument.
+#: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+_READ_COST_WORST = 0.0
+_READ_COST_N = 0
+
+#: what _chrome_up() cost THIS run's budget, in seconds. Recorded rather than argued about: the
+#: run clock starts at the top of main() so it stays in step with the hook's SIGTERM, which means
+#: a browser launch really is spent budget, and the only honest way to know whether that matters
+#: is to write the number down. See main()'s note where _RUN_STARTED is set.
+_CHROME_UP_SECS = 0.0
+
+
+def _note_read_cost(_secs):
+    """Record the cost of ONE CDP read that answered. -> None"""
+    global _READ_COST_WORST, _READ_COST_N
+    _READ_COST_N += 1
+    if _secs > _READ_COST_WORST:
+        _READ_COST_WORST = float(_secs)
+
+
+def _declared_page_patience(spec=None):
+    """The longest THIS GATE already says one page operation may legitimately take. -> seconds
+
+    MEASURED off the registry at CALL time, never remembered: `shelf-cards` and `river-strip`
+    declare activate_budget 30.0 — the door path awaits /api/sessions (8s) then thLoadSession
+    (12s) before the shelf is even asked to build (v3125) — and everything else gets
+    _ACTIVATE_BUDGET_DEFAULT.
+
+    It is this file's own answer to "how slow may ONE thing be on this machine before I am
+    entitled to call it broken", and it is therefore the honest bar to judge an expired READ
+    bound against: a gate that waits 30s for the page and refuses to wait 30s for the socket
+    carrying the question cannot tell a dead browser from the slowness it already tolerates.
+
+    ⚠ v3447 — PER TARGET, NOT THE REGISTRY MAXIMUM. Found by this fix's own independent verifier
+    BEFORE it shipped. max() over the registry is 30.0, but only 2 of 20 targets declare that
+    (shelf-cards, river-strip); the other 18 get _ACTIVATE_BUDGET_DEFAULT = 12.0. So the UNKNOWN
+    row printed "clamped to 16s — BELOW the 30s this same file grants ONE page operation" about
+    `advanced`, whose grant is 12.0 — and 16s is ABOVE that. A true number under the wrong noun,
+    for 18 of 20 targets. [[label-outlived-referent]]
+    ⚠ AND IT DECIDES THE BRANCH, not just the wording: with the max, a 16s clamp reads as
+    self-inflicted for EVERY target; per target it is self-inflicted only where this gate really
+    does grant more, and is an honest "the browser went quiet" everywhere else. Both are UNKNOWN
+    and both exit 2, but they send a reader to two different places.
+    """
+    if spec is None:
+        return max([_ACTIVATE_BUDGET_DEFAULT]
+                   + [float(_s.get("activate_budget") or 0.0) for _s in TARGETS.values()])
+    return float((spec or {}).get("activate_budget") or _ACTIVATE_BUDGET_DEFAULT)
+
+
+def _read_floor():
+    """The smallest bound a CDP read may be clamped to. -> seconds
+
+    ⚠⚠ v3445 (board #190 F1) — THIS IS NOT A COMFORT NUMBER, IT IS WHAT IS LEFT, and the
+    constant it replaces hid that. `_CDP_READ_FLOOR = 16.0` was documented as "~7x a whole
+    target-width ... the closing seconds of a run", which reads like a chosen safety margin. It
+    was not one. 16.0 is exactly _RUN_REPORT_BY - _CLEAN_RUN_COST, so the clamp reaches it at
+    t = _CLEAN_RUN_COST — ON THE LAST TARGET OF A NORMAL CLEAN PASS. Driven: 90s until t=190,
+    40s at t=240, the floor from t=264 onward. From there one CDP read slower than the remainder
+    on a merely LOADED machine raises, marks the tab dead, and (v3438) ABORTS THE WHOLE RUN with
+    exit 2 instead of costing one UNKNOWN target. Before v3438 that read had 90s and would not
+    have raised. Found by the independent verifier of v3444 AFTER it shipped; the push that
+    carried it rendered clean at load ~4.0, and ONE sample of a timing-dependent tolerance is
+    evidence in neither direction. [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+
+    So it is DERIVED, it says what it is — everything the budget has left once a clean pass has
+    been paid for — and it is re-derived at CALL time, so a retune of either number moves it
+    instead of freezing whatever the bar was the day this was written. [[regression-guard]] §4
+
+    ⚠ IT IS BELOW _declared_page_patience() AND THAT SHORTFALL IS REAL: 16s against the 30s this
+    same file grants one page operation. It CANNOT be closed by raising this number. A stall
+    arriving at t = _CLEAN_RUN_COST classifies at _CLEAN_RUN_COST + floor, so any floor above this
+    remainder pushes the verdict past _RUN_REPORT_BY and on into the hook's 300s kill — the
+    unnamed `render HUNG` this whole mechanism exists to replace. Raising it until the clamp never
+    fires would delete the adaptive bound rather than fix it. What the shortfall gets instead is
+    an HONEST SENTENCE: see _budget_shortened_the_read(). [[the-cure-that-kills-the-patient]]
+    """
+    return max(0.0, _RUN_REPORT_BY - _CLEAN_RUN_COST)
+
+
+def _budget_shortened_the_read(spec=None):
+    """Did THIS GATE shrink the bound that just expired below its own declared patience?
+
+    -> (bool, the bound in seconds or None)
+
+    ⚠⚠ v3445 (board #190 F1) — A CLAMP-INDUCED DEATH MUST NOT WEAR A DEAD BROWSER'S SENTENCE.
+    90s of silence is the browser going away by any measure this file has. A read the run's own
+    remaining budget clamped to 16s is not: 16s is below the 30s this file already grants a single
+    page operation, so nothing distinguishes it from the load it has declared legitimate. Both are
+    still UNKNOWN and both still exit 2 — a skip is not a pass either way — but they send a reader
+    to two different places and only one of them is true. Collapsing them is the UNKNOWN-vs-
+    measured conflation this repo keeps paying for. [[unknown-stays-unknown]]
+    [[label-outlived-referent]]
+
+    None means nothing died at a bound of this gate's choosing — a WRITE failed, which is a socket
+    that is already gone rather than one that went quiet. Every BOUNDED wait records: the CDP read
+    in _ws_recv and both opens in _Tab.__init__, which are clamped by the same budget and were the
+    same defect one site over.
+    """
+    _b = _DIED_AT_BOUND
+    if _b is None:
+        return (False, None)
+    return (_b < _declared_page_patience(spec), _b)
+
+
+def _run_age():
+    """Seconds of this run's budget already spent. -> float (0.0 when no run is in flight)"""
+    if _RUN_STARTED is None:
+        return 0.0
+    return max(0.0, time.time() - _RUN_STARTED)
 
 #: when the run started. None = no run is in flight (a unit test, a direct _Tab user), and then the
 #: declared bound stands unclamped. Set by main(), which is what owns a run.
@@ -261,13 +398,20 @@ _ABORTED_AT = None
 def _read_bound_now():
     """The bound for the NEXT CDP read: the declared one, clamped by what is left of the run.
 
-    -> seconds. Never above _CDP_READ_TIMEOUT, never below _CDP_READ_FLOOR, and exactly
+    -> seconds. Never above _CDP_READ_TIMEOUT, never below _read_floor(), and exactly
     _CDP_READ_TIMEOUT when no run is in flight.
+
+    ⚠ v3445 — IT ALSO REMEMBERS WHAT IT ISSUED. An expiry has to be able to say WHO chose to
+    stop waiting, and the only place that knows is here. [[unknown-stays-unknown]]
     """
+    global _LAST_READ_BOUND, _LAST_READ_AGE
     if _RUN_STARTED is None:
+        _LAST_READ_BOUND, _LAST_READ_AGE = _CDP_READ_TIMEOUT, None
         return _CDP_READ_TIMEOUT
     _left = (_RUN_STARTED + _RUN_REPORT_BY) - time.time()
-    return max(_CDP_READ_FLOOR, min(_CDP_READ_TIMEOUT, _left))
+    _LAST_READ_AGE = _RUN_REPORT_BY - _left
+    _LAST_READ_BOUND = max(_read_floor(), min(_CDP_READ_TIMEOUT, _left))
+    return _LAST_READ_BOUND
 
 
 def _transport_exclusions():
@@ -2545,13 +2689,35 @@ class _Tab(object):
         # ⚠ v3438 — THE BOUND IS RE-DERIVED HERE, not the bare constant. A tab opened in the
         # closing seconds of a run must not be allowed to wait 90s for an answer that can no
         # longer be reported. See _read_bound_now().
-        info = json.load(urllib.request.urlopen(req, timeout=_read_bound_now()))
+        # ⚠⚠ v3445 (board #190 F1) — AND BOTH OPENS RECORD WHOSE BOUND EXPIRED. This is the same
+        # defect as _ws_recv one site over: these two calls are bounded by _read_bound_now() too,
+        # so a tab opened at t = _CLEAN_RUN_COST gets the FLOOR, and a /json/new that a busy
+        # Chrome does not answer inside it used to print "the browser connection was lost" — a
+        # claim about Chrome that a bound this file shortened cannot support. The bound is read
+        # back off _LAST_READ_BOUND rather than hoisted into a local ON PURPOSE: two AST laws
+        # require the literal `_read_bound_now()` at these call sites, and a guard relaxed to
+        # accept my edit is the widening this repo has already paid for.
+        # [[sweep-dont-ask]] [[a-widened-guard-admits-what-it-bans]]
+        global _DIED_AT_BOUND, _DIED_AT_AGE
+        try:
+            info = json.load(urllib.request.urlopen(req, timeout=_read_bound_now()))
+        except _TRANSPORT_EXCLUDE:
+            raise
+        except _TRANSPORT_ERRORS:
+            _DIED_AT_BOUND, _DIED_AT_AGE = _LAST_READ_BOUND, _LAST_READ_AGE
+            raise
         self.id = info["id"]
         # ⚠ `timeout=` IS LOAD-BEARING — see _CDP_READ_TIMEOUT. Without it this socket blocks
         # forever and the UNKNOWN arm in main() can never be reached.
-        self.ws = websocket.create_connection(info["webSocketDebuggerUrl"],
-                                              origin="http://127.0.0.1:%d" % PORT,
-                                              timeout=_read_bound_now())
+        try:
+            self.ws = websocket.create_connection(info["webSocketDebuggerUrl"],
+                                                  origin="http://127.0.0.1:%d" % PORT,
+                                                  timeout=_read_bound_now())
+        except _TRANSPORT_EXCLUDE:
+            raise
+        except _TRANSPORT_ERRORS:
+            _DIED_AT_BOUND, _DIED_AT_AGE = _LAST_READ_BOUND, _LAST_READ_AGE
+            raise
         self.n = 0
         # ⚠⚠ v3051 — THE PAGE'S OWN UNCAUGHT ERRORS. `Runtime.enable` is already sent (see the
         # heart target below), so Chrome has been BROADCASTING every uncaught exception in the
@@ -2583,14 +2749,25 @@ class _Tab(object):
         # ⚠ NOT wrapped in its own try: websocket-client's WebSocket really does have
         # settimeout(), so an AttributeError here is a stub kinder than the library and must
         # be LOUD rather than silently leaving every read unclamped.
+        # ⚠⚠ v3445 (board #190 F1) — THE BOUND IS REMEMBERED AND SO IS WHAT A READ COSTS.
+        # A read that ran out of the full _CDP_READ_TIMEOUT is the browser going away. A read the
+        # run's own remaining budget clamped to _read_floor() is THIS GATE refusing to wait, and
+        # both used to print the same sentence. _DIED_AT_BOUND is what lets main() tell them
+        # apart; _note_read_cost is the measurement nobody had. [[unknown-stays-unknown]]
+        global _DIED_AT_BOUND, _DIED_AT_AGE
+        _b = _read_bound_now()
+        _t0 = time.time()
         try:
-            self.ws.settimeout(_read_bound_now())
-            return self.ws.recv()
+            self.ws.settimeout(_b)
+            _raw = self.ws.recv()
         except _TRANSPORT_EXCLUDE:
             raise
         except _TRANSPORT_ERRORS as _e:
+            _DIED_AT_BOUND, _DIED_AT_AGE = _b, _LAST_READ_AGE
             self.dead = _e
             raise
+        _note_read_cost(time.time() - _t0)
+        return _raw
 
     def send(self, method, **params):
         # ⚠⚠ v3436 — A DEAD TRANSPORT IS ANSWERED INSTANTLY AND NEVER RE-READ.
@@ -3889,7 +4066,7 @@ def check(name, spec, shots=True):
         # fails under load teaches him to re-run it until it agrees — which is how a gate stops
         # being evidence"). The number moves to where the evidence is, per target, and stays 12.0
         # for everything that has never needed more. [[regression-guard]] [[stale-reading]]
-        _deadline = _t0 + float(spec.get("activate_budget") or 12.0)
+        _deadline = _t0 + float(spec.get("activate_budget") or _ACTIVATE_BUDGET_DEFAULT)
         while time.time() < _deadline:
             act = tab.ev(spec["activate"])
             if act:
@@ -3991,7 +4168,7 @@ def check(name, spec, shots=True):
                 # Dormant on the happy path — `_toTVD()` is same-document and these targets do not
                 # navigate between widths — and a disagreement a reader cannot see is the kind that
                 # surfaces as a flake nobody can reproduce. [[copy-drift]] [[the-unjoined-end]]
-                _d2 = time.time() + float(spec.get("activate_budget") or 12.0)
+                _d2 = time.time() + float(spec.get("activate_budget") or _ACTIVATE_BUDGET_DEFAULT)
                 while time.time() < _d2:
                     if tab.ev(spec["activate"]):
                         return True
@@ -4778,8 +4955,23 @@ def main(argv):
     # than against a constant that knows nothing about how much of the budget is already
     # spent. See _read_bound_now(). Reset per call so a second main() in one process (the
     # gates do this) is not judged against the first one's start.
-    global _RUN_STARTED, _ABORTED_AT
+    # ⚠ v3445 — _RUN_STARTED STAYS AT THE TOP OF main(), AND THAT IS DELIBERATE. Moving it below
+    # _chrome_up() so a slow launch is not charged to the read budget was considered and REFUSED:
+    # this clock exists to stay in step with hooks/pre-push's 300s SIGTERM, whose alarm starts at
+    # process start, and re-basing it grants budget the killer has already spent — a promise to be
+    # killed mid-verdict, which is the unnamed `render HUNG` this mechanism replaced. MEASURED:
+    # on the push path the hook launches Chrome BEFORE the alarm (hooks/pre-push polls :9224 for
+    # up to 25s outside gate_run), so _chrome_up() here returns on its first urlopen, bounded at
+    # 2s — there is almost nothing to recover. On a hand run it can spend up to 20s (40 x 0.5s),
+    # and a hand run has no killer at all. `chromeUpSeconds` in .render_verdict.json records what
+    # it actually cost, so the next reader argues from a number. [[unknown-stays-unknown]]
+    global _RUN_STARTED, _ABORTED_AT, _LAST_READ_BOUND, _DIED_AT_BOUND
+    global _LAST_READ_AGE, _DIED_AT_AGE
+    global _READ_COST_WORST, _READ_COST_N, _CHROME_UP_SECS
     _RUN_STARTED, _ABORTED_AT = time.time(), None
+    _LAST_READ_BOUND, _DIED_AT_BOUND = None, None
+    _LAST_READ_AGE, _DIED_AT_AGE = None, None
+    _READ_COST_WORST, _READ_COST_N, _CHROME_UP_SECS = 0.0, 0, 0.0
     want = [a for a in argv if not a.startswith("-")]
     if "--list" in argv:
         for k, v in sorted(TARGETS.items()):
@@ -4791,7 +4983,10 @@ def main(argv):
         _say("⚪ UNKNOWN — the websocket client is not installed, so nothing was rendered.")
         _say("   A skip is not a pass. pip3 install websocket-client")
         return 2
-    if not _chrome_up():
+    _cu0 = time.time()
+    _up = _chrome_up()
+    _CHROME_UP_SECS = time.time() - _cu0
+    if not _up:
         _say("⚪ UNKNOWN — no headless Chrome on :%d, so NOTHING WAS LOOKED AT." % PORT)
         _say("   A skip is not a pass; this exits non-zero on purpose.")
         return 2
@@ -4835,8 +5030,26 @@ def main(argv):
             bad += 1
             continue
         except _TRANSPORT_ERRORS as _e:
-            _say("⚪ %-8s UNKNOWN — the browser connection was lost mid-render (%s: %s)."
-                 % (name, type(_e).__name__, str(_e)[:90]))
+            # ⚠⚠ v3445 (board #190 F1) — A BOUND THIS GATE CHOSE TO SHRINK IS NOT THE BROWSER
+            # GOING AWAY. Both are UNKNOWN and both still exit 2 — a skip is not a pass either
+            # way — but they send a reader to two different places and only one of them is true.
+            # Collapsing them is the UNKNOWN-vs-measured conflation this repo keeps paying for.
+            _own, _bnd = _budget_shortened_the_read(spec)
+            if _own:
+                _say("⚪ %-8s UNKNOWN — THIS GATE STOPPED WAITING, and the bound that expired was "
+                     "ITS OWN (%s: %s). %.0fs of the run's %.0fs budget was already spent, so the "
+                     "read was clamped to %.0fs — BELOW the %.0fs this same file grants ONE page "
+                     "operation. NOTHING HERE SAYS THE BROWSER WENT AWAY."
+                     % (name, type(_e).__name__, str(_e)[:60],
+                        (_run_age() if _DIED_AT_AGE is None else _DIED_AT_AGE), _RUN_REPORT_BY,
+                        _bnd, _declared_page_patience(spec)))
+                _say("   Re-run on a quiet machine before reading this as a dead tab. The bound "
+                     "cannot simply be widened either: this late in the run a longer wait pushes "
+                     "the verdict past the hook's kill, which is the `render HUNG` that names no "
+                     "link. See _read_floor().")
+            else:
+                _say("⚪ %-8s UNKNOWN — the browser connection was lost mid-render (%s: %s)."
+                     % (name, type(_e).__name__, str(_e)[:90]))
             _say("   NOTHING WAS ESTABLISHED about this surface. A skip is not a pass, so this "
                  "still exits non-zero — but it is not a layout defect and the PNGs will not show "
                  "one.")
@@ -5021,6 +5234,22 @@ def main(argv):
               # the target whose transport died, and every target after it is UNKNOWN rather
               # than clean. An older render_check leaves the key absent, which is also UNKNOWN.
               "abortedAt": _ABORTED_AT or "",
+              # ⚠ v3445 (#190 F1) — AND WHOSE BOUND EXPIRED. `abortedAt` names the target; it
+              # cannot say whether the browser went away or whether this gate ran out of its own
+              # read budget, and those are two different findings that used to print one sentence.
+              # None/absent = no read died at a bound of this gate's choosing.
+              "diedAtBound": (None if _DIED_AT_BOUND is None else round(_DIED_AT_BOUND, 1)),
+              "diedAtRunAge": (None if _DIED_AT_AGE is None else round(_DIED_AT_AGE, 1)),
+              "budgetShortened": bool(_budget_shortened_the_read()[0]),
+              "pagePatience": round(_declared_page_patience(), 1),
+              "readFloor": round(_read_floor(), 1),
+              # ⚠⚠ THE MEASUREMENT NOBODY HAD. Nothing in this tree has ever recorded the cost of
+              # ONE CDP read, so every floor above was defended with the cost of a whole
+              # target-width — a number about a different unit. n IS THE DENOMINATOR: a worst of
+              # 0.0 over 0 reads is a run that never read, not a fast one.
+              "worstReadSeconds": round(_READ_COST_WORST, 2),
+              "readsAnswered": int(_READ_COST_N),
+              "chromeUpSeconds": round(_CHROME_UP_SECS, 2),
               "renderFailures": int(bad)}
         with io.open(os.path.join(HERE, ".render_verdict.json"), "w", encoding="utf-8") as _fh:
             _fh.write(json.dumps(_v, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
@@ -5038,11 +5267,16 @@ def main(argv):
         _clean = sum(1 for _r in results.values() if _r.get("ok"))
         _dirty = len(results) - _clean
         _never = len(targets) - len(results) - 1
-        _say("⚪ ABORTED at %r — the browser went away and the run STOPPED THERE rather than "
+        # ⚠ v3445 (#190 F1) — THE SUMMARY MUST NOT SAY "the browser went away" WHEN IT DID NOT.
+        # This line was the second place the two facts were collapsed, and it is the one a reader
+        # skimming the tail of the log actually sees.
+        _why_stopped = ("this gate ran out of ITS OWN read budget"
+                        if _budget_shortened_the_read()[0] else "the browser went away")
+        _say("⚪ ABORTED at %r — %s and the run STOPPED THERE rather than "
              "paying a read bound over again for each target left. %d rendered clean, %d did "
              "not, 1 is UNKNOWN (that one) and %d were never looked at. Non-zero because a "
              "skip is not a pass — but this is a VERDICT, not a kill with nothing said."
-             % (_ABORTED_AT, _clean, _dirty, _never))
+             % (_ABORTED_AT, _why_stopped, _clean, _dirty, _never))
         return 2
     if cov_missing:
         _say("🔴 %d surface(s) the ratchet expected were never reported — a COVERAGE refusal, "

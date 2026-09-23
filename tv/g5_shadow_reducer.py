@@ -117,8 +117,40 @@ def answered_scene(v):
 
 
 def names_key(v):
-    """Order- and case-insensitive comparison key. Blank entries are not names."""
-    return tuple(sorted(str(x).strip().lower() for x in (v or []) if str(x).strip()))
+    """Order-, case- and MULTIPLICITY-insensitive comparison key. -> tuple of UNIQUE names
+
+    ⚠⚠ v3447 — TWO DEFECTS IN THE ONE LINE THIS REPLACES, both found by the cross-family eye on
+    the SHIPPED v3446 bytes, and both verified here.
+
+    (1) A NULL BECAME A NAME CALLED "none". The old filter was `if str(x).strip()`, and
+        `str(None)` is the four-character string "none" — truthy, so it survived. Measured:
+        claude ["Shako", None] vs grok ["Shako"] published a DISAGREEMENT about a nonexistent
+        item "none" while both lanes named Shako; and [None] vs ["None"] both keyed to
+        ("none",) and published as AGREEMENT. Wrong in both directions at once.
+        None is now dropped before the string ever forms.
+
+    (2) A REPEATED NAME WAS A DISAGREEMENT NOBODY COULD EXPLAIN. `tuple(sorted(...))` kept
+        duplicates, so ["Shako", "Shako"] vs ["Shako"] gave different keys and the row was
+        counted as a disagreement — but the shape chain works on SETS, so `sa - sb` and
+        `sb - sa` were both EMPTY and the per-name breakdown attributed the difference to
+        NEITHER lane. The histogram said `overlap_partial` and nothing could say about what.
+        A figure that cannot be explained by its own breakdown is exactly what this reducer
+        exists to refuse.
+
+    ⚠ MULTIPLICITY IS DELIBERATELY NOT AN IDENTITY DIFFERENCE. The question this key answers is
+    "did the two eyes name the same ITEMS", and seeing one name twice is a COUNT fact, not an
+    identity fact — an OCR pass reading a stash grid repeats names routinely. If the count ever
+    needs reporting it must be its own field with its own denominator, never smuggled in as a
+    phantom disagreement. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    out = set()
+    for x in (v or []):
+        if x is None:
+            continue                      # a null is NOT the name "none"
+        s = str(x).strip().lower()
+        if s:
+            out.add(s)                    # a set: a repeated name is one name
+    return tuple(sorted(out))
 
 
 def scene_key(v):
@@ -181,6 +213,32 @@ def _names_field(rows):
 
     d = len(both)
 
+    # ⚠⚠ v3447 — THE ROWS ARE NOT INDEPENDENT OBSERVATIONS, AND REPORTING THEM AS IF THEY WERE
+    # PUBLISHED A NUMBER THAT WAS NEVER TRUE. Measured on his live store, 2026-09-23:
+    #     both answered   1596 ROWS  over  165 DISTINCT images
+    #     most repeated frame: 628 ROWS FROM ONE IMAGE; top 5 frames = 78.6% of all rows
+    # So "67.5% disagree" counted a handful of frames hundreds of times. Per distinct frame the
+    # split is 50.9% always-agree, 40.0% always-disagree, and 9.1% MIXED — the same frame giving
+    # DIFFERENT verdicts on different reads, which is a lane disagreeing with ITSELF.
+    # A rate is only a rate over things that were counted once. [[zero-needs-a-denominator]]
+    # ⚠ `image` is a BASENAME and can collide (read.jpg carries 131 rows), so a frame count is
+    # itself an upper bound on distinct pictures — said out loud rather than implied.
+    _by_frame = {}
+    for _r in both:
+        _by_frame.setdefault(str(_r.get("image") or ""), []).append(_r)
+    _f_agree = _f_dis = _f_mixed = 0
+    for _k, _rs in _by_frame.items():
+        _v = set()
+        for _r in _rs:
+            _v.add(names_key(_r.get("claude_names")) == names_key(_r.get("grok_names")))
+        if _v == {True}:
+            _f_agree += 1
+        elif _v == {False}:
+            _f_dis += 1
+        else:
+            _f_mixed += 1
+    _fd = len(_by_frame)
+
     def _top(counts):
         return [{"name": k, "rows": v, "share": figure(v, d, bf, bl)}
                 for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
@@ -195,6 +253,13 @@ def _names_field(rows):
         "agree": figure(len(agree), d, bf, bl),
         "disagree": figure(len(disagree), d, bf, bl),
         "shapes": shapes,
+        # THE HONEST DENOMINATOR: frames, not reads. `reads_per_frame` is the inflation factor the
+        # row-based figures above carry, printed so nobody has to infer it.
+        "frames_both": _fd,
+        "frames_agree": figure(_f_agree, _fd, bf, bl),
+        "frames_disagree": figure(_f_dis, _fd, bf, bl),
+        "frames_mixed": figure(_f_mixed, _fd, bf, bl),
+        "reads_per_frame": (round(float(d) / _fd, 1) if _fd else None),
         # The headline with the free agreement removed: two empty lists matching is not two eyes
         # agreeing about anything on his screen.
         "agree_excluding_both_empty": figure(shapes["equal_nonempty"],

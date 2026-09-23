@@ -577,12 +577,39 @@ class TestACutOffSuiteCannotReadAsAPass(unittest.TestCase):
 
     def test_a_red_gate_set_is_a_different_sentence_from_no_verdict(self):
         """[[unknown-stays-unknown]] — 'the gates refused' and 'the gates never answered' are two
-        states, and collapsing them is how a missing verdict gets triaged as a known failure."""
-        _rc_f, red = run_script(self.body, {"SUITE_RESULT": "failure"})
+        states, and collapsing them is how a missing verdict gets triaged as a known failure.
+
+        ⚠⚠ v3447 — A `failure` CONCLUSION IS NOT ENOUGH TO SAY THE GATES WERE RED, and the first
+        cut of this case asserted that it was. Found by the cross-family eye on the SHIPPED v3446
+        bytes: a job is `failure` when ANY step fails, and two paths reach it with the gate set
+        never having run —
+          (1) `Install Chromium` (timeout-minutes: 6, no continue-on-error) fails, so THE GATE SET
+              STEP IS SKIPPED, GATE_SET_SECONDS is never written, the always() watchdog reports
+              NO VERDICT and exits 1, the job is `failure`, and the verdict job announced
+              GATES RED about a gate set that never started;
+          (2) the gate set exits 0 and the intake smoke after it fails — same false red.
+        A red that is sometimes fiction trains a reader to ignore reds, which is worse than the
+        silence this workflow was written to end. So the verdict now reads the FACT published by
+        the gate-set step itself (`gate_set_reached`), and this case drives BOTH paths.
+        """
+        _rc_f, red = run_script(self.body, {"SUITE_RESULT": "failure",
+                                            "GATE_SET_REACHED": "true", "GATE_SET_RED": "true"})
         _rc_c, none = run_script(self.body, {"SUITE_RESULT": "cancelled"})
         self.assertIn("::error title=GATES RED::", red)
         self.assertIn("::error title=NO VERDICT::", none)
         self.assertNotIn("GATES RED", none)
+
+        # ⚠ THE PATH THE EYE FOUND: failure, but the gate set never reached its end.
+        _rc_n, never = run_script(self.body, {"SUITE_RESULT": "failure"})
+        self.assertNotEqual(_rc_n, 0,
+                            "a job that failed before the gate set ran exits 0 — nothing was "
+                            "checked and it reads as a pass.\n%s" % never)
+        self.assertIn("::error title=NO VERDICT::", never,
+                      "agent-suite = failure with NO gate-set verdict was not called UNKNOWN.\n%s"
+                      % never)
+        self.assertNotIn("GATES RED", never,
+                         "a gate set that NEVER RAN was announced as RED. That is a false red, and "
+                         "a red that is sometimes fiction is worse than silence.\n%s" % never)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════

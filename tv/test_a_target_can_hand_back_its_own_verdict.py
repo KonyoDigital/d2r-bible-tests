@@ -66,6 +66,78 @@ def _targets():
     raise AssertionError("TARGETS is gone from render_check.py")
 
 
+def _dotted(node):
+    """`Exception` / `builtins.Exception` as ONE dotted string. -> str
+
+    ⚠ A BARE ATTRIBUTE IS NOT A NAME. Comparing `node.attr` alone makes `weird.Exception` and
+    the builtin the same thing, which is how a guard ends up certifying a handler that catches
+    something else entirely. Returns "" for anything that is not a plain dotted name.
+    """
+    bits = []
+    while isinstance(node, ast.Attribute):
+        bits.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return ""
+    bits.append(node.id)
+    return ".".join(reversed(bits))
+
+
+def _root_name(node):
+    """The Name at the base of `out.setdefault("report", {})[k]`. -> str"""
+    while True:
+        if isinstance(node, (ast.Subscript, ast.Attribute)):
+            node = node.value
+        elif isinstance(node, ast.Call):
+            node = node.func
+        else:
+            break
+    return node.id if isinstance(node, ast.Name) else ""
+
+
+def _const_slice(sub):
+    """The constant key of `spec["report"]`, across 3.8 (`ast.Index`) and 3.9+. -> value | None"""
+    sl = sub.slice
+    if hasattr(ast, "Index") and isinstance(sl, getattr(ast, "Index")):
+        sl = sl.value
+    return sl.value if isinstance(sl, ast.Constant) else None
+
+
+def _report_block(fn):
+    """The `if spec.get("report"):` node of check(), found by STRUCTURE. -> ast.If
+
+    ⚠ Matched on the CALL — `spec.get("report")` — and never on the file's text, because
+    render_check.py writes paragraphs about this block and a text search cannot tell a sentence
+    about the tap from the tap. Raises AssertionError (a FAILURE, not a crash) when it is gone:
+    a law that cannot reach its subject has not found the subject clean. [[source-reading-guard]]
+    """
+    hits = [n for n in ast.walk(fn)
+            if isinstance(n, ast.If) and isinstance(n.test, ast.Call)
+            and _dotted(n.test.func) == "spec.get"
+            and n.test.args and isinstance(n.test.args[0], ast.Constant)
+            and n.test.args[0].value == "report"]
+    if len(hits) != 1:
+        raise AssertionError(
+            "expected exactly one `if spec.get(\"report\"):` in check(), found %d — this law did "
+            "not reach its subject, so its silence is not evidence" % len(hits))
+    return hits[0]
+
+
+def _evaluates_the_report(stmts):
+    """Does this statement list actually evaluate `spec["report"]`? -> bool
+
+    ⚠⚠ THE PREMISE, ASSERTED RATHER THAN ASSUMED. Without it the law below would happily grade
+    whatever `try` happened to live in the block and report clean about a handler that guards
+    something else — a case that passes vacuously is worse than no case.
+    """
+    for st in stmts:
+        for s in ast.walk(st):
+            if (isinstance(s, ast.Subscript) and isinstance(s.value, ast.Name)
+                    and s.value.id == "spec" and _const_slice(s) == "report"):
+                return True
+    return False
+
+
 class ATargetCanHandBackItsOwnVerdict(unittest.TestCase):
 
     def test_the_fan_target_DECLARES_a_report_that_reads_the_attribute(self):
@@ -149,13 +221,78 @@ class ATargetCanHandBackItsOwnVerdict(unittest.TestCase):
 
     def test_a_report_that_RAISES_is_recorded_and_never_swallowed(self):
         """A throw and a decline must not look alike — the same distinction v2827 had to add to
-        `_hrtFanFit`'s own caller. [[unknown-stays-unknown]]"""
-        body = ast.get_source_segment(_src(), _fn("check"))
-        i = body.index('if spec.get("report"):')
-        block = body[i:i + 900]
-        self.assertIn("except Exception", block, "the report evaluation has no error path")
-        self.assertIn('"error"', block,
-                      "a raising report is swallowed rather than recorded: %s" % block[:400])
+        `_hrtFanFit`'s own caller. [[unknown-stays-unknown]]
+
+        ⚠⚠ THIS LAW WAS A 900-BYTE WINDOW AND THE MARGIN WAS DOWN TO 152 CHARACTERS.
+        It did `block = body[i:i + 900]` from `if spec.get("report"):` and required the strings
+        `except Exception` and `"error"` to appear somewhere inside that slice. MEASURED on
+        render_check.py the day this was re-anchored: `except Exception` began at offset **683**
+        and `"error"` ENDED at **748**, leaving **152 of 900**. render_check.py is documented
+        heavily and by several hands, and MEASURED in the drill: **two** more comment lines of the
+        length already used in that block (its six comments average 93.5 characters) turn this law
+        red over prose alone, and a third pushes `except Exception` out too — where it reads "the
+        report evaluation has no error path" about code that has one. It was already taxing its
+        neighbours:
+        render_check.py carries a comment asking authors to KEEP THIS SHORT so that a sibling
+        gate's 900-char window keeps reaching. A law may not levy that tax, and a fixed character
+        count is a guess about somebody else's prose.
+
+        The region is now bounded by what the COMPILER sees — the `Try` inside the report block —
+        so a comment of any length cannot move it. [[source-reading-guard]] [[source-window-shortcut]]
+
+        ⚠ AND IT ASSERTS MORE THAN THE WINDOW COULD EVEN ASK. The old slice was satisfied by two
+        strings landing within 900 characters of each other, in either order, in any handler or
+        in none. Four structural claims replace it: the `try` must be the one that EVALUATES
+        `spec["report"]`; some handler must catch broadly; that handler must write the failure
+        back into the SAME name the reading is bound to (a handler that assigns some other
+        variable is a swallow with extra steps); and that name must reach `out`, or the recording
+        is one grave instead of another. [[the-unjoined-end]]"""
+        blk = _report_block(_fn("check"))
+        tries = [t for t in ast.walk(blk) if isinstance(t, ast.Try)
+                 and _evaluates_the_report(t.body)]
+        self.assertEqual(1, len(tries),
+                         "the report block holds %d `try` that evaluates spec[\"report\"] — with "
+                         "none, the expression runs unguarded and one throwing page kills the "
+                         "whole render" % len(tries))
+        tr = tries[0]
+        bound = [t.id for st in tr.body if isinstance(st, ast.Assign)
+                 for t in st.targets if isinstance(t, ast.Name)]
+        self.assertTrue(bound, "the report evaluation binds its answer to no name, so there is no "
+                               "reading for an error path to correct")
+        reading = bound[0]
+        broad = [h for h in tr.handlers
+                 if h.type is None
+                 or _dotted(h.type) in ("Exception", "BaseException")
+                 or (isinstance(h.type, ast.Tuple)
+                     and any(_dotted(e) in ("Exception", "BaseException") for e in h.type.elts))]
+        self.assertTrue(broad,
+                        "the report evaluation has no error path that catches broadly — it "
+                        "handles only %r, so anything else the page throws escapes the tap and "
+                        "takes the render with it"
+                        % [_dotted(h.type) or "?" for h in tr.handlers])
+        recorded = []
+        for h in broad:
+            for st in h.body:
+                for s in ast.walk(st):
+                    if not (isinstance(s, ast.Assign) and isinstance(s.value, ast.Dict)):
+                        continue
+                    if not any(getattr(t, "id", "") == reading for t in s.targets):
+                        continue
+                    if "error" in {k.value for k in s.value.keys
+                                   if isinstance(k, ast.Constant)}:
+                        recorded.append(s.lineno)
+        self.assertTrue(recorded,
+                        "a raising report is swallowed rather than recorded: no broad handler "
+                        "assigns %r a dict carrying an \"error\" key, so a throw and a decline "
+                        "come out of this tap looking identical" % reading)
+        stored = [s.lineno for s in ast.walk(blk)
+                  if isinstance(s, ast.Assign) and isinstance(s.value, ast.Name)
+                  and s.value.id == reading
+                  and any(_root_name(t) == "out" for t in s.targets)]
+        self.assertTrue(stored,
+                        "%r never reaches `out` inside the report block, so the error shape the "
+                        "handler just built dies in a local — recorded into a grave nobody reads"
+                        % reading)
 
     def test_a_NULL_report_is_UNREAD_and_not_silence(self):
         """⚠ An expression that answered nothing is not a target that declared nothing. Collapsing
@@ -315,6 +452,13 @@ RED_PROOF = [
         "file": "render_check.py",
         "find": '                        if not ("error" in _rep or "unread" in _rep or "unparsed" in _rep):\n                            for _nk, _nv in (spec.get("reportNote") or {}).items():\n                                _rep[_nk] = _nv\n',
         "replace": '                        _rep["solvedAt"] = "UNKNOWN — the fan solves once on open and never re-solves on resize, so this reading is from whatever width the heart was opened at"\n',
+        "matches": 1,
+    },
+    {
+        "why": "v3445 - THE TAMPER THE OLD 900-BYTE WINDOW COULD NOT SEE, chosen deliberately so this proof also guards the re-anchor itself. The handler goes on catching broadly and goes on building an {\"error\": ...} dict, but writes it into a DIFFERENT name and hands the caller an empty reading: a swallow with extra steps, and a throw now looks exactly like a decline. MEASURED in the drill: under the old law (`block = body[i:i+900]` from `if spec.get(\"report\"):`, requiring the strings `except Exception` and `\"error\"` inside the slice) this tamper is GREEN, because both strings survive it. Under the structural law it is RED. So if anyone reverts this law to a byte window, this proof comes back BLIND and says so, instead of the weakening passing unnoticed. The window's own margin when it was replaced: `except Exception` at offset 683, `\"error\"` ending at 748, 152 characters left of 900 - two more comment lines of the length already in that block (avg 93.5) reddened it over prose alone.",
+        "file": "render_check.py",
+        "find": "                    except Exception as _exc:\n                        _rep = {\"error\": type(_exc).__name__}\n",
+        "replace": "                    except Exception as _exc:\n                        _other = {\"error\": type(_exc).__name__}\n                        _rep = {}\n",
         "matches": 1,
     },
 ]

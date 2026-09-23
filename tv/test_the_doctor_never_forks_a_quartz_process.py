@@ -66,14 +66,61 @@ there would be a green that measured nothing, and one that simply skipped would 
 one of **MEASURED / NOT-APPLICABLE / UNKNOWN** with its reason, printed, and a completeness law
 fails if any case recorded nothing. `0` measured is not `None` unmeasured.
 [[unknown-stays-unknown]]
+
+==========================================================================================
+v3443 (#150, still open) — **THE NINE-CONDITION CLASSIFIER SHIPPED WITH SIX FALSE ALL-CLEARS IN
+IT, AND THE CROSS-FAMILY EYE FOUND THEM IN TWENTY MINUTES.**
+
+v3441 shipped the classifier; v3442 fixed one hole (identity vs truthiness — `user=0` read SPAWNS
+while CPython tests `uid is None`). Five remained, and **every one graded a FORKING shape as
+spawn-eligible** — the dangerous direction for a gate whose only job is catching forking sites:
+
+  · **F3 — THE FIRST ARGV0, NOT THE LIVE ONE.** `_argv0` kept the first assignment that yielded an
+    element and dropped the rest, and `_assigned_values` walked STRAIGHT THROUGH nested `def`s. So
+    `args = ["/usr/bin/git", ...]` then `args = ["git", ...]` was graded on the dead spelling, and
+    an inner function's argv answered for the outer one's. A one-to-many fact in a one-to-one
+    store. [[one-to-one-store-for-a-one-to-many-fact]]
+  · **F4 — A BARE BRANCH EXCUSED BY A STATE THAT WAS ONLY A NOTE.** `["/usr/bin/git" if ok else
+    "git"]` collapsed to ABSOLUTE_IF_INSTALLED, which adds a note and no violation, so the verdict
+    stayed SPAWNS while the else-branch forks. It was not even self-consistent: {BARE,
+    ABSOLUTE_IF_INSTALLED} fell through to UNKNOWN and {BARE, ABSOLUTE} did not. Only a ternary
+    whose CONDITION asks whether the tool is installed — console_doctor's own `_PS` line — keeps
+    that state now.
+  · **F5 — A JOIN IS NOT A DIRNAME.** Every `os.path.join` mapped to ABSOLUTE. `os.path.join("git")`
+    returns `"git"`.
+  · **F6 — THE DOOR ITSELF WAS MIS-READ.** Any `**kw`-forwarding wrapper was treated as
+    transparent and only the CALL SITE was graded. A wrapper doing `kw.setdefault("cwd", REPO)`
+    injects condition six into every call through it and the call site cannot show it. That is
+    git_quiet's exact mechanism — it writes `kw["creationflags"]`, `kw["env"]`, `kw["startupinfo"]`
+    — and it is transparent only because none of those three moves CPython off posix_spawn.
+  · **F7 — A WHOLE IMPORT SPELLING COULD NOT FAIL THIS GATE.** `from git_quiet import run` binds
+    its alias to the dotted name `git_quiet.run`; the module scan did `if "." in mod: continue`, so
+    the module was never opened and the call matched no door. `async def` wrappers were skipped
+    too. Door DISCOVERY missing a door is not a green — it is the same defect class as the
+    receiver allowlist that hid six forking sites. [[presence-law-vs-reachability-law]]
+
+⚠ **F6 AND F7 ARE THE STRUCTURAL PAIR.** F3/F4/F5 mis-grade a door that was found; F6 and F7 mean
+the door is never found, or is found and then graded on half of itself.
+
+⚠ **EVERY FIX CARRIES ITS BASELINE, because the cure here kills the patient very easily.** The ten
+live console_doctor sites go through `_spawnable()` and `git_quiet.run`; a classifier tightened
+without care reddens or blanks all of them and the gate becomes an alarm nobody can act on. Each
+new case therefore asserts the CORRECT shape still reads SPAWNS: one absolute assignment, a
+closure reading its enclosing scope, the `_PS = "/bin/ps" if os.path.exists(...) else "ps"`
+ternary, a real absolute join, a site that passes `cwd` itself past a `setdefault` wrapper, and
+git_quiet's own write-only-Windows-keys shape. [[the-cure-that-kills-the-patient]]
 """
 import ast
+import collections
 import inspect
 import io
+import ntpath
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -230,8 +277,122 @@ def _dotted(node, aliases):
     return ".".join(reversed(parts))
 
 
+# Every keyword a wrapper can write into the forwarded kwargs that CHANGES WHICH SYSCALL RUNS.
+# `env`, `creationflags`, `startupinfo`, `timeout`, `capture_output` and friends are deliberately
+# NOT here — git_quiet writes three of those on Windows and is still transparent for this purpose.
+FORK_RELEVANT_KWS = tuple(sorted(set(KW_TO_CONDITION) | {"executable", "shell"}))
+
+# How sure we are that the wrapper's write reaches a given call:
+INJECT_ALWAYS = "always"          # unconditional -> the condition holds at EVERY call site
+INJECT_SETDEFAULT = "setdefault"  # only when the call site did not pass it itself
+INJECT_MAYBE = "maybe"            # written under a branch -> the site cannot be graded
+
+
+def _condition_of_kw(kw):
+    """The CPython condition a wrapper-injected keyword violates. -> str"""
+    if kw in ("executable", "shell"):
+        return "executable-has-a-dirname"
+    return KW_TO_CONDITION[kw]
+
+
+def _subscript_key(node):
+    """The literal string key of `d["k"]`, through 3.8's ast.Index as well. -> str or None"""
+    sl = node.slice
+    sl = sl.value if sl.__class__.__name__ == "Index" else sl
+    known, val = _literal(sl)
+    return val if known and isinstance(val, str) else None
+
+
+def _wrapper_injections(fn, spawn_call, kwarg):
+    """Every fork-relevant keyword this wrapper writes into its own **kwargs. -> {kw: (mode, how)}
+
+    ⚠⚠ v3443 (F6) — THE STRUCTURAL ONE. Discovery called a `**kw`-forwarding wrapper TRANSPARENT
+    and then graded only the CALL SITE. A wrapper that does
+
+        kw.setdefault("cwd", REPO)            or      subprocess.run(argv, cwd=REPO, **kw)
+
+    injects condition six into every call through it, and NOTHING at the call site can show it —
+    the site reads `run([abs, ...], close_fds=False)` and grades SPAWNS while every call forks.
+    That is the same defect class as the receiver allowlist that hid six forking sites: the door
+    itself was mis-read, so no amount of care at the call site could help.
+
+    ⚠ IT IS NOT A HYPOTHETICAL SHAPE. git_quiet.run writes `kw["creationflags"]`, `kw["env"]` and
+    `kw["startupinfo"]` — the exact mechanism — and stays transparent only because none of those
+    three can move CPython off posix_spawn. One `kw["cwd"] = ROOT` and it would.
+    """
+    parents = {}
+    for node in ast.walk(fn):
+        for child in ast.iter_child_nodes(node):
+            parents[child] = node
+
+    def conditional(node):
+        cur = parents.get(node)
+        while cur is not None and cur is not fn:
+            if isinstance(cur, (ast.If, ast.For, ast.While, ast.Try, ast.IfExp,
+                                ast.ExceptHandler, ast.With)):
+                return True
+            cur = parents.get(cur)
+        return False
+
+    found = {}
+
+    def note(kw, mode, how):
+        if kw not in FORK_RELEVANT_KWS:
+            return
+        prev = found.get(kw)
+        order = {INJECT_MAYBE: 0, INJECT_SETDEFAULT: 1, INJECT_ALWAYS: 2}
+        if prev is None or order[mode] > order[prev[0]]:
+            found[kw] = (mode, how)
+
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
+                        and t.value.id == kwarg):
+                    key = _subscript_key(t)
+                    if key:
+                        known, val = _literal(node.value)
+                        if known and val is None:
+                            continue        # writing None is writing the compliant value
+                        note(key, INJECT_MAYBE if conditional(node) else INJECT_ALWAYS,
+                             'sets %s["%s"]' % (kwarg, key))
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and isinstance(node.func.value, ast.Name) and node.func.value.id == kwarg:
+            attr = node.func.attr
+            if attr in ("setdefault", "pop") and node.args:
+                known, val = _literal(node.args[0])
+                if known and isinstance(val, str):
+                    mode = INJECT_MAYBE if conditional(node) else (
+                        INJECT_SETDEFAULT if attr == "setdefault" else INJECT_ALWAYS)
+                    note(val, mode, "%s.%s(%r)" % (kwarg, attr, val))
+            elif attr == "update":
+                for k in node.keywords:
+                    if k.arg:
+                        note(k.arg, INJECT_MAYBE if conditional(node) else INJECT_ALWAYS,
+                             "%s.update(%s=...)" % (kwarg, k.arg))
+                for a in node.args:
+                    if isinstance(a, ast.Dict):
+                        for key_node in a.keys:
+                            known, val = _literal(key_node)
+                            if known and isinstance(val, str):
+                                note(val, INJECT_MAYBE if conditional(node) else INJECT_ALWAYS,
+                                     "%s.update({%r: ...})" % (kwarg, val))
+    # The forwarding call itself: `subprocess.run(argv, cwd=REPO, **kw)` is an injection too, and
+    # it is the shape that reads most innocent.
+    for k in spawn_call.keywords:
+        if k.arg:
+            known, val = _literal(k.value)
+            if known and val is None:
+                continue
+            note(k.arg, INJECT_MAYBE if conditional(spawn_call) else INJECT_ALWAYS,
+                 "passes %s= at the forwarding call" % k.arg)
+    return found
+
+
 def discover_spawn_doors(tree, where=HERE):
-    """Every dotted callable in this tree that ends up in `subprocess`. -> dict name -> why
+    """Every dotted callable in this tree that ends up in `subprocess`. -> dict name -> record
+
+    A record is `{"why": str, "injects": {kw: (mode, how)}}`.
 
     Two kinds:
       · DIRECT   — `subprocess.run`, `subprocess.Popen`, ... under whatever alias.
@@ -239,22 +400,33 @@ def discover_spawn_doors(tree, where=HERE):
                    into a subprocess spawner. `git_quiet.run` is one. DISCOVERED, not listed, so
                    the next one-door wrapper is seen without anybody remembering to add it.
 
-    ⚠ A WRAPPER THAT FORWARDS `**kw` FORWARDS THE HAZARD. git_quiet.run does
-    `return subprocess.run(argv, **kw)`; it injects nothing on POSIX. So `cwd=` and the missing
-    `close_fds=` at the CALL SITE are what decide the syscall, and the call site is what this
-    classifier grades.
+    ⚠ A WRAPPER THAT FORWARDS `**kw` FORWARDS THE HAZARD, AND MAY ALSO ADD ONE. git_quiet.run
+    does `return subprocess.run(argv, **kw)` and writes only Windows-shaped keys, so on this
+    condition set it is transparent and the CALL SITE decides the syscall. `injects` records what
+    a wrapper writes that the call site cannot show — see `_wrapper_injections`.
+
+    ⚠⚠ v3443 (F7) — A WHOLE IMPORT SPELLING COULD NOT BECOME A DOOR. The module scan did
+    `if "." in mod: continue`, and `from git_quiet import run` binds the alias `run` to the DOTTED
+    name `git_quiet.run` — so the module was never opened, `run(...)` matched no door, and a
+    forking site written that way could not fail this gate at all. Discovery is only as good as
+    the spellings it can see. `async def` wrappers were skipped for the same kind of reason.
     """
     aliases = _import_aliases(tree)
     doors = {}
     for alias, mod in aliases.items():
         if mod == "subprocess":
             for fn in SPAWNERS:
-                doors["subprocess." + fn] = "direct"
+                doors["subprocess." + fn] = {"why": "direct", "injects": {}}
         elif mod.startswith("subprocess."):
-            doors[mod] = "direct"
-    for mod in sorted(set(aliases.values())):
-        if "." in mod or mod == "subprocess":
+            doors[mod] = {"why": "direct", "injects": {}}
+    candidates = set()
+    for mod in aliases.values():
+        if mod == "subprocess" or mod.startswith("subprocess."):
             continue
+        # `from git_quiet import run` -> "git_quiet.run"; the MODULE is everything before the last
+        # dot. `import os.path` -> "os" (no dot) and simply finds no tv/os.py.
+        candidates.add(mod.rsplit(".", 1)[0] if "." in mod else mod)
+    for mod in sorted(candidates):
         path = os.path.join(where, mod + ".py")
         if not os.path.isfile(path):
             continue
@@ -265,7 +437,7 @@ def discover_spawn_doors(tree, where=HERE):
             continue
         waliases = _import_aliases(wtree)
         for fn in ast.walk(wtree):
-            if not isinstance(fn, ast.FunctionDef):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             kwarg = fn.args.kwarg.arg if fn.args.kwarg else None
             if not kwarg:
@@ -279,24 +451,152 @@ def discover_spawn_doors(tree, where=HERE):
                 forwards = any(k.arg is None and isinstance(k.value, ast.Name)
                                and k.value.id == kwarg for k in call.keywords)
                 if forwards:
-                    doors["%s.%s" % (mod, fn.name)] = "wrapper -> %s (forwards **%s)" % (d, kwarg)
+                    injects = _wrapper_injections(fn, call, kwarg)
+                    why = "wrapper -> %s (forwards **%s)" % (d, kwarg)
+                    if injects:
+                        why += " AND INJECTS " + ", ".join(
+                            "%s [%s]" % (k, v[0]) for k, v in sorted(injects.items()))
+                    doors["%s.%s" % (mod, fn.name)] = {"why": why, "injects": injects}
     return doors
 
 
-def _assigned_values(name, func, tree):
-    """Every value `name` is assigned inside `func`, else at module level. -> list of ast nodes"""
-    out = []
-    for scope in (func, tree):
-        if scope is None:
+# A nested `def`, `lambda` or `class` is a DIFFERENT scope. Walking through one is how a name
+# that never reaches the call site gets read as if it did.
+_NESTED_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _walk_scope(scope):
+    """ast.walk, but it STOPS at a nested def / lambda / class. -> iterator of ast nodes
+
+    ⚠ v3443 (F3) — `ast.walk` DESCENDS INTO NESTED FUNCTIONS, and `_assigned_values` used it. A
+    helper spelled
+
+        def outer():
+            def inner():
+                args = ["/usr/bin/git", "status"]     # never runs at the call site below
+            args = ["git", "status"]
+            subprocess.run(args, close_fds=False)     # argv0 is bare "git" -> FORKS
+
+    handed the classifier `inner`'s absolute spelling, which has no bearing on the call, and the
+    site read SPAWNS. A scope-blind reader answers a question nobody asked.
+    [[a-law-about-a-row-must-drive-the-row]]
+    """
+    todo = collections.deque(ast.iter_child_nodes(scope))
+    while todo:
+        node = todo.popleft()
+        if isinstance(node, _NESTED_SCOPES):
             continue
-        for node in ast.walk(scope):
+        todo.extend(ast.iter_child_nodes(node))
+        yield node
+
+
+def _scope_chain(func, tree):
+    """The scopes a name lookup may legally read, innermost first. -> list of ast nodes
+
+    `func` may be a single scope node or the whole enclosing chain (innermost first). Anything
+    that is not an AST node — some cases pass a label — is dropped rather than walked.
+    """
+    given = list(func) if isinstance(func, (list, tuple)) else [func]
+    chain = [s for s in given if isinstance(s, ast.AST)]
+    if isinstance(tree, ast.AST) and tree not in chain:
+        chain.append(tree)
+    return chain
+
+
+def _assigned_values(name, func, tree):
+    """Every value `name` is assigned in the innermost scope that binds it. -> list of ast nodes
+
+    ⚠ ALL OF THEM, NOT THE FIRST. A name rebound twice is a one-to-many fact; keeping one value
+    and dropping the rest is how `args = [ABS]` hid `args = ["git"]`.
+    [[one-to-one-store-for-a-one-to-many-fact]]
+    """
+    for scope in _scope_chain(func, tree):
+        out = []
+        for node in _walk_scope(scope):
             if isinstance(node, ast.Assign):
                 for t in node.targets:
                     if isinstance(t, ast.Name) and t.id == name:
                         out.append(node.value)
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                if isinstance(node.target, ast.Name) and node.target.id == name:
+                    out.append(node.value)
         if out:
+            return out
+    return []
+
+
+# `os.path.join` is NOT a synonym for "absolute". Evaluated with the right module, because
+# `ntpath.join` and `posixpath.join` do not agree about what a dirname is.
+JOIN_MODULES = {"os.path.join": os.path, "posixpath.join": posixpath, "ntpath.join": ntpath,
+                "os.sep.join": os.path}
+
+# Calls that ask "is this tool actually on this machine?". A `X if <one of these> else <bare X>`
+# ternary is the AUDITED resolver shape — `_spawnable()` and console_doctor's
+# `_PS = "/bin/ps" if os.path.exists("/bin/ps") else "ps"` are both exactly it.
+INSTALL_TESTS = ("exists", "isfile", "isdir", "islink", "access", "which", "find_executable",
+                 "_spawnable")
+
+
+def _combine_exe_states(seen, label):
+    """Fold several possible spellings of ONE argv0 into one state. -> (state, how)
+
+    ⚠ FAILS TO UNKNOWN, NEVER TO THE BEST BRANCH. {ABSOLUTE, BARE} is not "absolute when
+    installed"; it is a site where one spelling provably forks and nobody here can say which one
+    runs. UNKNOWN is not green in this file, so it blocks instead of reassuring.
+    [[unknown-stays-unknown]]
+    """
+    if not seen:
+        return EXE_UNKNOWN, "unresolvable"
+    states = {s for s, _ in seen}
+    if len(states) == 1:
+        if len(seen) == 1:
+            return seen[0][0], seen[0][1]
+        return seen[0][0], "%s (all %d spellings agree)" % (label, len(seen))
+    if states <= {ABSOLUTE, ABSOLUTE_IF_INSTALLED}:
+        return ABSOLUTE_IF_INSTALLED, label
+    return EXE_UNKNOWN, label
+
+
+def _tests_whether_the_tool_is_installed(test, aliases):
+    """Does this ternary's condition ASK whether the absolute spelling exists? -> bool"""
+    for n in ast.walk(test):
+        if isinstance(n, ast.Call):
+            d = _dotted(n.func, aliases) or ""
+            if d and d.split(".")[-1] in INSTALL_TESTS:
+                return True
+    return False
+
+
+def _join_state(d, node):
+    """`os.path.join(...)` -> (state, how). ⚠ A JOIN IS NOT A DIRNAME.
+
+    v3443 (F5): every join mapped to ABSOLUTE. `os.path.join("git")` returns `"git"` and
+    `os.path.join("", "git")` returns `"git"` — no dirname, so CPython forks — and both read as
+    spawn-eligible. The join is EVALUATED where it can be, and is UNKNOWN where it cannot.
+    """
+    mod = JOIN_MODULES[d]
+    parts, all_literal = [], True
+    for a in node.args:
+        known, val = _literal(a)
+        if known and isinstance(val, str):
+            parts.append(val)
+        else:
+            all_literal = False
             break
-    return out
+    if all_literal and parts and not node.keywords:
+        joined = mod.join(*parts)
+        return (ABSOLUTE if mod.dirname(joined) else BARE), "%s -> %r" % (d, joined)
+    if node.args:
+        # A LAST component that already carries a dirname survives any prefix; an absolute FIRST
+        # component can only be appended to or replaced by another absolute path. Either way the
+        # result has a dirname whatever the unknown parts hold.
+        known, val = _literal(node.args[-1])
+        if known and isinstance(val, str) and mod.dirname(val):
+            return ABSOLUTE, "%s(..., %r)" % (d, val)
+        known, val = _literal(node.args[0])
+        if known and isinstance(val, str) and mod.isabs(val):
+            return ABSOLUTE, "%s(%r, ...)" % (d, val)
+    return EXE_UNKNOWN, d + "(...)"
 
 
 def _exe_state(node, func, tree, aliases, depth=0):
@@ -309,8 +609,8 @@ def _exe_state(node, func, tree, aliases, depth=0):
         d = _dotted(node.func, aliases) or ""
         if d in PATH_RESOLVERS or d.split(".")[-1] in ("which", "_spawnable"):
             return ABSOLUTE_IF_INSTALLED, d + "(...)"
-        if d in ("os.path.join", "posixpath.join", "ntpath.join"):
-            return ABSOLUTE, d + "(...)"
+        if d in JOIN_MODULES:
+            return _join_state(d, node)
         return EXE_UNKNOWN, (d or type(node).__name__) + "(...)"
     if isinstance(node, ast.Attribute):
         d = _dotted(node, aliases) or ""
@@ -320,46 +620,63 @@ def _exe_state(node, func, tree, aliases, depth=0):
     if isinstance(node, ast.IfExp):
         a, ha = _exe_state(node.body, func, tree, aliases, depth + 1)
         b, hb = _exe_state(node.orelse, func, tree, aliases, depth + 1)
-        pair = {a, b}
-        if pair == {ABSOLUTE}:
-            return ABSOLUTE, "%s / %s" % (ha, hb)
-        if pair == {BARE}:
-            return BARE, "%s / %s" % (ha, hb)
-        if pair <= {ABSOLUTE, ABSOLUTE_IF_INSTALLED, BARE} and ABSOLUTE in pair:
-            return ABSOLUTE_IF_INSTALLED, "%s / %s" % (ha, hb)
-        return EXE_UNKNOWN, "%s / %s" % (ha, hb)
+        how = "%s / %s" % (ha, hb)
+        # ⚠ v3443 (F4) — A BARE BRANCH IS A FORK, AND "ABSOLUTE_IF_INSTALLED" WAS ONLY A NOTE.
+        # `subprocess.run(["/usr/bin/git" if ok else "git"], close_fds=False)` read
+        # ABSOLUTE_IF_INSTALLED and therefore SPAWNS, while it forks every time the else-branch
+        # runs. It was also inconsistent with its own sibling: {BARE, ABSOLUTE_IF_INSTALLED} fell
+        # through to UNKNOWN, {BARE, ABSOLUTE} did not.
+        # The ONE ternary that really is "absolute whenever installed" asks whether the tool is
+        # there — console_doctor's `_PS = "/bin/ps" if os.path.exists("/bin/ps") else "ps"` and
+        # `_spawnable()`. That shape keeps its old state; an arbitrary condition does not, because
+        # nobody has shown the bare branch is unreachable. [[unknown-stays-unknown]]
+        if BARE in (a, b) and (ABSOLUTE in (a, b) or ABSOLUTE_IF_INSTALLED in (a, b)) \
+                and _tests_whether_the_tool_is_installed(node.test, aliases):
+            return ABSOLUTE_IF_INSTALLED, how + " [guarded by an is-it-installed test]"
+        return _combine_exe_states([(a, ha), (b, hb)], how)
     if isinstance(node, ast.Name):
         vals = _assigned_values(node.id, func, tree)
         if not vals:
             return EXE_UNKNOWN, node.id + " (never assigned in reach)"
         seen = [_exe_state(v, func, tree, aliases, depth + 1) for v in vals]
-        states = {s for s, _ in seen}
-        if len(states) == 1:
-            return seen[0][0], "%s = %s" % (node.id, seen[0][1])
-        if states <= {ABSOLUTE, ABSOLUTE_IF_INSTALLED}:
-            return ABSOLUTE_IF_INSTALLED, node.id
-        return EXE_UNKNOWN, node.id
+        state, how = _combine_exe_states(seen, node.id)
+        return state, ("%s = %s" % (node.id, how) if len(seen) == 1 else how)
     return EXE_UNKNOWN, type(node).__name__
 
 
-def _argv0(node, func, tree, aliases, depth=0):
-    """The first element of an argv expression. -> ast node or None"""
+def _argv0_nodes(node, func, tree, aliases, depth=0):
+    """EVERY expression that could be argv[0] here. -> list of ast nodes
+
+    ⚠⚠ v3443 (F3) — IT USED TO RETURN THE FIRST ONE IT FOUND AND DROP THE REST, and the first one
+    is not the one that runs:
+
+        args = ["/usr/bin/git", "status"]
+        args = ["git", "status"]                     <- the live argv0
+        subprocess.run(args, close_fds=False)        <- classified SPAWNS, forks every time
+
+    A name rebound twice is a ONE-TO-MANY fact and `-> ast node or None` was a one-to-one store,
+    so the classifier answered about a spelling that never reaches the syscall. Every candidate is
+    returned and `_combine_exe_states` folds them; disagreement is UNKNOWN, which blocks.
+    [[one-to-one-store-for-a-one-to-many-fact]]
+    """
     if node is None or depth > 4:
-        return None
+        return []
     if isinstance(node, (ast.List, ast.Tuple)):
-        return node.elts[0] if node.elts else None
+        return [node.elts[0]] if node.elts else []
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        return _argv0(node.left, func, tree, aliases, depth + 1) or \
-            _argv0(node.right, func, tree, aliases, depth + 1)
+        return _argv0_nodes(node.left, func, tree, aliases, depth + 1) or \
+            _argv0_nodes(node.right, func, tree, aliases, depth + 1)
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node                     # a plain string command
+        return [node]                   # a plain string command
+    if isinstance(node, ast.IfExp):
+        return (_argv0_nodes(node.body, func, tree, aliases, depth + 1) +
+                _argv0_nodes(node.orelse, func, tree, aliases, depth + 1))
     if isinstance(node, ast.Name):
-        vals = _assigned_values(node.id, func, tree)
-        for v in vals:
-            got = _argv0(v, func, tree, aliases, depth + 1)
-            if got is not None:
-                return got
-    return None
+        out = []
+        for v in _assigned_values(node.id, func, tree):
+            out.extend(_argv0_nodes(v, func, tree, aliases, depth + 1))
+        return out
+    return []
 
 
 def _literal(node):
@@ -386,7 +703,7 @@ def _stream_verdict(node, aliases):
     return "?"
 
 
-def classify_spawn_call(call, func, tree, aliases):
+def classify_spawn_call(call, func, tree, aliases, door=None):
     """THE ONE CLASSIFIER. Will CPython posix_spawn this call, or fork it? -> dict
 
     Returns {"verdict": FORKS|SPAWNS|UNKNOWN, "violations": [...], "unknowns": [...], "exe": ...}
@@ -415,7 +732,11 @@ def classify_spawn_call(call, func, tree, aliases):
             state, how = ABSOLUTE, "shell=True -> /bin/sh"
         else:
             pos = call.args[0] if call.args else None
-            state, how = _exe_state(_argv0(pos, func, tree, aliases), func, tree, aliases)
+            cands = _argv0_nodes(pos, func, tree, aliases)
+            seen = [_exe_state(c, func, tree, aliases) for c in cands]
+            state, how = _combine_exe_states(
+                seen, "argv[0] has %d possible spelling(s): %s"
+                      % (len(seen), " / ".join(h for _, h in seen) or "none resolvable"))
     else:
         state, how = _exe_state(exe_node, func, tree, aliases)
     if state == BARE:
@@ -500,6 +821,24 @@ def classify_spawn_call(call, func, tree, aliases):
     if star:
         unknowns.append("**kwargs could carry any of them")
 
+    # ---- what the DOOR adds that this call site cannot show -----------------------------
+    # ⚠ v3443 (F6) — GRADING ONLY THE CALL SITE IS GRADING HALF THE CALL. A wrapper that writes
+    # a fork-relevant keyword into the forwarded kwargs decides the syscall from a file the
+    # reader of this line never opens. `always` is a violation (it holds on every call through
+    # that door), `setdefault` only when the site did not pass the keyword itself, and a write
+    # under a branch is UNKNOWN — which is not green here either. [[the-unjoined-end]]
+    for kw, (mode, how) in sorted((door or {}).get("injects", {}).items()):
+        if mode == INJECT_SETDEFAULT and kw in kws:
+            continue                      # the call site's own value wins; nothing is injected
+        cond = _condition_of_kw(kw)
+        if mode == INJECT_MAYBE:
+            if cond not in unknowns:
+                unknowns.append(cond)
+        elif cond not in violations:
+            violations.append(cond)
+        notes.append("the door itself %s — invisible from this call site (%s)"
+                     % (how, (door or {}).get("why", "?")))
+
     verdict = FORKS if violations else (UNKNOWN if unknowns else SPAWNS)
     return {"verdict": verdict, "violations": violations, "unknowns": unknowns,
             "exe": state, "how": how, "notes": notes}
@@ -515,13 +854,16 @@ def spawn_sites(src, where=HERE):
         for child in ast.iter_child_nodes(node):
             parents[child] = node
 
-    def enclosing_func(node):
-        cur = parents.get(node)
+    def enclosing_scopes(node):
+        """The whole chain, INNERMOST FIRST — a closure may read its enclosing function's names,
+        but a SIBLING nested def's names are not in reach. Returning only the innermost scope
+        would lose the closure; returning the module would keep the sibling. Both are wrong."""
+        chain, cur = [], parents.get(node)
         while cur is not None:
-            if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                return cur
+            if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                chain.append(cur)
             cur = parents.get(cur)
-        return None
+        return chain
 
     out = []
     for node in ast.walk(tree):
@@ -530,10 +872,10 @@ def spawn_sites(src, where=HERE):
         d = _dotted(node.func, aliases)
         if d not in doors:
             continue
-        got = classify_spawn_call(node, enclosing_func(node), tree, aliases)
+        got = classify_spawn_call(node, enclosing_scopes(node), tree, aliases, doors[d])
         got["line"] = node.lineno
         got["door"] = d
-        got["why_door"] = doors[d]
+        got["why_door"] = doors[d]["why"]
         out.append(got)
     return sorted(out, key=lambda r: r["line"])
 
@@ -847,9 +1189,14 @@ class TestTheDoctorNeverForksAQuartzProcess(unittest.TestCase):
                       "git_quiet.run is no longer recognised as a subprocess wrapper, so the six "
                       "git spawns in console_doctor are invisible again. Discovered doors: %r"
                       % (sorted(doors),))
-        self.assertTrue(doors["git_quiet.run"].startswith("wrapper"),
+        self.assertTrue(doors["git_quiet.run"]["why"].startswith("wrapper"),
                         "git_quiet.run was admitted for the wrong reason: %r"
                         % doors["git_quiet.run"])
+        self.assertEqual(doors["git_quiet.run"]["injects"], {},
+                         "git_quiet now writes a fork-relevant keyword into the kwargs it "
+                         "forwards, so the CALL SITE no longer decides the syscall and every "
+                         "site through it is graded on a file its reader never opens: %r"
+                         % (doors["git_quiet.run"],))
         with io.open(os.path.join(HERE, "git_quiet.py"),
                      encoding="utf-8", errors="replace") as fh:
             gq = ast.parse(fh.read())
@@ -1104,6 +1451,284 @@ class TestTheDoctorNeverForksAQuartzProcess(unittest.TestCase):
                              % (door, sites[0]))
             self.assertIn("cwd-is-None", sites[0]["violations"])
 
+    # ---- v3443: the five FALSE ALL-CLEARS the cross-family eye found in the shipped v3441 ----
+
+    def _drive(self, table, where=None):
+        """Classify each source and require the stated verdict. -> None
+
+        ⚠ DRIVE THE CLASSIFIER, NEVER ASSERT ARITHMETIC ABOUT IT, and assert the PREMISE first:
+        a probe that produces no site at all would satisfy `verdict != SPAWNS` by producing
+        nothing, which is a green measuring an empty population. [[zero-needs-a-denominator]]"""
+        for src, want, why in table:
+            sites = spawn_sites(src, where or HERE)
+            self.assertEqual(len(sites), 1,
+                             "the probe produced %d sites, not 1 — the PROBE is the suspect "
+                             "before the classifier is:\n%s" % (len(sites), src))
+            self.assertEqual(
+                sites[0]["verdict"], want,
+                "%s\n  classified %s, wanted %s — %s\n  violations=%s unknowns=%s how=%r"
+                % (src, sites[0]["verdict"], want, why, sites[0]["violations"],
+                   sites[0]["unknowns"], sites[0]["how"]))
+
+    def test_the_LIVE_argv0_is_not_the_FIRST_one_the_reader_happened_to_find(self):
+        """v3443 (F3) — A REBOUND NAME IS A ONE-TO-MANY FACT.
+
+        `_argv0` returned the first assignment that yielded an element and dropped the rest, and
+        `_assigned_values` walked THROUGH nested `def`s. So an absolute spelling that is dead —
+        overwritten, or sitting in an inner function that never runs here — answered for a live
+        bare one, and the site read SPAWNS while every call forked.
+
+        ⚠ THE BASELINE IS HALF THIS CASE. A single absolute assignment must still read SPAWNS,
+        and a closure reading its ENCLOSING function's argv must still resolve — a scope reader
+        tightened until it sees nothing is a gate that accuses everything.
+        [[one-to-one-store-for-a-one-to-many-fact]] [[the-cure-that-kills-the-patient]]"""
+        self._drive([
+            ("import subprocess\n"
+             "def f():\n"
+             "    args = ['/usr/bin/git', 'status']\n"
+             "    args = ['git', 'status']\n"
+             "    subprocess.run(args, close_fds=False)\n",
+             UNKNOWN,
+             "the live argv0 is bare 'git'; SPAWNS here is the false all-clear"),
+            ("import subprocess\n"
+             "def f():\n"
+             "    def inner():\n"
+             "        args = ['/usr/bin/git', 'status']\n"
+             "    args = ['git', 'status']\n"
+             "    subprocess.run(args, close_fds=False)\n",
+             FORKS,
+             "inner()'s argv is in another scope and cannot excuse this bare name"),
+            # ---- baselines: the correct shapes must survive ----
+            ("import subprocess\n"
+             "def f():\n"
+             "    args = ['/usr/bin/git', 'status']\n"
+             "    subprocess.run(args, close_fds=False)\n",
+             SPAWNS, "one absolute assignment, nothing to disagree with"),
+            ("import subprocess\n"
+             "def outer():\n"
+             "    args = ['/usr/bin/git', 'status']\n"
+             "    def inner():\n"
+             "        subprocess.run(args, close_fds=False)\n",
+             SPAWNS, "a CLOSURE may read its enclosing function's argv — losing that would make "
+                     "every nested spawn site unreadable"),
+            ("import subprocess\n"
+             "def f():\n"
+             "    args = ['git', 'status']\n"
+             "    args = ['git', 'log']\n"
+             "    subprocess.run(args, close_fds=False)\n",
+             FORKS, "both spellings are bare, so there is nothing unknown about it"),
+        ])
+
+    def test_a_BARE_BRANCH_of_a_ternary_is_not_absolute_if_installed(self):
+        """v3443 (F4) — AND THE STATE THAT EXCUSED IT WAS ONLY A NOTE.
+
+        `["/usr/bin/git" if ok else "git"]` collapsed to ABSOLUTE_IF_INSTALLED, which adds a note
+        and no violation, so the verdict stayed SPAWNS — while the else-branch forks every time it
+        runs. It was not even self-consistent: {BARE, ABSOLUTE_IF_INSTALLED} fell through to
+        UNKNOWN and {BARE, ABSOLUTE} did not.
+
+        ⚠ THE BASELINE IS THE WHOLE RISK HERE. console_doctor really does write
+        `_PS = "/bin/ps" if os.path.exists("/bin/ps") else "ps"`, and `_spawnable()` is the same
+        shape — a ternary whose CONDITION asks whether the tool is installed. Reddening those
+        would have accused the live, measured-non-forking corpse row. Only an UNGUARDED condition
+        loses the excuse. [[the-cure-that-kills-the-patient]]"""
+        self._drive([
+            ("import subprocess\n"
+             "ok = True\n"
+             "subprocess.run(['/usr/bin/git' if ok else 'git'], close_fds=False)\n",
+             UNKNOWN, "nobody has shown the bare branch is unreachable"),
+            ("import subprocess\n"
+             "import shutil\n"
+             "ok = True\n"
+             "subprocess.run([shutil.which('git') if ok else 'git'], close_fds=False)\n",
+             UNKNOWN, "{BARE, ABSOLUTE_IF_INSTALLED} was already UNKNOWN and must stay so"),
+            # ---- baselines: the AUDITED resolver shape keeps its state ----
+            ("import subprocess\n"
+             "import os\n"
+             "subprocess.run(['/bin/ps' if os.path.exists('/bin/ps') else 'ps'], close_fds=False)\n",
+             SPAWNS, "this is console_doctor's own _PS line — reddening it blinds the gate to the "
+                     "corpse row it exists for"),
+            ("import subprocess\n"
+             "import os\n"
+             "subprocess.run(['/usr/bin/git' if os.path.isfile('/usr/bin/git') else 'git'],\n"
+             "               close_fds=False)\n",
+             SPAWNS, "the same shape under a different existence test"),
+            ("import subprocess\n"
+             "ok = True\n"
+             "subprocess.run(['/usr/bin/git' if ok else '/bin/git'], close_fds=False)\n",
+             SPAWNS, "both branches carry a dirname, so the condition holds whichever runs"),
+        ])
+
+    def test_os_path_join_is_not_a_synonym_for_a_dirname(self):
+        """v3443 (F5) — EVERY join MAPPED TO ABSOLUTE.
+
+        `os.path.join("git")` returns `"git"` and `os.path.join("", "git")` returns `"git"`.
+        Neither has a dirname, both fork, and both read spawn-eligible. The join is EVALUATED
+        where every component is a literal, and is UNKNOWN — never ABSOLUTE — where it is not.
+
+        ⚠ BASELINE: a real `join("/usr/bin", "git")`, and a join whose LAST literal component
+        already carries a dirname, must still read SPAWNS."""
+        self._drive([
+            ("import subprocess\n"
+             "import os\n"
+             "subprocess.run([os.path.join('git')], close_fds=False)\n",
+             FORKS, "join of one bare component IS that bare component"),
+            ("import subprocess\n"
+             "import os\n"
+             "subprocess.run([os.path.join('', 'git')], close_fds=False)\n",
+             FORKS, "an empty prefix adds no dirname"),
+            ("import subprocess\n"
+             "import posixpath\n"
+             "subprocess.run([posixpath.join('git')], close_fds=False)\n",
+             FORKS, "the same through posixpath"),
+            ("import subprocess\n"
+             "import os\n"
+             "def f(x):\n"
+             "    subprocess.run([os.path.join(x, 'git')], close_fds=False)\n",
+             UNKNOWN, "an unresolvable prefix is UNKNOWN, and UNKNOWN is not green here"),
+            # ---- baselines ----
+            ("import subprocess\n"
+             "import os\n"
+             "subprocess.run([os.path.join('/usr/bin', 'git')], close_fds=False)\n",
+             SPAWNS, "a real absolute join"),
+            ("import subprocess\n"
+             "import os\n"
+             "def f(x):\n"
+             "    subprocess.run([os.path.join(x, 'bin/git')], close_fds=False)\n",
+             SPAWNS, "a LAST component that already has a dirname survives any prefix"),
+        ])
+
+    def test_a_wrapper_that_INJECTS_a_condition_is_not_transparent(self):
+        """⚠⚠ v3443 (F6) — THE STRUCTURAL ONE, AND THE SAME CLASS AS THE RECEIVER ALLOWLIST.
+
+        Discovery treated ANY `**kw`-forwarding wrapper as transparent and then graded only the
+        CALL SITE. A wrapper doing `kw.setdefault("cwd", REPO)` or `subprocess.run(argv, cwd=REPO,
+        **kw)` injects condition six into every call through it, and nothing at the call site can
+        show it: the site reads `run([abs, ...], close_fds=False)` and grades SPAWNS while every
+        call forks. The door was mis-read, so no care at the call site could help.
+
+        ⚠ git_quiet.run IS THIS SHAPE — it writes `kw["creationflags"]`, `kw["env"]` and
+        `kw["startupinfo"]` into the kwargs it forwards. It stays transparent only because none of
+        those three can move CPython off posix_spawn, and the baseline below pins that: a wrapper
+        that writes a NON-fork keyword must not start crying wolf over the ten live sites.
+        [[the-unjoined-end]] [[a-widened-guard-admits-what-it-bans]]"""
+        mods = {
+            "wrap_setdefault": ("import subprocess\n"
+                                "REPO = '/repo'\n"
+                                "def run(argv, **kw):\n"
+                                "    kw.setdefault('cwd', REPO)\n"
+                                "    return subprocess.run(argv, **kw)\n"),
+            "wrap_explicit": ("import subprocess\n"
+                              "REPO = '/repo'\n"
+                              "def run(argv, **kw):\n"
+                              "    return subprocess.run(argv, cwd=REPO, **kw)\n"),
+            "wrap_pop": ("import subprocess\n"
+                         "def run(argv, **kw):\n"
+                         "    kw.pop('close_fds', None)\n"
+                         "    return subprocess.run(argv, **kw)\n"),
+            "wrap_maybe": ("import subprocess\n"
+                           "REPO = '/repo'\n"
+                           "def run(argv, **kw):\n"
+                           "    if REPO:\n"
+                           "        kw['cwd'] = REPO\n"
+                           "    return subprocess.run(argv, **kw)\n"),
+            "wrap_quiet": ("import subprocess\n"
+                           "def run(argv, **kw):\n"
+                           "    kw['env'] = {}\n"
+                           "    kw['creationflags'] = 0\n"
+                           "    return subprocess.run(argv, **kw)\n"),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, body in sorted(mods.items()):
+                with io.open(os.path.join(tmp, name + ".py"), "w", encoding="utf-8") as fh:
+                    fh.write(body)
+            # ⚠ PREMISE FIRST. If the fixtures were not written or not parsed, discovery finds
+            # nothing and every `!= SPAWNS` below would hold for the wrong reason.
+            doors = discover_spawn_doors(ast.parse("import wrap_setdefault\nimport wrap_quiet\n"),
+                                         tmp)
+            self.assertIn("wrap_setdefault.run", doors,
+                          "the injecting wrapper was not even discovered as a door, so nothing "
+                          "below measures injection: %r" % (sorted(doors),))
+            self.assertEqual(doors["wrap_setdefault.run"]["injects"].get("cwd", (None,))[0],
+                             INJECT_SETDEFAULT,
+                             "the setdefault injection was not recorded: %r"
+                             % (doors["wrap_setdefault.run"],))
+            self.assertEqual(doors["wrap_quiet.run"]["injects"], {},
+                             "env/creationflags are NOT fork conditions; recording them would "
+                             "make this guard cry wolf on git_quiet and on the ten live sites: %r"
+                             % (doors["wrap_quiet.run"],))
+            self._drive([
+                ("import wrap_setdefault\n"
+                 "wrap_setdefault.run(['/usr/bin/git', 'status'], close_fds=False)\n",
+                 FORKS, "the wrapper adds cwd and the call site cannot show it"),
+                ("import wrap_explicit\n"
+                 "wrap_explicit.run(['/usr/bin/git', 'status'], close_fds=False)\n",
+                 FORKS, "cwd= at the forwarding call is an injection too"),
+                ("import wrap_pop\n"
+                 "wrap_pop.run(['/usr/bin/git'], close_fds=False)\n",
+                 FORKS, "the wrapper DELETES the site's close_fds, which defaults back to True"),
+                ("import wrap_maybe\n"
+                 "wrap_maybe.run(['/usr/bin/git'], close_fds=False)\n",
+                 UNKNOWN, "written under a branch — nobody here can say, and UNKNOWN blocks"),
+                # ---- baselines ----
+                ("import wrap_setdefault\n"
+                 "wrap_setdefault.run(['/usr/bin/git'], close_fds=False, cwd=None)\n",
+                 SPAWNS, "the site passed cwd itself, so setdefault injects nothing"),
+                ("import wrap_quiet\n"
+                 "wrap_quiet.run(['/usr/bin/git', 'status'], close_fds=False)\n",
+                 SPAWNS, "git_quiet's exact shape — a wrapper writing only non-fork keywords is "
+                         "still transparent"),
+            ], where=tmp)
+
+    def test_a_door_is_found_under_EVERY_import_spelling(self):
+        """⚠⚠ v3443 (F7) — `from git_quiet import run` COULD NOT FAIL THIS GATE AT ALL.
+
+        The module scan did `if "." in mod: continue`, and a from-import binds its alias to the
+        DOTTED name `git_quiet.run`. So the module was never opened, `run(...)` matched no door,
+        and a forking site written that way was invisible — not green-because-checked, invisible.
+        `async def` wrappers were skipped by the same kind of omission. Door DISCOVERY missing a
+        door is the same defect class as the receiver allowlist that hid six forking sites.
+
+        ⚠ BASELINE: the correct shape through the same spelling must still read SPAWNS, and an
+        unrelated `from x import run` where x is not a wrapper must NOT become a door.
+        [[presence-law-vs-reachability-law]]"""
+        mods = {
+            "wrap_plain": ("import subprocess\n"
+                           "def run(argv, **kw):\n"
+                           "    return subprocess.run(argv, **kw)\n"),
+            "wrap_async": ("import subprocess\n"
+                           "async def run(argv, **kw):\n"
+                           "    return subprocess.run(argv, **kw)\n"),
+            "wrap_none": ("def run(argv):\n"
+                          "    return len(argv)\n"),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, body in sorted(mods.items()):
+                with io.open(os.path.join(tmp, name + ".py"), "w", encoding="utf-8") as fh:
+                    fh.write(body)
+            doors = discover_spawn_doors(
+                ast.parse("from wrap_plain import run\nfrom wrap_async import run as arun\n"
+                          "from wrap_none import run as nrun\n"), tmp)
+            self.assertIn("wrap_plain.run", doors,
+                          "a from-imported wrapper is still not a door: %r" % (sorted(doors),))
+            self.assertIn("wrap_async.run", doors,
+                          "an `async def` wrapper is still not a door: %r" % (sorted(doors),))
+            self.assertNotIn("wrap_none.run", doors,
+                             "a module that never touches subprocess was admitted as a door — "
+                             "that is the cry-wolf direction: %r" % (sorted(doors),))
+            self._drive([
+                ("from wrap_plain import run\n"
+                 "run(['git', 'status'], close_fds=False)\n",
+                 FORKS, "a bare argv0 through a from-imported door"),
+                ("import wrap_async\n"
+                 "wrap_async.run(['git'], close_fds=False)\n",
+                 FORKS, "the same through an async wrapper"),
+                # ---- baselines ----
+                ("from wrap_plain import run\n"
+                 "run(['/usr/bin/git', 'status'], close_fds=False)\n",
+                 SPAWNS, "the correct shape must survive the same spelling"),
+            ], where=tmp)
+
 
 RED_PROOF = [
     {
@@ -1148,6 +1773,93 @@ RED_PROOF = [
         "replace": "        frames = subprocess.run([_spawnable(\"du\"), \"-sk\", os.path.join(HERE, \"frames\")],\n"
                    "                                capture_output=True, text=True, close_fds=False,\n"
                    "                                cwd=HERE, timeout=60)",
+        "matches": 1,
+    },
+    # ---- v3443: the five FALSE ALL-CLEARS, each tampered back into the classifier itself -----
+    # ⚠ THESE TAMPER THIS FILE, NOT console_doctor. The five holes were defects in the CLASSIFIER,
+    # so a proof that edits the subject would prove the wrong thing: each one restores the exact
+    # line that graded a forking shape as spawn-eligible. Every one was driven and SEEN RED.
+    {
+        "why": "v3443 (F3) - _argv0 KEEPS ONLY THE FIRST ASSIGNMENT AGAIN. `args = [ABS]` followed "
+               "by `args = ['git']` then handed the classifier the dead absolute spelling and the "
+               "site read SPAWNS while every call forked. A one-to-many fact in a one-to-one store.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "        for v in _assigned_values(node.id, func, tree):\n"
+                "            out.extend(_argv0_nodes(v, func, tree, aliases, depth + 1))\n"
+                "        return out",
+        "replace": "        for v in _assigned_values(node.id, func, tree):\n"
+                   "            got = _argv0_nodes(v, func, tree, aliases, depth + 1)\n"
+                   "            if got:\n"
+                   "                return got[:1]\n"
+                   "        return out",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F3, second half) - THE SCOPE READER WALKS THROUGH NESTED defs AGAIN. "
+               "`ast.walk` descends into an inner function, so an argv assigned in a `def inner()` "
+               "that never runs at the call site answered for the bare one that does. A "
+               "scope-blind reader answers a question nobody asked.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "        if isinstance(node, _NESTED_SCOPES):\n"
+                "            continue",
+        "replace": "        if isinstance(node, _NESTED_SCOPES):\n"
+                   "            pass",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F4) - EVERY ABSOLUTE/BARE TERNARY EXCUSED AGAIN. `['/usr/bin/git' if ok "
+               "else 'git']` collapsed to ABSOLUTE_IF_INSTALLED, which is a NOTE and not a "
+               "violation, so the verdict stayed SPAWNS while the else-branch forks whenever it "
+               "runs. Only a condition that ASKS whether the tool is installed earns that state.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        # ⚠ SPLIT ACROSS TWO LITERALS ON PURPOSE. A self-targeting proof whose `find` is one plain
+        # line matches TWICE — once in the code and once in this declaration — and the
+        # well-formedness gate refuses it. Concatenation keeps the joined form out of the bytes.
+        "find": "        if BARE in (a, b) and (ABSOLUTE in (a, b) or ABSOLUTE_IF_INSTALLED in (a, b)) \\\n"
+                "                and _tests_whether_the_tool_is_installed(node.test, aliases):",
+        "replace": "        if BARE in (a, b) and (ABSOLUTE in (a, b) or ABSOLUTE_IF_INSTALLED in (a, b)) \\\n"
+                   "                and (True or _tests_whether_the_tool_is_installed(node.test, aliases)):",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F5) - EVERY os.path.join MAPPED TO ABSOLUTE AGAIN. `os.path.join('git')` "
+               "returns 'git' and forks; so does `os.path.join('', 'git')`. A join is not a "
+               "dirname, and assuming it is was a false all-clear on the executable condition.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "    mod = JOIN_MODULES[d]\n    parts, all_literal = [], True",
+        "replace": "    mod = JOIN_MODULES[d]\n    return ABSOLUTE, d + \"(...)\"\n    parts, all_literal = [], True",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F6) - WRAPPER INJECTIONS IGNORED AGAIN. A one-door wrapper doing "
+               "`kw.setdefault('cwd', REPO)` or `subprocess.run(argv, cwd=REPO, **kw)` injects "
+               "condition six into every call through it, and the CALL SITE cannot show it. "
+               "Grading only the call site is grading half the call - the same defect class as "
+               "the receiver allowlist that hid six forking sites.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "    for kw, (mode, how) in sorted((door or {}).get(\"injects\", {}).items()):",
+        "replace": "    for kw, (mode, how) in sorted({}.items()):",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F7) - DOTTED IMPORT SPELLINGS SKIPPED AGAIN. `from git_quiet import run` "
+               "binds its alias to the dotted name `git_quiet.run`, the module scan did "
+               "`if '.' in mod: continue`, and so a forking site written that way could not fail "
+               "this gate AT ALL. Door discovery missing a door is not a green, it is a blind spot.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "        candidates.add(mod.rsplit(\".\", 1)[0] if \".\" in mod else mod)",
+        "replace": "        candidates.add(mod)",
+        "matches": 1,
+    },
+    {
+        "why": "v3443 (F7, second half) - `async def` WRAPPERS SKIPPED AGAIN. The discovery loop "
+               "tested only ast.FunctionDef, so an async one-door wrapper was never a door.",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        # split across two literals for the same reason as F4 above
+        "find": "            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):\n"
+                "                continue",
+        "replace": "            if not isinstance(fn, ast.FunctionDef):\n"
+                   "                continue",
         "matches": 1,
     },
 ]

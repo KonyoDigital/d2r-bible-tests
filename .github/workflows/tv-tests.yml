@@ -21,6 +21,12 @@ jobs:
     # **cancelled**, which reads as "a person cancelled this" rather than "something stalled".
     # 25 matches publish.yml, which learned this the same way.
     timeout-minutes: 25
+    outputs:
+      # ⚠ `reached` is written ONLY by the gate-set step itself, so an empty value means that step
+      # never got to the end — whatever the job-level conclusion says. See the step for the two
+      # paths that make `result == failure` without a red gate set.
+      gate_set_reached: ${{ steps.gateset.outputs.reached }}
+      gate_set_red: ${{ steps.gateset.outputs.red }}
     env:
       # ⚠ ONE COPY OF THE CEILING, AT JOB SCOPE, AND IT MUST EQUAL `timeout-minutes` ABOVE.
       # Two steps below quote this number in what they print. A step-local copy was the first
@@ -179,6 +185,7 @@ jobs:
       # verdict, so if this step is cut off the variable is ABSENT rather than zero, and the
       # watchdog below reports UNKNOWN instead of a reassuring 0.
       - name: THE GATE SET (tv/run_gates.py — every registered gate, one verdict)
+        id: gateset
         run: |
           _t0=$(date -u +%s)
           set +e
@@ -186,6 +193,20 @@ jobs:
           _rc=$?
           set -e
           echo "GATE_SET_SECONDS=$(( $(date -u +%s) - _t0 ))" >> "$GITHUB_ENV"
+          # ⚠⚠ v3447 — THE VERDICT JOB MUST NOT INFER "THE GATES WERE RED" FROM `result == failure`.
+          # Found by the cross-family eye on the SHIPPED v3446 bytes, which it read at 122,996 chars.
+          # A job is `failure` when ANY step fails, and two paths reach that WITHOUT a red gate set:
+          #   (1) `Install Chromium` has timeout-minutes: 6 and NO continue-on-error. If it fails,
+          #       THIS STEP NEVER RUNS, GATE_SET_SECONDS is never written, the always() watchdog
+          #       reports NO VERDICT and exits 1 — so the job is `failure` and the verdict job
+          #       announced GATES RED about a gate set that never started. One run emitting both
+          #       "NO VERDICT" and "GATES RED" is the exact UNKNOWN-vs-measured conflation this
+          #       whole workflow was written to end.
+          #   (2) the gate set exits 0 and a LATER step (the intake smoke) fails — same false red.
+          # So the fact "the gate set reached a verdict" is published HERE, by the only step that
+          # can know it, instead of being guessed downstream from a job-level word.
+          echo "reached=true" >> "$GITHUB_OUTPUT"
+          if [ "$_rc" -eq 0 ]; then echo "red=false" >> "$GITHUB_OUTPUT"; else echo "red=true" >> "$GITHUB_OUTPUT"; fi
           exit $_rc
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
@@ -269,8 +290,20 @@ jobs:
       - name: A conclusion that is not a pass must not read like one
         env:
           SUITE_RESULT: ${{ needs.agent-suite.result }}
+          GATE_SET_REACHED: ${{ needs.agent-suite.outputs.gate_set_reached }}
+          GATE_SET_RED: ${{ needs.agent-suite.outputs.gate_set_red }}
         run: |
           echo "agent-suite conclusion: ${SUITE_RESULT:-<none>}"
+          echo "gate set reached a verdict: ${GATE_SET_REACHED:-<no>}  (red: ${GATE_SET_RED:-<unknown>})"
+          # ⚠⚠ v3447 — A FAILURE THE GATE SET NEVER PRODUCED IS *NOT* A RED GATE SET.
+          # `result == failure` only means some step failed. If the gate-set step never reached its
+          # end it publishes no `reached`, and saying GATES RED here would name a verdict nobody
+          # reached — a FALSE RED, which is worse than the silence this workflow replaced, because
+          # a red that is sometimes fiction trains a reader to ignore reds.
+          if [ "${SUITE_RESULT:-}" = "failure" ] && [ "${GATE_SET_REACHED:-}" != "true" ]; then
+            echo "::error title=NO VERDICT::agent-suite is 'failure' but the GATE SET NEVER REACHED ITS END - it published no verdict, so nothing here says a gate was red. Something before or after it failed (Chromium install, Pillow, checkout, boss portraits, or the intake smoke). Open the job and find the step that failed. NOTHING ABOUT THIS PUSH HAS BEEN CHECKED."
+            exit 1
+          fi
           case "${SUITE_RESULT:-}" in
             success)
               echo "VERDICT: the gate set ran to the end and every registered gate passed."

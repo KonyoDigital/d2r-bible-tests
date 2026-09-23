@@ -134,16 +134,69 @@ def _writer_dict_keys(path=WRITER):
     with io.open(path, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "g5_shadow_log"), None)
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and n.name == "g5_shadow_log"), None)
     if fn is None:
         return None
-    keys = set()
+
+    # ⚠⚠ v3447 — FOLLOW THE DICT THAT IS ACTUALLY WRITTEN, not every dict in the function.
+    # Found by the cross-family eye on the shipped v3446 bytes. The first cut unioned the constant
+    # keys of EVERY ast.Dict under the function — including nested functions — which breaks the
+    # join law in BOTH directions:
+    #   · it can pass on a key the writer NEVER writes (a schema, a defaults dict, a nested meta
+    #     object that merely mentions "claude_names"), because reducer-keys ⊆ that inflated set
+    #     still succeeds; and
+    #   · it could not see a key written by subscript assignment or ** unpack at all.
+    # It also missed an `async def` writer entirely. A join law that can be satisfied by a dict
+    # nobody writes is not a join law. [[the-unjoined-end]] [[source-reading-guard]]
+    #
+    # The real writer is `rec = {...}` then `fh.write(json.dumps(rec, ...))`, so: find the name
+    # handed to json.dumps inside a .write(), then take THAT name's dict literal, plus any
+    # `rec["k"] = ...` subscript writes to the same name.
+    written = None
     for node in ast.walk(fn):
-        if isinstance(node, ast.Dict):
-            for k in node.keys:
-                if isinstance(k, ast.Constant) and isinstance(k.value, str):
-                    keys.add(k.value)
-    return keys
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if not (isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name)):
+            continue
+        if "%s.%s" % (f.value.id, f.attr) != "json.dumps":
+            continue
+        if node.args and isinstance(node.args[0], ast.Name):
+            written = node.args[0].id
+            break
+    if written is None:
+        # ⚠ UNRESOLVED, NOT EMPTY. Returning a set here would let the join law pass while the
+        # reader had no idea what the writer writes. The caller asserts this is not None.
+        return None
+
+    keys = set()
+    seen_literal = False
+    for node in ast.walk(fn):
+        # rec = { ... }
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
+            if any(isinstance(t, ast.Name) and t.id == written for t in node.targets):
+                seen_literal = True
+                for k in node.value.keys:
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                        keys.add(k.value)
+                    else:
+                        # a ** unpack or a computed key: we cannot name it, so the SET is no
+                        # longer a complete account of what is written. Say so by refusing.
+                        return None
+        # rec["k"] = ...
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
+                        and t.value.id == written):
+                    sl = t.slice
+                    inner = getattr(sl, "value", sl)
+                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str):
+                        keys.add(inner.value)
+                        seen_literal = True
+                    else:
+                        return None
+    return keys if seen_literal else None
 
 
 def _writer_log_basename(path=WRITER):
@@ -198,6 +251,88 @@ class ShadowLogReadSide(unittest.TestCase):
         # The free agreement is subtractable: two empty lists matching is not two eyes agreeing.
         self.assertEqual(f["agree_excluding_both_empty"]["n"], 2)
         self.assertEqual(f["agree_excluding_both_empty"]["d"], 6)
+
+    def test_01b_a_null_is_not_a_name_and_a_repeat_is_not_a_disagreement(self):
+        """Both halves found by the CROSS-FAMILY EYE on the shipped v3446 bytes, not by this file.
+
+        The old key was one line:
+            tuple(sorted(str(x).strip().lower() for x in (v or []) if str(x).strip()))
+        and it was wrong in two independent ways at once.
+
+        (1) `str(None)` is the four-character string "none", which is TRUTHY, so a null element
+            survived the filter and BECAME AN ITEM NAMED "none". Measured then: ["Shako", None]
+            vs ["Shako"] published a disagreement about a nonexistent item while both lanes had
+            named Shako; and [None] vs ["None"] keyed identically and published as AGREEMENT.
+        (2) The tuple kept DUPLICATES, so ["Shako", "Shako"] vs ["Shako"] differed — but the shape
+            chain compares SETS, so `sa - sb` and `sb - sa` were both empty and the per-name
+            breakdown blamed NEITHER lane. The histogram said overlap_partial about nothing.
+            A figure its own breakdown cannot explain is precisely what this reducer exists to
+            refuse. [[zero-needs-a-denominator]]
+
+        ⚠ THE BASELINE IS HALF THIS CASE: a REAL disagreement must still be one, or the fix has
+        simply stopped the reducer disagreeing with anything.
+        """
+        k = R.names_key
+        # multiplicity is a COUNT fact, never an identity fact
+        self.assertEqual(k(["Shako", "Shako"]), k(["Shako"]),
+                         "a repeated name became a disagreement no breakdown could explain")
+        self.assertEqual(k(["shako", " SHAKO "]), k(["Shako"]),
+                         "case and whitespace must not split one name into two")
+        # a null is not a name
+        self.assertEqual(k(["Shako", None]), k(["Shako"]),
+                         "a null element became an item called 'none'")
+        self.assertEqual(k([None]), (),
+                         "a list of nulls names nothing; it must not name 'none'")
+        self.assertNotEqual(k([None]), k(["None"]),
+                            "a lane that named NOTHING and a lane that named the literal string "
+                            "'None' are not in agreement — they used to key identically")
+        # BASELINE — the reducer must still be able to disagree
+        self.assertNotEqual(k(["Shako"]), k(["Tal Rasha's Howling Wind"]),
+                            "a genuine disagreement stopped being one")
+        self.assertNotEqual(k(["Shako", "Tal"]), k(["Shako"]),
+                            "a genuinely EXTRA name is still a difference")
+
+    def test_01c_the_writer_key_reader_follows_the_dict_that_is_WRITTEN(self):
+        """A join law satisfiable by a dict nobody writes is not a join law.
+
+        ⚠ Found by the cross-family eye on the shipped v3446 bytes. The first helper unioned the
+        constant keys of EVERY ast.Dict under g5_shadow_log — including nested functions — so the
+        law `reducer-keys ⊆ writer-keys` could be satisfied by a key the writer never writes: a
+        schema, a defaults dict, a nested meta object. The eye named `claude_conf` as the example
+        and it is exactly what the old reader admitted.
+
+        This drives it: a DECOY dict is planted beside the real record in a TEMP COPY (the real
+        tv/g5_grok_eyes.py is never touched), and the reader must not report the decoy's keys.
+        ⚠ It also asserts the real keys are still all there — a reader that rejects everything
+        would pass the decoy half while destroying the law.
+        """
+        import tempfile as _tf
+        raw = io.open(WRITER, encoding="utf-8").read()
+        anchor = '        rec = {\n            "ts": time.strftime'
+        self.assertEqual(raw.count(anchor), 1,
+                         "the writer's record literal moved — this case can no longer plant its "
+                         "decoy beside it, which is UNRESOLVED, not a pass")
+        decoy = ('        _schema_doc = {"claude_conf": "documented, never written", '
+                 '"totally_invented": 1}\n' + anchor)
+        tmp = _tf.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8")
+        try:
+            tmp.write(raw.replace(anchor, decoy, 1))
+            tmp.close()
+            keys = _writer_dict_keys(path=tmp.name)
+            self.assertIsNotNone(keys, "the reader could not identify the written record at all")
+            for bad in ("claude_conf", "totally_invented"):
+                self.assertNotIn(bad, keys,
+                                 "%r is in a dict the writer NEVER writes, and the reader reported "
+                                 "it as a written key — the join law can then be satisfied by a "
+                                 "key that does not exist in the store" % bad)
+            # BASELINE: the real record's keys must all still be found
+            for good in ("ts", "lane", "image",
+                         "claude_names", "grok_names", "claude_scene", "grok_scene"):
+                self.assertIn(good, keys,
+                              "%r is genuinely written and the reader lost it — a reader that "
+                              "rejects everything passes the decoy half and deletes the law" % good)
+        finally:
+            os.unlink(tmp.name)
 
     def test_02_scene_buckets(self):
         """A BLANK scene is not an answer, so row 8 is one-sided, not a disagreement."""

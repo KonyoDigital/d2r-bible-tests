@@ -32252,7 +32252,8 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
             # where the clamp starts biting
             starts = [cost * i / 40.0 for i in range(41)]
             starts += [render_check._RUN_REPORT_BY - render_check._CDP_READ_TIMEOUT,
-                       render_check._RUN_REPORT_BY - render_check._CDP_READ_FLOOR]
+                       render_check._RUN_REPORT_BY - render_check._declared_page_patience(),
+                       render_check._RUN_REPORT_BY - render_check._read_floor()]
             for s in sorted(x for x in starts if 0 <= x <= cost):
                 clock = _Clock()
                 render_check.time = clock
@@ -32315,16 +32316,469 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         # number: a clean pass renders len(TARGETS) x len(WIDTHS) target-widths in _CLEAN_RUN_COST,
         # and a target-width is already SEVERAL CDP round trips.
         per_tw = cost / float(len(render_check.TARGETS) * len(render_check.WIDTHS))
-        self.assertGreaterEqual(render_check._CDP_READ_FLOOR, 4 * per_tw,
+        floor = render_check._read_floor()
+        self.assertGreaterEqual(floor, 4 * per_tw,
                                 "the read bound can be clamped to %.1fs, against %.1fs for a whole "
                                 "target-width. A bound that small makes a busy machine look like a "
-                                "dead browser." % (render_check._CDP_READ_FLOOR, per_tw))
-        self.assertLessEqual(render_check._CDP_READ_FLOOR, render_check._CDP_READ_TIMEOUT,
+                                "dead browser." % (floor, per_tw))
+        self.assertLessEqual(floor, render_check._CDP_READ_TIMEOUT,
                              "the floor is above the bound it is a floor for")
-        self.assertEqual(last_bound, render_check._CDP_READ_FLOOR,
+        self.assertEqual(last_bound, floor,
                          "a stall arriving at the very end of a clean run was bounded at %r rather "
                          "than the floor %r — the clamp is not reaching the case it exists for"
-                         % (last_bound, render_check._CDP_READ_FLOOR))
+                         % (last_bound, floor))
+
+        # ⚠⚠⚠ v3445 (board #190 F1) — THE 8.8s BAR ABOVE WAS TOO LOOSE TO CATCH THE DEFECT IT IS
+        # WRITTEN FOR, AND IT PASSED OVER IT FOR A WHOLE SHIP. 4 x per_tw is 8.8s, the floor was
+        # 16.0s, so it cleared by 1.8x and read as comfortable. It is not comfortable: 16.0 is
+        # exactly _RUN_REPORT_BY - _CLEAN_RUN_COST, so the clamp reaches the floor at
+        # t = _CLEAN_RUN_COST — ON THE LAST TARGET OF A NORMAL CLEAN PASS — and from there one CDP
+        # read slower than 16s on a merely loaded machine raised, marked the tab dead and (v3438)
+        # aborted the whole run with exit 2. The v3444 push that shipped it rendered clean at load
+        # ~4.0; one sample of a timing-dependent tolerance is evidence in neither direction.
+        #
+        # THE HONEST BAR IS THE FILE'S OWN: _declared_page_patience() is the longest render_check
+        # already says ONE page operation may legitimately take (30.0s — shelf-cards and
+        # river-strip declare it, per v3125). A gate that waits 30s for the page and refuses to
+        # wait 30s for the socket carrying the question cannot tell a dead browser from the
+        # slowness it has already declared legitimate.
+        patience = render_check._declared_page_patience()
+        self.assertGreater(patience, 4 * per_tw,
+                           "_declared_page_patience() is %.1fs, no larger than the %.1fs whole-"
+                           "target-width bar it is supposed to tighten — the registry it reads has "
+                           "gone empty or lost its activate_budget keys, so this law is measuring "
+                           "nothing. UNRESOLVED, not clean." % (patience, 4 * per_tw))
+
+        # ⚠ AND THE SHORTFALL IS STATED RATHER THAN ABSORBED. The floor CANNOT be raised to meet
+        # the bar: a stall at t = _CLEAN_RUN_COST classifies at _CLEAN_RUN_COST + floor, so any
+        # larger floor pushes that past _RUN_REPORT_BY (the assertion above) and on into the
+        # hook's kill — the unnamed `render HUNG`. So the law is NOT "make the number bigger",
+        # which would delete the adaptive bound; it is that a death under a bound BELOW the bar
+        # must REPORT DIFFERENTLY from a browser that went away. That is driven, end to end,
+        # in test_a_clamp_induced_death_is_NOT_reported_as_the_browser_going_away.
+        # [[the-cure-that-kills-the-patient]] [[unknown-stays-unknown]]
+        # ⚠ A PRESENCE CHECK HERE WOULD BE A PRESENCE-LAW, NOT A REACHABILITY-LAW, so this case
+        # states the shortfall and STOPS. What has to be true is that the run SAYS SO, and saying
+        # so is behaviour — driven in the sibling case named above, which runs main() end to end.
+        # [[presence-law-vs-reachability-law]]
+        self.assertLess(floor, patience,
+                        "the floor (%.1fs) now meets the declared page patience (%.1fs), so the "
+                        "shortfall this arc is built around is GONE — which is good news and "
+                        "means the budget was widened somewhere. Re-derive: if a stall at "
+                        "t = _CLEAN_RUN_COST still classifies inside _RUN_REPORT_BY, delete this "
+                        "assertion and the split sentence with it rather than leaving a lane that "
+                        "can no longer be entered." % (floor, patience))
+
+    # ── v3445 (board #190 F1) ──────────────────────────────────────────────────────────────────
+    def _stall_run(self, render_check, spent, target=None):
+        """Run main() over ONE target whose CDP read goes quiet `spent` seconds into the run.
+
+        ⚠ THE READ IS ISSUED BY PRODUCTION CODE. The socket is silent and dumb; _Tab._ws_recv
+        derives the bound, sets it, records the death and marks the tab dead, and main() decides
+        what to print. Nothing here stubs the decision it is measuring.
+
+        -> (exit code, everything printed, the bounds the socket was handed, the verdict dict)
+        """
+        import types, tempfile as _tf, shutil as _sh
+
+        class _Clock(object):
+            def __init__(self, t0=1000.0):
+                self.t = float(t0)
+
+            def time(self):
+                return self.t
+
+            def sleep(self, s):
+                self.t += float(s)
+
+        class _SilentSocket(object):
+            """A peer that never answers: the read burns EXACTLY the bound it was given."""
+
+            def __init__(self, clock):
+                self.clock, self.bounds = clock, []
+
+            def settimeout(self, t):
+                self.bounds.append(float(t))
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                if not self.bounds:
+                    raise AssertionError("the read was issued with NO bound — this case would be "
+                                         "measuring nothing")
+                self.clock.t += self.bounds[-1]
+                raise TimeoutError("the socket went quiet")
+
+            def shutdown(self):
+                pass
+
+        clock = _Clock()
+        sock = _SilentSocket(clock)
+        name = target or sorted(render_check.TARGETS)[0]
+
+        def _stalled(_n, _spec):
+            clock.t += float(spent)                 # that much HEALTHY work already paid for
+            tab = render_check._Tab.__new__(render_check._Tab)
+            tab.ws, tab.n, tab.page_errors = sock, 0, []
+            return tab.send("Runtime.evaluate", expression="1")
+
+        tmp = _tf.mkdtemp(prefix="render_verdict-")
+        buf = io.StringIO()
+        planted = False
+        if "websocket" not in sys.modules:
+            try:
+                import websocket  # noqa: F401
+            except Exception:
+                sys.modules["websocket"] = types.ModuleType("websocket")
+                planted = True
+        _saved = (render_check.time, render_check._RUN_STARTED, render_check._ABORTED_AT,
+                  render_check._DIED_AT_BOUND, render_check._LAST_READ_BOUND,
+                  render_check._READ_COST_WORST, render_check._READ_COST_N)
+        try:
+            render_check.time = clock
+            with mock.patch.object(render_check, "check", _stalled), \
+                 mock.patch.object(render_check, "_chrome_up", lambda: True), \
+                 mock.patch.object(render_check, "HERE", tmp):
+                with contextlib.redirect_stdout(buf):
+                    rc = render_check.main([name])
+        finally:
+            (render_check.time, render_check._RUN_STARTED, render_check._ABORTED_AT,
+             render_check._DIED_AT_BOUND, render_check._LAST_READ_BOUND,
+             render_check._READ_COST_WORST, render_check._READ_COST_N) = _saved
+            if planted:
+                sys.modules.pop("websocket", None)
+        _vp = os.path.join(tmp, ".render_verdict.json")
+        _v = {}
+        if os.path.isfile(_vp):
+            with io.open(_vp, encoding="utf-8") as fh:
+                _v = json.load(fh)
+        _sh.rmtree(tmp, ignore_errors=True)
+        return rc, buf.getvalue(), list(sock.bounds), _v
+
+    def test_a_clamp_induced_death_is_NOT_reported_as_the_browser_going_away(self):
+        """v3445 (board #190 F1) — WHOSE BOUND EXPIRED IS A DIFFERENT FACT FROM WHETHER THE
+        BROWSER IS THERE, and until this case one sentence served both.
+
+        ⚠⚠ WHAT SHIPPED. v3438's clamp shortens every CDP read by what is left of the run, with a
+        floor. The floor is _RUN_REPORT_BY - _CLEAN_RUN_COST, so it is reached at
+        t = _CLEAN_RUN_COST — ON THE LAST TARGET OF A NORMAL CLEAN PASS. From there a single read
+        slower than the remainder on a merely LOADED machine raises, marks the tab dead, and
+        (v3438 again) aborts the WHOLE run with exit 2 — and it printed `the browser connection
+        was lost mid-render`, which is a claim about Chrome that nothing had established. Before
+        v3438 that read had 90s and would not have raised at all. The sibling case above proves
+        the floor cannot simply be raised: any larger floor pushes classification past
+        _RUN_REPORT_BY and into the hook's 300s kill, which is the `render HUNG` that names no
+        link. So the fix is the SENTENCE, and this is the case that makes it one.
+
+        ⚠ BOTH ARMS ARE DRIVEN, because a row that cannot vary is not reporting. A stall at t=0
+        gets the full declared bound and MUST still read as the browser going away; a stall at
+        t = _CLEAN_RUN_COST gets the floor and MUST read as this gate's own budget. Neither is
+        allowed to print the other's sentence, and the exit code stays 2 for both — a skip is not
+        a pass either way. [[unknown-stays-unknown]] [[label-outlived-referent]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        # ⚠ PROVE THE PREMISE BEFORE THE CASE MEANS ANYTHING. If the floor were NOT below the
+        # patience this file grants a page, both arms would take the same branch and the case
+        # would pass while measuring one thing twice.
+        floor = render_check._read_floor()
+        # ⚠⚠ v3447 — DRIVE A TARGET WHOSE OWN GRANT THIS CASE ASSERTS. The first cut called
+        # _declared_page_patience() with NO target, which is the registry MAXIMUM (30.0s, declared
+        # by exactly 2 of 20 targets), while _stall_run drove sorted(TARGETS)[0] = `advanced`,
+        # whose grant is the 12.0s default. It therefore asserted "16s is below the 30s this file
+        # grants one page operation" about a target granted 12s — a true number under the wrong
+        # noun, and for 18 of 20 targets the claim is simply false. Found by this fix's own
+        # independent verifier, BEFORE it shipped. [[label-outlived-referent]]
+        OWNER = next((t for t, sp in sorted(render_check.TARGETS.items())
+                      if float((sp or {}).get("activate_budget") or 0.0) > floor), None)
+        self.assertIsNotNone(OWNER,
+                             "no target grants a page operation more than the read floor (%.1fs), "
+                             "so the clamped-below-our-own-patience arm cannot be entered by ANY "
+                             "target and this case would be vacuous" % floor)
+        patience = render_check._declared_page_patience(render_check.TARGETS[OWNER])
+        self.assertGreater(render_check._CDP_READ_TIMEOUT, patience,
+                           "the declared bound (%.1fs) is not above the page patience (%.1fs), so "
+                           "a stall at t=0 would take the SAME branch as one at the floor and this "
+                           "case would drive one arm twice" % (render_check._CDP_READ_TIMEOUT,
+                                                               patience))
+        self.assertLess(floor, patience,
+                        "the floor (%.1fs) is not below the page patience (%.1fs) — the clamped "
+                        "arm cannot be entered and this case would be vacuous" % (floor, patience))
+
+        rc0, said0, bounds0, v0 = self._stall_run(render_check, 0.0)
+        rcN, saidN, boundsN, vN = self._stall_run(render_check, render_check._CLEAN_RUN_COST,
+                                                 OWNER)
+
+        # ── the drive was real, and it was the drive we designed ────────────────────────────
+        self.assertEqual(bounds0, [render_check._CDP_READ_TIMEOUT],
+                         "a stall at the START of the run was bounded at %r, not the declared "
+                         "%r — the clamp is biting when there is nothing to clamp"
+                         % (bounds0, render_check._CDP_READ_TIMEOUT))
+        self.assertEqual(boundsN, [floor],
+                         "a stall arriving after a whole clean pass (%.0fs) was bounded at %r "
+                         "rather than the floor %r — the clamp never reached the case this whole "
+                         "arc is about, so nothing below was measured"
+                         % (render_check._CLEAN_RUN_COST, boundsN, floor))
+        self.assertEqual((rc0, rcN), (2, 2),
+                         "a lost transport must exit 2 whichever bound expired — got %r and %r"
+                         % (rc0, rcN))
+
+        # ── and the two deaths do NOT wear each other's sentence ────────────────────────────
+        OWN = "THIS GATE STOPPED WAITING"
+        LOST = "connection was lost"
+        self.assertIn(LOST, said0,
+                      "a read that ran out of the FULL declared bound stopped naming the browser. "
+                      "90s of silence is a dead tab by every measure this file has.\n%s"
+                      % said0[-900:])
+        self.assertNotIn(OWN, said0,
+                         "a read given the full declared bound was blamed on this gate's own "
+                         "budget — the clamp is being reported when it did not fire.\n%s"
+                         % said0[-900:])
+        self.assertIn(OWN, saidN,
+                      "a read this gate CLAMPED to %.0fs — below the %.0fs it grants one page "
+                      "operation — was reported without saying whose bound expired. That is the "
+                      "UNKNOWN-vs-measured conflation, and it is what board #190 F1 names.\n%s"
+                      % (floor, patience, saidN[-900:]))
+        self.assertNotIn(LOST, saidN,
+                         "a bound THIS FILE chose to shrink was reported as the browser going "
+                         "away. Nothing here established anything about Chrome.\n%s"
+                         % saidN[-900:])
+        # ⚠ AND IT MUST CARRY THE NUMBERS, or it is a different adjective for the same mystery.
+        self.assertIn("%.0fs" % floor, saidN,
+                      "the clamped verdict never names the bound that expired (%.0fs), so a "
+                      "reader cannot tell how short it was\n%s" % (floor, saidN[-900:]))
+        self.assertIn("%.0fs" % patience, saidN,
+                      "the clamped verdict never names the page patience (%.0fs) it fell below, "
+                      "which is the whole reason it is not a dead browser\n%s"
+                      % (patience, saidN[-900:]))
+        # ⚠ AND THE SPENT FIGURE MUST BE THE AGE WHEN THE BOUND WAS CHOSEN, NOT WHEN IT EXPIRED.
+        # MEASURED: the first spelling read "280s of the run's 280s budget was already spent" for
+        # a stall at t=264, because _run_age() was sampled AFTER the read had burned its own
+        # bound on top. Every digit was a real reading; the word in front of it was wrong, which
+        # makes a run that had 16s left look like one that was already over.
+        # [[label-outlived-referent]] [[measured-true-read-wrong]]
+        self.assertIn("%.0fs of the run's" % render_check._CLEAN_RUN_COST, saidN,
+                      "the clamped verdict reports the budget spent as something other than the "
+                      "%.0fs that had actually elapsed when the bound was chosen — it is sampling "
+                      "the clock after the read burned the bound.\n%s"
+                      % (render_check._CLEAN_RUN_COST, saidN[-900:]))
+        self.assertEqual(vN.get("diedAtRunAge"), round(render_check._CLEAN_RUN_COST, 1),
+                         "the record puts the death at run age %r, not at the %.1fs of clean pass "
+                         "that preceded it" % (vN.get("diedAtRunAge"),
+                                               render_check._CLEAN_RUN_COST))
+
+        # ── the tail summary a skimming reader actually sees must vary too ──────────────────
+        self.assertIn("the browser went away", said0,
+                      "the ABORT summary stopped naming a genuinely lost browser\n%s"
+                      % said0[-600:])
+        self.assertNotIn("the browser went away", saidN,
+                         "the ABORT summary still claims the browser went away after a bound this "
+                         "gate shortened. It is the last line in the log and the one a skimming "
+                         "reader keeps.\n%s" % saidN[-600:])
+
+        # ── and the durable record, or the heart reads one fact as the other ────────────────
+        self.assertEqual((v0.get("budgetShortened"), vN.get("budgetShortened")), (False, True),
+                         "the .render_verdict.json pair recorded %r — `abortedAt` names the "
+                         "target and cannot say whose bound expired, so a record that does not "
+                         "carry this is a record of the wrong fact"
+                         % ((v0.get("budgetShortened"), vN.get("budgetShortened")),))
+        self.assertEqual(vN.get("diedAtBound"), round(floor, 1),
+                         "the record says the read died at %r, not at the floor %r"
+                         % (vN.get("diedAtBound"), round(floor, 1)))
+
+    def test_the_cost_of_ONE_read_is_finally_measured_and_carries_its_denominator(self):
+        """v3445 — EVERY FLOOR IN THIS FILE WAS DEFENDED WITH THE COST OF A DIFFERENT UNIT.
+
+        `_CDP_READ_FLOOR = 16.0` was documented as "~7x a whole target-width", derived from
+        _CLEAN_RUN_COST / (targets x widths) — the cost of a target-width, which is SEVERAL CDP
+        round trips. The cost of ONE READ, which is the thing the bound actually bounds, had never
+        been recorded anywhere in this tree, so the number that mattered was the one nobody had.
+        This drives the instrument that ends that: a read that ANSWERS is timed, the worst is
+        kept, and n is kept beside it — a worst of 0.0 over 0 reads is a run that never read, not
+        a fast one. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _Clock(object):
+            def __init__(self):
+                self.t = 500.0
+
+            def time(self):
+                return self.t
+
+        class _SlowButAlive(object):
+            """A peer that ANSWERS, after burning `costs` seconds on each reply in turn."""
+
+            def __init__(self, clock, costs):
+                self.clock, self.costs, self.i = clock, list(costs), 0
+
+            def settimeout(self, t):
+                pass
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                self.clock.t += self.costs[self.i]
+                self.i += 1
+                return json.dumps({"id": 1, "result": {"value": 1}})
+
+        _saved = (render_check.time, render_check._RUN_STARTED,
+                  render_check._READ_COST_WORST, render_check._READ_COST_N)
+        try:
+            clock = _Clock()
+            render_check.time = clock
+            render_check._RUN_STARTED = None
+            render_check._READ_COST_WORST, render_check._READ_COST_N = 0.0, 0
+            # the denominator BEFORE anything is read: zero reads, zero worst
+            self.assertEqual((render_check._READ_COST_WORST, render_check._READ_COST_N), (0.0, 0),
+                             "the read meter did not start empty, so whatever it reports below "
+                             "could have come from another case")
+            costs = [0.4, 7.25, 1.1]
+            for c in costs:
+                sock = _SlowButAlive(clock, [c])
+                tab = render_check._Tab.__new__(render_check._Tab)
+                tab.ws, tab.n, tab.page_errors = sock, 0, []
+                tab.send("Runtime.evaluate", expression="1")
+            self.assertEqual(render_check._READ_COST_N, len(costs),
+                             "%d read(s) answered but the meter counted %d — a worst with the "
+                             "wrong denominator is [[zero-needs-a-denominator]] wearing a number"
+                             % (len(costs), render_check._READ_COST_N))
+            self.assertAlmostEqual(render_check._READ_COST_WORST, max(costs), places=6,
+                                   msg="three reads costing %r left a worst of %r — the meter is "
+                                       "not keeping the MAXIMUM, which is the only reading a "
+                                       "floor can be derived from"
+                                       % (costs, render_check._READ_COST_WORST))
+        finally:
+            (render_check.time, render_check._RUN_STARTED,
+             render_check._READ_COST_WORST, render_check._READ_COST_N) = _saved
+
+
+    def test_the_tab_OPENER_records_whose_bound_expired_too_not_just_the_socket(self):
+        """v3445 — THE SAME DEFECT ONE SITE OVER, and the sibling law above could not see it.
+
+        `_Tab.__init__` bounds BOTH of its opens with `_read_bound_now()` (v3438), so a tab opened
+        at t = _CLEAN_RUN_COST gets the FLOOR exactly like a read does. A /json/new that a busy
+        Chrome does not answer inside 16s then propagated out of a constructor that sits OUTSIDE
+        check()'s try, reached main()'s transport arm, and printed `the browser connection was
+        lost` — a claim about Chrome that a bound this file shortened cannot support. Fixing the
+        socket and leaving the opener is the shape this file has already paid for twice.
+        [[sweep-dont-ask]] [[the-unjoined-end]]
+
+        ⚠ DRIVEN THROUGH THE REAL CONSTRUCTOR. urllib is made to raise the URLError a quiet
+        /json/new produces; the bound, the record and the verdict all come from production code.
+        Both arms run, because a marker that is always set says as little as one never set.
+        """
+        import types
+        import urllib.error
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        # ⚠⚠ PROVE THE PREMISE OR THE CASE PASSES — OR FAILS — FOR SOMEONE ELSE'S REASON.
+        # `_Tab.__init__` does `import websocket` BEFORE the urlopen this case drives, so on a
+        # runner without websocket-client the constructor raises ImportError and never reaches
+        # the bound at all. MEASURED with the package blocked: this case ERRORED alone and
+        # PASSED inside the class — because a sibling above it plants a stub module and never
+        # removes it. A green that depends on another test's leftovers is the emptiest kind, and
+        # it would have gone red on CI the day that sibling was renamed. So it stands its own
+        # stub, removes it, and the `len(seen) == 1` assertion below is what proves the
+        # constructor really got as far as the opener. [[feedback-blind-fixture-green-gate]]
+        _planted = False
+        if "websocket" not in sys.modules:
+            try:
+                import websocket  # noqa: F401
+            except Exception:
+                sys.modules["websocket"] = types.ModuleType("websocket")
+                _planted = True
+        self.addCleanup(lambda: _planted and sys.modules.pop("websocket", None))
+
+        floor, patience = render_check._read_floor(), render_check._declared_page_patience()
+
+        class _Clock(object):
+            def __init__(self, t):
+                self.t = 1000.0 + float(t)
+
+            def time(self):
+                return self.t
+
+        def _open_at(spent, arm):
+            """Drive ONE of the constructor's two bounded waits. -> (bound, predicate)
+
+            ⚠ BOTH ARMS, because they are two separate `except` clauses and a case that reaches
+            only the first proves only the first. MEASURED: with this case driving the opener
+            alone, deleting the websocket arm's record STAYED GREEN — a sabotage the test could
+            not reach, which is [[source-reading-guard]] §4c cause (b), not a blind guard.
+            """
+            clock = _Clock(spent)
+            _saved = (render_check.time, render_check._RUN_STARTED, render_check._DIED_AT_BOUND,
+                      render_check._LAST_READ_BOUND)
+            try:
+                render_check.time = clock
+                render_check._RUN_STARTED = 1000.0
+                render_check._DIED_AT_BOUND, render_check._LAST_READ_BOUND = None, None
+                seen = []
+                _blew = urllib.error.URLError("no answer from /json/new")
+
+                def _opener(req, timeout=None):
+                    if arm == "opener":
+                        seen.append(timeout)
+                        raise _blew
+                    return io.BytesIO(b'{"id": "T1", "webSocketDebuggerUrl": "ws://127.0.0.1/x"}')
+
+                def _connect(url, **kw):
+                    seen.append(kw.get("timeout"))
+                    raise _blew
+
+                with mock.patch("urllib.request.urlopen", _opener), \
+                     mock.patch("websocket.create_connection", _connect, create=True):
+                    with self.assertRaises(urllib.error.URLError):
+                        render_check._Tab("file:///dev/null")
+                # ⚠ THE PREMISE. Exactly one bounded wait was entered, and it was the one this
+                # call asked for — without this the case cannot say which arm it measured, and
+                # an ImportError out of the constructor would leave `seen` empty.
+                self.assertEqual(len(seen), 1,
+                                 "the %r arm was driven and %d bounded wait(s) were entered — "
+                                 "this case cannot say which bound it is measuring"
+                                 % (arm, len(seen)))
+                return seen[0], render_check._budget_shortened_the_read()
+            finally:
+                (render_check.time, render_check._RUN_STARTED, render_check._DIED_AT_BOUND,
+                 render_check._LAST_READ_BOUND) = _saved
+
+        for arm in ("opener", "socket"):
+            b0, own0 = _open_at(0.0, arm)
+            bN, ownN = _open_at(render_check._CLEAN_RUN_COST, arm)
+            self._assert_opener_arm(render_check, arm, b0, own0, bN, ownN, floor, patience)
+
+    def _assert_opener_arm(self, render_check, arm, b0, own0, bN, ownN, floor, patience):
+        """The same four questions of whichever bounded wait in _Tab.__init__ was driven."""
+
+        # ⚠ PROVE THE DRIVE FIRST. If the wait were unbounded, or bounded at the same value at
+        # both ends, everything below would be one arm reported twice.
+        self.assertEqual(b0, render_check._CDP_READ_TIMEOUT,
+                         "the %r wait at the START of a run was bounded at %r, not the declared "
+                         "%r" % (arm, b0, render_check._CDP_READ_TIMEOUT))
+        self.assertEqual(bN, floor,
+                         "the %r wait, after a whole clean pass (%.0fs), was bounded at %r rather "
+                         "than the floor %r — the clamp does not reach it, so the case this law "
+                         "exists for was never entered"
+                         % (arm, render_check._CLEAN_RUN_COST, bN, floor))
+
+        self.assertEqual(own0, (False, render_check._CDP_READ_TIMEOUT),
+                         "the %r wait ran out of the FULL declared bound and was blamed on this "
+                         "gate's own budget — got %r. %.0fs of silence is a dead browser."
+                         % (arm, own0, render_check._CDP_READ_TIMEOUT))
+        self.assertEqual(ownN, (True, floor),
+                         "the %r wait was clamped by THIS GATE to %.0fs — below the %.0fs it "
+                         "grants one page operation — and is still recorded as the browser going "
+                         "away: %r. The constructor has TWO bounded waits and each needs its own "
+                         "record; fixing one and leaving the other is how this defect travelled "
+                         "from _ws_recv to here in the first place."
+                         % (arm, floor, patience, ownN))
+
 
 class TestFixedChromeGutterIsReserved(unittest.TestCase):
     """v2221 — content must stop BEFORE the gutter the viewport-anchored chrome sits in.

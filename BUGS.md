@@ -270,6 +270,47 @@ bare name "ps" + close_fds=False  ->  fork_exec x1                      <- dirna
 call in the file forked. The bare-name half is the invisible one: `close_fds=False` alone reads
 like a complete change and still forks.
 
+⛔⛔ **AND THE LAW ABOVE IS TWO CONDITIONS OUT OF FOURTEEN. NOBODY MAY SWEEP ANYTHING AGAINST IT.**
+The three measured rows are true and they are not the law. Read verbatim from
+`inspect.getsource(subprocess.Popen._execute_child)` on the interpreter that runs this repo
+(**CPython 3.9.6**), CPython takes `posix_spawn` only when **every one** of these holds:
+
+```
+_USE_POSIX_SPAWN                     the interpreter was built to use it at all
+os.path.dirname(executable)          argv[0] / executable= must carry a DIRNAME
+preexec_fn is None
+not close_fds                        ⚠ DEFAULTS TO TRUE -> absent == violated
+not pass_fds
+cwd is None                          ⚠ the condition that hid six live git spawns
+p2cread  == -1 or p2cread  > 2       stdin  must not land on fd 0/1/2
+c2pwrite == -1 or c2pwrite > 2       stdout   "
+errwrite == -1 or errwrite > 2       stderr   "
+not start_new_session
+gid  is None                         group=
+gids is None                         extra_groups=
+uid  is None                         user=     ⚠ `uid is None`, NOT `not uid` — user=0 FORKS
+umask < 0
+```
+
+**Nine of the fourteen are reachable from an ordinary call site in this repo**; the identity tail
+(`uid` / `gid` / `gids` / `umask` / `process_group` — 3.11 adds the last) is classified and not yet
+used here. **The count is not typed by hand anywhere**: the gate parses that guard on the running
+interpreter and goes RED if CPython grows a condition it does not model, so a future version cannot
+silently widen the blind spot.
+
+⛔ **THIS IS WHY THE ~100 REMAINING SPAWN SITES MAY NOT BE SWEPT AGAINST THE THREE-ROW TABLE.**
+**MEASURED 2026-09-23** by walking every `tv/*.py` with `ast` and resolving receivers through each
+file's own import aliases: **102 direct `subprocess` spawn sites in production modules** (267
+counting the test files), of which **6 are `console_doctor`'s and already swept** — so **96
+production sites are still ungraded**, the biggest being `control_app.py` (19) and `tv_diablo.py`
+(19). Anyone "fixing" those against a two-condition law would add `close_fds=False`, see the call
+read as repaired, and leave it forking on `cwd=`, on a bare argv0, on `start_new_session=True` or
+on `stdout=1`. **A partial law applied at scale manufactures confident wrong fixes faster than the
+defect spreads.** Use the classifier in
+`tv/test_the_doctor_never_forks_a_quartz_process.py` (`spawn_sites(src)` returns FORKS / SPAWNS /
+UNKNOWN per site with the violated conditions named) — and treat **UNKNOWN as ungraded, never as
+clean**. [[the-cure-that-kills-the-patient]] [[unknown-stays-unknown]]
+
 ⚠⚠ **AND THE CLASS LAW FOUND FIVE MORE THE SINGLE FIX HAD MISSED.** Fixing the row I introduced in
 v3421 left `du`, the two sub-doctor runs, `launchctl` and `gh` all forking. Every `subprocess` call
 in `console_doctor` now declares `close_fds`, and bare names go through `_spawnable()`.
@@ -281,13 +322,41 @@ number of a live listening socket answered `CHILD CANNOT SEE FD -> OSError`. The
 still excluded, but on its LIFETIME, not on the fd story. A caution citing a mechanism that does
 not apply is how a real constraint stops being believed.
 
-**Gate** `test_the_doctor_never_forks_a_quartz_process` - 4 cases, **2/2 red-proofs PROVEN**. It
-drives the real syscall, PINS THE PREMISE (that the default shape really does still fork, so the
-main case cannot pass for an unrelated reason), pins the bare-name trap, and carries the CLASS law.
-`cd.run(include_slow=False)` after: **20.9 s, 108 rows, zero missing.**
+**Gate** `test_the_doctor_never_forks_a_quartz_process` - **19 cases, 11/11 red-proofs PROVEN**
+(v3443; was 4 cases / 2 proofs at v3429). It drives the real syscall, PINS THE PREMISE (that the
+default shape really does still fork, so the main case cannot pass for an unrelated reason), pins
+the bare-name trap, and carries the CLASS law. `cd.run(include_slow=False)` after: **20.9 s, 108
+rows, zero missing.**
 
-⚠ **REACH:** this covers `console_doctor`'s own shell-outs. Every other `Popen` in `control_app` is
-the same hazard and is NOT swept yet.
+⚠⚠ **v3443 — THE CLASSIFIER SHIPPED WITH SIX FALSE ALL-CLEARS AND THE CROSS-FAMILY EYE FOUND THEM
+IN TWENTY MINUTES.** v3441 added the nine-condition classifier; v3442 fixed one (identity vs
+truthiness: `user=0` read SPAWNS while CPython tests `uid is None`). **Five more, every one grading
+a FORKING shape as spawn-eligible** — the dangerous direction for a gate whose only job is catching
+forking sites:
+
+| | what it graded SPAWNS while it forks |
+|---|---|
+| **F3** | `_argv0` kept the FIRST assignment and dropped later ones, and the scope reader walked STRAIGHT THROUGH nested `def`s — so `args=[ABS]` then `args=["git"]` was graded on the dead spelling |
+| **F4** | `["/usr/bin/git" if ok else "git"]` collapsed to ABSOLUTE_IF_INSTALLED, which was only a NOTE — and it was not even self-consistent: `{BARE, ABSOLUTE_IF_INSTALLED}` fell through to UNKNOWN, `{BARE, ABSOLUTE}` did not |
+| **F5** | every `os.path.join` mapped to ABSOLUTE. `os.path.join("git")` returns `"git"` |
+| **F6** | any `**kw`-forwarding wrapper was TRANSPARENT and only the CALL SITE was graded — a wrapper doing `kw.setdefault("cwd", REPO)` injects condition six invisibly. **That is `git_quiet`'s exact mechanism**; it is transparent only because `creationflags`/`env`/`startupinfo` cannot move CPython off posix_spawn |
+| **F7** | `from git_quiet import run` binds a DOTTED alias, the module scan did `if "." in mod: continue`, and a forking site of that shape **could not fail this gate at all**. `async def` wrappers were skipped too |
+
+⚠ **F6 and F7 are the STRUCTURAL pair — door DISCOVERY missing a door, the same defect class as the
+receiver allowlist that hid six forking sites until the day before.** F3/F4/F5 mis-grade a door
+that was found; F6/F7 mean it was never found, or was graded on half of itself.
+
+⚠ **EVERY FIX CARRIES A BASELINE, because the cure kills the patient very easily here.** All ten
+live sites go through `_spawnable()` and `git_quiet.run`; a classifier tightened without care
+blanks them all and the gate becomes an alarm nobody can act on. Re-measured after the fixes: the
+same **12 sites, all SPAWNS, zero UNKNOWN** — and each new case asserts the correct shape survives
+(one absolute assignment, a closure reading its enclosing scope, `_PS = "/bin/ps" if
+os.path.exists("/bin/ps") else "ps"`, a real absolute join, a site passing `cwd` itself past a
+`setdefault` wrapper, and git_quiet's own shape). [[the-cure-that-kills-the-patient]]
+
+⚠ **REACH:** this covers `console_doctor`'s own shell-outs. **96 production spawn sites elsewhere
+(19 in `control_app.py`, 19 in `tv_diablo.py`) are the same hazard and are NOT swept** — and see
+the fourteen-condition block above before touching any of them.
 
 ### REG-1155 - #37 WAS BLOCKED BY A MISSING DOOR, AND I ONCE REPORTED IT LIFTED ON A SOURCE READ
 
