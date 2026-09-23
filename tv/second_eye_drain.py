@@ -180,15 +180,13 @@ def drain(limit=None, dry=False, say=print):
         # Found by the cross-family eye on the SHIPPED v3454 bytes. [[the-unjoined-end]]
         _reach_line = got.get("reach")
         notshown = got.get("not shown")
-        reach = {}
-        if _reach_line:
-            reach["line"] = _reach_line
-            for _part in str(_reach_line).split(","):
-                _part = _part.strip()
-                if _part.lower().startswith("absent:"):
-                    reach["absent"] = _part.split(":", 1)[1].strip()
-                elif "/" in _part or _part.endswith(".md"):
-                    reach.setdefault("files", []).append(_part)
+        # ⚠⚠ v3464 — AND A DICT OF STRINGS IS STILL NOT A REACH. The v3457 cut stored the files as
+        # a list of "path got/total" strings, which agreement()'s cut walk cannot read, and split
+        # the line on commas, so every file after the first in `absent: a, b` was filed as READ.
+        # MEASURED over 41 drained rows: 399 per-file sizes invisible, one live cut (v3449, 3.4%)
+        # filed as agreement. ONE parser, shared with the ledger's reader. [[copy-drift]]
+        reach, absent = _led.reach_from_line(_reach_line)
+        reach = reach or {}
         if notshown:
             # ⚠ ITS OWN KEY, not concatenated onto the reach line. "what was NOT shown" is the half
             # that tells a consumer the look was partial, and burying it inside a sentence makes it
@@ -214,6 +212,9 @@ def drain(limit=None, dry=False, say=print):
             # thorough one. chars is measured; fences is not ours to claim.
             sent=({"chars": n, "fences": 0, "unsent": []} if n is not None else None),
             reach=reach,
+            # v3464 — WHAT THE SEAT DID NOT SEE. Omitted, blind_to() returned None for every
+            # drained look (0 of 41 carried it). None stays None when the line never said.
+            absent=absent,
             answer_head=got.get("findings") or "",
             asked="posted by the #%d seat; this row is a COPY of what it said, not a re-judgement"
                   % ISSUE,
@@ -224,8 +225,17 @@ def drain(limit=None, dry=False, say=print):
             % (ver, (sha or "no-sha")[:8], verdict, got.get("model"), n, got["_id"]))
 
     if not fresh:
-        say("  nothing new to record. That is a measured zero — %d look(s) were read and all were "
-            "already filed." % len(looks))
+        # ⚠ v3464 — "measured zero" ONLY when every look was read AND already filed. A refused
+        # look (no version) or a comment that did not parse is not "already filed", and calling
+        # it so is the collapse this drain's own header forbids. Named on v3454 AND v3457.
+        _filed = len(looks) - len(no_version)
+        if looks and _filed == len(looks):
+            say("  nothing new to record. That is a measured zero — %d look(s) were read and all "
+                "were already filed." % len(looks))
+        else:
+            say("  nothing new recorded — NOT a measured zero: %d look(s) already filed, %d REFUSED "
+                "(no version), %d comment(s) did not parse as a look."
+                % (_filed, len(no_version), len(rows) - len(looks)))
     return {"ok": True, "read": len(rows), "looks": len(looks),
             "new": len(fresh), "recorded": written,
             "noVersion": len(no_version),

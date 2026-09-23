@@ -752,6 +752,55 @@ def _kinds_for(absent, given, sha):
     return dict((f, absent_kind(sha, f)) for f in absent)
 
 
+#: v3464 — the #231 seat writes reach as ONE LINE of text: `path got/total, …, absent: a, b`
+#: (or a `- path got/total` bullet list ending in `absent: none`). The local lane writes the
+#: structured form `{path: {"got", "total"}}` directly. This is the ONE parser between the two.
+_REACH_FILE = re.compile(r"(?<![\w./-])([\w.-][\w./-]*\.[A-Za-z0-9]+)\s+(\d+)\s*/\s*(\d+)(?![\w/])")
+_REACH_ABSENT = re.compile(r"\babsent:\s*(.*)\Z", re.S | re.I)
+_REACH_NONE = frozenset(("none", "nothing", "-", "n/a"))
+
+
+def reach_from_line(line):
+    """The seat's reach LINE -> (reach dict | None, absent list | None). ONE parser, two callers.
+
+    ⚠⚠ v3464 — THE DRAIN STORED THE LINE AND agreement() COULD NOT READ IT. Found by the
+    cross-family eye on the SHIPPED v3457 bytes (four findings on this path), then MEASURED over
+    the 41 drained rows: 399 per-file sizes sat inside a string, so the cut walk below — which
+    needs `{path: {"got", "total"}}` — skipped every one, and v3449's look, which held 810 of
+    23,523 bytes (3.4%) of the file it reviewed, was filed as full agreement.
+
+    The reach dict is the SAME SHAPE second_eye_run.reach_of() writes, plus the original `line`
+    kept verbatim. `absent`: a list when the seat SAID (`absent: none` is a measured []), None
+    when the line never mentions it — nobody said, which is not the same as nothing missing.
+    ⚠ Everything after `absent:` is absent. The first cut split the whole line on commas and
+    filed every file after the first as READ. [[unknown-stays-unknown]] [[copy-drift]]
+    """
+    if not line:
+        return None, None
+    s = str(line)
+    reach = {"line": s}
+    m = _REACH_ABSENT.search(s)
+    for fm in _REACH_FILE.finditer(s[:m.start()] if m else s):
+        reach[fm.group(1)] = {"got": int(fm.group(2)), "total": int(fm.group(3))}
+    absent = None
+    if m:
+        tail = m.group(1).strip().rstrip(".")
+        absent = ([] if tail.lower() in _REACH_NONE
+                  else [p.strip() for p in re.split(r"[,\n]", tail) if p.strip()])
+    return reach, absent
+
+
+def _absent_of(row):
+    """A row's absent list: the stored field, else what its own reach LINE said. -> list | None"""
+    ab = row.get("absent")
+    if ab is not None:
+        return ab
+    rc = row.get("reach")
+    if isinstance(rc, dict) and rc.get("line"):
+        return reach_from_line(rc["line"])[1]
+    return None
+
+
 def blind_to(row):
     """The absent files this look genuinely missed -> list, or None when reach was never recorded.
 
@@ -761,7 +810,7 @@ def blind_to(row):
     missed anything a reviewer could have held an opinion about. A warning that fires on every row
     carries no information. [[regression-guard]] [[zero-needs-a-denominator]]
     """
-    ab = row.get("absent")
+    ab = _absent_of(row)
     if ab is None:
         return None
     kinds = row.get("absentKind") or {}
@@ -905,6 +954,10 @@ def agreement(version, path=None):
         _rc = _r.get("reach")
         if not isinstance(_rc, dict):
             continue
+        if _rc.get("line") and not any(isinstance(v, dict) for v in _rc.values()):
+            # v3464 — a row drained before the parser existed carries only the seat's LINE.
+            # Structure it with the same function the drain now uses at write time.
+            _rc = reach_from_line(_rc["line"])[0] or _rc
         _n = sorted(p for p, v in _rc.items()
                     if isinstance(v, dict) and (v.get("total") or 0) > 0
                     and float(v.get("got") or 0) / float(v["total"]) < REACH_CUT_BAR)
@@ -913,7 +966,7 @@ def agreement(version, path=None):
     _cut = [r for r in reached if id(r) in _cutmap]
     _blind = dict((id(r), blind_to(r)) for r in reached)
     _partial = [r for r in reached if _blind[id(r)]]
-    _unknown_reach = [r for r in reached if r.get("absent") is None]
+    _unknown_reach = [r for r in reached if _absent_of(r) is None]
     _pnote = ""
     if _cut:
         _cn = sorted(set(f for r in _cut for f in _cutmap[id(r)]))

@@ -284,7 +284,9 @@ RED_PROOF = [
     {
         "why": "counting a never-measured row as partial invents a finding about 860 old looks",
         "file": "tv/second_eye_ledger.py",
-        "find": '    _unknown_reach = [r for r in reached if r.get("absent") is None]',
+        # v3464 — RE-ANCHORED: v3464 routes this through _absent_of() (a row's absent list, else
+        # what its own reach LINE said), so the old anchor matched ZERO times. Same property.
+        "find": '    _unknown_reach = [r for r in reached if _absent_of(r) is None]',
         "replace": "    _unknown_reach = []",
         "matches": 1,
     },

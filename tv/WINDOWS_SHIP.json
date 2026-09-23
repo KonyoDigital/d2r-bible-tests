@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3463",
+  "ver": "v3464",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3463: 3 red-proofs re-anchored (1323 of 1323 well formed), handoff row declared in WATCHES, ci_sim unreadable file is UNKNOWN not empty data (ratchet back to 69)",
+  "note": "v3464: one reach parser for the drain and for agreement: 399 per-file sizes recovered, the v3449 3.4 percent look is now a cut, absent is passed, refused looks are not a measured zero",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

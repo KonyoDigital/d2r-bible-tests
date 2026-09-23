@@ -201,5 +201,136 @@ class AGitHubLookBecomesALedgerRow(unittest.TestCase):
                          "skip whatever this consumed")
 
 
+class ADrainedLookKeepsItsReach(unittest.TestCase):
+    """v3464 — the cross-family eye on the SHIPPED v3457 bytes named four holes on this path, and
+    every one of them survived this file: "deleting the reach parser leaves the suite green".
+    These cases DRIVE the drain and the ledger's reader; none of them reads source text.
+    [[a-law-about-a-row-must-drive-the-row]]"""
+
+    def _drain_one(self, reach_line):
+        wrote = []
+        body = _REAL.replace("reach: tv/render_check.py 24944/24944, absent: none",
+                             "reach: " + reach_line)
+        real_gh, real_rec, real_seen = D._handoff._gh, D._led.record, D.already_recorded
+        try:
+            D._handoff._gh = lambda *_a, **_k: [{"id": 990001, "created_at": "2026-09-24T00:00:00Z",
+                                                 "body": body}]
+            D._led.record = lambda **kw: wrote.append(kw) or {}
+            D.already_recorded = lambda: set()
+            D.drain(say=lambda *_a: None)
+        finally:
+            D._handoff._gh, D._led.record, D.already_recorded = real_gh, real_rec, real_seen
+        self.assertEqual(len(wrote), 1, "the drain did not file the look")
+        return wrote[0]
+
+    def test_a_partial_file_reaches_the_ledger_as_got_and_total(self):
+        kw = self._drain_one("tv/x.py 810/23523, tv/y.py 40/40, absent: none")
+        reach = kw.get("reach") or {}
+        self.assertEqual(reach.get("tv/x.py"), {"got": 810, "total": 23523},
+                         "the seat said it held 810 of 23,523 bytes of tv/x.py and the row does not "
+                         "carry that as a size agreement() can read: %r" % (reach,))
+        self.assertEqual(reach.get("tv/y.py"), {"got": 40, "total": 40})
+
+    def test_every_file_after_absent_stays_absent(self):
+        kw = self._drain_one("tv/a.py 5/5, absent: tv/b.py, tv/c.py")
+        self.assertEqual(kw.get("absent"), ["tv/b.py", "tv/c.py"],
+                         "the seat named two files it never saw and the row kept %r"
+                         % (kw.get("absent"),))
+        self.assertNotIn("tv/c.py", kw.get("reach") or {},
+                         "a file the seat said was ABSENT was filed as one it read")
+
+    def test_absent_none_is_measured_and_silence_is_unknown(self):
+        self.assertEqual(self._drain_one("tv/a.py 5/5, absent: none").get("absent"), [],
+                         "`absent: none` is a measurement — the seat looked and nothing was missing")
+        self.assertIsNone(self._drain_one("tv/a.py 5/5").get("absent"),
+                          "a reach line that never mentions absent is UNKNOWN, not 'nothing missing'")
+
+    def test_a_drained_partial_look_is_seen_by_agreement(self):
+        import tempfile
+        d = tempfile.mkdtemp(prefix="se-reach-")
+        try:
+            led = os.path.join(d, "ledger.jsonl")
+            reach, absent = L.reach_from_line("tv/x.py 810/23523, absent: none")
+            L.record(version="v9901", model="grok-4.7", verdict="clean", findings=[],
+                     sha=None, reached=True, reach=reach, absent=absent, path=led)
+            got = L.agreement("v9901", path=led)
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(got.get("cut"), 1,
+                         "a look that held 3.4%% of the file it reviewed was not counted as cut: %r"
+                         % (got,))
+
+    def test_a_row_drained_before_the_parser_is_still_read_for_cuts(self):
+        """The ledger is append-only and the drain is idempotent, so a writer-only fix would leave
+        the 41 existing rows — v3449's 3.4% look among them — invisible forever."""
+        import tempfile
+        d = tempfile.mkdtemp(prefix="se-legacy-")
+        try:
+            led = os.path.join(d, "ledger.jsonl")
+            L.record(version="v9902", model="grok-4.7", verdict="clean", findings=[], sha=None,
+                     reached=True, reach={"line": "tv/x.py 810/23523, absent: none"}, path=led)
+            got = L.agreement("v9902", path=led)
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(got.get("cut"), 1, "a legacy drained row's cut stayed invisible: %r" % (got,))
+        self.assertEqual(got.get("reachUnknown"), 0,
+                         "its own line says `absent: none` and the row still reads reach-UNKNOWN")
+
+    def test_refused_looks_are_not_called_a_measured_zero(self):
+        said = []
+        real_gh, real_seen = D._handoff._gh, D.already_recorded
+        try:
+            D._handoff._gh = lambda *_a, **_k: [{"id": 990002, "created_at": "2026-09-24T00:00:00Z",
+                                                 "body": _NO_VERSION}]
+            D.already_recorded = lambda: set()
+            D.drain(say=said.append)
+        finally:
+            D._handoff._gh, D.already_recorded = real_gh, real_seen
+        self.assertFalse(any("measured zero —" in s for s in said),
+                         "a REFUSED look was reported as 'already filed, a measured zero': %r"
+                         % (said,))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "v3464 — back to storing the LINE only: per-file sizes invisible to agreement()",
+        "file": "tv/second_eye_drain.py",
+        "find": "        reach, absent = _led.reach_from_line(_reach_line)\n",
+        "replace": "        reach, absent = ({\"line\": _reach_line} if _reach_line else None), None\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3464 — drop absent= from the record call: blind_to() None on every drained look",
+        "file": "tv/second_eye_drain.py",
+        "find": "            absent=absent,\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3464 — the comma split: every file after the first in `absent: a, b` filed as read",
+        "file": "tv/second_eye_ledger.py",
+        "find": "[p.strip() for p in re.split(r\"[,\\n]\", tail) if p.strip()])",
+        "replace": "[tail.split(\",\")[0].strip()])",
+        "matches": 1,
+    },
+    {
+        "why": "v3464 — legacy rows not structured: v3449's 3.4% look stays filed as agreement",
+        "file": "tv/second_eye_ledger.py",
+        "find": "        if _rc.get(\"line\") and not any(isinstance(v, dict) for v in _rc.values()):\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3464 — a refused look called 'already filed, a measured zero'",
+        "file": "tv/second_eye_drain.py",
+        "find": "        if looks and _filed == len(looks):\n",
+        "replace": "        if True:\n",
+        "matches": 1,
+    },
+]

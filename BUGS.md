@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1164 - THE DRAIN KEPT THE REACH AS A SENTENCE, SO A 3.4% LOOK WAS FILED AS AGREEMENT
+
+**v3464 - the cross-family eye on the SHIPPED v3457 bytes, four findings, all reproduced.**
+
+`second_eye_drain` stored the #231 seat's reach LINE plus a list of `"path got/total"` strings.
+`agreement()`'s cut walk reads only `{path: {"got", "total"}}` — the shape the local lane writes —
+so it skipped every drained row. MEASURED over the 41 drained rows: **399 per-file sizes** sat inside
+strings, and v3449's look, which held **810 of 23,523 bytes (3.4%)** of the file it reviewed, read
+as full agreement. The same path never passed `absent=` (0 of 41 rows carried it), split
+`absent: a, b` on commas so every file after the first was filed as READ, and told a run whose looks
+were all REFUSED that it was "a measured zero — already filed".
+
+**One parser, two callers:** `second_eye_ledger.reach_from_line()` is used by the drain at write
+time AND by `agreement()` for the 41 legacy rows, because the ledger is append-only and the drain is
+idempotent — a writer-only fix would have left v3449's cut invisible forever. 6 driven cases,
+5 red-proofs, all PROVEN red by `heart2 --prove`.
+
 ### REG-1163 - AN EDIT TO A LINE ORPHANED A PROOF THAT LIVES IN SOMEONE ELSE'S FILE — THREE TIMES
 
 **v3463 - found by reading CI on the live ref (6e58c9e6) by DELTA, not by a local gate.**
