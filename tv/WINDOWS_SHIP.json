@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3450",
+  "ver": "v3451",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3450: HEART: the reducer is a READ-SIDE report with no console surface, so there is nothing new for the heart to watch — and that is itself recorded as owed on board 188, which says a doctor row should consume it. Until that row exists this remains a CLI report, and the gate test_a_shadow_log_nobody_read_is_not_agreement is what watches it. — names_key mapped None to the truthy string none, so a null element BECAME an item called none; and a repeated name was a disagreement the per-name breakdown could not explain, because the shape chain compares sets. Both directions wrong at once. The writer-key reader unioned every dict in the function including nested ones, so the join law could be satisfied by a key the writer never writes; it now follows the dict actually written. And the reducer publishes the HONEST DENOMINATOR: 1596 rows are 165 frames, reads_per_frame 9.7, beside the inflated figure rather than replacing it.",
+  "note": "v3451: HEART: this changes CI and a simulator, not a surface on his console. The watcher here IS the verdict job, and test_a_cut_off_gate_set_is_not_a_verdict drives it. bible.html moves only for the version stamp. — The verdict job announced GATES RED on result == failure alone. A job is failure when ANY step fails, and two paths reach it with the gate set never having run: Install Chromium has timeout-minutes 6 and no continue-on-error, so the gate set is SKIPPED, GATE_SET_SECONDS is never written, the always() watchdog says NO VERDICT and exits 1 — one run emitting both NO VERDICT and GATES RED about a gate set that never started. The gate-set step now publishes reached and red as job outputs and the verdict reads the FACT. A red that is sometimes fiction trains a reader to ignore reds. Found by the cross-family eye on the SHIPPED v3446 bytes at 122,996 chars. Also ci_sim can now express a host dependency that is not a module attribute.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
