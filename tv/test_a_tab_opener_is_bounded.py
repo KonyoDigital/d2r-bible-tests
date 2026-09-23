@@ -47,6 +47,17 @@ WHAT THIS GATE ASSERTS, AND WHY IT IS SHAPED THIS WAY
     within a ceiling. It proves its own premise first (connect succeeds, read times out), because
     a case that silently failed to reproduce the hang would pass for the wrong reason and could not
     tell a working bound from an unreachable line. [[a-probe-licenses-only-what-it-tested]]
+7. **A CASE THAT CANNOT REACH THE LINE IS UNMEASURED, NOT PASSED.** Measured 2026-09-23 (#185):
+    `fetch_via_cdp` runs `import websocket` — a THIRD-PARTY module — on the line *before* the
+    urlopen. With websocket-client absent, that ImportError satisfies BOTH of the driven case's
+    assertions (it raised; it was fast), so the case went **GREEN in 0.75 s over a deliberately
+    UNBOUNDED opener** that the very same case failed in 12.78 s with the module installed. It
+    proved its SOCKET premise and never its IMPORT premise. So the import premise is asserted
+    FIRST, and when it does not hold the case reports **UNMEASURED** and this file exits 77 — the
+    gate set's "could not run" code. `test_a_tab_opener_is_bounded` declares `skip_ok=()`, so
+    run_gates counts an undeclared skip with the FAILURES rather than printing a tick beside it.
+    **"I could not run" must never read the same as "I ran and it was fine."**
+    [[unknown-stays-unknown]] [[a-probe-licenses-only-what-it-tested]]
 """
 import ast
 import inspect
@@ -72,6 +83,37 @@ _console_safe_enable()
 
 SUBJECT = "roster_sync.py"
 TARGET = "urllib.request.urlopen"
+SKIP_EXIT = 77          # "this could not run" — must match SKIP_EXIT in tv/run_gates.py
+
+
+def websocket_premise():
+    """Can the `import websocket` that runs BEFORE the urlopen actually succeed? -> (bool, str)
+
+    `fetch_via_cdp` opens with three imports and the third is third-party:
+
+        import time
+        import urllib.request
+        import websocket          # <- roster_sync.py:132, ABOVE the urlopen this gate judges
+
+    So an absent websocket-client raises ImportError from a line the subject reaches FIRST, and to
+    a case that asserts only "it raised, and it was quick" that raise is indistinguishable from the
+    deadline it exists to measure. Asked of the interpreter, never assumed: a gate may not decide
+    it has a dependency. [[a-probe-licenses-only-what-it-tested]]
+    """
+    try:
+        import websocket
+    except BaseException as exc:            # noqa: BLE001 — any failure to import is absence
+        return False, "`import websocket` raised %s: %s" % (type(exc).__name__, exc)
+    # ⚠ AND THAT IS THE WHOLE PREMISE — deliberately NOT "is this really websocket-client".
+    # The first cut also demanded `create_connection`, and that is a guard that cries wolf: a
+    # NAMESAKE module (the name is taken by other packages) leaves `import websocket` succeeding,
+    # so the subject reaches the urlopen and this case measures it perfectly well. MEASURED with a
+    # stub module bound to the name: against an UNBOUNDED source the case still failed in 12.775s,
+    # and against the bounded one it passed in 1.77s. Refusing that run as UNMEASURED would have
+    # been a red gate over a working measurement, and a row that cries wolf gets silenced.
+    # The premise this case needs is exactly "the import above the urlopen does not raise".
+    return True, "importable: %s %s" % (getattr(websocket, "__name__", "websocket"),
+                                        getattr(websocket, "__file__", "?"))
 
 
 # ── the analyser ─────────────────────────────────────────────────────────────────────────────
@@ -269,6 +311,25 @@ class TestATabOpenerIsBounded(unittest.TestCase):
         The hang is run on a daemon thread on purpose: without a bound, the call never returns, and
         a case that waited for it would BE the defect. The ceiling is what fails.
         """
+        # ── PREMISE 1 OF 2 — THE IMPORT. Without it, every assertion below is vacuous ──────
+        # fetch_via_cdp runs `import websocket` on the line ABOVE the urlopen. With the module
+        # absent that ImportError satisfies "raised" AND "fast" — the two assertions at the foot
+        # of this case — so an UNBOUNDED opener passed here in 0.75s while the identical source
+        # failed in 12.78s with the module installed (measured, #185). A skip is not a pass, so
+        # this gets its OWN state: UNMEASURED, and the runner below turns it into exit 77.
+        ws_ok, ws_detail = websocket_premise()
+        print("\n  import premise: %s — %s" % ("OK" if ws_ok else "UNMEASURED", ws_detail))
+        if not ws_ok:
+            why = ("UNMEASURED: websocket-client is not importable, so fetch_via_cdp raises "
+                   "ImportError at roster_sync.py:132 — the line BEFORE the urlopen under test — "
+                   "and this case cannot reach the call it is supposed to judge. Its own "
+                   "assertions would be satisfied by that ImportError, i.e. it would go green "
+                   "over an unbounded opener. [%s] Fix: pip install websocket-client (CI installs "
+                   "it in .github/workflows/tv-tests.yml). THIS IS NOT A PASS — the file exits %d."
+                   % (ws_detail, SKIP_EXIT))
+            print("  \u26a0 " + why)
+            self.skipTest(why)
+
         import roster_sync
 
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -301,6 +362,7 @@ class TestATabOpenerIsBounded(unittest.TestCase):
                     roster_sync.fetch_via_cdp(port=port, timeout=1.0)
                     box["outcome"] = ("returned", None)
                 except BaseException as exc:                      # noqa: BLE001 — any raise is fine
+                    box["exc_type"] = type(exc)
                     box["outcome"] = ("raised", "%s: %s" % (type(exc).__name__, exc))
                 box["secs"] = time.time() - t0
 
@@ -316,6 +378,17 @@ class TestATabOpenerIsBounded(unittest.TestCase):
                           "unbounded urlopen: no exception, no log line, no ceiling — the caller "
                           "is simply gone." % waited)
             kind, detail = box["outcome"]
+            # The same vacuity from the other side, and INDEPENDENT of the premise check above on
+            # purpose — one of the two is allowed to be wrong. An ImportError coming back here can
+            # only have come from the `import websocket` ABOVE the urlopen, so the call under test
+            # never ran and "it raised, quickly" is a statement about nothing.
+            if kind == "raised" and box.get("exc_type") is not None and issubclass(
+                    box["exc_type"], ImportError):
+                self.fail("fetch_via_cdp raised %s, which comes from the import block ABOVE the "
+                          "urlopen (roster_sync.py:130-132) — the call under test was never "
+                          "reached, so this case measured NOTHING about the bound and must not "
+                          "read as a pass. Install websocket-client and run it again. (%s)"
+                          % (box["exc_type"].__name__, detail))
             self.assertEqual(kind, "raised",
                              "fetch_via_cdp RETURNED from a socket that never sent a byte — the "
                              "premise of this case is broken, not the bound")
@@ -360,4 +433,18 @@ RED_PROOF = [
 ]
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # THE EXIT CODE IS THE VERDICT, AND IT HAS THREE STATES. `unittest.main()` exits 0 on a run
+    # whose only non-pass was a SKIP, which is precisely how "I could not measure the law" becomes
+    # a green gate — the lie this file's docstring point 7 exists to forbid. 77 is the gate set's
+    # "could not run" (SKIP_EXIT in tv/run_gates.py); this gate is registered with `skip_ok=()`,
+    # so run_gates shows SKIP and counts it with the FAILURES rather than printing a tick.
+    _res = unittest.main(verbosity=2, exit=False).result
+    if not _res.wasSuccessful():
+        sys.exit(1)
+    if _res.skipped:
+        print("\n\u26a0 UNMEASURED - %d case(s) did not run, so this gate certifies NOTHING "
+              "about them. Exiting %d, never 0." % (len(_res.skipped), SKIP_EXIT))
+        for _t, _why in _res.skipped:
+            print("    - %s\n      %s" % (_t, _why))
+        sys.exit(SKIP_EXIT)
+    sys.exit(0)
