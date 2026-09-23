@@ -31406,12 +31406,36 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                       "the CDP websocket is created with NO timeout, so recv() blocks forever and "
                       "render_check.py's own UNKNOWN arm for a stalled browser can never fire. A "
                       "silent socket then reads as a 300s hang that names no link.")
-        self.assertIsInstance(kw["timeout"], ast.Name,
-                              "the read bound must be the named module constant, not a literal "
-                              "spelled at the call site where nothing can state its derivation")
-        self.assertEqual(kw["timeout"].id, "_CDP_READ_TIMEOUT",
-                         "the read bound must be _CDP_READ_TIMEOUT, whose comment carries the "
-                         "measurement it was derived from")
+        # ⚠⚠ v3438 — THE BOUND IS DERIVED NOW, AND THE LAW IS STILL "NEVER A LITERAL HERE".
+        # It used to be the bare name `_CDP_READ_TIMEOUT`. It is `_read_bound_now()`, which
+        # returns that constant when no run is in flight and clamps it by what is LEFT of the
+        # run when one is — because the thing that gets killed is the run, not the read. A
+        # literal at the call site is still refused (nothing there can state its derivation),
+        # and so is any other name: a second opinion about the bound is how a sibling gets a
+        # hardcoded 12.0 while the target declares 30. [[copy-drift]]
+        self.assertIsInstance(kw["timeout"], ast.Call,
+                              "the read bound must be this file's own derived bound, not a "
+                              "literal and not a bare constant that knows nothing about how "
+                              "much of the run's budget is already spent")
+        _f = kw["timeout"].func
+        self.assertTrue(isinstance(_f, ast.Name) and _f.id == "_read_bound_now",
+                        "the CDP socket is bounded by %r, not by _read_bound_now() — a second "
+                        "spelling of the bound is a second opinion about it"
+                        % (getattr(_f, "id", None) or getattr(_f, "attr", None),))
+
+        # ⚠ AND JOIN THE NAME TO THE VALUE. Parsing proves the bytes; it cannot prove the
+        # function returns the constant whose comment carries the measurement. Drive it.
+        sys.path.insert(0, self.TV)
+        import render_check
+        _saved = render_check._RUN_STARTED
+        render_check._RUN_STARTED = None          # no run in flight: the declared bound stands
+        try:
+            self.assertEqual(render_check._read_bound_now(), render_check._CDP_READ_TIMEOUT,
+                             "with no run in flight the derived bound must BE "
+                             "_CDP_READ_TIMEOUT, whose comment carries the measurement it was "
+                             "derived from — anything else is a bound with no stated origin")
+        finally:
+            render_check._RUN_STARTED = _saved
 
     def test_a_dead_transport_is_answered_instantly_and_never_re_read(self):
         """THE COUNT IS THE ASSERTION: one stalled target costs ONE read, not four.
@@ -31442,6 +31466,17 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                 self.shut_direction = 0
                 self.connected = True
                 self.fd_open = True
+                self.bounds = []
+
+            # ⚠⚠ v3438 — THE LIBRARY HAS settimeout() AND SO MUST THE STUB. websocket-client
+            # 1.9.0: `def settimeout(self, timeout)` sets sock_opt.timeout and, when the fd
+            # exists, the socket's own. render_check re-derives the bound PER READ now, so a
+            # stub without this method would make every case here fail on an AttributeError
+            # the real socket cannot raise — and "a stub kinder than the library is a fixture
+            # that hides the defect" cuts both ways. Recorded, so the bound can be ASSERTED
+            # rather than assumed to have been passed.
+            def settimeout(self, t):
+                self.bounds.append(t)
 
             def send(self, payload):
                 self.sends += 1
@@ -31491,6 +31526,12 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "a quiet socket was read %d time(s) across 4 sends. Each read costs the "
                          "full bound, so N probes = N x bound and the gate is killed before it "
                          "can report. It must be read exactly ONCE." % tab.ws.recvs)
+        # ⚠ v3438 — AND THAT ONE READ CARRIED A BOUND. "read once" and "read with a deadline"
+        # are two facts, and the expensive half of the v3434 stall was the second one.
+        self.assertEqual(tab.ws.bounds, [render_check._CDP_READ_TIMEOUT],
+                         "the single read was issued with bounds %r — it must be bounded, once, "
+                         "with the declared bound (no run is in flight here, so nothing clamps "
+                         "it)" % (tab.ws.bounds,))
 
         tab.close()
         # ⚠ ASSERT THE FD IS RELEASED, not that a method was called. v3436 asserted the CALL and
@@ -31519,6 +31560,10 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         class _LiveSocket(object):
             def __init__(self):
                 self.replies = 0
+                self.bounds = []
+
+            def settimeout(self, t):        # the real WebSocket has it; see _QuietSocket
+                self.bounds.append(t)
 
             def send(self, payload):
                 pass
@@ -31544,6 +31589,9 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         # arm and `dead` is set — which would make check()'s three v3051 probes get skipped on a
         # perfectly LIVE socket. [[the-cure-that-kills-the-patient]]
         class _RudeSocket(object):
+            def settimeout(self, t):
+                pass
+
             def send(self, payload):
                 pass
 
@@ -31567,6 +31615,9 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         # sabotage (widening only _ws_send) stayed GREEN until this existed. Two arms, two cases:
         # a law that covers one method of a pair is a law with a hole in it.
         class _RudeWriter(object):
+            def settimeout(self, t):
+                pass
+
             def send(self, payload):
                 raise ValueError("not a transport failure — a bad frame on the way out")
 
@@ -31626,6 +31677,10 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                 self.recvs = 0
                 self.connected = True
                 self.fd_open = True
+                self.bounds = []
+
+            def settimeout(self, t):        # the real WebSocket has it; see _QuietSocket
+                self.bounds.append(t)
 
             def send(self, payload):
                 pass
@@ -31688,19 +31743,456 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "FOREVER by default, so a Chrome that accepts the connection and never "
                          "answers hangs the gate with no link named" % unbounded)
 
-    def test_the_read_bound_sits_under_the_prepush_render_bound(self):
-        """PIN THE LAW, NOT THE NUMBER — and the law is about WALL CLOCK TO CLASSIFY ONE STALLED
-        TARGET, which is what the previous version of this case got wrong.
+    # ── v3438 · A DEAD BROWSER MUST NOT BE REPORTED AS A DEFECT IN THE PAGE ─────────────────────
+    # The cost of the previous fix, found by a 112-agent audit of the SHIPPED v3436 bytes. AST-
+    # measured on that version: 33 tab.ev()/.send() sites, 18 of them inside a broad
+    # `except Exception` (_reprepare 4/4, _selector_ready 3/3, _take_report 1/1, check 10/23).
+    # v3436 made every later ev() on a dead transport re-raise INSTANTLY — so those broad arms,
+    # which exist to ride out a page-level error, now swallowed the transport failure at full speed
+    # and the selector poll spun out its whole budget in 0.4s naps before returning a confident RED
+    # naming a CSS SELECTOR. About a socket that had gone away. A faster wrong answer.
 
-        It used to assert `2 * _CDP_READ_TIMEOUT <= bound` and claim that let the gate name two
-        stalled targets. It counted reads the CONSTANT IS PASSED TO, not reads a silent socket
-        actually sits in — which was four, for 360s against a 300s bound, so the gate could not
-        name even one. That arithmetic is only true because of the dead-transport short-circuit
-        proven in test_a_dead_transport_is_answered_instantly_and_never_re_read; these two cases
-        are one law and must not be separated.
+    def test_a_dead_browser_is_not_reported_as_a_MISSING_PANEL(self):
+        """DRIVE THE ROW: _selector_ready is CALLED with a dead transport and its verdict read.
 
-        The bound is read out of hooks/pre-push so a retune there cannot silently invalidate this.
-        [[regression-guard]] §4
+        The old shape returned `'#subject' never matched a painted element in 20s after the panel
+        was activated` — a sentence about the surface — and check() turned that into 🔴 plus "LOOK
+        AT THE PNGs", for PNGs that were never written. This asserts the exception LEAVES instead,
+        which is the only thing main()'s UNKNOWN arm can act on.
+        [[a-law-about-a-row-must-drive-the-row]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _QuietSocket(object):
+            def __init__(self):
+                self.recvs = 0
+
+            def settimeout(self, t):
+                pass
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                self.recvs += 1
+                raise TimeoutError("the socket went quiet")
+
+        tab = render_check._Tab.__new__(render_check._Tab)
+        tab.ws = _QuietSocket()
+        tab.n = 0
+        tab.page_errors = []
+
+        _t0 = time.time()
+        with self.assertRaises(TimeoutError, msg=(
+                "_selector_ready swallowed a TRANSPORT failure and answered about the PAGE. The "
+                "browser is gone; '#subject' never matched because nothing could be asked, not "
+                "because the panel is absent.")):
+            render_check._selector_ready(tab, "#subject", budget=1.5)
+        _el = time.time() - _t0
+        # ⚠ AND IT LEFT AT ONCE. A poll that rides the budget out before raising still burns the
+        # gate's clock 20s at a time, per width, which is the budget defect wearing a right answer.
+        self.assertLess(_el, 0.6,
+                        "_selector_ready raised, but only after %.1fs of polling a socket that was "
+                        "already known dead. One stall must cost one bound, not one bound plus "
+                        "every poll budget behind it." % _el)
+        self.assertEqual(tab.ws.recvs, 1,
+                         "the dead socket was read %d time(s) during the poll — the short-circuit "
+                         "is what makes 'one stall == one bound' true" % tab.ws.recvs)
+
+    def test_a_PAGE_error_is_still_ridden_out_by_the_selector_poll(self):
+        """THE HALF THAT KEEPS THE FIX FROM BECOMING THE DISEASE.
+
+        The broad arm in that poll is there for a reason: a probe that throws, a malformed frame, a
+        page mid-navigation. If the new transport arm widened to catch those, every slow-painting
+        panel would raise instead of being waited for, and a target that legitimately takes 15s to
+        build would refuse as UNKNOWN. A guard that cries wolf gets silenced.
+        [[the-cure-that-kills-the-patient]] [[strictness-that-closes-the-lane]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _RudeSocket(object):
+            def __init__(self):
+                self.recvs = 0
+
+            def settimeout(self, t):
+                pass
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                self.recvs += 1
+                raise ValueError("a malformed frame — the socket is alive, the frame is not")
+
+        tab = render_check._Tab.__new__(render_check._Tab)
+        tab.ws = _RudeSocket()
+        tab.n = 0
+        tab.page_errors = []
+
+        why = render_check._selector_ready(tab, "#subject", budget=1.2)
+        self.assertIsNotNone(why, "a NON-transport error made the poll raise or pass. The socket is "
+                                  "alive; only the frame was bad, and riding that out is what the "
+                                  "broad arm is for.")
+        self.assertIn("never matched", why,
+                      "the poll returned %r — it must still be able to say the honest thing about a "
+                      "surface that did not paint" % (why,))
+        self.assertIsNone(tab.dead, "a non-transport error marked the transport dead")
+        self.assertGreater(tab.ws.recvs, 1,
+                           "the poll made %d read(s) — with a live socket it must actually POLL, or "
+                           "this case proves nothing about riding an error out" % tab.ws.recvs)
+
+    def test_check_RAISES_on_a_lost_browser_instead_of_returning_a_selector_refusal(self):
+        """END TO END THROUGH check(), because the two halves above are both reachable from it.
+
+        A scripted socket answers every CDP round trip until the SELECTOR POLL, then goes quiet —
+        the exact v3434 shape. check() must let the transport error out, so main() can report
+        `⚪ UNKNOWN — the browser connection was lost mid-render`. Returning a dict here is the
+        defect: a red verdict about `#subject`, with the PNGs it points at never written.
+
+        ⚠ THE PREMISE IS ASSERTED, NOT ASSUMED. A socket that went quiet at the WRONG call would
+        prove something else entirely, so the expression that triggered the silence is recorded and
+        checked. [[a-probe-licenses-only-what-it-tested]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _ScriptedSocket(object):
+            """Answers everything until the selector poll, then never answers again."""
+
+            def __init__(self):
+                self.last = None
+                self.quiet_from = None
+                self.answers = 0
+
+            def settimeout(self, t):
+                pass
+
+            def send(self, payload):
+                self.last = json.loads(payload)
+
+            def recv(self):
+                msg = self.last or {}
+                expr = ((msg.get("params") or {}).get("expression") or "")
+                if "querySelectorAll" in expr and "getBoundingClientRect" in expr:
+                    if self.quiet_from is None:
+                        self.quiet_from = expr
+                    raise TimeoutError("the socket went quiet")
+                self.answers += 1
+                return json.dumps({"id": msg.get("id"),
+                                   "result": {"result": {"value": 1}}})
+
+            def shutdown(self):
+                pass
+
+        sock = _ScriptedSocket()
+        # ⚠ the REAL class, captured BEFORE the patch below rebinds the name. Reading
+        # `render_check._Tab` from inside the factory reads the factory itself.
+        _TabCls = render_check._Tab
+
+        def _fake_tab(url):
+            t = _TabCls.__new__(_TabCls)
+            t.ws = sock
+            t.n = 0
+            t.page_errors = []
+            return t
+
+        spec = {"why": "a synthetic target that exists only inside this case",
+                "sel": "#subject", "activate": "1", "settles": False, "warmup": 0.05}
+
+        buf = io.StringIO()
+        _t0 = time.time()
+        with mock.patch.object(render_check, "_Tab", _fake_tab):
+            with contextlib.redirect_stdout(buf):
+                try:
+                    out = render_check.check("probe", spec, shots=False)
+                except TimeoutError:
+                    out = None
+        _el = time.time() - _t0
+
+        # the premise FIRST: the socket really did answer real work and really did go quiet at the
+        # selector poll. Without this the case could pass because check() died on round trip one.
+        self.assertGreaterEqual(sock.answers, 5,
+                                "the scripted socket answered only %d round trip(s) — check() never "
+                                "reached the selector poll, so this case measured something else. "
+                                "UNMEASURED, not clean." % sock.answers)
+        self.assertIsNotNone(sock.quiet_from,
+                             "the socket never went quiet — nothing was stalled and this case "
+                             "proves nothing")
+        self.assertIn("#subject", sock.quiet_from,
+                      "the silence began at %r, which is not the selector poll" % sock.quiet_from[:80])
+
+        self.assertIsNone(out,
+                          "check() RETURNED a verdict over a browser that had gone away: %r. Every "
+                          "refusal in it is a sentence about the page, and main() can only turn a "
+                          "raised transport error into ⚪ UNKNOWN."
+                          % ((out or {}).get("refusals"),))
+        self.assertLess(_el, 2.0,
+                        "check() raised, but only after %.1fs — the poll rode its budget out first, "
+                        "so the gate still pays 20s per width for a socket already known dead" % _el)
+
+    def test_every_REACHABLE_broad_handler_in_check_lets_a_lost_browser_out(self):
+        """THE SWEEP, because fixing the site that failed and not the CLASS is this file's own scar.
+
+        The selector poll above is the site that was MEASURED producing a wrong verdict. It is not
+        the only broad `except Exception` a transport failure can land in on the way through
+        check(): the re-preparation closure swallows one and reports A NAVIGATION THAT NEVER
+        HAPPENED, and the activate diagnosis reports one as `(activateWhy itself failed: ...)`,
+        a sentence about the panel. Both are driven here against the REAL closure, and the two
+        sites that were swept and then LEFT ALONE carry the measurement that says why.
+        [[sweep-dont-ask]]
+
+        ⚠ `_selector_ready` is replaced by a shim in two of the three drives — NOT to stand in for
+        the subject, but to REACH it without paying its 12-20s poll budget inside a gate. The
+        subject is the closure the shim hands control to, and each drive asserts the socket went
+        quiet at the expression it was aimed at. [[a-probe-licenses-only-what-it-tested]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _Sock(object):
+            """Answers every CDP round trip except the one `quiet_on` names."""
+
+            def __init__(self, quiet_on, falsy=()):
+                self.quiet_on = quiet_on
+                self.falsy = tuple(falsy)
+                self.last = None
+                self.seen = []
+                self.quiet_from = None
+
+            def settimeout(self, t):
+                pass
+
+            def send(self, payload):
+                self.last = json.loads(payload)
+
+            def recv(self):
+                msg = self.last or {}
+                expr = ((msg.get("params") or {}).get("expression") or "")
+                if expr:
+                    self.seen.append(expr)
+                if expr and self.quiet_on(expr, self.seen):
+                    self.quiet_from = expr
+                    raise TimeoutError("the socket went quiet")
+                v = 0 if any(m in expr for m in self.falsy) else 1
+                return json.dumps({"id": msg.get("id"), "result": {"result": {"value": v}}})
+
+            def shutdown(self):
+                pass
+
+        _TabCls = render_check._Tab
+
+        def _run(sock, spec, shim=None):
+            """check() over a tab whose socket is `sock`. -> (raised?, returned, printed)"""
+            def _fake_tab(url):
+                t = _TabCls.__new__(_TabCls)
+                t.ws = sock
+                t.n = 0
+                t.page_errors = []
+                return t
+
+            buf = io.StringIO()
+            patches = [mock.patch.object(render_check, "_Tab", _fake_tab)]
+            if shim is not None:
+                patches.append(mock.patch.object(render_check, "_selector_ready", shim))
+            with contextlib.ExitStack() as stack:
+                for p in patches:
+                    stack.enter_context(p)
+                with contextlib.redirect_stdout(buf):
+                    try:
+                        return False, render_check.check("probe", spec, shots=False), buf.getvalue()
+                    except TimeoutError:
+                        return True, None, buf.getvalue()
+
+        BASE = {"why": "a synthetic target that exists only inside this case",
+                "sel": "#subject", "activate": "/*ACT*/1", "settles": False, "warmup": 0.05}
+
+        # ── 1. the re-preparation closure ───────────────────────────────────────────────────────
+        # Its whole body sits in one `except Exception: return False`, and False makes
+        # _selector_ready say "the page navigated after preparation and the harness could not
+        # re-prepare it" — a navigation nobody observed, invented by a dead socket.
+        # ⚠⚠ THE ASSERTION IS ON WHAT THE CLOSURE DID, NOT ON WHAT check() RETURNED. Asserting
+        # "check() raised" cannot see this defect: with the arm gone the closure returns False,
+        # the shim carries on, and the WIDTH LOOP's next send re-raises from `self.dead` — so
+        # check() raises either way and the sabotage STAYED GREEN. What actually differs is the
+        # closure's own answer: RAISED, or the False that the real _selector_ready turns into
+        # "the page navigated after preparation and the harness could not re-prepare it" — a
+        # navigation nobody observed. [[sabotage-is-usually-the-wrong-one]]
+        reprep = []
+
+        def _shim_reprepare(tab, sel, budget=20.0, spec=None, token=None, reprepare=None):
+            try:
+                reprep.append(("returned", reprepare()))
+            except TimeoutError:
+                reprep.append(("raised", None))
+                raise
+            return None
+
+        sock = _Sock(lambda e, seen: "/*SEED*/" in e
+                     and sum(1 for x in seen if "/*SEED*/" in x) >= 2)
+        raised, out, said = _run(sock, dict(BASE, seed="/*SEED*/1"), shim=_shim_reprepare)
+        self.assertEqual(len(reprep), 1,
+                         "the shim ran %d time(s) — check() never handed control to its "
+                         "re-preparation closure, so this drive measured nothing. UNMEASURED."
+                         % len(reprep))
+        self.assertIn("/*SEED*/", sock.quiet_from or "",
+                      "the socket went quiet at %r, not inside the re-preparation seed — this "
+                      "drive did not reach its subject" % ((sock.quiet_from or "")[:80],))
+        self.assertEqual(reprep[0][0], "raised",
+                         "the re-preparation closure answered %r over a browser that had gone "
+                         "away. False means 'this page could not be re-prepared', and "
+                         "_selector_ready reports that as a NAVIGATION — a page state nobody "
+                         "observed, invented by a dead socket." % (reprep[0],))
+        self.assertTrue(raised, "the transport error did not leave check() at all\n%s" % said)
+
+        # ── 2. THE TWO SITES THAT ARE DELIBERATELY LEFT BROAD, AND THE MEASUREMENT THAT SAYS SO.
+        # The per-width report tap and the zero-size evidence probe both swallow a transport
+        # failure into a dict. Arms were written for both and BOTH SABOTAGES STAYED GREEN — and
+        # the cause is not a blind guard, it is that there is nothing to observe: every path out
+        # of either site reaches an UNGUARDED read within two statements (the reach probe, the
+        # screenshot, or the next width's Emulation.setDeviceMetricsOverride), which re-raises
+        # from `self.dead` instantly and discards `out` along with it. The arms were reverted
+        # rather than kept as changes nobody can see red, and render_check.py says so at both
+        # sites. [[sabotage-is-usually-the-wrong-one]]
+
+        # ── 3. the activate diagnosis ───────────────────────────────────────────────────────────
+        # activateWhy exists to say WHY a panel did not open. A dead browser is not a reason a
+        # panel did not open, and " — (activateWhy itself failed: TimeoutError)" appended to a
+        # refusal about the panel points the reader at the surface.
+        sock = _Sock(lambda e, seen: "/*AWHY*/" in e, falsy=("/*ACT*/",))
+        raised, out, said = _run(sock, dict(BASE, activate="/*ACT*/0", activate_budget=0.3,
+                                            activateWhy="/*AWHY*/'x'"))
+        self.assertTrue(any("/*ACT*/" in e for e in sock.seen),
+                        "the activate poll never ran, so the activateWhy path was never reached. "
+                        "UNMEASURED, not clean.")
+        self.assertIn("/*AWHY*/", sock.quiet_from or "",
+                      "the socket went quiet at %r, not at the activateWhy expression"
+                      % ((sock.quiet_from or "")[:80],))
+        self.assertTrue(raised,
+                        "check() returned a refusal about the PANEL after the browser went away "
+                        "while it was asking why the panel did not open. %r\n%s"
+                        % ((out or {}).get("refusals"), said))
+
+    # ── v3438 · ONE SILENT CHROME COSTS ONE BOUND, NOT ONE PER TARGET ───────────────────────────
+
+    def test_the_run_ABORTS_at_the_first_transport_death_instead_of_paying_per_target(self):
+        """DRIVEN THROUGH main(), with the REAL target registry as the denominator.
+
+        `dead` is PER INSTANCE. main()'s UNKNOWN arm used to `continue`, and every target builds a
+        NEW _Tab — so a globally silent Chrome paid the read bound ONCE PER TARGET: up to
+        len(TARGETS) x 90s against a 300s kill. The gate was SIGTERMed mid-loop, printed
+        `render HUNG` (a sentence that names no link), and took the shared Chrome down with the
+        process group so crest-loudness refused too. One stall, two failures, neither diagnosed.
+
+        ⚠ THE COUNT IS THE ASSERTION: check() must be entered exactly ONCE.
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        # ⚠ PREMISE. main() returns 2 before the loop when websocket-client is absent, and a case
+        # that never reaches its subject must not read like one that did. The module is only
+        # imported for its NAME here — no socket is opened — so an inert stub is honest, and the
+        # call count below is what proves the loop was actually reached. [[unknown-stays-unknown]]
+        try:
+            import websocket  # noqa: F401
+        except Exception:                                  # pragma: no cover - venue-dependent
+            import types
+            sys.modules["websocket"] = types.ModuleType("websocket")
+        self.assertGreaterEqual(len(render_check.TARGETS), 2,
+                                "the registry holds %d target(s) — 'aborted instead of continuing' "
+                                "cannot be distinguished from 'finished' with fewer than two. "
+                                "UNMEASURED, not clean." % len(render_check.TARGETS))
+
+        calls = []
+
+        def _boom(name, spec, **kw):
+            calls.append(name)
+            raise TimeoutError("the browser went away")
+
+        tmp = tempfile.mkdtemp(prefix="render_verdict-")
+        buf = io.StringIO()
+        _saved = (render_check._RUN_STARTED, render_check._ABORTED_AT)
+        try:
+            with mock.patch.object(render_check, "check", _boom), \
+                 mock.patch.object(render_check, "_chrome_up", lambda: True), \
+                 mock.patch.object(render_check, "HERE", tmp):
+                with contextlib.redirect_stdout(buf):
+                    rc = render_check.main([])
+        finally:
+            render_check._RUN_STARTED, render_check._ABORTED_AT = _saved
+        said = buf.getvalue()
+
+        self.assertEqual(len(calls), 1,
+                         "check() was entered %d time(s) over ONE dead browser. Each entry builds a "
+                         "fresh _Tab and pays the read bound again, so N targets = N x bound: %d x "
+                         "90s against the hook's 300s kill. The run must stop at the first one.\n%s"
+                         % (len(calls), len(render_check.TARGETS), said[-1200:]))
+        self.assertEqual(rc, 2,
+                         "an aborted run exited %r. UNKNOWN is exit 2 — the same code as 'no Chrome "
+                         "at all', because it is the same fact arriving later.\n%s" % (rc, said[-1200:]))
+        self.assertIn(calls[0], said,
+                      "the UNKNOWN line does not NAME the target that died. `render HUNG` naming no "
+                      "link is the whole defect this replaces.\n%s" % said[-1200:])
+        self.assertIn("ABORT", said.upper(),
+                      "the run stopped early and never said so — a shorter run that reads like a "
+                      "complete one is worse than the hang.\n%s" % said[-1200:])
+        # ⚠ AND THE RATCHET MUST NOT SPEAK. Every target after the dead one is absent from
+        # `results`, and _coverage_check reads an absent in-scope target as "a surface this gate
+        # used to watch has gone". Nineteen of those under a lost socket is a count of one kind of
+        # thing absorbing a different kind — the exact defect the comment above it already names.
+        # ⚠ THE FIRST SPELLING OF THIS ASSERTION COULD NOT FAIL. It looked for main()'s own
+        # "N surface(s) the ratchet expected" line, which sits BELOW the aborted return and is
+        # therefore unreachable on this path whatever the ratchet does — a guard aimed at a
+        # line its own subject makes unreachable. Measured: the sabotage that lets the ratchet
+        # judge an aborted run STAYED GREEN. This names what _coverage_check PRINTS.
+        # [[sabotage-is-usually-the-wrong-one]] [[a-law-about-a-row-must-drive-the-row]]
+        self.assertNotIn("did not report at all this run", said,
+                         "an aborted run produced COVERAGE refusals: every target after the "
+                         "dead one is absent from `results`, and absent-because-nobody-looked "
+                         "was reported as a surface that has GONE.\n%s" % said[-1200:])
+
+        # the durable record must carry it too, or the heart reads an aborted run as a partial one
+        _vp = os.path.join(tmp, ".render_verdict.json")
+        self.assertTrue(os.path.isfile(_vp),
+                        "an aborted run wrote no .render_verdict.json, so the PREVIOUS run's file "
+                        "stays on disk and heart2 reads a stale verdict as this one")
+        with io.open(_vp, encoding="utf-8") as fh:
+            _v = json.load(fh)
+        self.assertEqual(_v.get("abortedAt"), calls[0],
+                         "the verdict record says abortedAt=%r — `reported` alone cannot say WHY a "
+                         "target is missing from it" % (_v.get("abortedAt"),))
+        self.assertFalse(_v.get("full"),
+                         "an aborted run recorded itself as a FULL pass, so the ratchet could be "
+                         "blessed from a run that never finished")
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_one_stalled_target_is_CLASSIFIED_before_the_hook_can_kill_the_gate(self):
+        """PIN THE LAW, NOT THE NUMBER — and the law is WALL CLOCK TO CLASSIFY ONE STALLED TARGET.
+
+        ⚠⚠ WHAT THIS REPLACES, AND WHY IT WAS WRONG BOTH TIMES. The first version asserted
+        `2 * _CDP_READ_TIMEOUT <= bound` and claimed that let the gate name two stalled targets. It
+        counted reads THE CONSTANT IS PASSED TO — two of them, in the constructor — not reads a
+        silent socket actually sits in, which was four; 4 x 90 = 360 against a 300s kill, so the
+        gate could not name even one while the assertion read green. Then v3436 made one stall cost
+        ONE read and the arithmetic became TRUE and still wrong: a clean full pass costs 264s
+        (hooks/pre-push's own note), so a socket that goes quiet on the LAST target classifies at
+        264 + 90 = 354 and is killed mid-verdict anyway. Two constants can agree with each other
+        all day and say nothing about the clock.
+        [[a-law-about-a-row-must-drive-the-row]] [[measured-true-read-wrong]]
+
+        So this DRIVES it, on a clock this case owns: a socket that goes quiet burns exactly the
+        bound it was handed — which is what a silent peer does — and the question asked is the one
+        that matters: at what wall-clock time is the target CLASSIFIED, for a stall arriving at any
+        point up to the recorded cost of a clean full pass?
+
+        It drives FOUR sends, not one: the body read plus the three probes check()'s `finally`
+        makes. Those three cost nothing only because of the dead-transport short-circuit, so this
+        case and test_a_dead_transport_is_answered_instantly_and_never_re_read are ONE law — remove
+        either half and this goes red.
+
+        The hook's bound is read out of hooks/pre-push, so a retune there cannot silently invalidate
+        this. [[regression-guard]] §4
         """
         sys.path.insert(0, self.TV)
         import render_check
@@ -31719,21 +32211,120 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "— UNRESOLVED, not clean" % len(found))
         bound = int(found[0])
 
-        self.assertLess(render_check._CDP_READ_TIMEOUT, bound,
-                        "the CDP read bound (%s) is not under the hook's render bound (%d), so a "
-                        "stalled socket is killed before it can ever be reported"
-                        % (render_check._CDP_READ_TIMEOUT, bound))
-        # ⚠ THIS ONLY HOLDS BECAUSE A STALLED TARGET COSTS EXACTLY ONE READ. Before v3436 it cost
-        # four (the body read plus check()'s three finally probes), so the real worst case was
-        # 4x and this assertion was true while the gate was still killed mid-verdict. The
-        # short-circuit that makes "one stall == one bound" true is pinned by
-        # test_a_dead_transport_is_answered_instantly_and_never_re_read. Do not weaken either one
-        # without the other — together they are the law, separately they are arithmetic.
-        self.assertLessEqual(2 * render_check._CDP_READ_TIMEOUT, bound,
-                             "a single stall would eat more than half the render budget (%s x2 vs "
-                             "%d), so the gate could name at most one and would still be killed "
-                             "mid-verdict" % (render_check._CDP_READ_TIMEOUT, bound))
+        class _Clock(object):
+            """The only clock render_check can see for the duration of this case."""
 
+            def __init__(self, t0=1000.0):
+                self.t = float(t0)
+
+            def time(self):
+                return self.t
+
+            def sleep(self, s):
+                self.t += float(s)
+
+        class _SilentSocket(object):
+            """A peer that never answers: the read burns EXACTLY the bound it was given."""
+
+            def __init__(self, clock):
+                self.clock = clock
+                self.bounds = []
+
+            def settimeout(self, t):
+                self.bounds.append(float(t))
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                if not self.bounds:
+                    raise AssertionError("the read was issued with NO bound — it would block "
+                                         "forever and this case would be measuring nothing")
+                self.clock.t += self.bounds[-1]
+                raise TimeoutError("the socket went quiet")
+
+        cost = float(render_check._CLEAN_RUN_COST)
+        _saved_time = render_check.time
+        _saved_run = render_check._RUN_STARTED
+        worst, first_bound, last_bound = 0.0, None, None
+        try:
+            # every point from a stall on the very first target to one on the last, plus the knee
+            # where the clamp starts biting
+            starts = [cost * i / 40.0 for i in range(41)]
+            starts += [render_check._RUN_REPORT_BY - render_check._CDP_READ_TIMEOUT,
+                       render_check._RUN_REPORT_BY - render_check._CDP_READ_FLOOR]
+            for s in sorted(x for x in starts if 0 <= x <= cost):
+                clock = _Clock()
+                render_check.time = clock
+                render_check._RUN_STARTED = clock.time()
+                clock.t += s                       # s seconds of HEALTHY work already spent
+                sock = _SilentSocket(clock)
+                tab = render_check._Tab.__new__(render_check._Tab)
+                tab.ws = sock
+                tab.n = 0
+                tab.page_errors = []
+                with self.assertRaises(TimeoutError):
+                    tab.send("Runtime.evaluate", expression="1")
+                # the three probes check()'s finally makes on the way out
+                for _ in range(3):
+                    with self.assertRaises(TimeoutError):
+                        tab.send("Runtime.evaluate", expression="1")
+                classified = clock.time() - render_check._RUN_STARTED
+                worst = max(worst, classified)
+                self.assertEqual(len(sock.bounds), 1,
+                                 "a stall beginning at %.0fs issued %d read(s) on the silent "
+                                 "socket. Four sends must cost ONE read — the short-circuit and "
+                                 "this clamp are one law." % (s, len(sock.bounds)))
+                if s == 0:
+                    first_bound = sock.bounds[0]
+                last_bound = sock.bounds[0]
+        finally:
+            render_check.time = _saved_time
+            render_check._RUN_STARTED = _saved_run
+
+        # ⚠ PROVE THE DRIVE WAS REAL BEFORE BELIEVING ITS ANSWER. A socket that raised instantly
+        # would give a worst case of 0 and sail through every assertion below it.
+        self.assertEqual(first_bound, render_check._CDP_READ_TIMEOUT,
+                         "a stall at the START of a run was bounded at %r, not the declared %r — "
+                         "the clamp is biting when there is nothing to clamp, which is how a slow "
+                         "CDP call becomes a false UNKNOWN" % (first_bound, render_check._CDP_READ_TIMEOUT))
+        self.assertGreater(worst, 0,
+                           "no wall clock was burned at all — the fixture answered instantly and "
+                           "this case measured nothing")
+
+        self.assertLessEqual(worst, bound,
+                             "the worst case to CLASSIFY one stalled target is %.0fs against the "
+                             "hook's %ds kill, so the gate is SIGTERMed mid-verdict and prints "
+                             "`render HUNG`, naming no link. A clean full pass already costs %.0fs "
+                             "(_CLEAN_RUN_COST) and the stall arrives on top of it — this is not a "
+                             "relation between two constants, it is the clock."
+                             % (worst, bound, cost))
+        self.assertLessEqual(worst, render_check._RUN_REPORT_BY,
+                             "classification took %.0fs, past _RUN_REPORT_BY (%.0fs) — the margin "
+                             "that pays for the verdict lines, .render_verdict.json and tearing "
+                             "Chrome down is gone" % (worst, render_check._RUN_REPORT_BY))
+        self.assertLess(render_check._RUN_REPORT_BY, bound,
+                        "_RUN_REPORT_BY (%s) is not under the hook's render bound (%d), so the run "
+                        "plans to report at the exact moment it is killed"
+                        % (render_check._RUN_REPORT_BY, bound))
+
+        # ⚠⚠ AND THE FLOOR MUST NOT CRY WOLF. A clamp that shrinks toward zero turns a legitimately
+        # slow single CDP call into a false UNKNOWN, which is the same disease pointing the other
+        # way — and a row that cries wolf gets silenced, which costs more than the defect it was
+        # protecting against. Derived from this file's own recorded cost, never from a remembered
+        # number: a clean pass renders len(TARGETS) x len(WIDTHS) target-widths in _CLEAN_RUN_COST,
+        # and a target-width is already SEVERAL CDP round trips.
+        per_tw = cost / float(len(render_check.TARGETS) * len(render_check.WIDTHS))
+        self.assertGreaterEqual(render_check._CDP_READ_FLOOR, 4 * per_tw,
+                                "the read bound can be clamped to %.1fs, against %.1fs for a whole "
+                                "target-width. A bound that small makes a busy machine look like a "
+                                "dead browser." % (render_check._CDP_READ_FLOOR, per_tw))
+        self.assertLessEqual(render_check._CDP_READ_FLOOR, render_check._CDP_READ_TIMEOUT,
+                             "the floor is above the bound it is a floor for")
+        self.assertEqual(last_bound, render_check._CDP_READ_FLOOR,
+                         "a stall arriving at the very end of a clean run was bounded at %r rather "
+                         "than the floor %r — the clamp is not reaching the case it exists for"
+                         % (last_bound, render_check._CDP_READ_FLOOR))
 
 class TestFixedChromeGutterIsReserved(unittest.TestCase):
     """v2221 — content must stop BEFORE the gutter the viewport-anchored chrome sits in.

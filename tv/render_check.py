@@ -207,6 +207,68 @@ _TRANSPORT_ERRORS = _transport_errors()
 # dialog) is a live socket and resets the next read's clock. A page throwing steadily is answering.
 _CDP_READ_TIMEOUT = 90.0
 
+# ── v3438 — A BOUND ON ONE READ IS NOT A BOUND ON THE RUN, AND ONLY THE RUN GETS KILLED ────────
+# THE ARITHMETIC THAT WAS STILL WRONG AFTER v3436, every number read rather than remembered:
+#     hooks/pre-push   gate_run "render" ... 300      the SIGTERM
+#     a clean full pass                      248s     (the note above) / 264s (the hook's own)
+#     one stalled read                        90s     (_CDP_READ_TIMEOUT)
+# 264 + 90 = 354 > 300. So even with v3436's short-circuit — one stall costing ONE bound instead
+# of four — a socket that goes quiet on the LAST target is still killed mid-verdict and still
+# prints `render HUNG`, a sentence that names no link. The short-circuit fixed N x T. It could not
+# fix the fact that T is spent at the END of an already-expensive run.
+#
+# ⚠ AND THE OBVIOUS FIX IS THE SAME DISEASE POINTING THE OTHER WAY. Lowering _CDP_READ_TIMEOUT
+# until it fits (300 - 264 = 36s) turns a legitimately slow single CDP call into a false UNKNOWN,
+# and an UNKNOWN nobody believes is worse than a hang somebody investigates. Raising the hook's
+# bound is worse again: a ceiling above every real load is an absent detector.
+#
+# So the bound on ONE READ is CLAMPED BY WHAT IS LEFT OF THE RUN. Early there is room for the full
+# 90s; at the end there is not, and a bound larger than the time remaining before the killer fires
+# is not a bound at all — it is a promise to be killed. A healthy run never notices: its reads
+# answer in milliseconds, so the clamp can only ever shorten a read that was never going to be
+# answered. [[unknown-stays-unknown]] [[strictness-that-closes-the-lane]]
+
+#: the RECORDED cost of a clean full pass. Two numbers exist for it — 248s in the note above and
+#: 264s in hooks/pre-push's own comment — and the LARGER is the honest worst case: a law written
+#: against the smaller number is slack that cannot be seen from inside it.
+_CLEAN_RUN_COST = 264.0
+
+#: the wall clock, from the top of main(), by which a verdict MUST have been PRINTED. Derived: the
+#: hook kills at 300s, so this leaves 20s for the verdict lines, .render_verdict.json and tearing
+#: down Chrome and any served console (_chrome_down alone waits up to 5s on its kill).
+#: ⚠ IT IS NOT A BOUND ON THE WORK. Nothing is interrupted when it passes — a hand-run on a loaded
+#: machine legitimately takes longer than a push's budget, and killing it would be this file
+#: refusing to measure the exact condition it exists for. It bounds only how long a read that is
+#: NOT BEING ANSWERED may be waited on. [[strictness-that-closes-the-lane]]
+_RUN_REPORT_BY = 280.0
+
+#: and the clamp has a FLOOR, because a bound that shrinks toward zero turns a healthy call into a
+#: false UNKNOWN — the cry-wolf failure that gets a row silenced, which costs more than the defect.
+#: DERIVED, not picked: a clean pass renders len(TARGETS) x len(WIDTHS) target-widths in
+#: _CLEAN_RUN_COST, i.e. ~2.2s per target-width, and a target-width is already SEVERAL CDP round
+#: trips. 16s is ~7x a whole target-width, and it can only ever apply in the closing seconds of a
+#: run that has answered every read up to that point.
+_CDP_READ_FLOOR = 16.0
+
+#: when the run started. None = no run is in flight (a unit test, a direct _Tab user), and then the
+#: declared bound stands unclamped. Set by main(), which is what owns a run.
+_RUN_STARTED = None
+
+#: the target whose transport died, once one has. A run stops at the first one — see main().
+_ABORTED_AT = None
+
+
+def _read_bound_now():
+    """The bound for the NEXT CDP read: the declared one, clamped by what is left of the run.
+
+    -> seconds. Never above _CDP_READ_TIMEOUT, never below _CDP_READ_FLOOR, and exactly
+    _CDP_READ_TIMEOUT when no run is in flight.
+    """
+    if _RUN_STARTED is None:
+        return _CDP_READ_TIMEOUT
+    _left = (_RUN_STARTED + _RUN_REPORT_BY) - time.time()
+    return max(_CDP_READ_FLOOR, min(_CDP_READ_TIMEOUT, _left))
+
 
 def _transport_exclusions():
     """Types that LOOK like transport by inheritance but are not. -> tuple
@@ -2480,13 +2542,16 @@ class _Tab(object):
         # ALWAYS listed URLError for exactly this call (see its table: "URLError — no answer from
         # /json/new"), so bounding it joins an arm that was already waiting for it.
         # [[the-unjoined-end]] [[sweep-dont-ask]]
-        info = json.load(urllib.request.urlopen(req, timeout=_CDP_READ_TIMEOUT))
+        # ⚠ v3438 — THE BOUND IS RE-DERIVED HERE, not the bare constant. A tab opened in the
+        # closing seconds of a run must not be allowed to wait 90s for an answer that can no
+        # longer be reported. See _read_bound_now().
+        info = json.load(urllib.request.urlopen(req, timeout=_read_bound_now()))
         self.id = info["id"]
         # ⚠ `timeout=` IS LOAD-BEARING — see _CDP_READ_TIMEOUT. Without it this socket blocks
         # forever and the UNKNOWN arm in main() can never be reached.
         self.ws = websocket.create_connection(info["webSocketDebuggerUrl"],
                                               origin="http://127.0.0.1:%d" % PORT,
-                                              timeout=_CDP_READ_TIMEOUT)
+                                              timeout=_read_bound_now())
         self.n = 0
         # ⚠⚠ v3051 — THE PAGE'S OWN UNCAUGHT ERRORS. `Runtime.enable` is already sent (see the
         # heart target below), so Chrome has been BROADCASTING every uncaught exception in the
@@ -2510,7 +2575,16 @@ class _Tab(object):
 
     def _ws_recv(self):
         """One bounded read that REMEMBERS a dead transport. See _Tab.dead."""
+        # ⚠⚠ v3438 — THE BOUND IS SET PER READ, BECAUSE THE RUN IS WHAT GETS KILLED.
+        # create_connection's timeout is only the bound this socket was BORN with; a run that
+        # is 264s old cannot afford to wait 90s for a reply it will be SIGTERMed before it can
+        # print. _read_bound_now() re-derives it from what is left. On a healthy socket this
+        # changes nothing at all — the reply is already in the buffer.
+        # ⚠ NOT wrapped in its own try: websocket-client's WebSocket really does have
+        # settimeout(), so an AttributeError here is a stub kinder than the library and must
+        # be LOUD rather than silently leaving every read unclamped.
         try:
+            self.ws.settimeout(_read_bound_now())
             return self.ws.recv()
         except _TRANSPORT_EXCLUDE:
             raise
@@ -3297,6 +3371,18 @@ def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None
         try:
             if tab.ev(js % json.dumps(sel)):
                 return None
+        # ⚠⚠ v3438 — A DEAD SOCKET IS NOT A MISSING PANEL, AND THIS LOOP USED TO SAY IT WAS.
+        # v3436 made every later ev() on a dead transport re-raise INSTANTLY. That is right,
+        # and it made THIS worse: the re-raise landed in the `except Exception: pass` below,
+        # so the poll spun out its whole budget in 0.4s naps and returned a confident refusal
+        # naming a CSS SELECTOR — about a browser that had gone away. A faster wrong answer.
+        # The verdict then reads 🔴 (a layout defect, LOOK AT THE PNGs) instead of ⚪ UNKNOWN,
+        # and the PNGs do not exist. A fix that makes the wrong verdict arrive sooner is the
+        # cost of the previous fix, not a residue of the old one.
+        # The broad arm STAYS for genuine page errors — a malformed frame, a probe that threw
+        # — which are exactly what a poll should ride out. [[the-cure-that-kills-the-patient]]
+        except _TRANSPORT_ERRORS:
+            raise
         except Exception:
             pass
         time.sleep(0.4)
@@ -3304,6 +3390,8 @@ def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None
     if token and callable(reprepare):
         try:
             _same = tab.ev("window.__rcPrepared === %s" % json.dumps(token))
+        except _TRANSPORT_ERRORS:
+            raise          # v3438 — a browser that is gone cannot be asked about navigation
         except Exception:
             _same = True                      # cannot ask -> do not invent a navigation
         if not _same:
@@ -3316,6 +3404,11 @@ def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None
                     try:
                         if tab.ev(js % json.dumps(sel)):
                             return None
+                    # the sibling of the arm above, and it is here because fixing the site
+                    # that happened to fail and not the CLASS is how this file has lost a
+                    # day twice already. Same law: transport out, page errors ridden out.
+                    except _TRANSPORT_ERRORS:
+                        raise
                     except Exception:
                         pass
                     time.sleep(0.4)
@@ -3835,6 +3928,8 @@ def check(name, spec, shots=True):
                         _why = " — " + _v.strip()[:900]
                     else:
                         _why = " — (this target declares activateWhy and it returned no reason)"
+                except _TRANSPORT_ERRORS:
+                    raise          # v3438 — not a diagnosis of the panel; the browser is gone
                 except Exception as _e:
                     _why = " — (activateWhy itself failed: %s)" % str(_e)[:80]
             # ⚠⚠ v2692 — SAY HOW LONG IT WAITED, AND NAME LOAD AS A CANDIDATE. This refusal used to
@@ -3901,6 +3996,13 @@ def check(name, spec, shots=True):
                     if tab.ev(spec["activate"]):
                         return True
                     time.sleep(0.4)
+            # ⚠ v3438 — "could not re-prepare" is a statement about the PAGE, and a browser
+            # that has gone away cannot support it. Returning False here made _selector_ready
+            # refuse with "the page navigated after preparation and the harness could not
+            # re-prepare it" — a sentence about a navigation nobody observed, produced by a
+            # dead socket. Transport leaves; every genuine page failure still returns False.
+            except _TRANSPORT_ERRORS:
+                raise
             except Exception:
                 return False
             return False
@@ -3936,6 +4038,12 @@ def check(name, spec, shots=True):
                 if spec.get("report"):
                     try:
                         _rep = tab.ev(spec["report"])
+                    # ⚠ v3438 — NO TRANSPORT ARM HERE: measured unobservable. Every path out
+                    # of this tap hits an UNGUARDED read within two statements, which re-raises
+                    # from `self.dead` and discards `out` anyway. The arm was written, its
+                    # sabotage STAYED GREEN, it was reverted. [[sabotage-is-usually-the-wrong-one]]
+                    # ⚠ AND KEEP THIS SHORT: a sibling gate reads a 900-char window from the
+                    # `if spec.get("report")` above and requires the handler inside it.
                     except Exception as _exc:
                         _rep = {"error": type(_exc).__name__}
                     if _rep is None:
@@ -4083,6 +4191,12 @@ def check(name, spec, shots=True):
                              "+' scrollTop='+((document.getElementById('th-shelfov')||{}).scrollTop);})()"
                              % json.dumps(spec["sel"]))
                          _say("       evidence: %s" % str(_d)[:200])
+                     # ⚠ v3438 — NO TRANSPORT ARM HERE, DELIBERATELY. Every other broad handler
+                     # in this file now lets a lost browser out. This one is left alone because
+                     # the `tab.ev(_PROBE ...)` two lines above is UNGUARDED: a dead transport
+                     # raises there and never reaches this block, and if it dies inside this
+                     # 1.2s window the very next read (Page.captureScreenshot) raises anyway.
+                     # An arm that cannot be driven is an arm that cannot be seen red.
                      except Exception as _de:
                          _say("       evidence could not be taken (%s) — UNKNOWN, not clean"
                               % type(_de).__name__)
@@ -4155,6 +4269,15 @@ def check(name, spec, shots=True):
         # `pageErrors: 0` for a page that was provably broken. Source generating source is the one
         # place where reading either file alone cannot show you the defect.
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        # ⚠⚠ v3438 — AND THE THREE PROBES IN THIS `finally` KEEP THEIR BROAD ARMS, DELIBERATELY.
+        # Everywhere else in this file a transport failure now leaves through its own arm
+        # instead of being read as a fact about the page. Not here, for two reasons measured
+        # rather than assumed: (1) a raise from a `finally` REPLACES the exception on its way
+        # out, so re-raising the transport error here would overwrite the original one — and
+        # main() would report a lost socket at a line that merely noticed it; (2) these reads
+        # cost NOTHING on a dead transport since v3436 — send() re-raises from `self.dead`
+        # without touching the socket — so there is no budget to save by skipping them.
+        # [[the-cure-that-kills-the-patient]]
         try:
             _hooked = tab.ev("window.__rcErrHooked === 1")
         except Exception:
@@ -4434,6 +4557,20 @@ def _coverage_check(results, say, scope=None, out=None):
     rep.setdefault("stale", [])
     rep.setdefault("staleNodes", 0)
     rep.setdefault("notChecked", [])
+    # ⚠⚠ v3438 — AN ABORTED RUN HAS NO COVERAGE ANSWER, AND THE WRONG ONE IS EXPENSIVE.
+    # When main() stops at a dead browser, every target after it is simply absent from
+    # `results` — and this function reads an absent target inside the scope as "a surface the
+    # ratchet expected was never reported", i.e. A SURFACE HAS GONE FROM THE PAGE. Nineteen of
+    # those, printed under a lost socket, is the same defect this file already names two ways:
+    # "a count of one kind of thing must not absorb a different kind", and an unmeasured
+    # surface reported as a dirty one, which teaches the reader to discount the row.
+    # The run's own UNKNOWN already says what happened. [[unknown-stays-unknown]]
+    if _ABORTED_AT:
+        rep["notChecked"] = sorted(set(_coverage_floor() or {}) - set(results))
+        say("⚪ coverage ratchet NOT EVALUATED — the run ABORTED at %r, so the targets after "
+            "it were never rendered. Absent-because-nobody-looked and absent-because-the-"
+            "surface-is-gone are different facts and this cannot tell them apart." % _ABORTED_AT)
+        return 0
     if floor is None:
         say("⚪ coverage ratchet UNKNOWN — %s has never been written, so this run cannot tell "
             "whether coverage shrank. Run --bless on a clean run to set the floor."
@@ -4637,6 +4774,12 @@ def _coverage_bless(results, complete, say):
 
 
 def main(argv):
+    # ⚠ v3438 — THE RUN'S CLOCK STARTS HERE, and every CDP read is bounded against it rather
+    # than against a constant that knows nothing about how much of the budget is already
+    # spent. See _read_bound_now(). Reset per call so a second main() in one process (the
+    # gates do this) is not judged against the first one's start.
+    global _RUN_STARTED, _ABORTED_AT
+    _RUN_STARTED, _ABORTED_AT = time.time(), None
     want = [a for a in argv if not a.startswith("-")]
     if "--list" in argv:
         for k, v in sorted(TARGETS.items()):
@@ -4663,7 +4806,8 @@ def main(argv):
 
     bad, unknown = 0, 0
     results = {}          # per-target, for the coverage ratchet after the loop
-    for name, spec in sorted(targets.items()):
+    _order = sorted(targets.items())
+    for _i, (name, spec) in enumerate(_order):
         # ⚠ v2412 — A DROPPED CDP SOCKET IS UNKNOWN, NOT A CRASH AND NOT A DEFECT. On 2026-09-02 a
         # push was blocked by a bare WebSocketConnectionClosedException propagating out of this
         # loop: Chrome went away mid-run and the gate DIED MID-VERDICT rather than reporting one.
@@ -4698,7 +4842,27 @@ def main(argv):
                  "one.")
             bad += 1
             unknown += 1
-            continue
+            # ⚠⚠ v3438 — THE RUN STOPS HERE. `dead` IS PER-INSTANCE, and this arm used to
+            # `continue`: the next target builds a NEW _Tab against the same silent Chrome,
+            # marks its own transport dead, and pays the read bound all over again. A globally
+            # quiet browser therefore cost the bound ONCE PER TARGET — up to 20 x 90s = 1800s
+            # against a 300s kill, so the gate was SIGTERMed mid-loop and the verdict lines
+            # below were never written. v3436 got one target down from 4 bounds to 1 and left
+            # the loop multiplying it back up by twenty.
+            #
+            # ⚠ AND THERE IS NOTHING TO LEARN FROM TARGET N+1. The fact is about the BROWSER,
+            # not about the surface: every later target would report the same lost socket in
+            # different words. One UNKNOWN that names where it happened, and a run that ENDS
+            # WITH A VERDICT, beats nineteen repetitions nobody lives long enough to read.
+            # ⚠ It is still not RETRIED — see the note above. A gate you re-run until it
+            # agrees has stopped being evidence.
+            _ABORTED_AT = name
+            _skipped = [k for k, _s in _order[_i + 1:]]
+            if _skipped:
+                _say("   ⛔ ABORTING the run here rather than paying that bound again for "
+                     "each of the %d target(s) left: %s." % (len(_skipped), ", ".join(_skipped)))
+                _say("   They were NOT looked at, which is UNKNOWN and not clean.")
+            break
         except Exception as _e:
             # ⚠ A HARNESS BUG IS NOT A TRANSPORT FAILURE, AND THE FIRST CUT CALLED EVERY RAISE ONE.
             # This was a bare `except Exception` printing "the browser connection was lost" — so a
@@ -4794,7 +4958,9 @@ def main(argv):
     # THE SET OF READINGS, not any one of them. Everything above judges a surface; this judges
     # whether the same surfaces are still being looked at. Only meaningful over the FULL target
     # set — a `--target vault` run legitimately reports one target and must not read as a drop.
-    _full = (len(targets) == len(TARGETS))
+    # ⚠ v3438 — AN ABORTED RUN IS NEVER "FULL", even when it was ASKED for every target. It
+    # stopped early, so it cannot bless coverage and cannot speak for the set.
+    _full = (len(targets) == len(TARGETS)) and not _ABORTED_AT
     if "--bless" in argv:
         return _coverage_bless(results, _full and not bad and not unknown, _say)
     # ⚠⚠ COVERAGE REFUSALS GET THEIR OWN COUNTER — `bad += _coverage_check(...)` mixed them into
@@ -4815,7 +4981,7 @@ def main(argv):
     cov_missing = 0
     _cov = {}
     cov_missing = _coverage_check(results, _say, scope=set(targets), out=_cov)
-    if not _full:
+    if not _full and not _ABORTED_AT:
         _say("     ⓘ this run asked for %d of %d target(s); the ratchet judged those %d and "
              "says nothing about the rest, which are UNKNOWN rather than clean."
              % (len(targets), len(TARGETS), len(targets)))
@@ -4850,6 +5016,11 @@ def main(argv):
               "coverageStale": list(_cov.get("stale") or []),
               "coverageStaleNodes": int(_cov.get("staleNodes") or 0),
               "coverageNotChecked": list(_cov.get("notChecked") or []),
+              # ⚠ v3438 — AND WHETHER THE RUN STOPPED EARLY, because `reported` alone cannot
+              # say WHY a target is missing from it. "" is a measured not-aborted; a name is
+              # the target whose transport died, and every target after it is UNKNOWN rather
+              # than clean. An older render_check leaves the key absent, which is also UNKNOWN.
+              "abortedAt": _ABORTED_AT or "",
               "renderFailures": int(bad)}
         with io.open(os.path.join(HERE, ".render_verdict.json"), "w", encoding="utf-8") as _fh:
             _fh.write(json.dumps(_v, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
@@ -4857,6 +5028,22 @@ def main(argv):
         _say("     \u26a0 could not write .render_verdict.json (%s) — the heart will read this run "
              "as UNMEASURED rather than clean." % type(_e).__name__)
     _say("shots: %s" % os.path.relpath(SHOTS, REPO))
+    # ⚠⚠ v3438 — THE RUN ENDS WITH A VERDICT, WHICH IS THE WHOLE POINT OF ABORTING EARLY.
+    # Being SIGTERMed at the hook's bound prints `render HUNG`, names no link, and takes the
+    # shared Chrome down with the process group so the NEXT gate refuses too — one stall
+    # reported as two failures and diagnosed as neither. This line is what that becomes.
+    # ⚠ It still exits non-zero, and it does NOT pretend the greens are nothing: a run that
+    # rendered 11 surfaces cleanly and then lost the browser did establish 11 things.
+    if _ABORTED_AT:
+        _clean = sum(1 for _r in results.values() if _r.get("ok"))
+        _dirty = len(results) - _clean
+        _never = len(targets) - len(results) - 1
+        _say("⚪ ABORTED at %r — the browser went away and the run STOPPED THERE rather than "
+             "paying a read bound over again for each target left. %d rendered clean, %d did "
+             "not, 1 is UNKNOWN (that one) and %d were never looked at. Non-zero because a "
+             "skip is not a pass — but this is a VERDICT, not a kill with nothing said."
+             % (_ABORTED_AT, _clean, _dirty, _never))
+        return 2
     if cov_missing:
         _say("🔴 %d surface(s) the ratchet expected were never reported — a COVERAGE refusal, "
              "counted apart from the %d render failure(s) above because it is a different fact."
