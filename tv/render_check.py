@@ -2462,11 +2462,25 @@ def _chrome_up():
 
 
 class _Tab(object):
+    # ⚠⚠ v3436 — A CLASS ATTRIBUTE, NOT AN __init__ ASSIGNMENT, so the marker exists even when
+    # __init__ itself dies on the handshake and a caller still holds a half-built object.
+    # None  = the transport has never failed.
+    # not-None = the exception that killed it; every later send() re-raises this one instantly.
+    dead = None
+
     def __init__(self, url):
         import urllib.request
         import websocket
         req = urllib.request.Request("http://127.0.0.1:%d/json/new?%s" % (PORT, url), method="PUT")
-        info = json.load(urllib.request.urlopen(req))
+        # ⚠⚠ v3436 — THIS WAS THE SIBLING v3435 MISSED, one line below the socket it fixed.
+        # urllib's default is to BLOCK FOREVER and nothing calls socket.setdefaulttimeout, so a
+        # Chrome that accepts the TCP connection and never answers /json/new never reaches
+        # create_connection at all — no WebSocketTimeoutException can be raised, and the hook
+        # kills the gate at 300s saying "render HUNG", naming no link. _transport_errors() has
+        # ALWAYS listed URLError for exactly this call (see its table: "URLError — no answer from
+        # /json/new"), so bounding it joins an arm that was already waiting for it.
+        # [[the-unjoined-end]] [[sweep-dont-ask]]
+        info = json.load(urllib.request.urlopen(req, timeout=_CDP_READ_TIMEOUT))
         self.id = info["id"]
         # ⚠ `timeout=` IS LOAD-BEARING — see _CDP_READ_TIMEOUT. Without it this socket blocks
         # forever and the UNKNOWN arm in main() can never be reached.
@@ -2484,11 +2498,47 @@ class _Tab(object):
         # knew the answer at the first failure. Nothing asked it. [[the-unjoined-end]]
         self.page_errors = []
 
+    def _ws_send(self, payload):
+        """One write that REMEMBERS a dead transport. See _Tab.dead."""
+        try:
+            self.ws.send(payload)
+        except _TRANSPORT_EXCLUDE:
+            raise
+        except _TRANSPORT_ERRORS as _e:
+            self.dead = _e
+            raise
+
+    def _ws_recv(self):
+        """One bounded read that REMEMBERS a dead transport. See _Tab.dead."""
+        try:
+            return self.ws.recv()
+        except _TRANSPORT_EXCLUDE:
+            raise
+        except _TRANSPORT_ERRORS as _e:
+            self.dead = _e
+            raise
+
     def send(self, method, **params):
+        # ⚠⚠ v3436 — A DEAD TRANSPORT IS ANSWERED INSTANTLY AND NEVER RE-READ.
+        # v3435 gave the socket a 90s read bound so a silent Chrome could be REPORTED instead of
+        # hanging. It did not work, and the cross-family eye caught it: check()'s finally makes
+        # three more ev() calls (render_check.py 4091/4103/4122), each inside its own
+        # `except Exception`, each a fresh send()+recv() on the SAME still-quiet socket. So one
+        # stalled target cost 4 x 90s = 360s, the hook SIGTERMs the gate at 300s, SIGTERM does not
+        # run main()'s except clause, and the "⚪ UNKNOWN — the browser connection was lost
+        # mid-render" line was never written. The bound was right; the ARITHMETIC was wrong.
+        #
+        # ⚠ ONLY A TRANSPORT FAILURE MARKS THE TAB DEAD — never a page-level exception. The three
+        # finally probes are the v3051 in-page error collector, and they earned their place by
+        # finding a real defect the CDP paths could not see. Short-circuiting them on a LIVE
+        # socket would remove the diagnostic they exist for.
+        # [[the-cure-that-kills-the-patient]] [[the-unjoined-end]]
+        if self.dead is not None:
+            raise self.dead
         self.n += 1
-        self.ws.send(json.dumps({"id": self.n, "method": method, "params": params}))
+        self._ws_send(json.dumps({"id": self.n, "method": method, "params": params}))
         while True:
-            r = json.loads(self.ws.recv())
+            r = json.loads(self._ws_recv())
             # ⚠ a native dialog blocks the renderer AND every Runtime.evaluate with it; the socket
             # just goes quiet, which reads exactly like a crashed tab
             if r.get("method") == "Runtime.exceptionThrown":
@@ -2503,7 +2553,7 @@ class _Tab(object):
                 continue
             if r.get("method") == "Page.javascriptDialogOpening":
                 self.n += 1
-                self.ws.send(json.dumps({"id": self.n, "method": "Page.handleJavaScriptDialog",
+                self._ws_send(json.dumps({"id": self.n, "method": "Page.handleJavaScriptDialog",
                                          "params": {"accept": False}}))
                 continue
             if r.get("id") == self.n:
@@ -2548,7 +2598,13 @@ class _Tab(object):
     def close(self):
         import urllib.request
         try:
-            self.ws.close()
+            # ⚠ v3436 — close() writes a close frame AND WAITS for the peer's reply, so on a quiet
+            # socket it pays the read bound one more time. abort() drops the socket instead. The
+            # /json/close below is already bounded at 3s and still runs, so the tab is still freed.
+            if self.dead is None:
+                self.ws.close()
+            else:
+                self.ws.abort()
         except Exception:
             pass
         try:

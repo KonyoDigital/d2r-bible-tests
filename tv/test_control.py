@@ -31413,11 +31413,202 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "the read bound must be _CDP_READ_TIMEOUT, whose comment carries the "
                          "measurement it was derived from")
 
+    def test_a_dead_transport_is_answered_instantly_and_never_re_read(self):
+        """THE COUNT IS THE ASSERTION: one stalled target costs ONE read, not four.
+
+        ⚠⚠ THIS CASE EXISTS BECAUSE THE ONE BELOW IT WAS BLIND, and a cross-family review caught
+        it on the shipped bytes. v3435 bounded the CDP socket at 90s so a silent Chrome would be
+        REPORTED rather than hang. But check()'s finally makes THREE more ev() calls
+        (render_check.py 4091/4103/4122), each in its own `except Exception`, each a fresh
+        send()+recv() on the same quiet socket — so a stalled target cost 4 x 90s = 360s against
+        the hook's 300s SIGTERM, and the UNKNOWN line was never written. Every one of that
+        version's four red-proofs passed, because they asserted a relationship between two
+        CONSTANTS instead of driving the path a silent socket actually takes.
+        [[a-law-about-a-row-must-drive-the-row]]
+
+        So this drives the real object with a socket that goes quiet, and asserts the SOCKET IS
+        TOUCHED ONCE. No Chrome, no network — it runs in every venue including CI.
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _QuietSocket(object):
+            """Accepts writes, never answers. The exact shape of the v3434 stall."""
+
+            def __init__(self):
+                self.sends = 0
+                self.recvs = 0
+                self.aborted = 0
+
+            def send(self, payload):
+                self.sends += 1
+
+            def recv(self):
+                self.recvs += 1
+                # TimeoutError is in _TRANSPORT_ERRORS unconditionally, so this case does not
+                # depend on websocket-client being installed in the venue running it.
+                raise TimeoutError("the socket went quiet")
+
+            def close(self):
+                raise TimeoutError("a close handshake also waits for a reply")
+
+            def abort(self):
+                self.aborted += 1
+
+        tab = render_check._Tab.__new__(render_check._Tab)   # no __init__, so no Chrome
+        tab.ws = _QuietSocket()
+        tab.n = 0
+        tab.page_errors = []
+        self.assertIsNone(tab.dead, "a fresh tab must not start out marked dead")
+
+        with self.assertRaises(TimeoutError):
+            tab.send("Runtime.evaluate", expression="1")
+        self.assertIsNotNone(tab.dead, "a transport failure must MARK THE TAB, or every later "
+                                       "probe pays the full read bound again")
+
+        # the three probes check()'s finally makes, each of which swallows its own exception
+        for _ in range(3):
+            with self.assertRaises(TimeoutError):
+                tab.send("Runtime.evaluate", expression="1")
+
+        self.assertEqual(tab.ws.recvs, 1,
+                         "a quiet socket was read %d time(s) across 4 sends. Each read costs the "
+                         "full bound, so N probes = N x bound and the gate is killed before it "
+                         "can report. It must be read exactly ONCE." % tab.ws.recvs)
+
+        tab.close()
+        self.assertEqual(tab.ws.aborted, 1,
+                         "close() on a dead transport must abort(), not complete a close "
+                         "handshake — the handshake waits for a reply that is never coming")
+
+    def test_a_page_exception_does_NOT_mark_the_transport_dead(self):
+        """THE BASELINE, and it is the half that keeps the fix from becoming the disease.
+
+        The three finally probes are the v3051 in-page error collector — 'the browser knew the
+        answer at the first failure. Nothing asked it.' If an ordinary page-level exception marked
+        the tab dead, those probes would be skipped on a perfectly LIVE socket and the diagnostic
+        they were added for would be gone. A guard that refuses everything is not a guard.
+        [[the-cure-that-kills-the-patient]] [[strictness-that-closes-the-lane]]
+        """
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        class _LiveSocket(object):
+            def __init__(self):
+                self.replies = 0
+
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                self.replies += 1
+                return json.dumps({"id": 1, "result": {"value": 7}})
+
+        tab = render_check._Tab.__new__(render_check._Tab)
+        tab.ws = _LiveSocket()
+        tab.n = 0
+        tab.page_errors = []
+        self.assertEqual(tab.send("Runtime.evaluate", expression="1").get("value"), 7)
+        self.assertIsNone(tab.dead, "a healthy round trip must never mark the transport dead")
+
+        # ⚠⚠ THE HALF THAT ACTUALLY DISCRIMINATES, AND THE FIRST CUT OF THIS CASE DID NOT HAVE IT.
+        # A healthy round trip raises NOTHING, so it cannot tell "marks dead on transport errors"
+        # from "marks dead on ANY exception" — the sabotage that widens the except arm to
+        # `except Exception` sailed straight through and the case stayed GREEN. The anchor matched
+        # once and the guard was fine; the TEST could not reach the line. [[regression-guard]] §5a
+        # So: raise a NON-transport error from the socket itself. In the correct code
+        # _TRANSPORT_ERRORS does not catch it, it propagates, and `dead` stays None. Widen that
+        # arm and `dead` is set — which would make check()'s three v3051 probes get skipped on a
+        # perfectly LIVE socket. [[the-cure-that-kills-the-patient]]
+        class _RudeSocket(object):
+            def send(self, payload):
+                pass
+
+            def recv(self):
+                raise ValueError("not a transport failure — a malformed frame")
+
+        tab2 = render_check._Tab.__new__(render_check._Tab)
+        tab2.ws = _RudeSocket()
+        tab2.n = 0
+        tab2.page_errors = []
+        with self.assertRaises(ValueError):
+            tab2.send("Runtime.evaluate", expression="1")
+        self.assertIsNone(tab2.dead,
+                          "a NON-transport error marked the transport dead. The socket is alive; "
+                          "only the frame was bad. Marking it dead skips the in-page error "
+                          "collector (v3051) on a working page, which is the diagnostic those "
+                          "probes exist for.")
+
+        # ⚠ AND THE SAME ON THE WRITE SIDE. _ws_send has its own except arm, and a stub whose
+        # send() never raises cannot tell whether that arm is narrow or wide — the second
+        # sabotage (widening only _ws_send) stayed GREEN until this existed. Two arms, two cases:
+        # a law that covers one method of a pair is a law with a hole in it.
+        class _RudeWriter(object):
+            def send(self, payload):
+                raise ValueError("not a transport failure — a bad frame on the way out")
+
+            def recv(self):
+                raise AssertionError("recv must never be reached: the write failed first")
+
+        tab3 = render_check._Tab.__new__(render_check._Tab)
+        tab3.ws = _RudeWriter()
+        tab3.n = 0
+        tab3.page_errors = []
+        with self.assertRaises(ValueError):
+            tab3.send("Runtime.evaluate", expression="1")
+        self.assertIsNone(tab3.dead,
+                          "a NON-transport error on the WRITE side marked the transport dead. "
+                          "Same defect as the read side, different method.")
+
+    def test_the_tab_OPENER_is_bounded_too_not_just_the_socket(self):
+        """PARSED WITH ast. The PUT /json/new that opens the tab sits in the same constructor as
+        the websocket v3435 bounded, and it had NO timeout — urllib blocks forever by default and
+        nothing calls socket.setdefaulttimeout. A Chrome that accepts the connection and never
+        answers therefore never reaches create_connection, so the socket's bound is irrelevant.
+        Found by the cross-family eye, not by this suite. [[sweep-dont-ask]]
+        """
+        rc = os.path.join(self.TV, "render_check.py")
+        with io.open(rc, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+
+        opens = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            # DOTTED name, never the bare attribute — `urlopen` alone would match a stranger.
+            if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Attribute):
+                dotted = "%s.%s" % (getattr(f.value, "attr", ""), f.attr)
+                if dotted == "request.urlopen":
+                    opens.append(node)
+
+        self.assertGreaterEqual(len(opens), 2,
+                                "parsed only %d urllib.request.urlopen call(s) in render_check.py "
+                                "— this law could not reach its subject, which is UNRESOLVED, not "
+                                "clean" % len(opens))
+        unbounded = []
+        for node in opens:
+            kw = set(k.arg for k in node.keywords if k.arg)
+            if "timeout" not in kw and len(node.args) < 2:
+                unbounded.append(node.lineno)
+        self.assertEqual(unbounded, [],
+                         "urllib.request.urlopen with no timeout at line(s) %s — urllib blocks "
+                         "FOREVER by default, so a Chrome that accepts the connection and never "
+                         "answers hangs the gate with no link named" % unbounded)
+
     def test_the_read_bound_sits_under_the_prepush_render_bound(self):
-        """PIN THE LAW, NOT THE NUMBER. The law is: a stalled read must be REPORTABLE — the gate
-        has to be able to name at least two stalled targets before the hook kills it. So the bound
-        is read out of hooks/pre-push rather than hardcoded here, and if someone retunes the hook
-        this law still means the same thing. [[regression-guard]] §4
+        """PIN THE LAW, NOT THE NUMBER — and the law is about WALL CLOCK TO CLASSIFY ONE STALLED
+        TARGET, which is what the previous version of this case got wrong.
+
+        It used to assert `2 * _CDP_READ_TIMEOUT <= bound` and claim that let the gate name two
+        stalled targets. It counted reads the CONSTANT IS PASSED TO, not reads a silent socket
+        actually sits in — which was four, for 360s against a 300s bound, so the gate could not
+        name even one. That arithmetic is only true because of the dead-transport short-circuit
+        proven in test_a_dead_transport_is_answered_instantly_and_never_re_read; these two cases
+        are one law and must not be separated.
+
+        The bound is read out of hooks/pre-push so a retune there cannot silently invalidate this.
+        [[regression-guard]] §4
         """
         sys.path.insert(0, self.TV)
         import render_check
@@ -31440,6 +31631,12 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                         "the CDP read bound (%s) is not under the hook's render bound (%d), so a "
                         "stalled socket is killed before it can ever be reported"
                         % (render_check._CDP_READ_TIMEOUT, bound))
+        # ⚠ THIS ONLY HOLDS BECAUSE A STALLED TARGET COSTS EXACTLY ONE READ. Before v3436 it cost
+        # four (the body read plus check()'s three finally probes), so the real worst case was
+        # 4x and this assertion was true while the gate was still killed mid-verdict. The
+        # short-circuit that makes "one stall == one bound" true is pinned by
+        # test_a_dead_transport_is_answered_instantly_and_never_re_read. Do not weaken either one
+        # without the other — together they are the law, separately they are arithmetic.
         self.assertLessEqual(2 * render_check._CDP_READ_TIMEOUT, bound,
                              "a single stall would eat more than half the render budget (%s x2 vs "
                              "%d), so the gate could name at most one and would still be killed "

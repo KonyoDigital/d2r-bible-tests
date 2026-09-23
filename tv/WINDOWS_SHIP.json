@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3435",
+  "ver": "v3436",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3435: The CDP read had no bound, so the UNKNOWN arm in render_check for a stalled browser was dead code from the day it shipped. The v3434 push rendered 1 of 20 targets, went silent, and was killed at 300s as render HUNG — a sentence naming no link — and the kill took the shared Chrome down so crest-loudness refused too. create_connection now carries _CDP_READ_TIMEOUT (90s, derived from the 248s full-set cost and the 300s hook bound), so a silent socket becomes a reported UNKNOWN. 2 gates, 4/4 red-proofs.",
+  "note": "v3436: v3435 bounded the CDP read and the cross-family eye proved it did not work: check() finally makes three more ev() calls, each swallowing its own timeout, so a quiet socket cost 4 x 90s = 360s against the hook 300s SIGTERM and the UNKNOWN line was never written. _Tab now REMEMBERS a dead transport and answers instantly; close() aborts instead of handshaking a corpse; and PUT /json/new — the sibling socket one line below the one v3435 fixed — is bounded too. Only a TRANSPORT error marks the tab dead, never a page exception, so the v3051 in-page collector still runs. 7/7 red-proofs.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
