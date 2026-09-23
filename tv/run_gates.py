@@ -2955,7 +2955,15 @@ GATES = [
          skip_ok=()),
     Gate("test_a_cached_absence_is_not_an_absence",
          [sys.executable,
-          os.path.join(HERE, "test_a_cached_absence_is_not_an_absence.py")], 120,
+          # ⚠⚠ v3447 — RAISED 120 -> 300 BECAUSE 120 WAS A COIN FLIP. Measured by the #189
+          # parallelisation work: this gate's CLEAN run is ~110-130s against a 120s registered
+          # timeout, so its proofs were UNPROVABLE-by-timeout at random — in the SERIAL control
+          # too, not only under parallel proving. It was the ONE proof that flipped
+          # (PROVEN -> UNPROVABLE) in the A/B, and the flip was the margin, not the concurrency:
+          # 2 lanes flipped it identically, and only 1 lane avoided it, which buys no speedup.
+          # A gate whose verdict depends on 10 seconds of headroom is measuring the machine.
+          # [[feedback-threshold-above-the-ceiling]] inverted — a ceiling BELOW the real load.
+          os.path.join(HERE, "test_a_cached_absence_is_not_an_absence.py")], 300,
          why="Two sentences from the fleet panel minutes apart — 'the fleet is unreachable' and "
              "'Dean has not reported which set pieces it holds yet' — with the live beacon in the "
              "same minute showing Dean ONLINE carrying masks sets=76ch uniques=118ch. Three "
@@ -6453,6 +6461,30 @@ GATES = [
              "missing verdict reads like a scheduling hiccup. #123 quoted a stale gate count for "
              "weeks for exactly this reason. Measured: the gate set is 95% of the job wall clock "
              "and has already crossed once (25.3m, cancelled).",
+         skip_ok=()),
+    # ⚠ MIND THE SEPARATING COMMA — a dropped one has produced a SyntaxError here twice, and it
+    # takes the WHOLE gate set down because every gate subprocess imports this file.
+    Gate("test_a_parallel_proof_is_the_same_proof",
+         [sys.executable, os.path.join(HERE, "test_a_parallel_proof_is_the_same_proof.py")], 180,
+         needs_app=False,
+         why="#189 - heart2 proved every red-proof SERIALLY (a doubly nested for-loop, zero "
+             "concurrency primitives in the file), which measured 24 of a 38m42s push and 26 of a "
+             "41m25s one - 60%+ of EVERY push, growing with every law added. Parallelising it is "
+             "only safe if the verdicts are IDENTICAL: a faster prove that flips one verdict is "
+             "not a speedup, it is a broken gate. This law pins that, because the danger is "
+             "measured - test_control is 19.5s idle and 565.9s under concurrent load, and parallel "
+             "proving deliberately manufactures that load.",
+         skip_ok=()),
+    Gate("test_a_host_dependency_is_not_always_an_attribute",
+         [sys.executable, os.path.join(HERE, "test_a_host_dependency_is_not_always_an_attribute.py")], 120,
+         needs_app=False,
+         why="#123/#185 - ci_sim answers 'would this pass on a runner?' and its HOST_STUBS held "
+             "exactly THREE entries, all the SAME KIND: patch a module attribute. Neither "
+             "CI-vs-Mac disagreement found this week is one - tv/bin/ocr_mac is a MACOS BINARY ON "
+             "DISK (green on his Mac in 5.3s, red on CI at 25.4s), and 'this interpreter takes "
+             "fork_exec where Linux takes posix_spawn' is a PLATFORM fact that cannot be patched "
+             "at all. The simulator reported 'no KNOWN host dependency' for both. That gap once "
+             "cost a full day of deploys.",
          skip_ok=()),
 ]
 

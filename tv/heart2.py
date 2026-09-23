@@ -90,6 +90,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -821,7 +822,306 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None):
 
 
 # ── the proving loop ─────────────────────────────────────────────────────────────────────────
-def prove(only=None, say=print):
+# ══ HOW MANY PROOFS RUN AT ONCE, AND WHY EVERY LANE GETS ITS OWN SANDBOX ═══════════════════════
+# The loop below used to be doubly serial — per gate, then per proof — and one proof is
+# "sabotage a file → run that gate in a subprocess → restore". MEASURED on his pushes: this step
+# was ~24 min of a 38m42s push and ~26 min of a 41m25s one, 60%+ of EVERY push, with ONE child
+# process alive at a time and load ~2.2 on a 10-core machine. It was never CPU-bound. It was
+# serialised, and it GROWS with every law added.
+#
+# ⚠⚠⚠ THE OBVIOUS SPLIT — one worker per GATE inside ONE SHARED sandbox — IS UNSAFE, and this is
+# the measurement that settles it, taken 2026-09-23 over the whole registry:
+#       537 gate files readable · 497 declare a red-proof · 1,302 declared proofs
+#       149 distinct tampered files once resolved · 67 of them claimed by MORE THAN ONE gate
+#       446 of 497 gates (90%) tamper a file that another gate also tampers
+#       control_app.py alone: 124 gates tamper it — and a further 110 gates NAME it without
+#       tampering it at all, so they would read a neighbour's sabotage and go red for it
+# Two lanes in one sandbox is a false verdict in BOTH directions: a neighbour's sabotage reddens
+# an innocent gate (which reports UNPROVABLE, "already red untampered" — a sentence that would be
+# a lie), and a neighbour's restore can hand a gate CLEAN bytes at the exact moment it is supposed
+# to be judging tampered ones, which reads as PROVEN. Grouping by tampered FILE does not fix it
+# either: a gate reads far more than it tampers, which is what that 110 measures.
+#
+# So: ONE THROWAWAY SANDBOX PER LANE, gates pulled from a shared queue, every proof of a gate run
+# serially inside the one lane that owns it. A lane is then EXACTLY the old serial loop over a
+# subset of the gates; nothing is shared between lanes but the queue and the printer's lock. This
+# changes WHEN work happens and never WHETHER: the same proofs run, in the same order within a
+# gate, against the same bytes.
+#
+# ⚠ AND A LANE THAT DIES CANNOT CORRUPT ANYTHING. _prove_one restores in a `finally`, but a lane
+# killed outright — the 10-minute foreground ceiling has killed pushes in this repo three times —
+# leaves its sabotage inside a throwaway copy that no other lane and nothing in the real tree ever
+# reads. The real tree is never written at all.
+#
+# DERIVATION OF THE DEFAULT, measured on his 10-core Mac, not estimated:
+#   · one sandbox = safe_copy + the PROOF_NEEDS clones: 2.7s alone, 6.1s for 4 built at once,
+#     ~384 MB of real disk each (1,534 MB for four, all of it reclaimed by rmtree)
+#   · 4 lanes leave 6 cores for the gate subprocesses the lanes spend their time waiting on
+#   · ⚠⚠ THE CEILING IS NOT THE CORE COUNT, IT IS THE GATES THAT ASSERT DURATIONS. test_control
+#     takes 19.5s idle and 565.9s under concurrent load — a 29x slowdown that once produced a
+#     FALSE RED and refused a legitimate push. Parallel proving MANUFACTURES exactly that load on
+#     purpose, so the number stays low and can be turned DOWN without an edit.
+# HEART2_PROVE_WORKERS=1 is the old single-sandbox behaviour, unchanged, for a loaded machine.
+PROVE_WORKERS = 4
+LANE_DISK_MB = 400            # measured ~384 MB of real disk per sandbox, rounded up
+LANE_DISK_FLOOR_MB = 4096     # the same floor safe_copy itself refuses to copy below
+
+# ══ AND THE DEADLINE HAS TO GROW WITH THE LOAD THE LANES THEMSELVES MANUFACTURE ═══════════════
+# ⚠⚠ MEASURED, AND IT IS THE ONE THING THE A/B FOUND. Proving the same 25 gates (74 proofs) in a
+# frozen copy of the tree, serial versus lanes:
+#       serial 1 lane (cold 766.6s / warm 606.3s) · 2 lanes 286.3s · 4 lanes 258.4s
+#       25 of 25 GATE verdicts identical at every lane count · 0 bytes of tree drift in all four
+#       73 of 74 PROOF verdicts identical — and ONE flipped:
+#           test_a_cached_absence_is_not_an_absence[0]  PROVEN -> UNPROVABLE
+# It did not flip because a lane corrupted anything. Its CLEAN run takes ~110 s against a
+# registered timeout of 120 s — measured at 230.3 s for clean+tampered in the SERIAL control, and
+# that same control already reports its OTHER proof UNPROVABLE for the identical timeout reason.
+# The gate sits on its own deadline, serially, on an idle machine. Any load at all tips it.
+#
+# ⚠ AND THE FLIP IS NOT HARMLESS. `UNPROVABLE` makes _write_state DISCARD a standing proof, so a
+# deadline that expired because of MY concurrency would quietly delete a proof the heart had
+# banked — a number walking backwards for a reason that is nothing to do with the law.
+#
+# The honest fix is not a smaller lane count: 2 lanes flips the SAME proof, measured. The deadline
+# is an INSTRUMENT parameter — how long this prover waits before giving up — and it must not be
+# what decides whether a law can be measured. So when more than one lane is running, every gate's
+# registered timeout is multiplied by this. The number is measured, not guessed: the worst
+# per-proof inflation observed at 4 lanes was 1.75x (1.2s -> 2.1s on a short gate, where fixed
+# start-up contention dominates); long gates ran at 0.98x-1.01x. 2 covers that with margin.
+# ⚠ IT APPLIES ONLY WHEN LANES > 1, so the single-lane path keeps the exact deadline it always
+# had, and a genuinely hung gate still gives up — at 2x a bounded budget, never never.
+LANE_DEADLINE_SCALE = 2
+DEADLINE_SCALE = 1            # what _prove_one actually multiplies in; set by _prove_gates
+
+
+def prove_workers(n_gates=None, say=None):
+    """How many lanes `--prove` may run at once. -> int >= 1
+
+    ⚠ IT MUST BE TURNABLE DOWN WITHOUT AN EDIT, because the reason to turn it down is a machine
+    that is already loaded — the condition under which editing a file and re-running is worst.
+    An unreadable or absurd value falls back to the default AND SAYS SO: a number nobody asked
+    for, chosen silently, is how a gate ends up measuring something else. [[unknown-stays-unknown]]
+
+    ⚠ AND IT IS CAPPED BY FREE DISK, because each lane is a real copy. safe_copy refuses below
+    4 GB free one copy at a time, but four lanes build CONCURRENTLY and that check would race.
+    Answering 1 rather than 0 is deliberate: one lane is the old behaviour, and safe_copy still
+    gets to refuse it honestly.
+    """
+    n = PROVE_WORKERS
+    raw = os.environ.get("HEART2_PROVE_WORKERS")
+    if raw is not None:
+        try:
+            n = int(str(raw).strip())
+        except Exception:
+            n = PROVE_WORKERS
+            if say:
+                say("  ⚠ HEART2_PROVE_WORKERS=%r is not a number — falling back to %d lane(s)"
+                    % (raw, n))
+        if n < 1:
+            if say:
+                say("  ⚠ HEART2_PROVE_WORKERS=%r is below 1 — using 1 lane (the serial loop)" % raw)
+            n = 1
+    n = max(1, min(int(n), 16))
+    if n_gates:
+        n = min(n, int(n_gates))
+    try:
+        free_mb = shutil.disk_usage(tempfile.gettempdir()).free / (1024.0 * 1024.0)
+        room = int((free_mb - LANE_DISK_FLOOR_MB) // LANE_DISK_MB)
+        if room < n:
+            if say:
+                say("  ⚠ only %d MB free: %d lane(s) would leave less than %d MB, so this run uses "
+                    "%d. Fewer lanes, never a skipped proof." % (int(free_mb), n,
+                                                                 LANE_DISK_FLOOR_MB, max(1, room)))
+            n = max(1, room)
+    except Exception:
+        pass
+    return max(1, n)
+
+
+class _LaneSay(object):
+    """One lane's printer: it buffers, and flushes a whole gate's lines at once under a lock.
+
+    ⚠ WITHOUT IT THE VERDICT LINES INTERLEAVE and the log stops being evidence — and the log is
+    the only thing `--prove` produces. Flushed per gate rather than per run, so output still
+    arrives while the proving is going on instead of all at the end.
+
+    ⚠ AND WITH ONE LANE IT DOES NOT BUFFER AT ALL. HEART2_PROVE_WORKERS=1 is offered as "the old
+    loop, unchanged", and a single lane that withheld its lines until a gate finished would not be
+    that — a proof can take minutes, and somebody watching a stuck run needs the line for the proof
+    it is stuck on. Nothing can interleave with itself, so there is nothing to buffer for.
+    """
+
+    def __init__(self, sink, lock, buffered=True):
+        self._buf, self._sink, self._lock, self._buffered = [], sink, lock, buffered
+
+    def __call__(self, *a):
+        line = " ".join(str(x) for x in a)
+        if not self._buffered:
+            self._sink(line)
+            return
+        self._buf.append(line)
+
+    def flush(self):
+        if not self._buf:
+            return
+        buf, self._buf = self._buf, []
+        with self._lock:
+            for line in buf:
+                self._sink(line)
+
+
+def _prove_gate(sandbox, name, filename, proofs, say):
+    """Every proof of ONE gate, serially, inside ONE sandbox. -> (verdict, [verdict per proof])
+
+    ⚠ LIFTED OUT OF prove()'s INNER LOOP WHEN THE OUTER LOOP WAS SPLIT INTO LANES — it is not a
+    second copy of that policy, it is the only one, and both the one-lane and the many-lane paths
+    call this same function. A rule that exists twice is how this repo's defects start.
+    [[copy-drift]]
+    """
+    verdicts = []
+    for i, pr in enumerate(proofs):
+        # ⚠⚠ ONE BAD PROOF MAY NOT TAKE THE WHOLE RUN WITH IT. This loop sits inside a
+        # `try: ... finally:` with NO `except`, so an exception from _prove_one escaped
+        # `prove()` entirely — and `_write_state(results)` is BELOW that try, so nothing
+        # was ever banked. The census in control_app.py then read a file nothing had
+        # refreshed and reported from it, indefinitely.
+        # MEASURED 2026-09-17: a 4-tuple proof raised AttributeError on `pr.get("file")`,
+        # 12 gates declared them, and the organ that exists to ask "can my own gates still
+        # go red" died on the first one while still reporting a verdict.
+        # The shape is fixed at the reader (_normalise_proofs); this is the SECOND lock,
+        # because the next unreadable proof will be a shape nobody has thought of yet.
+        # [[the-unjoined-end]] [[unknown-stays-unknown]]
+        try:
+            v = _prove_one(sandbox, name, filename, pr, i, say)
+        except Exception as _pe:
+            say("    proof %d raised %s — recorded BLIND, run continues: %s"
+                % (i, type(_pe).__name__, str(_pe)[:120]))
+            v = BLIND
+        verdicts.append(v)
+    return (BLIND if BLIND in verdicts
+            else INVALID if INVALID in verdicts
+            else UNPROVABLE if UNPROVABLE in verdicts
+            else PROVEN), verdicts
+
+
+def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
+    """ONE lane: build a sandbox nobody else touches, then drain the shared queue into `out`.
+
+    ⚠⚠ EVERY GATE THIS LANE TAKES COMES BACK WITH A ROW, INCLUDING WHEN THE LANE DIES HOLDING IT.
+    A dropped row does not read as a failure, it reads as a shorter census — and v2882 already
+    cost this file a "0 blind of 278" that was really 279 gates with one never asked about. A
+    lane that RAISES marks the gate it was holding BLIND — the same policy _prove_gate applies to
+    a single proof that raises, and BLIND exits non-zero. A lane that cannot build a sandbox takes
+    no gate at all, so the healthy lanes still prove them.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    say = _LaneSay(sink, lock, buffered=buffered)
+    holding = []
+    root = None
+    try:
+        sandbox, root = make_sandbox(say)
+        built.append(bool(sandbox))
+        if not sandbox:
+            # ⚠ IT TAKES NOTHING. The first cut drained the whole queue into UNPROVABLE here, so
+            # ONE lane that lost a race for disk would have STOLEN every gate from the healthy
+            # lanes and reported the lot as "already red untampered" — a confident wrong sentence
+            # about 500 laws, produced by the failure of one copy. A lane with no sandbox proves
+            # nothing and says so; the others keep the work. If NO lane can build one, the queue
+            # goes undrained and _prove_gates answers "nothing was proven", which is the same
+            # answer the old single-sandbox loop gave. [[unknown-stays-unknown]]
+            say("  ⚠ lane %d could not build a sandbox and therefore takes NO gate — the other "
+                "lanes keep the work. UNKNOWN is not a verdict this lane may hand out." % lane)
+            return
+        say("  lane %d sandbox: %s" % (lane, sandbox))
+        say.flush()
+        while True:
+            try:
+                name, filename, proofs = work.get_nowait()
+            except Exception:
+                break
+            holding = [(name, proofs)]
+            try:
+                v, per = _prove_gate(sandbox, name, filename, proofs, say)
+            except Exception as _ge:
+                say("    %s raised %s outside its own proofs — recorded BLIND, the run continues: "
+                    "%s" % (name, type(_ge).__name__, str(_ge)[:120]))
+                v, per = BLIND, [BLIND] * len(proofs)
+            with lock:
+                out[name] = (v, per)
+            holding = []
+            say.flush()
+    except Exception as _le:
+        say("  ⚠ lane %d died: %s: %s" % (lane, type(_le).__name__, str(_le)[:140]))
+        for _n, _p in holding:
+            with lock:
+                out.setdefault(_n, (BLIND, [BLIND] * len(_p)))
+    finally:
+        say.flush()
+        if root:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def _prove_gates(have, say=print, workers=None):
+    """Prove every gate in `have` across isolated lanes. -> ({name: verdict}, {name: [verdicts]})
+
+    (None, None) means NOT ONE lane could build a sandbox — the same "nothing was proven" answer
+    the old single-sandbox loop gave, so the caller still banks no state. A run where SOME lanes
+    built a sandbox is not that: those gates were really judged, and the rest say UNPROVABLE.
+    """
+    # imported HERE and not at module scope on purpose: control_app.py imports heart2 on every
+    # census read, and it never proves anything. [[copy-drift]]
+    import queue as _queue
+    from concurrent.futures import ThreadPoolExecutor
+    if not have:
+        return {}, {}
+    n = prove_workers(len(have), say) if workers is None else max(1, int(workers))
+    n = max(1, min(n, len(have)))
+    work = _queue.Queue()
+    for item in have:
+        work.put(item)
+    out, lock, built = {}, threading.Lock(), []
+    say("  proving %d gate(s) in %d lane(s), one throwaway sandbox each" % (len(have), n))
+    # ⚠ RESTORED IN A `finally`, because a module global left widened would silently extend every
+    # later single-lane deadline in the same process — control_app.py imports this module and
+    # keeps it. A dial that does not spring back is a dial nobody set. [[label-outlived-referent]]
+    global DEADLINE_SCALE
+    _prev_scale = DEADLINE_SCALE
+    DEADLINE_SCALE = LANE_DEADLINE_SCALE if n > 1 else 1
+    try:
+        if n == 1:
+            _prove_lane(1, work, out, lock, say, built, buffered=False)
+        else:
+            say("  every gate's deadline is x%d while %d lanes are running, because the lanes "
+                "make the load themselves" % (DEADLINE_SCALE, n))
+            with ThreadPoolExecutor(max_workers=n) as ex:
+                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)
+                        for i in range(n)]
+                for f in futs:
+                    _e = f.exception()
+                    if _e is not None:
+                        # _prove_lane already catches Exception; reaching here means something got
+                        # past its own handler, and the gates it was holding are covered by the
+                        # missing-row sweep below. Never swallowed.
+                        # [[feedback-silence-is-not-evidence]]
+                        say("  ⚠ a lane raised past its own handler: %s" % type(_e).__name__)
+    finally:
+        DEADLINE_SCALE = _prev_scale
+    if built and not any(built):
+        say("  no lane could build a sandbox — nothing was proven, and that is UNKNOWN, not clean.")
+        return None, None
+    # ⚠ NOBODY MAY VANISH. Every gate handed in comes back with a row even if the lane holding it
+    # died before writing one — an absent row reads as "nothing to see". [[zero-needs-a-denominator]]
+    missing = [(nm, prs) for nm, _fn, prs in have if nm not in out]
+    if missing:
+        say("  ⚠ %d gate(s) were never reached by any lane — recorded BLIND, never dropped: %s"
+            % (len(missing), ", ".join(nm for nm, _p in missing[:6])))
+        for nm, prs in missing:
+            out[nm] = (BLIND, [BLIND] * len(prs))
+    return ({k: v for k, (v, _p) in out.items()},
+            {k: p for k, (_v, p) in out.items()})
+
+
+def prove(only=None, say=print, detail=None):
     gates = gate_files()
     todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
     with_proofs = [(n, f, red_proofs_in(f)) for n, f in todo]
@@ -831,39 +1131,14 @@ def prove(only=None, say=print):
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
-    sandbox, root = make_sandbox(say)
-    if not sandbox:
+    results, per_proof = _prove_gates(have, say)
+    if results is None:
         return {}
-    say("  sandbox: %s" % sandbox)
-    results = {}
-    try:
-        for name, filename, proofs in have:
-            verdicts = []
-            for i, pr in enumerate(proofs):
-                # ⚠⚠ ONE BAD PROOF MAY NOT TAKE THE WHOLE RUN WITH IT. This loop sits inside a
-                # `try: ... finally:` with NO `except`, so an exception from _prove_one escaped
-                # `prove()` entirely — and `_write_state(results)` is BELOW that try, so nothing
-                # was ever banked. The census in control_app.py then read a file nothing had
-                # refreshed and reported from it, indefinitely.
-                # MEASURED 2026-09-17: a 4-tuple proof raised AttributeError on `pr.get("file")`,
-                # 12 gates declared them, and the organ that exists to ask "can my own gates still
-                # go red" died on the first one while still reporting a verdict.
-                # The shape is fixed at the reader (_normalise_proofs); this is the SECOND lock,
-                # because the next unreadable proof will be a shape nobody has thought of yet.
-                # [[the-unjoined-end]] [[unknown-stays-unknown]]
-                try:
-                    v = _prove_one(sandbox, name, filename, pr, i, say)
-                except Exception as _pe:
-                    say("    proof %d raised %s — recorded BLIND, run continues: %s"
-                        % (i, type(_pe).__name__, str(_pe)[:120]))
-                    v = BLIND
-                verdicts.append(v)
-            results[name] = (BLIND if BLIND in verdicts
-                             else INVALID if INVALID in verdicts
-                             else UNPROVABLE if UNPROVABLE in verdicts
-                             else PROVEN)
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
+    # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
+    # against the serial loop proof by proof. "Both green" is not the same answer as "the same
+    # answers": a faster prove that flips ONE verdict is a broken gate, not a speedup.
+    if detail is not None:
+        detail.update(per_proof)
     _write_state(results)
     return results
 
@@ -1096,6 +1371,10 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
 
     # 1. CLEAN RUN. A gate that is already red in the sandbox can prove nothing.
     _extra, _to, _script = gate_spec(name)
+    # ⚠ THE DEADLINE IS THIS PROVER'S PATIENCE, NOT THE LAW. DEADLINE_SCALE is 1 on the
+    # single-lane path, so that path is unchanged; with lanes running it widens by a measured
+    # factor so a verdict can never be decided by how many copies of the prover are busy.
+    _to = int(_to * DEADLINE_SCALE) if _to else _to
     ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
     if ok_clean is None:
         say("     %-52s %s — clean run: %s" % (label, UNPROVABLE, tail))
