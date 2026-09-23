@@ -6697,6 +6697,50 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
                 "has ended was collected" % (len(kids),))
 
 
+def _check_the_board_build_door_is_open():
+    """v3428 (#37) - IS THE LIVE-BUILD DOOR ACTUALLY SERVED, OR HAS IT GONE 404 AGAIN?
+
+    The GrokBot seat probed for an eval door on THREE separate ticks and got **404 every time**,
+    and #37 stayed blocked on one value for weeks because of it. The failure mode is not that the
+    reader is wrong - it is that there is NO DOOR AT ALL, which from outside is indistinguishable
+    from a console that refused to answer.
+
+    ⚠ IT CHECKS THE ROUTE, NOT THE VALUE, AND THAT IS DELIBERATE. Calling `board_build()` here
+    would evaluate JavaScript in the window HE IS LOOKING AT on every periodic tick, to fetch a
+    number nothing on this machine consumes - a watch with nothing watching, paid for out of his
+    window's responsiveness. What must never regress is that the door EXISTS and is wired into the
+    GET table; whether the board answers is the SEAT's question, and it can now ask.
+
+    ⚠ THREE STATES: the reader missing is one finding, the route unwired is a different one, and a
+    source this process cannot read is UNKNOWN.
+    """
+    # ⚠ A GUARDED IMPORT, NOT AN INVENTED HELPER. The first cut of this row called `_ca_mod()`,
+    # which does not exist in this module — a NameError that would have taken the whole doctor pass
+    # down rather than answering. The same class as the `io.open` slip three rows up, and the
+    # fourth time in this file.
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the console module (%s), so whether the "
+                         "live-build door exists is UNKNOWN, not fine" % type(e).__name__)
+    if not callable(getattr(_ca, "board_build", None)):
+        return MISSING, ("the console has no board_build reader, so the one value #37 is blocked "
+                         "on cannot be read from the live window at all")
+    ui = os.path.join(HERE, "control_app.py")
+    try:
+        with open(ui, encoding="utf-8", errors="replace") as _fh:
+            body = _fh.read()
+    except Exception as e:
+        return UNKNOWN, ("the console source could not be read (%s), so whether the live-build "
+                         "door is served is UNKNOWN" % type(e).__name__)
+    if '"/api/board_build"' not in body:
+        return MISSING, ("board_build exists but no route serves it - that is exactly the 404 the "
+                         "seat hit on three ticks, and it reads from outside like a console that "
+                         "would not answer")
+    return OK, ("the live-build door is wired and served at /api/board_build - the seat can ask "
+                "the window itself instead of reading the served HTML")
+
+
 def _check_every_hell_first_hunt_can_name_a_quicker_route():
     """v3426 - DOES THE FILE HE IS ACTUALLY SERVED STILL TELL HIM WHEN SOMEWHERE ELSE IS QUICKER?
 
@@ -6728,13 +6772,29 @@ def _check_every_hell_first_hunt_can_name_a_quicker_route():
     except Exception as e:
         return UNKNOWN, ("the served console source could not be read (%s), so whether his hunt "
                          "can name a quicker route is UNKNOWN, not fine" % type(e).__name__)
+    # ⚠⚠ v3429 — BOUNDED BY THE NEXT HERO, NOT BY A FIXED 14,000 CHARS. The second eye found this
+    # reviewing v3426: a fixed slice can read the OTHER hero's text and pass one function on its
+    # sibling's evidence, or stop short of a real render and fail a healthy one. MEASURED the same
+    # hour: the two are 16,781 chars apart against a 14,000 window — so today it does not overlap,
+    # but the margin is 2,781 characters and one paragraph of comment closes it. A law whose
+    # correctness depends on a gap nobody watches is a coincidence.
     heroes, blind = ("hubNextGrail", "hubNextSet"), []
+    # ⚠ v3429 — THE OPEN PAREN IS LOAD-BEARING. `find("function hubNextSet")` is a SUBSTRING
+    # search, so it matches `function hubNextSetRENAMED` too — the row would bind to a renamed or
+    # differently-named function and report the hunt healthy on the strength of the wrong one.
+    # Caught by this version's own new drive case, not by reasoning about it.
+    _starts = sorted((body.find("function " + h + "("), h) for h in heroes)
+    if any(i < 0 for i, _h in _starts):
+        _gone = [h for i, h in _starts if i < 0]
+        return MISSING, ("%s is not in the file this console serves, so the hunt he is looking at "
+                         "is not the one the gates grade" % ", ".join(_gone))
+    _bounds = {}
+    for _n, (_i, _h) in enumerate(_starts):
+        _end = _starts[_n + 1][0] if _n + 1 < len(_starts) else len(body)
+        _bounds[_h] = (_i, _end)
     for fn in heroes:
-        i = body.find("function " + fn)
-        if i < 0:
-            return MISSING, ("%s is not in the file this console serves, so the hunt he is looking "
-                             "at is not the one the gates grade" % fn)
-        seg = body[i:i + 14000]
+        i, _e = _bounds[fn]
+        seg = body[i:_e]
         # the assignment must be reachable, and the render must be gated on the value - not on a
         # constant. Either one neutered leaves the sentence in the file and the advice off screen.
         assigns = ("_elsewhere = {" in seg)
@@ -6945,6 +7005,7 @@ CHECKS = [
     ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
     ("the eye seat can be filled", _check_the_eyes_default_seat_can_still_be_filled),
     ("the hunt names a quicker route", _check_every_hell_first_hunt_can_name_a_quicker_route),
+    ("the board build door is open", _check_the_board_build_door_is_open),
     ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
     ("our scratch is collected", _check_nothing_we_made_is_still_on_his_disk_days_later),
     ("a verdict comes from a declared field",
@@ -7513,6 +7574,7 @@ WATCHES = {
     "the eye answers in a field": (),
     "the eye seat can be filled": (),
     "the hunt names a quicker route": (),
+    "the board build door is open": (),
     "nothing we started is a corpse": (),
     "our scratch is collected": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped

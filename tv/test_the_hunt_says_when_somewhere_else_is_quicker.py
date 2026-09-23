@@ -46,8 +46,32 @@ _console_safe_enable()
 UI = os.path.join(HERE, "control_ui.html")
 SRC = io.open(UI, encoding="utf-8", errors="replace").read()
 
-_TIER_RE = re.compile(
-    r"var tier = function \(src\) \{[^}]*?\};", re.S)
+# ⚠⚠ v3429 — BRACE-BALANCED, BECAUSE `[^}]` CANNOT CROSS ONE. The second eye found this reviewing
+# v3426 and it was CONFIRMED by measurement: the old pattern `\{[^}]*?\};` matches today's `tier`
+# only because that body happens to be one brace-free ternary. A `tier` written with a single
+# nested block — `if (t) { return 2; }` — does NOT match (measured: True today, False with one
+# block), and setUp would then fail with "the sets hero's tier() is gone" while the function sat
+# right there, SILENTLY DISABLING every behavioural case in this file. A gate that dies on ordinary
+# reformatting of a function it does not own is measuring the formatting.
+_TIER_HEAD = "var tier = function (src) {"
+
+
+def _extract_tier(src):
+    """Cut `tier` out by BALANCING braces from its opening one. -> str or None."""
+    i = src.find(_TIER_HEAD)
+    if i < 0:
+        return None
+    j = i + len(_TIER_HEAD) - 1          # sits on the opening brace
+    depth = 0
+    for k in range(j, len(src)):
+        c = src[k]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[i:k + 1] + ";"
+    return None
 # ⚠⚠ v3426 — THESE CAPTURE WHOLE STATEMENTS, NOT CONDITIONS, AND THAT IS THE WHOLE POINT.
 # The first form of this gate extracted only the `if (...)` CONDITION and evaluated that, and
 # separately asserted the strings `_elsewhere` and `quicker below Hell` were PRESENT in each hero.
@@ -73,14 +97,14 @@ def _node(js):
 class TestTheHuntSaysWhenSomewhereElseIsQuicker(unittest.TestCase):
 
     def setUp(self):
-        t = _TIER_RE.search(SRC)
+        t = _extract_tier(SRC)
         a = _ASSIGN_RE.search(SRC)
         f = _FACTOR_RE.search(SRC)
         self.assertTrue(t, "the sets hero's tier() is gone — this gate is pointed at nothing")
         self.assertTrue(a, "the v3426 source-vs-source BLOCK is gone from hubNextSet, so the Hell "
                            "headline is back to hiding a quicker lower-difficulty route")
         self.assertTrue(f, "the material threshold is gone")
-        self.tier_js, self.assign_js, self.factor = t.group(0), a.group(1), float(f.group(1))
+        self.tier_js, self.assign_js, self.factor = t, a.group(1), float(f.group(1))
 
     def _fires(self, expected, hell, source):
         """RUN the shipped assignment block and report whether it actually set `_elsewhere`.
@@ -173,6 +197,80 @@ class TestTheHuntSaysWhenSomewhereElseIsQuicker(unittest.TestCase):
                       "both ends and never joined. Rendered: %r" % out)
         self.assertIn("20h", out, "it names the route without the time, so he cannot compare it "
                                   "against the Hell number beside it. Rendered: %r" % out)
+
+
+class TestTheLiveRowSeesABlindedHero(unittest.TestCase):
+    """v3429 — THE DOCTOR ROW, DRIVEN. It had no red-proof, which means it measured nothing: a row
+    that has never been seen refuse is indistinguishable from one that cannot.
+
+    ⚠ IT READS THE FILE THE CONSOLE SERVES, so it is driven by pointing `console_doctor.HERE` at a
+    temp directory holding a doctored copy — the real file is never touched."""
+
+    def _row_against(self, ui_text):
+        import shutil, tempfile
+        import console_doctor as cd
+        d = tempfile.mkdtemp(prefix="huntrow_")
+        try:
+            io.open(os.path.join(d, "control_ui.html"), "w", encoding="utf-8").write(ui_text)
+            old = cd.HERE
+            try:
+                cd.HERE = d
+                return dict(cd.CHECKS)["the hunt names a quicker route"]()
+            finally:
+                cd.HERE = old
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_the_real_file_reads_OK(self):
+        import console_doctor as cd
+        st, say = self._row_against(SRC)
+        self.assertEqual(st, cd.OK, "the shipped file did not satisfy its own row: %s" % say)
+
+    def test_a_hero_whose_ASSIGNMENT_is_gone_is_caught(self):
+        import console_doctor as cd
+        blinded = SRC.replace("_elsewhere = { source: _h0.source, hours: _h0.expectedHours };",
+                              "_elsewhere = null;", 1)
+        self.assertNotEqual(blinded, SRC, "the sabotage anchor missed — this proves nothing")
+        st, say = self._row_against(blinded)
+        self.assertEqual(st, cd.MISSING,
+                         "the sets hero stopped computing an alternative and the row said fine: %s"
+                         % say)
+        self.assertIn("hubNextSet", say, "the row does not name WHICH card went blind")
+
+    def test_a_hero_whose_RENDER_is_degated_is_caught(self):
+        """⚠ THE HALF THAT MATTERS MOST: the sentence stays in the file, so anything looking for
+        the words still finds them. Only the gate on the VALUE distinguishes them."""
+        import console_doctor as cd
+        degated = SRC.replace("+ (_elsewhere ? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell",
+                              "+ (false ? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell", 1)
+        self.assertNotEqual(degated, SRC, "the sabotage anchor missed — this proves nothing")
+        st, say = self._row_against(degated)
+        self.assertEqual(st, cd.MISSING,
+                         "the disclosure was computed and never rendered, and the row called that "
+                         "healthy: %s" % say)
+
+    def test_a_MISSING_hero_is_a_finding_not_a_pass(self):
+        import console_doctor as cd
+        gone = SRC.replace("function hubNextSet", "function hubNextSetRENAMED", 1)
+        st, say = self._row_against(gone)
+        self.assertEqual(st, cd.MISSING,
+                         "a hero that is not in the served file read as fine: %s" % say)
+
+    def test_an_unreadable_file_is_UNKNOWN_not_clean(self):
+        import console_doctor as cd
+        import shutil, tempfile
+        d = tempfile.mkdtemp(prefix="huntrow_empty_")
+        try:
+            old = cd.HERE
+            try:
+                cd.HERE = d          # no control_ui.html here at all
+                st, say = dict(cd.CHECKS)["the hunt names a quicker route"]()
+            finally:
+                cd.HERE = old
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(st, cd.UNKNOWN,
+                         "a file it could not read was reported as a verdict: %s" % say)
 
 
 RED_PROOF = [

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3427",
+  "ver": "v3428",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3427: the pre-push gate refused v3426 with 3 real failures out of 2238, all from v3421 extracting close_ocr_worker out of _kai_closer_loop - the routine moved one call away and three guards could only see inside the assigning function. The finally law names the door and its two other laws are re-pointed at the helper body rather than deleted; the popen sweep now follows a helper whose OWN body reaps its first parameter, proven still able to refuse by sabotage; and a TEST FIXTURE with a def wait had reclassified a live lane from FOREIGN to UNKNOWN",
+  "note": "v3428: 37 sat blocked for weeks on one value because there was NO evaluate_js door - the seat probed api eval and got 404 three ticks running, and I once reported that blocker lifted on a SOURCE-ONLY read, which was wrong. board_build is a narrow door: one fixed expression, no parameters, never the banner, and four refusals stay distinguishable from one measured absence. Also folds in the eye v3426 findings: a brace-blind tier extractor, a doctor window bounded by a constant instead of the next hero, and that row driven red for the first time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

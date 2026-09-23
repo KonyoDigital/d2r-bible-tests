@@ -7,6 +7,63 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1155 - #37 WAS BLOCKED BY A MISSING DOOR, AND I ONCE REPORTED IT LIFTED ON A SOURCE READ
+
+**v3428.** #37 sat blocked for weeks on ONE value, and the GrokBot seat finally named the cause,
+three ticks running: *"live typeof `window.D2R_BUILD` / `.id` / `Object.keys(D2R*)` **NOT
+EVALABLE** — no evaluate_js HTTP door on pywebview seat (probed `/api/eval*` → **404**)"*. It could
+read the board's SERVED HTML and nothing else. **That is the file, not the window.**
+
+⚠⚠ **AND I REPORTED THE BLOCKER AS LIFTED, WRONGLY.** An earlier pack answered `v3419` via
+`/board?app=1&engine=1` and I read it as a live evaluation; the seat then labelled the very same
+read **SOURCE-ONLY**. Its refusals were right and my reading of them was not — **a value that
+agrees with the live one is still not a live read.** [[a-probe-licenses-only-what-it-tested]]
+
+`board_build()` + `GET /api/board_build` is the door, and it is deliberately **narrow**: ONE FIXED
+expression, no parameters, nothing to inject. The seat asked for an eval route and that is the one
+thing this must not become — a caller-supplied-code endpoint on the console he is looking at is a
+hazard and a second write path into his board.
+
+⚠ **IT NEVER SUBSTITUTES THE BANNER OR `/api/status`.** That substitution IS the defect #37 bans
+(one banner, one sentence, one writer), and the seat spent weeks correctly refusing it as *"not a
+substitute for contentWindow"*. **Four refusals — window shut, timeout, raise, non-JSON — stay
+distinguishable from ONE measured absence**, because "I could not look" and "it is not there" are
+opposite facts. A `_ejs` timeout worded as "no build id" would report a BUSY window as an UNSTAMPED
+one. [[unknown-stays-unknown]]
+
+**Gate** `test_a_live_build_read_is_never_the_banner` — 9 cases, **2/2 red-proofs PROVEN**.
+**Heart row** `the board build door is open` — it checks the ROUTE, not the value, because calling
+the reader on every tick would evaluate JS in the window HE IS LOOKING AT to fetch a number nothing
+here consumes. What must never regress is the 404.
+
+⚠ **THE GATE FLAGGED ITS OWN SUBJECT'S DOCSTRING.** `board_build`'s docstring contains the sentence
+*"IT NEVER FALLS BACK TO THE BANNER OR /api/status"*, so the first cut of the no-substitution case
+read the EXPLANATION of the ban as a violation of it. Stripping `#` comments was not enough — a
+docstring is prose too. [[sweep-dont-ask]] — *"a scanner that reads its own documentation sits red
+forever pointing at itself"*.
+
+⚠ **NOT YET VERIFIED LIVE.** `curl /api/board_build` against his running console returns
+`{"ok": false, "msg": "not found"}` — the process is still running the older Python and has not
+re-exec'd. The door is PROVEN BY GATE, not yet by his window.
+
+### REG-1156 - THE EYE FOUND FOUR THINGS IN v3426; ONE WAS REFUTED BY MEASURING IT
+
+**v3428 — the second eye on v3426** (grok-cli, `verdictFrom: schema`, 5 findings). Every checkable
+claim was measured rather than accepted:
+
+| finding | verdict |
+|---|---|
+| the doctor row's 14,000-char window can read the OTHER hero's text | **half refuted** — measured **16,781 chars apart**, so no overlap today. ⚠ The margin is **2,781 characters** and one paragraph of comment closes it, so the window is now bounded by the NEXT HERO instead of a constant. A law whose correctness depends on a gap nobody watches is a coincidence. |
+| the grail-threshold regex also matches the sets line, because `h0` is a suffix of `_h0` | **REFUTED** — `re.findall` returns `['0.7']`, ONE hit, the grail's own. The suffix reasoning was right but the ` <= h0.` boundary forces an exact match, which `_h0` cannot satisfy. |
+| `_TIER_RE`'s `[^}]` cannot cross a brace | **CONFIRMED** — today's `tier` matches only because its body is one brace-free ternary; a `tier` with ONE nested block does **not** (measured True/False). `setUp` would then fail with *"the sets hero's tier() is gone"* while the function sat right there, **silently disabling every behavioural case in the file**. Replaced with a brace-balancing extractor. |
+| the sets disclosure only inspects `hell[0]`, so a different piece far quicker in Normal is never named | **STANDS** — filed as **#176**. The grail hero has BOTH halves (`_alt` cross-item, `_elsewhere` cross-difficulty); the sets hero got only one. |
+
+⚠ **AND THE DOCTOR ROW HAD NO RED-PROOF AT ALL**, which means it measured nothing. It is now driven
+against doctored copies in four directions — assignment gone, render de-gated, hero missing, file
+unreadable — and the very first run of those cases **caught a real defect in the row itself**:
+`find("function hubNextSet")` is a SUBSTRING search, so it bound happily to
+`function hubNextSetRENAMED`. The open paren is now load-bearing.
+
 ### REG-1154 - THREE GUARDS RESOLVED THE OBJECT INSIDE ONE FUNCTION, AND v3421 MOVED IT
 
 **v3427.** The pre-push gate refused v3426 with **`test_control FAILED`, 3 failures out of 2,238

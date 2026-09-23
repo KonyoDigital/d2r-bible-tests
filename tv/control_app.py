@@ -13494,6 +13494,84 @@ def board_identity_drift():
                       "" if _age is None else (", last seen %s ago" % _fmt_age_ms(_age)))}
 
 
+def board_build():
+    """v3428 (#37) — READ `window.D2R_BUILD` OUT OF THE LIVE BOARD WINDOW. -> dict
+
+    #37 has been BLOCKED for weeks on exactly one value, and the GrokBot seat has now said why,
+    three ticks running: *"live typeof window.D2R_BUILD / .id / Object.keys(D2R*) NOT EVALABLE —
+    no evaluate_js HTTP door on pywebview seat (probed /api/eval* → 404)"*. It could only read the
+    board's SERVED HTML, which is the file, not the window.
+
+    ⚠ AND I REPORTED THAT BLOCKER AS LIFTED ONCE, WRONGLY. An earlier pack answered `v3419` via
+    `/board?app=1&engine=1`, which I read as a live evaluation; the seat then labelled the same
+    read **SOURCE-ONLY**. Its refusals were right and my reading of them was not. A value that
+    agrees with the live one is still not a live read. [[a-probe-licenses-only-what-it-tested]]
+
+    ⚠⚠ IT NEVER FALLS BACK TO THE BANNER OR /api/status. That substitution IS the defect #37 bans
+    — one banner, one sentence, one writer — and the seat has been correctly refusing it as "not a
+    substitute for contentWindow" on every pack. If the window cannot be read this returns
+    `ok:False` with a reason and `id:None`. UNKNOWN is the honest answer; a plausible number from
+    a different source is the dishonest one. [[unknown-stays-unknown]]
+
+    ⚠ ONE FIXED EXPRESSION, NOT A GENERAL `eval` DOOR. The seat asked for an eval route and that is
+    the one thing this must not become: a caller-supplied-code endpoint on the console he is
+    looking at is a hazard, and it would also be a SECOND write path into his board. This evaluates
+    a constant string and returns four named fields.
+
+    ⚠ THE IFRAME HOP IS board_ownership's, deliberately copied in SHAPE and not in code: the board
+    globals live in `#tvd-eng`'s contentWindow when TV DIABLO is showing the engine, and the top
+    document has none of them. `hopped` is reported so a reader knows which context answered.
+    """
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "id": None, "profile": None, "machine": None,
+                "typeofBuild": None, "keys": None, "hopped": None,
+                "why": "the board window is not open — open TV DIABLO and try again"}
+    js = ("(function(){try{"
+          "var _ctx=window;"
+          "if(typeof window.D2R_BUILD==='undefined'){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&typeof _cw.D2R_BUILD!=='undefined')_ctx=_cw;}catch(_hop){}}"
+          "var b=_ctx.D2R_BUILD;"
+          "var ks=[];try{for(var k in _ctx){if(k.indexOf('D2R')===0)ks.push(k);}}catch(_k){}"
+          "return JSON.stringify({typeofBuild:(typeof b),"
+          "id:(b&&b.id)||null,profile:(b&&b.profile)||null,machine:(b&&b.machine)||null,"
+          "keys:ks,hopped:(_ctx!==window)});"
+          "}catch(e){return JSON.stringify({err:String((e&&e.message)||e)});}})()")
+    try:
+        raw = _ejs(w, js, 4.0)
+    except Exception as e:
+        return {"ok": False, "id": None, "profile": None, "machine": None,
+                "typeofBuild": None, "keys": None, "hopped": None,
+                "why": "the board window refused the read (%s)" % type(e).__name__}
+    # ⚠ A TIMEOUT IS NOT AN ABSENCE. `_ejs` returns None when the WKWebView did not answer inside
+    # its bound; saying "no build id" there would report a busy window as an unstamped one.
+    if raw is None:
+        return {"ok": False, "id": None, "profile": None, "machine": None,
+                "typeofBuild": None, "keys": None, "hopped": None,
+                "why": "the board window did not answer within 4s — UNKNOWN, not absent"}
+    try:
+        got = json.loads(raw) if isinstance(raw, str) else (raw or {})
+    except Exception:
+        return {"ok": False, "id": None, "profile": None, "machine": None,
+                "typeofBuild": None, "keys": None, "hopped": None,
+                "why": "the board window answered something that is not JSON"}
+    if got.get("err"):
+        return {"ok": False, "id": None, "profile": None, "machine": None,
+                "typeofBuild": None, "keys": None, "hopped": None,
+                "why": "the board window raised: %s" % got["err"]}
+    out = {"ok": bool(got.get("id")), "id": got.get("id"), "profile": got.get("profile"),
+           "machine": got.get("machine"), "typeofBuild": got.get("typeofBuild"),
+           "keys": got.get("keys"), "hopped": got.get("hopped"), "why": None}
+    if not out["ok"]:
+        # the window answered, and it genuinely has no D2R_BUILD.id — that is a MEASURED absence,
+        # and it reads differently from every refusal above. Say which one it is.
+        out["why"] = ("the board window answered but carries no D2R_BUILD.id (typeof %r, D2R* keys "
+                      "%r) — measured, not a failure to look"
+                      % (got.get("typeofBuild"), got.get("keys")))
+    return out
+
+
 def board_ownership(sample=0, dump_stores=False):
     """ASK THE BOARD WHAT HE OWNS. The read direction of the channel that already applies.
 
@@ -31204,7 +31282,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3427",
+        "ver": "v3428",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34234,6 +34312,21 @@ class Handler(BaseHTTPRequestHandler):
                              "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his "
                                     "ruling. The pointer is no longer driven from this "
                                     "console. MINI and ON AIR are unaffected."})
+            return
+        if path == "/api/board_build":
+            # v3428 (#37) — THE DOOR THE GROKBOT SEAT HAS BEEN ASKING FOR, NARROWED TO ONE VALUE.
+            # It probed /api/eval* and got 404 on three separate ticks, and correctly refused to
+            # let the banner or /api/status stand in for a live window read.
+            #
+            # ⚠ GET, and no arguments. It changes nothing and takes nothing, which is the whole
+            # reason it is safe to expose: the thing it must never become is a general eval
+            # endpoint on the console he is looking at. Its sibling board_ownership is POST because
+            # it shares a channel with a WRITE door; this one has no write half.
+            #
+            # ⚠ The path is unique, so it cannot shadow an existing branch — the hazard v2026
+            # recorded two rows below, where a new `if path ==` sat above an older one and stole
+            # its requests.
+            self._json(200, board_build())
             return
         if path == "/api/eagle":
             # v2026 — 🦅 THE EAGLE EYE, reachable from the app.
