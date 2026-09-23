@@ -1,7 +1,14 @@
 name: 📺 TV DIABLO — agent tests
 on:
   push:
-    paths: ['tv/**']
+    # ⚠ IT MUST WATCH ITSELF. `TestEveryRoutineCanSeeTheInputItPolices` in tv/test_control.py
+    # already makes this a law for the five routine workflows — "a gate that cannot see the
+    # input it polices is not a gate" — and this file was never in that list, so every edit to
+    # the verdict machinery below changed what CI DOES while triggering nothing. Block style,
+    # one quoted string per line, because that is the shape that gate's own parser reads.
+    paths:
+      - 'tv/**'
+      - '.github/workflows/tv-tests.yml'
   workflow_dispatch:
 jobs:
   agent-suite:
@@ -14,7 +21,19 @@ jobs:
     # **cancelled**, which reads as "a person cancelled this" rather than "something stalled".
     # 25 matches publish.yml, which learned this the same way.
     timeout-minutes: 25
+    env:
+      # ⚠ ONE COPY OF THE CEILING, AT JOB SCOPE, AND IT MUST EQUAL `timeout-minutes` ABOVE.
+      # Two steps below quote this number in what they print. A step-local copy was the first
+      # shape of this and it left the cancelled-path step falling back to a hardcoded 25 that
+      # nothing checked — a right number under a label that had stopped being driven by it.
+      # tv/test_a_cut_off_gate_set_is_not_a_verdict.py goes red if these two ever drift.
+      CEILING_MINUTES: 25
     steps:
+      # The ceiling below is a number in YAML; this is the only way anything in the run can
+      # tell how much of it was actually spent. Written before checkout so it covers the whole
+      # job, not just the part after the clone.
+      - name: Mark the job start (the ceiling is measured from here, never assumed)
+        run: echo "JOB_STARTED_AT=$(date -u +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           # v2679 — DEEP ENOUGH FOR THE SHIP-HISTORY GATE, AND NO DEEPER.
@@ -150,9 +169,123 @@ jobs:
       # file it runs, so it is worth keeping true. Measured on run 33991499070 (v2690): the step
       # printed "140 gate(s) passed, 4 skipped for a DECLARED reason" = 144, matching the static
       # Gate(...) count exactly. No allowlist here: whatever is registered runs.
+      # ⚠ IT RECORDS HOW LONG IT NEEDED, AND A RUN THAT NEVER FINISHES RECORDS NOTHING.
+      # MEASURED on six consecutive runs (gh api .../jobs, 2026-09-23), gate-set step only:
+      #   35817826235 15m46s · 35820756987 17m25s · 35842043863 19m35s
+      #   35834810032 23m04s · 35815188806 23m13s · 35823272442 23m37s
+      #   35825866589 CUT OFF at 24m23s — its true length is UNKNOWN, not 24m23s.
+      # Setup before this step measured 48-64s, so the worst COMPLETED run used 24m41s of the
+      # 25-minute ceiling: a margin of 19 seconds. `GATE_SET_SECONDS` is written AFTER the
+      # verdict, so if this step is cut off the variable is ABSENT rather than zero, and the
+      # watchdog below reports UNKNOWN instead of a reassuring 0.
       - name: THE GATE SET (tv/run_gates.py — every registered gate, one verdict)
-        run: python3 tv/run_gates.py
+        run: |
+          _t0=$(date -u +%s)
+          set +e
+          python3 tv/run_gates.py
+          _rc=$?
+          set -e
+          echo "GATE_SET_SECONDS=$(( $(date -u +%s) - _t0 ))" >> "$GITHUB_ENV"
+          exit $_rc
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof
           echo '{"path":"/api/intake","body":{"ping":1}}' | node tv/intake_local.mjs | grep -q 'missing image' && echo "intake runner OK"
+
+      # ⚠⚠ HOW MUCH CEILING WAS LEFT — because "it passed" and "it barely got there" look identical.
+      #
+      # Board #184, measured: the worst COMPLETED run spent 24m41s of a 25m ceiling. Nineteen
+      # seconds. Whether Konyo gets a verdict at all is decided by runner noise, and nothing in the
+      # log said so — you had to go and diff step timestamps out of `gh api` to find it.
+      #
+      # ⚠ IT IS A WARNING, NOT A FAILURE, AND THAT IS DELIBERATE. Three of the six measured runs sit
+      # inside the margin; a row that turns them all red is a row that gets silenced within a week,
+      # which costs more than the defect. "At the ceiling" gets its OWN STATE, separate from the
+      # "no verdict" error below it.
+      #
+      # ⚠ AND AN ABSENT DURATION IS UNKNOWN, NEVER ZERO. `GATE_SET_SECONDS` is written by the gate
+      # set AFTER its verdict, so a cut-off run leaves it unset — and an unset shell variable in
+      # arithmetic is 0, which would read here as "the gate set took no time and the margin is
+      # enormous", the most reassuring possible lie.
+      - name: How much of the ceiling was left (a thin margin is the next silent run)
+        if: always()
+        run: |
+          _ceiling=$(( CEILING_MINUTES * 60 ))
+          if [ -z "${GATE_SET_SECONDS:-}" ] || [ -z "${JOB_STARTED_AT:-}" ]; then
+            echo "::error title=NO VERDICT::the gate set never reached the end of its own step, so how long it needed is UNKNOWN - not zero, and not fine. This run checked nothing."
+            exit 1
+          fi
+          _used=$(( $(date -u +%s) - JOB_STARTED_AT ))
+          _left=$(( _ceiling - _used ))
+          echo "ceiling ${_ceiling}s - used ${_used}s (gate set ${GATE_SET_SECONDS}s of it) = ${_left}s left"
+          if [ "$_left" -lt 300 ]; then
+            echo "::warning title=AT THE CEILING::only ${_left}s of the ${_ceiling}s job ceiling was left. This suite is one runner hiccup away from being cut off, and a cut-off job reports as 'cancelled', not red. The fix is to shard the gate set, never to raise the ceiling."
+          fi
+
+      # ⚠⚠ THE ONE THAT MATTERS: A CUT-OFF JOB MUST SAY SO ON ITS WAY DOWN.
+      # GitHub reports a job that crosses `timeout-minutes` as **cancelled**, which reads like a
+      # person pressed a button. Measured on run 35825866589: the gate-set step went `cancelled`
+      # at 24m23s and the job's own post-steps still ran, so a step conditioned on cancelled() has
+      # a real chance of being reached — but it is BEST EFFORT and nothing here relies on it. The
+      # job that actually converts silence into red is `verdict` below, which runs on its own
+      # runner and cannot be killed by this one's clock.
+      - name: NO VERDICT — this job was cut off (runs only when the job is cancelled)
+        if: cancelled()
+        run: |
+          echo "::error title=NO VERDICT::agent-suite was CANCELLED. If nobody pressed cancel, this is the job ceiling (${CEILING_MINUTES:-unknown} minutes), and the gate set produced NO VERDICT - not a pass, not a failure. Nothing about this push has been checked."
+          exit 1
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  # THE SILENCE, MADE LOUD.  (board #184)
+  #
+  # `timeout-minutes` does not fail a job, it CANCELS it — and `gh run list` prints `cancelled`,
+  # which reads as a scheduling hiccup rather than a missing verdict. That is how board #123 spent
+  # weeks quoting a stale gate count: the run that would have corrected it never reached a verdict
+  # and nothing said so. Measured on this very workflow, newest last:
+  #     af122432 failure 24.1m · f897a720 failure 16.8m · 95909ed8 failure 18.6m
+  #     42688485 failure 24.8m · ce678d57 CANCELLED 25.3m · 88923380 failure ~24.5m
+  #
+  # This job exists to turn "no verdict" into a RED X with a sentence attached. It runs on its own
+  # runner, so the clock that killed agent-suite cannot kill it, and `if: always()` means it is
+  # reached whatever agent-suite concluded.
+  #
+  # ⚠ IT FAILS ON ANYTHING THAT IS NOT `success`, INCLUDING A DELIBERATE HUMAN CANCEL — and the
+  # message says so rather than pretending to know which happened. A run somebody cancelled on
+  # purpose genuinely has no verdict; saying that out loud costs one red X and removes the whole
+  # class of "it went quiet and nobody noticed".
+  #
+  # ⚠ WHAT IS NOT VERIFIED HERE: nobody has watched this fire on a real CI timeout. The wiring is
+  # proven locally — tv/test_a_cut_off_gate_set_is_not_a_verdict.py EXECUTES the script below with
+  # SUITE_RESULT=cancelled and asserts it exits non-zero — but GitHub's own scheduling of an
+  # always() job behind a timed-out `needs` is UNVERIFIED until it happens.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════
+  verdict:
+    name: VERDICT — a cut-off gate set is UNKNOWN, and UNKNOWN is not a pass
+    needs: [agent-suite]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: A conclusion that is not a pass must not read like one
+        env:
+          SUITE_RESULT: ${{ needs.agent-suite.result }}
+        run: |
+          echo "agent-suite conclusion: ${SUITE_RESULT:-<none>}"
+          case "${SUITE_RESULT:-}" in
+            success)
+              echo "VERDICT: the gate set ran to the end and every registered gate passed."
+              exit 0
+              ;;
+            failure)
+              echo "::error title=GATES RED::the gate set reached a verdict and it was RED. Open the agent-suite job and read the table - the failing gates are named there."
+              exit 1
+              ;;
+            cancelled|skipped|"")
+              echo "::error title=NO VERDICT::agent-suite ended as '${SUITE_RESULT:-<none>}', which is neither a pass nor a failure - the gate set produced NO VERDICT. The usual cause is the job hitting its timeout ceiling, which GitHub reports as 'cancelled'. Nothing about this push has been checked."
+              exit 1
+              ;;
+            *)
+              echo "::error title=NO VERDICT::agent-suite ended as '${SUITE_RESULT}', a conclusion this job has never been taught to read. UNKNOWN is not a pass."
+              exit 1
+              ;;
+          esac

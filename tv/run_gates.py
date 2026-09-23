@@ -6422,6 +6422,38 @@ GATES = [
              "would turn 8 historical versions red at once and the row would be silenced within "
              "a week, which costs more than the defect.",
          skip_ok=()),
+    # ⚠ MIND THE SEPARATING COMMA — a dropped one has produced a SyntaxError here twice.
+    Gate("test_an_echo_reaches_his_screen_as_a_measurement",
+         [sys.executable, os.path.join(HERE, "test_an_echo_reaches_his_screen_as_a_measurement.py")], 120,
+         needs_app=False,
+         why="#182 second half - agreement() gained an ECHO state (a SAME-FAMILY pair, one witness "
+             "asked twice) and console_doctor let it fall through to UNKNOWN, which is wrong in "
+             "kind: ECHO is MEASURED and UNKNOWN means nobody could ask. DRIVEN, not read: the "
+             "eagle buckets on four literal strings, so a FIFTH state is counted by nothing and "
+             "folds into ALL CLEAR while control_ui still draws the row under WAITING ON YOU - "
+             "uncounted and shown as his at once, the same shape as the UNMEASURED row that cost "
+             "a day of deploys. So ECHO maps to MISSING, and the 8 affected versions are +0.9pp "
+             "on a row already MISSING on 856 of 877.",
+         skip_ok=()),
+    Gate("test_a_shadow_log_nobody_read_is_not_agreement",
+         [sys.executable, os.path.join(HERE, "test_a_shadow_log_nobody_read_is_not_agreement.py")], 120,
+         needs_app=False,
+         why="#188 - g5_grok_eyes wrote 6,082 Claude-vs-Grok rows and NOTHING ever read them: the "
+             "four keys occur at exactly four lines tree-wide and all four are writes. Of 1,596 "
+             "rows where both lanes answered, 67.6% disagreed on names - while that lane is "
+             "mode=primary. The reducer publishes BOTH lanes with their reach and never prefers "
+             "one; one-sided rows are counted separately, and a rate over nothing is UNKNOWN, "
+             "never 0.0.",
+         skip_ok=()),
+    Gate("test_a_cut_off_gate_set_is_not_a_verdict",
+         [sys.executable, os.path.join(HERE, "test_a_cut_off_gate_set_is_not_a_verdict.py")], 120,
+         needs_app=False,
+         why="#184 - GitHub reports a TIMED-OUT job as `cancelled`, not `failure`, so when the "
+             "gate set crosses its 25-minute ceiling it does not go red, IT GOES SILENT, and a "
+             "missing verdict reads like a scheduling hiccup. #123 quoted a stale gate count for "
+             "weeks for exactly this reason. Measured: the gate set is 95% of the job wall clock "
+             "and has already crossed once (25.3m, cancelled).",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

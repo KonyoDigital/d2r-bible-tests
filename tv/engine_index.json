@@ -16,6 +16,18 @@
     "purpose": "CDP-probes the live bible.html DOM tab by tab and names every control that has no accessible name; exits 2 UNKNOWN when it cannot look.",
     "territory": "render-pixels"
   },
+  "affix_lexicon.py": {
+    "entryPoints": [
+      "build",
+      "load",
+      "classify",
+      "verify",
+      "main"
+    ],
+    "gotcha": "THE house `perl -e 'alarm N; exec @ARGV'` TIMEOUT IDIOM KILLS THE EXTRACTOR. /usr/bin/perl is SIP-restricted so dyld strips DYLD_* across that exec and casc_extract dies with 'Library not loaded: @rpath/casc.framework' (rc -6) - measured both ways on one file, 59,837 bytes direct vs 0 wrapped. The env is built INSIDE the subprocess call and subprocess carries its own timeout. ALSO: item-names.json is NOT a base-type list - it is the full 1,593-name string table with uniques in it, so baseType comes from armor/weapons/misc instead. AND classify() never returns a best PARTIAL: an unmatched token or two parses of differing kind is UNKNOWN, because a wrong kind becomes a wrong routing decision about his loot.",
+    "purpose": "Generates tv/affix_lexicon.json from the D2R CASC and classifies an item NAME against it. The roster names uniques, sets and runewords; MAGIC and RARE names are COMPOSED at drop time from four affix tables plus a base type, so they can never be a list. Measured off the install: magicPrefix 269, magicSuffix 298, rarePrefix 42, rareSuffix 152, baseType 690. classify() answers GRAIL / BASE / MAGIC / RARE / UNKNOWN and vault_retro attaches it to every unsure row as `vocab`.",
+    "territory": "vault"
+  },
   "ask_view.py": {
     "entryPoints": [
       "ask",
@@ -238,6 +250,16 @@
     "purpose": "Runs the suite with the host things a GitHub runner lacks (his recorded board, his footage) stubbed and names which tests depend on his Mac; green means 'no KNOWN host trap', never 'CI will pass'.",
     "territory": "routines-infra"
   },
+  "code_identity.py": {
+    "entryPoints": [
+      "drift",
+      "report",
+      "say"
+    ],
+    "gotcha": "It CANNOT be built from mtime and size - that is exactly what CPython uses to decide a .pyc is fresh, so a check from the same two inputs agrees with it by construction, collisions included. The only witness that survives one is co_firstlineno, which comes from the BYTECODE while the source is read fresh. Three instrument bugs on the way, each caught by a count: functools.wraps copies __module__ onto a wrapper whose code lives in contextlib (two unrelated modules both reported drifted at the SAME line 242), CPython points co_firstlineno at the FIRST DECORATOR so accepting any '@' line swallowed everything, and skipping COMMENT lines while walking to the def let a function that had moved 40 lines be re-found and reported clean. Decorators and blanks only. And on this Mac the cache is NOT in __pycache__ - sys.pycache_prefix puts it under ~/Library/Caches/com.apple.python.",
+    "purpose": "Answers whether THIS interpreter's loaded bytecode agrees with the source on disk, by comparing each function's co_firstlineno against where the file says it starts. Built after three pushes of one identical tree read green, RED, green, with the red one's traceback naming a line and a variable that do not exist in the file. Distinct from console_doctor's 'running code matches disk', which asks the CONSOLE over the wire about its own image.",
+    "territory": "heart-organs"
+  },
   "code_staleness.py": {
     "entryPoints": [
       "snapshot",
@@ -363,6 +385,19 @@
     "gotcha": "Its own docstring is STALE about the refusal: it says 'NO CHROME IS UNKNOWN… Exit 2 says nobody looked', but since v2430 no-Chrome returns 77 (SKIP, which run_gates counts apart from PASS and FAIL and requires declared in skip_ok=); exit 2 now only means the harness/PIL would not load. Ranking is by saturated-pixel DENSITY, not count or chroma×area — both of those simply elected the page's largest containers. It claims board ownership (`d2r_ownerClaim`) before measuring because a CDP probe boots as a GUEST with seeds suppressed.",
     "purpose": "Measures, by SATURATED-PIXEL SHARE, whether the install crest out-shouts everything else above the fold on bible.html at 1440x1000 — a visual-priority gate.",
     "territory": "render-pixels"
+  },
+  "crossfamily_claude.py": {
+    "entryPoints": [
+      "seat_is_dead",
+      "parse_verdict",
+      "ask_claude",
+      "bank_held",
+      "wait_and_review",
+      "main"
+    ],
+    "gotcha": "It does NOT invent the look — it reads a verdict Claude wrote and banks attacks=1 only for a surface whose answer says the claim held. A seat that is signed out, over quota or silent banks NOTHING, because an unreachable eye is an empty seat and never agreement. --wait retries until 20:00 local, the window after the 19:00 renewal.",
+    "purpose": "Banks a recorded Claude verdict as a cross-family attack against the locks that already cleared their attack bar.",
+    "territory": "gates-proofs"
   },
   "css_who_wins.py": {
     "entryPoints": [
@@ -567,6 +602,23 @@
     "gotcha": "API-style secrets are stripped from the child env on purpose (_API_STRIP) — this is the subscription CLI lane, never api.x.ai; OFF is an instant no-op returning None, and chronicle_doctor treats an unimportable g5 as 'the second eye is unavailable', never as agreement.",
     "purpose": "The second eye's vision lane: `grok -p` on his SuperGrok login, off/shadow/primary, reading the same area/tz/scene/names/names_loc/sockets JSON under an hourly+daily budget.",
     "territory": "second-eye"
+  },
+  "g5_shadow_reducer.py": {
+    "entryPoints": [
+      "reduce_rows",
+      "main"
+    ],
+    "gotcha": "READ-SIDE ONLY. It never writes the shadow log and never prefers a lane: a 67.6% disagreement rate is a finding about the INSTRUMENTS, not a vote to settle. One-sided rows (only one lane answered) are NOT disagreements and are counted separately; rows where neither answered are not evidence at all. A rate with no denominator is UNKNOWN, never 0.0.",
+    "purpose": "Reduces tv/.g5_shadow.jsonl - the 6,082 Claude-vs-Grok rows written since 2026-08-23 that nothing had ever read - into an agreement report carrying its own denominator and window.",
+    "territory": "second-eye"
+  },
+  "git_quiet.py": {
+    "entryPoints": [
+      "run"
+    ],
+    "gotcha": "Git for Windows' PATH git (Git\\cmd\\git.exe) is a 46 KB CUI WRAPPER and pythonw owns no console, so a CUI child ALLOCATES one — a real terminal on top of D2R. MEASURED 2026-09-21: windows stealing focus 2-3 in a row every couple of minutes. CREATE_NO_WINDOW on the wrapper is NOT enough because it respawns the real git without the flag, and headless-git.exe still starts a CUI git.exe child — so this calls mingw64\\bin\\git.exe DIRECTLY. It is a module rather than a helper inside control_app because console_doctor spawns git too and a second copy would drift; test_windows_git_spawns_hide_the_console pins that there may only ever be ONE body of the mingw redirect.",
+    "purpose": "The ONE door every git spawn in this codebase walks through, so no git child ever owns a console.",
+    "territory": "routines-infra"
   },
   "guest_fixture_pack.py": {
     "entryPoints": [
@@ -930,6 +982,18 @@
     "gotcha": "⚠ A REGISTRY ENTRY IS A JOIN. Its first pass counted only ast.Call and reported 310 orphans, flagging every doctor check registered as a table VALUE. Corrected to 73. Some functions are also uncalled ON PURPOSE (control_app._open_board_once is protected by a test) — this tool reports candidates, it does not rule.",
     "purpose": "Re-runnable audit of module-level definitions nothing consumes, counting registry entries and dispatch tables as joins so a registered check is not reported as an orphan.",
     "territory": "console"
+  },
+  "machine_tree.py": {
+    "entryPoints": [
+      "resolve() — this machine's roots, each carrying the anchor that produced it",
+      "ensure(create=False) — establish the tree and say what it did",
+      "anchors() — env / repo / home, each with WHY it resolved that way",
+      "_prove_write() — a directory that EXISTS is not a directory that WORKS",
+      "ROOTS — 5 roots, each declaring its OWN anchor kind"
+    ],
+    "gotcha": "It is NOT a fix for a provisioning defect - there is none. tv_diablo makes the footage tree inside _film_loop, so a console that has never filmed has no frames/hist BY DESIGN, and frame_authority/reel_retention are READERS whose 0 makedirs is correct. Creating a tree in the WRONG place is worse than creating none: it turns the heart green and makes the fault invisible, so a refused anchor yields NO path rather than a guess. found requires a PROVEN WRITE, a frozen build refuses the repo anchor, and every path is _ascii()-safe because a non-ASCII profile path crashes a cp1255 console WHILE it reports.",
+    "purpose": "Answers where THIS machine's roots are and whether a write actually lands in them, so a console that has never recorded can be told apart from one that is broken. It reports; it does not provision by being looked at.",
+    "territory": "machine-tree"
   },
   "main_character.py": {
     "entryPoints": [
@@ -1333,6 +1397,17 @@
     "purpose": "Replays a journaled session's archived frames (tv/frames/hist + the sessions.jsonl rotation ring) through the real tv_diablo --watch loop under TV_STUB with TV_OCR=0 — recorded truth, no vision spend.",
     "territory": "routines-infra"
   },
+  "resume_state.py": {
+    "entryPoints": [
+      "derived() — the state block: HEAD, origin, unpushed, tree, version, gates",
+      "write(path) — replace the block between the markers, in place",
+      "--check — exit non-zero when the fingerprint no longer matches the repo",
+      "BEGIN / END — the markers; everything outside them is hand-written narrative"
+    ],
+    "gotcha": "It NEVER fetches. origin/main is whatever the last fetch left in the ref, so the block SAYS how old that knowledge is rather than implying it is current - a generator that reached the network would make every bump wait on it and could hang a ship. Staleness is judged on a FINGERPRINT OF THE FACTS (head, origin, version), never the whole block, because the block also prints a derive timestamp and a fetch age that move every minute and a gate that is always red is switched off as fast as one that is always green. dirty is excluded on purpose: uncommitted files are ordinary mid-work. The narrative OUTSIDE the markers is never touched - a resume that is only derived state cannot say WHY anything is blocked. And it prints non-ASCII, so it enables console_safe or it crashes a cp1255 console WHILE reporting.",
+    "purpose": "Derives the live half of RESUME_HERE.md so a resume cannot go stale, the way BLUEPRINT.md and HEART.md cannot. CLAUDE.md points every new session at that file FIRST, and on 2026-09-20 it was FOUR DAYS OLD, opening with 6 commits are built and UNPUSHED while naming five that had shipped long before. Nothing noticed because nothing could: it was prose.",
+    "territory": "resume-state"
+  },
   "retro_gate.py": {
     "entryPoints": [
       "gated",
@@ -1457,6 +1532,14 @@
     "gotcha": "The roster rule is deliberately NOT re-derived in Python — it loads the real page and asks `window._gUniqueRoster()`, so there is only one authority. Only `is_stale()`/`source_hash()` run browserless; `--write` needs Chrome on :9224+ (never :9222 his, never :9223 TradingView).",
     "purpose": "Regenerates unique_roster.json / set_roster.json from the live bible.html over CDP, and stamps a sourceHash that a test verifies without launching a browser.",
     "territory": "ledger-profile"
+  },
+  "route_lane_wilson.py": {
+    "entryPoints": [
+      "main"
+    ],
+    "gotcha": "It attacks the predicates routes() actually calls, so a mutation is one idea about one guard rather than another copy of 'delete the file'. A mutation the predicate still accepts is a LEAK and is not banked. Nothing here edits his bible or his rosters — chronicle's check is pointed at a temp file. Written on the Windows box during the 2026-09-22 hardening arc.",
+    "purpose": "Thirty-one distinct mutations of each route lane's OWN predicate — chronicle _source_ok, fleet _defines, roster _declared — counting which ones the predicate still accepts.",
+    "territory": "routing"
   },
   "route_totals.py": {
     "entryPoints": [
@@ -2034,79 +2117,5 @@
     "gotcha": "It ONLY observes — it records and calls straight through to the originals, never redirecting, blocking or fabricating a write. ⚠ And it PROVES NOTHING UNTIL SOMETHING RUNS under `with watching()`: enabling it does not gather evidence, so the per-store answer is a measurement nobody has taken yet — which is not the same fact as 'one writer'. It exists because two static detectors (filename-adjacency grep, AST constant-resolution) both returned ZERO writers for all four stores, measuring the instruments rather than the code. Related trap recorded in write_census.py: patching only `open` also yields 0 — this codebase writes via io.open.",
     "purpose": "Runtime witness that patches open/io.open/os.replace to RECORD which module actually writes each watched reel store (vault_swept, vault_accum, reel_tombstones, retro_triage, chron_evidence).",
     "territory": "vault"
-  },
-  "affix_lexicon.py": {
-    "entryPoints": [
-      "build",
-      "load",
-      "classify",
-      "verify",
-      "main"
-    ],
-    "purpose": "Generates tv/affix_lexicon.json from the D2R CASC and classifies an item NAME against it. The roster names uniques, sets and runewords; MAGIC and RARE names are COMPOSED at drop time from four affix tables plus a base type, so they can never be a list. Measured off the install: magicPrefix 269, magicSuffix 298, rarePrefix 42, rareSuffix 152, baseType 690. classify() answers GRAIL / BASE / MAGIC / RARE / UNKNOWN and vault_retro attaches it to every unsure row as `vocab`.",
-    "gotcha": "THE house `perl -e 'alarm N; exec @ARGV'` TIMEOUT IDIOM KILLS THE EXTRACTOR. /usr/bin/perl is SIP-restricted so dyld strips DYLD_* across that exec and casc_extract dies with 'Library not loaded: @rpath/casc.framework' (rc -6) - measured both ways on one file, 59,837 bytes direct vs 0 wrapped. The env is built INSIDE the subprocess call and subprocess carries its own timeout. ALSO: item-names.json is NOT a base-type list - it is the full 1,593-name string table with uniques in it, so baseType comes from armor/weapons/misc instead. AND classify() never returns a best PARTIAL: an unmatched token or two parses of differing kind is UNKNOWN, because a wrong kind becomes a wrong routing decision about his loot.",
-    "territory": "vault"
-  },
-  "machine_tree.py": {
-    "entryPoints": [
-      "resolve() — this machine's roots, each carrying the anchor that produced it",
-      "ensure(create=False) — establish the tree and say what it did",
-      "anchors() — env / repo / home, each with WHY it resolved that way",
-      "_prove_write() — a directory that EXISTS is not a directory that WORKS",
-      "ROOTS — 5 roots, each declaring its OWN anchor kind"
-    ],
-    "purpose": "Answers where THIS machine's roots are and whether a write actually lands in them, so a console that has never recorded can be told apart from one that is broken. It reports; it does not provision by being looked at.",
-    "gotcha": "It is NOT a fix for a provisioning defect - there is none. tv_diablo makes the footage tree inside _film_loop, so a console that has never filmed has no frames/hist BY DESIGN, and frame_authority/reel_retention are READERS whose 0 makedirs is correct. Creating a tree in the WRONG place is worse than creating none: it turns the heart green and makes the fault invisible, so a refused anchor yields NO path rather than a guess. found requires a PROVEN WRITE, a frozen build refuses the repo anchor, and every path is _ascii()-safe because a non-ASCII profile path crashes a cp1255 console WHILE it reports.",
-    "territory": "machine-tree"
-  },
-  "resume_state.py": {
-    "entryPoints": [
-      "derived() — the state block: HEAD, origin, unpushed, tree, version, gates",
-      "write(path) — replace the block between the markers, in place",
-      "--check — exit non-zero when the fingerprint no longer matches the repo",
-      "BEGIN / END — the markers; everything outside them is hand-written narrative"
-    ],
-    "purpose": "Derives the live half of RESUME_HERE.md so a resume cannot go stale, the way BLUEPRINT.md and HEART.md cannot. CLAUDE.md points every new session at that file FIRST, and on 2026-09-20 it was FOUR DAYS OLD, opening with 6 commits are built and UNPUSHED while naming five that had shipped long before. Nothing noticed because nothing could: it was prose.",
-    "gotcha": "It NEVER fetches. origin/main is whatever the last fetch left in the ref, so the block SAYS how old that knowledge is rather than implying it is current - a generator that reached the network would make every bump wait on it and could hang a ship. Staleness is judged on a FINGERPRINT OF THE FACTS (head, origin, version), never the whole block, because the block also prints a derive timestamp and a fetch age that move every minute and a gate that is always red is switched off as fast as one that is always green. dirty is excluded on purpose: uncommitted files are ordinary mid-work. The narrative OUTSIDE the markers is never touched - a resume that is only derived state cannot say WHY anything is blocked. And it prints non-ASCII, so it enables console_safe or it crashes a cp1255 console WHILE reporting.",
-    "territory": "resume-state"
-  },
-  "git_quiet.py": {
-    "entryPoints": [
-      "run"
-    ],
-    "gotcha": "Git for Windows' PATH git (Git\\cmd\\git.exe) is a 46 KB CUI WRAPPER and pythonw owns no console, so a CUI child ALLOCATES one — a real terminal on top of D2R. MEASURED 2026-09-21: windows stealing focus 2-3 in a row every couple of minutes. CREATE_NO_WINDOW on the wrapper is NOT enough because it respawns the real git without the flag, and headless-git.exe still starts a CUI git.exe child — so this calls mingw64\\bin\\git.exe DIRECTLY. It is a module rather than a helper inside control_app because console_doctor spawns git too and a second copy would drift; test_windows_git_spawns_hide_the_console pins that there may only ever be ONE body of the mingw redirect.",
-    "purpose": "The ONE door every git spawn in this codebase walks through, so no git child ever owns a console.",
-    "territory": "routines-infra"
-  },
-  "route_lane_wilson.py": {
-    "entryPoints": [
-      "main"
-    ],
-    "gotcha": "It attacks the predicates routes() actually calls, so a mutation is one idea about one guard rather than another copy of 'delete the file'. A mutation the predicate still accepts is a LEAK and is not banked. Nothing here edits his bible or his rosters — chronicle's check is pointed at a temp file. Written on the Windows box during the 2026-09-22 hardening arc.",
-    "purpose": "Thirty-one distinct mutations of each route lane's OWN predicate — chronicle _source_ok, fleet _defines, roster _declared — counting which ones the predicate still accepts.",
-    "territory": "routing"
-  },
-  "crossfamily_claude.py": {
-    "entryPoints": [
-      "seat_is_dead",
-      "parse_verdict",
-      "ask_claude",
-      "bank_held",
-      "wait_and_review",
-      "main"
-    ],
-    "gotcha": "It does NOT invent the look — it reads a verdict Claude wrote and banks attacks=1 only for a surface whose answer says the claim held. A seat that is signed out, over quota or silent banks NOTHING, because an unreachable eye is an empty seat and never agreement. --wait retries until 20:00 local, the window after the 19:00 renewal.",
-    "purpose": "Banks a recorded Claude verdict as a cross-family attack against the locks that already cleared their attack bar.",
-    "territory": "gates-proofs"
-  },
-  "code_identity.py": {
-    "entryPoints": [
-      "drift",
-      "report",
-      "say"
-    ],
-    "gotcha": "It CANNOT be built from mtime and size - that is exactly what CPython uses to decide a .pyc is fresh, so a check from the same two inputs agrees with it by construction, collisions included. The only witness that survives one is co_firstlineno, which comes from the BYTECODE while the source is read fresh. Three instrument bugs on the way, each caught by a count: functools.wraps copies __module__ onto a wrapper whose code lives in contextlib (two unrelated modules both reported drifted at the SAME line 242), CPython points co_firstlineno at the FIRST DECORATOR so accepting any '@' line swallowed everything, and skipping COMMENT lines while walking to the def let a function that had moved 40 lines be re-found and reported clean. Decorators and blanks only. And on this Mac the cache is NOT in __pycache__ - sys.pycache_prefix puts it under ~/Library/Caches/com.apple.python.",
-    "purpose": "Answers whether THIS interpreter's loaded bytecode agrees with the source on disk, by comparing each function's co_firstlineno against where the file says it starts. Built after three pushes of one identical tree read green, RED, green, with the red one's traceback naming a line and a variable that do not exist in the file. Distinct from console_doctor's 'running code matches disk', which asks the CONSOLE over the wire about its own image.",
-    "territory": "heart-organs"
   }
 }
