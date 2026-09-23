@@ -6697,6 +6697,53 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
                 "has ended was collected" % (len(kids),))
 
 
+def _check_the_eyes_default_seat_can_still_be_filled():
+    """v3425 - CAN THE DEFAULT TRANSPORT BE REACHED AT ALL, ON THIS MACHINE, RIGHT NOW?
+
+    HIS RULING, 2026-09-23: the xAI CLI SUBSCRIPTION is the default transport, said the hour the
+    paid API lane went dark (`upload_file` -> PERMISSION_DENIED, all credits used). A default is
+    only a default if it is reachable, and this is the one question neither neighbouring row asks:
+    `the eye audit agrees with the gate` asks whether looks are being TAKEN, `the eye answers in a
+    field` asks whether their verdicts are CONSTRAINED. Both are silent when the binary is simply
+    gone, because a lane that never attempts never records a failure.
+
+    ⚠⚠ THAT IS NOT HYPOTHETICAL AND IT IS THE REASON THIS ROW EXISTS. G5 was pinned PRIMARY on the
+    TV-D console and silently dark for WEEKS, reporting `mode=off, cli=False, calls=0, errors=0,
+    last_error=None` - every honesty surface clean BECAUSE the eye was dark. The cause was
+    `shutil.which` searching the calling process's PATH while the console runs under launchd with a
+    bare `/usr/bin:/bin`. So this asks the ABSOLUTE path the runner actually uses, which is immune
+    to that, rather than re-deriving it from PATH. [[grok-second-eye]] 2
+
+    ⚠ THREE STATES. Absent is a finding; unreadable is UNKNOWN, never fine.
+    """
+    try:
+        import second_eye_run as _eye
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the eye runner (%s), so whether its default "
+                         "seat can be filled is UNKNOWN, not fine" % type(e).__name__)
+    path = getattr(_eye, "EYE_CLI", "") or ""
+    if not path:
+        return MISSING, ("the eye runner names no default transport at all, so every look would "
+                         "record an EMPTY SEAT and nothing would say why")
+    try:
+        there = os.path.exists(path)
+        runnable = there and os.access(path, os.X_OK)
+    except Exception as e:
+        return UNKNOWN, ("the default transport at %s could not be examined (%s) - UNKNOWN, which "
+                         "is not the same as working" % (path, type(e).__name__))
+    if not there:
+        return MISSING, ("the default transport is not on this machine: %s is absent. His ruling "
+                         "of 2026-09-23 makes the CLI subscription the default, and the paid API "
+                         "lane is out of credits, so there is no second seat to fall back to"
+                         % path)
+    if not runnable:
+        return MISSING, ("the default transport at %s exists but is not executable, so every look "
+                         "would fail at exec and read as an unreachable eye rather than a broken "
+                         "install" % path)
+    return OK, ("the default transport is present and executable at %s - his 2026-09-23 ruling "
+                "that the CLI subscription is the default is satisfiable on this machine" % path)
+
+
 def _check_the_eye_is_still_answering_in_a_constrained_field():
     """v3420 - ARE THE EYE'S VERDICTS STILL BEING READ, OR HAVE THEY GONE BACK TO BEING GUESSED?
 
@@ -6838,6 +6885,7 @@ CHECKS = [
     ("the eye audit agrees with the gate", _check_the_eye_audit_agrees_with_the_ship_gate),
     ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
     ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
+    ("the eye seat can be filled", _check_the_eyes_default_seat_can_still_be_filled),
     ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
     ("our scratch is collected", _check_nothing_we_made_is_still_on_his_disk_days_later),
     ("a verdict comes from a declared field",
@@ -7404,6 +7452,7 @@ WATCHES = {
     "the eye audit agrees with the gate": (),
     "the eye cap is a size it has finished": (),
     "the eye answers in a field": (),
+    "the eye seat can be filled": (),
     "nothing we started is a corpse": (),
     "our scratch is collected": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped

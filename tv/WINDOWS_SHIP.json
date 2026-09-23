@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3424",
+  "ver": "v3425",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3424: the second eye reviewing v3421 found that kill plus a BOUNDED communicate never reaps, because CPython runs the select loop before self.wait and a second timeout escapes first - measured: returncode None and ps says Z defunct. One door now, where the drain is best-effort and the wait is unconditional. Also the workers stdin close was a buffered FLUSH that can block forever with no exception, hanging the closer one step earlier than the stall it was written to avoid",
+  "note": "v3425: his ruling the hour the paid lane went dark - the CLI subscription is the default transport, because it needs no MCP connection so a seat still fills headless and in cron. A carved skill said the exact opposite and would have routed the next session to the transport that cannot answer. A live row now asks whether that seat can be filled at all, separating ABSENT from NOT-EXECUTABLE, and the G5 scar is pinned: EYE_CLI must be an ABSOLUTE path or it goes dark under launchd",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

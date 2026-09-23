@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1152 - A CARVED SKILL TOLD THE NEXT SESSION TO USE THE LANE THAT WAS DARK
+
+**v3425 - HIS RULING, 2026-09-23:** *"make it the xAI subscription as a default"*, said the hour
+the paid lane went dark. It restates 2026-08-05 - *"i rather have them by default do the CLI
+obviously, but its there the MCP if its needed only"* - and the reason is not preference: the CLI
+needs no MCP connection, so a seat still fills in a headless or cron run, and a subscription look
+cannot stop being affordable mid-arc.
+
+**MEASURED the same hour:** `mcp__grok-mcp__upload_file` -> `PERMISSION_DENIED`, *"has either used
+all available credits or reached its monthly spending limit"*, while the CLI answered v3421 at
+**95% reach** with a schema-constrained verdict.
+
+⚠⚠ **AND `human-eyes-harness` SAID THE EXACT OPPOSITE:** *"the CLI is currently out of build
+balance, HTTP 402; the MCP transport works"*. True when written. **Inverted by the time it
+mattered** - and a session that followed it would have gone to the transport that cannot answer,
+then filed the silence as an EMPTY SEAT, which is indistinguishable from the eye disagreeing.
+[[stale-reading]] - a reading carries the age of the thing it measured.
+
+**Heart row** `the eye seat can be filled` - the question neither neighbouring row asks. `the eye
+audit agrees with the gate` asks whether looks are being TAKEN; `the eye answers in a field` asks
+whether their verdicts are CONSTRAINED; **both are silent when the binary is simply gone.** Three
+states, and ABSENT is distinguished from NOT-EXECUTABLE, because an install that cannot exec reads
+to a reader as an unreachable eye rather than a broken file.
+
+⚠ **THE G5 SCAR IS PINNED HERE ON PURPOSE.** `EYE_CLI` must resolve to an ABSOLUTE path. G5 sat
+PRIMARY and silently dark for WEEKS reporting `mode=off, cli=False, calls=0, errors=0,
+last_error=None` - every honesty surface clean BECAUSE the eye was dark - because `shutil.which`
+searched the calling process's PATH while the console runs under launchd with a bare
+`/usr/bin:/bin`. A bare name here reintroduces exactly that: reachable from a terminal, absent
+under launchd, and silent.
+
+**Gate** `test_the_default_eye_seat_is_the_subscription` - 8 cases, **3/3 red-proofs PROVEN**.
+
+⚠ **ONE OF THOSE PROOFS WENT BLIND AT MATCH COUNT 1 FIRST, AND THE COUNT WAS THE TELL.** The
+stale-claim case originally WALKED the whole repo for any `.md` carrying both halves of the
+sentence. The tamper applied cleanly and the gate stayed green - so the LAW was weak, not the
+sabotage wrong. A law whose truth depends on which directories a sandbox happened to copy is a
+coincidence, not a law, and that walk also swept `.claude/worktrees/`, where stale forks of this
+very skill live. Rewritten to read ONE NAMED FILE by explicit path, which fails loudly if the file
+moves instead of passing vacuously. It also went from 0.9 s to **0.13 s**.
+
 ### REG-1151 - `kill()` THEN `communicate(timeout=N)` IS NOT A REAP, AND v3421 SHIPPED BELIEVING IT WAS
 
 **v3424 - the second eye reviewing v3421, at 95% reach, and it was right.** v3421 fixed the ocr

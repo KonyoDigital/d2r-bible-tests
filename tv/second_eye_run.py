@@ -57,6 +57,21 @@ import second_eye_ledger as SEL  # noqa: E402
 
 # The eye. Overridable so this is not welded to one vendor — a previous version of this lane was
 # hardwired to one CLI and was therefore PERMANENTLY EMPTY on every machine but his.
+# ⚠⚠ v3425 — THE CLI SUBSCRIPTION IS THE DEFAULT TRANSPORT. HIS RULING, 2026-09-23:
+# *"make it the xAI subscription as a default"*, said the moment the paid API lane went dark.
+# It restates what he already ruled on 2026-08-05 — *"i rather have them by default do the CLI
+# obviously, but its there the MCP if its needed only"* — and the reason is not preference: the CLI
+# needs no MCP connection, so a seat still fills in a headless or cron run, and it costs nothing
+# per look because it is his subscription rather than metered API credits.
+#
+# MEASURED THE SAME HOUR, and it is why the ruling arrived: `mcp__grok-mcp__upload_file` returned
+# PERMISSION_DENIED — *"has either used all available credits or reached its monthly spending
+# limit"* — while this CLI answered v3421 at 95% reach with a schema-constrained verdict. The paid
+# lane is DARK and the subscription lane is the one that works.
+#
+# ⚠ A CARVED SKILL SAID THE EXACT OPPOSITE. `human-eyes-harness` carried *"the CLI is currently out
+# of build balance, HTTP 402; the MCP transport works"* — true when written, INVERTED now, and it
+# would have sent the next session to the dead lane. Corrected in the same version. [[stale-reading]]
 EYE_CLI = os.environ.get("THIRD_EYE_CLI") or os.path.expanduser("~/.grok/bin/grok")
 EYE_MODEL = os.environ.get("THIRD_EYE_MODEL") or "grok-4-1-fast-reasoning"
 # ⚠⚠ v3408 — 300 s WAS TOO SHORT, AND THE COST WAS A BLOCKED SHIP. The eye is a subscription

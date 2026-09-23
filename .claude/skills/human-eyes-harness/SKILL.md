@@ -246,6 +246,5 @@ that guard was seen RED**. An observation that produced a fix nobody can regress
   loop becomes routine, that is the next thing to build, and it should carry the observation and
   the conclusion in separate fields for the reason in §3.
 
-Related: `grok-second-eye` (the same principle, on pixels, by hand — and the CLI is currently out
-of build balance, HTTP 402; the MCP transport works) · `borrowed-surface` ·
+Related: `grok-second-eye` (the same principle, on pixels, by hand) · `borrowed-surface` ·
 `unknown-stays-unknown` · `process-port-discipline` · `d2r-bible`
