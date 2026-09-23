@@ -108,6 +108,10 @@ class TestTheCodeRunningIsTheCodeOnDisk(unittest.TestCase):
         self.assertEqual(bad, [],
                          "a @contextmanager wrapper was reported as drifted — the check is reading "
                          "contextlib's line numbers as if they were this module's: %r" % (bad,))
+        # ⚠ v3434 — AND IT MUST HAVE COMPARED SOMETHING. The eye pointed out that a TOTAL SKIP of
+        # the decorated function also produces `bad == []`, so this passed whether the check looked
+        # or not. A green with no denominator is not a green. [[zero-needs-a-denominator]]
+        self.assertGreaterEqual(checked, 1, "nothing in this module was compared at all")
 
     def test_a_SAME_FILE_wraps_decorator_is_NOT_a_false_positive(self):
         """⚠⚠ THE CASE THE FIRST PROOF ATTEMPT EXPOSED AS MISSING. The contextlib case above is
@@ -140,6 +144,88 @@ class TestTheCodeRunningIsTheCodeOnDisk(unittest.TestCase):
                          "instead of the function's: %r" % (bad,))
         self.assertGreaterEqual(checked, 1, "nothing was compared, so this case measures nothing")
 
+    def test_a_BLANK_line_appearing_at_the_def_is_caught(self):
+        """⚠ v3434 — THE MISS THE SECOND EYE FOUND. The old line-walk skipped blank lines, so a
+        blank appearing exactly where the function used to start let it stroll down and re-find the
+        `def` — a genuinely stale function read CLEAN. Comments were caught; blanks were not."""
+        mod, p = self._module_from("""
+            def zeta():
+                return 1
+            """, "codeid_blank")
+        self.assertEqual(CI.drift(mod)[1], [], "clean module already disagreed with its file")
+        io.open(p, "w", encoding="utf-8").write("\n" + textwrap.dedent("""
+            def zeta():
+                return 1
+            """))
+        checked, bad, _w = CI.drift(mod)
+        self.assertTrue(bad, "a blank line moved the function and the check said nothing")
+
+    def test_a_MULTI_LINE_decorator_is_NOT_a_false_positive(self):
+        """⚠ v3434 — ORDINARY PYTHON THAT THE OLD WALK CALLED DRIFT. `@deco(\n "arg",\n)` stopped
+        the walk on `"arg",`, so a function loaded correctly from disk was reported MISSING. A
+        check that cries wolf on ordinary formatting is one nobody leaves switched on."""
+        mod, _p = self._module_from("""
+            def deco(*a, **k):
+                def wrap(f):
+                    return f
+                return wrap
+
+            @deco(
+                "arg",
+            )
+            def eta():
+                return 7
+            """, "codeid_multideco")
+        checked, bad, _w = CI.drift(mod)
+        self.assertEqual(bad, [], "a multi-line decorator was reported as drift: %r" % (bad,))
+        self.assertGreaterEqual(checked, 1, "nothing was compared, so this case measures nothing")
+
+    def test_a_module_level_LAMBDA_is_not_mistaken_for_a_drifted_def(self):
+        """⚠ v3434 — its `co_name` is `<lambda>`, which no `def` line can match. The old check
+        compared the DICT KEY and flagged it."""
+        mod, _p = self._module_from("""
+            normalize = lambda s: s.strip()
+
+            def theta():
+                return 8
+            """, "codeid_lambda")
+        checked, bad, _w = CI.drift(mod)
+        self.assertEqual(bad, [], "a module-level lambda was reported as drift: %r" % (bad,))
+        self.assertGreaterEqual(checked, 1, "nothing was compared, so this case measures nothing")
+
+    def test_an_ALIAS_resolves_to_the_function_that_was_compiled(self):
+        """⚠ v3434 — `public = _real` has a dict key that is not the `def` name. Comparing
+        `co_name` instead of the key is what makes the alias resolve."""
+        # ⚠⚠ THE `del` IS LOAD-BEARING AND A BLIND RED-PROOF IS WHY. With `_real` still bound,
+        # comparing the DICT KEY merely SKIPS the alias while `_real` itself still gets compared —
+        # so `bad == []` and `checked >= 1` both hold either way and the proof came back BLIND at
+        # match count 1. Deleting `_real` makes the alias the ONLY binding, so the key-vs-co_name
+        # choice decides whether anything is compared at all. A case that does not exercise the
+        # line cannot pin it. [[matches-once-can-still-prove-nothing]]
+        mod, _p = self._module_from("""
+            def _real():
+                return 9
+
+            public = _real
+            del _real
+            """, "codeid_alias")
+        checked, bad, _w = CI.drift(mod)
+        self.assertEqual(bad, [], "an alias was reported as drift: %r" % (bad,))
+        self.assertGreaterEqual(checked, 1,
+                                "the alias was SKIPPED rather than resolved — comparing the dict "
+                                "key instead of co_name means an aliased function is never checked "
+                                "at all, which is a silent hole rather than a false alarm")
+
+    def test_a_MIXED_look_is_UNMEASURED_not_a_clean_bill(self):
+        """⚠ v3434 — THE FALSE CLEAN. `say()` returned True whenever anything matched and nothing
+        mismatched, DROPPING every reason a module could not be compared — so one healthy module
+        could carry a verdict over a population that had quietly shrunk. The all-unmeasured branch
+        was already honest; the MIXED branch was not, which is the harder half to notice."""
+        __import__("code_identity")
+        ok, text = CI.say(["code_identity", "a_module_that_is_definitely_not_imported"])
+        self.assertIsNone(ok, "a partial look was reported as agreement: %s" % text)
+        self.assertIn("UNMEASURED", text.upper())
+
     # ---- unmeasured is not agreement -----------------------------------------------------
 
     def test_a_module_with_no_readable_source_is_UNMEASURED(self):
@@ -169,32 +255,41 @@ class TestTheCodeRunningIsTheCodeOnDisk(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "v3432 - THE UNWRAP REMOVED. Every functools.wraps decorator copies __module__ onto a "
-               "wrapper whose __code__ lives in another file; without unwrapping, the check reports "
-               "contextlib's line 242 as a drift in this module. That is the exact false positive "
-               "this shipped with, and a check that cries wolf on ordinary decorators is one nobody "
-               "will leave switched on.",
+        "why": "v3434 - THE COMPARISON ITSELF DEFEATED. If a function whose source moved is not "
+               "reported, the module answers the one question it exists for with silence, and a "
+               "silent check here is indistinguishable from a healthy process.",
+        "file": "code_identity.py",
+        "find": "        if code.co_firstlineno != expected:",
+        "replace": "        if False:",
+        "matches": 1,
+    },
+    {
+        "why": "v3434 - THE DICT KEY INSTEAD OF co_name. `public = _real` and every import alias "
+               "then compare a key that no `def` line carries, so a module that agrees perfectly "
+               "with its file is reported as drifted. That false alarm is how a check gets turned "
+               "off.",
+        "file": "code_identity.py",
+        "find": "        expected = table.get(code.co_name)",
+        "replace": "        expected = table.get(_key)",
+        "matches": 1,
+    },
+    {
+        "why": "v3434 - THE UNWRAP REMOVED. A same-file functools.wraps decorator produces a "
+               "wrapper whose co_filename IS this module, so the foreign-file guard waves it "
+               "through and only unwrapping finds the real def. Without it every decorated "
+               "function in the repo reads as drifted.",
         "file": "code_identity.py",
         "find": "            fn = inspect.unwrap(obj)",
         "replace": "            fn = obj",
         "matches": 1,
     },
     {
-        "why": "v3432 - THE COMPARISON ITSELF DEFEATED. If a function whose source moved is not "
-               "reported, the check answers the one question it exists for with silence - and a "
-               "silent check on this is indistinguishable from a healthy process.",
+        "why": "v3434 - THE MIXED BRANCH REMOVED, WHICH IS THE FALSE CLEAN. One healthy module "
+               "would again carry a confident verdict over a population that had quietly shrunk, "
+               "dropping every reason another module could not be compared at all.",
         "file": "code_identity.py",
-        "find": "        if not ok:\n            bad.append((name, ln, here.strip()[:70]))",
-        "replace": "        if False:\n            bad.append((name, ln, here.strip()[:70]))",
-        "matches": 1,
-    },
-    {
-        "why": "v3432 - NOTHING COMPARED REPORTED AS AGREEMENT. A zero with no denominator: a "
-               "process where no function could be checked has told us nothing, and calling that "
-               "OK is how this check would go dark without anyone noticing.",
-        "file": "code_identity.py",
-        "find": "    if not checked:\n        return None, (\"no function could be compared",
-        "replace": "    if not checked:\n        return True, (\"no function could be compared",
+        "find": "    if why:\n        return None, (\"%d function(s) matched, but %d of %d module(s) could not be compared at all \"",
+        "replace": "    if False:\n        return None, (\"%d function(s) matched, but %d of %d module(s) could not be compared at all \"",
         "matches": 1,
     },
 ]

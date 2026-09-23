@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1162 - THE DRIFT CHECK WALKED LINES AND WAS WRONG IN THREE DIRECTIONS AT ONCE
+
+**v3434 - the second eye on v3432, 7 findings, and the checkable ones were right.**
+
+v3432's `drift()` scanned forward from `co_firstlineno`, skipping `@` and blank lines until it
+found `def <name>`. That heuristic failed three ways, and the eye named all three:
+
+| shape | what happened |
+|---|---|
+| a BLANK line appears at the function's old line | the walk skips on, re-finds the `def` below, and a genuinely **stale** function reads CLEAN. Comments were caught; blanks were not |
+| a MULTI-LINE decorator — `@deco(\n "arg",\n)` | the walk stops on `"arg",`, the regex fails, and a function loaded correctly from disk is reported as **DRIFT**. Ordinary Python, false alarm |
+| a `lambda` or an alias `public = _real` | the DICT KEY is not the `def` name, so both read as drift while bytecode and disk agreed |
+
+⚠ **MEASURED BEFORE FIXING: zero of those shapes exist in the six watched modules today**, so none
+of it was firing. All three are ordinary Python and the first one written would have broken it —
+two as false alarms, which is how a check gets switched off.
+
+**`drift()` now asks the AST where each function starts** — `min(decorator linenos + [def lineno])`
+— and compares against `co_firstlineno`. No walking, no tolerance, nothing to tune. The name
+compared is **`co_name`, not the dict key**, so aliases resolve to the function that was compiled;
+a name defined twice at module level is reported unlocatable rather than guessed at.
+
+⚠ **AND `say()` HAD A FALSE CLEAN, WHICH IS THE WORSE HALF.** It returned True whenever anything
+matched and nothing mismatched, **dropping every `why`** — so one healthy module could carry a
+confident verdict over a population that had quietly shrunk, while the sentence still counted
+modules nobody looked at. The all-unmeasured branch was already honest; the MIXED branch was not.
+Now a partial look is `None`. [[zero-needs-a-denominator]]
+
+⚠ **THE REACH IS NOW STATED IN THE VERDICT ITSELF:** module-level functions only. Methods,
+classmethods, nested functions and lambdas are not in `vars(mod)` and are never opened, so lines
+moving inside a CLASS are not covered. A green means less than it looks like, and now says so.
+
+**Gate** - 12 cases, **4/4 red-proofs PROVEN**, each new shape driven.
+
+⚠ **A THIRD BLIND-AT-MATCH-COUNT-1, AND THE SAME LESSON.** The `co_name` proof stayed green because
+the alias fixture ALSO bound `_real`: comparing the dict key merely SKIPS the alias while `_real`
+is still compared, so `bad == []` and `checked >= 1` both held either way. Adding `del _real` makes
+the alias the only binding, so the key-vs-`co_name` choice decides whether anything is compared at
+all. **A case that does not exercise the line cannot pin it** — and the tell was the count, not the
+verdict. [[matches-once-can-still-prove-nothing]]
+
+⚠ **The eye also caught that the contextlib case passed whether or not the check LOOKED** — a total
+skip also yields `bad == []`. It now asserts its own denominator.
+
 ### REG-1161 - I MEASURED THE REFACTOR BEFORE SHIPPING IT, AND IT WAS A NO-OP THAT ADDED A FAILURE MODE
 
 **v3433 - #177, and the interesting part is what did NOT get built.**

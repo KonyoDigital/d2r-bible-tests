@@ -47,25 +47,73 @@ def _source_lines(path):
         return None
 
 
+def _def_lines(path):
+    """{name: the line a module-level `def` STARTS on, decorators included}. -> (dict, why)
+
+    ⚠⚠ v3434 — ASKED OF THE AST, NOT WALKED LINE BY LINE, AND THE SECOND EYE IS WHY. The first cut
+    scanned forward from `co_firstlineno` skipping `@` and blank lines until it found `def <name>`.
+    That heuristic was wrong in three directions at once and the eye named all three:
+      · a BLANK line appearing at the function's old line let the walk skip on and re-find the def
+        below, so a genuinely stale function read CLEAN. Comments were caught, blanks were not.
+      · a MULTI-LINE decorator — `@deco(\n "arg",\n)` — stopped the walk on `"arg",`, so a
+        function loaded correctly from disk was reported as DRIFT. Ordinary Python, false alarm.
+      · a `lambda` assigned at module level, or an alias `public = _real`, has a dict key that is
+        not the `def` name, so both read as drift while bytecode and disk agreed.
+    MEASURED on the six watched modules: zero of those shapes are present TODAY, so none of it was
+    firing — but all three are ordinary Python and the first one to appear would have broken it.
+
+    The AST knows exactly where a function starts, decorators and all. No walking, no tolerance,
+    nothing to tune. ⚠ A name defined TWICE at module level is ambiguous and is reported as
+    unlocatable rather than guessed at. [[unknown-stays-unknown]]
+    """
+    import ast as _ast
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            tree = _ast.parse(fh.read())
+    except Exception as e:
+        return None, "the source of %s could not be parsed (%s)" % (os.path.basename(path),
+                                                                    type(e).__name__)
+    out, dupes = {}, set()
+    for node in tree.body:
+        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        start = min([d.lineno for d in node.decorator_list] + [node.lineno])
+        if node.name in out and out[node.name] != start:
+            dupes.add(node.name)
+        out[node.name] = start
+    for d in dupes:
+        out.pop(d, None)
+    return out, None
+
+
 def drift(mod):
     """-> (checked, mismatches, why). `why` is set only when nothing could be measured.
 
-    ⚠ UNWRAP FIRST, AND REQUIRE THE FUNCTION'S OWN FILE. `@contextmanager` and every `functools.wraps`
-    decorator copy `__module__` onto a wrapper whose `__code__` lives in contextlib. The first cut of
-    this reported `tick_caches` and `_lock_briefly` as drifted, BOTH at line 242 — the same line in
-    two unrelated modules, which is the tell that the instrument was wrong and not the code. Line 242
-    of contextlib.py is the generic `helper`. Unwrapped they sit at 7437 and 3592 of their own files.
+    ⚠ REACH: MODULE-LEVEL FUNCTIONS ONLY. Methods, classmethods, nested functions and lambdas are
+    not in `vars(mod)` and are never opened, so lines inserted inside a CLASS move its methods
+    without this noticing. That is a real limit, it is stated rather than implied, and the say()
+    text carries it so nobody reads a green as more than it is.
+
+    ⚠ UNWRAP FIRST, AND REQUIRE THE FUNCTION'S OWN FILE. `@contextmanager` and every
+    `functools.wraps` decorator copy `__module__` onto a wrapper whose `__code__` lives elsewhere.
+    The first cut reported `tick_caches` and `_lock_briefly` as drifted, BOTH at line 242 — the same
+    line in two unrelated modules, which is the tell that the instrument was wrong and not the code.
     [[feedback-suspect-the-instrument]]
+
+    ⚠ THE NAME COMPARED IS `co_name`, NOT THE DICT KEY, so `public = _real` and import aliases
+    resolve to the function that was actually compiled.
     """
     path = getattr(mod, "__file__", None) or ""
     if not path.endswith(".py"):
         return 0, [], "%s has no .py source" % getattr(mod, "__name__", "?")
-    lines = _source_lines(path)
-    if lines is None:
-        return 0, [], "the source of %s could not be read" % os.path.basename(path)
+    if not os.path.exists(path):
+        return 0, [], "the source of %s is not on disk" % os.path.basename(path)
+    table, why = _def_lines(path)
+    if table is None:
+        return 0, [], why
     real = os.path.realpath(path)
     checked, bad = 0, []
-    for name, obj in list(vars(mod).items()):
+    for _key, obj in list(vars(mod).items()):
         if not isinstance(obj, types.FunctionType):
             continue
         if getattr(obj, "__module__", None) != getattr(mod, "__name__", None):
@@ -77,37 +125,15 @@ def drift(mod):
         code = getattr(fn, "__code__", None)
         if code is None:
             continue
-        # a function whose code lives in another file is not this module's to grade
         if os.path.realpath(code.co_filename or "") != real:
-            continue
-        ln = code.co_firstlineno
+            continue          # a function whose code lives elsewhere is not this module's to grade
+        expected = table.get(code.co_name)
+        if expected is None:
+            continue          # lambda, nested, or a name defined twice — unlocatable, not drift
         checked += 1
-        if not ln or ln > len(lines):
-            bad.append((name, ln, "<past end of file: %d lines>" % len(lines)))
-            continue
-        # ⚠⚠ WALK PAST THE DECORATORS TO THE `def`, NEVER ACCEPT AN `@` LINE ON ITS OWN. CPython
-        # points `co_firstlineno` at the FIRST DECORATOR of a decorated function, so the first cut
-        # simply accepted any line beginning with `@`. That escape hatch swallowed everything: a
-        # genuinely drifted function whose reported line happened to land on a decorator passed,
-        # and the red-proof for `unwrap` came back BLIND at match count 1 twice because both
-        # decorator cases exited through it. The count was right and the LAW was weak.
-        # Resolving to the actual `def` is what makes the comparison mean anything.
-        probe, guard = ln - 1, 0
-        while probe < len(lines) and guard < 80:
-            s = lines[probe].strip()
-            # ⚠ DECORATORS AND BLANKS ONLY — NOT COMMENTS. Skipping comment lines let the walk
-            # stroll arbitrarily far looking for a matching `def`: the case that rewrites a file
-            # with 40 comment lines above the function then found it again and reported NO drift,
-            # which is the exact defect this whole module exists to catch. A tolerance wide enough
-            # to re-find the function is a tolerance that cannot detect it moving.
-            if s and not s.startswith("@"):
-                break
-            probe += 1
-            guard += 1
-        here = lines[probe] if probe < len(lines) else ""
-        ok = bool(re.match(r"\s*(async\s+)?def\s+%s\b" % re.escape(name), here))
-        if not ok:
-            bad.append((name, ln, here.strip()[:70]))
+        if code.co_firstlineno != expected:
+            bad.append((code.co_name, code.co_firstlineno,
+                        "the file says it starts at line %d" % expected))
     return checked, bad, None
 
 
@@ -139,8 +165,21 @@ def say(modules):
     if not checked:
         return None, ("no function could be compared (%s) - that is UNMEASURED, not agreement"
                       % ("; ".join(why) if why else "nothing imported"))
+    # ⚠⚠ v3434 — A MIXED ANSWER IS NOT A CLEAN ONE, AND THE SECOND EYE CAUGHT THIS. The first cut
+    # returned True whenever `checked > 0` and `bad` was empty, DROPPING every `why`. So if
+    # control_app matched while lane_census was missing, unreadable or not a .py, the verdict was a
+    # confident OK over a population that had quietly shrunk - and the sentence still said "across
+    # N module(s)", counting modules nobody looked at. The all-unmeasured branch above was already
+    # honest; the MIXED branch was not, which is the harder half to notice.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    if why:
+        return None, ("%d function(s) matched, but %d of %d module(s) could not be compared at all "
+                      "(%s) - a partial look is UNMEASURED, not agreement"
+                      % (checked, len(why), len(modules), "; ".join(why)))
     return True, ("%d function(s) checked across %d module(s): every one starts where the source "
-                  "says it does" % (checked, len(modules)))
+                  "says it does. ⚠ MODULE-LEVEL FUNCTIONS ONLY - methods, nested functions and "
+                  "lambdas are not opened, so lines moving inside a class are not covered"
+                  % (checked, len(modules)))
 
 
 if __name__ == "__main__":
