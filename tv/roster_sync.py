@@ -132,7 +132,12 @@ def fetch_via_cdp(port=9224, timeout=180):
     import websocket  # noqa: F401  — only needed on the --write path
 
     req = urllib.request.Request("http://127.0.0.1:%d/json/new?about:blank" % port, method="PUT")
-    tgt = json.load(urllib.request.urlopen(req))
+    # ⚠ THE BOUND IS THE SAME `timeout` THE SOCKET ON THE NEXT LINE ALREADY USES. Unbounded, this
+    # line hangs FOREVER — urllib's default is "block", nothing in tv/ calls
+    # socket.setdefaulttimeout, and a Chrome that completes the TCP handshake and never answers
+    # /json/new wedges the caller with no message. Third site of this class; v3436 fixed
+    # render_check.py:2477 the same way. Pinned by test_a_tab_opener_is_bounded.py.
+    tgt = json.load(urllib.request.urlopen(req, timeout=timeout))
     ws = websocket.create_connection(tgt["webSocketDebuggerUrl"], timeout=timeout)
     n = [0]
 
