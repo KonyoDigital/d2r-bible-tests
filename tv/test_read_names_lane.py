@@ -208,6 +208,63 @@ class ReadNamesLane(unittest.TestCase):
         self.assertIn("read names lane", dict(D.CHECKS),
                       "the row is defined but not registered, so it never runs")
 
+    def test_a_sighting_carries_the_socket_count_and_keeps_null_apart_from_zero(self):
+        """v3455 (#60a) — the reader was TOLD to count sockets and the fact was thrown away here.
+
+        Both prompts map an item name -> N sockets (tv_diablo.py:498, g5_grok_eyes.py:93), both
+        parsers keep it, and the journal PERSISTS it — measured on the live ring, `sockets` is a
+        deep-row key and 12 of 766 deep rows carry one, shaped {'Lionheart': 3}. This sighting
+        literal was where it died: 0 of 138 sightings carried it, so vault_retro's socket fold and
+        its variants() machinery were built and fed nothing.
+        [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        """
+        import json as _json
+        import tempfile as _tf
+
+        rows = [
+            # two names in ONE read: one has a socket count, the other does not
+            {"lane": "deep", "sessionId": "s1", "scene": "stash", "ts": 1000, "conf": 0.9,
+             "names": ["Lionheart", "Harlequin Crest"],
+             "names_loc": {"Lionheart": "stash"},
+             "sockets": {"Lionheart": 3}},
+            # a name the reader looked at and found NO sockets — 0 is a MEASUREMENT
+            {"lane": "deep", "sessionId": "s2", "scene": "stash", "ts": 2000, "conf": 0.9,
+             "names": ["Plague"], "names_loc": {}, "sockets": {"Plague": 0}},
+        ]
+        fd, path = _tf.mkstemp(suffix=".jsonl")
+        os.close(fd)
+        try:
+            with io.open(path, "w", encoding="utf-8") as fh:
+                for r in rows:
+                    fh.write(_json.dumps(r) + "\n")
+            ev, _why = RNL.evidence(journal_paths=[path])
+            self.assertIsNotNone(ev, "the fixture journal did not read at all")
+
+            lion = (ev.get("Lionheart") or [])
+            self.assertTrue(lion, "the named item did not survive into the evidence pile")
+            self.assertEqual(lion[0].get("sockets"), 3,
+                             "the socket count the reader WAS ASKED FOR never reached the "
+                             "sighting, so nothing downstream can ever fold it: %r" % (lion[0],))
+
+            # ⚠ THE TWO ABSENCES MUST STAY DIFFERENT.
+            harl = (ev.get("Harlequin Crest") or [])
+            self.assertTrue(harl)
+            self.assertIsNone(harl[0].get("sockets"),
+                              "a name with NO socket reading came back as something other than "
+                              "None — 'nobody looked' was turned into an answer: %r" % (harl[0],))
+            plague = (ev.get("Plague") or [])
+            self.assertTrue(plague)
+            self.assertEqual(plague[0].get("sockets"), 0,
+                             "a MEASURED zero was collapsed to None/absent. 0 sockets means the "
+                             "reader looked and it has none; vault_retro.py:414 says the same — "
+                             "NULL IS NOT ZERO. %r" % (plague[0],))
+            self.assertIsNot(plague[0].get("sockets"), None)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
     def test_it_still_parses(self):
         ast.parse(SRC)
 

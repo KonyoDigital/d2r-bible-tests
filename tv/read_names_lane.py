@@ -140,6 +140,16 @@ def evidence(journal_paths=None):
                     # [[the-unjoined-end]] [[label-outlived-referent]]
                     _loc = r.get("names_loc")
                     _loc = _loc if isinstance(_loc, dict) else {}
+                    # ⚠⚠ v3455 (#60a) — AND THE SOCKET COUNT, WHICH WAS ASKED FOR AND THROWN AWAY.
+                    # Both prompts tell the model to map an item name -> N sockets
+                    # (tv_diablo.py:498, g5_grok_eyes.py:93), both parsers keep it, and the journal
+                    # PERSISTS it — measured on the live ring: `sockets` is a deep-row key and 12 of
+                    # 766 deep rows carry a non-empty one, shaped {'Lionheart': 3}, i.e. keyed by
+                    # item name exactly like names_loc. This sighting literal was where it died:
+                    # 0 of 138 sightings carried it, so vault_retro's socket fold and its whole
+                    # variants() machinery were fed nothing. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+                    _sock = r.get("sockets")
+                    _sock = _sock if isinstance(_sock, dict) else {}
                     for nm in names:
                         # ⚠ "" is NOT "floor" and NOT the scene. A name the producer did not place
                         # is UNPLACED, and a guess here would be indistinguishable from a reading.
@@ -147,7 +157,13 @@ def evidence(journal_paths=None):
                         out.setdefault(nm, []).append(
                             {"session": sid, "conf": r.get("conf"),
                              "scene": str(r.get("scene") or ""), "ts": r.get("ts"),
-                             "loc": str(_loc.get(nm) or "").strip().lower() or None})
+                             "loc": str(_loc.get(nm) or "").strip().lower() or None,
+                             # ⚠ `.get(nm)` AND NOTHING ELSE. None means nobody read a socket count
+                             # for this name; 0 means the reader looked and it has none. `or None`
+                             # here would collapse those two into one, and vault_retro.py:414 says
+                             # the same in its own words: "NULL IS NOT ZERO AT ANY OF THE THREE".
+                             # [[unknown-stays-unknown]]
+                             "sockets": _sock.get(nm)})
         except Exception:
             continue
     return out, ("%d deep PANEL row(s) carrying names" % rows)

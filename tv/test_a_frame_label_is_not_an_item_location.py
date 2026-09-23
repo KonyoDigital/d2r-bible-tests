@@ -127,16 +127,46 @@ class TestAFrameLabelIsNotAnItemLocation(unittest.TestCase):
         """His data, not a fixture: every name must land in exactly one bucket."""
         out, why = EG._named_sessions()
         self.assertTrue(out, "no sessions read from the journal ring (%s) — UNKNOWN, not clean" % why)
+        # ⚠⚠ ONLY THE NUMERIC KEYS. `_named_sessions()` grew a `placed` key holding a LIST of
+        # (name, bucket) pairs — the per-name detail behind the counts — and this loop summed
+        # EVERY value, so it died with `unsupported operand type(s) for +: 'int' and 'list'` on all
+        # 42 of his sessions. The producer was right to persist the detail ([[heart-first]] §6);
+        # this consumer simply never learned about it. A/B'd against HEAD before blaming anything:
+        # it fails identically with the sockets carrier reverted, so it is NOT that change.
+        BUCKETS = ("panel", "floor", "chronicle", "equipped", "contradicted", "unplaced")
         tot = {}
         for c in out.values():
             for k, v in c.items():
-                tot[k] = tot.get(k, 0) + v
-        buckets = sum(tot.get(k, 0) for k in
-                      ("panel", "floor", "chronicle", "equipped", "contradicted", "unplaced"))
+                if isinstance(v, (int, float)):
+                    tot[k] = tot.get(k, 0) + v
+        buckets = sum(tot.get(k, 0) for k in BUCKETS)
         self.assertEqual(
             buckets, tot.get("names"),
             "%d names but %d bucketed — a name was dropped or counted twice: %r"
             % (tot.get("names"), buckets, tot))
+
+        # ⚠ AND `placed` IS A SECOND, INDEPENDENT DERIVATION OF THE SAME FACT, so it corroborates
+        # rather than merely being skipped. The counts are tallied as the walk goes; `placed`
+        # records one row per name with the bucket it landed in. Two sources, not one number
+        # wearing two names. [[heart-first]] §1
+        # MEASURED on his journal when this was written: names 613, bucketed 613, placed 613, and
+        # per bucket panel 96 · floor 437 · chronicle 62 · equipped 5 · contradicted 13.
+        _placed = [pr for c in out.values() for pr in (c.get("placed") or [])]
+        self.assertEqual(
+            len(_placed), buckets,
+            "the per-name detail and the counts disagree: %d placed row(s) against %d bucketed. "
+            "One of the two is wrong and the contradiction IS the finding."
+            % (len(_placed), buckets))
+        _by = {}
+        for _pr in _placed:
+            if isinstance(_pr, (list, tuple)) and len(_pr) > 1:
+                _by[_pr[1]] = _by.get(_pr[1], 0) + 1
+        for _k in BUCKETS:
+            self.assertEqual(
+                _by.get(_k, 0), tot.get(_k, 0),
+                "bucket %r: the detail says %d and the counter says %d — a name is filed under "
+                "one bucket and counted under another."
+                % (_k, _by.get(_k, 0), tot.get(_k, 0)))
 
 
 RED_PROOF = [
