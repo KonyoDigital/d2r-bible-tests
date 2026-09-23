@@ -2262,6 +2262,16 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3467 — the two rows THIS arc added (v3458, v3467) and never explained, so the explained-
+    # exactly-once law grew 23 -> 25 on my ships. Declared, not claimed.
+    'two eyes compared':
+        'the row reads g5_shadow_reducer over the shadow log, which is ITSELF a two-family '
+        'comparison; a second source for the ROW would be a different engine counting the same '
+        'store, and one that re-read the same rows would be one number wearing two names.',
+    'handoff lanes drained':
+        'the row judges #230 by its watermark and #231 by the ledger drain, each by its own '
+        'mechanism; a second source would be the seats\' own record of what they posted, which '
+        'no target captures.',
     # v3386 (#129) — the row reads the ledger file and asks the ledger's own reader. A genuine
     # second source would be an independent re-judge actually RUNNING over the stored answers and
     # agreeing with the recorded verdict; that is the next version's work, and claiming it now

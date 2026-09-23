@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1167 - THE G5 EYE WAS PRIMARY ON A COMPARISON NOBODY READ — AND IT STOPPED ARRIVING 10 DAYS AGO
+
+**v3467 - #188.** v3450 built `tv/g5_shadow_reducer.py` and `divergence_row()` — "one row a console
+doctor can render" — and nothing outside its own tests ever called it. Plumbing with no tap: the
+6,082-row two-family shadow log was written and read by no surface while `g5_grok_eyes.state` said
+`primary`. The doctor row `two eyes compared` now reads it. MEASURED on his live store the day it
+landed: the newest row where both eyes answered is **2026-09-14 18:05:20, 9.3 days old** → MISSING
+(in MINE): PRIMARY on evidence that stopped arriving. And the two denominators DISAGREE —
+**1,078/1,596 reads (67.5%)** against **66/165 distinct frames (40.0%)**, because each frame is read
+~9.7 times — so the row is red on disagreement only when BOTH say majority, and prints both.
+Why the log stopped is UNKNOWN and is the next thing to find (it is mine, not his).
+
+Same ship: v3458's `handoff lanes drained` and this row were explained in neither corroborate
+registry, growing `test_every_doctor_check_is_explained`'s unexplained count 23 → 25 on this arc's
+ships. Both declared `NO_JOINT_YET` with reasons; back to 23, and those 23 are filed as #208.
+
 ### REG-1166 - TWO OKs THAT MEASURED NOTHING — AND ONE THAT WAS RIGHT
 
 **v3466 - three open findings from the cross-family eye, adjudicated by measurement, not taken whole.**

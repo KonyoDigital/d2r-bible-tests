@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3466** | `(this commit)` | v3466 — an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind |
+| **v3467** | `(this commit)` | v3467 — doctor row two eyes compared reads the shadow reducer: PRIMARY on a comparison 9 days old, 67.5 percent of reads vs 40 percent of frames disagree, both shown; two rows of this arc explained |
+| **v3466** | `038e8538` | v3466 — an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind |
 | **v3465** | `c5ff2ac8` | v3465 — all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored |
 | **v3464** | `0d4c4e3c` | v3464 — one reach parser for the drain and for agreement: 399 per-file sizes recovered, the v3449 3.4 percent look is now a cut, absent is passed, refused looks are not a measured zero |
 | **v3463** | `d9bdb682` | v3463 — 3 red-proofs re-anchored (1323 of 1323 well formed), handoff row declared in WATCHES, ci_sim unreadable file is UNKNOWN not empty data (ratchet back to 69) |

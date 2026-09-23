@@ -6555,6 +6555,15 @@ GATES = [
              "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
              "six literal characters in the one message he reads when a push fails.",
          skip_ok=()),
+    Gate("test_two_eyes_are_compared",
+         [sys.executable, os.path.join(HERE, "test_two_eyes_are_compared.py")], 60,
+         needs_app=False,
+         why="#188 - v3450 built the shadow reducer and its divergence_row() and NOTHING called "
+             "it: the G5 lane ran PRIMARY on a 6,082-row two-family comparison no surface read. "
+             "MEASURED 2026-09-24: the newest both-answered row is ten days old, and 1,078/1,596 "
+             "READS disagree (67.5%) while 66/165 distinct FRAMES do (40.0%). The row reads it, "
+             "states both denominators, and is red only on staleness or a majority by BOTH.",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

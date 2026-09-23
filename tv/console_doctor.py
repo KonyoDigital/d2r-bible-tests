@@ -2784,6 +2784,11 @@ MINE = {
     # ⚠ NOT A MUTE BUTTON, same semantics as the two above: each still renders, at its real state
     # and colour. What changes is only whose name is on it. A row removed is a row nobody can
     # reopen. [[regression-guard]] [[feedback-contradiction-is-the-finding]]
+    "two eyes compared":
+        "#188 — two model families disagreeing about his screen IS the finding, exactly "
+        "like 'engines corroborate': which eye is right is not knowable from the pair alone, "
+        "and whether they were asked the same question is my work. A stale comparison is "
+        "mine too: the evidence stopped arriving, and finding out why is not his errand.",
     "engines corroborate":
         "#81 — two engines disagreeing IS the finding, and the check says so itself: 'the one "
         "that is wrong is not knowable from the pair alone'. He cannot arbitrate a pair neither "
@@ -7161,6 +7166,82 @@ def _check_the_eye_is_still_answering_in_a_constrained_field():
                      % (age_d, tally))
 
 
+#: v3467 — how old a two-eye comparison may be while the lane is PRIMARY. A LABELLED judgement, not
+#: a measurement: the same three days this file uses for "nothing we made is still on his disk".
+_EYES_STALE_DAYS = 3.0
+
+
+def _check_the_two_eyes_are_compared():
+    """#188 — the G5 eye runs PRIMARY on a two-family comparison NOBODY READ. This reads it.
+
+    ⚠⚠ THE PLUMBING HAD NO TAP. v3450 built tv/g5_shadow_reducer.py and its `divergence_row()` —
+    "one row a console doctor can render" — and NOTHING outside its own tests ever called it, so
+    the 6,082-row shadow log went on being written and read by no surface.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    UNKNOWN  no shadow store here (normal on CI — gitignored), no row where BOTH eyes answered, or
+             a newest row whose time cannot be read. Silence is not agreement.
+    MISSING  (MINE) the lane is PRIMARY and either the newest both-answered read is older than
+             _EYES_STALE_DAYS — PRIMARY on evidence that stopped arriving, a verdict with no
+             expiry — or the eyes disagree on MORE THAN HALF of what both answered by BOTH
+             denominators, reads AND distinct frames. One alone is not enough: MEASURED
+             2026-09-24, 1,078/1,596 READS disagree (67.5%) while 66/165 FRAMES do (40.0%),
+             because each frame is read ~9.7 times. Published, never averaged.
+             [[feedback-contradiction-is-the-finding]] [[zero-needs-a-denominator]] [[stale-reading]]
+    OK       otherwise — and the figures still travel in the sentence.
+
+    ⚠ It never prefers a lane. Which eye is right is not knowable from the pair alone; whether they
+    were even asked the same question is the first thing to find out, and that is MINE.
+    """
+    try:
+        import g5_shadow_reducer as _R
+    except Exception as e:
+        return UNKNOWN, ("the shadow reducer will not import (%s), so whether the two eyes agree "
+                         "is UNKNOWN" % type(e).__name__)
+    try:
+        row = _R.divergence_row()
+    except Exception as e:
+        return UNKNOWN, "the shadow reducer raised (%s) - UNKNOWN, not clean" % type(e).__name__
+    st, mode = (row or {}).get("state"), (row or {}).get("mode")
+    if st != "measured":
+        return UNKNOWN, ("%s - nothing has compared the two eyes here, which is not agreement"
+                         % ((row or {}).get("detail") or st))
+    names = (((row.get("report") or {}).get("fields") or {}).get("names")) or {}
+    reads, frames = names.get("disagree") or {}, names.get("frames_disagree") or {}
+
+    def _frac(f):
+        n, d = f.get("n"), f.get("d")
+        return ("%d/%d (%.1f%%)" % (n, d, 100.0 * n / d)) if d else "?/0 (no denominator)"
+
+    def _maj(f):
+        return bool(f.get("d")) and 2 * int(f.get("n") or 0) > int(f.get("d"))
+
+    last = reads.get("last_ts")
+    try:
+        # the writer stamps LOCAL time (g5_grok_eyes: time.strftime), so it is read back as local
+        age = (time.time() - time.mktime(time.strptime(str(last), "%Y-%m-%d %H:%M:%S"))) / 86400.0
+    except Exception:
+        return UNKNOWN, ("the newest both-answered read carries no readable time (%r), so how old "
+                         "this comparison is is UNKNOWN" % (last,))
+    say = ("the two eyes disagree on %s of READS and %s of distinct FRAMES where both answered "
+           "(newest %s, %.1f day(s) old) · lane mode=%s" % (_frac(reads), _frac(frames), last, age, mode))
+    if mode == "primary":
+        if age > _EYES_STALE_DAYS:
+            # ⚠ AND IT CANNOT REFRESH ITSELF. g5_shadow_log() has exactly two callers
+            # (tv_diablo.py, the warm and one-shot read paths) and BOTH sit behind
+            # `_G5.is_shadow()`, which is False in PRIMARY. So promoting the eye switches off the
+            # comparison that justified promoting it, and this row stays red until someone
+            # compares the eyes again. Saying so is what keeps it from being furniture.
+            return MISSING, ("the G5 eye is PRIMARY on a two-family comparison last taken %.1f day(s) "
+                             "ago - and while PRIMARY nothing writes that comparison (both "
+                             "g5_shadow_log callers run only in SHADOW mode), so the promotion rests "
+                             "on evidence that cannot refresh itself · %s" % (age, say))
+        if _maj(reads) and _maj(frames):
+            return MISSING, ("the G5 eye is PRIMARY and the two eyes disagree on more than half of "
+                             "what both answered, by reads AND by frames · %s" % say)
+    return OK, say
+
+
 def _check_the_handoff_lanes_are_being_drained():
     """Are #230 and #231 being READ, or are answers piling up in a queue nobody opens?
 
@@ -7299,6 +7380,8 @@ CHECKS = [
     # v3458 — his 2026-09-23 order after #230 reached 41 unread: the lanes must not stack up.
     # Nothing was watching them, so nothing noticed. This watches.
     ("handoff lanes drained", _check_the_handoff_lanes_are_being_drained),
+    # v3467 (#188) — the two-eye comparison the G5 lane was promoted on, finally READ.
+    ("two eyes compared", _check_the_two_eyes_are_compared),
     # v3406 (#152) — the harness that proves the paid sweep door can be answered by the
     # LOCK instead of the door. One call, worker stubbed, and it distinguishes UNREACHED
     # from refused. See the docstring for the sandbox measurement that found it.
@@ -7580,6 +7663,9 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # is about. The staleness bar is SIX HOURS, so an hourly cadence loses nothing.
             # Found by the cross-family eye on the SHIPPED v3458 bytes.
             "handoff lanes drained",
+            # v3467 — reads a per-machine store; its age is measured in DAYS, so hourly
+            # loses nothing and the every-tick subset (#194) pays nothing.
+            "two eyes compared",
             "the compare panel can name a difference",
             # v3397 — MEASURED 268 ms on this file. The cheap subset runs every eagle
             # tick, and v3392 already cost that subset 1,877 ms by not measuring first.
@@ -8014,6 +8100,8 @@ WATCHES = {
     # reads two GitHub lanes (#230 watermark, #231 ledger) and owns no element of its own:
     # empty tuple as a DECLARATION, not an omission.
     "handoff lanes drained":       (),
+    # v3467 — a per-machine store and a reducer; no element of its own. DECLARED.
+    "two eyes compared":           (),
     # v3363 (#114) — the reach map is a LEDGER FIELD, not a screen element. Empty tuple as a
     # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
     # a lamp of its own, name it here.
