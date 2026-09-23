@@ -611,6 +611,34 @@ class TestACutOffSuiteCannotReadAsAPass(unittest.TestCase):
                          "a gate set that NEVER RAN was announced as RED. That is a false red, and "
                          "a red that is sometimes fiction is worse than silence.\n%s" % never)
 
+        # ⚠⚠ v3452 — PATH (2), WHICH THIS DOCSTRING HAS NAMED SINCE v3447 AND NEVER DROVE.
+        # The gate set runs to the end, every gate PASSES (`red=false`), and a LATER step — the
+        # intake smoke — fails. `reached` is true, so the guard above lets it through, and the
+        # failure arm announced GATES RED about a gate set that was GREEN. The case was written
+        # down in two places (this docstring and the gate-set step's own comment) and implemented
+        # in neither. A rule that lives only in prose is a rule nothing enforces.
+        # [[feedback-comments-vs-code]] [[the-unjoined-end]]
+        _rc_g, green = run_script(self.body, {"SUITE_RESULT": "failure",
+                                              "GATE_SET_REACHED": "true", "GATE_SET_RED": "false"})
+        self.assertNotIn("GATES RED", green,
+                         "the gate set PASSED (red=false) and a later step failed, and this was "
+                         "still announced as GATES RED. That is the false red v3447 was written "
+                         "to end, surviving in the half that was published but never read.\n%s"
+                         % green)
+        self.assertIn("::error title=NO VERDICT::", green,
+                      "a green gate set with a later step failing must say NO VERDICT about the "
+                      "GATES - it is a real failure, but not a gate verdict.\n%s" % green)
+        self.assertNotEqual(_rc_g, 0,
+                            "a failed job exited 0 - a real failure would read as a pass.\n%s"
+                            % green)
+
+        # ⚠ AND THE THIRD STATE: the fact was never published at all. UNKNOWN is not a red.
+        _rc_u, unk = run_script(self.body, {"SUITE_RESULT": "failure", "GATE_SET_REACHED": "true"})
+        self.assertNotIn("GATES RED", unk,
+                         "with no red/green fact published, the gates were still called RED. "
+                         "[[unknown-stays-unknown]]\n%s" % unk)
+        self.assertIn("::error title=NO VERDICT::", unk)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 # 3. DRIVE THE CEILING WATCHDOG

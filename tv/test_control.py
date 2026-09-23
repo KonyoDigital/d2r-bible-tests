@@ -32588,6 +32588,49 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
                          "the record says the read died at %r, not at the floor %r"
                          % (vN.get("diedAtBound"), round(floor, 1)))
 
+    def test_the_durable_record_names_the_patience_of_the_target_that_DIED(self):
+        """v3453 — A FIX APPLIED TO SOME OF SEVERAL IDENTICAL SITES LEAVES THE DEFECT RUNNING.
+
+        v3449 made `_declared_page_patience()` per-target and swept the two per-target callers.
+        It did not sweep the DURABLE RECORD or the tail summary, and both called it with no spec
+        — the branch returning max() over the whole registry. MEASURED on this tree: 18 of 20
+        targets declare 12.0s and the registry max is 30.0, so a death at almost any target's
+        bound was filed as `pagePatience: 30.0` and its shortfall judged against a grant that
+        target never held. [[sweep-dont-ask]] [[zero-needs-a-denominator]]
+        """
+        import inspect
+        sys.path.insert(0, self.TV)
+        import render_check
+
+        # ⚠ FIRST PROVE THE TWO BRANCHES ARE DISTINGUISHABLE. If every target happened to declare
+        # the registry max, this whole guard would pass on a tree where the bug is fully present —
+        # a comparison between two things that cannot differ agrees no matter what is in it.
+        _mx = render_check._declared_page_patience()
+        _per = {n: render_check._declared_page_patience(sp)
+                for n, sp in render_check.TARGETS.items()}
+        _below = sorted(n for n, pp in _per.items() if pp < _mx)
+        self.assertTrue(_below,
+                        "no target declares less patience than the registry max, so this guard "
+                        "cannot tell the per-target branch from the no-spec one and proves "
+                        "NOTHING. [[feedback-blind-fixture-green-gate]]")
+
+        # ⚠ GRADE CODE, NOT PROSE — the comment explaining this very fix quotes the banned form,
+        # and a negative assertion has to be true of the whole searched text including whatever
+        # was written about it. [[source-reading-guard]] §4
+        _src = inspect.getsource(render_check.main)
+        _code = "\n".join(_l.split("#", 1)[0] for _l in _src.split("\n"))
+        self.assertNotIn(
+            "_declared_page_patience()", _code,
+            "the durable record asks for page patience with NO target, which returns the widest "
+            "grant in the registry — so a death at a %ss target is filed as %ss."
+            % (min(_per.values()), _mx))
+        self.assertNotIn(
+            "_budget_shortened_the_read()", _code,
+            "whether this gate's own budget cut the read short is judged against the registry "
+            "maximum rather than the bound the dead target actually held.")
+        self.assertIn("_declared_page_patience(_dead_spec)", _code,
+                      "the record no longer names the target that died")
+
     def test_the_cost_of_ONE_read_is_finally_measured_and_carries_its_denominator(self):
         """v3445 — EVERY FLOOR IN THIS FILE WAS DEFENDED WITH THE COST OF A DIFFERENT UNIT.
 

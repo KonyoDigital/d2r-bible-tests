@@ -5199,6 +5199,16 @@ def main(argv):
              "says nothing about the rest, which are UNKNOWN rather than clean."
              % (len(targets), len(TARGETS), len(targets)))
 
+    # ⚠⚠ v3453 — THE RECORD MUST DESCRIBE THE TARGET THAT DIED, NOT THE REGISTRY'S WIDEST GRANT.
+    # v3449 made _declared_page_patience() per-target and swept the two per-target CALLERS. It did
+    # not sweep the durable record or the tail summary, and both call it with NO spec — which is
+    # the branch that returns max() over every target. MEASURED: `advanced` has patience 12.0 and
+    # the registry max is 30.0, so a death at `advanced`'s bound was filed as `pagePatience: 30.0`
+    # and its shortfall judged against a grant it never held. A fix applied to one of several
+    # identical sites reports success and leaves the defect running. [[sweep-dont-ask]]
+    # Found by the cross-family eye on the SHIPPED v3451 bytes.
+    _dead_spec = (TARGETS.get(_ABORTED_AT) if _ABORTED_AT else None)
+
     # ⚠⚠ v2859 — THE RENDER VERDICT WAS NOT DURABLE ANYWHERE, so the heart could not read it.
     # Konyo asked whether 100% on HEART 2.0 is also a VISUAL pass. It is not, and the reason it
     # could not even be MEASURED is here: this harness wrote PNGs and a coverage FLOOR, and nothing
@@ -5240,8 +5250,8 @@ def main(argv):
               # None/absent = no read died at a bound of this gate's choosing.
               "diedAtBound": (None if _DIED_AT_BOUND is None else round(_DIED_AT_BOUND, 1)),
               "diedAtRunAge": (None if _DIED_AT_AGE is None else round(_DIED_AT_AGE, 1)),
-              "budgetShortened": bool(_budget_shortened_the_read()[0]),
-              "pagePatience": round(_declared_page_patience(), 1),
+              "budgetShortened": bool(_budget_shortened_the_read(_dead_spec)[0]),
+              "pagePatience": round(_declared_page_patience(_dead_spec), 1),
               "readFloor": round(_read_floor(), 1),
               # ⚠⚠ THE MEASUREMENT NOBODY HAD. Nothing in this tree has ever recorded the cost of
               # ONE CDP read, so every floor above was defended with the cost of a whole
@@ -5271,7 +5281,7 @@ def main(argv):
         # This line was the second place the two facts were collapsed, and it is the one a reader
         # skimming the tail of the log actually sees.
         _why_stopped = ("this gate ran out of ITS OWN read budget"
-                        if _budget_shortened_the_read()[0] else "the browser went away")
+                        if _budget_shortened_the_read(_dead_spec)[0] else "the browser went away")
         _say("⚪ ABORTED at %r — %s and the run STOPPED THERE rather than "
              "paying a read bound over again for each target left. %d rendered clean, %d did "
              "not, 1 is UNKNOWN (that one) and %d were never looked at. Non-zero because a "

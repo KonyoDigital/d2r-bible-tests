@@ -205,8 +205,20 @@ jobs:
           #   (2) the gate set exits 0 and a LATER step (the intake smoke) fails — same false red.
           # So the fact "the gate set reached a verdict" is published HERE, by the only step that
           # can know it, instead of being guessed downstream from a job-level word.
-          echo "reached=true" >> "$GITHUB_OUTPUT"
-          if [ "$_rc" -eq 0 ]; then echo "red=false" >> "$GITHUB_OUTPUT"; else echo "red=true" >> "$GITHUB_OUTPUT"; fi
+          # ⚠⚠ v3452 — EXIT 2 IS *NO GATE RAN*, NOT *A GATE WAS RED*. run_gates.main() returns
+          #   0  every registered gate passed
+          #   1  a gate was RED — a real verdict
+          #   2  _claim_the_tree() found the tree already locked, so NOTHING was run
+          # Folding 2 into `red=true` publishes a verdict nobody reached: the lock refusal means
+          # the gate set never graded anything. Three states, and UNKNOWN is one of them.
+          # [[unknown-stays-unknown]]
+          if [ "$_rc" -eq 2 ]; then
+            echo "reached=false" >> "$GITHUB_OUTPUT"
+            echo "red=unknown" >> "$GITHUB_OUTPUT"
+          else
+            echo "reached=true" >> "$GITHUB_OUTPUT"
+            if [ "$_rc" -eq 0 ]; then echo "red=false" >> "$GITHUB_OUTPUT"; else echo "red=true" >> "$GITHUB_OUTPUT"; fi
+          fi
           exit $_rc
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
@@ -310,7 +322,26 @@ jobs:
               exit 0
               ;;
             failure)
-              echo "::error title=GATES RED::the gate set reached a verdict and it was RED. Open the agent-suite job and read the table - the failing gates are named there."
+              # ⚠⚠ v3452 — THE OTHER HALF OF v3447, AND IT WAS PUBLISHED AND NEVER READ.
+              # v3447 taught the gate-set step to publish `red`, wired it through the job outputs
+              # and into this step's env — and then branched only on `reached`, so this arm called
+              # a GREEN gate set RED whenever a later step failed. The comment on the gate-set step
+              # names that exact path — "(2) the gate set exits 0 and a LATER step (the intake
+              # smoke) fails — same false red" — and the code below it did not implement it. A rule
+              # stated in prose that the adjacent code does not follow is worse than no comment: it
+              # makes the reader believe the case is handled. [[feedback-comments-vs-code]]
+              # [[plumbing-with-no-tap]] — found by the cross-family eye on the SHIPPED v3451 bytes.
+              case "${GATE_SET_RED:-}" in
+                true)
+                  echo "::error title=GATES RED::the gate set reached a verdict and it was RED. Open the agent-suite job and read the table - the failing gates are named there."
+                  ;;
+                false)
+                  echo "::error title=NO VERDICT::the GATE SET ITSELF PASSED - every registered gate was green - and a LATER step in agent-suite failed (the intake smoke, or anything after the gate set). NOTHING HERE SAYS A GATE WAS RED. Open the job and find the step that failed."
+                  ;;
+                *)
+                  echo "::error title=NO VERDICT::agent-suite is 'failure' and the gate set published no red/green fact (got '${GATE_SET_RED:-<none>}'), so whether any gate was red is UNKNOWN. UNKNOWN is not a red."
+                  ;;
+              esac
               exit 1
               ;;
             cancelled|skipped|"")
