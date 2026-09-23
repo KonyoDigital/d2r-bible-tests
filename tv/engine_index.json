@@ -2098,5 +2098,15 @@
     "gotcha": "It does NOT invent the look — it reads a verdict Claude wrote and banks attacks=1 only for a surface whose answer says the claim held. A seat that is signed out, over quota or silent banks NOTHING, because an unreachable eye is an empty seat and never agreement. --wait retries until 20:00 local, the window after the 19:00 renewal.",
     "purpose": "Banks a recorded Claude verdict as a cross-family attack against the locks that already cleared their attack bar.",
     "territory": "gates-proofs"
+  },
+  "code_identity.py": {
+    "entryPoints": [
+      "drift",
+      "report",
+      "say"
+    ],
+    "gotcha": "It CANNOT be built from mtime and size - that is exactly what CPython uses to decide a .pyc is fresh, so a check from the same two inputs agrees with it by construction, collisions included. The only witness that survives one is co_firstlineno, which comes from the BYTECODE while the source is read fresh. Three instrument bugs on the way, each caught by a count: functools.wraps copies __module__ onto a wrapper whose code lives in contextlib (two unrelated modules both reported drifted at the SAME line 242), CPython points co_firstlineno at the FIRST DECORATOR so accepting any '@' line swallowed everything, and skipping COMMENT lines while walking to the def let a function that had moved 40 lines be re-found and reported clean. Decorators and blanks only. And on this Mac the cache is NOT in __pycache__ - sys.pycache_prefix puts it under ~/Library/Caches/com.apple.python.",
+    "purpose": "Answers whether THIS interpreter's loaded bytecode agrees with the source on disk, by comparing each function's co_firstlineno against where the file says it starts. Built after three pushes of one identical tree read green, RED, green, with the red one's traceback naming a line and a variable that do not exist in the file. Distinct from console_doctor's 'running code matches disk', which asks the CONSOLE over the wire about its own image.",
+    "territory": "heart-organs"
   }
 }
