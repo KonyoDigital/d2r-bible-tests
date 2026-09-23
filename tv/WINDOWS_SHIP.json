@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3455",
+  "ver": "v3456",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3455: Both prompts map an item name to N sockets, both parsers keep it, and the journal persists it - measured on the live ring, sockets is a deep-row key and 12 of 766 deep rows carry one shaped Lionheart 3. The sighting literal in read_names_lane was where it died: 0 of 138 sightings carried it, so vault_retro socket fold and its whole variants machinery were built and fed nothing. Now 11 of 138 carry a count across 6 named items. Also fixed a PRE-EXISTING crash in test_a_frame_label_is_not_an_item_location: _named_sessions grew a placed list and the consumer summed every value. A/B against HEAD proved it was not the sockets change.",
+  "note": "v3456: The cheap-subset timing gate retries when the total exceeds its ceiling - measure again, keep the lower. That retry sat OUTSIDE the with tick_caches block, so pass 1 measured the PRIMED path production takes and pass 2 the UNPRIMED one it never takes. Measured on a quiet machine, same 94 checks, same minute: primed 5092 ms, unprimed 16791 ms. The unprimed read is about 3x dearer so it is ALWAYS the larger, and min of the two could only ever return pass 1 - the mechanism the block calls what actually decides was inert and could never absolve anything. Proved by AST, and guarded structurally because the branch only runs when the first pass already exceeds the ceiling.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -22384,16 +22384,29 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # a legitimate push at 10,146 ms while the subset it names cost 4,134. A reading is only
         # comparable to a reading of the SAME population. [[v3313]] [[v3317]]
         if total >= BUDGET_MS * 3:
+            # ⚠⚠ v3456 — AND THE RE-READ MUST BE PRIMED TOO, OR IT IS NOT THE SAME READING.
+            # v3313/v3317 taught this block that "a reading is only comparable to a reading of the
+            # SAME population". The same rule governs CACHE STATE and this retry sat OUTSIDE the
+            # `with cd.tick_caches()` block above (proved by AST: the with spans 22281-22297, this
+            # branch 22386-22401), so pass 1 measured the PRIMED path production takes and pass 2
+            # measured the UNPRIMED one it never takes.
+            # MEASURED on a quiet machine, same 94 checks, same minute:
+            #     primed    5,092 ms      unprimed   16,791 ms
+            # The unprimed read is ~3x dearer, so it is ALWAYS the larger of the two and
+            # `min(total, _t2)` could only ever return pass 1. The mechanism this block calls
+            # "what actually decides" was inert: it can never absolve anything.
+            # [[feedback-suspect-the-instrument]] [[a-gate-can-perturb-what-it-measures]]
             _t2 = 0.0
-            for _n, _f in cd.CHECKS:
-                if _n in _skip:
-                    continue
-                _r0 = _t.time()
-                try:
-                    _f()
-                except Exception:
-                    pass
-                _t2 += (_t.time() - _r0) * 1000.0
+            with cd.tick_caches():
+                for _n, _f in cd.CHECKS:
+                    if _n in _skip:
+                        continue
+                    _r0 = _t.time()
+                    try:
+                        _f()
+                    except Exception:
+                        pass
+                    _t2 += (_t.time() - _r0) * 1000.0
             print("   \u21bb the same %d-check population re-measured: %.0f ms "
                   "(first pass %.0f ms) — taking the lower of the two"
                   % (len([n for n, _ in cd.CHECKS if n not in _skip]), _t2, total),
@@ -32587,6 +32600,63 @@ class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
         self.assertEqual(vN.get("diedAtBound"), round(floor, 1),
                          "the record says the read died at %r, not at the floor %r"
                          % (vN.get("diedAtBound"), round(floor, 1)))
+
+    def test_the_cheap_subset_RETRY_is_primed_like_the_first_pass(self):
+        """v3456 — the re-read must measure the path production takes, or it is not a re-read.
+
+        The retry exists to absolve a burst: measure again, keep the lower. It sat OUTSIDE the
+        `with cd.tick_caches()` block, so pass 1 measured the PRIMED path and pass 2 the UNPRIMED
+        one. MEASURED on a quiet machine, same 94 checks, same minute: primed 5,092 ms, unprimed
+        16,791 ms. The unprimed read is ~3x dearer, so it is ALWAYS the larger and
+        `min(total, _t2)` could only ever return pass 1 — the mechanism the block calls "what
+        actually decides" could never absolve anything.
+
+        ⚠ THIS IS ASSERTED STRUCTURALLY ON PURPOSE. The retry branch only executes when the first
+        pass already exceeds the ceiling, which does not happen on a quiet machine — so running
+        the gate here cannot show whether the line is even reached. The claim IS lexical: the
+        re-read is inside the priming context. [[source-reading-guard]] §1 — ask the compiler, not
+        the text.
+        """
+        import ast as _ast
+        # ⚠ FOUND BY NAME IN THE FILE, not via type(self). The subject lives in a DIFFERENT
+        # TestCase class from this guard, and binding to the class is how a guard silently stops
+        # pointing at its subject when either one is moved.
+        _here = os.path.join(self.TV, "test_control.py") if hasattr(self, "TV") else __file__
+        tree = _ast.parse(io.open(_here, encoding="utf-8").read())
+        fn = None
+        for _n in _ast.walk(tree):
+            if (isinstance(_n, _ast.FunctionDef)
+                    and _n.name == "test_the_cheap_subset_is_actually_CHEAP"):
+                fn = _n
+                break
+        self.assertIsNotNone(fn, "the timing gate this guard is about has been renamed or removed")
+
+        withs = [n for n in _ast.walk(fn)
+                 if isinstance(n, _ast.With)
+                 and any("tick_caches" in _ast.unparse(i.context_expr) for i in n.items)]
+        self.assertTrue(withs,
+                        "the timing gate no longer primes the per-tick caches at all, so it "
+                        "measures the uncached branch the console never takes (v2815)")
+
+        retries = [n for n in _ast.walk(fn)
+                   if isinstance(n, _ast.If)
+                   and "BUDGET_MS" in _ast.unparse(n.test) and ">=" in _ast.unparse(n.test)]
+        self.assertEqual(len(retries), 1,
+                         "expected exactly one re-read branch, found %d" % len(retries))
+        retry = retries[0]
+        loops = [n for n in _ast.walk(retry) if isinstance(n, _ast.For)]
+        self.assertTrue(loops, "the re-read branch no longer re-measures anything")
+
+        for loop in loops:
+            covered = any(w.lineno <= loop.lineno and loop.end_lineno <= w.end_lineno
+                          for w in withs)
+            self.assertTrue(
+                covered,
+                "the re-read loop at line %d is NOT inside a `with cd.tick_caches()` block, so it "
+                "measures the UNPRIMED path while the first pass measured the primed one. Two "
+                "readings of different cache states are not comparable, the unprimed one is "
+                "always larger, and min() can then only ever return the first pass — the retry "
+                "becomes inert. [[feedback-suspect-the-instrument]]" % loop.lineno)
 
     def test_the_durable_record_names_the_patience_of_the_target_that_DIED(self):
         """v3453 — A FIX APPLIED TO SOME OF SEVERAL IDENTICAL SITES LEAVES THE DEFECT RUNNING.
