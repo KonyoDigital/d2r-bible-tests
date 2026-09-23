@@ -7,6 +7,66 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1160 - A PROCESS GRADED A FILE IT WAS NOT RUNNING, AND REFUSED A PUSH POINTING AT A LINE THAT DOES NOT EXIST
+
+**v3432 - #179.** Three pushes of the **identical tree** (95909ed8), minutes apart:
+
+```
+push A   tv suites green        second eye looked at v3430
+push B   test_control FAILED    second eye looked at v3382     <- the odd one
+push C   tv suites green        second eye looked at v3430
+```
+
+Then the full suite, run directly on that same tree: **2,238 tests, OK, exit 0**.
+
+⚠ **THE TRACEBACK NAMED CODE THAT IS NOT ON DISK.** It said `test_control.py line 11902 ...
+assertIn('spec["store"]', fn`. The file has that assertion at **line 11938** using **`helper`** —
+and the older shape is **exactly the pre-v3427 code**, v3427 being the version where those very
+assertions were rewritten. Three anomalies in ONE run (old line numbers, an old variable name, an
+older second-eye reading) and no explanation in terms of the tree.
+
+⚠ **A SUITE EXECUTING CODE THAT IS NOT ON DISK IS WORSE THAN A RED ONE** — its verdict is about a
+file nobody has, and this one cost a real push while pointing at a line that does not exist.
+
+**`code_identity.py`** answers the one question no existing check could: does THIS interpreter's
+bytecode agree with the source? ⚠ It is **not** a second answer to
+`_check_the_running_code_is_the_code_on_disk`, which asks the CONSOLE over the wire for `proc.srcSha`
+and `moduleFreshness` — a different process, and rightly so. The pre-push suite is its own
+`python3 tv/test_control.py`, which the console knows nothing about. [[copy-drift]] §1
+
+⚠ **IT CANNOT BE DONE WITH mtime AND SIZE.** That is precisely what CPython uses to call a `.pyc`
+fresh, so a check built from the same two inputs agrees with it by construction — **collisions
+included**. `co_firstlineno` comes from the BYTECODE while the source is read fresh; a disagreement
+is decisive. ⚠ And the cache is **not in `__pycache__`** on this Mac — `sys.pycache_prefix` puts it
+under `~/Library/Caches/com.apple.python`, so deleting `__pycache__` clears nothing.
+[[python-pycache-prefix-mac]]
+
+**Gate** `test_the_code_running_is_the_code_on_disk` - 7 cases, **3/3 red-proofs PROVEN**. The
+central case **CREATES** the drift rather than describing it: import a module, rewrite its file 40
+lines lower, and require the check to notice.
+
+⚠⚠ **THE INSTRUMENT WAS WRONG THREE TIMES AND EACH TIME THE COUNT SAID SO:**
+1. The first cut reported `tick_caches` and `_lock_briefly` as drifted, **both at line 242** — the
+   same line in two unrelated modules. `@contextmanager` uses `functools.wraps`, which copies
+   `__module__` onto a wrapper whose `__code__` lives in contextlib.py, where 242 is the generic
+   `helper`. Unwrapped they sit at 7437 and 3592 of their own files.
+2. The `unwrap` red-proof then came back **BLIND at match count 1, twice**. First because the
+   contextlib case is carried entirely by the foreign-file guard, so `unwrap` never runs for it —
+   a same-file `functools.wraps` decorator was added to exercise it. Still BLIND: CPython points
+   `co_firstlineno` at the **first decorator line**, and the check simply accepted any line starting
+   with `@`. **That escape hatch swallowed everything**, including a genuinely drifted function
+   whose reported line happened to land on a decorator.
+3. Resolving past decorators to the real `def` then skipped **comments** too — so the moved-source
+   case strolled past its 40 comment lines, re-found the function and reported NO drift. **A
+   tolerance wide enough to re-find the function is a tolerance that cannot detect it moving.**
+   Decorators and blanks only.
+
+**Heart row** `this process runs the code on disk` - and it states its own reach, since it can only
+compare modules that are actually imported in the asking process.
+
+⚠ **WHAT WAS NOT ESTABLISHED:** why that one run loaded stale bytecode when the two either side did
+not. The mechanism is now observable rather than inferable, which is the point.
+
 ### REG-1159 - THE SETS HUNT COMPARED ONE ROW AGAINST ITSELF AND NO OTHER
 
 **v3431 - #176, the second eye's finding on v3426, and it stood.** v3426 gave the sets hero

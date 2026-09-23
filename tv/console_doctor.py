@@ -6740,6 +6740,54 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
                 "has ended was collected" % (len(kids),))
 
 
+def _check_this_process_runs_the_code_on_disk():
+    """v3432 (#179) - IS THIS INTERPRETER EXECUTING THE FILES, OR A CACHED IMAGE OF THEM?
+
+    MEASURED 2026-09-23: three pushes of the IDENTICAL tree read green, RED, green - and the red
+    one's traceback named `test_control.py line 11902 ... assertIn('spec["store"]', fn`, where the
+    file on disk has that assertion at line 11938 using `helper`. That older shape is exactly the
+    PRE-v3427 code, and the same run also reported an older second-eye version. A suite executing
+    code that is not on disk is WORSE than a red one: its verdict is about a file nobody has, and
+    it cost a real push while pointing at a line that does not exist.
+
+    ⚠ THIS IS NOT THE `running code matches disk` ROW WEARING A SECOND HAT. That one asks the
+    CONSOLE over the wire for `proc.srcSha` and `moduleFreshness` - a different process and a
+    different question, and it is right that it hashes control_app rather than guessing from here.
+    This one asks about THE INTERPRETER THAT IS RUNNING RIGHT NOW, which is the only process that
+    can answer it. [[copy-drift]] 1 - one source per question, and these are two questions.
+
+    ⚠ IT CANNOT BE DONE WITH mtime AND SIZE, which is exactly what CPython uses to call a `.pyc`
+    fresh - a check from the same two inputs agrees with it by construction, collisions included.
+    `co_firstlineno` comes from the BYTECODE while the source is read fresh; a disagreement is
+    decisive.
+
+    ⚠ AND THE CACHE IS NOT IN `__pycache__` ON THIS MAC - `sys.pycache_prefix` puts it under
+    ~/Library/Caches/com.apple.python, so deleting `__pycache__` clears nothing and a reader who
+    looks there concludes wrongly. [[python-pycache-prefix-mac]]
+    """
+    try:
+        import code_identity as _ci
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the code-identity reader (%s), so whether it "
+                         "is running the files on disk is UNKNOWN" % type(e).__name__)
+    mods = [m for m in ("control_app", "console_doctor", "second_eye_run", "lane_census",
+                        "health_engine", "corroborate")
+            if m in sys.modules]
+    if not mods:
+        return UNKNOWN, ("none of the modules this row watches are imported in this process, so "
+                         "there is nothing to compare - unmeasured, not agreement")
+    try:
+        ok, text = _ci.say(mods)
+    except Exception as e:
+        return UNKNOWN, ("the code-identity reader refused (%s), so this is UNMEASURED"
+                         % type(e).__name__)
+    if ok is None:
+        return UNKNOWN, text
+    if not ok:
+        return MISSING, text
+    return OK, text
+
+
 def _check_the_board_build_door_is_open():
     """v3428 (#37) - IS THE LIVE-BUILD DOOR ACTUALLY SERVED, OR HAS IT GONE 404 AGAIN?
 
@@ -7064,6 +7112,7 @@ CHECKS = [
     ("the eye seat can be filled", _check_the_eyes_default_seat_can_still_be_filled),
     ("the hunt names a quicker route", _check_every_hell_first_hunt_can_name_a_quicker_route),
     ("the board build door is open", _check_the_board_build_door_is_open),
+    ("this process runs the code on disk", _check_this_process_runs_the_code_on_disk),
     ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
     ("our scratch is collected", _check_nothing_we_made_is_still_on_his_disk_days_later),
     ("a verdict comes from a declared field",
@@ -7633,6 +7682,7 @@ WATCHES = {
     "the eye seat can be filled": (),
     "the hunt names a quicker route": (),
     "the board build door is open": (),
+    "this process runs the code on disk": (),
     "nothing we started is a corpse": (),
     "our scratch is collected": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
