@@ -6453,6 +6453,19 @@ GATES = [
              "one; one-sided rows are counted separately, and a rate over nothing is UNKNOWN, "
              "never 0.0.",
          skip_ok=()),
+    Gate("test_a_look_on_github_is_not_a_look_in_the_ledger",
+         [sys.executable, os.path.join(HERE, "test_a_look_on_github_is_not_a_look_in_the_ledger.py")],
+         120,
+         needs_app=False,
+         why="#180 - the #231 seat posts a cross-family look to GitHub and NOTHING carried it to "
+             "the ledger, so the gate that asks `was this version looked at` could not see looks "
+             "that had already happened. MEASURED 2026-09-23 and it cost a whole review: the seat "
+             "reviewed v3449 at 181,141 chars and named BOTH defects later rediscovered by a fresh "
+             "Grok call and shipped as v3452 - the verdict arm that still says GATES RED when red "
+             "is false, and the no-spec patience callers with their 18-of-20 denominator. It sat "
+             "unread. This law pins the drain: a look becomes ONE row, a look naming no version is "
+             "refused AND counted, and an unreachable GitHub is UNKNOWN rather than an empty lane.",
+         skip_ok=()),
     Gate("test_a_cut_off_gate_set_is_not_a_verdict",
          [sys.executable, os.path.join(HERE, "test_a_cut_off_gate_set_is_not_a_verdict.py")], 120,
          needs_app=False,
