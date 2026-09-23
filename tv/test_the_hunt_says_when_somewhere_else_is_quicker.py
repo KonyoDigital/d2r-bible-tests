@@ -84,8 +84,29 @@ _ASSIGN_RE = re.compile(
     r"(if \(_h0\.expectedHours != null.*?\n      \})", re.S)
 _FACTOR_RE = re.compile(
     r"_h0\.expectedHours <= _h0\.hellExpectedHours \* ([0-9.]+)")
-_RENDER_RE = re.compile(
-    r"(\(_elsewhere \? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell.*?: ''\))", re.S)
+# ⚠⚠ v3431 — PAREN-BALANCED, FOR THE SAME REASON THE tier EXTRACTOR HAD TO BE BRACE-BALANCED.
+# The first form stopped at the FIRST `: '')`. v3431 made the render a NESTED ternary, so that cut
+# produced an unbalanced expression and node refused it — the gate failed on its own extractor
+# while the shipped code was fine. A regex that assumes the shape it was written beside breaks the
+# moment the shape grows. [[source-reading-guard]]
+_RENDER_HEAD = "(_elsewhere ? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell"
+
+
+def _extract_render(src):
+    """Cut the disclosure render out by BALANCING parens from its opening one. -> str or None."""
+    i = src.find(_RENDER_HEAD)
+    if i < 0:
+        return None
+    depth = 0
+    for k in range(i, len(src)):
+        c = src[k]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return src[i:k + 1]
+    return None
 
 
 def _node(js):
@@ -184,12 +205,13 @@ class TestTheHuntSaysWhenSomewhereElseIsQuicker(unittest.TestCase):
         file passes just as happily when it sits inside `false ? ... : ''` — which is precisely the
         unjoined shape the red-proof simulates. So the render EXPRESSION is extracted and EXECUTED
         with a truthy `_elsewhere`, and the OUTPUT must name the route."""
-        m = _RENDER_RE.search(SRC)
+        m = _extract_render(SRC)
         self.assertTrue(m, "the sets hero's disclosure render is gone")
         js = ("var esc = function(s){ return String(s); };\n"
               "var _hubHrs = function(h){ return h + 'h'; };\n"
               "var _elsewhere = { source: 'Normal Cow King', hours: 20 };\n"
-              "console.log(String(%s));" % m.group(1))
+              "var _altPiece = null;\n"
+              "console.log(String(%s));" % m)
         rc, out = _node(js)
         self.assertEqual(rc, 0, "node refused the shipped render: %s" % out)
         self.assertIn("Normal Cow King", out,
@@ -249,6 +271,22 @@ class TestTheLiveRowSeesABlindedHero(unittest.TestCase):
                          "the disclosure was computed and never rendered, and the row called that "
                          "healthy: %s" % say)
 
+    def test_a_hero_that_lost_its_CROSS_ITEM_half_is_caught(self):
+        """⚠ v3431 — THE SECOND SURFACE NEEDS ITS OWN DRIVE. Each hero answers two questions, and a
+        row watching only the first would have called hubNextSet healthy for 1,145 versions while
+        it stayed silent about a piece at a fifth of the hours — which is exactly what happened."""
+        import console_doctor as cd
+        blinded = SRC.replace("      && _fastestAll.expectedHours <= top.expectedHours * 0.7) ? _fastestAll : null;",
+                              "      && false) ? _fastestAll : null;", 1)
+        self.assertNotEqual(blinded, SRC, "the sabotage anchor missed — this proves nothing")
+        # the assignment is still THERE, so only a reachability-aware row can see this; the point
+        # of the case is that the row must not be satisfied by the name alone
+        blinded2 = SRC.replace("    var _altPiece = (_fastestAll", "    var _altPieceGONE = (_fastestAll", 1)
+        st, say = self._row_against(blinded2)
+        self.assertEqual(st, cd.MISSING,
+                         "hubNextSet lost its cross-item alternative and the row said fine: %s" % say)
+        self.assertIn("cross-item", say, "the row does not name WHICH half went missing")
+
     def test_a_MISSING_hero_is_a_finding_not_a_pass(self):
         import console_doctor as cd
         gone = SRC.replace("function hubNextSet", "function hubNextSetRENAMED", 1)
@@ -271,6 +309,92 @@ class TestTheLiveRowSeesABlindedHero(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
         self.assertEqual(st, cd.UNKNOWN,
                          "a file it could not read was reported as a verdict: %s" % say)
+
+
+_ALT_RE = re.compile(
+    r"(var _altPiece = \(_fastestAll.*?\? _fastestAll : null;)", re.S)
+
+
+class TestADifferentPieceCanBeQuickerToo(unittest.TestCase):
+    """v3431 (#176) — THE SIBLING SWEEP, ONE LEVEL UP FROM v3426.
+
+    The second eye on v3426: `_elsewhere` compares the Hell leader AGAINST ITSELF at another
+    difficulty and looks at no other ranked row. So when the Hell-fastest piece is ALSO quickest in
+    Hell, and a DIFFERENT piece is far quicker in Normal, the card presented the Hell route and
+    said nothing — the same outcome he reported on Cow King's Hooves, across PIECES rather than
+    across difficulties of one piece. hubNextGrail has had both since v2281; hubNextSet had one.
+    """
+
+    def _fires(self, top_hours, fastest_hours, same_name=False):
+        """RUN the shipped `_altPiece` statement."""
+        m = _ALT_RE.search(SRC)
+        self.assertTrue(m, "the v3431 cross-piece statement is gone from hubNextSet")
+        js = ("var data = { ranked: [ {name:%s, expectedHours:%s} ] };\n"
+              "var top = { name: 'TopPiece', expectedHours: %s };\n"
+              "var _fastestAll = data.ranked[0];\n"
+              "var _altPiece = null;\n%s\n"
+              "console.log(JSON.stringify(_altPiece));"
+              % (json.dumps("TopPiece" if same_name else "OtherPiece"),
+                 json.dumps(fastest_hours), json.dumps(top_hours),
+                 m.group(1)))
+        rc, out = _node(js)
+        self.assertEqual(rc, 0, "node refused the shipped statement: %s" % out)
+        return json.loads(out) is not None
+
+    def test_a_far_quicker_DIFFERENT_piece_is_named(self):
+        self.assertTrue(self._fires(top_hours=84.0, fastest_hours=20.0),
+                        "a 20h piece sat beside an 84h headline and the card said nothing — the "
+                        "defect he reported, one level up")
+
+    def test_a_MARGINAL_other_piece_is_not_worth_redirecting_him(self):
+        self.assertFalse(self._fires(top_hours=84.0, fastest_hours=80.0),
+                         "a 5%% gain was reported as worth switching pieces for")
+
+    def test_the_SAME_piece_is_never_offered_as_an_alternative_to_itself(self):
+        self.assertFalse(self._fires(top_hours=84.0, fastest_hours=20.0, same_name=True),
+                         "it offered the piece he is already hunting as the alternative")
+
+    def test_UNKNOWN_hours_never_redirect_him(self):
+        for t, f in ((None, 20.0), (84.0, None), (None, None)):
+            self.assertFalse(self._fires(top_hours=t, fastest_hours=f),
+                             "a redirect was invented from a missing number (%r/%r)" % (t, f))
+
+    # ---- the precedence, executed ------------------------------------------------------
+
+    def _render(self, elsewhere_js, altpiece_js):
+        m = _extract_render(SRC)
+        self.assertTrue(m, "the sets disclosure render is gone")
+        js = ("var esc=function(s){return String(s);};\n"
+              "var _hubHrs=function(h){return h+'h';};\n"
+              "var _pieceLabel=function(n){return n;};\n"
+              "var _elsewhere=%s; var _altPiece=%s;\n"
+              "console.log(String(%s));" % (elsewhere_js, altpiece_js, m))
+        rc, out = _node(js)
+        self.assertEqual(rc, 0, "node refused the shipped render: %s" % out)
+        return out
+
+    def test_when_BOTH_fire_the_same_piece_route_wins(self):
+        """⚠ A DELIBERATE CHOICE, NOT AN ACCIDENT OF ORDER. `_elsewhere` names a faster route to
+        THE PIECE HE IS ALREADY HUNTING; `_altPiece` sends him after a different item. Printing
+        both puts two competing instructions on one line and leaves him to rank them — which is
+        the job the card exists to do."""
+        out = self._render("{source:'Normal Cow King',hours:20}", "{name:'OtherPiece',expectedHours:5}")
+        self.assertIn("faster outside Hell", out,
+                      "the same-piece route lost to the cross-piece one: %r" % out)
+        self.assertNotIn("quicker below Hell", out,
+                         "BOTH disclosures printed on one line: %r" % out)
+
+    def test_the_cross_piece_line_appears_when_elsewhere_is_silent(self):
+        out = self._render("null", "{name:'OtherPiece',expectedHours:5}")
+        self.assertIn("quicker below Hell", out, "the cross-piece route was computed and not "
+                                                 "rendered — built on both ends, not joined: %r" % out)
+        self.assertIn("OtherPiece", out, "it named no piece")
+        self.assertIn("5h", out, "it named the piece without the time, so he cannot compare it")
+
+    def test_neither_firing_prints_nothing(self):
+        out = self._render("null", "null")
+        self.assertNotIn("faster outside Hell", out)
+        self.assertNotIn("quicker below Hell", out)
 
 
 RED_PROOF = [
@@ -298,6 +422,25 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "          && _h0.expectedHours <= _h0.hellExpectedHours * 0.7) {",
         "replace": "          && _h0.expectedHours <= _h0.hellExpectedHours * 0.4) {",
+        "matches": 1,
+    },
+    {
+        "why": "v3431 - THE CROSS-PIECE COMPARISON KILLED. Without it the card shows an 84h Hell "
+               "headline while a DIFFERENT piece sits at 20h and says nothing - the same defect he "
+               "reported on Cow Kings Hooves, one level up, across pieces instead of across "
+               "difficulties of one piece.",
+        "file": "control_ui.html",
+        "find": "      && _fastestAll.expectedHours <= top.expectedHours * 0.7) ? _fastestAll : null;",
+        "replace": "      && false) ? _fastestAll : null;",
+        "matches": 1,
+    },
+    {
+        "why": "v3431 - THE PRECEDENCE INVERTED. When both fire, the SAME-PIECE route must win: it "
+               "names a faster way to the thing he is already hunting, while the cross-piece line "
+               "sends him after a different item. Swapping them quietly re-aims the card.",
+        "file": "control_ui.html",
+        "find": "        + (_elsewhere ? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell \\u00b7 <b>'",
+        "replace": "        + (false ? '<span class=\"hh-alt\"> · \\u26a1 faster outside Hell \\u00b7 <b>'",
         "matches": 1,
     },
 ]

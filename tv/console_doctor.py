@@ -6848,14 +6848,29 @@ def _check_every_hell_first_hunt_can_name_a_quicker_route():
         renders = ("(_elsewhere ? '<" in seg) or ('(_elsewhere ? "<' in seg)
         if not (assigns and renders):
             blind.append("%s(%s)" % (fn, "no assignment" if not assigns else "render not gated on it"))
+        # ⚠⚠ v3431 — THE CROSS-ITEM HALF IS A SECOND SURFACE AND IT NEEDS ITS OWN WATCH. Each hero
+        # answers TWO questions: is the SAME item quicker at a lower difficulty (`_elsewhere`), and
+        # is a DIFFERENT item quicker anywhere (`_alt` on the grail hero, `_altPiece` on the sets
+        # one). v3426 built only the first on hubNextSet, and the second eye found the gap; a row
+        # that watched one of the two would have called that card healthy while it stayed silent
+        # about a piece at a fifth of the hours. The names differ per hero and that is not
+        # cosmetic — they are the names the shipped code uses. [[the-unjoined-end]]
+        _cross = "_altPiece" if fn == "hubNextSet" else "_alt"
+        if not (("var %s = " % _cross) in seg
+                and (("(%s ? '<" % _cross) in seg or ('(%s ? "<' % _cross) in seg)):
+            blind.append("%s(no cross-item alternative)" % fn)
     if blind:
         return MISSING, ("%d of %d Hell-first hunt card(s) cannot name a quicker lower-difficulty "
                          "route: %s. The headline stays Hell by his ruling - what must never go "
                          "with it is the part that stops him choosing blind"
                          % (len(blind), len(heroes), ", ".join(blind)))
-    return OK, ("both %d Hell-first hunt cards compute a lower-difficulty alternative and render "
-                "it from that value - he is told when somewhere else is materially quicker"
-                % (len(heroes),))
+    # ⚠ v3431 — THE SENTENCE NAMES WHAT IT NOW MEASURES. It said "a lower-difficulty alternative"
+    # while the row had just been widened to check a SECOND one, so a reader would have credited it
+    # with half its reach. A row that outgrows its own say is how a check quietly stops meaning what
+    # it claims. [[label-outlived-referent]]
+    return OK, ("both %d Hell-first hunt cards compute BOTH alternatives - the same piece at a "
+                "lower difficulty, and a different piece that is quicker anywhere - and render "
+                "each from its own value" % (len(heroes),))
 
 
 def _check_the_eyes_default_seat_can_still_be_filled():

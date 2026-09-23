@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3430",
+  "ver": "v3431",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3430: the 37 door was proven by gate and never driven against his window; the console has since re-execed onto v3429 and it answered id v3429 with hopped true - the live heap read 37 was blocked on, a RECEIPT rather than the inference I got wrong once before on a source-only read. Driving it found profile and machine coming back null beside a key list that NAMES D2R_PROFILE and D2R_MACHINE: they are their own globals, not fields on D2R_BUILD, so a miss was rendering as an absence inside the very door built to refuse that. Three new cases EXECUTE the shipped expression in node, capturing what board_build actually sends rather than parsing 40k lines for it",
+  "note": "v3431: the second eye on v3426 found that the sets hunt compares the Hell leader against ITSELF at another difficulty and looks at no other ranked row, so a DIFFERENT piece far quicker in Normal was never named - the same defect he reported on Cow Kings Hooves, across pieces instead of across difficulties of one piece. hubNextGrail has had both halves since v2281. One shared cutoff, and when both fire the SAME-PIECE route wins because it names a faster way to what he is already hunting. The heart row was widened to watch the second surface too, and its own sentence corrected to name what it now measures",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

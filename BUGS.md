@@ -7,6 +7,44 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1159 - THE SETS HUNT COMPARED ONE ROW AGAINST ITSELF AND NO OTHER
+
+**v3431 - #176, the second eye's finding on v3426, and it stood.** v3426 gave the sets hero
+`_elsewhere`, which compares the Hell-ranked leader **against itself at another difficulty** and
+looks at **no other ranked row at all**. So when the Hell-fastest piece is ALSO quickest in Hell
+and a **different piece** is far quicker in Normal, the card presented the Hell route and said
+nothing — the same *"slow headline, quicker route exists, silence"* outcome he reported on Cow
+King's Hooves, just **across PIECES instead of across difficulties of one piece**.
+
+`hubNextGrail` has carried BOTH halves since v2281 — `_elsewhere` (cross-difficulty) and `_alt`
+(cross-item). `hubNextSet` got one in v3426. **This is the sibling sweep one level up from the one
+v3426 was itself about.** [[sweep-dont-ask]] §1
+
+⚠ **ONE CUTOFF, SHARED.** 0.7 is the grail hero's number and v3426's gate already pins that the two
+heroes agree on it. A second threshold here would make two surfaces disagree about whether a route
+is worth mentioning at all — the quiet form of exactly what he reported.
+
+⚠ **AND WHEN BOTH FIRE, `_elsewhere` WINS — a deliberate choice, not an accident of order.** It
+names a faster route to THE PIECE HE IS ALREADY HUNTING; the cross-piece line sends him after a
+different item. Printing both would put two competing instructions on one line and leave him to
+rank them, which is the job the card exists to do. That precedence is EXECUTED in the gate, not
+asserted.
+
+⚠ **THE WORDINGS ARE DELIBERATELY DIFFERENT AND v3426's NOTE WAS TOO BROAD.** `faster outside Hell`
+= same piece, lower difficulty. `quicker below Hell` = a different item. v3426 called those "one
+fact under two names" and aligned the sets card onto the first — correct for `_elsewhere`, but they
+are TWO facts, and the grail hero uses both phrases for exactly that reason. The cross-piece line
+borrows the grail hero's own sentence for its own fact rather than reusing the other one.
+
+**Gate** `test_the_hunt_says_when_somewhere_else_is_quicker` - now **19 cases, 5/5 red-proofs
+PROVEN**, all driven in node against the shipped statements.
+
+⚠ **AND v3426's OWN RENDER EXTRACTOR BROKE ON THIS CHANGE — the same brittleness as the `tier` one
+it had already fixed.** It stopped at the FIRST `: '')`; the render is now a NESTED ternary, so the
+cut was unbalanced and node refused it — the gate failing on its own extractor while the shipped
+code was fine. Both render regexes are replaced by ONE PAREN-BALANCED extractor. A regex that
+assumes the shape it was written beside breaks the moment the shape grows.
+
 ### REG-1158 - #37's DOOR ANSWERED ON HIS LIVE CONSOLE, AND DRIVING IT FOUND TWO NULLS THAT WERE MISSES
 
 **v3430.** `GET /api/board_build` (v3428) was proven by gate and **never driven against his window**

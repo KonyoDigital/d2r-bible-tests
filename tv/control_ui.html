@@ -23226,6 +23226,29 @@ window._lockMark = function(isOpen, px, label){
           || ((byName[a.name]||{}).left||9) - ((byName[b.name]||{}).left||9); })[0];
     }
     if (!top) { host.className = 'hub-hero hub-hero-sets idle'; host.innerHTML = ''; return; }
+    /* ⚠⚠ v3431 (#176) — THE OTHER HALF THE GRAIL HERO HAS AND THIS ONE DID NOT. Found by the
+       second eye reviewing v3426: `_elsewhere` compares the Hell leader AGAINST ITSELF at another
+       difficulty, and looks at no other ranked row at all. So when the Hell-fastest piece is also
+       quickest in Hell, and a DIFFERENT piece is far quicker in Normal, the card presented the
+       Hell route and said nothing — the same "slow headline, quicker route exists, silence"
+       outcome he reported on Cow King's Hooves, just ACROSS PIECES instead of across difficulties
+       of one piece. v3426 closed the second and left the first open.
+
+       hubNextGrail has carried BOTH since v2281 (`_elsewhere` cross-difficulty, `_alt` cross-item).
+       This is the sibling sweep, one level up from the one v3426 was about. [[sweep-dont-ask]] §1
+
+       ⚠ ONE CUTOFF, SHARED. 0.7 is the grail hero's number and v3426's gate already pins that the
+       two heroes agree on it; a second threshold here would make two surfaces disagree about
+       whether a route is worth mentioning at all, which is the quiet form of what he reported.
+
+       ⚠ AND WHEN BOTH FIRE, `_elsewhere` WINS — a deliberate choice, not an accident of order.
+       It names a faster route to THE PIECE HE IS ALREADY HUNTING; `_altPiece` sends him after a
+       different item entirely. Printing both would put two competing instructions on one line and
+       leave him to rank them, which is the job the card exists to do. */
+    var _fastestAll = data.ranked[0];
+    var _altPiece = (_fastestAll && _fastestAll.name !== top.name
+      && _fastestAll.expectedHours != null && top.expectedHours != null
+      && _fastestAll.expectedHours <= top.expectedHours * 0.7) ? _fastestAll : null;
     hrs = (top.expectedHours != null) ? _hubHrs(top.expectedHours) : null;
     var meta = byName[top.name] || {};
     var setName = String(meta.set || '').replace(/\s*\([^)]+\)\s*$/, '');
@@ -23329,7 +23352,13 @@ window._lockMark = function(isOpen, px, label){
            [[label-outlived-referent]] */
         + (_elsewhere ? '<span class="hh-alt"> · \u26a1 faster outside Hell \u00b7 <b>'
              + esc(_elsewhere.source) + '</b> \u2248' + esc(_hubHrs(_elsewhere.hours))
-             + '</span>' : '')
+             + '</span>'
+           /* v3431 — only when _elsewhere is silent; see the note above for why it wins. The
+              WORDING is the grail hero's own for this fact, because a different item is a
+              different fact from a different difficulty and must not borrow its sentence. */
+           : (_altPiece ? '<span class="hh-alt"> \u00b7 quicker below Hell: <b>'
+                + esc(_pieceLabel(_altPiece.name) || _altPiece.name) + '</b> \u2248'
+                + esc(_hubHrs(_altPiece.expectedHours)) + '</span>' : ''))
         + '<span class="hh-alt"> · the clock is for ANY piece of this set</span></div>'
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to the next piece</span></div>' : '');
