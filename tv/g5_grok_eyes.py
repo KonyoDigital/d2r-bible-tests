@@ -1057,7 +1057,17 @@ def _loose_parse(txt):
         names = j.get("names")
         if not isinstance(names, list):
             names = []
-        j["names"] = [str(x).strip() for x in names if str(x).strip()][:60]
+        # ⚠⚠ v3453 — A null IS NOT THE NAME "None", AND str() MANUFACTURES ONE.
+        # v3450 taught names_key to skip `x is None`. That guard sits DOWNSTREAM of this line, and
+        # by the time the reducer sees a row the null has already become the four-character string
+        # "None" — which is truthy, survives the filter, and is counted as an item he owns. So the
+        # guard could never fire on logged data: it defends a shape this pipeline never writes.
+        # MEASURED: _loose_parse of {"names": ["Shako", null]} returned ['Shako', 'None'] and
+        # names_key of that is ('none', 'shako').
+        # ⚠ IT MUST BE FIXED HERE, not downstream. Once the null is the string "None" the fact
+        # that it WAS a null is gone, and nothing can tell it from a model that literally answered
+        # "None". [[heart-first]] §6 — persist what you knew. [[the-unjoined-end]]
+        j["names"] = [str(x).strip() for x in names if x is not None and str(x).strip()][:60]
         j.setdefault("area", "")
         j.setdefault("scene", "gameplay")
         j.setdefault("tz", [])

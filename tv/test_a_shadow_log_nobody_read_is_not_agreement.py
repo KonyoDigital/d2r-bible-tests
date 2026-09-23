@@ -513,6 +513,46 @@ class ShadowLogReadSide(unittest.TestCase):
         self.assertIn("4/7", row2["detail"], "the row must carry n/d, not a bare rate: %r"
                       % row2["detail"])
 
+    def test_14_a_json_null_never_becomes_the_name_None(self):
+        """v3453 — THE GUARD WAS DOWNSTREAM OF THE PLACE THE INFORMATION DIED.
+
+        v3450 taught `names_key` to skip `x is None`. Both WRITERS reach the log through
+        `[str(x).strip() for x in names if str(x).strip()]`, and `str(None)` is "None" — truthy,
+        four characters, indistinguishable from an item name. So by the time the reducer saw a
+        row the null was already a name, and the guard defended a shape this pipeline never
+        writes. MEASURED before the fix: _loose_parse of {"names": ["Shako", null]} returned
+        ['Shako', 'None'] and names_key of that was ('none', 'shako') — a phantom item counted
+        as one he owns, and a disagreement between the lanes invented out of a null.
+
+        ⚠ IT IS FIXED AT THE WRITER ON PURPOSE. Once the null is the string "None" the fact that
+        it WAS a null is gone, and nothing downstream can tell it from a model that literally
+        answered "None". [[heart-first]] §6 [[the-unjoined-end]]
+        """
+        import sys as _sys
+        _sys.path.insert(0, HERE)
+        import g5_grok_eyes as _G
+        import g5_shadow_reducer as _R
+
+        got = _G._loose_parse('{"names": ["Shako", null], "scene": "stash", "conf": 0.5}')
+        names = got.get("names")
+        self.assertNotIn("None", names,
+                         "a JSON null was written to the shadow log as the NAME 'None' — a "
+                         "phantom item he does not own. %r" % (names,))
+        self.assertEqual(list(names), ["Shako"],
+                         "the real name did not survive the null being dropped: %r" % (names,))
+        self.assertEqual(_R.names_key(names), ("shako",),
+                         "the comparison key still carries a name made out of a null: %r"
+                         % (_R.names_key(names),))
+
+        # ⚠ AND THE DROP IS RECORDED, not silent — a name the model declined to give is a fact
+        # about the read. [[feedback-silence-is-not-evidence]]
+        import tv_diablo as _T
+        src = _T.__file__
+        with io.open(src, encoding="utf-8") as _fh:
+            _code = "\n".join(_l.split("#", 1)[0] for _l in _fh.read().split("\n"))
+        self.assertIn("null-is-not-a-name", _code,
+                      "the Claude lane drops a null without recording that it did")
+
     def test_13_the_report_renders_and_names_both_lanes(self):
         txt = R.format_report(R.reduce_rows(ROWS, source="fixture"), mode="primary")
         self.assertIn("claude_only", txt)

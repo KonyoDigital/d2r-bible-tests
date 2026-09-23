@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3452",
+  "ver": "v3453",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3452: v3447 taught the gate-set step to publish red, wired it through the job outputs and into the verdict step env, and then branched only on reached. So a GREEN gate set plus any later step failure announced GATES RED. The gate-set comment names that exact path and the code below it did not implement it. Also: run_gates exit 2 means the tree was locked and NO gate ran, and folding it into red=true published a verdict nobody reached. Found by the cross-family eye on the shipped v3451 bytes.",
+  "note": "v3453: v3450 taught names_key to skip a None. Both writers reach the shadow log through str(x).strip(), and str(None) is the four-character string None - truthy, and counted as an item he owns. So the guard defended a shape this pipeline never writes. Fixed at the writer, because once the null is the string None the fact that it WAS a null is gone. The Claude lane records the drop rather than discarding it silently. Found by the cross-family eye on the shipped v3451 bytes.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

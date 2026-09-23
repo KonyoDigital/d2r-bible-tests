@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3452"   # a published fact nobody reads is not a fix
+VERSION = "v3453"   # a null is not a name, and the guard was downstream of where it died
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -4904,7 +4904,15 @@ def _parse_read(out):
         if _names_raw not in (None, [], ""):
             _audit["dropped"].append({"field": "names", "why": "not-a-list", "from": str(_names_raw)[:40]})
         _names_raw = []
-    _all_names = [str(x).strip() for x in _names_raw if str(x).strip()]
+    # ⚠⚠ v3453 — A null IS NOT THE NAME "None". str(None) is "None", which is truthy and passes
+    # the filter below as an item he owns. v3450's guard lives in the reducer, DOWNSTREAM of this
+    # line, so it never saw a null — only the string this line made. Dropped nulls are RECORDED,
+    # never silently discarded: a name the model declined to give is a fact about the read.
+    # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+    _nulls = sum(1 for x in _names_raw if x is None)
+    if _nulls:
+        _audit["dropped"].append({"field": "names", "why": "null-is-not-a-name", "count": _nulls})
+    _all_names = [str(x).strip() for x in _names_raw if x is not None and str(x).strip()]
     names = _all_names[:60]
     if len(_all_names) > 60:
         _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})

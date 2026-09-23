@@ -50812,7 +50812,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3452', name:'v3452 - a published fact nobody reads is not a fix', date:'2026-09-23', note:'v3447 taught the gate-set step to publish red, wired it through the job outputs and into the verdict step env, and then branched only on reached. So a GREEN gate set plus any later step failure announced GATES RED. The gate-set comment names that exact path and the code below it did not implement it. Also: run_gates exit 2 means the tree was locked and NO gate ran, and folding it into red=true published a verdict nobody reached. Found by the cross-family eye on the shipped v3451 bytes.' };
+  window.D2R_BUILD = { id:'v3453', name:'v3453 - a null is not a name, and the guard was downstream of where it died', date:'2026-09-23', note:'v3450 taught names_key to skip a None. Both writers reach the shadow log through str(x).strip(), and str(None) is the four-character string None - truthy, and counted as an item he owns. So the guard defended a shape this pipeline never writes. Fixed at the writer, because once the null is the string None the fact that it WAS a null is gone. The Claude lane records the drop rather than discarding it silently. Found by the cross-family eye on the shipped v3451 bytes.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
