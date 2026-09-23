@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1154 - THREE GUARDS RESOLVED THE OBJECT INSIDE ONE FUNCTION, AND v3421 MOVED IT
+
+**v3427.** The pre-push gate refused v3426 with **`test_control FAILED`, 3 failures out of 2,238
+tests in 367 s** - and all three were caused by v3421 extracting `close_ocr_worker` out of
+`_kai_closer_loop`. The routine did not disappear; it moved one call away, and three separate
+guards could only see inside the assigning function.
+
+1. **`test_frame_loop_wrapped_in_try_finally_around_worker_cleanup`** pinned the literal
+   `wp.stdin.close(); wp.terminate()`, plus `target=wp.wait` and `daemon=True`, inside the FINALLY
+   BLOCK. The law it carries - "the cleanup happens in the finally, so an exception in the
+   per-frame loop cannot leak the worker" - is satisfied exactly as well by a call. The first
+   assertion now names the door; the other two are **re-pointed at the helper's own body**, not
+   deleted. ⚠ Deleting them was the other option and it was the wrong one: **a law that moved is
+   not a law that ended**, and asserting them against a now-empty region would pass for the wrong
+   reason - the quiet direction.
+
+2. **`test_no_ASSIGNED_popen_goes_unreaped`** swept for a reap in the ASSIGNING function only, so
+   it reported the fix as the defect. Its own comment already argued the right principle for a
+   nested reaper - *"Teaching the pattern beats allowlisting the file: an allowlist would also
+   excuse a FUTURE unreaped Popen added to the same function"* - so that pattern is extended one
+   step: a Popen handed to a module-level helper **whose own body reaps its first parameter**
+   counts. ⚠ **The helper is not trusted BY NAME.** Its body is parsed, so renaming a do-nothing
+   function to `close_ocr_worker` buys nothing.
+
+   ⚠⚠ **AND THE WIDENED GUARD WAS PROVEN TO STILL REFUSE**, because widening one is exactly how a
+   guard comes to admit what it bans. Sabotage: strip the reap out of `close_ocr_worker` and
+   re-run the same detection - `close_ocr_worker` **loses its trusted status** and the offender
+   reappears as `wp in _kai_closer_loop`. [[a-widened-guard-admits-what-it-bans]]
+
+3. **`test_the_exemptions_are_NAMED_and_still_true`** - `wait` classified **UNKNOWN, not FOREIGN**.
+   ⚠ **A TEST FIXTURE RECLASSIFIED A PRODUCTION LANE.** `_defined_anywhere` asks "does any module
+   here define this name" and scanned **every** `tv/*.py`, tests included - so v3421's new gate,
+   whose Popen double has a `def wait(self)`, made the live target `target=wp.wait` stop being
+   FOREIGN. `_package_files()` now excludes test modules. This does NOT widen the laundering that
+   function exists to prevent: its concern is a lane defined in a sibling PRODUCTION module, and
+   those are still read in full; a name that exists only in a test can never be a production
+   thread's target. ⚠ It is an exclusion BY NAME, not a failed read, so `_complete` stays True -
+   "I chose not to look here" and "I could not look" are different facts.
+   [[a-gate-can-perturb-what-it-measures]]
+
+⚠ **AND THE INSTRUMENT FAILED TWICE WHILE PROVING THIS.** The replica built to sabotage the sweep
+dropped its `is_global` branch and accused `_capture_proc`, which the real guard does not - the
+count disagreed with the shipped run, and the replica was wrong. Fixed, then the sabotage held.
+
 ### REG-1153 - THE HUNT SENT HIM TO HELL AND NEVER MENTIONED THE QUICKER ROUTE
 
 **v3426 - HIS REPORT, 2026-09-23:** *"the sets cows item is saying i need to do it in HELL and thats

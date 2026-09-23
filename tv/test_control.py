@@ -2847,21 +2847,35 @@ class TestCloserOcrWorkerNeverOrphaned(unittest.TestCase):
         block = "\n".join(blk_lines)
         code = "\n".join(l.split("#", 1)[0] for l in block.split("\n"))
 
-        self.assertIn("wp.stdin.close(); wp.terminate()", code,
+        # ⚠⚠ v3427 — THE LAW FOLLOWS THE ROUTINE, IT IS NOT WIDENED TO ADMIT IT. v3421 replaced
+        # the three inline statements with ONE DOOR, `close_ocr_worker(wp)`, because sharing a
+        # `try` let a BrokenPipeError from an already-exited worker skip both the terminate and the
+        # reap. What this case has always meant is "the worker cleanup happens inside the finally,
+        # so an exception in the per-frame loop cannot leak the worker" — a call satisfies that
+        # exactly as the inline form did, and pinning the old SPELLING measured the implementation
+        # rather than the law. [[a-widened-guard-admits-what-it-bans]] — checked against that scar
+        # deliberately: this does not admit a case the old text refused, it names the same
+        # requirement at its new address, and the helper's own three-step discipline is pinned by
+        # test_a_broken_pipe_must_not_skip_the_reap (10 cases, 5 red-proofs).
+        self.assertIn("close_ocr_worker(wp)", code,
                       "the worker cleanup left the finally block, so an exception in the "
                       "per-frame loop leaks the OCR worker again")
-        # terminate() itself must stay defensively wrapped — a dead/gone process can raise
-        self.assertIn("except Exception:", code,
-                      "terminate() is no longer defensively wrapped; a process that already "
-                      "exited raises here and takes the closer thread with it")
         # v2437 — and terminate() SIGNALS without REAPING, which is how this loop left 12
         # defunct children (oldest 16.5h) on his Mac while every other parent had at most 1.
         # The reap must be non-blocking: a bare wp.wait() here stalls the whole reel backlog
         # if the worker ever ignores SIGTERM.
-        self.assertIn("target=wp.wait", code,
+        # ⚠⚠ v3427 — BOTH LAWS SURVIVE, AT THE ROUTINE'S NEW ADDRESS. v3421 moved the reap into
+        # `close_ocr_worker`, so asserting these against the FINALLY BLOCK would now measure an
+        # empty region and pass for the wrong reason — the quiet direction. They are asserted
+        # against the helper's OWN body instead, which is where the behaviour lives. Deleting them
+        # was the other option and it was the wrong one: a law that moved is not a law that ended.
+        # [[a-widened-guard-admits-what-it-bans]]
+        helper = "\n".join(l.split("#", 1)[0]
+                           for l in (inspect.getsource(ca.close_ocr_worker) or "").split("\n"))
+        self.assertIn("target=wp.wait", helper,
                       "terminate() only SIGNALS — without a wait() the worker sits <defunct> "
                       "forever, one per reel closed, which is the leak this line prevents")
-        self.assertIn("daemon=True", code,
+        self.assertIn("daemon=True", helper,
                       "the reap must not block the closer thread — a worker that ignores "
                       "SIGTERM would otherwise stall the entire reel backlog")
 
@@ -37738,6 +37752,29 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
                         best = f
             return best
 
+        # ⚠⚠ v3427 — THE REAP CAN LIVE BEHIND ONE DOOR, AND THE GUARD MUST FOLLOW IT THERE.
+        # v3421 extracted `close_ocr_worker(wp)` out of _kai_closer_loop, because the three inline
+        # steps shared a `try` and a BrokenPipeError from an already-exited worker skipped both the
+        # terminate and the reap. The routine did not disappear — it moved — but this sweep looks
+        # for the reap inside the ASSIGNING function only, so it reported the fix as the defect.
+        #
+        # ⚠ THIS IS THE PATTERN THE COMMENT BELOW ALREADY ARGUES FOR, EXTENDED ONE STEP: teaching
+        # the shape beats allowlisting a file, because an allowlist would also excuse a FUTURE
+        # unreaped Popen in the same function. And the helper is not trusted BY NAME — its body is
+        # parsed and must actually reap its own first parameter, so renaming a do-nothing function
+        # to close_ocr_worker buys nothing. [[copy-drift]] §7 — one routine, and the other sites
+        # CALL it.
+        reaping_helpers = set()
+        for f in funcs:
+            if not f.args.args:
+                continue
+            p0 = f.args.args[0].arg
+            body = ast.get_source_segment(src, f) or ""
+            body = "\n".join(l.split("#", 1)[0] for l in body.split("\n"))
+            if ("%s.wait(" % p0 in body or "%s.poll(" % p0 in body
+                    or "target=%s.wait" % p0 in body):
+                reaping_helpers.add(f.name)
+
         offenders = []
         for node in ast.walk(tree):
             if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
@@ -37772,7 +37809,9 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
                       # failing its own reap check is the instrument, not the subject (founding
                       # rule 4). Teaching the pattern beats allowlisting the file: an allowlist
                       # would also excuse a FUTURE unreaped Popen added to the same function.
-                      or ("args=(%s,)" % name in scope and ".wait()" in scope))
+                      or ("args=(%s,)" % name in scope and ".wait()" in scope)
+                      # v3427 — handed to a helper whose OWN body reaps its first parameter
+                      or any("%s(%s)" % (h, name) in scope for h in reaping_helpers))
             if not reaped:
                 offenders.append("%s:%d  `%s = subprocess.Popen(...)` never waited in %s"
                                  % ("control_app.py", node.lineno, name, where))

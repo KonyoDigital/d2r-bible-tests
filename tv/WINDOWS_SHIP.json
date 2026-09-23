@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3426",
+  "ver": "v3427",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3426: MY HUNT sent him to HELL for Cow Kings Hooves and never mentioned the far quicker Normal route, while the Sets chronicle ranked the same piece in Normal. The Hell-first headline is HIS ruling and stays; what was missing is the half v1555 promised - he can still choose, he just is not choosing blind. v2281 built exactly that on the grail hero and named this defect in its own words; hubNextSet never got it",
+  "note": "v3427: the pre-push gate refused v3426 with 3 real failures out of 2238, all from v3421 extracting close_ocr_worker out of _kai_closer_loop - the routine moved one call away and three guards could only see inside the assigning function. The finally law names the door and its two other laws are re-pointed at the helper body rather than deleted; the popen sweep now follows a helper whose OWN body reaps its first parameter, proven still able to refuse by sabotage; and a TEST FIXTURE with a def wait had reclassified a live lane from FOREIGN to UNKNOWN",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

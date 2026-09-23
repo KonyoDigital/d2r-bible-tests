@@ -159,9 +159,28 @@ _DEFINED_CACHE = {"key": None, "names": None}
 
 
 def _package_files():
-    """Every .py in this package, sorted. A seam so a law can drive an unreadable one."""
+    """Every PRODUCTION .py in this package, sorted. A seam so a law can drive an unreadable one.
+
+    ⚠⚠ v3427 — TEST MODULES ARE EXCLUDED, AND A REAL MISCLASSIFICATION IS WHY. `_defined_anywhere`
+    asks "does any module here define this name", and `kind_of` turns a False into FOREIGN. On
+    2026-09-23 a new gate added a Popen FIXTURE with a `def wait(self)` method — and that one test
+    double flipped the PRODUCTION target `target=wp.wait` from FOREIGN to UNKNOWN, failing the
+    exemption law that watches it. A fixture is not a lane, and it must never change how a live
+    thread is classified. [[a-gate-can-perturb-what-it-measures]]
+
+    ⚠ THIS DOES NOT WIDEN THE LAUNDERING `_defined_anywhere` EXISTS TO PREVENT. Its docstring's
+    concern is a lane defined in a SIBLING PRODUCTION MODULE and started from control_app.py —
+    that is still read, in full. A name that exists only inside a test can never be the target of a
+    production thread, so removing tests removes no real definition.
+
+    ⚠ AND IT IS AN EXCLUSION BY NAME, NOT A FAILED READ, so `_complete` stays True: "I chose not to
+    look here" and "I could not look" are different facts and only the second may soften a verdict.
+    """
     import glob as _glob
-    return sorted(_glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")))
+    _here = os.path.dirname(os.path.abspath(__file__))
+    return sorted(f for f in _glob.glob(os.path.join(_here, "*.py"))
+                  if not os.path.basename(f).startswith("test_")
+                  and not os.path.basename(f).endswith("_test.py"))
 
 
 def _all_defined_names():
