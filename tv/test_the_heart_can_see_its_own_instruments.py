@@ -72,6 +72,12 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         bad = []
         checked = 0
         for name, fn in heart2.gate_files():
+            # v3473 — an UNREADABLE declaration used to fall through `if not proofs` as if the gate
+            # declared nothing; eleven proofs sat unrun that way. It is a malformed declaration.
+            if heart2.red_proof_unreadable(fn):
+                bad.append("%s: its RED_PROOF cannot be read by ast.literal_eval, so the prover treats "
+                           "it as ABSENT and none of it has ever run" % name)
+                continue
             proofs = heart2.red_proofs_in(fn)
             if not proofs:
                 continue
@@ -119,6 +125,25 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                                % label)
         self.assertEqual(bad, [], "malformed red-proofs:\n  " + "\n  ".join(bad))
         print("   %d red-proof(s) declared, all well formed" % checked)
+
+    def test_an_unreadable_declaration_is_not_an_absent_one(self):
+        """v3473 — DRIVEN over the four states red_proofs_in() collapsed into one None."""
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="unreadable-proof-")
+        try:
+            cases = {"literal.py": ('RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '
+                                    '"why": "w", "matches": 1}]\n', False),
+                     "named.py": ('WF = "x.py"\nRED_PROOF = [{"file": WF}]\n', True),
+                     "none.py": ("X = 1\n", False),
+                     "broken.py": ("def (:\n", None)}
+            for fn, (src, want) in cases.items():
+                path = os.path.join(d, fn)
+                io.open(path, "w", encoding="utf-8").write(src)
+                self.assertIs(heart2.red_proof_unreadable(path), want,
+                              "%s: expected %r — the WF_REL shape must read UNREADABLE, never absent"
+                              % (fn, want))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
     def test_the_heart_carries_the_instrument_census(self):
         """The proving loop and the heart must be JOINED. Two halves each built right and never
@@ -458,6 +483,12 @@ RED_PROOF = [
     "file": "control_ui.html",
     "find": "_hrtEsc(_iAge + _iPart + _iDenom",
     "replace": "_hrtEsc(''",
+    "matches": 1,
+}, {
+    "why": "v3473 — an unreadable RED_PROOF read as ABSENT again: eleven proofs unrun, silently",
+    "file": "heart2.py",
+    "find": "            except Exception:\n                return True\n    return False\n",
+    "replace": "            except Exception:\n                return False\n    return False\n",
     "matches": 1,
 }]
 

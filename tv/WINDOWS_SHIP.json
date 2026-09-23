@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3472",
+  "ver": "v3473",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3472: CI runs the gate set as two cost-balanced shards whose facts are aggregated from every shard, and the workflow guard proofs run for the first time",
+  "note": "v3473: an unparseable RED_PROOF now reads UNREADABLE in the prover and fails the census, instead of passing as a gate that declares nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

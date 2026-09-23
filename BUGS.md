@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1173 - THE PROVER CALLED AN UNREADABLE PROOF LIST "NO PROOFS", AND ELEVEN SAT UNRUN
+
+**v3473 - the class behind REG-1172's guard.** `heart2.red_proofs_in()` answers `None` for FOUR
+states — no file, no declaration, a file that will not parse, and a list `ast.literal_eval` refuses
+— and every caller reads `None` as "this gate declares no proof". So a RED_PROOF whose `file` was the
+NAME `WF_REL` printed "0 declare a red-proof" and eleven proofs had never run; the census did not
+count them either. New `red_proof_unreadable()` tells the states apart (True / False / None = the
+file itself would not parse, UNKNOWN); `prove()` names every unreadable declaration on every run;
+the census law now FAILS on one. Swept before fixing: exactly one such file existed (fixed in v3472).
+Driven over the four states; the census gate 6/6 PROVEN.
+
 ### REG-1172 - THE GATE SET OUTGREW ITS CI CEILING, AND THE GUARD OF THAT CEILING HAD NEVER BEEN PROVEN
 
 **v3472 - #184.** The agent-suite ran **25m18s against `timeout-minutes: 25`** on d9bdb682 and was

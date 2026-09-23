@@ -525,6 +525,35 @@ def red_proofs_in(filename):
     return None
 
 
+def red_proof_unreadable(filename):
+    """v3473 — does this file DECLARE a RED_PROOF the prover cannot read? -> True | False | None
+
+    ⚠⚠ red_proofs_in() answers None for FOUR different states — no file, no declaration, a file
+    that will not parse, and a list ast.literal_eval refuses — and every caller reads None as "this
+    gate declares no proof". MEASURED 2026-09-24: test_a_cut_off_gate_set_is_not_a_verdict declared
+    eleven proofs whose `file` was the NAME `WF_REL`; literal_eval threw, the prover printed
+    "0 declare a red-proof", and not one of the eleven had ever run. Once literal, all eleven were
+    PROVEN. An unreadable declaration is not an absent one. [[unknown-stays-unknown]]
+    None means the FILE would not parse, which is UNKNOWN too — never False.
+    """
+    import ast
+    p = os.path.join(HERE, filename)
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+    except Exception:
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "RED_PROOF" for t in node.targets):
+            try:
+                ast.literal_eval(node.value)
+                return False
+            except Exception:
+                return True
+    return False
+
+
 def _normalise_proofs(raw):
     """Every declared proof as the dict `_prove_one` reads. -> [dict]
 
@@ -1128,6 +1157,11 @@ def prove(only=None, say=print, detail=None):
     have = [(n, f, p) for n, f, p in with_proofs if p]
     say("  %d gate(s) in scope · %d declare a red-proof · %d do not"
         % (len(todo), len(have), len(todo) - len(have)))
+    # v3473 — an unreadable declaration is not an absent one; say which, every run.
+    _unread = [n for n, f in todo if red_proof_unreadable(f)]
+    if _unread:
+        say("  ⚠ %d of those DECLARE a RED_PROOF this prover CANNOT READ (ast.literal_eval refused it) "
+            "— UNREADABLE, not absent, and none of it has run: %s" % (len(_unread), ", ".join(_unread[:6])))
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
