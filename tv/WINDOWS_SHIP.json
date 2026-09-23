@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3428",
+  "ver": "v3429",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3428: 37 sat blocked for weeks on one value because there was NO evaluate_js door - the seat probed api eval and got 404 three ticks running, and I once reported that blocker lifted on a SOURCE-ONLY read, which was wrong. board_build is a narrow door: one fixed expression, no parameters, never the banner, and four refusals stay distinguishable from one measured absence. Also folds in the eye v3426 findings: a brace-blind tier extractor, a doctor window bounded by a constant instead of the next hero, and that row driven red for the first time",
+  "note": "v3429: test_control HUNG is a DEADLOCK not a cost - the same call hung 28 minutes at 0 percent CPU and then finished in 15.4 seconds on an idle machine, and the stuck child wore the parents own argv between fork and exec while holding Quartz. Proven by recording which syscall CPython takes: close_fds default forks, absolute exe plus close_fds False spawns, a bare name forks again. The class law then found five more forking shell-outs in the same module",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

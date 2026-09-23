@@ -7,6 +7,65 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1157 - `test_control HUNG` IS A DEADLOCK, NOT A COST, AND IT REFUSED FOUR PUSHES
+
+**v3429 - #150, and the standing diagnosis was wrong.** `test_control HUNG — killed after 1500s on
+an IDLE machine` has blocked pushes since 2026-09-20 (three at v3400, one tonight at v3426), and
+RESUME_HERE recorded it as a budget problem: *"cd.run(include_slow=False) > 8 min, alone, on an idle
+machine"* with the puzzle *"the whole is minutes; every part is seconds."*
+
+**MEASURED back to back, same code, same IDLE machine (load 1.7-3.4):**
+
+```
+run 1  cd.run(include_slow=False)  hung 28 MINUTES at 0.0% CPU, killed
+run 2  the SAME call               FINISHED IN 15.4 SECONDS, 107 rows
+```
+
+⚠ **So ">8 min alone" measured the HUNG case, and the puzzle dissolves: the parts ARE seconds.** I
+repeated that wrong reading once tonight before re-running. **A hang is not a cost and must never
+be averaged with one.**
+
+**WHAT IT IS**, from the stuck process rather than from theory: the hung parent had exactly ONE
+child, at **0.0% CPU for 28 minutes**, with **no grandchildren** and no headless Chrome — and that
+child **wore the PARENT'S OWN ARGV**, which is the signature of a `subprocess.Popen` caught
+**between fork and exec**. It held **Quartz / CoreGraphics / QuickLookUI / PyObjC**. `control_app`
+and `health_engine` import those, so by the time any check shells out the Objective-C runtime is
+initialised, and forking such a process without immediately exec'ing is the macOS fork-safety
+deadlock. 0% CPU for 28 minutes is a lock wait; a busy loop cannot produce it.
+
+**THE ESCAPE, PROVEN BY RECORDING WHICH SYSCALL CPYTHON ACTUALLY TAKES** — `os.posix_spawn` and
+`_posixsubprocess.fork_exec` were both wrapped and counted, rather than reading the conditions and
+believing them:
+
+```
+close_fds default (True)          ->  fork_exec x1,  posix_spawn x0     <- the hang
+absolute exe + close_fds=False    ->  posix_spawn x1, fork_exec x0
+bare name "ps" + close_fds=False  ->  fork_exec x1                      <- dirname condition
+```
+
+⚠ **BOTH HALVES ARE LOAD-BEARING, and `close_fds` DEFAULTS TO TRUE** — which is why every ordinary
+call in the file forked. The bare-name half is the invisible one: `close_fds=False` alone reads
+like a complete change and still forks.
+
+⚠⚠ **AND THE CLASS LAW FOUND FIVE MORE THE SINGLE FIX HAD MISSED.** Fixing the row I introduced in
+v3421 left `du`, the two sub-doctor runs, `launchctl` and `gh` all forking. Every `subprocess` call
+in `console_doctor` now declares `close_fds`, and bare names go through `_spawnable()`.
+
+⚠ **I PUT A WRONG CAUTION IN MY OWN COMMENT AND THEN MEASURED IT.** It claimed `close_fds=False`
+would let a child inherit this console's listening socket. **PEP 446 (Python 3.4+) makes every
+descriptor Python creates NON-INHERITABLE by default** — driven end to end, a child handed the fd
+number of a live listening socket answered `CHILD CANNOT SEE FD -> OSError`. The ocr worker is
+still excluded, but on its LIFETIME, not on the fd story. A caution citing a mechanism that does
+not apply is how a real constraint stops being believed.
+
+**Gate** `test_the_doctor_never_forks_a_quartz_process` - 4 cases, **2/2 red-proofs PROVEN**. It
+drives the real syscall, PINS THE PREMISE (that the default shape really does still fork, so the
+main case cannot pass for an unrelated reason), pins the bare-name trap, and carries the CLASS law.
+`cd.run(include_slow=False)` after: **20.9 s, 108 rows, zero missing.**
+
+⚠ **REACH:** this covers `console_doctor`'s own shell-outs. Every other `Popen` in `control_app` is
+the same hazard and is NOT swept yet.
+
 ### REG-1155 - #37 WAS BLOCKED BY A MISSING DOOR, AND I ONCE REPORTED IT LIFTED ON A SOURCE READ
 
 **v3428.** #37 sat blocked for weeks on ONE value, and the GrokBot seat finally named the cause,

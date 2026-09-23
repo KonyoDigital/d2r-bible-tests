@@ -320,8 +320,9 @@ def _check_disk_headroom():
     except Exception as e:
         return UNKNOWN, "could not read disk usage: %s" % str(e)[:90]
     try:
-        frames = subprocess.run(["du", "-sk", os.path.join(HERE, "frames")],
-                                capture_output=True, text=True, timeout=60)
+        frames = subprocess.run([_spawnable("du"), "-sk", os.path.join(HERE, "frames")],
+                                capture_output=True, text=True, close_fds=False,
+                                timeout=60)
         used = int(frames.stdout.split()[0]) / 1e6 if frames.stdout.strip() else None
     except Exception:
         used = None
@@ -481,7 +482,8 @@ def _check_the_other_doctors():
     for mod, label in (("vault_doctor", "vault"), ("chronicle_doctor", "chronicle")):
         try:
             r = subprocess.run([sys.executable, os.path.join(HERE, mod + ".py")],
-                               capture_output=True, text=True, timeout=600)
+                               capture_output=True, text=True, close_fds=False,
+                               timeout=600)
             txt = (r.stdout or "") + (r.stderr or "")
             bad = txt.count("🟠") + txt.count("🔴")
             good = txt.count("🟢")
@@ -521,7 +523,8 @@ def _check_the_visual_lock_holds():
     if not os.path.isfile(lock):
         return UNKNOWN, "visual_lock_invariant.py is not on this machine, so nothing is pinning the board's type or colour"
     try:
-        p = subprocess.run([sys.executable, lock], capture_output=True, text=True, timeout=90)
+        p = subprocess.run([sys.executable, lock], capture_output=True, text=True,
+                           close_fds=False, timeout=90)
     except Exception as e:
         return UNKNOWN, "the visual lock could not run (%s) — that is unmeasured, not clean" % str(e)[:70]
     if p.returncode == 0:
@@ -2595,7 +2598,8 @@ def _check_no_browser_suite_is_scheduled_on_this_mac():
     if sys.platform != "darwin":
         return UNKNOWN, "this check only knows launchd, so it cannot speak for this machine"
     try:
-        out = _sp.run(["launchctl", "list"], capture_output=True, text=True, timeout=10)
+        out = _sp.run([_spawnable("launchctl"), "list"], capture_output=True, text=True,
+                      close_fds=False, timeout=10)
     except Exception as e:
         return UNKNOWN, "launchctl could not be asked: %s" % str(e)[:70]
     if out.returncode != 0:
@@ -5253,8 +5257,8 @@ def _check_a_queue_zero_came_from_a_read_that_WORKED():
     import json as _json
     import subprocess as _sp
     try:
-        p = _sp.run(["gh", "api", "rate_limit"], capture_output=True,
-                    encoding="utf-8", errors="replace", timeout=12)
+        p = _sp.run([_spawnable("gh"), "api", "rate_limit"], capture_output=True,
+                    encoding="utf-8", errors="replace", close_fds=False, timeout=12)
     except FileNotFoundError:
         return UNMEASURED, ("gh is not installed on this machine, so whether a queue zero came "
                             "from a working read is not a question that exists here")
@@ -6635,6 +6639,24 @@ def _check_nothing_we_made_is_still_on_his_disk_days_later():
                 "make is being collected" % (total,))
 
 
+def _spawnable(name):
+    """Resolve a bare command to a path WITH A DIRNAME, so CPython can posix_spawn it. -> str
+
+    ⚠ HALF THE FIX, AND THE INVISIBLE HALF. `Popen._execute_child` takes posix_spawn only when
+    `os.path.dirname(executable)` is truthy AND close_fds is false; with a bare name it FORKS even
+    though the call reads as fixed. MEASURED: `["ps", ...], close_fds=False` -> fork_exec x1.
+
+    Falls back to the bare name when the command is not on this machine, so a missing tool still
+    reaches its own FileNotFoundError handler instead of becoming a path that does not exist
+    either. [[unknown-stays-unknown]]
+    """
+    import shutil as _sh
+    try:
+        return _sh.which(name) or name
+    except Exception:
+        return name
+
+
 def _check_nothing_this_console_started_is_a_corpse_right_now():
     """v3421 - IS THERE A DEAD CHILD ON THIS MACHINE THAT NOBODY COLLECTED?
 
@@ -6658,9 +6680,30 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
     and only the second is evidence. [[zero-needs-a-denominator]]
     """
     import subprocess as _sp
+    # ⚠⚠ v3429 — posix_spawn, NOT fork. THIS PROCESS HAS THE OBJECTIVE-C RUNTIME LOADED
+    # (control_app and health_engine import Quartz/CoreGraphics), and forking such a process
+    # without immediately exec'ing is the macOS fork-safety deadlock. MEASURED by recording which
+    # syscall CPython actually takes:
+    #     close_fds default (True)        -> fork_exec x1, posix_spawn x0      <- the hang
+    #     absolute exe + close_fds=False  -> posix_spawn x1, fork_exec x0
+    #     bare name "ps" + close_fds=False-> fork_exec x1   (the dirname condition bites)
+    # A run of cd.run(include_slow=False) hung 28 MINUTES at 0.0% CPU with one child stuck between
+    # fork and exec, then finished in 15.4s on the retry. #150.
+    #
+    # ⚠ BOTH HALVES ARE LOAD-BEARING. CPython 3.9 takes posix_spawn only when the executable has a
+    # dirname AND close_fds is false; either alone still forks.
+    # ⚠ AND THE COST OF close_fds=False IS SMALLER THAN I FIRST WROTE HERE — MEASURED AFTER I HAD
+    # ALREADY PUT THE WRONG CAUTION IN THIS COMMENT. PEP 446 (Python 3.4+) makes every descriptor
+    # Python creates NON-INHERITABLE by default, so this passes on only what was DELIBERATELY
+    # marked inheritable. Driven end to end: a child handed the fd number of a LIVE LISTENING
+    # SOCKET answered `CHILD CANNOT SEE FD -> OSError`. That is not a licence to copy it onto
+    # the ocr worker — its LIFETIME is the argument there — but the fd story was not the reason,
+    # and a caution that cites a mechanism which does not apply is how a real constraint stops
+    # being believed. [[feedback-suspect-the-instrument]]
+    _PS = "/bin/ps" if os.path.exists("/bin/ps") else "ps"
     try:
-        out = _sp.run(["ps", "-eo", "pid,ppid,stat,comm"], stdout=_sp.PIPE, stderr=_sp.DEVNULL,
-                      timeout=15).stdout.decode("utf-8", "replace")
+        out = _sp.run([_PS, "-eo", "pid,ppid,stat,comm"], stdout=_sp.PIPE, stderr=_sp.DEVNULL,
+                      close_fds=False, timeout=15).stdout.decode("utf-8", "replace")
     except Exception as e:
         return UNKNOWN, ("this machine's process table could not be read (%s), so whether a corpse "
                          "is sitting in it is UNKNOWN - not clear" % type(e).__name__)
