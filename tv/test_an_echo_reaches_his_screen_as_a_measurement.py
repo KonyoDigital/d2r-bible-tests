@@ -352,6 +352,28 @@ class HisRealLedgerDrivesItEndToEnd(_DrivesTheRow):
                       "the real ledger sentence did not travel to the row: %r" % say)
 
 
+#: v3466 — the shape ALL SEVEN AGREE versions on his ledger actually have: one xai look and one
+#: whose family nobody could attribute. Measured 2026-09-24 over 904 versions.
+UNATTRIBUTED_AGREE = _verdict_dict(
+    "AGREE", "2 looks at v9182 AGREE (clean) · 2 look(s), 1 naming a family (xai 1) · 1 UNKNOWN",
+    ["xai"], fam_unknown=1)
+
+
+class AnUnattributedAgreeIsNotCorroboration(_DrivesTheRow):
+    """v3466 — found by the eye on v3439, then MEASURED: not one AGREE on his ledger was ever two
+    IDENTIFIABLE families, so the OK this row showed for AGREE had never been earned."""
+
+    def test_an_AGREE_with_an_unattributed_family_is_MISSING_not_OK(self):
+        cd = self._doctor()
+        state, say = self._drive(UNATTRIBUTED_AGREE)
+        self.assertEqual(cd.MISSING, state,
+                         "an AGREE whose second look names no attributable family read %r — OK is "
+                         "the one state the panel does not draw, so 'corroborated' reached his "
+                         "screen as silence: %r" % (state, say))
+        self.assertIn("IDENTIFIABLE different family", say,
+                      "the row went red without naming the look that would close it: %r" % say)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -398,8 +420,19 @@ RED_PROOF = [
         "why": "widening the AGREE arm to swallow ECHO restores the false OK from the other "
                "direction and would make the cross-family baseline indistinguishable from an echo.",
         "file": "tv/console_doctor.py",
-        "find": "    if st == \"AGREE\":\n        return OK, a.get(\"say\", \"the looks agree\") + tail",
-        "replace": "    if st in (\"AGREE\", \"ECHO\"):\n        return OK, a.get(\"say\", \"the looks agree\") + tail",
+        # v3466 — RE-ANCHORED: the AGREE branch gained the unattributed-family arm, so the old two-line
+        # anchor matched ZERO times. `if st == "AGREE":` alone occurs TWICE in console_doctor (the
+        # stage-witness row has one), so the anchor carries the new comment line to be unique.
+        "find": "    if st == \"AGREE\":\n        # v3466 — AN UNATTRIBUTED FAMILY",
+        "replace": "    if st in (\"AGREE\", \"ECHO\"):\n        # v3466 — AN UNATTRIBUTED FAMILY",
+        "matches": 1,
+    },
+    {
+        "why": "v3466 — an unattributed family back to OK: 'corroborated' for a pair nobody can "
+               "show is two witnesses, on a row the panel then does not draw",
+        "file": "tv/console_doctor.py",
+        "find": "        if (a.get(\"familyUnknown\") or 0) > 0:\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
 ]

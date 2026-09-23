@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3465",
+  "ver": "v3466",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3465: all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored",
+  "note": "v3466: an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

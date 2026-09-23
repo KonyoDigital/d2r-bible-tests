@@ -224,6 +224,32 @@ class TestTheRowThatWatchesTheScratch(unittest.TestCase):
                          "an empty scratch root read as %r — a clean bill from a root that "
                          "matched nothing: %s" % (st, say))
 
+    def test_a_scan_stopped_at_its_cap_is_a_sample_not_a_clean_bill(self):
+        """v3466 — found by the eye on v3422. The walk is BOUNDED on purpose; reporting the part
+        it walked as 'what we make is being collected' was the defect. Driven with a lowered cap
+        on a private root — never 400,000 real directories, never his tmp."""
+        import console_doctor as cd
+        import tempfile as _tf
+        fn = self._row()
+        root = tempfile.mkdtemp(prefix="scratch_cap_root_")
+        for i in range(5):
+            os.mkdir(os.path.join(root, "tmp_capcase_%d" % i))       # young, and ours by prefix
+        orig_dir, orig_cap = _tf.gettempdir, cd._SCRATCH_SCAN_CAP
+        try:
+            _tf.gettempdir = lambda: root
+            cd._SCRATCH_SCAN_CAP = 100
+            base_st, base_say = fn()                                 # BASELINE: under the cap
+            cd._SCRATCH_SCAN_CAP = 3
+            st, say = fn()
+        finally:
+            _tf.gettempdir, cd._SCRATCH_SCAN_CAP = orig_dir, orig_cap
+            shutil.rmtree(root, ignore_errors=True)
+        self.assertEqual(base_st, cd.OK, "the uncapped baseline is not OK, so this case cannot "
+                                         "distinguish anything: %s" % base_say)
+        self.assertEqual(st, cd.UNKNOWN,
+                         "a walk that STOPPED at its cap read %r — a sample reported as a verdict: "
+                         "%s" % (st, say))
+
 
 RED_PROOF = [
     {
@@ -270,6 +296,14 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "        return UNKNOWN, (\"no directory under the scratch root matched any prefix this repo is \"",
         "replace": "        return OK, (\"no directory under the scratch root matched any prefix this repo is \"",
+        "matches": 1,
+    },
+    {
+        "why": "v3466 — the capped arm removed: a walk that stopped at its ceiling calls the part "
+               "it walked 'being collected'",
+        "file": "console_doctor.py",
+        "find": "    if capped:\n        # ⚠ v3466 — A SCAN THAT STOPPED",
+        "replace": "    if False:\n        # ⚠ v3466 — A SCAN THAT STOPPED",
         "matches": 1,
     },
 ]

@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1166 - TWO OKs THAT MEASURED NOTHING — AND ONE THAT WAS RIGHT
+
+**v3466 - three open findings from the cross-family eye, adjudicated by measurement, not taken whole.**
+
+| finding | verdict | what the measurement said |
+|---|---|---|
+| v3439 f1 — an AGREE whose families cannot be attributed reads OK | **REAL** | ALL 7 AGREE versions of 904 on his ledger are exactly that shape (one xai look + one unattributed). The row had never once shown OK for two IDENTIFIABLE families — and OK is the state the panel does not draw, so the docstring's "stated rather than assumed" reached no screen. Now MISSING, in MINE, naming the look that closes it. A genuine cross-family AGREE still reads OK (the baseline case). |
+| v3422 f2 — the scratch row stops at 400,000 and still says "being collected" | **REAL** | a sample reported as a verdict. The bound stays (an unbounded walk is the 28-hour scar); a capped walk now reads UNKNOWN with its reach. The cap is a named constant so a gate drives the capped branch on a private root with 5 directories, never 400,000. |
+| v3421 f1 — the zombie row says OK with zero children | **REFUTED IN KIND** | it reaches OK only after `ps` read a NON-EMPTY table, and a zombie stays its parent's child until reaped — so zero live children MEASURES zero corpses. Not changed. |
+
+REG-1163 applied before writing: the existing red-proof anchored on `if st == "AGREE":` +
+`return OK` was re-anchored in the same edit — and `if st == "AGREE":` occurs TWICE in
+console_doctor (the stage-witness row), so the new anchor carries the comment line to be unique.
+
 ### REG-1165 - THE PUSH LOG SAID WHAT EACH GATE DECIDED AND NEVER WHEN — AND ITS STOPWATCH WAS SIX LETTERS
 
 **v3465 - #193.** Every `pre-push:` line was untimed, so a gate's duration could only be BOUNDED

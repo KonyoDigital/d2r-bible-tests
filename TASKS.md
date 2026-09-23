@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3465** | `(this commit)` | v3465 — all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored |
+| **v3466** | `(this commit)` | v3466 — an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind |
+| **v3465** | `c5ff2ac8` | v3465 — all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored |
 | **v3464** | `0d4c4e3c` | v3464 — one reach parser for the drain and for agreement: 399 per-file sizes recovered, the v3449 3.4 percent look is now a cut, absent is passed, refused looks are not a measured zero |
 | **v3463** | `d9bdb682` | v3463 — 3 red-proofs re-anchored (1323 of 1323 well formed), handoff row declared in WATCHES, ci_sim unreadable file is UNKNOWN not empty data (ratchet back to 69) |
 | **v3462** | `3fb64c9f` | v3462 — The cross-family eye read the SHIPPED v3458 bytes and found three, all reproduced. One: the lane age used mktime plus time.timezone, which is the STANDARD offset while DST is in effect - measured 1.385h against a true 0.385h, exactly one hour high, so a lane read 5.1h ago tripped the 6h bar. The original cases used 0.5h and 40h and could not see it. Two: an unreachable 231 fell through to OK and printed both lanes read recently about a lane it never reached, while the comment three lines above said an unreachable GitHub is UNKNOWN. Three: the row shells out to gh and sat on the EVERY-TICK roster with no deadline, so a stall would hold up console boot and bill a network round trip to the cheap subset. |

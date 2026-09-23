@@ -4031,9 +4031,14 @@ def _check_the_second_eye_was_asked_twice():
     rule 6 committed inside the mechanism built to catch it. [[the-unjoined-end]]
 
     FOUR STATES, and collapsing any two is the defect this file is full of:
-      AGREE    -> two reached looks, same verdict, and at least two DIFFERENT families named (or
-                  a family nobody could attribute, which is stated rather than assumed). Two
+      AGREE    -> two reached looks, same verdict, and at least two DIFFERENT families named. Two
                   witnesses, and the eye is steady on this payload.
+                  ⚠ v3466 — an AGREE in which ANY look names a family nobody could attribute reads
+                  MISSING here, not OK. This line used to admit that case "stated rather than
+                  assumed" — and OK is the one state the panel does not draw, so the statement
+                  reached no screen. MEASURED 2026-09-24: all 7 AGREE versions of 904 on his ledger
+                  were exactly that shape (one xai look + one unattributed), so this row had never
+                  once shown OK for two IDENTIFIABLE families. Found by the eye on v3439.
       DISAGREE -> two reached looks, different verdicts. ⚠ THE FINDING IS ABOUT THE INSTRUMENT:
                   which verdict shipped was decided by timing, not by the code.
       SINGLE   -> asked once. Not a failure of the code and NOT his to act on — it is mine, so
@@ -4110,6 +4115,15 @@ def _check_the_second_eye_was_asked_twice():
     if st == "DISAGREE":
         return MISSING, a.get("say", "two looks disagree") + tail
     if st == "AGREE":
+        # v3466 — AN UNATTRIBUTED FAMILY HAS NOT EARNED CORROBORATION. Same reasoning as ECHO
+        # below: the looks agree, but whether they are two WITNESSES is not established, and the
+        # corroborating look from an identifiable different family is MINE to take.
+        if (a.get("familyUnknown") or 0) > 0:
+            return MISSING, ((a.get("say") or "the looks agree")
+                             + " — but %d look(s) name no model family anyone could attribute, so "
+                               "whether these are two WITNESSES is not established; one more look "
+                               "from an IDENTIFIABLE different family is MINE to take"
+                             % int(a.get("familyUnknown") or 0)) + tail
         return OK, a.get("say", "the looks agree") + tail
     if st == "SINGLE":
         return MISSING, a.get("say", "looked at once") + tail
@@ -6649,6 +6663,11 @@ def _check_the_eye_cap_is_a_size_the_eye_has_finished():
                 % (cap, big))
 
 
+#: v3466 — the scratch walk's ceiling, named so a gate can drive the capped branch without
+#: making 400,000 directories. Reaching it is a SAMPLE, and the row says so.
+_SCRATCH_SCAN_CAP = 400000
+
+
 def _check_nothing_we_made_is_still_on_his_disk_days_later():
     """v3422 - IS OUR SCRATCH BEING COLLECTED, OR JUST ACCUMULATING?
 
@@ -6689,7 +6708,7 @@ def _check_nothing_we_made_is_still_on_his_disk_days_later():
     MINE = ("tmp", "second_eye_", "veto-", "shape-", "tvd-", "board_sweep_gate.", "counterledger-",
             "statepath", "isorule-", "isolaw-", "atomicwrite-", "framelabel.", "g5_", "frameref",
             "diskrep_", "triage_", "heart2.", "TemporaryDirectory.")
-    now, total, old, oldest = time.time(), 0, 0, 0.0
+    now, total, old, oldest, capped = time.time(), 0, 0, 0.0, False
     try:
         with os.scandir(root) as it:
             for e in it:
@@ -6697,7 +6716,8 @@ def _check_nothing_we_made_is_still_on_his_disk_days_later():
                     continue          # somebody else's container; not ours to report on
                 # ⚠ BOUNDED. This runs on a machine he is using; a scan with no ceiling is the
                 # unbounded-search scar, and a partial answer with a stated reach beats a hang.
-                if total >= 400000:
+                if total >= _SCRATCH_SCAN_CAP:
+                    capped = True
                     break
                 try:
                     if not e.is_dir(follow_symlinks=False):
@@ -6722,6 +6742,14 @@ def _check_nothing_we_made_is_still_on_his_disk_days_later():
         return MISSING, ("%d of %d scratch director(ies) WE made are older than 3 days - oldest "
                          "%.1f days. Nothing is collecting them; macOS's own policy is three days "
                          "and it is not keeping up either" % (old, total, oldest / 86400.0))
+    if capped:
+        # ⚠ v3466 — A SCAN THAT STOPPED IS A SAMPLE, NOT A VERDICT. The bound is right (an
+        # unbounded walk on his machine is the 28-hour-search scar); calling the sample "being
+        # collected" was not. Found by the eye on v3422. [[regression-guard]] §1
+        return UNKNOWN, ("stopped counting at %d scratch director(ies) of ours - the scan is bounded "
+                         "on purpose, none of those %d was older than 3 days, and the age of the "
+                         "rest was never examined, so 'being collected' is NOT established. A "
+                         "population this large is itself the #171 finding" % (total, total))
     return OK, ("0 of %d scratch director(ies) attributable to us are older than 3 days - what we "
                 "make is being collected" % (total,))
 
