@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1168 - 23 DOCTOR ROWS WERE EXPLAINED NOWHERE, SO A CI GATE WAS RED FOR AS LONG AS ANYONE READ IT
+
+**v3468 - #208, part of #123.** `test_every_doctor_check_is_explained` requires every live doctor row
+to sit in exactly one of `corroborate.COVERED_BY` / `NO_JOINT_YET`. 23 of 112 sat in neither, so for
+those rows "a joint corroborates this" and "nobody ever classified it" were the same state — and the
+gate carrying that law was one of the 25 long-standing CI reds, i.e. a red nobody reads. Each row
+now says what it reads and what a genuinely INDEPENDENT second source would be; five are ITSELF
+two-sided comparisons (door vs writers, resume vs git, audit vs gate, bytecode vs source, disk vs
+wire), where a joint re-reading the same two fields would be one number wearing two names.
+Declared, not claimed. Seen RED listing exactly the 23, then green (3/3).
+
 ### REG-1167 - THE G5 EYE WAS PRIMARY ON A COMPARISON NOBODY READ — AND IT STOPPED ARRIVING 10 DAYS AGO
 
 **v3467 - #188.** v3450 built `tv/g5_shadow_reducer.py` and `divergence_row()` — "one row a console

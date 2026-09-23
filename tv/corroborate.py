@@ -2262,6 +2262,58 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3468 (#208) — THE 23 ROWS EXPLAINED NOWHERE. test_every_doctor_check_is_explained has been red
+    # on CI for as long as the agent-tests workflow has been read (#123), because these were in
+    # neither registry — so 'a joint corroborates this' and 'nobody ever classified it' were the same
+    # state. Each now says what it reads and what a genuinely INDEPENDENT second source would be.
+    # Five are ITSELF two-sided; for those a corroborate.py joint re-reading the same two fields
+    # would be one number wearing two names (precedent: v3389). Declared, not claimed.
+    'sweep attack reaches its door':
+        'the row drives one stubbed call at the real sweep door and grades the harness that scores it; a second source would be a live sweep reaching that door under a real attack, which only happens inside heart2 --prove sandboxes.',
+    'no git child steals his screen':
+        "the row counts git argv sites in SOURCE; a second source would be the Windows box's live window census showing zero git.exe consoles over the game, which no target captures.",
+    'this machine can get a second opinion':
+        'the row asks whether THIS machine has a signed-in eye on disk; a second source would be a completed look taken FROM this machine, and ledger rows do not record which machine took them.',
+    'the compare panel can name a difference':
+        'the row calls /api/fleet and /api/fleet_compare and asks whether a column names anything; a second source would be the rendered panel on his real fleet, and render_check has no target with live peers.',
+    'this console tree is established':
+        "the row checks this machine's own tree exists and a write landed in it; the independent side is the writers' paths, which is its sibling row 'the door and the writers agree', not a corroborate.py joint.",
+    'the door and the writers agree':
+        "the row is ITSELF a two-sided comparison (machine_tree's footage paths vs tv_diablo's HIST_DIR/FRAMES); a separate invariant re-reading the same two paths would be one number wearing two names.",
+    'the resume agrees with git':
+        "the row is ITSELF a two-sided comparison (RESUME_HERE's derived block vs git now); a separate invariant over the same two reads would be the same number twice.",
+    'the chip can say nobody looked':
+        'the row asks the engine the heart chip reads whether it hands over a census; a second source would be the rendered chip on his console, which only its gate drives, in a fake DOM.',
+    'the eye audit agrees with the gate':
+        'the row is ITSELF a two-sided comparison (audit() vs owes_a_look() -> looked_at()); a separate invariant re-reading both would be one number wearing two names.',
+    'the eye cap is a size it has finished':
+        "the row reads the live ledger for looks that finished at the cap; a second source would be the CLI's own count of the bytes it received, which the CLI does not report.",
+    'the eye answers in a field':
+        'the row counts verdictFrom=schema on live ledger rows; a second source would be an independent re-read of the raw answers, which is not built.',
+    'the eye seat can be filled':
+        'the row probes whether the default transport answers at all; a second source would be a completed look through that transport, which proves reachability only after the fact.',
+    'the hunt names a quicker route':
+        'the row reads the SERVED file for the disclosure clause; a second source would be the rendered hunt card for a Hell-first piece, and render_check has no such target.',
+    'the board build door is open':
+        'the row asks the route table and the served route; a second source would be an outside caller (the GrokBot seat) reaching the door, which reaches this console only as #230 prose.',
+    'this process runs the code on disk':
+        "the row is ITSELF a two-sided comparison (the loaded code objects' first lines vs the AST on disk); a separate invariant over the same two would be the same number twice.",
+    'nothing we started is a corpse':
+        "the row reads the process table for our own subtree; a second source would be the kernel's accounting through a different tool, and re-reading ps would be the same number twice.",
+    'our scratch is collected':
+        'the row walks the scratch root by prefix; the independent side is the MINT — call sites registering what they create (#171) — which is not built.',
+    'a verdict comes from a declared field':
+        'the row checks the prompt asks for a declared verdict and answers carry it; a second source would be an independent re-judge of the same answers, which is not built.',
+    'a queue zero came from a read that worked':
+        "the row checks the drain reports a failed read apart from an empty one; a second source would be GitHub's own comment count for the lane set against the drain's, which no target captures.",
+    'a hidden element is actually hidden':
+        'the row scans the bytes ON THE WIRE while its gate scans the bytes on disk — the two sides exist, across the row and its gate, not as a corroborate.py joint.',
+    'his window can be measured':
+        "the row reads pywebview's live Window size; a second source would be the OS window server's frame for the same window, which is not wired.",
+    'his window has a keyboard door':
+        'the row checks the W shortcut is in the served bytes; a second source would be a synthetic key press observed to change the frame, which needs Accessibility (needs-hid).',
+    'this machine keeps itself current':
+        "the row reads this machine's own HEAD and pull cadence; a second source would be the fleet roster's record of this machine's version, which lives behind the console's KV read.",
     # v3467 — the two rows THIS arc added (v3458, v3467) and never explained, so the explained-
     # exactly-once law grew 23 -> 25 on my ships. Declared, not claimed.
     'two eyes compared':

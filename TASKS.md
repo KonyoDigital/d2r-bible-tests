@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3467** | `(this commit)` | v3467 — doctor row two eyes compared reads the shadow reducer: PRIMARY on a comparison 9 days old, 67.5 percent of reads vs 40 percent of frames disagree, both shown; two rows of this arc explained |
+| **v3468** | `(this commit)` | v3468 — every doctor row now says what it reads and what an independent second source would be; the explained-exactly-once gate, red on CI for as long as it was read, is green |
+| **v3467** | `e9a6fbd7` | v3467 — doctor row two eyes compared reads the shadow reducer: PRIMARY on a comparison 9 days old, 67.5 percent of reads vs 40 percent of frames disagree, both shown; two rows of this arc explained |
 | **v3466** | `038e8538` | v3466 — an AGREE nobody can attribute to two families is MISSING not OK (all 7 on his ledger), a scratch walk stopped at its cap is UNKNOWN not collected, the zero-children zombie OK refuted in kind |
 | **v3465** | `c5ff2ac8` | v3465 — all 39 pre-push status lines stamped with elapsed time, the stopwatch glyph that printed six literal letters now renders, one hook proof re-anchored |
 | **v3464** | `0d4c4e3c` | v3464 — one reach parser for the drain and for agreement: 399 per-file sizes recovered, the v3449 3.4 percent look is now a cut, absent is passed, refused looks are not a measured zero |
