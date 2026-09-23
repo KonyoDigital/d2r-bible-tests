@@ -31,6 +31,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ THIS FILE PRINTS NON-ASCII AND THE PUSH GATE REFUSED IT FOR EXACTLY THAT. On a cp1255 console
+# an unguarded print CRASHES WHILE REPORTING, so a clean tree exits non-zero for a reason that has
+# nothing to do with the check — the failure names the wrong thing, which is worse than no check.
+# Second time in one session; the gate caught both before they shipped.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 import second_eye_run as R                                            # noqa: E402
 
 SRC = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8", errors="replace").read()
