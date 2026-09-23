@@ -20,10 +20,18 @@ where it would run only when a test file changed — the exact blind spot it exi
 """
 import io
 import os
+import sys
 import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable as _enable
+    _enable()       # these print non-ASCII; a cp1255 console must not crash while REPORTING
+except Exception:
+    pass
 HOOK = os.path.join(os.path.dirname(HERE), "hooks", "pre-push")
 CALL = 'if ! gate_run "red-proof anchors"'
 
