@@ -23184,8 +23184,41 @@ window._lockMark = function(isOpen, px, label){
     var hell = data.ranked.filter(function(x){ return x.hellExpectedHours != null; })
       .sort(function(a,b){ return a.hellExpectedHours - b.hellExpectedHours
         || ((byName[a.name]||{}).left||9) - ((byName[b.name]||{}).left||9); });
-    var top, hrs;
-    if (hell.length){ top = { name: hell[0].name, source: hell[0].hellSource, expectedHours: hell[0].hellExpectedHours }; }
+    var top, hrs, _elsewhere = null;
+    if (hell.length){
+      var _h0 = hell[0];
+      top = { name: _h0.name, source: _h0.hellSource, expectedHours: _h0.hellExpectedHours };
+      /* ⚠⚠ v3426 — THE SISTER HERO GOT THIS IN v2281 AND THIS ONE NEVER DID.
+         Konyo, 2026-09-23, on COW KING'S HOOVES: "the sets cows item is saying i need to do it in
+         HELL and that its the fastest path... but on the sets tab within the sub tabs it reads
+         normal mode and a different silospen find %... so check why there is a mismatch and its
+         not synced between each other."
+
+         He is right, and v2281's own comment already described this exact defect — on the GRAIL
+         hero, where it was fixed:
+
+           "the 'quickest anywhere' hint fires only when the fastest is a DIFFERENT ITEM
+            (_fastest.name !== top.name). For a piece whose Hell lead and global lead are the SAME
+            ITEM at a different difficulty, that test is false and nothing is said. The comparison
+            was item-vs-item where it had to be SOURCE-vs-SOURCE."
+
+         Cow King's Hooves is that case exactly: `of 1` — one piece left — so the Hell lead and the
+         global lead are necessarily the same item, and an item-vs-item test can never fire. The
+         sets hero had no test at all. It printed the Hell route, and the Sets chronicle ranked
+         across difficulties and printed the Normal one, and nothing on either surface said why.
+
+         ⚠ THE HELL-FIRST HEADLINE IS HIS RULING AND IS NOT TOUCHED. v1555: "prioritized by HELL
+         then Nightmare then Normal in the hunts... i rather finish off Hell and then the others."
+         What that same comment PROMISED and never delivered here is the other half: "when
+         something materially quicker exists at a lower difficulty, the source line says so rather
+         than hiding it — he can still choose, he just is not choosing blind." He was choosing
+         blind. [[plumbing-with-no-tap]] [[sweep-dont-ask]] §1 — the class, not the instance. */
+      if (_h0.expectedHours != null && _h0.hellExpectedHours != null
+          && tier(_h0.source) !== 2
+          && _h0.expectedHours <= _h0.hellExpectedHours * 0.7) {
+        _elsewhere = { source: _h0.source, hours: _h0.expectedHours };
+      }
+    }
     else {
       top = data.ranked.slice().sort(function(a,b){
         return (tier(b.source) - tier(a.source))
@@ -23286,6 +23319,17 @@ window._lockMark = function(isOpen, px, label){
         + (setName ? 'completes ' + _setChip
             + (meta.left ? ' <span class="hh-alt">· ' + meta.left + ' piece' + (meta.left===1?'':'s') + ' left</span>' : '') : '')
         + (top.source ? ' · hunt at ' + _bossChip(top.source, _sSrcBossId, _sSrcArt) : '')
+        /* v3426 — the half v1555 promised and only the grail hero ever shipped.
+           ⚠ AND THE WORDS ARE THE GRAIL HERO'S WORDS, NOT NEW ONES. The first cut of this said
+           "quicker below Hell" while the sister card two panels up says "faster outside Hell" —
+           one fact under two names, on the two surfaces he had just reported as unsynced. Caught
+           by the heart row written in this same version, which had to be widened to see the grail
+           hero's markup and showed the wording split on the way. The ELEMENT differs because the
+           cards differ (a block line there, an inline note here); the SENTENCE may not.
+           [[label-outlived-referent]] */
+        + (_elsewhere ? '<span class="hh-alt"> · \u26a1 faster outside Hell \u00b7 <b>'
+             + esc(_elsewhere.source) + '</b> \u2248' + esc(_hubHrs(_elsewhere.hours))
+             + '</span>' : '')
         + '<span class="hh-alt"> · the clock is for ANY piece of this set</span></div>'
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to the next piece</span></div>' : '');

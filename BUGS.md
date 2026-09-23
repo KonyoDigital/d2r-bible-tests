@@ -7,6 +7,63 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1153 - THE HUNT SENT HIM TO HELL AND NEVER MENTIONED THE QUICKER ROUTE
+
+**v3426 - HIS REPORT, 2026-09-23:** *"the sets cows item is saying i need to do it in HELL and thats
+its the fastest path to get it. but on the sets tab within the sub tabs quick wins and best wins it
+reads normal mode and a diffrent silospen find %... so check to see why there is a mismatch and its
+not synced between eachother."*
+
+⚠ **THE HELL-FIRST HEADLINE IS HIS OWN RULING AND WAS NOT TOUCHED.** v1555 quotes him: *"prioritized
+by HELL then Nightmare then Normal in the hunts... i rather finish off Hell and then the others."*
+The defect is the OTHER half that same comment promised and never delivered here: *"when something
+materially quicker exists at a lower difficulty, the source line says so rather than hiding it - he
+can still choose, he just is not choosing blind."*
+
+⚠⚠ **AND v2281 DESCRIBED THIS EXACT DEFECT IN ITS OWN WORDS - WHILE FIXING IT ON THE OTHER HERO:**
+
+> *"the 'quickest anywhere' hint fires only when the fastest is a DIFFERENT ITEM
+> (`_fastest.name !== top.name`). For a piece whose Hell lead and global lead are the SAME ITEM at a
+> different difficulty, that test is false and nothing is said. The comparison was item-vs-item
+> where it had to be SOURCE-vs-SOURCE."*
+
+Cow King's Hooves is that case exactly - the card reads **`of 1`**, one piece left, so the Hell lead
+and the global lead are NECESSARILY the same item. `hubNextGrail` got `_elsewhere` in v2281.
+**`hubNextSet` got nothing, for 1,145 versions.** The named site was fixed and its sibling was never
+swept. [[sweep-dont-ask]] §1 - fix the class, not the instance.
+
+**Gate** `test_the_hunt_says_when_somewhere_else_is_quicker` - 7 cases, **3/3 red-proofs PROVEN**. It
+EXTRACTS the shipped assignment block and the shipped render expression from `control_ui.html` and
+EXECUTES them in node, so it cannot drift from a re-typed copy. Pins the Cow King case, the mirror
+(silence when Hell is already quickest), the material threshold, UNKNOWN hours, and that BOTH heroes
+share ONE cutoff.
+
+⚠ **BOTH RED-PROOFS CAME BACK BLIND AT MATCH COUNT 1 IN THE FIRST FORM.** The counts were right, so
+the LAWS were weak - and weak in the way the scar names: they were PRESENCE laws. `_elsewhere = null`
+still contains `_elsewhere`; `false ? '...faster outside Hell...' : ''` still contains the sentence.
+Both tampers applied perfectly and the gate never moved. Rewritten to EXECUTE the statement and the
+render rather than look for them. [[presence-law-vs-reachability-law]]
+
+**Heart row** `the hunt names a quicker route` - the gate grades the REPO; this console **execs the
+working tree**, so the row reads the file the app actually serves and asks whether the disclosure is
+REACHABLE there.
+
+⚠ **THE ROW'S FIRST RUN ANSWERED `UNKNOWN (NameError)` - AND THAT WAS IT WORKING.** It used
+`io.open` in a module that never imports `io`. The three-state design named the failure instead of
+returning a false clean; the same mistake once sat behind a bare `except Exception: continue` in the
+venue check and answered *"no browser suite here"* forever. **The sweep found this is the FOURTH
+time in that one file** - three prior comments already record it.
+
+⚠ **AND THE ROW THEN ACCUSED THE WRONG HERO, WHICH WAS MY INSTRUMENT.** It demanded `<span` and
+reported `hubNextGrail` blind - the hero that has had this since v2281 and renders a
+`<div class="hh-faster">` block. Count was 1 of 2; suspect the instrument first.
+
+⚠ **THAT MISTAKE SURFACED A REAL ONE: TWO SURFACES, TWO NAMES FOR ONE FACT.** The grail card says
+**"faster outside Hell"**; my first cut of the sets card said **"quicker below Hell"** - and the
+comment beside it claimed *"same wording as that hero on purpose"*, which was simply false. One fact
+under two names, on the two surfaces he had just reported as unsynced. The ELEMENT still differs
+because the cards differ; the SENTENCE no longer does. [[label-outlived-referent]]
+
 ### REG-1152 - A CARVED SKILL TOLD THE NEXT SESSION TO USE THE LANE THAT WAS DARK
 
 **v3425 - HIS RULING, 2026-09-23:** *"make it the xAI subscription as a default"*, said the hour

@@ -6697,6 +6697,64 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
                 "has ended was collected" % (len(kids),))
 
 
+def _check_every_hell_first_hunt_can_name_a_quicker_route():
+    """v3426 - DOES THE FILE HE IS ACTUALLY SERVED STILL TELL HIM WHEN SOMEWHERE ELSE IS QUICKER?
+
+    His report, 2026-09-23: MY HUNT sent him to HELL for Cow King's Hooves and called it the
+    fastest path, while the Sets chronicle ranked the same piece in NORMAL. The Hell-first headline
+    is HIS OWN RULING (v1555) and stays. The missing half is the disclosure that same ruling
+    promised - *"he can still choose, he just is not choosing blind"* - which v2281 built on the
+    grail hero and which the sets hero went 1,145 versions without.
+
+    ⚠ WHY A LIVE ROW WHEN A GATE ALREADY DRIVES THE EXPRESSION. The gate grades the REPO. This
+    console EXECS THE WORKING TREE - every save is a deploy, and two regressions have already been
+    real on his screen while absent from a clean checkout. So this reads the file the app actually
+    serves and asks whether the disclosure is REACHABLE there. [[execs-the-working-tree]]
+
+    ⚠ REACHABILITY, NOT PRESENCE - and that distinction is not theoretical here: the gate's first
+    form asserted these very strings were PRESENT, and both of its red-proofs came back BLIND,
+    because `_elsewhere = null` still contains `_elsewhere` and `false ? '...quicker below Hell...'`
+    still contains the sentence. [[presence-law-vs-reachability-law]]
+    """
+    ui = os.path.join(HERE, "control_ui.html")
+    try:
+        # ⚠ v3426 — `open`, NOT `io.open`: this module does not import `io`, and the first draft of
+        # this row used it. The row answered UNKNOWN with `NameError` rather than a false clean,
+        # which is the three-state design paying for itself — the SAME mistake once sat behind a
+        # bare `except Exception: continue` in the venue check and returned "no browser suite here"
+        # forever, whatever was scheduled. [[feedback-blind-fixture-green-gate]]
+        with open(ui, encoding="utf-8", errors="replace") as _fh:
+            body = _fh.read()
+    except Exception as e:
+        return UNKNOWN, ("the served console source could not be read (%s), so whether his hunt "
+                         "can name a quicker route is UNKNOWN, not fine" % type(e).__name__)
+    heroes, blind = ("hubNextGrail", "hubNextSet"), []
+    for fn in heroes:
+        i = body.find("function " + fn)
+        if i < 0:
+            return MISSING, ("%s is not in the file this console serves, so the hunt he is looking "
+                             "at is not the one the gates grade" % fn)
+        seg = body[i:i + 14000]
+        # the assignment must be reachable, and the render must be gated on the value - not on a
+        # constant. Either one neutered leaves the sentence in the file and the advice off screen.
+        assigns = ("_elsewhere = {" in seg)
+        # ⚠ v3426 — GATED ON THE VALUE, ANY MARKUP. The first cut demanded `<span` and reported
+        # the GRAIL hero blind, which was my instrument: that card renders a `<div class=
+        # "hh-faster">` block. Suspect the instrument first — the count was 1 of 2, and the one it
+        # accused was the hero that had HAD this since v2281. [[feedback-suspect-the-instrument]]
+        renders = ("(_elsewhere ? '<" in seg) or ('(_elsewhere ? "<' in seg)
+        if not (assigns and renders):
+            blind.append("%s(%s)" % (fn, "no assignment" if not assigns else "render not gated on it"))
+    if blind:
+        return MISSING, ("%d of %d Hell-first hunt card(s) cannot name a quicker lower-difficulty "
+                         "route: %s. The headline stays Hell by his ruling - what must never go "
+                         "with it is the part that stops him choosing blind"
+                         % (len(blind), len(heroes), ", ".join(blind)))
+    return OK, ("both %d Hell-first hunt cards compute a lower-difficulty alternative and render "
+                "it from that value - he is told when somewhere else is materially quicker"
+                % (len(heroes),))
+
+
 def _check_the_eyes_default_seat_can_still_be_filled():
     """v3425 - CAN THE DEFAULT TRANSPORT BE REACHED AT ALL, ON THIS MACHINE, RIGHT NOW?
 
@@ -6886,6 +6944,7 @@ CHECKS = [
     ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
     ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
     ("the eye seat can be filled", _check_the_eyes_default_seat_can_still_be_filled),
+    ("the hunt names a quicker route", _check_every_hell_first_hunt_can_name_a_quicker_route),
     ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
     ("our scratch is collected", _check_nothing_we_made_is_still_on_his_disk_days_later),
     ("a verdict comes from a declared field",
@@ -7453,6 +7512,7 @@ WATCHES = {
     "the eye cap is a size it has finished": (),
     "the eye answers in a field": (),
     "the eye seat can be filled": (),
+    "the hunt names a quicker route": (),
     "nothing we started is a corpse": (),
     "our scratch is collected": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped

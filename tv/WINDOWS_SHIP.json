@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3425",
+  "ver": "v3426",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3425: his ruling the hour the paid lane went dark - the CLI subscription is the default transport, because it needs no MCP connection so a seat still fills headless and in cron. A carved skill said the exact opposite and would have routed the next session to the transport that cannot answer. A live row now asks whether that seat can be filled at all, separating ABSENT from NOT-EXECUTABLE, and the G5 scar is pinned: EYE_CLI must be an ABSOLUTE path or it goes dark under launchd",
+  "note": "v3426: MY HUNT sent him to HELL for Cow Kings Hooves and never mentioned the far quicker Normal route, while the Sets chronicle ranked the same piece in Normal. The Hell-first headline is HIS ruling and stays; what was missing is the half v1555 promised - he can still choose, he just is not choosing blind. v2281 built exactly that on the grail hero and named this defect in its own words; hubNextSet never got it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
