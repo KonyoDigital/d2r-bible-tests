@@ -6453,6 +6453,22 @@ GATES = [
              "one; one-sided rows are counted separately, and a rate over nothing is UNKNOWN, "
              "never 0.0.",
          skip_ok=()),
+    Gate("test_an_unread_test_is_not_a_clean_verdict",
+         [sys.executable, os.path.join(HERE, "test_an_unread_test_is_not_a_clean_verdict.py")], 90,
+         needs_app=False,
+         why="#196 - ci_sim printed 'N test(s) could not be read for platform facts - UNCHECKED, "
+             "not clear' and then EVERY return ignored it: exit 1 on failures, exit 3 on platform "
+             "facts, else exit 0 'no KNOWN host dependency'. So a suite whose unreadable tests all "
+             "passed produced a clean verdict about work the tool never examined - a skip counted "
+             "as a pass, in the one tool whose header forbids over-claiming. Reachable by "
+             "construction: a method added on the class at RUNTIME is unreadable, because "
+             "_source_index only holds FunctionDef nodes appearing in the class body. Now folded "
+             "into the tool's existing UNKNOWN answer (exit 3) with the two reasons NAMED apart. "
+             "The law is DRIVEN, not read: the first cut walked the AST for an if-unread "
+             "containing a Return, and reverting the guard left that Return present but "
+             "UNREACHABLE, so it stayed green through the exact defect. A presence-law is not a "
+             "reachability-law.",
+         skip_ok=()),
     Gate("test_a_reach_difference_is_not_an_unsteady_eye",
          [sys.executable, os.path.join(HERE, "test_a_reach_difference_is_not_an_unsteady_eye.py")],
          90,

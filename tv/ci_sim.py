@@ -530,6 +530,31 @@ def main(argv=None):
     # point is that passing HERE is not evidence about a runner when the subject is how this
     # interpreter, kernel or CPU behaves. Printing the green verdict over that is precisely the
     # over-claim the header of this file forbids. [[unknown-stays-unknown]]
+    # ⚠⚠ #196 (v3460) — "COULD NOT BE READ" IS UNKNOWN TOO, AND IT USED TO EXIT 0.
+    # `unread` was PRINTED above and then ignored by every return: exit 1 on failures, exit 3 on
+    # platform facts, else exit 0 — "no KNOWN host dependency". So a suite whose unreadable tests
+    # all passed reported a clean verdict about work this tool never examined. A method added on
+    # the class at runtime is unreadable by construction: defining() finds it, inspect.getfile
+    # names the class file, and _source_index only holds FunctionDef nodes that appear in the
+    # class BODY — so the AST never had it.
+    # It lands in exit 3 rather than a fourth code because it is the SAME answer in kind: this
+    # tool cannot tell you. The two reasons stay NAMED separately so a reader can act on the
+    # right one. [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    if plat or unread:
+        if unread and not plat:
+            print("\u26aa UNKNOWN — no KNOWN host dependency in %d test(s), but %d of them "
+                  "COULD NOT BE READ" % (r.testsRun, len(unread)))
+            print("   for platform facts at all, so this tool examined only the rest. A skip is "
+                  "not a pass.")
+            for _u in list(unread)[:12]:
+                print("     \u26aa %s" % str(_u)[:70])
+            if len(unread) > 12:
+                print("     \u26aa … and %d more" % (len(unread) - 12))
+            print("   Exit 3 is UNKNOWN, not failure.")
+            return 3
+        if unread:
+            print("\u26aa %d test(s) COULD NOT BE READ, and are counted in this UNKNOWN rather "
+                  "than passed over." % len(unread))
     if plat:
         print("\u26aa UNKNOWN — no KNOWN host dependency in %d test(s), but %d of them turn "
               "on a PLATFORM FACT" % (r.testsRun, len(plat)))
