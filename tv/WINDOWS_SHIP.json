@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3462",
+  "ver": "v3463",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3462: The cross-family eye read the SHIPPED v3458 bytes and found three, all reproduced. One: the lane age used mktime plus time.timezone, which is the STANDARD offset while DST is in effect - measured 1.385h against a true 0.385h, exactly one hour high, so a lane read 5.1h ago tripped the 6h bar. The original cases used 0.5h and 40h and could not see it. Two: an unreachable 231 fell through to OK and printed both lanes read recently about a lane it never reached, while the comment three lines above said an unreachable GitHub is UNKNOWN. Three: the row shells out to gh and sat on the EVERY-TICK roster with no deadline, so a stall would hold up console boot and bill a network round trip to the cheap subset.",
+  "note": "v3463: 3 red-proofs re-anchored (1323 of 1323 well formed), handoff row declared in WATCHES, ci_sim unreadable file is UNKNOWN not empty data (ratchet back to 69)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -206,10 +206,14 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        # v3463 — RE-ANCHORED. v3456 moved this loop inside `with cd.tick_caches():`, one level
+        # deeper, and the 12/16-space anchor then matched ZERO lines: the proof ran nothing and CI
+        # reported `test_remeasure_population[0]` as a tamper that could not be applied. Measured
+        # before this edit: the old anchor 0 matches, the 16/20-space form exactly 1.
         "why": "narrowing the re-measure back to cd.SLOW prices 2 checks the first pass never did",
         "file": "tv/test_control.py",
-        "find": "            for _n, _f in cd.CHECKS:\n                if _n in _skip:",
-        "replace": "            for _n, _f in cd.CHECKS:\n                if _n in cd.SLOW:",
+        "find": "                for _n, _f in cd.CHECKS:\n                    if _n in _skip:",
+        "replace": "                for _n, _f in cd.CHECKS:\n                    if _n in cd.SLOW:",
         "matches": 1,
     },
     {

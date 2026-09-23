@@ -7981,6 +7981,11 @@ WATCHES = {
     # v3355 — a source census, not a screen. Empty tuple as a DECLARATION, not an omission.
     "swallowed reads":             (),
     "second eye asked twice":      (),
+    # v3463 — v3458 registered this row in CHECKS and PERIODIC and never declared it here, so
+    # CI's test_no_check_is_missing_from_WATCHES went red on the version that shipped it. It
+    # reads two GitHub lanes (#230 watermark, #231 ledger) and owns no element of its own:
+    # empty tuple as a DECLARATION, not an omission.
+    "handoff lanes drained":       (),
     # v3363 (#114) — the reach map is a LEDGER FIELD, not a screen element. Empty tuple as a
     # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
     # a lamp of its own, name it here.

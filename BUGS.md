@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1163 - AN EDIT TO A LINE ORPHANED A PROOF THAT LIVES IN SOMEONE ELSE'S FILE — THREE TIMES
+
+**v3463 - found by reading CI on the live ref (6e58c9e6) by DELTA, not by a local gate.**
+
+A red-proof anchors on an exact line in its TARGET file, and the proof lives in a different test
+file. So when an ordinary fix edits the target line, nothing in that fix's own diff mentions the
+proof — and the proof silently stops matching:
+
+| edited by | target line | proof that went dead |
+|---|---|---|
+| v3455 (sockets on the sighting) | `read_names_lane.py` `"loc": … or None})` → `…or None,` | `test_the_lane_asks_the_item_not_the_frame[2]` |
+| v3456 (retry loop into `tick_caches()`) | `test_control.py` loop re-indented 12→16 | `test_remeasure_population[0]` |
+| v3462 (bounded `gh`) | `handoff.py` `subprocess.run(…)` gains `timeout=` | `test_a_failed_read_never_reaches_a_zero_claim[0]` |
+
+Every one MATCHED 0 TIMES: the tamper changed nothing, so the law it guards was unguarded while
+reading as proven. `test_the_heart_can_see_its_own_instruments` catches exactly this — but it is not
+in the pre-push set, so it only ever spoke on CI, and CI was already red for 25 other reasons.
+**Re-anchored, same property, same tamper:** 1,323 declared red-proofs, all well formed (3 before).
+
+Same ship, same read of CI: v3458 put `handoff lanes drained` into CHECKS and PERIODIC and never
+into `console_doctor.WATCHES` (`test_no_check_is_missing_from_WATCHES` red), and v3451's
+`ci_sim._source_index` cached `({}, {})` on an unreadable file — a failed read handed back as DATA,
+Routine M 69 → 70. It now caches `None` and the caller files the test UNREAD; ratchet 69 again.
+
 ### REG-1162 - THE DRIFT CHECK WALKED LINES AND WAS WRONG IN THREE DIRECTIONS AT ONCE
 
 **v3434 - the second eye on v3432, 7 findings, and the checkable ones were right.**

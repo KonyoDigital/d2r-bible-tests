@@ -206,8 +206,10 @@ RED_PROOF = [
         "why": "going back to the frame's scene is the original defect: an inventory item read "
                "while the stash was open becomes a stash item again",
         "file": "read_names_lane.py",
-        "find": '"loc": str(_loc.get(nm) or "").strip().lower() or None})',
-        "replace": '"loc": str(r.get("scene") or "").strip().lower() or None})',
+        # v3463 — RE-ANCHORED: v3455 added the `sockets` key after `loc`, so the line now ends in
+        # a comma, not `})`, and the anchor matched ZERO times. Same property, same tamper.
+        "find": '"loc": str(_loc.get(nm) or "").strip().lower() or None,',
+        "replace": '"loc": str(r.get("scene") or "").strip().lower() or None,',
         "matches": 1,
     },
     {

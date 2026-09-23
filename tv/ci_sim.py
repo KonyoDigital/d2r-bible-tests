@@ -282,14 +282,19 @@ def _dotted(call, aliases):
 
 
 def _source_index(path):
-    """-> (alias map, {(class, method): FunctionDef}) for one file, parsed once."""
+    """-> (alias map, {(class, method): FunctionDef}) for one file, parsed once — or None.
+
+    ⚠ v3463 — None when the file could not be opened or parsed, never an empty index. The empty
+    pair was a failed read handed back as DATA (Routine M's ratchet went 69 -> 70 on it at v3451):
+    it happened to land as UNREAD only because the one caller finds no method in it. None says
+    'could not ask' in the return value itself. [[unknown-stays-unknown]]"""
     if path not in _SRC_INDEX:
         try:
             with io.open(path, encoding="utf-8", errors="replace") as fh:
                 tree = ast.parse(fh.read())
         except Exception:
-            _SRC_INDEX[path] = ({}, {})
-            return _SRC_INDEX[path]
+            _SRC_INDEX[path] = None
+            return None
         idx = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -332,7 +337,11 @@ def _platform_dependent(suite):
             name = getattr(t, "_testMethodName", str(t))
             try:
                 k = defining(type(t), name)
-                aliases, idx = _source_index(inspect.getfile(k))
+                got = _source_index(inspect.getfile(k))
+                if got is None:          # the FILE would not read or parse: UNREAD, never clear
+                    unread.append(name)
+                    continue
+                aliases, idx = got
                 node = idx.get((k.__name__, name))
             except Exception:
                 node = None

@@ -92,8 +92,13 @@ RED_PROOF = [
         "why": "restoring the locale decode is the original defect: on a cp1255 console one "
                "non-ASCII byte kills the reader and the drain reports a clean zero",
         "file": "tv/handoff.py",
-        "find": '    p = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")',
-        "replace": '    p = subprocess.run(cmd, capture_output=True, text=True)',
+        # v3463 — RE-ANCHORED: v3462 added `timeout=timeout` on a continuation line (the
+        # unbounded-gh fix), and the one-line anchor then matched ZERO times. The tamper still
+        # restores the locale decode and keeps the timeout, so it breaks the property it names.
+        "find": '    p = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace",\n'
+                '                       timeout=timeout)',
+        "replace": '    p = subprocess.run(cmd, capture_output=True, text=True,\n'
+                   '                       timeout=timeout)',
         "matches": 1,
     },
     {
