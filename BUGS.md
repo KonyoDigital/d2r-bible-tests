@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1161 - I MEASURED THE REFACTOR BEFORE SHIPPING IT, AND IT WAS A NO-OP THAT ADDED A FAILURE MODE
+
+**v3433 - #177, and the interesting part is what did NOT get built.**
+
+v3427 made `lane_census._package_files()` skip `test_*.py` / `*_test.py`, because a test FIXTURE
+defining `def wait(self)` had flipped the live thread target `target=wp.wait` from **FOREIGN to
+UNKNOWN**. The second eye then said, correctly, that classifying by FILENAME is the wrong axis: a
+production module named that way would be silently dropped.
+
+**I was about to replace it with an import-graph rule. Measured first, walking imports from
+`control_app` / `tv_diablo` / `console_doctor` / `health_engine`:**
+
+```
+local modules                         705
+reachable from production roots        110
+kept by the FILENAME rule              199
+reachable but EXCLUDED by name        NONE
+census targets whose answer changes      0   of 33
+```
+
+⇒ **THE GRAPH RULE CHANGES NOTHING TODAY, AND IT ADDS A FAILURE MODE THE FILENAME RULE DOES NOT
+HAVE:** sensitivity to which roots you pick. `conftest` lands INSIDE the production graph purely
+because `run_gates` imports it. Shipping it would have looked more principled while measuring the
+same thing and handing the next reader a new way to be wrong. [[feedback-verify-not-proxy]]
+
+So the rule stays, and the **unexamined assumption becomes a pinned invariant**: the filename rule
+is correct exactly while no production-reachable module is named like a test. The new gate fails
+the moment that stops being true — which is the only moment the rule would start lying.
+
+⚠ **AND IT PINS ITS OWN DENOMINATOR.** A reachability law whose roots have been renamed walks an
+empty graph and passes forever, so the roots are asserted to exist and the population to be larger
+than 20. [[zero-needs-a-denominator]]
+
+**Gate** `test_the_census_population_is_safe_to_name_by_file` - 4 cases, **2/2 red-proofs PROVEN**.
+It also pins that the v3427 fixture is still excluded and that `wait` is still FOREIGN on this tree.
+
+⚠ **STILL OPEN from #177, and deliberately not attempted here:** the reaping-helper detection in
+`test_no_ASSIGNED_popen_goes_unreaped` is textual — a helper that reaps only on a branch NOT taken
+for this spawn still counts, and the call-site match is the literal `helper(name)`, so
+`helper(other)` / `helper(name=p)` miss. Doing that properly needs control-flow dominance, and a
+half-done version would be worse than the honest gap.
+
 ### REG-1160 - A PROCESS GRADED A FILE IT WAS NOT RUNNING, AND REFUSED A PUSH POINTING AT A LINE THAT DOES NOT EXIST
 
 **v3432 - #179.** Three pushes of the **identical tree** (95909ed8), minutes apart:

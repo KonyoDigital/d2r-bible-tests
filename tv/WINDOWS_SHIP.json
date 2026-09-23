@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3432",
+  "ver": "v3433",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3432: three pushes of the identical tree read green RED green, and the red one traceback named test_control line 11902 with a variable fn where the file has that assertion at line 11938 using helper - exactly the pre-v3427 shape. A suite executing code that is not on disk is worse than a red one because its verdict is about a file nobody has. It cannot be caught by mtime and size, which is what CPython already uses to call a pyc fresh; co_firstlineno comes from the BYTECODE while the source is read fresh. The central case CREATES the drift rather than describing it",
+  "note": "v3433: the second eye said classifying the census population by FILENAME is the wrong axis, and it is right in principle. I measured before replacing it: 705 local modules, 110 reachable from production roots, 199 kept by the filename rule, NONE reachable-but-excluded, and ZERO of 33 census targets would change their answer. The graph rule changes nothing today and adds sensitivity to which roots you pick - conftest lands inside it purely because run_gates imports it. So the rule stays and the unexamined assumption becomes a pinned invariant that fails the moment a production-reachable module is named like a test. HEART: this adds no new surface - it pins an invariant under lane_census, whose lanes are already watched by the census rows; the live reading it protects (wait is FOREIGN, zero UNKNOWN targets) is asserted in the gate itself",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
