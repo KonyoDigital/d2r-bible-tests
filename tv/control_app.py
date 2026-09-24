@@ -5434,7 +5434,16 @@ def capture_preflight(door, look_for_window=True):
 
     # 4) the game window — only when the caller actually wants it looked for, so a door that
     #    does not care never records a window verdict it did not earn
-    if look_for_window:
+    # ⚠⚠ #236 — A CONSOLE WITH CAPTURE OFF NEVER SEES A GAME WINDOW, so no door (shadow, ON AIR, MINI)
+    # can start a reel it may not film. MEASURED mid-push 2026-09-24: the render gate's private console
+    # (TV_CAPTURE=off) still ran the window finder here, found HIS GeForce NOW stream, and its SHADOW
+    # reader rolled a reel — the console went ON AIR, its stage overflowed the rail at 375px (three
+    # drawer targets red) and the agent starved the render step. Looked-and-refused is False, with why.
+    if look_for_window and (os.environ.get("TV_CAPTURE") or "").strip().lower() in ("off", "none"):
+        facts["windowSeen"] = False
+        facts["windowWhy"] = ("capture is OFF on this console (TV_CAPTURE) - it never looks for a game "
+                              "window, so nothing here can start a reel")
+    elif look_for_window:
         try:
             import tv_diablo as _tv
             win = _tv.find_d2r_window_mac()

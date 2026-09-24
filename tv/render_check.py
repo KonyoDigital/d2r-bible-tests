@@ -4020,6 +4020,7 @@ def _serve_console():
             # sharing was off and killed every served target at once.
             if os.environ.get("TV_RENDER_SHARE_CONSOLE", "1") != "0":
                 _SHARED_CONSOLE = (origin, proc)
+            _prewarm(origin)
             return origin, proc
         except Exception:
             if proc.poll() is not None:
@@ -4033,6 +4034,43 @@ def _serve_console():
 
 # ⚠ v2925 — generous ON PURPOSE. The point is not to fit a line, it is to never drop a field
 # without saying so; see the printer below for the 83 chars this number exists to stop losing.
+#: #236 — "is this page ready to be activated" for a served target: the console page holds its first
+#: status poll, or (the board served at /board) the board has booted. Fast to answer, cheap to poll.
+_READY_DEFAULT = """(function(){
+    if (document.readyState !== 'complete') return false;
+    if (!document.getElementById('tvd-eng') && typeof window.switchTab === 'function') return true;
+    var st = window.__lastStatus;
+    return !!(st && st.ver); })()"""
+
+
+def _prewarm(origin):
+    """Warm every endpoint any target declares, ONCE, in the background, the moment the console is up.
+
+    ⚠ #236 — THE COLD COST MOVED OUT OF THE BUDGET, NOT OUT OF THE CHECK. Each target still warms its
+    own endpoints before it is judged (the per-target loop in check()), so nothing is measured cold.
+    What changes is WHEN the first cold call happens: /api/heart measured 30.4s cold inside a push on
+    2026-09-24 - a tenth of the render step's 300s ceiling, spent serially at load 6 - and the render
+    was killed four targets short. Started here it runs while the first targets render, so by the
+    time a heart target warms it, it is warm. -> the endpoints it started"""
+    import threading
+    import urllib.request
+    eps = []
+    for _spec in TARGETS.values():
+        for _w in (_spec.get("warm") or ()):
+            if _w not in eps:
+                eps.append(_w)
+
+    def _go():
+        for _w in eps:
+            try:
+                urllib.request.urlopen(origin.rstrip("/") + _w, timeout=180).read()
+            except Exception:
+                pass            # the per-target warm still runs, and says so if it fails
+    if eps:
+        threading.Thread(target=_go, daemon=True, name="render-prewarm").start()
+    return eps
+
+
 _REPORT_LINE_CAP = 1200
 
 
@@ -4171,7 +4209,28 @@ def check(name, spec, shots=True):
             # the clock rather than the page. Measured: the state panel refused at 1.6s and opened
             # 1440x913 with all four sections at 9s. `warmup` makes the wait a stated property of
             # the target instead of a number that happened to work. [[stale-reading]]
-            time.sleep(float(spec.get("warmup") or 1.6))
+            # ⚠⚠ #236 — AND IT IS AN UPPER BOUND NOW, NOT A FIXED SLEEP. MEASURED 2026-09-24: the served
+            # targets' warmups summed to 164s of a 282-304s full render, every one slept in full even
+            # when the page was ready in two, and the render step (ceiling 300s) was killed at load 6
+            # four targets short - three pushes refused. The wait ends once the page is demonstrably
+            # READY (the console holds its first /api/status; the board has booted), with a 1s floor
+            # for the first paint. The panel-is-filled question above is still answered where it
+            # always was: `activate` polls its own conditions (the 9s state panel included) before
+            # anything is measured. A target that truly needs the full sleep says `warmup_fixed`.
+            _cap = float(spec.get("warmup") or 1.6)
+            if spec.get("warmup_fixed"):
+                time.sleep(_cap)
+            else:
+                _tw = time.time()
+                _ready = spec.get("ready") or _READY_DEFAULT
+                while time.time() - _tw < _cap:
+                    try:
+                        if tab.ev(_ready) is True:
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(0.4)
+                time.sleep(min(1.0, _cap))
             why = None
         else:
             why = _settled(tab, shape=bool(spec.get("settle_shape")))

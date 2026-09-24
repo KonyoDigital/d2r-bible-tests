@@ -70,6 +70,39 @@ class CaptureOffNeverTouchesTheScreen(unittest.TestCase):
         self.assertIn("pick", self.calls, "premise: in AUTO the picker is consulted, so the case above can fail")
 
 
+class ACaptureOffConsoleNeverStartsAReel(unittest.TestCase):
+    """The second half, measured on the NEXT push: with capture off, the console's own preflight still
+    ran the window finder, saw his GeForce NOW stream, and the SHADOW reader rolled a reel."""
+
+    def setUp(self):
+        import control_app as ca
+        self.ca = ca
+        self._env = os.environ.get("TV_CAPTURE")
+        self._find = tv.find_d2r_window_mac
+        self.looked = []
+        tv.find_d2r_window_mac = lambda *a, **k: self.looked.append(1) or (1, "GeForce NOW \u00b7 Google Chrome")
+
+    def tearDown(self):
+        tv.find_d2r_window_mac = self._find
+        if self._env is None:
+            os.environ.pop("TV_CAPTURE", None)
+        else:
+            os.environ["TV_CAPTURE"] = self._env
+
+    def test_the_preflight_sees_no_window_and_never_looks(self):
+        os.environ["TV_CAPTURE"] = "off"
+        pre = self.ca.capture_preflight("shadow", look_for_window=True)
+        self.assertIs(pre.get("windowSeen"), False, "a capture-off console reported a game window: %r" % pre)
+        self.assertEqual(self.looked, [], "a capture-off console still ran the window finder")
+        self.assertIn("capture is OFF", pre.get("windowWhy") or "")
+
+    def test_premise_with_capture_on_the_finder_is_asked(self):
+        os.environ["TV_CAPTURE"] = "auto"
+        pre = self.ca.capture_preflight("shadow", look_for_window=True)
+        self.assertEqual(self.looked, [1], "premise: in AUTO the preflight asks the finder")
+        self.assertIs(pre.get("windowSeen"), True)
+
+
 class TheRenderHarnessSpawnsItsConsoleWithCaptureOff(unittest.TestCase):
 
     def test_the_private_console_env_carries_TV_CAPTURE_off(self):
@@ -90,6 +123,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#236 - a capture-off console runs the window finder again, sees his stream, and its shadow reader rolls a reel mid-push",
+        "file": "control_app.py",
+        "find": "    if look_for_window and (os.environ.get(\"TV_CAPTURE\") or \"\").strip().lower() in (\"off\", \"none\"):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {
         "why": "#236 - TV_CAPTURE=off falls through to the picker again: a scratch console films his screen",
         "file": "tv_diablo.py",

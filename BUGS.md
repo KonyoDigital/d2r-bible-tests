@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1228 - THE RENDER STEP COULD NOT FINISH INSIDE ITS 300s CEILING AT HIS NORMAL LOAD
+
+**fix - #236, three pushes refused.** MEASURED: a full render took 282-304s at load 4.5-6.9 standalone, and inside the
+gate (after the suites, load 6-12) it was killed four targets short. Three causes, each measured:
+(1) the render gate's private console (TV_CAPTURE=off since REG-1225) still ran the window finder in capture_preflight,
+found his GeForce NOW stream through the new route picker, and its SHADOW reader rolled a reel - the console went ON
+AIR, the agent burned CPU, and the ON AIR stage overflowed the rail at 375px (advanced-fleet/-fleet-down/-shadow red).
+A capture-off console now reports windowSeen False with its reason and never looks, so no door can start a reel; the
+private console stays OFF for a 40s watch. (2) /api/heart cost 30.4s cold, serially, inside the budget: `_prewarm`
+warms every declared endpoint once in the background when the console answers (each target still warms its own).
+(3) the served targets' fixed `warmup` sleeps summed to 164s: `warmup` is now an upper bound that ends once the page is
+READY (first /api/status on the console; the board booted), 1s floor; activations still poll their own conditions.
+Result: two full runs 200s and 213s at load 6.6-7.8, every target green; render_check --prove 4/4 caught. Guards:
+`test_the_render_budget_is_not_spent_on_a_cold_cache` (3 cases, 2 proofs) + `test_a_scratch_console_never_films_his_screen`
+(5 cases, 3 proofs), all PROVEN. Not fixed: the ON AIR stage overflowing the rail at 375px (pre-existing layout).
+
 ### REG-1227 - THE CHRONICLE INBOX, PORTED FROM GROK'S MAILBOX STUDY (v3497)
 
 **feature/fix - #230, his ask 2026-09-24: "harness what you can from what grok built ... integrate it into the widget

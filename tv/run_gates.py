@@ -5329,6 +5329,12 @@ GATES = [
              "confirm() blocks the window; some webviews answer NO unseen), the chips' dim/danger variants "
              "styled outside the footer and the session dismiss labelled 'Dismiss' (a grok-4.7 look found "
              "them reading as disabled). Pixels: render target ch-inbox. 4 cases, 2 red-proofs"),
+    Gate("test_the_render_budget_is_not_spent_on_a_cold_cache",
+         [sys.executable, os.path.join(HERE, "test_the_render_budget_is_not_spent_on_a_cold_cache.py")], 60,
+         why="#236 - inside a push /api/heart cost 30.4s cold on the render gate's fresh console, a tenth "
+             "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
+             "_prewarm warms every declared endpoint once, in the background, the moment the console "
+             "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
     Gate("test_a_scratch_console_never_films_his_screen",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_films_his_screen.py")], 60,
          why="#236 - mid-push the render gate's private (stub) console went live, pinned HIS GeForce NOW "
