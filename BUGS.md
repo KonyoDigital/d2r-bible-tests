@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1262 - A MACHINE THAT DIED RESTARTING READ EXACTLY LIKE ONE HE SWITCHED OFF
+
+**feat - #223's last item, #227 item 2.** The ALT died relaunching into v3419 (#225) and the roster filed it under
+'offline' - the same state as his wife's PC being off, so nothing could ask him the one thing only he can do: walk to
+it. MEASURED on his live roster before building: `relaunch.armed` is True on EVERY console, online or off (it means
+"will follow a new build"), so the obvious signal is no signal. The real signature is the LAST beacon holding a newer
+build on disk than the one running (diskVer != ver) with the restart allowed (may True) - and then silence. New row
+"no machine went quiet mid-restart" (presence cache only, every tick): OK names how many are simply off, MISSING names
+each stalled machine and the build it was restarting into, UNMEASURED with no roster or nothing offline. It carries an
+ask, so it is HIS by the v3494 rule: "<machine> went quiet while restarting into <build>. Is it on?" - It's back on
+(verify) / It's off on purpose (ruled) / Remind me tomorrow (snooze); its identity carries the build, so a new stall
+is a new question. On his roster today it asks NOTHING (Dean: v3404 on v3404; Wife PC: no diskVer) - correctly.
+Declared in CHECKS, WATCHES, ASKS and corroborate.NO_JOINT_YET (a second source is the silent machine's own boot log).
+Guard: `test_a_machine_that_died_restarting_is_asked_about` (7 cases over his real roster shapes, 2 proofs), PROVEN.
+
 ### REG-1261 - EVERY GATE RUN LEFT ITS SCRATCH DIRECTORIES BEHIND, AND 138 CALL SITES WERE THE WRONG LEVER
 
 **fix - #171 item 1.** A class-aware AST scan: 138 `mkdtemp` sites across 46 tv/test_*.py files have no cleanup in their

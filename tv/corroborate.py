@@ -2356,6 +2356,12 @@ NO_JOINT_YET = {
     'a present machine has a fresh last-seen':
         'the row compares online membership (from the presence key) against the last-seen stamp; '
         'a second source would be the roster read straight from KV, which no target captures.',
+    # #223 — the row reads ver / diskVer / relaunch.may from the presence cache. A genuine second source
+    # is the machine itself (its boot log, over SSH), which no target captures; re-reading the same roster
+    # would be one fact wearing two names.
+    'no machine went quiet mid-restart':
+        'the row reads the last beacon (running build, build on disk, restart allowed) from the presence '
+        'cache; a second source would be the silent machine\'s own boot log, which no target captures.',
     # v3389 (#133) — ⚠ THIS ROW IS ITSELF A TWO-SIDED COMPARISON: the tally's outer claim
     # against ledger_authority's nested verdict, written by different engines. What it still
     # lacks is a SEPARATE corroborate.py invariant over the same fact, and inventing one that

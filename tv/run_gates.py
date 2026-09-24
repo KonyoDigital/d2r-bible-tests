@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_machine_that_died_restarting_is_asked_about",
+         [sys.executable, os.path.join(HERE, "test_a_machine_that_died_restarting_is_asked_about.py")], 60,
+         why="#223 / #227 item 2 - the fleet's only 'is it on?' question. MEASURED on his roster: "
+             "relaunch.armed is True on EVERY console, so it cannot be the signal; a last beacon with a "
+             "newer build on disk than running (diskVer != ver) and the restart allowed, then silence, is "
+             "a machine that died restarting (the ALT, #225). Dean (off, v3404 on v3404) and Wife PC ask "
+             "nothing. The ask's identity carries the build. 7 cases, 2 red-proofs"),
     Gate("test_a_test_run_leaves_no_scratch_dirs",
          [sys.executable, os.path.join(HERE, "test_a_test_run_leaves_no_scratch_dirs.py")], 60,
          why="#171 - 138 mkdtemp sites across 46 test files had no teardown in their own function or "

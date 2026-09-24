@@ -3105,11 +3105,98 @@ def _ask_remaining_page(row):
     }]
 
 
+def _mid_restart_peers(roster=None, now=None):
+    """-> {"state", "quiet": [{machine, nickname, ver, diskVer, ageS}], "off": int, "why"} from the cached roster.
+
+    ⚠ `relaunch.armed` IS NOT "ABOUT TO RESTART". MEASURED on his roster 2026-09-24: armed is True on
+    EVERY console, online or off - it means "will follow a new build", nothing more. The restart
+    signature is the LAST beacon holding a newer build on disk than the one running (diskVer != ver)
+    with the restart allowed (may True): that console was on its way out, and then nothing arrived.
+    A machine that is simply switched off (Dean: v3404 running, v3404 on disk) is NOT this, and must
+    never become a question - his wife's PC being off is not an errand."""
+    if roster is None:
+        try:
+            import control_app as _ca
+            roster = (_ca._FLEET_PRESENCE_CACHE or {}).get("d")
+        except Exception as e:
+            return {"state": UNKNOWN, "quiet": [], "off": 0,
+                    "why": "the roster could not be read (%s)" % type(e).__name__}
+    if not isinstance(roster, dict):
+        return {"state": UNMEASURED, "quiet": [], "off": 0,
+                "why": "this console holds no fleet roster yet - an absent question, not a clean answer"}
+    now = time.time() if now is None else now
+    me = roster.get("me")
+    off = [r for r in (roster.get("offline") or []) if isinstance(r, dict) and r.get("machine") != me]
+    quiet = []
+    for r in off:
+        ver, disk = r.get("ver"), r.get("diskVer")
+        rl = r.get("relaunch") if isinstance(r.get("relaunch"), dict) else {}
+        if not (ver and disk and disk != ver and rl.get("may") is True):
+            continue
+        age = None
+        try:
+            import calendar as _cal
+            age = int(now - _cal.timegm(time.strptime(str(r.get("t"))[:19], "%Y-%m-%dT%H:%M:%S")))
+        except Exception:
+            pass                                   # undatable is not "just now" [[unknown-stays-unknown]]
+        quiet.append({"machine": r.get("machine"), "nickname": r.get("nickname") or r.get("machine"),
+                      "ver": ver, "diskVer": disk, "ageS": age})
+    if quiet:
+        return {"state": MISSING, "quiet": quiet, "off": len(off),
+                "why": "; ".join("%s went quiet while restarting from %s into %s%s"
+                                 % (q["nickname"], q["ver"], q["diskVer"],
+                                    " (last heard %dh ago)" % (q["ageS"] // 3600) if q["ageS"] is not None else "")
+                                 for q in quiet[:4])}
+    if not off:
+        return {"state": UNMEASURED, "quiet": [], "off": 0,
+                "why": "no other machine is offline, so none can have died mid-restart"}
+    return {"state": OK, "quiet": [], "off": len(off),
+            "why": ("%d machine(s) are offline and none went quiet mid-restart - each was running the build "
+                    "on its disk when it was last heard, so it was switched off, not stuck" % len(off))}
+
+
+def _check_no_machine_went_quiet_mid_restart():
+    """#223 / #227 item 2 — DID A PEER DIE IN THE MIDDLE OF RESTARTING?
+
+    MEASURED 2026-09-19 (#225): the Windows ALT died relaunching into v3419 and the roster read it as
+    'switched off' - the one state that looks exactly like a machine he turned off on purpose. Only a
+    person at that machine can bring it back, so this is the fleet's only 'is it on?' question, and it
+    is asked ONLY on the restart signature (see _mid_restart_peers), never for a machine that is off.
+    It reads the presence cache, never the network."""
+    r = _mid_restart_peers()
+    return r["state"], r["why"]
+
+
+def _ask_mid_restart(row):
+    """One question per machine and per build it was restarting into: a new stall is a new question."""
+    if row.get("state") != MISSING:
+        return []
+    out = []
+    for q in _mid_restart_peers().get("quiet") or []:
+        out.append({
+            "id": "mid-restart-%s" % q["machine"],
+            "kind": "do",
+            "q": "%s went quiet while restarting into %s. Is it on?" % (q["nickname"], q["diskVer"]),
+            "why": ("its last report said it was running %s with %s on disk and free to restart - then "
+                    "nothing arrived. A machine switched off on purpose never looks like this."
+                    % (q["ver"], q["diskVer"])),
+            "fp": "mid-restart:%s:%s" % (q["machine"], q["diskVer"]),
+            "answers": [
+                {"key": "on", "label": "It's back on", "effect": "verify"},
+                {"key": "off", "label": "It's off on purpose", "effect": "ruled"},
+                {"key": "later", "label": "Remind me tomorrow", "effect": "snooze"},
+            ],
+        })
+    return out
+
+
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
 ASKS = {
     "shadow gate": _ask_shadow_gate,
     # #228 — the one line of the chronicle-sweep card that was his
     "a fresh remaining page": _ask_remaining_page,
+    # #223 — the fleet's only 'is it on?': a peer that went quiet mid-restart, never one switched off
+    "no machine went quiet mid-restart": _ask_mid_restart,
 }
 
 
@@ -7850,6 +7937,8 @@ CHECKS = [
     # A cut hand-over publishes a count for ever and a list never, silently.
     ("a look keeps its evidence", _check_a_look_keeps_its_evidence),
     ("a present machine has a fresh last-seen", _check_a_present_machine_has_a_fresh_last_seen),
+    # #223 — reads the presence cache (no network), so it runs every tick and its ask never flickers
+    ("no machine went quiet mid-restart", _check_no_machine_went_quiet_mid_restart),
     ("a tally agrees with its own ledger verdict", _check_a_tally_agrees_with_its_own_ledger_verdict),
     ("the eye asks for every code extension", _check_the_eye_asks_for_every_code_extension),
     ("a presence reading names its door", _check_a_presence_reading_names_its_door),
@@ -8494,6 +8583,7 @@ WATCHES = {
     # v3389 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
     # v3390 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
     "a present machine has a fresh last-seen": (),
+    "no machine went quiet mid-restart": (),
     "a tally agrees with its own ledger verdict": (),
     "the eye asks for every code extension": (),
     "a presence reading names its door": (),
