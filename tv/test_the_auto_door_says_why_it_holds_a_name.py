@@ -63,6 +63,18 @@ class TheAutoDoorSaysWhyItHoldsAName(unittest.TestCase):
     def test_the_live_split_holds_crescent_moon(self):
         """PINNED ON THE REAL DATA: the one live auto-lane name is held, with the runeword hit
         that first-match reading had been swallowing."""
+        # ⚠ #123 — PINNED ON HIS DATA, so a venue with NO journal ring (every CI runner) is ABSENCE, not
+        # a contradiction: it failed there with "no journal ring on this venue" while passing here.
+        # Absence is asked of the SAME resolver the lane uses — never matched out of prose — and is
+        # reported UNMEASURED; every other failure to measure still fails. [[unknown-stays-unknown]]
+        import control_app as _CA
+        try:
+            _ring = [q for q in (_CA._journal_ring() or []) if os.path.isfile(q)]
+        except Exception:
+            _ring = None
+        if _ring == []:
+            self.skipTest("UNMEASURED, not a pass: this venue has no journal ring, and this case is "
+                          "pinned on his real names")
         sp = RNL.split()
         if not (isinstance(sp, dict) and sp.get("ok")):
             self.fail("the lane could not measure: %s" % str((sp or {}).get("why"))[:100])
