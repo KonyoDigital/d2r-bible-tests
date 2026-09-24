@@ -202,7 +202,52 @@ class TestABehindTreeIsNotAFalseAllClear(unittest.TestCase):
         self.assertEqual(st, cd.UNKNOWN)
 
 
+class TestAResumeThatStatesOnlyWhatItCanKnow(unittest.TestCase):
+    """v3474 (#164) — the block's fingerprint is `ver=` alone now. The row checks the one claim left:
+    that the version it names is the stamp on disk. DRIVEN on a private ROOT."""
+
+    def setUp(self):
+        self._dir = tempfile.mkdtemp(prefix="resume_ver_")
+        self._root = cd.ROOT
+        cd.ROOT = self._dir
+        os.mkdir(os.path.join(self._dir, "tv"))
+
+    def tearDown(self):
+        cd.ROOT = self._root
+        shutil.rmtree(self._dir, ignore_errors=True)
+
+    def _ask(self, said, stamp):
+        io.open(os.path.join(self._dir, "RESUME_HERE.md"), "w", encoding="utf-8").write(
+            "<!-- fp: ver=%s -->\n" % said)
+        if stamp is not None:
+            io.open(os.path.join(self._dir, "tv", "tv_diablo.py"), "w", encoding="utf-8").write(
+                'VERSION = "%s"   # stamp\n' % stamp)
+        return ROW()
+
+    def test_a_ver_that_matches_the_stamp_is_OK_and_points_at_live(self):
+        st, why = self._ask("v9001", "v9001")
+        self.assertEqual(st, cd.OK, why)
+        self.assertIn("--live", why, "the OK sentence does not say where the live state is asked")
+
+    def test_a_ver_behind_the_stamp_is_MISSING_and_names_both(self):
+        st, why = self._ask("v9000", "v9001")
+        self.assertEqual(st, cd.MISSING, why)
+        self.assertIn("v9000", why)
+        self.assertIn("v9001", why)
+
+    def test_an_unreadable_stamp_is_UNKNOWN(self):
+        st, why = self._ask("v9001", None)
+        self.assertEqual(st, cd.UNKNOWN, why)
+
+
 RED_PROOF = [
+    {
+        "why": "v3474 — the ver-only branch removed: a current resume reads 'no fingerprint' UNKNOWN",
+        "file": "console_doctor.py",
+        "find": "        mv = _re.search(r\"<!-- fp: ver=(\\S+) -->\", txt)\n        if mv:\n",
+        "replace": "        mv = _re.search(r\"<!-- fp: ver=(\\S+) -->\", txt)\n        if False:\n",
+        "matches": 1,
+    },
     {
         "why": "v3416 - THE PROXY, RESTORED. Judging the all-clear by hash inequality is exactly "
                "the pre-fix behaviour: it calls a tree that is merely BEHIND origin a false "

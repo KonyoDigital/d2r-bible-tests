@@ -47,11 +47,22 @@ class _R(object):
 
 
 def _with_git(fake):
-    """Run derived() with subprocess.run stubbed. -> the rendered block."""
+    """Run the LIVE renderer with subprocess.run stubbed. -> what it prints.
+
+    ⚠ v3474 (#164) — THE TREE STATE MOVED. RESUME_HERE.md no longer states HEAD / origin /
+    unpushed / dirty (a file inside a commit cannot know them); `resume_state.py --live` asks git
+    at read time. The law moves WITH the renderer — driving derived() now would check a block that
+    renders no tree state at all, and every "does NOT say CLEAN" case would pass vacuously.
+    """
+    import contextlib
+    import io as _io
     real = RS.subprocess.run
     RS.subprocess.run = fake
+    buf = _io.StringIO()
     try:
-        return RS.derived()
+        with contextlib.redirect_stdout(buf):
+            RS.print_live()
+        return buf.getvalue()
     finally:
         RS.subprocess.run = real
 
@@ -84,7 +95,7 @@ class TestAFailedGitIsNotAMeasurement(unittest.TestCase):
 
     def test_a_failed_git_does_NOT_render_the_tree_as_CLEAN(self):
         out = _with_git(lambda *a, **k: _R(128, ""))
-        self.assertNotIn("| working tree | CLEAN |", out,
+        self.assertNotIn("working tree  CLEAN", out,
                          "a git that could not answer rendered the working tree as CLEAN — the "
                          "file a resuming session trusts, asserting the opposite of the truth")
         self.assertIn("UNKNOWN — git could not answer", out)
@@ -98,7 +109,7 @@ class TestAFailedGitIsNotAMeasurement(unittest.TestCase):
 
     def test_a_failed_git_does_NOT_report_zero_unpushed(self):
         out = _with_git(lambda *a, **k: _R(128, ""))
-        self.assertNotIn("**0 commit(s)**", out,
+        self.assertNotIn("unpushed      0 commit(s)", out,
                          "a failed read was rendered as a measured zero")
 
     def test_BASELINE_a_WORKING_git_still_renders_the_real_numbers(self):
@@ -111,8 +122,8 @@ class TestAFailedGitIsNotAMeasurement(unittest.TestCase):
                 return _R(0, "abc1234 a commit\ndef5678 another")
             return _R(0, "abc1234")
         out = _with_git(_fake)
-        self.assertIn("**2 commit(s)**", out, "a working git no longer renders the real count")
-        self.assertIn("**2 file(s) uncommitted**", out)
+        self.assertIn("unpushed      2 commit(s)", out, "a working git no longer renders the real count")
+        self.assertIn("working tree  2 file(s) uncommitted", out)
         self.assertNotIn("UNKNOWN — git could not answer", out,
                          "a healthy read was reported as UNKNOWN — a row that always says "
                          "UNKNOWN measures nothing")
@@ -126,7 +137,7 @@ class TestAFailedGitIsNotAMeasurement(unittest.TestCase):
                 return _R(0, "")
             return _R(0, "abc1234")
         out = _with_git(_fake)
-        self.assertIn("| working tree | CLEAN |", out,
+        self.assertIn("working tree  CLEAN", out,
                       "a genuinely clean tree must still read CLEAN — otherwise the fix traded "
                       "a false all-clear for a permanent false alarm")
         self.assertIn("Nothing is waiting to be pushed", out)
@@ -156,8 +167,10 @@ RED_PROOF = [
                "git that could not answer report the working tree as CLEAN, which is the false "
                "all-clear this version exists to kill.",
         "file": "resume_state.py",
-        "find": '             % ("**UNKNOWN — git could not answer**" if dirty is None\n                else ("CLEAN" if not dirty else "**%d file(s) uncommitted**" % len(dirty))))',
-        "replace": '             % ("CLEAN" if not dirty else "**%d file(s) uncommitted**" % len(dirty)))',
+        # v3474 — RE-ANCHORED: the tree state moved from derived() into print_live(). Same
+        # property: a git that could not answer must never render the working tree as CLEAN.
+        "find": '    print("working tree  %s" % (unk if st["dirty"] is None else\n',
+        "replace": '    print("working tree  %s" % (("CLEAN" if not st["dirty"] else "x") if True else\n',
         "matches": 1,
     },
 ]

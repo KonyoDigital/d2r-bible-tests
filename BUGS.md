@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1174 - THE RESUME FILE STATED THE ONE COMMIT IT COULD NEVER KNOW, ON EVERY SHIP
+
+**v3474 - #164.** RESUME_HERE.md's derived block stated HEAD, origin/main, what was unpushed and
+whether the tree was clean. A file inside a commit cannot name that commit (the sha does not exist
+until the commit carrying the text is made), and the bump always runs before the push — so two of
+its three fingerprint fields were wrong on every ship by construction (MEASURED: it said
+head=b6f9405c origin=b7de9f7d, truth a629e00a/a629e00a), and CI's test_the_resume_cannot_go_stale
+was red for exactly that. The block now states only what its writer can know (`ver=`, the gate count
+labelled "when written"); `python3 tv/resume_state.py --live` asks git at read time, carrying the
+two honesty sentences with it. The law that REQUIRED head=/origin= pinned the defect and now
+FORBIDS them; three readers had to move with the product — the failed-git law (to the live
+renderer), the resume doctor row (a ver-only branch; the legacy head/origin branch stays for older
+writers), and two red-proofs re-anchored. Census caught the one I missed before the commit.
+
 ### REG-1173 - THE PROVER CALLED AN UNREADABLE PROOF LIST "NO PROOFS", AND ELEVEN SAT UNRUN
 
 **v3473 - the class behind REG-1172's guard.** `heart2.red_proofs_in()` answers `None` for FOUR

@@ -80,21 +80,27 @@ def _fetch_age():
     return "UNKNOWN — never fetched in this clone"
 
 
-def derived():
-    head = _git("rev-parse", "--short", "HEAD")
-    origin = _git("rev-parse", "--short", "origin/main")
-    # ⚠ None means GIT COULD NOT ANSWER and must stay distinguishable from an empty result all
-    # the way to the page. `"".split()` yields [] and [] renders as "nothing unpushed" / "CLEAN",
-    # which is the false all-clear this version exists to kill.
-    _ahead_raw = _git("log", "--oneline", "origin/main..HEAD")
-    _dirty_raw = _git("status", "--porcelain")
-    ahead = None if _ahead_raw is None else [l for l in _ahead_raw.split("\n") if l.strip()]
-    dirty = None if _dirty_raw is None else [l for l in _dirty_raw.split("\n") if l.strip()]
-    # ⚠ THE STAMP LIVES IN tv_diablo.py, NOT IN A VERSION FILE. The first cut read a
-    # repo-root VERSION that does not exist and cheerfully printed "UNKNOWN" — a generator that
-    # reports UNKNOWN for something knowable is worse than one that refuses, because UNKNOWN
-    # reads as "nobody could tell" when the truth was "I looked in the wrong place".
-    # Read by REGEX, not import: importing tv_diablo drags the whole engine in.
+def live():
+    """What git says RIGHT NOW. -> dict. Printed by --live; NEVER written into RESUME_HERE.md.
+
+    ⚠⚠ v3474 (#164) — A FILE INSIDE A COMMIT CANNOT NAME THAT COMMIT. The derived block used to state
+    HEAD, origin/main, what is unpushed and whether the tree is clean. MEASURED 2026-09-23 after four
+    ships: it said head=b6f9405c origin=b7de9f7d, the truth was a629e00a / a629e00a — the head is the
+    commit BEFORE the one carrying the text (the sha does not exist until that commit is made), and
+    origin is whatever it was before the push (the bump always runs first). Wrong on every ship, by
+    construction, and CI's test_the_resume_cannot_go_stale was red for exactly that. So those four
+    facts are no longer written down; they are ASKED, at read time. [[stale-reading]]
+    """
+    ahead_raw = _git("log", "--oneline", "origin/main..HEAD")
+    dirty_raw = _git("status", "--porcelain")
+    return {"head": _git("rev-parse", "--short", "HEAD"),
+            "origin": _git("rev-parse", "--short", "origin/main"),
+            "ahead": None if ahead_raw is None else [l for l in ahead_raw.split("\n") if l.strip()],
+            "dirty": None if dirty_raw is None else [l for l in dirty_raw.split("\n") if l.strip()],
+            "fetched": _fetch_age()}
+
+
+def _stamp():
     ver = "UNKNOWN — could not read the stamp"
     try:
         _src = io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read()
@@ -107,60 +113,38 @@ def derived():
         pass
     gates = "UNKNOWN"
     try:
-        import sys
         if HERE not in sys.path:
             sys.path.insert(0, HERE)
         import run_gates
         gates = str(len(run_gates.GATES))
     except Exception:
         pass
+    return ver, gates
 
-    # ⚠⚠ A FINGERPRINT OF THE FACTS, NOT OF THE RENDERING. The block also prints a derive
-    # timestamp and "as known N min ago", both of which change every minute — comparing the whole
-    # block would report STALE constantly, and a gate that is always red is switched off within a
-    # week, exactly like one that is always green. So staleness is judged on the DURABLE identity
-    # of where we are: which commit, which origin, which version. `dirty` is deliberately OUT —
-    # uncommitted files are normal mid-work and must not make the resume read as rotten.
-    fp = "head=%s origin=%s ver=%s" % (head or "UNKNOWN", origin or "UNKNOWN", ver)
+
+def derived():
+    """The block written INTO RESUME_HERE.md — only what is knowable when it is written. -> str"""
+    ver, gates = _stamp()
+    # ⚠ v3474 — THE FINGERPRINT CARRIES ONLY WHAT THE WRITER CAN KNOW. `ver` is chosen BY the bump
+    # that writes this block, so it is right at write time and stays right. head/origin were the
+    # two fields that were wrong on every ship; they are gone from here, not merely hidden.
+    fp = "ver=%s" % ver
     L = [BEGIN, "<!-- fp: %s -->" % fp, ""]
     L.append("| | |")
     L.append("|---|---|")
-    # ⚠⚠ v3416 — ONE FAILED READ, ONE RENDERING. This block used to say a failed `rev-parse`
-    # THREE different ways at once: the fingerprint wrote `head=UNKNOWN`, these two cells wrote
-    # `?`, and the rows below wrote **UNKNOWN — git could not answer**. A reader comparing the
-    # cell against the fingerprint saw two different answers to one question. Found by the
-    # second eye at full reach. [[unknown-stays-unknown]] [[copy-drift]]
-    _UNK = "**UNKNOWN — git could not answer**"
-    L.append("| HEAD | %s |" % (("`%s`" % head) if head else _UNK))
-    L.append("| origin/main | %s  ⏱ *as known %s — this never fetches* |"
-             % ((("`%s`" % origin) if origin else _UNK), _fetch_age()))
-    L.append("| **unpushed** | %s |"
-             % ("**UNKNOWN — git could not answer**" if ahead is None
-                else "**%d commit(s)**" % len(ahead)))
-    L.append("| working tree | %s |"
-             % ("**UNKNOWN — git could not answer**" if dirty is None
-                else ("CLEAN" if not dirty else "**%d file(s) uncommitted**" % len(dirty))))
     L.append("| version stamp | %s |" % ver)
-    L.append("| gates registered | %s |" % gates)
+    L.append("| gates registered | %s *(when this was written — ask run_gates for now)* |" % gates)
     L.append("")
-    if ahead:
-        L.append("**Commits that exist only here:**")
-        L.append("")
-        L.append("```")
-        L.extend(ahead[:12])
-        if len(ahead) > 12:
-            L.append("... and %d more" % (len(ahead) - 12))
-        L.append("```")
-        L.append("")
-        L.append("⚠ **Nothing has shipped until `origin/main` equals `HEAD`.** Verify BY THE REF "
-                 "(`git fetch -q origin && git rev-parse --short origin/main`), never by a push's "
-                 "exit code — `git push | tail` reports tail's status.")
-    elif ahead is None:
-        L.append("⚠ **git could not be asked what is unpushed, so this says NOTHING about "
-                 "whether work is waiting.** Do not read the absence of a list as an all-clear — "
-                 "run `git fetch -q origin && git rev-parse --short origin/main` by hand.")
-    else:
-        L.append("✅ Nothing is waiting to be pushed — as of the fetch above.")
+    L.append("⚠ **HEAD, origin/main, what is unpushed and whether the tree is clean are NOT written "
+             "here.** A file inside a commit cannot name that commit, and the push always runs "
+             "after the bump, so this block was wrong about all four on every ship (#164). Ask git, "
+             "now:")
+    L.append("")
+    L.append("    python3 tv/resume_state.py --live")
+    L.append("")
+    L.append("⚠ **Nothing has shipped until `origin/main` equals `HEAD`.** Verify BY THE REF "
+             "(`git fetch -q origin && git rev-parse --short origin/main`), never by a push's exit "
+             "code — `git push | tail` reports tail's status.")
     L.append("")
     L.append("*Derived %s by `tv/resume_state.py`. Everything outside these markers is narrative "
              "a machine cannot measure, written by hand.*" % time.strftime("%Y-%m-%d %H:%M"))
@@ -168,6 +152,28 @@ def derived():
     L.append(END)
     return "\n".join(L)
 
+
+def print_live():
+    st = live()
+    unk = "UNKNOWN — git could not answer"
+    print("HEAD          %s" % (st["head"] or unk))
+    print("origin/main   %s   (as known %s — this never fetches)" % (st["origin"] or unk, st["fetched"]))
+    if st["ahead"] is None:
+        print("unpushed      %s" % unk)
+    else:
+        print("unpushed      %d commit(s)" % len(st["ahead"]))
+        for l in st["ahead"][:12]:
+            print("                %s" % l)
+    print("working tree  %s" % (unk if st["dirty"] is None else
+                                ("CLEAN" if not st["dirty"] else "%d file(s) uncommitted" % len(st["dirty"]))))
+    # ⚠ THE TWO SENTENCES v3413 BUILT INTO THE BLOCK, MOVED HERE WITH THE FACTS THEY QUALIFY.
+    # A git that could not be asked must never read as an all-clear. [[unknown-stays-unknown]]
+    if st["ahead"] is None:
+        print("⚠ git could not be asked what is unpushed, so this says NOTHING about whether work "
+              "is waiting - run `git fetch -q origin && git rev-parse --short origin/main` by hand.")
+    elif not st["ahead"]:
+        print("✅ Nothing is waiting to be pushed — as of the fetch above.")
+    return 0
 
 def write(path=RESUME):
     """Replace the derived block in place. -> (changed, why)"""
@@ -193,6 +199,8 @@ def write(path=RESUME):
 
 if __name__ == "__main__":
     import sys
+    if "--live" in sys.argv:
+        sys.exit(print_live())
     if "--check" in sys.argv:
         try:
             src = io.open(RESUME, encoding="utf-8").read()

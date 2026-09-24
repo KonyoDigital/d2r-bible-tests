@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3473** | `(this commit)` | v3473 — an unparseable RED_PROOF now reads UNREADABLE in the prover and fails the census, instead of passing as a gate that declares nothing |
+| **v3474** | `(this commit)` | v3474 — RESUME_HERE states only the version its writer knows, HEAD origin and unpushed are asked live by resume_state --live, and every reader of the old fingerprint moved with it |
+| **v3473** | `219cb626` | v3473 — an unparseable RED_PROOF now reads UNREADABLE in the prover and fails the census, instead of passing as a gate that declares nothing |
 | **v3472** | `c166d05a` | v3472 — CI runs the gate set as two cost-balanced shards whose facts are aggregated from every shard, and the workflow guard proofs run for the first time |
 | **v3471** | `9cca0d82` | v3471 — the anchor-census law judges what executes, reads quotes and heredocs the way bash does, and proves its own counter is not blind |
 | **v3470** | `0da4d209` | v3470 — one fixture helper redirects both ledgers for every suite that drives the doctor, both files joined the live-state watcher, counts proven not to move |

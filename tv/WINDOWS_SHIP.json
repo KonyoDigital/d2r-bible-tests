@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3473",
+  "ver": "v3474",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3473: an unparseable RED_PROOF now reads UNREADABLE in the prover and fails the census, instead of passing as a gate that declares nothing",
+  "note": "v3474: RESUME_HERE states only the version its writer knows, HEAD origin and unpushed are asked live by resume_state --live, and every reader of the old fingerprint moved with it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

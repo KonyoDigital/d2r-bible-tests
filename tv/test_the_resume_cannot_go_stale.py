@@ -56,8 +56,18 @@ RED_PROOF = [
         # ⚠ v3416 — RE-ANCHORED. The writer moved from "?" to "UNKNOWN" in v3413 and this
         # anchor was left behind, so it matched ZERO times: a red-proof that matches nothing
         # proves nothing, and it reports INVALID rather than red. [[source-reading-guard]] 2
-        "find": '    fp = "head=%s origin=%s ver=%s" % (head or "UNKNOWN", origin or "UNKNOWN", ver)',
+        # v3474 — RE-ANCHORED: the fingerprint now carries only `ver`, the one field the writer can
+        # know. Same property: a fingerprint that varies must turn the checker red.
+        "find": '    fp = "ver=%s" % ver',
         "replace": '    fp = "t=%s" % time.time()',
+        "matches": 1,
+    },
+    {
+        "why": "v3474 — head= back in the fingerprint: the file states a sha that cannot exist until "
+               "the commit carrying it is made, so it is stale on every ship again (#164)",
+        "file": "tv/resume_state.py",
+        "find": '    fp = "ver=%s" % ver',
+        "replace": '    fp = "head=%s ver=%s" % (_git("rev-parse", "--short", "HEAD"), ver)',
         "matches": 1,
     },
 ]
@@ -75,9 +85,13 @@ class TestTheResumeCannotGoStale(unittest.TestCase):
         m = re.search(r"<!-- fp: (.*?) -->", io.open(RESUME, encoding="utf-8").read())
         self.assertTrue(m, "no fingerprint - staleness could not be judged at all")
         fp = m.group(1)
-        for key in ("head=", "origin=", "ver="):
-            self.assertIn(key, fp, "the fingerprint does not carry %s, so a change in it "
-                                   "would not register as stale: %r" % (key, fp))
+        # ⚠ v3474 — THIS CASE USED TO REQUIRE head= AND origin= — it pinned the DEFECT (#164): those
+        # are the two facts a file inside a commit can never know, and they were wrong on every ship.
+        # The law now requires the knowable field and FORBIDS the two unknowable ones.
+        self.assertIn("ver=", fp, "the fingerprint does not carry the version stamp: %r" % fp)
+        for key in ("head=", "origin="):
+            self.assertNotIn(key, fp, "the fingerprint states %s — a fact this file cannot know when "
+                                      "it is written, so it is stale by construction: %r" % (key, fp))
         self.assertNotIn("dirty=", fp,
                          "uncommitted files are ordinary mid-work and must not make the resume "
                          "read as stale")
@@ -94,7 +108,7 @@ class TestTheResumeCannotGoStale(unittest.TestCase):
         src = io.open(RESUME, encoding="utf-8").read()
         m = re.search(r"<!-- fp: (.*?) -->", src)
         self.assertTrue(m)
-        bent = src.replace(m.group(1), "head=deadbeef origin=deadbeef ver=v0", 1)
+        bent = src.replace(m.group(1), "ver=v0", 1)
         self.assertNotEqual(bent, src, "the sabotage changed nothing - it proves nothing")
         tmp = os.path.join(REPO, ".resume_probe.tmp.md")
         try:

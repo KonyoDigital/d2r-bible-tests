@@ -6404,6 +6404,30 @@ def _check_the_resume_agrees_with_git_right_now():
     import re as _re
     m = _re.search(r"<!-- fp: head=(\S+) origin=(\S+) ver=(\S+) -->", txt)
     if not m:
+        # ⚠⚠ v3474 (#164) — THE FINGERPRINT NOW CARRIES ONLY WHAT ITS WRITER CAN KNOW: `ver=`. HEAD
+        # and origin cannot be known inside the commit that carries them, so the block no longer
+        # states them — `resume_state.py --live` asks git at read time. The one claim left to check
+        # is that ver matches the stamp on disk. The head/origin branch below stays for a resume
+        # written by an older writer (another machine that has not pulled yet).
+        mv = _re.search(r"<!-- fp: ver=(\S+) -->", txt)
+        if mv:
+            said = mv.group(1)
+            try:
+                with open(os.path.join(ROOT, "tv", "tv_diablo.py"), encoding="utf-8") as fh:
+                    stamps = _re.findall(r'(?m)^VERSION\s*=\s*"(v[0-9.]+)"', fh.read())
+            except Exception as e:
+                return UNKNOWN, ("the version stamp could not be read (%s), so whether the resume "
+                                 "names the right version is UNKNOWN" % type(e).__name__)
+            if len(stamps) != 1:
+                return UNKNOWN, ("tv_diablo.py carries %d VERSION line(s), so which version the "
+                                 "resume should name is UNKNOWN" % len(stamps))
+            if said != stamps[0]:
+                return MISSING, ("RESUME_HERE.md names %s but the stamp on disk is %s — it was not "
+                                 "regenerated after the bump: run python3 tv/resume_state.py"
+                                 % (said, stamps[0]))
+            return OK, ("the resume states only what it can know when written (ver=%s, which "
+                        "matches the stamp on disk); HEAD, origin and what is unpushed are asked "
+                        "live — python3 tv/resume_state.py --live — never written down" % said)
         return UNKNOWN, ("the derived block carries no fingerprint, so there is no claim to "
                          "check against git")
     said_head, said_origin = m.group(1), m.group(2)
