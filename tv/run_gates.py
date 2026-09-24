@@ -6555,6 +6555,14 @@ GATES = [
              "same law pins the stopwatch glyph: `\\u23f1` in a bash double-quoted string printed "
              "six literal characters in the one message he reads when a push fails.",
          skip_ok=()),
+    Gate("test_the_seed_check_leaves_a_receipt",
+         [sys.executable, os.path.join(HERE, "test_the_seed_check_leaves_a_receipt.py")], 60,
+         needs_app=False,
+         why="#159 - bake_seed.py printed 'no drift' to stdout and left nothing behind, so nothing on "
+             "his console could say WHEN the seed was last checked against his board. It now "
+             "writes a dated receipt on every run; the doctor row reads its age (never re-runs "
+             "the baker, which opens his WebKit store). Driven on temp receipts only.",
+         skip_ok=()),
     Gate("test_the_gate_set_shards_cleanly",
          [sys.executable, os.path.join(HERE, "test_the_gate_set_shards_cleanly.py")], 60,
          needs_app=False,
@@ -6978,7 +6986,8 @@ _LIVE_STATE = ("tooltip_find.json",      # v2321 — did a located tooltip reall
                # v3470 — the two eagle ledgers never joined. Seven
                # suites wrote fixture checks into them on every run and this list never
                # named them, so CI filed it under "also touched", never as a failure.
-               ".unknown_age.json", ".eagle_slow.json")
+               ".unknown_age.json", ".eagle_slow.json",
+               ".bake_seed_receipt.json")   # v3475 — the baker's receipt
 
 
 def _console_is_running(port=17772):

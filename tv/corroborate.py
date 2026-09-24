@@ -2262,6 +2262,10 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3475
+    'the seed was checked against his board':
+        'the row reads the baker\'s receipt; the independent side would be his board read live, '
+        'which only the baker can open (his WebKit store) and the row must never re-run.',
     # v3468 (#208) — THE 23 ROWS EXPLAINED NOWHERE. test_every_doctor_check_is_explained has been red
     # on CI for as long as the agent-tests workflow has been read (#123), because these were in
     # neither registry — so 'a joint corroborates this' and 'nobody ever classified it' were the same

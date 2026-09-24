@@ -18,6 +18,10 @@ than trusting size alone.
 """
 import json
 import os
+import sys as _fx_sys
+_fx_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixture_ledgers as _fx_ledgers  # noqa: E402  v3475 — never HIS receipt
+_fx_ledgers.redirect()
 import shutil
 import sqlite3
 import sys

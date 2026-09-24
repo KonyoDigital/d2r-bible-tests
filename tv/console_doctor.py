@@ -2784,6 +2784,9 @@ MINE = {
     # ⚠ NOT A MUTE BUTTON, same semantics as the two above: each still renders, at its real state
     # and colour. What changes is only whose name is on it. A row removed is a row nobody can
     # reopen. [[regression-guard]] [[feedback-contradiction-is-the-finding]]
+    "the seed was checked against his board":
+        "#159 — drift between the shipped seed and his board is a bake owed, and baking (plus "
+        "re-reading the three spec constants it moves) is my work, not a decision he makes.",
     "two eyes compared":
         "#188 — two model families disagreeing about his screen IS the finding, exactly "
         "like 'engines corroborate': which eye is right is not knowable from the pair alone, "
@@ -7266,6 +7269,61 @@ def _check_the_two_eyes_are_compared():
     return OK, say
 
 
+#: v3475 — how old the last seed-vs-board check may be before it no longer speaks for now. A LABELLED
+#: judgement, not a measurement.
+_SEED_CHECK_STALE_DAYS = 7.0
+
+
+def _check_the_seed_was_checked_against_his_board():
+    """#159 — WHEN was the shipped seed last checked against HIS board, and what did it find?
+
+    ⚠⚠ THE VERDICT USED TO BE PRINTED AND THEN GONE: bake_seed.py answered "no drift" to stdout and
+    left nothing behind, so this question had no source. It now writes a dated receipt on every
+    run (report-only included), and this row READS THE RECEIPT. ⚠ It never re-runs the baker: the
+    baker opens his WebKit localstorage under ~/Library, which exists on no runner and is costly on
+    his Mac — a row that re-derived would be machine-specific and a permanent skip in CI.
+    [[stale-reading]] §4 — a verdict with no expiry is not a verdict.
+
+    UNKNOWN    no receipt (never checked here), an unreadable one, or the last run could not read
+               his board store at all.
+    MISSING    (MINE) the last check found drift — a bake is owed, with the spec constants it moves.
+    UNMEASURED the last check is older than _SEED_CHECK_STALE_DAYS; it carries its last verdict and
+               does not bill him.
+    OK         checked recently, no drift (or freshly written).
+    ⛔ It does NOT widen the seed and does NOT exempt sets — that planned fix was refuted by the
+    comment above the seed comparison (it would blind the row to Dean's missing runewords).
+    """
+    p = os.environ.get("TV_BAKE_RECEIPT") or os.path.join(HERE, ".bake_seed_receipt.json")
+    try:
+        with open(p, encoding="utf-8") as fh:
+            r = json.load(fh)
+    except FileNotFoundError:
+        return UNKNOWN, ("the seed has never been checked against his board on this machine — no "
+                         "receipt yet; `python3 tv/bake_seed.py` (report-only, free) writes one")
+    except Exception as e:
+        return UNKNOWN, "the seed-check receipt could not be read (%s) — UNKNOWN, not fine" % type(e).__name__
+    try:
+        age = (time.time() * 1000.0 - float(r.get("ts"))) / 86400000.0
+    except Exception:
+        return UNKNOWN, "the seed-check receipt carries no readable time, so its age is UNKNOWN"
+    out = r.get("outcome")
+    if out == "no-store":
+        return UNKNOWN, ("the last seed check (%.1f day(s) ago) could not find his board store, so "
+                         "whether the seed matches his board is UNKNOWN" % age)
+    if out == "drift":
+        return MISSING, ("the last seed check (%.1f day(s) ago, %s) found %s name(s) of drift between "
+                         "the shipped seed and his board — a bake is owed (bake_seed.py --write, then "
+                         "the three spec constants it prints)" % (age, r.get("mode"), r.get("drift")))
+    if out not in ("no-drift", "written"):
+        return UNKNOWN, "the seed-check receipt reports an outcome this row does not know (%r)" % (out,)
+    if age > _SEED_CHECK_STALE_DAYS:
+        return UNMEASURED, ("the seed was last checked against his board %.1f day(s) ago (%s) — older "
+                            "than %d days, so it no longer speaks for now; re-run bake_seed.py"
+                            % (age, out, _SEED_CHECK_STALE_DAYS))
+    return OK, ("the seed was checked against his board %.1f day(s) ago: %s — board setPieces %s · "
+                "foundLog %s" % (age, out, r.get("boardSetPieces"), r.get("boardFoundLog")))
+
+
 def _check_the_handoff_lanes_are_being_drained():
     """Are #230 and #231 being READ, or are answers piling up in a queue nobody opens?
 
@@ -7406,6 +7464,8 @@ CHECKS = [
     ("handoff lanes drained", _check_the_handoff_lanes_are_being_drained),
     # v3467 (#188) — the two-eye comparison the G5 lane was promoted on, finally READ.
     ("two eyes compared", _check_the_two_eyes_are_compared),
+    # v3475 (#159) — the seed's last check against his board, read from the baker's receipt.
+    ("the seed was checked against his board", _check_the_seed_was_checked_against_his_board),
     # v3406 (#152) — the harness that proves the paid sweep door can be answered by the
     # LOCK instead of the door. One call, worker stubbed, and it distinguishes UNREACHED
     # from refused. See the docstring for the sandbox measurement that found it.
@@ -7690,6 +7750,8 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # v3467 — reads a per-machine store; its age is measured in DAYS, so hourly
             # loses nothing and the every-tick subset (#194) pays nothing.
             "two eyes compared",
+            # v3475 — reads a receipt whose age is measured in days.
+            "the seed was checked against his board",
             "the compare panel can name a difference",
             # v3397 — MEASURED 268 ms on this file. The cheap subset runs every eagle
             # tick, and v3392 already cost that subset 1,877 ms by not measuring first.
@@ -8126,6 +8188,8 @@ WATCHES = {
     "handoff lanes drained":       (),
     # v3467 — a per-machine store and a reducer; no element of its own. DECLARED.
     "two eyes compared":           (),
+    # v3475 — reads a receipt file; no element of its own. DECLARED.
+    "the seed was checked against his board": (),
     # v3363 (#114) — the reach map is a LEDGER FIELD, not a screen element. Empty tuple as a
     # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
     # a lamp of its own, name it here.

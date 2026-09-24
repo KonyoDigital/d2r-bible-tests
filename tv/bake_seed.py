@@ -167,11 +167,39 @@ def game_says_missing(src):
     return set()
 
 
+#: v3475 (#159) — where the last check is remembered. Tests point TV_BAKE_RECEIPT elsewhere; the
+#: live file is gitignored and named in run_gates._LIVE_STATE, so a test that writes it FAILS on CI.
+RECEIPT = os.environ.get("TV_BAKE_RECEIPT") or os.path.join(HERE, ".bake_seed_receipt.json")
+
+
+def write_receipt(outcome, **facts):
+    """Remember THAT the seed was checked, WHEN, and what it found. Never silent, never fatal.
+
+    ⚠⚠ #159 — THE VERDICT WAS PRINTED AND THEN GONE. Asked 2026-09-23, the baker answered "no
+    drift — the shipped seed already matches his board" to stdout and left no artefact, so nothing
+    on his console could answer "when was the seed last checked against his board", and a heart row
+    had nothing to read. A verdict with no expiry is not a verdict. [[stale-reading]] §4
+    """
+    import time as _t
+    path = os.environ.get("TV_BAKE_RECEIPT") or RECEIPT
+    rec = dict(facts, outcome=outcome, ts=int(_t.time() * 1000))
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception as e:
+        print("⚠ the check ran but its receipt could not be written (%s) — nothing will remember "
+              "it" % type(e).__name__)
+    return rec
+
+
 def bake(write=False, root=None):
     db = find_board_store(root)
     if not db:
         print("no board store found under %s" % (root or WEBKIT))
         print("   (is the console pywebview? has the board ever been opened?)")
+        write_receipt("no-store", mode=("write" if write else "report"))
         return 2
     fl, sp = read_board(db)
     src = open(BIBLE, encoding="utf-8").read()
@@ -207,10 +235,15 @@ def bake(write=False, root=None):
     print("_SET_SEED   %3d -> %3d   (+%d)" % (len(old_set), len(new_set), len(new_set) - len(old_set)))
     print("_GRAIL_SEED %3d -> %3d   (+%d)" % (len(old_grail), len(new_grail), len(new_grail) - len(old_grail)))
     drift = (len(new_set) - len(old_set)) + (len(new_grail) - len(old_grail))
+    _facts = dict(mode=("write" if write else "report"), boardSetPieces=len(sp),
+                  boardFoundLog=len(fl), setSeed=[len(old_set), len(new_set)],
+                  grailSeed=[len(old_grail), len(new_grail)], drift=drift)
     if not drift:
+        write_receipt("no-drift", **_facts)
         print("\nno drift — the shipped seed already matches his board.")
         return 0
     if not write:
+        write_receipt("drift", **_facts)
         print("\n%d name(s) of drift. Nothing written (pass --write to apply)." % drift)
         print("⚠ A WRITE ALSO MOVES SEED-DERIVED SPEC CONSTANTS. Re-run these and read what they")
         print("   report — never derive the numbers on paper:")
@@ -230,6 +263,7 @@ def bake(write=False, root=None):
     with open(_tmp, "w", encoding="utf-8") as _fh:
         _fh.write(s)
     os.replace(_tmp, BIBLE)
+    write_receipt("written", **_facts)
     print("\nWRITTEN. Now re-run the three specs above and update what they report.")
     return 0
 

@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1175 - THE SEED'S CHECK AGAINST HIS BOARD WAS PRINTED AND THEN GONE
+
+**v3475 - #159.** `bake_seed.py` answered "no drift — the shipped seed already matches his board" to
+stdout and kept nothing, so nothing on his console could say WHEN the seed was last checked. It now
+writes a dated receipt on every run (no-store / no-drift / drift / written), atomically, and a
+PERIODIC doctor row "the seed was checked against his board" reads the RECEIPT — never re-running
+the baker, which opens his WebKit store and exists on no runner. UNKNOWN when there is no receipt or
+the board could not be read; MISSING (mine) on drift; UNMEASURED past 7 days (a labelled judgement).
+⛔ The refuted plan stays refuted: the seed is not widened and sets are not exempted.
+⚠ THREE THINGS THE CHECKLIST CAUGHT BEFORE THE COMMIT: a BLIND proof (no case drove the no-drift
+path — now driven through a fixture store holding only an already-seeded name); v3470's own proof
+orphaned by my `_LIVE_STATE` edit (REG-1163, again, on my own work); and — the one that mattered —
+test_bake_seed drives bake() in report AND write modes with no redirect, so every run would have
+stamped HIS live receipt. fixture_ledgers now redirects TV_BAKE_RECEIPT too, test_bake_seed calls it,
+and the eagle-ledger law watches it. Verified: after running that suite, no live receipt exists.
+
 ### REG-1174 - THE RESUME FILE STATED THE ONE COMMIT IT COULD NEVER KNOW, ON EVERY SHIP
 
 **v3474 - #164.** RESUME_HERE.md's derived block stated HEAD, origin/main, what was unpushed and

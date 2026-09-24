@@ -28,7 +28,8 @@ except Exception:
 
 GATES = ["test_the_doctor_times_each_check.py", "test_the_screen_bills_the_same_rows_the_engine_does.py",
          "test_control.py", "test_board_tally_alarm.py", "test_a_periodic_check_is_still_watched_unattended.py",
-         "test_health_engine.py", "test_a_skipped_periodic_check_still_emits_a_row.py"]
+         "test_health_engine.py", "test_a_skipped_periodic_check_still_emits_a_row.py",
+         "test_bake_seed.py"]   # v3475 — drives bake(), which now writes a receipt
 LIVE = (".unknown_age.json", ".eagle_slow.json")
 
 
@@ -114,8 +115,9 @@ RED_PROOF = [
     {
         "why": "the watcher forgets the ledger again: CI files a write to it as 'also touched'",
         "file": "run_gates.py",
-        "find": "               \".unknown_age.json\", \".eagle_slow.json\")\n",
-        "replace": "               \".eagle_slow.json\")\n",
+        # v3475 — RE-ANCHORED (REG-1163, on my own proof): the receipt joined this line.
+        "find": "               \".unknown_age.json\", \".eagle_slow.json\",\n",
+        "replace": "               \".eagle_slow.json\",\n",
         "matches": 1,
     },
 ]

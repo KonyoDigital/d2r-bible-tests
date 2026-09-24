@@ -344,3 +344,5 @@ tv/tvd-reel-seed*
 # ⚠ his own saved product links — swept in by a `git add -A` in v3456 and published to a
 # PUBLIC repo by accident. Ignored so it cannot happen again.
 deeplink.txt
+# v3475 — bake_seed.py's dated receipt: live, per machine
+tv/.bake_seed_receipt.json

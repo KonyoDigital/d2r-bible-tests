@@ -17,7 +17,10 @@ import atexit
 import os
 import tempfile
 
-VARS = (("TV_UNKNOWN_AGE", "unknown_age"), ("TV_EAGLE_SLOW", "eagle_slow"))
+VARS = (("TV_UNKNOWN_AGE", "unknown_age"), ("TV_EAGLE_SLOW", "eagle_slow"),
+        # v3475 — the seed baker's receipt: test_bake_seed drives bake() in report AND write
+        # modes, so without this every run of it would stamp HIS live receipt.
+        ("TV_BAKE_RECEIPT", "bake_seed_receipt"))
 
 
 def redirect():
