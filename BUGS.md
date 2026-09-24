@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1266 - THE KAI CLOSER WAS DARK ON WINDOWS WHILE ITS WINDOWS WORKER SAT BESIDE IT
+
+**fix - #229 roadmap item "the Kai closer's Mac-only OCR".** It was never Mac-only: tv_diablo's `_ocr_worker_cmd()`
+has returned `ocr_win.ps1` (the same stdin-path -> stdout-JSON protocol) on Windows since v818. But `_kai_closer_loop`
+hard-coded `bin/ocr_mac` and returned when it was not executable, so on Windows the closer ended at boot and the engine
+card said "not plugged". Two copies of "which OCR worker" - copy-drift. MEASURED on the ALT over SSH before changing
+anything: the OS OCR engine is present (en-US), and the real ocr_win.ps1 read "Harlequin Crest" and "Shako" off a
+probe image in 208 ms. The closer now asks the one seam; its spawn passes `_WIN_CREATE` (control_app runs under
+pythonw, so a powershell child would otherwise open a window on his screen); the card names both workers. The v1207
+reap-in-finally law was re-anchored to the new spawn line, its property unchanged. Guard:
+`test_the_closer_reads_frames_on_every_os` (4 cases, 2 proofs), PROVEN.
+
 ### REG-1265 - EVERY WINDOWS BOOT SAID ITS PROCESS TABLE COULD NOT BE READ
 
 **fix - the second eye on 229e2397 (grok-4.7, #231 5822210326), confirmed in exec_hygiene.** REG-1236 made an

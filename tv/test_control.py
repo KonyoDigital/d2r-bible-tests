@@ -2819,7 +2819,9 @@ class TestCloserOcrWorkerNeverOrphaned(unittest.TestCase):
         src = inspect.getsource(ca._kai_closer_loop)
         # the spawn must be followed by a try: that wraps the for-loop, then a finally: that
         # terminates the worker — not a bare sequential cleanup after the loop.
-        spawn_idx = src.index('wp = subprocess.Popen([ocr_bin, "--worker"]')
+        # REG-1266 — re-anchored: the closer now spawns the worker the platform seam names (ocr_argv),
+        # so Windows reads frames too; the reap-in-finally this pins is unchanged.
+        spawn_idx = src.index('wp = subprocess.Popen(ocr_argv, stdin=subprocess.PIPE,')
         after_spawn = src[spawn_idx:]
         try_idx = after_spawn.index("try:\n                for it in frames:")
         finally_idx = after_spawn.index("finally:")

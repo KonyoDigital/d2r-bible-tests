@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_closer_reads_frames_on_every_os",
+         [sys.executable, os.path.join(HERE, "test_the_closer_reads_frames_on_every_os.py")], 60,
+         why="REG-1266 (#229) - the Kai closer hard-coded bin/ocr_mac and ended at boot on Windows, while "
+             "tv_diablo._ocr_worker_cmd() has returned ocr_win.ps1 (same protocol) since v818. MEASURED on "
+             "the ALT: OS OCR present, ocr_win.ps1 read 'Harlequin Crest'/'Shako' in 208 ms. The closer asks "
+             "the one seam and spawns windowless. 4 cases, 2 red-proofs"),
     Gate("test_a_windows_boot_is_checked_before_it_reaches_him",
          [sys.executable, os.path.join(HERE, "test_a_windows_boot_is_checked_before_it_reaches_him.py")], 90,
          why="#229 - the only Windows console anything ever booted was his ALT, so a Windows-only boot "

@@ -10813,8 +10813,18 @@ def _kai_closer_loop():
     misses into deep reads + auto-register + the mule/throw-out regret funnel."""
     if os.environ.get("TV_KAI", "1") == "0":
         return
-    ocr_bin = os.path.join(HERE, "bin", "ocr_mac")
-    if not (os.path.isfile(ocr_bin) and os.access(ocr_bin, os.X_OK)):
+    # REG-1266 (#229) — ASK THE PLATFORM SEAM, NEVER HARD-CODE ONE PLATFORM'S BINARY. This read
+    # `bin/ocr_mac` and returned when it was not executable, so on Windows the closer ended at once
+    # and the engine card said "not plugged" - while tv_diablo's _ocr_worker_cmd() has returned the
+    # Windows worker (ocr_win.ps1, same stdin-path -> stdout-JSON protocol) since v818. MEASURED on the
+    # ALT 2026-09-25: the OS OCR engine is present (en-US), and ocr_win.ps1 read "Harlequin Crest" and
+    # "Shako" off a probe image in 208 ms. Two copies of "which OCR worker" is copy-drift; one seam.
+    try:
+        import tv_diablo as _tvd_ocr
+        ocr_argv = list(_tvd_ocr._ocr_worker_cmd() or [])
+    except Exception:
+        ocr_argv = []
+    if not ocr_argv:
         return
     time.sleep(20.0)
     hist = HIST_DIR
@@ -10914,9 +10924,11 @@ def _kai_closer_loop():
             # OCR worker: one warm process, stdin path → stdout JSON line
             import queue as _q
             try:
-                wp = subprocess.Popen([ocr_bin, "--worker"], stdin=subprocess.PIPE,
+                wp = subprocess.Popen(ocr_argv, stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", bufsize=1,
-                                      preexec_fn=(lambda: os.nice(15)) if not IS_WIN else None)
+                                      preexec_fn=(lambda: os.nice(15)) if not IS_WIN else None,
+                                      # pythonw has no console: a powershell child would open a window on his screen
+                                      creationflags=_WIN_CREATE if IS_WIN else 0)
             except Exception as e:
                 print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue
             missed = []
@@ -12889,7 +12901,8 @@ def _engines_status():
     kai_wired = _engine_thread_alive("tvd-kai-closer")
     if not kai_wired:
         kai_state = "down" if kai_on else "idle"
-        kai_note = "no OCR bin (ocr_mac) — closer not plugged" if kai_on else "TV_KAI off"
+        kai_note = ("no OCR worker for this OS (ocr_mac / ocr_win.ps1) — closer not plugged"
+                    if kai_on else "TV_KAI off")
     elif _fresh(kai_ts, _ENG_FRESH_SLOW):
         kai_state, kai_note = "live", "closing / judging"
     else:
