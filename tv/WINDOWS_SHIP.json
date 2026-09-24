@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3482",
+  "ver": "v3483",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3482: red_proofs_in walks every RED_PROOF binding and reads the last, the census refuses a second, and the ledger gate eleven unrun proofs now prove",
+  "note": "v3483: the shadow read is handed a snapshot taken right after the Claude read so both eyes see the same bytes; unplaced rows are counted by reason",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -200,15 +200,34 @@ def frame_key(row):
     None is attributed to NO frame and counted out loud, never guessed into one.
     [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
     """
+    return frame_key_why(row)[0]
+
+
+#: why a row was placed in NO frame — each reason counted apart, because they are different facts
+WHY_SCRATCH = "a reused scratch name"
+WHY_CHANGED = "the picture changed between the two eyes"
+WHY_UNKNOWN = "what Grok was shown is unknown"
+
+
+def frame_key_why(row):
+    """-> (frame key | None, reason | None). frame_key() is this without the reason.
+
+    ⚠⚠ v3483 — THE SECOND EYE ON v3479, finding [3]: a row with a known `picture` and NO
+    `picture_after` was keyed by the before-picture — guessed into a frame, against this module's
+    own rule that unknown is never guessed into one. Since v3483 the after-id exists only when
+    Grok was shown a SNAPSHOT, so its absence means what Grok saw is UNKNOWN: no frame.
+    Finding [2]: the unplaced rows were one number the doctor then called "reused scratch names";
+    each reason is now its own count.
+    """
     pic, after = row.get("picture"), row.get("picture_after")
-    if pic and after and pic != after:
-        return None
+    if pic and after:
+        return ((("picture", str(pic)), None) if pic == after else (None, WHY_CHANGED))
     if pic:
-        return ("picture", str(pic))
+        return None, WHY_UNKNOWN
     name = str(row.get("image") or "")
     if _FRAME_NAME_RX.match(name):
-        return ("frame", name)
-    return None
+        return ("frame", name), None
+    return None, WHY_SCRATCH
 
 
 def _names_field(rows):
@@ -254,20 +273,22 @@ def _names_field(rows):
     # A rate is only a rate over things that were counted once. [[zero-needs-a-denominator]]
     # ⚠ #197 — grouped by frame_key(), never by the bare basename: a reused scratch path is not
     # a frame, and a row whose picture changed between the two reads compared two pictures.
-    _by_frame, _unattr = {}, {}
+    _by_frame, _unattr, _why = {}, {}, {}
     _moved = _pair_known = 0
     for _r in both:
         if _r.get("picture") and _r.get("picture_after"):
             _pair_known += 1
             if _r["picture"] != _r["picture_after"]:
                 _moved += 1
-        _key = frame_key(_r)
+        _key, _reason = frame_key_why(_r)
         if _key is None:
-            _nm = str(_r.get("image") or "") or "(no name)"
-            _unattr[_nm] = _unattr.get(_nm, 0) + 1
+            _why[_reason] = _why.get(_reason, 0) + 1
+            if _reason == WHY_SCRATCH:
+                _nm = str(_r.get("image") or "") or "(no name)"
+                _unattr[_nm] = _unattr.get(_nm, 0) + 1
             continue
         _by_frame.setdefault(_key, []).append(_r)
-    _unattr_rows = sum(_unattr.values())
+    _unattr_rows = sum(_why.values())
     _f_agree = _f_dis = _f_mixed = 0
     for _k, _rs in _by_frame.items():
         _v = set()
@@ -303,8 +324,11 @@ def _names_field(rows):
         "frames_mixed": figure(_f_mixed, _fd, bf, bl),
         # the rows the frame figures could NOT place, by name — never folded into a frame
         "frames_unattributed_rows": _unattr_rows,
+        # only the rows placed in no frame BECAUSE OF A REUSED NAME, by name
         "frames_unattributed_names": [{"name": k, "rows": v} for k, v in
                                       sorted(_unattr.items(), key=lambda kv: (-kv[1], kv[0]))],
+        # every unplaced row by REASON — v3483: three facts, never one number under one label
+        "frames_unattributed_why": dict(_why),
         # rows whose picture changed between Claude's read and Grok's; None when no row carries
         # both identities, because 0 would claim a measurement nobody took
         "rows_picture_moved": (figure(_moved, _pair_known, bf, bl) if _pair_known else None),
@@ -393,7 +417,7 @@ def reduce_rows(rows, source=None):
         caveats.append(
             "%d both-answered row(s) carry no picture identity: an f_<epoch-ms> name stands in for "
             "one, and %d row(s) under reused scratch names (%s) are attributed to no frame"
-            % (_no_pic, _nf["frames_unattributed_rows"],
+            % (_no_pic, (_nf.get("frames_unattributed_why") or {}).get(WHY_SCRATCH, 0),
                ", ".join(u["name"] for u in _nf["frames_unattributed_names"][:4]) or "none"))
     if not rows:
         caveats.append("no rows: nothing here is evidence of agreement OR of disagreement")

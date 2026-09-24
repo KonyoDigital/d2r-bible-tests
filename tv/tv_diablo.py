@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3482"   # eleven declared proofs had never run because the prover read the first of two lists
+VERSION = "v3483"   # the two hashes bracketed a window not the picture grok read
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6319,15 +6319,26 @@ def claude_read(path, worker=None, out_jpg=None):
             # ══ GROK EYES (G5) — shadow (never replaces Claude) ══
             try:
                 if _G5 is not None and _G5.is_shadow():
-                    # #197 — name the PICTURE Claude just read, NOW: `ap` may be a scratch file
-                    # the next read overwrites while the shadow read is still running.
-                    _pic = _G5.picture_id(ap)
-                    def _g5_shadow_job(_p=ap, _c=out, _pic=_pic):
+                    # #197/v3483 — SNAPSHOT the picture Claude just read, NOW: `ap` may be a scratch
+                    # file the next read overwrites while the shadow read is still running, and the
+                    # Grok CLI opens whatever path it is given whenever it likes. Both eyes must be
+                    # shown the same bytes, so the shadow read gets a private copy.
+                    _snap, _pic = _G5.snapshot_picture(ap)
+                    if _snap is None:
+                        _pic = _G5.picture_id(ap)
+                    def _g5_shadow_job(_orig=ap, _c=out, _pic=_pic, _snap=_snap):
+                        _p = _snap or _orig
                         try:
                             _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                            _G5.g5_shadow_log(_c, _gr, _p, picture=_pic)
+                            _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)
                         except Exception:
                             pass
+                        finally:
+                            if _snap:
+                                try:
+                                    os.remove(_snap)
+                                except Exception:
+                                    pass
                     threading.Thread(target=_g5_shadow_job, daemon=True).start()
             except Exception:
                 pass
@@ -6348,13 +6359,22 @@ def claude_read(path, worker=None, out_jpg=None):
         # ══ GROK EYES (G5) — shadow oneshot path ══
         try:
             if _G5 is not None and _G5.is_shadow():
-                _pic = _G5.picture_id(ap)      # #197 — the picture Claude read, before the thread
-                def _g5_shadow_job2(_p=ap, _c=out, _pic=_pic):
+                _snap, _pic = _G5.snapshot_picture(ap)   # #197/v3483 — same snapshot as the warm path
+                if _snap is None:
+                    _pic = _G5.picture_id(ap)
+                def _g5_shadow_job2(_orig=ap, _c=out, _pic=_pic, _snap=_snap):
+                    _p = _snap or _orig
                     try:
                         _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                        _G5.g5_shadow_log(_c, _gr, _p, picture=_pic)
+                        _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)
                     except Exception:
                         pass
+                    finally:
+                        if _snap:
+                            try:
+                                os.remove(_snap)
+                            except Exception:
+                                pass
                 threading.Thread(target=_g5_shadow_job2, daemon=True).start()
         except Exception:
             pass

@@ -1042,12 +1042,42 @@ def picture_id(path):
         return None
 
 
-def g5_shadow_log(claude_result, grok_result, image_path="", picture=None):
-    # `picture` is picture_id() taken by the CALLER right after Claude's read and BEFORE the
-    # shadow thread starts — the file may be a scratch path the next read overwrites while Grok is
-    # still reading. `picture_after` is taken here, after Grok's read. When the two differ the lanes
-    # were not shown the same picture, and the row is not a comparison of one frame.
-    _after = picture_id(image_path) if image_path else None
+def snapshot_picture(path):
+    """Copy the picture at `path` to a private file. -> (snapshot_path, picture_id) | (None, None)
+
+    ⚠⚠ v3483 — THE SECOND EYE ON v3479 WAS RIGHT: the two hashes were not the bytes the two eyes
+    read. g5_vision_read hands the Grok CLI the LIVE path, and the CLI opens it whenever it
+    chooses during a call that can run for minutes, so a hash taken before the thread and another
+    taken at log time bracket a window — they never name the picture Grok actually saw. The
+    capture loop can rewrite read.jpg after Grok opened it and the row would read "moved" while
+    both eyes saw one picture. So the shadow read is handed a SNAPSHOT taken right after Claude's
+    read: both eyes see the same bytes by construction, and the id is computed from the copy.
+    (None, None) when the copy cannot be made — the caller falls back to the live path and the
+    row then carries no after-id, which is UNKNOWN, never a match. [[unknown-stays-unknown]]
+    """
+    try:
+        fd, snap = tempfile.mkstemp(prefix="tvd-g5-shot-", suffix=os.path.splitext(str(path))[1])
+        h = hashlib.sha1()
+        with os.fdopen(fd, "wb") as out, open(str(path), "rb") as src:
+            for chunk in iter(lambda: src.read(1 << 16), b""):
+                h.update(chunk)
+                out.write(chunk)
+        return snap, h.hexdigest()[:16]
+    except Exception:
+        try:
+            os.remove(snap)
+        except Exception:
+            pass
+        return None, None
+
+
+def g5_shadow_log(claude_result, grok_result, image_path="", picture=None, shown=None):
+    # `picture` names the bytes Claude read: snapshot_picture()'s id (or picture_id() of the live
+    # file when no snapshot could be made), taken by the CALLER before the shadow thread starts.
+    # `picture_after` names the bytes GROK WAS SHOWN: the snapshot `shown`, re-hashed after its read.
+    # ⚠ v3483 — with no snapshot there is NO after-id. Re-hashing the live path at log time (v3479)
+    # measured a window, not what Grok saw; None says so, and the reducer puts that row in no frame.
+    _after = picture_id(shown) if shown else None
     try:
         rec = {
             "ts": time.strftime("%Y-%m-%d %H:%M:%S"),

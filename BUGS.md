@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1186 - THE TWO HASHES BRACKETED A WINDOW, NOT THE PICTURE GROK READ
+
+**v3483 - the cross-family eye on the SHIPPED v3479 bytes (grok-4.7, 5 findings, 4 substantive), each reproduced by
+reading before acting.** [0] `g5_vision_read` hands the Grok CLI the LIVE path, which it opens whenever it chooses during a
+call that can run for minutes — so `picture` (before the thread) and `picture_after` (at log time) bracketed a window and
+never named what Grok saw; a capture-loop rewrite after Grok opened read.jpg would read "moved" while both eyes saw one
+picture. FIX AT THE SOURCE: `snapshot_picture()` copies the picture right after Claude's read and the shadow read is
+handed the SNAPSHOT — both eyes see the same bytes by construction; `picture_after` re-hashes that snapshot, and with no
+snapshot there is no after-id (UNKNOWN, never a live re-hash). [3] a known picture with an unknown after-id was keyed by
+the before-picture — now placed in no frame. [2] the unplaced total was printed as "reused scratch names" and the caveat
+mixed populations — now `frames_unattributed_why` counts {scratch name, picture changed, shown picture unknown} apart and
+the doctor names each. [1] moved rows still counted at READ level — with [0] the pair can only differ if the private
+snapshot itself changed, and the doctor names that count when it is non-zero. 18 cases, 8/8 PROVEN (3 re-anchored,
+2 new). ⚠ Still runs only in SHADOW mode; the lane is PRIMARY.
+
 ### REG-1185 - ELEVEN DECLARED PROOFS HAD NEVER RUN, BECAUSE THE PROVER READ THE FIRST OF TWO LISTS
 
 **v3482 - #220, raised by the cross-family eye on the SHIPPED v3476 bytes, then widened by measurement.** The eye:

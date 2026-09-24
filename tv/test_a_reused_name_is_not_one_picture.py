@@ -129,6 +129,32 @@ class AReusedNameIsNotOnePicture(unittest.TestCase):
                          "the caveat is hardcoded — it survived rows that carry an identity")
 
 
+    def test_a_known_picture_with_an_UNKNOWN_after_is_never_guessed_into_a_frame(self):
+        """v3483 — the eye on v3479, finding [3]."""
+        rows = [_row(1, "f_1788192823779.jpg", True, picture="aaaa", picture_after="aaaa"),
+                _row(2, "f_1788192823779.jpg", False, picture="aaaa", picture_after=None)]
+        n = _names(rows)
+        self.assertEqual((n["frames_both"], n["frames_agree"]["n"], n["frames_mixed"]["n"]),
+                         (1, 1, 0),
+                         "the row whose shown picture is unknown was keyed by the before-picture and "
+                         "made a frame read MIXED")
+        self.assertEqual(n["frames_unattributed_why"], {R.WHY_UNKNOWN: 1})
+
+    def test_each_reason_is_counted_apart_and_the_caveat_counts_only_scratch(self):
+        """v3483 — the eye on v3479, finding [2]: three populations under one number."""
+        rows = [_row(1, "read.jpg", True),
+                _row(2, "f_1788192823779.jpg", False, picture="aaaa", picture_after="bbbb"),
+                _row(3, "f_1788192823780.jpg", False, picture="cccc")]
+        rep = R.reduce_rows(rows)
+        n = rep["fields"]["names"]
+        self.assertEqual(n["frames_unattributed_why"],
+                         {R.WHY_SCRATCH: 1, R.WHY_CHANGED: 1, R.WHY_UNKNOWN: 1})
+        self.assertEqual(n["frames_unattributed_names"], [{"name": "read.jpg", "rows": 1}],
+                         "the by-name list must hold only the rows placed out BECAUSE of their name")
+        cav = [c for c in rep["caveats"] if "no picture identity" in c]
+        self.assertTrue(cav and "1 row(s) under reused scratch names" in cav[0],
+                        "the caveat printed a different population's count: %r" % cav)
+
 class TheWriterStoresThePicture(unittest.TestCase):
 
     def setUp(self):
@@ -148,32 +174,52 @@ class TheWriterStoresThePicture(unittest.TestCase):
         with io.open(self.log, encoding="utf-8") as fh:
             return [json.loads(ln) for ln in fh if ln.strip()]
 
-    def test_an_overwritten_scratch_file_is_recorded_as_two_pictures(self):
-        """Driven, not read: the file is rewritten between the two reads, exactly as the capture
-        loop does to read.jpg while the shadow thread is still running."""
-        self._write(b"picture one")
-        before = G.picture_id(self.img)
-        self.assertTrue(before, "picture_id could not name a readable file")
-        self._write(b"picture two")
-        G.g5_shadow_log({"names": ["Shako"]}, {"names": ["Occulus"]}, self.img, picture=before)
-        rows = self._rows()
-        self.assertEqual(len(rows), 1, "the writer did not write exactly one row (%d)" % len(rows))
-        r = rows[0]
-        self.assertEqual(r.get("picture"), before)
-        self.assertTrue(r.get("picture_after"), "the writer did not name the picture after the read")
-        self.assertNotEqual(r["picture"], r["picture_after"],
-                            "the file changed between the reads and the row says it did not")
-        self.assertEqual(R.reduce_rows(rows)["fields"]["names"]["rows_picture_moved"]["n"], 1,
-                         "the reducer did not see the moved picture the writer recorded")
-
-    def test_BASELINE_an_unchanged_file_is_one_picture(self):
-        self._write(b"the same picture")
-        before = G.picture_id(self.img)
-        G.g5_shadow_log({"names": ["Shako"]}, {"names": ["Shako"]}, self.img, picture=before)
+    def test_a_snapshot_survives_the_capture_loop_rewriting_the_original(self):
+        """⚠⚠ v3483 — the eye on v3479, finding [0]: the two hashes bracketed a WINDOW, not the
+        picture Grok read. Driven: snapshot, then rewrite the ORIGINAL exactly as the capture loop
+        rewrites read.jpg mid-read — the row must still name ONE picture, because Grok was shown
+        the private copy."""
+        self._write(b"the picture claude read")
+        snap, pic = G.snapshot_picture(self.img)
+        self.addCleanup(lambda: os.path.exists(snap or "") and os.remove(snap))
+        self.assertTrue(snap and pic, "the snapshot could not be made of a readable file")
+        self.assertNotEqual(os.path.abspath(snap), os.path.abspath(self.img))
+        self.assertEqual(pic, G.picture_id(snap), "the id is not the snapshot's own bytes")
+        self._write(b"the NEXT frame, written over read.jpg while grok was reading")
+        G.g5_shadow_log({"names": ["Shako"]}, {"names": ["Occulus"]}, self.img, picture=pic,
+                        shown=snap)
         r = self._rows()[0]
+        self.assertEqual(r["image"], "read.jpg", "the row lost the name of the picture it is about")
         self.assertEqual(r["picture"], r["picture_after"],
-                         "an untouched file was recorded as two pictures — every row would then "
-                         "be thrown out of the frame figures")
+                         "the original was rewritten and the row claims the eyes saw two pictures — "
+                         "the snapshot was not what grok was shown")
+        self.assertEqual(R.frame_key(r), ("picture", pic))
+
+    def test_a_snapshot_that_CHANGED_is_counted_as_moved(self):
+        """The one way the pair can still differ: the shown file itself changed. Counted, never
+        folded into a frame."""
+        self._write(b"picture one")
+        snap, pic = G.snapshot_picture(self.img)
+        self.addCleanup(lambda: os.path.exists(snap or "") and os.remove(snap))
+        with io.open(snap, "wb") as fh:
+            fh.write(b"something else entirely")
+        G.g5_shadow_log({"names": ["Shako"]}, {"names": ["Occulus"]}, self.img, picture=pic,
+                        shown=snap)
+        rows = self._rows()
+        self.assertNotEqual(rows[0]["picture"], rows[0]["picture_after"])
+        n = R.reduce_rows(rows)["fields"]["names"]
+        self.assertEqual(n["rows_picture_moved"]["n"], 1)
+        self.assertEqual(n["frames_unattributed_why"], {R.WHY_CHANGED: 1})
+
+    def test_no_snapshot_means_what_grok_saw_is_UNKNOWN(self):
+        """⚠ v3483 — without a snapshot there is NO after-id: re-hashing the live file at log time
+        measured a window, not what grok saw."""
+        self._write(b"the only picture")
+        G.g5_shadow_log({"names": ["Shako"]}, {"names": ["Shako"]}, self.img,
+                        picture=G.picture_id(self.img))
+        r = self._rows()[0]
+        self.assertIsNone(r["picture_after"], "an after-id was made up without a snapshot")
+        self.assertEqual(R.frame_key_why(r), (None, R.WHY_UNKNOWN))
 
     def test_an_unreadable_picture_is_None_never_a_match(self):
         self.assertIsNone(G.picture_id(os.path.join(self.tmp, "absent.jpg")))
@@ -234,21 +280,51 @@ class BothCallersNameThePictureBeforeTheThread(unittest.TestCase):
                               "%s's picture is not bound as a default argument, so it is read "
                               "when the thread RUNS rather than when it was started" % fn.name)
             hashed_inside = [c for c in ast.walk(fn) if isinstance(c, ast.Call)
-                             and getattr(c.func, "attr", "") == "picture_id"]
+                             and getattr(c.func, "attr", "") in ("picture_id", "snapshot_picture")]
             self.assertEqual(hashed_inside, [],
-                             "%s hashes the picture INSIDE the thread — after the race" % fn.name)
+                             "%s hashes or snapshots the picture INSIDE the thread — after the race"
+                             % fn.name)
+
+    def test_every_caller_shows_grok_the_SNAPSHOT(self):
+        """⚠⚠ v3483 — the eye on v3479, finding [0]: Grok was handed the LIVE path and opened it
+        whenever it liked. The shadow read must be handed the snapshot, and the log must be told
+        which file Grok was shown."""
+        jobs = self._jobs()
+        self.assertEqual(len(jobs), 2, "the two shadow jobs moved — this law is judging nothing")
+        for fn, calls in jobs:
+            bound = [a.arg for a in fn.args.args]
+            for c in calls:
+                kw = {k.arg: k.value for k in c.keywords}
+                self.assertIn("shown", kw, "%s never tells the log which file Grok was shown" % fn.name)
+                self.assertTrue(isinstance(kw["shown"], ast.Name) and kw["shown"].id in bound,
+                                "%s: `shown` is not the snapshot bound when the thread started"
+                                % fn.name)
+                shown = kw["shown"].id
+            reads = [c for c in ast.walk(fn) if isinstance(c, ast.Call)
+                     and getattr(c.func, "attr", "") == "g5_vision_read"]
+            self.assertEqual(len(reads), 1, "%s: expected one shadow read" % fn.name)
+            arg = reads[0].args[0] if reads[0].args else None
+            self.assertIsInstance(arg, ast.Name, "%s reads a computed path" % fn.name)
+            src_of = [n.value for n in ast.walk(fn) if isinstance(n, ast.Assign)
+                      and any(isinstance(t, ast.Name) and t.id == arg.id for t in n.targets)]
+            self.assertTrue(src_of and isinstance(src_of[0], ast.BoolOp)
+                            and isinstance(src_of[0].values[0], ast.Name)
+                            and src_of[0].values[0].id == shown,
+                            "%s hands Grok %r, which is not the snapshot first — the live path "
+                            "again" % (fn.name, arg.id))
 
 
 class TheDoctorSaysWhatNoFrameHolds(unittest.TestCase):
 
-    def _drive(self, unattributed):
+    def _drive(self, unattributed, why):
         ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 3600))
         row = {"id": "g5-shadow-divergence", "state": "measured", "mode": "shadow",
                "label": "G5 two-eye divergence", "detail": "stub",
                "report": {"fields": {"names": {
                    "disagree": {"n": 1, "d": 4, "last_ts": ts},
                    "frames_disagree": {"n": 1, "d": 3, "last_ts": ts},
-                   "frames_unattributed_rows": unattributed}}},
+                   "frames_unattributed_rows": unattributed,
+                   "frames_unattributed_why": why}}},
                "store": {"exists": True}}
         real = R.divergence_row
         R.divergence_row = lambda *a, **k: row
@@ -257,14 +333,17 @@ class TheDoctorSaysWhatNoFrameHolds(unittest.TestCase):
         finally:
             R.divergence_row = real
 
-    def test_the_row_names_the_reads_no_frame_holds(self):
-        st, say = self._drive(131)
-        self.assertIn("131 read(s) under reused scratch names", say,
-                      "the frame fraction was printed as if it covered every read: %s" % say)
+    def test_the_row_names_the_reads_no_frame_holds_BY_REASON(self):
+        """v3483 — the eye on v3479, finding [2]: the whole unplaced total was printed as "reused
+        scratch names". Each reason is its own count."""
+        st, say = self._drive(134, {R.WHY_SCRATCH: 131, R.WHY_CHANGED: 2, R.WHY_UNKNOWN: 1})
+        self.assertIn("134 read(s) are attributed to no frame", say, say)
+        for part in ("131: " + R.WHY_SCRATCH, "2: " + R.WHY_CHANGED, "1: " + R.WHY_UNKNOWN):
+            self.assertIn(part, say, "the doctor folded a reason away: %s" % say)
 
     def test_BASELINE_nothing_unattributed_adds_nothing(self):
-        st, say = self._drive(0)
-        self.assertNotIn("reused scratch names", say,
+        st, say = self._drive(0, {})
+        self.assertNotIn("attributed to no frame", say,
                          "a warning that fires when nothing is wrong is an off switch: %s" % say)
 
 
@@ -272,16 +351,16 @@ RED_PROOF = [
     {
         "why": "keying a scratch name as a frame restores #197: read.jpg is one MIXED frame again",
         "file": "g5_shadow_reducer.py",
-        "find": "    if _FRAME_NAME_RX.match(name):\n        return (\"frame\", name)\n    return None",
-        "replace": "    return (\"frame\", name)",
+        "find": "    if _FRAME_NAME_RX.match(name):\n        return (\"frame\", name), None\n    return None, WHY_SCRATCH",
+        "replace": "    return (\"frame\", name), None",
         "matches": 1,
     },
     {
         "why": "dropping the moved-picture check folds a two-picture row into a frame, which then "
                "reads MIXED about a disagreement the lanes never had about one picture",
         "file": "g5_shadow_reducer.py",
-        "find": "    if pic and after and pic != after:\n        return None",
-        "replace": "    if False:\n        return None",
+        "find": "        return (((\"picture\", str(pic)), None) if pic == after else (None, WHY_CHANGED))",
+        "replace": "        return ((\"picture\", str(pic)), None)",
         "matches": 1,
     },
     {
@@ -303,8 +382,8 @@ RED_PROOF = [
     {
         "why": "a caller that stops handing over the picture leaves every new row UNKNOWN again",
         "file": "tv_diablo.py",
-        "find": "                            _G5.g5_shadow_log(_c, _gr, _p, picture=_pic)",
-        "replace": "                            _G5.g5_shadow_log(_c, _gr, _p)",
+        "find": "                            _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)",
+        "replace": "                            _G5.g5_shadow_log(_c, _gr, _orig)",
         "matches": 1,
     },
     {
@@ -314,6 +393,20 @@ RED_PROOF = [
         "find": "    _unattr = names.get(\"frames_unattributed_rows\")\n    if _unattr:",
         "replace": "    _unattr = 0\n    if _unattr:",
         "matches": 1,
+    },
+    {
+        "why": "v3483 - a known picture with an UNKNOWN shown-picture guessed into the before-picture's frame again (the eye on v3479, finding [3])",
+        "file": "g5_shadow_reducer.py",
+        "find": "    if pic:\n        return None, WHY_UNKNOWN",
+        "replace": "    if pic:\n        return (\"picture\", str(pic)), None",
+        "matches": 1
+    },
+    {
+        "why": "v3483 - grok handed the LIVE path again instead of the snapshot, so the two eyes can be shown different bytes (the eye on v3479, finding [0])",
+        "file": "tv_diablo.py",
+        "find": "                        _p = _snap or _orig",
+        "replace": "                        _p = _orig",
+        "matches": 1
     },
 ]
 

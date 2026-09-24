@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3482** | `(this commit)` | v3482 — red_proofs_in walks every RED_PROOF binding and reads the last, the census refuses a second, and the ledger gate eleven unrun proofs now prove |
+| **v3483** | `(this commit)` | v3483 — the shadow read is handed a snapshot taken right after the Claude read so both eyes see the same bytes; unplaced rows are counted by reason |
+| **v3482** | `40d07781` | v3482 — red_proofs_in walks every RED_PROOF binding and reads the last, the census refuses a second, and the ledger gate eleven unrun proofs now prove |
 | **v3481** | `3329ba54` | v3481 — close_ocr_worker closes the raw stream so the object close never waits on a writer lock; a stuck-write case reproduces the Linux hang on every OS |
 | **v3480** | `d9d2e4f3` | v3480 — the river law fixture now feeds geometry that fails to derive, so red-proof 6 reaches the unbuilt branch it guards; 8 of 8 proven |
 | **v3479** | `cca78142` | v3479 — the shadow log now stores a picture hash before and after the Grok read; frames key on it and read.jpg is attributed to no frame instead of one mixed frame |
