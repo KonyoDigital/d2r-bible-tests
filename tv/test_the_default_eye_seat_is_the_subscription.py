@@ -144,8 +144,10 @@ RED_PROOF = [
         "file": "second_eye_run.py",
         # re-anchored in #225/#227: the default now ASKS g5_grok_eyes._grok_bin (which finds grok.exe
         # on the Windows ALT), so the scar is put back on the one line that decides the seat
-        "find": "EYE_CLI = os.environ.get(\"THIRD_EYE_CLI\") or _default_eye_cli()",
-        "replace": "EYE_CLI = os.environ.get(\"THIRD_EYE_CLI\") or \"grok\"",
+        # re-anchored again (REG-1233): EYE_CLI is wrapped in expanduser now; expanduser("grok") is
+        # still the bare name, so the sabotage still lands on the scar
+        "find": "EYE_CLI = os.path.expanduser(os.environ.get(\"THIRD_EYE_CLI\") or _default_eye_cli())",
+        "replace": "EYE_CLI = os.path.expanduser(os.environ.get(\"THIRD_EYE_CLI\") or \"grok\")",
         "matches": 1,
     },
     {

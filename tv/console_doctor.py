@@ -3028,7 +3028,9 @@ def _remaining_page_reading():
     try:
         sur = int(ex.get("surplus") or 0)
     except Exception:
-        sur = 0
+        # an unreadable surplus is UNKNOWN, never a zero - "could not read" is not "the page agrees"
+        return {"state": UNKNOWN, "why": "the saved sweep's surplus is not a number (%r), so how many "
+                                        "of your rows the page disputes is unknown" % (ex.get("surplus"),)}
     n = len(named) or abs(sur)
     age = _page_age_days(rd)
     old = "of unknown age" if age is None else ("from today" if age < 1 else "%d days old" % round(age))
