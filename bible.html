@@ -9288,6 +9288,24 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #ibx-needsyou .ibx-ny-dim{opacity:.62;border-color:rgba(160,160,160,.3);background:rgba(120,120,120,.06);color:#b9b9b9}
 #ibx-needsyou .ibx-ny-warn{border-color:rgba(240,120,80,.5);background:rgba(240,120,80,.08);color:#f0a060}
 #ibx-needsyou .ibx-ny-ok{opacity:.8;border-color:rgba(120,200,120,.3);background:rgba(120,200,120,.05);color:#a8d8a8}
+/* #223 -- a question he can answer, in this section's own grammar. Tokens only (the visual lock). */
+#ibx-needsyou .ibx-ny-ask{padding:7px 0 5px;border-top:1px dotted rgba(240,192,96,.22)}
+#ibx-needsyou .ibx-ny-kind{font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.06em;color:#f0c060}
+#ibx-needsyou .ibx-ny-q{font-weight:var(--fw-bold);color:#f3e6c4;margin:3px 0 2px}
+#ibx-needsyou .ibx-ny-why{opacity:.8;margin-bottom:2px}
+#ibx-needsyou .ibx-ny-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+#ibx-needsyou .ibx-ny-b{background:rgba(255,255,255,.06);border:1px solid rgba(240,192,96,.4);color:#f0dfb4;
+  border-radius:6px;padding:4px 11px;cursor:pointer;font-size:var(--fs-meta);font-weight:var(--fw-medium);white-space:nowrap}
+#ibx-needsyou .ibx-ny-b:hover,#ibx-needsyou .ibx-ny-b:focus-visible{border-color:#f0c060;color:#fff;outline:none}
+#ibx-needsyou .ibx-ny-b[disabled]{opacity:.5;cursor:wait}
+#ibx-needsyou .ibx-ny-b-sm{padding:1px 8px;font-size:var(--fs-micro)}
+#ibx-needsyou .ibx-ny-said{margin-top:3px;font-size:var(--fs-micro);opacity:.85}
+#ibx-needsyou .ibx-ny-said:empty{display:none}
+#ibx-needsyou .ibx-ny-head-done{margin-top:6px;color:#a8d8a8}
+#ibx-needsyou .ibx-ny-done{padding:3px 0;border-top:1px dotted rgba(120,200,120,.22);color:#c9e2c0}
+/* #223 -- the board's floating compass / ? circles sit on the right edge at phone width; a cross-family
+   look found one lying on the end of an answer pill. Keep the pills out of that column. */
+@media (max-width:520px){ #ibx-needsyou .ibx-ny-acts{padding-right:52px} }
 .ibx-badge{margin-left:auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.04em;
   color:#1a1207;background:var(--gold-bright);border-radius:999px;padding:2px 10px;white-space:nowrap;
   box-shadow:0 0 10px rgba(240,192,96,.45)}
@@ -50476,6 +50494,25 @@ try { window._renderDockPin(); window._renderStashFresh(); } catch(e){}
 // fixes them all, at every width, forever. .dock-tall gates the pill's corner-docking off when
 // the band has no free corner.
 try {
+  /* ⚠ #223 — A RESIZE CALLBACK MUST NOT CHANGE LAYOUT INSIDE THE DELIVERY LOOP. _inboxSync toggles a
+     class on the very element it observes and publishes --inbox-top, which that element's own
+     max-height reads; run synchronously from the observer, that re-sizes what is being observed in
+     the same frame, and under load Chrome gives up with "ResizeObserver loop completed with
+     undelivered notifications" — an uncaught error the render gate counts (measured 2026-09-24:
+     the `inbox` target red three runs straight at load ~4, and red on v3493's page too, so the
+     loop was old and only the timing was new). Every observer here defers its work one frame,
+     coalesced; the direct calls (first paint, resize, scroll) are unchanged. */
+  var _roDefer = function(fn){
+    var queued = false;
+    return function(){
+      if (queued) return;
+      queued = true;
+      (window.requestAnimationFrame || function(f){ return setTimeout(f, 16); })(function(){
+        queued = false;
+        try { fn(); } catch(e){}
+      });
+    };
+  };
   var _dockEl = document.querySelector('#control-dock .dock-inner');
   var _dockHLast = 0;
   var _dockSync = function(){
@@ -50506,7 +50543,7 @@ try {
       document.documentElement.classList.toggle('dock-tall', h > 104);
     } catch(e){}
   };
-  if (_dockEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_dockSync).observe(_dockEl); }
+  if (_dockEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_roDefer(_dockSync)).observe(_dockEl); }
   /* ══ v2227 (#52) — AND THE TOP CHROME NEEDS THE SAME NUMBER, for the same reason ═══════════
      MEASURED at 901px on a scrolled Sessions tab: `.header` is `position:sticky; top:0; z-index:100`
      and spans 0 -> 282. `#inbox-sticky` is `position:sticky; top:8px`, so it pins at 174 and its
@@ -50533,7 +50570,7 @@ try {
     } catch(e){}
   };
   _hdrSync();
-  if (_hdrEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_hdrSync).observe(_hdrEl); }
+  if (_hdrEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_roDefer(_hdrSync)).observe(_hdrEl); }
   try { window.addEventListener('resize', _hdrSync); } catch(e){}
 
   /* v2477 — AND THE INBOX'S OWN TOP, for the same reason and in the same shape. Its height budget
@@ -50559,7 +50596,7 @@ try {
   _inboxSync();
   try {
     var _ibxEl = document.getElementById('inbox-sticky');
-    if (_ibxEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_inboxSync).observe(_ibxEl); }
+    if (_ibxEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_roDefer(_inboxSync)).observe(_ibxEl); }
     if (_ibxEl && typeof MutationObserver !== 'undefined'){
       new MutationObserver(_inboxSync).observe(_ibxEl, { attributes: true, attributeFilter: ['class'] });
     }
@@ -50597,7 +50634,7 @@ try {
       document.documentElement.style.setProperty('--chrome-top', h + 'px');
     } catch(e){}
   };
-  if (_tabsEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_chromeSync).observe(_tabsEl); }
+  if (_tabsEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_roDefer(_chromeSync)).observe(_tabsEl); }
   window.addEventListener('resize', _chromeSync);
   _chromeSync();
 } catch(e){}
@@ -50624,7 +50661,7 @@ try {
       document.documentElement.style.setProperty('--claim-h', h + 'px');
     } catch(e){}
   };
-  if (_claimEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_claimSync).observe(_claimEl); }
+  if (_claimEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_roDefer(_claimSync)).observe(_claimEl); }
   if (_claimEl && typeof MutationObserver !== 'undefined'){
     // the bar is revealed by clearing [hidden], which no ResizeObserver reports on its own
     new MutationObserver(_claimSync).observe(_claimEl, {attributes:true, attributeFilter:['hidden','style','class']});
@@ -50812,7 +50849,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3494', name:'v3494 - WAITING ON YOU COUNTS ONLY WHAT ASKS HIM SOMETHING', date:'2026-09-24', note:'#226 - his ruling: it should only be waiting on him if it is something he needs to do. Measured on his live rows: 5 billed, 1 his (the shadow gate). A red row now bills him only while its check declares a question (console_doctor.ASKS); the other four land under WAITING ON CODE, still drawn. The mailbox reads the server list needsYouWhat instead of re-deciding (it billed 7 where the console billed 5).' };
+  window.D2R_BUILD = { id:'v3495', name:'v3495 - ANSWER HIS QUESTIONS FROM THE INBOX', date:'2026-09-24', note:'#223 - the questions the console asks him are answered from the inbox he already has: the question, what it means for him, one button per answer; his answer goes to this console (POST /api/board_answer refuses a foreign Origin, automation, a guest board, a stale question), is kept per machine, and moves the count in the same request. The state panel draws the question with a CHOOSE IN INBOX shortcut and ANSWERED BY YOU. Also: the eye no longer pins a Finder window whose title says diablo, and the board no longer throws a ResizeObserver loop under load.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -51837,11 +51874,14 @@ window._CH_PILL_MAP = {
            + ' not measured)</span>' : '');
       var _mineBit = _eagleNY.mine
         ? ' <span class="ibx-ny-unk">(+' + esc(_eagleNY.mine)
-          + ' held out \u2014 Claude\u2019s own defects, not yours to fix)</span>' : '';
+          + ' held out \u2014 Claude\u2019s work: they ask you nothing)</span>' : '';
       var h = '<div class="ibx-ny"><div class="ibx-ny-head">\ud83e\udd85 WAITING ON YOU \u2014 '
         + _eagleNY.rows.length + _unkBit + _mineBit + '</div>';
       for (var i = 0; i < _eagleNY.rows.length && i < 20; i++){
         var r = _eagleNY.rows[i] || {};
+        /* #223 -- a row that ASKS him something is drawn as the question, with its answers */
+        var _open = r.openAsks || r.asks || [];
+        if (_open.length){ h += _askCardsHtml(r, _open, esc); continue; }
         h += '<div class="ibx-ny-row"><b>' + esc(r.check) + '</b> \u2014 '
           + esc(String(r.why || '').slice(0, 140)) + '</div>';
       }
@@ -51849,13 +51889,15 @@ window._CH_PILL_MAP = {
         h += '<div class="ibx-ny-row ibx-ny-unk">\u2026 and ' + (_eagleNY.rows.length - 20)
           + ' more \u2014 the header counts them all</div>';
       }
-      host.innerHTML = h + '</div>';
+      host.innerHTML = h + _answeredHtml(esc) + '</div>';
       try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
       return;
     }
     if (_eagleNY.st === 'clear'){
+      var _ansH = _answeredHtml(esc);
       host.innerHTML = '<div class="ibx-ny ibx-ny-ok">\ud83e\udd85 waiting-on-you: none \u2014 the '
-        + 'watchdog measured ' + esc(_eagleNY.say) + '</div>';
+        + 'watchdog measured ' + esc(_eagleNY.say) + '</div>'
+        + (_ansH ? '<div class="ibx-ny">' + _ansH + '</div>' : '');
       try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
       return;
     }
@@ -51871,9 +51913,215 @@ window._CH_PILL_MAP = {
        probes a laptop that is not there. */
     try {
       if (/(:|^)(17772|17771)\b/.test(String(location.host || ''))) return '';
+      /* #223 -- a page served over http by 127.0.0.1/localhost WAS served by a console, whatever its
+         port: a second console, a box on another port, or the render harness's private console.
+         The port test alone read every one of those as "not connected" and drew no question. */
+      if (String(location.protocol || '') === 'http:'
+          && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(location.host || ''))) return '';
       if (String(location.protocol || '') === 'file:') return 'http://127.0.0.1:17772';
     } catch(e){}
     return null;
+  }
+  /* ══ #223 -- HIS QUESTIONS, ANSWERED FROM HIS INBOX ══════════════════════════════════════════
+     His ask, 2026-09-24: the rows that need him should work "like the mailbox ... if need something
+     done of me what exactly and maybe the option there to tally it off ... that triggers and
+     connects the answer to the console". No second mailbox: a question is one more row of THIS
+     section, in its grammar. An answer goes to this page's own console (POST /api/board_answer,
+     which refuses a foreign Origin, automation, a guest board and a stale question), and the pile
+     repaints from what the console says back. A board opened straight off disk cannot answer
+     (its Origin is null) and says where to answer instead. [[the-unjoined-end]] */
+  function _askCardsHtml(r, asks, esc){
+    var h = '', disk = false;
+    try { disk = String(location.protocol || '') === 'file:'; } catch(e){}
+    for (var k = 0; k < asks.length; k++){
+      var a = asks[k] || {};
+      var kind = a.kind === 'do' ? '🔌 SOMETHING TO DO' : '⚖ YOUR CALL';
+      h += '<div class="ibx-ny-ask" data-ask="' + esc(a.id) + '" data-fp="' + esc(a.fp) + '">'
+        + '<div class="ibx-ny-kind">' + kind + ' · ' + esc(r.check) + '</div>'
+        + '<div class="ibx-ny-q">' + esc(a.q) + '</div>'
+        + ((a.why || r.why) ? '<div class="ibx-ny-why">' + esc(String(a.why || r.why).slice(0, 420)) + '</div>' : '');
+      if (disk){
+        h += '<div class="ibx-ny-said">Opened from disk — answer in TV DIABLO’s Tools tab.</div>';
+      } else {
+        h += '<div class="ibx-ny-acts">';
+        var ans = a.answers || [];
+        for (var m = 0; m < ans.length; m++){
+          h += '<button type="button" class="ibx-ny-b" data-ask="' + esc(a.id) + '" data-key="'
+            + esc(ans[m].key) + '" data-fp="' + esc(a.fp) + '" onclick="window._askAnswer &amp;&amp; '
+            + 'window._askAnswer(this)">' + esc(ans[m].label) + '</button>';
+        }
+        h += '</div><div class="ibx-ny-said" aria-live="polite"></div>';
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+  function _answeredHtml(esc){
+    var A = (_eagleNY && _eagleNY.answered) || [];
+    if (!A.length) return '';
+    var fmt = function(ms, withTime){
+      try { return new Date(ms).toLocaleString('en-GB', withTime
+        ? { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+        : { day: 'numeric', month: 'short' }); } catch(e){ return 'UNKNOWN'; }
+    };
+    var h = '<div class="ibx-ny-head ibx-ny-head-done">✓ ANSWERED BY YOU — ' + A.length + '</div>';
+    for (var i = 0; i < A.length; i++){
+      var r = A[i] || {}, ans = (r.answered || [])[0] || {};
+      /* ONE wording, shared word for word with the console panel (a cross-family look caught the two
+         surfaces saying the same thing two ways) -- and the QUESTION is restated, because an answer
+         shown without its question read as the open question answered twice. */
+      var after = ans.effect === 'handoff'
+        ? 'handed to Claude — nothing changes until it is built and shown to you'
+        : (ans.until ? 'asked again after ' + fmt(ans.until, false) + ', or sooner if the question changes'
+                     : 'held until the question changes');
+      h += '<div class="ibx-ny-done" data-ask="' + esc(ans.askId) + '"><b>' + esc(r.check) + '</b>'
+        + (ans.q ? ' — “' + esc(ans.q) + '”' : '')
+        + ' · you: ' + esc(ans.label || ans.key) + ' (' + esc(ans.at ? fmt(ans.at, true) : 'UNKNOWN')
+        + ') · ' + esc(after) + ' <button type="button" class="ibx-ny-b" data-ask="'
+        + esc(ans.askId) + '" onclick="window._askWithdraw &amp;&amp; window._askWithdraw(this)">change</button>'
+        + '<div class="ibx-ny-said" aria-live="polite"></div></div>';
+    }
+    return h;
+  }
+  var _ASK_REFUSED = {
+    origin: 'This page is not your console’s own page, so it cannot answer — answer in TV DIABLO’s Tools tab.',
+    automation: 'An automated browser cannot answer for you.',
+    guest: 'Answer from your own board; this one is a guest world and cannot (✋ This browser is mine).',
+    stale: 'The question changed since this was drawn — redrawing the current one.',
+    unmeasured: 'The console has not measured yet, so it has asked you nothing.',
+    undeclared: 'The console is not asking this any more.',
+    store: 'Your earlier answers could not be read, so nothing was written over them.'
+  };
+  function _askWho(){
+    try { var rt = JSON.parse(window.LSR.getItem('d2r_lsrRoute') || 'null');
+          if (rt && rt.v === 2) return { id: rt.id || null, p: rt.p || null,
+                                         pfx: (typeof rt.pfx === 'string' ? rt.pfx : null) };
+    } catch(e){}
+    return null;
+  }
+  function _askEach(id, sel, fn){
+    try { [].forEach.call(document.querySelectorAll('#ibx-needsyou [data-ask="' + String(id).replace(/"/g, '')
+                                                    + '"]' + (sel || '')), fn); } catch(e){}
+  }
+  function _askPost(id, payload){
+    var said = function(msg){ _askEach(id, ' .ibx-ny-said', function(n){ n.textContent = msg; }); };
+    var base = _eagleNYBase(), disk = false;
+    try { disk = String(location.protocol || '') === 'file:'; } catch(e){}
+    if (base === null || disk){ said('Opened from disk — answer in TV DIABLO’s Tools tab.'); return; }
+    payload.askId = id; payload.confirm = true; payload.who = _askWho();
+    try { payload.webdriver = !!navigator.webdriver; } catch(e){ payload.webdriver = false; }
+    var lock = function(on){ _askEach(id, ' button', function(b){ b.disabled = !!on; });
+                             _askEach(id, '', function(b){ if (b.tagName === 'BUTTON') b.disabled = !!on; }); };
+    lock(true); said('sending your answer…');
+    fetch(base + '/api/board_answer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(payload) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (j && j.ok && j.eagle){
+          _eagleNY = _eagleNYFromEagle(j.eagle);
+          _eagleNYPaint();
+          try { if (window.parent && window.parent !== window && window.parent._asksChanged)
+                  window.parent._asksChanged(j.eagle); } catch(e){}
+          return;
+        }
+        lock(false);
+        said((j && _ASK_REFUSED[j.refused]) || ('Not recorded: ' + String((j && j.why) || 'no reason given')));
+        if (j && j.refused === 'stale') _eagleNYFetch();
+      })
+      .catch(function(err){
+        lock(false);
+        said('Not recorded — the console did not answer (' + String((err && err.message) || err) + ').');
+      });
+  }
+  function _askAnswer(btn){
+    _askPost(btn.getAttribute('data-ask'), { key: btn.getAttribute('data-key'), fp: btn.getAttribute('data-fp') });
+  }
+  function _askWithdraw(btn){ _askPost(btn.getAttribute('data-ask'), { withdraw: true }); }
+  function d2rOpenAsk(id){
+    /* the console's ANSWER -> shortcut lands here. It RETURNS whether it landed, so the console can
+       say so instead of leaving him on a tab wondering where he was sent (the v1613 lesson). */
+    try {
+      var card = document.getElementById('inbox-card');
+      if (card && card.classList.contains('collapsed')) card.classList.remove('collapsed');
+      var t = document.querySelector('#ibx-needsyou [data-ask="' + String(id).replace(/"/g, '') + '"]');
+      if (!t) return { landed: null, why: 'the inbox does not show this question (answered, or no longer asked)' };
+      /* INSTANT, then clear of the dock. A smooth scroll read mid-animation reports a rect the page is
+         about to leave. The lift is DEFENSIVE: at 375px the fixed dock is a quarter of the screen,
+         and a whole centred SECTION put its answered row under it -- but a single centred card
+         cleared it at all six widths even with the lift disabled (measured 2026-09-24), so this
+         branch only runs for a card taller than the space above the dock. UNMEASURED there. */
+      t.scrollIntoView({ block: 'center', behavior: 'instant' });
+      try {
+        var dk = document.querySelector('#control-dock .dock-inner');
+        var dt = dk ? dk.getBoundingClientRect().top : (window.innerHeight || 0);
+        var r0 = t.getBoundingClientRect();
+        if (dk && r0.bottom > dt - 8) {
+          window.scrollBy({ top: Math.min(r0.bottom - dt + 16, Math.max(0, r0.top - 90)), behavior: 'instant' });
+        }
+      } catch(e){}
+      t.classList.remove('search-match-highlight'); void t.offsetWidth; t.classList.add('search-match-highlight');
+      var b = t.querySelector('button:not([disabled])');
+      if (b) { try { b.focus({ preventScroll: true }); } catch(e){ b.focus(); } }
+      var rc = t.getBoundingClientRect();
+      return { landed: { top: Math.round(rc.top), height: Math.round(rc.height) }, why: '' };
+    } catch(e){ return { landed: null, why: 'could not open the question: ' + (e && e.message) }; }
+  }
+  try {
+    window._askAnswer = _askAnswer;
+    window._askWithdraw = _askWithdraw;
+    window.d2rOpenAsk = d2rOpenAsk;
+    window._eagleNYAdopt = function(e){ _eagleNY = _eagleNYFromEagle(e || {}); _eagleNYPaint(); };
+  } catch(e){}
+  function _eagleNYFromEagle(e){
+    /* #223 -- ONE builder of the cached state, used by the 120s poll AND by the answer response,
+       so an answer repaints from exactly what the server said -- never from a second guess. */
+    e = e || {};
+    if (e.needsYou == null){
+      /* \u26a0 v3010 \u2014 A DEAD WATCHDOG MUST NOT DRESS AS A YOUNG ONE. needsYou:null covers
+         two states the server distinguishes in `say`: never-ran-this-boot, and RAN AND
+         CRASHED ("the eagle could not run: ..."). The say rides into the cache so the
+         painter can tell him which absence this is. [[unknown-stays-unknown]] */
+      return { st: 'unmeasured', why: String(e.say || ''), needsYou: null,
+                   unknown: null, mine: null, rows: [], say: String(e.say || ''),
+                   at: Date.now() };
+    } else {
+      /* \u26a0\u26a0 v3010 \u2014 THE MINE PARTITION IS THE SERVER'S CONTRACT, AND v3006 IGNORED
+         IT. needsYou = missing rows NOT owned by Claude (control_app computes it against
+         console_doctor.MINE, the v2284 rule: my defects are never billed to him). Counting
+         every missing row painted "WAITING ON YOU \u2014 13" while the chip said 11, the two
+         extra being MY bugs he cannot act on. Measured live: mineWhat carried
+         ['extraction lanes', 'board join'] at that exact moment. */
+      var mineW = e.mineWhat || [];
+      /* #226 -- needsYouWhat IS THE SERVER'S OWN LIST of what bills him, and re-deciding it
+         here drifted: this pile read mineWhat alone and ignored byDesignWhat, so it billed 7
+         where the console billed 5 (measured 2026-09-24). A row is his only while it ASKS
+         him something; the server decides that once. An older payload without the list
+         falls back to the old rule, which now holds the by-design rows out as well. */
+      var nyW = e.needsYouWhat, designW = e.byDesignWhat || [];
+      var bad = [], _seenNY = {};
+      var rows = (e.rows || []).concat(e.slowRows || []);
+      for (var i = 0; i < rows.length; i++){
+        if (!rows[i] || rows[i].state !== 'missing' || _seenNY[rows[i].check]) continue;
+        _seenNY[rows[i].check] = 1;
+        if (nyW ? nyW.indexOf(rows[i].check) >= 0
+                : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);
+      }
+      /* #223 -- the rows he has answered: drawn under ANSWERED BY YOU with what he chose, never
+         dropped, so an answer is something he can see and change. */
+      var ansW = e.answeredWhat || [], answered = [], _seenA = {};
+      for (var j = 0; j < rows.length; j++){
+        if (!rows[j] || _seenA[rows[j].check] || ansW.indexOf(rows[j].check) < 0) continue;
+        _seenA[rows[j].check] = 1;
+        answered.push(rows[j]);
+      }
+      return { st: (bad.length ? 'rows' : 'clear'), why: '', answered: answered,
+                   needsYou: e.needsYou,
+                   /* null stays null \u2014 an absent not-measured count is UNKNOWN, not 0 */
+                   unknown: (e.unknown == null ? null : e.unknown),
+                   mine: (e.mine == null ? (mineW.length || null) : e.mine),
+                   rows: bad,
+                   say: String(e.say || ''), at: Date.now() };
+    }
   }
   function _eagleNYFetch(){
     var base = _eagleNYBase();
@@ -51881,45 +52129,7 @@ window._CH_PILL_MAP = {
     try {
       fetch(base + '/api/status', { cache: 'no-store' }).then(function(r){ return r.json(); })
         .then(function(d){
-          var e = (d && d.eagle) || {};
-          if (e.needsYou == null){
-            /* \u26a0 v3010 \u2014 A DEAD WATCHDOG MUST NOT DRESS AS A YOUNG ONE. needsYou:null covers
-               two states the server distinguishes in `say`: never-ran-this-boot, and RAN AND
-               CRASHED ("the eagle could not run: ..."). The say rides into the cache so the
-               painter can tell him which absence this is. [[unknown-stays-unknown]] */
-            _eagleNY = { st: 'unmeasured', why: String(e.say || ''), needsYou: null,
-                         unknown: null, mine: null, rows: [], say: String(e.say || ''),
-                         at: Date.now() };
-          } else {
-            /* \u26a0\u26a0 v3010 \u2014 THE MINE PARTITION IS THE SERVER'S CONTRACT, AND v3006 IGNORED
-               IT. needsYou = missing rows NOT owned by Claude (control_app computes it against
-               console_doctor.MINE, the v2284 rule: my defects are never billed to him). Counting
-               every missing row painted "WAITING ON YOU \u2014 13" while the chip said 11, the two
-               extra being MY bugs he cannot act on. Measured live: mineWhat carried
-               ['extraction lanes', 'board join'] at that exact moment. */
-            var mineW = e.mineWhat || [];
-            /* #226 -- needsYouWhat IS THE SERVER'S OWN LIST of what bills him, and re-deciding it
-               here drifted: this pile read mineWhat alone and ignored byDesignWhat, so it billed 7
-               where the console billed 5 (measured 2026-09-24). A row is his only while it ASKS
-               him something; the server decides that once. An older payload without the list
-               falls back to the old rule, which now holds the by-design rows out as well. */
-            var nyW = e.needsYouWhat, designW = e.byDesignWhat || [];
-            var bad = [], _seenNY = {};
-            var rows = (e.rows || []).concat(e.slowRows || []);
-            for (var i = 0; i < rows.length; i++){
-              if (!rows[i] || rows[i].state !== 'missing' || _seenNY[rows[i].check]) continue;
-              _seenNY[rows[i].check] = 1;
-              if (nyW ? nyW.indexOf(rows[i].check) >= 0
-                      : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);
-            }
-            _eagleNY = { st: (bad.length ? 'rows' : 'clear'), why: '',
-                         needsYou: e.needsYou,
-                         /* null stays null \u2014 an absent not-measured count is UNKNOWN, not 0 */
-                         unknown: (e.unknown == null ? null : e.unknown),
-                         mine: (e.mine == null ? (mineW.length || null) : e.mine),
-                         rows: bad,
-                         say: String(e.say || ''), at: Date.now() };
-          }
+          _eagleNY = _eagleNYFromEagle((d && d.eagle) || {});
           _eagleNYPaint();
         })
         .catch(function(err){

@@ -165,7 +165,43 @@ class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
         self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
                          "the bump REFUSED and still wrote — 'nothing written' must mean nothing")
 
+class TheHeartGateGradesTheTreeBeingBumped(unittest.TestCase):
+    """#223 — `bump(repo=...)` stamps the tree it is handed, and its heart gate ran `git diff` beside
+    the SCRIPT regardless: a bump aimed at a temp tree was refused for uncommitted edits in the LIVE
+    repo. Two throwaway git trees, so whichever state the live tree is in, one of these goes red if
+    the gate reads the wrong tree."""
+
+    def _git_tree(self, dirty):
+        import shutil, subprocess, tempfile
+        d = tempfile.mkdtemp(prefix="bump-heart-")
+        self.addCleanup(shutil.rmtree, d, True)
+        os.makedirs(os.path.join(d, "tv"))
+        io.open(os.path.join(d, "bible.html"), "w").write("<html>fixture</html>\n")
+        g = ["git", "-C", d, "-c", "user.email=t@t", "-c", "user.name=t"]
+        subprocess.run(g + ["init", "-q"], check=True)
+        subprocess.run(g + ["add", "-A"], check=True)
+        subprocess.run(g + ["commit", "-q", "-m", "fixture"], check=True)
+        if dirty:
+            io.open(os.path.join(d, "bible.html"), "a").write("<!-- a surface edit, no watcher -->\n")
+        return d
+
+    def test_a_dirty_temp_tree_is_refused(self):
+        with self.assertRaises(SystemExit) as cm:
+            B._heart_gate("no heart note here", repo=self._git_tree(dirty=True))
+        self.assertIn("changes nothing that WATCHES it", str(cm.exception))
+
+    def test_a_clean_temp_tree_is_not_refused_for_the_live_repos_edits(self):
+        B._heart_gate("no heart note here", repo=self._git_tree(dirty=False))   # must not raise
+
+
 RED_PROOF = [
+    {
+        "why": "#223 - the bump's heart gate grades the LIVE repo instead of the tree it stamps again",
+        "file": "bump_version.py",
+        "find": "        here = os.path.join(os.path.abspath(repo), \"tv\")\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
     {
         "why": "the EXACT v3100 defect is put back into bible.html — a bare `} catch(e){}` closing "
                "nothing — and the bump must refuse to stamp it. This is the shape that reached his "

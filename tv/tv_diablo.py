@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3494"   # WAITING ON YOU COUNTS ONLY WHAT ASKS HIM SOMETHING
+VERSION = "v3495"   # ANSWER HIS QUESTIONS FROM THE INBOX
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -1236,6 +1236,18 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
     title_game = ("diablo" in tl or "resurrected" in tl or tl == "d2r"
                   or any(t in tl for t in _D2R_TITLE_HINTS))
     if not is_game and not title_game:
+        return None
+    # ⚠⚠ #223 — A TITLE IS NOT AN OWNER. MEASURED 2026-09-24: with no game open, the eye pinned a
+    # FINDER window titled "tv-diablo-mailbox" as the game (score 1602 — `"diablo" in title` was
+    # the whole qualification), and a stub console filmed it. Finder "d2r notes" and Preview
+    # "diablo map.png" scored the same. A window whose TITLE merely mentions the game is not the
+    # game unless its OWNER is: the game binary, a wine/CrossOver host, a process named for
+    # d2r/diablo, or an owner he named in TV_WINDOW_MATCH. Recording the wrong window is footage
+    # of his desktop, not of his run.
+    _named = [t.strip().lower() for t in (os.environ.get("TV_WINDOW_MATCH") or "").split(",") if t.strip()]
+    owner_ok = (is_game or _wine_owner or "d2r" in ol or "diablo" in ol
+                or any(t in ol for t in _named))
+    if not owner_ok:
         return None
     # Title-only without game owner: reject if it still looks like a shell —
     # v849: UNLESS the title is unambiguously the game at game size (wine-owner case)

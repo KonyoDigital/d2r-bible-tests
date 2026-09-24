@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1221 - THE BUMP'S HEART GATE GRADED THE LIVE REPO, NOT THE TREE IT STAMPED (v3495)
+
+**fix.** `bump(repo=...)` stamps the tree it is handed; `_heart_gate` ran `git diff` beside the script regardless, so a
+bump aimed at a temp tree was refused for uncommitted edits in the LIVE repo (`test_the_bump_refuses_a_tree_that_does_
+not_parse` went red whenever a surface edit was open). It grades `repo` now. Guard: two throwaway git trees (dirty must
+refuse, clean must pass) so whichever state the live tree is in, one goes red if the gate reads the wrong tree. PROVEN.
+
+### REG-1220 - THE EYE PINNED A FINDER WINDOW AS THE GAME BECAUSE ITS TITLE SAID "DIABLO" (v3495)
+
+**fix - #223, found because the render gate flaked.** A served (stub) console went ON AIR by itself and its stage showed
+a real FINDER window, "tv-diablo-mailbox": `score_d2r_window_candidate` scored Finder/Preview/TextEdit windows whose
+TITLE mentions diablo/d2r at 1602 - pinnable as the game when no game is open - so the eye would film his desktop. The
+film layout then covered the ADVANCED drawer at 375px, which is why `advanced-shadow` went red on unchanged code
+(A/B: red on pre-v3493 files too) and green again once Finder was not "the game". A title now qualifies only with a
+game / wine / CrossOver / d2r-named owner or one he named in TV_WINDOW_MATCH. The stub console's frames went to the
+harness sandbox (TV_FRAMES_DIR), not his footage. Guard: `test_a_title_is_not_an_owner` + proof; test_agent 263 OK.
+
+### REG-1219 - THE BOARD THREW "ResizeObserver loop completed with undelivered notifications" UNDER LOAD (v3495)
+
+**fix.** The render gate's `inbox` target went red three runs straight at load ~4 on one uncaught page error, and red on
+v3493's page too (A/B) - the loop was old, only the timing was new. `_inboxSync` toggled a class on the element it
+observes and published --inbox-top, which that element's max-height reads, inside the observer's delivery loop. All
+five observers in bible.html defer their layout one frame, coalesced (`_roDefer`); green twice after. Guard:
+`test_a_resize_callback_defers_its_layout` (count + `_roDefer` driven in node), 2 proofs.
+
+### REG-1218 - HIS QUESTIONS COULD NOT BE ANSWERED FROM ANYWHERE (v3495)
+
+**feature/fix - #223, his ask: the rows that need him should work like the mailbox, "what exactly" and "the option
+there to tally it off", connected back to the console.** The inbox's WAITING ON YOU section draws each question as a
+card - what is asked, what it means for him (the shadow gate's facts rewritten in his words after a cross-family look
+called the ledger's wording jargon), one button per answer carrying the question's fingerprint - and ANSWERED BY YOU
+restates the question with what he chose, when it lapses, and a change button. POST /api/board_answer (backend in
+518945b3) takes it; the pile repaints from the console's reply. A board off disk says where to answer instead (Origin
+null is refused). THE STATE OF THIS CONSOLE draws the question with a CHOOSE IN INBOX shortcut (`_hubGoAsk` ->
+`d2rOpenAsk`, which says whether it landed) and an ANSWERED BY YOU section; its buttons got their first CSS rule.
+MEASURED ON PIXELS and corrected twice: the first cut's buttons ran over the note (value column capped at 10em; no gate
+saw it - nothing was CUT, two children overlapped); two Grok CLI looks (grok-4.7) found the answered row read as the
+open question answered twice, the choices hidden behind the shortcut, and copy drift between the two surfaces - all
+fixed. The Grok MCP vision seat was EMPTY (the API team is out of credits). New render targets `inbox-asks` (lands
+through d2rOpenAsk, hit-tests every answer's end) and `state-asks`, fixture-seeded; floors added by hand (4 / 2).
+
 ### REG-1217 - WAITING ON YOU BILLED HIM FOR FOUR ROWS THAT ASKED HIM NOTHING (v3494)
 
 **fix - #226, his ruling 2026-09-24: "it should only really be waiting on me if its something i need to do".** Measured

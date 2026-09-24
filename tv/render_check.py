@@ -1220,6 +1220,71 @@ TARGETS = {
         "settles": False,
         "warmup": 8.0,
     },
+    # ⚠⚠ #223 — HIS QUESTIONS HAD NO PHOTOGRAPH. The `inbox` target aims at #inbox-sticky (the
+    # chronicle pile) and `state-panel` draws whatever the private console's watchdog happens to hold,
+    # so the card he answers and the row that sends him to it were in no shot at all. Both are seeded
+    # with a FIXTURE question (never his data) and re-seeded on every poll, so the page's own fetch
+    # cannot paint over them between the activate and the probe.
+    "inbox-asks": {
+        "serve": True,
+        "path": "/board?app=1#tools",
+        "why": "HIS QUESTIONS IN THE INBOX — the WAITING ON YOU card he answers (the question, one "
+               "button per answer, the fingerprint on each) and ANSWERED BY YOU with its change "
+               "button. Served, because a board off disk correctly offers no button (Origin null)",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var A = {id:'fixture-ask', kind:'decide', fp:'fixture:1', q:'FIXTURE - should the console ask you before it ticks a grail item by itself?', answers:[{key:'keep',label:'Keep it as it is',effect:'ruled'},{key:'stricter',label:'Ask me more often',effect:'handoff'},{key:'week',label:'Remind me in a week',effect:'snooze'}]};
+            if (typeof window._eagleNYAdopt !== 'function') return false;
+            try { if (typeof window.switchTab === 'function') window.switchTab('tools'); } catch(e){}
+            var card = document.getElementById('inbox-card');
+            if (card) card.classList.remove('collapsed');
+            window._eagleNYAdopt({needsYou:1, needsYouWhat:['shadow gate'], answeredWhat:['ledger staleness'], mine:0, mineWhat:[], byDesign:0, byDesignWhat:[], noQuestionWhat:[], unknown:0, say:'1 need you', rows:[{check:'shadow gate', state:'missing', why:'On 57 of the 451 item names ever scored, the console ticked the item by itself where a stricter rule would have asked first.', asks:[A], openAsks:[A]},{check:'ledger staleness', state:'missing', why:'FIXTURE', asks:[], openAsks:[], answered:[{askId:'fixture-done', key:'off', label:'Off on purpose', q:'FIXTURE - switch on your second PC?', effect:'ruled', at:Date.now()-3600000, until:Date.now()+29*864e5}]}], slowRows:[]});
+            var q = document.querySelector('#ibx-needsyou .ibx-ny-ask');
+            if (!q || typeof window.d2rOpenAsk !== 'function') return false;
+            /* LAND THE WAY THE CONSOLE'S ANSWER -> SHORTCUT LANDS, then hit-test the middle of the
+               card: at 375px a centred card sat half under the fixed dock (measured), and a rect
+               check alone cannot tell "on screen" from "under the dock". */
+            var got = window.d2rOpenAsk('fixture-ask');
+            if (!got || !got.landed) return false;
+            var r = q.getBoundingClientRect();
+            /* EVERY answer, not the first: a cross-family look at 375px found the floating compass
+               circle lying on the END of the second pill, which a first-button check cannot see. The
+               hit is taken near each pill's right end, where a floating control would land. */
+            var bs = [].slice.call(q.querySelectorAll('.ibx-ny-b'));
+            var allHit = bs.length > 0 && bs.every(function (b) {
+                var br = b.getBoundingClientRect();
+                var h = document.elementFromPoint(br.right - Math.min(10, br.width / 4), br.top + br.height / 2);
+                return h && (h === b || b.contains(h));
+            });
+            window.__rcAskHit = allHit;
+            return !!(r.width > 2 && r.height > 2 && allHit
+                      && q.querySelectorAll('.ibx-ny-b').length === 3
+                      && document.querySelector('#ibx-needsyou .ibx-ny-done')); })()""",
+        "sel": "#ibx-needsyou .ibx-ny-ask, #ibx-needsyou .ibx-ny-done, #ibx-needsyou .ibx-ny-head",
+        "settles": False,
+        "warmup": 4.0,      # fixture-seeded; waits only for the page (the gate is 300s)
+    },
+    "state-asks": {
+        "serve": True,
+        "why": "THE QUESTION ROW IN THE STATE OF THIS CONSOLE — WAITING ON YOU drawn as the question "
+               "with its YOUR CALL — ANSWER -> shortcut, and ANSWERED BY YOU with what he chose",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var A = {id:'fixture-ask', kind:'decide', fp:'fixture:1', q:'FIXTURE - should the console ask you before it ticks a grail item by itself?', answers:[{key:'keep',label:'Keep it as it is',effect:'ruled'},{key:'stricter',label:'Ask me more often',effect:'handoff'},{key:'week',label:'Remind me in a week',effect:'snooze'}]};
+            var st = window.__lastStatus;
+            if (!st || typeof window._verXrefOpen !== 'function') return false;
+            st.eagle = Object.assign({}, st.eagle || {}, {needsYou:1, needsYouWhat:['shadow gate'], answeredWhat:['ledger staleness'], mine:0, mineWhat:[], byDesign:0, byDesignWhat:[], noQuestionWhat:[], unknown:0, say:'1 need you', rows:[{check:'shadow gate', state:'missing', why:'On 57 of the 451 item names ever scored, the console ticked the item by itself where a stricter rule would have asked first.', asks:[A], openAsks:[A]},{check:'ledger staleness', state:'missing', why:'FIXTURE', asks:[], openAsks:[], answered:[{askId:'fixture-done', key:'off', label:'Off on purpose', q:'FIXTURE - switch on your second PC?', effect:'ruled', at:Date.now()-3600000, until:Date.now()+29*864e5}]}], slowRows:[]});
+            window._verXrefOpen();
+            var ov = document.getElementById('ver-xref');
+            var ask = ov && ov.querySelector('.vx-ask .vx-go');
+            if (!ask || !ov.querySelector('.vx-ans')) return false;
+            ask.scrollIntoView({block: 'center'});
+            var r = ask.getBoundingClientRect();
+            return !!(r.width > 2 && r.height > 2); })()""",
+        "sel": "#ver-xref .vx-ask, #ver-xref .vx-ans",
+        "settles": False,
+        "warmup": 4.0,      # fixture-seeded; waits only for the page (the gate is 300s)
+    },
     "state-panel": {
         "serve": True,
         "why": "THE STATE OF THIS CONSOLE — the ⟳ CHECK NOW control, the four sections, and the "

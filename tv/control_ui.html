@@ -6208,6 +6208,24 @@
     #ver-xref .vx-row { grid-template-columns: minmax(0,1fr); gap: 1px; padding: 7px 0; }
     #ver-xref .vx-note { grid-column: 1; }
   }
+  /* #223 — the panel's buttons had NO rule of their own (⟳ CHECK NOW rendered as a bare system
+     button). Tokens only, per the visual lock; .vx-go is the ANSWER -> shortcut. */
+  #ver-xref .vx-btn { font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-wide);
+    color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--edge);
+    border-radius: 6px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+  #ver-xref .vx-btn:hover, #ver-xref .vx-btn:focus-visible { border-color: rgba(240,192,96,.55); color: var(--gold, #f0c060); outline: none; }
+  #ver-xref .vx-btn.vx-go { color: #1a1207; background: var(--gold, #f0c060); border-color: var(--gold, #f0c060); font-weight: var(--fw-bold); }
+  #ver-xref .vx-btn.vx-go:hover, #ver-xref .vx-btn.vx-go:focus-visible { filter: brightness(1.08); color: #1a1207; }
+  #ver-xref .vx-ans .vx-note { color: #b9dcb0; }
+  #ver-xref .vx-ask .vx-note b { color: var(--text); font-weight: var(--fw-bold); }
+  /* ⚠ #223 — MEASURED ON PIXELS, and the first cut collided: the value column is capped at 10em and
+     "YOUR CALL — ANSWER →" / "you: Keep it as it is" are wider, so each button ran over the note beside
+     it ("ANS" printed across "FIXTURE"). No gate saw it — nothing was CUT, two children of one row
+     simply overlapped. These rows size the value column to its button above the breakpoint; below
+     it the row is already one column. */
+  @media (min-width: 621px) {
+    #ver-xref .vx-row.vx-ask, #ver-xref .vx-row.vx-ans { grid-template-columns: 9.5em max-content minmax(0,1fr); }
+  }
   #ver-xref .vx-k { color: var(--muted); letter-spacing: var(--ls-label); text-transform: uppercase;
     font-size: var(--fs-2xs); }
   #ver-xref .vx-v { color: var(--text); font-variant-numeric: tabular-nums;
@@ -9700,6 +9718,43 @@ window._lockMark = function(isOpen, px, label){
   }
   // the grail hero's item / the daily pick / a grounded receipt -> the uniques chronicle, opened ON that item
   window._hubGoItem = function(name){ _hubOpenItem(name); };
+  /* ══ #223 — ANSWER -> : from THE STATE OF THIS CONSOLE to the question's card in the inbox ════════
+     Same shape as _hubOpenItem, for the same reason (v1613): the board RETURNS whether it landed,
+     and a miss is SAID, never a tab he is left on wondering where he was sent. The panel closes
+     first so the card is not under it. */
+  window._hubGoAsk = function(id){
+    if (!id) return;
+    try { if (window._verXrefClose) window._verXrefClose(); } catch (e) {}
+    shellOpen('tools');
+    try {
+      var fr = document.getElementById('tvd-eng'), n = 0;
+      var t = setInterval(function(){
+        n++;
+        var w = null; try { w = fr && fr.contentWindow; } catch (e) { w = null; }
+        try {
+          if (w && typeof w.d2rOpenAsk === 'function'){
+            clearInterval(t);
+            var got = null; try { got = w.d2rOpenAsk(id); } catch (e) { got = null; }
+            if (!got || !got.landed) toast('couldn\u2019t open that question in the inbox \u2014 '
+                                           + ((got && got.why) || 'the board did not say why'), 4600);
+            return;
+          }
+        } catch (e) { /* cross-document while the board boots */ }
+        if (n > 40){ clearInterval(t); toast('couldn\u2019t open that question \u2014 the board pane isn\u2019t ready', 4200); }
+      }, 80);
+    } catch (e) { /* routing must never throw into the panel that called it */ }
+  };
+  /* the board calls this after he answers, so an open panel shows it at once instead of in 120 s */
+  window._asksChanged = function(eagle){
+    try {
+      var st = window.__lastStatus;
+      if (st && eagle && typeof eagle === 'object') {
+        st.eagle = Object.assign({}, st.eagle || {}, eagle);
+        var ov = document.getElementById('ver-xref');
+        if (ov && !ov.hidden && window._verXrefOpen) window._verXrefOpen();
+      }
+    } catch (e) {}
+  };
   /* v1617 — a SET PIECE -> the sets chronicle, opened on that piece.
      Deliberately its own entry point rather than reusing _hubGoItem: d2rOpenItem lands a unique on
      the CALCULATOR, and a set piece belongs in F-Sets where its set and its siblings are. It falls
@@ -12809,6 +12864,42 @@ window._lockMark = function(isOpen, px, label){
          + '<span class="vx-v">' + v + '</span>'
          + (note ? '<span class="vx-note">' + esc(note) + '</span>' : '') + '</div>';
   }
+  /* ══ #223 — A ROW THAT ASKS HIM SOMETHING IS DRAWN AS ITS QUESTION, WITH A WAY TO ANSWER IT ══════
+     His ask: "from there to there instead of building another mailbox". The answer itself lives in
+     the inbox (one place, one grammar); this row carries the question and an ANSWER -> shortcut
+     that opens the Tools tab and lands ON that card. */
+  function _vxAskRow(r, asks){
+    var a = asks[0] || {};
+    var kind = a.kind === 'do' ? 'SOMETHING TO DO' : 'YOUR CALL';
+    var more = asks.length > 1 ? ' (+' + (asks.length - 1) + ' more)' : '';
+    return '<div class="vx-row vx-warn vx-ask"><span class="vx-k">' + esc(r.check) + '</span>'
+         + '<span class="vx-v"><button type="button" class="vx-btn vx-go" data-ask="' + esc(a.id)
+         + '" onclick="window._hubGoAsk &amp;&amp; window._hubGoAsk(this.getAttribute(\'data-ask\'))">'
+         + esc(kind) + ' \u2014 CHOOSE IN INBOX \u2192</button></span>'
+         + '<span class="vx-note"><b>' + esc(a.q || '') + '</b>' + esc(more) + ' \u00b7 '
+         + esc(String(a.why || r.why || '').slice(0, 260))
+         /* the choices travel with the shortcut, so the button is not a door to an unknown room */
+         + ((a.answers || []).length ? ' \u00b7 your choices: ' + esc((a.answers || []).map(function (x) {
+             return x && x.label; }).filter(Boolean).join(' \u00b7 ')) : '')
+         + '</span></div>';
+  }
+  function _vxAnsweredRow(r){
+    var ans = (r && r.answered && r.answered[0]) || {};
+    var when = 'UNKNOWN';
+    try { if (ans.at) when = new Date(ans.at).toLocaleString('en-GB',
+            { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (_e) {}
+    /* ONE wording, word for word the board's (#223 cross-family look: two surfaces, two sentences) */
+    var after = ans.effect === 'handoff' ? 'handed to Claude \u2014 nothing changes until it is built and shown to you'
+              : (ans.until ? 'asked again after ' + new Date(ans.until).toLocaleDateString('en-GB',
+                               { day: 'numeric', month: 'short' }) + ', or sooner if the question changes'
+                           : 'held until the question changes');
+    return '<div class="vx-row vx-ans"><span class="vx-k">' + esc(r.check) + '</span>'
+         + '<span class="vx-v"><button type="button" class="vx-btn" data-ask="' + esc(ans.askId)
+         + '" onclick="window._hubGoAsk &amp;&amp; window._hubGoAsk(this.getAttribute(\'data-ask\'))">'
+         + 'you: ' + esc(ans.label || ans.key || '?') + ' \u00b7 change \u2192</button></span>'
+         + '<span class="vx-note">' + (ans.q ? '\u201c' + esc(ans.q) + '\u201d \u00b7 ' : '')
+         + esc(when) + ' \u00b7 ' + esc(after) + '</span></div>';
+  }
   function _vxSection(title, rows){
     if (!rows || !rows.length) return '';
     return '<section class="vx-sec"><h4 class="vx-h">' + esc(title) + '</h4>' + rows.join('') + '</section>';
@@ -12959,11 +13050,22 @@ window._lockMark = function(isOpen, px, label){
        one thing the MINE mechanism's own comment forbids. [[copy-drift]] [[the-unjoined-end]] */
     var _designWhat = {};
     try { (e.byDesignWhat || []).forEach(function (n) { _designWhat[String(n)] = 1; }); } catch (_e) {}
-    var youRows = [], mineRows = [], unkRows = [], designRows = [];
+    var youRows = [], mineRows = [], unkRows = [], designRows = [], answeredRows = [];
+    /* ⚠⚠ #223/#226 — THE SERVER SAYS WHAT IS HIS, AND WHAT HE ALREADY ANSWERED. A row is his only
+       while it ASKS him something; the partition decides that once and publishes `needsYouWhat`
+       and `answeredWhat`. Re-deciding it here is how the board came to bill 7 where this billed 5.
+       An older payload without the lists keeps the old rule. [[copy-drift]] */
+    var _nyWhat = null, _ansWhat = {};
+    try { if (Array.isArray(e.needsYouWhat)) { _nyWhat = {};
+            e.needsYouWhat.forEach(function (n) { _nyWhat[String(n)] = 1; }); } } catch (_e) {}
+    try { (e.answeredWhat || []).forEach(function (n) { _ansWhat[String(n)] = 1; }); } catch (_e) {}
     var _sortRow = function (r) {
       /* v3326 — decide the bucket BEFORE the word, so the word can say which one it is */
       var _nm = String(r && r.check);
+      if (_ansWhat[_nm]) { answeredRows.push(_vxAnsweredRow(r)); return; }
       var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);
+      var _open = (r && (r.openAsks || r.asks)) || [];
+      if (!_bk && _nyWhat && _nyWhat[_nm] && _open.length) { youRows.push(_vxAskRow(r, _open)); return; }
       var h = _vxHealthRow(r, _bk); if (!h) return;
       if (_mineWhat[_nm]) mineRows.push(h);
       else if (_designWhat[_nm]) designRows.push(h);
@@ -13076,6 +13178,8 @@ window._lockMark = function(isOpen, px, label){
     return '<div class="fxr-win">' + head + '<div class="fx-body">'
          + '<section class="vx-sec vx-lead">' + _lead.join('') + '</section>'
          + _vxSection('WAITING ON YOU', youRows)
+         /* #223 — what he already answered: visible, changeable, and not billed */
+         + _vxSection('ANSWERED BY YOU \u2014 held until it lapses or the question changes', answeredRows)
          + _vxSection('WAITING ON CODE \u2014 not yours to fix', mineRows)
          /* v3309 — its own heading, so a row ruled not-a-defect is VISIBLE and not billed. */
          + _vxSection('RED ON PURPOSE \u2014 ruled not a defect, nothing for you to do', designRows)

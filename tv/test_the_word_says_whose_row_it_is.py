@@ -154,8 +154,10 @@ RED_PROOF = [
     {
         "why": "computing the bucket after the call restores the exact v3323 ordering defect",
         "file": "tv/control_ui.html",
-        "find": "      var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);\n      var h = _vxHealthRow(r, _bk); if (!h) return;",
-        "replace": "      var h = _vxHealthRow(r, null); if (!h) return;\n      var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);",
+        # re-anchored #223: the ask-row branch now sits between the bucket and the call, so the
+        # span is four lines; the tamper is the original one — the bucket moves BELOW the call
+        "find": "      var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);\n      var _open = (r && (r.openAsks || r.asks)) || [];\n      if (!_bk && _nyWhat && _nyWhat[_nm] && _open.length) { youRows.push(_vxAskRow(r, _open)); return; }\n      var h = _vxHealthRow(r, _bk); if (!h) return;",
+        "replace": "      var _open = (r && (r.openAsks || r.asks)) || [];\n      if (!_bk && _nyWhat && _nyWhat[_nm] && _open.length) { youRows.push(_vxAskRow(r, _open)); return; }\n      var h = _vxHealthRow(r, _bk); if (!h) return;\n      var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);",
         "matches": 1,
     },
 ]

@@ -140,7 +140,7 @@ def _preflight(repo=None):
               "console. Fix the parse error, then bump.")
 
 
-def _heart_gate(note):
+def _heart_gate(note, repo=None):
     """A version that changes a SURFACE must also change what WATCHES it. -> None, or SystemExit.
 
     ⚠⚠ HIS STANDING ORDER, 2026-09-06: JOIN -> GATE -> HEART -> BANK, every fix. It is carved in
@@ -172,6 +172,13 @@ def _heart_gate(note):
     """
     import subprocess
     here = os.path.dirname(os.path.abspath(__file__))
+    # ⚠ #223 — GRADE THE TREE BEING BUMPED, NOT THIS FILE'S OWN. `bump(repo=...)` stamps the tree it
+    # is handed, and this ran `git diff` beside the script regardless — so a bump aimed at a temp
+    # tree was refused for uncommitted edits in the LIVE repo (test_the_bump_refuses_a_tree_that_
+    # does_not_parse went red whenever the real tree held a surface edit). A tree with no git is
+    # UNKNOWN and does not block, as below.
+    if repo:
+        here = os.path.join(os.path.abspath(repo), "tv")
     SURFACES = ("tv/control_ui.html", "bible.html")
     WATCHERS = ("tv/console_doctor.py", "tv/health_engine.py", "tv/corroborate.py",
                 "tv/heart2.py")
@@ -237,7 +244,7 @@ def bump(ver, name, note, repo=None):
             % (ver, _busy))
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
-    _heart_gate(note)
+    _heart_gate(note, repo)
 
     # 2026-08-20 — AND A NOTE MAY NOT NAME A CSS TOKEN IN CALLABLE FORM.
     #

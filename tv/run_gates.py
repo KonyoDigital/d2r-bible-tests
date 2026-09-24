@@ -5321,6 +5321,20 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_a_title_is_not_an_owner",
+         [sys.executable, os.path.join(HERE, "test_a_title_is_not_an_owner.py")], 60,
+         why="#223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the "
+             "game (score 1602: 'diablo' in the title was the whole qualification) and a stub console "
+             "filmed his desktop; the render gate then flaked on whichever window was in front. A title "
+             "that mentions the game qualifies only with a game/wine/CrossOver/d2r-named owner or one he "
+             "named in TV_WINDOW_MATCH. 3 cases, 1 red-proof"),
+    Gate("test_a_resize_callback_defers_its_layout",
+         [sys.executable, os.path.join(HERE, "test_a_resize_callback_defers_its_layout.py")], 60,
+         why="#223 - the render gate's inbox target went red three runs straight on one uncaught "
+             "'ResizeObserver loop completed with undelivered notifications' (and on v3493's page too: "
+             "the loop was old, the load was new). _inboxSync re-sized the element it observes inside "
+             "the delivery loop. Every observer in bible.html defers its layout one frame, coalesced. "
+             "Structural count + _roDefer driven in node. 2 cases, 2 red-proofs"),
     Gate("test_his_answer_closes_only_its_question",
          [sys.executable, os.path.join(HERE, "test_his_answer_closes_only_its_question.py")], 90,
          why="#223 - his answer from the mailbox: one per question with its fingerprint (a changed "

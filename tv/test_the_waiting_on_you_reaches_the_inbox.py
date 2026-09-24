@@ -226,6 +226,74 @@ setTimeout(function(){
         got = self._run(self.CONSOLE, post=post)
         self.assertEqual([r["check"] for r in got["cache"]["rows"]], ["shadow gate"])
 
+    ASK = {"id": "shadow-gate", "kind": "decide", "fp": "shadow-gate:wouldHold",
+           "q": "Should the console be stricter before it ticks a grail item by itself?",
+           "answers": [{"key": "keep", "label": "Keep it as it is", "effect": "ruled"},
+                       {"key": "stricter", "label": "Be stricter (Wilson)", "effect": "handoff"},
+                       {"key": "week", "label": "Ask me in a week", "effect": "snooze"}]}
+
+    def _ask_state(self, **kw):
+        st = {"st": "rows", "why": "", "needsYou": 1, "unknown": 0, "mine": 3, "say": "", "at": 1,
+              "rows": [{"check": "shadow gate", "state": "missing", "why": "57 of 451 names differ",
+                        "asks": [self.ASK], "openAsks": [self.ASK]}], "answered": []}
+        st.update(kw)
+        return st
+
+    def test_a_question_is_drawn_with_its_answers(self):
+        """#223 -- his ask: "if need something done of me what exactly and ... the option there to
+        tally it off". The row he owes is drawn as its QUESTION with one button per answer, each
+        carrying the question's fingerprint so an old card cannot answer a changed question."""
+        got = self._run(self.CONSOLE, state=self._ask_state())
+        h = got["html"]
+        self.assertIn("YOUR CALL", h)
+        self.assertIn("Should the console be stricter", h, "the question itself is not on the card")
+        for key in ("keep", "stricter", "week"):
+            self.assertIn('data-key="%s"' % key, h, "the %r answer has no button" % key)
+        self.assertIn('data-fp="shadow-gate:wouldHold"', h)
+        self.assertIn("_askAnswer", h, "the buttons answer nothing")
+
+    def test_a_console_on_another_port_still_draws_the_question(self):
+        """A board served by a console on any loopback port (a second console, a box on another
+        port, the render harness) is connected. The port test alone painted 'not connected'."""
+        got = self._run("127.0.0.1:18123", state=self._ask_state())
+        self.assertNotIn("not connected", got["html"])
+        self.assertIn('data-key="keep"', got["html"])
+
+    def test_a_board_off_disk_says_where_to_answer_instead(self):
+        """A file:// board sends Origin null, which the console refuses; a button that can only
+        fail is worse than a sentence saying where the answer goes."""
+        got = self._run(self.CONSOLE, state=self._ask_state(), protocol="file:")
+        self.assertIn("Opened from disk", got["html"])
+        self.assertNotIn('data-key="keep"', got["html"], "a board off disk offered a button that cannot work")
+
+    def test_what_he_answered_is_drawn_and_can_be_changed(self):
+        ans = {"askId": "shadow-gate", "key": "keep", "label": "Keep it as it is", "effect": "ruled",
+               "fp": "shadow-gate:wouldHold", "at": 1790000000000, "until": 1792592000000}
+        st = self._ask_state(st="clear", rows=[], needsYou=0,
+                             answered=[{"check": "shadow gate", "state": "missing", "answered": [ans]}])
+        got = self._run(self.CONSOLE, state=st)
+        self.assertIn("ANSWERED BY YOU", got["html"], "his answer vanished instead of being shown")
+        self.assertIn("you: Keep it as it is", got["html"])
+        self.assertIn("_askWithdraw", got["html"], "he cannot change his answer")
+
+    def test_the_answered_rows_come_from_the_servers_list(self):
+        post = """
+var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve({
+  eagle: { needsYou: 0, unknown: 0, mine: 1, mineWhat: ['ledger staleness'], needsYouWhat: [],
+           answeredWhat: ['shadow gate'],
+           rows: [ {check: 'ledger staleness', state: 'missing', why: 'a bake owed'},
+                   {check: 'shadow gate', state: 'missing', why: 'your call',
+                    answered: [{askId: 'shadow-gate', key: 'keep', label: 'Keep it as it is'}]} ] } }); } }); };
+_eagleNYFetch();
+setTimeout(function(){
+  console.log(JSON.stringify({html: _host.innerHTML, hidden: _host.hidden, cache: _eagleNY}));
+}, 30);
+"""
+        got = self._run(self.CONSOLE, post=post)
+        self.assertEqual(got["cache"]["st"], "clear")
+        self.assertEqual([r["check"] for r in got["cache"]["answered"]], ["shadow gate"])
+        self.assertIn("you: Keep it as it is", got["html"])
+
     def test_a_crashed_watchdog_is_not_dressed_as_a_young_one(self):
         """needsYou:null covers never-ran AND ran-and-crashed; the server's say tells them apart
         and the painter must too. [[unknown-stays-unknown]]"""
@@ -359,10 +427,38 @@ setTimeout(function(){
 
 RED_PROOF = [
     {
+        "why": "#223 - a board served by a console on another port reads 'not connected' again and draws no question",
+        "file": "bible.html",
+        "find": "      if (String(location.protocol || '') === 'http:'\n",
+        "replace": "      if (false && String(location.protocol || '') === 'http:'\n",
+        "matches": 1,
+    },
+    {
+        "why": "#223 - the row he owes is drawn as a plain line again: the question and its answer buttons are gone",
+        "file": "bible.html",
+        "find": "        if (_open.length){ h += _askCardsHtml(r, _open, esc); continue; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#223 - what he answered is never drawn: his ruling vanishes from the inbox and cannot be changed",
+        "file": "bible.html",
+        "find": "        + (_ansH ? '<div class=\"ibx-ny\">' + _ansH + '</div>' : '');",
+        "replace": "        + '';",
+        "matches": 1,
+    },
+    {
+        "why": "#223 - a board off disk offers buttons whose every press is refused (Origin null)",
+        "file": "bible.html",
+        "find": "      if (disk){\n        h += '<div class=\"ibx-ny-said\">Opened from disk",
+        "replace": "      if (false){\n        h += '<div class=\"ibx-ny-said\">Opened from disk",
+        "matches": 1,
+    },
+    {
         "why": "#226 - the pile re-decides ownership again instead of reading the server's list: rows that ask him nothing are billed to him",
         "file": "bible.html",
-        "find": "              if (nyW ? nyW.indexOf(rows[i].check) >= 0\n",
-        "replace": "              if (false ? nyW.indexOf(rows[i].check) >= 0\n",
+        "find": "        if (nyW ? nyW.indexOf(rows[i].check) >= 0\n",
+        "replace": "        if (false ? nyW.indexOf(rows[i].check) >= 0\n",
         "matches": 1,
     },
     {
@@ -377,8 +473,8 @@ RED_PROOF = [
         "why": "counting every missing row re-bills him for Claude's own defects — the chip says "
                "11 while the pile paints 13, and a pile that lies is one he stops reading",
         "file": "bible.html",
-        "find": "                      : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);",
-        "replace": "                      : true) bad.push(rows[i]);",
+        "find": "                : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);",
+        "replace": "                : true) bad.push(rows[i]);",
         "matches": 1,
     },
     {
@@ -401,8 +497,8 @@ RED_PROOF = [
         "why": "dropping the null check folds 'the eagle never looked' into 'all clear' — the "
                "exact absence-reads-as-healthy this section exists to refuse",
         "file": "bible.html",
-        "find": "          if (e.needsYou == null){",
-        "replace": "          if (false){",
+        "find": "    if (e.needsYou == null){",
+        "replace": "    if (false){",
         "matches": 1,
     },
 ]

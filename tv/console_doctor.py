@@ -2930,26 +2930,41 @@ def _ask_shadow_gate(row):
     """The one question that is genuinely his: which gate ticks a grail item by itself."""
     if row.get("state") != MISSING:
         return []
-    direction = "unknown"
+    direction, why = "unknown", ""
     try:
         import shadow_ledger as _sl
-        _bd = (_sl.state() or {}).get("byDirection") or {}
+        _st = _sl.state() or {}
+        _bd = _st.get("byDirection") or {}
         _h, _g = int(_bd.get("shadowWouldHold") or 0), int(_bd.get("shadowWouldGround") or 0)
         direction = ("wouldHold" if _h and not _g else "wouldGround" if _g and not _h
                      else "both" if (_h and _g) else "none")
+        _dn, _n = _st.get("disagreeNames"), _st.get("names")
+        # ⚠ #228 — HIS WORDS, NOT THE LEDGER'S. A cross-family look at the card read "tick", "Wilson"
+        # and "hold a name, never ground one" as house jargon; he asked for TV·D to read human. The
+        # measured numbers stay; the sentence says what each choice DOES to him.
+        if _dn is not None and _n:
+            if direction == "wouldHold":
+                why = ("On %d of the %d item names the reader has ever scored, the console ticked the "
+                       "item by itself where a stricter rule would have asked you first - never the "
+                       "other way round. Stricter means fewer automatic ticks and more items waiting "
+                       "for you to confirm. Nothing changes until you choose." % (_dn, _n))
+            else:
+                why = ("On %d of the %d item names the reader has ever scored, the automatic rule and "
+                       "a stricter one disagree about ticking the item by itself. Nothing changes "
+                       "until you choose." % (_dn, _n))
     except Exception:
         pass                      # the fingerprint says UNKNOWN; the question is still his
     return [{
         "id": "shadow-gate",
         "kind": "decide",
-        "q": "Should the console be stricter before it ticks a grail item by itself?",
-        "why": row.get("why") or "",
+        "q": "Should the console ask you before it ticks a grail item by itself?",
+        "why": why or row.get("why") or "",
         # the identity of the QUESTION: it changes only if the disagreement changes direction
         "fp": "shadow-gate:%s" % direction,
         "answers": [
             {"key": "keep", "label": "Keep it as it is", "effect": "ruled"},
-            {"key": "stricter", "label": "Be stricter (Wilson)", "effect": "handoff"},
-            {"key": "week", "label": "Ask me in a week", "effect": "snooze"},
+            {"key": "stricter", "label": "Ask me more often", "effect": "handoff"},
+            {"key": "week", "label": "Remind me in a week", "effect": "snooze"},
         ],
     }]
 
