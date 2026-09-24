@@ -84,6 +84,15 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 bad.append("%s: its RED_PROOF cannot be read by ast.literal_eval, so the prover treats "
                            "it as ABSENT and none of it has ever run" % name)
                 continue
+            # #220 — a SECOND binding is a malformed declaration: `import` keeps only the last, and
+            # test_the_ledger_cannot_lie_about_what_it_saw carried 11 proofs that way that had
+            # never run, because the prover read the first. [[unknown-stays-unknown]]
+            _n = heart2.red_proof_binding_count(fn)
+            if _n and _n > 1:
+                bad.append("%s: RED_PROOF is bound %d times at top level — only the LAST exists at "
+                           "import, so every earlier list NEVER RUNS. Merge them into one."
+                           % (name, _n))
+                continue
             proofs = heart2.red_proofs_in(fn)
             if not proofs:
                 continue
@@ -163,7 +172,10 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                                   ("twice.py", 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '
                                                '"why": "w", "matches": 1}]\nWF = "x"\nRED_PROOF = [{"file": WF}]\n',
                                    "literal_eval"),
-                                  ("annotated.py", 'WF = "x"\nRED_PROOF: list = [{"file": WF}]\n', "literal_eval")):
+                                  ("annotated.py", 'WF = "x"\nRED_PROOF: list = [{"file": WF}]\n', "literal_eval"),
+                                  # #220 — two LITERAL bindings: readable, and still malformed
+                                  ("twolit.py", 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '
+                                                '"why": "w", "matches": 1}]\nRED_PROOF = []\n', "times")):
                 path = os.path.join(d, fn)
                 io.open(path, "w", encoding="utf-8").write(src)
                 heart2.gate_files = lambda _p=path, _n=fn: [(_n, _p)]
@@ -174,6 +186,61 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         finally:
             heart2.gate_files = real
             shutil.rmtree(d, ignore_errors=True)
+
+    def test_prove_files_each_declaration_in_exactly_one_bucket(self):
+        """#220 — raised by the eye on the SHIPPED v3476 bytes: a literal list followed by an
+        unreadable one sat in `have` (its first list's proofs ran) AND in the UNREADABLE bucket, so
+        the count line printed "-1 do not" and the warning said none of it had run. DRIVES the real
+        prove() over planted files; the prover and the state write are stubbed so nothing is
+        tampered and the real census is never touched."""
+        import re as _re
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="bucket-drive-")
+        files = {
+            "mixed.py": 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", "why": "w", '
+                        '"matches": 1}]\nWF = "x"\nRED_PROOF = [{"file": WF}]\n',
+            "one.py": 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", "why": "w", '
+                      '"matches": 1}]\n',
+            "none.py": 'X = 1\n',
+            "broken.py": 'def (:\n',
+        }
+        planted = []
+        for fn, src in files.items():
+            path = os.path.join(d, fn)
+            io.open(path, "w", encoding="utf-8").write(src)
+            planted.append((fn, path))
+        twolit = os.path.join(d, "twolit.py")
+        io.open(twolit, "w", encoding="utf-8").write(
+            'RED_PROOF = [{"file": "a.py", "find": "a", "replace": "b", "why": "w", "matches": 1}]\n'
+            'RED_PROOF = [{"file": "z.py", "find": "a", "replace": "b", "why": "w", "matches": 1}]\n')
+        seen, said = {}, []
+        real = (heart2.gate_files, heart2._prove_gates, heart2._write_state)
+        try:
+            heart2.gate_files = lambda *a, **k: list(planted)
+            heart2._prove_gates = lambda have, say=None, workers=None: (
+                seen.setdefault("have", [n for n, _f, _p in have]) and
+                ({n: heart2.PROVEN for n, _f, _p in have}, {n: [heart2.PROVEN] for n, _f, _p in have}))
+            heart2._write_state = lambda *a, **k: None
+            heart2.prove(say=said.append)
+            # the LAST binding is what `import` holds, so it is what gets read
+            self.assertEqual([p["file"] for p in heart2.red_proofs_in(twolit)], ["z.py"],
+                             "a file bound twice was read by its FIRST list, which import overwrites")
+        finally:
+            heart2.gate_files, heart2._prove_gates, heart2._write_state = real
+            shutil.rmtree(d, ignore_errors=True)
+        line = next((l for l in said if "gate(s) in scope" in l), "")
+        m = _re.search(r"(\d+) gate\(s\) in scope · (\d+) declare a red-proof · (-?\d+) do not", line)
+        self.assertIsNotNone(m, "prove() printed no count line: %r" % said[:3])
+        todo, have, donot = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        unread = int((_re.search(r"(\d+) UNREADABLE", line) or [0, 0])[1])
+        unparsed = int((_re.search(r"(\d+) will not PARSE", line) or [0, 0])[1])
+        self.assertGreaterEqual(donot, 0, "the count line went NEGATIVE — a gate was counted in two "
+                                          "buckets: %s" % line)
+        self.assertEqual(have + donot + unread + unparsed, todo,
+                         "the buckets do not partition the gates: %s" % line)
+        self.assertEqual((have, unread, unparsed, donot), (1, 1, 1, 1), line)
+        self.assertNotIn("mixed.py", seen.get("have", []),
+                         "an UNREADABLE declaration's first list was handed to the prover anyway")
 
     def test_the_heart_carries_the_instrument_census(self):
         """The proving loop and the heart must be JOINED. Two halves each built right and never
@@ -517,17 +584,35 @@ RED_PROOF = [
 }, {
     "why": "v3476 — only the FIRST RED_PROOF assignment judged: an unreadable second one hides",
     "file": "heart2.py",
-    "find": "        try:\n            ast.literal_eval(node.value)\n        except Exception:\n            return True\n    return False if found else False\n",
-    "replace": "        try:\n            ast.literal_eval(node.value)\n            return False\n        except Exception:\n            return True\n    return False if found else False\n",
+    "find": "    for node in _red_proof_bindings(tree):    # #220 — the same walker red_proofs_in uses\n        try:\n            ast.literal_eval(node.value)\n        except Exception:\n            return True\n    return False\n",
+    "replace": "    for node in _red_proof_bindings(tree):    # #220 — the same walker red_proofs_in uses\n        try:\n            ast.literal_eval(node.value)\n            return False\n        except Exception:\n            return True\n    return False\n",
     "matches": 1,
 }, {
     "why": "v3473 — an unreadable RED_PROOF read as ABSENT again: eleven proofs unrun, silently",
     "file": "heart2.py",
     # v3476 — RE-ANCHORED (REG-1163, on my own proof): v3476 rewrote this loop to judge EVERY
     # assignment. Same property: an unreadable declaration must answer True, never False.
-    "find": "        except Exception:\n            return True\n    return False if found else False\n",
-    "replace": "        except Exception:\n            return False\n    return False if found else False\n",
+    "find": "    for node in _red_proof_bindings(tree):    # #220 — the same walker red_proofs_in uses\n        try:\n            ast.literal_eval(node.value)\n        except Exception:\n            return True\n",
+    "replace": "    for node in _red_proof_bindings(tree):    # #220 — the same walker red_proofs_in uses\n        try:\n            ast.literal_eval(node.value)\n        except Exception:\n            return False\n",
     "matches": 1,
+}, {
+    "why": "#220 — an unreadable binding no longer makes the declaration unreadable: the first literal list runs while the UNREADABLE bucket also counts the gate, and the count line goes -1 (the eye on v3476)",
+    "file": "heart2.py",
+    "find": "        except Exception:\n            return None\n    if not vals:\n        return None\n    return _normalise_proofs(vals[-1])",
+    "replace": "        except Exception:\n            continue\n    if not vals:\n        return None\n    return _normalise_proofs(vals[-1])",
+    "matches": 1
+}, {
+    "why": "#220 — the FIRST binding read again: import keeps the LAST, and the ledger gate's eleven proofs sat unrun behind a one-proof first list",
+    "file": "heart2.py",
+    "find": "    return _normalise_proofs(vals[-1])",
+    "replace": "    return _normalise_proofs(vals[0])",
+    "matches": 1
+}, {
+    "why": "#220 — the census stops refusing a second RED_PROOF binding, so an author can again write two lists and believe the first one runs",
+    "file": "test_the_heart_can_see_its_own_instruments.py",
+    "find": "            _n = heart2.red_proof_binding_count(fn)\n            if _n and _n > 1:",
+    "replace": "            _n = heart2.red_proof_binding_count(fn)\n            if False:",
+    "matches": 1
 }]
 
 

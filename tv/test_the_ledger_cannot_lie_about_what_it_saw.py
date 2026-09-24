@@ -79,17 +79,10 @@ REAL_SEAM = (
 )
 
 
-RED_PROOF = [
-    {
-        "why": "without this skip a 'cannot-tell' verdict counts as a completed look, so a version "
-               "the eye SAID it could not judge satisfies the ship gate exactly like a clean one - "
-               "measured 2026-09-20 on 8 shipped versions",
-        "file": "tv/second_eye_ledger.py",
-        "find": "        if is_not_a_look(r.get(\"verdict\")):\n            continue",
-        "replace": "        if False:\n            continue",
-        "matches": 1,
-    },
-]
+# ⚠⚠ #220 — RED_PROOF WAS BOUND TWICE IN THIS FILE: this proof sat here and eleven more at the
+# bottom. `import` keeps only the last binding, and heart2 read only the FIRST — so the prover ran
+# this one and the eleven below had never run since they were written. Merged into ONE list at the
+# bottom; the census now refuses a second binding.
 
 
 class TestTheLedgerCannotLieAboutWhatItSaw(unittest.TestCase):
@@ -517,6 +510,16 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                          "the guard would block the very shape the fix is built on")
 
 RED_PROOF = [
+    {
+        "why": "without this skip a 'cannot-tell' verdict counts as a completed look, so a version "
+               "the eye SAID it could not judge satisfies the ship gate exactly like a clean one - "
+               "measured 2026-09-20 on 8 shipped versions (#220: moved here from a second binding "
+               "at the top of this file, where the prover could never reach the rest)",
+        "file": "tv/second_eye_ledger.py",
+        "find": "        if is_not_a_look(r.get(\"verdict\")):\n            continue",
+        "replace": "        if False:\n            continue",
+        "matches": 1,
+    },
     {
         "why": 'v3193 — the walker must prove itself before it judges anything. The old anchor '
                'deleted the flattening in the REAL walk, which changed nothing because '

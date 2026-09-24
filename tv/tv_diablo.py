@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3481"   # the fd is gone so this cannot flush was false and only linux said so
+VERSION = "v3482"   # eleven declared proofs had never run because the prover read the first of two lists
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

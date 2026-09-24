@@ -514,15 +514,53 @@ def red_proofs_in(filename):
             tree = ast.parse(fh.read())
     except Exception:
         return None
+    # ⚠⚠ #220 — IT RETURNED INSIDE THE FIRST MATCHING ASSIGN. Two defects from one early return:
+    # (1) the eye on v3476: a literal list followed by an unreadable one landed in `have` (its first
+    # list's proofs ran) AND in red_proof_unreadable's bucket, so prove()'s "do not" went -1 and the
+    # warning said none of it had run; (2) MEASURED 2026-09-24, the live one the eye did not name:
+    # test_the_ledger_cannot_lie_about_what_it_saw.py bound RED_PROOF twice — 1 proof at line 82,
+    # 11 at line 519 — and this proved the FIRST, which `import` overwrites. The 11 had never run.
+    # Now ONE walker for every caller: any unreadable binding -> None (the declaration is
+    # unreadable as a whole, exactly what red_proof_unreadable says); otherwise the LAST binding,
+    # which is what the module holds. The census refuses more than one binding outright.
+    vals = []
+    for node in _red_proof_bindings(tree):
+        try:
+            vals.append(ast.literal_eval(node.value))
+        except Exception:
+            return None
+    if not vals:
+        return None
+    return _normalise_proofs(vals[-1])
+
+
+def _red_proof_bindings(tree):
+    """Every top-level binding of RED_PROOF — `=` and `x: T = ...` — in file order. -> [ast node]"""
+    import ast
+    out = []
     for node in tree.body:
         if isinstance(node, ast.Assign):
-            for t in node.targets:
-                if isinstance(t, ast.Name) and t.id == "RED_PROOF":
-                    try:
-                        return _normalise_proofs(ast.literal_eval(node.value))
-                    except Exception:
-                        return None
-    return None
+            if any(isinstance(t, ast.Name) and t.id == "RED_PROOF" for t in node.targets):
+                out.append(node)
+        elif isinstance(node, ast.AnnAssign):
+            if (isinstance(node.target, ast.Name) and node.target.id == "RED_PROOF"
+                    and node.value is not None):
+                out.append(node)
+    return out
+
+
+def red_proof_binding_count(filename):
+    """#220 — how many top-level RED_PROOF bindings a gate file has. -> int | None (will not parse)
+
+    More than one is a malformed declaration: only the LAST exists at import, so an author who
+    wrote two lists believes proofs run that never do. The census refuses it."""
+    import ast
+    p = os.path.join(HERE, filename)
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            return len(_red_proof_bindings(ast.parse(fh.read())))
+    except Exception:
+        return None
 
 
 def red_proof_unreadable(filename):
@@ -546,22 +584,12 @@ def red_proof_unreadable(filename):
     # ⚠ v3476 — EVERY top-level assignment, `x: T = ...` included. The v3473 cut returned on the
     # FIRST Assign to RED_PROOF, so a literal list followed by a `WF_REL` one read as readable and the
     # unreadable one was invisible; an AnnAssign was never looked at. Found by the eye on v3473.
-    found = False
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            hit = any(isinstance(t, ast.Name) and t.id == "RED_PROOF" for t in node.targets)
-        elif isinstance(node, ast.AnnAssign):
-            hit = isinstance(node.target, ast.Name) and node.target.id == "RED_PROOF" and node.value is not None
-        else:
-            hit = False
-        if not hit:
-            continue
-        found = True
+    for node in _red_proof_bindings(tree):    # #220 — the same walker red_proofs_in uses
         try:
             ast.literal_eval(node.value)
         except Exception:
             return True
-    return False if found else False
+    return False
 
 
 def _normalise_proofs(raw):

@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1185 - ELEVEN DECLARED PROOFS HAD NEVER RUN, BECAUSE THE PROVER READ THE FIRST OF TWO LISTS
+
+**v3482 - #220, raised by the cross-family eye on the SHIPPED v3476 bytes, then widened by measurement.** The eye:
+`red_proof_unreadable` walks every top-level binding but `red_proofs_in` returned inside the FIRST, so a literal list
+followed by an unreadable one sat in `have` (its first list ran) AND in UNREADABLE — prove()'s "do not" printed -1 and
+the warning said none of it had run. The LIVE instance it did not name: exactly one real file bound RED_PROOF twice —
+`test_the_ledger_cannot_lie_about_what_it_saw.py`, 1 proof at line 82 and 11 at line 519. `import` keeps the last;
+heart2 proved the first. The 11 had never run since v2808-v2809 (2026-09-09) and no count included them. Now ONE walker
+(`_red_proof_bindings`) serves both readers: any unreadable binding -> None (a gate is in `have` XOR UNREADABLE), else
+the LAST binding. The census refuses a second binding outright. The ledger gate's lists are merged: 12/12 PROVEN —
+the eleven were sound, only unreached. New driven case: prove() over planted files partitions 4 gates into exactly
+1/1/1/1 and the count line cannot go negative. Two v3476 proofs re-anchored (my own edit orphaned them — census
+caught it), three new; 10/10 PROVEN.
+
 ### REG-1184 - "THE FD IS GONE, SO THIS CANNOT FLUSH" WAS FALSE, AND ONLY LINUX SAID SO
 
 **v3481 - #185.** `test_closing_the_worker_stdin_CANNOT_BLOCK_THE_CALLER` was GREEN on his Mac (5.3s) and RED on

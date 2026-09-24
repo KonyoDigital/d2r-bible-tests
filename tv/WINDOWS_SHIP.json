@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3481",
+  "ver": "v3482",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3481: close_ocr_worker closes the raw stream so the object close never waits on a writer lock; a stuck-write case reproduces the Linux hang on every OS",
+  "note": "v3482: red_proofs_in walks every RED_PROOF binding and reads the last, the census refuses a second, and the ledger gate eleven unrun proofs now prove",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
