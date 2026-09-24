@@ -176,7 +176,7 @@ class WindowsFindsEveryRoute(unittest.TestCase):
         # re-anchored (the second eye on 757518cc): the skip is a block now, and it records the near-miss
         i = code.find('if (route == "") {')
         self.assertGreater(i, -1, "a browser or cloud-app window that does not name the game became a candidate")
-        self.assertIn("return true;", code[i:i + 400],
+        self.assertIn("return true;", code[i:code.find("}", i + 1)],   # bounded by the block's own brace
                       "a browser or cloud-app window that does not name the game became a candidate")
 
     def test_the_windows_twin_reads_words_and_refuses_two_services(self):
