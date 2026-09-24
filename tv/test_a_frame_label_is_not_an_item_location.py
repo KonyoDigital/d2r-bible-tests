@@ -125,6 +125,18 @@ class TestAFrameLabelIsNotAnItemLocation(unittest.TestCase):
 
     def test_the_real_journal_still_adds_up(self):
         """His data, not a fixture: every name must land in exactly one bucket."""
+        # ⚠ #123 — PINNED ON HIS JOURNAL. On a venue with no journal ring (every CI runner) that is
+        # ABSENCE, and it failed there with "no sessions read from the journal ring ()". Absence is
+        # asked of the resolver the journal readers share and reported UNMEASURED; a ring that EXISTS
+        # and still yields nothing keeps failing, because that one IS a finding. [[unknown-stays-unknown]]
+        import control_app as _CA
+        try:
+            _ring = [q for q in (_CA._journal_ring() or []) if os.path.isfile(q)]
+        except Exception:
+            _ring = None
+        if _ring == []:
+            self.skipTest("UNMEASURED, not a pass: this venue has no journal ring, and this case is "
+                          "pinned on his real sessions")
         out, why = EG._named_sessions()
         self.assertTrue(out, "no sessions read from the journal ring (%s) — UNKNOWN, not clean" % why)
         # ⚠⚠ ONLY THE NUMERIC KEYS. `_named_sessions()` grew a `placed` key holding a LIST of
