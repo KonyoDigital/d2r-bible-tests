@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1206 - A DIRECTORY THE RECORDER BUILT WAS READ AS HIS SHELF, AND THE SKIP EXIT WAS KEYED ON ONE SPELLING
+
+**fix - #123, reel_demo (CI red, green here).** `_shelf()` asked only whether `tv/frames/hist` is a directory.
+machine_tree.establish() creates it (and removes its probe) on any host that ran the recorder, so on CI an earlier gate
+built it, the probe said "present", and a runner that never held a frame failed "the printer walked his shelf" on every
+push. EMPTY is now the third venue, and it needs both halves: the directory holds nothing AND this host's tombstone
+ledger never closed a reel. A ledger naming a closed reel (footage WAS here) or one that will not read (nobody can say it
+never was) stays "present", so the defect the gate exists for - a shelf that exists and walks nothing - still fails.
+Driven on a clean tree: absent 77, established-empty 77, emptied-with-history FAIL, unreadable ledger present, one frame
+present; his Mac still PASS 19 reels. And main() carried the file's own recorded scar a second time: both exits keyed on
+`venue == "no-shelf"`, so the empty skip printed "a declared SKIP" and exited 1. Both now ask `state == "SKIPPED"`.
+run_gates declares both sentences. New gate test_an_established_empty_shelf_is_not_footage, 9 cases, 4 proofs PROVEN.
+
+### REG-1205 - A CASE-SENSITIVE RUNNER READ THE RIGHT ANSWER AS A FAILURE, AND THE FIX IT PINNED HAD NO PROOF
+
+**fix - #123, test_agent (CI red, green here).** `test_a_case_variant_of_his_own_tree_is_still_his_tree` assumed his Mac's
+case-insensitive APFS: on a CI runner (case-sensitive) the uppercased hist is a directory that does not exist, `_under`
+correctly calls it isolated, and the test failed on every run. The premise is a property of the volume, so the test now
+asks the volume (`exists` + `samefile` on the two spellings) and says UNMEASURED where they are not one directory.
+Verified: runs and passes here, skips with the reason on a simulated case-sensitive volume. The v1897 samefile walk it
+guards had NO red-proof anywhere; test_agent[1] now swaps it for a string compare and goes red on exactly this case
+(sandbox check: clean OK, sabotaged FAIL naming the uppercased path).
+
+### REG-1204 - ON A CLEAN CHECKOUT THE PRINTER HARNESS FILED AN EMPTY CORPUS AS THREE LEAKS
+
+**fix - #123, printer_wilson (CI red, green here).** Three shape laws (`stations`, `say-none`, `counts`) judged only his
+real corpus and returned `(1, 0)` when it held no reels, so every CI runner reported `LEAKS · 33 of 36` for a printer that
+had invented nothing. Reproduced on a tracked-only copy of the tree (`git archive HEAD`): 19 of 22, exactly those three.
+The laws are properties of the printer, not of his data, so each is now also judged on a two-reel fixture shelf handed in
+through the river owner, on every machine; his corpus adds its own trial where it exists (112 -> 115 here, 22 on the clean
+tree). An EMPTY fixture walk is still a leak. Seen red on the clean tree: the absent-owner branch saying a literal None
+turned `say-none` 0/1 there, where before the fix that law could never go red for the right reason. printer_wilson[1].
+
 ### REG-1203 - WITH NO LEDGER BACKUP THE RECEIPT ROW STOPPED MEASURING WHETHER A RECEIPT CAN OPEN
 
 **v3490 - #123, test_the_vault_receipt_is_watched (CI red, green here).** `check_vault_receipts` returned early when no

@@ -24,6 +24,7 @@ the same code it is testing would agree with itself and prove nothing. [[feedbac
     python3 tv/reel_demo.py --json
     python3 tv/reel_demo.py <reel>     # one reel, in full
 """
+import io
 import json
 import os
 import sys
@@ -73,7 +74,52 @@ def _shelf():
     if not os.path.isdir(p):
         return "absent", ("no reel shelf exists on this host — the recorder names %r and it is "
                           "not a directory" % p)
+    # ⚠⚠ #123 — A DIRECTORY IS NOT A SHELF, AND CI BUILDS THE DIRECTORY. machine_tree.establish()
+    # creates every root and proves a write with a probe it then REMOVES, so any host that ran the
+    # recorder has an empty tv/frames/hist. On CI an earlier gate does exactly that, this answered
+    # "present", and a runner that never held a frame FAILED "the printer walked his shelf" — every
+    # push, `0 reel(s) walked … ⚠ 1 check(s) DISAGREE`. EMPTY is the third venue: the directory
+    # holds nothing and this host has no record of ever closing a reel. It is NOT empty — and the
+    # walked-nothing defect above stays a FAIL — when the ledger names a closed reel (footage
+    # WAS here) or cannot be read (nobody can say it never was). [[unknown-stays-unknown]]
+    try:
+        held = [n for n in os.listdir(p) if not n.startswith(".")]
+    except OSError as e:
+        return "broken", "the shelf %r exists and cannot be listed (%s)" % (p, type(e).__name__)
+    if not held:
+        closed, cwhy = _closed_reels_on_record()
+        if closed == 0:
+            return "empty", ("the shelf %r exists and holds nothing, and this host has no record "
+                             "of ever closing a reel (%s) — an established tree nothing was filmed "
+                             "into" % (p, cwhy))
+        return "present", ("the shelf is empty and %s — an emptied shelf is not a venue without "
+                           "footage" % cwhy)
     return "present", ""
+
+
+def _closed_reels_on_record():
+    """How many reels this host's tombstone ledger says were ever closed. -> (int | None, why)
+
+    A ledger that does not exist is a host that never closed one: 0. A ledger that exists and will
+    not read is None — UNKNOWN, never 0."""
+    try:
+        import reel_retention as RR
+        path = RR._tombstone_path()
+    except Exception as e:
+        return None, "the tombstone ledger could not be located (%s)" % type(e).__name__
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            blob = json.load(fh)
+    except FileNotFoundError:
+        return 0, "no tombstone ledger exists here"
+    except Exception as e:
+        return None, "the tombstone ledger exists and will not read (%s)" % type(e).__name__
+    rows = blob.get("reels") if isinstance(blob, dict) else None
+    if not isinstance(rows, list):
+        return None, "the tombstone ledger carries no reel list"
+    n = len([r for r in rows if isinstance(r, dict)])
+    return n, ("the tombstone ledger names %d closed reel(s)" % n) if n else \
+        "the tombstone ledger names no closed reel"
 
 
 
@@ -294,7 +340,7 @@ def demo(reel=None):
         checks.append({"check": "every reel carries every station", "ok": False, "unknown": True,
                        "got": "UNKNOWN — no reel walked, so no row could be inspected",
                        "want": 0, "why": "0 blanks out of 0 rows asserts nothing"})
-    if not rows and shelf == "absent":
+    if not rows and shelf in ("absent", "empty"):
         # ⚠ NOT a FAIL and NOT a PASS — see _shelf(). On a host that HAS a shelf, or one whose
         # recorder is broken, this stays the hard assertion it has always been.
         #
@@ -329,15 +375,16 @@ def demo(reel=None):
     # THE THIRD STATE, matching that one: the shelf is absent and nothing walked, so the gate
     # COULD NOT RUN. That is 77 — a declared skip, printed loudly, counted in "did not run",
     # never a tick. [[unknown-stays-unknown]] [[regression-guard]]
-    _no_venue = (shelf == "absent") and not rows
+    _no_venue = (shelf in ("absent", "empty")) and not rows
     if _no_venue:
         return {
-            "ok": False, "state": "SKIPPED", "venue": "no-shelf",
+            "ok": False, "state": "SKIPPED",
+            "venue": ("no-shelf" if shelf == "absent" else "empty-shelf"),
             "reels": reels, "checks": checks, "walked": 0,
             "stations": stations, "unknown": len(unk), "shelf": shelf,
-            "why": ("his reel shelf is absent on this venue, so nothing was walked and no "
+            "why": ("his reel shelf is %s on this venue (%s), so nothing was walked and no "
                     "downstream number was established — %d check(s) UNKNOWN. This is a declared "
-                    "SKIP, not a pass and not a defect." % len(unk)),
+                    "SKIP, not a pass and not a defect." % (shelf, shelf_why, len(unk))),
         }
     return {
         "ok": not bad, "state": ("PASS" if not bad else "FAIL"),
@@ -367,7 +414,9 @@ def main(argv):
         # "declared SKIP" sentence and still exited 1. Two return paths, one of them patched.
         # Caught by running it in a tracked-files-only export of the CI venue rather than by
         # reading the diff. [[the-unjoined-end]]
-        return 77 if r.get("venue") == "no-shelf" else 1
+        # #123 — keyed on the ONE decision (demo() said SKIPPED), never on a venue spelling: the
+        # empty-shelf venue arrived and exited 1 here while printing "a declared SKIP".
+        return 77 if r.get("state") == "SKIPPED" else 1
     print("  %-30s %-9s %-11s %-9s %-11s %s" % ("reel", "door", "stage", "template", "extract", "worth"))
     for x in r["reels"][:60]:
         print("  %-30s %-9s %-11s %-9s %-11s %s" % (
@@ -386,7 +435,7 @@ def main(argv):
     print("\n  %s · %s\n" % (r["state"], r["why"]))
     # 77 = SKIP_EXIT, the same contract js_syntax_gate and overlap_ratchet use: "I could not
     # run", which run_gates counts in its did-not-run line and never as a tick.
-    if r.get("venue") == "no-shelf":
+    if r.get("state") == "SKIPPED":
         return 77
     return 0 if r["ok"] else 1
 

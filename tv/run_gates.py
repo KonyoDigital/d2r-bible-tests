@@ -5309,7 +5309,15 @@ GATES = [
          # It exits 77 in that state now, and this is what makes that skip DECLARED rather than a
          # failure. ⚠ NARROW ON PURPOSE — only the absent-shelf sentence. A shelf that EXISTS and
          # walks nothing is the real defect this gate is for, and still fails.
-         skip_ok=(r"reel shelf is absent on this venue",)),
+         # #123 — and EMPTY, which is not that defect: a directory machine_tree.establish() built,
+         # holding nothing, on a host whose ledger never closed a reel (reel_demo._shelf decides).
+         skip_ok=(r"reel shelf is (?:absent|empty) on this venue",)),
+    Gate("test_an_established_empty_shelf_is_not_footage",
+         [sys.executable, os.path.join(HERE, "test_an_established_empty_shelf_is_not_footage.py")], 60,
+         why="#123 - a directory machine_tree.establish() built is not his shelf: EMPTY skips like "
+             "ABSENT only when this host's ledger never closed a reel; an emptied shelf or an "
+             "unreadable ledger stays 'present' so the walked-nothing FAIL still fires. Both main() "
+             "exits ask the one SKIPPED decision. 9 cases, 4 red-proofs"),
     # v2570 — the printer had NO lock; fourteen were declared and not one named the river.
     Gate("test_printer_wilson", [sys.executable, os.path.join(HERE, "test_printer_wilson.py")], 90,
          why="the printer walks every reel he owns and nothing had ever attempted to break it. "
