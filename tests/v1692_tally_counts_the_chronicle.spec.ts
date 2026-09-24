@@ -114,15 +114,19 @@ const LEDGER: Record<string, string> = REAL
    flagged, a repeat load must not write a single key. */
 const SUPPRESS = suppressOneShots();   // derived from bible.html — see tests/_oneshots.ts
 
-async function seed(page: any, overrides: Record<string, string> = {}) {
+async function seed(page: any, overrides: Record<string, string> = {}, once = false) {
   const data = { ...LEDGER, ...overrides };
-  await page.addInitScript((d: Record<string, string>) => {
+  await page.addInitScript((a: { d: Record<string, string>, once: boolean }) => {
+    const d = a.d;
+    // REG-1270 — `once`: addInitScript runs on EVERY navigation, so a reload would re-seed and measure a
+    // second FIRST load. A repeat load must boot on what the first boot left.
+    if (a.once) { try { if (sessionStorage.getItem('__v1692Seeded')) return; sessionStorage.setItem('__v1692Seeded', '1'); } catch (e) {} }
     for (const k of Object.keys(d)) { if (d[k] != null) localStorage.setItem(k, d[k]); }
     // Captured AT INJECTION, before a line of app code runs. This is what proves his data loaded;
     // reading the same key after boot cannot tell "his data never arrived" from "the app wrote to
     // it", and those two need different fixes.
     try { (window as any).__seedFoundLogKeys = Object.keys(JSON.parse(d.d2r_foundLog || '{}')).length; } catch (e) { (window as any).__seedFoundLogKeys = -1; }
-  }, data);
+  }, { d: data, once });
   await page.goto(URL);
   await page.waitForTimeout(1500);
 }
@@ -148,6 +152,7 @@ const scan = (page: any) => page.evaluate(() => {
   const fs = (typeof w.fsetsScan === 'function') ? w.fsetsScan() : null;
   return {
     bootFoundLogKeys: Object.keys(fl).length,
+    bootKeySig: Object.keys(fl).sort().join('\u0000'),
     seedFoundLogKeys: w.__seedFoundLogKeys,
     hasFleshrender: Object.prototype.hasOwnProperty.call(fl, 'Fleshrender'),
     hasGloomsTrap: Object.prototype.hasOwnProperty.call(fl, "Gloom's Trap"),
@@ -166,10 +171,21 @@ const scan = (page: any) => page.evaluate(() => {
    provably in the page. The seed-time count answers "did his data load"; the post-boot count is
    asserted SEPARATELY so an app-side write reads as an app-side write and not as a load failure. */
 test('(0) SANITY — his real 346-key ledger is in the page, and nothing wrote to it on a repeat load', async ({ page }) => {
-  await seed(page, SUPPRESS);
+  await seed(page, SUPPRESS, true);
   const s = await scan(page);
   expect(s.seedFoundLogKeys, 'HIS LEDGER DID NOT LOAD — the seed itself did not carry ' + N_FOUNDLOG + ' foundLog keys, so every count in this file is fiction').toBe(N_FOUNDLOG);
-  expect(s.bootFoundLogKeys, 'his ledger loaded but the app MUTATED it on a repeat load (auto-apply already flagged) — this is an app write, NOT a load failure').toBe(N_FOUNDLOG);
+  /* REG-1270 — A REPEAT LOAD, MEASURED AS ONE. This asserted bootFoundLogKeys === 346 on the FIRST boot and
+     went red at 423 for 30+ runs: the fixture was exported 2026-08-11, when _GRAIL_SEED held 243 names; it holds
+     312 now, and the seed FLOORS its names into d2r_foundLog on every boot (v659, by design) - so the first boot
+     of an old ledger legitimately writes 79 keys (67 unique + 12 set-piece floors, 2 aliases folded). Measured in a
+     real page, owner world, all one-shots suppressed: 346 -> 423 on boot one, 423 -> 423 on boot two, nothing
+     added or removed. The law this line names - a REPEAT load writes nothing - is true and is now what is asked. */
+  const firstBoot = s;
+  await page.reload();
+  await page.waitForTimeout(1500);
+  const again = await scan(page);
+  expect(again.bootFoundLogKeys, 'his ledger changed on a REPEAT load (all one-shots flagged, seed already floored) - an app write, NOT a load failure').toBe(firstBoot.bootFoundLogKeys);
+  expect(again.bootKeySig === firstBoot.bootKeySig, 'a repeat load changed WHICH names are in his ledger, even if the count held').toBe(true);
   expect(JSON.parse(LEDGER.d2r_setPieces).length, 'd2r_setPieces').toBe(N_SETPIECES);
   expect(Object.keys(JSON.parse(LEDGER.d2r_grailUnfound)).length, 'd2r_grailUnfound (the fixture history)').toBe(N_CONFLICTS_SEEDED);
   // Both sources present? then they must be the same ledger, key for key.

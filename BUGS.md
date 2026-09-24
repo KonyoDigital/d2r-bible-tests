@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1270 - ROUTINE I'S FAMILY A: A 2026-08-11 FIXTURE MEASURED AGAINST A SEED THAT KEPT GROWING
+
+**test - #165, family A diagnosed in a real page.** ~13 of Routine I's 33 standing reds (v1692, v1693, v659, v1703,
+v1560, v686, v559) pin grail numbers. Reproduced CI's numbers exactly outside Playwright (CDP init script: the spec's
+REAL_SNAPSHOT + the 4 one-shot flags + a navigator.webdriver getter, because bible.html:4025/4130 makes an automated
+file: page the OWNER world - without it the page reads a guest world and every count is 0): found 300 (CI 300), ledger
+346 -> 423 on boot (CI 423). CAUSE: the fixture was exported 2026-08-11 when _GRAIL_SEED held 243 names; it holds 312
+now and the seed FLOORS its names into d2r_foundLog every boot (v659, by design) - 79 keys on the first boot of an old
+ledger (67 unique + 12 set-piece floors, 2 aliases folded). Not a board defect. First fix, v1692 (0): it asserted 346
+on the FIRST boot while its message names a REPEAT load; measured, boot two after boot one writes nothing (423 -> 423,
+same keys), so it now measures exactly that (seed once, reload, compare count AND key set). Compiles (playwright
+--list). Left, same cause: (1)(3)(4) and the other six specs - derive from the page, never from 2026-08-11 literals.
+
 ### REG-1269 - TWO CI-ONLY LAWS REFUSED WHAT THE PRE-PUSH NEVER RAN
 
 **ci - read on CI for 1175a081 and 094086ff (TV DIABLO agent tests red on both).** (1) test_the_gate_set_shards_cleanly:
