@@ -118,10 +118,23 @@ class AReceiptCanActuallyBeOpened(unittest.TestCase):
         """324 of his 450 best-frames are pruned. That is honest absence and must not read as a
         defect, or the row cries wolf on a healthy system. [[unknown-stays-unknown]]"""
         import health_engine as he
+        import json as _json
+        import shutil as _shutil
+        import tempfile as _tempfile
+        # ⚠ #123 — check_vault_receipts() reads a LEDGER BACKUP before it ever asks the resolver, and
+        # with no argument that is his real ~/d2r_ledger_backups. On CI (none) it returned early
+        # with "no ledger backup exists yet", the stubbed resolver was never reached, and this case
+        # went red; here it read his live backups. A fixture backup is handed in instead.
+        # [[feedback-fixtures-never-touch-live-data]]
+        _bdir = _tempfile.mkdtemp(prefix="receipts_fixture_")
+        self.addCleanup(_shutil.rmtree, _bdir, True)
+        with open(os.path.join(_bdir, "ledger_fixture.json"), "w", encoding="utf-8") as _fh:
+            _json.dump({"allStores": {"d2r_owned": "[]", "d2r_muleAssign": "{}",
+                                      "d2r_foundEvidence": "{}"}}, _fh)
         real = he._receipts_resolve
         try:
             he._receipts_resolve = lambda *a, **k: (126, 450)
-            row = he.check_vault_receipts()
+            row = he.check_vault_receipts(backup_dir=_bdir)
             print("   with 126-of-450 resolving -> state=%r" % row.get("state"))
             self.assertNotEqual(row.get("state"), "warn",
                                 "partial resolution is the normal state of a pruned archive")
