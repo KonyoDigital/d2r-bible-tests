@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1195 - A RETENTION FIXTURE READ HIS REAL SHELF THROUGH A DOOR ADDED AFTER IT WAS WRITTEN
+
+**test: after v3486 - #123, one of the 21 CI reds and red locally.** `test_the_real_path_is_untouched_by_the_redirect` patched
+`reel_retention.HERE` to a scratch tree, but `plan()` now resolves the hist through `machine_tree.footage_hist()`, which
+follows THIS MACHINE's door — so on his Mac the case planned against his real 19 reels (coverage test-fixture 8 · recent 8 ·
+never-chronicle-swept 3) and failed on his footage (read-only; `plan()` writes nothing). And its own premise had rotted: it
+built 7 reels "because KEEP_RECENT is 5" — v2875 made it 8, so all 7 were shielded and the ledger branch was unreachable.
+Now the door points at the fixture (still no hist_dir, no TV_HIST — the un-redirected order under test), the reel count is
+KEEP_RECENT + 2, coverage must count exactly the fixture's reels, and a forced-redirect premise proves the fixture can tell
+the two orders apart. 45/45; PROVEN.
+
 ### REG-1194 - A DOCTOR ROW DECLARED IT WATCHED A DOM ID, WHICH NO SURFACE IS CALLED
 
 **fix: after v3486 - #123, one of the 21 CI reds (red since v3414) and red locally.** `WATCHES["the chip can say nobody

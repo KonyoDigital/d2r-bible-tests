@@ -788,9 +788,10 @@ class AFixtureCanActuallyRedirectTheLedgers(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root, True)
         hist = os.path.join(root, "frames", "hist")
         os.makedirs(hist)
-        # SEVEN, because KEEP_RECENT is 5 and a shielded reel never reaches the ledger branches —
-        # with five or fewer the ledger copy that answered would make no difference to coverage.
-        sids = ["s_17300000000%02d_%d" % (i, i) for i in range(7)]
+        # KEEP_RECENT + 2, because a shielded reel never reaches the ledger branches. ⚠ #123 — this
+        # said "SEVEN, because KEEP_RECENT is 5"; v2875 made it 8, so all seven were shielded as
+        # `recent` and the case could never see the branch it guards. Sized FROM the constant now.
+        sids = ["s_17300000000%02d_%d" % (i, i) for i in range(rr.KEEP_RECENT + 2)]
         for i, sid in enumerate(sids):
             d = os.path.join(hist, "reel_" + sid)
             os.makedirs(d)
@@ -807,14 +808,32 @@ class AFixtureCanActuallyRedirectTheLedgers(unittest.TestCase):
                 json.dump(sealed, fh)                       # the HERE copy — consulted FIRST
             with io.open(os.path.join(hist, fn), "w", encoding="utf-8") as fh:
                 json.dump({}, fh)                           # readable, empty — the hist copy
-        was = rr.HERE
+        # ⚠⚠ #123 — plan() now asks machine_tree.footage_hist() for the hist when it is given none,
+        # and that door resolves THIS MACHINE's shelf: patching HERE alone let the case read his REAL
+        # 19 reels (coverage test-fixture 8 · recent 8 · never-chronicle-swept 3) and go red on his
+        # footage. The door is pointed at the fixture — still no hist_dir and no TV_HIST, which is
+        # the un-redirected order this case is about. [[feedback-fixtures-never-touch-live-data]]
+        import machine_tree as _mt
+        was, was_door, was_env = rr.HERE, _mt.footage_hist, os.environ.pop("TV_HIST", None)
         rr.HERE = root
+        _mt.footage_hist = lambda: hist
         try:
             cov = rr.plan().get("coverage") or {}
+            # PREMISE: the fixture must be able to tell the two orders apart, or the assertion
+            # below is vacuous. Forced redirect -> the hist copy ({}) answers -> reels never swept.
+            os.environ["TV_HIST"] = hist
+            forced = rr.plan().get("coverage") or {}
         finally:
-            rr.HERE = was
-        self.assertTrue(sum(cov.values()) > 0,
-                        "the real path stopped reporting anything at all")
+            rr.HERE, _mt.footage_hist = was, was_door
+            os.environ.pop("TV_HIST", None)
+            if was_env is not None:
+                os.environ["TV_HIST"] = was_env
+        self.assertEqual(sum(cov.values()), len(sids),
+                         "coverage counted %d reel(s) and the fixture built %d — plan() read some "
+                         "other shelf: %s" % (sum(cov.values()), len(sids), cov))
+        self.assertTrue(forced.get("never-chronicle-swept"),
+                        "premise: with the redirect forced the hist copy must answer and leave reels "
+                        "never-chronicle-swept, or this fixture cannot see the order at all: %s" % forced)
         self.assertFalse(cov.get("ledger-unreadable"),
                          "the real path now cannot read its own ledgers: %s" % cov)
         self.assertFalse(cov.get("never-chronicle-swept"),
