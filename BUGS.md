@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1179 - THE PAYLOAD LAW'S FIXTURE WAS WHATEVER THE LAST COMMIT HAPPENED TO CHANGE
+
+**test: commit after v3478 - #123.** `test_payload_names_what_it_left_out` asked `git show HEAD` of the
+REAL repo for its roster. On CI run 35939383947 HEAD was a docs-only `fix:` commit (0 code files), so
+"HEAD changed code" was false and the gate went red while `second_eye_run.py` was fine — the one NEW red
+in that run's delta against v3458. The law now builds its own two-commit repo (3 code files + 1 doc)
+and points `R.REPO` at it; a new premise case pins what that HEAD changes, and the empty-payload case
+asserts the WHOLE roster rather than "at least one". 14 cases green, 10/10 red-proofs PROVEN.
+
 ### REG-1178 - THE PARALLEL-PROOF LAW NEVER RAN THE REAL PROVER
 
 **v3478 - #195, raised by the cross-family eye on the shipped v3451 bytes.** Every agreement case in

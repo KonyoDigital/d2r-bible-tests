@@ -43,7 +43,6 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
@@ -52,11 +51,78 @@ _console_safe_enable()
 import second_eye_run as R  # noqa: E402
 
 
+#: the code files the fixture's HEAD commit changes — the roster every case below is judged against
+_FIXTURE_CHANGED = ("tv/alpha.py", "tv/beta.sh", "tv/ui.html")
+
+
+def _fixture_repo():
+    """A throwaway repo whose HEAD changes exactly _FIXTURE_CHANGED plus one doc. -> path | None
+
+    ⚠⚠ #123 — THIS LAW USED TO TAKE ITS FIXTURE FROM WHATEVER THE REAL HEAD CHANGED. On CI run
+    35939383947 HEAD was a docs-only `fix:` commit touching 0 code files, so "HEAD changed code"
+    was false, the premise failed, and the gate went red while the code under test was fine. A
+    law whose verdict depends on what the last commit happened to be is a law about the commit
+    log. It builds its own history now, so the roster is known before anything is asked.
+    [[feedback-blind-fixture-green-gate]] [[a-gate-can-perturb-what-it-measures]]
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    root = tempfile.mkdtemp(prefix="payload_law.")
+    git = ["git", "-c", "user.name=law", "-c", "user.email=law@example.invalid",
+           "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main",
+           "-c", "core.hooksPath=/dev/null"]      # no machine's hooks run inside the fixture
+
+    def _w(rel, text):
+        p = os.path.join(root, rel)
+        if not os.path.isdir(os.path.dirname(p)):
+            os.makedirs(os.path.dirname(p))
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    try:
+        subprocess.check_call(git + ["init", "-q", root], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
+        for rel in _FIXTURE_CHANGED + ("README.md",):
+            _w(rel, "one = 1\n")
+        subprocess.check_call(git + ["-C", root, "add", "-A"])
+        subprocess.check_call(git + ["-C", root, "commit", "-q", "-m", "base"])
+        for rel in _FIXTURE_CHANGED + ("README.md",):
+            _w(rel, "one = 1\ntwo = 2\n")
+        subprocess.check_call(git + ["-C", root, "add", "-A"])
+        subprocess.check_call(git + ["-C", root, "commit", "-q", "-m", "the change under review"])
+    except (OSError, subprocess.CalledProcessError):
+        shutil.rmtree(root, ignore_errors=True)
+        return None
+    return root
+
+
 class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.repo = _fixture_repo()
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        if cls.repo:
+            shutil.rmtree(cls.repo, ignore_errors=True)
+
     def setUp(self):
-        if not os.path.isdir(os.path.join(ROOT, ".git")):
-            self.skipTest("no git checkout here — the changed-file roster cannot be asked for")
+        if not self.repo:
+            self.skipTest("git could not build the fixture history here — the changed-file "
+                          "roster cannot be asked for, which is UNMEASURED, not clean")
+        _real = R.REPO
+        R.REPO = self.repo
+        self.addCleanup(setattr, R, "REPO", _real)
+
+    def test_the_fixture_head_changes_the_code_it_claims(self):
+        """⚠ THE PREMISE, measured — or every case below is judged against a roster nobody read."""
+        names, why = R._sh(["git", "show", "--format=", "--name-only", "HEAD"])
+        self.assertIsNotNone(names, "the fixture's HEAD could not be read (%s)" % why)
+        self.assertEqual(sorted(names.split()), sorted(_FIXTURE_CHANGED + ("README.md",)),
+                         "the fixture's HEAD does not change what this law assumes it does")
 
     # ── the helper ────────────────────────────────────────────────────────────────────────────
     def test_a_file_that_never_reached_the_payload_is_named(self):
@@ -66,10 +132,12 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
             absent, "absent_from returned UNKNOWN for HEAD in a real checkout (%s); the roster IS "
                     "readable here, so the caller is told UNKNOWN when the answer was available."
                     % (why or "no reason given"))
-        self.assertGreaterEqual(
-            len(absent), 1,
-            "HEAD changed %d code file(s) and none was reported absent from an EMPTY payload. A "
-            "payload containing nothing cannot have carried anything." % len(absent))
+        # the WHOLE roster, not "at least one" — and the doc HEAD also changed is not a code file
+        self.assertEqual(
+            sorted(absent), sorted(_FIXTURE_CHANGED),
+            "HEAD changed %d code file(s) and an EMPTY payload reported %r absent. A payload "
+            "containing nothing cannot have carried anything, and README.md is not code."
+            % (len(_FIXTURE_CHANGED), absent))
 
     def test_a_complete_payload_reports_MEASURED_AND_NONE(self):
         """⚠ THE BASELINE. A law that only ever sees files named proves nothing about the [] case —
