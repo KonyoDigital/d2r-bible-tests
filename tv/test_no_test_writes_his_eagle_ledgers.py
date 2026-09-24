@@ -11,6 +11,7 @@ Reads the gate files as AST (the compiler, never a regex over prose) and DRIVES 
 real unknown_age writer against a temp path. RED_PROOF below.
 """
 import ast
+import glob
 import io
 import os
 import sys
@@ -32,6 +33,35 @@ GATES = ["test_the_doctor_times_each_check.py", "test_the_screen_bills_the_same_
          "test_bake_seed.py"]   # v3475 — drives bake(), which now writes a receipt
 LIVE = (".unknown_age.json", ".eagle_slow.json")
 
+#: REG-1257 — THE LIST ABOVE IS A MEMORY, AND MEMORY MISSED ONE. test_a_pass_says_which_check_it_is_in
+#: (#229) drove a real console_doctor.run(), whose last step is unknown_age.attach(), and was never added
+#: to GATES - CI on 6dab59f1 caught it writing .unknown_age.json. So the law now FINDS every suite that
+#: calls a ledger writer, by the compiler: module aliases resolved from the imports, then the calls.
+DRIVES = {"console_doctor": {"run", "_persist_slow"}, "unknown_age": {"attach"}}
+
+
+def _drives_a_ledger(path):
+    tree = ast.parse(io.open(path, encoding="utf-8").read())
+    alias = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name in DRIVES:
+                    alias[a.asname or a.name] = a.name
+    hits = set()
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and isinstance(n.func.value, ast.Name) and n.func.value.id in alias
+                and n.func.attr in DRIVES[alias[n.func.value.id]]):
+            hits.add("%s.%s" % (alias[n.func.value.id], n.func.attr))
+    return sorted(hits)
+
+
+def _sets_the_ledger_itself(path):
+    """A suite that points TV_UNKNOWN_AGE somewhere itself (a string CONSTANT in code, never prose)."""
+    tree = ast.parse(io.open(path, encoding="utf-8").read())
+    return any(isinstance(n, ast.Constant) and n.value == "TV_UNKNOWN_AGE" for n in ast.walk(tree))
+
 
 def _calls_redirect_at_module_level(path):
     tree = ast.parse(io.open(path, encoding="utf-8").read())
@@ -49,6 +79,20 @@ class NoTestWritesHisEagleLedgers(unittest.TestCase):
         missing = [g for g in GATES if not _calls_redirect_at_module_level(os.path.join(HERE, g))]
         self.assertEqual(missing, [], "these suites drive the doctor and never redirect his ledgers: %r"
                          % missing)
+
+    def test_premise_the_finder_finds_every_known_driver(self):
+        found = set(os.path.basename(p) for p in glob.glob(os.path.join(HERE, "test_*.py")) if _drives_a_ledger(p))
+        known = [g for g in GATES if g != "test_bake_seed.py"]      # bake() writes a receipt, not these ledgers
+        self.assertEqual([g for g in known if g not in found], [],
+                         "the finder misses suites known to drive the doctor - it would miss a new one too")
+
+    def test_every_suite_that_drives_a_ledger_writer_redirects(self):
+        bad = []
+        for p in sorted(glob.glob(os.path.join(HERE, "test_*.py"))):
+            hits = _drives_a_ledger(p)
+            if hits and not (_calls_redirect_at_module_level(p) or _sets_the_ledger_itself(p)):
+                bad.append("%s (%s)" % (os.path.basename(p), ", ".join(hits)))
+        self.assertEqual(bad, [], "these suites call a ledger writer and never redirect his ledgers: %r" % bad)
 
     def test_the_helper_points_every_unset_ledger_outside_the_tree(self):
         import fixture_ledgers as FL
@@ -98,6 +142,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1257 - the #229 pass law drives a real doctor pass unredirected again (CI caught it writing .unknown_age.json)",
+        "file": "test_a_pass_says_which_check_it_is_in.py",
+        "find": "_fx_ledgers.redirect()\n",
+        "replace": "pass\n",
+        "matches": 1,
+    },
     {
         "why": "test_control stops redirecting: every pre-push appends fixture checks to his ledgers again",
         "file": "test_control.py",

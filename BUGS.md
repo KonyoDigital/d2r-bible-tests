@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1257 - MY #229 PASS LAW WROTE HIS LIVE UNKNOWN-AGE LEDGER; THE LEDGER LAW TRUSTED A HAND LIST
+
+**fix - found by CI on 6dab59f1 (TV DIABLO agent tests, gate `live-state-untouched`: ".unknown_age.json absent -> written").**
+`test_a_pass_says_which_check_it_is_in` (#229, REG-1248) drives a REAL `console_doctor.run()`, whose last step is
+`unknown_age.attach(rows)` - and it never called `fixture_ledgers.redirect()`, so every run of it wrote a row named
+"the probe that looks at itself" into HIS tv/.unknown_age.json (one such row was on his Mac; removed). The v3470 law
+`test_no_test_writes_his_eagle_ledgers` could not see it: it checked a FIXED list of eight suites, and a new suite is
+exactly the one nobody has added yet. Now the offender redirects at import, and the law FINDS every driver by the
+compiler (import aliases resolved, then calls to console_doctor.run / _persist_slow / unknown_age.attach) and requires
+a module-level redirect or its own TV_UNKNOWN_AGE. Premise: the finder rediscovers all seven known doctor drivers.
+Sweep: nine suites drive a ledger writer; this was the only one without a redirect. 6 cases, 4 proofs, PROVEN.
+
 ### REG-1256 - THE FLEET RELAY DROPPED THE `measured` BIT: THE SIXTH JOINT OF ONE FEATURE
 
 **fix - found by the doctor row "a tally agrees with its own ledger verdict", read live on his console (GET /api/eagle).**

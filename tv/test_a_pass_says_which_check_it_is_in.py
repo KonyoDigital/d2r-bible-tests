@@ -24,6 +24,8 @@ try:
 except Exception:
     pass
 
+import fixture_ledgers as _fx_ledgers  # noqa: E402  REG-1257 — a real pass writes the eagle ledgers
+_fx_ledgers.redirect()
 import console_doctor as cd  # noqa: E402
 import control_app as ca  # noqa: E402
 
