@@ -136,7 +136,12 @@ public static class TvdCap {
     } catch { return "dpi=?"; }
   }
 
+  // #232 - the second eye on 757518cc: a streaming window whose title does not name the game was dropped
+  // SILENTLY here (the Mac names it as a near-miss). Collected per scan, reported by the held eye.
+  public static List<string> NearMiss = new List<string>();
+
   public static List<Hit> FindD2R() {
+    NearMiss = new List<string>();
     var want = new HashSet<int>();
     var names = new Dictionary<int, string>();
     var kind = new Dictionary<int, string>();   // #232 - "local" | "cloud" | "browser"
@@ -200,7 +205,11 @@ public static class TvdCap {
         string route = "local";
         if (k != "local") {
           route = CloudRoute(proc, title, k == "browser");
-          if (route == "") return true;            // a service window that does not name the game
+          if (route == "") {                        // a service window that does not name the game
+            bool svc = (k == "cloud") || tl.Contains("geforce now") || tl.Contains("geforcenow") || tl.Contains("boosteroid");
+            if (svc && NearMiss.Count < 6) NearMiss.Add(proc + " '" + (title.Length > 60 ? title.Substring(0, 60) : title) + "'");
+            return true;
+          }
         }
         bool isFg = (h == fg);
         int score = (route == "local" ? 8000 : 7000) + (isFg ? 500 : 0);
@@ -547,6 +556,20 @@ while ($true) {
       continue
     }
 
+    # #232 - the second eye on 757518cc: auto filmed the WHOLE DESKTOP whenever nothing pinned, even with no
+    # D2R running at all (a streamed session whose title lacked a game word, a browser tab). The Mac holds the
+    # eye (v1251); Windows now does too, unless a LOCAL D2R is alive (the exclusive-fullscreen case).
+    if (-not $d2rAlive) {
+      Write-Stage 'held'
+      $nm = @()
+      try { $nm = @([TvdCap]::NearMiss) } catch {}
+      $msg = 'eye held - no game window and no D2R.exe, so the desktop is never filmed'
+      if ($nm.Count -gt 0) { $msg += '; a cloud window is open but its title does not name the game: ' + (($nm | Select-Object -First 3) -join '; ') }
+      if ($lastLabel -ne '__held__') { Write-Host ('  ' + $msg); $lastLabel = '__held__' }
+      Write-CapTarget 'waiting' $msg
+      Start-Sleep -Milliseconds 500
+      continue
+    }
     Write-Stage 'virtual'
     if ($lastLabel -ne '__full__') {
       Write-Host '  full virtual screen (no D2R pin)'
@@ -554,7 +577,7 @@ while ($true) {
     }
     try {
       [TvdCap]::GrabVirtual($frames)
-      Write-CapTarget $(if ($d2rAlive) { 'window' } else { 'waiting' }) $(if ($d2rAlive) { 'D2R alive - full virtual fallback' } else { 'full screen (no D2R)' })
+      Write-CapTarget 'window' 'D2R alive - full virtual fallback'
     } catch {
       Write-Host "  virtual fail: $_"
     }

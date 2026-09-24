@@ -173,7 +173,10 @@ class WindowsFindsEveryRoute(unittest.TestCase):
 
     def test_a_service_window_that_does_not_name_the_game_is_skipped(self):
         code = "\n".join(l.split("//", 1)[0] for l in self.src.split("\n"))
-        self.assertIn('if (route == "") return true;', code,
+        # re-anchored (the second eye on 757518cc): the skip is a block now, and it records the near-miss
+        i = code.find('if (route == "") {')
+        self.assertGreater(i, -1, "a browser or cloud-app window that does not name the game became a candidate")
+        self.assertIn("return true;", code[i:i + 400],
                       "a browser or cloud-app window that does not name the game became a candidate")
 
     def test_the_windows_twin_reads_words_and_refuses_two_services(self):
@@ -181,6 +184,21 @@ class WindowsFindsEveryRoute(unittest.TestCase):
         self.assertIn('Regex(@"\\bdiablo\\s*(?:ii|2)\\b|\\bd2r\\b")', code, "the C# game words drifted from _GAME_RX")
         self.assertIn("return GameRx.IsMatch(tl);", code)
         self.assertIn('if (gfn && bst) return "";', code, "a title naming two services pins as the first one")
+
+    def test_windows_holds_the_eye_instead_of_filming_the_desktop(self):
+        """the second eye on 757518cc: with nothing pinned, auto filmed the WHOLE DESKTOP even with no D2R at
+        all; the Mac holds the eye (v1251). Source-pinned: the loop runs only on Windows."""
+        code = "\n".join(l.split("#", 1)[0] for l in self.src.split("\n"))
+        held = code.find("if (-not $d2rAlive) {\n      Write-Stage 'held'")
+        grab = code.find("[TvdCap]::GrabVirtual($frames)")
+        self.assertGreater(held, -1, "no held-eye branch: auto films the desktop when nothing pins")
+        self.assertLess(held, grab, "the held branch comes after the desktop grab, so it never runs first")
+        self.assertNotIn("full screen (no D2R)", code, "the desktop is still filmed with no D2R alive")
+
+    def test_windows_names_a_streaming_window_that_does_not_name_the_game(self):
+        code = "\n".join(l.split("//", 1)[0] for l in self.src.split("\n"))
+        self.assertIn('NearMiss.Add(proc + " \'" + (title.Length > 60 ? title.Substring(0, 60) : title) + "\'");', code,
+                      "a streaming window without the game in its title is dropped silently on Windows")
 
     def test_windows_powershell_can_still_read_it(self):
         """Windows PowerShell reads a file with no BOM as ANSI, so non-ASCII there is mangled. The
@@ -195,6 +213,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on 757518cc - Windows auto films the whole desktop again when nothing pins and no D2R runs",
+        "file": "capture_win.ps1",
+        "find": "    if (-not $d2rAlive) {\n      Write-Stage 'held'\n",
+        "replace": "    if ($false) {\n      Write-Stage 'held'\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on 757518cc - a streaming window without the game in its title is dropped silently on Windows",
+        "file": "capture_win.ps1",
+        "find": "            if (svc && NearMiss.Count < 6) NearMiss.Add(proc + \" '\" + (title.Length > 60 ? title.Substring(0, 60) : title) + \"'\");\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#232 - substring game words again: 'GeForce NOW - Resurrected' / 'Diablo 2024' / 'd2races' pin as the game",
         "file": "tv_diablo.py",
@@ -255,8 +287,8 @@ RED_PROOF = [
     {
         "why": "#232 - the Windows finder takes any browser/cloud window, named game or not",
         "file": "capture_win.ps1",
-        "find": "          if (route == \"\") return true;            // a service window that does not name the game\n",
-        "replace": "",
+        "find": "          if (route == \"\") {                        // a service window that does not name the game\n",
+        "replace": "          if (false) {\n",
         "matches": 1,
     },
 ]

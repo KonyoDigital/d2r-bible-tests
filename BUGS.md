@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1250 - ON WINDOWS, AN UNPINNED EYE FILMED THE WHOLE DESKTOP
+
+**fix - the second eye on 757518cc (v3496, grok-4.7), read in the capture loop.** In auto mode, when nothing pinned,
+capture_win.ps1 fell through to `GrabVirtual` and filmed the whole desktop - even with no D2R running at all - and
+labelled it "full screen (no D2R)"; a GeForce NOW / Boosteroid / browser window whose title did not name the game was
+dropped SILENTLY by the finder, where the Mac names it as a near-miss. The Mac has held the eye since v1251. Windows now
+holds it too unless a LOCAL D2R.exe is alive (the exclusive-fullscreen case), and the held message names the streaming
+windows that did not qualify (`TvdCap.NearMiss`, collected per scan). The script parses with 0 errors in PowerShell and
+the C# compiles and runs `FindD2R` live on the ALT. Guard: the eye law +2 source pins (the loop only runs on Windows),
++2 proofs, one anchor re-anchored, all PROVEN.
+
 ### REG-1249 - THE SETS-COUNT CARD AND ITS DOCTOR ROW WERE TWO COPIES THAT DISAGREED
 
 **fix - the second eye on v3498 (grok-4.7), four findings, each reproduced by a case before the fix.** (1) The card pointed
