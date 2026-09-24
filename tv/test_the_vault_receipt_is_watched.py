@@ -66,6 +66,24 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
         self.assertEqual(r["state"], HE.UNKNOWN,
                          "an unreadable backup reported %r instead of UNKNOWN" % (r["state"],))
 
+    def test_an_unreadable_backup_still_says_whether_a_receipt_OPENS(self):
+        """Second eye on v3490 (grok-4.7): the corrupt-backup return skipped the resolution v3490
+        added for an empty directory, so the row carried no evidence and could never grade WARN."""
+        with io.open(os.path.join(self.d, "ledger_bad.json"), "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        real = HE._receipts_resolve
+        try:
+            HE._receipts_resolve = lambda *a, **k: (0, 450)
+            r = HE.check_vault_receipts(backup_dir=self.d)
+            self.assertEqual(r["state"], HE.WARN, "nothing opens and the row did not say so: %r" % (r,))
+            self.assertIn("receiptFrames 0 of 450", " ".join(r.get("evidence") or []))
+            HE._receipts_resolve = lambda *a, **k: (126, 450)
+            r = HE.check_vault_receipts(backup_dir=self.d)
+            self.assertEqual(r["state"], HE.UNKNOWN)
+            self.assertIn("receiptFrames 126 of 450", " ".join(r.get("evidence") or []))
+        finally:
+            HE._receipts_resolve = real
+
     def test_it_counts_the_rows_that_actually_carry_a_sighting(self):
         _backup(self.d, ["A", "B", "C"],
                 {"A": {"sightings": [{"reel": "r1", "frame": "f1.jpg"}]},
@@ -137,6 +155,13 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "second eye on v3490 - a corrupt ledger backup returns before the receipt resolution again: no evidence, never WARN",
+        "file": "health_engine.py",
+        "find": "        return _resolution_only(\"the newest ledger backup could not be read (%s), so the receipt \"\n",
+        "replace": "        return _row(\"vaultReceipts\", UNKNOWN, \"unreadable\", k=_atkK, n=_atkN)\n        return _resolution_only(\"the newest ledger backup could not be read (%s), so the receipt \"\n",
+        "matches": 1,
+    },
+    {
         "why": 'v3193 — the old anchor deleted the "NO receipt hook" sentence, which only appears '
                'on the UNJOINED path his tree never takes, so the tamper was invisible. This '
                'deletes the RESOLUTION measurement instead: the organ then reports a sighting '
@@ -147,7 +172,7 @@ RED_PROOF = [
         "replace": '    _rres = (0, 0)  # _HEART2_TAMPERED_',
         "matches": 1,
     },
-    {'why': "reports an unreadable ledger backup as a clean zero instead of UNKNOWN, so 'nobody could look' and 'nothing is there' become the same row", 'file': 'health_engine.py', 'find': '        return _row("vaultReceipts", UNKNOWN,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "', 'replace': '        return _row("vaultReceipts", OK,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "', 'matches': 1},
+    {'why': "reports an unreadable ledger backup as a clean zero instead of UNKNOWN, so 'nobody could look' and 'nothing is there' become the same row", 'file': 'health_engine.py', 'find': '        return _row("vaultReceipts", WARN if _broken0 else UNKNOWN, why + _clause0,', 'replace': '        return _row("vaultReceipts", WARN if _broken0 else OK, why + _clause0,', 'matches': 1},
 ]
 
 if __name__ == "__main__":

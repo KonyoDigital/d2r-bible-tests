@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1222 - A CORRUPT LEDGER BACKUP HID WHETHER A VAULT RECEIPT CAN OPEN
+
+**fix - the second eye on v3490 (grok-4.7, verdict: findings).** v3490 made `check_vault_receipts` still measure receipt
+resolution when no backup exists; the OTHER early return - a backup that exists and will not parse - still returned
+before `_receipts_resolve`, passed no evidence, and could never grade WARN when nothing opens. Both early returns now go
+through one helper (`_resolution_only`), so neither door can skip it. Guards: a driven corrupt-backup case (0 of 450
+must WARN, 126 of 450 stays UNKNOWN, both carry the measurement) + a new proof; the old proof re-anchored on the helper.
+
 ### REG-1221 - THE BUMP'S HEART GATE GRADED THE LIVE REPO, NOT THE TREE IT STAMPED (v3495)
 
 **fix.** `bump(repo=...)` stamps the tree it is handed; `_heart_gate` ran `git diff` beside the script regardless, so a

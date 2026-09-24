@@ -1189,22 +1189,26 @@ def check_vault_receipts(backup_dir=None):
         _files = sorted(_glob.glob(os.path.join(_dir, "ledger_*.json")))
     except Exception:
         _files = []
-    if not _files:
+    def _resolution_only(why):
         # ⚠ #123 — RESOLUTION DOES NOT NEED THE BACKUP. Whether a receipt can OPEN is a question about
-        # banked frames on disk, and this early return skipped it: on a venue with no backup (every CI
-        # runner) the row carried no `receiptFrames` at all, which is the silent omission v3193 exists
-        # to refuse — a receipt that opens nothing indistinguishable from one that opens.
+        # banked frames on disk. ⚠ AND BOTH EARLY RETURNS GO THROUGH HERE: v3490 measured it for the
+        # empty directory, and the corrupt-backup return still skipped it and passed no evidence, so
+        # the one fact the row exists for vanished whenever the backup would not parse, and a bank
+        # where nothing opens could not grade WARN (the second eye on v3490, grok-4.7). One helper,
+        # so neither door can skip it again. [[copy-drift]]
         try:
             _rr0 = _receipts_resolve()
         except Exception:
             _rr0 = (0, 0)
         _clause0, _broken0 = _receipt_resolution_clause(_rr0)
-        return _row("vaultReceipts", WARN if _broken0 else UNKNOWN,
-                    "no ledger backup exists yet, so nothing here can say how many vault rows "
-                    "carry a receipt - which is not the same as saying none do" + _clause0,
+        return _row("vaultReceipts", WARN if _broken0 else UNKNOWN, why + _clause0,
                     evidence=[("receiptFrames %d of %d open on disk" % _rr0) if _rr0[1]
                               else "receiptFrames UNKNOWN (the bank could not be read)"],
                     k=_atkK, n=_atkN)
+    if not _files:
+        return _resolution_only("no ledger backup exists yet, so nothing here can say how many vault "
+                                "rows carry a receipt - which is not the same as saying none do")
+
     try:
         with io.open(_files[-1], encoding="utf-8") as _fh:
             _b = _json.load(_fh)
@@ -1213,10 +1217,8 @@ def check_vault_receipts(backup_dir=None):
         _mule = _json.loads(_a.get("d2r_muleAssign") or "{}")
         _ev = _json.loads(_a.get("d2r_foundEvidence") or "{}")
     except Exception as _e:
-        return _row("vaultReceipts", UNKNOWN,
-                    "the newest ledger backup could not be read (%s), so the receipt count is "
-                    "UNKNOWN rather than zero" % type(_e).__name__,
-                    k=_atkK, n=_atkN)
+        return _resolution_only("the newest ledger backup could not be read (%s), so the receipt "
+                                "count is UNKNOWN rather than zero" % type(_e).__name__)
     # ⚠⚠ v3180 — d2r_foundEvidence IS NOT THE EVIDENCE BANK. It holds EIGHT rows in his backup and
     # none of them are owned items, so this reported "0 of 172 carry a sighting" — a figure that is
     # true of that store and FALSE of the system. The real bank is tv/chron_evidence.json: 324
