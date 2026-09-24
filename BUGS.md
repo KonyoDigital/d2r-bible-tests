@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1253 - v1694 COMPARED TWO MOMENTS OF A PAGE THAT GROWS ON ITS OWN CLOCK
+
+**test - Routine I red on ea76abff and 2450dcc2: "element count changed under a failing beacon: 30292 vs baseline
+30286".** Not the beacon. Sampling one clean load (CDP, loopback static server) at +0.5 s and +1.0 s: the count rises by
+EXACTLY SIX between them - `renderInboxFab` runs 900 ms after `load` and builds inbox-fab, inbox-fab-n, inbox-pop, ibp-h,
+ibp-sub, ibp-empty. The baseline counted at load + 500 ms; the failing-beacon cases after the beacon hit + 500 ms - so on
+a slow runner one side had the fab and the other did not. `signature()` now waits for the fab and for a node count that
+holds across two samples 250 ms apart, on both sides. The beacon-isolation claim is unchanged. Verified on CI only (a
+browser spec; test-venue) - UNMEASURED until the next Routine I run.
+
 ### REG-1252 - TV_CAPTURE=off STOPPED ONE GRABBER OF THREE
 
 **fix - the second eye on 298de387 (REG-1225, grok-4.7), read in the code and run on the ALT.** The capture-off switch

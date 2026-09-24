@@ -100,7 +100,25 @@ interface Sig { tally: string; tabs: number; nodes: number; active: string; }
 // identically to a clean load" is measured as: same grail tally text, same number of tabs, same
 // total element count, same active tab. A beacon that painted anything, removed anything or threw
 // mid-render moves one of these numbers.
+// ⚠ THE PAGE ADDS NODES ON ITS OWN CLOCK, AND THIS SPEC COMPARED TWO MOMENTS. renderInboxFab runs 900 ms after
+// `load` and builds the inbox fab + pop: EXACTLY SIX nodes (measured 2026-09-24 by sampling one load at +0.5 s
+// and +1.0 s - inbox-fab, inbox-fab-n, inbox-pop, ibp-h, ibp-sub, ibp-empty). The baseline counted at load+500ms,
+// the failing-beacon cases after the beacon hit + 500ms, so on a slow runner one side had the fab and the other
+// did not, and "30292 vs 30286" was read as the beacon touching the DOM. Both sides now wait for that timer's
+// output and for a count that holds still before they are compared.
+async function settle(page: any): Promise<void> {
+  await page.waitForFunction(() => !!document.getElementById('inbox-fab'), null, { timeout: 6000 }).catch(() => {});
+  let prev = -1;
+  for (let i = 0; i < 20; i++) {
+    const n = await page.evaluate(() => document.querySelectorAll('*').length);
+    if (n === prev) return;
+    prev = n;
+    await page.waitForTimeout(250);
+  }
+}
+
 async function signature(page: any): Promise<Sig> {
+  await settle(page);
   return page.evaluate(() => {
     const peek = document.getElementById('grail-peek');
     const act = document.querySelector('.tab.active') as HTMLElement | null;
