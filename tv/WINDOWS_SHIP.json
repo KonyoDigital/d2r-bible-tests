@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3480",
+  "ver": "v3481",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3480: the river law fixture now feeds geometry that fails to derive, so red-proof 6 reaches the unbuilt branch it guards; 8 of 8 proven",
+  "note": "v3481: close_ocr_worker closes the raw stream so the object close never waits on a writer lock; a stuck-write case reproduces the Linux hang on every OS",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

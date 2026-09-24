@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3480** | `(this commit)` | v3480 — the river law fixture now feeds geometry that fails to derive, so red-proof 6 reaches the unbuilt branch it guards; 8 of 8 proven |
+| **v3481** | `(this commit)` | v3481 — close_ocr_worker closes the raw stream so the object close never waits on a writer lock; a stuck-write case reproduces the Linux hang on every OS |
+| **v3480** | `d9d2e4f3` | v3480 — the river law fixture now feeds geometry that fails to derive, so red-proof 6 reaches the unbuilt branch it guards; 8 of 8 proven |
 | **v3479** | `cca78142` | v3479 — the shadow log now stores a picture hash before and after the Grok read; frames key on it and read.jpg is attributed to no frame instead of one mixed frame |
 | **v3478** | `cb11067a` | v3478 — the lane-agreement law now runs the REAL heart2 prover in per-lane trees whose gates watch each other tamper targets; a shared sandbox moves a verdict 8 of 8 |
 | **v3477** | `2c386b6c` | v3477 — run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates |

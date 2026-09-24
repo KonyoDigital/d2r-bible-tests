@@ -14988,12 +14988,28 @@ def close_ocr_worker(wp, say=None):
         # `close(2)` on a pipe CANNOT block, and it still delivers EOF, so the worker still
         # gets its graceful shutdown. Any bytes left in the Python-side buffer are dropped on
         # purpose — we are shutting the worker down, not sending it more work.
+        # ⚠⚠ #185 — "THE FD IS GONE, SO THIS CANNOT FLUSH" WAS FALSE, AND ONLY LINUX SAID SO.
+        # TextIOWrapper.close() -> BufferedWriter.close() takes the writer's LOCK before it looks at
+        # anything, and a thread blocked in write() on the full pipe HOLDS that lock. On Linux
+        # close(2) does not wake that writer, so the object close waited until the child died: CI
+        # measured 25.4s against a 20s bound, while his Mac stayed green. Closing the RAW FileIO
+        # instead takes no buffered lock, closes the fd, and marks the stream closed — so the
+        # object close below sees `closed` and returns without flushing or locking, on every OS.
+        # It also shuts a second door: an os.close()'d number can be REUSED by another open() while
+        # a delayed flush is still pending, and those bytes would land in someone else's file. A
+        # closed FileIO refuses the write instead. [[the-cure-that-kills-the-patient]]
+        _raw = (getattr(getattr(wp.stdin, "buffer", None), "raw", None)
+                or getattr(wp.stdin, "raw", None))
         try:
-            os.close(wp.stdin.fileno())
+            if _raw is not None:
+                _raw.close()      # the fd AND the closed flag — no buffered lock, no flush
+            else:
+                os.close(wp.stdin.fileno())
         except Exception:
             pass                  # already closed, or never had one
         try:
-            wp.stdin.close()      # drop the object too; the fd is gone, so this cannot flush
+            if not getattr(wp.stdin, "closed", False):
+                wp.stdin.close()  # only a stdin the raw close did not already shut
         except Exception:
             pass                  # a stdin that will not close is NOT a reason to skip the reap
     try:
@@ -31293,7 +31309,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3480",
+        "ver": "v3481",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

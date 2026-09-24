@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1184 - "THE FD IS GONE, SO THIS CANNOT FLUSH" WAS FALSE, AND ONLY LINUX SAID SO
+
+**v3481 - #185.** `test_closing_the_worker_stdin_CANNOT_BLOCK_THE_CALLER` was GREEN on his Mac (5.3s) and RED on
+CI (25.4s against 20s), same commit. The task's theory — "tv/bin/ocr_mac cannot run on Linux" — was refuted by the
+test itself: its child is a sleeping `python -c`. The mechanism: `close_ocr_worker` did `os.close(fd)` then
+`wp.stdin.close()`, and TextIOWrapper.close() -> BufferedWriter.close() takes the writer's LOCK before anything else.
+A thread blocked in write() on the full pipe holds it; on Linux close(2) does not wake that writer, so the object
+close waited for the child to die. Now the routine closes the RAW FileIO (no buffered lock; marks the stream closed),
+and the object close sees `closed` and returns without flushing. Second door shut by the same line: an os.close()'d
+number can be REUSED by another open() while a delayed flush is pending — a closed FileIO refuses the write instead.
+NEW CASE removes the venue: a raw stream whose write() blocks on an Event (Linux's shape, on every OS). HEAD's
+routine fails it on his Mac in 5.0s; the fix passes 11/11. Blocking-flush proof re-anchored; 5/5 PROVEN.
+⚠ Production reach today: none on Linux (no ocr worker can run there) — the fix is for the law and the latent class.
+
 ### REG-1183 - THE FORK GATE'S SYSCALL SPY WATCHED A DOOR NOBODY WALKS THROUGH ON CI
 
 **test: after ea3f05da - #150.** `test_the_doctor_never_forks_a_quartz_process` was RED on CI (run 35943284218,

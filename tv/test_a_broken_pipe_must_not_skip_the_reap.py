@@ -266,6 +266,72 @@ class TestABrokenPipeMustNotSkipTheReap(unittest.TestCase):
             except Exception:
                 pass
 
+    def test_a_writer_HOLDING_THE_BUFFER_LOCK_cannot_hold_the_caller_hostage(self):
+        """⚠⚠ #185 — THE CASE ABOVE WAS GREEN ON HIS MAC AND RED ON CI, SAME COMMIT. On Linux a thread
+        blocked in write() on a full pipe keeps holding the BufferedWriter's lock after close(2),
+        and TextIOWrapper.close() takes that lock before anything else — so the old routine waited
+        for the child to die (CI: 25.4s against a 20s bound). macOS wakes the writer, which is why
+        the venue decided the verdict.
+
+        This removes the venue. The raw stream's write() blocks on an Event and ignores close —
+        exactly Linux's shape — so the lock is held on EVERY OS, deterministically, and the routine
+        must still return promptly and leave the stream reading CLOSED.
+        [[a-probe-licenses-only-what-it-tested]] [[ab-against-head-before-blaming-the-room]]
+        """
+        import threading as th
+
+        release, entered = th.Event(), th.Event()
+
+        class _StuckRaw(io.RawIOBase):
+            def writable(self):
+                return True
+
+            def write(self, b):
+                entered.set()
+                release.wait(30)      # a writer the close cannot wake — Linux's full pipe
+                raise BrokenPipeError("the child is gone")
+
+        raw = _StuckRaw()
+        stdin = io.TextIOWrapper(io.BufferedWriter(raw, buffer_size=8), write_through=True)
+
+        class _W(object):
+            def __init__(self):
+                self.stdin, self.terminated = stdin, False
+
+            def terminate(self):
+                self.terminated = True
+                release.set()         # the child dies -> the stuck write finally returns
+
+            def wait(self):
+                pass
+
+        w = _W()
+        th.Thread(target=lambda: self._swallow(lambda: stdin.write("x" * 64)), daemon=True).start()
+        self.assertTrue(entered.wait(5), "premise: the writer never got inside write(), so the "
+                                         "buffer lock was never held and this case measures nothing")
+        done = []
+        t = th.Thread(target=lambda: (CA.close_ocr_worker(w), done.append(True)), daemon=True)
+        t0 = time.time()
+        t.start()
+        t.join(5.0)
+        try:
+            self.assertTrue(done, "close_ocr_worker waited on another thread's buffer lock for over "
+                                  "5s — on Linux that is until the worker dies, and the closer loop "
+                                  "and the whole reel backlog stall with it")
+            self.assertLess(time.time() - t0, 5.0)
+            self.assertTrue(w.terminated, "the routine returned without terminating the worker")
+            self.assertTrue(raw.closed, "the raw stream was left open — a later flush could write "
+                                        "into a descriptor number someone else has reused")
+        finally:
+            release.set()
+
+    @staticmethod
+    def _swallow(fn):
+        try:
+            fn()
+        except Exception:
+            pass
+
 
     # ---- the call site actually calls it --------------------------------------------------
 
@@ -336,8 +402,9 @@ RED_PROOF = [
         "file": "control_app.py",
         # ⚠ v3424 — this anchor was INVALID at match count 0 once, because flattening the dead
         # outer try de-indented the line from 16 spaces to 12. A tamper carries whitespace.
-        "find": "            os.close(wp.stdin.fileno())",
-        "replace": "            pass",
+        # ⚠ #185 — re-anchored: the door that stops the flush is now the RAW close.
+        "find": "                _raw.close()      # the fd AND the closed flag — no buffered lock, no flush",
+        "replace": "                pass",
         "matches": 1,
     },
 ]
