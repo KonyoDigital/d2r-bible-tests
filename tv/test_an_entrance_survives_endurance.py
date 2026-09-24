@@ -25,10 +25,18 @@ targets, which now open the drawer UNDER endurance (the state his console lives 
 """
 import io
 import os
+import sys
 import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 UI = os.path.join(HERE, "control_ui.html")
 PREFIX = 'body[data-endurance="1"] '
 
