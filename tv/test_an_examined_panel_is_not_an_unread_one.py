@@ -66,6 +66,17 @@ class TestAnExaminedPanelIsNotAnUnreadOne(unittest.TestCase):
         import frame_authority as FA
 
         store = {REEL: {"full": True, "panels": panels, "frames": panels}}
+        # ⚠ #123 — the cache key was built from HIS retro_triage.json (`getmtime` of the real store):
+        # on CI there is no such file, so all four cases ERRORED in 0.1 s before judging anything, and
+        # here the key depended on his live store. A throwaway store file makes the key real on every
+        # machine; the triage store path is pointed at it and restored. [[feedback-fixtures-never-touch-live-data]]
+        import tempfile as _tempfile
+        _fd, _tmp_store = _tempfile.mkstemp(prefix="examined_panel_", suffix=".json")
+        with os.fdopen(_fd, "w") as _fh:
+            _fh.write("{}")
+        self.addCleanup(lambda: os.path.exists(_tmp_store) and os.remove(_tmp_store))
+        old_store_path = RT._store_path
+        RT._store_path = lambda *a, **k: _tmp_store
         key = (RT._store_path(), os.path.getmtime(RT._store_path()))
         old_cache = dict(RR._TRIAGE_CACHE)
         old_dur = RR._DURABLE
@@ -81,6 +92,7 @@ class TestAnExaminedPanelIsNotAnUnreadOne(unittest.TestCase):
             RR._TRIAGE_CACHE.update(old_cache)
             RR._DURABLE = old_dur
             FA.sealed_sessions = old_sealed
+            RT._store_path = old_store_path
 
     def test_an_examined_empty_seal_releases_the_reel(self):
         held = self._ask(SEAL_EXAMINED)
