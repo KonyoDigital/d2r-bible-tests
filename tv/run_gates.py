@@ -5335,6 +5335,13 @@ GATES = [
              "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
              "_prewarm warms every declared endpoint once, in the background, the moment the console "
              "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
+    Gate("test_a_slow_census_is_still_remembered",
+         [sys.executable, os.path.join(HERE, "test_a_slow_census_is_still_remembered.py")], 60,
+         why="#237 - the heart memo aged from when the census STARTED, so a census slower than its 45s "
+             "TTL was born expired: inside a push at load ~7 /api/heart took 48.3s, the panel's own fetch "
+             "one click later walked the source again, and the render gate refused the heart panel. "
+             "Reuse now counts from when it LANDED; the shown age is still the reading's. 6 cases, "
+             "3 red-proofs"),
     Gate("test_a_scratch_console_never_films_his_screen",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_films_his_screen.py")], 60,
          why="#236 - mid-push the render gate's private (stub) console went live, pinned HIS GeForce NOW "

@@ -20388,8 +20388,38 @@ def _self_arming_state():
 # the exact shape of [[poll-slower-than-its-interval]], where /api/sessions took 172 s and was
 # asked every 12 s until fourteen walks were always in flight. So: separate route, memoised, and
 # the panel asks for it when it OPENS rather than forever.
-_HEART_MEMO = {"t": 0.0, "v": None}
+_HEART_MEMO = {"t": 0.0, "done": 0.0, "v": None}
 _HEART_TTL = 45.0
+
+
+def _heart_memo_hit(now):
+    """-> the memoised heart with its honest age, or None when it must be derived again.
+
+    ⚠⚠ #237 — A CENSUS SLOWER THAN ITS TTL WAS BORN EXPIRED. The memo was stamped with the moment
+    the derivation STARTED and aged against the TTL from there, so a census that took longer than
+    45 s was already stale the instant it was stored, and the very next open walked the source
+    again. Measured 2026-09-24 inside a push at load ~7: /api/heart took 48.3 s, the panel's own
+    fetch one click later re-derived it, and the render gate refused the heart panel as "could not
+    be ACTIVATED after 12.1s" - the next target read it warm in 0.0 s. Under load, exactly when a
+    memo matters, it never served once. Two clocks now, two questions:
+      t    - when the READING began: the honest age of what is shown (ageMs), unchanged.
+      done - when it LANDED: the reuse window counts from here. [[stale-reading]]"""
+    if _HEART_MEMO["v"] is None:
+        return None
+    if (now - (_HEART_MEMO.get("done") or _HEART_MEMO["t"])) >= _HEART_TTL:
+        return None
+    out = dict(_HEART_MEMO["v"])
+    out["ageMs"] = int((now - _HEART_MEMO["t"]) * 1000)
+    return out
+
+
+def _heart_memo_store(started, out):
+    """Keep a derived heart: `started` is when its reading began, and it lands NOW. See
+    _heart_memo_hit for why the two are different clocks."""
+    import time as _t
+    _HEART_MEMO["t"] = started
+    _HEART_MEMO["done"] = _t.time()
+    _HEART_MEMO["v"] = out
 
 
 def _heart2_census():
@@ -20522,10 +20552,9 @@ def heart_state(force=False):
     """
     import time as _t
     now = _t.time()
-    if not force and _HEART_MEMO["v"] is not None and (now - _HEART_MEMO["t"]) < _HEART_TTL:
-        out = dict(_HEART_MEMO["v"])
-        out["ageMs"] = int((now - _HEART_MEMO["t"]) * 1000)
-        return out
+    _memo = None if force else _heart_memo_hit(now)
+    if _memo is not None:
+        return _memo
     try:
         import heart as _h
     except Exception as e:
@@ -20651,8 +20680,7 @@ def heart_state(force=False):
                   "UNKNOWN": getattr(_h, "UNKNOWN", "UNKNOWN")},
         "ageMs": 0,
     }
-    _HEART_MEMO["t"] = now
-    _HEART_MEMO["v"] = out
+    _heart_memo_store(now, out)
     return out
 
 

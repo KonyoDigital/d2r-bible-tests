@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1229 - A HEART CENSUS SLOWER THAN ITS 45s TTL WAS BORN EXPIRED
+
+**fix - #237, one push refused (2026-09-24).** MEASURED: inside the pre-push at load ~7, /api/heart took 48.3s on the
+render gate's private console. `_HEART_MEMO` was stamped with the moment the census STARTED and aged against the 45s
+TTL from there, so the memo was already expired when it was stored: the heart panel's own fetch one click later walked
+the source again and the render gate refused the panel ("could not be ACTIVATED after 12.1s"). The next target read the
+route in 6.2s (a fresh walk) and the one after in 0.0s. Under load - exactly when a memo matters - it never served once;
+his own chip clicks re-walked the source the same way. Two clocks now: `t` (when the reading began) still sets the
+shown ageMs, `done` (when it landed) sets reuse. `_heart_memo_hit` / `_heart_memo_store`. Re-render: heart, heart-fan,
+heart-stored green in 63s at load 5.2, heart-fan warm 0.0s (was 6.2s). Guard: `test_a_slow_census_is_still_remembered`
+(6 cases, 3 proofs), PROVEN.
+
 ### REG-1228 - THE RENDER STEP COULD NOT FINISH INSIDE ITS 300s CEILING AT HIS NORMAL LOAD
 
 **fix - #236, three pushes refused.** MEASURED: a full render took 282-304s at load 4.5-6.9 standalone, and inside the
