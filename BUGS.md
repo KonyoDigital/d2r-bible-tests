@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1194 - A DOCTOR ROW DECLARED IT WATCHED A DOM ID, WHICH NO SURFACE IS CALLED
+
+**fix: after v3486 - #123, one of the 21 CI reds (red since v3414) and red locally.** `WATCHES["the chip can say nobody
+looked"] = ("heart-chip",)` — `heart-chip` is an element id, not a name in the surface registry (organ_matrix.surfaces(): 61,
+the heart ones being heart / heart-fan / heart-stored), so it could never match and sat there looking like coverage. The row
+supervises `heart_state()`'s census, the payload the `heart` surface renders; the chip only opens it. Now `("heart",)`.
+test_the_doctor_says_what_it_watches 8/8 and 4/4 PROVEN (was UNPROVABLE in the census).
+
 ### REG-1193 - "THE CURRENT READER" WAS A TYPED NUMBER THAT MOVED FIVE DAYS AGO
 
 **test: after v3486 - #123, one of the 21 CI reds and red locally too.** `test_seal_named`'s fixture called `vp2017` the

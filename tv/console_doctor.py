@@ -8120,7 +8120,11 @@ WATCHES = {
     "the door and the writers agree": (),
     # v3413 — DECLARED, NOT OMITTED. It compares a generated file against git; no element.
     "the resume agrees with git": (),
-    "the chip can say nobody looked": ("heart-chip",),
+    # #123 — was ("heart-chip",): a DOM id, not a registry surface, so it could never match and sat
+    # here looking like coverage (test_the_doctor_says_what_it_watches, red since v3414). The row
+    # supervises heart_state()'s census — the payload the `heart` surface renders; the chip only
+    # opens it.
+    "the chip can say nobody looked": ("heart",),
     "the eye audit agrees with the gate": (),
     "the eye cap is a size it has finished": (),
     "the eye answers in a field": (),
