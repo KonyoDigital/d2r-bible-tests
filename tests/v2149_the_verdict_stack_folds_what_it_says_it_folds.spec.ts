@@ -129,8 +129,11 @@ const RESOLVER_DOWN_FIXTURE = {
 // rank -> does this card fold? Derived by EXECUTION below, pinned here as the law.
 const FOLDS: Record<string, boolean> = {
   '0': true,     // the game denies these — the register already withholds them
-  '1': false,    // the board and the game do not add up — he must look
-  '1.5': false,  // undatable not-found readings — unknown is not agreement
+  // #228 — HIS RULING, 2026-09-24: these two read as if HE had done something wrong. Nothing in
+  // either is his to do; the one line that was (film a new Remaining page) is a WAITING ON YOU
+  // ask now. They FOLD — the headline stays, quiet is fine, silent is not.
+  '1': true,     // your board is ahead of the last Remaining page
+  '1.5': true,   // older not-found readings are not used against your finds
   '2': false,    // the reader contradicted itself
   '3': false,    // cannot be ordered against the game's list
   '3.5': true,   // in-game dates newer than the sweep — "nothing to do."

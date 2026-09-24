@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3497"   # THE CHRONICLE INBOX SHOWS THE ITEM AND ASKS ON THE PAGE
+VERSION = "v3498"   # the sets-count card reads human and asks for a fresh page
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

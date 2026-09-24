@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3497",
+  "ver": "v3498",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3497: #230 - Grok mailbox study ported onto the console inbox: the tome on the pill and header, the item art on a plate, the three destructive questions asked on the page instead of a blocking native dialog, clearer session chips and one row of actions. HEART: the watchers are tv/test_the_chronicle_inbox_asks_on_the_page.py (2 proofs) and the new render target ch-inbox; also the capture-off law for the render harness console",
+  "note": "v3498: #228 - the chronicle-sweep calibration card was RED over a Remaining page 34 days old that the game bar contradicts; it is calm and folded, ages the page from readAt, shows the measurement, and film a new Remaining page is a WAITING ON YOU question. HEART: the watcher is the new doctor check a fresh remaining page (every tick) and tv/test_the_sets_count_asks_for_a_fresh_page.py (5 proofs)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

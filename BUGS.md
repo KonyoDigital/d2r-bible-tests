@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1230 - THE SETS-COUNT CARD WAS RED OVER A 34-DAY-OLD PAGE, AND ITS ONE REAL ACTION HAD NO QUESTION (v3498)
+
+**fix - #228, his screenshot 2026-09-24 11:13.** The chronicle-sweep panel drew "the board and the game do not add up"
+and "the not-found readings here cannot be dated" as LOUD cards that read as if he had done something wrong. MEASURED on
+his live saved sweep: the "16 row(s) the game says you do not have" came from a Remaining page filmed 2026-08-21 - the
+card said 24.5 days old (`ageDays`, stamped when the sweep ran), it was 34 - while the game's own progress bar on 3 recent
+frames agreed with his board (97.8% vs ~100%); and its next-action promised "the two wrong rows" for a finding of 16.
+Now: both cards are calm (`unk`) and folded; the headline says what it MEANS ("your board is ahead of the last Remaining
+page · the page is 34 days old"); the page age is counted from `readAt` on this card AND the denial card; the opened
+body shows the measurement (board/page/roster/bar, the rows by name), not the reader's capitals alarm - a grok-4.7 look at
+the OPENED card REFUTED the first cut on exactly that, and HOLDS 5/5 on the fix. The one line that was his - film a new
+Remaining page - is a WAITING ON YOU question: doctor check `a fresh remaining page` (every tick, 66 ms; a periodic row is
+UNMEASURED on 5 of 6 ticks and would drop his question), answers I filmed one / Remind me in a week / Not needed, keyed
+to the page's readAt. Guard: `test_the_sets_count_asks_for_a_fresh_page` (12 cases, 5 proofs), PROVEN; the CI fold map
+(v2149 spec) now folds ranks 1 and 1.5 by his ruling.
+
 ### REG-1229 - A HEART CENSUS SLOWER THAN ITS 45s TTL WAS BORN EXPIRED
 
 **fix - #237, one push refused (2026-09-24).** MEASURED: inside the pre-push at load ~7, /api/heart took 48.3s on the

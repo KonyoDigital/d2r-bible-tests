@@ -2969,9 +2969,126 @@ def _ask_shadow_gate(row):
     }]
 
 
+def _page_age_days(reading):
+    """Days since the Remaining page was FILMED, from its own stamp. -> float | None
+
+    ⚠ NOT the stored `ageDays`: that is measured when the sweep ran and saved with it, so a result
+    restored ten days later still said 24.5 days about a page that was 34. [[stale-reading]]"""
+    rd = reading or {}
+    ra = rd.get("readAt")
+    if ra:
+        try:
+            from datetime import datetime
+            t = datetime.fromisoformat(str(ra).replace("Z", "+00:00")).timestamp()
+            return max(0.0, (time.time() - t) / 86400.0)
+        except Exception:
+            pass
+    try:
+        return None if rd.get("ageDays") is None else float(rd.get("ageDays"))
+    except Exception:
+        return None
+
+
+def _remaining_page_reading():
+    """#228 — the last chronicle sweep's comparison of his board against the game's Remaining page,
+    read from the SAME saved result the sweep panel renders (never re-derived here). -> dict
+
+      state   OK | MISSING | UNKNOWN
+      why     the sentence, in his words
+      n       rows on his board the page still called missing (MISSING only)
+      readAt  the page's own stamp: the identity of the question (a new page is a new question)
+
+    ⚠ A sweep that never ran, or a result that cannot be read, is UNKNOWN and asks him nothing:
+    a question built on an absent comparison would bill him for a reading nobody took."""
+    try:
+        import control_app as _ca
+        path = _ca._CHRON_RESULT_PATH
+    except Exception as e:
+        return {"state": UNKNOWN, "why": "the console app will not import, so the saved sweep "
+                                        "cannot be found: %s" % str(e)[:80]}
+    if not os.path.exists(path):
+        return {"state": UNKNOWN, "why": "no chronicle sweep has been saved on this console, so nothing "
+                                        "has compared your board with the game's Remaining page"}
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception as e:
+        return {"state": UNKNOWN, "why": "the saved sweep is unreadable (%s)" % str(e)[:80]}
+    cal = ((d.get("result") or {}).get("calibration") or {}) if isinstance(d, dict) else {}
+    ex = cal.get("exact") or {}
+    if ex.get("ok") is True:
+        return {"state": OK, "why": "your board and the last Remaining page add up (%s found, %s missing, "
+                                   "%s in the roster)" % (ex.get("boardFound"), ex.get("gameMissing"),
+                                                          ex.get("rosterTotal"))}
+    if ex.get("ok") is not False:
+        return {"state": UNKNOWN, "why": ex.get("say") or cal.get("say")
+                or "the last sweep did not compare your board with a Remaining page"}
+    rd = ex.get("reading") or {}
+    named = [x.get("name") for x in (ex.get("named") or []) if isinstance(x, dict) and x.get("name")]
+    try:
+        sur = int(ex.get("surplus") or 0)
+    except Exception:
+        sur = 0
+    n = len(named) or abs(sur)
+    age = _page_age_days(rd)
+    old = "of unknown age" if age is None else ("from today" if age < 1 else "%d days old" % round(age))
+    if sur > 0 or named:
+        why = ("Your board has %s set pieces ticked. The last Remaining page (%s) still listed %s as "
+               "missing, so %d of your ticked rows are ones that page called missing - most likely "
+               "found since it was filmed." % (ex.get("boardFound"), old, ex.get("gameMissing"), n))
+    else:
+        why = ("Your board has %s set pieces ticked; the last Remaining page (%s) implies %s."
+               % (ex.get("boardFound"), old, ex.get("impliedFound")))
+    bar = cal.get("bar") or {}
+    if bar.get("ok") is True and bar.get("frames"):
+        why += (" The game's own progress bar, read on %d recent frame(s), agrees with your board."
+                % int(bar.get("frames")))
+    why += " A new Remaining page settles it."
+    return {"state": MISSING, "why": why, "n": n, "readAt": str(rd.get("readAt") or "")}
+
+
+def _check_a_fresh_remaining_page_would_settle_the_sets_count():
+    """#228 — does his board agree with the game's own Remaining page?
+
+    The chronicle-sweep panel showed this as a RED card that read as if he had done something
+    wrong ("the board and the game do not add up"). Measured on his live result, 2026-09-24: the
+    page was filmed 2026-08-21 and the game's own bar agreed with his board. Only one line of it was
+    his - film a new Remaining page - so it is asked here, as his question, and the card is calm."""
+    r = _remaining_page_reading()
+    return r["state"], r["why"]
+
+
+def _ask_remaining_page(row):
+    """The one line of the chronicle-sweep card that was genuinely his: film a new Remaining page."""
+    if row.get("state") != MISSING:
+        return []
+    r = _remaining_page_reading()
+    if r.get("state") != MISSING:
+        return []
+    n = int(r.get("n") or 0)
+    q = ("Film a new Remaining page so the console can confirm %d set row%s?" % (n, "" if n == 1 else "s")
+         if n else "Film a new Remaining page so the console can check your set count?")
+    return [{
+        "id": "remaining-page",
+        "kind": "do",
+        "q": q,
+        "why": r.get("why") or row.get("why") or "",
+        # the identity of the QUESTION: a new page is a new question, and an answer to the old one
+        # must not close it
+        "fp": "remaining-page:%s" % (r.get("readAt") or "unknown"),
+        "answers": [
+            {"key": "filmed", "label": "I filmed one", "effect": "verify"},
+            {"key": "week", "label": "Remind me in a week", "effect": "snooze"},
+            {"key": "skip", "label": "Not needed", "effect": "ruled"},
+        ],
+    }]
+
+
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
 ASKS = {
     "shadow gate": _ask_shadow_gate,
+    # #228 — the one line of the chronicle-sweep card that was his
+    "a fresh remaining page": _ask_remaining_page,
 }
 
 
@@ -7787,6 +7904,10 @@ CHECKS = [
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),
     ("shadow gate", _check_the_shadow_gate_is_learning),
+    # #228 — his question, not a red card. EVERY TICK, NOT PERIODIC, and that was measured: a
+    # skipped PERIODIC row is UNMEASURED and attach_asks gives an UNMEASURED row no question, so
+    # his ask would leave WAITING ON YOU on 5 of every 6 ticks. It reads the saved sweep (11 ms).
+    ("a fresh remaining page", _check_a_fresh_remaining_page_would_settle_the_sets_count),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
     ("his gear", _check_his_gear_is_being_learned),
     ("tooltip finder", _check_the_tooltip_finder_is_honest),
@@ -8455,6 +8576,8 @@ WATCHES = {
     "ledger entries":              (),
     "store emptied":               (),
     "shadow gate":                 ("advanced-shadow",),
+    # #228 — its numbers are the sets roster's, the surface the Remaining page is filmed from
+    "a fresh remaining page":      ("chronicle.set",),
     "locked lanes":                ("locks",),
     "his gear":                    ("vault",),
     "tooltip finder":              (),

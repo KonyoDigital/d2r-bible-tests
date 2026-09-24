@@ -5335,6 +5335,16 @@ GATES = [
              "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
              "_prewarm warms every declared endpoint once, in the background, the moment the console "
              "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
+    Gate("test_the_sets_count_asks_for_a_fresh_page",
+         [sys.executable, os.path.join(HERE, "test_the_sets_count_asks_for_a_fresh_page.py")], 60,
+         why="#228 - his screenshot 2026-09-24 11:13: the chronicle-sweep panel drew 'the board and the game "
+             "do not add up' RED, reading as if he had done something wrong. Measured: it rested on a "
+             "Remaining page filmed 2026-08-21 (the card said 24.5 days; it was 34) while the game's own bar "
+             "agreed with his board, and its next-action said 'the two wrong rows' for 16. The card is calm "
+             "and folded, ages the page from readAt, and the one line that was his - film a new Remaining "
+             "page - is a WAITING ON YOU question (doctor 'a fresh remaining page', every tick). A grok-4.7 "
+             "look at the OPENED card found the raw alarm inside it; it shows the measurement. 12 cases, "
+             "5 red-proofs"),
     Gate("test_a_slow_census_is_still_remembered",
          [sys.executable, os.path.join(HERE, "test_a_slow_census_is_still_remembered.py")], 60,
          why="#237 - the heart memo aged from when the census STARTED, so a census slower than its 45s "

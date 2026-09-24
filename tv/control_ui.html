@@ -4107,6 +4107,8 @@
      literally — but the HEADLINE STAYS, because it carries the count and the fact. Only the
      explanation folds. A collapsed card that hides WHAT it is would be silent, not quiet. */
   .chron-warn.settled { opacity: .78; }
+  /* #228 — the reader's own sentence, kept word for word under the human one */
+  .chron-warn .cw-said { display: block; margin-top: 4px; font-style: normal; opacity: .8; }
   .chron-warn.settled > .cw-body, .chron-warn.settled > span,
   .chron-warn.settled > em.chron-todo { display: none; }
   .chron-warn.settled.cw-open { opacity: 1; }
@@ -25579,6 +25581,18 @@ function escC(s) {
     e.preventDefault(); b.click();
   });
 
+  /* ⚠ #228 — THE AGE OF A PAGE IS COUNTED FROM THE PAGE, NOT FROM THE SWEEP. `reading.ageDays` is
+     measured when the sweep ran and saved with it, so a result restored ten days later still said
+     "24.5 days old" about a Remaining page that was 34 (measured on his live result, 2026-09-24).
+     `readAt` is the page's own stamp; `ageDays` is only the fallback when no stamp came with it.
+     [[stale-reading]] */
+  function _cwPageAgeDays(rd) {
+    if (!rd) return null;
+    var t = rd.readAt ? Date.parse(rd.readAt) : NaN;
+    if (!isNaN(t)) return Math.max(0, (Date.now() - t) / 864e5);
+    return (rd.ageDays == null) ? null : +rd.ageDays;
+  }
+
   function _chronWarnStrip(res) {
     var out = [], den = res.denial || {}, cal = res.calibration || {}, con = res.contested || {};
     var d = den.denied || [], und = den.undated || [], sup = den.superseded || [];
@@ -25610,8 +25624,9 @@ function escC(s) {
         + (todo ? '<em class="chron-todo">\u2192 ' + todo + '</em>' : '') + '</div>']);
     }
     if (d.length) {
-      var age = (den.reading && den.reading.ageDays != null)
-        ? (den.reading.ageDays < 1 ? 'today' : den.reading.ageDays.toFixed(1) + ' days old') : 'of unknown age';
+      var _dAge = _cwPageAgeDays(den.reading);
+      var age = (_dAge != null)
+        ? (_dAge < 1 ? 'today' : _dAge.toFixed(1) + ' days old') : 'of unknown age';
       /* v2135 — THE AGE RIDES ON THE HEADLINE, and that is not cosmetic. `den.reading.ageDays` is
          rendered in exactly ONE place in this entire console — the body of this card — and it is
          the fact that says whether the denial can be trusted at all: a page shot TODAY denying a
@@ -25628,10 +25643,55 @@ function escC(s) {
         + 'Record a new Remaining page after you find ' + (d.length === 1 ? 'it' : 'them')
         + ' and the denial lifts.', false);
     }
+    /* ⚠⚠ #228 — HIS SCREENSHOT, 2026-09-24 11:13: this card was RED, loud, and read as if HE had
+       done something wrong. Measured on his live result the same day: its "16 row(s) the game says
+       you do not have" came from a Remaining page filmed on 2026-08-21, while the game's own bar,
+       read on 3 recent frames, agreed with his board. Its next-action promised "the two wrong
+       rows" for a finding of 16 - a number that outlived its referent. The one line in it that was
+       his - film a new Remaining page - is a question in WAITING ON YOU now (console_doctor ASKS,
+       "a fresh remaining page"). What stays here is information: calm, folded, the page's age on
+       the headline, the real count, and the reader's own sentence kept word for word inside.
+       [[stale-reading]] [[label-outlived-referent]] */
     if (cal && cal.ok === false && cal.say) {
-      push(1, 'bad', '\u2696 the board and the game do not add up', escC(cal.say),
-        'this is about rows ALREADY on your board, not about this proposal \u2014 registering or '
-        + 'skipping will not change it. Shoot a Remaining page and the two wrong rows can be named.');
+      var cEx = cal.exact || {}, cBar = cal.bar || {};
+      var cNamed = (cEx.named || []).map(function (x) { return x && x.name; }).filter(Boolean);
+      var cSur = +cEx.surplus || 0, cN = cNamed.length || Math.abs(cSur);
+      var cD = _cwPageAgeDays(cEx.reading);
+      var cOld = (cD == null) ? 'of unknown age' : (cD < 1 ? 'from today' : Math.round(cD) + ' days old');
+      var cAhead = cSur > 0 || cNamed.length > 0;
+      var cBody = (cEx.boardFound != null && cEx.gameMissing != null)
+        ? (cAhead
+            ? 'Your board has ' + cEx.boardFound + ' set pieces ticked. The last Remaining page ('
+              + cOld + ') still listed ' + cEx.gameMissing + ' as missing, so ' + cN + ' of your '
+              + 'ticked rows are ones that page called missing \u2014 most likely found since it was filmed.'
+            : 'Your board has ' + cEx.boardFound + ' set pieces ticked; the last Remaining page ('
+              + cOld + ') implies ' + cEx.impliedFound + '.')
+        : 'The board\u2019s count and the game\u2019s count differ.';
+      if (cBar.ok === true && cBar.frames) {
+        cBody += ' The game\u2019s own progress bar, read on ' + cBar.frames + ' recent frame'
+          + (cBar.frames === 1 ? '' : 's') + ', agrees with your board.';
+      }
+      /* ⚠ #228 — THE MEASUREMENT, NOT THE ALARM. A first cut kept the reader's own sentence word for
+         word under the human one; a cross-family look at the OPENED card (grok-4.7) found it was then
+         mostly "16 row(s) the game says you do not have" and "THE TWO INSTRUMENTS DISAGREE" in capitals
+         - the accusation back, one click in. Every number stays, as facts; the reader's raw sentence is
+         shown only when the structured fields are absent (an older result), since then it is all
+         there is. */
+      var cMeas = (cEx.boardFound != null && cEx.gameMissing != null && cEx.rosterTotal != null)
+        ? ('measured: board ' + cEx.boardFound + ' found \u00b7 page ' + cEx.gameMissing + ' missing \u00b7 roster '
+           + cEx.rosterTotal + ' (' + cEx.boardFound + ' + ' + cEx.gameMissing + ' = '
+           + (+cEx.boardFound + +cEx.gameMissing) + ')'
+           + (cBar.gameFill != null && cBar.boardPct != null
+              ? ' \u00b7 progress bar: game ~' + Math.round(cBar.gameFill * 100) + '%, board '
+                + (cBar.boardPct * 100).toFixed(1) + '%' : '')
+           + (cNamed.length ? '. The rows that page still called missing: ' + cNamed.join(', ') + '.' : ''))
+        : ('the reader\u2019s own words: ' + cal.say);
+      push(1, 'unk', '\u24d8 ' + (cAhead ? 'your board is ahead of the last Remaining page'
+                                          : 'the last Remaining page and your board count differently')
+        + ' <span class="cw-age">\u00b7 the page is ' + escC(cOld) + '</span>',
+        escC(cBody) + '<i class="cw-said">' + escC(cMeas) + '</i>',
+        'nothing is held back and nothing here is yours to fix. What would settle it is a new Remaining '
+        + 'page \u2014 an optional question in WAITING ON YOU, not here.', false);
     }
     var cn = 0, cparts = [];
     ['uniques', 'sets'].forEach(function (k) {
@@ -25666,10 +25726,14 @@ function escC(s) {
        It ranks just under the hard findings, because it is not a defect in the proposal — it is a
        statement about what this proposal is ALLOWED to conclude. */
     var nfd = res.notFoundDatable;
+    /* ⚠ #228 — same screenshot, same ruling: nothing in this card is his to do, and its own
+       next-action already said so, yet it rendered LOUD. The headline now says what it MEANS for
+       him, and it folds like every other card that does not want him. */
     if (nfd && nfd.ok === false) {
-      push(1.5, 'unk', '\u23f3 the not-found readings here cannot be dated', escC(nfd.say),
-        'nothing is wrong with the finds above \u2014 it means no not-found reading in this batch '
-        + 'may be used to argue against one. Sweep again and they arrive with receipts.');
+      push(1.5, 'unk', '\u24d8 older \u201cnot found\u201d readings are not used against your finds',
+        escC(nfd.say),
+        'nothing is wrong with the finds above \u2014 no not-found reading in this batch may be '
+        + 'used to argue against one. The next sweep brings them with receipts.', false);
     }
     /* v2153 — NULL IS NOT FALSE, AND IT IS NOT FINE EITHER. v2152 made notFoundDatable.ok go
        `null` when the resolver could not be consulted, precisely so a degraded answer would stop
