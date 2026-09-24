@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1176 - THE FIX FOR "UNREADABLE IS NOT ABSENT" STILL READ UNKNOWN AS ABSENT
+
+**v3476 - the cross-family eye (grok-cli, schema, 7,340 chars) on the SHIPPED v3473 bytes, 4 findings,
+3 real.** (1) `red_proof_unreadable()` returns None when the gate FILE will not parse — its own
+docstring says None is UNKNOWN, never False — and both callers used it as a boolean, so an
+unparseable gate took the "declares nothing" path again. (2) `prove()` printed the warning but its
+count line still filed an unreadable declaration under "do not". (3) Only the FIRST `RED_PROOF`
+assignment was judged, and `x: T = ...` never. Now: every top-level Assign/AnnAssign is judged; the
+census reports None as "will not PARSE"; the count line names readable / do not / UNREADABLE /
+will not PARSE separately. The new case DRIVES the real census method over four planted gate files
+(broken, named, twice, annotated) — the unit case had asserted the helper and never the consumer.
+And v3476's rewrite orphaned v3473's own proof: the census caught it; re-anchored.
+
 ### REG-1175 - THE SEED'S CHECK AGAINST HIS BOARD WAS PRINTED AND THEN GONE
 
 **v3475 - #159.** `bake_seed.py` answered "no drift — the shipped seed already matches his board" to

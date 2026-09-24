@@ -543,15 +543,25 @@ def red_proof_unreadable(filename):
             tree = ast.parse(fh.read())
     except Exception:
         return None
+    # ⚠ v3476 — EVERY top-level assignment, `x: T = ...` included. The v3473 cut returned on the
+    # FIRST Assign to RED_PROOF, so a literal list followed by a `WF_REL` one read as readable and the
+    # unreadable one was invisible; an AnnAssign was never looked at. Found by the eye on v3473.
+    found = False
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "RED_PROOF" for t in node.targets):
-            try:
-                ast.literal_eval(node.value)
-                return False
-            except Exception:
-                return True
-    return False
+        if isinstance(node, ast.Assign):
+            hit = any(isinstance(t, ast.Name) and t.id == "RED_PROOF" for t in node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            hit = isinstance(node.target, ast.Name) and node.target.id == "RED_PROOF" and node.value is not None
+        else:
+            hit = False
+        if not hit:
+            continue
+        found = True
+        try:
+            ast.literal_eval(node.value)
+        except Exception:
+            return True
+    return False if found else False
 
 
 def _normalise_proofs(raw):
@@ -1155,13 +1165,23 @@ def prove(only=None, say=print, detail=None):
     todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
     with_proofs = [(n, f, red_proofs_in(f)) for n, f in todo]
     have = [(n, f, p) for n, f, p in with_proofs if p]
-    say("  %d gate(s) in scope · %d declare a red-proof · %d do not"
-        % (len(todo), len(have), len(todo) - len(have)))
-    # v3473 — an unreadable declaration is not an absent one; say which, every run.
-    _unread = [n for n, f in todo if red_proof_unreadable(f)]
+    # ⚠ v3476 — THE DENOMINATOR NAMES EVERY STATE. v3473 printed the warning but the count line
+    # still filed an unreadable declaration under "do not", and read None (the file will not even
+    # parse) as False — so an unparseable gate took the "declares nothing" path. Found by the eye on
+    # v3473. None is UNKNOWN, and UNKNOWN gets its own column. [[unknown-stays-unknown]]
+    _state = dict((n, red_proof_unreadable(f)) for n, f in todo)
+    _unread = [n for n, _f in todo if _state.get(n) is True]
+    _unparsed = [n for n, _f in todo if _state.get(n) is None]
+    say("  %d gate(s) in scope · %d declare a red-proof · %d do not%s%s"
+        % (len(todo), len(have), len(todo) - len(have) - len(_unread) - len(_unparsed),
+           (" · %d UNREADABLE" % len(_unread)) if _unread else "",
+           (" · %d will not PARSE" % len(_unparsed)) if _unparsed else ""))
     if _unread:
-        say("  ⚠ %d of those DECLARE a RED_PROOF this prover CANNOT READ (ast.literal_eval refused it) "
-            "— UNREADABLE, not absent, and none of it has run: %s" % (len(_unread), ", ".join(_unread[:6])))
+        say("  ⚠ %d DECLARE a RED_PROOF this prover CANNOT READ (ast.literal_eval refused it) — "
+            "UNREADABLE, not absent, and none of it has run: %s" % (len(_unread), ", ".join(_unread[:6])))
+    if _unparsed:
+        say("  ⚠ %d gate file(s) will not PARSE, so whether they declare a proof is UNKNOWN: %s"
+            % (len(_unparsed), ", ".join(_unparsed[:6])))
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}

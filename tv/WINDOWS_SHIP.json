@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3475",
+  "ver": "v3476",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3475: the baker leaves a dated receipt on every run and a doctor row reads its age, never re-running the baker; fixtures redirect the receipt",
+  "note": "v3476: every RED_PROOF assignment is judged, a gate file that will not parse is its own state in the census and the prover, and the census is driven over planted files",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

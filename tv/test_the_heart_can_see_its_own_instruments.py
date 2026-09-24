@@ -74,7 +74,13 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         for name, fn in heart2.gate_files():
             # v3473 — an UNREADABLE declaration used to fall through `if not proofs` as if the gate
             # declared nothing; eleven proofs sat unrun that way. It is a malformed declaration.
-            if heart2.red_proof_unreadable(fn):
+            _u = heart2.red_proof_unreadable(fn)
+            if _u is None:
+                # v3476 — None is the FILE not parsing: UNKNOWN, never "declares nothing" (eye, v3473)
+                bad.append("%s: the gate file will not PARSE, so whether it declares a proof is "
+                           "UNKNOWN — never 'declares nothing'" % name)
+                continue
+            if _u:
                 bad.append("%s: its RED_PROOF cannot be read by ast.literal_eval, so the prover treats "
                            "it as ABSENT and none of it has ever run" % name)
                 continue
@@ -143,6 +149,30 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                               "%s: expected %r — the WF_REL shape must read UNREADABLE, never absent"
                               % (fn, want))
         finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_the_census_itself_refuses_an_unparseable_and_an_unreadable_gate(self):
+        """v3476 — DRIVE the real census method over planted gate files (eye on v3473: the unit case
+        asserted the helper's None but never drove the census that consumes it)."""
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="census-drive-")
+        real = heart2.gate_files
+        try:
+            for fn, src, word in (("broken.py", "def (:\n", "PARSE"),
+                                  ("named.py", 'WF = "x"\nRED_PROOF = [{"file": WF}]\n', "literal_eval"),
+                                  ("twice.py", 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '
+                                               '"why": "w", "matches": 1}]\nWF = "x"\nRED_PROOF = [{"file": WF}]\n',
+                                   "literal_eval"),
+                                  ("annotated.py", 'WF = "x"\nRED_PROOF: list = [{"file": WF}]\n', "literal_eval")):
+                path = os.path.join(d, fn)
+                io.open(path, "w", encoding="utf-8").write(src)
+                heart2.gate_files = lambda _p=path, _n=fn: [(_n, _p)]
+                with self.assertRaises(AssertionError, msg="the census passed %s" % fn) as cm:
+                    self.test_every_declared_red_proof_is_well_formed()
+                self.assertIn(word, str(cm.exception), "%s refused for the wrong reason: %s"
+                              % (fn, str(cm.exception)[:200]))
+        finally:
+            heart2.gate_files = real
             shutil.rmtree(d, ignore_errors=True)
 
     def test_the_heart_carries_the_instrument_census(self):
@@ -485,10 +515,18 @@ RED_PROOF = [
     "replace": "_hrtEsc(''",
     "matches": 1,
 }, {
+    "why": "v3476 — only the FIRST RED_PROOF assignment judged: an unreadable second one hides",
+    "file": "heart2.py",
+    "find": "        try:\n            ast.literal_eval(node.value)\n        except Exception:\n            return True\n    return False if found else False\n",
+    "replace": "        try:\n            ast.literal_eval(node.value)\n            return False\n        except Exception:\n            return True\n    return False if found else False\n",
+    "matches": 1,
+}, {
     "why": "v3473 — an unreadable RED_PROOF read as ABSENT again: eleven proofs unrun, silently",
     "file": "heart2.py",
-    "find": "            except Exception:\n                return True\n    return False\n",
-    "replace": "            except Exception:\n                return False\n    return False\n",
+    # v3476 — RE-ANCHORED (REG-1163, on my own proof): v3476 rewrote this loop to judge EVERY
+    # assignment. Same property: an unreadable declaration must answer True, never False.
+    "find": "        except Exception:\n            return True\n    return False if found else False\n",
+    "replace": "        except Exception:\n            return False\n    return False if found else False\n",
     "matches": 1,
 }]
 
