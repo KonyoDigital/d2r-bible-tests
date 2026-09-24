@@ -36,6 +36,27 @@ REPO="$(git rev-parse --show-toplevel)" || exit 1
 _PP_T0=$SECONDS
 _pp_el() { local s=$((SECONDS - _PP_T0)); printf '%dm%02ds' $((s / 60)) $((s % 60)); }
 
+# REG-1258 — THE GATE'S BROWSER PORT IS CHOSEN, NEVER ADOPTED. Everything below (the render block,
+# render_check._chrome_up(), crest_loudness, every suite that renders) asked "does something answer
+# on :9224?" and, if so, USED it. MEASURED 2026-09-24 before a push: another Claude session's
+# headless Chrome held :9224 for its own web research - the gate would have opened its tabs in that
+# browser, at that browser's window size, and graded the page there. A port answering is not a
+# browser you own. So: the first port from 9224 up that NOTHING listens on, exported once, so every
+# child of this push inherits the same private port. [[process-port-discipline]]
+# >>> choose-render-port
+_rp_from="${TV_RENDER_PORT_FROM:-9224}"
+# his Chrome and TradingView sit just below 9224 - the scan may never start under it
+[ "$_rp_from" -lt 9224 ] 2>/dev/null && _rp_from=9224
+_rp_port=""
+for _rp in $(seq "$_rp_from" $((_rp_from + 40))); do
+  # a connect that SUCCEEDS means something listens - a browser or not, it is not ours. Bash's own
+  # /dev/tcp, so no lsof/curl is needed on any OS; a closed loopback port refuses at once.
+  if (exec 3<>"/dev/tcp/127.0.0.1/$_rp") 2>/dev/null; then continue; fi
+  _rp_port="$_rp"; break
+done
+export TV_RENDER_PORT="${_rp_port:-$_rp_from}"
+# <<< choose-render-port
+
 # v1576 — KEEP THE EVIDENCE. Every gate below used to run with `>/dev/null 2>&1`, so a
 # blocked push told you only *that* a suite failed, never *which test*. The output was
 # destroyed at the exact moment it became evidence, and the only remedy on offer ("run it
@@ -582,9 +603,9 @@ if [ "$_px_touched" = "1" ]; then
   find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'd2r-render-profile*' -mtime +0 \
        -exec rm -rf {} + >/dev/null 2>&1 || true
   _px_profile="$(mktemp -d -t d2r-render-profile)"
-  if ! curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version; then
+  if ! curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-      --headless=new --remote-debugging-port=9224 \
+      --headless=new --remote-debugging-port="$TV_RENDER_PORT" \
       --user-data-dir="$_px_profile" \
       --no-first-run --no-default-browser-check --disable-gpu \
       --window-size=1440,1000 --remote-allow-origins='*' about:blank \
@@ -593,10 +614,10 @@ if [ "$_px_touched" = "1" ]; then
     _px_started=1
     for _i in $(seq 1 25); do
       sleep 1
-      curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version && break
+      curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version" && break
     done
   fi
-  if curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version; then
+  if curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
     gate_run "render" "python3 tv/render_check.py" 300 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
     gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
   else

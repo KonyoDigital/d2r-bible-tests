@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
+         [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
+         why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "
+             "measured before a push, another session's research Chrome held it, and the gate would have "
+             "graded the page in that browser. The hook now chooses the first port nothing listens on "
+             "(bash /dev/tcp, any OS) and exports TV_RENDER_PORT to every child. The real snippet runs "
+             "in bash against a held socket. 5 cases, 2 red-proofs"),
     Gate("test_the_measured_bit_crosses_the_relay",
          [sys.executable, os.path.join(HERE, "test_the_measured_bit_crosses_the_relay.py")], 60,
          why="the doctor row 'a tally agrees with its own ledger verdict' read MISSING for every fleet row, v3499 "

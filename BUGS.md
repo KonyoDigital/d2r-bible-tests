@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1258 - THE PUSH GATE ADOPTED WHATEVER BROWSER ANSWERED ON :9224
+
+**fix - found before a push, by the quiesce check.** A headless Chrome on :9224 turned out to belong to ANOTHER
+Claude session (its own scratch profile, doing web research). hooks/pre-push only launched Chrome `if ! curl
+.../9224/json/version`, i.e. whenever something already answered it USED it - and render_check._chrome_up() and
+crest_loudness make the same choice. The render gate would have opened its tabs in someone else's browser, at that
+browser's 1440x2400 window, and graded the page there; closing a tab can also take an idle headless browser down
+under its owner. Now the hook chooses the first port from 9224 up that NOTHING listens on (bash's own /dev/tcp
+connect - no lsof/curl, works on any OS), exports it as TV_RENDER_PORT before any gate runs (render_check.PORT
+already reads it), and the render block launches and polls that port. My first cut kept an lsof test beside a curl
+test, which made one of its own sabotages inert (either alone skipped a held socket); one probe now. Guard:
+`test_the_gate_never_adopts_a_browser_it_did_not_start` - the REAL snippet cut from the hook runs in bash against a
+held socket (5 cases, 2 proofs), PROVEN.
+
 ### REG-1257 - MY #229 PASS LAW WROTE HIS LIVE UNKNOWN-AGE LEDGER; THE LEDGER LAW TRUSTED A HAND LIST
 
 **fix - found by CI on 6dab59f1 (TV DIABLO agent tests, gate `live-state-untouched`: ".unknown_age.json absent -> written").**
