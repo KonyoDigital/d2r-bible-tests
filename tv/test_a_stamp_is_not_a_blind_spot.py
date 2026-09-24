@@ -75,6 +75,59 @@ SHA_STAMP = "c08875ad"        # v3352: bible.html changed by the stamp alone
 SHA_SUBSTANTIVE = "e850b847"  # v3345: bible.html carries the apostrophe fold
 
 
+def _fixture_repo():
+    """-> (repo, stamp_sha, substantive_sha): a throwaway git repo holding one stamp-only commit to
+    bible.html and one substantive one.
+
+    ⚠⚠ #227 — THE REAL SHAS FELL OFF THE CI CLONE. tv-tests.yml clones fetch-depth 200 (another
+    gate's window) and SHA_STAMP is now 216 commits back, so on the runner absent_kind() answered
+    'unknown' and two cases went red after passing for weeks — while green on the Mac, which holds
+    full history. A fixed depth only moves that cliff. The cases that assert the CLASSIFIER now
+    build the history they read; the ones that measure the REAL commits still skip, loudly, where
+    those commits are unreachable. [[regression-guard]] §3 [[feedback-fixtures-never-touch-live-data]]"""
+    import subprocess
+    d = tempfile.mkdtemp(prefix="stamp-repo-")
+
+    def g(*a):
+        return subprocess.run(["git", "-C", d, "-c", "commit.gpgsign=false", "-c", "user.email=t@t",
+                               "-c", "user.name=t"] + list(a),
+                              check=True, capture_output=True, text=True).stdout.strip()
+    g("init", "-q")
+    page = os.path.join(d, "bible.html")
+
+    def put(txt):
+        with io.open(page, "w", encoding="utf-8") as f:
+            f.write(txt)
+    put("<b>v1000</b>\ncontent one\n")
+    g("add", "bible.html")
+    g("commit", "-qm", "base")
+    put("<b>v1001</b>\ncontent one\n")
+    g("commit", "-qam", "stamp only")
+    stamp = g("rev-parse", "HEAD")
+    put("<b>v1002</b>\ncontent two\n")
+    g("commit", "-qam", "substantive")
+    return d, stamp, g("rev-parse", "HEAD")
+
+
+class _InAFixtureRepo(object):
+    """Point the classifier at the fixture repo for one test, and forget its memo both ways."""
+
+    def _enter_fixture(self):
+        self._repo_was = L._REPO
+        self.repo, self.stamp, self.subst = _fixture_repo()
+        L._REPO = self.repo
+        L._KIND_MEMO.clear()
+        self.assertEqual(L.absent_kind(self.subst, "bible.html"), "substantive",
+                         "premise: the classifier must tell the substantive commit apart, or a "
+                         "constant 'stamp' would pass the case below")
+
+    def _leave_fixture(self):
+        L._REPO = self._repo_was
+        L._KIND_MEMO.clear()
+        import shutil
+        shutil.rmtree(self.repo, ignore_errors=True)
+
+
 def _tmp():
     return os.path.join(tempfile.mkdtemp(), "ledger.jsonl")
 
@@ -155,9 +208,13 @@ class TheRowCarriesTheClassification(unittest.TestCase):
 
     def test_record_takes_the_measurement_itself(self):
         """⚠ INSTRUMENTED AT THE DOOR so no caller can forget it. [[heart-first]] §4"""
+        fx = _InAFixtureRepo()
+        fx.assertEqual = self.assertEqual
+        fx._enter_fixture()
+        self.addCleanup(fx._leave_fixture)
         p = _tmp()
         L.record(version="v9107", model="m", verdict="clean", answer_head="x", path=p,
-                 sha=SHA_STAMP, absent=["bible.html"])
+                 sha=fx.stamp, absent=["bible.html"])
         row = L._rows(p)[-1]
         self.assertEqual(
             (row.get("absentKind") or {}).get("bible.html"), "stamp",
@@ -277,9 +334,13 @@ class TheCorroboratorReadsONESnapshot(unittest.TestCase):
     def test_both_sides_judge_the_same_rows(self):
         import corroborate as C
         import second_eye_ledger as SEL
-        A = {"version": "vX", "sha": "c08875ad", "absent": ["bible.html"],
+        fx = _InAFixtureRepo()
+        fx.assertEqual = self.assertEqual
+        fx._enter_fixture()
+        self.addCleanup(fx._leave_fixture)
+        A = {"version": "vX", "sha": fx.stamp, "absent": ["bible.html"],
              "absentKind": {"bible.html": "stamp"}}
-        B = {"version": "vY", "sha": "e850b847", "absent": ["bible.html"],
+        B = {"version": "vY", "sha": fx.subst, "absent": ["bible.html"],
              "absentKind": {"bible.html": "substantive"}}
         calls = {"n": 0}
         real = SEL._rows

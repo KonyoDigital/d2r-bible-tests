@@ -87,7 +87,10 @@ def _default_eye_cli():
     return os.path.expanduser("~/.grok/bin/grok" + (".exe" if os.name == "nt" else ""))
 
 
-EYE_CLI = os.environ.get("THIRD_EYE_CLI") or _default_eye_cli()
+# expanduser: an override written as ~/.grok/bin/grok names a path, and a bare string compare
+# against the disk would call it missing. (It also keeps this constant visible to
+# test_import_bound_paths, which registers every env-bound PATH constant bound at import.)
+EYE_CLI = os.path.expanduser(os.environ.get("THIRD_EYE_CLI") or _default_eye_cli())
 EYE_MODEL = os.environ.get("THIRD_EYE_MODEL") or "grok-4-1-fast-reasoning"
 # ⚠⚠ v3408 — 300 s WAS TOO SHORT, AND THE COST WAS A BLOCKED SHIP. The eye is a subscription
 # CLI, and a CLI is an AGENT: it reasons and calls tools, it does not stream a completion. MEASURED

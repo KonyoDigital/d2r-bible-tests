@@ -34,14 +34,44 @@ def _code(src):
     `#` comments, and `test_it_does_NOT_add_a_SECOND_re_exec_path` then went RED on the word
     "execv" inside `_pull_once`'s OWN DOCSTRING, which says it deliberately does not execv. A
     negative assertion that reads its own explanation accuses correct code. [[source-reading-guard]] 4
+
+    ⚠⚠ #227 — AND THE STRIPPER ITSELF WENT BLIND, ON A ONE-LINE DOCSTRING. It cut every line at its
+    first `#` and THEN paired triple quotes. control_app gained a one-line docstring that OPENS with a
+    task tag (#223 — his answers ...): the cut took the closing quotes with it, every pair after that line flipped, and the stripped text
+    kept prose and dropped code - 983,212 of 2,155,462 chars, the drift beat's `_pull_once()` among
+    them. CI went red on a lane that was joined all along. The TOKENIZER knows what a comment and a
+    string are; a regex over text that was already cut does not. Spans are BLANKED in place (newlines
+    kept), so every offset, indent and next-def bound below means what it meant.
+    [[source-reading-guard]] [[suspect-the-instrument]]
     """
-    out = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-    # bounded on purpose: an unbounded DOTALL match eats a third of a large file
-    out = re.sub(r'""".{0,8000}?"""', "", out, flags=re.S)
-    return re.sub(r"'''.{0,8000}?'''", "", out, flags=re.S)
+    import tokenize
+    lines = src.splitlines(True)
+    off = [0]
+    for l in lines:
+        off.append(off[-1] + len(l))
+    buf = list(src)
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+            if tok.type == tokenize.COMMENT or (tok.type == tokenize.STRING and
+                                                tok.string.lstrip("rRbBuUfF")[:3] in ('"""', "'''")):
+                a = off[tok.start[0] - 1] + tok.start[1]
+                b = off[tok.end[0] - 1] + tok.end[1]
+                for k in range(a, b):
+                    if buf[k] != "\n":
+                        buf[k] = " "
+    except (tokenize.TokenError, IndentationError, SyntaxError) as e:
+        raise AssertionError("the source did not tokenize (%s) - UNKNOWN, not a pass" % e)
+    return "".join(buf)
 
 
 RED_PROOF = [
+    {
+        "why": "#227 - the stripper stops blanking prose: a guard reading control_app grades docstrings as code again",
+        "file": "test_a_machine_pulls_itself_current.py",
+        "find": "            if tok.type == tokenize.COMMENT or (tok.type == tokenize.STRING and\n",
+        "replace": "            if tok.type == tokenize.COMMENT and (tok.type == tokenize.STRING and\n",
+        "matches": 1,
+    },
     {
         "why": "without the dirty-tree refusal the console pulls over work in progress - and HIS "
                "console execs the working tree, so on his Mac that lands on top of whatever is "
@@ -93,6 +123,16 @@ class TestAMachinePullsItselfCurrent(unittest.TestCase):
         self.assertIn("TV_NO_AUTO_PULL", blk,
                       "a machine deliberately held back by TV_NO_AUTO_PULL would now be dragged "
                       "forward by this lane, against the switch both launchers honour")
+
+    def test_the_stripper_survives_a_one_line_tagged_docstring(self):
+        """#227 — the instrument itself: a docstring OPENING with a task tag must not flip the pairs."""
+        q = '"' * 3
+        fixture = ("def a():\n    " + q + "#223 a tagged one-liner" + q + "\n    y = 1\n\n"
+                   "def b():\n    " + q + "prose" + q + "\n    _pull_once()\n")
+        code = _code(fixture)
+        self.assertIn("_pull_once()", code, "the stripper dropped code after a tagged one-line docstring")
+        self.assertNotIn("prose", code, "the stripper kept a docstring: its pairs flipped")
+        self.assertIn("y = 1", code)
 
     def test_the_pull_IS_JOINED_to_the_drift_beat(self):
         """⚠ [[the-unjoined-end]] — a puller nothing calls is the same defect as no puller."""

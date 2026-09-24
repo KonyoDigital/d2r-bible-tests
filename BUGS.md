@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1233 - CI RED ON ea76abff: THREE GATES THE PRE-PUSH DOES NOT RUN
+
+**fix - the review after ship, CI read by delta.** On 39b495f3 the agent tests had 2 reds (`test_reg600_axes_can_refuse`,
+`test_a_receipt_can_actually_be_opened`); on ea76abff both are GREEN (#123) and three new ones appeared, none in the
+pre-push set:
+(1) `test_a_machine_pulls_itself_current` - MINE, via its instrument: the guard cut each line at `#` THEN paired triple
+quotes, and my one-line docstring `#223 - his answers ...` lost its closing quotes to the cut, flipping every pair after
+it (983,212 of 2,155,462 chars kept, prose not code) - the drift beat's `_pull_once()` vanished. The stripper now blanks
+comment and triple-quoted STRING tokens via `tokenize`, in place (full length kept); a case pins a tagged one-liner,
++1 proof.
+(2) `test_import_bound_paths` - MINE: #225 made `EYE_CLI` a function call, so the registry scanner no longer saw an
+env-bound PATH constant; it is `os.path.expanduser(THIRD_EYE_CLI or _default_eye_cli())` now, which also expands a
+`~` override that a bare compare would call missing.
+(3) `test_a_stamp_is_not_a_blind_spot` - RUNNER ONLY: tv-tests.yml clones fetch-depth 200 and SHA_STAMP is 216 commits
+back, so `absent_kind` answered 'unknown' on CI. The two cases that assert the CLASSIFIER build a throwaway git repo
+(one stamp-only commit, one substantive, the substantive verdict as premise); the cases about the REAL commits still skip
+where those are unreachable. All three guards re-PROVEN (4 + 3 + 5 proofs).
+
 ### REG-1232 - THE POP TITLED "WAITING ON YOU" LEFT HIS QUESTIONS OUT (v3499)
 
 **fix - #223, asks in the mailbox.** The 📥 pop - titled "Waiting on you" - and the Sessions sticky it feeds carried only
