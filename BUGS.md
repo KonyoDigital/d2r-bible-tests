@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1255 - A RECEIPT ROW BECAME A 1970 BEAT, AND THE ROUNDTRIP TEST GRADED HIS LIVE FRAMES FOLDER
+
+**fix - #238, found by the full local gate run and traced to its writer.** test_roundtrip_sim errored `'<' not supported
+between 'int' and 'NoneType'` on a beat {frameId snap_0_1.jpg, ts None} - only where tv/frames exists; a clean worktree was
+green at 39b495f3, db554285 and aa2596c0 until an empty tv/frames was created, and CI's runner has none. Dumping the
+test's own journal named the row: `lane: "deep-owed"`, the receipt that a deep read was COMMITTED to a frame (tv_diablo
+_vision_job), journaled with no ts. The theatre session builder emitted it as a playable beat and its capture clock fell
+back to 0, so it sorted as 1970 ahead of every real frame. Now: the builder skips receipt rows (legacy ones on disk carry
+no ts), and the writer stamps the moment it committed - each pinned by its own case, since each fix masks the other. The
+test itself was HALF A HARNESS: TV_HIST isolated, TV_FRAMES_DIR not, so his live tv/frames decided its verdict; both are
+sandboxed now. And its private agent was given TV_PORT=17955 - HIS task viewer's port (the :17955 panel); it takes
+PORT+1 now. Guard: `test_a_receipt_row_is_not_a_beat` (4 cases, 2 proofs) PROVEN; test_roundtrip_sim green isolated,
+its own proof re-PROVEN.
+
 ### REG-1254 - TWO ESCAPES WITH AN INBOX QUESTION UP CLOSED HIS CONSOLE
 
 **fix - the second eye on v3497 (grok-4.7, 1b9b7248), reproduced twice: in node on the real handlers, and in real Chrome on

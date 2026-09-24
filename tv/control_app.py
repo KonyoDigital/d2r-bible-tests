@@ -33566,6 +33566,13 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 if r.get("scene") == "session_end" or r.get("mode") == "session_end":
                     continue   # v894 — seal rows are not playable beats
+                # #238 — NOR ARE RECEIPTS. A `deep-owed` row says a deep read was COMMITTED to a frame; it
+                # is bookkeeping for the lost-read check, not a moment on film. It was emitted as a beat
+                # with ts None (the writer stamped none), which sorted as 1970 ahead of every real frame
+                # and broke test_roundtrip_sim wherever tv/frames exists. Rows already on disk carry no
+                # ts either, so the skip is needed even after the writer is fixed. [[unknown-stays-unknown]]
+                if r.get("lane") == "deep-owed":
+                    continue
                 fid = r.get("frameId") or ""
                 # v940.4 — frameOk must resolve verify suffix (#v) and reel-relative ids.
                 # Exact fid+'.jpg' lied "photo pruned" for every second-eye beat.

@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_receipt_row_is_not_a_beat",
+         [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
+         why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "
+             "emitted by the theatre session builder as a playable beat that sorted as 1970; test_roundtrip_sim "
+             "errored wherever tv/frames exists (never on CI). The builder skips receipts (legacy rows have no ts) "
+             "and the writer stamps its time; each proven on its own. 4 cases, 2 red-proofs"),
     Gate("test_escape_answers_the_question_no",
          [sys.executable, os.path.join(HERE, "test_escape_answers_the_question_no.py")], 60,
          why="the second eye on v3497: Escape with an in-page inbox question up closed the INBOX (a capture-phase "

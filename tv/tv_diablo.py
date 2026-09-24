@@ -6999,6 +6999,9 @@ def main():
                 # [[feedback-suspect-the-instrument]]
                 try:
                     _journal({"lane": "deep-owed",
+                              # #238 — WHEN it was committed: every journal row carries its own time,
+                              # and this one reached a sort with None
+                              "ts": int(time.time() * 1000),
                               "frameId": os.path.basename(str(snap_path or "")),
                               "sessionId": SESSION_ID,
                               "why": "committed to the deep reader; a matching lane=deep row for "

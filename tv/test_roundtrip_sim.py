@@ -51,9 +51,16 @@ class TestRoundtrip(unittest.TestCase):
         cls.hist = os.path.join(cls.dir, "hist")
         os.makedirs(cls.hist, exist_ok=True)
         cls.journal = os.path.join(cls.dir, "sessions.jsonl")
+        # ⚠ #238 — HALF A HARNESS IS NOT A SANDBOX. TV_HIST was isolated and TV_FRAMES_DIR was not, so this
+        # private console read HIS live tv/frames, and its presence alone decided the verdict (a deep-owed
+        # receipt beat, ts None, only when that folder exists - red on his Mac, green on CI). Both halves
+        # now point into the sandbox, as machine_tree.establish() demands. [[feedback-fixtures-never-touch-live-data]]
+        cls.frames = os.path.join(cls.dir, "frames")
+        os.makedirs(cls.frames, exist_ok=True)
         env = dict(os.environ,
-                   TV_CONTROL_PORT=str(PORT), TV_PORT="17955",
-                   TV_SESSIONS=cls.journal, TV_HIST=cls.hist,
+                   # ⚠ NOT 17955 - that is his task viewer (the :17955 panel he reads the backlog in)
+                   TV_CONTROL_PORT=str(PORT), TV_PORT=str(PORT + 1),
+                   TV_SESSIONS=cls.journal, TV_HIST=cls.hist, TV_FRAMES_DIR=cls.frames,
                    TV_STUB="1", TV_POOL="1", TV_FAREWELL="0",
                    TV_CLAUDE_BIN="/bin/echo")   # CI runners have no claude; stub mode never calls it
         env.pop("ANTHROPIC_API_KEY", None)
