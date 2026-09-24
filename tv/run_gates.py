@@ -5335,6 +5335,13 @@ GATES = [
              "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
              "_prewarm warms every declared endpoint once, in the background, the moment the console "
              "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
+    Gate("test_the_pop_carries_his_questions",
+         [sys.executable, os.path.join(HERE, "test_the_pop_carries_his_questions.py")], 60,
+         why="#223 - the 📥 pop is titled 'Waiting on you' and carried only the names the readers could not "
+             "settle; his questions (the console's ASKS) were drawn in the inbox alone, and with no names it "
+             "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
+             "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
+             "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
     Gate("test_a_fresh_machine_establishes_its_tree_at_boot",
          [sys.executable, os.path.join(HERE, "test_a_fresh_machine_establishes_its_tree_at_boot.py")], 60,
          why="#227 - the one boot-shaped machine_tree.establish() sat inside _prewarm_seal_cache, which returns "

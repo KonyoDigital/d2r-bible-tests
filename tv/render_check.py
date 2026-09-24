@@ -1306,6 +1306,44 @@ TARGETS = {
         "warmup": 4.0,
         "widths": ((1440, 1000), (901, 900), (375, 800)),   # one breakpoint; see check()      # fixture-seeded; waits only for the page (the gate is 300s)
     },
+    "pop-asks": {
+        "serve": True,
+        "path": "/board?app=1#tools",
+        "why": "#223 - HIS QUESTION IN THE 📥 POP. The pop is titled 'Waiting on you' and carried only "
+               "the names the readers could not settle; the same card the inbox draws now rides in it, "
+               "reached through the adopt -> paint -> pop join and never drawn by the harness",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var A = {id:'fixture-ask', kind:'decide', fp:'fixture:1', q:'FIXTURE - should the console ask you before it ticks a grail item by itself?', answers:[{key:'keep',label:'Keep it as it is',effect:'ruled'},{key:'stricter',label:'Ask me more often',effect:'handoff'},{key:'week',label:'Remind me in a week',effect:'snooze'}]};
+            if (typeof window._eagleNYAdopt !== 'function' || typeof window.inboxPopTog !== 'function') return false;
+            window._eagleNYAdopt({needsYou:1, needsYouWhat:['shadow gate'], answeredWhat:[], mine:0, mineWhat:[], byDesign:0, byDesignWhat:[], noQuestionWhat:[], unknown:0, say:'1 need you', rows:[{check:'shadow gate', state:'missing', why:'On 57 of the 451 item names ever scored, the console ticked the item by itself where a stricter rule would have asked first.', asks:[A], openAsks:[A]}], slowRows:[]});
+            /* ⚠ NOT renderInboxFab() BY NAME. The adopt must reach the pop on its own (the paint's
+               question-signature hook); a harness that drew the pop itself would prove its own call. */
+            var pop = document.getElementById('inbox-pop');
+            var q = pop && pop.querySelector('.ibx-ny-ask');
+            if (!q) return false;
+            if (!pop.classList.contains('open')) window.inboxPopTog();
+            var r = q.getBoundingClientRect();
+            var bs = [].slice.call(q.querySelectorAll('.ibx-ny-b'));
+            var allHit = bs.length === 3 && bs.every(function (b) {
+                var br = b.getBoundingClientRect();
+                var h = document.elementFromPoint(br.right - Math.min(10, br.width / 4), br.top + br.height / 2);
+                return h && (h === b || b.contains(h));
+            });
+            return !!(r.width > 2 && r.height > 2 && allHit); })()""",
+        "activateWhy": """(function(){
+            var pop = document.getElementById('inbox-pop');
+            if (!pop) return 'no #inbox-pop (renderInboxFab never ran)';
+            var q = pop.querySelector('.ibx-ny-ask');
+            if (!q) return 'the pop holds no question card: ' + (pop.textContent || '').slice(0, 160);
+            if (!pop.classList.contains('open')) return 'the pop is not open';
+            return 'a card is there but a button is covered or not 3: '
+                   + q.querySelectorAll('.ibx-ny-b').length; })()""",
+        "sel": "#inbox-pop .ibx-ny-ask",
+        "settles": False,
+        "warmup": 4.0,
+        "widths": ((1440, 1000), (901, 900), (375, 800)),
+    },
     "state-asks": {
         "serve": True,
         "why": "THE QUESTION ROW IN THE STATE OF THIS CONSOLE — WAITING ON YOU drawn as the question "

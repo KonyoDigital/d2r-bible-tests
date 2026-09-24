@@ -9288,24 +9288,26 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #ibx-needsyou .ibx-ny-dim{opacity:.62;border-color:rgba(160,160,160,.3);background:rgba(120,120,120,.06);color:#b9b9b9}
 #ibx-needsyou .ibx-ny-warn{border-color:rgba(240,120,80,.5);background:rgba(240,120,80,.08);color:#f0a060}
 #ibx-needsyou .ibx-ny-ok{opacity:.8;border-color:rgba(120,200,120,.3);background:rgba(120,200,120,.05);color:#a8d8a8}
-/* #223 -- a question he can answer, in this section's own grammar. Tokens only (the visual lock). */
-#ibx-needsyou .ibx-ny-ask{padding:7px 0 5px;border-top:1px dotted rgba(240,192,96,.22)}
-#ibx-needsyou .ibx-ny-kind{font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.06em;color:#f0c060}
-#ibx-needsyou .ibx-ny-q{font-weight:var(--fw-bold);color:#f3e6c4;margin:3px 0 2px}
-#ibx-needsyou .ibx-ny-why{opacity:.8;margin-bottom:2px}
-#ibx-needsyou .ibx-ny-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
-#ibx-needsyou .ibx-ny-b{background:rgba(255,255,255,.06);border:1px solid rgba(240,192,96,.4);color:#f0dfb4;
+/* #223 -- a question he can answer, in this section's own grammar. Tokens only (the visual lock).
+   The same rules reach the 📥 pop and the Sessions sticky, which draw the SAME card. */
+.inbox-pop .ibp-asks,.inbox-sticky .ibp-asks{margin:2px 0 10px}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-ask{padding:7px 0 5px;border-top:1px dotted rgba(240,192,96,.22)}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-kind{font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.06em;color:#f0c060}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-q{font-weight:var(--fw-bold);color:#f3e6c4;margin:3px 0 2px}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-why{opacity:.8;margin-bottom:2px}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-b{background:rgba(255,255,255,.06);border:1px solid rgba(240,192,96,.4);color:#f0dfb4;
   border-radius:6px;padding:4px 11px;cursor:pointer;font-size:var(--fs-meta);font-weight:var(--fw-medium);white-space:nowrap}
-#ibx-needsyou .ibx-ny-b:hover,#ibx-needsyou .ibx-ny-b:focus-visible{border-color:#f0c060;color:#fff;outline:none}
-#ibx-needsyou .ibx-ny-b[disabled]{opacity:.5;cursor:wait}
-#ibx-needsyou .ibx-ny-b-sm{padding:1px 8px;font-size:var(--fs-micro)}
-#ibx-needsyou .ibx-ny-said{margin-top:3px;font-size:var(--fs-micro);opacity:.85}
-#ibx-needsyou .ibx-ny-said:empty{display:none}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-b:hover,:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-b:focus-visible{border-color:#f0c060;color:#fff;outline:none}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-b[disabled]{opacity:.5;cursor:wait}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-b-sm{padding:1px 8px;font-size:var(--fs-micro)}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-said{margin-top:3px;font-size:var(--fs-micro);opacity:.85}
+:is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-said:empty{display:none}
 #ibx-needsyou .ibx-ny-head-done{margin-top:6px;color:#a8d8a8}
 #ibx-needsyou .ibx-ny-done{padding:3px 0;border-top:1px dotted rgba(120,200,120,.22);color:#c9e2c0}
 /* #223 -- the board's floating compass / ? circles sit on the right edge at phone width; a cross-family
    look found one lying on the end of an answer pill. Keep the pills out of that column. */
-@media (max-width:520px){ #ibx-needsyou .ibx-ny-acts{padding-right:52px} }
+@media (max-width:520px){ :is(#ibx-needsyou,.inbox-pop,.inbox-sticky) .ibx-ny-acts{padding-right:52px} }
 .ibx-badge{margin-left:auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.04em;
   color:#1a1207;background:var(--gold-bright);border-radius:999px;padding:2px 10px;white-space:nowrap;
   box-shadow:0 0 10px rgba(240,192,96,.45)}
@@ -48803,6 +48805,13 @@ html{overflow-x:clip}
    rather than removing it. */
 .inbox-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important;
   max-height:max(180px, min(70vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 190px)))!important}
+/* #223 -- AND IT CLEARS THE CONSOLE PILL where the two can meet. The budget above subtracts the claim
+   banner but not the pill beneath it (fixed, z 10050, top = banner + 8px, 27px tall). At 375x800 the pop
+   ran 187-411 and the pill 175-202, across the question's first line (a grok-4.7 look). Horizontally they
+   can only meet below 546px (pop 360 + 66 from the right edge; pill to x=120), so only there does the pop
+   give up 42px more; above it the pill sits clear to its left. */
+@media (max-width:560px){ .inbox-pop{
+  max-height:max(160px, min(70vh, calc(100vh - var(--dock-h,84px) - var(--claim-h,0px) - 232px)))!important} }
 /* v1801 — THE MEDIA BLOCK HAD TO MOVE BELOW .inbox-pop, NOT JUST NAME IT.
    v1800 added .inbox-pop to the short-viewport flip and left the block ABOVE .inbox-pop's own
    rule. Same specificity (0,1,0), !important on both sides, so SOURCE ORDER decides and the
@@ -50849,7 +50858,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3498', name:'v3498 - the sets-count card reads human and asks for a fresh page', date:'2026-09-24', note:'#228 - the chronicle-sweep calibration card was RED over a Remaining page 34 days old that the game bar contradicts; it is calm and folded, ages the page from readAt, shows the measurement, and film a new Remaining page is a WAITING ON YOU question. HEART: the watcher is the new doctor check a fresh remaining page (every tick) and tv/test_the_sets_count_asks_for_a_fresh_page.py (5 proofs)' };
+  window.D2R_BUILD = { id:'v3499', name:'v3499 - the inbox pop and the Sessions sticky carry his questions', date:'2026-09-24', note:'#223 - the pop titled Waiting on you carried only the chronicle names; one builder now draws his ASKS in the inbox, the pop and the Sessions sticky, the badge counts them, and at phone width the pop clears the CONSOLE pill. HEART: the watchers are tv/test_the_pop_carries_his_questions.py (4 proofs) and the new render target pop-asks' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -51833,7 +51842,18 @@ window._CH_PILL_MAP = {
      waiting": zero is a measurement and this is an absence. [[unknown-stays-unknown]] */
   var _eagleNY = { st: 'unknown', why: 'not asked yet', needsYou: null, unknown: null,
                    rows: [], say: '', at: 0 };
+  var _inboxAskSig = null;
   function _eagleNYPaint(){
+    /* #223 -- the 📥 pop and the Sessions sticky draw the same questions; they redraw only when the
+       set of open questions CHANGES. renderInboxFab also retires non-decisions, which is not a thing
+       to run on every status poll. */
+    try {
+      var _sig = window._inboxAskCards ? window._inboxAskCards().sig : '';
+      if (_sig !== _inboxAskSig){
+        _inboxAskSig = _sig;
+        if (window.renderInboxFab) window.renderInboxFab();
+      }
+    } catch(e){}
     var host = document.getElementById('ibx-needsyou');
     if (!host) return;
     var esc = function(x){ return String(x == null ? '' : x)
@@ -52071,6 +52091,26 @@ window._CH_PILL_MAP = {
     window._askWithdraw = _askWithdraw;
     window.d2rOpenAsk = d2rOpenAsk;
     window._eagleNYAdopt = function(e){ _eagleNY = _eagleNYFromEagle(e || {}); _eagleNYPaint(); };
+    /* #223 -- THE SAME CARD WHEREVER "WAITING ON YOU" IS WRITTEN. The 📥 pop is titled "Waiting on
+       you" and carried only the names the readers could not settle, while the questions that are
+       genuinely his were drawn in the inbox alone. One builder (_askCardsHtml), read here, so the
+       inbox, the pop and the Sessions sticky cannot say it three ways. -> {n, html, sig} */
+    window._inboxAskCards = function(){
+      var out = { n: 0, html: '', sig: '' };
+      if (!_eagleNY || _eagleNY.st !== 'rows') return out;
+      var esc = function(x){ return String(x == null ? '' : x)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+      var fps = [];
+      for (var i = 0; i < (_eagleNY.rows || []).length; i++){
+        var r = _eagleNY.rows[i] || {}, open = r.openAsks || r.asks || [];
+        if (!open.length) continue;
+        out.n += open.length;
+        out.html += _askCardsHtml(r, open, esc);
+        for (var k = 0; k < open.length; k++) fps.push(String((open[k] || {}).fp || ''));
+      }
+      out.sig = fps.join('|');
+      return out;
+    };
   } catch(e){}
   function _eagleNYFromEagle(e){
     /* #223 -- ONE builder of the cached state, used by the 120s poll AND by the answer response,
@@ -52631,6 +52671,9 @@ window._CH_PILL_MAP = {
         window._inboxLastResolve = _res;
       var pend = [];
       try { pend = window.kaiChronicleInbox({ sync: false }) || []; } catch(e){ pend = []; }
+      /* #223 -- his questions, from the one builder the inbox uses (window._inboxAskCards) */
+      var _ak = { n: 0, html: '', sig: '' };
+      try { _ak = (window._inboxAskCards && window._inboxAskCards()) || _ak; } catch(e){}
       var fab = document.getElementById('inbox-fab');
       var pop = document.getElementById('inbox-pop');
       if (!fab){
@@ -52646,11 +52689,13 @@ window._CH_PILL_MAP = {
         pop = document.getElementById('inbox-pop');
       }
       var n = pend.length;
+      // #223 -- the badge counts what is waiting on him: the names AND his open questions
+      var nAll = n + (_ak.n || 0);
       // HIDDEN WHEN EMPTY. A badge that is always there is a badge nobody reads (v1760's rule).
-      fab.classList.toggle('has', n > 0);
+      fab.classList.toggle('has', nAll > 0);
       var nEl = document.getElementById('inbox-fab-n');
-      if (nEl) nEl.textContent = n > 99 ? '99+' : String(n);
-      if (!n && pop) pop.classList.remove('open');
+      if (nEl) nEl.textContent = nAll > 99 ? '99+' : String(nAll);
+      if (!nAll && pop) pop.classList.remove('open');
       if (pop){
         var H = ['<div class="ibp-h">📥 Waiting on you</div>'
           /* v1794 — the sub-line used to give ONE reason for every row: "two independent witnesses
@@ -52661,8 +52706,10 @@ window._CH_PILL_MAP = {
           + '<div class="ibp-sub">' + (n
             ? n + ' name' + (n===1?'':'s') + ' the readers could not settle on their own. '
               + 'Each row says why.'
-            : 'Nothing is waiting. Everything the readers saw was either grounded or dismissed on its own.')
+            : (_ak.n ? 'No names are waiting on the readers.'
+                     : 'Nothing is waiting. Everything the readers saw was either grounded or dismissed on its own.'))
           + '</div>'];
+        if (_ak.n) H.push('<div class="ibp-asks">' + _ak.html + '</div>');
         // v1790 — the receipt, and the way back out of it. Shows every row retired in the last
         // RETIRE_GRACE_DAYS with its reason and a "put back", so "cleared automatically" is a
         // statement he can audit and reverse rather than one he has to take on trust.
@@ -52723,7 +52770,7 @@ window._CH_PILL_MAP = {
             + (_rq.length > 6 ? ' · + ' + (_rq.length - 6) + ' more' : '')
             + '</div></div>');
         }
-        if (!n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');
+        if (!n && !_ak.n) H.push('<div class="ibp-empty">Nothing to rule on.</div>');
         pend.forEach(function(x){
           var _key = String(x.name || '');          // the STORE key — every button still rules on this
           var nm = _e(_key);
@@ -52823,7 +52870,7 @@ window._CH_PILL_MAP = {
         try {
           var _sticky = document.getElementById('inbox-sticky');
           if (_sticky){
-            var _any = n > 0 || (_rr && _rr.length);
+            var _any = n > 0 || (_rr && _rr.length) || _ak.n > 0;
             _sticky.classList.toggle('has', !!_any);
             _sticky.innerHTML = _any ? _html : '';
           }

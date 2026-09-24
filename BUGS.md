@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1232 - THE POP TITLED "WAITING ON YOU" LEFT HIS QUESTIONS OUT (v3499)
+
+**fix - #223, asks in the mailbox.** The 📥 pop - titled "Waiting on you" - and the Sessions sticky it feeds carried only
+the chronicle names the readers could not settle; his questions (the console's ASKS) were drawn in the inbox section
+alone, the badge did not count them, and with no names pending the pop said "Nothing is waiting" over an open question.
+Now one builder (`_askCardsHtml`) reaches all three through `window._inboxAskCards` ({n, html, sig}); the pop and sticky
+redraw only when the set of open questions CHANGES (`_eagleNYPaint`'s signature check - `renderInboxFab` also retires
+non-decisions, not a thing for every status poll); the badge counts names + questions; the card's CSS reaches both
+surfaces by `:is()` (same specificity). A grok-4.7 look at 3 widths found, at 375 on a guest world, the fixed CONSOLE pill
+(z 10050, pushed down by the claim banner) across the question's first line: the phone-width height budget subtracted
+the banner but not the pill - it now does below 560px (pop 187-411 -> 229-411, pill 175-202; re-look HOLDS 3/3). Lifting
+the pop's z instead would have buried nine modal-class layers (9500-9999). Guards: `test_the_pop_carries_his_questions`
+(6 cases, 4 proofs, the REAL renderInboxFab + bridge under node), PROVEN; render target `pop-asks` (the adopt -> paint
+-> pop join, never drawn by the harness), 3 widths, floor 1.
+
 ### REG-1231 - A FRESH MACHINE NEVER ESTABLISHED ITS TREE AT BOOT; THE WINDOWS EYE WAS PINNED BY PROSE ONLY
 
 **fix - #227, the heart must catch what was found by hand.** MEASURED 2026-09-24: the one boot-shaped
