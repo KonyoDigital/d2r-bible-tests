@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1199 - TWO REG-593 CONTROLS KEPT PROXIES FROM WHEN EVERY AXIS TESTED ONE FUNCTION
+
+**test: after v3487 - #123, test_reg600_axes_can_refuse (CI red and red here).** The REG-593 control stubs
+`credible_pruned_mb` open and shut and asserted k == 0 and k == n — true when every disk axis routed through that one
+validator. disk_report_wilson has since grown axes aimed at other code (series delta, why vocabulary, dir-path door) and
+axes that test honest figures are KEPT (noceiling, freebound, eligible, tiny, boundary). MEASURED: real validator 86/86
+PROVEN; stubbed open 40/86 LEAKS; jammed shut 44/86 WITHDRAWN with baseline False — the harness catches BOTH doors; only the
+law's numeric proxies had rotted. Now: open -> k below the real validator's k on the same harness and never PROVEN; shut ->
+some axis leaks, baseline fails, WITHDRAWN, bank refused. 42/42; PROVEN. (disk_report_wilson's own CI red — `eligible` and
+`tiny` leaking — is the venue: locally 86/86 PROVEN.)
+
 ### REG-1198 - THE BAND'S PARSE LAW FAILED OPEN IN THREE PLACES
 
 **test: after v3487 - the cross-family eye on the SHIPPED v3485 bytes (grok-cli, 6 findings).** VALID and fixed, each a

@@ -270,15 +270,24 @@ class TheAttacksNowAimAtSomethingThatCanRefuse(unittest.TestCase):
     guard from an inert one."""
 
     def test_the_disk_axes_COLLAPSE_against_a_validator_that_accepts_anything(self):
+        # ⚠⚠ #123 — THE LAW, NOT THE NUMBER. This asserted k == 0, true when every disk axis routed
+        # through credible_pruned_mb. The harness has since grown axes that aim at OTHER code (the
+        # series delta, the why vocabulary, the dir-path door): MEASURED, 40 of 86 refuse with this
+        # validator stubbed open, and they are right to. The claim is that the axes AIMED here
+        # collapse — k falls below what the real validator scores on the same harness — and that an
+        # inert validator can never read PROVEN.
+        rep_real = DRW.prove()
         real = CA.credible_pruned_mb
         try:
             CA.credible_pruned_mb = lambda v, h=None: (v, None)
             rep = DRW.prove()
         finally:
             CA.credible_pruned_mb = real
-        self.assertEqual(rep["k"], 0,
-                         "the disk axes still score %d/%d against a validator that refuses "
-                         "NOTHING — they are not testing the validator" % (rep["k"], rep["n"]))
+        self.assertEqual(rep_real["state"], "PROVEN", "premise: the real validator no longer proves "
+                                                      "on this harness: %r" % (rep_real.get("why"),))
+        self.assertLess(rep["k"], rep_real["k"],
+                        "the disk axes score %d/%d against a validator that refuses NOTHING — the same "
+                        "as the real one, so no axis is testing it" % (rep["k"], rep["n"]))
         self.assertNotEqual(rep["state"], "PROVEN")
 
     def test_a_validator_hardwired_SHUT_withdraws_the_claim_instead_of_acing_it(self):
@@ -290,7 +299,11 @@ class TheAttacksNowAimAtSomethingThatCanRefuse(unittest.TestCase):
             rep = DRW.prove()
         finally:
             CA.credible_pruned_mb = real
-        self.assertEqual(rep["k"], rep["n"], "the fixture no longer reproduces a jammed door")
+        # ⚠ #123 — was `k == n`: true when every axis tested refusal alone. The harness now also tests
+        # that honest figures are KEPT (noceiling, freebound, eligible, tiny, boundary), so a jammed
+        # door fails those axes directly — MEASURED k=44/86. The jam is judged where it is caught.
+        self.assertLess(rep["k"], rep["n"],
+                        "a door jammed shut aced every axis — the keep-the-honest-figure axes are gone")
         self.assertFalse(rep["baseline"], "a door jammed shut passed the baseline")
         self.assertEqual(rep["state"], "WITHDRAWN")
         self.assertEqual(DRW.bank_into_proof_queue(rep)[0][:8], "REFUSED ",
