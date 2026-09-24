@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1215 - A PEER THAT DIED RELAUNCHING WAS CALLED "SWITCHED OFF"
+
+**fix - #227.** The ledger-staleness row told him an offline peer's machine was "switched off". Measured 2026-09-24 over
+SSH: the Windows ALT box was ON the whole time - its console had died relaunching into v3419 (REG-1214). The fleet
+beacon cannot tell a dead console from an off machine, so the sentence now says exactly that ("the console is down OR
+the machine is off; this console cannot tell which"), and a peer whose LAST beacon ran one version with another on disk
+and a relaunch armed is named as "went silent MID-RELAUNCH" (`diedRelaunching`). Live: ALT True (v3417 running, v3419 on
+disk), Dean and GrokBot False. Also: the second-eye runner and g5 resolve `~/.grok/bin/grok.exe`, so the eye is not an
+empty seat on Windows by path alone. Guards: `test_ledger_authority` (driven, both directions) + RED_PROOF, heart2
+PROVEN 2/2.
+
 ### REG-1214 - THE WINDOWS CONSOLE DIED RELAUNCHING AND LEFT NO TRACE
 
 **fix - #225, measured over SSH on the Windows ALT box (read-only audit wf_1d3cd862-475).** Its console has been dead

@@ -1796,10 +1796,30 @@ def staleness(own=None, fleet=None, table=None):
         if _off:
             f["machine"] = m.get("machine") or ""
             f["lastSeen"] = m.get("t") or ""
-            f["why"] = ("%s's machine (%s) is switched off — the fleet roster lists it as offline, "
-                        "last heartbeat %s. Its figures are its LAST KNOWN ones, not current, and "
-                        "nothing here can refresh them until that machine is on."
-                        % (who, f["machine"] or "unknown", f["lastSeen"] or "unknown"))
+            # ⚠ #225 — "switched off" was a GUESS. The roster's offline flag means "no console beacon",
+            # and MEASURED 2026-09-24 the ALT box it called switched off had been up since 09-18 with
+            # him logged in — only its console had died. Say what is known, not why.
+            # ⚠⚠ #227 — AND WHEN ITS LAST REPORT SHOWS IT MID-RELAUNCH, SAY SO. The ALT box's last
+            # beacon (MEASURED 2026-09-24) ran v3417 with v3419 on disk and a relaunch armed; its
+            # console died in that relaunch and the heart read it as a machine switched off. A peer
+            # whose last word was "about to replace myself" and then silence is the one case where
+            # the cause IS knowable from here, and the fix is a start, not a wait.
+            _ver, _dv = m.get("ver"), m.get("diskVer")
+            _rl = m.get("relaunch") if isinstance(m.get("relaunch"), dict) else {}
+            f["diedRelaunching"] = bool(_ver and _dv and _dv != _ver and _rl.get("armed") and _rl.get("may"))
+            if f["diedRelaunching"]:
+                f["why"] = ("%s's machine (%s) went silent MID-RELAUNCH: its last report, at %s, was "
+                            "running %s with %s on disk and a relaunch armed, and nothing came back — "
+                            "its console most likely died relaunching (measured once, on the Windows "
+                            "ALT). Starting TV DIABLO on that machine brings it back and pulls the fix. "
+                            "Its figures are its LAST KNOWN ones, not current."
+                            % (who, f["machine"] or "unknown", f["lastSeen"] or "unknown", _ver, _dv))
+            else:
+                f["why"] = ("%s's machine (%s) has not reported since %s — its console is not "
+                            "beaconing, which means the console is down OR the machine is off; this "
+                            "console cannot tell which. Its figures are its LAST KNOWN ones, not "
+                            "current, and nothing here can refresh them until that console reports "
+                            "again." % (who, f["machine"] or "unknown", f["lastSeen"] or "unknown"))
         rows.append(f)
 
     # ⚠ v3268 — `stale` keeps its old meaning (the figure IS old) so no existing reader shifts

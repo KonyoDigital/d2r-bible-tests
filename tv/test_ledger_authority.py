@@ -1268,6 +1268,13 @@ class TheModuleProvesItself(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "#227 - a peer that went silent mid-relaunch reads 'cannot tell which' again: the ALT box's relaunch death looks like a machine that was switched off",
+        "file": "ledger_authority.py",
+        "find": "            f[\"diedRelaunching\"] = bool(_ver and _dv and _dv != _ver and _rl.get(\"armed\") and _rl.get(\"may\"))\n",
+        "replace": "            f[\"diedRelaunching\"] = False\n",
+        "matches": 1,
+    },
+    {
         'why': 'ledger_authority.classify_row computes the fleet-side deficit as the SIGNED `row["have"] - seed_n` — the one expression that lets Dean\'s runewords read -5 ("five seeded rows are MISSING from his store") instead of a comfortable 0. Clamping it with max(0, ...) is the exact real-world defect the law exists for: the figure stays a number, but the sign and the "MISSING" sentence both vanish. It is the live expression, not a comment and not a shared constant — the test derives its own seed size from LA.seed_names_for("runewords"), so only the subtraction moves. MATCHES=1 in ledger_authority.py.  MEASURED: untampered python3 test_ledger_authority.py -> Ran 89 tests in 0.872s / OK (green); tampered (all 1) python3 test_ledger_authority.py -> Ran 89 tests / FAILED (failures=2): FleetRowsAreDerive; reddened law test_ledger_authority.FleetRowsAreDerivedAndSaySo.test_a_DEFICIT_is_re; ALONE python3 -m unittest test_ledger_authority.FleetRowsAreDerivedAndSaySo.test_a_DEFICIT_is_reported_negative_and_.',
         'file': 'ledger_authority.py',
         'find': 'row["have"] - seed_n',
@@ -1381,6 +1388,27 @@ class AMachineThatIsOffIsNotAFigureGoingStale(unittest.TestCase):
                          "a peer on the ONLINE roster was called switched-off because it was old")
         self.assertTrue(rows["Dean tally"]["stale"])
 
+    def test_a_peer_silent_MID_RELAUNCH_is_named_as_that(self):
+        """#227 — the ALT box's last beacon (MEASURED 2026-09-24) ran v3417 with v3419 on disk and a
+        relaunch armed, then went silent: its console died relaunching, and the heart called the
+        machine switched off. Only a peer whose last word was 'about to replace myself' gets that
+        diagnosis — a peer silent on matching versions stays 'cannot tell which'. DRIVEN."""
+        import time
+        now = int(time.time() * 1000)
+        fleet = self._fleet(now)
+        mid = self._peer("ALT", now - 220_000_000, 4, True)
+        mid.update({"ver": "v3417", "diskVer": "v3419", "relaunch": {"armed": True, "may": True}})
+        fleet["offline"].append(mid)
+        fleet["offline"][0].update({"ver": "v3404", "diskVer": "v3404",
+                                    "relaunch": {"armed": True, "may": True}})
+        rows, _st = self._rows(fleet)
+        self.assertTrue(rows["ALT tally"]["diedRelaunching"])
+        self.assertIn("MID-RELAUNCH", rows["ALT tally"]["why"])
+        self.assertIn("v3417", rows["ALT tally"]["why"])
+        self.assertFalse(rows["Dean tally"]["diedRelaunching"],
+                         "a peer silent on MATCHING versions was diagnosed as a relaunch death")
+        self.assertIn("cannot tell which", rows["Dean tally"]["why"])
+
     def test_the_offline_peer_is_NAMED_and_never_merely_dropped(self):
         """⚠ the guard against the quiet corner — the same one v3267's UNBUILT needed. Removing a
         row from a count is only honest if the row still reaches him in words."""
@@ -1389,7 +1417,12 @@ class AMachineThatIsOffIsNotAFigureGoingStale(unittest.TestCase):
         rows, st = self._rows(self._fleet(now))
         self.assertIn("Dean tally", st["machineOff"])
         why = rows["Dean tally"]["why"]
-        self.assertIn("switched off", why)
+        # #225 — the sentence may not GUESS the cause. "switched off" was measured false on 2026-09-24
+        # (the ALT box was up; only its console had died). It must say what is known and that the
+        # cause is not knowable from here.
+        self.assertIn("has not reported since", why)
+        self.assertIn("console is down OR the machine is off", why)
+        self.assertNotIn("switched off", why, "the row guesses a cause it cannot see again")
         self.assertIn("LAST KNOWN", why)
         self.assertIn("2026-09-15", why, "the sentence does not say WHEN it was last heard from")
         self.assertNotIn("0 of 403", why,

@@ -72,7 +72,22 @@ import second_eye_ledger as SEL  # noqa: E402
 # ⚠ A CARVED SKILL SAID THE EXACT OPPOSITE. `human-eyes-harness` carried *"the CLI is currently out
 # of build balance, HTTP 402; the MCP transport works"* — true when written, INVERTED now, and it
 # would have sent the next session to the dead lane. Corrected in the same version. [[stale-reading]]
-EYE_CLI = os.environ.get("THIRD_EYE_CLI") or os.path.expanduser("~/.grok/bin/grok")
+def _default_eye_cli():
+    """#225 — ASK THE ONE RESOLVER, do not hardcode a second path. This was `~/.grok/bin/grok` with no
+    `.exe`, so on the Windows ALT box — where C:\\Users\\USER-1\\.grok\\bin\\grok.exe exists and is on
+    PATH — the doctor said "no binary there" and the second opinion read MISSING. g5_grok_eyes._grok_bin
+    already resolves env override -> PATH (finds grok.exe) -> known install locations. [[copy-drift]]"""
+    try:
+        import g5_grok_eyes as _g5
+        hit = _g5._grok_bin()
+        if hit:
+            return hit
+    except Exception:
+        pass
+    return os.path.expanduser("~/.grok/bin/grok" + (".exe" if os.name == "nt" else ""))
+
+
+EYE_CLI = os.environ.get("THIRD_EYE_CLI") or _default_eye_cli()
 EYE_MODEL = os.environ.get("THIRD_EYE_MODEL") or "grok-4-1-fast-reasoning"
 # ⚠⚠ v3408 — 300 s WAS TOO SHORT, AND THE COST WAS A BLOCKED SHIP. The eye is a subscription
 # CLI, and a CLI is an AGENT: it reasons and calls tools, it does not stream a completion. MEASURED

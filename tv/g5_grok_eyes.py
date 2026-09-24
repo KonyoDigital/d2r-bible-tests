@@ -245,6 +245,9 @@ def g5_chronicle_read(image_path, kind, *, force=True):
 # ── subscription auth (NOT API keys) ───────────────────────────────────────────
 _GROK_CANDIDATES = (
     "~/.grok/bin/grok",            # the official installer's home — where Konyo's actually is
+    # #225 — the Windows installer's home. MEASURED on the ALT box: C:\Users\USER-1\.grok\bin\grok.exe
+    # exists and is on PATH, and a candidate list with no .exe could never name it.
+    "~/.grok/bin/grok.exe",
     "~/.local/bin/grok",
     "/opt/homebrew/bin/grok",
     "/usr/local/bin/grok",
