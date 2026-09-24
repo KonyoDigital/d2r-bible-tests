@@ -330,9 +330,23 @@ def _fixture_shelf(stream):
     path `say-none` exists for. An EMPTY walk of this shelf is still a leak: two reels went in.
     [[test-venue]] [[unknown-stays-unknown]]"""
     import reel_river as RR
+    import self_arming as SA
     fake = {"rows": [{"reel": n, "stage": "swept", "decider": "printer_wilson fixture shelf",
                       "question": "a reel with nothing behind it"} for n in _FIXTURE_REELS]}
-    with _Patch(RR, "river", lambda *a, **k: fake):
+    # ⚠ #233 — AND ITS OWN LOCK. The second eye on e24dda62 (grok-4.7): stream() asks
+    # may_on_merit("printer.stream") BEFORE it reads the river, and on a runner with no proof queue
+    # that lock is UNPROVEN, so stream() returned [] and never consulted the patched river — each
+    # shape law then saw an empty walk and filed (1, 0), the very leak this shelf exists to stop,
+    # now for a closed lock instead of missing reels. His Mac's queue opens the lock, which is why
+    # it read fine here. This walk judges the printer's SHAPE, not its lock, so it opens that one
+    # lock for its own duration; every other lock answers exactly as it did.
+    _real = SA.may_on_merit
+
+    def _open_for_the_shelf(lock, *a, **k):
+        if lock == "printer.stream":
+            return True, "the fixture shelf judges the printer's shape, not its lock"
+        return _real(lock, *a, **k)
+    with _Patch(RR, "river", lambda *a, **k: fake), _Patch(SA, "may_on_merit", _open_for_the_shelf):
         return stream()
 
 

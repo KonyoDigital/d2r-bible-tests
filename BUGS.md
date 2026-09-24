@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1223 - THE PRINTER'S FIXTURE SHELF WALKED NOTHING BEHIND A SHUT LOCK
+
+**fix - #233, the second eye on e24dda62 (grok-4.7).** REG-1204 gave printer_wilson a two-reel fixture shelf so its three
+shape laws judge the printer on every machine. But `printer.stream()` asks `may_on_merit("printer.stream")` BEFORE it
+reads the river, and on a runner with no proof queue that lock is UNPROVEN: stream() answered [] and never consulted the
+patched river, so each law saw an empty walk and filed (1, 0) - the leak the shelf was built to stop, now for a closed
+lock. His Mac's queue opens the lock, which is why it read fine here. The shelf now opens that one lock for its own walk
+(it judges the printer's shape, not its lock); every other lock answers as before. Guard: a driven case with the lock
+forced shut (the fixture reels must be walked; on his Mac the other owners add his real reels, 21 rows) + red-proof.
+
 ### REG-1222 - A CORRUPT LEDGER BACKUP HID WHETHER A VAULT RECEIPT CAN OPEN
 
 **fix - the second eye on v3490 (grok-4.7, verdict: findings).** v3490 made `check_vault_receipts` still measure receipt

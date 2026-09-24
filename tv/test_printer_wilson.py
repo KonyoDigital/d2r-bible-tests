@@ -261,6 +261,29 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
                          "the printer's rows moved prune.arm's Wilson bound — evidence about one "
                          "surface is being counted as evidence about another")
 
+    def test_the_fixture_shelf_walks_even_when_the_printer_lock_is_shut(self):
+        """#233 — second eye on e24dda62: with printer.stream LOCKED (a runner with no proof queue),
+        stream() answered [] before reading the patched river, so every shape law judged an empty
+        walk. The shelf opens that one lock for its own walk; two reels in means two rows out."""
+        import printer as P
+        import printer_wilson as PW
+        import self_arming as SA
+        real = SA.may_on_merit
+        try:
+            SA.may_on_merit = lambda lock, *a, **k: (False, "forced shut for this case")
+            self.assertEqual(P.stream().get("rows") or [], [],
+                             "premise: with the lock shut, stream() must answer nothing")
+            rows = PW._fixture_shelf(P.stream).get("rows") or []
+            # on his Mac the other owners add his real reels to the walk; on a clean runner there
+            # are none. The law is that the TWO FIXTURE reels are walked, whatever else is.
+            walked = {r.get("reel") for r in rows}
+            self.assertTrue(set(PW._FIXTURE_REELS) <= walked,
+                            "behind a shut lock the fixture shelf walked %d row(s) and not its own "
+                            "reels %r" % (len(rows), list(PW._FIXTURE_REELS)))
+            self.assertEqual(SA.may_on_merit.__name__, "<lambda>", "the shelf did not put the lock back")
+        finally:
+            SA.may_on_merit = real
+
     def test_printer_wilson_proves_only_the_printer(self):
         import self_arming as SA
         self.assertEqual(SA.PROVES.get("printer_wilson"), ("printer.stream",),
@@ -269,6 +292,13 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#233 - the fixture shelf walks behind a shut printer lock again: stream() answers [] and every shape law files an empty walk as a leak",
+        "file": "printer_wilson.py",
+        "find": "    with _Patch(RR, \"river\", lambda *a, **k: fake), _Patch(SA, \"may_on_merit\", _open_for_the_shelf):\n",
+        "replace": "    with _Patch(RR, \"river\", lambda *a, **k: fake):\n",
+        "matches": 1,
+    },
     {
         "why": "Puts the retired ceremony back. v3347 removed prune.arm from LOCKS by his ruling - "
                "'leave it off and surgically remove it we need pruning' - and this law is what "
