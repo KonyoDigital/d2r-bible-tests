@@ -5342,6 +5342,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_this_machine_can_decode_a_frame",
+         [sys.executable, os.path.join(HERE, "test_this_machine_can_decode_a_frame.py")], 60,
+         why="#227 - measured over SSH: his Windows ALT ran Python 3.12.10 with pywebview and NO Pillow, so "
+             "every frame it filmed was unreadable and nothing said so. The launcher and installer now "
+             "install Pillow; the doctor row 'this machine can decode a frame' round-trips a BMP (the "
+             "Windows capture's format) pixel for pixel. 6 cases, 3 red-proofs"),
     Gate("test_a_fresh_machine_establishes_its_tree_at_boot",
          [sys.executable, os.path.join(HERE, "test_a_fresh_machine_establishes_its_tree_at_boot.py")], 60,
          why="#227 - the one boot-shaped machine_tree.establish() sat inside _prewarm_seal_cache, which returns "

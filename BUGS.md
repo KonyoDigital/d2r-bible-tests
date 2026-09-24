@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1235 - A WINDOWS BOX FILMED FRAMES IT COULD NEVER READ (NO PILLOW), AND NOTHING SAID SO
+
+**fix - #227, the heart must catch what was found by hand.** MEASURED over SSH 2026-09-24: his Windows ALT ran Python
+3.12.10 with pywebview and NO Pillow (and no numpy). Every frame reader in the chain - tv_diablo, chronicle_calibrate -
+imports PIL and swallows its own ImportError, so every frame that box captured was unreadable and no row anywhere said so.
+`start_tvd_win.ps1` installed pywebview on first run and never Pillow; `install-tvd.ps1` likewise. Both now install it
+(the launcher in the same probe-once-and-cache shape as pywebview, `tv/.pillow_ok` gitignored per machine; both scripts
+parsed with 0 errors by PowerShell's own parser on the ALT). New doctor row `this machine can decode a frame`: it
+round-trips a 4x3 BMP (the Windows capture's format) through Pillow in memory and checks a pixel, so "imports" is never
+read as "decodes"; declared in WATCHES (no element) and corroborate.NO_JOINT_YET. numpy is only used by vault_corpus, not
+the frame chain - not installed. Guard: `test_this_machine_can_decode_a_frame` (6 cases, 3 proofs), PROVEN. UNMEASURED
+until the ALT's next launch: the install itself landing there.
+
 ### REG-1234 - A STATIC SERVER ON LOOPBACK WAS TAKEN FOR A CONSOLE (v3494's any-port rule)
 
 **fix - the review after ship: Routine I on ea76abff, attributed by delta.** 26 failing specs on 39b495f3, 29 on ea76abff;

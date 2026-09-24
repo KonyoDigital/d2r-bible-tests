@@ -2262,6 +2262,9 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # #227
+    'this machine can decode a frame':
+        "the row round-trips a BMP through Pillow in memory; a second source would be a real frame this machine filmed decoding in the reader, which only happens when it films.",
     # #228
     'a fresh remaining page':
         "the row reads the calibration the last chronicle sweep SAVED (his board's count against the game's Remaining page); the independent side would be a newly filmed Remaining page, which is exactly what the row asks him for - until one exists there is no second source to join.",

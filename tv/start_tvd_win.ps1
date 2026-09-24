@@ -246,6 +246,31 @@ if ($needWv) {
   }
 }
 
+# #227 - Pillow decodes every frame this console films (tv_diablo, chronicle_calibrate). MEASURED on
+# the ALT 2026-09-24: Python 3.12.10 had pywebview and NO Pillow, so every frame it captured was
+# unreadable and nothing said so. Same probe-once-and-cache shape as pywebview above; the doctor row
+# 'this machine can decode a frame' says whether it worked.
+$pilCache = Join-Path $here '.pillow_ok'
+if (-not (Test-Path -LiteralPath $pilCache)) {
+  $probe = if ($py.Cmd -eq 'py') { @('py', '-3', '-c', 'import PIL') }
+           elseif ($py.Cmd -eq 'pythonw') { @('python', '-c', 'import PIL') }
+           else { @($py.Cmd, '-c', 'import PIL') }
+  $ok = $false
+  try {
+    & $probe[0] $probe[1..($probe.Length - 1)] 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { $ok = $true }
+  } catch {}
+  if (-not $ok) {
+    Write-TvdLaunchLog 'installing Pillow (frames cannot be decoded without it)'
+    $pip = if ($py.Cmd -eq 'py') { @('py', '-3', '-m', 'pip', 'install', '--user', '--quiet', 'Pillow') }
+           elseif ($py.Cmd -eq 'pythonw') { @('python', '-m', 'pip', 'install', '--user', '--quiet', 'Pillow') }
+           else { @($py.Cmd, '-m', 'pip', 'install', '--user', '--quiet', 'Pillow') }
+    try { & $pip[0] $pip[1..($pip.Length - 1)] 2>$null | Out-Null } catch {}
+  } else {
+    try { Set-Content -LiteralPath $pilCache -Value '1' -Encoding ASCII } catch {}
+  }
+}
+
 # v1447 - NEVER open a blocking claude login shell on Desktop double-click (extra window lag).
 # Doctor/ON AIR will surface Claude missing if needed.
 

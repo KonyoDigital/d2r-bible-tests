@@ -6560,6 +6560,46 @@ def _check_this_machine_can_get_a_second_opinion():
                 % (cli, float(getattr(_eye, "EYE_TIMEOUT_S", 0) or 0)))
 
 
+def _check_this_machine_can_decode_a_frame():
+    """#227 — CAN THIS MACHINE READ THE FRAMES IT FILMS?
+
+    MEASURED 2026-09-24 over SSH: his Windows ALT ran Python 3.12.10 with pywebview and NO Pillow.
+    Every frame reader in the chain (tv_diablo, chronicle_calibrate) imports PIL, so every frame that
+    box captured was unreadable - and no row anywhere said so, because each reader swallows the
+    ImportError where it happens. The launcher now installs Pillow on start; this row is what says
+    whether that worked, on THIS machine, where the answer lives. [[heart-first]]
+
+    It round-trips a 4x3 BMP in memory (the format the Windows capture writes) and checks a pixel,
+    so "imports" is not mistaken for "decodes". No disk, no network, milliseconds."""
+    try:
+        from PIL import Image
+    except Exception as e:
+        return MISSING, ("Pillow will not import on this machine (%s), so no frame this console films "
+                         "can be read - the Windows launcher installs it on its next start; by hand: "
+                         "%s -m pip install --user Pillow" % (type(e).__name__, sys.executable))
+    try:
+        import io as _io
+        buf = _io.BytesIO()
+        Image.new("RGB", (4, 3), (200, 40, 10)).save(buf, format="BMP")
+        buf.seek(0)
+        im = Image.open(buf)
+        im.load()
+        size, px = im.size, im.convert("RGB").getpixel((1, 1))
+    except Exception as e:
+        return MISSING, ("Pillow imports but could not decode a 4x3 BMP (%s: %s), so a captured frame "
+                         "cannot be read either" % (type(e).__name__, str(e)[:80]))
+    if size != (4, 3) or tuple(px) != (200, 40, 10):
+        return MISSING, ("Pillow decoded a 4x3 BMP as %r with pixel %r - the pixels do not survive a "
+                         "round trip" % (size, px))
+    try:
+        import PIL as _pil
+        ver = getattr(_pil, "__version__", "UNKNOWN")
+    except Exception:
+        ver = "UNKNOWN"
+    return OK, ("this machine decodes a frame: Pillow %s round-tripped a BMP (the format the Windows "
+                "capture writes) pixel for pixel" % ver)
+
+
 def _check_the_door_and_the_writers_name_the_same_tree():
     """v3410 — DOES THE TREE THE DOOR ESTABLISHES EQUAL THE TREE THE WRITERS ACTUALLY USE?
 
@@ -7740,6 +7780,8 @@ CHECKS = [
     # v3408 (#154) — per MACHINE, not per fleet: a box with no signed-in CLI files empty seats
     # however healthy the ledger totals look. Disk only, no network, no spawn.
     ("this machine can get a second opinion", _check_this_machine_can_get_a_second_opinion),
+    # #227 — per MACHINE: the ALT had no Pillow, so every frame it filmed was unreadable, silently
+    ("this machine can decode a frame", _check_this_machine_can_decode_a_frame),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.
@@ -8368,6 +8410,8 @@ WATCHES = {
     "no git child steals his screen": (),
     # v3408 — it asks whether THIS machine has a CLI eye on disk; no element of its own.
     "this machine can get a second opinion": (),
+    # #227 — DECLARED, NOT OMITTED. It decodes a BMP in memory; no element of its own.
+    "this machine can decode a frame": (),
     # v3410 — DECLARED, NOT OMITTED. It compares two module paths; no element of its own.
     "the door and the writers agree": (),
     # v3413 — DECLARED, NOT OMITTED. It compares a generated file against git; no element.

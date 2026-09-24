@@ -94,6 +94,7 @@ _lsfork_probe.html
 # true for THIS machine's python only, so committing it would hand another machine a stale answer
 # about an interpreter it does not have.
 tv/.webview_ok
+tv/.pillow_ok
 _freshpc_probe.html
 _sigil_probe.html
 _worlds_probe.html
