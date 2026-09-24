@@ -5312,6 +5312,19 @@ GATES = [
          # #123 — and EMPTY, which is not that defect: a directory machine_tree.establish() built,
          # holding nothing, on a host whose ledger never closed a reel (reel_demo._shelf decides).
          skip_ok=(r"reel shelf is (?:absent|empty) on this venue",)),
+    Gate("test_a_mark_covers_only_what_was_shown",
+         [sys.executable, os.path.join(HERE, "test_a_mark_covers_only_what_was_shown.py")], 60,
+         why="the handoff watermark covers only what a drain SHOWED (2026-09-24 07:09Z: --mark filed "
+             "an unseen GrokBot tick as read by taking the newest comment at mark time); --through "
+             "names the last comment read; newer comments are named, never swallowed; and --summary, "
+             "the line the prompt hook prints every turn, counts new and ACT/ASK-owed and says "
+             "UNKNOWN when the queue cannot be read. 5 cases, 2 red-proofs"),
+    Gate("test_production_scratch_dirs_only_get_fewer",
+         [sys.executable, os.path.join(HERE, "test_production_scratch_dirs_only_get_fewer.py")], 60,
+         why="#171 - a production mkdtemp with no cleanup in its own function may only get FEWER: "
+             "24 frozen by (file, function), the list must shrink the moment one is fixed, and the "
+             "one cross-function teardown (render_check's Chrome profile) is declared with a reason "
+             "re-proven by AST. Read by the parser, never by text. 5 cases, 2 red-proofs"),
     Gate("test_a_conditional_reap_is_not_a_reaper",
          [sys.executable, os.path.join(HERE, "test_a_conditional_reap_is_not_a_reaper.py")], 60,
          why="#177 - a helper counts as a reaper only if it reaps its first parameter on EVERY path "

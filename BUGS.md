@@ -7,6 +7,40 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1210 - --mark FILED A TICK NOBODY HAD SEEN AS READ, AND NOTHING RAN THE DRAIN AT ALL
+
+**fix - his order 2026-09-24, "make it a part of your system regularly to check it always".** #230 carried eight GrokBot
+ticks and #231 five second-eye looks (05:06-07:03Z) that went unread for two hours: `tv/handoff.py` existed, its
+watermark sat at 2026-09-23 21:26Z, and nothing ever ran it. Running it exposed a second defect: `--mark` took the
+newest comment at MARK time and filed a 07:09Z tick, posted after the listing that was read, as read. Now `drain`
+records what it SHOWED, `--mark` marks through that (or `--through <id>`) and names every newer comment it left, and it
+refuses when nothing was shown. `--summary` prints one line per queue for a UserPromptSubmit hook installed in
+~/.claude/settings.json, so the count is in front of every prompt until marked. Gate
+test_a_mark_covers_only_what_was_shown, 5 cases, 2 proofs PROVEN.
+
+### REG-1209 - AN ATTEMPT THAT NEVER TOUCHED THE PRINTER WAS FILED AS A DOOR ATTACK, AND A UNIT LEAK HID BEHIND UNPROVEN
+
+**fix - the second eye on v3488 (grok-cli), both findings reproduced first.** `door = calls <= {"stream"}` let the empty
+set through, so `templates`/`routes`/`gap` (which reach stream() only through `_station_refused`) were filed DOOR by
+default - right answer, wrong reason - and an attempt with no printer call at all would have banked as door evidence.
+The helper is now followed by the POSITION P is passed in and a door must show exactly {stream} (door count unchanged,
+115). And a leaking unit check with no door attempt read `UNPROVEN · nothing attempted at the door` while ok was False:
+a leak now outranks an empty door. 3 new cases, 2 new proofs, the old proof re-anchored; 7/7 PROVEN.
+
+### REG-1208 - EVERY SHELF REBUILD BLANKED THE RIVER, WHICH IS WHY river-strip REFUSED AT A RANDOM WIDTH
+
+**v3491 - #157.** river-strip's refusal had four theories refuted and no cause. The 01:11Z push record showed it was
+`found 0` ("selector matched NOTHING"), not painted-0, moments after the reach step located the panel. MEASURED through
+render_check's own console: 20/20 lanes, then `thShelf(true)`, then 0 lanes and "reading the river..." for ~1.45 s on a
+WARM /api/river, then 20/20. thShelf rebuilds on the art map landing, a pin, a note edit and the ghosts chip, so the
+strip blanked on his screen too (up to the 12 s bound cold). The rebuild now paints the last answer at once and the
+fetch refreshes it in place; a failed refresh still paints its refusal. After: 0 of 40 samples blank. river-strip's
+activation now asks the rebuild law in the same evaluate: green at all 6 widths with the fix, "could not be ACTIVATED"
+without it (scratch copy). Same task: shelf-cards joins COVERAGE_VOLATILE (his reels, unstubbed; 533 -> floor 16 -> 48
+on one selector) and a live population above its floor is no longer counted as stale slack. A per-node zero-size
+"cause" was built and REVERTED: the render harness already refuses a hidden container at readiness and already prints a
+chain for an all-zero reading, so it double-built existing instrumentation.
+
 ### REG-1207 - A HELPER THAT REAPED ON ONE BRANCH WAS TRUSTED AS A REAPER
 
 **fix - #177 item 1, test_no_ASSIGNED_popen_goes_unreaped.** v3427 trusted any function whose first parameter was

@@ -138,15 +138,13 @@ def _classify(body):
     return "?", "(empty body)"
 
 
-def drain(issue, since=None, limit=40):
+def _new_rows(issue, since=None):
+    """-> (rows new since the watermark, the `since` used, marks_readable). ONE decision for
+    drain() and summary(), so the hook's count and the reader's list can never disagree."""
     marks = _marks()
+    readable = marks is not None
+    marks = marks or {}
     key = str(issue)
-    if marks is None:
-        # UNKNOWN watermark: drain from the beginning, and SAY so. Silently starting at zero
-        # reads as "the queue is enormous" rather than "the store could not be read".
-        print("⚠ the watermark store could not be READ — draining #%s from the beginning. "
-              "That is UNKNOWN, not an empty queue." % issue)
-        marks = {}
     since = since or marks.get(key, {}).get("ts")
     path = "repos/%s/issues/%s/comments?per_page=100" % (REPO, issue)
     if since:
@@ -169,6 +167,16 @@ def drain(issue, since=None, limit=40):
                 if c.get("id") != _seen_id
                 or (_seen_upd is not None and c.get("updated_at") != _seen_upd)]
     rows.sort(key=lambda c: c.get("created_at") or "")
+    return rows, since, readable
+
+
+def drain(issue, since=None, limit=40):
+    rows, since, readable = _new_rows(issue, since)
+    if not readable:
+        # UNKNOWN watermark: drain from the beginning, and SAY so. Silently starting at zero
+        # reads as "the queue is enormous" rather than "the store could not be read".
+        print("⚠ the watermark store could not be READ — draining #%s from the beginning. "
+              "That is UNKNOWN, not an empty queue." % issue)
 
     print("queue #%s — %d new since %s" % (issue, len(rows), since or "THE BEGINNING (no watermark)"))
     if not since:
@@ -195,20 +203,76 @@ def drain(issue, since=None, limit=40):
             print("  … +%d more not listed (raise --limit)" % (len(got) - limit))
 
     newest = rows[-1]
+    _record_shown(issue, newest)
     print("\n  newest: #%s at %s" % (newest.get("id"), newest.get("created_at")))
     print("  answer the ACT/ASK rows, then: handoff.py --issue %s --mark" % issue)
     print("  ⚠ the watermark has NOT moved — draining never marks anything read.")
     return rows
 
 
-def mark(issue):
+def summary(issue):
+    """ONE line for the prompt hook. -> str. Never raises: a failed read says UNKNOWN.
+
+    ⚠⚠ WHY THIS EXISTS (2026-09-24): #230 carried eight GrokBot ticks and #231 five second-eye looks
+    between 05:06Z and 07:03Z, and I read none of them for two hours — the drain existed, the
+    watermark said 2026-09-23 21:26Z, and nothing ever RAN it. He asked for it to be part of the
+    system: *"make it a part of your system regularly to check it always"*. So a UserPromptSubmit
+    hook calls this on every prompt, and the count stays in front of the reader until `--mark`.
+    [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]"""
+    try:
+        rows, since, readable = _new_rows(issue)
+    except Exception as e:
+        return "#%s: UNKNOWN — the queue could not be read (%s)" % (issue, str(e)[:80])
+    if not readable:
+        return "#%s: UNKNOWN — the watermark store could not be READ" % issue
+    if not rows:
+        return "#%s: nothing new since %s (a measured zero)" % (issue, since or "the beginning")
+    verbs = [_classify(c.get("body"))[0] for c in rows]
+    owed = sum(1 for v in verbs if v in OWED)
+    return ("#%s: %d NEW since %s (%d ACT/ASK owed) · newest %s — read them: handoff.py --issue %s, "
+            "then --mark" % (issue, len(rows), since or "THE BEGINNING (no watermark)", owed,
+                            (rows[-1].get("created_at") or "?")[:16], issue))
+
+
+def _record_shown(issue, row):
+    """Remember the newest comment a drain PUT IN FRONT OF THE READER. `--mark` marks through it."""
+    marks = _marks()
+    if marks is None:
+        return                      # never write over a store this process could not read
+    marks["%s:shown" % issue] = {"id": row.get("id"), "ts": row.get("created_at"),
+                                 "updated": row.get("updated_at")}
+    with io.open(MARKS, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(marks, indent=2, sort_keys=True))
+
+
+def mark(issue, through=None):
+    """Advance the watermark through what the reader SAW — never through what merely exists.
+
+    ⚠⚠ MEASURED 2026-09-24 07:09Z, the first time `--mark` was run on this tree in a day: it marked
+    #230 through comment 5809493768, a GrokBot tick posted AFTER the listing I had read, so a tick
+    nobody had seen was filed as read — the exact loss this module's docstring says a drain must
+    never cause, done by the marker instead. It took `rows[-1]` at MARK time. Now it marks through
+    `through` when given, else through the newest comment the last drain SHOWED, and names every
+    newer comment it did not mark. With neither, it refuses. [[the-unjoined-end]]"""
     rows = _gh("repos/%s/issues/%s/comments?per_page=100" % (REPO, issue))
     if not rows:
         print("no comments; watermark unchanged.")
         return
     rows.sort(key=lambda c: c.get("created_at") or "")
-    newest = rows[-1]
     marks = _marks()
+    if marks is not None and through is None:
+        through = (marks.get("%s:shown" % issue) or {}).get("id")
+        if through is None:
+            print("⚠ REFUSED to mark #%s: nothing has been SHOWN since the last mark. Drain it first "
+                  "(handoff.py --issue %s), or name the last comment you read: --through <id>."
+                  % (issue, issue))
+            return
+    hit = [i for i, c in enumerate(rows) if str(c.get("id")) == str(through)]
+    if marks is not None and not hit:
+        print("⚠ REFUSED to mark #%s: comment %s is not on the issue." % (issue, through))
+        return
+    newest = rows[hit[0]] if hit else rows[-1]
+    later = rows[hit[0] + 1:] if hit else []
     if marks is None:
         # ⚠⚠ REFUSE, DO NOT OVERWRITE. Writing here would replace a store this process could not
         # read with {} plus one key, and the file would then look authoritative — strictly worse
@@ -218,9 +282,14 @@ def mark(issue):
         return
     marks[str(issue)] = {"id": newest.get("id"), "ts": newest.get("created_at"),
                          "updated": newest.get("updated_at")}
+    marks.pop("%s:shown" % issue, None)
     with io.open(MARKS, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(marks, indent=2, sort_keys=True))
     print("watermark for #%s -> %s (#%s)" % (issue, newest.get("created_at"), newest.get("id")))
+    if later:
+        print("  ⚠ %d newer comment(s) NOT marked — they arrived after what you read: %s"
+              % (len(later), ", ".join("#%s %s" % (c.get("id"), (c.get("created_at") or "")[11:16])
+                                       for c in later[:6])))
 
 
 def archive(issue, path):
@@ -248,16 +317,27 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=40)
     ap.add_argument("--mark", action="store_true", help="advance the watermark to the newest comment")
     ap.add_argument("--archive", metavar="PATH", help="write every comment to PATH as JSON")
+    ap.add_argument("--through", default=None,
+                    help="with --mark: the id of the last comment you actually read")
+    ap.add_argument("--summary", action="store_true",
+                    help="one line per queue (new count, ACT/ASK owed, newest) — the prompt hook")
     a = ap.parse_args(argv)
 
     issues = [i.strip() for i in str(a.issue).split(",") if i.strip()]
+    if a.summary:
+        for i in issues:
+            print(summary(i))
+        return 0
     if a.archive:
         for i in issues:
             archive(i, a.archive if len(issues) == 1 else "%s.%s" % (a.archive, i))
         return 0
     if a.mark:
+        if a.through and len(issues) != 1:
+            print("⚠ --through names ONE comment, so it needs exactly one --issue.")
+            return 2
         for i in issues:
-            mark(i)
+            mark(i, through=a.through)
         return 0
     live = 0
     for i in issues:
