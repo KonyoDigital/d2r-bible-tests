@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1238 - AN IN-PAGE QUESTION DOES NOT FREEZE THE PAGE: "PROMOTE ALL 5" COULD PROMOTE 7
+
+**fix - the second eye on v3497 (grok-4.7), two findings, one refuted by measurement and one reproduced.** (1) REFUTED:
+the eye saw the `#ch-ask` rules without their selectors (outside its diff hunk) and concluded the dialog sat unstyled
+under `#ch-modal`. Measured on a served console with the inbox open: `#ch-ask` is fixed at z 990 over the modal's 980,
+both buttons hit-test as themselves, and "yes" hides the ask and fires the action exactly once. (2) REPRODUCED from the
+code: `window.confirm` froze the page until he answered; the in-page ask does not, and `chAcceptAllNow` /
+`chClearAllNow` / the session dismiss act on the queue AS IT IS AT CLICK TIME - a poll between question and click made
+"Promote ALL 5" promote 7, two never named to him. Each destructive answer now checks the queue signature it was asked
+about (`_chIfUnchanged`) and re-asks with the new count when it changed; the session re-ask is by name, since a
+re-rendered button is detached. Guard: `test_the_chronicle_inbox_asks_on_the_page` +2 driven cases (node, the real
+confirm), +1 proof, 3/3 PROVEN.
+
 ### REG-1237 - --mark FILED COMMENTS A TRUNCATED DRAIN NEVER SHOWED
 
 **fix - the second eye on 4a222c64 (grok-4.7), reproduced from the code.** `handoff.drain()` printed `got[:limit]` per

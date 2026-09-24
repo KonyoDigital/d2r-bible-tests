@@ -16,6 +16,9 @@ import os
 import re
 import sys
 import unittest
+import json
+import shutil
+import subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -64,11 +67,65 @@ class TheInboxAsksOnThePage(unittest.TestCase):
         self.assertEqual(UI.count(">✕ Dismiss</button>'"), 2, "a session dismiss reads 'All' again")
 
 
+def _between(src, start, end):
+    i = src.index(start)
+    j = src.index(end, i + len(start))
+    return src[i:j + len(end)]
+
+
+@unittest.skipIf(shutil.which("node") is None, "node is absent - this law is UNMEASURED, not passing")
+class AnAnswerActsOnTheQueueItWasAskedAbout(unittest.TestCase):
+    """#230 — the second eye on v3497 (grok-4.7): an in-page question does not freeze the page the way
+    window.confirm did, so a poll could change the queue between the question and the click and
+    'Promote ALL 5' would promote 7. DRIVEN in node: the REAL confirm functions, a stub asker."""
+
+    def _run(self, grow):
+        src = UI
+        code = (_between(src, "  function _chQueueSig(){", "\n  }")
+                + "\n" + _between(src, "  function _chIfUnchanged(sig, again, act){", "\n    };\n  }")
+                + "\n" + _between(src, "  function chAcceptAllConfirm(){", "\n  }"))
+        js = """
+        var CH = { items: [{name:'a'},{name:'b'},{name:'c'},{name:'d'},{name:'e'}] };
+        var asked = [], promoted = 0, toasts = [];
+        function chAsk(text, label, onYes){ asked.push(label); window.__yes = onYes; }
+        function chAcceptAllNow(){ promoted = CH.items.length; }
+        function toast(m){ toasts.push(m); }
+        var window = {};
+        %s
+        chAcceptAllConfirm();
+        if (%s) CH.items.push({name:'f'}, {name:'g'});
+        window.__yes();
+        console.log(JSON.stringify({asked: asked, promoted: promoted, toasts: toasts}));
+        """ % (code, "true" if grow else "false")
+        r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise AssertionError("node could not run the confirm - UNKNOWN, not passing: %s" % r.stderr[:500])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_premise_an_unchanged_queue_is_promoted(self):
+        out = self._run(grow=False)
+        self.assertEqual(out["promoted"], 5)
+        self.assertEqual(out["asked"], ["Promote all 5"])
+
+    def test_a_queue_that_grew_is_asked_again_not_promoted(self):
+        out = self._run(grow=True)
+        self.assertEqual(out["promoted"], 0, "'Promote ALL 5' promoted a queue of 7")
+        self.assertEqual(out["asked"], ["Promote all 5", "Promote all 7"],
+                         "the answer did not re-ask with the new count: %r" % out["asked"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "#230 - an answer acts on a queue that changed after it was asked again (second eye on v3497: 'Promote ALL 5' promotes 7)",
+        "file": "control_ui.html",
+        "find": "      if (_chQueueSig() !== sig){ toast('The inbox changed while you were deciding - asking again'); again(); return; }\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#230 - 'clear all' asks in a native dialog again: it blocks the window, and some webviews answer NO unseen",
         "file": "control_ui.html",

@@ -21937,11 +21937,25 @@ window._lockMark = function(isOpen, px, label){
     no.onclick = function(){ g.hidden = true; };
   }
   window._chAsk = chAsk;
+  /* ⚠ #230 — THE SECOND EYE ON v3497 (grok-4.7): AN ANSWER ACTS ON THE QUEUE IT WAS ASKED ABOUT.
+     window.confirm froze the page until he answered; an in-page question does not, so a poll can
+     change the queue between the question and the click - and "Promote ALL 5" would then promote 7,
+     two of them never named to him. Each destructive answer now checks the queue is still the one it
+     named, and when it is not it asks again with the new count instead of acting. */
+  function _chQueueSig(){
+    return (CH.items || []).map(function(it){ return String((it && it.name) || it); }).sort().join('\u0001');
+  }
+  function _chIfUnchanged(sig, again, act){
+    return function(){
+      if (_chQueueSig() !== sig){ toast('The inbox changed while you were deciding - asking again'); again(); return; }
+      act();
+    };
+  }
   function chAcceptAllConfirm(){
     var n = (CH.items || []).length;
     if (!n) return;
     chAsk('Promote ALL ' + n + ' inbox items to FOUND (chronicle write)?\n\nThis cannot be undone from here — use Chronicle unfound if you need to reverse.',
-          'Promote all ' + n, chAcceptAllNow);
+          'Promote all ' + n, _chIfUnchanged(_chQueueSig(), chAcceptAllConfirm, chAcceptAllNow));
   }
   function chAcceptAllNow(){
     var W = _engWin();
@@ -21960,7 +21974,7 @@ window._lockMark = function(isOpen, px, label){
     var n = items.length;
     if (!n){ toast('Inbox is already empty'); return; }
     chAsk('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to chronicle). Re-review from the session anytime.',
-          'Clear all ' + n, function(){ chClearAllNow(items, n); });
+          'Clear all ' + n, _chIfUnchanged(_chQueueSig(), chClearAllConfirm, function(){ chClearAllNow(items, n); }));
   }
   function chClearAllNow(items, n){
     var W = _engWin();
@@ -22029,8 +22043,13 @@ window._lockMark = function(isOpen, px, label){
       var dA = t.closest && t.closest('.ch-sess-dismiss');
       if (dA){
         var _dsid = dA.getAttribute('data-sid');
-        chAsk('Dismiss ALL pending in this session?', 'Dismiss the session', function(){
-          chSessCall('kaiChronicleDismissSession', _dsid, '✕ Session dismissed'); });
+        /* re-asked by name, never by dA.click(): a poll may have re-rendered that button, and a click
+           on a detached node never reaches the delegated listener */
+        var _askSess = function(){
+          chAsk('Dismiss ALL pending in this session?', 'Dismiss the session', _chIfUnchanged(_chQueueSig(),
+            _askSess, function(){ chSessCall('kaiChronicleDismissSession', _dsid, '✕ Session dismissed'); }));
+        };
+        _askSess();
         return;
       }
       var ok = t.closest && t.closest('.ch-one-ok');

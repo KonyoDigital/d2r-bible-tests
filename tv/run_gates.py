@@ -5328,7 +5328,9 @@ GATES = [
              "empty plate says 'no picture'), the three destructive questions drawn ON THE PAGE (a native "
              "confirm() blocks the window; some webviews answer NO unseen), the chips' dim/danger variants "
              "styled outside the footer and the session dismiss labelled 'Dismiss' (a grok-4.7 look found "
-             "them reading as disabled). Pixels: render target ch-inbox. 4 cases, 2 red-proofs"),
+             "them reading as disabled). Pixels: render target ch-inbox. The second eye on v3497: an answer "
+             "acts only on the queue it was asked about (a poll between question and click re-asks). "
+             "6 cases, 3 red-proofs"),
     Gate("test_the_render_budget_is_not_spent_on_a_cold_cache",
          [sys.executable, os.path.join(HERE, "test_the_render_budget_is_not_spent_on_a_cold_cache.py")], 60,
          why="#236 - inside a push /api/heart cost 30.4s cold on the render gate's fresh console, a tenth "
