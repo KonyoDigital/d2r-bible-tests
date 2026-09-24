@@ -46,7 +46,9 @@ class TheMacFindsEveryRoute(unittest.TestCase):
     def test_geforce_now_in_its_app_or_a_browser_tab_pins(self):
         for owner, title in (("GeForceNOW", "Diablo® II: Resurrected™"),
                              ("Google Chrome", "Diablo® II: Resurrected™ on GeForce NOW"),
-                             ("Microsoft Edge", "GeForce NOW - Diablo II: Resurrected")):
+                             ("Microsoft Edge", "GeForce NOW - Diablo II: Resurrected"),
+                             # MEASURED on his screen 2026-09-24 — the first real streamed title
+                             ("Google Chrome", "Diablo II: Resurrected \u2013 Infernal Edition on GeForce NOW")):
             self.assertEqual(tv.game_route(owner, title), "geforce-now", "%s %r" % (owner, title))
             self.assertIsNotNone(tv.score_d2r_window_candidate(owner, title, W, H),
                                  "a streamed D2R window (%s %r) could not pin" % (owner, title))

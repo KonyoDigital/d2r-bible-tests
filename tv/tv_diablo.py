@@ -1179,9 +1179,12 @@ _PICK_LAUNCHER_TITLES = (
 #: on the Mac), and streamed from GeForce NOW or Boosteroid — in their own app OR in a browser tab.
 #: A browser was blocked wholesale (a guide tab titled "Diablo II: Resurrected build guide" must never
 #: pin), which made every streamed session invisible. A browser now qualifies ONLY with the SERVICE's
-#: name AND the GAME's name in its title. ⚠ The real cloud titles are UNMEASURED: when a service
-#: window is open without the game in its title, the picker says so (_PICK_WHY) instead of guessing,
-#: so the first real session teaches us its title. [[unknown-stays-unknown]]
+#: name AND the GAME's name in its title. MEASURED ONCE, 2026-09-24, on his screen while he played
+#: (caught by test_agent's live-screen case during a push): Google Chrome · "Diablo II: Resurrected –
+#: Infernal Edition on GeForce NOW", pinned as geforce-now. ⚠ Boosteroid and both native apps are
+#: still UNMEASURED: when a service window is open without the game in its title, the picker says so
+#: (_PICK_WHY) instead of guessing, so the first real session teaches us its title.
+#: [[unknown-stays-unknown]]
 _CLOUD_ROUTES = (
     # (route, owner tokens of the service's own app, title markers of the service in a browser tab)
     ("geforce-now", ("geforcenow", "geforce now", "nvidia geforce now"), ("geforce now", "geforcenow")),

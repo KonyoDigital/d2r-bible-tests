@@ -18,7 +18,9 @@ roster (`game_route` on the Mac, `CloudRoute` in the Windows C#): local D2R.exe,
 Boosteroid - their own app, or a browser tab carrying BOTH the service's and the game's name (a guide tab stays dead,
 v852 narrowed, not repealed). (R)/(TM) are normalized. A service window that does not name the game is REPORTED in the
 pick reason and never pinned; Linux pins nothing and says why. The route shows on the target label. The real cloud
-titles are UNMEASURED - the first streamed session's near-miss names them. Verified: `test_the_eye_finds_d2r_however_he_
+titles were UNMEASURED - and within the hour test_agent's live-screen case MEASURED one during a push: he was
+playing, and the picker pinned Google Chrome "Diablo II: Resurrected - Infernal Edition on GeForce NOW" as geforce-now
+(that case had asserted D2R.exe, one route of three; widened to "never the launcher"). Boosteroid/native apps: UNMEASURED. Verified: `test_the_eye_finds_d2r_however_he_
 runs_it` 12 cases / 4 proofs PROVEN; the Windows C# COMPILED on the ALT over SSH and CloudRoute answered all 7 cases.
 
 ### REG-1223 - THE PRINTER'S FIXTURE SHELF WALKED NOTHING BEHIND A SHUT LOCK

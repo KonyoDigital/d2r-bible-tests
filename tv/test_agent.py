@@ -1741,10 +1741,15 @@ class TestWindowPin(unittest.TestCase):
         wid, label = hit
         self.assertNotIn("tv diablo", label.lower())
         self.assertIsInstance(wid, int)
-        # v843 — if a game is up, pin must be D2R.exe (not CrossOver / Battle.net)
+        # v843 — if a game is up, pin must be the GAME (not CrossOver Home / Battle.net).
+        # #232 — and a streamed session IS the game. MEASURED on his screen 2026-09-24 by this very
+        # test: "GeForce NOW · Google Chrome · Diablo II: Resurrected – Infernal Edition on GeForce NOW".
+        # It asserted D2R.exe, which is only one of his routes; the law is "never the launcher".
         low = label.lower()
         if "d2r" in low or "diablo" in low:
-            self.assertIn("d2r.exe", low)
+            streamed = low.startswith("geforce now ·") or low.startswith("boosteroid ·")
+            if not streamed:
+                self.assertIn("d2r.exe", low)
             self.assertNotIn("crossover", low.split("·")[0])
             self.assertNotIn("battle.net", low.split("·")[0])
 
