@@ -76,8 +76,15 @@ test.describe('v69 boss top-drop row → calc routing', () => {
         : page.locator('#boss-detail-panel table.drops tbody tr').first();
       const name = c.text || (await row.locator('strong').first().textContent())?.trim() || '';
       await row.first().click();
-      await page.waitForTimeout(900);
-      const r = await page.evaluate((nm) => {
+      // #165 — POLL THE END STATE, DO NOT RACE THE ALIGNER. __alignCard (bible.html) re-aligns at 80,
+      // 420 and 900 ms with a SMOOTH scroll, and this sampled once at 900 ms. On a CI runner where
+      // one click took 3.8 s it measured mid-scroll: run 35966792974 read {top:1000, scrollY:3221,
+      // innerHeight:900} on mephisto/Venom Ward, the run before failed andariel/Nagelring instead —
+      // the failing case moved, which is a race, not a routing defect. (The other suspect, a huge
+      // sticky offset, was measured and refuted: .header is 249px.) The law is unchanged — the card
+      // opens, carries the name and lands in view — now asserted within a 4 s bound, and a real
+      // failure still reports the LAST rect it measured.
+      const probe = (nm: string) => {
         const det = document.getElementById('item-detail');
         const card = det?.querySelector('.aid-card') as HTMLElement | null;
         const rect = card?.getBoundingClientRect();
@@ -97,10 +104,15 @@ test.describe('v69 boss top-drop row → calc routing', () => {
             cards: det ? det.querySelectorAll('.aid-card').length : null,
           },
         };
-      }, name);
+      };
+      const want = { calc: true, shown: true, mentions: true, cardInView: true };
+      let r = await page.evaluate(probe, name);
+      for (let t = 0; t < 16 && !(r.calc && r.shown && r.mentions && r.cardInView); t++) {
+        await page.waitForTimeout(250);
+        r = await page.evaluate(probe, name);
+      }
       const { where, ...got } = r;
-      expect(got, `routing ${c.boss}/${name} - measured ${JSON.stringify(where)}`)
-        .toEqual({ calc: true, shown: true, mentions: true, cardInView: true });
+      expect(got, `routing ${c.boss}/${name} - measured ${JSON.stringify(where)}`).toEqual(want);
     }
     expect(errs).toEqual([]);
   });
