@@ -5344,6 +5344,18 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_pass_says_which_check_it_is_in",
+         [sys.executable, os.path.join(HERE, "test_a_pass_says_which_check_it_is_in.py")], 60,
+         why="#229 - his Windows ALT read 'not measured yet' for 14+ minutes after boot while the same checks "
+             "finished standalone in ~6 minutes, and nothing could name the check the pass sat in. The doctor "
+             "records the running check (CURRENT) and eagle_state() publishes it as `measuring`. 2 cases, "
+             "3 red-proofs"),
+    Gate("test_free_space_is_measured_on_every_os",
+         [sys.executable, os.path.join(HERE, "test_free_space_is_measured_on_every_os.py")], 60,
+         why="#229 - river.py, safe_copy and space_warden measured free disk with os.statvfs, which does not "
+             "exist on Windows: the river's disk joint read UNKNOWN on every Windows console and safe_copy "
+             "could never prove its 4 GB floor there. shutil.disk_usage everywhere; driven with statvfs "
+             "removed, plus an AST sweep. 4 cases, 2 red-proofs"),
     Gate("test_the_frozen_screen_watch_reads_only_recent_looks",
          [sys.executable, os.path.join(HERE, "test_the_frozen_screen_watch_reads_only_recent_looks.py")], 60,
          why="measured 2026-09-24: the evidence shelf grew to 9,325 PNGs / 3.2 GB and frozen_frame_watch walked "

@@ -46,6 +46,13 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 OK, MISSING, UNKNOWN, UNMEASURED = "ok", "missing", "unknown", "unmeasured"
+
+#: ⚠ #229 — WHAT THE PASS IS DOING RIGHT NOW. MEASURED 2026-09-24 on his Windows ALT: the eagle's first
+#: pass said "not measured yet" for 14+ minutes after boot, while the SAME checks finished standalone in
+#: 229 s (cheap) + 143 s (periodic). A pass that never ends could only say "not measured yet", so nothing
+#: could name the check it sat in. run() writes the running check here; the console publishes it.
+#: [[heart-first]] [[in-progress-must-carry-what-is-moving]]
+CURRENT = {"check": None, "since": None, "tick": None}
 ICON = {OK: "🟢", MISSING: "🟠", UNKNOWN: "⚪", UNMEASURED: "◻"}
 CONSOLE = "http://127.0.0.1:17772"
 
@@ -8355,6 +8362,7 @@ def run(include_slow=True, include_periodic=None, tick=None):
                              "ms": None})
                 continue
             t0 = time.time()
+            CURRENT.update(check=name, since=t0, tick=tick)
             try:
                 state, why = fn()
             except Exception as e:
@@ -8373,6 +8381,7 @@ def run(include_slow=True, include_periodic=None, tick=None):
             rows.append({"check": name, "state": state, "why": why,
                          "surfaces": list(WATCHES.get(name, ())),
                          "ms": _ms})
+    CURRENT.update(check=None, since=None, tick=None)     # the pass is over: nothing is running
     # #226 — every row carries its declared questions BEFORE it is banked or partitioned
     attach_asks(rows)
     if include_slow or include_periodic:

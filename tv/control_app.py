@@ -20008,7 +20008,19 @@ _EAGLE_EVERY_S = float(os.environ.get("TV_EAGLE_EVERY_S", "600") or 600)
 def eagle_state():
     """The last thing the watchdog saw. Reads a dict; changes nothing."""
     with _PRUNE_LOCK:
-        return dict(_EAGLE)
+        out = dict(_EAGLE)
+    # ⚠ #229 — WHILE A PASS IS OPEN, SAY WHICH CHECK IT IS IN. His Windows ALT read "not measured yet"
+    # for 14+ minutes after boot and nothing could name the check the pass sat in; the doctor now
+    # records it (console_doctor.CURRENT) and this publishes it with its age. [[heart-first]]
+    try:
+        _cd = sys.modules.get("console_doctor")
+        cur = dict(getattr(_cd, "CURRENT", None) or {}) if _cd is not None else {}
+        if cur.get("check") and cur.get("since"):
+            out["measuring"] = {"check": cur["check"], "forS": round(time.time() - cur["since"], 1),
+                                "tick": cur.get("tick")}
+    except Exception:
+        pass
+    return out
 
 
 def _eagle_once():

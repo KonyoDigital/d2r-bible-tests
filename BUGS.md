@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1247 - FREE DISK WAS MEASURED WITH A CALL WINDOWS DOES NOT HAVE
+
+**fix - #229, the per-machine roadmap.** river.py (the disk joint), safe_copy (its 4 GB floor) and space_warden measured
+free space with `os.statvfs`, which does not exist on Windows: the river's disk joint read UNKNOWN on every Windows
+console and safe_copy could never prove its floor there. All three use `shutil.disk_usage` (on POSIX it is
+f_bavail * f_frsize, the same number). Guard: `test_free_space_is_measured_on_every_os` - driven with os.statvfs made to
+RAISE and disk_usage answering a known 7 GB (a first cut DELETED statvfs, which on this Mac breaks disk_usage itself -
+the instrument, not the fix), plus an AST sweep; 4 cases, 2 proofs, PROVEN.
+
+### REG-1248 - A DOCTOR PASS THAT NEVER ENDED COULD NOT SAY WHERE IT WAS
+
+**instrument - #229, measured on his Windows ALT.** After the relaunch into v3499 the eagle read "not measured yet" for
+14+ minutes; the same checks, run standalone on the ALT with a watchdog, finished in 229 s (cheap) + 143 s (periodic). The
+stall is inside the console process only, and nothing could name it. `console_doctor.CURRENT` now holds the running
+check (set per check, cleared when the pass ends) and the console's eagle_state() publishes it as `measuring:
+{check, forS, tick}`. The next ALT boot names the check. Guard: `test_a_pass_says_which_check_it_is_in` (2 cases,
+3 proofs), PROVEN.
+
 ### REG-1246 - TWO VAULT-RECEIPT CASES PASSED ONLY ON A BANK THAT OPENS SOMETHING
 
 **fix - the second eye on 262e1a56 (grok-4.7), reproduced.** REG-1222 made the absent-backup and unreadable-backup doors
