@@ -313,41 +313,64 @@ def _attempt_no_such_reel_is_not_invented(P):
     return 1, (1 if names == [] and r.get("walked") in (0, None) or names == [] else 0)
 
 
+#: two reels no owner has ever heard of — handed to stream() through the river owner only
+_FIXTURE_REELS = ("___wilson_shelf_a___", "___wilson_shelf_b___")
+
+
+def _fixture_shelf(stream):
+    """stream() over a two-reel shelf that exists on every machine. -> dict
+
+    ⚠⚠ #123 — THE THREE SHAPE LAWS BELOW JUDGED ONLY HIS CORPUS, and answered (1, 0) — a LEAK — when
+    it held no reels. A clean checkout holds none, so every CI run filed "nothing to judge" as "the
+    printer invented an answer": `LEAKS · 33 of 36`, reproduced on a tracked-only copy of the tree
+    as stations / say-none / counts 0/1. The laws are properties of the PRINTER, not of his data, so
+    each is judged here on every machine, and his corpus adds its own trial where it exists.
+    Only the river is replaced: every other owner answers from the real tree and knows nothing of
+    these reels, so they reach the stations with no door, route or template — the absent-answer
+    path `say-none` exists for. An EMPTY walk of this shelf is still a leak: two reels went in.
+    [[test-venue]] [[unknown-stays-unknown]]"""
+    import reel_river as RR
+    fake = {"rows": [{"reel": n, "stage": "swept", "decider": "printer_wilson fixture shelf",
+                      "question": "a reel with nothing behind it"} for n in _FIXTURE_REELS]}
+    with _Patch(RR, "river", lambda *a, **k: fake):
+        return stream()
+
+
+def _shape_walks(real, fixture):
+    """The walks a shape law judges: his corpus when it holds reels, the fixture shelf always."""
+    return ([real] if (real.get("rows") or []) else []) + [fixture]
+
+
 def _attempt_every_station_is_present(P):
-    r = P.stream()
-    rows = r.get("rows") or []
-    if not rows:
-        return 1, 0
     want = set(P.STATIONS)
-    ok = all(set((x.get("stations") or {})) == want for x in rows)
-    return 1, (1 if ok else 0)
+    n = k = 0
+    for r in _shape_walks(P.stream(), _fixture_shelf(P.stream)):
+        rows = r.get("rows") or []
+        n += 1
+        k += 1 if rows and all(set((x.get("stations") or {})) == want for x in rows) else 0
+    return n, k
 
 
 def _attempt_no_station_says_the_word_None(P):
-    r = P.stream()
-    rows = r.get("rows") or []
-    if not rows:
-        return 1, 0
-    bad = []
-    for x in rows:
-        for cell in (x.get("stations") or {}).values():
-            if str((cell or {}).get("say")) == "None":
-                bad.append(x.get("reel"))
-    return 1, (1 if not bad else 0)
+    n = k = 0
+    for r in _shape_walks(P.stream(), _fixture_shelf(P.stream)):
+        rows = r.get("rows") or []
+        bad = [x.get("reel") for x in rows for cell in (x.get("stations") or {}).values()
+               if str((cell or {}).get("say")) == "None"]
+        n += 1
+        k += 1 if rows and not bad else 0
+    return n, k
 
 
 def _attempt_counts_sum_to_the_walk(P):
-    r = P.stream()
-    rows = r.get("rows") or []
-    if not rows:
-        return 1, 0
-    counts = r.get("counts") or {}
-    ok = True
-    for st in P.STATIONS:
-        total = sum((counts.get(st) or {}).values())
-        if total != len(rows):
-            ok = False
-    return 1, (1 if ok else 0)
+    n = k = 0
+    for r in _shape_walks(P.stream(), _fixture_shelf(P.stream)):
+        rows = r.get("rows") or []
+        counts = r.get("counts") or {}
+        n += 1
+        k += 1 if rows and all(sum((counts.get(st) or {}).values()) == len(rows)
+                               for st in P.STATIONS) else 0
+    return n, k
 
 
 def _attempt_unknown_shape_names_every_station(P):
@@ -675,6 +698,13 @@ RED_PROOF = [
         'find': 'sorted(set(river) | set(doors) | set(routes))',
         'replace': 'sorted(set(river) & set(doors) & set(routes))',
         'matches': 1,
+    },
+    {
+        "why": "#123 - a station no owner answered says the literal None: the say-none law, judged on the fixture shelf so it goes red on a clean checkout too (before this, CI filed an empty corpus as 3 leaks and could never see this one)",
+        "file": "printer.py",
+        "find": "d = {\"say\": \"UNKNOWN\", \"why\": \"%s did not report this reel\" % owner}",
+        "replace": "d = {\"say\": None, \"why\": \"%s did not report this reel\" % owner}",
+        "matches": 1,
     },
 ]
 
