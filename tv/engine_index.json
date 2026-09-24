@@ -2175,5 +2175,18 @@
     "gotcha": "It ONLY observes — it records and calls straight through to the originals, never redirecting, blocking or fabricating a write. ⚠ And it PROVES NOTHING UNTIL SOMETHING RUNS under `with watching()`: enabling it does not gather evidence, so the per-store answer is a measurement nobody has taken yet — which is not the same fact as 'one writer'. It exists because two static detectors (filename-adjacency grep, AST constant-resolution) both returned ZERO writers for all four stores, measuring the instruments rather than the code. Related trap recorded in write_census.py: patching only `open` also yields 0 — this codebase writes via io.open.",
     "purpose": "Runtime witness that patches open/io.open/os.replace to RECORD which module actually writes each watched reel store (vault_swept, vault_accum, reel_tombstones, retro_triage, chron_evidence).",
     "territory": "vault"
+  },
+  "his_answers.py": {
+    "entryPoints": [
+      "load",
+      "record",
+      "withdraw",
+      "standing",
+      "apply",
+      "entry_for"
+    ],
+    "gotcha": "A changed fingerprint REOPENS the question and keeps the old answer as stale history; ruled holds 30 days, snooze 7, handoff until the question changes. An unreadable store is reported and NEVER written over. The path is chosen by the console (_decision_path), so each machine keeps its own answers.",
+    "purpose": "Keeps his answers to the questions THIS console asked him (console_doctor.ASKS), one per question with the question's fingerprint, and applies them at read time so an answered question stops billing him and the row says what he chose.",
+    "territory": "console-ui"
   }
 }

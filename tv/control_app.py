@@ -19360,6 +19360,11 @@ def _auto_relaunch_path():
     return _decision_path("auto_relaunch.json")
 
 
+def _his_answers_path():
+    """#223 — his answers to the questions THIS console asked him; per machine, like every decision."""
+    return _decision_path("his_answers.json")
+
+
 def auto_relaunch_setting():
     """Is auto-relaunch on? -> True | False | None (never chosen, so the default applies)
 
@@ -19707,7 +19712,7 @@ def _drift_loop():
 # about two minutes, which is fine for a button and not fine every ten. It ANNOUNCES ONCE per
 # distinct problem, because a watchdog that repeats itself is one he learns to scroll past, and it
 # clears that memory when the problem goes, so a RETURNING fault is said again. It fixes nothing.
-def eagle_partition(rows):
+def eagle_partition(rows, answers=None):
     """THE ONE partition of doctor rows into his / mine / by-design / unknown. -> dict.
 
     ⚠⚠ v3308 — THIS EXISTS BECAUSE THE RULE WAS WRITTEN TWICE AND I DRIFTED IT MYSELF, IN THE
@@ -19749,24 +19754,162 @@ def eagle_partition(rows):
     except Exception:
         asks_known = False
 
+    # #223 — HIS ANSWERS ARE APPLIED AT READ TIME, so an answer given a second ago is already true
+    # here and never waits for the next watchdog tick. `answers` None = this console's own store;
+    # an unreadable store answers nothing (every question stays OPEN — the loud direction).
+    if answers is None:
+        try:
+            import his_answers as _ha0
+            answers, _ = _ha0.load(_his_answers_path())
+        except Exception:
+            answers = None
+    try:
+        import his_answers as _ha1
+        _ha1.apply(rows, answers or {})
+    except Exception:
+        pass
+
     def _asks_him(r):
         if not asks_known or "asks" not in r:
             return True
-        return bool(r.get("asks"))
+        return bool(r.get("openAsks", r.get("asks")))
     rows = list(rows or [])
     miss = [r for r in rows if isinstance(r, dict) and r.get("state") == "missing"]
     not_his = mine_names | design_names
-    no_q = [r for r in miss if r.get("check") not in not_his and not _asks_him(r)]
+    # an ANSWERED row is neither his (nothing is open) nor Claude's (he ruled on it): it has its own
+    # bucket, so a surface can say "you: Keep it as it is, 10:41" instead of CLAUDE OWES
+    _answered = lambda r: bool(r.get("answered")) and not r.get("openAsks")
+    no_q = [r for r in miss if r.get("check") not in not_his and not _asks_him(r) and not _answered(r)]
     return {
         "bad":      [r for r in miss if r.get("check") not in not_his and _asks_him(r)],
         "mine":     [r for r in miss if r.get("check") in mine_names] + no_q,
         "noQuestion": no_q,
+        # rows he has answered: they no longer bill him and they say what he chose
+        "answered": [r for r in rows if isinstance(r, dict) and r.get("answered")],
         "byDesign": [r for r in miss if r.get("check") in design_names],
         # UNKNOWN is reported, never folded into OK. `unmeasured` is a periodic that was not
         # asked this tick — his #35 ruling: it carries its last verdict and does not bill him.
         "unk":      [r for r in rows if isinstance(r, dict)
                      and r.get("state") in ("unknown", "unmeasured")],
     }
+
+
+def _eagle_his_figures(part, n_rows, unk):
+    """-> the watchdog fields decided by the partition. ONE place, used by the tick AND by the
+    re-apply after he answers, so the two can never compute his count two ways. [[copy-drift]]"""
+    bad, mine = part["bad"], part["mine"]
+    return {
+        "needsYou": len(bad), "mine": len(mine),
+        "mineWhat": [r.get("check") for r in mine],
+        # #226 — THE SERVER'S OWN LIST of what bills him. The board re-derived it from mineWhat and
+        # ignored byDesignWhat, so it billed 7 where this said 5; surfaces read this instead of
+        # re-deciding. `noQuestionWhat` names the red rows Claude owns because they ask him nothing.
+        "needsYouWhat": [r.get("check") for r in bad],
+        "noQuestionWhat": [r.get("check") for r in part.get("noQuestion", [])],
+        "answeredWhat": [r.get("check") for r in part.get("answered", [])],
+        "say": ("all clear across %d check(s)" % n_rows) if not bad and not unk else
+               (("%d need you%s" % (len(bad), (", %d not measured" % len(unk)) if unk else ""))
+                if bad else "%d check(s) could not be measured" % len(unk)),
+    }
+
+
+def board_answer(body, origin):
+    """#223 — his answer to ONE question this console asked him, from his own board. -> (code, dict)
+
+    Refuses, in this order, each with its own name and without writing anything:
+      origin      the request did not come from this console's own page (a null or foreign Origin —
+                  `_cors` answers `*`, so this is the only thing standing between any page he has
+                  open and a write to his decisions)
+      automation  navigator.webdriver: a harness, a probe or a bot must never answer for him
+      confirm     no explicit yes (`_confirmed` is a whitelist)
+      guest       not his own board: a guest world is read-only here
+      unmeasured  the console has not measured yet, so it has asked nothing
+      undeclared  no current row declares this question, or this answer
+      stale       the question changed since his board drew it (409 carries the current one)
+      store       the answers store cannot be read or written — never written over
+    [[the-unjoined-end]] [[unknown-stays-unknown]]"""
+    body = body if isinstance(body, dict) else {}
+    ok_origins = {"http://127.0.0.1:%d" % CONTROL_PORT, "http://localhost:%d" % CONTROL_PORT}
+    if not origin or origin not in ok_origins:
+        return 403, {"ok": False, "refused": "origin",
+                     "why": "only this console's own page may answer (Origin %r)" % (origin,)}
+    if body.get("webdriver") is True or str(body.get("webdriver")).lower() == "true":
+        return 403, {"ok": False, "refused": "automation",
+                     "why": "an automated browser cannot answer for him"}
+    if not _confirmed(body.get("confirm")):
+        return 400, {"ok": False, "refused": "confirm", "why": "an answer needs an explicit yes"}
+    who = body.get("who")
+    if not isinstance(who, dict) or who.get("pfx") != "":
+        return 403, {"ok": False, "refused": "guest",
+                     "why": "answer from your own board; this one is a guest world and cannot"}
+    st = eagle_state()
+    if st.get("needsYou") is None:
+        return 409, {"ok": False, "refused": "unmeasured",
+                     "why": "the console has not measured yet, so it has asked you nothing"}
+    ask_id = body.get("askId")
+    ask = None
+    for r in list(st.get("rows") or []) + list(st.get("slowRows") or []):
+        for a in ((r.get("asks") or []) if isinstance(r, dict) else []):
+            if isinstance(a, dict) and a.get("id") == ask_id:
+                ask = a
+    if ask is None:
+        return 404, {"ok": False, "refused": "undeclared",
+                     "why": "this console is not asking %r right now" % (ask_id,)}
+    try:
+        import his_answers as _ha
+    except Exception as e:
+        return 500, {"ok": False, "refused": "store", "why": "his_answers will not import: %s" % e}
+    if body.get("withdraw") is True:
+        ok, why = _ha.withdraw(_his_answers_path(), ask_id)
+        if not ok:
+            return 409, {"ok": False, "refused": "store", "why": why}
+        e = eagle_reapply_answers()
+        return 200, {"ok": True, "withdrawn": ask_id, "eagle": _eagle_answer_view(e)}
+    key = body.get("key")
+    if key not in [x.get("key") for x in (ask.get("answers") or []) if isinstance(x, dict)]:
+        return 400, {"ok": False, "refused": "undeclared",
+                     "why": "%r is not one of the answers this question offers" % (key,)}
+    if body.get("fp") != ask.get("fp"):
+        return 409, {"ok": False, "refused": "stale", "ask": ask,
+                     "why": "the question changed since your board drew it - here is the current one"}
+    ent, why = _ha.record(_his_answers_path(), ask, key)
+    if ent is None:
+        return 409, {"ok": False, "refused": "store", "why": why}
+    e = eagle_reapply_answers()
+    return 200, {"ok": True, "answer": ent, "eagle": _eagle_answer_view(e)}
+
+
+def _eagle_answer_view(e):
+    """The slice of the watchdog a board needs to repaint after an answer."""
+    keys = ("needsYou", "needsYouWhat", "mine", "mineWhat", "noQuestionWhat", "answeredWhat",
+            "byDesign", "byDesignWhat", "unknown", "say", "checked", "answersAppliedAt", "rows",
+            "slowRows")
+    return {k: e.get(k) for k in keys}
+
+
+def eagle_reapply_answers():
+    """Re-partition the rows the watchdog already holds with his answers as they are NOW. -> dict
+
+    #223 — called after he answers, so the count and the pile move within the same request instead
+    of waiting up to 600 s for the next tick. Changes only the partition-derived fields."""
+    with _PRUNE_LOCK:
+        rows = list(_EAGLE.get("rows") or [])
+        slow = list(_EAGLE.get("slowRows") or [])
+        if _EAGLE.get("needsYou") is None:
+            return dict(_EAGLE)                   # nothing measured yet: nothing to re-apply
+        seen, drawn = set(), []
+        for r in rows + slow:
+            k = r.get("check") if isinstance(r, dict) else None
+            if k is not None and k in seen:
+                continue
+            if k is not None:
+                seen.add(k)
+            drawn.append(r)
+        part = eagle_partition(drawn)
+        unk = [r for r in drawn if isinstance(r, dict) and r.get("state") in ("unknown", "unmeasured")]
+        _EAGLE.update(_eagle_his_figures(part, len(rows), unk))
+        _EAGLE["answersAppliedAt"] = int(time.time() * 1000)
+        return dict(_EAGLE)
 
 
 _EAGLE = {"checked": None, "needsYou": None, "unknown": None, "rows": [], "say": "not measured yet",
@@ -19926,14 +20069,7 @@ def _eagle_once():
             # pass makes eagle-ran-every-check 34 vs 32, permanently red. Last-known or NEVER.
             "slowRows": _slow_rows,   # v3293 — the same list the figures above counted
             "slowWhy": _slow_why,     # v3294 — empty unless the slow surface could not be read
-            "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
-            "mineWhat": [r.get("check") for r in mine],
-            # #226 — THE SERVER'S OWN LIST of what bills him. The board re-derived it from
-            # mineWhat and ignored byDesignWhat, so it billed 7 where this said 5; surfaces read
-            # this instead of re-deciding. `noQuestionWhat` names the red rows Claude owns because
-            # they ask him nothing. [[copy-drift]]
-            "needsYouWhat": [r.get("check") for r in bad],
-            "noQuestionWhat": [r.get("check") for r in _part.get("noQuestion", [])],
+            "unknown": len(unk),
             # v3307 (#62) — AND IT MUST REACH A SURFACE, or this is a correct computation nobody
             # reads: the rows would vanish from his count with nothing to show where they went,
             # which is silencing by another name. Same pair of fields as `mine` above.
@@ -19946,9 +20082,9 @@ def _eagle_once():
             # part he should see. Carried onto the payload so a surface can say it in words.
             "returning": [{"check": t["scar"].get("check"), "returns": t["scar"].get("returns")}
                           for t in tended if (t["scar"].get("returns") or 0) > 0],
-            "say": ("all clear across %d check(s)" % len(rows)) if not bad and not unk else
-                   (("%d need you%s" % (len(bad), (", %d not measured" % len(unk)) if unk else ""))
-                    if bad else "%d check(s) could not be measured" % len(unk))})
+            # #223 — needsYou, mine, the three name lists and `say`: decided by the partition, in
+            # ONE helper shared with eagle_reapply_answers(), never restated inline here.
+            **_eagle_his_figures(_part, len(rows), unk)})
     # ══ v2394 — THE EAGLE'S PASS IS NOW DURABLE, BECAUSE _EAGLE IS A MODULE GLOBAL ═══════════
     # Konyo: "Plus the_eagle_can_still_look = UNKNOWN... no gaps... information is needed
     # obviously, so connect it to the heart of the console too."
@@ -34936,6 +35072,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             self._json(200, {"ok": bool(_row), "recorded": _row})
+            return
+        if path == "/api/board_answer":
+            # #223 — his answer to a question this console asked him. All the refusals live in
+            # board_answer() so they can be driven without a server; this only carries the Origin.
+            _code, _out = board_answer(body, self.headers.get("Origin"))
+            self._json(_code, _out)
             return
         if path == "/api/board_tally":
             # ⚠ v2189 — THE BOARD HANDS OVER ITS OWN COUNTS, so this works on Windows too.

@@ -133,7 +133,7 @@ RED_PROOF = [
     {
         "why": "#226 - the partition bills every red row whether or not it asks him anything (5 billed, 1 his)",
         "file": "control_app.py",
-        "find": "        return bool(r.get(\"asks\"))\n",
+        "find": "        return bool(r.get(\"openAsks\", r.get(\"asks\")))\n",
         "replace": "        return True\n",
         "matches": 1,
     },

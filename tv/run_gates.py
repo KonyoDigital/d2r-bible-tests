@@ -5321,6 +5321,14 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_his_answer_closes_only_its_question",
+         [sys.executable, os.path.join(HERE, "test_his_answer_closes_only_its_question.py")], 90,
+         why="#223 - his answer from the mailbox: one per question with its fingerprint (a changed "
+             "question reopens, a lapsed answer reopens, an unreadable store is never written over), "
+             "applied at read time so the count moves in the same request, in its own bucket (never "
+             "CLAUDE OWES). POST /api/board_answer refuses a foreign/missing Origin (_cors answers *), "
+             "an automated browser, no explicit yes, a guest board, nothing measured, an undeclared "
+             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 5 red-proofs"),
     Gate("test_a_row_is_his_only_when_it_asks",
          [sys.executable, os.path.join(HERE, "test_a_row_is_his_only_when_it_asks.py")], 90,
          why="#226 - his ruling: 'it should only really be waiting on me if its something i need to do'. "
