@@ -4204,6 +4204,79 @@ def _establish_tree_at_boot():
     return rows
 
 
+def _ensure_pillow_at_boot(_find=None, _run=None):
+    """#227 — THE CONSOLE MAKES SURE IT CAN READ ITS OWN FRAMES, ON WINDOWS, AT BOOT.
+    -> the attempt record, or None when it is not this console's job
+
+    ⚠ MEASURED 2026-09-24 over SSH on the ALT: tree at 6dab59f1 (the launcher's Pillow step, 6ed85ece,
+    included), consoles started 20:26 and 21:06 - and NO Pillow. start_tvd_win.log's last entry was
+    19:04, before the step existed: every later start was this process's own os.execv after a
+    self-update, which never passes through start_tvd_win.ps1. The fix could only ever reach a machine
+    by a desktop double-click, and a machine that keeps itself current never gets one.
+    [[the-unjoined-end]]
+    So the console does it itself: probe, and if PIL is missing, `python.exe -m pip install --user
+    Pillow` in THIS thread (never the UI's), hidden (_WIN_CREATE), bounded. The user site is added to
+    sys.path after, so this very process can decode without a restart. The attempt is recorded on
+    console_doctor.PILLOW_BOOT, which the row 'this machine can decode a frame' quotes."""
+    if not IS_WIN:
+        return None
+    try:
+        import win_relaunch as _wr
+        if _wr.scratch_console():
+            return None
+    except Exception:
+        return None
+    import importlib
+    import importlib.util
+    find = _find or importlib.util.find_spec
+    rec = {"ts": int(time.time() * 1000), "tried": False, "ok": None, "why": None}
+    try:
+        import console_doctor as _cd
+        _cd.PILLOW_BOOT = rec
+    except Exception:
+        pass
+    try:
+        present = find("PIL") is not None
+    except Exception:
+        present = False
+    if present:
+        rec.update(ok=True, why="Pillow was already importable")
+        return rec
+    exe = sys.executable or "python"
+    if exe.lower().endswith("pythonw.exe"):
+        exe = exe[:-len("pythonw.exe")] + "python.exe"     # pythonw has no stdout for pip to write to
+    argv = [exe, "-m", "pip", "install", "--user", "--quiet", "Pillow"]
+    rec["tried"] = True
+    run = _run or subprocess.run
+    try:
+        p = run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=600, creationflags=_WIN_CREATE if IS_WIN else 0)
+        rc = getattr(p, "returncode", None)
+    except Exception as e:
+        rec.update(ok=False, why="pip could not run (%s: %s)" % (type(e).__name__, str(e)[:120]))
+        print("\u26a0 boot Pillow install: %s" % rec["why"], flush=True)
+        return rec
+    if rc != 0:
+        tail = ((getattr(p, "stderr", "") or "") + (getattr(p, "stdout", "") or "")).strip()[-160:]
+        rec.update(ok=False, why="pip exited %s: %s" % (rc, tail or "no output"))
+        print("\u26a0 boot Pillow install: %s" % rec["why"], flush=True)
+        return rec
+    try:
+        import site
+        site.addsitedir(site.getusersitepackages())
+        importlib.invalidate_caches()
+    except Exception:
+        pass
+    try:
+        now = find("PIL") is not None
+    except Exception:
+        now = False
+    rec.update(ok=bool(now), why=("installed at boot and importable" if now else
+                                  "pip said it installed, but PIL still does not import in this process"))
+    print("boot Pillow install: %s" % rec["why"], flush=True)
+    return rec
+
+
 def _prewarm_seal_cache():
     """v880 (Grok j / back-pass #4) — build the theatre's ?w=1280 derivatives for the NEWEST
     sealed session in a low-priority background thread: first playback pays no sips storm.
@@ -36719,6 +36792,8 @@ def main():
         print("\u26a0 boot index sweep skipped: %s" % _se, flush=True)
     # #227 — this machine's own tree, established where it lives (see _establish_tree_at_boot)
     threading.Thread(target=_establish_tree_at_boot, daemon=True, name="tvd-tree").start()
+    # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
+    threading.Thread(target=_ensure_pillow_at_boot, daemon=True, name="tvd-pillow").start()
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875

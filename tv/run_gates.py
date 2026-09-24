@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_self_updated_console_can_read_its_frames",
+         [sys.executable, os.path.join(HERE, "test_a_self_updated_console_can_read_its_frames.py")], 60,
+         why="REG-1260 (#227) - MEASURED on the ALT: tree at 6dab59f1 held the launcher's Pillow step, "
+             "consoles started 20:26 and 21:06, no Pillow - the launcher's last run was 19:04; every later "
+             "start was the console's own os.execv, which never runs start_tvd_win.ps1. The console now "
+             "installs Pillow at boot (python.exe, hidden, user site added) and the doctor row quotes the "
+             "attempt instead of promising a launcher run. 6 cases, 2 red-proofs"),
     Gate("test_every_operator_door_keeps_its_contract",
          [sys.executable, os.path.join(HERE, "test_every_operator_door_keeps_its_contract.py")], 60,
          why="REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design "

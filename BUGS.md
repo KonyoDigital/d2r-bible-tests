@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1260 - THE PILLOW FIX COULD ONLY REACH A MACHINE BY A DOUBLE-CLICK, AND THE ALT NEVER GETS ONE
+
+**fix - #227, found by reading the ALT live over SSH for the fix's own proof.** Tree at 6dab59f1 (so it HELD 6ed85ece,
+the launcher's Pillow step), consoles started 20:26 and 21:06 - and `import PIL` failed. start_tvd_win.log's last line
+was 19:04, before the step existed: every later start was the console's own `os.execv` after a self-update, which never
+passes through start_tvd_win.ps1. A machine that keeps itself current never runs its launcher again, so the fix could
+not reach the one machine it was written for. And the doctor row said "the Windows launcher installs it on its next
+start" - a promise that never came true there. Now `_ensure_pillow_at_boot()` runs in its own boot thread on Windows
+(skipped for scratch consoles): probe, and if PIL is missing `python.exe -m pip install --user --quiet Pillow` (never
+pythonw), hidden (_WIN_CREATE), bounded at 600s, then the user site is added to sys.path so this process can decode
+without a restart. The attempt is kept on console_doctor.PILLOW_BOOT, and the row quotes it instead of the launcher.
+Sweep: pywebview is the launcher's only other install and a RUNNING console already has it; git pull is done by the
+console itself. Guard: `test_a_self_updated_console_can_read_its_frames` (6 cases, 2 proofs), PROVEN. Live proof: the
+ALT's next boot on a version that carries this.
+
 ### REG-1259 - THREE OF ROUTINE I'S 36 STANDING REDS WERE REAL SOURCE FINDINGS NOBODY HAD READ
 
 **fix - #165, found by splitting Routine I's hard fails from its flaky ones across four runs.** The hard set is 36 and

@@ -6587,13 +6587,18 @@ def _check_this_machine_can_get_a_second_opinion():
                 % (cli, float(getattr(_eye, "EYE_TIMEOUT_S", 0) or 0)))
 
 
+#: #227 — control_app._ensure_pillow_at_boot's attempt on THIS console ({ts, tried, ok, why}); None = never tried
+PILLOW_BOOT = None
+
+
 def _check_this_machine_can_decode_a_frame():
     """#227 — CAN THIS MACHINE READ THE FRAMES IT FILMS?
 
     MEASURED 2026-09-24 over SSH: his Windows ALT ran Python 3.12.10 with pywebview and NO Pillow.
     Every frame reader in the chain (tv_diablo, chronicle_calibrate) imports PIL, so every frame that
     box captured was unreadable - and no row anywhere said so, because each reader swallows the
-    ImportError where it happens. The launcher now installs Pillow on start; this row is what says
+    ImportError where it happens. The Windows launcher installs Pillow on a double-click and the console
+    itself does at boot (REG-1260: a self-updated console never re-runs the launcher); this row is what says
     whether that worked, on THIS machine, where the answer lives. [[heart-first]]
 
     It round-trips a 4x3 BMP in memory (the format the Windows capture writes) and checks a pixel,
@@ -6601,9 +6606,19 @@ def _check_this_machine_can_decode_a_frame():
     try:
         from PIL import Image
     except Exception as e:
+        # REG-1260 — this used to promise "the Windows launcher installs it on its next start": a
+        # self-updated console never runs the launcher, so the promise never came true. Say what
+        # THIS console's own boot attempt did.
+        b = PILLOW_BOOT
+        if isinstance(b, dict) and b.get("tried"):
+            did = "this console tried to install it at boot and %s" % (b.get("why") or "said nothing")
+        elif isinstance(b, dict):
+            did = "this console's boot check ran but did not try to install (%s)" % (b.get("why") or "no reason")
+        else:
+            did = "this console has not tried to install it (only Windows consoles do, at boot)"
         return MISSING, ("Pillow will not import on this machine (%s), so no frame this console films "
-                         "can be read - the Windows launcher installs it on its next start; by hand: "
-                         "%s -m pip install --user Pillow" % (type(e).__name__, sys.executable))
+                         "can be read - %s; by hand: %s -m pip install --user Pillow"
+                         % (type(e).__name__, did, sys.executable))
     try:
         import io as _io
         buf = _io.BytesIO()
