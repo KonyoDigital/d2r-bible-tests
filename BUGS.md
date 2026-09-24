@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1254 - TWO ESCAPES WITH AN INBOX QUESTION UP CLOSED HIS CONSOLE
+
+**fix - the second eye on v3497 (grok-4.7, 1b9b7248), reproduced twice: in node on the real handlers, and in real Chrome on
+a private console.** The inbox's capture-phase Escape listener ran before the in-page question's own and stopped the event,
+so Escape with "Promote ALL N?" up closed the INBOX and left the question on screen with its yes button armed; the NEXT
+Escape reached the empty-page handler, which did not list #ch-ask among the overlays that claim Escape, and POSTed
+`/api/quit`. Real Chrome, shipped code (CDP Input.dispatchKeyEvent): after Esc 1 {modal closed, question UP}, after Esc 2
+{console DEAD}. With the fix: after Esc 1 {inbox open, question gone}, after Esc 2 {inbox closed, console alive}, yes
+never fired. Four changes: Escape with a question up answers it "no" and stops; the question's own listener stops the
+event; closing the inbox closes and DISARMS its question; the quit handler counts an open question as an overlay.
+(The eye's second finding - the queue changing under an open question - was already fixed in REG-1238.) Guard:
+`test_escape_answers_the_question_no` (5 cases incl. the premise that an empty page still quits; 3 proofs), PROVEN.
+
 ### REG-1253 - v1694 COMPARED TWO MOMENTS OF A PAGE THAT GROWS ON ITS OWN CLOCK
 
 **test - Routine I red on ea76abff and 2450dcc2: "element count changed under a failing beacon: 30292 vs baseline

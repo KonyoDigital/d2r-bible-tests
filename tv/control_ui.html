@@ -21664,6 +21664,9 @@ window._lockMark = function(isOpen, px, label){
   function chModalClose(){
     CH.open = false;
     var ov = $('ch-modal'); if (ov) ov.hidden = true;
+    /* a question about the inbox never outlives the inbox: hidden AND disarmed */
+    var ask = document.getElementById('ch-ask');
+    if (ask){ ask.hidden = true; var y = document.getElementById('ch-ask-yes'); if (y) y.onclick = null; }
   }
   function chIsActionable(x){
     if (!x) return false;
@@ -21925,7 +21928,10 @@ window._lockMark = function(isOpen, px, label){
         + '<p id="ch-ask-text"></p><div class="ch-ask-acts">'
         + '<button type="button" class="ch-btn dim" id="ch-ask-no">Not now</button>'
         + '<button type="button" class="ch-btn ok" id="ch-ask-yes"></button></div></div>';
-      g.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') g.hidden = true; });
+      g.addEventListener('keydown', function(ev){
+        if (ev.key !== 'Escape') return;
+        ev.preventDefault(); ev.stopPropagation(); g.hidden = true;
+      });
       document.body.appendChild(g);
     }
     document.getElementById('ch-ask-text').textContent = text;
@@ -22065,9 +22071,18 @@ window._lockMark = function(isOpen, px, label){
     var as = $('ch-accept-sel'); if (as) as.onclick = chAcceptSelected;
     var ds = $('ch-dismiss-sel'); if (ds) ds.onclick = chDismissSelected;
     var aa = $('ch-accept-all'); if (aa) aa.onclick = chAcceptAllConfirm;
+    /* ⚠⚠ THE SECOND EYE ON v3497 (grok-4.7), confirmed in this code: this capture-phase listener runs
+       BEFORE the question's own and stopped the event, so Escape with a question up closed the INBOX,
+       left the question on screen with "Promote all N" armed, and the NEXT Escape reached the empty-page
+       handler below, which did not know #ch-ask existed, and POSTed /api/quit - his console closed.
+       Escape with a question up is "no": the question goes, the inbox stays. */
     document.addEventListener('keydown', function(e){
       if (!CH.open) return;
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); chModalClose(); }
+      if (e.key !== 'Escape') return;
+      e.preventDefault(); e.stopPropagation();
+      var _ask = document.getElementById('ch-ask');
+      if (_ask && !_ask.hidden){ _ask.hidden = true; return; }
+      chModalClose();
     }, true);
   })();
   var _chBtn = $('btn-chronicle-inbox');
@@ -22122,7 +22137,7 @@ window._lockMark = function(isOpen, px, label){
       // 'tvd-frame-lb' was in this list too and is NOT a console element (it is the board's,
       // inside the iframe) — it could never be found by getElementById here. The two that
       // remain are genuinely this document's overlays.
-      var _ovIds = ['forensics-ov', 'th-dossier-ov'];
+      var _ovIds = ['forensics-ov', 'th-dossier-ov', 'ch-ask'];   /* an open question claims Escape */
       for (var _oi = 0; _oi < _ovIds.length; _oi++){
         var _ov = document.getElementById(_ovIds[_oi]);
         if (_ov && !_ov.hidden) return;

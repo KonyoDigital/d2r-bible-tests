@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_escape_answers_the_question_no",
+         [sys.executable, os.path.join(HERE, "test_escape_answers_the_question_no.py")], 60,
+         why="the second eye on v3497: Escape with an in-page inbox question up closed the INBOX (a capture-phase "
+             "listener ran first and stopped the event), left 'Promote all N' armed, and the next Escape reached "
+             "the empty-page handler and POSTed /api/quit. The real handlers run in node through a capture/bubble "
+             "dispatcher; on the shipped code the law reproduces the quit. 5 cases, 3 red-proofs"),
     Gate("test_a_child_s_words_are_read_as_utf8_on_every_os",
          [sys.executable, os.path.join(HERE, "test_a_child_s_words_are_read_as_utf8_on_every_os.py")], 60,
          why="#229 - measured on his Windows ALT: the visual-lock row ran its child with text=True and no encoding, "
