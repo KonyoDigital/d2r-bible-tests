@@ -1094,6 +1094,24 @@ def _vault_row_has_frame():
     return ("data-rcpt" in _row) or ("tvd-frame-thumb" in _row) or ("data-frame" in _row)
 
 
+def _receipt_resolution_clause(rres):
+    """The sentence for how many receipts can OPEN, and whether that is a broken address. -> (str, bool)
+
+    ONE wording for both paths of check_vault_receipts (#123 — the no-backup early return had none,
+    and a second copy of this sentence is how the two would drift). [[copy-drift]]
+    """
+    if rres[1] and rres[0] == 0:
+        # every banked frame unreachable is a BROKEN ADDRESS, not pruned footage: pruning takes
+        # frames one at a time and never lands on exactly all of them.
+        return ("; and NOT ONE of the %d banked best-frames opens where the board looks - the "
+                "receipt button is wired to an address nothing lives at" % rres[1]), True
+    if rres[1]:
+        return ("; %d of %d banked best-frames still have their footage on disk (the rest were "
+                "pruned, which is honest absence rather than a broken link)" % rres), False
+    return ("; whether those receipts can actually OPEN is UNKNOWN - the evidence bank could not "
+            "be read here"), False
+
+
 def _receipts_resolve(sample=None):
     """Of the banked best-frames, how many can the board ACTUALLY open? -> (resolved, tested)
 
@@ -1172,9 +1190,20 @@ def check_vault_receipts(backup_dir=None):
     except Exception:
         _files = []
     if not _files:
-        return _row("vaultReceipts", UNKNOWN,
+        # ⚠ #123 — RESOLUTION DOES NOT NEED THE BACKUP. Whether a receipt can OPEN is a question about
+        # banked frames on disk, and this early return skipped it: on a venue with no backup (every CI
+        # runner) the row carried no `receiptFrames` at all, which is the silent omission v3193 exists
+        # to refuse — a receipt that opens nothing indistinguishable from one that opens.
+        try:
+            _rr0 = _receipts_resolve()
+        except Exception:
+            _rr0 = (0, 0)
+        _clause0, _broken0 = _receipt_resolution_clause(_rr0)
+        return _row("vaultReceipts", WARN if _broken0 else UNKNOWN,
                     "no ledger backup exists yet, so nothing here can say how many vault rows "
-                    "carry a receipt - which is not the same as saying none do",
+                    "carry a receipt - which is not the same as saying none do" + _clause0,
+                    evidence=[("receiptFrames %d of %d open on disk" % _rr0) if _rr0[1]
+                              else "receiptFrames UNKNOWN (the bank could not be read)"],
                     k=_atkK, n=_atkN)
     try:
         with io.open(_files[-1], encoding="utf-8") as _fh:
@@ -1259,18 +1288,10 @@ def check_vault_receipts(backup_dir=None):
     # are different questions and only one of them is the feature. [[the-green-that-lies]]
     _rres = _receipts_resolve()
     _state = OK if (_joined and _withev) else (WARN if _owned else UNKNOWN)
-    if _rres[1] and _rres[0] == 0:
-        # every banked frame unreachable is a BROKEN ADDRESS, not pruned footage: pruning takes
-        # frames one at a time and never lands on exactly all of them.
-        _line += ("; and NOT ONE of the %d banked best-frames opens where the board looks - the "
-                  "receipt button is wired to an address nothing lives at" % _rres[1])
+    _clause, _broken = _receipt_resolution_clause(_rres)
+    _line += _clause
+    if _broken:
         _state = WARN
-    elif _rres[1]:
-        _line += ("; %d of %d banked best-frames still have their footage on disk (the rest were "
-                  "pruned, which is honest absence rather than a broken link)" % _rres)
-    else:
-        _line += ("; whether those receipts can actually OPEN is UNKNOWN - the evidence bank "
-                  "could not be read here")
     return _row("vaultReceipts", _state, _line,
                 # ⚠ A LIST, NOT A DICT. `_row` does `list(evidence or [])`, so a dict lands as
                 # its KEY NAMES and every number is lost. v3145's check_lane_attacks has been

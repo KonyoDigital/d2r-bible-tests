@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3489",
+  "ver": "v3490",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3489: the capture joint now carries an UNKNOWN door split when there is no history directory, so the field never vanishes; CI red becomes a reading",
+  "note": "v3490: the vault receipt row measures banked-frame resolution even with no ledger backup and speaks one shared sentence for both paths",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3489** | `(this commit)` | v3489 — the capture joint now carries an UNKNOWN door split when there is no history directory, so the field never vanishes; CI red becomes a reading |
+| **v3490** | `(this commit)` | v3490 — the vault receipt row measures banked-frame resolution even with no ledger backup and speaks one shared sentence for both paths |
+| **v3489** | `9db6aa24` | v3489 — the capture joint now carries an UNKNOWN door split when there is no history directory, so the field never vanishes; CI red becomes a reading |
 | **v3488** | `7fa3e3f3` | v3488 — printer_wilson derives door vs unit from each attempt and banks only the attacks that reach printer.stream; the 14 helper checks still run, reported apart |
 | **v3487** | `75dada26` | v3487 — self_arming credits distinct attacks conservatively (every failure may be a different attack); prune.reports goes from an inflated 0.901 HARDENED to 0.610 OPEN, still over its bar |
 | **v3486** | `23f4ce02` | v3486 — a failed shadow-thread start now removes the snapshot it was handed; found by the second eye on v3483 |

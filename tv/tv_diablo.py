@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3489"   # on a machine with no history the river dropped its door split instead of saying unknown
+VERSION = "v3490"   # with no ledger backup the receipt row stopped measuring whether a receipt can open
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

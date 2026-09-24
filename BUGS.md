@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1203 - WITH NO LEDGER BACKUP THE RECEIPT ROW STOPPED MEASURING WHETHER A RECEIPT CAN OPEN
+
+**v3490 - #123, test_the_vault_receipt_is_watched (CI red, green here).** `check_vault_receipts` returned early when no
+ledger backup existed (every CI runner), before `_receipts_resolve` — so the row carried no `receiptFrames` at all, the
+silent omission v3193 exists to refuse. Resolution is a question about banked frames on disk and does not need the backup:
+the early return now measures it, carries `receiptFrames`, and speaks the same resolution sentence — one
+`_receipt_resolution_clause` for both paths (a second copy is how they drift), and an all-unreachable bank grades WARN on
+either path. Verified with no backups and real frames (a combination the old line could not describe): passes. Its sibling
+test_a_receipt_can_actually_be_opened now hands in a fixture backup instead of reading his ~/d2r_ledger_backups.
+
 ### REG-1202 - ON A MACHINE WITH NO HISTORY THE RIVER DROPPED ITS DOOR SPLIT INSTEAD OF SAYING UNKNOWN
 
 **v3489 - #123, test_reel_door (CI red, green here).** `river.j_capture` returned early when there was no history
