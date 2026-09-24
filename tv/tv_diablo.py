@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3478"   # the parallel-proof law never ran the real prover
+VERSION = "v3479"   # a reused file name was published as one picture changing its mind
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6319,10 +6319,13 @@ def claude_read(path, worker=None, out_jpg=None):
             # ══ GROK EYES (G5) — shadow (never replaces Claude) ══
             try:
                 if _G5 is not None and _G5.is_shadow():
-                    def _g5_shadow_job(_p=ap, _c=out):
+                    # #197 — name the PICTURE Claude just read, NOW: `ap` may be a scratch file
+                    # the next read overwrites while the shadow read is still running.
+                    _pic = _G5.picture_id(ap)
+                    def _g5_shadow_job(_p=ap, _c=out, _pic=_pic):
                         try:
                             _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                            _G5.g5_shadow_log(_c, _gr, _p)
+                            _G5.g5_shadow_log(_c, _gr, _p, picture=_pic)
                         except Exception:
                             pass
                     threading.Thread(target=_g5_shadow_job, daemon=True).start()
@@ -6345,10 +6348,11 @@ def claude_read(path, worker=None, out_jpg=None):
         # ══ GROK EYES (G5) — shadow oneshot path ══
         try:
             if _G5 is not None and _G5.is_shadow():
-                def _g5_shadow_job2(_p=ap, _c=out):
+                _pic = _G5.picture_id(ap)      # #197 — the picture Claude read, before the thread
+                def _g5_shadow_job2(_p=ap, _c=out, _pic=_pic):
                     try:
                         _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                        _G5.g5_shadow_log(_c, _gr, _p)
+                        _G5.g5_shadow_log(_c, _gr, _p, picture=_pic)
                     except Exception:
                         pass
                 threading.Thread(target=_g5_shadow_job2, daemon=True).start()

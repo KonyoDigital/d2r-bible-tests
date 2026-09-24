@@ -7252,6 +7252,11 @@ def _check_the_two_eyes_are_compared():
                          "this comparison is is UNKNOWN" % (last,))
     say = ("the two eyes disagree on %s of READS and %s of distinct FRAMES where both answered "
            "(newest %s, %.1f day(s) old) · lane mode=%s" % (_frac(reads), _frac(frames), last, age, mode))
+    # #197 — a read under a reused scratch name (read.jpg) is placed in NO frame; say how many, or
+    # the frame fraction reads as covering every read when it does not. [[zero-needs-a-denominator]]
+    _unattr = names.get("frames_unattributed_rows")
+    if _unattr:
+        say += " · %d read(s) under reused scratch names are attributed to no frame" % _unattr
     if mode == "primary":
         if age > _EYES_STALE_DAYS:
             # ⚠ AND IT CANNOT REFRESH ITSELF. g5_shadow_log() has exactly two callers

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3478",
+  "ver": "v3479",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3478: the lane-agreement law now runs the REAL heart2 prover in per-lane trees whose gates watch each other tamper targets; a shared sandbox moves a verdict 8 of 8",
+  "note": "v3479: the shadow log now stores a picture hash before and after the Grok read; frames key on it and read.jpg is attributed to no frame instead of one mixed frame",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

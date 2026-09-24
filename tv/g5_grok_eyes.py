@@ -25,6 +25,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re as _re
 import os
@@ -1020,12 +1021,40 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     return parsed
 
 
-def g5_shadow_log(claude_result, grok_result, image_path=""):
+def picture_id(path):
+    """-> a short content hash naming the PICTURE at `path`, or None when it cannot be read.
+
+    ⚠⚠ #197 — A BASENAME NAMES A PATH, NOT A PICTURE. `read.jpg` is ONE scratch file the capture
+    loop rewrites on every read (tv_diablo.py writes FRAMES/read.jpg at five sites), and
+    `read_<rid>_<n>.jpg` is a per-reader scratch file; only `f_<epoch-ms>.jpg` is written once.
+    MEASURED on his store: read.jpg carries 131 of 1,596 both-answered rows, and the reducer
+    published them as ONE frame disagreeing with itself. A reducer cannot recover an identity the
+    log never stored, so the writer stores one. None is UNKNOWN, never a match.
+    [[heart-first]] [[zero-needs-a-denominator]]
+    """
+    try:
+        h = hashlib.sha1()
+        with open(str(path), "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 16), b""):
+                h.update(chunk)
+        return h.hexdigest()[:16]
+    except Exception:
+        return None
+
+
+def g5_shadow_log(claude_result, grok_result, image_path="", picture=None):
+    # `picture` is picture_id() taken by the CALLER right after Claude's read and BEFORE the
+    # shadow thread starts — the file may be a scratch path the next read overwrites while Grok is
+    # still reading. `picture_after` is taken here, after Grok's read. When the two differ the lanes
+    # were not shown the same picture, and the row is not a comparison of one frame.
+    _after = picture_id(image_path) if image_path else None
     try:
         rec = {
             "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
             "lane": "subscription-cli",
             "image": os.path.basename(str(image_path or "")),
+            "picture": picture,
+            "picture_after": _after,
             "claude_names": (claude_result or {}).get("names") if isinstance(claude_result, dict) else None,
             "grok_names": (grok_result or {}).get("names") if isinstance(grok_result, dict) else None,
             "claude_scene": (claude_result or {}).get("scene") if isinstance(claude_result, dict) else None,

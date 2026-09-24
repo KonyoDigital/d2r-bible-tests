@@ -63,6 +63,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -180,6 +181,36 @@ def _bucket(rows, answered, key):
     return both, one_c, one_g, neither
 
 
+#: a history frame's name is its capture time in epoch ms, written ONCE — so the name IS the picture
+_FRAME_NAME_RX = re.compile(r"^f_\d{10,}\.jpg$")
+
+
+def frame_key(row):
+    """-> a key naming the ONE picture a row compared, or None when the row names no picture.
+
+    ⚠⚠ #197 — raised by the cross-family eye on the shipped v3451 bytes. The frame figures grouped
+    by `image`, a BASENAME, and `read.jpg` is one scratch path rewritten on every read: 131 of
+    1,596 both-answered rows went into ONE "mixed" frame — published as a frame changing its mind
+    when it is 131 different pictures. So, in order:
+        picture and picture_after both known and DIFFERENT -> None: the file changed between the
+                                                             two reads; the lanes saw two pictures
+        picture known                                   -> ("picture", hash)
+        a legacy row named f_<epoch-ms>.jpg             -> ("frame", name) — written once
+        read.jpg, read_<rid>_<n>.jpg, no name           -> None: a REUSED path names no picture
+    None is attributed to NO frame and counted out loud, never guessed into one.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    pic, after = row.get("picture"), row.get("picture_after")
+    if pic and after and pic != after:
+        return None
+    if pic:
+        return ("picture", str(pic))
+    name = str(row.get("image") or "")
+    if _FRAME_NAME_RX.match(name):
+        return ("frame", name)
+    return None
+
+
 def _names_field(rows):
     both, one_c, one_g, neither = _bucket(rows, answered_names, "names")
     bf, bl = _window(both)
@@ -221,11 +252,22 @@ def _names_field(rows):
     # split is 50.9% always-agree, 40.0% always-disagree, and 9.1% MIXED — the same frame giving
     # DIFFERENT verdicts on different reads, which is a lane disagreeing with ITSELF.
     # A rate is only a rate over things that were counted once. [[zero-needs-a-denominator]]
-    # ⚠ `image` is a BASENAME and can collide (read.jpg carries 131 rows), so a frame count is
-    # itself an upper bound on distinct pictures — said out loud rather than implied.
-    _by_frame = {}
+    # ⚠ #197 — grouped by frame_key(), never by the bare basename: a reused scratch path is not
+    # a frame, and a row whose picture changed between the two reads compared two pictures.
+    _by_frame, _unattr = {}, {}
+    _moved = _pair_known = 0
     for _r in both:
-        _by_frame.setdefault(str(_r.get("image") or ""), []).append(_r)
+        if _r.get("picture") and _r.get("picture_after"):
+            _pair_known += 1
+            if _r["picture"] != _r["picture_after"]:
+                _moved += 1
+        _key = frame_key(_r)
+        if _key is None:
+            _nm = str(_r.get("image") or "") or "(no name)"
+            _unattr[_nm] = _unattr.get(_nm, 0) + 1
+            continue
+        _by_frame.setdefault(_key, []).append(_r)
+    _unattr_rows = sum(_unattr.values())
     _f_agree = _f_dis = _f_mixed = 0
     for _k, _rs in _by_frame.items():
         _v = set()
@@ -259,7 +301,14 @@ def _names_field(rows):
         "frames_agree": figure(_f_agree, _fd, bf, bl),
         "frames_disagree": figure(_f_dis, _fd, bf, bl),
         "frames_mixed": figure(_f_mixed, _fd, bf, bl),
-        "reads_per_frame": (round(float(d) / _fd, 1) if _fd else None),
+        # the rows the frame figures could NOT place, by name — never folded into a frame
+        "frames_unattributed_rows": _unattr_rows,
+        "frames_unattributed_names": [{"name": k, "rows": v} for k, v in
+                                      sorted(_unattr.items(), key=lambda kv: (-kv[1], kv[0]))],
+        # rows whose picture changed between Claude's read and Grok's; None when no row carries
+        # both identities, because 0 would claim a measurement nobody took
+        "rows_picture_moved": (figure(_moved, _pair_known, bf, bl) if _pair_known else None),
+        "reads_per_frame": (round(float(d - _unattr_rows) / _fd, 1) if _fd else None),
         # The headline with the free agreement removed: two empty lists matching is not two eyes
         # agreeing about anything on his screen.
         "agree_excluding_both_empty": figure(shapes["equal_nonempty"],
@@ -337,6 +386,15 @@ def reduce_rows(rows, source=None):
             "the record carries no per-lane confidence, mode or error, so a lane's [] cannot be "
             "told apart from a lane whose read failed and logged the EMPTY sentinel - every "
             "'agree, both empty' row below is therefore of unknown worth")
+    _nf = fields["names"]
+    _no_pic = sum(1 for r in rows if not r.get("picture")
+                  and answered_names(r.get("claude_names")) and answered_names(r.get("grok_names")))
+    if _no_pic:
+        caveats.append(
+            "%d both-answered row(s) carry no picture identity: an f_<epoch-ms> name stands in for "
+            "one, and %d row(s) under reused scratch names (%s) are attributed to no frame"
+            % (_no_pic, _nf["frames_unattributed_rows"],
+               ", ".join(u["name"] for u in _nf["frames_unattributed_names"][:4]) or "none"))
     if not rows:
         caveats.append("no rows: nothing here is evidence of agreement OR of disagreement")
 

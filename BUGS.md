@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1180 - A REUSED FILE NAME WAS PUBLISHED AS ONE PICTURE CHANGING ITS MIND
+
+**v3479 - #197, raised by the cross-family eye on the shipped v3451 bytes.** `g5_shadow_log` stored only
+`os.path.basename(image)` and the reducer's per-FRAME figures grouped by it. `read.jpg` is ONE scratch
+path the capture loop rewrites on every read, so 131 of 1,596 both-answered rows were one "mixed" frame.
+And the shadow read runs in a THREAD after Claude's read returns, so Grok may have been shown the NEXT
+frame — nothing recorded whether the two lanes saw the same picture. The writer now stores `picture`
+(hashed by the caller right after Claude's read, before the thread) and `picture_after` (after Grok's).
+`frame_key()` keys on the identity, falls back to the name only for `f_<epoch-ms>.jpg`, and places
+everything else in NO frame, counted; a row whose picture changed is not a comparison of one frame;
+`rows_picture_moved` is None, never 0, when no row carries both hashes. The doctor row names the
+unattributed reads. His store: 165 frames 84/66/15 -> 161 frames 81/66/14, 135 reads unattributed.
+14 cases, 6 red-proofs PROVEN. ⚠ The writer only runs in SHADOW mode; the lane is PRIMARY, so no row
+carries the new fields yet.
+
 ### REG-1179 - THE PAYLOAD LAW'S FIXTURE WAS WHATEVER THE LAST COMMIT HAPPENED TO CHANGE
 
 **test: commit after v3478 - #123.** `test_payload_names_what_it_left_out` asked `git show HEAD` of the
