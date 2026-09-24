@@ -2907,9 +2907,118 @@ MINE = {
 }
 
 
+#: ══ #223/#226 — A ROW IS HIS ONLY WHEN IT ASKS HIM SOMETHING ════════════════════════════════════
+#: HIS RULING, 2026-09-24: "it should only really be waiting on me if its something i need to do".
+#: MEASURED on his live console the same morning: WAITING ON YOU read 5 and ONE was his — the
+#: shadow gate, a judgement nobody else can make. The other four were a lane I had not drained, a
+#: parser owed a declared field, a seed bake owed, and a river the planner itself calls "an answer,
+#: not a failure". v2284 made every unlisted check his BY DEFAULT and asked each defect to be argued
+#: OUT; that is how the count kept filling with my work. The default is inverted here: a red row
+#: bills him only while its check DECLARES a question for him — what exactly is needed, why, and
+#: the answers he can give. Everything else is Claude's, and says so under WAITING ON CODE.
+#:
+#: ⚠ NOT A MUTE BUTTON, same as MINE and BY_DESIGN: every row still renders at its real state and
+#: colour. ⚠ AND IT FAILS LOUD: a row whose ask cannot be computed carries `askWhy`, and a surface
+#: that cannot read this registry (or a row saved before it existed) bills him as before, so the
+#: number he acts on can never shrink for a reason nobody can see. [[unknown-stays-unknown]]
+ASK_KINDS = ("decide", "do")
+ASK_EFFECTS = ("ruled", "handoff", "verify", "snooze")
+ASK_LABEL_MAX = 28
+
+
+def _ask_shadow_gate(row):
+    """The one question that is genuinely his: which gate ticks a grail item by itself."""
+    if row.get("state") != MISSING:
+        return []
+    direction = "unknown"
+    try:
+        import shadow_ledger as _sl
+        _bd = (_sl.state() or {}).get("byDirection") or {}
+        _h, _g = int(_bd.get("shadowWouldHold") or 0), int(_bd.get("shadowWouldGround") or 0)
+        direction = ("wouldHold" if _h and not _g else "wouldGround" if _g and not _h
+                     else "both" if (_h and _g) else "none")
+    except Exception:
+        pass                      # the fingerprint says UNKNOWN; the question is still his
+    return [{
+        "id": "shadow-gate",
+        "kind": "decide",
+        "q": "Should the console be stricter before it ticks a grail item by itself?",
+        "why": row.get("why") or "",
+        # the identity of the QUESTION: it changes only if the disagreement changes direction
+        "fp": "shadow-gate:%s" % direction,
+        "answers": [
+            {"key": "keep", "label": "Keep it as it is", "effect": "ruled"},
+            {"key": "stricter", "label": "Be stricter (Wilson)", "effect": "handoff"},
+            {"key": "week", "label": "Ask me in a week", "effect": "snooze"},
+        ],
+    }]
+
+
+#: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
+ASKS = {
+    "shadow gate": _ask_shadow_gate,
+}
+
+
+def ask_problems(ask):
+    """-> [str] what is wrong with one declared ask ([] when it is well formed)."""
+    bad = []
+    if not isinstance(ask, dict):
+        return ["not a dict"]
+    for k in ("id", "kind", "q", "fp", "answers"):
+        if not ask.get(k):
+            bad.append("no %s" % k)
+    if ask.get("kind") not in ASK_KINDS:
+        bad.append("kind %r" % ask.get("kind"))
+    ans = ask.get("answers") or []
+    if not 1 <= len(ans) <= 4:
+        bad.append("%d answers (1-4)" % len(ans))
+    keys = [a.get("key") for a in ans if isinstance(a, dict)]
+    if len(set(keys)) != len(ans):
+        bad.append("answer keys not unique")
+    for a in ans:
+        if not isinstance(a, dict):
+            continue
+        if len(a.get("label") or "") > ASK_LABEL_MAX or not a.get("label"):
+            bad.append("label %r" % a.get("label"))
+        if a.get("effect") not in ASK_EFFECTS:
+            bad.append("effect %r" % a.get("effect"))
+    return bad
+
+
+def attach_asks(rows):
+    """Give every row its declared questions (`asks`, [] when none). -> rows
+
+    A row whose ask throws or is malformed gets `asks: []` AND `askWhy`, so it lands under
+    Claude's work with the reason printed, never silently in or out of his count."""
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        fn = ASKS.get(r.get("check"))
+        if fn is None:
+            r["asks"] = []
+            continue
+        try:
+            got = list(fn(r) or [])
+        except Exception as e:
+            r["asks"], r["askWhy"] = [], "its question could not be computed: %s" % str(e)[:120]
+            continue
+        probs = ["%s: %s" % ((a or {}).get("id") if isinstance(a, dict) else "?", "; ".join(ask_problems(a)))
+                 for a in got if ask_problems(a)]
+        if probs:
+            r["asks"], r["askWhy"] = [], "its declared question is malformed (%s)" % " | ".join(probs)[:200]
+            continue
+        r["asks"] = got
+    return rows
+
+
 def owner_of(name):
-    """-> 'me' when a named code defect owns it, else 'you'."""
-    return "me" if name in MINE else "you"
+    """-> 'you' only for a check that can ASK him something (#226), else 'me'.
+
+    Name-level: whether THIS tick bills him is decided per row by its `asks` (attach_asks)."""
+    if name in MINE:
+        return "me"
+    return "you" if name in ASKS else "me"
 
 
 def _check_what_runs_without_him():
@@ -8076,6 +8185,8 @@ def run(include_slow=True, include_periodic=None, tick=None):
             rows.append({"check": name, "state": state, "why": why,
                          "surfaces": list(WATCHES.get(name, ())),
                          "ms": _ms})
+    # #226 — every row carries its declared questions BEFORE it is banked or partitioned
+    attach_asks(rows)
     if include_slow or include_periodic:
         _persist_slow(rows)   # v3298 — periodic-inclusive passes bank their reading too
     try:

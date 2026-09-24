@@ -5321,6 +5321,15 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_a_row_is_his_only_when_it_asks",
+         [sys.executable, os.path.join(HERE, "test_a_row_is_his_only_when_it_asks.py")], 90,
+         why="#226 - his ruling: 'it should only really be waiting on me if its something i need to do'. "
+             "Measured: WAITING ON YOU read 5 and ONE was his. v2284 made every unlisted check his by "
+             "default; a red row now bills him only while its check DECLARES a question (console_doctor.ASKS: "
+             "what is needed, why, the answers), and every other red row lands under Claude's work, still "
+             "drawn. Fails loud: a pre-registry row or an unreadable registry bills him as before. The "
+             "server publishes needsYouWhat and the mailbox reads it instead of re-deciding (it billed 7 "
+             "where the console billed 5). 8 cases, 4 red-proofs"),
     Gate("test_an_entrance_survives_endurance",
          [sys.executable, os.path.join(HERE, "test_an_entrance_survives_endurance.py")], 60,
          why="#228 - his ⚙ ADVANCED drawer read open with black under it and its tooltips answering from "

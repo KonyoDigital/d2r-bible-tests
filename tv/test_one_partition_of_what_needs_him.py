@@ -115,7 +115,7 @@ class TestOnePartitionOfWhatNeedsHim(unittest.TestCase):
         rows = [
             {"check": "end routes reachable", "state": "missing"},   # BY_DESIGN
             {"check": "the river",            "state": "missing"},   # BY_DESIGN
-            {"check": "ledger staleness",     "state": "missing"},   # genuinely his
+            {"check": "ledger staleness",     "state": "missing"},   # no `asks` key: bills (the loud direction, #226)
             {"check": "board join",           "state": "missing"},   # MINE
             {"check": "tooltip finder",       "state": "unknown"},
             {"check": "engines corroborate",  "state": "unmeasured"},
@@ -184,8 +184,9 @@ RED_PROOF = [
     {
         "why": "dropping BY_DESIGN from the partition puts rows ruled NOT-DEFECTS back on his count",
         "file": "tv/control_app.py",
-        "find": '        "bad":      [r for r in miss if r.get("check") not in not_his],',
-        "replace": '        "bad":      [r for r in miss if r.get("check") not in mine_names],',
+        # re-anchored #226: `bad` also requires the row to ask him something; the BY_DESIGN half is unchanged
+        "find": '        "bad":      [r for r in miss if r.get("check") not in not_his and _asks_him(r)],',
+        "replace": '        "bad":      [r for r in miss if r.get("check") not in mine_names and _asks_him(r)],',
         "matches": 1,
     },
     {

@@ -112,7 +112,8 @@ RED_PROOF = [
     {
         "why": "calling everything mine empties the one column he relies on",
         "file": "tv/console_doctor.py",
-        "find": '    return "me" if name in MINE else "you"',
+        # re-anchored #226: owner_of now answers 'you' only for a check that can ASK him something
+        "find": '    return "you" if name in ASKS else "me"',
         "replace": '    return "me"',
         "matches": 1,
     },

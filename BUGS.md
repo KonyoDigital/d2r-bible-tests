@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1217 - WAITING ON YOU BILLED HIM FOR FOUR ROWS THAT ASKED HIM NOTHING (v3494)
+
+**fix - #226, his ruling 2026-09-24: "it should only really be waiting on me if its something i need to do".** Measured
+on his live rows: needsYou 5, and one was his (the shadow gate - which gate may tick a grail item by itself). The other
+four were Claude's work: a lane not yet drained, a parser owed a declared field, a seed bake owed, a river the planner
+calls "an answer, not a failure". v2284 made every unlisted check his BY DEFAULT. Inverted: `console_doctor.ASKS`
+declares the checks that ask him something (question, facts, 1-4 answers, a fingerprint of the question), `attach_asks`
+puts `asks` on every row in run() before banking, and `eagle_partition` bills a red row only while it carries one;
+the rest land in `mine` + `noQuestion`, still drawn at their real state. Fails loud: a pre-registry row (no `asks` key)
+or an unreadable registry bills him as before. The mailbox re-derived ownership from mineWhat alone and ignored
+byDesignWhat (billed 7 where the console billed 5); it reads the server's `needsYouWhat` now. Simulated on his live
+rows: 5 -> 1. Guards: `test_a_row_is_his_only_when_it_asks` (8 cases, 4 proofs) + inbox driven cases (one proof came
+back BLIND on the first fixture - both rules agreed on it - and the fixture now holds a row only the server list
+excludes); three older proofs re-anchored. All PROVEN.
+
 ### REG-1216 - AFTER MINUTE TEN THE ADVANCED DRAWER PAINTED AT OPACITY 0 (v3493)
 
 **fix - #228, his report with two screenshots: the EYES switch (OFF/SHADOW/PRIMARY) and the shadow reader toggle

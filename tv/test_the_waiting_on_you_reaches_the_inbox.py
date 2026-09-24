@@ -186,6 +186,46 @@ setTimeout(function(){
         self.assertIn("the river", got["html"])
         self.assertNotIn("extraction lanes</b>", got["html"])
 
+    def test_only_what_the_server_says_asks_him_reaches_his_pile(self):
+        """#226 -- his ruling: "it should only really be waiting on me if its something i need to
+        do". The server names the rows that ASK him something (needsYouWhat); the pile draws those
+        and nothing else -- not a red row with no question, not a by-design one. Measured before:
+        this pile billed 7 where the console billed 5, because it re-decided ownership here."""
+        post = """
+var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve({
+  eagle: { needsYou: 1, unknown: 0, mine: 1, mineWhat: ['ledger staleness'],
+           byDesignWhat: ['the river'], needsYouWhat: ['shadow gate'],
+           noQuestionWhat: ['ledger staleness', 'handoff lanes drained'],
+           rows: [ {check: 'ledger staleness', state: 'missing', why: 'a bake owed'},
+                   {check: 'handoff lanes drained', state: 'missing', why: 'asks him nothing'},
+                   {check: 'the river', state: 'missing', why: 'by design'},
+                   {check: 'shadow gate', state: 'missing', why: 'your call'} ] } }); } }); };
+_eagleNYFetch();
+setTimeout(function(){
+  console.log(JSON.stringify({html: _host.innerHTML, hidden: _host.hidden, cache: _eagleNY}));
+}, 30);
+"""
+        # `handoff lanes drained` is in NO list the pile could re-derive from (not mineWhat, not
+        # byDesignWhat) -- only the server's needsYouWhat leaves it out, so this case can tell
+        # "reads the server" from "re-decides locally" (heart2 caught the first cut BLIND).
+        got = self._run(self.CONSOLE, post=post)
+        self.assertEqual([r["check"] for r in got["cache"]["rows"]], ["shadow gate"],
+                         "a row that asks him nothing, or is red by design, reached his pile")
+
+    def test_an_older_payload_still_holds_the_by_design_rows_out(self):
+        post = """
+var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve({
+  eagle: { needsYou: 1, unknown: 0, mine: 0, mineWhat: [], byDesignWhat: ['the river'],
+           rows: [ {check: 'the river', state: 'missing', why: 'by design'},
+                   {check: 'shadow gate', state: 'missing', why: 'your call'} ] } }); } }); };
+_eagleNYFetch();
+setTimeout(function(){
+  console.log(JSON.stringify({html: _host.innerHTML, hidden: _host.hidden, cache: _eagleNY}));
+}, 30);
+"""
+        got = self._run(self.CONSOLE, post=post)
+        self.assertEqual([r["check"] for r in got["cache"]["rows"]], ["shadow gate"])
+
     def test_a_crashed_watchdog_is_not_dressed_as_a_young_one(self):
         """needsYou:null covers never-ran AND ran-and-crashed; the server's say tells them apart
         and the painter must too. [[unknown-stays-unknown]]"""
@@ -319,6 +359,13 @@ setTimeout(function(){
 
 RED_PROOF = [
     {
+        "why": "#226 - the pile re-decides ownership again instead of reading the server's list: rows that ask him nothing are billed to him",
+        "file": "bible.html",
+        "find": "              if (nyW ? nyW.indexOf(rows[i].check) >= 0\n",
+        "replace": "              if (false ? nyW.indexOf(rows[i].check) >= 0\n",
+        "matches": 1,
+    },
+    {
         "why": "dropping the no-console branch makes the public site paint the on-console states "
                "about a console it cannot reach — 'nothing waiting' told to strangers",
         "file": "bible.html",
@@ -330,8 +377,8 @@ RED_PROOF = [
         "why": "counting every missing row re-bills him for Claude's own defects — the chip says "
                "11 while the pile paints 13, and a pile that lies is one he stops reading",
         "file": "bible.html",
-        "find": "                  && mineW.indexOf(rows[i].check) < 0) bad.push(rows[i]);",
-        "replace": "                  ) bad.push(rows[i]);",
+        "find": "                      : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);",
+        "replace": "                      : true) bad.push(rows[i]);",
         "matches": 1,
     },
     {

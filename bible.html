@@ -50812,7 +50812,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3493', name:'v3493 - ADVANCED EYES AND SHADOW READER VISIBLE AGAIN AFTER MINUTE TEN', date:'2026-09-24', note:'#228 - after 10 minutes every console enters endurance and pauses every animation; a one-shot fade-in that started later started paused at opacity 0, so the EYES switch, the shadow reader and 27 other entrances were laid out, hoverable and invisible. They keep running under endurance now. HEART: the watchers are tv/test_an_entrance_survives_endurance.py (derived from the keyframes, red on any new fade-in without the exemption) and the new render_check invisible field, with the ADVANCED targets judged under endurance (sabotage-proven red, --prove 4/4)' };
+  window.D2R_BUILD = { id:'v3494', name:'v3494 - WAITING ON YOU COUNTS ONLY WHAT ASKS HIM SOMETHING', date:'2026-09-24', note:'#226 - his ruling: it should only be waiting on him if it is something he needs to do. Measured on his live rows: 5 billed, 1 his (the shadow gate). A red row now bills him only while its check declares a question (console_doctor.ASKS); the other four land under WAITING ON CODE, still drawn. The mailbox reads the server list needsYouWhat instead of re-deciding (it billed 7 where the console billed 5).' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -51898,11 +51898,19 @@ window._CH_PILL_MAP = {
                extra being MY bugs he cannot act on. Measured live: mineWhat carried
                ['extraction lanes', 'board join'] at that exact moment. */
             var mineW = e.mineWhat || [];
-            var bad = [];
-            var rows = e.rows || [];
+            /* #226 -- needsYouWhat IS THE SERVER'S OWN LIST of what bills him, and re-deciding it
+               here drifted: this pile read mineWhat alone and ignored byDesignWhat, so it billed 7
+               where the console billed 5 (measured 2026-09-24). A row is his only while it ASKS
+               him something; the server decides that once. An older payload without the list
+               falls back to the old rule, which now holds the by-design rows out as well. */
+            var nyW = e.needsYouWhat, designW = e.byDesignWhat || [];
+            var bad = [], _seenNY = {};
+            var rows = (e.rows || []).concat(e.slowRows || []);
             for (var i = 0; i < rows.length; i++){
-              if (rows[i] && rows[i].state === 'missing'
-                  && mineW.indexOf(rows[i].check) < 0) bad.push(rows[i]);
+              if (!rows[i] || rows[i].state !== 'missing' || _seenNY[rows[i].check]) continue;
+              _seenNY[rows[i].check] = 1;
+              if (nyW ? nyW.indexOf(rows[i].check) >= 0
+                      : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);
             }
             _eagleNY = { st: (bad.length ? 'rows' : 'clear'), why: '',
                          needsYou: e.needsYou,

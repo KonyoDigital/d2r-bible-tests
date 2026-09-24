@@ -19736,12 +19736,31 @@ def eagle_partition(rows):
         design_names = set(getattr(_cd1, "BY_DESIGN", {}) or {})
     except Exception:
         design_names = set()
+    # ⚠⚠ #226 — A ROW IS HIS ONLY WHEN IT ASKS HIM SOMETHING. His ruling, 2026-09-24: "it should
+    # only really be waiting on me if its something i need to do". Measured the same morning: 5
+    # billed, 1 his. A red row with no declared question is Claude's work and lands in `mine`
+    # (and `noQuestion`, so a surface can say why), still drawn at its real state. It FAILS LOUD:
+    # if the registry will not load, or a row predates it (no `asks` key — a banked slow row), the
+    # row bills him exactly as before, because a roster nobody can read must never quietly shrink
+    # the number he acts on.
+    try:
+        import console_doctor as _cd2
+        asks_known = isinstance(getattr(_cd2, "ASKS", None), dict)
+    except Exception:
+        asks_known = False
+
+    def _asks_him(r):
+        if not asks_known or "asks" not in r:
+            return True
+        return bool(r.get("asks"))
     rows = list(rows or [])
     miss = [r for r in rows if isinstance(r, dict) and r.get("state") == "missing"]
     not_his = mine_names | design_names
+    no_q = [r for r in miss if r.get("check") not in not_his and not _asks_him(r)]
     return {
-        "bad":      [r for r in miss if r.get("check") not in not_his],
-        "mine":     [r for r in miss if r.get("check") in mine_names],
+        "bad":      [r for r in miss if r.get("check") not in not_his and _asks_him(r)],
+        "mine":     [r for r in miss if r.get("check") in mine_names] + no_q,
+        "noQuestion": no_q,
         "byDesign": [r for r in miss if r.get("check") in design_names],
         # UNKNOWN is reported, never folded into OK. `unmeasured` is a periodic that was not
         # asked this tick — his #35 ruling: it carries its last verdict and does not bill him.
@@ -19909,6 +19928,12 @@ def _eagle_once():
             "slowWhy": _slow_why,     # v3294 — empty unless the slow surface could not be read
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
+            # #226 — THE SERVER'S OWN LIST of what bills him. The board re-derived it from
+            # mineWhat and ignored byDesignWhat, so it billed 7 where this said 5; surfaces read
+            # this instead of re-deciding. `noQuestionWhat` names the red rows Claude owns because
+            # they ask him nothing. [[copy-drift]]
+            "needsYouWhat": [r.get("check") for r in bad],
+            "noQuestionWhat": [r.get("check") for r in _part.get("noQuestion", [])],
             # v3307 (#62) — AND IT MUST REACH A SURFACE, or this is a correct computation nobody
             # reads: the rows would vanish from his count with nothing to show where they went,
             # which is silencing by another name. Same pair of fields as `mine` above.
@@ -31337,7 +31362,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3493",
+        "ver": "v3494",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34435,8 +34460,10 @@ class Handler(BaseHTTPRequestHandler):
                 _p = eagle_partition(_rows)
                 self._json(200, {"ok": True, "checks": _rows,
                                  "needsYou": len(_p["bad"]),
+                                 "needsYouWhat": [r.get("check") for r in _p["bad"]],
                                  "mine": len(_p["mine"]),
                                  "mineWhat": [r.get("check") for r in _p["mine"]],
+                                 "noQuestionWhat": [r.get("check") for r in _p["noQuestion"]],
                                  "byDesign": len(_p["byDesign"]),
                                  "byDesignWhat": [r.get("check") for r in _p["byDesign"]],
                                  "unknown": len(_p["unk"]),

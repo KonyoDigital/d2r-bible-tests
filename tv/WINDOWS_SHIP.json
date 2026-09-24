@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3493",
+  "ver": "v3494",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3493: #228 - after 10 minutes every console enters endurance and pauses every animation; a one-shot fade-in that started later started paused at opacity 0, so the EYES switch, the shadow reader and 27 other entrances were laid out, hoverable and invisible. They keep running under endurance now. HEART: the watchers are tv/test_an_entrance_survives_endurance.py (derived from the keyframes, red on any new fade-in without the exemption) and the new render_check invisible field, with the ADVANCED targets judged under endurance (sabotage-proven red, --prove 4/4)",
+  "note": "v3494: #226 - his ruling: it should only be waiting on him if it is something he needs to do. Measured on his live rows: 5 billed, 1 his (the shadow gate). A red row now bills him only while its check declares a question (console_doctor.ASKS); the other four land under WAITING ON CODE, still drawn. The mailbox reads the server list needsYouWhat instead of re-deciding (it billed 7 where the console billed 5).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
