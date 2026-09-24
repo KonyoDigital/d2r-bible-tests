@@ -223,6 +223,23 @@ def _baseline_legitimate_figures_are_RECORDED():
 
 
 def prove():
+    # ⚠⚠ #123 — THE LOCK IS NOT THIS HARNESS'S SUBJECT, and the docstring's "may() is never called"
+    # was true of THIS file and false of the path it drives: disk_history_append publishes prunedMb
+    # only when self_arming.may("prune.reports") opens. On his Mac it is open; on a CI runner (no
+    # evidence, no census) it is shut, the baseline's legitimate figures were thrown out, and the
+    # run read WITHDRAWN — reproduced here as PROVEN open / WITHDRAWN shut, and red on CI at
+    # 39b495f3. disk_report_wilson learned the same thing (e328b2ff); the same pin, the same reason.
+    import self_arming as SA
+    _real_may = SA.may
+    SA.may = lambda lock, *a, **k: ((True, "harness: the lock is not this attempt's subject")
+                                    if lock == "prune.reports" else _real_may(lock, *a, **k))
+    try:
+        return _prove_pinned()
+    finally:
+        SA.may = _real_may
+
+
+def _prove_pinned():
     rows, n, k = [], 0, 0
     for claim, fn, what in CLAIMS:
         try:

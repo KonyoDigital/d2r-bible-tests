@@ -59,6 +59,13 @@ import self_arming as SA  # noqa: E402
 
 RED_PROOF = [
     {
+        "why": "#123 - the crossfamily harness drives the REAL prune.reports lock again: on a runner where it is shut the baseline drops and the run reads WITHDRAWN (CI red at 39b495f3)",
+        "file": "disk_report_crossfamily.py",
+        "find": "    SA.may = lambda lock, *a, **k: ((True, \"harness: the lock is not this attempt's subject\")\n                                    if lock == \"prune.reports\" else _real_may(lock, *a, **k))\n    try:\n        return _prove_pinned()\n",
+        "replace": "    try:\n        return _prove_pinned()\n",
+        "matches": 1,
+    },
+    {
         "why": 'resolved BY EXPERIMENT, not inference: this anchor occurs once in control_app.py and once in disk_report_crossfamily.py; tampering each separately in a sandbox turned the gate RED only for control_app.py, so that is its real subject',
         "file": 'control_app.py',
         "find": 'UNCLOSED',
@@ -243,6 +250,23 @@ class TheCrossFamilyHarnessIsASecondKindAndNotTheatre(unittest.TestCase):
             XF.KNOWN_MISSES = real
         self.assertEqual(rep["state"], "STALE-DECLARATION")
         self.assertIn("negzero", rep["closedGaps"])
+
+    def test_the_harness_does_not_depend_on_the_lock_being_open(self):
+        """#123 — red on CI at 39b495f3: with prune.reports SHUT (no census on a runner) the
+        baseline's legitimate figures were thrown out and the harness read WITHDRAWN. The lock is
+        not this harness's subject, so a shut lock must leave its verdict unchanged. DRIVEN."""
+        import disk_report_crossfamily as XF
+        import self_arming as SA
+        real = SA.may
+        SA.may = lambda lock, *a, **k: ((False, "simulated runner: never proven here")
+                                        if lock == "prune.reports" else real(lock, *a, **k))
+        try:
+            rep = XF.prove()
+        finally:
+            SA.may = real
+        self.assertTrue(rep["baseline"], "a shut lock took the baseline down: %s" % rep["baselineWhy"])
+        self.assertNotEqual(rep["state"], "WITHDRAWN", rep["why"])
+        self.assertIs(SA.may, real, "the harness did not give the lock back")
 
     def test_its_baseline_gates_the_STORED_verdict_too(self):
         """REG-593's half-fix: gating only the printed verdict left `bank` reading n/k, so a run the

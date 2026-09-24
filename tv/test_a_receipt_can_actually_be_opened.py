@@ -84,11 +84,43 @@ class AReceiptCanActuallyBeOpened(unittest.TestCase):
                       "where the frame lives cannot say so")
         self.assertIn("_chain", code, "the fallback chain is gone")
 
+    def test_the_resolver_follows_the_evidence_layout_on_a_fixture_bank(self):
+        """#123 — DRIVEN on every machine. A clean runner has no evidence bank (tv/chron_evidence.json
+        is his live data, untracked), so the real-bank case below cannot be judged there; this one
+        can. One banked best-frame is on disk at hist/<reel>/<frame>, one is not: exactly 1 of 2."""
+        import json as _json
+        import shutil as _sh
+        import tempfile as _tf
+        import health_engine as he
+        root = _tf.mkdtemp(prefix="receipt-bank-")
+        real_here = he.HERE
+        try:
+            with io.open(os.path.join(root, "chron_evidence.json"), "w", encoding="utf-8") as fh:
+                fh.write(_json.dumps({"uniques": {
+                    "Nagelring": [{"reel": "reel_s_1", "frame": "f_1.jpg", "conf": 0.4},
+                                  {"reel": "reel_s_1", "frame": "f_2.jpg", "conf": 0.9}],
+                    "Gorefoot": [{"reel": "reel_s_2", "frame": "f_9.jpg", "conf": 0.8}]},
+                    "sets": {}}))
+            os.makedirs(os.path.join(root, "frames", "hist", "reel_s_1"))
+            io.open(os.path.join(root, "frames", "hist", "reel_s_1", "f_2.jpg"), "w").close()
+            he.HERE = root
+            self.assertEqual(he._receipts_resolve(), (1, 2),
+                             "the best frame of each banked item must be looked up at "
+                             "hist/<reel>/<frame>: one exists, one does not")
+        finally:
+            he.HERE = real_here
+            _sh.rmtree(root, ignore_errors=True)
+
     def test_the_organ_measures_resolution_not_presence(self):
-        """The check that was green over a join which never once worked."""
+        """The check that was green over a join which never once worked — on HIS bank."""
         import health_engine as he
         self.assertTrue(hasattr(he, "_receipts_resolve"),
                         "the organ has no way to ask whether a receipt resolves")
+        # ⚠ #123 — red on CI at 39b495f3: the bank is his live data and a runner has none. ABSENT is
+        # a venue, not the wrong zero this case guards; a bank that EXISTS and reads 0 still fails.
+        if not os.path.isfile(os.path.join(he.HERE, "chron_evidence.json")):
+            self.skipTest("UNMEASURED: no evidence bank on this host (tv/chron_evidence.json is his "
+                          "live data) — the fixture case above judges the resolver here")
         got, tested = he._receipts_resolve()
         print("   receipts resolve: %d of %d" % (got, tested))
         self.assertGreater(tested, 0,
@@ -146,3 +178,14 @@ class AReceiptCanActuallyBeOpened(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "#123 - the resolver looks at the FLAT hist/<frame> address again (the v3182 defect: 4 of 450 resolved), judged on a fixture bank so it goes red on a clean runner too",
+        "file": "health_engine.py",
+        "find": "        if os.path.isfile(os.path.join(_hist, str(_reel), str(_r.get(\"frame\")))):\n",
+        "replace": "        if os.path.isfile(os.path.join(_hist, str(_r.get(\"frame\")))):\n",
+        "matches": 1,
+    },
+]

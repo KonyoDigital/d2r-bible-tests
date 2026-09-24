@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1211 - TWO CI REDS LEFT AT 39b495f3 WERE BOTH A HARNESS LEANING ON HIS MACHINE
+
+**fix - #123 (21 CI reds at 286e926d -> 2 at 39b495f3).** (1) disk_report_crossfamily.prove() drove the REAL
+prune.reports lock through disk_history_append: open on his Mac (PROVEN), shut on a runner (WITHDRAWN) - reproduced both
+ways. It now pins the lock open for the run like disk_report_wilson (e328b2ff); a case drives it SHUT and requires the
+verdict unchanged, and a proof removes the pin. (2) test_the_organ_measures_resolution_not_presence resolved receipts
+against HIS evidence bank, which a runner does not have (tv/chron_evidence.json is untracked). The real-bank case is now
+UNMEASURED where the bank is absent (still fails when it exists and reads 0), and a new fixture-bank case judges the
+resolver on every machine - exactly 1 of 2 at hist/<reel>/<frame>; its proof restores the v3182 flat address.
+
 ### REG-1210 - --mark FILED A TICK NOBODY HAD SEEN AS READ, AND NOTHING RAN THE DRAIN AT ALL
 
 **fix - his order 2026-09-24, "make it a part of your system regularly to check it always".** #230 carried eight GrokBot
