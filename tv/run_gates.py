@@ -5312,6 +5312,12 @@ GATES = [
          # #123 — and EMPTY, which is not that defect: a directory machine_tree.establish() built,
          # holding nothing, on a host whose ledger never closed a reel (reel_demo._shelf decides).
          skip_ok=(r"reel shelf is (?:absent|empty) on this venue",)),
+    Gate("test_an_exec_leaves_no_corpse",
+         [sys.executable, os.path.join(HERE, "test_an_exec_leaves_no_corpse.py")], 90,
+         why="#224 - 35 <defunct> ocr_mac children under his console, one per in-place os.execv relaunch "
+             "(measured by ucomm + start times, 36/36): every exec site now quiesces the warm workers "
+             "first, and main() reaps inherited children BY PID before it spawns anything. Driven on "
+             "real processes with a baseline that reproduces the leak. 5 cases, 3 red-proofs"),
     Gate("test_a_mark_covers_only_what_was_shown",
          [sys.executable, os.path.join(HERE, "test_a_mark_covers_only_what_was_shown.py")], 60,
          why="the handoff watermark covers only what a drain SHOWED (2026-09-24 07:09Z: --mark filed "

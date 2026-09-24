@@ -15497,6 +15497,23 @@ def relaunch_green_light_tick():
     return True, say
 
 
+def _before_exec(where):
+    """#224 — stop the warm workers this image holds, so os.execv leaves no <defunct> child behind.
+
+    ⚠⚠ MEASURED: 35 <defunct> `ocr_mac` children under his console, exactly one per in-place relaunch
+    — the warm tv_diablo OCR worker was alive at every exec and the new image could not wait() it.
+    Every os.execv site calls this first (a guard pins that); it never blocks the relaunch, and it
+    SAYS when it could not run. The boot half is exec_hygiene.reap_inherited() in main()."""
+    try:
+        import exec_hygiene as _eh
+        _done = _eh.quiesce_before_exec()
+        if _done:
+            print("   before exec (%s): %s" % (where, "; ".join(_done)), flush=True)
+    except Exception as _e:
+        print("   before exec (%s): quiesce could not run (%s) - a warm worker may be left <defunct>"
+              % (where, type(_e).__name__), flush=True)
+
+
 def _exec_relaunch_now():
     """Replace the process, the green light having already asked. -> None. Never raises."""
     def _go():
@@ -15512,6 +15529,7 @@ def _exec_relaunch_now():
                 pass
             return
         try:
+            _before_exec('_exec_relaunch_now')
             os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
             try:
@@ -15632,6 +15650,7 @@ def _exec_relaunch_soon():
                   % type(_se).__name__, flush=True)
             return
         try:
+            _before_exec('_exec_relaunch_soon')
             os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
             try:
@@ -19658,6 +19677,7 @@ def _drift_loop():
             except Exception:
                 pass
             try:
+                _before_exec('_drift_loop')
                 os.execv(sys.executable, [sys.executable] + sys.argv)
             except Exception as e:
                 print("  \u26a0 auto-relaunch failed, staying on the old version: %s"
@@ -35766,6 +35786,7 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
                     try:
+                        _before_exec('/api/relaunch')
                         os.execv(sys.executable, [sys.executable] + sys.argv)
                     except Exception:
                         os._exit(3)          # a failed execv must not leave a half-dead console
@@ -36222,6 +36243,18 @@ def main():
     # which is the one place that owns it. Two guards (TestNoFunctionLoadsAnUndefinedName and
     # TestV2010NoCallIntoANameThatIsNotThere) caught my first attempt reaching for a module-level
     # VERSION, which lives in tv_diablo.py and has never existed here. [[copy-drift]]
+    # ⚠⚠ #224 — FIRST, before this image spawns anything: the children present now were inherited
+    # from the image os.execv replaced, and only this image can ever wait() them. Reaped BY PID —
+    # a blanket waitpid(-1) would steal the exit status of our own Popen children.
+    try:
+        import exec_hygiene as _eh
+        _inh = _eh.children_of()
+        _rp = _eh.reap_inherited(_inh or [])
+        if _inh:
+            print("   inherited %d child process(es) from the previous image: %d reaped now, %d "
+                  "left to a reaper thread" % (len(_inh), _rp["reaped"], _rp["waiting"]), flush=True)
+    except Exception as _e:
+        print("   inherited-children reap could not run (%s)" % type(_e).__name__, flush=True)
     try:
         _bv = (status_payload() or {}).get("ver") or "?"
     except Exception:

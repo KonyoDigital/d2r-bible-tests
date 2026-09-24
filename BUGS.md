@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1213 - EVERY IN-PLACE RELAUNCH LEFT ONE <defunct> OCR WORKER UNDER HIS CONSOLE
+
+**fix - #224, measured by the read-only audit (wf_1d3cd862-475).** His console (one pid since 09-23 17:05) carried 35
+<defunct> children, every one `ocr_mac` by ucomm, with 36 of 36 child start times sitting exactly one per console image.
+The console relaunches in place with os.execv whenever the drift watcher sees new code (35 times in that lifetime); the
+warm tv_diablo `_OCR` worker (loaded in-process by stash_screen_open -> ocr_fast) was alive at every exec, its Popen
+vanished with the old image, it exited on its close-on-exec stdin, and the new image could never wait() it. The v3481
+close_ocr_worker fix covers a different worker. Now: tv/exec_hygiene.py stops every module-global warm worker (a live
+Popen in `.p` with `.stop()`, lists included) and control_app._before_exec calls it at all 4 exec sites; main() reaps
+children inherited from the previous image BY PID before it spawns anything (never waitpid(-1), which would steal the
+exit status of its own Popen children). OcrWorker.stop no longer writes an un-bounded `quit\n` before killing (the
+critic: a full pipe would have hung every relaunch). The row names the measured cause. Gate test_an_exec_leaves_no_corpse:
+7 cases on real processes, including a baseline that reproduces the leak (INHERITED=1 ZOMBIES=1); 4 proofs PROVEN.
+Expect one more zombie on the exec into this code; the next image reaps them all.
+
 ### REG-1212 - MORE DISTINCT ATTACKS THAN ATTEMPTS WAS CREDITED ABOVE THE RAW BOUND
 
 **fix - the second eye on v3487 (grok-4.7, #231), reproduced first.** v3487's `_attacks_passed` credited

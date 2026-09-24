@@ -6879,8 +6879,11 @@ def _check_nothing_this_console_started_is_a_corpse_right_now():
     dead = [r for r in kids if r[2].startswith("Z")]
     if dead:
         return MISSING, ("%d of our %d live child process(es) are <defunct> - killed or exited and "
-                         "never collected: %s. A corpse costs nothing and accumulates forever; the "
-                         "closer or a timeout handler let go of one without waiting for it"
+                         "never collected: %s. A corpse costs nothing and accumulates forever. "
+                         "MEASURED 2026-09-24 (#224): an in-place os.execv relaunch that left a "
+                         "warm worker alive - every exec site now quiesces first and the next image "
+                         "reaps what it inherits, so this should clear on the next relaunch; if it "
+                         "GROWS between relaunches, something else is letting go of its children"
                          % (len(dead), len(kids), ", ".join("%s(pid %d)" % (c, p)
                                                             for p, _pp, _s, c in dead[:6])))
     return OK, ("0 of %d process(es) in our own subtree are <defunct> - every child this console "

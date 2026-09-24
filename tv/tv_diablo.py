@@ -4248,12 +4248,10 @@ class OcrWorker:
             return
         try:
             if p.poll() is None:
-                try:
-                    if p.stdin:
-                        p.stdin.write("quit\n")
-                        p.stdin.flush()
-                except Exception:
-                    pass
+                # ⚠ #224 — NO `quit\n` WRITE HERE ANY MORE. It had no deadline and was overridden by the
+                # kill on the very next line, so it bought nothing and could hang the caller on a full
+                # pipe — and the caller is now every os.execv relaunch (exec_hygiene.quiesce_before_exec).
+                # The kill is the stop; the wait below collects it.
                 try:
                     p.kill()
                 except Exception:

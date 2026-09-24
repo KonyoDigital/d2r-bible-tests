@@ -476,6 +476,17 @@
     "purpose": "Census of which per-reel engines are actually consulted by printer.py and which answer nobody — joinedness DERIVED by walking printer.py's own AST imports, never a hand-kept flag.",
     "territory": "river-reels"
   },
+  "exec_hygiene.py": {
+    "entryPoints": [
+      "quiesce_before_exec",
+      "children_of",
+      "reap_inherited",
+      "warm_workers"
+    ],
+    "purpose": "Stops the warm workers an os.execv relaunch would orphan (module globals holding a live Popen in .p with .stop()), and at boot reaps the children inherited from the replaced image BY PID. Called by control_app._before_exec at every exec site and first thing in main().",
+    "gotcha": "Never a blanket waitpid(-1): it would steal the exit status of the console's own Popen children, and CPython reads ECHILD as returncode 0 — a failed child would report success. children_of() returns None (UNKNOWN) when ps cannot be read, never [].",
+    "territory": "heart-organs"
+  },
   "extract_gap.py": {
     "entryPoints": [
       "gap",
