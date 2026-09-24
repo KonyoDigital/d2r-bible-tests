@@ -192,6 +192,7 @@ def drain(issue, since=None, limit=40):
 
     print("  %d ACT · %d ASK · %d FYI · %d pre-v2 (no lead verb)"
           % (len(buckets["ACT"]), len(buckets["ASK"]), len(buckets["FYI"]), len(buckets["?"])))
+    shown_ids = set()
     for verb in ("ACT", "ASK", "?", "FYI"):
         got = buckets[verb]
         if not got:
@@ -199,11 +200,26 @@ def drain(issue, since=None, limit=40):
         print("\n── %s ──" % verb)
         for c, lead in got[:limit]:
             print("  #%s  %s  %s" % (c.get("id"), (c.get("created_at") or "")[:16], lead))
+            shown_ids.add(str(c.get("id")))
         if len(got) > limit:
             print("  … +%d more not listed (raise --limit)" % (len(got) - limit))
 
+    # ⚠⚠ THE SECOND EYE ON 4a222c64 (grok-4.7), reproduced from the code: this recorded rows[-1] -
+    # the newest comment OVERALL - as shown, even when a bucket longer than --limit had just printed
+    # "+N more not listed". --mark then advanced through it and filed the unlisted tail as read. A
+    # watermark is ONE point in time, so it may only go as far as the last comment before the FIRST
+    # one that was not put in front of the reader. [[the-unjoined-end]]
+    upto = None
+    for c in rows:                      # chronological (_new_rows sorts)
+        if str(c.get("id")) not in shown_ids:
+            break
+        upto = c
     newest = rows[-1]
-    _record_shown(issue, newest)
+    if upto is not None:
+        _record_shown(issue, upto)
+    if upto is not newest:
+        print("\n  ⚠ --mark will stop at %s: comments after it were NOT listed (raise --limit to see them)"
+              % (("#%s" % upto.get("id")) if upto is not None else "nothing - the oldest was not listed"))
     print("\n  newest: #%s at %s" % (newest.get("id"), newest.get("created_at")))
     print("  answer the ACT/ASK rows, then: handoff.py --issue %s --mark" % issue)
     print("  ⚠ the watermark has NOT moved — draining never marks anything read.")

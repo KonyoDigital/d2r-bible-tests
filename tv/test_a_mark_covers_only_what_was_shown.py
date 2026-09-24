@@ -76,6 +76,16 @@ class AMarkCoversOnlyWhatWasShown(unittest.TestCase):
         self.assertIn("NOT marked", said)
         self.assertIn("#3", said, "the unmarked comment was not named: %s" % said)
 
+    def test_a_bucket_longer_than_the_limit_marks_only_what_was_listed(self):
+        """#171 — the second eye on 4a222c64: a bucket past --limit printed '+N more not listed' and
+        the mark still went through the newest comment overall."""
+        self.rows = [_c(i, i) for i in range(1, 6)]          # five FYI ticks, 07:01 .. 07:05
+        said = self._quiet(H.drain, "230", limit=2)
+        self.assertIn("more not listed", said, "premise: the limit must cut this bucket")
+        self._quiet(H.mark, "230")
+        self.assertEqual(self._mark_of()["id"], 2,
+                         "the mark covered comments the drain said it did not list")
+
     def test_nothing_shown_means_nothing_marked(self):
         said = self._quiet(H.mark, "230")
         self.assertIn("REFUSED", said)
@@ -110,6 +120,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#171 - the drain records the newest comment overall as shown again, so --mark files the unlisted tail as read (second eye on 4a222c64)",
+        "file": "handoff.py",
+        "find": "        if str(c.get(\"id\")) not in shown_ids:\n            break\n",
+        "replace": "        if False:\n            break\n",
+        "matches": 1,
+    },
     {
         "why": "--mark takes the newest comment at MARK time again: a tick posted after the drain is filed as read (07:09Z, 2026-09-24)",
         "file": "handoff.py",

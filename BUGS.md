@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1237 - --mark FILED COMMENTS A TRUNCATED DRAIN NEVER SHOWED
+
+**fix - the second eye on 4a222c64 (grok-4.7), reproduced from the code.** `handoff.drain()` printed `got[:limit]` per
+verb bucket and "+N more not listed", then recorded `rows[-1]` - the newest comment OVERALL - as shown; `--mark` advanced
+through it, filing the unlisted tail as read. The watermark is one point in time, so the drain now records the last
+comment before the FIRST one it did not put in front of the reader, and says where `--mark` will stop. Guard:
+`test_a_mark_covers_only_what_was_shown` +1 case (five ticks, limit 2 -> marks through #2), +1 proof, 3/3 PROVEN.
+
 ### REG-1236 - AN UNREADABLE PROCESS TABLE AT BOOT REAPED NOTHING AND SAID NOTHING
 
 **fix - the second eye on 955858d4 (grok-4.7), reproduced from the code.** #224's boot reap passed `children_of() or []`
