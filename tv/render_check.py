@@ -1262,7 +1262,8 @@ TARGETS = {
                       && document.querySelector('#ibx-needsyou .ibx-ny-done')); })()""",
         "sel": "#ibx-needsyou .ibx-ny-ask, #ibx-needsyou .ibx-ny-done, #ibx-needsyou .ibx-ny-head",
         "settles": False,
-        "warmup": 4.0,      # fixture-seeded; waits only for the page (the gate is 300s)
+        "warmup": 4.0,
+        "widths": ((1440, 1000), (901, 900), (375, 800)),   # one breakpoint; see check()      # fixture-seeded; waits only for the page (the gate is 300s)
     },
     "state-asks": {
         "serve": True,
@@ -1283,7 +1284,8 @@ TARGETS = {
             return !!(r.width > 2 && r.height > 2); })()""",
         "sel": "#ver-xref .vx-ask, #ver-xref .vx-ans",
         "settles": False,
-        "warmup": 4.0,      # fixture-seeded; waits only for the page (the gate is 300s)
+        "warmup": 4.0,
+        "widths": ((1440, 1000), (901, 900), (375, 800)),   # one breakpoint; see check()      # fixture-seeded; waits only for the page (the gate is 300s)
     },
     "state-panel": {
         "serve": True,
@@ -4391,7 +4393,13 @@ def check(name, spec, shots=True):
         if not out["ok"] and any("the seed threw" in str(r) for r in out["refusals"]):
             _say("     \u26a0 not photographing a page the seed never prepared — the shots would carry this target's name and show something else.")
         else:
-         for w, h in WIDTHS:
+         # ⚠ #223 — A TARGET MAY DECLARE FEWER WIDTHS. The push gate renders every target inside a 300s
+         # ceiling, and on 2026-09-24 it was killed at load 7.31 with seven targets undrawn, two of them
+         # new. A fixture-seeded target whose layout has one breakpoint (the inbox card, the panel row)
+         # is judged at the wide, the breakpoint-adjacent and the phone widths; every other target keeps
+         # all six. Fewer widths for a new surface is more coverage than none, never a relaxation of an
+         # existing one.
+         for w, h in (spec.get("widths") or WIDTHS):
              tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                       deviceScaleFactor=1, mobile=False)
              # ⚠ v2331 — AND AGAIN AFTER EVERY RESIZE, which the first cut of this fix missed.
