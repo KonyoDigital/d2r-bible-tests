@@ -84,6 +84,40 @@ MIN_WINDOW_W, MIN_WINDOW_H = 640, 480
 STALE_ROOT_S = 2 * 3600
 
 
+#: ⚠⚠ THE SHELF GREW UNTIL THE WATCH COULD NOT FINISH. MEASURED 2026-09-24: the evidence root held
+#: 9,325 PNGs / 3.2 GB in 597 entries (a GrokBot pack about every 25 minutes, on an iCloud Desktop
+#: where each open costs ~36 ms), and both walks below read ALL of it on every doctor pass: the
+#: 'screen still painting' row took 337.5 s, test_control runs the doctor several times, and a push
+#: was refused as "test_control HUNG" at its 1500 s bound on an idle machine. The question is "is his
+#: screen still painting NOW", so only the NEWEST top-level entries (packs or loose frames) are read -
+#: 12 packs is about five hours of looks. [[poll-slower-than-its-interval]]
+FRAMES_TOP_MAX = 12
+
+
+def _recent_pngs(root, top_max=None):
+    """-> PNG paths under the newest `top_max` top-level entries of `root` (files or pack folders)."""
+    top_max = FRAMES_TOP_MAX if top_max is None else top_max
+    tops = []
+    try:
+        for e in os.scandir(root):
+            try:
+                tops.append((e.stat().st_mtime, e.path, e.is_dir()))
+            except (IOError, OSError):
+                continue
+    except (IOError, OSError):
+        return
+    tops.sort(reverse=True)
+    for _m, path, is_dir in tops[:top_max]:
+        if not is_dir:
+            if path.lower().endswith(".png"):
+                yield path
+            continue
+        for dirpath, _dirs, files in os.walk(path):
+            for fn in files:
+                if fn.lower().endswith(".png"):
+                    yield os.path.join(dirpath, fn)
+
+
 def newest_capture_age_s(root, now=None):
     """-> seconds since the newest PNG in `root`, or None when there is nothing to age.
 
@@ -92,16 +126,13 @@ def newest_capture_age_s(root, now=None):
     """
     newest = None
     try:
-        for dirpath, _dirs, files in os.walk(root):
-            for f in files:
-                if not f.lower().endswith(".png"):
-                    continue
-                try:
-                    m = os.path.getmtime(os.path.join(dirpath, f))
-                except (IOError, OSError):
-                    continue
-                if newest is None or m > newest:
-                    newest = m
+        for p in _recent_pngs(root):
+            try:
+                m = os.path.getmtime(p)
+            except (IOError, OSError):
+                continue
+            if newest is None or m > newest:
+                newest = m
     except (IOError, OSError):
         return None
     if newest is None:
@@ -187,18 +218,14 @@ def frames(root=None):
     out = []
     if not os.path.isdir(root):
         return out
-    for dirpath, _dirs, files in os.walk(root):
-        for fn in files:
-            if not fn.lower().endswith(".png"):
-                continue
-            p = os.path.join(dirpath, fn)
-            g = png_geometry(p)
-            if g is None:
-                continue
-            try:
-                out.append({"path": p, "mtime": os.path.getmtime(p), "geom": g})
-            except (IOError, OSError):
-                continue
+    for p in _recent_pngs(root):
+        g = png_geometry(p)
+        if g is None:
+            continue
+        try:
+            out.append({"path": p, "mtime": os.path.getmtime(p), "geom": g})
+        except (IOError, OSError):
+            continue
     out.sort(key=lambda r: -r["mtime"])
     return out
 

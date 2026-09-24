@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_frozen_screen_watch_reads_only_recent_looks",
+         [sys.executable, os.path.join(HERE, "test_the_frozen_screen_watch_reads_only_recent_looks.py")], 60,
+         why="measured 2026-09-24: the evidence shelf grew to 9,325 PNGs / 3.2 GB and frozen_frame_watch walked "
+             "all of it on every doctor pass - 'screen still painting' took 337.5 s and a push was refused as "
+             "test_control HUNG at its 1500 s bound on an idle machine. It reads the newest 12 top-level "
+             "entries now (0.1 s, same verdict). 3 cases, 1 red-proof"),
     Gate("test_this_machine_can_decode_a_frame",
          [sys.executable, os.path.join(HERE, "test_this_machine_can_decode_a_frame.py")], 60,
          why="#227 - measured over SSH: his Windows ALT ran Python 3.12.10 with pywebview and NO Pillow, so "
