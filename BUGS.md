@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1191 - A LAW WHOSE VERDICT WAS THE VENUE, READING HIS LIVE BOARD
+
+**test: after v3485 - #123, found by the v3483 census's UNPROVABLE list.** `test_mask_why` asserted "no window -> None".
+v3379 deliberately gave that path a DISK fallback (the board's banked hand-over store), so on his Mac — where the store
+exists — the gate got his REAL board (`have: 312`) and sat red in every full census, while on CI (no store) it stayed green.
+Two defects in one law: a premise that outlived the behaviour, and a fixture reading his live board. The store is now
+STUBBED in every case and both fallback branches are pinned — no store -> None with BOTH refusals named; a banked store ->
+its mask. 5/5 green here for the first time; 2 new proofs; 4/4 PROVEN.
+
 ### REG-1189 - THE WORLD BAND PAINTED OVER THE LADDER RIBBON, AND THE CAUSE WAS ONE INVALID WORD
 
 **v3485 - #218, found by LOOKING at Grok Bot's native Linux pack** (visual-pass-20260924T012231Z, full-bible/03a): the
