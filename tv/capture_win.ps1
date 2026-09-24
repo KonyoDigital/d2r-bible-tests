@@ -489,6 +489,15 @@ try {
 } catch {}
 $lastLabel = ''
 $loopN = 0
+# #236 - the second eye on 298de387: TV_CAPTURE=off was not a stop here. 'off' matched neither 'full' nor
+# window/win/game, so the loop still found, grabbed and fell through to the whole desktop. Off means this
+# console never reads the screen: say so once and leave.
+if ($mode -eq 'off' -or $mode -eq 'none') {
+  Write-CapTarget 'off' 'capture is OFF (TV_CAPTURE) - this console never reads the screen'
+  Write-Host '  capture is OFF (TV_CAPTURE) - not reading the screen'
+  exit 0
+}
+
 while ($true) {
   $loopN++
   try {

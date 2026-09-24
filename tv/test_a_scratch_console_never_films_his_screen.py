@@ -103,6 +103,35 @@ class ACaptureOffConsoleNeverStartsAReel(unittest.TestCase):
         self.assertIs(pre.get("windowSeen"), True)
 
 
+class EveryGrabberHonoursCaptureOff(unittest.TestCase):
+    """The second eye on 298de387 (grok-4.7): TV_CAPTURE=off stopped capture_mac ONLY. The Mac film thread
+    idled on "waiting" alone and fell through to its fullscreen fallback under "off"; the Windows loop
+    treated "off" like auto and still found, grabbed and filmed the desktop."""
+
+    def test_the_film_thread_consults_the_switch(self):
+        self.assertIn("_capture_is_off", tv._film_loop.__code__.co_names,
+                      "the film thread does not ask whether capture is off - it films under TV_CAPTURE=off")
+        was = os.environ.get("TV_CAPTURE")
+        try:
+            os.environ["TV_CAPTURE"] = "off"
+            self.assertTrue(tv._capture_is_off())
+            os.environ["TV_CAPTURE"] = "auto"
+            self.assertFalse(tv._capture_is_off(), "premise: auto is not off")
+        finally:
+            if was is None:
+                os.environ.pop("TV_CAPTURE", None)
+            else:
+                os.environ["TV_CAPTURE"] = was
+
+    def test_the_windows_loop_leaves_before_it_grabs(self):
+        src = io.open(os.path.join(HERE, "capture_win.ps1"), encoding="utf-8-sig").read()
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        i = code.find("if ($mode -eq 'off' -or $mode -eq 'none') {")
+        self.assertGreater(i, -1, "the Windows capture loop has no stop for TV_CAPTURE=off")
+        self.assertLess(i, code.find("while ($true) {"), "the stop comes after the loop starts grabbing")
+        self.assertIn("exit 0", code[i:code.find("}", i + 1)])   # bounded by the block's own brace
+
+
 class TheRenderHarnessSpawnsItsConsoleWithCaptureOff(unittest.TestCase):
 
     def test_the_private_console_env_carries_TV_CAPTURE_off(self):
@@ -123,6 +152,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on 298de387 - the Mac film thread films under TV_CAPTURE=off again (fullscreen fallback)",
+        "file": "tv_diablo.py",
+        "find": "            if _capture_is_off() or (_CAP_TARGET or {}).get(\"mode\") == \"off\":\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on 298de387 - the Windows capture loop treats TV_CAPTURE=off like auto again and films the desktop",
+        "file": "capture_win.ps1",
+        "find": "if ($mode -eq 'off' -or $mode -eq 'none') {\n",
+        "replace": "if ($false) {\n",
+        "matches": 1,
+    },
     {
         "why": "#236 - a capture-off console runs the window finder again, sees his stream, and its shadow reader rolls a reel mid-push",
         "file": "control_app.py",

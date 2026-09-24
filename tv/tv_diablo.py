@@ -2025,6 +2025,12 @@ def _grab_full_screen_frame(tmp):
     return wrote
 
 
+def _capture_is_off():
+    '''TV_CAPTURE=off|none: this console never reads the screen - not capture_mac, not the film thread,
+    not any grabber (#236 + the second eye on 298de387).'''
+    return (os.environ.get("TV_CAPTURE") or "").strip().lower() in ("off", "none")
+
+
 def _film_loop():
     """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -2051,6 +2057,14 @@ def _film_loop():
         t0 = time.monotonic()
         try:
             if globals().get("_AI_PAUSED") and not WATCH_MODE:
+                time.sleep(1.5)
+                continue
+            # ⚠ THE SECOND EYE ON 298de387 (grok-4.7): TV_CAPTURE=off stopped capture_mac ONLY. This thread
+            # idled on "waiting" alone, so under capture-off (mode "off", no window id) every tick fell through
+            # to the fullscreen fallback and - with D2R.exe running and Screen Recording granted - filmed the
+            # whole display into the harness sandbox. Off means this console never reads the screen, in any
+            # mode, WATCH_MODE included.
+            if _capture_is_off() or (_CAP_TARGET or {}).get("mode") == "off":
                 time.sleep(1.5)
                 continue
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":

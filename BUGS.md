@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1252 - TV_CAPTURE=off STOPPED ONE GRABBER OF THREE
+
+**fix - the second eye on 298de387 (REG-1225, grok-4.7), read in the code and run on the ALT.** The capture-off switch
+made `capture_mac` refuse, and the test stubbed exactly that function - so it stayed green while two other grabbers still
+filmed. (1) The Mac film thread idled only on mode "waiting"; under capture-off the mode is "off" with no window id, so
+every tick fell through to the fullscreen fallback and, with D2R.exe alive and Screen Recording granted, filmed the whole
+display into the harness sandbox. It now idles on `_capture_is_off()` or mode "off", WATCH_MODE included. (2)
+capture_win.ps1 treated "off" like auto (matched neither 'full' nor window/win/game) and still found, grabbed and fell
+through to the desktop; it now writes an 'off' capture target and exits before the loop. Run for real on the ALT with
+TV_CAPTURE=off: exit 0 in 5 s, cap_target files only, no frame. Guard: `test_a_scratch_console_never_films_his_screen`
++2 cases (the film thread asks the switch - co_names - and the Windows stop precedes the loop), +2 proofs, 5/5 PROVEN.
+
 ### REG-1251 - 42 CHILDREN WERE READ IN THE LOCALE ENCODING (cp1255 ON HIS WINDOWS BOX)
 
 **fix - #229, measured on the ALT.** Running the doctor on his Windows ALT, a subprocess reader thread died with
