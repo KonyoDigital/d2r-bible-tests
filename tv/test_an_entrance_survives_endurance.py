@@ -55,44 +55,152 @@ def _split(sel_list):
     return [_norm(s) for s in sel_list.split(",") if s.strip()]
 
 
-def invisible_start_keyframes(css):
-    """-> {name} keyframes whose FIRST frame (from / 0%) sets opacity 0."""
-    out = set()
-    for m in re.finditer(r"@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}", css):
-        first = re.search(r"(?:from|0%)\s*(?:,[^{]*)?\{([^}]*)\}", m.group(2))
-        if first and re.search(r"opacity\s*:\s*0(?:\.0*)?\s*(;|$)", first.group(1).strip()):
-            out.add(m.group(1))
+def _blocks(css):
+    """-> [(context, prelude, body, kind)] for every style rule and every @keyframes, where `context` is
+    the tuple of enclosing at-rule preludes (@media / @supports). Brace-MATCHED, never regexed.
+
+    ⚠⚠ THE SECOND EYE ON v3493 (grok-4.7), reproduced on crafted CSS before this was written: the
+    regex helpers threw the @media condition away (an exemption living only under prefers-reduced-
+    motion read as cover for everyone), read `0%` inside `100%` as the first frame (a reveal written
+    100%-first went unseen - a false green), skipped a whole `animation:` value when `infinite`
+    appeared ANYWHERE in it (a one-shot beside an infinite ambient layer escaped the law), ignored
+    `animation-iteration-count: infinite`, and dropped any entrance written on an already-prefixed
+    selector. [[source-reading-guard]]"""
+    out = []
+
+    def walk(text, ctx):
+        i, n = 0, len(text)
+        while i < n:
+            j = text.find("{", i)
+            if j < 0:
+                return
+            prelude = text[i:j].split(";")[-1].split("}")[-1].strip()
+            depth, k = 1, j + 1
+            while k < n and depth:
+                if text[k] == "{":
+                    depth += 1
+                elif text[k] == "}":
+                    depth -= 1
+                k += 1
+            body = text[j + 1:k - 1]
+            if re.match(r"@(?:-webkit-)?keyframes\b", prelude):
+                out.append((ctx, prelude, body, "keyframes"))
+            elif prelude.startswith("@"):
+                walk(body, ctx + (_norm(prelude),))
+            else:
+                out.append((ctx, prelude, body, "rule"))
+            i = k
+
+    walk(css, ())
     return out
 
 
-def _rules(css):
-    for m in re.finditer(r"([^{}@]+)\{([^{}]*)\}", css):
-        yield m.group(1), m.group(2)
+def _decls(body):
+    """-> {property: value}, the LAST declaration winning (the cascade inside one rule)."""
+    d = {}
+    for part in body.split(";"):
+        if ":" in part:
+            k, v = part.split(":", 1)
+            d[k.strip().lower()] = v.strip()
+    return d
+
+
+def _layers(value):
+    """Split a comma list at TOP level: cubic-bezier(.2,.8,.2,1) is one token, not four."""
+    out, depth, cur = [], 0, ""
+    for ch in value:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch == "," and depth == 0:
+            out.append(cur.strip())
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        out.append(cur.strip())
+    return out
+
+
+def invisible_start_keyframes(css):
+    """-> {name} keyframes whose FIRST frame (`from` / `0%`, as a whole selector token) sets opacity 0."""
+    out = set()
+    for ctx, prelude, body, kind in _blocks(css):
+        if kind != "keyframes":
+            continue
+        name = prelude.split(None, 1)[1].strip() if len(prelude.split(None, 1)) > 1 else ""
+        first = {}
+        for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", body):
+            frames = [f.strip().lower() for f in m.group(1).split(",")]
+            if "from" in frames or "0%" in frames:
+                first.update(_decls(m.group(2)))
+        op = first.get("opacity")
+        if op is not None and re.match(r"^0(?:\.0*)?(?:\s*!important)?$", op.strip()):
+            out.add(name)
+    return out
+
+
+def _one_shot_layers(decls, names):
+    """-> True when this rule runs an invisible-start keyframe as a ONE-SHOT layer."""
+    if "animation" in decls:
+        for layer in _layers(decls["animation"]):
+            toks = layer.split()
+            if any(t in names for t in toks) and "infinite" not in toks:
+                return True
+        return False
+    if "animation-name" in decls:
+        nm = _layers(decls["animation-name"])
+        it = _layers(decls.get("animation-iteration-count", "1")) or ["1"]
+        for i, n in enumerate(nm):
+            if n in names and it[i % len(it)].strip() != "infinite":
+                return True
+    return False
+
+
+def _unprefixed(sel):
+    return _norm(sel[len(PREFIX):]) if sel.startswith(PREFIX) else sel
 
 
 def one_shot_entrances(css):
-    """-> {selector} rules running an invisible-start keyframe that is NOT infinite."""
+    """-> {(context, selector)} rules running an invisible-start keyframe that is NOT infinite. The
+    selector is given WITHOUT the endurance prefix, so an entrance written on an already-prefixed
+    selector is still an entrance - the `*` pause still reaches it."""
     names = invisible_start_keyframes(css)
     out = set()
-    for sel, decl in _rules(css):
-        for d in re.findall(r"animation(?:-name)?\s*:\s*([^;]+)", decl):
-            if "infinite" in d:
-                continue
-            if any(re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(n), d) for n in names):
-                out.update(s for s in _split(sel) if not s.startswith(PREFIX))
+    for ctx, prelude, body, kind in _blocks(css):
+        if kind != "rule":
+            continue
+        d = _decls(body)
+        if _one_shot_layers(d, names):
+            self_exempt = bool(re.search(r"running\s*!important", d.get("animation-play-state", "")))
+            for sel in _split(prelude):
+                if not (self_exempt and sel.startswith(PREFIX)):
+                    out.add((ctx, _unprefixed(sel)))
     return out
 
 
 def endurance_exempt(css):
-    """-> {selector} that endurance mode leaves RUNNING (the prefix stripped)."""
+    """-> {(context, selector)} that endurance mode leaves RUNNING (the prefix stripped)."""
     out = set()
-    for sel, decl in _rules(css):
-        if not re.search(r"animation-play-state\s*:\s*running\s*!important", decl):
+    for ctx, prelude, body, kind in _blocks(css):
+        if kind != "rule":
             continue
-        for s in _split(sel):
-            if s.startswith(PREFIX):
-                out.add(_norm(s[len(PREFIX):]))
+        if not re.search(r"running\s*!important", _decls(body).get("animation-play-state", "")):
+            continue
+        for sel in _split(prelude):
+            if sel.startswith(PREFIX):
+                out.add((ctx, _unprefixed(sel)))
     return out
+
+
+def uncovered(css):
+    """-> sorted entrances with no exemption that applies WHEREVER they apply: an unconditional
+    exemption covers every context; a conditional one covers only its own context."""
+    ex = endurance_exempt(css)
+    return sorted("%s%s" % ((" @ ".join(ctx) + " :: ") if ctx else "", sel)
+                  for ctx, sel in one_shot_entrances(css)
+                  if ((), sel) not in ex and (ctx, sel) not in ex)
 
 
 class AnEntranceSurvivesEndurance(unittest.TestCase):
@@ -105,27 +213,61 @@ class AnEntranceSurvivesEndurance(unittest.TestCase):
         """Premise: a parser that finds nothing passes the law vacuously."""
         got = one_shot_entrances(self.css)
         print("   one-shot entrances that start at opacity 0: %d" % len(got))
-        self.assertIn("details.sig-adv[open] > *:not(summary)", got,
+        self.assertIn(((), "details.sig-adv[open] > *:not(summary)"), got,
                       "premise: the sweep no longer sees the ⚙ ADVANCED reveal it was written for")
-        self.assertGreaterEqual(len(got), 20, "premise: measured 23 on 2026-09-24 — re-measure")
+        self.assertGreaterEqual(len(got), 29, "premise: measured 29 on 2026-09-24 (walker) - re-measure")
         self.assertIn("shellReveal", invisible_start_keyframes(self.css))
 
     def test_the_endurance_pause_is_still_what_it_was(self):
         """The exemption only matters while endurance pauses `*`; if that changes, re-think this."""
-        self.assertIn('%s*' % PREFIX, {s for sel, d in _rules(self.css)
-                                       if re.search(r"animation-play-state\s*:\s*paused", d)
-                                       for s in _split(sel)})
+        paused = {sel for ctx, pre, body, kind in _blocks(self.css) if kind == "rule" and not ctx
+                  and re.search(r"paused", _decls(body).get("animation-play-state", ""))
+                  for sel in _split(pre)}
+        self.assertIn("%s*" % PREFIX, paused)
 
     def test_every_invisible_start_entrance_keeps_running_under_endurance(self):
-        missing = sorted(one_shot_entrances(self.css) - endurance_exempt(self.css))
+        missing = uncovered(self.css)
         self.assertEqual(missing, [],
                          "these fade-ins would restart PAUSED AT OPACITY 0 once the console has run "
-                         "10 minutes — real controls he can hover and cannot see: %s" % missing)
+                         "10 minutes - real controls he can hover and cannot see: %s" % missing)
 
     def test_the_reduced_motion_door_is_not_confused_with_this_one(self):
         """prefers-reduced-motion sets `animation: none` on the drawer, which is visible; it forces
         endurance too, so it is not the path he is on and must not be the only cover."""
-        self.assertIn("details.sig-adv[open] > *:not(summary)", endurance_exempt(self.css))
+        self.assertIn(((), "details.sig-adv[open] > *:not(summary)"), endurance_exempt(self.css),
+                      "the drawer's exemption is not unconditional")
+
+
+class TheHelpersReadCSSTheWayTheBrowserDoes(unittest.TestCase):
+    """The second eye on v3493 (grok-4.7): each case below was REPRODUCED on the regex helpers first."""
+
+    def test_the_first_frame_is_a_whole_token_not_a_substring(self):
+        self.assertIn("rev", invisible_start_keyframes(
+            "@keyframes rev { 100% { opacity: 1 } 0% { opacity: 0 } }"),
+            "a reveal written 100%-first went unseen (0% read inside 100%)")
+        self.assertNotIn("fo", invisible_start_keyframes(
+            "@keyframes fo { 100% { opacity: 0 } 0% { opacity: 1 } }"),
+            "a fade-OUT written 100%-first was taken for an invisible start")
+
+    def test_a_one_shot_beside_an_infinite_layer_is_still_a_one_shot(self):
+        css = ("@keyframes rev { from { opacity: 0 } to { opacity: 1 } } "
+               ".c { animation: rev .4s cubic-bezier(.2,.8,.2,1), amb 8s linear infinite; }")
+        self.assertEqual(one_shot_entrances(css), {((), ".c")})
+
+    def test_an_iteration_count_of_infinite_is_not_a_one_shot(self):
+        css = "@keyframes rev { from { opacity: 0 } } .d { animation-name: rev; animation-iteration-count: infinite; }"
+        self.assertEqual(one_shot_entrances(css), set())
+
+    def test_an_exemption_under_a_media_query_covers_only_that_query(self):
+        css = ("@keyframes rev { from { opacity: 0 } } .e { animation: rev .4s; } "
+               "@media (prefers-reduced-motion: reduce) { %s.e { animation-play-state: running !important; } }" % PREFIX)
+        self.assertEqual(uncovered(css), [".e"], "a reduced-motion-only exemption read as cover for everyone")
+        css2 = css + " %s.e { animation-play-state: running !important; }" % PREFIX
+        self.assertEqual(uncovered(css2), [], "premise: an unconditional exemption covers it")
+
+    def test_an_entrance_on_a_prefixed_selector_is_still_an_entrance(self):
+        css = '@keyframes rev { from { opacity: 0 } } %s.f { animation: rev .4s; }' % PREFIX
+        self.assertEqual(uncovered(css), [".f"])
 
 
 if __name__ == "__main__":
@@ -133,6 +275,27 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3493 - a first frame read as a substring again: a 100%-first reveal goes unseen, a 100%-first fade-out is flagged",
+        "file": "test_an_entrance_survives_endurance.py",
+        "find": "            if \"from\" in frames or \"0%\" in frames:\n",
+        "replace": "            if \"from\" in frames or any(\"0%\" in f for f in frames):\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3493 - an exemption under a media query covers every context again",
+        "file": "test_an_entrance_survives_endurance.py",
+        "find": "                  if ((), sel) not in ex and (ctx, sel) not in ex)\n",
+        "replace": "                  if ((), sel) not in ex and (ctx, sel) not in ex and sel not in {s for c, s in ex})\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3493 - `infinite` anywhere in the value skips the whole animation again",
+        "file": "test_an_entrance_survives_endurance.py",
+        "find": "            if any(t in names for t in toks) and \"infinite\" not in toks:\n",
+        "replace": "            if any(t in names for t in toks) and \"infinite\" not in decls[\"animation\"]:\n",
+        "matches": 1,
+    },
     {
         "why": "#228 - the ⚙ ADVANCED reveal is paused again after minute ten: the EYES switch and the shadow reader paint at opacity 0 while their tooltips still answer (his 2026-09-24 report)",
         "file": "control_ui.html",

@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1241 - THE ENDURANCE LAW READ CSS WITH REGEXES THAT COULD NOT SEE WHAT IT GUARDS
+
+**fix - the second eye on v3493 (grok-4.7), the helper half; every case reproduced on crafted CSS first.** The
+helpers of `test_an_entrance_survives_endurance` threw the @media condition away (an exemption only under
+prefers-reduced-motion read as cover for everyone), read `0%` inside `100%` as the first frame (a reveal written
+100%-first went unseen - false green; a fade-out written 100%-first was flagged - false red), skipped a whole
+`animation:` value when `infinite` appeared anywhere in it (a one-shot beside an infinite ambient layer escaped),
+ignored `animation-iteration-count: infinite`, and dropped entrances written on an already-prefixed selector. They
+now walk the stylesheet with brace matching and keep each rule's @media context, read frame selectors as whole tokens,
+read animation layers one by one (cubic-bezier commas kept inside their token), and match exemptions per context.
+On the real console the walker sees 29 one-shot entrances (the regex saw 23) and all 29 are covered. Guard: +5 crafted
+cases, +3 proofs on the helpers themselves, 5/5 PROVEN. The render-harness half of these findings follows.
+
 ### REG-1240 - TWO v3494 CONTRACT HOLES: A FALLBACK THAT BILLED NON-ASKING ROWS, A GRADER THAT RAISED
 
 **fix - the second eye on v3494 (grok-4.7), both reproduced.** (1) The inbox's fallback for a payload with no
