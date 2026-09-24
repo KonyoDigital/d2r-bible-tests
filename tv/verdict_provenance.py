@@ -154,8 +154,11 @@ def _is_producer_key(k):
 
 #: ⚠ GUARDED: if the definition module cannot be imported the census must still run on its own
 #: vocabulary — an unreadable definition is UNKNOWN, never a reason to grade every store SILENT.
-#: a clock SUFFIX at a word boundary: `seen_at`, `tick_ts`, camel `seenAt`, `updatedTs`
-_CLOCK_SUFFIX = re.compile(r"(?:_(?:at|ts)|[a-z0-9](?:At|Ts))$")
+#: a clock SUFFIX at a word boundary: `seen_at`, `tick_ts`, camel `seenAt`, `updatedTs`.
+#: ⚠ The underscore form is CASE-INSENSITIVE (`updated_At`, `created_AT`, `seen_TS`) — the eye on the
+#: shipped v3484: the old endswith() rule counted those, and dropping them would file a real clock's
+#: row as a roster and hide its missing writer. Camel also takes an all-caps tail (`createdAT`).
+_CLOCK_SUFFIX = re.compile(r"(?:_(?:[aA][tT]|[tT][sS])|[a-z0-9](?:At|Ts|AT|TS))$")
 
 
 def _has_clock(keys):

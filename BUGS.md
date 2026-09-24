@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1197 - THE WORD-BOUNDARY CLOCK DROPPED `updated_At`
+
+**fix: after v3487 - the cross-family eye on the SHIPPED v3484 bytes (grok-cli, 3 findings).** [1] VALID: v3484's
+`_CLOCK_SUFFIX` matched `_at`/`_ts` only in lowercase, while the endswith() rule it replaced lowercased the key first — so
+`updated_At`, `created_AT`, `seen_TS` stopped being clocks and a producer-less row whose only clock is one of those would be
+filed as a ROSTER, hiding its missing writer. The underscore form is now case-insensitive and camel takes an all-caps tail
+(`createdAT`); MEASURED: no store in tv/ changes grade. [0] REFUTED BY MEASUREMENT: "the in-module RED_PROOF anchor never
+occurs" — heart2 proved it (1 match, tampered -> red) and the census counts it well formed; the payload strips blank and
+comment-only lines, which is exactly where the anchor's two blank lines sit. [2] NOT SHOWN.
+
 ### REG-1196 - THE REPETITION CORRECTION ADDED CONFIDENCE TO THE ONE LOCK THAT HAD FAILURES
 
 **v3487 - #123, test_every_lock_declares_its_attacks (red on CI and here).** `self_arming.score()` credited distinct attacks as

@@ -107,7 +107,8 @@ class TestARosterArrivingIsNotNewDebt(unittest.TestCase):
         """⚠⚠ #219 — `endswith("at"/"ts")` on the lowercased name read ANY such word as a timestamp.
         MEASURED over every store in tv/: it misfiled engine_index.json (`entryPoints`) as SILENT debt
         and gave test_provenance's fixture a clock through `what`. Real clocks still count."""
-        for k in ("ts", "at", "seen_at", "tick_ts", "seenAt", "updatedTs", "lastAt", "generatedTs"):
+        for k in ("ts", "at", "seen_at", "tick_ts", "seenAt", "updatedTs", "lastAt", "generatedTs",
+                  "updated_At", "created_AT", "seen_TS", "createdAT"):
             self.assertTrue(VP._has_clock([k]), "%r is a clock and was not read as one" % k)
         for k in ("entryPoints", "what", "heartbeat", "format", "counts", "parts", "test_eye_vs_beat"):
             self.assertFalse(VP._has_clock([k]), "%r is a word, and it was read as a clock" % k)
