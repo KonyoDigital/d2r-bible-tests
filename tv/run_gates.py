@@ -5321,6 +5321,15 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_the_eye_finds_d2r_however_he_runs_it",
+         [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
+         why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "
+             "Boosteroid (their app or a browser tab), Windows local D2R.exe plus the same cloud routes, "
+             "and Linux pins nothing (they lock there). Before: every browser was blocked on the Mac and "
+             "Windows only enumerated D2R-process windows, so a streamed session fell through to FULL "
+             "SCREEN. A browser needs the service AND the game in its title; '\u00ae/\u2122' are "
+             "normalized; a service window without the game is reported, never pinned. Real cloud "
+             "titles UNMEASURED. 12 cases, 4 red-proofs; the C# compiles on the Windows box"),
     Gate("test_a_title_is_not_an_owner",
          [sys.executable, os.path.join(HERE, "test_a_title_is_not_an_owner.py")], 60,
          why="#223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the "

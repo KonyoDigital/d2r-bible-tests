@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1224 - THE EYE COULD NOT FIND D2R STREAMED FROM GEFORCE NOW OR BOOSTEROID (v3496)
+
+**fix - #232, his order 2026-09-24: "needs to target diablo ii resurrected in macbook like it is crossover or nvideaplay
+chrome or boosteroid so windows also regularly for those options + the usual route on windows locally. and linux cant
+open those they lock automatically".** MEASURED before: on the Mac every browser was blocked wholesale (v852), so a
+GeForce NOW tab could never pin; on Windows capture_win.ps1 enumerated only D2R-process windows, so a streamed session
+fell through to FULL SCREEN and filmed the desktop; and "Diablo(R) II: Resurrected(TM)" never matched "diablo ii". Now one
+roster (`game_route` on the Mac, `CloudRoute` in the Windows C#): local D2R.exe, CrossOver/wine D2R, GeForce NOW and
+Boosteroid - their own app, or a browser tab carrying BOTH the service's and the game's name (a guide tab stays dead,
+v852 narrowed, not repealed). (R)/(TM) are normalized. A service window that does not name the game is REPORTED in the
+pick reason and never pinned; Linux pins nothing and says why. The route shows on the target label. The real cloud
+titles are UNMEASURED - the first streamed session's near-miss names them. Verified: `test_the_eye_finds_d2r_however_he_
+runs_it` 12 cases / 4 proofs PROVEN; the Windows C# COMPILED on the ALT over SSH and CloudRoute answered all 7 cases.
+
 ### REG-1223 - THE PRINTER'S FIXTURE SHELF WALKED NOTHING BEHIND A SHUT LOCK
 
 **fix - #233, the second eye on e24dda62 (grok-4.7).** REG-1204 gave printer_wilson a two-reel fixture shelf so its three

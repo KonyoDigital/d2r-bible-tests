@@ -78,12 +78,46 @@ public static class TvdCap {
     public int Left, Top, W, H;
     public string Title;
     public string Proc;
+    public string Route;
     public int Score;
     public bool IsFg;
     public int Dpi;
   }
 
   static readonly string[] ProcNames = new string[] { "D2R", "DiabloIIResurrected", "DiabloII" };
+  // #232 - HIS ORDER, 2026-09-24: the eye targets D2R however he runs it - locally (D2R.exe) OR streamed
+  // from GeForce NOW / Boosteroid, in their own app or in a browser tab. Before this only D2R-process
+  // windows were candidates, so a streamed session fell through to FULL SCREEN and filmed the desktop.
+  // A browser qualifies ONLY with the service's name AND the game's name in its title (a guide tab
+  // must never pin). The real cloud titles are UNMEASURED until his first streamed session is read.
+  static readonly string[] CloudApps = new string[] { "GeForceNOW", "Boosteroid" };
+  static readonly string[] Browsers = new string[] { "chrome", "msedge", "firefox", "brave", "opera", "vivaldi" };
+  static readonly string[] GameWords = new string[] { "diablo ii", "diablo 2", "resurrected", "d2r" };
+
+  public static string NormTitle(string t) {
+    t = (t ?? "").ToLowerInvariant().Replace("\u00ae", "").Replace("\u2122", "").Replace("\u00a9", "");
+    return System.Text.RegularExpressions.Regex.Replace(t, @"\s+", " ").Trim();
+  }
+
+  static bool HasGame(string tl) {
+    foreach (var w in GameWords) if (tl.Contains(w)) return true;
+    return false;
+  }
+
+  // -> "geforce-now" | "boosteroid" | "" for a cloud-app or browser window; pure, testable
+  public static string CloudRoute(string proc, string title, bool browser) {
+    string pl = (proc ?? "").ToLowerInvariant();
+    string tl = NormTitle(title);
+    if (!HasGame(tl)) return "";
+    if (!browser) {
+      if (pl.Contains("geforce")) return "geforce-now";
+      if (pl.Contains("boosteroid")) return "boosteroid";
+      return "";
+    }
+    if (tl.Contains("geforce now") || tl.Contains("geforcenow")) return "geforce-now";
+    if (tl.Contains("boosteroid")) return "boosteroid";
+    return "";
+  }
 
   public static string DpiInfo() {
     try {
@@ -98,11 +132,29 @@ public static class TvdCap {
   public static List<Hit> FindD2R() {
     var want = new HashSet<int>();
     var names = new Dictionary<int, string>();
+    var kind = new Dictionary<int, string>();   // #232 - "local" | "cloud" | "browser"
     foreach (var n in ProcNames) {
       try {
         foreach (var p in Process.GetProcessesByName(n)) {
           want.Add(p.Id);
           names[p.Id] = p.ProcessName;
+          kind[p.Id] = "local";
+          try { p.Dispose(); } catch {}
+        }
+      } catch {}
+    }
+    foreach (var n in CloudApps) {
+      try {
+        foreach (var p in Process.GetProcessesByName(n)) {
+          want.Add(p.Id); names[p.Id] = p.ProcessName; kind[p.Id] = "cloud";
+          try { p.Dispose(); } catch {}
+        }
+      } catch {}
+    }
+    foreach (var n in Browsers) {
+      try {
+        foreach (var p in Process.GetProcessesByName(n)) {
+          want.Add(p.Id); names[p.Id] = p.ProcessName; kind[p.Id] = "browser";
           try { p.Dispose(); } catch {}
         }
       } catch {}
@@ -137,8 +189,14 @@ public static class TvdCap {
         string tl = title.ToLowerInvariant();
         if (tl.Contains("battle.net") || tl.Contains("tv diablo") || tl.Contains("farming bible")) return true;
         string proc = names.ContainsKey(pid) ? names[pid] : "D2R";
+        string k = kind.ContainsKey(pid) ? kind[pid] : "local";
+        string route = "local";
+        if (k != "local") {
+          route = CloudRoute(proc, title, k == "browser");
+          if (route == "") return true;            // a service window that does not name the game
+        }
         bool isFg = (h == fg);
-        int score = 8000 + (isFg ? 500 : 0);
+        int score = (route == "local" ? 8000 : 7000) + (isFg ? 500 : 0);
         if (tl.Contains("resurrected") || tl.Contains("diablo ii")) score += 1500;
         // Prefer the largest window (true fullscreen game over tiny helper hwnds).
         score += Math.Min((w * hh) / 80000, 200);
@@ -146,7 +204,7 @@ public static class TvdCap {
         try { dpi = (int)GetDpiForWindow(h); if (dpi < 72) dpi = 96; } catch {}
         hits.Add(new Hit {
           Hwnd = h, Left = left, Top = top, W = w, H = hh,
-          Title = title, Proc = proc, Score = score, IsFg = isFg, Dpi = dpi
+          Title = title, Proc = proc, Route = route, Score = score, IsFg = isFg, Dpi = dpi
         });
       } catch {}
       return true;
@@ -385,7 +443,7 @@ function Write-PinDebug($hits) {
     $debug = @()
     foreach ($h in $hits) {
       $debug += @{
-        proc = $h.Proc; title = $h.Title; score = $h.Score
+        proc = $h.Proc; route = $h.Route; title = $h.Title; score = $h.Score
         w = $h.W; h = $h.H; left = $h.Left; top = $h.Top
         dpi = $h.Dpi
       }
@@ -446,7 +504,7 @@ while ($true) {
       } catch {}
       if ($how) {
         Write-Stage ("ok:" + $how)
-        Write-CapTarget 'window' ("{0} - {1} via {2}" -f $best.Proc, $best.Title, $how)
+        Write-CapTarget 'window' ("{0} [{1}] - {2} via {3}" -f $best.Proc, $best.Route, $best.Title, $how)
         Start-Sleep -Milliseconds $pollMs
         continue
       }
