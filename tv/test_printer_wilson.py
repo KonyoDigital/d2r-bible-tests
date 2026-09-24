@@ -120,7 +120,7 @@ class TheHarnessCannotAct(unittest.TestCase):
         self.assertTrue(units, "premise: no helper-level attempt exists, so this case judges nothing")
         for r in rep["rows"]:
             calls = PW.printer_calls(by[r["attempt"]])
-            self.assertEqual(r["door"], calls is not None and calls <= {"stream"},
+            self.assertEqual(r["door"], calls == {"stream"},
                              "%s is filed %s but calls %r" % (r["attempt"],
                                                               "DOOR" if r["door"] else "UNIT", calls))
         doors = [r for r in rep["rows"] if r["door"]]
@@ -138,6 +138,55 @@ class TheHarnessCannotAct(unittest.TestCase):
         self.assertEqual(got.get("attacks"), len(doors),
                          "the lock was told %r distinct attacks; %d reached the door"
                          % (got.get("attacks"), len(doors)))
+
+
+class TheDoorIsShownNeverAssumed(unittest.TestCase):
+    """The second eye on v3488 (grok-cli), both findings reproduced before fixing."""
+
+    def _pw(self):
+        sys.path.insert(0, os.path.dirname(SRC))
+        import printer_wilson as PW
+        return PW
+
+    def test_a_helper_handed_the_printer_is_followed(self):
+        PW = self._pw()
+        by = dict((name, fn) for name, fn, _w in PW.ATTEMPTS)
+        for name in ("templates", "routes", "gap"):
+            self.assertEqual(PW.printer_calls(by[name]), {"stream"},
+                             "%s reaches the door through _station_refused and must SHOW it" % name)
+
+    def test_an_attempt_that_never_touches_the_printer_is_not_a_door(self):
+        PW = self._pw()
+        self.assertEqual(PW.printer_calls(PW._refused), set())
+        rep_rows = []
+        real = PW.ATTEMPTS
+        PW.ATTEMPTS = (("no-printer", PW._refused, "never touches P"),)
+        try:
+            import contextlib
+            with contextlib.redirect_stdout(io.StringIO()):
+                rep = PW.prove()
+        finally:
+            PW.ATTEMPTS = real
+        self.assertFalse(rep["rows"][0]["door"], "an attempt with no printer call was filed DOOR")
+        self.assertEqual(rep["doorAttacks"], 0)
+
+    def test_a_leaking_unit_check_is_LEAKS_even_with_no_door_attempt(self):
+        PW = self._pw()
+        real = PW.ATTEMPTS
+
+        def _leaks(P):
+            P._tombstone_census(None)
+            return 1, 0
+        PW.ATTEMPTS = (("unit-leak", _leaks, "a helper check that leaks"),)
+        try:
+            import contextlib
+            with contextlib.redirect_stdout(io.StringIO()):
+                rep = PW.prove()
+        finally:
+            PW.ATTEMPTS = real
+        self.assertFalse(rep["ok"])
+        self.assertEqual(rep["state"], "LEAKS", "a unit leak with n == 0 read %r" % rep["state"])
+        self.assertIn("0 of 1 unit", rep["why"])
 
 
 class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
@@ -250,8 +299,23 @@ RED_PROOF = [
     {
         "why": "#123 - every attempt filed as DOOR: a check on a helper banks as evidence about a door it never touched",
         "file": "printer_wilson.py",
-        "find": "        door = calls is not None and calls <= {\"stream\"}",
+        # re-anchored for v3488's second eye: the door test is `== {"stream"}` now, same property
+        "find": "        door = calls == {\"stream\"}      # ⚠ the empty set is NOT a door: see _printer_calls",
         "replace": "        door = True",
+        "matches": 1
+    },
+    {
+        "why": "v3488 second eye [0] - the empty set counts as a door again: an attempt that never touches the printer banks as door evidence",
+        "file": "printer_wilson.py",
+        "find": "        door = calls == {\"stream\"}      # ⚠ the empty set is NOT a door: see _printer_calls",
+        "replace": "        door = calls is not None and calls <= {\"stream\"}",
+        "matches": 1
+    },
+    {
+        "why": "v3488 second eye [1] - an empty door outranks a leak again: a leaking unit check reads UNPROVEN, 'nothing attempted'",
+        "file": "printer_wilson.py",
+        "find": "            \"state\": (\"LEAKS\" if leaks else (\"UNPROVEN\" if n == 0 else \"PROVEN\")),",
+        "replace": "            \"state\": (\"UNPROVEN\" if n == 0 else (\"LEAKS\" if leaks else \"PROVEN\")),",
         "matches": 1
     },
 ]

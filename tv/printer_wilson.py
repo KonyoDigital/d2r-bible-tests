@@ -581,6 +581,19 @@ def printer_calls(fn):
     AST, never listed by hand, so a new attempt cannot land in the wrong column silently.
     [[the-unjoined-end]] [[regression-guard]]
     """
+    return _printer_calls(fn, "P", set())
+
+
+def _printer_calls(fn, pname, seen):
+    """printer_calls(), FOLLOWING the helpers an attempt hands the printer to. -> set | None
+
+    ⚠⚠ The second eye on v3488, reproduced: `templates`, `routes` and `gap` call no `P.<attr>` in
+    their own bodies — they hand P to `_station_refused`, which calls `P.stream()` — so their own
+    AST read `set()`, and `set() <= {"stream"}` filed them DOOR by default. Right answer, wrong
+    reason: an attempt that never touched the printer at all would have been filed exactly the
+    same. The helper is now followed by the POSITION P is passed in (its parameter may be named
+    anything), and a DOOR attempt must show `stream` and nothing else. Unreadable anywhere on the
+    path is None — it cannot be shown to reach the door. [[the-unjoined-end]]"""
     import ast
     import inspect
     import textwrap
@@ -588,9 +601,29 @@ def printer_calls(fn):
         tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
     except (OSError, TypeError, SyntaxError):
         return None
-    return {n.func.attr for n in ast.walk(tree)
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-            and getattr(n.func.value, "id", None) == "P"}
+    seen.add(fn)
+    calls = {n.func.attr for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and getattr(n.func.value, "id", None) == pname}
+    mod = sys.modules.get(getattr(fn, "__module__", ""), None)
+    for n in ast.walk(tree):
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)):
+            continue
+        pos = [i for i, a in enumerate(n.args) if isinstance(a, ast.Name) and a.id == pname]
+        helper = getattr(mod, n.func.id, None) if mod is not None else None
+        if not pos or not callable(helper) or helper in seen:
+            continue
+        try:
+            params = list(inspect.signature(helper).parameters)
+        except (TypeError, ValueError):
+            return None
+        if pos[0] >= len(params):
+            return None
+        sub = _printer_calls(helper, params[pos[0]], seen)
+        if sub is None:
+            return None
+        calls |= sub
+    return calls
 
 
 def prove():
@@ -604,7 +637,7 @@ def prove():
     rows, n, k, un, uk = [], 0, 0, 0, 0
     for name, fn, why in ATTEMPTS:
         calls = printer_calls(fn)
-        door = calls is not None and calls <= {"stream"}
+        door = calls == {"stream"}      # ⚠ the empty set is NOT a door: see _printer_calls
         try:
             an, ak = fn(P)
         except Exception as e:
@@ -622,10 +655,14 @@ def prove():
     doors = [r for r in rows if r["door"]]
     return {"ok": not leaks, "n": n, "k": k, "rows": rows, "doorAttacks": len(doors),
             "unit": {"n": un, "k": uk, "attempts": len(rows) - len(doors)},
-            "state": ("UNPROVEN" if n == 0 else ("LEAKS" if leaks else "PROVEN")),
+            # ⚠ v3488's second eye, reproduced: a leaking UNIT check with n == 0 read UNPROVEN and
+            # "nothing attempted at the door" — ok False, and both the state and the sentence hid why.
+            # A leak outranks an empty door.
+            "state": ("LEAKS" if leaks else ("UNPROVEN" if n == 0 else "PROVEN")),
             "why": (("%d of %d door attempts refused; %d of %d unit check(s) on the printer's "
                      "helpers held, reported apart and never banked" % (k, n, uk, un))
-                    if n else "nothing attempted at the door")}
+                    if n else ("nothing attempted at the door; %d of %d unit check(s) held"
+                               % (uk, un)))}
 
 
 def bank_into_proof_queue(rep):
