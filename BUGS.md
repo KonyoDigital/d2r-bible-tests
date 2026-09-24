@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1246 - TWO VAULT-RECEIPT CASES PASSED ONLY ON A BANK THAT OPENS SOMETHING
+
+**fix - the second eye on 262e1a56 (grok-4.7), reproduced.** REG-1222 made the absent-backup and unreadable-backup doors
+consult the receipt bank too; two older cases in test_the_vault_receipt_is_watched still required UNKNOWN without stubbing
+the resolver, so on a machine whose bank opens nothing they read WARN (measured with a stub `(0, 450)`: `warn`) and would
+go red - venue-dependent. They pin the bank to a partial open now (UNKNOWN on every machine), so each measures the backup
+its name is about. 3/3 proofs PROVEN.
+
 ### REG-1243 - THE FROZEN-SCREEN WATCH WALKED A 3.2 GB SHELF ON EVERY DOCTOR PASS (push refused: test_control "HUNG")
 
 **fix - found by the refused push, measured end to end.** The push of c4262c11 was refused when test_control hit its

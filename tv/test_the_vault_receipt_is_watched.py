@@ -52,8 +52,18 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
         self.d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.d, True)
 
+    def _pin_the_bank(self):
+        """⚠ the second eye on 262e1a56: these two cases are about the BACKUP, but REG-1222 made both
+        doors consult the receipt bank too - so on a machine whose bank opens nothing they read WARN
+        and go red, on another they pass. Pin the bank to a partial open (UNKNOWN on every machine) so
+        the case measures what its name says."""
+        real = HE._receipts_resolve
+        HE._receipts_resolve = lambda *a, **k: (126, 450)
+        self.addCleanup(setattr, HE, "_receipts_resolve", real)
+
     def test_an_absent_backup_is_UNKNOWN_never_zero(self):
         """'no backup' and 'no receipts' are opposite facts and must never share a row."""
+        self._pin_the_bank()
         r = HE.check_vault_receipts(backup_dir=self.d)
         self.assertEqual(r["state"], HE.UNKNOWN,
                          "an empty backup dir reported %r — a count nobody could take must not "
@@ -62,6 +72,7 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
     def test_an_unreadable_backup_is_UNKNOWN_never_zero(self):
         with io.open(os.path.join(self.d, "ledger_bad.json"), "w", encoding="utf-8") as fh:
             fh.write("{not json")
+        self._pin_the_bank()
         r = HE.check_vault_receipts(backup_dir=self.d)
         self.assertEqual(r["state"], HE.UNKNOWN,
                          "an unreadable backup reported %r instead of UNKNOWN" % (r["state"],))
