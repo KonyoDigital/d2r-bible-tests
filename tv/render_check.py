@@ -738,9 +738,12 @@ def _adv_activate(el_id, require_filled=False):
         if (!window.__rcEndure) {
             window.__rcEndure = 1;
             var _b = document.body, _ra = _b.removeAttribute.bind(_b);
-            _b.removeAttribute = function (n) { if (n === 'data-endurance') return; return _ra(n); };
-            _b.setAttribute('data-endurance', '1');
+            _b.removeAttribute = function (n) { if (String(n).toLowerCase() === 'data-endurance') return; return _ra(n); };
         }
+        /* the second eye on v3493: set once, the lock held only against removeAttribute('data-endurance')
+           spelled exactly - toggleAttribute, dataset, another value all cleared it for good. It is
+           re-asserted on EVERY poll now, so each measurement is taken under endurance. */
+        if (document.body.getAttribute('data-endurance') !== '1') document.body.setAttribute('data-endurance', '1');
         try { if (document.body.getAttribute('data-view') && window._toTVD) window._toTVD(); } catch(e){}
         var d = document.getElementById('sig-adv');
         if (!d) return false;
@@ -3126,17 +3129,34 @@ _PROBE = r"""(function(sel, OK_TRUNC){
        opacity 0 WITH pointer-events:none, by design — a resting toast, a dormant iframe. Invisible
        AND hoverable is the defect (his symptom: tooltips answering from black); invisible and inert
        is furniture waiting to be shown. */
+    /* ⚠ THE SECOND EYE ON v3493 (grok-4.7), three holes in this probe's first cut:
+       (1) any ANCESTOR with visibility:hidden marked the node hidden, though a child can set itself
+           visible again (visibility inherits, it does not multiply) - a visible control in a reveal
+           pattern read as invisible; (2) a node that is ITSELF visibility:hidden is not hit-testable,
+           so it is hidden UI, never the defect; (3) there was no hit-test, so an opacity-0 node under
+           another element was flagged though the mouse never reaches it. And a node MID-ENTRANCE (a
+           finite animation still running on it or an ancestor) is not frozen - it crosses the line by
+           itself; a PAUSED one is exactly the defect and still counts. */
     (function(){
-      if (getComputedStyle(e).pointerEvents === 'none') return;
-      var op = 1, hid = false;
-      for (var n=e; n && n!==document.documentElement; n=n.parentElement){
-        var cs=getComputedStyle(n); op *= parseFloat(cs.opacity); if (cs.visibility==='hidden') hid = true;
-      }
-      if (hid || op < 0.05) {
-        invisible++;
-        if (invisibleWhat.length < 4) invisibleWhat.push((e.id ? '#' + e.id : String(e.className||e.tagName)).slice(0,40)
-          + (hid ? ' :: visibility hidden' : ' :: effective opacity ' + op.toFixed(2)));
-      }
+      var ecs = getComputedStyle(e);
+      if (ecs.pointerEvents === 'none' || ecs.visibility === 'hidden') return;
+      var op = 1;
+      for (var n=e; n && n!==document.documentElement; n=n.parentElement){ op *= parseFloat(getComputedStyle(n).opacity); }
+      if (!(op < 0.05)) return;
+      try {
+        for (var m=e; m && m!==document.documentElement; m=m.parentElement){
+          var an = m.getAnimations ? m.getAnimations() : [];
+          for (var k=0; k<an.length; k++){
+            var ct = (an[k].effect && an[k].effect.getComputedTiming) ? an[k].effect.getComputedTiming() : {};
+            if (an[k].playState === 'running' && isFinite(ct.endTime)) return;
+          }
+        }
+      } catch(_ae){}
+      var hx = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
+      if (hx && hx !== e && !e.contains(hx)) return;       /* covered here: the mouse cannot reach it */
+      invisible++;
+      if (invisibleWhat.length < 4) invisibleWhat.push((e.id ? '#' + e.id : String(e.className||e.tagName)).slice(0,40)
+        + ' :: effective opacity ' + op.toFixed(2));
     })();
     /* ⚠ v2381 — THIS CHECK HAD TWO HOLES AND A SLICED LETTER WENT THROUGH BOTH. The console's
        MINI card printed "MINI \u00b7 AUTC" at 901px — the O cut off by the card's own

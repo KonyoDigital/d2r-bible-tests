@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1242 - THE INVISIBLE PROBE JUDGED THE WRONG THINGS; THE ENDURANCE LOCK HELD ONLY ONCE
+
+**fix - the second eye on v3493 (grok-4.7), the render-harness half.** The `invisible` probe (render_check `_PROBE`):
+(1) marked a node hidden when ANY ancestor was visibility:hidden, though visibility inherits and a child can set itself
+visible again; (2) counted a node that is itself visibility:hidden - not hit-testable, so hidden UI, never the defect;
+(3) had no hit-test, so an opacity-0 node under another element was flagged though the mouse never reaches it; and
+(4) sampled once, so a node MID-ENTRANCE (a finite animation still running) could read as frozen. Now: only the node's
+own visibility decides, opacity still multiplies up the chain, a finite RUNNING animation on it or an ancestor means
+"not yet", and it counts only where the centre hit-test reaches it. A PAUSED animation - the real defect - still counts.
+`_adv_activate`'s endurance lock guarded only removeAttribute('data-endurance') spelled exactly and set the attribute
+once; it is case-insensitive and re-asserted on every poll now. Verified: render_check --prove 4/4 caught; the four
+ADVANCED targets green; and the real defect re-created in-page (the drawer reveal forced paused under endurance, reopened
+so it restarts at frame 0) reads `#shadow-adv :: effective opacity 0.00` - red, as it must.
+
 ### REG-1241 - THE ENDURANCE LAW READ CSS WITH REGEXES THAT COULD NOT SEE WHAT IT GUARDS
 
 **fix - the second eye on v3493 (grok-4.7), the helper half; every case reproduced on crafted CSS first.** The
