@@ -62,6 +62,22 @@ class TestALiveBuildReadIsNeverTheBanner(unittest.TestCase):
         self.assertEqual(out["machine"], "LINUX")
         self.assertTrue(out["hopped"], "the reader does not say WHICH context answered")
 
+    def test_the_world_key_travels_with_its_meaning_and_the_host(self):
+        """#178 — GrokBot's Linux seat: heap machine 'windows', banner LINUX, published as a contradiction.
+        D2R_MACHINE is the storage WORLD; the door now says so and reads the host in the same instant."""
+        seen = {}
+
+        def ejs(w, code, t=4.0):
+            seen["code"] = code
+            return ('{"typeofBuild":"object","id":"v3497","profile":"ladder","machine":"windows",'
+                    '"platform":"Linux x86_64","keys":["D2R_MACHINE"],"hopped":true}')
+        out = self._drive(ejs)
+        self.assertEqual(out["machine"], "windows", "the storage key itself must not change")
+        self.assertEqual(out["platform"], "Linux x86_64", "the host was not reported beside the world")
+        self.assertIn("STORAGE WORLD", out["machineMeans"])
+        self.assertIn("ACTIVE", out["profileMeans"])
+        self.assertIn("navigator", seen["code"], "the host is not read in the same evaluation as the heap")
+
     # ---- four refusals, each distinguishable -------------------------------------------
 
     def test_a_SHUT_window_is_a_refusal_with_no_id(self):
@@ -240,6 +256,13 @@ class TestTheShippedExpressionLooksWhereTheValuesLIVE(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#178 - the storage-world key travels alone again and reads as the operating system (GrokBot's Linux seat said 'windows')",
+        "file": "control_app.py",
+        "find": "           \"machine\": got.get(\"machine\"), \"platform\": got.get(\"platform\") or None,\n",
+        "replace": "           \"machine\": got.get(\"machine\"),\n",
+        "matches": 1,
+    },
     {
         "why": "v3428 - THE TIMEOUT COLLAPSED INTO AN ABSENCE. _ejs returns None when the window "
                "did not answer inside its bound; wording that as 'carries no D2R_BUILD.id' reports "

@@ -13585,8 +13585,11 @@ def board_build():
           # D2R_BUILD, both spellings answer rather than one silently winning.
           "var pf=(_ctx.D2R_PROFILE!=null?_ctx.D2R_PROFILE:((b&&b.profile)!=null?b.profile:null));"
           "var mc=(_ctx.D2R_MACHINE!=null?_ctx.D2R_MACHINE:((b&&b.machine)!=null?b.machine:null));"
+          # ⚠ #178 — the HOST, read in the SAME evaluation as the heap, so the two are one instant
+          "var np='';try{var _n=_ctx.navigator||navigator;np=String((_n.userAgentData&&_n.userAgentData.platform)"
+          "||_n.platform||'');}catch(_np){}"
           "return JSON.stringify({typeofBuild:(typeof b),"
-          "id:(b&&b.id)||null,profile:pf,machine:mc,"
+          "id:(b&&b.id)||null,profile:pf,machine:mc,platform:np,"
           "keys:ks,hopped:(_ctx!==window)});"
           "}catch(e){return JSON.stringify({err:String((e&&e.message)||e)});}})()")
     try:
@@ -13611,8 +13614,21 @@ def board_build():
         return {"ok": False, "id": None, "profile": None, "machine": None,
                 "typeofBuild": None, "keys": None, "hopped": None,
                 "why": "the board window raised: %s" % got["err"]}
+    # ⚠⚠ #178 — THE HEAP AND THE BANNER WERE NEVER DISAGREEING; THEY ANSWER TWO QUESTIONS. GrokBot's
+    # Linux seat read `machine: "windows"` here while its banner said LINUX, and it was published as
+    # two writers contradicting each other. D2R_MACHINE is a STORAGE-WORLD key with exactly two values
+    # (bible.html v1469/v3189): 'mac' is the owner's world, 'windows' the isolated W-world EVERY
+    # non-Mac gets, Linux included - and the ribbon was already fixed to name the real OS. The field
+    # name `machine` is what lied. Kept for every reader that parses it, it now travels with what it
+    # MEANS and with the host platform read in the same instant. Same for profile: the heap holds the
+    # ACTIVE one; the banner lists what is available. [[label-outlived-referent]]
     out = {"ok": bool(got.get("id")), "id": got.get("id"), "profile": got.get("profile"),
-           "machine": got.get("machine"), "typeofBuild": got.get("typeofBuild"),
+           "machine": got.get("machine"), "platform": got.get("platform") or None,
+           "machineMeans": ("the STORAGE WORLD this board reads: 'mac' = the owner's world, 'windows' = "
+                            "the isolated W-world every non-Mac machine gets (Linux included) - not the "
+                            "operating system; `platform` is the host"),
+           "profileMeans": "the ACTIVE profile (a machine can hold more than one)",
+           "typeofBuild": got.get("typeofBuild"),
            "keys": got.get("keys"), "hopped": got.get("hopped"), "why": None}
     if not out["ok"]:
         # the window answered, and it genuinely has no D2R_BUILD.id — that is a MEASURED absence,
@@ -19846,9 +19862,15 @@ def eagle_partition(rows, answers=None):
     # bucket, so a surface can say "you: Keep it as it is, 10:41" instead of CLAUDE OWES
     _answered = lambda r: bool(r.get("answered")) and not r.get("openAsks")
     no_q = [r for r in miss if r.get("check") not in not_his and not _asks_him(r) and not _answered(r)]
+    # ⚠ THE SECOND EYE ON 518945b3 (grok-4.7), reproduced: an answer whose effect is `handoff` ("Ask me
+    # more often" / "Be stricter") left his count and landed NOWHERE but `answered` - his_answers says
+    # it "moves the row to Claude's work", and WAITING ON CODE never gained it. It is Claude's now, and
+    # still drawn under ANSWERED BY YOU with what he chose.
+    handed = [r for r in miss if _answered(r) and r.get("check") not in mine_names
+              and any(isinstance(a, dict) and a.get("effect") == "handoff" for a in (r.get("answered") or []))]
     return {
         "bad":      [r for r in miss if r.get("check") not in not_his and _asks_him(r)],
-        "mine":     [r for r in miss if r.get("check") in mine_names] + no_q,
+        "mine":     [r for r in miss if r.get("check") in mine_names] + no_q + handed,
         "noQuestion": no_q,
         # rows he has answered: they no longer bill him and they say what he chose
         "answered": [r for r in rows if isinstance(r, dict) and r.get("answered")],
