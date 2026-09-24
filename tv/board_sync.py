@@ -79,7 +79,7 @@ def _git_ships():
     try:
         out = subprocess.check_output(
             ["git", "log", "--format=%h|%ad|%s", "--date=format:%Y-%m-%d %H:%M", "origin/main"],
-            cwd=REPO, text=True, timeout=120)
+            cwd=REPO, text=True, encoding="utf-8", errors="replace", timeout=120)
     except Exception as _e:
         # ⚠⚠ REG-579 — THIS RETURNED `{}`, AND AN EMPTY DICT HERE MEANS "GIT KNOWS OF NO SHIP".
         # The only consumer asks `ships.get(ident)` and, when it finds one, raises a note that git

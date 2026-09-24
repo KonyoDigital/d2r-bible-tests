@@ -131,7 +131,7 @@ def _live_console_pids():
     """
     try:
         out = subprocess.run(["ps", "-A", "-o", "pid=,command="],
-                             capture_output=True, text=True, timeout=10).stdout
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout
     except Exception:
         return []
     pids = []
@@ -233,7 +233,7 @@ def _live_processes():
     """
     try:
         proc = subprocess.Popen(["ps", "-eo", "pid,ppid,command"],
-                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
         out, _ = proc.communicate(timeout=30)
     except Exception:
         return None, None

@@ -92,7 +92,7 @@ def ask_claude(timeout_s=420):
     try:
         proc = subprocess.run(
             ["claude", "-p", "--allowedTools", "Read", "--max-turns", "12", PROMPT],
-            cwd=REPO, capture_output=True, text=True, timeout=timeout_s)
+            cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout_s)
     except subprocess.TimeoutExpired as e:
         out = ((e.stdout or "") + "\n" + (e.stderr or "")).strip()
         return out or "timeout", 124

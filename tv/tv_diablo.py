@@ -1728,7 +1728,7 @@ def _sips_pixel_size(src):
     try:
         r = subprocess.run(
             ["sips", "-g", "pixelWidth", "-g", "pixelHeight", src],
-            capture_output=True, text=True, timeout=5, **NICE_KW)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, **NICE_KW)
         w = h = 0
         for line in (r.stdout or "").splitlines():
             if "pixelWidth:" in line:
@@ -3543,7 +3543,7 @@ class VisionWorker:
         self.p = subprocess.Popen(
             _claude_lean_args(self.model, stream=True, add_dirs=add),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, bufsize=1, env=env, cwd=_VISION_CWD,
+            text=True, encoding="utf-8", errors="replace", bufsize=1, env=env, cwd=_VISION_CWD,
             preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876 — D2R owns the CPU
         self.q = queue.Queue(); self.turns = 0
         def _pump(proc, q):
@@ -4346,7 +4346,7 @@ class OcrWorker:
             self.p = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                text=True, bufsize=1)
+                text=True, encoding="utf-8", errors="replace", bufsize=1)
             self.q = queue.Queue()
             def _pump(proc, q):
                 try:
@@ -5767,7 +5767,7 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
     args = args[:_p_at + 1] + [prompt if prompt else READ_PROMPT.format(path=ap)] + args[_p_at + 1:]
     r = subprocess.run(
         args,
-        capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, stdin=subprocess.DEVNULL, env=env,
         cwd=_VISION_CWD,
         preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876
     out = (r.stdout or "").strip()

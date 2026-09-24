@@ -1815,10 +1815,10 @@ RED_PROOF = [
                "classifier must go red on a cwd anywhere, not only on the wrapper.",
         "file": "console_doctor.py",
         "find": "        frames = subprocess.run([_spawnable(\"du\"), \"-sk\", os.path.join(HERE, \"frames\")],\n"
-                "                                capture_output=True, text=True, close_fds=False,\n"
+                "                                capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\", close_fds=False,\n"
                 "                                timeout=60)",
         "replace": "        frames = subprocess.run([_spawnable(\"du\"), \"-sk\", os.path.join(HERE, \"frames\")],\n"
-                   "                                capture_output=True, text=True, close_fds=False,\n"
+                   "                                capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\", close_fds=False,\n"
                    "                                cwd=HERE, timeout=60)",
         "matches": 1,
     },

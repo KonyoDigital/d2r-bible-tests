@@ -57,7 +57,7 @@ VISUAL_SURFACES = ("bible.html", "tv/control_ui.html")
 def _sh(*argv, **kw):
     """Run a command; return (rc, stdout). Never raises — an unreadable answer is UNKNOWN."""
     try:
-        p = subprocess.run(argv, cwd=kw.get("cwd", REPO), capture_output=True, text=True,
+        p = subprocess.run(argv, cwd=kw.get("cwd", REPO), capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=kw.get("timeout", 60))
         return p.returncode, (p.stdout or "").strip()
     except Exception as e:
@@ -98,7 +98,7 @@ def record_gates():
     print("▶ running the full gate set against %s …" % (sha or "?")[:12], flush=True)
     t0 = time.time()
     p = subprocess.run([sys.executable, os.path.join(HERE, "run_gates.py")],
-                       cwd=REPO, capture_output=True, text=True)
+                       cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace")
     out = (p.stdout or "") + (p.stderr or "")
     print(out[-2500:])
     m = re.search(r"✅ (\d+) gate\(s\) passed", out)

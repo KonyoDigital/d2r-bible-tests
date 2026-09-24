@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_child_s_words_are_read_as_utf8_on_every_os",
+         [sys.executable, os.path.join(HERE, "test_a_child_s_words_are_read_as_utf8_on_every_os.py")], 60,
+         why="#229 - measured on his Windows ALT: the visual-lock row ran its child with text=True and no encoding, "
+             "Python decoded the child's emoji with cp1255, and the reader thread died. 42 production calls had "
+             "the shape (invisible on the Mac's UTF-8 locale); all pass encoding='utf-8' now. AST sweep with a "
+             "premise. 2 cases, 1 red-proof"),
     Gate("test_a_pass_says_which_check_it_is_in",
          [sys.executable, os.path.join(HERE, "test_a_pass_says_which_check_it_is_in.py")], 60,
          why="#229 - his Windows ALT read 'not measured yet' for 14+ minutes after boot while the same checks "
@@ -7228,7 +7234,7 @@ def _external_writer(names=_LIVE_STATE):
         if not os.path.exists(p):
             continue
         try:
-            r = subprocess.run(["lsof", "-t", p], capture_output=True, text=True, timeout=5)
+            r = subprocess.run(["lsof", "-t", p], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
             pids = [x for x in (r.stdout or "").split() if x.strip() and int(x) != os.getpid()]
             if pids:
                 held.append("%s (pid %s)" % (n, ",".join(pids[:3])))

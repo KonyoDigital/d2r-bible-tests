@@ -936,7 +936,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         r = subprocess.run(
             args,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=_TIMEOUT_S,
             stdin=subprocess.DEVNULL,
             env=env,

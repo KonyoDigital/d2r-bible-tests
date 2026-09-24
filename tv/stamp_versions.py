@@ -131,7 +131,7 @@ def version_commits(cwd=None):
     # [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
     try:
         r = subprocess.run(["git", "log", "-p", "--format=@@@%H", "--", "tv/tv_diablo.py"],
-                           capture_output=True, text=True, cwd=cwd or REPO)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd or REPO)
     except Exception:
         return None
     if r.returncode != 0:

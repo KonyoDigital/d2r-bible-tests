@@ -51,7 +51,7 @@ STAMPS = (
 
 def subject():
     out = subprocess.run(["git", "-C", REPO, "log", "-1", "--pretty=%s"],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
     return (out.stdout or "").strip()
 
 

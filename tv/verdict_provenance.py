@@ -297,7 +297,7 @@ def _tracked():
     """Basenames of stores git tracks — the ones that exist on every venue. -> (set|None, why)"""
     try:
         r = subprocess.run(["git", "ls-files", HERE], cwd=HERE, capture_output=True,
-                           text=True, timeout=30)
+                           text=True, encoding="utf-8", errors="replace", timeout=30)
     except Exception as e:
         return None, "git could not be asked which stores are tracked (%s)" % type(e).__name__
     if r.returncode != 0:

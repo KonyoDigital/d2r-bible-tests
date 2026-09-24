@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1251 - 42 CHILDREN WERE READ IN THE LOCALE ENCODING (cp1255 ON HIS WINDOWS BOX)
+
+**fix - #229, measured on the ALT.** Running the doctor on his Windows ALT, a subprocess reader thread died with
+`UnicodeDecodeError: 'charmap' codec can't decode byte 0x9c`: the `visual lock` row ran its child with `text=True` and no
+encoding, so Python decoded the child's "✅ VISUAL-LOCK OK - ..." with the Windows locale (cp1255). On the Mac's UTF-8
+locale every such call works, which is why none was ever seen failing. An AST sweep found 42 production calls with the
+shape in 22 files (control_app 5, tv_diablo 4, console_doctor 3, bump_version 4, my_orphans 4, ...); every one passes
+`encoding="utf-8", errors="replace"` now, inserted at the keyword by AST position. Two red-proof anchors that quoted a
+changed line verbatim followed it (re-PROVEN). Guard: `test_a_child_s_words_are_read_as_utf8_on_every_os` (an AST sweep
+with a premise that it sees the banned shape; 1 proof), PROVEN.
+
 ### REG-1250 - ON WINDOWS, AN UNPINNED EYE FILMED THE WHOLE DESKTOP
 
 **fix - the second eye on 757518cc (v3496, grok-4.7), read in the capture loop.** In auto mode, when nothing pinned,

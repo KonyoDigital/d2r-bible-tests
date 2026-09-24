@@ -69,7 +69,7 @@ def children_of(pid=None):
     pid = os.getpid() if pid is None else int(pid)
     try:
         pr = subprocess.Popen(["ps", "-axo", "pid=,ppid="], stdout=subprocess.PIPE,
-                              stderr=subprocess.DEVNULL, universal_newlines=True)
+                              stderr=subprocess.DEVNULL, universal_newlines=True, encoding="utf-8", errors="replace")
         out, _ = pr.communicate(timeout=10)
     except Exception:
         return None

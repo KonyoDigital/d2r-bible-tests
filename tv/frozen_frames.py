@@ -480,12 +480,12 @@ def frontmost_app():
     """
     try:
         import subprocess
-        asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True,
+        asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True, encoding="utf-8", errors="replace",
                              timeout=5).stdout.strip()
         if not asn:
             return None, "lsappinfo named no front application"
         out = subprocess.run(["lsappinfo", "info", "-only", "name", asn],
-                             capture_output=True, text=True, timeout=5).stdout.strip()
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5).stdout.strip()
         name = out.split("=")[-1].strip().strip('"') if "=" in out else out
         if not name:
             return None, "the front application (%s) would not give its name" % asn

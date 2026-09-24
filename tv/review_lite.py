@@ -94,13 +94,13 @@ else:
 if os.environ.get("TVD_REVIEW") == "1":
     try:
         diff = subprocess.run(["git", "diff", "origin/main...HEAD"], cwd=ROOT,
-                              capture_output=True, text=True, timeout=30).stdout[:60000]
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30).stdout[:60000]
         if diff.strip():
             print("pre-push: asking for a second read of the diff (advisory)…")
             r = subprocess.run(
                 ["claude", "-p", "Review this diff for real defects only - logic errors, dead "
                  "wiring, guards that cannot fire. No style. Be brief; say NONE if clean.\n\n" + diff],
-                capture_output=True, text=True, timeout=180)
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
             print((r.stdout or "").strip()[:2000] or "  (no answer)")
     except Exception as e:
         print("  advisory review skipped: %s" % e)

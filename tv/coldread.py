@@ -47,7 +47,7 @@ BROKEN_CEILING = 12          # the real page measures 5, all of them inert place
 def _stage(ref):
     """Write the version's bible.html to the repo root so `art/…` resolves as it does live."""
     r = subprocess.run(["git", "show", "%s:bible.html" % ref], cwd=ROOT,
-                       capture_output=True, text=True, timeout=60)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     if r.returncode != 0 or not r.stdout:
         return None
     with open(STAGE, "w", encoding="utf-8") as fh:

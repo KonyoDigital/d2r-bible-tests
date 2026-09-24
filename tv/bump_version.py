@@ -184,7 +184,7 @@ def _heart_gate(note, repo=None):
                 "tv/heart2.py")
     try:
         r = subprocess.run(["git", "diff", "--name-only", "HEAD"],
-                           cwd=os.path.dirname(here), capture_output=True, text=True, timeout=60)
+                           cwd=os.path.dirname(here), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         if r.returncode != 0:
             return                                  # cannot see the tree: UNKNOWN, never a block
         touched = set(x.strip() for x in (r.stdout or "").splitlines() if x.strip())
@@ -614,7 +614,7 @@ def _regen_blueprint():
     here = os.path.dirname(os.path.abspath(__file__))
     try:
         r = subprocess.run([sys.executable, os.path.join(here, "blueprint.py")],
-                           capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         if r.returncode == 0:
             print("   regenerated BLUEPRINT.md")
             # ⚠ v3206 — AND THE HEART MAP, for the same reason and by the same rule. His words:
@@ -626,7 +626,7 @@ def _regen_blueprint():
             # version stamp — the pre-push will refuse and a human runs the generator.
             try:
                 h = subprocess.run([sys.executable, os.path.join(here, "heart_map.py")],
-                                   capture_output=True, text=True, timeout=120)
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
                 print("   regenerated HEART.md" if h.returncode == 0 else
                       "   ⚠ HEART.md could NOT be regenerated — python3 tv/heart_map.py")
                 # v3401 — AND THE RESUME, by the same rule. MEASURED 2026-09-20: RESUME_HERE.md
@@ -637,7 +637,7 @@ def _regen_blueprint():
                 # the half a machine cannot measure and is never touched.
                 try:
                     rs = subprocess.run([sys.executable, os.path.join(here, "resume_state.py")],
-                                        capture_output=True, text=True, timeout=60)
+                                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
                     print("   regenerated RESUME_HERE.md" if rs.returncode == 0 else
                           "   ⚠ RESUME_HERE.md could NOT be regenerated — python3 tv/resume_state.py")
                 except Exception:

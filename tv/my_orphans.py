@@ -83,7 +83,7 @@ def _parent_of(pid):
     """ppid of `pid`, as a string, or None. Bounded and failure-tolerant by design."""
     try:
         r = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)],
-                           capture_output=True, text=True, timeout=5)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
         v = (r.stdout or "").strip()
         return v or None
     except Exception:
@@ -97,7 +97,7 @@ def _listening_ports(pid):
     """
     try:
         r = subprocess.run(["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
     except Exception as e:
         return set(), "lsof could not be asked (%s)" % type(e).__name__
     out = set()
@@ -224,7 +224,7 @@ def _cpu_sample():
     """
     try:
         raw = subprocess.run(["ps", "-Ao", "pid,pcpu"],
-                             capture_output=True, text=True, timeout=20).stdout
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20).stdout
     except Exception:
         return None
     out = {}
@@ -291,7 +291,7 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
     _first = _prev
     try:
         raw = subprocess.run(["ps", "-Ao", "pid,ppid,pcpu,etime,command"],
-                             capture_output=True, text=True, timeout=20).stdout
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20).stdout
     except Exception as e:
         return [{"pid": None, "why": "could not ask ps: %s" % e}]
     for line in raw.splitlines()[1:]:

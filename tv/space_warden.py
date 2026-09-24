@@ -62,7 +62,7 @@ NEVER = ("tv/frames", "art", ".git", "node_modules")
 
 def _du(path):
     try:
-        r = subprocess.run(["du", "-sk", path], capture_output=True, text=True, timeout=120)
+        r = subprocess.run(["du", "-sk", path], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         return int(r.stdout.split()[0]) * 1024
     except Exception:
         return 0
@@ -90,7 +90,7 @@ def _safe(rel):
     try:
         if subprocess.run(["git", "check-ignore", "-q", rel], cwd=REPO).returncode != 0:
             return False, "git does NOT ignore it — that makes it source, not output"
-        r = subprocess.run(["git", "ls-files", rel], capture_output=True, text=True, cwd=REPO)
+        r = subprocess.run(["git", "ls-files", rel], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=REPO)
         n = len([l for l in r.stdout.split("\n") if l.strip()])
         if n:
             return False, "git tracks %d file(s) inside it" % n

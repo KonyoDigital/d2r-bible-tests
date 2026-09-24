@@ -83,7 +83,7 @@ def console_is_running(port=CONSOLE_PORT):
     try:
         import subprocess
         out = subprocess.run(["lsof", "-ti", "tcp:%d" % int(port)],
-                             capture_output=True, text=True, timeout=10).stdout.strip()
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
         return int(out.split("\n")[0]) if out else None
     except Exception:
         return None

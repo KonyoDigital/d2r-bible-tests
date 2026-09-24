@@ -334,7 +334,7 @@ def _check_disk_headroom():
         return UNKNOWN, "could not read disk usage: %s" % str(e)[:90]
     try:
         frames = subprocess.run([_spawnable("du"), "-sk", os.path.join(HERE, "frames")],
-                                capture_output=True, text=True, close_fds=False,
+                                capture_output=True, text=True, encoding="utf-8", errors="replace", close_fds=False,
                                 timeout=60)
         used = int(frames.stdout.split()[0]) / 1e6 if frames.stdout.strip() else None
     except Exception:
@@ -495,7 +495,7 @@ def _check_the_other_doctors():
     for mod, label in (("vault_doctor", "vault"), ("chronicle_doctor", "chronicle")):
         try:
             r = subprocess.run([sys.executable, os.path.join(HERE, mod + ".py")],
-                               capture_output=True, text=True, close_fds=False,
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", close_fds=False,
                                timeout=600)
             txt = (r.stdout or "") + (r.stderr or "")
             bad = txt.count("🟠") + txt.count("🔴")
@@ -536,7 +536,7 @@ def _check_the_visual_lock_holds():
     if not os.path.isfile(lock):
         return UNKNOWN, "visual_lock_invariant.py is not on this machine, so nothing is pinning the board's type or colour"
     try:
-        p = subprocess.run([sys.executable, lock], capture_output=True, text=True,
+        p = subprocess.run([sys.executable, lock], capture_output=True, text=True, encoding="utf-8", errors="replace",
                            close_fds=False, timeout=90)
     except Exception as e:
         return UNKNOWN, "the visual lock could not run (%s) — that is unmeasured, not clean" % str(e)[:70]

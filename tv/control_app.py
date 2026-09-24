@@ -1218,7 +1218,7 @@ def fleet_origin_status(force_fetch=False):
         ):
             try:
                 r = subprocess.run(
-                    args, cwd=REPO, capture_output=True, text=True, timeout=5,
+                    args, cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
                     creationflags=_WIN_CREATE if IS_WIN else 0,
                 )
                 if r.returncode == 0:
@@ -3517,7 +3517,7 @@ def _port_listener_pid(port=None):
             out = subprocess.check_output(
                 ["netstat", "-ano", "-p", "tcp"],
                 stderr=subprocess.DEVNULL,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 creationflags=_WIN_CREATE,
             )
             needle = f":{port}"
@@ -3546,7 +3546,7 @@ def _port_listener_pid(port=None):
         out = subprocess.check_output(
             ["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"],
             stderr=subprocess.DEVNULL,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
         ).strip()
         if not out:
             return None
@@ -5868,7 +5868,7 @@ def _reclaim_headless_for_scan():
         # [[process-port-discipline]] [[label-outlived-referent]]
         out = subprocess.run(
             ["pgrep", "-f", "control_app.py --no-open"],
-            capture_output=True, text=True, timeout=3)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
         for line in (out.stdout or "").splitlines():
             try:
                 pid = int(line.strip())
@@ -10842,7 +10842,7 @@ def _kai_closer_loop():
             import queue as _q
             try:
                 wp = subprocess.Popen([ocr_bin, "--worker"], stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE, text=True, bufsize=1,
+                                      stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", bufsize=1,
                                       preexec_fn=(lambda: os.nice(15)) if not IS_WIN else None)
             except Exception as e:
                 print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue

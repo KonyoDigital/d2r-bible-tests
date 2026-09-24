@@ -210,7 +210,7 @@ def _prepush_running(repo=None):
     """-> (running, detail). None when pgrep could not be asked — never False on failure."""
     try:
         r = subprocess.run(["pgrep", "-fl", "hooks/pre-push|git"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
     except Exception as e:
         return None, "pgrep could not be asked (%s)" % type(e).__name__
     hits = []

@@ -20,7 +20,7 @@ print(f"soak: agent pid {proc.pid} · {MINUTES:.0f} min · journal {journal}", f
 
 def rss_mb(pid):
     try:
-        out = subprocess.check_output(["ps", "-o", "rss=", "-p", str(pid)], text=True)
+        out = subprocess.check_output(["ps", "-o", "rss=", "-p", str(pid)], text=True, encoding="utf-8", errors="replace")
         return int(out.strip() or 0) / 1024.0
     except Exception:
         return 0.0

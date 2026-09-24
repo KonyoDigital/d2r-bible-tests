@@ -226,8 +226,8 @@ RED_PROOF = [
         "why": "removing -a returns lsof to ORing its selectors, so every process on the machine "
                "reads as holding his port and nothing can ever be caught",
         "file": "my_orphans.py",
-        "find": '        r = subprocess.run(["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],\n                           capture_output=True, text=True, timeout=10)\n    except Exception as e:\n        return set(), "lsof could not be asked (%s)" % type(e).__name__',
-        "replace": '        r = subprocess.run(["lsof", "-nP", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],\n                           capture_output=True, text=True, timeout=10)\n    except Exception as e:\n        return set(), "lsof could not be asked (%s)" % type(e).__name__',
+        "find": '        r = subprocess.run(["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],\n                           capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\", timeout=10)\n    except Exception as e:\n        return set(), "lsof could not be asked (%s)" % type(e).__name__',
+        "replace": '        r = subprocess.run(["lsof", "-nP", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],\n                           capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\", timeout=10)\n    except Exception as e:\n        return set(), "lsof could not be asked (%s)" % type(e).__name__',
         "matches": 1,
     },
     {
