@@ -114,18 +114,46 @@ def _lit(src, name):
 
 
 def one_shot_owned(src):
-    """Names a boot one-shot applies with its own provenance. Seeding them is refused."""
-    lines = src.split("\n")
-    lo, hi = None, None
-    for i, l in enumerate(lines):
-        if "d2r_v1692FleshrenderApplied" in l and lo is None:
-            lo = max(0, i - 12)
-        if "d2r_v1693RulingApplied" in l:
-            hi = i + 60
-    if lo is None or hi is None:
-        return set()
-    region = "\n".join(lines[lo:hi])
-    return {n for pair in re.findall(r"'([^']{3,40})'|\"([^\"]{3,40})\"", region) for n in pair if n}
+    """Names a boot one-shot applies with its own provenance. Seeding them is refused. -> set
+
+    ⚠ REG-1271 — READ FROM EACH APPLY, NEVER FROM A LINE WINDOW. This took every quoted 3-40 char
+    string between the FIRST line naming d2r_v1692FleshrenderApplied (-12) and the LAST naming
+    d2r_v1693RulingApplied (+60). A backup list at bible.html:~10296 later named the Fleshrender flag,
+    so the window grew to ~36,500 lines and this returned 25,522 "names" - and before that growth it
+    had not held The Diggler's apply, so the v3313 bake SEEDED Fleshrender, Gloom's Trap and The
+    Diggler, the three names rule 4 exists to refuse (v1693's own law: a second witness changes what
+    'honest' means). Every one-shot applies through `chronicleApply({ wouldAdd: { uniques: [...] } })`
+    immediately before it sets its own `d2r_v...Applied` flag, so the names are read from THAT call,
+    anchored on THAT flag - exactly the twelve the specs count. [[source-reading-guard]] §3
+    """
+    out = set()
+    for got in one_shot_names_by_flag(src).values():
+        out |= got
+    return out
+
+
+def one_shot_names_by_flag(src):
+    """{flag: {names}} - each boot one-shot's names, read from its own chronicleApply (see one_shot_owned)."""
+    by = {}
+    for m in re.finditer(r"setItem\('(d2r_v\d{3,4}[A-Za-z]*Applied)',\s*'1'\)", src):
+        names = set()
+        st = src.rfind("chronicleApply(", 0, m.start())
+        if st < 0 or m.start() - st > 2500:
+            continue                          # a flag with no apply beside it (a repair guard) names nothing
+        blk = src[st:m.start()]
+        a = blk.find("uniques:")
+        if a < 0:
+            continue
+        b = blk.find("], sets", a)
+        arr = blk[a:b if b > a else len(blk)]
+        if "name:" in arr:                    # [{ name: 'X', date: '...' }] - never read the dates as names
+            got = re.findall(r"name:\s*(?:'([^']+)'|\"([^\"]+)\")", arr)
+        else:                                 # ['X', "Y"]
+            got = re.findall(r"'([^']+)'|\"([^\"]+)\"", arr)
+        names |= {x or y for x, y in got if (x or y)}
+        if names:
+            by.setdefault(m.group(1), set()).update(names)
+    return by
 
 
 #: ⚠⚠ v3327 — SEEDED NAMES THE GAME LISTS AS REMAINING, DECLARED RATHER THAN SILENTLY KEPT.

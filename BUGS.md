@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1271 - THE SEED BAKER SEEDED THE THREE NAMES ITS OWN RULE 4 EXISTS TO REFUSE
+
+**fix - #165, found by reading v1693:275's red ("The Diggler must be ABSENT from _GRAIL_SEED") as an argument.** The
+v3313 bake (2026-09-18) wrote Fleshrender, Gloom's Trap and The Diggler into _GRAIL_SEED. Each arrives by its own
+boot one-shot with its own provenance, and bake rule 4 refuses to seed exactly those - a second witness changes what
+'honest' means (v1693). `one_shot_owned()` scraped every quoted 3-40 char string from a LINE WINDOW between the first
+mention of d2r_v1692FleshrenderApplied (-12) and the last of d2r_v1693RulingApplied (+60); a backup list at
+bible.html:~10296 later named the first flag, the window grew to ~36,500 lines, and it returned 25,522 "names". It now
+reads each one-shot's names from its OWN `chronicleApply({ wouldAdd: ... })`, anchored on its own flag - exactly the
+twelve (`one_shot_names_by_flag` exposes them per flag). The three are removed from _GRAIL_SEED (312 -> 309); the
+seed floor only ever ADDS, so nothing leaves any ledger. The nine the ruling one-shot applies stay: they were in the
+Chronicle-captured seed (245) before that one-shot existed. This also frees v1692 (3) "first load applies the two
+verified finds", which could not move while the seed already held both. A first suspicion, that the seed's
+"Harlequin Crest (Shako)" was uncounted, was RETRACTED on reading v3313's law: `_ownedHas` folds it onto
+"Harlequin Crest" by design (v2267). Guard: `test_the_seed_holds_no_one_shot_name` (3 cases, 2 proofs), PROVEN.
+
 ### REG-1270 - ROUTINE I'S FAMILY A: A 2026-08-11 FIXTURE MEASURED AGAINST A SEED THAT KEPT GROWING
 
 **test - #165, family A diagnosed in a real page.** ~13 of Routine I's 33 standing reds (v1692, v1693, v659, v1703,

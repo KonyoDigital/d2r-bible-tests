@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_seed_holds_no_one_shot_name",
+         [sys.executable, os.path.join(HERE, "test_the_seed_holds_no_one_shot_name.py")], 60,
+         why="REG-1271 (#165) - the v3313 bake seeded Fleshrender, Gloom's Trap and The Diggler, the names "
+             "rule 4 refuses (each arrives by its own one-shot), because one_shot_owned scraped a line "
+             "window that later swallowed 25,522 strings. It now reads each one-shot's own chronicleApply; "
+             "the seed may hold only the ruling nine. 3 cases, 2 red-proofs"),
     Gate("test_a_drained_verdict_is_a_declared_one",
          [sys.executable, os.path.join(HERE, "test_a_drained_verdict_is_a_declared_one.py")], 60,
          why="REG-1267 (#222) - the row 'a verdict comes from a declared field' said 6 of 6 recent looks "
