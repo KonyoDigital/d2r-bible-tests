@@ -1225,6 +1225,47 @@ TARGETS = {
     # so the card he answers and the row that sends him to it were in no shot at all. Both are seeded
     # with a FIXTURE question (never his data) and re-seeded on every poll, so the page's own fetch
     # cannot paint over them between the activate and the probe.
+    # ⚠ #230 — THE CHRONICLE INBOX WINDOW HAD NO PHOTOGRAPH. Grok's mailbox study was ported onto it
+    # (the tome, the item art on a plate, in-page confirmations), and nothing had ever rendered the
+    # window he accepts and dismisses from. FIXTURE items are fed through the board frame's OWN
+    # functions (the path chRefreshData reads), re-fed on every poll so the board finishing its load
+    # cannot swap in the sandbox's empty inbox.
+    "ch-inbox": {
+        "serve": True,
+        "why": "THE CHRONICLE INBOX WINDOW — the item cards he accepts or dismisses, each with its own "
+               "game art on a plate, the chronicle tome on the header (Grok's mailbox study, #230)",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var f = document.getElementById('tvd-eng'); var W = f && f.contentWindow;
+            if (!W || typeof window._chInboxRepaint !== 'function') return false;
+            var now = Date.now();
+            var items = [
+              {name: 'Harlequin Crest', tier: 'grail', status: 'pending', rarity: 'unique', why: 'unique helm \u00b7 Hell Mephisto', firstSeenTs: now - 600000, seenCount: 2, sessionId: 'fixture-mephisto'},
+              {name: 'The Stone of Jordan', tier: 'grail', status: 'pending', rarity: 'unique', why: 'unique ring \u00b7 Hell Mephisto', firstSeenTs: now - 900000, seenCount: 3, sessionId: 'fixture-mephisto'},
+              {name: 'Goldwrap', tier: 'keep', status: 'pending', rarity: 'unique', why: 'unique belt \u00b7 Hell Baal', firstSeenTs: now - 3600000, seenCount: 1, sessionId: 'fixture-baal'}];
+            try {
+              W.kaiChronicleInbox = function(){ return items; };
+              W.kaiChronicleLedger = function(){ return []; };
+              W.kaiChronicleSync = function(){};
+              W.kaiChronicleLedgerSeedFromInbox = function(){};
+            } catch (e) { return false; }
+            window._chInboxRepaint();
+            var m = document.getElementById('ch-modal');
+            if (!m || m.hidden) {
+                var b = document.getElementById('btn-chronicle-inbox');
+                if (!b || b.hidden) return false;
+                b.click();
+            }
+            m = document.getElementById('ch-modal');
+            if (!m || m.hidden) return false;
+            var plates = m.querySelectorAll('.ch-art-plate');
+            var r = plates.length ? plates[0].getBoundingClientRect() : null;
+            return !!(plates.length === 3 && r && r.width > 100 && m.querySelector('.ch-head .ch-tome')); })()""",
+        "sel": "#ch-modal .ch-card-item, #ch-modal .ch-head",
+        "settles": False,
+        "warmup": 6.0,      # the board frame (the inbox's data source) must be up; fixture-fed after that
+        "widths": ((1440, 1000), (901, 900), (375, 800)),
+    },
     "inbox-asks": {
         "serve": True,
         "path": "/board?app=1#tools",

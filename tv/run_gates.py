@@ -5321,6 +5321,14 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_the_chronicle_inbox_asks_on_the_page",
+         [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
+         why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
+             "Chronicle inbox. Ported: the tome on the pill and header, the item art 112px on a plate (an "
+             "empty plate says 'no picture'), the three destructive questions drawn ON THE PAGE (a native "
+             "confirm() blocks the window; some webviews answer NO unseen), the chips' dim/danger variants "
+             "styled outside the footer and the session dismiss labelled 'Dismiss' (a grok-4.7 look found "
+             "them reading as disabled). Pixels: render target ch-inbox. 4 cases, 2 red-proofs"),
     Gate("test_a_scratch_console_never_films_his_screen",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_films_his_screen.py")], 60,
          why="#236 - mid-push the render gate's private (stub) console went live, pinned HIS GeForce NOW "

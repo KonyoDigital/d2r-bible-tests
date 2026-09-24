@@ -4901,7 +4901,7 @@
   #ch-modal { position: fixed; inset: 0; z-index: 980; display: flex; align-items: center; justify-content: center;
     background: rgba(4,6,8,.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 16px; }
   #ch-modal[hidden] { display: none !important; }
-  .ch-card { width: min(920px, 96vw); max-height: min(88vh, 900px); display: flex; flex-direction: column;
+  .ch-card { width: min(1040px, 96vw); max-height: min(88vh, 900px); display: flex; flex-direction: column;
     border-radius: 16px; border: 1px solid rgba(200,180,120,.28); background: linear-gradient(180deg, #161410 0%, #0c0b09 100%);
     box-shadow: 0 24px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06); overflow: hidden; }
   .ch-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px;
@@ -4926,7 +4926,7 @@
      #0c100e on #c7b377 measures ~11:1, well clear of the 4.5:1 floor v1614 set.) */
   .ch-pill.grail.on { background: var(--rar-unique); border-color: var(--rar-unique); }
   .ch-body { flex: 1; overflow: auto; padding: 12px 16px 8px; min-height: 120px; }
-  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(176px, 100%), 1fr)); gap: 10px; }   /* #230 — room for the 132px art plate */
   .ch-card-item { position: relative; border-radius: 12px; border: 1px solid rgba(200,180,120,.2);
     background: rgba(0,0,0,.35); padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 6px;
     transition: border-color .15s, box-shadow .15s; }
@@ -4944,8 +4944,31 @@
   .ch-status.s-dismissed { color: #8fa398; }
   .ch-status.s-blocked-unfound { color: #e9b96e; border-color: rgba(233,185,110,.45); }
   .ch-modebar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
-  .ch-card-item .ch-art { width: 48px; height: 48px; object-fit: contain; align-self: center;
-    image-rendering: auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  /* #230 — the item art on a plate (Grok's mailbox study, ~/tv-diablo-mailbox): 48px read as an icon;
+     at 112px on a lit plate it reads as the item he is being asked about. */
+  .ch-art-plate { width: 132px; height: 132px; margin: 2px auto 0; display: grid; place-items: center;
+    border-radius: 12px; border: 1px solid rgba(200,180,120,.14);
+    background: radial-gradient(circle at 50% 42%, rgba(240,192,96,.18), rgba(0,0,0,.15) 70%), #0a0907; }
+  /* no picture rather than a wrong one (v1628) — but SAID, so an empty plate never reads as a broken
+     one. :empty covers both exits: the manifest has no art, or the img 404'd and removed itself. */
+  .ch-art-plate:empty::after { content: 'no picture'; font: var(--fw-normal) var(--fs-2xs)/1 var(--mono);
+    color: #6f6a58; letter-spacing: var(--ls-wide); }
+  .ch-card-item.tier-grail .ch-art-plate {
+    background: radial-gradient(circle at 50% 40%, rgba(199,179,119,.28), rgba(0,0,0,.2) 70%), #100e09; }
+  .ch-card-item .ch-art { width: 112px; height: 112px; object-fit: contain; align-self: center;
+    image-rendering: auto; filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+  .ch-tome { width: 20px; height: 26px; object-fit: contain; vertical-align: middle; margin-right: 4px;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+  .ch-head h3 .ch-tome { width: 26px; height: 34px; margin-right: 8px; }
+  /* the in-page confirmation: a native confirm() blocks the whole window (and some embedded
+     webviews answer it NO without asking), so the three questions are drawn on the page */
+  #ch-ask { position: fixed; inset: 0; z-index: 990; display: grid; place-items: center;
+    background: rgba(4,6,8,.78); padding: 16px; }
+  #ch-ask[hidden] { display: none !important; }
+  #ch-ask .ch-ask-card { width: min(460px, 94vw); padding: 18px 18px 14px; border-radius: 14px;
+    background: var(--surface-read, #14110d); border: 1px solid rgba(200,180,120,.38); color: var(--text); }
+  #ch-ask p { margin: 0 0 14px; white-space: pre-wrap; font: var(--fw-normal) var(--fs-sm)/var(--lh-normal) var(--mono); }
+  #ch-ask .ch-ask-acts { display: flex; justify-content: flex-end; gap: 8px; }
   /* v1628 removed .ch-art-ph — it styled the 📦 stand-in that chArtHtml no longer emits, and a
      rule kept alive for a glyph nobody renders is an invitation to render it again. */
   .ch-card-item .ch-nm { font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #f5edd8; text-align: center;
@@ -4999,6 +5022,19 @@
   .ch-foot .ch-btn.dim { color: #c9b88a; background: rgba(0,0,0,.4); border-color: rgba(200,180,120,.3); }
   .ch-foot .ch-btn.warn { color: #0c100e; background: #e9b96e; border-color: #e9b96e; }
   .ch-foot .ch-btn.danger { color: #ffb0a0; background: rgba(70,26,20,.5); border-color: rgba(255,120,90,.4); }
+  /* #230 — a cross-family look (grok-4.7) on the ported inbox: the session chips' `dim` and `danger`
+     variants were styled ONLY inside .ch-foot, so "Junk" and the session dismiss fell back to the
+     plain grey base and read as disabled. The variants now apply to every inbox button. */
+  .ch-btn.dim { color: #c9b88a; background: rgba(0,0,0,.4); border-color: rgba(200,180,120,.3); }
+  .ch-btn.danger { color: #ffb0a0; background: rgba(70,26,20,.5); border-color: rgba(255,120,90,.45); }
+  .ch-btn.warn { color: #0c100e; background: #e9b96e; border-color: #e9b96e; }
+  .ch-btn.dim:hover, .ch-btn.danger:hover { filter: brightness(1.18); }
+  /* the legend gets its own line, so the four actions sit in ONE row beneath it (the reference's shape) */
+  .ch-foot .ch-grow { flex-basis: 100%; }
+  @media (max-width: 520px) {
+    .ch-foot .ch-grow { display: none; }        /* at phone width the cards need the room more */
+    .ch-head .ch-sub { display: block; margin: 2px 0 0; }
+  }
   .th-flags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
   .th-flag { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); padding: 3px 6px; border-radius: 5px;
     border: 1px solid rgba(200,180,120,.28); color: #d9c9a0; background: rgba(0,0,0,.35); }
@@ -8177,7 +8213,7 @@ body[data-origin="shadow"] #stage::after {
              Hidden unless the sweep actually has something to say.
              [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
         <div class="ch-inbox-row" id="ch-inbox-row" hidden>
-          <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write">📜 Inbox <b id="ch-inbox-n">0</b></button>
+          <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write"><img class="ch-tome" src="/art/ui_chronicle.png" alt="" onerror="this.replaceWith(document.createTextNode('\ud83d\udcdc '))">Inbox <b id="ch-inbox-n">0</b></button>
           <span class="ch-sweep" id="ch-sweep-go" role="button" tabindex="0" hidden aria-label="open Chronicle Sweep" title="open TV·D ▸ Chronicle Sweep — the names your readers lifted off your own reels" onclick="event.stopPropagation(); window._chronWaitingJump && window._chronWaitingJump();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();window._chronWaitingJump&&window._chronWaitingJump();}">&#x1F4DC;</span>
           <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
         </div>
@@ -8608,7 +8644,7 @@ body[data-origin="shadow"] #stage::after {
   <div id="ch-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
     <div class="ch-card">
       <div class="ch-head">
-        <h3 id="ch-modal-title">📜 Chronicle inbox <span class="ch-sub" id="ch-modal-count"></span></h3>
+        <h3 id="ch-modal-title"><img class="ch-tome" src="/art/ui_chronicle.png" alt="" onerror="this.replaceWith(document.createTextNode('\ud83d\udcdc '))">Chronicle inbox <span class="ch-sub" id="ch-modal-count"></span></h3>
         <button type="button" class="ch-x" id="ch-modal-x" title="Close (Esc)">✕</button>
       </div>
       <div class="ch-modebar">
@@ -21683,16 +21719,20 @@ window._lockMark = function(isOpen, px, label){
       + (CH.selected[nm] ? ' sel' : '')
       + (/grail/i.test(tier) ? ' tier-grail' : '')
       + ' st-' + st;
-    var when = x.firstSeenTs ? new Date(x.firstSeenTs).toLocaleTimeString()
-      : (x.proposedAt ? new Date(x.proposedAt).toLocaleTimeString()
-      : (x.lastTs ? new Date(x.lastTs).toLocaleTimeString() : ''));
+    /* #230 — hour:minute: the seconds pushed "PM" onto its own line on every card (cross-family look) */
+    var _hm = function(t){ try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).replace(/\s/g, '\u00a0'); } catch(e){ return ''; } };
+    var when = x.firstSeenTs ? _hm(x.firstSeenTs)
+      : (x.proposedAt ? _hm(x.proposedAt)
+      : (x.lastTs ? _hm(x.lastTs) : ''));
     var meta = (x.why || x.store || x.loc || x.source || 'kai')
       + (when ? ' · ' + when : '')
       + (x.seenCount ? ' · seen ×' + x.seenCount : '')
       + (x.triageWhy ? ' · ' + x.triageWhy : '');
     return '<div class="' + cardCls + '" data-name="' + esc(nm) + '">'
       + (act ? ('<input type="checkbox" class="ch-chk ch-row-chk" data-name="' + esc(nm) + '"' + (CH.selected[nm] ? ' checked' : '') + '>') : '')
-      + chArtHtml(nm)
+      /* #230 — Grok's mailbox study: the item's own game art, large, on a plate. The frame is sharp
+         at any size; the extract is ~100-200px and gains nothing past that. */
+      + '<div class="ch-art-plate">' + chArtHtml(nm) + '</div>'
       /* v1628 — these are real game items and the card painted every one of them the same cream,
          so a Shako and a crafted ring were the same colour on the one screen he triages from.
          The class comes from the entry's OWN rarity if it carries one and is empty otherwise:
@@ -21802,12 +21842,12 @@ window._lockMark = function(isOpen, px, label){
           + '<button type="button" class="ch-btn ok ch-sess-grails" data-sid="' + sidAttr + '" title="Accept only grail-tier in this session">✓ Grail</button>'
           + '<button type="button" class="ch-btn ok ch-sess-all" data-sid="' + sidAttr + '" title="Accept everything pending in this session">✓ All</button>'
           + '<button type="button" class="ch-btn dim ch-sess-junk" data-sid="' + sidAttr + '" title="Dismiss junk only (keep border/keep)">✕ Junk</button>'
-          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '" title="Dismiss entire session queue">✕ All</button>'
+          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '" title="Dismiss entire session queue">✕ Dismiss</button>'
           + '</div>';
       } else if (CH.mode === 'pending'){
         acts = '<div class="ch-sess-acts">'
           + '<button type="button" class="ch-btn ok ch-sess-all" data-sid="' + sidAttr + '">✓ All</button>'
-          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '">✕ All</button>'
+          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '">✕ Dismiss</button>'
           + '</div>';
       }
       html += '<div class="ch-sess' + (col ? ' collapsed' : '') + '" data-sid="' + sidAttr + '">'
@@ -21870,10 +21910,38 @@ window._lockMark = function(isOpen, px, label){
     toast('✕ Dismissed ' + names.length);
     paintChronicleInbox();
   }
+  /* ══ #230 — ASKED ON THE PAGE, NOT IN A NATIVE DIALOG (Grok's mailbox study) ════════════════════
+     A native confirm() blocks the whole window while it waits, and in some embedded webviews it is
+     answered NO without ever being shown - the "clear all" that silently does nothing. Same three
+     questions, same weight, drawn on the page; Escape or "Not now" is always no. */
+  function chAsk(text, yesLabel, onYes){
+    var g = document.getElementById('ch-ask');
+    if (!g){
+      g = document.createElement('div');
+      g.id = 'ch-ask'; g.hidden = true;
+      g.innerHTML = '<div class="ch-ask-card" role="alertdialog" aria-modal="true" aria-labelledby="ch-ask-text">'
+        + '<p id="ch-ask-text"></p><div class="ch-ask-acts">'
+        + '<button type="button" class="ch-btn dim" id="ch-ask-no">Not now</button>'
+        + '<button type="button" class="ch-btn ok" id="ch-ask-yes"></button></div></div>';
+      g.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') g.hidden = true; });
+      document.body.appendChild(g);
+    }
+    document.getElementById('ch-ask-text').textContent = text;
+    var yes = document.getElementById('ch-ask-yes'), no = document.getElementById('ch-ask-no');
+    yes.textContent = yesLabel || 'Do it';
+    g.hidden = false;
+    try { no.focus(); } catch(e){}
+    yes.onclick = function(){ g.hidden = true; try { onYes(); } catch(e){ toast('That did not complete'); } };
+    no.onclick = function(){ g.hidden = true; };
+  }
+  window._chAsk = chAsk;
   function chAcceptAllConfirm(){
     var n = (CH.items || []).length;
     if (!n) return;
-    if (!window.confirm('Promote ALL ' + n + ' inbox items to FOUND (chronicle write)?\n\nThis cannot be undone from here — use Chronicle unfound if you need to reverse.')) return;
+    chAsk('Promote ALL ' + n + ' inbox items to FOUND (chronicle write)?\n\nThis cannot be undone from here — use Chronicle unfound if you need to reverse.',
+          'Promote all ' + n, chAcceptAllNow);
+  }
+  function chAcceptAllNow(){
     var W = _engWin();
     if (!W || typeof W.kaiChronicleAcceptAll !== 'function'){ toast('Chronicle API unavailable'); return; }
     try {
@@ -21889,7 +21957,10 @@ window._lockMark = function(isOpen, px, label){
     var items = (CH.items || []).slice();
     var n = items.length;
     if (!n){ toast('Inbox is already empty'); return; }
-    if (!window.confirm('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to chronicle). Re-review from the session anytime.')) return;
+    chAsk('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to chronicle). Re-review from the session anytime.',
+          'Clear all ' + n, function(){ chClearAllNow(items, n); });
+  }
+  function chClearAllNow(items, n){
     var W = _engWin();
     if (!W){ toast('Chronicle API unavailable'); return; }
     var cleared = 0;
@@ -21955,8 +22026,9 @@ window._lockMark = function(isOpen, px, label){
       if (jA){ chSessCall('kaiChronicleDismissSessionJunk', jA.getAttribute('data-sid'), '✕ Session junk'); return; }
       var dA = t.closest && t.closest('.ch-sess-dismiss');
       if (dA){
-        if (!window.confirm('Dismiss ALL pending in this session?')) return;
-        chSessCall('kaiChronicleDismissSession', dA.getAttribute('data-sid'), '✕ Session dismissed');
+        var _dsid = dA.getAttribute('data-sid');
+        chAsk('Dismiss ALL pending in this session?', 'Dismiss the session', function(){
+          chSessCall('kaiChronicleDismissSession', _dsid, '✕ Session dismissed'); });
         return;
       }
       var ok = t.closest && t.closest('.ch-one-ok');

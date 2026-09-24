@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1227 - THE CHRONICLE INBOX, PORTED FROM GROK'S MAILBOX STUDY (v3497)
+
+**feature/fix - #230, his ask 2026-09-24: "harness what you can from what grok built ... integrate it into the widget
+mail too".** Grok's study (~/tv-diablo-mailbox, a static demo on the console's own class names) was design input; the
+console's chassis stays the source. Ported: the chronicle tome on the rail pill and the window header; the item's own
+game art at 112px on a lit plate (was 48px; an empty plate SAYS "no picture" - v1628's no-wrong-picture rule, stated);
+the three destructive questions (promote all / clear all / dismiss a session) drawn ON THE PAGE instead of
+window.confirm, which blocks the whole window and in some embedded webviews answers NO unseen; the window at the
+reference's 1040px with the legend on its own line so the four actions sit in one row. A cold grok-4.7 CLI look against
+the reference found - and this fixes - the session chips' dim/danger variants styled ONLY inside the footer (so "Junk"
+and the session dismiss read as disabled), the dismiss labelled "All" beside the accept "All", a confirmation scrim too
+faint to separate it, a safe choice that looked dead, and times breaking "PM" onto its own line. New render target
+`ch-inbox` (fixture items through the board frame's own functions, 3 widths); `test_the_chronicle_inbox_asks_on_the_page`
++ 2 proofs; visual lock OK. Known, not fixed: at 375px the footer still takes much of the window (pre-existing).
+
 ### REG-1226 - A WAIT HIDDEN IN AN EXPRESSION WAS CREDITED AS A REAP ON EVERY PATH
 
 **fix - #235, the second eye on 245fad4b (grok-4.7).** `reap_shape` (REG-1207) treats a statement as a branch only when it

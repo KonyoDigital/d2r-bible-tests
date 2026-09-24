@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3496",
+  "ver": "v3497",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3496: #232 - the eye finds the game on every route he uses: local D2R.exe and CrossOver, and GeForce NOW or Boosteroid in their app or a browser tab carrying both the service and the game name. A streamed session no longer falls through to full-screen capture on Windows; Linux pins nothing and says why. Also: the printer fixture shelf walks behind a shut lock.",
+  "note": "v3497: #230 - Grok mailbox study ported onto the console inbox: the tome on the pill and header, the item art on a plate, the three destructive questions asked on the page instead of a blocking native dialog, clearer session chips and one row of actions. HEART: the watchers are tv/test_the_chronicle_inbox_asks_on_the_page.py (2 proofs) and the new render target ch-inbox; also the capture-off law for the render harness console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
