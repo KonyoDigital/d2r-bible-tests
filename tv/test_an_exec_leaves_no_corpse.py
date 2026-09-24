@@ -214,12 +214,31 @@ class TheBootReapSaysWhatHappened(unittest.TestCase):
         self.fake.children_of = lambda pid=None: [4242, 4243]
         self.assertIn("inherited 2 child process(es)", self.ca._reap_inherited_at_boot())
 
+    def test_windows_is_not_asked_and_says_no_false_unknown(self):
+        # REG-1265 — the second eye on 229e2397: every Windows boot printed a false UNKNOWN
+        asked = []
+        self.fake.children_of = lambda pid=None: asked.append(1)
+        self.assertEqual(self.ca._reap_inherited_at_boot(posix=False), "",
+                         "a Windows boot printed the unreadable-ps UNKNOWN for a question that does not exist there")
+        self.assertEqual(asked, [], "the boot asked a POSIX question on Windows")
+
+    def test_premise_posix_still_says_unknown(self):
+        self.fake.children_of = lambda pid=None: None
+        self.assertIn("UNKNOWN", self.ca._reap_inherited_at_boot(posix=True))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1265 - every Windows boot prints the unreadable-process-table UNKNOWN again",
+        "file": "control_app.py",
+        "find": "    if not posix:\n        return \"\"\n    try:\n        import exec_hygiene as _eh\n",
+        "replace": "    try:\n        import exec_hygiene as _eh\n",
+        "matches": 1,
+    },
     {
         "why": "#224 - an unreadable process table at boot reaps nothing and says nothing again (second eye on 955858d4)",
         "file": "control_app.py",

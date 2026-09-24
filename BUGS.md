@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1265 - EVERY WINDOWS BOOT SAID ITS PROCESS TABLE COULD NOT BE READ
+
+**fix - the second eye on 229e2397 (grok-4.7, #231 5822210326), confirmed in exec_hygiene.** REG-1236 made an
+unreadable process table say UNKNOWN at boot instead of nothing. But `children_of()` returns None on ANY non-POSIX OS
+before it reads anything, so every Windows boot printed "the process table could not be read ... cannot be named or
+collected" - false, and the same sentence a Mac prints when ps really fails, so the two could no longer be told apart.
+The question does not exist on Windows: os.execv starts a NEW process there and a <defunct> child is a POSIX thing.
+`_reap_inherited_at_boot()` now answers only on POSIX; a Windows boot says nothing and never asks. Not asked is not
+UNKNOWN. Guard: two new cases in `test_an_exec_leaves_no_corpse` (Windows says nothing and never calls children_of;
+premise: POSIX still says UNKNOWN) + a proof; all 6 PROVEN.
+
 ### REG-1264 - THE ONLY WINDOWS CONSOLE ANYTHING EVER BOOTED WAS HIS
 
 **ci - #229 roadmap item "a Windows CI job".** Every gate runs on the Mac and on ubuntu-latest; no check had ever booted

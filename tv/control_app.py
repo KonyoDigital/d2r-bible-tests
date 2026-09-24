@@ -15626,7 +15626,7 @@ def relaunch_green_light_tick():
     return True, say
 
 
-def _reap_inherited_at_boot():
+def _reap_inherited_at_boot(posix=None):
     """#224 — collect the children this image inherited across os.execv, and SAY what happened. -> str
 
     ⚠ THE SECOND EYE ON 955858d4 (grok-4.7), reproduced from the code: `children_of()` returns None
@@ -15634,7 +15634,16 @@ def _reap_inherited_at_boot():
     and the boot passed `_inh or []` and printed only when `_inh` was truthy. So an unreadable ps
     reaped nothing and said nothing: the same silence as "no children", while any <defunct> child
     the previous image left stayed. Now each of the three outcomes has its own line.
-    [[unknown-stays-unknown]]"""
+    [[unknown-stays-unknown]]
+
+    ⚠ REG-1265 — THE SECOND EYE ON 229e2397 (grok-4.7), confirmed in exec_hygiene: children_of()
+    returns None on any non-POSIX OS BEFORE it reads anything, so every Windows boot printed "the
+    process table could not be read" - false, and the same sentence as a Mac whose ps really failed,
+    so the two could no longer be told apart. The question does not exist on Windows: os.execv starts
+    a NEW process there and a <defunct> child is a POSIX thing. Not asked is not UNKNOWN."""
+    posix = (os.name == "posix") if posix is None else posix
+    if not posix:
+        return ""
     try:
         import exec_hygiene as _eh
         _inh = _eh.children_of()
