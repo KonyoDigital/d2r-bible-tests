@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3485"   # the world band painted over the ladder ribbon and the cause was one invalid word
+VERSION = "v3486"   # a thread that never started left its snapshot behind
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6339,7 +6339,16 @@ def claude_read(path, worker=None, out_jpg=None):
                                     os.remove(_snap)
                                 except Exception:
                                     pass
-                    threading.Thread(target=_g5_shadow_job, daemon=True).start()
+                    # v3486 — a thread that never starts never runs its `finally`, so the snapshot would sit in
+                    # the temp dir for ever (the eye on the shipped v3483). Removed here instead.
+                    try:
+                        threading.Thread(target=_g5_shadow_job, daemon=True).start()
+                    except Exception:
+                        if _snap:
+                            try:
+                                os.remove(_snap)
+                            except Exception:
+                                pass
             except Exception:
                 pass
             # ══ END GROK EYES (G5) ══
@@ -6375,7 +6384,16 @@ def claude_read(path, worker=None, out_jpg=None):
                                 os.remove(_snap)
                             except Exception:
                                 pass
-                threading.Thread(target=_g5_shadow_job2, daemon=True).start()
+                # v3486 — a thread that never starts never runs its `finally`, so the snapshot would sit in
+                # the temp dir for ever (the eye on the shipped v3483). Removed here instead.
+                try:
+                    threading.Thread(target=_g5_shadow_job2, daemon=True).start()
+                except Exception:
+                    if _snap:
+                        try:
+                            os.remove(_snap)
+                        except Exception:
+                            pass
         except Exception:
             pass
         # ══ END GROK EYES (G5) ══

@@ -314,6 +314,35 @@ class BothCallersNameThePictureBeforeTheThread(unittest.TestCase):
                             "again" % (fn.name, arg.id))
 
 
+    def test_a_thread_that_never_starts_still_removes_its_snapshot(self):
+        """v3486 — the eye on the shipped v3483: the snapshot is made BEFORE the thread, the only unlink
+        is the thread's own `finally`, and a failed start() was swallowed by the outer except — one
+        full frame left in the temp dir per failed start. Every start must sit in a try whose handler
+        removes the snapshot."""
+        with io.open(TV_DIABLO, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        starts = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            for st in node.body:
+                for c in ast.walk(st):
+                    if (isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "start"
+                            and isinstance(c.func.value, ast.Call)
+                            and any(k.arg == "target" and isinstance(k.value, ast.Name)
+                                    and k.value.id.startswith("_g5_shadow_job")
+                                    for k in c.func.value.keywords)):
+                        removes = any(getattr(x.func, "attr", "") == "remove"
+                                      for h in node.handlers for x in ast.walk(h)
+                                      if isinstance(x, ast.Call))
+                        starts.append((c.func.value.keywords[0].value.id, removes))
+        names = sorted(set(n for n, _r in starts))
+        self.assertEqual(names, ["_g5_shadow_job", "_g5_shadow_job2"],
+                         "expected both shadow-thread starts inside a try; found %r" % (starts,))
+        for n in names:
+            self.assertTrue(any(r for m, r in starts if m == n),
+                            "%s's start() is caught by a handler that never removes the snapshot" % n)
+
 class TheDoctorSaysWhatNoFrameHolds(unittest.TestCase):
 
     def _drive(self, unattributed, why):
@@ -406,6 +435,13 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "                        _p = _snap or _orig",
         "replace": "                        _p = _orig",
+        "matches": 1
+    },
+    {
+        "why": "v3486 - a failed thread start leaves the snapshot in the temp dir again: the handler no longer removes it (the eye on the shipped v3483)",
+        "file": "tv_diablo.py",
+        "find": "                    try:\n                        threading.Thread(target=_g5_shadow_job, daemon=True).start()\n                    except Exception:\n                        if _snap:\n                            try:\n                                os.remove(_snap)",
+        "replace": "                    try:\n                        threading.Thread(target=_g5_shadow_job, daemon=True).start()\n                    except Exception:\n                        if _snap:\n                            try:\n                                pass",
         "matches": 1
     },
 ]

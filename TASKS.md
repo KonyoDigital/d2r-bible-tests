@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3485** | `(this commit)` | v3485 — the LINUX band font shorthand used inherit as its family so the band fell back to 16px and covered LADDER ACCOUNT; longhands make it 22px with no overlap at five widths. HEART: the band height is fixed by the stylesheet, not by data or runtime state, so there is nothing for a doctor row to read; the parse gate test_the_world_band_leaves_room_for_the_ladder_ribbon holds the reserve law on every machine |
+| **v3486** | `(this commit)` | v3486 — a failed shadow-thread start now removes the snapshot it was handed; found by the second eye on v3483 |
+| **v3485** | `cbc55e97` | v3485 — the LINUX band font shorthand used inherit as its family so the band fell back to 16px and covered LADDER ACCOUNT; longhands make it 22px with no overlap at five widths. HEART: the band height is fixed by the stylesheet, not by data or runtime state, so there is nothing for a doctor row to read; the parse gate test_the_world_band_leaves_room_for_the_ladder_ribbon holds the reserve law on every machine |
 | **v3484** | `baa6819e` | v3484 — the provenance clock test reads a suffix only at a word boundary, one store moves (engine_index SILENT to REFERENCE), and the ratchet prints its reds last so a CI tail names them |
 | **v3483** | `59954c61` | v3483 — the shadow read is handed a snapshot taken right after the Claude read so both eyes see the same bytes; unplaced rows are counted by reason |
 | **v3482** | `40d07781` | v3482 — red_proofs_in walks every RED_PROOF binding and reads the last, the census refuses a second, and the ledger gate eleven unrun proofs now prove |

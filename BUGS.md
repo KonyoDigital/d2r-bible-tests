@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1192 - A THREAD THAT NEVER STARTED LEFT ITS SNAPSHOT BEHIND
+
+**v3486 - the cross-family eye on the SHIPPED v3483 bytes (grok-cli, 1 Low finding, confirmed by reading).** v3483's
+snapshot is made BEFORE the shadow thread and its only unlink is the thread's own `finally`; `Thread.start()` sat inside the
+outer `try … except Exception: pass`, so a failed start (thread limit, memory) was swallowed and one full frame stayed in the
+temp dir per failure. Both starts now sit in a try whose handler removes the snapshot; law case + proof, 9/9 PROVEN. The
+eye's second half — daemon threads killed at interpreter exit skip `finally` — is BOUNDED (one snapshot per shadow read
+in flight at exit) and ATTRIBUTABLE (every snapshot is prefixed `tvd-g5-shot-`); named, not reaped. Shadow mode is off.
+
 ### REG-1191 - A LAW WHOSE VERDICT WAS THE VENUE, READING HIS LIVE BOARD
 
 **test: after v3485 - #123, found by the v3483 census's UNPROVABLE list.** `test_mask_why` asserted "no window -> None".
