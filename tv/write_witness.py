@@ -164,8 +164,10 @@ def main(argv):
     print("     which is a different fact from 'one writer'.")
     if "--demo" in argv:
         import tempfile
-        with watching() as w:
-            p = os.path.join(tempfile.mkdtemp(), "vault_swept.json")
+        # #171 — was a bare `tempfile.mkdtemp()`: the one production site both PREFIX-LESS (nobody can
+        # attribute what it leaves) and NEVER CLEANED. A demo that leaves a directory per run is a leak.
+        with tempfile.TemporaryDirectory(prefix="write-witness-demo-") as _d, watching() as w:
+            p = os.path.join(_d, "vault_swept.json")
             with io.open(p, "w", encoding="utf-8") as fh:
                 fh.write("{}")
         print("\n  demo (this module writing one store): %s" % json.dumps(w.report()["writers"]))
