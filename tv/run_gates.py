@@ -5321,6 +5321,13 @@ GATES = [
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
              "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+    Gate("test_a_scratch_console_never_films_his_screen",
+         [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_films_his_screen.py")], 60,
+         why="#236 - mid-push the render gate's private (stub) console went live, pinned HIS GeForce NOW "
+             "stream and captured it frame after frame into its sandbox: console 84% CPU, render starved "
+             "at load 12.6, push refused (earlier the same console filmed a Finder window). TV_CAPTURE=off "
+             "now refuses every capture and calls nothing that reads a window; the harness spawns its "
+             "console with it (AST-checked). 3 cases, 2 red-proofs"),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
          why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "

@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1225 - THE RENDER GATE'S PRIVATE CONSOLE FILMED HIS GEFORCE NOW STREAM MID-PUSH
+
+**fix - #236.** The render harness boots a private TV_STUB console; it goes live by itself ~20s after boot, and with the
+new route picker (REG-1224) its stub agent pinned HIS GeForce NOW stream in Chrome and captured it frame after frame
+into the harness sandbox (earlier the same console filmed a Finder window, REG-1220). Measured during a push: the private
+console at 84% CPU plus its agent, the render step starved at load 12.6, push refused. `TV_CAPTURE=off` is now a hard
+mode - capture_mac returns False, says so, and calls nothing that lists or grabs a window - and render_check spawns its
+console with it. Verified live: the harness console's captureTarget reads mode "off". Guards:
+`test_a_scratch_console_never_films_his_screen` (driven + AST) + 2 proofs. NOT swept: other launchers that spawn TV_STUB
+consoles (test_control, soak_test, robot_smoke) keep the old capture default - UNMEASURED whether any of them goes live.
+
 ### REG-1224 - THE EYE COULD NOT FIND D2R STREAMED FROM GEFORCE NOW OR BOOSTEROID (v3496)
 
 **fix - #232, his order 2026-09-24: "needs to target diablo ii resurrected in macbook like it is crossover or nvideaplay

@@ -3953,7 +3953,10 @@ def _serve_console():
         # [[unknown-stays-unknown]] wearing a green coat.
         print("   \u26a0 render sandbox seeded film on 0 of %d run(s) — `shelf-cards` will measure "
               "an EMPTY grid, which is UNKNOWN rather than clean" % _allruns, flush=True)
+    # ⚠ #236 — TV_CAPTURE="off": this private console must never film his screen. It went live by itself
+    # and pinned his GeForce NOW stream mid-push, starving the render gate (load 12.6).
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
+               TV_CAPTURE="off",
                TV_PARENT_PID=str(os.getpid()),
                TV_HIST=_hist,
                TV_FRAMES_DIR=os.path.join(_sand, "frames"),

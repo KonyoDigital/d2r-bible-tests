@@ -2232,6 +2232,15 @@ def capture_mac(path, timeout=12):
     global _CAP_TARGET, _CAP_WHY, _LAST_GOOD_WIN
     _CAP_WHY = ""
     mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
+    # ⚠⚠ #236 — TV_CAPTURE=off NEVER TOUCHES THE SCREEN. MEASURED 2026-09-24 during a push: the render
+    # gate's private (stub) console went live by itself, pinned HIS GeForce NOW stream as the game and
+    # captured it frame after frame into its sandbox — 84% CPU on the console, the render step starved
+    # at load 12.6 and the push was refused. A throwaway console has no business filming his screen.
+    # `off` refuses every capture, says so, and calls nothing that reads a window.
+    if mode in ("off", "none"):
+        _CAP_WHY = "capture is OFF (TV_CAPTURE=%s) - this console never reads the screen" % mode
+        _CAP_TARGET = {"mode": "off", "label": "capture off (TV_CAPTURE)", "wid": None}
+        return False
     # Optional window pin only when explicitly asked (or auto)
     if mode in ("auto", "window", "win", "game"):
         hit = find_d2r_window_mac()
