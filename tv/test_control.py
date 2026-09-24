@@ -37398,7 +37398,8 @@ class TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels(unittest.TestCase):
         import inspect, re
         raw = inspect.getsource(self._rc().check)
         src = "\n".join(re.sub(r"#.*$", "", ln) for ln in raw.split("\n"))
-        loop = src[src.index("for w, h in WIDTHS:"):]
+        # re-anchored #223: the loop now honours a target's own `widths` (render budget, 2026-09-24)
+        loop = src[src.index('for w, h in (spec.get("widths") or WIDTHS):'):]
         self.assertIn("_selector_ready(tab,", loop,
                       "the width loop measures straight after a resize again - a re-rendering "
                       "panel is caught mid-rebuild and reported as absent")
