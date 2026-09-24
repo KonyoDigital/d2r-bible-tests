@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1183 - THE FORK GATE'S SYSCALL SPY WATCHED A DOOR NOBODY WALKS THROUGH ON CI
+
+**test: after ea3f05da - #150.** `test_the_doctor_never_forks_a_quartz_process` was RED on CI (run 35943284218,
+failures=3): "neither syscall was observed" on both premise cases, and "'_posixsubprocess.fork_exec' not found".
+The spy patched `_posixsubprocess.fork_exec` — how CPython 3.9 (his Mac) calls it. ubuntu-latest's system
+python3 (no setup-python step) is 3.12, whose subprocess binds `from _posixsubprocess import fork_exec as
+_fork_exec`, so the patch landed on a name nothing reads. The premise case predicted this in its own docstring and
+fired honestly. `_fork_exec_binding()` now reads the binding from the running interpreter's `_execute_child`
+source and the spy patches THAT; no binding found -> patches nothing and the premise case refuses by name.
+A/B on one machine: HEAD's spy under homebrew 3.11 (same `_fork_exec` spelling) reproduces CI's three failures
+verbatim; the new spy is 19/19 under 3.9 and 3.11. New red-proof (spy stops patching) -> 12/12 PROVEN.
+
 ### REG-1182 - TWO OF MY OWN SHIPS WENT RED ON CI AND THE LOCAL PUSH COULD NOT SEE EITHER
 
 **fix: after v3480 - #219.** Read BY DELTA from CI run 35943284218 (v3477) against 35939383947 (v3473):

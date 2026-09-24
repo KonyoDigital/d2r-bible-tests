@@ -884,30 +884,63 @@ def spawn_sites(src, where=HERE):
 # 2. THE HOST PROBE — what this machine can and cannot be asked
 # =========================================================================================
 
+def _fork_exec_binding():
+    """-> (owner, attribute, spelling) — the fork_exec NAME Popen._execute_child actually calls —
+    or None when neither known spelling is in its source.
+
+    ⚠⚠ #150 — THE SPY WATCHED A DOOR NOBODY WALKS THROUGH ON CI. It patched
+    `_posixsubprocess.fork_exec`, which is how CPython 3.9 (his Mac) calls it. ubuntu-latest's system
+    python3 is 3.12, whose subprocess does `from _posixsubprocess import fork_exec as _fork_exec` and
+    calls `_fork_exec(...)` — so the patch landed on a name nothing reads, every fork count was 0,
+    and CI run 35943284218 went red with "neither syscall was observed" on BOTH premise cases. The
+    premise case below predicted exactly this in its own docstring and fired honestly. Read the
+    binding from the running interpreter's source instead of from memory. [[a-probe-licenses-only-what-it-tested]]
+    """
+    import _posixsubprocess
+    try:
+        src = inspect.getsource(subprocess.Popen._execute_child)
+    except (OSError, TypeError):
+        return None
+    if "_posixsubprocess.fork_exec(" in src:
+        return (_posixsubprocess, "fork_exec", "_posixsubprocess.fork_exec")
+    if "_fork_exec(" in src and hasattr(subprocess, "_fork_exec"):
+        return (subprocess, "_fork_exec", "subprocess._fork_exec")
+    return None
+
+
 class _SyscallSpy(object):
-    """Record which of fork_exec / posix_spawn CPython actually reaches for."""
+    """Record which of fork_exec / posix_spawn CPython actually reaches for.
+
+    ⚠ It patches the binding _fork_exec_binding() found. When none was found it patches NOTHING for
+    fork and says so in `self.fork_binding` (None), so a zero count can never be read as a
+    measurement — the premise case refuses that state by name."""
 
     def __enter__(self):
-        import _posixsubprocess
         self.counts = {"spawn": 0, "fork": 0}
-        self._mod = _posixsubprocess
-        self._rs, self._rf = os.posix_spawn, _posixsubprocess.fork_exec
+        self.fork_binding = _fork_exec_binding()
+        self._rs = os.posix_spawn
+        self._rf = None
 
         def spawn(*a, **k):
             self.counts["spawn"] += 1
             return self._rs(*a, **k)
 
-        def fork(*a, **k):
-            self.counts["fork"] += 1
-            return self._rf(*a, **k)
-
         os.posix_spawn = spawn
-        _posixsubprocess.fork_exec = fork
+        if self.fork_binding is not None:
+            owner, attr, _spelling = self.fork_binding
+            self._rf = getattr(owner, attr)
+
+            def fork(*a, **k):
+                self.counts["fork"] += 1
+                return self._rf(*a, **k)
+
+            setattr(owner, attr, fork)
         return self
 
     def __exit__(self, *e):
         os.posix_spawn = self._rs
-        self._mod.fork_exec = self._rf
+        if self.fork_binding is not None:
+            setattr(self.fork_binding[0], self.fork_binding[1], self._rf)
         return False
 
 
@@ -1121,11 +1154,18 @@ class TestTheDoctorNeverForksAQuartzProcess(unittest.TestCase):
         `_posixsubprocess.fork_exec`. If `subprocess` ever binds either at import time
         (`from _posixsubprocess import fork_exec`), the patch would land on a name nobody reads and
         every case in this file would report fork=0 forever — a green measuring nothing."""
-        src = inspect.getsource(subprocess.Popen._execute_child)
-        self.assertIn("_posixsubprocess.fork_exec", src,
-                      "subprocess no longer calls `_posixsubprocess.fork_exec` by that dotted "
-                      "name, so the spy is patching a name it does not read — every fork=0 in "
-                      "this file is now unmeasured, not clean")
+        # ⚠ #150 — the spy now FOLLOWS the binding (3.9 `_posixsubprocess.fork_exec`, 3.12
+        # `subprocess._fork_exec`); this case still refuses the one state it exists for: a
+        # subprocess whose fork call the spy cannot find at all.
+        got = _fork_exec_binding()
+        self.assertIsNotNone(got, "subprocess calls fork_exec by neither known spelling "
+                                  "(`_posixsubprocess.fork_exec(` / `_fork_exec(`), so the spy "
+                                  "patches nothing for fork — every fork=0 in this file is now "
+                                  "unmeasured, not clean")
+        self.assertIn(got[2].split(".")[-1] + "(",
+                      inspect.getsource(subprocess.Popen._execute_child),
+                      "the binding the spy patches (%s) is not the name _execute_child calls"
+                      % got[2])
         self.assertIn("os.posix_spawn", inspect.getsource(subprocess.Popen._posix_spawn),
                       "subprocess no longer calls `os.posix_spawn` by that dotted name")
 
@@ -1731,6 +1771,13 @@ class TestTheDoctorNeverForksAQuartzProcess(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#150 - the spy stops patching the fork_exec binding it found: every fork count reads 0, so the baseline shape that really does fork is reported as never having forked — the CI false-red shape, and on any interpreter a spy that measures nothing",
+        "file": "test_the_doctor_never_forks_a_quartz_process.py",
+        "find": "        if self.fork_binding is not None:\n            owner, attr, _spelling = self.fork_binding",
+        "replace": "        if False:\n            owner, attr, _spelling = self.fork_binding",
+        "matches": 1,
+    },
     {
         "why": "v3429 - close_fds REMOVED. CPython takes posix_spawn only when close_fds is false, "
                "and it DEFAULTS TO TRUE - so dropping the keyword silently restores the fork that "
