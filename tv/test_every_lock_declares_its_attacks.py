@@ -103,6 +103,23 @@ class EveryLockWithEvidenceDeclaresItsAttacks(unittest.TestCase):
                                  % (r.get("lock"), wba, w))
 
 
+    def test_a_lock_WITH_FAILURES_is_never_credited_more_by_attack_than_raw(self):
+        """⚠⚠ #123 — DRIVEN, so it does not depend on whose evidence store this machine holds. The live
+        case above only fires where a lock happens to carry failures; this is prune.reports' own
+        shape (117 of 125 attempts over 35 attacks), which scored byAttack 0.9011 over a raw 0.8788
+        under `min(k, attacks)` — and `deciding` is wilsonByAttack, so the lock read HARDENED on
+        confidence the evidence never gave."""
+        rows = [{"lock": "prune.reports", "n": 125, "k": 117, "kind": "sabotage",
+                 "attacks": 35, "ref": "fixture"}]
+        o = SA.score("prune.reports", rows=rows)
+        self.assertEqual((o.get("k"), o.get("n"), o.get("attacks")), (117, 125, 35),
+                         "premise: the fixture row did not fold to the counts it declares: %r" % (o,))
+        self.assertLessEqual(o["wilsonByAttack"], o["wilson"],
+                             "byAttack %.4f exceeds the raw %.4f on a lock WITH failures — the "
+                             "correction is adding confidence" % (o["wilsonByAttack"], o["wilson"]))
+        self.assertEqual(o["wilsonByAttack"], round(SA.wilson_lower(27, 35), 4),
+                         "8 failures over 35 distinct attacks must credit 27, the conservative reading")
+
 class TheHARNESSESAllPassIt(unittest.TestCase):
     """★ Established by AST, so a harness that stops declaring is caught even before it re-runs and
     the stored rows go stale."""
@@ -236,6 +253,13 @@ class ItDoesNotDecideHisRuling(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#123 - the per-attack credit back on min(k, attacks): with failures present every distinct attack is credited as refused, and prune.reports' shape scores 0.9011 over a raw 0.8788",
+        "file": "self_arming.py",
+        "find": "    return max(0, int(attacks) - (int(n) - int(k)))",
+        "replace": "    return min(int(k), int(attacks))",
+        "matches": 1
+    },
     {
         'why': "a bank() call with no attacks= writes a row that cannot say how many DISTINCT attacks back it — REG-598's defect exactly, where Wilson could not tell 83 independent looks from one attack applied 83 times (83/83 was 2 attacks x 40 reels, really 0.5655). Verified by hand: untampered OK, tampered FAILED (failures=1), and the law that went red is test_every_banking_harness_passes_attacks itself, not a sibling failing for its own reason.",
         'file': 'frame_release_wilson.py',

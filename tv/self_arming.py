@@ -841,6 +841,23 @@ def _rows():
     return out, ""
 
 
+def _attacks_passed(k, n, attacks):
+    """How many DISTINCT attacks may be credited as refused, given k of n attempts refused. -> int
+
+    ⚠⚠ #123 — IT WAS `min(k, attacks)`, THE OPTIMISTIC ASSUMPTION, AND IT INFLATED THE SCORE IT EXISTS
+    TO DEFLATE. With failures present, min(k, attacks) credits every distinct attack as refused
+    whenever k >= attacks — as if all n-k failures fell on attacks that also passed elsewhere.
+    MEASURED on his live evidence: prune.reports, 117 of 125 attempts over 35 attacks -> byAttack
+    0.9011 ABOVE its raw 0.8788, and `deciding` is wilsonByAttack, so the lock's state was judged on
+    confidence the evidence never gave (test_every_lock_declares_its_attacks, red on CI and here).
+    A correction that can only help is not a correction. The conservative reading: every failure may
+    be a different attack, so attacks - (n - k), floored at 0. Fewer trials and a larger failure
+    share can only LOWER a Wilson bound, so this can never exceed the raw figure.
+    [[regression-guard]] [[unknown-stays-unknown]]
+    """
+    return max(0, int(attacks) - (int(n) - int(k)))
+
+
 def score(lock, rows=None):
     """The arithmetic for ONE lock. -> dict
 
@@ -897,7 +914,8 @@ def score(lock, rows=None):
            # REG-547 shape law again: present on every path, so "nothing was retired" and "nobody
            # asked" cannot render identically.
            "withdrawnClaims": withdrawn,
-           "wilsonByAttack": (None if not attacks else round(wilson_lower(min(k, attacks), attacks), 4)),
+           "wilsonByAttack": (None if not attacks
+                              else round(wilson_lower(_attacks_passed(k, n, attacks), attacks), 4)),
            "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,
            "bar": spec["bar"], "kindsBar": spec["kinds_bar"], "after": list(spec["after"])}
@@ -965,7 +983,7 @@ def score(lock, rows=None):
     # BOTH are printed: the attack pair decides, the attempt pair is kept in parentheses so nothing
     # is hidden and the repetition stays visible.
     if out["deciding"] == "wilsonByAttack":
-        _wk, _wn = min(k, attacks), attacks
+        _wk, _wn = _attacks_passed(k, n, attacks), attacks
         _wunit, _walso = "DISTINCT ATTACKS", " (%d of %d attempts)" % (k, n)
     else:
         _wk, _wn, _wunit, _walso = k, n, "sabotages", ""

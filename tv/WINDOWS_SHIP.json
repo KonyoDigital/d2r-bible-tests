@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3486",
+  "ver": "v3487",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3486: a failed shadow-thread start now removes the snapshot it was handed; found by the second eye on v3483",
+  "note": "v3487: self_arming credits distinct attacks conservatively (every failure may be a different attack); prune.reports goes from an inflated 0.901 HARDENED to 0.610 OPEN, still over its bar",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1196 - THE REPETITION CORRECTION ADDED CONFIDENCE TO THE ONE LOCK THAT HAD FAILURES
+
+**v3487 - #123, test_every_lock_declares_its_attacks (red on CI and here).** `self_arming.score()` credited distinct attacks as
+`min(k, attacks)` — the OPTIMISTIC reading, which with any failure present counts every distinct attack as refused whenever
+k >= attacks. MEASURED on his live evidence: prune.reports, 117 of 125 attempts over 35 attacks -> wilsonByAttack 0.9011
+ABOVE its raw 0.8788; and `deciding` is wilsonByAttack, so the lock read HARDENED on confidence the evidence never gave. It
+was the ONLY lock with failures; every other lock is unchanged. Now `_attacks_passed` = attacks - (n - k), floored at 0 —
+every failure may be a different attack — used at BOTH sites (the published figure and the deciding pair). prune.reports:
+byAttack 0.6098, still over its 0.51 bar -> OPEN (it may still act), no longer HARDENED; its sentence reads "27 of 35
+DISTINCT ATTACKS refused (117 of 125 attempts)". Driven fixture case of that exact shape + proof; 2/2 PROVEN (was
+UNPROVABLE). Three other laws importing self_arming fail identically on HEAD (A/B) — pre-existing, not this change.
+
 ### REG-1195 - A RETENTION FIXTURE READ HIS REAL SHELF THROUGH A DOOR ADDED AFTER IT WAS WRITTEN
 
 **test: after v3486 - #123, one of the 21 CI reds and red locally.** `test_the_real_path_is_untouched_by_the_redirect` patched
