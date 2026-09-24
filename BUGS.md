@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1263 - A WINDOWS CONSOLE SURVIVED ITS OWN RELAUNCH AND NOT A REBOOT, AND NOTHING ASKED HIM
+
+**feat - #229 roadmap item "a login task".** MEASURED 2026-09-20 over SSH on the ALT: zero scheduled tasks, zero
+startup entries. After a reboot or sign-out nothing films and nothing pulls until he double-clicks. Creating the task is
+a STANDING CHANGE on his PC - his call, never mine to make for him - so the console asks instead of acting. New row
+"this console starts at sign-in" (Windows; UNMEASURED elsewhere): OK for a scheduled task named SIGN_IN_TASK or a
+Startup-folder shortcut, MISSING when neither exists, UNKNOWN when schtasks could not be asked (never "not set up").
+Its "decide" ask: "Start TV DIABLO on this PC when you sign in?" - Yes, set it up (HANDOFF: the work becomes Claude's)
+/ No, I open it myself (ruled, it stands) / Ask me next week (snooze). Declared in CHECKS, WATCHES, ASKS and
+corroborate. Guard: `test_a_windows_console_asks_before_it_starts_at_sign_in` (6 cases, 2 proofs), PROVEN.
+
 ### REG-1262 - A MACHINE THAT DIED RESTARTING READ EXACTLY LIKE ONE HE SWITCHED OFF
 
 **feat - #223's last item, #227 item 2.** The ALT died relaunching into v3419 (#225) and the roster filed it under

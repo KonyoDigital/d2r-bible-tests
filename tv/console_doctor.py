@@ -3190,6 +3190,72 @@ def _ask_mid_restart(row):
     return out
 
 
+#: #229 — the scheduled task a "yes" would create. One name, so the check and the setup agree.
+SIGN_IN_TASK = "TV DIABLO at sign-in"
+
+
+def _sign_in_start(run=None, startup_dir=None, is_win=None):
+    """-> {"state", "how", "why"}: does THIS Windows console come back by itself after a restart?
+
+    MEASURED 2026-09-20 over SSH on the ALT: zero scheduled tasks, zero startup entries. The console
+    survives its own relaunch (#224) but not a reboot or a sign-out - after either, nothing films
+    and nothing pulls until he double-clicks. Whether it SHOULD start by itself is a standing change
+    on his PC, so that is his call; this only says which way it is today."""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"state": UNMEASURED, "how": None,
+                "why": "only a Windows console needs a sign-in start - this machine starts through its own launcher"}
+    if startup_dir is None:
+        startup_dir = os.path.join(os.environ.get("APPDATA") or "", "Microsoft", "Windows",
+                                   "Start Menu", "Programs", "Startup")
+    try:
+        for n in os.listdir(startup_dir):
+            if "diablo" in n.lower() or n.lower().startswith("tvd"):
+                return {"state": OK, "how": "startup:" + n,
+                        "why": "this console starts at sign-in from the Startup folder (%s)" % n}
+    except OSError:
+        pass                                        # no Startup folder is not an answer yet
+    try:
+        if run is None:
+            import git_quiet as _gq
+            run = _gq.run
+        r = run(["schtasks", "/Query", "/TN", SIGN_IN_TASK], capture_output=True, text=True, timeout=20)
+    except Exception as e:
+        return {"state": UNKNOWN, "how": None,
+                "why": "could not ask Windows for its scheduled tasks (%s), so whether this console starts "
+                       "at sign-in is UNKNOWN" % type(e).__name__}
+    if getattr(r, "returncode", 1) == 0:
+        return {"state": OK, "how": "task:" + SIGN_IN_TASK,
+                "why": "this console starts at sign-in (scheduled task '%s')" % SIGN_IN_TASK}
+    return {"state": MISSING, "how": None,
+            "why": ("nothing starts this console when the PC signs in: no '%s' task and nothing in the "
+                    "Startup folder - after a reboot it stays off until someone opens it" % SIGN_IN_TASK)}
+
+
+def _check_this_console_starts_at_sign_in():
+    """#229 — AFTER A REBOOT, DOES THIS CONSOLE COME BACK BY ITSELF? (Windows; his call whether it should)"""
+    r = _sign_in_start()
+    return r["state"], r["why"]
+
+
+def _ask_sign_in_start(row):
+    """His call, so a question: yes hands the setup to Claude; no is his ruling and stands."""
+    if row.get("state") != MISSING:
+        return []
+    return [{
+        "id": "sign-in-start",
+        "kind": "decide",
+        "q": "Start TV DIABLO on this PC when you sign in?",
+        "why": row.get("why") or "",
+        "fp": "sign-in-start:%s" % SIGN_IN_TASK,
+        "answers": [
+            {"key": "yes", "label": "Yes, set it up", "effect": "handoff"},
+            {"key": "no", "label": "No, I open it myself", "effect": "ruled"},
+            {"key": "later", "label": "Ask me next week", "effect": "snooze"},
+        ],
+    }]
+
+
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
 ASKS = {
     "shadow gate": _ask_shadow_gate,
@@ -3197,6 +3263,8 @@ ASKS = {
     "a fresh remaining page": _ask_remaining_page,
     # #223 — the fleet's only 'is it on?': a peer that went quiet mid-restart, never one switched off
     "no machine went quiet mid-restart": _ask_mid_restart,
+    # #229 — a standing change on his PC is his call; the console only asks
+    "this console starts at sign-in": _ask_sign_in_start,
 }
 
 
@@ -7939,6 +8007,8 @@ CHECKS = [
     ("a present machine has a fresh last-seen", _check_a_present_machine_has_a_fresh_last_seen),
     # #223 — reads the presence cache (no network), so it runs every tick and its ask never flickers
     ("no machine went quiet mid-restart", _check_no_machine_went_quiet_mid_restart),
+    # #229 — one Startup-folder listing and one schtasks query; every tick so his question never flickers
+    ("this console starts at sign-in", _check_this_console_starts_at_sign_in),
     ("a tally agrees with its own ledger verdict", _check_a_tally_agrees_with_its_own_ledger_verdict),
     ("the eye asks for every code extension", _check_the_eye_asks_for_every_code_extension),
     ("a presence reading names its door", _check_a_presence_reading_names_its_door),
@@ -8584,6 +8654,7 @@ WATCHES = {
     # v3390 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
     "a present machine has a fresh last-seen": (),
     "no machine went quiet mid-restart": (),
+    "this console starts at sign-in": (),
     "a tally agrees with its own ledger verdict": (),
     "the eye asks for every code extension": (),
     "a presence reading names its door": (),

@@ -2359,6 +2359,11 @@ NO_JOINT_YET = {
     # #223 — the row reads ver / diskVer / relaunch.may from the presence cache. A genuine second source
     # is the machine itself (its boot log, over SSH), which no target captures; re-reading the same roster
     # would be one fact wearing two names.
+    # #229 — the row asks Windows (schtasks) and the Startup folder; a second source would be a real
+    # reboot of the machine, which no target performs.
+    'this console starts at sign-in':
+        'the row reads the scheduled task and the Startup folder; a second source would be a real reboot '
+        'coming back on its own, which no target performs.',
     'no machine went quiet mid-restart':
         'the row reads the last beacon (running build, build on disk, restart allowed) from the presence '
         'cache; a second source would be the silent machine\'s own boot log, which no target captures.',

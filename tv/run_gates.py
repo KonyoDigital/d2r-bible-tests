@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_windows_console_asks_before_it_starts_at_sign_in",
+         [sys.executable, os.path.join(HERE, "test_a_windows_console_asks_before_it_starts_at_sign_in.py")], 60,
+         why="#229 - MEASURED on the ALT: zero scheduled tasks and zero startup entries, so the console "
+             "survives its own relaunch but not a reboot. Starting it at sign-in is a standing change on "
+             "his PC, so it is HIS call: a Windows row asks in his mailbox (yes = handoff to Claude, no = "
+             "his ruling). A failed schtasks query is UNKNOWN, never 'not set up'. 6 cases, 2 red-proofs"),
     Gate("test_a_machine_that_died_restarting_is_asked_about",
          [sys.executable, os.path.join(HERE, "test_a_machine_that_died_restarting_is_asked_about.py")], 60,
          why="#223 / #227 item 2 - the fleet's only 'is it on?' question. MEASURED on his roster: "
