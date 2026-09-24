@@ -226,6 +226,23 @@ setTimeout(function(){
         got = self._run(self.CONSOLE, post=post)
         self.assertEqual([r["check"] for r in got["cache"]["rows"]], ["shadow gate"])
 
+    def test_an_older_payload_with_asks_lets_the_row_decide(self):
+        """The second eye on v3494: with no needsYouWhat, a red row whose own `asks` is empty was billed
+        to him anyway. When rows carry `asks`, only a row that asks something reaches his pile."""
+        post = """
+var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve({
+  eagle: { needsYou: 1, unknown: 0, mine: 0, mineWhat: [], byDesignWhat: [],
+           rows: [ {check: 'handoff lanes drained', state: 'missing', why: 'asks him nothing', asks: []},
+                   {check: 'shadow gate', state: 'missing', why: 'your call', asks: [{id: 'x'}]} ] } }); } }); };
+_eagleNYFetch();
+setTimeout(function(){
+  console.log(JSON.stringify({html: _host.innerHTML, hidden: _host.hidden, cache: _eagleNY}));
+}, 30);
+"""
+        got = self._run(self.CONSOLE, post=post)
+        self.assertEqual([r["check"] for r in got["cache"]["rows"]], ["shadow gate"],
+                         "a row whose own asks are empty was billed to him")
+
     ASK = {"id": "shadow-gate", "kind": "decide", "fp": "shadow-gate:wouldHold",
            "q": "Should the console be stricter before it ticks a grail item by itself?",
            "answers": [{"key": "keep", "label": "Keep it as it is", "effect": "ruled"},
@@ -445,6 +462,13 @@ setTimeout(function(){
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3494 - an older payload bills a red row whose own asks are empty",
+        "file": "bible.html",
+        "find": "                : _asksKnown ? (rows[i].openAsks || rows[i].asks || []).length > 0\n",
+        "replace": "                : false ? 0\n",
+        "matches": 1,
+    },
     {
         "why": "#223 - any loopback page counts as a console again: CI's static server polls /api/status and paints a console fault",
         "file": "bible.html",

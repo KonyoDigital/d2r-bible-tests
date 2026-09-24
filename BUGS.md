@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1240 - TWO v3494 CONTRACT HOLES: A FALLBACK THAT BILLED NON-ASKING ROWS, A GRADER THAT RAISED
+
+**fix - the second eye on v3494 (grok-4.7), both reproduced.** (1) The inbox's fallback for a payload with no
+`needsYouWhat` billed every red row that was not Claude's or by design - including rows whose own `asks` said they ask
+him nothing. When rows carry `asks`, the ROW decides; only a console from before questions keeps the old rule.
+(2) `attach_asks` promised a malformed question lands on its row (`asks: []` + `askWhy`), but `ask_problems` ran outside
+the try: `answers: 5` raised `TypeError: object of type 'int' has no len()` straight out of the doctor pass (measured).
+`ask_problems` now names a non-list, and grading is inside a try of its own. Guards: the inbox law +1 case +1 proof
+(12/12 PROVEN), `test_a_row_is_his_only_when_it_asks` +1 case +2 proofs (6/6 PROVEN).
+
 ### REG-1239 - THE STREAM PICKER TOOK SUBSTRINGS FOR THE GAME AND PREFIXES FOR A BROWSER
 
 **fix - the second eye on v3496 (grok-4.7), six findings, every case reproduced by calling game_route first.** On

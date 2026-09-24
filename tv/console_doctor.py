@@ -3105,6 +3105,10 @@ def ask_problems(ask):
     if ask.get("kind") not in ASK_KINDS:
         bad.append("kind %r" % ask.get("kind"))
     ans = ask.get("answers") or []
+    if not isinstance(ans, (list, tuple)):
+        # the second eye on v3494: `len()` of a non-list raised OUT of attach_asks and took the whole
+        # doctor pass with it, instead of landing on the one row as its contract says
+        return bad + ["answers is %s, not a list" % type(ans).__name__]
     if not 1 <= len(ans) <= 4:
         bad.append("%d answers (1-4)" % len(ans))
     keys = [a.get("key") for a in ans if isinstance(a, dict)]
@@ -3137,8 +3141,12 @@ def attach_asks(rows):
         except Exception as e:
             r["asks"], r["askWhy"] = [], "its question could not be computed: %s" % str(e)[:120]
             continue
-        probs = ["%s: %s" % ((a or {}).get("id") if isinstance(a, dict) else "?", "; ".join(ask_problems(a)))
-                 for a in got if ask_problems(a)]
+        try:
+            probs = ["%s: %s" % ((a or {}).get("id") if isinstance(a, dict) else "?", "; ".join(ask_problems(a)))
+                     for a in got if ask_problems(a)]
+        except Exception as e:
+            r["asks"], r["askWhy"] = [], "its declared question could not be graded: %s" % str(e)[:120]
+            continue
         if probs:
             r["asks"], r["askWhy"] = [], "its declared question is malformed (%s)" % " | ".join(probs)[:200]
             continue

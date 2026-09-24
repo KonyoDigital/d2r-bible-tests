@@ -52150,7 +52150,13 @@ window._CH_PILL_MAP = {
       for (var i = 0; i < rows.length; i++){
         if (!rows[i] || rows[i].state !== 'missing' || _seenNY[rows[i].check]) continue;
         _seenNY[rows[i].check] = 1;
+        /* the second eye on v3494: without needsYouWhat the fallback billed every red row that is not
+           Claude's or by design - including rows whose own `asks` say they ask him nothing. When the
+           rows carry `asks`, the ROW decides; only a console from before questions existed falls back
+           to the old rule. */
+        var _asksKnown = (rows[i].asks !== undefined || rows[i].openAsks !== undefined);
         if (nyW ? nyW.indexOf(rows[i].check) >= 0
+                : _asksKnown ? (rows[i].openAsks || rows[i].asks || []).length > 0
                 : (mineW.indexOf(rows[i].check) < 0 && designW.indexOf(rows[i].check) < 0)) bad.push(rows[i]);
       }
       /* #223 -- the rows he has answered: drawn under ANSWERED BY YOU with what he chose, never

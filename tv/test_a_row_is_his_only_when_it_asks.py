@@ -79,6 +79,24 @@ class EachRowCarriesItsQuestions(unittest.TestCase):
             cd.ASKS.clear()
             cd.ASKS.update(real)
 
+    def test_a_shape_the_grader_cannot_size_stays_on_its_row(self):
+        """The second eye on v3494: ask_problems ran OUTSIDE the containing try, so `answers: 5` (or a
+        label that is a number) raised out of attach_asks and took the whole doctor pass with it."""
+        real = dict(cd.ASKS)
+        try:
+            cd.ASKS["shadow gate"] = lambda r: [{"id": "x", "kind": "do", "q": "?", "fp": "f", "answers": 5}]
+            row = cd.attach_asks([{"check": "shadow gate", "state": "missing"}])[0]
+            self.assertEqual(row["asks"], [])
+            self.assertIn("answers is int, not a list", row.get("askWhy") or "")
+            cd.ASKS["shadow gate"] = lambda r: [{"id": "x", "kind": "do", "q": "?", "fp": "f",
+                                                 "answers": [{"key": "a", "label": 5, "effect": "ruled"}]}]
+            row = cd.attach_asks([{"check": "shadow gate", "state": "missing"}])[0]
+            self.assertEqual(row["asks"], [])
+            self.assertIn("could not be graded", row.get("askWhy") or "")
+        finally:
+            cd.ASKS.clear()
+            cd.ASKS.update(real)
+
     def test_run_attaches_before_it_banks(self):
         src = inspect.getsource(cd.run)
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
@@ -123,6 +141,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3494 - `len()` of a non-list answers raises out of the grader again",
+        "file": "console_doctor.py",
+        "find": "    if not isinstance(ans, (list, tuple)):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3494 - a grader that throws takes the whole doctor pass down, not one row",
+        "file": "console_doctor.py",
+        "find": "        except Exception as e:\n            r[\"asks\"], r[\"askWhy\"] = [], \"its declared question could not be graded: %s\" % str(e)[:120]\n            continue\n",
+        "replace": "        except ZeroDivisionError as e:\n            r[\"asks\"], r[\"askWhy\"] = [], \"its declared question could not be graded: %s\" % str(e)[:120]\n            continue\n",
+        "matches": 1,
+    },
     {
         "why": "#226 - every check that asks nothing is his by default again (v2284): my bugs re-bill him",
         "file": "console_doctor.py",
