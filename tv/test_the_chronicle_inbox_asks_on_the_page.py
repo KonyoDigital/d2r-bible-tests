@@ -14,9 +14,18 @@ Pixels: render_check's `ch-inbox` target. This law pins the source shape. RED_PR
 import io
 import os
 import re
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
 UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
 
 
