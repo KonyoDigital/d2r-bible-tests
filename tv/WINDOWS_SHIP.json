@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3492",
+  "ver": "v3493",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3492: #224 - every os.execv relaunch now quiesces the warm workers first and the new image reaps what it inherits BY PID; 35 zombies measured under his console, one per relaunch",
+  "note": "v3493: #228 - after 10 minutes every console enters endurance and pauses every animation; a one-shot fade-in that started later started paused at opacity 0, so the EYES switch, the shadow reader and 27 other entrances were laid out, hoverable and invisible. They keep running under endurance now. HEART: the watchers are tv/test_an_entrance_survives_endurance.py (derived from the keyframes, red on any new fade-in without the exemption) and the new render_check invisible field, with the ADVANCED targets judged under endurance (sabotage-proven red, --prove 4/4)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

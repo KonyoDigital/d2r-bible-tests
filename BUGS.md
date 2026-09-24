@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1216 - AFTER MINUTE TEN THE ADVANCED DRAWER PAINTED AT OPACITY 0 (v3493)
+
+**fix - #228, his report with two screenshots: the EYES switch (OFF/SHADOW/PRIMARY) and the shadow reader toggle
+"regressed", and "the mouse is hovering over areas that should have buttons and show me tooltips".** MEASURED on a
+static copy in headless Chrome: v877 puts EVERY console into endurance after 10 minutes of uptime (idle too), which sets
+`animation-play-state: paused !important` on `*`. The drawer's children reveal with a one-shot `shellReveal` whose
+first frame is opacity 0; Sessions is home and #sig-adv is display:none there, so each hop to TV-D restarted it PAUSED
+AT FRAME 0 - computed opacity 0, 148px tall, hit-testable (his tooltips). A restart hid it for ten minutes. The sweep
+found 29 one-shot invisible-start entrance selectors (tally overlay, run log, legend, theatre, drawer, shelf overlay, HD
+view, AI-reads lines, intake hero...), all exempted from the pause now; 22 measured `running` in-browser, 7 are built
+on demand (UNMEASURED there, covered by the source law). THE GATE WAS BLIND TOO: render_check counted `painted` by
+rect only, and the ADVANCED targets always ran on a page younger than ten minutes. Sabotaged to his exact state it stayed
+green at 6 widths. Now a new `invisible` field counts nodes that still take the mouse at effective opacity < 0.05 (idle
+#toast / #tvd-eng have pointer-events:none and stay out), the ADVANCED targets open under endurance, and `--prove` has a
+4th sabotage. Guards: `test_an_entrance_survives_endurance` (derived from the keyframes) + 2 RED_PROOFs, heart2 PROVEN.
+Also re-anchored `test_the_default_eye_seat_is_the_subscription[0]`, orphaned by REG-1215's resolver change (census).
+
 ### REG-1215 - A PEER THAT DIED RELAUNCHING WAS CALLED "SWITCHED OFF"
 
 **fix - #227.** The ledger-staleness row told him an offline peer's machine was "switched off". Measured 2026-09-24 over

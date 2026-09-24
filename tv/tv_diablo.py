@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3492"   # an in-place relaunch no longer leaves a defunct OCR worker
+VERSION = "v3493"   # ADVANCED EYES AND SHADOW READER VISIBLE AGAIN AFTER MINUTE TEN
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

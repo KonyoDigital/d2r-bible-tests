@@ -142,7 +142,9 @@ RED_PROOF = [
                "so the seat works from a terminal and is silently dark under launchd, where the "
                "console actually runs - which is how G5 sat PRIMARY and unasked for weeks.",
         "file": "second_eye_run.py",
-        "find": "EYE_CLI = os.environ.get(\"THIRD_EYE_CLI\") or os.path.expanduser(\"~/.grok/bin/grok\")",
+        # re-anchored in #225/#227: the default now ASKS g5_grok_eyes._grok_bin (which finds grok.exe
+        # on the Windows ALT), so the scar is put back on the one line that decides the seat
+        "find": "EYE_CLI = os.environ.get(\"THIRD_EYE_CLI\") or _default_eye_cli()",
         "replace": "EYE_CLI = os.environ.get(\"THIRD_EYE_CLI\") or \"grok\"",
         "matches": 1,
     },

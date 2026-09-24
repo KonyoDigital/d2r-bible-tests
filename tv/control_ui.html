@@ -588,6 +588,43 @@
   body[data-endurance="1"]::before, body[data-endurance="1"]::after { animation-play-state: paused !important; }   /* v877 — pseudo-elements too */
   body[data-endurance="1"] .onair-bug, body[data-endurance="1"] #fault-banner,
   body[data-endurance="1"] .stage-film { animation-play-state: running !important; }
+  /* ⚠⚠ #228 — A PAUSED FADE-IN IS AN INVISIBLE CONTROL. The rule above pauses EVERY animation once the
+     console has run 10 minutes (v877: idle consoles too). A one-shot entrance whose first keyframe is
+     opacity 0 that STARTS after that moment starts paused at frame 0 — laid out, hit-testable, painted
+     at opacity 0. MEASURED 2026-09-24: his ⚙ ADVANCED drawer read open with black under it, and the
+     EYES card's own tooltip answered from the black. Sessions is home and #sig-adv is display:none
+     there, so every hop to TV·D after minute ten restarted the reveal paused. These all run under a
+     second; letting them finish costs nothing. tv/test_an_entrance_survives_endurance.py derives this
+     list from the keyframes and fails on any fade-in added without it. [[the-green-that-lies]] */
+  body[data-endurance="1"] #rlog-ov .tly-panel,
+  body[data-endurance="1"] #rlog-ov:not([hidden]),
+  body[data-endurance="1"] #th-credits,
+  body[data-endurance="1"] #th-drawer:not([hidden]),
+  body[data-endurance="1"] #th-hd:not([hidden]),
+  body[data-endurance="1"] #th-legend .lg-panel,
+  body[data-endurance="1"] #th-legend:not([hidden]),
+  body[data-endurance="1"] #th-lower,
+  body[data-endurance="1"] #th-more-pop,
+  body[data-endurance="1"] #th-more-pop:not([hidden]),
+  body[data-endurance="1"] #th-shelfov:not([hidden]),
+  body[data-endurance="1"] #th-slate.go,
+  body[data-endurance="1"] #theatre:not([hidden]),
+  body[data-endurance="1"] #tly-ov .tly-panel,
+  body[data-endurance="1"] #tly-ov:not([hidden]),
+  body[data-endurance="1"] .brain .line.hi.in,
+  body[data-endurance="1"] .brain .line.hi.in .k,
+  body[data-endurance="1"] .brain .line.in,
+  body[data-endurance="1"] .dsr-seal.dss-in,
+  body[data-endurance="1"] .hd-lastsession:not([hidden]),
+  body[data-endurance="1"] .hd-taskforce:not([hidden]),
+  body[data-endurance="1"] .intake-hero.ih-in,
+  body[data-endurance="1"] .intake-hero.ih-in .ih-cam,
+  body[data-endurance="1"] .stage-pulse.sp-in,
+  body[data-endurance="1"] .th-caption .th-chip,
+  body[data-endurance="1"] .th-coach,
+  body[data-endurance="1"] details.sig-adv[open] > *:not(summary),
+  body[data-endurance="1"] details.th-raw[open] > *:not(summary),
+  body[data-endurance="1"] .shell { animation-play-state: running !important; }
   body.film-on .hero, body.film-on .aura { opacity: 0 !important; }
   /* Hide giant center copy entirely while film is live — game must stay readable */
   body.film-on .center {

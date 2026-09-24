@@ -725,7 +725,22 @@ def _adv_activate(el_id, require_filled=False):
     unguarded `_toTVD()` would re-run `shellHome()` on every poll and reset the scroll this
     function performs three lines below — a fix that fights itself once per tick.
     """
+    # ⚠⚠ #228 — THE DRAWER IS JUDGED IN ENDURANCE, BECAUSE THAT IS WHERE HE LIVES. Every console enters
+    # endurance after 10 minutes of uptime (v877) and pauses `*`; a fresh served page never gets
+    # there, so this target photographed the drawer at minute one while he sat at minute two
+    # hundred. MEASURED 2026-09-24: under endurance the hop to TV·D restarted the drawer's one-shot
+    # reveal PAUSED AT OPACITY 0 — the EYES switch and the shadow reader laid out, hoverable and
+    # invisible — and this target stayed green through all of it. So endurance is switched on
+    # BEFORE the hop, and the page's own 5s timer is kept from clearing it (only the timer is
+    # bypassed; the CSS that pauses and the exemption that un-pauses are the page's own). The
+    # probe's inert() reads computed opacity up the ancestor chain, so a frozen reveal goes red.
     return """(function(){
+        if (!window.__rcEndure) {
+            window.__rcEndure = 1;
+            var _b = document.body, _ra = _b.removeAttribute.bind(_b);
+            _b.removeAttribute = function (n) { if (n === 'data-endurance') return; return _ra(n); };
+            _b.setAttribute('data-endurance', '1');
+        }
         try { if (document.body.getAttribute('data-view') && window._toTVD) window._toTVD(); } catch(e){}
         var d = document.getElementById('sig-adv');
         if (!d) return false;
@@ -2908,6 +2923,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   var clipScanned=0;
   var okTrunc=0, clippedWhat=[], coveredWhat=[], zeroWhat=[];
   var unreachable=0, unreachableWhat=[];
+  var invisible=0, invisibleWhat=[];
   nodes.forEach(function(e){
     var r=e.getBoundingClientRect();
     if (r.width<1 || r.height<1) {
@@ -2954,6 +2970,28 @@ _PROBE = r"""(function(sel, OK_TRUNC){
     rects.push({w:Math.round(r.width), h:Math.round(r.height),
                 x:Math.round(r.left), y:Math.round(r.top)});
     if (r.left < -1 || r.right > innerWidth+1) off++;
+    /* ⚠⚠ #228 — A BOX IS NOT A PICTURE. `painted` counts RECTS, and inert() only ever EXCUSED opacity-0
+       nodes from the cover checks, so a target painting at opacity 0 read `painted 1/1`. MEASURED
+       2026-09-24: under endurance his ⚙ ADVANCED reveal froze at frame 0 — the EYES card 148px tall,
+       hit-testable, answering hover with its own title, and invisible — and this probe, sabotaged to
+       that exact state, stayed green at all six widths. Effective opacity is the PRODUCT up the
+       chain (a parent at .5 and a child at .5 paint at .25), and a hidden layer paints nothing.
+       ⚠ ONLY WHAT STILL TAKES THE MOUSE. The first full run flagged #toast and #tvd-eng: both idle at
+       opacity 0 WITH pointer-events:none, by design — a resting toast, a dormant iframe. Invisible
+       AND hoverable is the defect (his symptom: tooltips answering from black); invisible and inert
+       is furniture waiting to be shown. */
+    (function(){
+      if (getComputedStyle(e).pointerEvents === 'none') return;
+      var op = 1, hid = false;
+      for (var n=e; n && n!==document.documentElement; n=n.parentElement){
+        var cs=getComputedStyle(n); op *= parseFloat(cs.opacity); if (cs.visibility==='hidden') hid = true;
+      }
+      if (hid || op < 0.05) {
+        invisible++;
+        if (invisibleWhat.length < 4) invisibleWhat.push((e.id ? '#' + e.id : String(e.className||e.tagName)).slice(0,40)
+          + (hid ? ' :: visibility hidden' : ' :: effective opacity ' + op.toFixed(2)));
+      }
+    })();
     /* ⚠ v2381 — THIS CHECK HAD TWO HOLES AND A SLICED LETTER WENT THROUGH BOTH. The console's
        MINI card printed "MINI \u00b7 AUTC" at 901px — the O cut off by the card's own
        overflow:hidden — and this probe scored `clipped 0` on the same render.
@@ -3256,6 +3294,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
     clipped:clipped, clipScanned:clipScanned, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
     unreachable:unreachable, unreachableWhat:unreachableWhat,
+    invisible:invisible, invisibleWhat:invisibleWhat,
     imgs:imgs, broken:broken,
     widths:Object.keys(widths).length, text:txt.slice(0,160), textLen:txt.length,
     rects:rects.slice(0,3)});
@@ -3445,6 +3484,9 @@ def verdict(key, m, sel, known=None):
                        # the pixels, then reproduced by hit test. [[visual-regression-detector]]
                        ("unreachable", "are CONTROLS he cannot click — something else answers the "
                                        "hit test at their centre"),
+                       # ⚠⚠ #228 — laid out, hoverable, and painted at opacity 0: the frozen ⚙ ADVANCED
+                       # reveal he found by its tooltips. A rect-only `painted` could not see it.
+                       ("invisible", "have a box, still take the mouse, and paint at (near) opacity 0 — hoverable and unseen"),
                        ("broken", "are images that failed to load")):
         if m.get(field):
             what = m.get(field + "What") or []
@@ -4572,13 +4614,20 @@ SABOTAGE = [
         [].forEach.call(n,function(e){ e.style.height='0px'; e.style.width='0px';
           e.style.overflow='hidden'; e.style.padding='0'; e.style.border='0'; });
         return 1;})()"""),
+    # ⚠ #228 — the frozen-reveal case: every box intact, every control still taking the mouse, and
+    # nothing on screen. `painted` stays whole here by construction, so only `invisible` can move.
+    ("invisible", "fade the shelf to opacity 0 while it still takes the mouse — the frozen ⚙ ADVANCED reveal",
+     """(function(){var n=document.querySelectorAll('[data-vault-mule]');
+        if(!n.length) return 'NO ELEMENT TO SABOTAGE';
+        [].forEach.call(n,function(e){ e.style.opacity='0'; });
+        return 1;})()"""),
 ]
 
 
 def prove():
-    """Sabotage the vault three ways and require the harness to name each one."""
+    """Sabotage the vault four ways and require the harness to name each one."""
     spec = TARGETS["vault"]
-    _say("PROVING THE HARNESS — three sabotages, each must move ITS OWN field.")
+    _say("PROVING THE HARNESS — %d sabotages, each must move ITS OWN field." % len(SABOTAGE))
     _say("")
     base = check("vault", dict(spec), shots=False)
     if not base["ok"]:

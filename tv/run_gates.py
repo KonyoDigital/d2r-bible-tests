@@ -5320,6 +5320,14 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). 8 cases, 3 red-proofs"),
+    Gate("test_an_entrance_survives_endurance",
+         [sys.executable, os.path.join(HERE, "test_an_entrance_survives_endurance.py")], 60,
+         why="#228 - his ⚙ ADVANCED drawer read open with black under it and its tooltips answering from "
+             "the black: after 10 minutes every console enters endurance and pauses `*`, so a one-shot "
+             "fade-in that starts later starts PAUSED AT OPACITY 0 (the EYES switch, the shadow reader, "
+             "and 27 other entrances). Every invisible-start entrance must be exempted from the pause; "
+             "derived from the keyframes, so a new fade-in without it goes red. 4 cases, 2 red-proofs. "
+             "The on-pixels half is render_check's ADVANCED targets, now judged UNDER endurance"),
     Gate("test_an_exec_leaves_no_corpse",
          [sys.executable, os.path.join(HERE, "test_an_exec_leaves_no_corpse.py")], 90,
          why="#224 - 35 <defunct> ocr_mac children under his console, one per in-place os.execv relaunch "
