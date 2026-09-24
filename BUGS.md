@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1261 - EVERY GATE RUN LEFT ITS SCRATCH DIRECTORIES BEHIND, AND 138 CALL SITES WERE THE WRONG LEVER
+
+**fix - #171 item 1.** A class-aware AST scan: 138 `mkdtemp` sites across 46 tv/test_*.py files have no cleanup in their
+own function or their class's setUp/tearDown (test_control 35, test_agent 27, then five or fewer). MEASURED: one
+test_agent run left 70 new entries in a $TMPDIR already holding 43,744. Pairing 138 sites by hand is 138 chances to
+miss one, and the next test written is the 139th - so the fix is at the door: `tv/fixture_tmp.contain()` (test-only,
+like fixture_ledgers) gives the process ONE parent directory - tempfile.tempdir and TMPDIR/TEMP/TMP, so child
+processes inherit it - removed at exit. A KILLED run never reaches atexit, so the next contain() sweeps parents whose
+owner pid is dead AND that are over a day old, never a live run's. All 46 files call it at import. MEASURED after: the
+same test_agent run leaves 0. All 46 suites re-run: green except two findings that are not this change - test_control's
+orphan-suite law (this law, before it was registered) and test_end_routes' OnHisRealShelf case, red identically with
+the change stashed (his live ledger: 432 of 455 rows explained, floor 95%; filed on #222). Guard:
+`test_a_test_run_leaves_no_scratch_dirs` - the finder, a real child process contained vs not, the sweep sparing live
+and fresh runs, production never importing it (6 cases, 3 proofs), PROVEN.
+
 ### REG-1260 - THE PILLOW FIX COULD ONLY REACH A MACHINE BY A DOUBLE-CLICK, AND THE ALT NEVER GETS ONE
 
 **fix - #227, found by reading the ALT live over SSH for the fix's own proof.** Tree at 6dab59f1 (so it HELD 6ed85ece,

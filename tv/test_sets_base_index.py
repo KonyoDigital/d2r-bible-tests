@@ -22,6 +22,8 @@ if HERE not in sys.path:
 import source_window as _sw  # noqa: E402
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
 

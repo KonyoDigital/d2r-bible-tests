@@ -533,6 +533,15 @@
     "gotcha": "For test processes ONLY — production code must never import it. It fills only an UNSET variable, so an explicit per-test redirect in setUp still wins. Seven suites call it at import (v3470); test_no_test_writes_his_eagle_ledgers pins that by AST, and run_gates._LIVE_STATE now names both ledgers so CI FAILS on a write.",
     "territory": "routines-infra"
   },
+  "fixture_tmp.py": {
+    "entryPoints": [
+      "contain",
+      "sweep_stale"
+    ],
+    "purpose": "contain() gives a TEST process one parent scratch directory (tempfile.tempdir + TMPDIR/TEMP/TMP) removed at exit, so every mkdtemp a suite makes - paired or not - leaves with it (#171).",
+    "gotcha": "For test processes ONLY - production must never import it (the law checks by AST). A KILLED run never reaches atexit, so the next contain() sweeps parents whose owner pid is dead AND that are over a day old, never a live run's. 46 suites call it at import; test_a_test_run_leaves_no_scratch_dirs finds any file with an unpaired site that does not.",
+    "territory": "routines-infra"
+  },
   "fleet_mask.py": {
     "entryPoints": [
       "encode",

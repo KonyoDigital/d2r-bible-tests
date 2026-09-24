@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_test_run_leaves_no_scratch_dirs",
+         [sys.executable, os.path.join(HERE, "test_a_test_run_leaves_no_scratch_dirs.py")], 60,
+         why="#171 - 138 mkdtemp sites across 46 test files had no teardown in their own function or "
+             "class; one test_agent run left 70 entries in a $TMPDIR already holding 43,744. "
+             "fixture_tmp.contain() holds a test process's scratch dirs in one parent removed at exit "
+             "(and sweeps dead runs' day-old parents, never a live one's); every file with an unpaired "
+             "site must call it at import. Measured after: the same run leaves 0. 6 cases, 3 red-proofs"),
     Gate("test_a_self_updated_console_can_read_its_frames",
          [sys.executable, os.path.join(HERE, "test_a_self_updated_console_can_read_its_frames.py")], 60,
          why="REG-1260 (#227) - MEASURED on the ALT: tree at 6dab59f1 held the launcher's Pillow step, "

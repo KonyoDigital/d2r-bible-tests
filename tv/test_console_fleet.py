@@ -73,6 +73,8 @@ PAGE_CONSOLE = os.path.join(ROOT, "functions", "console.js")
 PAGE_VISITS = os.path.join(ROOT, "functions", "visits.js")
 
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 
 NODE = shutil.which("node")
 NODE_TIMEOUT = 40  # a handler that never terminates must fail the gate, not hang it

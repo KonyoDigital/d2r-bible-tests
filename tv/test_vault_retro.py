@@ -33,6 +33,8 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 import console_safe  # noqa: F401,E402 — non-ASCII in the failure messages must survive a
                      # non-UTF-8 console; a test that cannot report is not a test.
 import vault_retro as v  # noqa: E402

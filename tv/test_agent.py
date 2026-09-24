@@ -5,6 +5,8 @@ import io, json, os, re, shutil, struct, sys, tempfile, threading, time, unittes
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 os.environ["TV_PORT"] = "17971"          # never collide with a live agent
 import tv_diablo as tv
 tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_test_journal.jsonl")   # v753 — tests NEVER write the real session journal

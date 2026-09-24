@@ -57,6 +57,8 @@ _console_safe_enable()
 HERE = os.path.dirname(os.path.abspath(__file__))
 import sys
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 import render_check as rc                                          # noqa: E402
 
 

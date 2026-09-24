@@ -25,6 +25,8 @@ _TMP = tempfile.mkdtemp(prefix="gatecache_")
 # would be the "fixtures never touch live data" scar all over again.
 os.environ["TV_GATE_CACHE"] = os.path.join(_TMP, "cache.json")
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 import control_app as ca  # noqa: E402
 
 

@@ -29,6 +29,8 @@ import unittest
 # where a clean tree would exit non-zero for the sake of one glyph. Caught by test_control's own
 # guard on the first push that carried this file. [[windows-powershell-gotchas]]
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 try:
     from console_safe import enable
     enable()

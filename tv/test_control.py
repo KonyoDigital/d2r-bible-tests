@@ -82,6 +82,8 @@ def _assume_supervision_is_proven():
 _ASSUMED_CENSUS = _assume_supervision_is_proven()
 import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 # v1462 — never point the module globals at a LIVE console. The suite boots its own Handler
 # on an ephemeral port, so nothing here binds 17772 today; but control_app reads these at
 # import time and helpers like _sock_open(CONTROL_PORT) / _reclaim_headless_for_scan() would
