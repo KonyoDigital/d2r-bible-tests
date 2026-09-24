@@ -3729,7 +3729,19 @@ class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):
         have landed in his real directory under a different spelling."""
         if not os.path.isdir(self.hist):
             self.skipTest("his frames dir is not on this machine")
-        got = self._journal_for(self.hist.upper())
+        # ⚠ #123 — THE PREMISE IS A PROPERTY OF THE VOLUME, SO ASK THE VOLUME. On his Mac (APFS,
+        # case-insensitive) the uppercased spelling IS tv/frames/hist; on a CI runner (ext4,
+        # case-sensitive) it is a directory that does not exist, and "isolated" is the right answer
+        # there — CI read that correct answer as a failure on every run. UNMEASURED, never failed.
+        up = self.hist.upper()
+        try:
+            same = os.path.exists(up) and os.path.samefile(self.hist, up)
+        except OSError:
+            same = False
+        if not same:
+            self.skipTest("UNMEASURED: this volume is case-sensitive — the uppercased spelling is "
+                          "not his hist, so there is no case variant of his tree to confuse")
+        got = self._journal_for(up)
         self.assertTrue(got.startswith(self.here),
                         "an uppercased spelling of his own hist was treated as a fixture: %s" % got)
 
@@ -4091,6 +4103,13 @@ RED_PROOF = [
         'find': 'stripped = [k for k in _API_AUTH_ENV if env.pop(k, None) is not None]',
         'replace': 'stripped = []',
         'matches': 1,
+    },
+    {
+        "why": "v1897 - the ancestor walk compares spellings instead of asking the filesystem: an uppercased TV_HIST is one directory on his case-insensitive Mac and is called a fixture, so isolated writes land in his real hist (unproven until #123 made the case law say UNMEASURED on a case-sensitive runner)",
+        "file": "tv_diablo.py",
+        "find": "and os.path.samefile(cur, b):",
+        "replace": "and cur == b:",
+        "matches": 1,
     },
 ]
 
