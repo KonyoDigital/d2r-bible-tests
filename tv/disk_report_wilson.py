@@ -527,6 +527,24 @@ CLAIMS = (
 
 
 def prove():
+    # ⚠⚠ #123 — THE LOCK IS NOT THIS HARNESS'S SUBJECT, EXCEPT IN THE ATTEMPTS THAT SAY SO.
+    # disk_history_append publishes prunedMb only when self_arming.may("prune.reports") opens. Every
+    # KEEP axis (eligible, tiny, noceiling, freebound, boundary…) and the baseline silently relied on
+    # the REAL lock being open — true on his Mac, false on a CI runner (no evidence, no census), where
+    # `eligible` and `tiny` read 0/2 LEAKS and the run went red for a reason that had nothing to do
+    # with the validator it proves. prune.reports is pinned OPEN for the whole run; the lock attempts
+    # (lockshut, lockunreadable) install their own stubs on top and restore to this one.
+    import self_arming as SA
+    _real_may = SA.may
+    SA.may = lambda lock, *a, **k: ((True, "harness: the lock is not this attempt's subject")
+                                    if lock == "prune.reports" else _real_may(lock, *a, **k))
+    try:
+        return _prove_pinned()
+    finally:
+        SA.may = _real_may
+
+
+def _prove_pinned():
     rows, n, k = [], 0, 0
     for claim, fn, what in CLAIMS:
         try:
