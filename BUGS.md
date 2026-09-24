@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1212 - MORE DISTINCT ATTACKS THAN ATTEMPTS WAS CREDITED ABOVE THE RAW BOUND
+
+**fix - the second eye on v3487 (grok-4.7, #231), reproduced first.** v3487's `_attacks_passed` credited
+`attacks - (n - k)` and never capped it, so a row with attacks > n scored above its own raw Wilson bound - 10 of 10 over
+20 attacks read 20 of 20 (0.8389 vs raw 0.7225), 9 of 10 over 20 read 19 of 20 - the inflation v3487 claimed to remove,
+and its docstring said it could not happen. bank() refused k > n but accepted attacks > n. MEASURED on his ledger: 21
+hover_wilson rows bank n=0 with attacks=1 (an axis declared and unable to run), and they padded miniauto.run's attack
+count. Now attacks are clamped per row to that row's n before summing, the credit is clamped to min(attacks, n) and to
+k, and bank() refuses attacks > n whenever n > 0 (the zero-trial shape stays legal). Of 9 locks exactly ONE score moved:
+miniauto.run attacks 4 -> 3, wilsonByAttack 0.5101 -> 0.4385, state unchanged (INCOMPLETE). 3 new cases, 3 new proofs +
+the old one re-anchored, 5/5 PROVEN; his live proof queue untouched (temp ledger).
+
 ### REG-1211 - TWO CI REDS LEFT AT 39b495f3 WERE BOTH A HARNESS LEANING ON HIS MACHINE
 
 **fix - #123 (21 CI reds at 286e926d -> 2 at 39b495f3).** (1) disk_report_crossfamily.prove() drove the REAL

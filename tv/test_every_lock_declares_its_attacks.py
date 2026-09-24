@@ -120,6 +120,56 @@ class EveryLockWithEvidenceDeclaresItsAttacks(unittest.TestCase):
         self.assertEqual(o["wilsonByAttack"], round(SA.wilson_lower(27, 35), 4),
                          "8 failures over 35 distinct attacks must credit 27, the conservative reading")
 
+class MoreAttacksThanAttemptsIsNeverCredit(unittest.TestCase):
+    """The second eye on v3487 (grok-4.7), reproduced before fixing: `_attacks_passed` credited
+    attacks - (n - k) and never capped it, so 10 of 10 over 20 attacks read 20 of 20 (0.8389 against a
+    raw 0.7225) and 9 of 10 over 20 read 19 of 20. And 21 live hover_wilson rows bank n=0 with
+    attacks=1, which padded miniauto.run's attack count (4 -> 3 once clamped). DRIVEN."""
+
+    def test_the_credit_never_exceeds_k_or_the_attempts(self):
+        for k, n, a in ((10, 10, 20), (9, 10, 20), (0, 3, 9), (117, 125, 35)):
+            got = SA._attacks_passed(k, n, a)
+            self.assertLessEqual(got, k, "%d of %d over %d attacks credited %d > k" % (k, n, a, got))
+            self.assertLessEqual(SA.wilson_lower(got, min(a, n)) if min(a, n) else 0,
+                                 SA.wilson_lower(k, n) + 1e-9,
+                                 "%d of %d over %d attacks scores above its raw bound" % (k, n, a))
+
+    def test_a_zero_trial_axis_adds_no_attack(self):
+        rows = [{"lock": "miniauto.run", "n": 10, "k": 10, "kind": "sabotage", "attacks": 3, "ref": "a"},
+                {"lock": "miniauto.run", "n": 0, "k": 0, "kind": "sabotage", "attacks": 1, "ref": "b"}]
+        o = SA.score("miniauto.run", rows=rows)
+        self.assertEqual(o.get("attacks"), 3, "an axis that ran zero trials added to the attack count: "
+                                              "%r" % (o.get("attacks"),))
+        self.assertLessEqual(o["wilsonByAttack"], o["wilson"])
+
+    def test_bank_refuses_more_attacks_than_attempts_but_keeps_the_zero_trial_shape(self):
+        lock, kind, src = self._a_declared_pair()
+        with self.assertRaises(ValueError):
+            self._bank_into_a_temp_ledger(lock, kind, src, 10, 10, 20)
+        row = self._bank_into_a_temp_ledger(lock, kind, src, 0, 0, 1)   # declared, unable to run
+        self.assertEqual((row.get("n"), row.get("attacks")), (0, 1))
+
+    def _a_declared_pair(self):
+        for src, locks in getattr(SA, "PROVES", {}).items():
+            for l in (locks if isinstance(locks, (list, tuple, set)) else [locks]):
+                if l in SA.LOCKS:
+                    return l, sorted(SA.KINDS)[0], src
+        self.skipTest("premise: no declared (source, lock) pair to bank against")
+
+    def _bank_into_a_temp_ledger(self, lock, kind, src, n, k, attacks):
+        """bank() writes to _ledger_path(); pointed at a temp file so his proof queue is never touched."""
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp(prefix="attack-bank-")
+        real = SA._ledger_path
+        SA._ledger_path = lambda *a, **kw: os.path.join(d, "proof.jsonl")
+        try:
+            return SA.bank(lock, kind, src, n=n, k=k, attacks=attacks, note="fixture")
+        finally:
+            SA._ledger_path = real
+            shutil.rmtree(d, ignore_errors=True)
+
+
 class TheHARNESSESAllPassIt(unittest.TestCase):
     """★ Established by AST, so a harness that stops declaring is caught even before it re-runs and
     the stored rows go stale."""
@@ -256,8 +306,30 @@ RED_PROOF = [
     {
         "why": "#123 - the per-attack credit back on min(k, attacks): with failures present every distinct attack is credited as refused, and prune.reports' shape scores 0.9011 over a raw 0.8788",
         "file": "self_arming.py",
-        "find": "    return max(0, int(attacks) - (int(n) - int(k)))",
+        # re-anchored for v3487's second eye (the line now clamps attacks to n and the credit to k)
+        "find": "    return max(0, min(int(k), a - (int(n) - int(k))))",
         "replace": "    return min(int(k), int(attacks))",
+        "matches": 1
+    },
+    {
+        "why": "v3487 second eye - the credit is no longer capped: 10 of 10 over 20 attacks credits 20, above k and above the raw bound",
+        "file": "self_arming.py",
+        "find": "    a = min(int(attacks), int(n))\n    return max(0, min(int(k), a - (int(n) - int(k))))",
+        "replace": "    a = int(attacks)\n    return max(0, a - (int(n) - int(k)))",
+        "matches": 1
+    },
+    {
+        "why": "v3487 second eye - a zero-trial axis adds to the attack count again (hover_wilson's n=0 attacks=1 rows padded miniauto.run 3 -> 4)",
+        "file": "self_arming.py",
+        "find": "    _atk = [min(r.get(\"attacks\"), int(r.get(\"n\") or 0))\n",
+        "replace": "    _atk = [r.get(\"attacks\")\n",
+        "matches": 1
+    },
+    {
+        "why": "v3487 second eye - bank() accepts more distinct attacks than attempts again",
+        "file": "self_arming.py",
+        "find": "    if attacks is not None and n > 0 and int(attacks) > n:\n",
+        "replace": "    if False:\n",
         "matches": 1
     },
     {

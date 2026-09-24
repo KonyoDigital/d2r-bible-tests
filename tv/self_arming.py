@@ -633,6 +633,11 @@ def bank(lock, kind, src, n, k, note="", ref="", attacks=None, withdrawn=False):
     if n < 0 or k < 0 or k > n:
         raise ValueError("k=%d of n=%d is not a possible sabotage record — more refusals than "
                          "attempts is an instrument fault" % (k, n))
+    # ⚠ v3487's second eye: more DISTINCT attacks than attempts is the same instrument fault one field
+    # over. n == 0 stays legal (an axis declared and unable to run banks attacks=1, n=0 — no evidence).
+    if attacks is not None and n > 0 and int(attacks) > n:
+        raise ValueError("attacks=%d over n=%d attempts is not a possible record — a distinct attack "
+                         "needs at least one attempt" % (int(attacks), n))
     row = {
         "lock": str(lock), "kind": str(kind), "src": str(src), "ref": str(ref or ""),
         "n": n, "k": k, "refused": bool(k > 0),
@@ -852,10 +857,14 @@ def _attacks_passed(k, n, attacks):
     confidence the evidence never gave (test_every_lock_declares_its_attacks, red on CI and here).
     A correction that can only help is not a correction. The conservative reading: every failure may
     be a different attack, so attacks - (n - k), floored at 0. Fewer trials and a larger failure
-    share can only LOWER a Wilson bound, so this can never exceed the raw figure.
-    [[regression-guard]] [[unknown-stays-unknown]]
+    share can only LOWER a Wilson bound, so this can never exceed the raw figure — PROVIDED
+    attacks <= n. ⚠⚠ The second eye on v3487 (grok-4.7), reproduced: with attacks > n the old line
+    credited 10 of 10 over 20 attacks as 20 of 20 (0.8389 against a raw 0.7225) and 9 of 10 over 20
+    as 19 of 20. Distinct attacks cannot outnumber the attempts that ran them, so attacks is clamped
+    to n and the credit to k. [[regression-guard]] [[unknown-stays-unknown]]
     """
-    return max(0, int(attacks) - (int(n) - int(k)))
+    a = min(int(attacks), int(n))
+    return max(0, min(int(k), a - (int(n) - int(k))))
 
 
 def score(lock, rows=None):
@@ -904,7 +913,12 @@ def score(lock, rows=None):
                     if int(r.get("n", 1) or 0) == 0 and not r.get("withdrawn")})
     withdrawn = sorted({str(r.get("ref") or "?")[:60]
                         for r in mine if r.get("withdrawn")})
-    _atk = [r.get("attacks") for r in mine if isinstance(r.get("attacks"), int)]
+    # ⚠ #123 / v3487's second eye — each row's attacks are clamped to ITS OWN n before summing. Live
+    # hover_wilson rows bank n=0 with attacks=1 (an axis declared and unable to run): an attack with
+    # zero trials is no evidence, and adding it to the attack count while adding nothing to n is one
+    # way attacks could exceed n and lift wilsonByAttack above the raw bound.
+    _atk = [min(r.get("attacks"), int(r.get("n") or 0))
+            for r in mine if isinstance(r.get("attacks"), int)]
     attacks = sum(_atk) if _atk else None
     out = {"lock": lock, "surface": spec["surface"], "acts": spec["acts"],
            "attacks": attacks,
