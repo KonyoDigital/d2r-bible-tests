@@ -7177,6 +7177,22 @@ def _tree_diff(before, after):
     return sorted(_live_state_diff(before, after, names=sorted(set(before) | set(after))))
 
 
+def cost_weights(gates=None):
+    """{gate name: weight} — measured CI seconds from tv/gate_costs.json, the MEDIAN measured cost for
+    a gate the table has not seen, or the declared timeout when there is no table at all."""
+    gates = list(GATES if gates is None else gates)
+    try:
+        import gate_costs as _gc
+        table = _gc.load()
+    except Exception:
+        table = {}
+    if not table:
+        return dict((g.name, float(g.timeout or 0)) for g in gates)
+    vals = sorted(table.values())
+    med = vals[len(vals) // 2]
+    return dict((g.name, float(table.get(g.name, med))) for g in gates)
+
+
 def shard_names(k, n, gates=None):
     """The K-th (1-based) of N deterministic, cost-balanced slices of the gate set. -> sorted names
 
@@ -7194,10 +7210,15 @@ def shard_names(k, n, gates=None):
     gates = list(GATES if gates is None else gates)
     if not (1 <= int(k) <= int(n)) or int(n) > len(gates):
         raise ValueError("shard %s/%s is not a slice of %d gates" % (k, n, len(gates)))
+    # ⚠⚠ v3477 — BALANCE ON WHAT A GATE COSTS, NOT ON WHAT IT DECLARES. The first sharded run split
+    # by declared timeout and came back 8m41s / 17m25s; measured from its logs, test_control alone is
+    # 430 of 1,457 gate-seconds. tv/gate_costs.json is that measurement; a gate it has never seen
+    # weighs the MEDIAN measured cost. With no table at all, declared timeout is the fallback.
+    weigh = cost_weights(gates)
     bins = [[0.0, i, []] for i in range(int(n))]
-    for g in sorted(gates, key=lambda g: (-float(g.timeout or 0), g.name)):
+    for g in sorted(gates, key=lambda g: (-weigh[g.name], g.name)):
         b = min(bins, key=lambda b: (b[0], b[1]))
-        b[0] += float(g.timeout or 0)
+        b[0] += weigh[g.name]
         b[2].append(g.name)
     return sorted(bins[int(k) - 1][2])
 

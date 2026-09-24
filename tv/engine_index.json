@@ -620,6 +620,16 @@
     "purpose": "Reduces tv/.g5_shadow.jsonl - the 6,082 Claude-vs-Grok rows written since 2026-08-23 that nothing had ever read - into an agreement report carrying its own denominator and window.",
     "territory": "second-eye"
   },
+  "gate_costs.py": {
+    "entryPoints": [
+      "load",
+      "from_logs",
+      "main"
+    ],
+    "purpose": "the MEASURED CI seconds of every gate (tv/gate_costs.json), so run_gates --shard balances the CI matrix on real cost instead of declared timeout.",
+    "gotcha": "A measurement with a source, committed so every machine cuts the same slices. A gate the table has not seen weighs the MEDIAN, not its declared timeout. Refresh from CI job logs with python3 tv/gate_costs.py <logs>; test_the_gate_set_shards_cleanly refuses a table covering under 95% of the registry.",
+    "territory": "routines-infra"
+  },
   "git_quiet.py": {
     "entryPoints": [
       "run"

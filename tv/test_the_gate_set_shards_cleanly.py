@@ -41,11 +41,28 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         self.assertEqual(RG.shard_names(1, 2, gates=list(reversed(RG.GATES))), RG.shard_names(1, 2),
                          "the slice depends on registry ORDER, so two machines can cut it differently")
 
-    def test_the_slices_are_balanced_by_declared_cost(self):
-        w = lambda names: sum(float(g.timeout or 0) for g in RG.GATES if g.name in set(names))
-        a, b = w(RG.shard_names(1, 2)), w(RG.shard_names(2, 2))
-        self.assertLess(abs(a - b), max(float(g.timeout or 0) for g in RG.GATES) + 1,
-                        "slices differ by more than one gate's cost: %.0f vs %.0f" % (a, b))
+    def test_the_slices_are_balanced_by_MEASURED_cost(self):
+        """v3477 — balanced on declared timeout, the first sharded run came back 8m41s / 17m25s."""
+        w = RG.cost_weights()
+        a = sum(w[x] for x in RG.shard_names(1, 2))
+        b = sum(w[x] for x in RG.shard_names(2, 2))
+        self.assertLess(abs(a - b), max(w.values()) + 1,
+                        "slices differ by more than one gate's MEASURED cost: %.0f vs %.0f" % (a, b))
+
+    def test_the_cost_table_is_a_measurement_that_covers_the_registry(self):
+        import gate_costs as GC
+        table = GC.load()
+        self.assertTrue(table, "tv/gate_costs.json is missing or empty — the shards fall back to "
+                               "declared timeout, which the first sharded run proved lopsided")
+        names = {g.name for g in RG.GATES}
+        covered = len(names & set(table)) / float(len(names))
+        self.assertGreaterEqual(covered, 0.95, "the cost table covers only %.0f%% of the gate set — "
+                                "refresh it: python3 tv/gate_costs.py <ci-job-logs>" % (covered * 100))
+        w = RG.cost_weights()
+        unseen = sorted(names - set(table))
+        if unseen:
+            med = sorted(table.values())[len(table) // 2]
+            self.assertEqual(w[unseen[0]], med, "an unmeasured gate did not weigh the median")
 
     def test_a_slice_that_is_not_a_slice_is_refused(self):
         for k, n in ((0, 2), (3, 2), (1, 10 ** 6)):
@@ -61,6 +78,13 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "v3477 — the measured table ignored: back to declared timeout, the lopsided 8m41s / 17m25s split",
+        "file": "run_gates.py",
+        "find": "    weigh = cost_weights(gates)\n",
+        "replace": "    weigh = dict((g.name, float(g.timeout or 0)) for g in gates)\n",
+        "matches": 1,
+    },
+    {
         "why": "every slice returns the WHOLE set: each shard re-runs everything and pays the ceiling",
         "file": "run_gates.py",
         "find": "    return sorted(bins[int(k) - 1][2])\n",
@@ -70,7 +94,9 @@ RED_PROOF = [
     {
         "why": "ties broken by registry order instead of name: two machines cut different slices",
         "file": "run_gates.py",
-        "find": "    for g in sorted(gates, key=lambda g: (-float(g.timeout or 0), g.name)):\n",
+        # v3477 — RE-ANCHORED (REG-1163, my own proof): v3477 weighs by measured cost now.
+        # Same property: ties must break by NAME, never by registry order.
+        "find": "    for g in sorted(gates, key=lambda g: (-weigh[g.name], g.name)):\n",
         "replace": "    for g in gates:\n",
         "matches": 1,
     },

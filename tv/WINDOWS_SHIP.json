@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3476",
+  "ver": "v3477",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3476: every RED_PROOF assignment is judged, a gate file that will not parse is its own state in the census and the prover, and the census is driven over planted files",
+  "note": "v3477: run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

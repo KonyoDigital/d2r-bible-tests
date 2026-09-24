@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1177 - THE SHARDS WERE BALANCED ON A PROXY, AND THE FIRST SHARDED RUN SHOWED IT
+
+**v3477 - #184 follow-up.** v3472 split the gate set by each gate's DECLARED timeout. The first
+sharded run (35939383947) came back **8m41s / 17m25s**: both inside the ceiling, but lopsided —
+MEASURED from its two job logs, the gate set is 1,457 gate-seconds and test_control ALONE is 430 of
+them. `tv/gate_costs.json` now carries those measured CI seconds (with the run it came from), and
+`shard_names` balances on them — a gate the table has never seen weighs the MEDIAN measured cost,
+and with no table at all declared timeout remains the fallback. The same split is now 729 s / 728 s.
+`python3 tv/gate_costs.py <ci-job-logs>` refreshes it; the shard law refuses a table covering under
+95% of the registry. v3477's rewrite orphaned v3472's own tie-break proof — census caught it.
+
 ### REG-1176 - THE FIX FOR "UNREADABLE IS NOT ABSENT" STILL READ UNKNOWN AS ABSENT
 
 **v3476 - the cross-family eye (grok-cli, schema, 7,340 chars) on the SHIPPED v3473 bytes, 4 findings,
