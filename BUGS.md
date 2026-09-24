@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1231 - A FRESH MACHINE NEVER ESTABLISHED ITS TREE AT BOOT; THE WINDOWS EYE WAS PINNED BY PROSE ONLY
+
+**fix - #227, the heart must catch what was found by hand.** MEASURED 2026-09-24: the one boot-shaped
+`machine_tree.establish()` sat inside `_prewarm_seal_cache`, which returns at once on Windows and otherwise runs only in
+the `finally` of a capture STOP - never at boot; the only other caller is the film loop. So a fresh machine established
+nothing until it filmed or its backup writers happened to write, and the doctor's `this console tree is established` read
+MISSING for as long as that took (forever on a machine that never records). `main()` now starts `_establish_tree_at_boot`
+on every platform; a scratch console (render gate, test launchers: `win_relaunch.scratch_console()`) provisions nothing,
+since one without TV_HIST would provision the runner's real home. Also pinned by a DRIVEN test at last: grok.exe on a
+Windows-shaped home (only `~/.grok/bin/grok.exe`, not on the process PATH) resolves through `g5_grok_eyes._grok_bin`,
+`second_eye_run._default_eye_cli` and reads OK on the doctor's second-opinion row (it said "no binary there" on the ALT).
+Guards: `test_a_fresh_machine_establishes_its_tree_at_boot` (4 cases, 3 proofs) + `test_the_windows_eye_is_found_by_its_exe`
+(4 cases, 2 proofs), all PROVEN. UNMEASURED until the next ALT boot: the establish on a real Windows console (#225).
+
 ### REG-1230 - THE SETS-COUNT CARD WAS RED OVER A 34-DAY-OLD PAGE, AND ITS ONE REAL ACTION HAD NO QUESTION (v3498)
 
 **fix - #228, his screenshot 2026-09-24 11:13.** The chronicle-sweep panel drew "the board and the game do not add up"

@@ -5335,6 +5335,19 @@ GATES = [
              "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
              "_prewarm warms every declared endpoint once, in the background, the moment the console "
              "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
+    Gate("test_a_fresh_machine_establishes_its_tree_at_boot",
+         [sys.executable, os.path.join(HERE, "test_a_fresh_machine_establishes_its_tree_at_boot.py")], 60,
+         why="#227 - the one boot-shaped machine_tree.establish() sat inside _prewarm_seal_cache, which returns "
+             "at once on Windows and otherwise runs only after a capture session STOPS - never at boot. A "
+             "fresh machine established nothing until it filmed, and 'this console tree is established' "
+             "read MISSING for as long as that took. main() now establishes at boot on every platform; a "
+             "scratch console provisions nothing. 4 cases, 3 red-proofs"),
+    Gate("test_the_windows_eye_is_found_by_its_exe",
+         [sys.executable, os.path.join(HERE, "test_the_windows_eye_is_found_by_its_exe.py")], 60,
+         why="#227 - on his Windows ALT box grok.exe existed and was on PATH, the resolver listed no .exe and "
+             "second_eye_run hardcoded ~/.grok/bin/grok, so the doctor said 'no binary there'. Driven on a "
+             "Windows-shaped home: the resolver, the second eye and the doctor row all find the .exe. "
+             "4 cases, 2 red-proofs"),
     Gate("test_the_sets_count_asks_for_a_fresh_page",
          [sys.executable, os.path.join(HERE, "test_the_sets_count_asks_for_a_fresh_page.py")], 60,
          why="#228 - his screenshot 2026-09-24 11:13: the chronicle-sweep panel drew 'the board and the game "

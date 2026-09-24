@@ -4173,6 +4173,37 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
     }
 
 
+def _establish_tree_at_boot():
+    """#227 — THIS MACHINE'S TREE IS ESTABLISHED WHEN ITS CONSOLE STARTS, ON EVERY PLATFORM.
+    -> rows, or None when it is not this console's job (never "established")
+
+    ⚠ MEASURED 2026-09-24: the one boot-shaped call to machine_tree.establish() sat inside
+    _prewarm_seal_cache, which returns at once on Windows and otherwise runs only after a capture
+    session STOPS - never at boot. The only other caller is the film loop. So a fresh machine
+    established nothing until it filmed or its own backup writers happened to write, and 'this
+    console tree is established' read MISSING for as long as that took: forever, on a machine that
+    never records. That row REPORTS and never provisions (ensure(create=False)); establish() is the
+    writers' door, and a console starting up is a writer.
+    ⚠ A scratch console (the render gate, test launchers) establishes nothing here: one without
+    TV_HIST would provision the runner's REAL home. And a console that cannot tell whose it is
+    does not provision either."""
+    try:
+        import win_relaunch as _wr
+        if _wr.scratch_console():
+            return None
+    except Exception:
+        return None
+    try:
+        import machine_tree as _mt
+        rows = _mt.establish() or []
+    except Exception as e:
+        print("\u26a0 boot tree establish skipped: %s" % e, flush=True)
+        return None
+    if any(r.get("state") in (_mt.UNUSABLE, _mt.FAILED, _mt.REFUSED) for r in rows):
+        print("\u26a0 boot tree: %s" % _mt.say(rows), flush=True)
+    return rows
+
+
 def _prewarm_seal_cache():
     """v880 (Grok j / back-pass #4) — build the theatre's ?w=1280 derivatives for the NEWEST
     sealed session in a low-priority background thread: first playback pays no sips storm.
@@ -36627,6 +36658,8 @@ def main():
         _reel_sweep_indexes(why="console boot")
     except Exception as _se:
         print("\u26a0 boot index sweep skipped: %s" % _se, flush=True)
+    # #227 — this machine's own tree, established where it lives (see _establish_tree_at_boot)
+    threading.Thread(target=_establish_tree_at_boot, daemon=True, name="tvd-tree").start()
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
