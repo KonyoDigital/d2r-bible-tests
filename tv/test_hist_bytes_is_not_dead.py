@@ -118,6 +118,19 @@ class TheBoundIsNowAPPLICABLE(unittest.TestCase):
 
     CORPUS = int(5463.4 * 1024 * 1024)          # his shelf, measured 2026-09-05
 
+    def setUp(self):
+        """⚠⚠ #123 — THE LOCK IS NOT THE SUBJECT HERE. disk_history_append publishes prunedMb only when
+        self_arming.may("prune.reports") opens, and on a CI runner (no evidence store, no heart
+        census) that lock fails CLOSED — so every row came back `prunedMb: None, "prune.reports is
+        LOCKED"` and these cases, which are about the CORPUS BOUND, went red on the venue while
+        passing here. The lock is pinned open for this class and restored after; the lock's own
+        behaviour has its own laws. [[a-probe-licenses-only-what-it-tested]]"""
+        import self_arming as _SA
+        self._sa, self._may = _SA, _SA.may
+        _SA.may = lambda lock, *a, **k: ((True, "fixture: open") if lock == "prune.reports"
+                                         else self._may(lock, *a, **k))
+        self.addCleanup(setattr, _SA, "may", self._may)
+
     def _row(self, pruned_mb, hist_bytes):
         d = tempfile.mkdtemp(prefix="histb_")
         self.addCleanup(shutil.rmtree, d, True)
