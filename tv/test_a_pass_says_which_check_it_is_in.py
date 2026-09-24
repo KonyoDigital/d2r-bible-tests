@@ -53,6 +53,36 @@ class APassSaysWhichCheckItIsIn(unittest.TestCase):
         self.assertEqual(self.seen.get("console"), "the probe that looks at itself",
                          "the console does not publish the check the pass sits in")
 
+    def test_the_priming_names_itself(self):
+        # REG-1268 — the ALT read 'not measured yet' with no `measuring`: the stall sat BEFORE the loop
+        saw = {}
+        real = (cd._post, cd._health_report, cd._route_census_once)
+
+        def post(path, body=None, timeout=20):
+            saw["board"] = cd.CURRENT.get("check")
+            return {}
+
+        def health():
+            saw["health"] = cd.CURRENT.get("check")
+            saw["console"] = (ca.eagle_state().get("measuring") or {}).get("check")
+            return {}
+
+        def routes():
+            saw["routes"] = cd.CURRENT.get("check")
+            return {}
+        cd._post, cd._health_report, cd._route_census_once = post, health, routes
+        try:
+            with cd.tick_caches():
+                saw["loop"] = cd.CURRENT.get("check")
+        finally:
+            cd._post, cd._health_report, cd._route_census_once = real
+        self.assertEqual(saw.get("board"), "priming: the board-ownership read")
+        self.assertEqual(saw.get("health"), "priming: the health report")
+        self.assertEqual(saw.get("console"), "priming: the health report",
+                         "the console does not publish a pass stuck in its priming")
+        self.assertEqual(saw.get("routes"), "priming: the route census")
+        self.assertIsNone(saw.get("loop"), "the priming name leaked into the loop")
+
     def test_a_finished_pass_is_not_measuring(self):
         cd.run(include_slow=False, include_periodic=False, tick=7)
         self.assertIsNone(cd.CURRENT.get("check"))
@@ -64,6 +94,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1268 - a pass stuck in its priming (the health report) says only 'not measured yet' again",
+        "file": "console_doctor.py",
+        "find": "    CURRENT.update(check=\"priming: the health report\", since=time.time())\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#229 - the doctor stops recording the running check: a stalled pass says only 'not measured yet' again",
         "file": "console_doctor.py",

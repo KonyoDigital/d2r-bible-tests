@@ -8457,6 +8457,11 @@ def tick_caches():
     is the one question whose answer differs between the two branches.
     [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
     """
+    # ⚠ REG-1268 — THE PRIMING NAMES ITSELF TOO. v3500 made a pass say which CHECK it sits in, and the
+    # ALT's first live read after it showed the blind spot: "not measured yet", tick 1, and NO
+    # `measuring` at all - CURRENT is set only inside the check loop, and these three reads run
+    # BEFORE it. A stall here looked exactly like a pass that never started. [[heart-first]]
+    CURRENT.update(check="priming: the board-ownership read", since=time.time(), tick=None)
     _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
     # ⚠⚠ v3199 — THE THIRD CACHE WAS MARKED ACTIVE AND LEFT EMPTY, AND THAT IS WHY THE TIMING
     # GATE KEPT ACCUSING INNOCENT CHECKS. Its two siblings above are PRIMED with a real read;
@@ -8482,8 +8487,11 @@ def tick_caches():
     # `test_the_cheap_subset_is_actually_CHEAP` asserts exactly that, so this can never become a
     # way of hiding it. [[regression-guard]] [[zero-needs-a-denominator]]
     _health_cache["active"], _health_cache["rep"] = True, None
+    CURRENT.update(check="priming: the health report", since=time.time())
     _health_cache["rep"] = _health_report()
+    CURRENT.update(check="priming: the route census", since=time.time())
     _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
+    CURRENT.update(check=None, since=None)
     try:
         yield
     finally:

@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1268 - THE "WHICH CHECK IS THE PASS IN" FIELD WAS BLIND TO THE PASS'S OWN PRIMING
+
+**fix - #229, found by reading the ALT live after v3500 landed (GET /api/status).** REG-1248 made a doctor pass publish the
+check it sits in (`measuring`), so the ALT's never-finishing first pass could finally be located. First live read:
+eagle "not measured yet", ticks 1, and NO `measuring` at all. `CURRENT` is set only inside the check loop, and
+`tick_caches()` runs three reads BEFORE it - the board-ownership read, the health report and the route census - so a
+stall there looked exactly like a pass that never started: the field I shipped could not see the one place it was
+needed. Timed standalone on the ALT: 3.0s / 11.1s / 0.6s (the stall only happens inside the console process). Now each
+priming step names itself ("priming: the health report", ...) and is cleared before the loop. The next ALT boot says
+which step it sits in. Guard: a new case in `test_a_pass_says_which_check_it_is_in` (each step named while it runs,
+published by the console, not leaked into the loop) + a proof; all 4 PROVEN.
+
 ### REG-1267 - A DOCTOR ROW BLAMED A PARSER THAT NEVER GUESSED
 
 **fix - #222, read live on his console (GET /api/eagle, 2026-09-25): 'a verdict comes from a declared field' MISSING,
