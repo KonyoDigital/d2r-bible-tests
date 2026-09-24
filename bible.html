@@ -47827,7 +47827,7 @@ body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,20
 body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
 body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
 body.cousin-shell #ladder-ribbon{top:24px}   /* v665.1 — WINDOWS has Main/Ladder too; the two ribbons stack instead of overlap */
-#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:var(--fw-semibold) 11px/1 inherit;letter-spacing:var(--ls-wide);padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font-weight:var(--fw-semibold);font-size:11px;line-height:1;/* #218 — LONGHANDS, NOT `font:… 11px/1 inherit`: `inherit` is not a family, so that shorthand was invalid at computed-value time and the band fell back to the page font (MEASURED 16px, 35px tall), painting over the ladder ribbon its 24px stack offset (:47829) was sized for. */letter-spacing:var(--ls-wide);padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){#cousin-ribbon{font-size:9px;letter-spacing:var(--ls-normal);padding:3px 10px 4px}}
 /* v3272 — the badge is the ONLY part that takes a click; the band keeps pointer-events:none so it
    can never eat the ⌂CONSOLE click v2061 measured it overlapping below 684px. Collapsing sheds
@@ -50812,7 +50812,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3484', name:'v3484 - entryPoints was read as a timestamp and a roster was filed as debt for ten days', date:'2026-09-24', note:'the provenance clock test reads a suffix only at a word boundary, one store moves (engine_index SILENT to REFERENCE), and the ratchet prints its reds last so a CI tail names them' };
+  window.D2R_BUILD = { id:'v3485', name:'v3485 - the world band painted over the ladder ribbon and the cause was one invalid word', date:'2026-09-24', note:'the LINUX band font shorthand used inherit as its family so the band fell back to 16px and covered LADDER ACCOUNT; longhands make it 22px with no overlap at five widths. HEART: the band height is fixed by the stylesheet, not by data or runtime state, so there is nothing for a doctor row to read; the parse gate test_the_world_band_leaves_room_for_the_ladder_ribbon holds the reserve law on every machine' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

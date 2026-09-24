@@ -74,6 +74,17 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         for name, fn in heart2.gate_files():
             # v3473 — an UNREADABLE declaration used to fall through `if not proofs` as if the gate
             # declared nothing; eleven proofs sat unrun that way. It is a malformed declaration.
+            # #220 — CHECKED FIRST (the eye on the shipped v3482: an unreadable-then-literal file hit the
+            # 'cannot be read' branch below and was reported ABSENT, while import holds the literal —
+            # the real defect, the double binding, went unnamed). A SECOND binding is a malformed declaration: `import` keeps only the last, and
+            # test_the_ledger_cannot_lie_about_what_it_saw carried 11 proofs that way that had
+            # never run, because the prover read the first. [[unknown-stays-unknown]]
+            _n = heart2.red_proof_binding_count(fn)
+            if _n and _n > 1:
+                bad.append("%s: RED_PROOF is bound %d times at top level — only the LAST exists at "
+                           "import, so every earlier list NEVER RUNS. Merge them into one."
+                           % (name, _n))
+                continue
             _u = heart2.red_proof_unreadable(fn)
             if _u is None:
                 # v3476 — None is the FILE not parsing: UNKNOWN, never "declares nothing" (eye, v3473)
@@ -83,15 +94,6 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             if _u:
                 bad.append("%s: its RED_PROOF cannot be read by ast.literal_eval, so the prover treats "
                            "it as ABSENT and none of it has ever run" % name)
-                continue
-            # #220 — a SECOND binding is a malformed declaration: `import` keeps only the last, and
-            # test_the_ledger_cannot_lie_about_what_it_saw carried 11 proofs that way that had
-            # never run, because the prover read the first. [[unknown-stays-unknown]]
-            _n = heart2.red_proof_binding_count(fn)
-            if _n and _n > 1:
-                bad.append("%s: RED_PROOF is bound %d times at top level — only the LAST exists at "
-                           "import, so every earlier list NEVER RUNS. Merge them into one."
-                           % (name, _n))
                 continue
             proofs = heart2.red_proofs_in(fn)
             if not proofs:
@@ -171,7 +173,7 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                                   ("named.py", 'WF = "x"\nRED_PROOF = [{"file": WF}]\n', "literal_eval"),
                                   ("twice.py", 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '
                                                '"why": "w", "matches": 1}]\nWF = "x"\nRED_PROOF = [{"file": WF}]\n',
-                                   "literal_eval"),
+                                   "times"),
                                   ("annotated.py", 'WF = "x"\nRED_PROOF: list = [{"file": WF}]\n', "literal_eval"),
                                   # #220 — two LITERAL bindings: readable, and still malformed
                                   ("twolit.py", 'RED_PROOF = [{"file": "x.py", "find": "a", "replace": "b", '

@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1189 - THE WORLD BAND PAINTED OVER THE LADDER RIBBON, AND THE CAUSE WAS ONE INVALID WORD
+
+**v3485 - #218, found by LOOKING at Grok Bot's native Linux pack** (visual-pass-20260924T012231Z, full-bible/03a): the
+🐧 LINUX band covered the top half of "LADDER ACCOUNT — separate economy · your main account is untouched" on every tick,
+while the bot filed the page SAW and every gate was green. Reproduced headless on the same seat (Linux UA,
+machine=windows, profile=ladder) and MEASURED: band 16px font, 35px tall, ladder ribbon stacked 24px below -> 11px overlap at
+1280/1440/1120/901, 0 at 375 (where a <=700px rule sets a size). Cause: `font:var(--fw-semibold) 11px/1 inherit` — `inherit` is
+not a font family, so the shorthand is invalid at computed-value time and the whole font falls back to the page's. The
+ladder ribbon has the identical shorthand and is rescued only by a later `!important` size. Longhands -> band 11px, 22px,
+overlap 0 at all five widths; before/after PNGs looked at; the cross-family eye (grok-cli, no hint) described the LADDER
+ribbon as fully readable. Locked by a stylesheet PARSE (deterministic, not CI-only geometry): the band's font is valid, its
+line box + padding fits inside the stack offset read from the same file, and the 9 OTHER sites carrying the same invalid
+shorthand — deliberately NOT resized, each renders at its inherited size today and changing it resizes accepted text — may
+only fall. 2/2 PROVEN. ⚠ The eye also reported the band covering the middle of the page title on the standalone page; that
+predates this fix (it covered more before) and the band's own v3272 collapse toggle is the designed answer — his call.
+
+### REG-1190 - THE CENSUS NAMED THE WRONG DEFECT FOR A DOUBLE BINDING
+
+**v3485 - the cross-family eye on the SHIPPED v3482 bytes.** An unreadable-then-literal file hit the census's "cannot be read
+… none of it has ever run" branch first and was reported ABSENT, while `import` holds the literal — the real defect, the
+double binding, went unnamed and the new "bound N times" refusal was unreachable for that shape. The binding count is now
+checked FIRST; the planted twice.py now refuses with "times". 13/13, 10/10 PROVEN. (Its other finding and v3481's
+look were NOT SHOWN / cannot-tell — reach, not defects.)
+
 ### REG-1188 - "entryPoints" WAS READ AS A TIMESTAMP, AND A ROSTER WAS FILED AS DEBT FOR TEN DAYS
 
 **v3484 - #219 item 4.** `verdict_provenance` said "BACKWARDS in 5 place(s)" on CI and 1 here. The local one:

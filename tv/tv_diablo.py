@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3484"   # entryPoints was read as a timestamp and a roster was filed as debt for ten days
+VERSION = "v3485"   # the world band painted over the ladder ribbon and the cause was one invalid word
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

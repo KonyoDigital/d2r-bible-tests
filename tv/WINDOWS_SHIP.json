@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3484",
+  "ver": "v3485",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3484: the provenance clock test reads a suffix only at a word boundary, one store moves (engine_index SILENT to REFERENCE), and the ratchet prints its reds last so a CI tail names them",
+  "note": "v3485: the LINUX band font shorthand used inherit as its family so the band fell back to 16px and covered LADDER ACCOUNT; longhands make it 22px with no overlap at five widths. HEART: the band height is fixed by the stylesheet, not by data or runtime state, so there is nothing for a doctor row to read; the parse gate test_the_world_band_leaves_room_for_the_ladder_ribbon holds the reserve law on every machine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
