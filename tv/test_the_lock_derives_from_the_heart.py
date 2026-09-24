@@ -302,6 +302,10 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         if not gates or _real_census() is None:
             self.skipTest("no gates or no census on this machine")
         name, path = gates[0]
+        # ⚠ gate_files() names files RELATIVE to tv/; stat them there, never against whatever the
+        # process started in — from the repo root this raised FileNotFoundError and the portability
+        # law errored instead of judging. A path is a claim about a directory. [[ship-skill]]
+        path = path if os.path.isabs(path) else os.path.join(H.HERE, path)
         st = os.stat(path)
         os.utime(path, (st.st_atime, time.time() + 5))     # mtime only, content untouched
         try:
