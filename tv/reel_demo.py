@@ -382,9 +382,13 @@ def demo(reel=None):
             "venue": ("no-shelf" if shelf == "absent" else "empty-shelf"),
             "reels": reels, "checks": checks, "walked": 0,
             "stations": stations, "unknown": len(unk), "shelf": shelf,
-            "why": ("his reel shelf is %s on this venue (%s), so nothing was walked and no "
-                    "downstream number was established — %d check(s) UNKNOWN. This is a declared "
-                    "SKIP, not a pass and not a defect." % (shelf, shelf_why, len(unk))),
+            # ⚠ #123 — TWO LITERAL SENTENCES, NOT ONE `%s`: run_gates declares this skip by the text
+            # it prints, and TestADeclaredSkipCanActuallyFire asks the SOURCE for that text. A
+            # composed sentence cannot be found there, and the push was refused for it.
+            "why": ("%s (%s), so nothing was walked and no downstream number was established — "
+                    "%d check(s) UNKNOWN. This is a declared SKIP, not a pass and not a defect."
+                    % ("his reel shelf is absent on this venue" if shelf == "absent" else
+                       "his reel shelf is empty on this venue", shelf_why, len(unk))),
         }
     return {
         "ok": not bad, "state": ("PASS" if not bad else "FAIL"),

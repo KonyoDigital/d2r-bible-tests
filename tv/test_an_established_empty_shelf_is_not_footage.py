@@ -110,16 +110,28 @@ class AnEstablishedEmptyShelfIsNotFootage(unittest.TestCase):
         finally:
             D.demo = real
 
-    def test_the_gate_declares_both_venues(self):
+    def test_what_demo_PRINTS_for_each_venue_is_what_the_gate_declares(self):
+        """DRIVEN through demo(), never a line written here. The first cut of this case matched a
+        sentence it built itself, passed, and the push was refused anyway: reel_demo composed the
+        skip with `%s`, so TestADeclaredSkipCanActuallyFire could not find it in the source."""
         import re
+        import printer as P
         import run_gates as RG
         g = [x for x in RG.GATES if x.name == "reel_demo"]
         self.assertEqual(len(g), 1, "premise: the reel_demo gate is registered once")
         pats = tuple(getattr(g[0], "skip_ok", None) or ())
-        for state in ("absent", "empty"):
-            line = "his reel shelf is %s on this venue (x), so nothing was walked" % state
-            self.assertTrue(any(re.search(p, line) for p in pats),
-                            "an %s-shelf skip is undeclared, so run_gates counts it a failure" % state)
+        real = P.stream
+        P.stream = lambda *a, **k: {"rows": [], "stations": list(P.STATIONS)}
+        try:
+            for make, venue in ((lambda: None, "absent"), (lambda: os.makedirs(self.hist), "empty")):
+                make()
+                r = D.demo()
+                self.assertEqual((r.get("state"), r.get("shelf")), ("SKIPPED", venue), r.get("why"))
+                self.assertTrue(any(re.search(p, r["why"]) for p in pats),
+                                "the %s-shelf skip prints %r, which the gate does not declare, so "
+                                "run_gates counts it a failure" % (venue, r["why"][:120]))
+        finally:
+            P.stream = real
 
 
 if __name__ == "__main__":
