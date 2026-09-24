@@ -514,6 +514,14 @@
     "purpose": "A stand-in `claude` binary speaking just enough stream-json for the vision worker's TDD; TV_FAKE_MODE picks ok / slow (timeout) / junk (non-JSON).",
     "territory": "capture-vision"
   },
+  "fixture_ledgers.py": {
+    "entryPoints": [
+      "redirect"
+    ],
+    "purpose": "redirect() points TV_UNKNOWN_AGE and TV_EAGLE_SLOW at pid-scoped temp files for a TEST process, so suites that drive console_doctor / unknown_age never write his live eagle ledgers.",
+    "gotcha": "For test processes ONLY — production code must never import it. It fills only an UNSET variable, so an explicit per-test redirect in setUp still wins. Seven suites call it at import (v3470); test_no_test_writes_his_eagle_ledgers pins that by AST, and run_gates._LIVE_STATE now names both ledgers so CI FAILS on a write.",
+    "territory": "routines-infra"
+  },
   "fleet_mask.py": {
     "entryPoints": [
       "encode",
