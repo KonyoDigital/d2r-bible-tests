@@ -39299,16 +39299,15 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
         # parsed and must actually reap its own first parameter, so renaming a do-nothing function
         # to close_ocr_worker buys nothing. [[copy-drift]] §7 — one routine, and the other sites
         # CALL it.
-        reaping_helpers = set()
-        for f in funcs:
-            if not f.args.args:
-                continue
-            p0 = f.args.args[0].arg
-            body = ast.get_source_segment(src, f) or ""
-            body = "\n".join(l.split("#", 1)[0] for l in body.split("\n"))
-            if ("%s.wait(" % p0 in body or "%s.poll(" % p0 in body
-                    or "target=%s.wait" % p0 in body):
-                reaping_helpers.add(f.name)
+        #
+        # ⚠⚠ #177 — AND "ITS BODY REAPS" WAS READ AS TEXT, SO A CONDITIONAL REAP COUNTED. The second
+        # eye on v3427: `if x: wp.wait()`, a reap behind `if x: return`, and a reap after a raising
+        # statement in the same try (the v3421 shape itself) all made a helper "a reaper". The body
+        # is now read as PATHS by reap_shape, and the call site by the parser, so `helper(wp=p)`
+        # counts and `helper(other)` does not. Driven: test_a_conditional_reap_is_not_a_reaper.
+        import reap_shape as _rs
+        reaping_helpers = {f.name: f.args.args[0].arg for f in funcs
+                           if f.args.args and _rs.reaps_first_param(f)}
 
         offenders = []
         for node in ast.walk(tree):
@@ -39345,8 +39344,10 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
                       # rule 4). Teaching the pattern beats allowlisting the file: an allowlist
                       # would also excuse a FUTURE unreaped Popen added to the same function.
                       or ("args=(%s,)" % name in scope and ".wait()" in scope)
-                      # v3427 — handed to a helper whose OWN body reaps its first parameter
-                      or any("%s(%s)" % (h, name) in scope for h in reaping_helpers))
+                      # v3427 — handed to a helper whose OWN body reaps its first parameter on
+                      # every path (#177: read from the AST, never from the call's text)
+                      or any(_rs.passes_to(c, reaping_helpers, name)
+                             for c in ast.walk(tree if (owner is None or is_global) else owner)))
             if not reaped:
                 offenders.append("%s:%d  `%s = subprocess.Popen(...)` never waited in %s"
                                  % ("control_app.py", node.lineno, name, where))

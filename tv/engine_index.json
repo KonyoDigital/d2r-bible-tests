@@ -1245,6 +1245,15 @@
     "purpose": "Splits names the DEEP reader put in the journal ring into auto-tallyable (3+ witnesses, conf floor) versus manual-lane, exposing that 119 unbanked names were never REFUSED — they were never judged.",
     "territory": "vault"
   },
+  "reap_shape.py": {
+    "entryPoints": [
+      "reaps_first_param",
+      "passes_to"
+    ],
+    "purpose": "Decides from the AST whether a function reaps its first parameter (wait/poll/Thread(target=p.wait)) on EVERY path it can take, and whether a call hands a Popen to such a helper. Used by test_control's test_no_ASSIGNED_popen_goes_unreaped; driven by test_a_conditional_reap_is_not_a_reaper.",
+    "gotcha": "A reap counts only at the function's own level, as the FIRST statement of a try body, in a finally, or in a with body — never inside an if/loop/except and never behind a return/raise. 'First in the try' is the v3421 lesson: a BrokenPipeError on stdin.close() earlier in the same try skipped the reap for three weeks. Nested defs are not the function's own path.",
+    "territory": "heart-organs"
+  },
   "reel_demo.py": {
     "entryPoints": [
       "demo",

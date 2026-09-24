@@ -5312,6 +5312,12 @@ GATES = [
          # #123 — and EMPTY, which is not that defect: a directory machine_tree.establish() built,
          # holding nothing, on a host whose ledger never closed a reel (reel_demo._shelf decides).
          skip_ok=(r"reel shelf is (?:absent|empty) on this venue",)),
+    Gate("test_a_conditional_reap_is_not_a_reaper",
+         [sys.executable, os.path.join(HERE, "test_a_conditional_reap_is_not_a_reaper.py")], 60,
+         why="#177 - a helper counts as a reaper only if it reaps its first parameter on EVERY path "
+             "(its own level, first in a try, a finally, a with; never behind an exit, a branch or "
+             "an earlier raising statement in the same try - the v3421 shape). The call site is read "
+             "by the parser, so keyword hand-offs count. 5 cases, 4 red-proofs"),
     Gate("test_an_established_empty_shelf_is_not_footage",
          [sys.executable, os.path.join(HERE, "test_an_established_empty_shelf_is_not_footage.py")], 60,
          why="#123 - a directory machine_tree.establish() built is not his shelf: EMPTY skips like "

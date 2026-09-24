@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1207 - A HELPER THAT REAPED ON ONE BRANCH WAS TRUSTED AS A REAPER
+
+**fix - #177 item 1, test_no_ASSIGNED_popen_goes_unreaped.** v3427 trusted any function whose first parameter was
+TEXTUALLY followed by `.wait(`/`.poll(`/`target=<p>.wait`, so `if x: wp.wait()`, a reap behind `if x: return`, and a
+reap after a raising statement in the same try (the v3421 shape itself) all counted; the call site was the literal
+text `helper(name)`, so `helper(wp=p)` was invisible. New `tv/reap_shape.py` reads the body as PATHS (own level, first
+in a try, a finally, a with; never behind an exit or inside a branch) and the call site by AST. Measured before the
+swap: the same two helpers qualify on today's control_app (`_reap`, `close_ocr_worker`) and `wp` still resolves to
+`close_ocr_worker`, so the sweep's verdict on real code is unchanged. New gate test_a_conditional_reap_is_not_a_reaper:
+4 every-path shapes credited, 9 conditional ones refused, 4 proofs PROVEN - one makes close_ocr_worker's real reap
+conditional. The earlier sabotage proved only total removal; this proves the conditional case.
+
 ### REG-1206 - A DIRECTORY THE RECORDER BUILT WAS READ AS HIS SHELF, AND THE SKIP EXIT WAS KEYED ON ONE SPELLING
 
 **fix - #123, reel_demo (CI red, green here).** `_shelf()` asked only whether `tv/frames/hist` is a directory.
