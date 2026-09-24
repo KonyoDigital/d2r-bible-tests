@@ -171,11 +171,48 @@ class EveryExecSiteIsQuiescedFirst(unittest.TestCase):
         main = [n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "main"]
         self.assertEqual(len(main), 1)
         calls = [n for n in ast.walk(main[0]) if isinstance(n, ast.Call)]
-        reap = [c.lineno for c in calls if isinstance(c.func, ast.Attribute) and c.func.attr == "reap_inherited"]
+        # the reap may live in main() or in the one helper main() calls for it (#224, the UNKNOWN line)
+        reap = [c.lineno for c in calls
+                if (isinstance(c.func, ast.Attribute) and c.func.attr == "reap_inherited")
+                or getattr(c.func, "id", "") == "_reap_inherited_at_boot"]
         first_payload = [c.lineno for c in calls if getattr(c.func, "id", "") == "status_payload"]
+        helper = [n for n in self.tree.body if isinstance(n, ast.FunctionDef) and n.name == "_reap_inherited_at_boot"]
+        if helper:
+            self.assertTrue([c for c in ast.walk(helper[0]) if isinstance(c, ast.Call)
+                             and isinstance(c.func, ast.Attribute) and c.func.attr == "reap_inherited"],
+                            "_reap_inherited_at_boot no longer calls reap_inherited")
         self.assertTrue(reap, "main() no longer reaps inherited children")
         self.assertTrue(first_payload and min(reap) < min(first_payload),
                         "the reap runs after status_payload(), which spawns git — it must run first")
+
+
+class TheBootReapSaysWhatHappened(unittest.TestCase):
+    """#224 — the second eye on 955858d4 (grok-4.7): an unreadable process table reaped nothing and
+    said nothing, the same silence as 'no children'. DRIVEN with a stub exec_hygiene."""
+
+    def setUp(self):
+        import control_app as ca
+        self.ca = ca
+        self._eh = sys.modules.get("exec_hygiene")
+        self.fake = types.ModuleType("exec_hygiene")
+        self.fake.reap_inherited = lambda pids, **k: {"reaped": len(pids), "waiting": 0}
+        sys.modules["exec_hygiene"] = self.fake
+
+    def tearDown(self):
+        sys.modules["exec_hygiene"] = self._eh
+
+    def test_an_unreadable_process_table_is_said_out_loud(self):
+        self.fake.children_of = lambda pid=None: None
+        self.assertIn("UNKNOWN", self.ca._reap_inherited_at_boot(),
+                      "an unreadable ps reaped nothing and said nothing - UNKNOWN read as 'no children'")
+
+    def test_no_children_is_quiet(self):
+        self.fake.children_of = lambda pid=None: []
+        self.assertEqual(self.ca._reap_inherited_at_boot(), "")
+
+    def test_inherited_children_are_counted(self):
+        self.fake.children_of = lambda pid=None: [4242, 4243]
+        self.assertIn("inherited 2 child process(es)", self.ca._reap_inherited_at_boot())
 
 
 if __name__ == "__main__":
@@ -183,6 +220,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#224 - an unreadable process table at boot reaps nothing and says nothing again (second eye on 955858d4)",
+        "file": "control_app.py",
+        "find": "        if _inh is None:\n            line = (\"   inherited-children reap UNKNOWN",
+        "replace": "        if False:\n            line = (\"   inherited-children reap UNKNOWN",
+        "matches": 1,
+    },
     {
         "why": "#224 - quiesce stops nothing: the warm worker is still alive at exec and becomes a <defunct> child of the next image",
         "file": "exec_hygiene.py",

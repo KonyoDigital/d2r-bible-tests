@@ -15537,6 +15537,32 @@ def relaunch_green_light_tick():
     return True, say
 
 
+def _reap_inherited_at_boot():
+    """#224 — collect the children this image inherited across os.execv, and SAY what happened. -> str
+
+    ⚠ THE SECOND EYE ON 955858d4 (grok-4.7), reproduced from the code: `children_of()` returns None
+    when the process table cannot be read - its contract calls that UNKNOWN, never an empty list -
+    and the boot passed `_inh or []` and printed only when `_inh` was truthy. So an unreadable ps
+    reaped nothing and said nothing: the same silence as "no children", while any <defunct> child
+    the previous image left stayed. Now each of the three outcomes has its own line.
+    [[unknown-stays-unknown]]"""
+    try:
+        import exec_hygiene as _eh
+        _inh = _eh.children_of()
+        if _inh is None:
+            line = ("   inherited-children reap UNKNOWN: the process table could not be read, so a "
+                    "<defunct> child the previous image left cannot be named or collected this boot")
+        else:
+            _rp = _eh.reap_inherited(_inh)
+            line = ("   inherited %d child process(es) from the previous image: %d reaped now, %d left "
+                    "to a reaper thread" % (len(_inh), _rp["reaped"], _rp["waiting"])) if _inh else ""
+    except Exception as _e:
+        line = "   inherited-children reap could not run (%s)" % type(_e).__name__
+    if line:
+        print(line, flush=True)
+    return line
+
+
 def _before_exec(where):
     """#224 — stop the warm workers this image holds, so os.execv leaves no <defunct> child behind.
 
@@ -36491,15 +36517,7 @@ def main():
     # ⚠⚠ #224 — FIRST, before this image spawns anything: the children present now were inherited
     # from the image os.execv replaced, and only this image can ever wait() them. Reaped BY PID —
     # a blanket waitpid(-1) would steal the exit status of our own Popen children.
-    try:
-        import exec_hygiene as _eh
-        _inh = _eh.children_of()
-        _rp = _eh.reap_inherited(_inh or [])
-        if _inh:
-            print("   inherited %d child process(es) from the previous image: %d reaped now, %d "
-                  "left to a reaper thread" % (len(_inh), _rp["reaped"], _rp["waiting"]), flush=True)
-    except Exception as _e:
-        print("   inherited-children reap could not run (%s)" % type(_e).__name__, flush=True)
+    _reap_inherited_at_boot()
     try:
         _bv = (status_payload() or {}).get("ver") or "?"
     except Exception:

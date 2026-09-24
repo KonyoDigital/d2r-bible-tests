@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1236 - AN UNREADABLE PROCESS TABLE AT BOOT REAPED NOTHING AND SAID NOTHING
+
+**fix - the second eye on 955858d4 (grok-4.7), reproduced from the code.** #224's boot reap passed `children_of() or []`
+and printed only when the list was truthy; `children_of()` returns None when ps cannot be read (its contract: UNKNOWN,
+never an empty list), so an unreadable table reaped nothing and logged nothing - the same silence as "no children" while
+any <defunct> child stayed. The boot block is `_reap_inherited_at_boot()` now, with one line per outcome: UNKNOWN,
+nothing (quiet), or "inherited N ... reaped". No blanket waitpid(-1) was added - the design refuses it. The structural
+guard follows the reap into the helper. Guard: `test_an_exec_leaves_no_corpse` +3 driven cases, +1 proof, 5/5 PROVEN.
+
 ### REG-1235 - A WINDOWS BOX FILMED FRAMES IT COULD NEVER READ (NO PILLOW), AND NOTHING SAID SO
 
 **fix - #227, the heart must catch what was found by hand.** MEASURED over SSH 2026-09-24: his Windows ALT ran Python
