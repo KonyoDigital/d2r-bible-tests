@@ -22,14 +22,20 @@ import tempfile
 import time
 import urllib.request
 
-HERE = os.environ.get("TVD_BOOT_CHECK_TREE") or os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _tree():
+    """The tree to boot, read at CALL time (test_import_bound_paths: an env path bound at import is fixed
+    for the whole process). TVD_BOOT_CHECK_TREE is how this was proven on the ALT without touching his checkout."""
+    return os.environ.get("TVD_BOOT_CHECK_TREE") or HERE
 PORT = int(os.environ.get("TVD_BOOT_CHECK_PORT") or 17990)
 BOUND_S = float(os.environ.get("TVD_BOOT_CHECK_BOUND_S") or 120)
 
 
 def _shipped():
     try:
-        with open(os.path.join(HERE, "WINDOWS_SHIP.json"), encoding="utf-8") as f:
+        with open(os.path.join(_tree(), "WINDOWS_SHIP.json"), encoding="utf-8") as f:
             return (json.load(f) or {}).get("ver")
     except Exception:
         return None
@@ -58,8 +64,8 @@ def main():
         return 77
     sand = tempfile.mkdtemp(prefix="tvd-boot-check-")
     log = open(os.path.join(sand, "console.out"), "w", encoding="utf-8")
-    proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py"), "--no-open"],
-                            cwd=HERE, env=_env(sand), stdout=log, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen([sys.executable, os.path.join(_tree(), "control_app.py"), "--no-open"],
+                            cwd=_tree(), env=_env(sand), stdout=log, stderr=subprocess.STDOUT)
     st, t0, err = None, time.time(), None
     try:
         while time.time() - t0 < BOUND_S:
@@ -106,7 +112,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, HERE)
+    sys.path.insert(0, _tree())
     try:
         from console_safe import enable as _enable
         _enable()

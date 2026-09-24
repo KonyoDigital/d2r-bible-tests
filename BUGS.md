@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1269 - TWO CI-ONLY LAWS REFUSED WHAT THE PRE-PUSH NEVER RAN
+
+**ci - read on CI for 1175a081 and 094086ff (TV DIABLO agent tests red on both).** (1) test_the_gate_set_shards_cleanly:
+the committed cost table covered 94.3% then 93.5% of the gate set, below its 95% floor - tonight's new laws were not in
+it; refreshed from 094086ff's two shard logs with `python3 tv/gate_costs.py` (586 gates, 1,362 s). (2)
+test_import_bound_paths: my tv/windows_boot_check.py (REG-1264) bound HERE from TVD_BOOT_CHECK_TREE at IMPORT - an env
+path fixed for the whole process, the exact shape that law exists for. It now reads the variable at call time
+(`_tree()`); the ALT-proof mechanism is unchanged. Neither law runs in the pre-push, which is why both reached CI.
+
 ### REG-1268 - THE "WHICH CHECK IS THE PASS IN" FIELD WAS BLIND TO THE PASS'S OWN PRIMING
 
 **fix - #229, found by reading the ALT live after v3500 landed (GET /api/status).** REG-1248 made a doctor pass publish the
