@@ -75,8 +75,8 @@ def _free_mb(path):
     p = os.path.abspath(path)
     while True:
         try:
-            st = os.statvfs(p)
-            return (st.f_bavail * st.f_frsize) // (1024 * 1024)
+            # #229 — shutil.disk_usage, not os.statvfs: statvfs does not exist on Windows, so this read UNKNOWN on every Windows console. disk_usage.free is f_bavail * f_frsize on POSIX.
+            return shutil.disk_usage(p).free // (1024 * 1024)
         except Exception:
             parent = os.path.dirname(p)
             if parent == p:       # reached the root and still nothing — genuinely unknown

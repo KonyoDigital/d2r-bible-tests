@@ -70,8 +70,8 @@ def _du(path):
 
 def _free_gb():
     try:
-        s = os.statvfs(REPO)
-        return s.f_bavail * s.f_frsize / float(1 << 30)
+        # #229 — shutil.disk_usage, not os.statvfs: statvfs does not exist on Windows, so this read UNKNOWN on every Windows console. disk_usage.free is f_bavail * f_frsize on POSIX.
+        return shutil.disk_usage(REPO).free / float(1 << 30)
     except Exception:
         return None
 
