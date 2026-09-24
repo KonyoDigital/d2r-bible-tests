@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1273 - THE FLEET COULD NOT SEE WHETHER A CONSOLE STOOD ON ITS OWN
+
+**feat - #229's last build item ("counts-only tree/shelf block in the beacon").** Each clone has its own reels and
+tree, but from the fleet that was an assumption: nothing said whether a machine's own tree was established or what
+sat on its own shelf. The beacon now sends `system: {tree, reels}` - `tree` is the doctor's OWN last verdict on "this
+console tree is established" read from the eagle (the beacon proves no write itself; ensure() would write a probe
+into every root), `reels` counts reel_ folders on its shelf; None is UNREAD, never 0, and no path or name crosses.
+The relay shapes it (a state it does not know -> null; a reel count must be a real integer - the law caught my first
+cut coercing the string "25"). The fleet row's HOVER says it (his v2875 ruling: one word on the row, the rest behind
+it): "own tree established · 25 reels on its shelf", "NOT established", "unmeasured", "shelf UNKNOWN"; a console
+older than the field says nothing. Guard: `test_each_console_says_its_own_system` - the python builder, the REAL relay
+shaper and the REAL hover helper driven in node, and both row branches joined (8 cases, 3 proofs), PROVEN.
+
 ### REG-1272 - UNDER TV_CAPTURE=off A WINDOWS CONSOLE REPORTED ITS CAPTURE DEAD
 
 **fix - the second eye on cb6690d3 (grok-4.7, #231 5824107955), confirmed in control_app.** REG-1252 made

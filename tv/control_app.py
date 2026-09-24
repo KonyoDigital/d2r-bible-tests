@@ -3190,6 +3190,8 @@ def _console_beacon(event="hb"):
             # 167 — is the capture eye live on this machine, so THE FLEET can show it.
             # live is a boolean we measured; ageMs None means no frame yet, not 0.
             "eye": _eye_for_wire(),
+            # #229 — its OWN system: is its tree established, how many reels on its shelf. Counts only.
+            "system": _system_for_wire(),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -12780,6 +12782,35 @@ def _second_eye_lane_state():
                                "said why — the reason is UNKNOWN, the failure is not")
         return out
     out["state"] = "on" if st.get("on") else "off"
+    return out
+
+
+def _system_for_wire():
+    """#229 — THIS MACHINE'S OWN SYSTEM, COUNTS ONLY, SO THE FLEET CAN SEE EACH CONSOLE STANDS ON ITS OWN.
+    -> {"tree": "ok"|"missing"|"unmeasured"|"unknown"|None, "reels": int|None}
+
+    `tree` is the doctor's OWN last verdict on "this console tree is established" - read from the eagle,
+    so the beacon never proves a write itself (ensure() writes a probe into every root). `reels` is the
+    reel folders on this machine's shelf. None is UNREAD, never 0: an unmeasured eagle or an unreadable
+    shelf must not reach the fleet as "an empty machine". No path and no name crosses the wire.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+    out = {"tree": None, "reels": None}
+    try:
+        with _PRUNE_LOCK:
+            rows = list(_EAGLE.get("rows") or [])
+        for r in rows:
+            if isinstance(r, dict) and r.get("check") == "this console tree is established":
+                st = str(r.get("state") or "").lower()
+                out["tree"] = st if st in ("ok", "missing", "unmeasured", "unknown") else None
+                break
+    except Exception:
+        pass
+    try:
+        hist = HIST_DIR
+        out["reels"] = sum(1 for n in os.listdir(hist)
+                           if n.startswith("reel_") and os.path.isdir(os.path.join(hist, n)))
+    except Exception:
+        out["reels"] = None
     return out
 
 

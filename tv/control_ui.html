@@ -24864,6 +24864,19 @@ function escC(s) {
          version authoritatively, rather than from each machine's opinion of itself. `behind: null`
          means it could not be established and says so — it must never render as level.
          [[stale-reading]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      /* #229 — EACH CONSOLE ITS OWN SYSTEM, IN THE HOVER (his v2875 ruling: one word on the row, the
+         rest behind it). Absent on a console older than the field, so an old machine says nothing
+         rather than a guessed 'no reels'; a null inside it is UNKNOWN, said as such. */
+      var _sysTxt = function (m) {
+        var sy = m && m.system;
+        if (!sy || typeof sy !== 'object') return '';
+        var tw = sy.tree === 'ok' ? 'own tree established'
+               : sy.tree === 'missing' ? 'own tree NOT established'
+               : 'own tree unmeasured';
+        var rw = (typeof sy.reels === 'number') ? (sy.reels + ' reel' + (sy.reels === 1 ? '' : 's') + ' on its shelf')
+               : 'shelf UNKNOWN';
+        return ' \u00b7 ' + tw + ' \u00b7 ' + rw;
+      };
       var _lagTxt = function (m) {
         var lg = m && m.lag;
         if (!lg) return '';
@@ -24985,7 +24998,7 @@ function escC(s) {
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'
                       + ' · unpublished</span>' : '')
-             + _lagTxt(m)
+             + _lagTxt(m) + escC(_sysTxt(m))
              + ' · ' + escC(_fleetSeen(m)))
           /* ── v2283 — A ROSTER THAT REFUSED THE WRITE IS NOT A MACHINE THAT WENT AWAY ────────
              Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live
@@ -25010,7 +25023,7 @@ function escC(s) {
                      + _lagTxt(m)
                      + ' \u00b7 last recorded ' + escC(_fleetSeen(m));
               }
-              return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m)
+              return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m) + escC(_sysTxt(m))
                    + ' \u00b7 last seen ' + escC(_fleetSeen(m));
             })();
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell

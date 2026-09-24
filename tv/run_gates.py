@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_each_console_says_its_own_system",
+         [sys.executable, os.path.join(HERE, "test_each_console_says_its_own_system.py")], 90,
+         why="#229 - the roadmap's last build item: from the fleet, see each console stand on its own. The "
+             "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
+             "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
+             "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
     Gate("test_the_seed_holds_no_one_shot_name",
          [sys.executable, os.path.join(HERE, "test_the_seed_holds_no_one_shot_name.py")], 60,
          why="REG-1271 (#165) - the v3313 bake seeded Fleshrender, Gloom's Trap and The Diggler, the names "

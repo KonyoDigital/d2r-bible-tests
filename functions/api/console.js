@@ -251,6 +251,17 @@ export async function onRequestPost(context) {
         ageMs: (Number.isFinite(age) && age >= 0) ? Math.min(age, 86400000) : null,
       };
     })(body.eye),
+    // #229 — this machine's OWN system, counts only. A state it does not know becomes null (UNKNOWN),
+    // and a reel count that is not a small non-negative integer is null - never a guessed 0.
+    system: (function (s) {
+      if (!s || typeof s !== 'object') return null;
+      const t = String(s.tree == null ? '' : s.tree);
+      const r = s.reels;                      // a NUMBER from the beacon; a string '25' is not a count
+      return {
+        tree: ['ok', 'missing', 'unmeasured', 'unknown'].indexOf(t) >= 0 ? t : null,
+        reels: (typeof r === 'number' && Number.isInteger(r) && r >= 0 && r <= 100000) ? r : null,
+      };
+    })(body.system),
     masks: (function (m) {
       if (!m || typeof m !== 'object') return null;
       const one = (x) => {
