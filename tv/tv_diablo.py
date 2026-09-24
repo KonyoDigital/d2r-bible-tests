@@ -31,7 +31,7 @@
 #   by nature — OCR chips + smooth film are the live-drive feel.
 # ═══════════════════════════════════════════════════════════════════════════════
 import tempfile
-import json, os, subprocess, sys, threading, time, hashlib, signal, heapq, tempfile
+import json, os, re, subprocess, sys, threading, time, hashlib, signal, heapq, tempfile
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -1192,7 +1192,12 @@ _CLOUD_ROUTES = (
 )
 _BROWSER_OWNERS = ("google chrome", "chrome", "chromium", "microsoft edge", "msedge", "safari",
                    "firefox", "brave browser", "brave", "arc", "opera", "vivaldi", "orion")
-_GAME_WORDS = ("diablo ii", "diablo 2", "resurrected", "d2r")
+_GAME_WORDS = ("diablo ii", "diablo 2", "d2r")
+#: ⚠ #232 — THE SECOND EYE ON v3496 (grok-4.7), reproduced: substring game words pinned "GeForce NOW -
+#: Resurrected" (no Diablo), "GeForce NOW - Diablo 2024" ("diablo 2" inside "diablo 2024") and
+#: "Boosteroid - ranked d2races" ("d2r" inside a longer word) as the game. A game word is now a WORD:
+#: `diablo ii` / `diablo 2` / `d2r` with a boundary on both sides, and "resurrected" alone proves nothing.
+_GAME_RX = re.compile(r"\bdiablo\s*(?:ii|2)\b|\bd2r\b")
 
 
 def _norm_title(t):
@@ -1212,17 +1217,26 @@ def game_route(owner, title):
     tl = _norm_title(title)
     if _is_d2r_game_owner(ol):
         return "local"
-    has_game = any(w in tl for w in _GAME_WORDS)
+    has_game = bool(_GAME_RX.search(tl))
     if any(w in ol for w in ("crossover", "wine", "cxstart", "cxpatcher")) and has_game:
         return "crossover"
-    browser = any(b == ol or ol.startswith(b) for b in _BROWSER_OWNERS)
+    # ⚠ a browser is its NAME, whole: prefix matching made "Archive Utility" an Arc tab and
+    # "Operational Log" an Opera tab (second eye on v3496, reproduced).
+    browser = any(ol == b or ol.startswith(b + " ") for b in _BROWSER_OWNERS)
+    full, near = [], []
     for route, owners, markers in _CLOUD_ROUTES:
         native = any(o in ol for o in owners)
         tab = browser and any(m in tl for m in markers)
-        if (native or tab) and has_game:
-            return route
         if native or tab:
-            return "near:%s" % route
+            (full if has_game else near).append(route)
+    if len(full) == 1:
+        return full[0]
+    if len(full) > 1:
+        # a title naming TWO services (a Boosteroid tab mentioning GeForce NOW, a comparison page)
+        # cannot say which one is streaming: reported, never pinned as the first one listed
+        return "near:ambiguous"
+    if near:
+        return "near:%s" % near[0]
     return None
 
 
@@ -1262,7 +1276,10 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
     Returns int score, or None if this window must never be pinned.
     Absolute winner: D2R.exe with a Diablo/Resurrected title and game-sized bounds."""
     ol = (owner or "").strip().lower()
-    tl = (title or "").strip().lower()
+    # ⚠ NORMALIZED ONCE, FIRST (second eye on v3496): the store marks were only stripped on the cloud
+    # branch, so a CrossOver window titled "Diablo® II" read as not-the-game here while game_route
+    # called it crossover - two answers from one module about one window.
+    tl = _norm_title(title)
     ww, hh = int(width or 0), int(height or 0)
     if ww < 640 or hh < 480:
         return None
@@ -1278,14 +1295,14 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
                       and ww >= 800 and hh >= 500 and _wine_owner)
     _route = game_route(owner, title)
     _cloud = _route in ("geforce-now", "boosteroid")
-    if _cloud:
-        tl = _norm_title(title)
     if any(b in ol for b in _PICK_OWNER_BLOCK) and not _is_d2r_game_owner(ol):
         # block list includes crossover/battle.net — game exe still allowed
         # v849 — and an unambiguous game TITLE at game size passes even under a wine/CrossOver owner
         if not (_title_is_game or _cloud):
             return None
-    if any(b in tl for b in _PICK_TITLE_BLOCK) and not _is_d2r_game_owner(ol) and not _cloud:
+    # the title block applies to a streamed window too: "battle.net" or "localhost" in a cloud title is
+    # the launcher or our own page, never the game (it used to be bypassed for any cloud route)
+    if any(b in tl for b in _PICK_TITLE_BLOCK) and not _is_d2r_game_owner(ol):
         return None
     if _is_launcher_shell(ol, tl) and not _is_d2r_game_owner(ol):
         # v849 (audit-core #4) — an unambiguous GAME TITLE on a game-sized window overrides
@@ -1392,8 +1409,14 @@ def find_d2r_window_mac():
                 owner, title, ww, hh, onscreen=bool(w.get("kCGWindowIsOnscreen")))
             if sc is None:
                 _nr = game_route(owner, title)
-                if isinstance(_nr, str) and _nr.startswith("near:") and ww >= 640 and hh >= 480:
+                if isinstance(_nr, str) and _nr.startswith("near:"):
                     near.append("%s %s '%s'" % (_nr[5:], owner, title[:60]))
+                elif _nr in ("geforce-now", "boosteroid"):
+                    # ⚠ a cloud window NAMING the game that the scorer refused (size, offscreen, a
+                    # blocked phrase) was dropped with the generic why - reported now, never pinned
+                    near.append("%s %s '%s' (names the game but is not pinnable: %dx%d%s)"
+                                % (_nr, owner, title[:60], ww, hh,
+                                   "" if w.get("kCGWindowIsOnscreen") else ", offscreen"))
                 continue
             wid = w.get("kCGWindowNumber")
             if not wid:
@@ -1412,8 +1435,9 @@ def find_d2r_window_mac():
         _PICK_WHY = "no D2R.exe game window (CrossOver Home / Battle.net never pin)"
         if near:
             # UNMEASURED titles: the first real streamed session tells us what the service shows
-            _PICK_WHY += ("; a cloud window is open but its title does not name the game, so it was "
-                          "not pinned: %s - if that IS the game, its exact title is what the route must learn" % "; ".join(near[:3]))
+            _PICK_WHY += ("; a cloud window is open and was NOT pinned (its title does not name the game, "
+                          "names two services, or it is not a pinnable size): %s - if that IS the game, its "
+                          "exact title is what the route must learn" % "; ".join(near[:3]))
         _PICK_CACHE = (None, now)
         return None
     hit = (best[2], best[3])

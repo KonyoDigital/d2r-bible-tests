@@ -74,6 +74,37 @@ class TheMacFindsEveryRoute(unittest.TestCase):
         self.assertEqual(tv._norm_title("Diablo®  II: Resurrected™"), "diablo ii: resurrected")
 
 
+class TheSecondEyeOnV3496(unittest.TestCase):
+    """#232 — grok-4.7 on v3496, every case reproduced before it was fixed."""
+
+    def test_a_game_word_is_a_word(self):
+        for title in ("GeForce NOW - Resurrected", "GeForce NOW - Diablo 2024"):
+            self.assertEqual(tv.game_route("Google Chrome", title), "near:geforce-now",
+                             "%r was taken for the game" % title)
+        self.assertEqual(tv.game_route("Google Chrome", "Boosteroid - ranked d2races"), "near:boosteroid")
+
+    def test_a_browser_is_its_whole_name(self):
+        for owner in ("Archive Utility", "Operational Log"):
+            self.assertIsNone(tv.game_route(owner, "GeForce NOW Diablo II"),
+                              "%r was treated as a browser tab" % owner)
+        self.assertEqual(tv.game_route("Opera", "Boosteroid | Diablo II: Resurrected"), "boosteroid")
+
+    def test_a_title_naming_two_services_is_never_pinned_as_the_first(self):
+        t = "GeForce NOW - Boosteroid - Diablo II: Resurrected"
+        self.assertEqual(tv.game_route("Google Chrome", t), "near:ambiguous")
+        self.assertIsNone(tv.score_d2r_window_candidate("Google Chrome", t, W, H))
+
+    def test_the_scorer_normalizes_before_it_judges(self):
+        self.assertEqual(tv.game_route("CrossOver", "Diablo\u00ae II"), "crossover")
+        self.assertIsNotNone(tv.score_d2r_window_candidate("CrossOver", "Diablo\u00ae II", W, H),
+                             "game_route called it the game and the scorer refused it - one module, two answers")
+
+    def test_his_measured_title_still_pins(self):
+        t = "Diablo II: Resurrected \u2013 Infernal Edition on GeForce NOW"
+        self.assertEqual(tv.game_route("Google Chrome", t), "geforce-now")
+        self.assertIsNotNone(tv.score_d2r_window_candidate("Google Chrome", t, W, H))
+
+
 class TheMacPickerOnAFakeScreen(unittest.TestCase):
     """find_d2r_window_mac() itself, over a stubbed Quartz window list (never his real screen)."""
 
@@ -85,18 +116,24 @@ class TheMacPickerOnAFakeScreen(unittest.TestCase):
             {"kCGWindowLayer": 0, "kCGWindowOwnerName": o, "kCGWindowName": t,
              "kCGWindowBounds": {"Width": W, "Height": H}, "kCGWindowIsOnscreen": True,
              "kCGWindowNumber": 100 + i} for i, (o, t) in enumerate(wins)]
-        self._saved = (sys.modules.get("Quartz"), tv._PICK_CACHE, tv.sys.platform)
+        if not hasattr(self, "_saved"):       # the FIRST call's state is what tearDown restores
+            self._saved = ("Quartz" in sys.modules, sys.modules.get("Quartz"), tv._PICK_CACHE, tv.sys.platform)
         sys.modules["Quartz"] = q
         tv._PICK_CACHE = None
         tv.sys.platform = "darwin"
 
     def tearDown(self):
-        q, cache, plat = getattr(self, "_saved", (None, None, sys.platform))
-        if q is None:
-            sys.modules.pop("Quartz", None)
-        else:
+        # ⚠ the second eye on v3496: this used to discard the saved cache and pop a REAL Quartz a
+        # method never replaced. It restores exactly what _screen found, and touches nothing if
+        # _screen never ran.
+        if not hasattr(self, "_saved"):
+            return
+        had, q, cache, plat = self._saved
+        if had:
             sys.modules["Quartz"] = q
-        tv._PICK_CACHE, tv.sys.platform = None, plat
+        else:
+            sys.modules.pop("Quartz", None)
+        tv._PICK_CACHE, tv.sys.platform = cache, plat
 
     def test_a_streamed_window_pins_with_its_route_on_the_label(self):
         self._screen([("Finder", "tv-diablo-mailbox"), ("GeForceNOW", "Diablo\u00ae II: Resurrected\u2122")])
@@ -108,6 +145,13 @@ class TheMacPickerOnAFakeScreen(unittest.TestCase):
         self._screen([("Google Chrome", "GeForce NOW"), ("Finder", "d2r notes")])
         self.assertIsNone(tv.find_d2r_window_mac())
         self.assertIn("geforce-now", tv._PICK_WHY, "the near-miss was not named: %r" % tv._PICK_WHY)
+
+    def test_a_cloud_window_naming_the_game_that_cannot_pin_is_named(self):
+        # the title block now applies to a streamed title too: the launcher on GeForce NOW
+        self._screen([("Google Chrome", "Battle.net - Diablo II: Resurrected on GeForce NOW")])
+        self.assertIsNone(tv.find_d2r_window_mac())
+        self.assertIn("names the game but is not pinnable", tv._PICK_WHY,
+                      "a cloud window naming the game was dropped with the generic why: %r" % tv._PICK_WHY)
 
     def test_linux_pins_nothing_and_says_why(self):
         self._screen([("GeForceNOW", "Diablo II: Resurrected")])
@@ -132,6 +176,12 @@ class WindowsFindsEveryRoute(unittest.TestCase):
         self.assertIn('if (route == "") return true;', code,
                       "a browser or cloud-app window that does not name the game became a candidate")
 
+    def test_the_windows_twin_reads_words_and_refuses_two_services(self):
+        code = "\n".join(l.split("//", 1)[0] for l in self.src.split("\n"))
+        self.assertIn('Regex(@"\\bdiablo\\s*(?:ii|2)\\b|\\bd2r\\b")', code, "the C# game words drifted from _GAME_RX")
+        self.assertIn("return GameRx.IsMatch(tl);", code)
+        self.assertIn('if (gfn && bst) return "";', code, "a title naming two services pins as the first one")
+
     def test_windows_powershell_can_still_read_it(self):
         """Windows PowerShell reads a file with no BOM as ANSI, so non-ASCII there is mangled. The
         file carries em-dashes in comments and a UTF-8 BOM; it must keep one of the two properties."""
@@ -145,6 +195,41 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#232 - substring game words again: 'GeForce NOW - Resurrected' / 'Diablo 2024' / 'd2races' pin as the game",
+        "file": "tv_diablo.py",
+        "find": "_GAME_RX = re.compile(r\"\\bdiablo\\s*(?:ii|2)\\b|\\bd2r\\b\")\n",
+        "replace": "_GAME_RX = re.compile(r\"diablo|d2r|resurrected\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "#232 - a browser by prefix again: 'Archive Utility' is an Arc tab and pins a cloud title",
+        "file": "tv_diablo.py",
+        "find": "    browser = any(ol == b or ol.startswith(b + \" \") for b in _BROWSER_OWNERS)\n",
+        "replace": "    browser = any(ol.startswith(b) for b in _BROWSER_OWNERS)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#232 - a title naming two services pins as whichever is listed first",
+        "file": "tv_diablo.py",
+        "find": "    if len(full) == 1:\n        return full[0]\n",
+        "replace": "    if full:\n        return full[0]\n",
+        "matches": 1,
+    },
+    {
+        "why": "#232 - the scorer judges an un-normalized title: CrossOver 'Diablo(R) II' is the game to game_route and refused by the scorer",
+        "file": "tv_diablo.py",
+        "find": "    tl = _norm_title(title)\n    ww, hh = int(width or 0), int(height or 0)\n",
+        "replace": "    tl = (title or \"\").strip().lower()\n    ww, hh = int(width or 0), int(height or 0)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#232 - a cloud window naming the game that the scorer refused is dropped with the generic why again",
+        "file": "tv_diablo.py",
+        "find": "                elif _nr in (\"geforce-now\", \"boosteroid\"):\n",
+        "replace": "                elif False:\n",
+        "matches": 1,
+    },
     {
         "why": "#232 - Linux reaches for Quartz again instead of saying there is nothing to pin there",
         "file": "tv_diablo.py",
@@ -162,8 +247,9 @@ RED_PROOF = [
     {
         "why": "#232 - a browser tab qualifies on the service alone: the GeForce NOW library page pins as the game",
         "file": "tv_diablo.py",
-        "find": "        if (native or tab) and has_game:\n",
-        "replace": "        if native or tab:\n",
+        # re-anchored (second eye on v3496): the route loop collects full/near matches now
+        "find": "            (full if has_game else near).append(route)\n",
+        "replace": "            full.append(route)\n",
         "matches": 1,
     },
     {

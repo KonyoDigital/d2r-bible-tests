@@ -5395,7 +5395,9 @@ GATES = [
              "Windows only enumerated D2R-process windows, so a streamed session fell through to FULL "
              "SCREEN. A browser needs the service AND the game in its title; '\u00ae/\u2122' are "
              "normalized; a service window without the game is reported, never pinned. Real cloud "
-             "titles UNMEASURED. 12 cases, 4 red-proofs; the C# compiles on the Windows box"),
+             "titles UNMEASURED. The second eye on v3496: a game word is a WORD, a browser is its whole "
+             "name, a title naming two services never pins, the scorer normalizes first, a refused cloud "
+             "window is named. 19 cases, 9 red-proofs; the C# twin compiles and agrees on the Windows box"),
     Gate("test_a_title_is_not_an_owner",
          [sys.executable, os.path.join(HERE, "test_a_title_is_not_an_owner.py")], 60,
          why="#223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the "

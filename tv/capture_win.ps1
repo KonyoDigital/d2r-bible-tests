@@ -92,7 +92,12 @@ public static class TvdCap {
   // must never pin). The real cloud titles are UNMEASURED until his first streamed session is read.
   static readonly string[] CloudApps = new string[] { "GeForceNOW", "Boosteroid" };
   static readonly string[] Browsers = new string[] { "chrome", "msedge", "firefox", "brave", "opera", "vivaldi" };
-  static readonly string[] GameWords = new string[] { "diablo ii", "diablo 2", "resurrected", "d2r" };
+  static readonly string[] GameWords = new string[] { "diablo ii", "diablo 2", "d2r" };
+  // #232 - the second eye on v3496: substring game words pinned "GeForce NOW - Resurrected", "Diablo 2024"
+  // and "d2races" as the game. A game word is a WORD now, and "resurrected" alone proves nothing. Mirrors
+  // tv_diablo._GAME_RX exactly.
+  static readonly System.Text.RegularExpressions.Regex GameRx =
+      new System.Text.RegularExpressions.Regex(@"\bdiablo\s*(?:ii|2)\b|\bd2r\b");
 
   public static string NormTitle(string t) {
     t = (t ?? "").ToLowerInvariant().Replace("\u00ae", "").Replace("\u2122", "").Replace("\u00a9", "");
@@ -100,8 +105,7 @@ public static class TvdCap {
   }
 
   static bool HasGame(string tl) {
-    foreach (var w in GameWords) if (tl.Contains(w)) return true;
-    return false;
+    return GameRx.IsMatch(tl);
   }
 
   // -> "geforce-now" | "boosteroid" | "" for a cloud-app or browser window; pure, testable
@@ -114,8 +118,11 @@ public static class TvdCap {
       if (pl.Contains("boosteroid")) return "boosteroid";
       return "";
     }
-    if (tl.Contains("geforce now") || tl.Contains("geforcenow")) return "geforce-now";
-    if (tl.Contains("boosteroid")) return "boosteroid";
+    bool gfn = tl.Contains("geforce now") || tl.Contains("geforcenow");
+    bool bst = tl.Contains("boosteroid");
+    if (gfn && bst) return "";   // names TWO services: which one streams is unknown - never pinned
+    if (gfn) return "geforce-now";
+    if (bst) return "boosteroid";
     return "";
   }
 

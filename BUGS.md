@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1239 - THE STREAM PICKER TOOK SUBSTRINGS FOR THE GAME AND PREFIXES FOR A BROWSER
+
+**fix - the second eye on v3496 (grok-4.7), six findings, every case reproduced by calling game_route first.** On
+the Mac picker: "GeForce NOW - Resurrected" (no Diablo), "GeForce NOW - Diablo 2024" (`diablo 2` inside `diablo 2024`)
+and "Boosteroid - ranked d2races" (`d2r` inside a word) were all the GAME; "Archive Utility" and "Operational Log" were
+browsers (prefix `arc`/`opera`); a title naming BOTH services pinned as whichever was listed first; the scorer judged
+an un-normalized title, so CrossOver "Diablo(R) II" was the game to game_route and refused by the scorer; the title block
+was bypassed for every cloud route; and a cloud window naming the game that the scorer refused was dropped with the
+generic why. Now: `_GAME_RX` (`\bdiablo\s*(?:ii|2)\b|\bd2r\b`, "resurrected" alone proves nothing), a browser is its
+whole name, two services -> `near:ambiguous` (reported, never pinned), the scorer normalizes first, the title block
+applies to cloud titles too (battle.net / localhost in a streamed title is the launcher or our own page), and a refused
+cloud window is named in `_PICK_WHY`. His measured title still pins (score 2110). The C# twin in capture_win.ps1 got the
+same regex and the two-service refusal; compiled with Add-Type on the ALT and `CloudRoute` answered 7/7 cases. The test's
+tearDown restored the wrong cache and could pop a real Quartz - fixed. Guard: `test_the_eye_finds_d2r_however_he_runs_it`
+19 cases, 9 proofs (one re-anchored), all PROVEN; test_a_title_is_not_an_owner and test_agent green.
+
 ### REG-1238 - AN IN-PAGE QUESTION DOES NOT FREEZE THE PAGE: "PROMOTE ALL 5" COULD PROMOTE 7
 
 **fix - the second eye on v3497 (grok-4.7), two findings, one refuted by measurement and one reproduced.** (1) REFUTED:
