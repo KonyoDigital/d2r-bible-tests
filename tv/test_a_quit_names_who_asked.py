@@ -43,6 +43,18 @@ def _py_code():
     return re.sub(r"(?m)^\s*#.*$", " ", src)
 
 
+def _span(text, i, stop):
+    """text from `i` through the next `stop` — a REAL boundary, never a guessed length. -> str
+
+    ⚠ #123 — these were `text[i:i + 200/400]` windows (test_a_source_window_must_reach_its_subject).
+    A missing stop RAISES: a moved anchor must fail loudly, not measure a shorter guess."""
+    j = text.find(stop, i)
+    if i < 0 or j < 0:
+        raise AssertionError("the boundary %r was not found after offset %d — re-derive this "
+                             "window" % (stop, i))
+    return text[i:j + len(stop)]
+
+
 def _js_code():
     with io.open(UI, encoding="utf-8", errors="replace") as f:
         src = f.read()
@@ -178,7 +190,7 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         r = self._route()
         i = r.find('.get("from")')
         self.assertGreater(i, -1, "the attribution is no longer read from the body")
-        self.assertIn(".strip()", r[i:i + 200],
+        self.assertIn(".strip()", _span(r, i, "\n"),   # the statement's own line
                       "a whitespace-only `from` still counts as naming yourself, so the refusal "
                       "is defeated by a single space")
 
@@ -201,7 +213,7 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         js = _js_code()
         self.assertIn("'/api/quit'", js, "the page no longer calls the quit route at all")
         i = js.find("'/api/quit'")
-        self.assertIn("escape-empty-stack", js[i:i + 400],
+        self.assertIn("escape-empty-stack", _span(js, i, ".catch("),   # the fetch call's own tail
                       "the page's quit no longer names itself, so v3280's refusal would block "
                       "the one legitimate exit")
 
@@ -211,7 +223,7 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         js = _js_code()
         i = js.find("'/api/quit'")
         self.assertGreater(i, -1, "the page no longer calls /api/quit — re-anchor this law")
-        self.assertIn("escape-empty-stack", js[i:i + 400],
+        self.assertIn("escape-empty-stack", _span(js, i, ".catch("),   # the fetch call's own tail
                       "the Escape handler does not name itself, so a legitimate exit is also "
                       "recorded as UNATTRIBUTED and the signal cannot distinguish anything")
 

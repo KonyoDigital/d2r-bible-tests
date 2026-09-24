@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1201 - THE FIXED-WINDOW RATCHET WAS BREACHED BY FIFTEEN DAYS OF ACCUMULATION
+
+**test: after v3488 - #123, test_a_source_window_must_reach_its_subject (red here; UNPROVABLE in the census).** Fixed-size
+source windows (`src[i:i + N]`, a guess about how far a subject reaches) stood at 53 against a TOTAL_CEILING of 44 set on
+2026-09-08. ATTRIBUTED by git blame: 32 of the 53 were added after the ceiling, 09-09..09-23, none today. The ceiling was NOT
+raised. Nine windows re-anchored on REAL boundaries, each through a `_span` helper that raises when its stop is missing (a
+moved anchor fails loudly instead of measuring a shorter guess): test_a_broken_gate_is_reported_every_run x4 (the next
+statement / the print's own close / the docstring's close), test_a_quit_names_who_asked x3 (the statement line / the fetch
+call's `.catch(`), test_his_window_is_his_on_every_platform x2 (the next route / the restore call's `.catch(`). 53 -> 44.
+All four files green; every proof PROVEN (the ratchet itself for the first time).
+
 ### REG-1200 - CHECKS ON THE PRINTER'S HELPERS WERE BANKED AS ATTACKS ON ITS DOOR
 
 **v3488 - #123, test_printer_wilson (CI red and red here).** v3406 folded the Grok CLI's hardening into printer_wilson,

@@ -37,6 +37,19 @@ except Exception:
 SRC = os.path.join(HERE, "control_app.py")
 
 
+def _span(text, i, stop):
+    """text from `i` through the next `stop` — a REAL boundary, never a guessed length. -> str
+
+    ⚠ #123 — these windows were `text[i:i + 400]`, a guess about how far the subject reaches, and the
+    subject grows each time someone documents it (test_a_source_window_must_reach_its_subject).
+    A stop that is not found RAISES: a moved anchor must fail loudly, not measure a shorter guess."""
+    j = text.find(stop, i)
+    if i < 0 or j < 0:
+        raise AssertionError("the boundary %r was not found after offset %d — re-derive this "
+                             "window; it would otherwise measure nothing" % (stop, i))
+    return text[i:j + len(stop)]
+
+
 def _code():
     with io.open(SRC, encoding="utf-8") as fh:
         s = fh.read()
@@ -65,7 +78,7 @@ class ABrokenGateIsReportedEveryRun(unittest.TestCase):
     def test_the_delta_is_what_gates_the_message(self):
         i = self.code.find("_gb = gate_failures() - _gbroke0")
         self.assertGreater(i, 0)
-        window = self.code[i:i + 400]
+        window = _span(self.code, i, "\n        if _gs and not _gh:")   # the next statement
         self.assertIn("if _gb:", window,
                       "the message is not gated on the delta, so a quiet run would print a "
                       "breakage line about breakages that happened before it started")
@@ -75,7 +88,7 @@ class ABrokenGateIsReportedEveryRun(unittest.TestCase):
         it as a refusal would turn an absence of measurement into a negative verdict."""
         i = self.code.find("the stash gate BROKE")
         self.assertGreater(i, 0, "the breakage line is gone")
-        window = self.code[i:i + 320]
+        window = _span(self.code, i, "% (_gb, gate_failures()))")   # the print's own close
         self.assertIn("not judged", window,
                       "the line reports a count without saying those frames were NOT JUDGED — a "
                       "gate that threw is not a gate that said no")
@@ -84,7 +97,7 @@ class ABrokenGateIsReportedEveryRun(unittest.TestCase):
         """the run figure answers 'now'; the lifetime answers 'is this chronic'. Both, or the
         reader cannot tell one bad sweep from a dying lane."""
         i = self.code.find("the stash gate BROKE")
-        window = self.code[i:i + 400]
+        window = _span(self.code, i, "% (_gb, gate_failures()))")   # the print's own close
         # ⚠ the phrase is SPLIT across two string literals by line-wrapping ("The lifetime " +
         # "count is %d."), so a contiguous search for it fails on correct code. Anchor on the
         # word that survives the wrap. [[source-reading-guard]]
@@ -98,7 +111,8 @@ class ABrokenGateIsReportedEveryRun(unittest.TestCase):
             raw = fh.read()
         i = raw.find("def gate_failures():")
         self.assertGreater(i, 0)
-        self.assertIn("never means", raw[i:i + 260],
+        _doc = raw.find('"""', i)
+        self.assertIn("never means", _span(raw, _doc + 3, '"""'),   # the docstring's close
                       "gate_failures lost the docstring line separating a measured zero from an "
                       "unasked question")
 

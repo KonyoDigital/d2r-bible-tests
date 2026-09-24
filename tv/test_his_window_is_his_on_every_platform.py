@@ -310,7 +310,10 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         src = _py_only(SRC)
         self.assertIn('if path == "/api/window":', src, "the window route is gone or renamed")
         i = src.find('if path == "/api/window":')
-        blk = src[i:i + 700]
+        # ⚠ #123 — was src[i:i + 700], a guessed length. Bounded by the NEXT ROUTE: a real boundary.
+        j = src.find('if path == "', i + 10)
+        self.assertGreater(j, i, "no route follows /api/window, so this block has no end to anchor on")
+        blk = src[i:j]
         self.assertIn("window_action(", blk,
                       "the route does not call the helper, so the buttons reach nothing")
 
@@ -330,7 +333,11 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
                       "the window controls are shown before anything confirms a window exists")
         i = ui.find("var box = $('win-ctl')")
         self.assertGreater(i, -1, "the probe that reveals the controls is gone")
-        blk = ui[i:i + 900]
+        # ⚠ #123 — was ui[i:i + 900]. Bounded by the restore call's own `.catch(` — the first after
+        # the anchor, since the `_win` helper above it chains only `.then`.
+        j = ui.find(".catch(", i)
+        self.assertGreater(j, i, "the restore call lost its .catch, so this window has no end")
+        blk = ui[i:j]
         self.assertIn("box.hidden = false", blk,
                       "nothing ever reveals the controls, so they are permanently invisible")
         self.assertIn("d.ok", blk,
