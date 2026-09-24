@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1226 - A WAIT HIDDEN IN AN EXPRESSION WAS CREDITED AS A REAP ON EVERY PATH
+
+**fix - #235, the second eye on 245fad4b (grok-4.7).** `reap_shape` (REG-1207) treats a statement as a branch only when it
+is an if / loop / except, so `x and wp.wait()`, `x or wp.wait()`, `wp.wait() if x else None` and a comprehension body were
+each credited as reaping on every path - and the no-orphan sweep accepted a Popen handed to such a helper. `_walk_certain`
+now walks only what an expression ALWAYS evaluates: the first operand of and/or, the test of a conditional expression, the
+first iterable of a comprehension. 7 new table cases (2 still reap, 5 do not); the test_control reap sweep stays green.
+2 new red-proofs; the gate PROVEN 6/6.
+
 ### REG-1225 - THE RENDER GATE'S PRIVATE CONSOLE FILMED HIS GEFORCE NOW STREAM MID-PUSH
 
 **fix - #236.** The render harness boots a private TV_STUB console; it goes live by itself ~20s after boot, and with the

@@ -43,6 +43,9 @@ REAPERS = {
                          ".start()\n        return True\n    except Exception:\n        return False\n"),
     "in a finally": "def h(wp):\n    try:\n        wp.stdin.close()\n    finally:\n        wp.wait()\n",
     "in a with": "def h(wp):\n    with lock:\n        wp.poll()\n",
+    # #235 — the parts of an expression that ALWAYS run
+    "as the first operand of and": "def h(wp):\n    wp.wait() and log()\n",
+    "as the test of a conditional expression": "def h(wp):\n    x = 1 if wp.wait() else 0\n",
 }
 
 NOT_REAPERS = {
@@ -57,6 +60,13 @@ NOT_REAPERS = {
                           "        wp.wait()\n"),
     "a different object": "def h(wp):\n    other.wait()\n",
     "no parameter": "def h():\n    wp.wait()\n",
+    # #235 — the second eye on 245fad4b: a statement that is not a branch can still hold one
+    "after and": "def h(wp):\n    x and wp.wait()\n",
+    "after or": "def h(wp):\n    x or wp.wait()\n",
+    "an arm of a conditional expression": "def h(wp):\n    wp.wait() if x else None\n",
+    "first in its try, but after and": ("def h(wp):\n    try:\n        x and wp.wait()\n"
+                                        "    except Exception:\n        pass\n"),
+    "in a comprehension (may loop zero times)": "def h(wp):\n    [wp.wait() for _ in xs]\n",
 }
 
 
@@ -111,6 +121,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#235 - `x and wp.wait()` is credited as reaping on every path again (second eye on 245fad4b)",
+        "file": "reap_shape.py",
+        "find": "        if isinstance(n, ast.BoolOp):\n            todo.append(n.values[0])\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#235 - an arm of `a if t else b` is credited as reaping on every path again",
+        "file": "reap_shape.py",
+        "find": "        if isinstance(n, ast.IfExp):\n            todo.append(n.test)\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#177 - any statement of a try body counts again: a reap after stdin.close() in one try (the v3421 BrokenPipe shape) is credited",
         "file": "reap_shape.py",

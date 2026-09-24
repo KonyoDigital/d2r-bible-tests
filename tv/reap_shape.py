@@ -51,8 +51,32 @@ def _walk_own(node):
         todo.extend(c for c in ast.iter_child_nodes(n) if not isinstance(c, _NESTED))
 
 
+def _walk_certain(node):
+    """_walk_own, minus the parts of an EXPRESSION that run on some evaluations only.
+
+    ⚠ #235 — the second eye on 245fad4b (grok-4.7): a statement is not a branch, but an expression
+    can be. `x and wp.wait()`, `x or wp.wait()` and `wp.wait() if x else None` each reap on SOME
+    runs, and all three were credited as reaping on every path — so the sweep accepted a Popen handed
+    to such a helper. The first operand of `and`/`or` and the TEST of `a if t else b` always run;
+    the rest does not, and neither does the body of a comprehension (it may loop zero times)."""
+    todo = [node]
+    while todo:
+        n = todo.pop()
+        yield n
+        if isinstance(n, ast.BoolOp):
+            todo.append(n.values[0])
+            continue
+        if isinstance(n, ast.IfExp):
+            todo.append(n.test)
+            continue
+        if isinstance(n, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            todo.append(n.generators[0].iter)      # the first iterable is evaluated; the body may not be
+            continue
+        todo.extend(c for c in ast.iter_child_nodes(n) if not isinstance(c, _NESTED))
+
+
 def _reaps(stmt, name):
-    return any(_is_reap_call(n, name) for n in _walk_own(stmt))
+    return any(_is_reap_call(n, name) for n in _walk_certain(stmt))
 
 
 def _exits(stmt):
