@@ -5389,8 +5389,8 @@ GATES = [
              "agreed with his board, and its next-action said 'the two wrong rows' for 16. The card is calm "
              "and folded, ages the page from readAt, and the one line that was his - film a new Remaining "
              "page - is a WAITING ON YOU question (doctor 'a fresh remaining page', every tick). A grok-4.7 "
-             "look at the OPENED card found the raw alarm inside it; it shows the measurement. 12 cases, "
-             "5 red-proofs"),
+             "look at the OPENED card found the raw alarm inside it; it shows the measurement; the eye on v3498 aligned card and doctor. 17 cases, "
+             "8 red-proofs"),
     Gate("test_a_slow_census_is_still_remembered",
          [sys.executable, os.path.join(HERE, "test_a_slow_census_is_still_remembered.py")], 60,
          why="#237 - the heart memo aged from when the census STARTED, so a census slower than its 45s "

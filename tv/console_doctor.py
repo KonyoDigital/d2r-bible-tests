@@ -3021,8 +3021,12 @@ def _remaining_page_reading():
             d = json.load(f)
     except Exception as e:
         return {"state": UNKNOWN, "why": "the saved sweep is unreadable (%s)" % str(e)[:80]}
-    cal = ((d.get("result") or {}).get("calibration") or {}) if isinstance(d, dict) else {}
-    ex = cal.get("exact") or {}
+    # the second eye on v3498: a readable but WRONG-SHAPED file raised on .get before any return; every
+    # level is type-checked, so a shape nobody wrote is UNKNOWN, never a traceback
+    res = d.get("result") if isinstance(d, dict) else None
+    cal = res.get("calibration") if isinstance(res, dict) else None
+    cal = cal if isinstance(cal, dict) else {}
+    ex = cal.get("exact") if isinstance(cal.get("exact"), dict) else {}
     if ex.get("ok") is True:
         return {"state": OK, "why": "your board and the last Remaining page add up (%s found, %s missing, "
                                    "%s in the roster)" % (ex.get("boardFound"), ex.get("gameMissing"),
@@ -3030,8 +3034,9 @@ def _remaining_page_reading():
     if ex.get("ok") is not False:
         return {"state": UNKNOWN, "why": ex.get("say") or cal.get("say")
                 or "the last sweep did not compare your board with a Remaining page"}
-    rd = ex.get("reading") or {}
-    named = [x.get("name") for x in (ex.get("named") or []) if isinstance(x, dict) and x.get("name")]
+    rd = ex.get("reading") if isinstance(ex.get("reading"), dict) else {}
+    _nm = ex.get("named")
+    named = [x.get("name") for x in (_nm if isinstance(_nm, list) else []) if isinstance(x, dict) and x.get("name")]
     try:
         sur = int(ex.get("surplus") or 0)
     except Exception:
@@ -3040,7 +3045,14 @@ def _remaining_page_reading():
                                         "of your rows the page disputes is unknown" % (ex.get("surplus"),)}
     n = len(named) or abs(sur)
     age = _page_age_days(rd)
-    old = "of unknown age" if age is None else ("from today" if age < 1 else "%d days old" % round(age))
+    # half-UP, as the card's Math.round: Python's round() is half-even, so a 2.5-day page read "2 days"
+    # here and "3 days" on the card (the second eye on v3498)
+    old = "of unknown age" if age is None else ("from today" if age < 1 else "%d days old" % int(age + 0.5))
+    if ex.get("boardFound") is None or ex.get("gameMissing") is None:
+        # the second eye on v3498: without the counts this printed "Your board has None set pieces" and
+        # still asked him to confirm a count the sweep never recorded
+        return {"state": UNKNOWN, "why": "the last sweep says your board and the Remaining page differ, but "
+                                        "it did not record the counts, so there is nothing to confirm yet"}
     if sur > 0 or named:
         why = ("Your board has %s set pieces ticked. The last Remaining page (%s) still listed %s as "
                "missing, so %d of your ticked rows are ones that page called missing - most likely "

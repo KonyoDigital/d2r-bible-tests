@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1249 - THE SETS-COUNT CARD AND ITS DOCTOR ROW WERE TWO COPIES THAT DISAGREED
+
+**fix - the second eye on v3498 (grok-4.7), four findings, each reproduced by a case before the fix.** (1) The card pointed
+at WAITING ON YOU whenever calibration.ok was false, but the doctor asks only when exact.ok is false with both counts - a
+pointer to a question that did not exist; the pointer now follows the doctor's condition exactly. (2) A readable but
+wrong-shaped saved sweep (result a list, calibration a string, exact a list, named a number) raised on `.get` before any
+return; every level is type-checked now, so a shape nobody wrote is UNKNOWN. (3) The doctor rounded half-EVEN
+(Python round) and the card half-UP (Math.round): a 4.5-day page was "4 days" in the question and "5 days" on the card;
+the doctor rounds half-up now - pinned at an exact 4.5 on both sides with the clock fixed. (4) Without the counts the
+doctor printed "Your board has None set pieces" and still asked; it is UNKNOWN and asks nothing now. Guard:
+`test_the_sets_count_asks_for_a_fresh_page` 17 cases, 8 proofs (one re-anchored), PROVEN. v3499's look: clean.
+
 ### REG-1247 - FREE DISK WAS MEASURED WITH A CALL WINDOWS DOES NOT HAVE
 
 **fix - #229, the per-machine roadmap.** river.py (the disk joint), safe_copy (its 4 GB floor) and space_warden measured

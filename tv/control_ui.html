@@ -25709,8 +25709,12 @@ function escC(s) {
                                           : 'the last Remaining page and your board count differently')
         + ' <span class="cw-age">\u00b7 the page is ' + escC(cOld) + '</span>',
         escC(cBody) + '<i class="cw-said">' + escC(cMeas) + '</i>',
-        'nothing is held back and nothing here is yours to fix. What would settle it is a new Remaining '
-        + 'page \u2014 an optional question in WAITING ON YOU, not here.', false);
+        /* the second eye on v3498: the doctor ASKS only when exact.ok is false with both counts recorded;
+           pointing at WAITING ON YOU on any other shape sent him to a question that does not exist */
+        (cEx.ok === false && cEx.boardFound != null && cEx.gameMissing != null)
+          ? 'nothing is held back and nothing here is yours to fix. What would settle it is a new Remaining '
+            + 'page \u2014 an optional question in WAITING ON YOU, not here.'
+          : 'nothing is held back and nothing here is yours to fix.', false);
     }
     var cn = 0, cparts = [];
     ['uniques', 'sets'].forEach(function (k) {

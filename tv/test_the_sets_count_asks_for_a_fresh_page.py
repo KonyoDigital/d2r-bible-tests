@@ -53,6 +53,13 @@ def _iso_days_ago(d):
     return t.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+def _his_calibration_at(read_ts, stored_age=24.46):
+    cal = _his_calibration(stored_age=stored_age)
+    t = datetime.fromtimestamp(read_ts, tz=timezone.utc)
+    cal["exact"]["reading"]["readAt"] = t.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return cal
+
+
 def _his_calibration(page_days_ago=34.0, stored_age=24.46, ok=False):
     """His live shape, 2026-09-24: 132 found, 19 missing, roster 135, surplus 16, all 16 named."""
     reading = {"readAt": _iso_days_ago(page_days_ago), "ageDays": stored_age, "source": "sets.json"}
@@ -124,6 +131,38 @@ class TheDoctorAsksInHisWords(_SavedSweep):
         self.assertEqual(row["state"], cd.UNKNOWN)
         self.assertEqual(row["asks"], [], "a question built on a comparison nobody took")
 
+    def test_missing_counts_are_unknown_and_ask_nothing(self):
+        """the second eye on v3498: this printed 'Your board has None set pieces' and still asked"""
+        cal = _his_calibration()
+        del cal["exact"]["boardFound"]
+        self._save(cal)
+        row = self._row()
+        self.assertEqual(row["state"], cd.UNKNOWN)
+        self.assertNotIn("None", row["why"])
+        self.assertEqual(row["asks"], [])
+
+    def test_a_wrong_shaped_file_is_unknown_never_a_traceback(self):
+        for shape in ({"result": ["not", "a", "dict"]}, {"result": {"calibration": "a string"}},
+                      {"result": {"calibration": {"ok": False, "exact": ["x"]}}},
+                      {"result": {"calibration": dict(_his_calibration(), exact=dict(_his_calibration()["exact"], named=7))}}):
+            with io.open(ca._CHRON_RESULT_PATH, "w", encoding="utf-8") as f:
+                json.dump(shape, f)
+            state, why = cd._check_a_fresh_remaining_page_would_settle_the_sets_count()   # must not raise
+            self.assertIn(state, (cd.UNKNOWN, cd.MISSING), "shape %r read %r" % (shape, state))
+
+    def test_the_doctor_rounds_a_half_day_the_way_the_card_does(self):
+        """the second eye on v3498: Python round() is half-even, Math.round is half-up - 4.5 days read
+        '4 days' in the doctor and '5 days' on the card"""
+        fixed = 1790000000.0
+        real = cd.time.time
+        cd.time.time = lambda: fixed
+        try:
+            self._save(_his_calibration_at(fixed - 4.5 * 86400))
+            why = cd._check_a_fresh_remaining_page_would_settle_the_sets_count()[1]
+        finally:
+            cd.time.time = real
+        self.assertIn("5 days old", why)
+
     def test_it_is_declared_in_every_registry_and_runs_every_tick(self):
         self.assertIn("a fresh remaining page", {n for n, _ in cd.CHECKS})
         self.assertIn("a fresh remaining page", cd.WATCHES)
@@ -143,14 +182,19 @@ def _strip_source():
     return src[i:j]
 
 
-def _render(res):
+def _render_at(res, now_ms):
+    return _render(res, now_ms=now_ms)
+
+
+def _render(res, now_ms=None):
     js = """
     function escC(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]); }); }
     var _cwOpen = {};
     %s
+    %s
     console.log(JSON.stringify(_chronWarnStrip(%s)));
-    """ % (_strip_source(), json.dumps(res))
+    """ % (("Date.now = function(){ return %d; };" % now_ms) if now_ms else "", _strip_source(), json.dumps(res))
     r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not evaluate the strip - UNKNOWN, not passing: %s" % r.stderr[:600])
@@ -199,6 +243,20 @@ class TheCardIsCalmInformation(unittest.TestCase):
         self.assertIn("Tancred", body, "the rows the page still called missing are no longer named")
         self.assertNotIn("THE TWO INSTRUMENTS DISAGREE", body, "the alarm is back inside the calm card")
 
+    def test_the_card_points_to_a_question_only_when_one_is_asked(self):
+        """the second eye on v3498: the card pointed at WAITING ON YOU on any calibration.ok false, the
+        doctor asks only when exact.ok is false with both counts - a pointer to a question that is not there"""
+        cal = _his_calibration()
+        cal["exact"] = {}
+        cls, body = _card(_render({"calibration": cal}), "1")
+        self.assertNotIn("WAITING ON YOU", body)
+
+    def test_the_card_rounds_a_half_day_the_way_the_doctor_does(self):
+        fixed_ms = 1790000000000
+        cal = _his_calibration_at(fixed_ms / 1000.0 - 4.5 * 86400)
+        cls, body = _card(_render_at({"calibration": cal}, fixed_ms), "1")
+        self.assertIn("5 days old", body)
+
     def test_the_undatable_card_folds_too(self):
         cls, body = _card(self.html, "1.5")
         self.assertIsNotNone(cls, "premise: rank 1.5 did not render")
@@ -216,6 +274,27 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "the second eye on v3498 - the doctor rounds half-even again: a 4.5-day page is '4 days' here and '5 days' on the card",
+        "file": "console_doctor.py",
+        "find": "(\"from today\" if age < 1 else \"%d days old\" % int(age + 0.5))\n",
+        "replace": "(\"from today\" if age < 1 else \"%d days old\" % round(age))\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3498 - missing counts print 'None' and still ask him",
+        "file": "console_doctor.py",
+        "find": "    if ex.get(\"boardFound\") is None or ex.get(\"gameMissing\") is None:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3498 - the card points at a WAITING ON YOU question the doctor never asked",
+        "file": "control_ui.html",
+        "find": "        (cEx.ok === false && cEx.boardFound != null && cEx.gameMissing != null)\n",
+        "replace": "        (true)\n",
+        "matches": 1,
+    },
+    {
         "why": "#228 - the opened calm card prints the reader's raw alarm again (grok-4.7: the accusation, one click in)",
         "file": "control_ui.html",
         "find": "      var cMeas = (cEx.boardFound != null && cEx.gameMissing != null && cEx.rosterTotal != null)\n",
@@ -225,8 +304,8 @@ RED_PROOF = [
     {
         "why": "#228 - the sets-count card renders LOUD again, as if he had done something wrong",
         "file": "control_ui.html",
-        "find": "an optional question in WAITING ON YOU, not here.', false);\n",
-        "replace": "an optional question in WAITING ON YOU, not here.');\n",
+        "find": "          : 'nothing is held back and nothing here is yours to fix.', false);\n",
+        "replace": "          : 'nothing is held back and nothing here is yours to fix.');\n",
         "matches": 1,
     },
     {
