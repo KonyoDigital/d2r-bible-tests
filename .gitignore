@@ -346,3 +346,6 @@ tv/tvd-reel-seed*
 deeplink.txt
 # v3475 — bake_seed.py's dated receipt: live, per machine
 tv/.bake_seed_receipt.json
+# #225 — the relaunch receipt is this machine's record, never a tracked file
+tv/.relaunch_receipt.json
+tv/.relaunch_receipt.json.tmp

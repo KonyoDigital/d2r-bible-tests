@@ -25,6 +25,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import time
 import traceback
 
@@ -34,12 +35,37 @@ ENV_PARENT = "TVD_RELAUNCH_PARENT"
 LOG_MAX = 200_000          # bytes; the log is trimmed to its newest half past this
 
 
+PRIMARY_PORT = "17772"
+
+
+def scratch_console():
+    """Is this process a throwaway console rather than this machine's own? -> bool
+
+    ⚠ MEASURED 2026-09-24, the day this log shipped: 8 of its 9 lines were render_check's served
+    consoles (TV_STUB=1, a scratch TV_CONTROL_PORT) booting beside his real one, which held :17772
+    the whole time. The log exists to tell the NEXT death on the Windows box what happened; a record
+    padded with harness boots answers that wrongly. Every launcher that spawns a console sets one of
+    these two, so the rule lives here, once, instead of in each launcher. [[copy-drift]]"""
+    if os.environ.get("TV_STUB") == "1":
+        return True
+    port = (os.environ.get("TV_CONTROL_PORT") or "").strip()
+    return bool(port) and port != PRIMARY_PORT
+
+
+def _scratch_path(name):
+    return os.path.join(tempfile.gettempdir(), "tvd-scratch-console" + name)
+
+
 def _log_path():
-    return os.environ.get("TV_CONSOLE_BOOT_LOG") or os.path.join(HERE, ".console_boot.log")
+    return (os.environ.get("TV_CONSOLE_BOOT_LOG")
+            or (_scratch_path(".console_boot.log") if scratch_console() else
+                os.path.join(HERE, ".console_boot.log")))
 
 
 def _receipt_path():
-    return os.environ.get("TV_RELAUNCH_RECEIPT") or os.path.join(HERE, ".relaunch_receipt.json")
+    return (os.environ.get("TV_RELAUNCH_RECEIPT")
+            or (_scratch_path(".relaunch_receipt.json") if scratch_console() else
+                os.path.join(HERE, ".relaunch_receipt.json")))
 
 
 def boot_log(event, **fields):

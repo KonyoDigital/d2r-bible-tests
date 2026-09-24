@@ -5319,7 +5319,8 @@ GATES = [
              "its parent still holds them). Now a boot log is written before the mutex/bind checks, both "
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
-             "parent). 8 cases, 3 red-proofs"),
+             "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
+             "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
     Gate("test_an_entrance_survives_endurance",
          [sys.executable, os.path.join(HERE, "test_an_entrance_survives_endurance.py")], 60,
          why="#228 - his ⚙ ADVANCED drawer read open with black under it and its tooltips answering from "

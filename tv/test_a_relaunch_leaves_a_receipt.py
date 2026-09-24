@@ -94,6 +94,47 @@ class ARelaunchLeavesAReceipt(unittest.TestCase):
         self.assertIn("boot blew up here", log)
 
 
+class AScratchConsoleNeverWritesThisMachinesRecord(unittest.TestCase):
+    """MEASURED the day the log shipped: 8 of its 9 lines were render_check's served consoles booting
+    beside his real one. A record padded with harness boots answers the ALT-death question wrongly."""
+
+    KEYS = ("TV_CONSOLE_BOOT_LOG", "TV_RELAUNCH_RECEIPT", "TV_STUB", "TV_CONTROL_PORT")
+
+    def setUp(self):
+        self._env = {k: os.environ.get(k) for k in self.KEYS}
+        for k in self.KEYS:
+            os.environ.pop(k, None)
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def _mine(self):
+        return (os.path.dirname(WR._log_path()) == HERE, os.path.dirname(WR._receipt_path()) == HERE)
+
+    def test_the_real_console_writes_beside_its_code(self):
+        self.assertEqual(self._mine(), (True, True), "premise: the machine's own console lost its record")
+        os.environ["TV_CONTROL_PORT"] = "17772"
+        self.assertEqual(self._mine(), (True, True), "the primary port was mistaken for a scratch one")
+
+    def test_a_stub_agent_console_writes_elsewhere(self):
+        os.environ["TV_STUB"] = "1"
+        self.assertEqual(self._mine(), (False, False),
+                         "a TV_STUB console (render_check, test launchers) wrote this machine's boot log")
+
+    def test_a_scratch_port_console_writes_elsewhere(self):
+        os.environ["TV_CONTROL_PORT"] = "17990"
+        self.assertEqual(self._mine(), (False, False), "a console on a scratch port wrote this machine's record")
+
+    def test_an_explicit_path_still_wins(self):
+        os.environ["TV_STUB"] = "1"
+        os.environ["TV_CONSOLE_BOOT_LOG"] = os.path.join(HERE, "x.log")
+        self.assertEqual(WR._log_path(), os.path.join(HERE, "x.log"))
+
+
 class MainWritesItDownBeforeItCanExitQuietly(unittest.TestCase):
 
     def setUp(self):
@@ -130,6 +171,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#225 - a TV_STUB harness console writes this machine's boot log again (8 of 9 lines on 2026-09-24 were render_check's)",
+        "file": "win_relaunch.py",
+        "find": "    if os.environ.get(\"TV_STUB\") == \"1\":\n        return True\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#225 - a console on a scratch port is taken for the machine's own and writes its record",
+        "file": "win_relaunch.py",
+        "find": "    return bool(port) and port != PRIMARY_PORT\n",
+        "replace": "    return False\n",
+        "matches": 1,
+    },
     {
         "why": "#225 - the boot log writes nothing: a pythonw death on Windows leaves no trace again (the v3419 ALT death)",
         "file": "win_relaunch.py",
