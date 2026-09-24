@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1267 - A DOCTOR ROW BLAMED A PARSER THAT NEVER GUESSED
+
+**fix - #222, read live on his console (GET /api/eagle, 2026-09-25): 'a verdict comes from a declared field' MISSING,
+"6 of the 6 most recent look(s) carry NO declared verdict".** All six were drained from #231 (verdictFrom "gh#231
+comment <id>"); the look format carries a REQUIRED `verdict:` line that second_eye_drain reads as a field, never as
+prose. The check re-parsed the stored answer - the findings paragraph only - for a VERDICT line that could never be
+in it, so every drained row read as "the parser is back to guessing" when nothing had guessed. It had no law at all.
+Now a row counts as declared when its verdict came from the schema or from a #231 field, or its answer states one;
+a PROSE verdict with no line is still MISSING. On his real ledger the row now reads OK (6 of 6). Guard:
+`test_a_drained_verdict_is_a_declared_one` over a temp ledger (6 cases, 1 proof), PROVEN.
+
 ### REG-1266 - THE KAI CLOSER WAS DARK ON WINDOWS WHILE ITS WINDOWS WORKER SAT BESIDE IT
 
 **fix - #229 roadmap item "the Kai closer's Mac-only OCR".** It was never Mac-only: tv_diablo's `_ocr_worker_cmd()`

@@ -5882,8 +5882,18 @@ def _check_a_verdict_comes_from_a_declared_field():
     if not fresh:
         return UNMEASURED, ("no look carries a stored answer, so whether the eye declares its "
                             "verdict is not yet knowable - an absent question, not a clean answer")
-    declared = [r for r in fresh
-                if _SE._stated_verdict(r.get("answerFull") or r.get("answerHead") or "")]
+    # ⚠ REG-1267 — A DRAINED ROW'S VERDICT CAME FROM A FIELD, AND THIS READ THE WRONG ONE. MEASURED on
+    # his console 2026-09-25: "6 of the 6 most recent look(s) carry NO declared verdict" - and all six
+    # were drained from #231 (verdictFrom "gh#231 comment <id>"), whose look format carries a required
+    # `verdict:` line that second_eye_drain reads as a FIELD, never as prose. The stored answer is only
+    # the findings paragraph, so re-parsing it for a VERDICT line could never succeed and every drained
+    # row read as "the parser is guessing" when nothing had guessed. schema is a declared route too.
+    def _declared(r):
+        vf = str(r.get("verdictFrom") or "")
+        if vf == "schema" or vf.startswith("gh#231 comment"):
+            return True
+        return bool(_SE._stated_verdict(r.get("answerFull") or r.get("answerHead") or ""))
+    declared = [r for r in fresh if _declared(r)]
     if len(declared) == len(fresh):
         return OK, ("all %d of the most recent look(s) carry a DECLARED verdict, so the parser "
                     "never had to guess from prose" % len(fresh))

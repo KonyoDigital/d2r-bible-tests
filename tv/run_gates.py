@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_drained_verdict_is_a_declared_one",
+         [sys.executable, os.path.join(HERE, "test_a_drained_verdict_is_a_declared_one.py")], 60,
+         why="REG-1267 (#222) - the row 'a verdict comes from a declared field' said 6 of 6 recent looks "
+             "carried no declared verdict; all six were drained from #231, whose required `verdict:` field "
+             "the drain reads as a FIELD. The check re-parsed the findings paragraph for a VERDICT line that "
+             "could never be there, and had no law at all. schema and #231 fields are declared; prose is not. "
+             "6 cases, 1 red-proof"),
     Gate("test_the_closer_reads_frames_on_every_os",
          [sys.executable, os.path.join(HERE, "test_the_closer_reads_frames_on_every_os.py")], 60,
          why="REG-1266 (#229) - the Kai closer hard-coded bin/ocr_mac and ended at boot on Windows, while "
