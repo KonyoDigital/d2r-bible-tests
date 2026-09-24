@@ -112,17 +112,35 @@ class TestAnOrganNeverCoversALaneItCannotName(unittest.TestCase):
         rows, _why = OM.matrix()
         by = dict((r.get("surface"), r) for r in rows)
         want = ("fleet.sets", "fleet.uniques", "roster.set", "roster.unique")
+        # ⚠ #123 — ABSENT means "the organ answered and names nothing here". On a venue where an organ
+        # cannot be read at all (every CI runner: no console, no eagle, no doctor report) EVERY one of
+        # its cells is UNKNOWN, and that is the matrix being honest — CI went red with 'ABSENT' !=
+        # 'UNKNOWN' while this machine passed. An organ UNKNOWN in every row is UNMEASURED here; the
+        # defect this pins (a cell reading COVERED by borrowing another lane's names) is judged
+        # wherever the organ answered. [[unknown-stays-unknown]]
+        readable = dict((o, any((r.get("cells") or {}).get(o) not in (None, "UNKNOWN") for r in rows))
+                        for o in ("eagle", "doctor"))
+        if not any(readable.values()):
+            self.skipTest("UNMEASURED, not a pass: neither the eagle nor the doctor can be read on "
+                          "this venue, so every cell is UNKNOWN")
         seen = 0
         for s in want:
             r = by.get(s)
             self.assertIsNotNone(r, "%s is no longer a registered surface" % s)
             for organ in ("eagle", "doctor"):
+                cell = (r.get("cells") or {}).get(organ)
+                self.assertNotEqual("COVERED", cell,
+                                    "%s/%s reads COVERED by borrowing another lane's names — the "
+                                    "defect this pins" % (s, organ))
+                if not readable[organ]:
+                    continue
                 seen += 1
-                self.assertEqual("ABSENT", (r.get("cells") or {}).get(organ),
+                self.assertEqual("ABSENT", cell,
                                  "%s/%s must read ABSENT — neither organ names anything in that "
                                  "lane" % (s, organ))
         print("borrowed cells pinned ABSENT: %d" % seen)
-        self.assertEqual(8, seen, "expected exactly the 8 cells the defect covered")
+        self.assertEqual(4 * sum(1 for v in readable.values() if v), seen,
+                         "expected exactly the borrowed cells of every READABLE organ")
 
 
 RED_PROOF = [

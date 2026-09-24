@@ -43,18 +43,31 @@ class TestTheShelfIsWatchedByAllFourOrgans(unittest.TestCase):
         import organ_matrix as OM
         rows, _why = OM.matrix()
         by = dict((r.get("surface"), r) for r in rows)
+        # ⚠ #123 — an organ that cannot be read on this venue (every CI runner: no console) is UNKNOWN
+        # in EVERY row, and CI went red with 'COVERED' != 'UNKNOWN' while this machine passed. That
+        # organ is UNMEASURED here; a READABLE organ that fails to cover the shelf still fails, and an
+        # organ reading ABSENT on a shelf surface fails everywhere. [[unknown-stays-unknown]]
+        readable = dict((o, any((r.get("cells") or {}).get(o) not in (None, "UNKNOWN") for r in rows))
+                        for o in OM.ORGANS)
+        if not any(readable.values()):
+            self.skipTest("UNMEASURED, not a pass: no organ can be read on this venue")
         checked = 0
         for s in SHELF_SURFACES:
             r = by.get(s)
             self.assertIsNotNone(r, "%s is no longer a registered surface" % s)
             cells = r.get("cells") or {}
             for organ in OM.ORGANS:
+                self.assertNotEqual("ABSENT", cells.get(organ),
+                                    "%s reads ABSENT for %s — the organ answered and does not watch "
+                                    "the shelf" % (s, organ))
+                if not readable[organ]:
+                    continue
                 checked += 1
                 self.assertEqual("COVERED", cells.get(organ),
                                  "%s has no %s — the shelf must be watched by all four"
                                  % (s, organ))
         print("shelf organ cells asserted COVERED: %d" % checked)
-        self.assertEqual(len(SHELF_SURFACES) * 4, checked)
+        self.assertEqual(len(SHELF_SURFACES) * sum(1 for v in readable.values() if v), checked)
 
     def test_the_corroborator_declares_its_surfaces_rather_than_being_guessed(self):
         """v3055 deleted a resolver that matched on the tail and invented 8 cells."""
