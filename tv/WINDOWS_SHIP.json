@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3499",
+  "ver": "v3500",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3499: #223 - the pop titled Waiting on you carried only the chronicle names; one builder now draws his ASKS in the inbox, the pop and the Sessions sticky, the badge counts them, and at phone width the pop clears the CONSOLE pill. HEART: the watchers are tv/test_the_pop_carries_his_questions.py (4 proofs) and the new render target pop-asks",
+  "note": "v3500: Escape never quits over an open question; a self-updated console installs Pillow at boot; a machine that died mid-restart is asked about and one switched off never is; the fleet relay carries the measured bit; test runs leave no scratch dirs",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
