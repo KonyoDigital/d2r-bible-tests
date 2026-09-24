@@ -105,6 +105,19 @@ class ThePartitionAppliesThem(unittest.TestCase):
                          "his ruling was filed as Claude's work (it would read CLAUDE OWES)")
 
 
+    def test_a_handed_off_answer_becomes_claudes_work(self):
+        """The second eye on 518945b3: 'Be stricter' (effect handoff) left his count and reached nobody."""
+        import control_app as ca
+        ent, _ = HA.entry_for(ASK, "stricter")
+        rows = [{"check": "shadow gate", "state": "missing", "asks": [ASK]}]
+        p = ca.eagle_partition([dict(r) for r in rows], answers={"shadow-gate": ent})
+        self.assertEqual(p["bad"], [], "a handed-off question still billed him")
+        self.assertIn("shadow gate", [r["check"] for r in p["mine"]],
+                      "a handoff never reached Claude's work (WAITING ON CODE did not gain it)")
+        self.assertEqual([r["check"] for r in p["answered"]], ["shadow gate"],
+                         "the handoff is no longer shown as his answer")
+
+
 class TheDoorOnlyOpensForHim(unittest.TestCase):
 
     def setUp(self):
@@ -176,6 +189,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#223 - a handed-off answer leaves his count and reaches nobody again (second eye on 518945b3)",
+        "file": "control_app.py",
+        "find": "        \"mine\":     [r for r in miss if r.get(\"check\") in mine_names] + no_q + handed,\n",
+        "replace": "        \"mine\":     [r for r in miss if r.get(\"check\") in mine_names] + no_q,\n",
+        "matches": 1,
+    },
     {
         "why": "#223 - an answer given to one question closes a different one (the fingerprint is ignored)",
         "file": "his_answers.py",

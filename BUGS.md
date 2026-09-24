@@ -7,6 +7,37 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1243 - THE FROZEN-SCREEN WATCH WALKED A 3.2 GB SHELF ON EVERY DOCTOR PASS (push refused: test_control "HUNG")
+
+**fix - found by the refused push, measured end to end.** The push of c4262c11 was refused when test_control hit its
+1500 s bound on an idle machine (load 2.8, 0% CPU, main thread in read()). A verbose run stalled in the case that runs the
+doctor's cheap subset; timing each check alone named it: `screen still painting` took 337.5 s. It calls
+frozen_frame_watch.report(), whose frames() and newest_capture_age_s() walked EVERY PNG under GrokBot's evidence root -
+9,325 PNGs / 3.2 GB in 597 entries, a new pack every ~25 minutes, ~36 ms an open on an iCloud Desktop - and test_control
+runs the doctor several times. Data growth, not today's code: it passed the full local gate run hours earlier. Both walks
+now read only the newest FRAMES_TOP_MAX (12) top-level entries (about five hours of looks) through one helper: 0.1 s,
+same verdict (MOVING). Also found and stopped: an orphaned `tv_diablo.py` agent (ppid 1, 5h12m, scratch ports 63372/3,
+render-sandbox TV_HIST) left by a pre-#236 render console, with its OCR worker. Guard:
+`test_the_frozen_screen_watch_reads_only_recent_looks` (3 cases, 1 proof), PROVEN.
+
+### REG-1244 - THE BUILD DOOR'S `machine` WAS A STORAGE-WORLD KEY READ AS AN OPERATING SYSTEM (#178)
+
+**fix - #37/#178.** GrokBot's Linux seat read `machine: "windows"` from /api/board_build while its banner said LINUX, and it
+was filed as two writers contradicting each other. They answer two questions: D2R_MACHINE is a storage-world key with two
+values (bible.html v1469/v3189 - 'mac' is his world, 'windows' the isolated W-world every non-Mac gets, Linux included),
+and the ribbon already names the real OS. The field name lied. The door keeps `machine` for every reader that parses it and
+now adds `platform` (the host, read in the SAME evaluation as the heap) plus `machineMeans` / `profileMeans` in words (the
+heap's profile is the ACTIVE one; a machine can hold more). The existing guard that bans the word 'banner' in the door held
+- a first wording used it and was rewritten, not the guard weakened. Guard: +1 case, +1 proof, 4/4 PROVEN.
+
+### REG-1245 - A HANDED-OFF ANSWER LEFT HIS COUNT AND REACHED NOBODY
+
+**fix - the second eye on 518945b3 (grok-4.7), reproduced by a driven eagle_partition call.** An answer whose effect is
+`handoff` ("Ask me more often" / "Be stricter") made the row `answered` with no open asks, so it left `bad` and was kept out
+of `mine` too - his_answers says a handoff "moves the row to Claude's work", and WAITING ON CODE never gained it. It is in
+`mine` now and still drawn under ANSWERED BY YOU. Guard: `test_his_answer_closes_only_its_question` +1 case, +1 proof,
+6/6 PROVEN.
+
 ### REG-1242 - THE INVISIBLE PROBE JUDGED THE WRONG THINGS; THE ENDURANCE LOCK HELD ONLY ONCE
 
 **fix - the second eye on v3493 (grok-4.7), the render-harness half.** The `invisible` probe (render_check `_PROBE`):
