@@ -3745,6 +3745,19 @@ class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):
         self.assertTrue(got.startswith(self.here),
                         "an uppercased spelling of his own hist was treated as a fixture: %s" % got)
 
+    def test_a_case_variant_ancestor_is_his_tree_on_ANY_volume(self):
+        """Second eye on 8846ae17 (grok-4.7): the case above can only RUN on a case-INSENSITIVE volume,
+        so its red-proof (samefile -> ==) stayed green on every runner where the spellings already
+        agree. This drives _under()'s ancestor walk through stubs that answer case-insensitively, so
+        the walk is judged on every machine; the real-disk case keeps its venue skip."""
+        import unittest.mock as _mock
+        _same = lambda p, q: os.path.normpath(p).lower() == os.path.normpath(q).lower()
+        with _mock.patch("os.path.exists", lambda p: True), _mock.patch("os.path.samefile", _same):
+            self.assertTrue(tv._under("/Vol/TV/FRAMES/HIST", "/vol/tv"),
+                            "an uppercased spelling of a path inside his tree was called a fixture")
+            self.assertFalse(tv._under("/elsewhere/hist", "/vol/tv"),
+                             "premise: a path outside the tree must stay outside")
+
     def test_his_real_hist_is_his_tree(self):
         if not os.path.isdir(self.hist):
             self.skipTest("his frames dir is not on this machine")
