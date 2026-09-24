@@ -86,9 +86,21 @@ test.describe('v69 boss top-drop row → calc routing', () => {
           shown: !!det?.classList.contains('show'),
           mentions: (det?.innerHTML || '').includes(nm),
           cardInView: !!rect && rect.top > -60 && rect.top < 900,
+          // #165 — WHAT WAS MEASURED travels with the verdict. On CI (run 35958037347) this said
+          // cardInView:false while every screencast frame showed the one .aid-card in view at
+          // ~y=280, and the failure PNG was a re-rendered page (a different install chip). A
+          // check that never reports the rect it judged cannot be told apart from its subject.
+          where: {
+            top: rect ? Math.round(rect.top) : null,
+            scrollY: Math.round(window.scrollY),
+            innerHeight: window.innerHeight,
+            cards: det ? det.querySelectorAll('.aid-card').length : null,
+          },
         };
       }, name);
-      expect(r, `routing ${c.boss}/${name}`).toEqual({ calc: true, shown: true, mentions: true, cardInView: true });
+      const { where, ...got } = r;
+      expect(got, `routing ${c.boss}/${name} - measured ${JSON.stringify(where)}`)
+        .toEqual({ calc: true, shown: true, mentions: true, cardInView: true });
     }
     expect(errs).toEqual([]);
   });
