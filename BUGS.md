@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1181 - THE SLOT JOINT'S GUARD USED GEOMETRY THAT DERIVES, SO ITS PROOF WAS BLIND
+
+**v3480 - #192 half 1.** The full census filed `test_the_river_reaches_the_heart` BLIND on ONE of its 8
+proofs: [6] forces `j_slot`'s unbuilt claim on (`if not _geo:` -> `if True:`). Run by hand: the case
+`test_a_joint_whose_producer_HAS_run_stays_DRY` fed point (1,2) inside a 9x9 box, which DERIVES
+(`stash:c1r2`), so the joint read CARRIES 3 of 3 — and UNBUILT only ever applies to a DRY joint. Cause
+(b): the test could not reach the line, NOT a blind guard. The fixture now uses a point OUTSIDE the grid
+(geometry that exists and derives nothing), pins that premise (0 of 3), and asserts DRY exactly rather
+than "not UNBUILT". 8/8 PROVEN. ⚠ Half 2 is NOT fixed: `test_lock_state_asked` stays blind because the
+lock it grades counts it among the blind instruments that keep that lock shut — a design ruling, his.
+Noticed, not touched: `j_slot` passes its DRY sentence ("none derived a cell") on CARRIES rows too.
+
 ### REG-1180 - A REUSED FILE NAME WAS PUBLISHED AS ONE PICTURE CHANGING ITS MIND
 
 **v3479 - #197, raised by the cross-family eye on the shipped v3451 bytes.** `g5_shadow_log` stored only

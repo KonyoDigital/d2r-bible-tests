@@ -397,15 +397,26 @@ class TheRiverNamesTheRightCulprit(unittest.TestCase):
         """⚠ the regression guard on the fix itself: once geometry exists, a zero is a real
         derivation failure and must not hide in the unbuilt bucket."""
         import river as _rv
+        # ⚠⚠ #192 — THE FIXTURE MUST FAIL TO DERIVE, or this case never reaches the branch it
+        # guards. It used point (1,2) inside a 9x9 box, which DERIVES (stash:c1r2): the joint read
+        # CARRIES 3 of 3, UNBUILT only ever applies to a DRY joint, and so red-proof [6] — which
+        # forces the unbuilt claim on — was BLIND in the full census. A point OUTSIDE the grid is
+        # geometry that exists and derives nothing: the exact day-one state of a live autopilot.
+        # [[feedback-blind-fixture-green-gate]] [[a-probe-licenses-only-what-it-tested]]
         real = _rv._sightings
-        _rv._sightings = lambda: [{"point": (1, 2), "panelBox": (0, 0, 9, 9),
+        _rv._sightings = lambda: [{"point": (50, 50), "panelBox": (0, 0, 9, 9),
                                    "container": "stash"}] * 3
         try:
             j = _rv.j_slot()
         finally:
             _rv._sightings = real
-        self.assertNotEqual(j["state"], RV.UNBUILT,
-                            "geometry exists and the joint still called itself unbuilt")
+        self.assertEqual((j["crossed"], j["upstream"]), (0, 3),
+                         "premise: the fixture's geometry must exist and derive NOTHING — %r/%r "
+                         "means this case is not looking at a derivation failure at all"
+                         % (j["crossed"], j["upstream"]))
+        self.assertEqual(j["state"], RV.DRY,
+                         "geometry exists, none of it derived a cell, and the joint called itself "
+                         "%s — a real derivation failure hidden in the unbuilt bucket" % j["state"])
 
     def test_the_summary_does_not_say_NO_JOINT_IS_DRY_and_fall_silent(self):
         rows = [{"joint": "a", "state": RV.CARRIES, "why": ""},

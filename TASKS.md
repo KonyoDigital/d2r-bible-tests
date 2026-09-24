@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3479** | `(this commit)` | v3479 — the shadow log now stores a picture hash before and after the Grok read; frames key on it and read.jpg is attributed to no frame instead of one mixed frame |
+| **v3480** | `(this commit)` | v3480 — the river law fixture now feeds geometry that fails to derive, so red-proof 6 reaches the unbuilt branch it guards; 8 of 8 proven |
+| **v3479** | `cca78142` | v3479 — the shadow log now stores a picture hash before and after the Grok read; frames key on it and read.jpg is attributed to no frame instead of one mixed frame |
 | **v3478** | `cb11067a` | v3478 — the lane-agreement law now runs the REAL heart2 prover in per-lane trees whose gates watch each other tamper targets; a shared sandbox moves a verdict 8 of 8 |
 | **v3477** | `2c386b6c` | v3477 — run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates |
 | **v3476** | `78ff853f` | v3476 — every RED_PROOF assignment is judged, a gate file that will not parse is its own state in the census and the prover, and the census is driven over planted files |
