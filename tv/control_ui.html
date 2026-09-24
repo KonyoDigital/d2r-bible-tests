@@ -4572,10 +4572,10 @@
   /* v3257b — A DAM: reels reached it and not one has ever left. This is the only station state
      that is a PROBLEM rather than a position, so it is the only one that gets a warm edge. */
   .sh-chip.sh-chip-st.sh-chip-stdam {
-    border-color: color-mix(in srgb, var(--rar-orange, #ffa800) 62%, transparent);
-    box-shadow: inset 0 0 12px color-mix(in srgb, var(--rar-orange, #ffa800) 12%, transparent);
+    border-color: color-mix(in srgb, var(--rar-orange) 62%, transparent);
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--rar-orange) 12%, transparent);
   }
-  .sh-chip.sh-chip-st.sh-chip-stdam .sh-chip-thru { color: var(--rar-orange, #ffa800); }
+  .sh-chip.sh-chip-st.sh-chip-stdam .sh-chip-thru { color: var(--rar-orange); }
   /* the through-count: how many reels the river has EVER passed through this station. Quiet on
      purpose - the big number is still the one he filters on. */
   .sh-chip.sh-chip-st .sh-chip-thru {
@@ -17284,9 +17284,13 @@ window._lockMark = function(isOpen, px, label){
          quality or a chronicle now reads a --rar-* token") and v1635 re-gated it after four
          surfaces were found missing it. The tiles that replaced the grail tile were the fifth.
          --rar-unique and --rar-set are already bound to these exact two concepts in .mini-foc. */
+      /* REG-1259 — the two tones are NAMED, never assembled: 'var(--rar-' + tone + ')' is a token no
+         scanner can resolve (v1733 read it as a bare --rar- and has been red on it since), and a tone
+         that is not in this map now gets no colour instead of an undefined token. */
+      var _SC_TONE = { unique: 'var(--rar-unique)', set: 'var(--rar-set)' };
       function _scell(v, l, tone, tip){ return '<div class="shc-stat"'
         + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="shc-sv"'
-        + (tone ? ' style="color:var(--rar-' + tone + ')"' : '') + '>' + v + '</div>'
+        + (_SC_TONE[tone] ? ' style="color:' + _SC_TONE[tone] + '"' : '') + '>' + v + '</div>'
         + '<div class="shc-sl">' + l + '</div></div>'; }
       /* v3090 — THE LAST TWO TILES NOW READ THE CHRONICLES. Konyo: "where its says grail.. i want
          it reading the chronicles.. what does cover even mean? i think it can also be rem[ov]ed

@@ -192,6 +192,34 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
         why: 'MINI(AUTOMATIC) was removed in v2857 (REG-823) and the handler left as a deliberate '
            + 'refusal, so a caller gets an answer instead of a 404. Two laws pin its contract.',
       },
+      /* REG-1259 — Routine I red on six doors no page calls BY DESIGN: they are walked by hand or by
+       * the GrokBot seat after something went wrong. Each owner below references the route and
+       * checks it, so the entry fails here the day its owner stops caring. */
+      '/api/board_build': {
+        owner: 'tv/console_doctor.py',
+        why: 'v3428 (#37) - the live-build door the GrokBot seat asks; a doctor check proves it is '
+           + 'wired and served. No page reads it: the banner must never stand in for it.',
+      },
+      '/api/vault_population': {
+        owner: 'tv/test_the_vault_says_its_own_population.py',
+        why: 'v3249 - read-only "why is each owned name where it is", asked by hand; its law drives it.',
+      },
+      '/api/owned_restore': {
+        owner: 'tv/test_every_operator_door_keeps_its_contract.py',
+        why: 'v3214 - the possession half of a restore, walked by hand after a wipe; confirm required.',
+      },
+      '/api/rw_restore': {
+        owner: 'tv/test_every_operator_door_keeps_its_contract.py',
+        why: 'v3213 - puts made runewords back WITH their dates; confirm required.',
+      },
+      '/api/vault_autosort': {
+        owner: 'tv/test_every_operator_door_keeps_its_contract.py',
+        why: 'v3222 - presses the board Auto-Sort from outside; confirm required.',
+      },
+      '/api/vault_route_probe': {
+        owner: 'tv/test_every_operator_door_keeps_its_contract.py',
+        why: 'v3222 - read-only histogram of why each item is unsorted.',
+      },
       '/api/mini_preflight': {
         owner: 'tv/test_control.py',
         why: 'v2338 Accessibility preflight for MINI(AUTOMATIC) — proves the pointer obeys with a '

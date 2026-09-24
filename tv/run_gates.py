@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_every_operator_door_keeps_its_contract",
+         [sys.executable, os.path.join(HERE, "test_every_operator_door_keeps_its_contract.py")], 60,
+         why="REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design "
+             "(owned_restore, rw_restore, vault_autosort, vault_route_probe): walked by hand after "
+             "something went wrong. This law is their NAMED OWNER and drives them through the real "
+             "Handler with a recording board: no write door writes without confirm, each writes with "
+             "it, the probe only reads. 3 cases, 2 red-proofs"),
     Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
          [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
          why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "

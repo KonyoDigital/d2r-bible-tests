@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1259 - THREE OF ROUTINE I'S 36 STANDING REDS WERE REAL SOURCE FINDINGS NOBODY HAD READ
+
+**fix - #165, found by splitting Routine I's hard fails from its flaky ones across four runs.** The hard set is 36 and
+IDENTICAL on 39b495f3, ea76abff, 2450dcc2 and 6dab59f1 (everything that "appeared" was a retry-pass). Three of the 36
+are source laws with a real answer:
+- **v1628** - the river's dam chip wrote `var(--rar-orange, #ffa800)` three times: a literal quality hex as a fallback
+  for a token the console defines at :root. Now `var(--rar-orange)`.
+- **v1733** - the stat tile built `'var(--rar-' + tone + ')'`, a token no scanner can resolve (read as a bare `--rar-`),
+  and one that would silently render nothing for any tone outside unique/set. Now a named map
+  `{unique: var(--rar-unique), set: var(--rar-set)}`; an unknown tone gets no colour. Offline, v1733's own scanner
+  logic: 82 referenced, 0 undefined.
+- **v1550** - six /api doors with no caller and no named owner. None is dead: they are walked BY HAND (the GrokBot #37
+  live-build door, two restores, Auto-Sort, two read-only vault probes). Each now names an owner that references and
+  checks it; four had no law at all, so `test_every_operator_door_keeps_its_contract` drives them through the real
+  Handler with a recording board: no write door writes without confirm, each does with it, the probe only reads.
+  3 cases, 2 proofs, PROVEN. The three Playwright specs verify on the next Routine I run (CI only).
+
 ### REG-1258 - THE PUSH GATE ADOPTED WHATEVER BROWSER ANSWERED ON :9224
 
 **fix - found before a push, by the quiesce check.** A headless Chrome on :9224 turned out to belong to ANOTHER
