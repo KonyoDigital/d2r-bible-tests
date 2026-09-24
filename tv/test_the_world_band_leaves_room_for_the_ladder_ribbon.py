@@ -57,8 +57,28 @@ def _rule(css, selector):
     return m.group(1) if m else None
 
 
-def _px(decls, prop):
-    m = re.search(r"(?<![-\w])" + re.escape(prop) + r"\s*:\s*([\d.]+)px", decls or "")
+def _tokens(css):
+    """`--name: value` pairs from the :root rules — the type tokens the visual lock requires."""
+    out = {}
+    for blk in re.findall(r":root\s*\{([^}]*)\}", css):
+        for k, v in re.findall(r"(--[\w-]+)\s*:\s*([^;]+)", blk):
+            out.setdefault(k.strip(), v.strip())
+    return out
+
+
+def _value(decls, prop, tokens):
+    """A declaration's value with one level of var(--token) resolved from :root. -> str | None"""
+    m = re.search(r"(?<![-\w])" + re.escape(prop) + r"\s*:\s*([^;]+)", decls or "")
+    if not m:
+        return None
+    v = m.group(1).strip()
+    t = re.fullmatch(r"var\(\s*(--[\w-]+)\s*\)", v)
+    return tokens.get(t.group(1)) if t else v
+
+
+def _px(decls, prop, tokens=None):
+    v = _value(decls, prop, tokens or {})
+    m = re.fullmatch(r"([\d.]+)px", v or "")
     return float(m.group(1)) if m else None
 
 
@@ -66,6 +86,7 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
 
     def setUp(self):
         self.css = _css()
+        self.tok = _tokens(self.css)
         self.band = _rule(self.css, "#cousin-ribbon")
         self.assertIsNotNone(self.band, "premise: the #cousin-ribbon rule is gone — this law "
                                         "judges nothing, which is UNMEASURED, not clean")
@@ -74,16 +95,20 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
         self.assertIsNone(_BAD_FONT.search(self.band),
                           "#cousin-ribbon uses a font shorthand whose family is a CSS-wide keyword — "
                           "invalid, so the band falls back to the page font (measured 16px, 35px tall)")
-        self.assertIsNotNone(_px(self.band, "font-size"), "the band declares no font size at all")
+        self.assertIsNotNone(_px(self.band, "font-size", self.tok),
+                             "the band declares no font size that resolves to px (tokens: %r)"
+                             % _value(self.band, "font-size", self.tok))
 
     def test_the_band_fits_inside_the_stack_offset_the_ladder_ribbon_was_given(self):
         """THE RESERVE, read from the file on both sides — never the number 22."""
         m = re.search(r"body\.cousin-shell\s+#ladder-ribbon\s*\{[^}]*?top\s*:\s*([\d.]+)px", self.css)
         self.assertIsNotNone(m, "premise: the ladder ribbon's stack offset is gone")
         offset = float(m.group(1))
-        fs = _px(self.band, "font-size")
-        lh = re.search(r"(?<![-\w])line-height\s*:\s*([\d.]+)(px)?", self.band)
-        self.assertTrue(fs and lh, "the band's font-size or line-height is not declared as a number")
+        fs = _px(self.band, "font-size", self.tok)
+        lhv = _value(self.band, "line-height", self.tok) or ""
+        lh = re.fullmatch(r"([\d.]+)(px)?", lhv)
+        self.assertTrue(fs and lh, "the band's font-size or line-height does not resolve to a number "
+                                   "(%r / %r)" % (_value(self.band, "font-size", self.tok), lhv))
         line = float(lh.group(1)) if lh.group(2) else float(lh.group(1)) * fs
         pad = re.search(r"(?<![-\w])padding\s*:\s*([\d.]+)px\s+[\d.]+px\s+([\d.]+)px", self.band)
         self.assertIsNotNone(pad, "premise: the band's vertical padding is not in the shape read here")
@@ -94,7 +119,7 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
                              % (tall, line, pad.group(1), pad.group(2), offset))
         tog = _rule(self.css, "#cousin-ribbon .cr-tog")
         self.assertIsNotNone(tog, "premise: the band's toggle rule is gone")
-        tfs = _px(tog, "font-size")
+        tfs = _px(tog, "font-size", self.tok)
         self.assertTrue(tfs is None or tfs <= fs,
                         "the toggle declares a font larger than the band (%s > %s) — it sets the height"
                         % (tfs, fs))
@@ -118,15 +143,15 @@ RED_PROOF = [
         "why": "#218 - the band's font shorthand restored: `inherit` as the family is invalid, the band "
                "falls back to 16px and paints over the ladder ribbon",
         "file": "bible.html",
-        "find": "font-weight:var(--fw-semibold);font-size:11px;line-height:1;/* #218",
+        "find": "font-weight:var(--fw-semibold);font-size:var(--fs-meta);line-height:var(--lh-none);/* #218",
         "replace": "font:var(--fw-semibold) 11px/1 inherit;/* #218",
         "matches": 1,
     },
     {
         "why": "#218 - a band taller than its stack offset: the reserve law, not the number",
         "file": "bible.html",
-        "find": "font-weight:var(--fw-semibold);font-size:11px;line-height:1;/* #218",
-        "replace": "font-weight:var(--fw-semibold);font-size:16px;line-height:1;/* #218",
+        "find": "font-weight:var(--fw-semibold);font-size:var(--fs-meta);line-height:var(--lh-none);/* #218",
+        "replace": "font-weight:var(--fw-semibold);font-size:16px;line-height:var(--lh-none);/* #218",
         "matches": 1,
     },
 ]
