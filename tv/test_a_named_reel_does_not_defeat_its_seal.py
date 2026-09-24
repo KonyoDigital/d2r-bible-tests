@@ -50,18 +50,25 @@ except Exception:
     pass
 
 import control_app as CA
+import tv_diablo as _TVD
 
 
-SEALED_NOW = {"promptVer": "vp2017", "rows": 0, "ts": 1}     # current reader, found nothing
+# ⚠⚠ #123 — "CURRENT" IS READ, NEVER TYPED. This said "vp2017" for the current vault reader, and
+# VAULT_PROMPT_VER moved to vp3368 on 2026-09-19 (v3368). From then on SEALED_NOW was an OLDER
+# reader's barren seal, _vault_still_sealed correctly reopened it, the door started a sweep, and
+# test_the_door_refuses_before_it_starts_the_thread went red on every machine — the code right, the
+# fixture pinning a number that had outlived its referent. [[label-outlived-referent]]
+CURRENT = _TVD.VAULT_PROMPT_VER
+SEALED_NOW = {"promptVer": CURRENT, "rows": 0, "ts": 1}      # current reader, found nothing
 SEALED_OLD = {"promptVer": "vp0001", "rows": 0, "ts": 1}     # an older eye — reopening is right
-PRODUCTIVE = {"promptVer": "vp2017", "rows": 12, "ts": 1}    # sealed AND it found things
+PRODUCTIVE = {"promptVer": CURRENT, "rows": 12, "ts": 1}     # sealed AND it found things
 
 
 def _still(rec, prompt_ver=None):
     """Stand-in for _vault_still_sealed: a seal holds unless an older reader made it barren."""
     if not rec:
         return False
-    return bool(rec.get("rows")) or rec.get("promptVer") == "vp2017"
+    return bool(rec.get("rows")) or rec.get("promptVer") == CURRENT
 
 
 class TestANamedReelDoesNotDefeatItsSeal(unittest.TestCase):
@@ -94,7 +101,7 @@ class TestANamedReelDoesNotDefeatItsSeal(unittest.TestCase):
                         "the refusal must carry a FLAG, not only prose: v2225 records a watchdog "
                         "that keyed on `'unavailable' in why` and so could not tell a permanent "
                         "refusal from a transient one. Got: %r" % (refusal,))
-        self.assertIn("vp2017", refusal.get("sealedBy", ""),
+        self.assertIn(CURRENT, refusal.get("sealedBy", ""),
                       "the refusal must name WHICH reader sealed it, or the next reader repeats "
                       "my mistake of hunting a stale promptVer that does not exist")
 
@@ -223,6 +230,17 @@ class TestANamedReelDoesNotDefeatItsSeal(unittest.TestCase):
             "ACTUALLY lapsed. Unfiltered, it printed that sentence about seals written by the "
             "current reader — the false message that sent me hunting a stale promptVer. "
             "Block read:\n%s" % blk)
+
+
+RED_PROOF = [
+    {
+        "why": "#123 - the door's synchronous seal check dropped: a reel sealed by the CURRENT reader reports a STARTED sweep again, and the watchdog books a read that never happened",
+        "file": "control_app.py",
+        "find": "            if _pre_rec is not None and _vault_still_sealed(_pre_rec):",
+        "replace": "            if False:",
+        "matches": 1
+    },
+]
 
 
 if __name__ == "__main__":

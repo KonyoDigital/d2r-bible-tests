@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1193 - "THE CURRENT READER" WAS A TYPED NUMBER THAT MOVED FIVE DAYS AGO
+
+**test: after v3486 - #123, one of the 21 CI reds and red locally too.** `test_seal_named`'s fixture called `vp2017` the
+current vault reader. `VAULT_PROMPT_VER` moved to `vp3368` on 2026-09-19 (v3368), so the "sealed by the current reader"
+record became an OLDER reader's barren seal, `_vault_still_sealed` correctly reopened it, the door started a sweep, and
+`test_the_door_refuses_before_it_starts_the_thread` failed on every machine — the code right, the fixture pinning a number
+past its referent. `CURRENT` is now read from `tv_diablo.VAULT_PROMPT_VER`. 11/11. The gate had NO red-proof (one of the
+42 the heart counts as carrying none): +1 (drop the door's synchronous seal check) — PROVEN.
+
 ### REG-1192 - A THREAD THAT NEVER STARTED LEFT ITS SNAPSHOT BEHIND
 
 **v3486 - the cross-family eye on the SHIPPED v3483 bytes (grok-cli, 1 Low finding, confirmed by reading).** v3483's
