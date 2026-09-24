@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1178 - THE PARALLEL-PROOF LAW NEVER RAN THE REAL PROVER
+
+**v3478 - #195, raised by the cross-family eye on the shipped v3451 bytes.** Every agreement case in
+`test_a_parallel_proof_is_the_same_proof.py` patched `heart2._prove_one` to one `_verdict_for` table,
+so 1 lane and 4 lanes answered from the same stub and the lane count could not move a verdict BY
+CONSTRUCTION — a shared sandbox, a racing restore or a neighbour's live tamper would all stay green.
+The new case runs the REAL `_prove_gates → _prove_one → _run_gate` with real subprocesses in real
+per-lane trees whose gates WATCH their neighbours' tamper targets; only `make_sandbox` is swapped, for
+a tiny tree. It checks the premise (runs really overlapped at 4 lanes, never at 1), the verdicts against
+the design AND each other, and the trees on disk. Its proof hands every lane ONE sandbox. MEASURED: with
+a single shared dwell the lanes ran in lock-step and the sabotage moved a verdict in only **2 of 6**
+runs; slow readers over fast tamperers made it **8 of 8**, clean 8 of 8 green. Measured over the 507
+proved gates and NOT isolated by heart2: ports (all bind 0), `$TMPDIR` names (each unique to one gate),
+fixture ledgers (per-pid), :17772 (one GET). None shared today; a future one is outside this law.
+
 ### REG-1177 - THE SHARDS WERE BALANCED ON A PROXY, AND THE FIRST SHARDED RUN SHOWED IT
 
 **v3477 - #184 follow-up.** v3472 split the gate set by each gate's DECLARED timeout. The first

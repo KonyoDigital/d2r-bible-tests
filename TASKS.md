@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3477** | `(this commit)` | v3477 — run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates |
+| **v3478** | `(this commit)` | v3478 — the lane-agreement law now runs the REAL heart2 prover in per-lane trees whose gates watch each other tamper targets; a shared sandbox moves a verdict 8 of 8 |
+| **v3477** | `2c386b6c` | v3477 — run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates |
 | **v3476** | `78ff853f` | v3476 — every RED_PROOF assignment is judged, a gate file that will not parse is its own state in the census and the prover, and the census is driven over planted files |
 | **v3475** | `a33a7ed5` | v3475 — the baker leaves a dated receipt on every run and a doctor row reads its age, never re-running the baker; fixtures redirect the receipt |
 | **v3474** | `545d32cb` | v3474 — RESUME_HERE states only the version its writer knows, HEAD origin and unpushed are asked live by resume_state --live, and every reader of the old fingerprint moved with it |

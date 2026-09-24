@@ -543,7 +543,178 @@ class TheRestoreHolds(unittest.TestCase):
         self.assertEqual(self._sha(), self.sha, "the subject was not restored after the roll-up")
 
 
+# ── #195: the agreement, measured on the REAL prover ─────────────────────────────────────────
+_SUBJECTS = 4
+# (gate, the subjects it READS, how long it WATCHES them, its proofs as (subject it tampers,
+# anchor)). Every gate reads a subject its NEIGHBOUR tampers — the 446-of-497 shape above.
+# ⚠ MEASURED: with one shared dwell the lanes run in LOCK-STEP — every clean run together, then
+# every tampered run together — so a clean run almost never overlapped a neighbour's tamper, and a
+# shared-tree sabotage moved a verdict in only 2 of 6 runs. So two SLOW readers (real-2, real-3)
+# watch the subjects two FAST gates (real-1, real-0) tamper, and they watch continuously: a tamper
+# landing anywhere inside their run is seen, whatever the scheduler does.
+_REAL_GATES = (
+    ("real-0", (0, 1), 0.05, ((0, 'MODE = "GOOD"'),)),
+    ("real-1", (1, 2), 0.05, ((1, 'MODE = "GOOD"'),)),
+    ("real-2", (2, 1), 0.35, ((2, 'MODE = "GOOD"'), (2, 'MODE = "NEVER"'))),
+    ("real-3", (3, 0), 0.40, ((3, 'MODE = "GOOD"'),)),
+    ("real-4", (1, 3), 0.05, ((0, 'MODE = "GOOD"'),)),
+    ("real-5", (), 0.05, ()),
+)
+_REAL_EXPECTED = {
+    "real-0": [H.PROVEN], "real-1": [H.PROVEN],
+    "real-2": [H.PROVEN, H.INVALID],     # the second anchor is not in the file
+    "real-3": [H.PROVEN],
+    "real-4": [H.BLIND],                 # it tampers s0 and never reads it
+    "real-5": [H.UNPROVABLE],            # red before anything is tampered
+}
+
+
+def _real_gate_src(reads, dwell, always_red=False):
+    """A gate that WATCHES its subjects for `dwell` seconds and goes red if any read is not GOOD
+    — so a neighbour's tamper landing anywhere inside its run turns it red. It logs its own
+    start/end so the premise (lanes really overlapped) is measured rather than assumed."""
+    return ("import io, os, sys, time\n"
+            "here = os.path.dirname(os.path.abspath(__file__))\n"
+            "t0 = time.time()\n"
+            "def good():\n"
+            "    return all('MODE = \"GOOD\"' in io.open(os.path.join(here, 's%%d.py' %% i),\n"
+            "               encoding='utf-8').read() for i in %r)\n"
+            "ok = good()\n"
+            "while time.time() < t0 + %r:\n"
+            "    time.sleep(0.005)\n"
+            "    ok = good() and ok\n"
+            "ok = ok and not %r\n"
+            "log = os.environ.get('H2LAW_OVERLAP')\n"
+            "if log:\n"
+            "    with io.open(log, 'a', encoding='utf-8') as fh:\n"
+            "        fh.write('%%f %%f\\n' %% (t0, time.time()))\n"
+            "print('Ran 1 test in 0.0s')\n"
+            "print('OK' if ok else 'FAILED (failures=1)')\n"
+            "sys.exit(0 if ok else 1)\n" % (tuple(reads), float(dwell), bool(always_red)))
+
+
+class _RealSandboxes(object):
+    """make_sandbox stand-in that builds a REAL, complete, separate tree per call — subjects and
+    gates both — so the REAL _prove_one tampers, runs and restores there with real subprocesses."""
+
+    def __init__(self):
+        self.made, self.lock = [], threading.Lock()
+
+    def make(self, say=print):
+        root = tempfile.mkdtemp(prefix="h2reallane.")
+        tv = os.path.join(root, "repo", "tv")
+        os.makedirs(tv)
+        for i in range(_SUBJECTS):
+            with io.open(os.path.join(tv, "s%d.py" % i), "w", encoding="utf-8") as fh:
+                fh.write('MODE = "GOOD"\n')
+        for name, reads, dwell, prs in _REAL_GATES:
+            with io.open(os.path.join(tv, name.replace("-", "_") + ".py"), "w",
+                         encoding="utf-8") as fh:
+                fh.write(_real_gate_src(reads, dwell, always_red=not prs))
+        with self.lock:
+            self.made.append(root)
+        return tv, root
+
+
+def _real_have():
+    out = []
+    for name, _reads, _dwell, prs in _REAL_GATES:
+        proofs = [{"why": "fixture", "file": "s%d.py" % s, "find": a,
+                   "replace": 'MODE = "BAD"', "matches": 1} for s, a in prs]
+        if not proofs:      # UNPROVABLE needs a proof to be asked about at all
+            proofs = [{"why": "fixture", "file": "s0.py", "find": 'MODE = "GOOD"',
+                       "replace": 'MODE = "BAD"', "matches": 1}]
+        out.append((name, name.replace("-", "_") + ".py", proofs))
+    return out
+
+
+def _peak_overlap(path):
+    """The most gate runs alive at one instant, read from the runs' own clocks."""
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            spans = [tuple(float(x) for x in ln.split()) for ln in fh if ln.strip()]
+    except (IOError, OSError, ValueError):
+        return 0, 0
+    edges = sorted([(a, 1) for a, _b in spans] + [(b, -1) for _a, b in spans],
+                   key=lambda e: (e[0], e[1]))
+    live = peak = 0
+    for _t, d in edges:
+        live += d
+        peak = max(peak, live)
+    return peak, len(spans)
+
+
+class TheRealProverAgreesAcrossLanes(unittest.TestCase):
+    """⚠⚠ #195 — EVERY AGREEMENT LAW ABOVE PATCHES _prove_one TO A STUB. Both legs then answer
+    from the same `_verdict_for` table, so the lane count cannot change a verdict BY
+    CONSTRUCTION, and any real interference — a shared sandbox, a racing restore, a subject a
+    neighbour is holding tampered — would leave them green. Raised by the cross-family eye on
+    the shipped v3451 bytes; the mechanism was read and confirmed (`_run_gate` holds no lock and
+    up to four run at once).
+
+    So this runs the REAL _prove_gates → _prove_lane → _prove_gate → _prove_one → _run_gate,
+    with real subprocesses, in real per-lane trees whose gates read their NEIGHBOURS' tamper
+    targets. Only make_sandbox is swapped, for a tiny tree instead of a 43 MB copy.
+
+    ⚠ WHAT THIS DOES NOT COVER, measured 2026-09-24 over the 507 proved gates rather than
+    assumed: interference OUTSIDE the sandbox — ports, $TMPDIR names, his console — is not
+    isolated by heart2 at all. Today none is shared: every server binds port 0, the fixture
+    ledgers are per-pid, each fixed temp name belongs to one gate, the one gate file registered
+    twice (lane_census.py) writes nothing, and exactly one gate reaches :17772 (a GET of
+    /api/status). A future gate that breaks one of those is invisible here.
+    [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    """
+
+    def _run(self, workers):
+        sbs, tmp = _RealSandboxes(), tempfile.mkdtemp(prefix="h2overlap.")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        log = os.path.join(tmp, "spans.txt")
+        with _Env(H2LAW_OVERLAP=log, HEART2_PROVE_WORKERS=None):
+            with _Patch(make_sandbox=sbs.make):
+                res, det = H._prove_gates(_real_have(), say=_quiet, workers=workers)
+        return res, det, sbs, _peak_overlap(log)
+
+    def test_the_real_prover_gives_the_same_verdicts_in_one_lane_and_in_four(self):
+        res1, det1, sbs1, (peak1, n1) = self._run(1)
+        res4, det4, sbs4, (peak4, n4) = self._run(4)
+        # the premise first — or the comparison is the serial loop against itself
+        self.assertGreaterEqual(peak4, 2,
+                                "no two gate runs were ever alive at once in the 4-lane run (%d "
+                                "runs logged) — the lanes never overlapped, so agreement here "
+                                "would prove nothing about concurrency" % n4)
+        self.assertEqual(peak1, 1, "the 1-lane run had %d runs alive at once — it is not the "
+                         "serial loop it is being compared against" % peak1)
+        # then the verdicts, proof by proof, against the design as well as each other — two
+        # legs agreeing on a wrong answer is not agreement worth having. These come BEFORE the
+        # structural checks below on purpose: a shared tree must show up as a MOVED VERDICT,
+        # which is the consequence, not only as a tree count, which the stub law already reads.
+        self.assertEqual(det1, _REAL_EXPECTED,
+                         "the SERIAL real prover disagrees with the fixture's design: %r" % det1)
+        self.assertEqual(det4, det1,
+                         "four lanes moved a verdict the serial loop gave: %r vs %r"
+                         % (det4, det1))
+        self.assertEqual(res4, res1)
+        self.assertEqual(n1, n4, "the two runs launched different numbers of gate processes "
+                         "(%d vs %d)" % (n1, n4))
+        self.assertEqual(len(sbs4.made), 4, "the 4-lane run built %d tree(s), not one per lane"
+                         % len(sbs4.made))
+        for sbs in (sbs1, sbs4):
+            left = [r for r in sbs.made if os.path.exists(r)]
+            self.assertEqual(left, [], "a lane left its tree behind: %r" % left)
+
+
 RED_PROOF = [
+    {
+        "why": "ONE sandbox built up front and handed to every lane is the unsafe shared split "
+               "the docstring measured: a neighbour's tamper reddens an innocent gate and the "
+               "restores race. #195 — only the law on the REAL prover sees the verdicts move",
+        "file": "heart2.py",
+        "find": "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)\n",
+        "replace": "                _one = make_sandbox(say)\n"
+                   "                globals()[\"make_sandbox\"] = lambda _say=None: (_one[0], None)\n"
+                   "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)\n",
+        "matches": 1,
+    },
     {
         "why": "restoring the single-lane clamp makes --prove serial again while this file still "
                "reports it parallel — the speedup vanishes and the comparison silently becomes "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3477",
+  "ver": "v3478",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3477: run_gates balances the CI shards on measured gate cost from the first sharded run (729s vs 728s instead of 8m41s vs 17m25s), median for unseen gates",
+  "note": "v3478: the lane-agreement law now runs the REAL heart2 prover in per-lane trees whose gates watch each other tamper targets; a shared sandbox moves a verdict 8 of 8",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
