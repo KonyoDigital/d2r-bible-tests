@@ -253,6 +253,14 @@ REGISTRY = {
         "MEASURED v3377: does not move with a later CASC_FRAMEWORK. 1 call-time reader, passed "
         "as DYLD_FRAMEWORK_PATH to the subprocess env. READ-ONLY."),
 
+    # ---- bake_seed (v3475, mine; registered #219 after CI caught it unregistered).
+    "bake_seed.py:RECEIPT": (
+        "TV_BAKE_RECEIPT", "call-time",
+        "MEASURED: write_receipt() re-reads TV_BAKE_RECEIPT at CALL TIME before falling back to "
+        "this constant, and the doctor row 'the seed was checked against his board' reads it the "
+        "same way, so a later env redirect moves BOTH the writer and the reader. It names his "
+        "live .bake_seed_receipt.json (gitignored): tests are redirected by "
+        "fixture_ledgers.redirect(), and patching the constant alone would move neither."),
     # ---- frozen_frames (v3367, mine): ⚠⚠ THE CONSTANT AND THE LIVE RESOLVER DISAGREE BY DESIGN.
     "frozen_frames.py:DEFAULT_DIR": (
         "TV_GB_SHELF", "import-bound",

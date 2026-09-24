@@ -32,13 +32,26 @@ _ROW = re.compile(r"(✅|❌|⚠|⛔)\s+(\S+)\s+([0-9.]+)s\s")
 
 
 def load(path=None):
-    """-> {gate: seconds} or {} when there is no table (the caller then falls back)."""
+    """-> {gate: seconds}; {} when there is NO table; None when a table exists and cannot be read.
+
+    ⚠ #219 — v3477 answered {} for both, and swallow_ratchet caught it on CI (0 -> 1): a corrupt
+    table and an absent one are different facts. Absent is a state the caller acts on (fall back to
+    declared timeouts); unreadable is UNKNOWN and must say so, or the shards are silently re-cut on
+    the proxy v3477 replaced and nothing tells anyone. [[unknown-stays-unknown]]
+    """
+    p = path or TABLE
     try:
-        with io.open(path or TABLE, encoding="utf-8") as fh:
+        with io.open(p, encoding="utf-8") as fh:
             d = json.load(fh)
         return dict((k, float(v)) for k, v in (d.get("costs") or {}).items())
-    except Exception:
+    except FileNotFoundError:
         return {}
+    except Exception as e:
+        print("gate_costs: %s exists but could not be read (%s) — shards fall back to DECLARED "
+              "timeouts, which is UNKNOWN balance, not measured" % (os.path.basename(p),
+                                                                   type(e).__name__),
+              file=sys.stderr)
+        return None
 
 
 def from_logs(paths):

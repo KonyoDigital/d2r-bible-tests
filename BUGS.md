@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1182 - TWO OF MY OWN SHIPS WENT RED ON CI AND THE LOCAL PUSH COULD NOT SEE EITHER
+
+**fix: after v3480 - #219.** Read BY DELTA from CI run 35943284218 (v3477) against 35939383947 (v3473):
+27 red vs 26, cleared 2 as predicted, NEW 3. Two were mine. (1) `swallow_ratchet`: v3477's
+`gate_costs.load()` handed a failed read back as `{}` (tv/gate_costs.py 0 -> 1), so a corrupt cost table
+and an absent one looked alike and the shards would silently re-cut on the proxy v3477 replaced. Now:
+`FileNotFoundError` -> `{}` (absence is a fact), anything else -> says so on stderr and returns `None`
+(UNKNOWN). (2) `test_import_bound_paths`: v3475's `bake_seed.RECEIPT` was never registered; it is
+`call-time` (writer and doctor both re-read `TV_BAKE_RECEIPT`). Also corrected `shard_names`' docstring,
+which still said "DECLARED timeout … a proxy" after v3477. ⚠ Neither gate runs in hooks/pre-push — both
+are CI-only, which is why a green local push said nothing. The third new red, `verdict_provenance`
+("BACKWARDS in 5 places" on CI, 1 locally), is still being reproduced in a clean checkout.
+
 ### REG-1181 - THE SLOT JOINT'S GUARD USED GEOMETRY THAT DERIVES, SO ITS PROOF WAS BLIND
 
 **v3480 - #192 half 1.** The full census filed `test_the_river_reaches_the_heart` BLIND on ONE of its 8

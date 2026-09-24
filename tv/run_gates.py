@@ -7205,11 +7205,13 @@ def shard_names(k, n, gates=None):
     workflow's own words are the ruling — "The fix is to shard the gate set, never to raise the
     ceiling" — and test_a_cut_off_gate_set_is_not_a_verdict caps the ceiling at 25 to hold it.
 
-    Longest-processing-time greedy on each gate's DECLARED timeout: heaviest first into the lightest
-    slice, ties by name, so every run on every machine cuts the SAME slices. The union of all N slices
-    is the whole set and they are disjoint — both pinned by test_the_gate_set_shards_cleanly.
-    ⚠ Declared timeout is a proxy for cost, not a measurement; the per-gate durations the run prints
-    are what would tune it.
+    Longest-processing-time greedy on each gate's cost_weights() — MEASURED CI seconds from
+    tv/gate_costs.json since v3477 (the median for a gate the table has not seen, declared timeout
+    only when there is no readable table): heaviest first into the lightest slice, ties by name, so
+    every run on every machine cuts the SAME slices. The union of all N slices is the whole set and
+    they are disjoint — both pinned by test_the_gate_set_shards_cleanly.
+    ⚠ #219 — this said "DECLARED timeout … a proxy" for a release after v3477 replaced it: a label
+    that outlived its referent. Witnessed on CI run 35943284218: 13m33s / 13m58s.
     """
     gates = list(GATES if gates is None else gates)
     if not (1 <= int(k) <= int(n)) or int(n) > len(gates):
