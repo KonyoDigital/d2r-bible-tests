@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1198 - THE BAND'S PARSE LAW FAILED OPEN IN THREE PLACES
+
+**test: after v3487 - the cross-family eye on the SHIPPED v3485 bytes (grok-cli, 6 findings).** VALID and fixed, each a
+fail-OPEN in my own law: [1] the stack-offset reader had no word boundary before `top`, so a `padding-top:` in that rule
+would be read as the offset; [2] a DECLARED toggle size in em/pt resolved to None and passed unjudged, and a `%`
+line-height would have been multiplied as a number — both now REFUSE; [3] `_rule` also matched a longer selector ending in
+the id, and the ratchet scanned JS strings — rules must now begin at a line start or after `}`, and only <style> blocks are
+read (still 9 sites). REFUTED: [0] "the #cousin-ribbon rule was deleted" — the payload strips comments, and the new line
+carries one; the law's setUp finds the rule and the render measured it. DESIGN, kept: [4] the double binding is checked
+before readability (the census refuses either way; readability is judged once the lists are merged). 3/3, 2/2 PROVEN.
+
 ### REG-1197 - THE WORD-BOUNDARY CLOCK DROPPED `updated_At`
 
 **fix: after v3487 - the cross-family eye on the SHIPPED v3484 bytes (grok-cli, 3 findings).** [1] VALID: v3484's

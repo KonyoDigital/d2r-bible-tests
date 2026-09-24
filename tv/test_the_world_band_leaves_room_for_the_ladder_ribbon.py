@@ -45,15 +45,22 @@ _BAD_FONT = re.compile(r"(?<![-\w])font\s*:\s*[^;{}]*?\d(?:\.\d+)?(?:px|em|rem)(
 
 
 def _css():
+    """Every <style> block's text, comments stripped — never the whole file.
+
+    ⚠ The eye on the shipped v3485, finding [3]: scanning all of bible.html let a JS STRING move the
+    shorthand count, and a rule QUOTED in a comment could satisfy or fail anything."""
     with io.open(BIBLE, encoding="utf-8") as fh:
         src = fh.read()
-    # comments stripped, so a rule QUOTED in a comment cannot satisfy or fail anything
-    return re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    css = "\n".join(re.findall(r"<style[^>]*>(.*?)</style>", src, flags=re.S | re.I))
+    return re.sub(r"/\*.*?\*/", " ", css, flags=re.S)
 
 
 def _rule(css, selector):
-    """The declaration block of the FIRST rule whose selector is exactly `selector`."""
-    m = re.search(r"(?:^|[}\s])" + re.escape(selector) + r"\s*\{([^}]*)\}", css)
+    """The declaration block of the FIRST rule whose selector is EXACTLY `selector`.
+
+    ⚠ Finding [3]: `[}\s]#id{` also matched `body.cousin-min #cousin-ribbon{`. The selector must
+    begin a rule — at a line start or right after a closing brace."""
+    m = re.search(r"(?:^|\})\s*" + re.escape(selector) + r"\s*\{([^}]*)\}", css, flags=re.M)
     return m.group(1) if m else None
 
 
@@ -101,11 +108,15 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
 
     def test_the_band_fits_inside_the_stack_offset_the_ladder_ribbon_was_given(self):
         """THE RESERVE, read from the file on both sides — never the number 22."""
-        m = re.search(r"body\.cousin-shell\s+#ladder-ribbon\s*\{[^}]*?top\s*:\s*([\d.]+)px", self.css)
+        # ⚠ finding [1]: a word boundary, or `padding-top:`/`margin-top:` would be read as the offset
+        m = re.search(r"body\.cousin-shell\s+#ladder-ribbon\s*\{[^}]*?(?<![-\w])top\s*:\s*([\d.]+)px",
+                      self.css)
         self.assertIsNotNone(m, "premise: the ladder ribbon's stack offset is gone")
         offset = float(m.group(1))
         fs = _px(self.band, "font-size", self.tok)
         lhv = _value(self.band, "line-height", self.tok) or ""
+        # ⚠ finding [2]: a unitless number or px only — `120%` or `1.2em` must REFUSE, never be
+        # read as 120 and multiplied
         lh = re.fullmatch(r"([\d.]+)(px)?", lhv)
         self.assertTrue(fs and lh, "the band's font-size or line-height does not resolve to a number "
                                    "(%r / %r)" % (_value(self.band, "font-size", self.tok), lhv))
@@ -119,7 +130,13 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
                              % (tall, line, pad.group(1), pad.group(2), offset))
         tog = _rule(self.css, "#cousin-ribbon .cr-tog")
         self.assertIsNotNone(tog, "premise: the band's toggle rule is gone")
+        # ⚠ finding [2]: a DECLARED toggle size that is not px (2em, 20pt) was passed unjudged. Declared
+        # and unreadable is a refusal; only an absent one inherits the band's size.
+        tval = _value(tog, "font-size", self.tok)
         tfs = _px(tog, "font-size", self.tok)
+        self.assertFalse(tval is not None and tval != "inherit" and tfs is None,
+                         "the toggle declares font-size %r, which this law cannot resolve to px — "
+                         "it may set a line box taller than the stack offset" % tval)
         self.assertTrue(tfs is None or tfs <= fs,
                         "the toggle declares a font larger than the band (%s > %s) — it sets the height"
                         % (tfs, fs))
