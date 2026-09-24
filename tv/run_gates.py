@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_measured_bit_crosses_the_relay",
+         [sys.executable, os.path.join(HERE, "test_the_measured_bit_crosses_the_relay.py")], 60,
+         why="the doctor row 'a tally agrees with its own ledger verdict' read MISSING for every fleet row, v3499 "
+             "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
+             "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
+             "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
     Gate("test_a_receipt_row_is_not_a_beat",
          [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
          why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "

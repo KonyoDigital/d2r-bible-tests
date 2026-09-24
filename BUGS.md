@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1256 - THE FLEET RELAY DROPPED THE `measured` BIT: THE SIXTH JOINT OF ONE FEATURE
+
+**fix - found by the doctor row "a tally agrees with its own ledger verdict", read live on his console (GET /api/eagle).**
+3 of 3 judged rows published counts their own ledger verdict refuses, measured=None on every one. The row's docstring
+blames consoles older than v3389 - but /api/fleet showed three v3499 consoles with no `measured` either. The tally seals
+it (`_seal_tally_verdict`, v3389); `functions/api/console.js` stores fleet rows by copying the tally through a FIXED KEY
+LIST that forwarded ledgerVerdict and onOwnerSeed and dropped measured / measuredWhy. The same file's comments already
+count five earlier fields lost at this exact shaper. Now forwarded, tri-state like onOwnerSeed (a real boolean crosses;
+anything else is null = UNKNOWN), measuredWhy trimmed to 200 chars. Takes effect when the site deploys and each machine
+beacons again. Guard: `test_the_measured_bit_crosses_the_relay` - the REAL shaper extracted from console.js runs in node
+(4 cases, 1 proof), PROVEN.
+
 ### REG-1255 - A RECEIPT ROW BECAME A 1970 BEAT, AND THE ROUNDTRIP TEST GRADED HIS LIVE FRAMES FOLDER
 
 **fix - #238, found by the full local gate run and traced to its writer.** test_roundtrip_sim errored `'<' not supported

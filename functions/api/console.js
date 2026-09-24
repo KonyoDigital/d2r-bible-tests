@@ -211,6 +211,14 @@ export async function onRequestPost(context) {
                     // Passed through as-is: it is the authority's own object, and re-deriving any
                     // part of it here would make a second opinion nobody reconciles.
                     ledgerVerdict: (t.ledgerVerdict && typeof t.ledgerVerdict === 'object') ? t.ledgerVerdict : null,
+                    // ⚠⚠ THE SIXTH JOINT, found by the doctor row "a tally agrees with its own ledger verdict":
+                    // v3389 seals `measured` (true / false / null) + `measuredWhy` on every tally, and this key
+                    // list dropped both - so every fleet row, v3499 consoles included, arrived with no
+                    // `measured` and the row read MISSING for all of them. Tri-state, shaped like onOwnerSeed:
+                    // a real boolean crosses, anything else is null = UNKNOWN. [[the-unjoined-end]]
+                    measured: (typeof t.measured === 'boolean') ? t.measured : null,
+                    measuredWhy: (typeof t.measuredWhy === 'string')
+                      ? t.measuredWhy.replace(/\s+/g, ' ').trim().slice(0, 200) : null,
                     at: Number.isFinite(at) ? at : null };
       if (!out.ok) {
         const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';
