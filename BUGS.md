@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1234 - A STATIC SERVER ON LOOPBACK WAS TAKEN FOR A CONSOLE (v3494's any-port rule)
+
+**fix - the review after ship: Routine I on ea76abff, attributed by delta.** 26 failing specs on 39b495f3, 29 on ea76abff;
+the three new: v1694_visits_identity, v1812_tab_strip_edge_fade, v527_loot_filter_card. v1694 is MINE and MEASURED: v3494
+let `_eagleNYBase` treat ANY loopback http page as its console's own, and CI's Playwright serves this repo over loopback at
+a random port with no console - so the board polled /api/status on a static server and painted "waiting-on-you: UNKNOWN -
+the console did not answer (Unexpected token '<' ...)" (reproduced on a scratch static server), and v1694's element count
+drifted 30286 -> 30292 between two loads. The rule now also requires the console's own route, `/board` (control_app's one
+route for bible.html; a static server never serves it) - with one or more leading slashes, because the render harness
+joins origin + path into `//board` and a first cut of this very fix refused it (inbox-asks could not activate; its
+`activateWhy` named `path: //board`). Re-measured: the static board says "not connected", inbox-asks and pop-asks green.
+Guard: `test_the_waiting_on_you_reaches_the_inbox` +1 case (/bible.html not a console; /board and //board are), +1 proof,
+11/11 PROVEN. UNMEASURED: v1812 and v527 did not reproduce locally (a CDP re-enactment of v1812 reads `start` on both
+this tree and ea76abff) - re-read on the next CI run, not assumed fixed.
+
 ### REG-1233 - CI RED ON ea76abff: THREE GATES THE PRE-PUSH DOES NOT RUN
 
 **fix - the review after ship, CI read by delta.** On 39b495f3 the agent tests had 2 reds (`test_reg600_axes_can_refuse`,

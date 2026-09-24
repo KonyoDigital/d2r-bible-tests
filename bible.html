@@ -51933,11 +51933,18 @@ window._CH_PILL_MAP = {
        probes a laptop that is not there. */
     try {
       if (/(:|^)(17772|17771)\b/.test(String(location.host || ''))) return '';
-      /* #223 -- a page served over http by 127.0.0.1/localhost WAS served by a console, whatever its
-         port: a second console, a box on another port, or the render harness's private console.
-         The port test alone read every one of those as "not connected" and drew no question. */
+      /* #223 -- a page served over http by 127.0.0.1/localhost AT /board was served by a console,
+         whatever its port: a second console, a box on another port, or the render harness's private
+         console. The port test alone read every one of those as "not connected" and drew no question.
+         ⚠ AT /board, AND THAT IS THE WHOLE CONDITION. The first cut took any loopback page, and CI's
+         Playwright serves this repo over loopback http at a random port with NO console behind it:
+         the board then polled /api/status on a static server and painted "waiting-on-you: UNKNOWN -
+         the console did not answer (Unexpected token '<' ...)" (measured on a scratch static server),
+         and v1694's node count drifted 30286 -> 30292 between two loads. control_app serves the board
+         ONLY at /board (its one route for bible.html); a static server never does. */
       if (String(location.protocol || '') === 'http:'
-          && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(location.host || ''))) return '';
+          && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(location.host || ''))
+          && /^\/+board\/?$/.test(String(location.pathname || ''))) return '';   /* //board: an origin+path join, and the console serves it */
       if (String(location.protocol || '') === 'file:') return 'http://127.0.0.1:17772';
     } catch(e){}
     return null;

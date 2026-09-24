@@ -40,7 +40,7 @@ def _block():
 
 class TheWaitingOnYouReachesTheInbox(unittest.TestCase):
 
-    def _run(self, host, state=None, post="", protocol="http:"):
+    def _run(self, host, state=None, post="", protocol="http:", pathname="/board"):
         """Execute the shipped painter/fetch in node. -> {html, hidden, cache}"""
         blk = _block()
         if blk is None:
@@ -49,9 +49,9 @@ class TheWaitingOnYouReachesTheInbox(unittest.TestCase):
         js = ("var _host = { hidden: true, innerHTML: '' };\n"
               "var document = { getElementById: function(id){ "
               "return id === 'ibx-needsyou' ? _host : null; } };\n"
-              "var location = { host: %s, protocol: %s };\n"
+              "var location = { host: %s, protocol: %s, pathname: %s };\n"
               "var setInterval = function(){};\n"
-              % (json.dumps(host), json.dumps(protocol))) + blk + "\n"
+              % (json.dumps(host), json.dumps(protocol), json.dumps(pathname))) + blk + "\n"
         if state is not None:
             js += "_eagleNY = %s;\n" % json.dumps(state)
         js += "_eagleNYPaint();\n" + post + (
@@ -259,6 +259,25 @@ setTimeout(function(){
         self.assertNotIn("not connected", got["html"])
         self.assertIn('data-key="keep"', got["html"])
 
+    def test_a_static_server_on_loopback_is_not_a_console(self):
+        """#223 — CI's Playwright serves this repo over loopback http at a random port with NO console
+        behind it. The first cut of the any-port rule made that board poll /api/status and paint
+        'the console did not answer (Unexpected token <...)', and v1694's node count drifted between
+        two loads. control_app serves the board only at /board; a static server never does."""
+        got = self._run("127.0.0.1:41234", state=None, pathname="/bible.html",
+                        post="_eagleNY.base = _eagleNYBase();")
+        self.assertIsNone(got["cache"].get("base"),
+                          "a statically served board on loopback probes a console that is not there")
+        got2 = self._run("127.0.0.1:41234", state=None, pathname="/board",
+                         post="_eagleNY.base = _eagleNYBase();")
+        self.assertEqual(got2["cache"].get("base"), "",
+                         "premise: the same host at /board IS a console's page")
+        got3 = self._run("127.0.0.1:41234", state=None, pathname="//board",
+                         post="_eagleNY.base = _eagleNYBase();")
+        self.assertEqual(got3["cache"].get("base"), "",
+                         "//board (an origin+path join; the render harness builds exactly this URL, and "
+                         "the console serves it) read as not-a-console")
+
     def test_a_board_off_disk_says_where_to_answer_instead(self):
         """A file:// board sends Origin null, which the console refuses; a button that can only
         fail is worse than a sentence saying where the answer goes."""
@@ -426,6 +445,13 @@ setTimeout(function(){
 
 
 RED_PROOF = [
+    {
+        "why": "#223 - any loopback page counts as a console again: CI's static server polls /api/status and paints a console fault",
+        "file": "bible.html",
+        "find": "          && /^\\/+board\\/?$/.test(String(location.pathname || ''))) return '';",
+        "replace": "          ) return '';\n",
+        "matches": 1,
+    },
     {
         "why": "#223 - a board served by a console on another port reads 'not connected' again and draws no question",
         "file": "bible.html",
