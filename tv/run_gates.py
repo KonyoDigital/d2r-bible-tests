@@ -5312,6 +5312,14 @@ GATES = [
          # #123 — and EMPTY, which is not that defect: a directory machine_tree.establish() built,
          # holding nothing, on a host whose ledger never closed a reel (reel_demo._shelf decides).
          skip_ok=(r"reel shelf is (?:absent|empty) on this venue",)),
+    Gate("test_a_relaunch_leaves_a_receipt",
+         [sys.executable, os.path.join(HERE, "test_a_relaunch_leaves_a_receipt.py")], 60,
+         why="#225 - the Windows ALT console died relaunching into v3419 with NO trace (pythonw drops "
+             "stdout; on Windows os.execv starts a NEW pid that can contest the mutex and :17772 while "
+             "its parent still holds them). Now a boot log is written before the mutex/bind checks, both "
+             "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
+             "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
+             "parent). 8 cases, 3 red-proofs"),
     Gate("test_an_exec_leaves_no_corpse",
          [sys.executable, os.path.join(HERE, "test_an_exec_leaves_no_corpse.py")], 90,
          why="#224 - 35 <defunct> ocr_mac children under his console, one per in-place os.execv relaunch "

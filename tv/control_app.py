@@ -15512,6 +15512,14 @@ def _before_exec(where):
     except Exception as _e:
         print("   before exec (%s): quiesce could not run (%s) - a warm worker may be left <defunct>"
               % (where, type(_e).__name__), flush=True)
+    # #225 — a relaunch that leaves a RECEIPT, and names this pid so a Windows child (a NEW pid there)
+    # waits for this image to exit before it takes the mutex and binds. Never blocks the exec.
+    try:
+        import win_relaunch as _wr
+        _wr.write_receipt(where)
+        _wr.boot_log("relaunch-exec", where=where)
+    except Exception:
+        pass
 
 
 def _exec_relaunch_now():
@@ -36261,6 +36269,18 @@ def main():
         _bv = "?"
     print("\U0001f680 CONSOLE BOOT %s pid=%d %s"
           % (_bv, os.getpid(), time.strftime("%Y-%m-%dT%H:%M:%S")), flush=True)
+    # ⚠⚠ #225 — WRITE IT DOWN BEFORE ANYTHING CAN EXIT QUIETLY. The Windows ALT console died relaunching
+    # into v3419 with NO trace (pythonw drops stdout). The boot log is a file, written before the mutex
+    # and bind checks; an uncaught exception lands there too; and on Windows — where os.execv starts a
+    # NEW pid — the child waits for its parent to exit before it contests the mutex and the port.
+    try:
+        import win_relaunch as _wr
+        _wr.install_excepthook()
+        _wait = _wr.wait_for_parent()
+        _wr.boot_log("boot", ver=_bv, argv=sys.argv[1:], platform=sys.platform,
+                     relaunch=_wr.read_receipt(), parentWait=_wait)
+    except Exception:
+        _wr = None
     if "--board-window" in sys.argv:
         board_window()
         return
@@ -36284,11 +36304,19 @@ def main():
               "mutex is scoped per port." % CONTROL_PORT, flush=True)
         if open_ui:
             _win_focus_existing_console()
+        try:
+            _wr and _wr.boot_log("exit-mutex-not-owned", port=CONTROL_PORT)
+        except Exception:
+            pass
         sys.exit(0)
 
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
+        try:
+            _wr and _wr.boot_log("bind-failed", port=CONTROL_PORT, error=str(e)[:200])
+        except Exception:
+            pass
         # v1248 — TAKEOVER (Konyo: "it says already open"). The port is held, usually by the
         # supervisor's always-up HEADLESS console (--no-open, no window).
         # v1251 — LIVE-SCAN RECLAIM: a window-only attach left the headless process as the

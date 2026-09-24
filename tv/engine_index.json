@@ -2134,6 +2134,18 @@
     "purpose": "Reads the last commit SUBJECT: if it names vNNNN, the four stamps (D2R_BUILD.id, tv_diablo.VERSION, WINDOWS_SHIP.json, control_app ver) must equal the HIGHEST named. Writes nothing; silent when none.",
     "territory": "gates-proofs"
   },
+  "win_relaunch.py": {
+    "entryPoints": [
+      "boot_log",
+      "install_excepthook",
+      "write_receipt",
+      "read_receipt",
+      "wait_for_parent"
+    ],
+    "purpose": "Makes a console relaunch and boot leave a trace on every OS (tv/.console_boot.log, tv/.relaunch_receipt.json) and, on Windows where os.execv starts a new pid, makes the child wait for its parent to exit before it takes the primary mutex and binds :17772.",
+    "gotcha": "Never raises into the boot path. wait_for_parent pops TVD_RELAUNCH_PARENT so it cannot leak into the next relaunch; on POSIX the parent is the same pid and nothing is waited for. Windows behaviour was measured on the ALT box, not simulated.",
+    "territory": "heart-organs"
+  },
   "window_visibility.py": {
     "entryPoints": [
       "on_screen",

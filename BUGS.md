@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1214 - THE WINDOWS CONSOLE DIED RELAUNCHING AND LEFT NO TRACE
+
+**fix - #225, measured over SSH on the Windows ALT box (read-only audit wf_1d3cd862-475).** Its console has been dead
+since 2026-09-23 00:26 local: it pulled v3419, relaunched with os.execv, the new process imported tv_diablo and ran its
+boot git fetch, then exited before its first beacon - and nothing recorded why (pythonw drops stdout/stderr, no log file
+existed). On Windows os.execv starts a NEW pid (measured 14808 -> 48672), so the child can contest the named mutex and
+:17772 while the parent still holds them, and both checks in main() exit quietly. Which one killed v3419 is UNKNOWN; this
+makes the next death say so and removes that race: tv/win_relaunch.py writes tv/.console_boot.log before the mutex and
+bind checks (boot, exit-mutex-not-owned, bind-failed, uncaught-exception with traceback), every exec leaves
+tv/.relaunch_receipt.json naming its pid, and on Windows the child waits for that pid to exit before contesting the mutex.
+MEASURED on the ALT (Python 3.12.10): a live 3 s parent -> waited 3.03 s, exited True; a gone pid -> 'parent already
+gone'. Gate test_a_relaunch_leaves_a_receipt: 8 cases + an AST pin on main()'s ordering, 3 proofs PROVEN.
+
 ### REG-1213 - EVERY IN-PLACE RELAUNCH LEFT ONE <defunct> OCR WORKER UNDER HIS CONSOLE
 
 **fix - #224, measured by the read-only audit (wf_1d3cd862-475).** His console (one pid since 09-23 17:05) carried 35
