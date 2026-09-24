@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3490",
+  "ver": "v3491",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3490: the vault receipt row measures banked-frame resolution even with no ledger backup and speaks one shared sentence for both paths",
+  "note": "v3491: #157 - every thShelf(true) rebuild reset the river lanes to reading-the-river for about 1.45s on a warm river (measured), the never-explained river-strip refusal and a blank strip on his screen; the rebuild now paints the last answer at once and refreshes in place. HEART: watched by render_check river-strip, whose activation now asks the rebuild law in the same evaluate - a runtime doctor row cannot observe a 1.4s repaint",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

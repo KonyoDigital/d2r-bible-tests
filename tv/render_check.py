@@ -686,7 +686,10 @@ def _shelf_activate_why():
              + ' html="' + (function(){ var e=document.getElementById('sh-lanes');
                    return e ? e.innerHTML.replace(/\\s+/g,' ').slice(0,100) : 'NO NODE'; })() + '"'
              + '. A .shr-wait alone means the ask is still in flight, which is the ONE state this '
-             + 'gate refuses on purpose; a 0 everywhere means the renderer never ran.';
+             + 'gate refuses on purpose; a 0 everywhere means the renderer never ran.'
+             /* #157 — river-strip's rebuild law leaves its counts here; name them in the refusal. */
+             + (window.__rcRiverRebuild ? ' | RIVER REBUILD: ' + window.__rcRiverRebuild
+                + ' (a shelf rebuild blanked the lanes — see the river-strip activate)' : '');
     })()"""
 
 def _adv_activate(el_id, require_filled=False):
@@ -2557,7 +2560,20 @@ TARGETS = {
                 var r = lanes[i].getBoundingClientRect();
                 if (r.width > 8 && r.height > 4) painted++;
             }
-            return painted === lanes.length;
+            if (painted !== lanes.length) return false;
+            /* ⚠⚠ #157 — AND THE RIVER MUST SURVIVE A SHELF REBUILD, asked in the same evaluate. The
+               never-explained refusal of this target ("selector ... matched NOTHING" at one random
+               width while the rest read 20/20) was MEASURED to be thShelf(true) — called on every art
+               map landing, pin, note edit and ghosts chip — resetting #sh-lanes to the "reading the
+               river…" placeholder for ~1.45 s on a WARM /api/river. Since #157 the rebuild paints the
+               last answer at once; a rebuild that blanks the lanes again can never activate here,
+               because the blank is synchronous with the call. The counts are left in
+               window.__rcRiverRebuild so a refusal names them. */
+            try { thShelf(true); } catch (e) { window.__rcRiverRebuild = 'thShelf threw: ' + e; return false; }
+            var el2 = document.getElementById('sh-lanes');
+            var lanes2 = el2 ? el2.querySelectorAll('.shr-lane') : [];
+            window.__rcRiverRebuild = lanes2.length + ' of ' + lanes.length + ' lane(s) straight after a rebuild';
+            return lanes2.length === lanes.length;
         })()""",
     },
 }
@@ -4636,7 +4652,17 @@ COVERAGE = os.path.join(HERE, "render_coverage.json")
 #: targets — clipping, off-screen, covered, broken images, failure to activate. Only the
 #: population COUNT stands down, and it still PRINTS with both numbers, because an exemption
 #: nobody can see is the truncation `regression-guard` names. [[unknown-stays-unknown]]
-COVERAGE_VOLATILE = frozenset(("advanced-fleet",))
+#:
+#: ⚠⚠ #157 — AND `shelf-cards`, THE SECOND AND LAST THIS SET MAY HOLD (test_render_coverage caps it
+#: at two, and this is the diff that argues for it). Its grid is HIS REELS on the REAL console — its
+#: seed stubs nothing — and one selector has photographed three populations: 533 cards at v3051, a
+#: floor of 16 blessed later, 48 measured on 2026-09-23. Reels are pruned (his tombstone ledger holds
+#: 455) and added, so a floor over that grid is the reel count wearing a coverage label: it refused
+#: nothing real and read 32 nodes of "slack" the ratchet never had. What STILL refuses for it: every
+#: render check, a width with no reading at all (the `is_ is None` branch below), and a surface that
+#: draws nothing ("selector ... matched NOTHING" in the render half). The LAYOUT stays pinned; only
+#: the POPULATION stands down.
+COVERAGE_VOLATILE = frozenset(("advanced-fleet", "shelf-cards"))
 
 
 def _coverage_floor():
@@ -4847,8 +4873,15 @@ def _coverage_check(results, say, scope=None, out=None):
     # week — the same defect as one that is green for ever. The fact is RECORDED instead, in
     # .render_verdict.json, so the heart supervises it rather than the scrollback.
     # [[join-gate-heart]]
+    # ⚠⚠ #157 — A LIVE POPULATION ABOVE ITS FLOOR IS NOT SLACK. A COVERAGE_VOLATILE target's drop is
+    # forgiven above, so "this ratchet cannot fire until N nodes are gone" is FALSE for it, and
+    # counting it inflated the slack .render_verdict.json hands the heart (shelf-cards alone: 32
+    # nodes at every width). It is printed on its own line below — never dropped silently.
+    live_above = [(n, k, now[n][k], floor[n][k]) for n in floor for k in floor[n]
+                  if n in scope and n in COVERAGE_VOLATILE
+                  and now.get(n, {}).get(k, 0) > floor[n][k]]
     grew = [(n, k, now[n][k], floor[n][k]) for n in floor for k in floor[n]
-            if n in scope and now.get(n, {}).get(k, 0) > floor[n][k]]
+            if n in scope and n not in COVERAGE_VOLATILE and now.get(n, {}).get(k, 0) > floor[n][k]]
     # ⚠ THE RECORD IS BUILT FROM THE WHOLE LIST, NOT FROM THE PRINTED LOOP. If the printout is
     # ever capped again, the recorded fact must not be capped with it.
     rep["stale"] = [[n, k, was, is_] for n, k, is_, was in sorted(grew)]
@@ -4863,6 +4896,11 @@ def _coverage_check(results, say, scope=None, out=None):
             "stay GREEN while that many watched nodes vanished. "
             "python3 tv/render_check.py --bless"
             % (len(rep["stale"]), rep["staleNodes"]))
+    for n in sorted({x[0] for x in live_above}):
+        _w = sorted((k, is_, was) for nn, k, is_, was in live_above if nn == n)
+        say("     ⚪ coverage %-8s above its floor at %d width(s) (%s) — a LIVE population "
+            "(COVERAGE_VOLATILE): its floor is not a law, so the gap is not slack and is not "
+            "counted as stale." % (n, len(_w), ", ".join("%s %d>%d" % w for w in _w)))
     if rep["notChecked"]:
         say("     ⚪ coverage NOT CHECKED for %d of %d floored target(s): %s. They were not "
             "asked for this run, so their coverage is UNKNOWN — not clean, and no subset run "

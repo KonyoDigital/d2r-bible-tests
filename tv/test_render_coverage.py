@@ -47,6 +47,20 @@ def _run(**widths):
 
 RED_PROOF = [
     {
+        "why": "#157 - a LIVE population above its floor is counted as stale slack again: shelf-cards' reel count reads as 32 nodes of blindness the ratchet never had",
+        "file": "render_check.py",
+        "find": "            if n in scope and n not in COVERAGE_VOLATILE and now.get(n, {}).get(k, 0) > floor[n][k]]\n",
+        "replace": "            if n in scope and now.get(n, {}).get(k, 0) > floor[n][k]]\n",
+        "matches": 1,
+    },
+    {
+        "why": "#157 - shelf-cards leaves the volatile set: a pruned reel refuses the push as a vanished surface",
+        "file": "render_check.py",
+        "find": "COVERAGE_VOLATILE = frozenset((\"advanced-fleet\", \"shelf-cards\"))\n",
+        "replace": "COVERAGE_VOLATILE = frozenset((\"advanced-fleet\",))\n",
+        "matches": 1,
+    },
+    {
         "why": "the ratchet stops refusing a SHRINK — a target measuring fewer nodes than its "
                "floor sails through, which is the whole defect this file exists to catch: a "
                "surface quietly losing pieces inside a green run",
@@ -425,6 +439,63 @@ class AVolatileExemptionStaysBounded(unittest.TestCase):
         self.assertNotIn("bad += 1", branch,
                          "the volatile branch still counts as a refusal, so the exemption does "
                          "nothing except add a confusing line")
+
+
+class ALivePopulationIsNotAFloor(unittest.TestCase):
+    """#157 — a coverage floor pinned to a COUNT OF LIVE ROWS tracks the data, not the surface.
+
+    shelf-cards photographs his reels on the real console: 533 cards at v3051, a floor of 16, 48 on
+    2026-09-23 — one selector. Its drop refused pushes whenever a reel was pruned, and its growth was
+    reported as 32 nodes of slack the ratchet could never have used. DRIVEN through _coverage_check
+    on a temp floor file, never render_coverage.json. [[unknown-stays-unknown]]"""
+
+    def setUp(self):
+        self._real = R.COVERAGE
+        fd, self.path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        R.COVERAGE = self.path
+        self.said = []
+
+    def tearDown(self):
+        R.COVERAGE = self._real
+        try:
+            os.unlink(self.path)
+        except Exception:
+            pass
+
+    def _floor(self, d):
+        io.open(self.path, "w", encoding="utf-8").write(json.dumps({"floor": d}))
+
+    def test_shelf_cards_is_a_live_population(self):
+        self.assertIn("shelf-cards", R.COVERAGE_VOLATILE)
+        seed = str((R.TARGETS.get("shelf-cards") or {}).get("seed") or "")
+        self.assertNotIn("fetch", seed, "premise: shelf-cards now stubs its data, so it is "
+                                        "deterministic and has no claim to the exemption")
+
+    def test_a_pruned_reel_is_printed_not_refused(self):
+        self._floor({"shelf-cards": {"1440x1000": 16}})
+        bad = R._coverage_check({"shelf-cards": _run(**{"1440x1000": 12})}, self.said.append)
+        self.assertEqual(bad, 0, "a live population shrinking refused the run")
+        self.assertTrue(any("\u26aa coverage" in m and "shelf-cards" in m for m in self.said),
+                        "the stand-down was silent: %s" % self.said)
+
+    def test_a_live_population_above_its_floor_is_not_slack(self):
+        rep = {}
+        self._floor({"shelf-cards": {"1440x1000": 16}, "console": {"1440x1000": 2}})
+        bad = R._coverage_check({"shelf-cards": _run(**{"1440x1000": 48}),
+                                 "console": _run(**{"1440x1000": 5})}, self.said.append, out=rep)
+        self.assertEqual(bad, 0)
+        self.assertEqual([r[0] for r in rep["stale"]], ["console"],
+                         "the stale list must hold the REAL floor that fell behind and not the live one")
+        self.assertEqual(rep["staleNodes"], 3, "the live population's 32 was counted as slack")
+        self.assertTrue(any("LIVE population" in m and "shelf-cards" in m and "48>16" in m
+                            for m in self.said), "the live gap was dropped silently: %s" % self.said)
+
+    def test_a_live_target_with_no_reading_still_refuses(self):
+        """The layout half stays pinned: no reading at a width is UNMEASURED, volatile or not."""
+        self._floor({"shelf-cards": {"1440x1000": 16, "375x800": 16}})
+        bad = R._coverage_check({"shelf-cards": _run(**{"1440x1000": 20})}, self.said.append)
+        self.assertEqual(bad, 1, "a live target that stopped being measured at a width read clean")
 
 
 if __name__ == "__main__":

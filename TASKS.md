@@ -1719,7 +1719,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3490** | `(this commit)` | v3490 — the vault receipt row measures banked-frame resolution even with no ledger backup and speaks one shared sentence for both paths |
+| **v3491** | `(this commit)` | v3491 — #157 - every thShelf(true) rebuild reset the river lanes to reading-the-river for about 1.45s on a warm river (measured), the never-explained river-strip refusal and a blank strip on his screen; the rebuild now paints the last answer at once and refreshes in place. HEART: watched by render_check river-strip, whose activation now asks the rebuild law in the same evaluate - a runtime doctor row cannot observe a 1.4s repaint |
+| **v3490** | `e9572e6b` | v3490 — the vault receipt row measures banked-frame resolution even with no ledger backup and speaks one shared sentence for both paths |
 | **v3489** | `9db6aa24` | v3489 — the capture joint now carries an UNKNOWN door split when there is no history directory, so the field never vanishes; CI red becomes a reading |
 | **v3488** | `7fa3e3f3` | v3488 — printer_wilson derives door vs unit from each attempt and banks only the attacks that reach printer.stream; the 14 helper checks still run, reported apart |
 | **v3487** | `75dada26` | v3487 — self_arming credits distinct attacks conservatively (every failure may be a different attack); prune.reports goes from an inflated 0.901 HARDENED to 0.610 OPEN, still over its bar |

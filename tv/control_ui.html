@@ -12726,6 +12726,9 @@ window._lockMark = function(isOpen, px, label){
       var r = await fetch(API + '/api/river', { signal: _lanesAC && _lanesAC.signal });
       var _lanesJson = await r.json();
       if (_lanesTO) { clearTimeout(_lanesTO); _lanesTO = null; }
+      /* #157 — remember the last ANSWER so a shelf REBUILD can paint it at once (see thShelf). Only an
+         answer that carries lanes: a refusal is never replayed as if it were the river. */
+      if (_lanesJson && _lanesJson.lanes) window.__shLanesLast = _lanesJson;
       R(_lanesJson);
     } catch (e) {
       if (_lanesTO) { clearTimeout(_lanesTO); _lanesTO = null; }
@@ -17531,6 +17534,16 @@ window._lockMark = function(isOpen, px, label){
     /* v2769 — the four lanes, driven exactly like the pipeline board beside them and
        through window.* for the same reason: this call and the definition sit in
        different halves of the file's history, and a bare name is a dead render. */
+    /* ⚠⚠ #157 — A REBUILD MUST NOT BLANK THE RIVER. thShelf(true) re-creates #sh-lanes as the
+       "reading the river…" placeholder, and it runs on EVERY rebuild: the art map landing
+       (thArtRepaint), a pin, a note edit, the ghosts chip. MEASURED on a warm /api/river through the
+       render harness's own console: 20/20 lanes painted, then thShelf(true), then 0 lanes and the
+       placeholder for ~1.45 s, then 20/20 again — up to the fetch's 12 s bound when cold. That window
+       is river-strip's never-explained refusal ("selector ... matched NOTHING" at one random width,
+       the other widths 20/20) AND the strip flashing blank on his screen. So the last answer is
+       painted at once and the fetch below refreshes it in place; a failed refresh still paints its
+       stated refusal over it, so an old river never outlives a failed ask. [[unknown-stays-unknown]] */
+    try { if (window.__shLanesLast) (window._shLanesRender || function(){})(window.__shLanesLast); } catch(e){}
     try { (window._shLanesLoad || function(){})(); } catch(e){}
     _shTimeline();   // v1286 (D12) — draw the runs-per-day activity strip (all runs, stable overview)
     /* v3289 — NOW the blocks above the list are real, so decide the opening scroll against the
