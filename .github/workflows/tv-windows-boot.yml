@@ -1,0 +1,28 @@
+name: 🪟 TV DIABLO — Windows boot
+# #229 — until this job existed, the only Windows console anything ever booted was his ALT, so a
+# Windows-only boot death (the ALT died relaunching into v3419, #225) reached his box before any check
+# saw it. This boots a SCRATCH console on windows-latest (TV_STUB=1, TV_CAPTURE=off, its own port and
+# sandbox - see tv/windows_boot_check.py) and asks it which build it runs. Proven on the ALT itself
+# before it shipped: booted in 3.7s, ran the shipped build, said platform=windows.
+on:
+  push:
+    # It must watch itself as well as the tree it boots.
+    paths:
+      - 'tv/**'
+      - '.github/workflows/tv-windows-boot.yml'
+  workflow_dispatch:
+jobs:
+  boot:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pillow (what every frame reader imports; the console installs it itself on a real box)
+        run: python -m pip install --quiet Pillow
+      - name: Boot a scratch console and ask it which build it runs
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tv/windows_boot_check.py

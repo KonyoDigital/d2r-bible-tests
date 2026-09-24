@@ -2165,6 +2165,14 @@
     "purpose": "Asks the OS (CGWindowList) whether his console window is really on screen and whether another app is covering ≥95% of it — an independent witness the page's own heartbeat cannot supply.",
     "territory": "render-pixels"
   },
+  "windows_boot_check.py": {
+    "entryPoints": [
+      "main"
+    ],
+    "purpose": "Boots a SCRATCH console (TV_STUB=1, TV_CAPTURE=off, own port and sandbox) and asks /api/status which build it runs, against tv/WINDOWS_SHIP.json. The Windows CI job (tv-windows-boot.yml) runs it on windows-latest (#229).",
+    "gotcha": "Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.",
+    "territory": "routines-infra"
+  },
   "write_census.py": {
     "entryPoints": [
       "census",

@@ -5344,6 +5344,14 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_windows_boot_is_checked_before_it_reaches_him",
+         [sys.executable, os.path.join(HERE, "test_a_windows_boot_is_checked_before_it_reaches_him.py")], 90,
+         why="#229 - the only Windows console anything ever booted was his ALT, so a Windows-only boot "
+             "death (#225) reached his box first. tv/windows_boot_check.py boots a SCRATCH console and "
+             "asks which build it runs; tv-windows-boot.yml runs it on windows-latest. Proven on the ALT "
+             "over SSH before shipping (3.7s, shipped build, platform=windows). Driven here against fake "
+             "trees: shipped build 0, other build 1, boot death 1 with its last words, no manifest 77. "
+             "5 cases, 2 red-proofs"),
     Gate("test_a_windows_console_asks_before_it_starts_at_sign_in",
          [sys.executable, os.path.join(HERE, "test_a_windows_console_asks_before_it_starts_at_sign_in.py")], 60,
          why="#229 - MEASURED on the ALT: zero scheduled tasks and zero startup entries, so the console "

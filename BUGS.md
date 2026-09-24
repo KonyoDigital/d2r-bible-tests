@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1264 - THE ONLY WINDOWS CONSOLE ANYTHING EVER BOOTED WAS HIS
+
+**ci - #229 roadmap item "a Windows CI job".** Every gate runs on the Mac and on ubuntu-latest; no check had ever booted
+a console on Windows except the ALT itself, so a Windows-only boot death (the ALT died relaunching into v3419, #225)
+reached his box before anything saw it. `tv/windows_boot_check.py` boots a SCRATCH console (TV_STUB=1,
+TV_CAPTURE=off, its own port - the primary mutex is port-scoped, v1484 - and a sandboxed TV_HIST and stores), asks
+/api/status which build it runs, and fails when that is not the build tv/WINDOWS_SHIP.json ships, when it reports the
+wrong platform, or when the console dies during boot (with its last words); 77 = could not run, never a pass. The new
+workflow `tv-windows-boot.yml` runs it on windows-latest on every tv/ push and watches its own file. PROVEN ON THE ALT
+BEFORE SHIPPING, over SSH, from a temp copy pointed at his tree (TVD_BOOT_CHECK_TREE) so his checkout was never
+touched: booted in 3.7s, ran v3499 (the shipped build), said platform=windows; afterwards the script, the port and the
+sandbox were confirmed gone. Guard: `test_a_windows_boot_is_checked_before_it_reaches_him` (5 cases against fake trees,
+2 proofs), PROVEN. The first CI run on windows-latest is the job's own proof.
+
 ### REG-1263 - A WINDOWS CONSOLE SURVIVED ITS OWN RELAUNCH AND NOT A REBOOT, AND NOTHING ASKED HIM
 
 **feat - #229 roadmap item "a login task".** MEASURED 2026-09-20 over SSH on the ALT: zero scheduled tasks, zero

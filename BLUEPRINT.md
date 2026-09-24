@@ -322,7 +322,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 
 ## GATES
 
-    585 registered in tv/run_gates.py — every one named below with what it guards,
+    586 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -470,6 +470,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 - **test_a_title_is_not_an_owner** — #223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the game (score 1602: 'diablo' in the title was the whole quali…
 - **test_a_total_is_only_as_known_as_its_parts** — v2881 — the second eye, reviewing v2880: 'unknown vault count is still published as a complete number on the fields the screen actually reads'.
 - **test_a_weld_never_repeats_a_word** — a weld joins a figure to its noun and must never show a word twice.
+- **test_a_windows_boot_is_checked_before_it_reaches_him** — #229 - the only Windows console anything ever booted was his ALT, so a Windows-only boot death (#225) reached his box first.
 - **test_a_windows_console_asks_before_it_starts_at_sign_in** — #229 - MEASURED on the ALT: zero scheduled tasks and zero startup entries, so the console survives its own relaunch but not a reboot.
 - **test_a_witness_written_for_the_rescue_is_called_by_it** — A WITNESS WRITTEN FOR THE RESCUE THAT THE RESCUE NEVER ASKED.
 - **test_a_worker_read_has_a_deadline** — v3381 - THE SECOND WEDGE IN ONE SESSION, SAME CLASS AS THE FIRST.
@@ -924,7 +925,7 @@ about what a module MEANS cannot be re-derived from its AST. The drift between t
 printed below rather than hidden, because a map that quietly drops a module is the exact
 failure this section was written about.
 
-    209 modules · 0 unindexed · 0 stale entries
+    210 modules · 0 unindexed · 0 stale entries
 
 `no importer` means no OTHER MODULE IN tv/ IMPORTS IT — measured by parsing, never by
 grepping a name that may be sitting inside a comment. It is not `dead`: a CLI tool, a
@@ -1420,7 +1421,7 @@ hook and a routine are all reached without an import, so it is a question, not a
       ↪ walk · main
       ⚠ It WALKS and never DRIVES, and cannot be made to: all five lane ticks (retro_triage, vault_autoreel, chronicle_autoread, chronicle_autoreel, shadow_watch) take NO argument and each chooses its own reel, so a 'driver' would move whichever reel each tick felt like while printing the named one's stage. `stage`/`hold` (retention: why keep the bytes) and `station` (the reel's own evidence: where in the river) are two different questions and may legitimately disagree. Despite the docstring's `cannot()`, `cannot` is a LIST on the output dict, not a function.
 
-### routines-infra (23)
+### routines-infra (24)
 
 - **_ascii_clean_ps1.py** — One-shot rewriter that strips non-ASCII from start_tvd_win.ps1 and install-tvd.ps1 and re-writes them BOM-first for PowerShell 5.1.  ·  *no importer*
       ↪ ascii_clean · main
@@ -1486,6 +1487,9 @@ hook and a routine are all reached without an import, so it is a question, not a
 - **tree_busy.py** — Answers ONE question with ONE definition: is this working tree being graded right now? `hooks/pre-push` grades the WORKING TREE rather than the commit, so a version banked mid-run gets a green verdict about bytes that are not the ones shipping. bump_version consults it and REFUSES to stamp when the answer is anything but free. It returns a REASON string rather than a bare bool, so the refusal can say which signal fired.
       ↪ why · main
       ⚠ ⚠⚠ TWO SIGNALS, AND THE LOCK ALONE IS NOT ENOUGH. run_gates takes the flock, but the hook runs renders, console demos and the Playwright smoke OUTSIDE that claim - MEASURED during the v3328 push, the flock read FREE while a pre-push had been grading 15 minutes with smoke in flight. ⚠ UNKNOWN IS NOT FREE, and EITHER signal going dark is enough: the first cut used `and` so a blind flock plus a clean process list fell through to free with the primary signal silent - the second eye found it, and the law could not have, because it stubbed both signals as None. ⚠ The process probe matches an INVOCATION, never a MENTION: `pgrep -f hooks/pre-push` also matches `vi hooks/pre-push`, which would refuse every bump while an editor stayed open. ⚠ It RELEASES the flock the moment it has tested it - holding it would make the checker the second gate run REG-162 is about. ⚠ Its reach is bounded and stated: an ad-hoc heredoc that writes bible.html directly will never consult a module it does not import.
+- **windows_boot_check.py** — Boots a SCRATCH console (TV_STUB=1, TV_CAPTURE=off, own port and sandbox) and asks /api/status which build it runs, against tv/WINDOWS_SHIP.json. The Windows CI job (tv-windows-boot.yml) runs it on windows-latest (#229).  ·  *no importer*
+      ↪ main
+      ⚠ Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.
 
 ### routing (2)
 
