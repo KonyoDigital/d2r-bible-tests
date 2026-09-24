@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1188 - "entryPoints" WAS READ AS A TIMESTAMP, AND A ROSTER WAS FILED AS DEBT FOR TEN DAYS
+
+**v3484 - #219 item 4.** `verdict_provenance` said "BACKWARDS in 5 place(s)" on CI and 1 here. The local one:
+`engine_index.json: NEW store arrives SILENT — new debt`. `_verdict`'s clock test was `k.endswith("at") or
+k.endswith("ts")` on the LOWERCASED name, so `entryPoints` was a clock and a module roster with no clock at all was graded
+"the question applies and went unanswered". MEASURED over every store in tv/: exactly two misfiled (engine_index.json,
+gate_costs.json) and a word-boundary rule (`_at`/`_ts`/camel `At`/`Ts`/exact CLOCK_FIELDS) moves exactly ONE grade:
+engine_index.json SILENT -> REFERENCE. The misread had been written down as a measurement in two places ("exactly
+engine_index.json today, and it must stay red") and it had propped up a THIRD law: test_provenance's fixture graded
+SILENT only because `what` ends in "at" — now it carries a real `ts`. And the gate's own v2888 proof was exposed as
+BLIND: since v3328 a roster arriving is not debt, so removing the baseline's self-exclusion only added a ⚪ line — masked
+until now because the gate was already red untampered on engine_index.json (the census filed it UNPROVABLE, not BLIND).
+Replaced with a tamper that bites on today's tree (the clock test answering True for everything): PROVEN. And the reds now
+print LAST, right above the verdict, because CI's "what actually broke" tail showed only the ⚪ departures and never named
+the five. Next CI run names them. Roster law +3 cases +2 proofs; 4/4, 14/14, 1/1 PROVEN.
+
 ### REG-1187 - A FIX THAT NAMED ITS LABEL AT ONE SITE, AND A SHIP READER THAT STOPPED AT v2999
 
 **fix: after v3483.** Two findings from the #231 lane on my own ea3f05da, both confirmed by reading: (1) the shard banner

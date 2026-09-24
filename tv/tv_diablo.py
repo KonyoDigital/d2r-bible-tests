@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3483"   # the two hashes bracketed a window not the picture grok read
+VERSION = "v3484"   # entryPoints was read as a timestamp and a roster was filed as debt for ten days
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

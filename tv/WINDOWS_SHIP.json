@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3483",
+  "ver": "v3484",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3483: the shadow read is handed a snapshot taken right after the Claude read so both eyes see the same bytes; unplaced rows are counted by reason",
+  "note": "v3484: the provenance clock test reads a suffix only at a word boundary, one store moves (engine_index SILENT to REFERENCE), and the ratchet prints its reds last so a CI tail names them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

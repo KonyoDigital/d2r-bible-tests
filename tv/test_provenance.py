@@ -429,7 +429,12 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
         the census asks. That is the half the accidental sub-dict merge NEVER covered — the census
         reads a .jsonl's last line TOP-LEVEL, sees `_prov` and no producer field."""
         import verdict_provenance as VP
-        row = PV.stamp({"n": 1, "what": "a reading"}, by="demo_module", ver="v2941")
+        # ⚠ #219 — `ts` is here ON PURPOSE. This row was {n, what}, and it graded SILENT on the old
+        # vocabulary only because `what` ends in "at" and the census read that as a clock — the same
+        # misread that filed engine_index.json (`entryPoints`) as debt. A real clock makes SILENT
+        # true for the stated reason: the question applies and the old vocabulary cannot answer it.
+        row = PV.stamp({"n": 1, "ts": 1790000000000, "what": "a reading"}, by="demo_module",
+                       ver="v2941")
         self.assertIn(PV.PROV_KEY, row, "stamp() did not attach the block — re-derive this law")
         self.assertEqual("ANSWERS", VP._verdict(row)[0],
                          "a stamped row does not grade ANSWERS: %r" % (VP._verdict(row),))

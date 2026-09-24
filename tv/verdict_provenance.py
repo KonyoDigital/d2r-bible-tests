@@ -154,6 +154,28 @@ def _is_producer_key(k):
 
 #: ⚠ GUARDED: if the definition module cannot be imported the census must still run on its own
 #: vocabulary — an unreadable definition is UNKNOWN, never a reason to grade every store SILENT.
+#: a clock SUFFIX at a word boundary: `seen_at`, `tick_ts`, camel `seenAt`, `updatedTs`
+_CLOCK_SUFFIX = re.compile(r"(?:_(?:at|ts)|[a-z0-9](?:At|Ts))$")
+
+
+def _has_clock(keys):
+    """Does any field name say WHEN the row was written? -> bool
+
+    ⚠⚠ #219 — `k.endswith("at") or k.endswith("ts")` on the LOWERCASED name read any word ending in
+    those letters as a timestamp. MEASURED over every store in tv/: it misfiled exactly two —
+    engine_index.json (`entryPoints`) and gate_costs.json (gate names ending `…_beat`, `…_units`) —
+    and engine_index.json, a module roster with no clock at all, was graded SILENT: "the question
+    applies and went unanswered". This file then recorded that misread as a measurement ("exactly
+    engine_index.json today, and it must stay red"). A suffix is a clock only at a word boundary.
+    [[measured-true-read-wrong]] [[feedback-suspect-the-instrument]]
+    """
+    for k in keys:
+        k = str(k)
+        if k.lower() in CLOCK_FIELDS or _CLOCK_SUFFIX.search(k):
+            return True
+    return False
+
+
 try:
     import provenance as _PV
 except Exception:          # pragma: no cover - exercised by the red-proof
@@ -185,9 +207,8 @@ def _verdict(row):
     _g = _PV.classify(row) if _PV is not None else None
     if _g is not None:
         return _g, [_PV.PROV_KEY]
-    keys = [str(k).lower() for k in row.keys()]
     found = sorted(k for k in row.keys() if _is_producer_key(k))
-    has_clock = any(k in CLOCK_FIELDS or k.endswith("at") or k.endswith("ts") for k in keys)
+    has_clock = _has_clock(row.keys())
     if not found and not has_clock:
         return "REFERENCE", []
     if not found:
@@ -364,9 +385,10 @@ def _compare(was, now):
             # generalised to nothing. [[copy-drift]] [[the-unjoined-end]]
             #
             # ⚠ SILENT AND PARTIAL STILL COUNT AS DEBT, deliberately. SILENT means the row HAS a
-            # clock and still names no writer — the question applies and went unanswered, which is
-            # exactly engine_index.json today and must stay red. Only the class where the question
-            # is inapplicable is exempt, and it says so rather than going quiet.
+            # clock and still names no writer — the question applies and went unanswered. Only the
+            # class where the question is inapplicable is exempt, and it says so rather than going
+            # quiet. (#219: this comment used to name engine_index.json as the SILENT example. It
+            # never had a clock — `entryPoints` tripped an `endswith("ts")` test. See _has_clock.)
             new.append("%s: NEW and a ROSTER — no clock, so provenance does not apply" % store)
         elif RANK.get(after, 0) < RANK["ANSWERS"]:
             reg.append("%s: NEW store arrives %s — new debt" % (store, after))
@@ -400,8 +422,11 @@ def ratchet():
     reg, gain, new, gone = _compare(was.get("tracked") or {}, tr)
     print("  tracked scope: %d store(s) measured against %d in the baseline"
           % (len(tr), len(was.get("tracked") or {})))
-    for s in reg + gone:
-        print("   🔴 %s" % s)
+    # ⚠⚠ #219 — THE REDS PRINT LAST. CI said "BACKWARDS in 5 place(s)" and its "what actually
+    # broke" tail showed only the ⚪ departures, because the 🔴 lines printed FIRST and scrolled out
+    # of it — a refusal nobody could answer from the log, and a refusal nobody can answer gets
+    # re-blessed blind. They are collected here and printed right above the verdict.
+    _red = ["tracked · %s" % x for x in reg + gone]
     for s in gain:
         print("   🟢 improved — %s  (re-write the baseline to lock it in)" % s)
     for s in new:
@@ -425,8 +450,7 @@ def ratchet():
     else:
         reg2, gain2, new2, gone2 = _compare(b_local, lo)
         print("  local scope: %d store(s) measured against %d in the baseline" % (len(lo), len(b_local)))
-        for s in reg2:
-            print("   🔴 %s" % s)
+        _red += ["local · %s" % x for x in reg2]
         for s in gain2:
             print("   🟢 improved — %s  (re-write the baseline to lock it in)" % s)
         for s in new2 + gone2:
@@ -434,6 +458,9 @@ def ratchet():
         bad += len(reg2)
     if bad:
         print("")
+        print("  ── what went backwards (%d) ──" % len(_red))
+        for s in _red:
+            print("   🔴 %s" % s)
         print("🔴 provenance went BACKWARDS in %d place(s) — the ratchet exists to stop exactly "
               "this. Fix the store, or re-write the baseline if the move is deliberate." % bad)
         return 1
@@ -444,19 +471,11 @@ def ratchet():
 
 RED_PROOF = [
     {
-        "why": "v2888 — this gate used to `return 0` unconditionally, which is why heart2 named it "
-               "one of three that could never go red. The tamper removes the guard that keeps the "
-               "ratchet's OWN baseline out of its census: census() globs tv/*.json, so without it "
-               "the file written by --write-baseline is found on the next run and reported as "
-               "\"NEW store arrives REFERENCE — new debt\", turning the gate red. That is a real "
-               "defect, not a contrivance — it happened on the very first clean run and this line "
-               "is the fix. matches: 2 because verdict_provenance.py IS its own gate file, so this "
-               "declaration's `find` is a second occurrence of the anchor once it lands. "
-               "[[regression-guard]] [[sabotage-is-usually-the-wrong-one]]",
-        "file": 'verdict_provenance.py',
-        "find": 'if r["store"] == _self:',
-        "replace": 'if False:',
-        "matches": 2,
+        "why": "#219 - the clock test answers True for every field name, so every roster in tv/ (engine_index.json, heart_floor.json, test_reel_refs.json) arrives as SILENT - 'the question applies and went unanswered' - and the gate must go red on the live tree. REPLACES the v2888 proof (remove the baseline's self-exclusion): since v3328 a REFERENCE arrival is a roster, not debt, so that tamper only added a ⚪ line and was BLIND in substance - masked until #219 because the gate was already red untampered on engine_index.json and the census filed it UNPROVABLE instead. [[sabotage-is-usually-the-wrong-one]]",
+        "file": "verdict_provenance.py",
+        "find": "            return True\n    return False\n\n\ntry:\n    import provenance as _PV",
+        "replace": "            return True\n    return True\n\n\ntry:\n    import provenance as _PV",
+        "matches": 1
     },
 ]
 
