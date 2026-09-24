@@ -3745,10 +3745,27 @@ def _pid_alive(pid):
         return False
 
 
+def _capture_off(env=None):
+    """TV_CAPTURE=off|none — this console never reads the screen. The SAME test tv_diablo._capture_is_off
+    and capture_win.ps1 make, so the three can never disagree about what 'off' means."""
+    return (str((env or os.environ).get("TV_CAPTURE") or "")).strip().lower() in ("off", "none")
+
+
 def _start_capture(env, log_fp):
     """Windows only: hidden capture_win.ps1 loop."""
     global _capture_proc
     if not IS_WIN:
+        return None
+    # REG-1272 — the second eye on cb6690d3 (grok-4.7, #231 5824107955), confirmed here: under
+    # TV_CAPTURE=off the script exits 0 before any grab (REG-1252), and the lamp below read every exit
+    # as a crash - five relaunches eight seconds apart, then DEAD, and a live session's frame check
+    # called capture frozen. The desktop was never filmed; the DEATH was false. Off is not started.
+    if _capture_off(env):
+        try:
+            log_fp.write("capture_win.ps1 NOT started: TV_CAPTURE=off (this console never reads the screen)\n")
+            log_fp.flush()
+        except Exception:
+            pass
         return None
     if not os.path.isfile(CAPTURE_PS1):
         log_fp.write("!! capture_win.ps1 missing — Windows ON will have no frames\n")
@@ -3825,6 +3842,11 @@ def _capture_health():
         _CAP_RESTART_N = 0
         _CAP_RESTART_TS = 0.0
         return ""
+    if _capture_off():
+        # REG-1272 — off is a SETTING, not a death: nothing to restart, and never DEAD.
+        _CAP_RESTART_N = 0
+        _CAP_RESTART_TS = 0.0
+        return "OFF"
     pid = None
     try:
         with _lock_briefly("capture_health") as _got:
@@ -32428,8 +32450,8 @@ def doctor_payload():
     else:
         h = _capture_health()
         checks.append(_chk(
-            "capture_proc", h in ("", "LINKED", "RESTARTED"), "warn",
-            h or "idle (agent off)",
+            "capture_proc", h in ("", "LINKED", "RESTARTED", "OFF"), "warn",
+            ("off by setting (TV_CAPTURE=off) - nothing is filmed" if h == "OFF" else (h or "idle (agent off)")),
             "Press RESTART; if it recurs, check capture_win.ps1 and the D2R window"))
 
     # 7b) v1418 fleet — same GitHub main for Mac + Windows (never silently drift)

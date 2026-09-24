@@ -134,6 +134,62 @@ class EveryGrabberHonoursCaptureOff(unittest.TestCase):
         self.assertIn("exit 0", code[i:code.find("}", i + 1)])   # bounded by the block's own brace
 
 
+class TheWindowsLampCallsOffOffNotDead(unittest.TestCase):
+    """REG-1272 — the second eye on cb6690d3: under TV_CAPTURE=off capture_win.ps1 exits 0 at once, and the
+    lamp read every exit as a crash: five relaunches, then DEAD, and 'capture frozen' on a live session."""
+
+    def setUp(self):
+        import control_app as ca
+        self.ca = ca
+        self._saved = (ca.IS_WIN, ca._agent_mode, ca._start_capture, ca._read_pid, ca._capture_proc,
+                       ca._CAP_RESTART_N, ca._CAP_RESTART_TS, ca._log_fp, os.environ.get("TV_CAPTURE"))
+        self.starts = []
+        ca.IS_WIN = True
+        ca._agent_mode = "live"
+        ca._capture_proc = None
+        ca._read_pid = lambda *a, **k: None                  # no pid on disk: the script is gone
+        ca._start_capture = lambda env, fp: self.starts.append(1)
+        ca._CAP_RESTART_N, ca._CAP_RESTART_TS = 0, 0.0
+        ca._log_fp = io.StringIO()
+
+    def tearDown(self):
+        ca = self.ca
+        (ca.IS_WIN, ca._agent_mode, ca._start_capture, ca._read_pid, ca._capture_proc,
+         ca._CAP_RESTART_N, ca._CAP_RESTART_TS, ca._log_fp, was) = self._saved
+        if was is None:
+            os.environ.pop("TV_CAPTURE", None)
+        else:
+            os.environ["TV_CAPTURE"] = was
+
+    def test_off_is_OFF_and_never_restarted(self):
+        os.environ["TV_CAPTURE"] = "off"
+        for _ in range(7):
+            self.assertEqual(self.ca._capture_health(), "OFF")
+        self.assertEqual(self.starts, [], "an intentionally-off capture was relaunched as if it had died")
+
+    def test_premise_a_real_death_still_restarts(self):
+        os.environ["TV_CAPTURE"] = "auto"
+        self.assertEqual(self.ca._capture_health(), "RESTARTED")
+        self.assertEqual(self.starts, [1])
+
+    def test_off_is_never_started(self):
+        import subprocess
+        spawned = []
+        real = subprocess.Popen
+
+        def record(*a, **k):
+            spawned.append(a)
+            raise AssertionError("capture_win.ps1 spawned")
+        subprocess.Popen = record
+        try:
+            real_start = self._saved[2]                        # the REAL _start_capture, not the stub
+            out = real_start({"TV_CAPTURE": "off"}, io.StringIO())
+        finally:
+            subprocess.Popen = real
+        self.assertIsNone(out)
+        self.assertEqual(spawned, [], "capture_win.ps1 was spawned under TV_CAPTURE=off")
+
+
 class TheRenderHarnessSpawnsItsConsoleWithCaptureOff(unittest.TestCase):
 
     def test_the_private_console_env_carries_TV_CAPTURE_off(self):
@@ -154,6 +210,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1272 - the lamp reads an intentionally-off capture as dead again: five relaunches, then DEAD",
+        "file": "control_app.py",
+        "find": "    if _capture_off():\n        # REG-1272 — off is a SETTING, not a death: nothing to restart, and never DEAD.\n",
+        "replace": "    if False:\n        # REG-1272 — off is a SETTING, not a death: nothing to restart, and never DEAD.\n",
+        "matches": 1,
+    },
     {
         "why": "the second eye on 298de387 - the Mac film thread films under TV_CAPTURE=off again (fullscreen fallback)",
         "file": "tv_diablo.py",

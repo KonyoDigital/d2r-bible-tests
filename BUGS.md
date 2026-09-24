@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1272 - UNDER TV_CAPTURE=off A WINDOWS CONSOLE REPORTED ITS CAPTURE DEAD
+
+**fix - the second eye on cb6690d3 (grok-4.7, #231 5824107955), confirmed in control_app.** REG-1252 made
+capture_win.ps1 exit 0 before any grab under TV_CAPTURE=off. But `_start_capture` still launched it, and
+`_capture_health` read every exit as a crash: five relaunches eight seconds apart, then DEAD, and a live session's frame
+check said capture frozen. The desktop was never filmed - the DEATH was false. Now a shared `_capture_off()` (the same
+test tv_diablo._capture_is_off and the script make, so the three cannot disagree) keeps `_start_capture` from
+launching, and the lamp answers OFF - a setting, never restarted, never DEAD - and the self-check accepts it. Guard: 3
+new cases in `test_a_scratch_console_never_films_his_screen` (off is OFF across 7 ticks with no relaunch; premise: a
+real death under auto still restarts; the real _start_capture never spawns under off) + a proof; all 6 PROVEN.
+
 ### REG-1271 - THE SEED BAKER SEEDED THE THREE NAMES ITS OWN RULE 4 EXISTS TO REFUSE
 
 **fix - #165, found by reading v1693:275's red ("The Diggler must be ABSENT from _GRAIL_SEED") as an argument.** The
