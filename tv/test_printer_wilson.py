@@ -34,9 +34,28 @@ class TheHarnessCannotAct(unittest.TestCase):
         tree = ast.parse(self._src())
         banned = {"remove", "unlink", "rmtree", "apply_plan", "_prune_once", "_prune_loop",
                   "_retention_loop", "rmdir"}
+        # ⚠ #123 — the ONE exemption: removing a path THIS function minted with tempfile.mkstemp.
+        # That is the harness tidying its own scratch file, not acting on his; anything else named
+        # here still refuses. [[feedback-fixtures-never-touch-live-data]]
+        own_temp = set()
+        for fn in ast.walk(tree):
+            if not isinstance(fn, ast.FunctionDef):
+                continue
+            minted = set()
+            for a in ast.walk(fn):
+                if (isinstance(a, ast.Assign) and isinstance(a.value, ast.Call)
+                        and getattr(a.value.func, "attr", "") == "mkstemp"):
+                    for t in a.targets:
+                        for x in ast.walk(t):
+                            if isinstance(x, ast.Name):
+                                minted.add(x.id)
+            for c in ast.walk(fn):
+                if (isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "remove"
+                        and c.args and isinstance(c.args[0], ast.Name) and c.args[0].id in minted):
+                    own_temp.add(id(c))
         hits = []
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
+            if isinstance(node, ast.Call) and id(node) not in own_temp:
                 f = node.func
                 name = getattr(f, "attr", None) or getattr(f, "id", None)
                 if name in banned:
@@ -77,15 +96,48 @@ class TheHarnessCannotAct(unittest.TestCase):
                          "different kind of file." % hits)
 
     def test_it_calls_exactly_one_printer_entry_point(self):
+        """⚠⚠ #123 — v3406 added unit checks of the printer's HELPERS and banked them as door evidence.
+        The law is now what it always meant: the only PUBLIC printer entry point driven is stream();
+        helper calls are private (`_x`); and an attempt that touches a helper is NEVER banked."""
         tree = ast.parse(self._src())
         called = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 if getattr(node.func.value, "id", None) == "P":
                     called.add(node.func.attr)
-        self.assertEqual(called, {"stream"},
-                         "printer_wilson should drive printer.stream() and nothing else on the "
-                         "printer; it calls %s" % sorted(called))
+        public = sorted(c for c in called if not c.startswith("_"))
+        self.assertEqual(public, ["stream"],
+                         "printer_wilson should drive printer.stream() and no other public printer "
+                         "entry point; it calls %s" % public)
+
+    def test_an_attempt_on_a_helper_is_never_banked_as_door_evidence(self):
+        """DRIVEN: every row's `door` flag is its own AST, and the banker receives door counts only."""
+        sys.path.insert(0, os.path.dirname(SRC))
+        import printer_wilson as PW
+        rep = PW.prove()
+        by = dict((name, fn) for name, fn, _w in PW.ATTEMPTS)
+        units = [r for r in rep["rows"] if not r["door"]]
+        self.assertTrue(units, "premise: no helper-level attempt exists, so this case judges nothing")
+        for r in rep["rows"]:
+            calls = PW.printer_calls(by[r["attempt"]])
+            self.assertEqual(r["door"], calls is not None and calls <= {"stream"},
+                             "%s is filed %s but calls %r" % (r["attempt"],
+                                                              "DOOR" if r["door"] else "UNIT", calls))
+        doors = [r for r in rep["rows"] if r["door"]]
+        self.assertEqual((rep["n"], rep["k"]),
+                         (sum(r["n"] for r in doors), sum(r["k"] for r in doors)),
+                         "the banked counts include attempts that never reached the door")
+        import self_arming as SA
+        got = {}
+        real = SA.bank
+        SA.bank = lambda *a, **k: got.update(k) or dict(k, lock=a[0], kind=a[1], src=a[2])
+        try:
+            PW.bank_into_proof_queue(rep)
+        finally:
+            SA.bank = real
+        self.assertEqual(got.get("attacks"), len(doors),
+                         "the lock was told %r distinct attacks; %d reached the door"
+                         % (got.get("attacks"), len(doors)))
 
 
 class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
@@ -187,6 +239,20 @@ RED_PROOF = [
                     '                          after=["printer.stream"])\n'
                     'RETIRED_LOCKS = {'),
         "matches": 1,
+    },
+    {
+        "why": "#123 - the banker counts every row again: helper-level unit checks are reported to the printer.stream lock as distinct attacks on the door",
+        "file": "printer_wilson.py",
+        "find": "                   attacks=int(rep.get(\"doorAttacks\") or 0),   # #123 — door attempts only",
+        "replace": "                   attacks=len(rep.get(\"rows\") or []),",
+        "matches": 1
+    },
+    {
+        "why": "#123 - every attempt filed as DOOR: a check on a helper banks as evidence about a door it never touched",
+        "file": "printer_wilson.py",
+        "find": "        door = calls is not None and calls <= {\"stream\"}",
+        "replace": "        door = True",
+        "matches": 1
     },
 ]
 

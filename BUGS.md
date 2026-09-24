@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1200 - CHECKS ON THE PRINTER'S HELPERS WERE BANKED AS ATTACKS ON ITS DOOR
+
+**v3488 - #123, test_printer_wilson (CI red and red here).** v3406 folded the Grok CLI's hardening into printer_wilson,
+including unit checks that call the printer's HELPERS (`_tombstone_census`, `_by_reel`) directly — and banked every one as
+`printer.stream` sabotage evidence, `attacks=len(rows)`. An attack on a helper is not an attack on the door: the lock gates
+stream(), and a helper can be right while the door never calls it — v3406's own title. The law ("drive printer.stream()
+and nothing else") was red for that, and for the harness removing its own temp file. Now door vs unit is DERIVED from each
+attempt's AST (`printer_calls`): 112 door attempts count and bank; 14 unit checks still run and still fail the harness if
+they leak, reported apart, never banked; `attacks` = door attempts. The law exempts exactly one removal — a path the same
+function minted with mkstemp. 8/8; +2 proofs, 3/3 PROVEN. Evidence ALREADY banked is untouched (self_arming has no retract
+path); the next `--bank` writes the door-only count.
+
 ### REG-1199 - TWO REG-593 CONTROLS KEPT PROXIES FROM WHEN EVERY AXIS TESTED ONE FUNCTION
 
 **test: after v3487 - #123, test_reg600_axes_can_refuse (CI red and red here).** The REG-593 control stubs

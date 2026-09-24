@@ -547,24 +547,62 @@ ATTEMPTS = (
 )
 
 
+def printer_calls(fn):
+    """The printer attributes an attempt calls (`P.<attr>(...)`), read from its own source. -> set
+
+    ⚠⚠ #123 — v3406 folded in unit checks of the printer's HELPERS (`_tombstone_census`, `_by_reel`)
+    beside the attacks on `printer.stream()`, and banked every one as printer.stream sabotage
+    evidence. An attack on a helper is not an attack on the DOOR — the lock gates stream(), and a
+    helper can be right while the door never calls it. test_printer_wilson ("drive printer.stream()
+    and nothing else") went red for exactly that. Door vs unit is DERIVED from each attempt's own
+    AST, never listed by hand, so a new attempt cannot land in the wrong column silently.
+    [[the-unjoined-end]] [[regression-guard]]
+    """
+    import ast
+    import inspect
+    import textwrap
+    try:
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    except (OSError, TypeError, SyntaxError):
+        return None
+    return {n.func.attr for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and getattr(n.func.value, "id", None) == "P"}
+
+
 def prove():
-    """Run every attempt. -> dict. Writes nothing, deletes nothing, banks nothing."""
+    """Run every attempt. -> dict. Writes nothing, deletes nothing, banks nothing.
+
+    `n`/`k` count only DOOR attempts — those that reach the printer through `stream()` alone — and
+    are what bank into the lock. Helper-level UNIT checks still run and still fail the harness when
+    they leak (a broken helper is a real defect), but they are reported apart and never banked.
+    An attempt whose source cannot be read is filed UNIT: it cannot be shown to reach the door."""
     import printer as P
-    rows, n, k = [], 0, 0
+    rows, n, k, un, uk = [], 0, 0, 0, 0
     for name, fn, why in ATTEMPTS:
+        calls = printer_calls(fn)
+        door = calls is not None and calls <= {"stream"}
         try:
             an, ak = fn(P)
         except Exception as e:
             an, ak = 1, 0
             why = why + "  ⚠ the attempt itself raised: %s" % str(e)[:80]
-        n += an
-        k += ak
-        rows.append({"attempt": name, "n": an, "k": ak, "why": why,
+        if door:
+            n += an
+            k += ak
+        else:
+            un += an
+            uk += ak
+        rows.append({"attempt": name, "n": an, "k": ak, "why": why, "door": door,
                      "leaks": (ak < an)})
     leaks = [r for r in rows if r["leaks"]]
-    return {"ok": not leaks, "n": n, "k": k, "rows": rows,
+    doors = [r for r in rows if r["door"]]
+    return {"ok": not leaks, "n": n, "k": k, "rows": rows, "doorAttacks": len(doors),
+            "unit": {"n": un, "k": uk, "attempts": len(rows) - len(doors)},
             "state": ("UNPROVEN" if n == 0 else ("LEAKS" if leaks else "PROVEN")),
-            "why": ("%d of %d attempts refused" % (k, n)) if n else "nothing attempted"}
+            "why": (("%d of %d door attempts refused; %d of %d unit check(s) on the printer's "
+                     "helpers held, reported apart and never banked" % (k, n, uk, un))
+                    if n else "nothing attempted at the door")}
 
 
 def bank_into_proof_queue(rep):
@@ -580,7 +618,7 @@ def bank_into_proof_queue(rep):
     # computed on 83 reads as far stronger than the evidence is. Telling the ledger how many
     # distinct sabotages produced the number is what stops the score being bought by looping.
     return SA.bank("printer.stream", "sabotage", "printer_wilson",
-                   attacks=len(rep.get("rows") or []),
+                   attacks=int(rep.get("doorAttacks") or 0),   # #123 — door attempts only
                    n=rep["n"], k=rep["k"],
                    note="the printer must refuse to invent an answer: %s" % rep["why"])
 
