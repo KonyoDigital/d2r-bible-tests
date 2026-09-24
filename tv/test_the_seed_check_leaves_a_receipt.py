@@ -68,6 +68,25 @@ class TheSeedCheckLeavesAReceipt(unittest.TestCase):
         st, why = self._row({"outcome": "no-drift"}, days_ago=cd._SEED_CHECK_STALE_DAYS + 1)
         self.assertEqual(st, cd.UNMEASURED, why)
 
+    def test_the_writer_and_the_doctor_move_TOGETHER(self):
+        """#219 follow-up — the second eye on ea3f05da: with the env unset, patching bake_seed.RECEIPT
+        moved the WRITER (env or RECEIPT) and not the doctor (env or its own hard-coded path), so the
+        receipt landed in the patched path while the row read his live file. DRIVEN: env unset,
+        constant patched, a receipt written with a fact no real run produces — the row must report it."""
+        import bake_seed as bs
+        os.environ.pop("TV_BAKE_RECEIPT", None)
+        real = bs.RECEIPT
+        bs.RECEIPT = self._p
+        try:
+            bs.write_receipt("no-drift", boardSetPieces=97531, boardFoundLog=24680)
+            self.assertTrue(os.path.isfile(self._p), "the writer did not follow the patched constant")
+            st, why = dict(cd.CHECKS)[NAME]()
+        finally:
+            bs.RECEIPT = real
+        self.assertEqual(st, cd.OK, why)
+        self.assertIn("97531", why, "the doctor read a DIFFERENT receipt than the writer wrote — the "
+                                    "two resolve the path separately again: %s" % why)
+
     def test_a_check_that_could_not_read_his_board_is_UNKNOWN(self):
         st, why = self._row({"outcome": "no-store"})
         self.assertEqual(st, cd.UNKNOWN, why)
@@ -154,5 +173,12 @@ RED_PROOF = [
         "find": "    if age > _SEED_CHECK_STALE_DAYS:\n",
         "replace": "    if False:\n",
         "matches": 1,
+    },
+    {
+        "why": "#219 follow-up - the doctor resolves the receipt path ITSELF again, so a patched RECEIPT moves the writer and leaves this row on his live file (the second eye on ea3f05da)",
+        "file": "console_doctor.py",
+        "find": "        p = _bs.receipt_path()",
+        "replace": "        p = os.environ.get(\"TV_BAKE_RECEIPT\") or os.path.join(HERE, \".bake_seed_receipt.json\")",
+        "matches": 1
     },
 ]

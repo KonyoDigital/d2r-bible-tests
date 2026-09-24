@@ -7304,7 +7304,14 @@ def _check_the_seed_was_checked_against_his_board():
     ⛔ It does NOT widen the seed and does NOT exempt sets — that planned fix was refuted by the
     comment above the seed comparison (it would blind the row to Dean's missing runewords).
     """
-    p = os.environ.get("TV_BAKE_RECEIPT") or os.path.join(HERE, ".bake_seed_receipt.json")
+    # ⚠ #219 follow-up — the WRITER's own resolver, never a second copy of the path (the second
+    # eye on ea3f05da: a patched RECEIPT moved the writer and not this reader). [[copy-drift]]
+    try:
+        import bake_seed as _bs
+        p = _bs.receipt_path()
+    except Exception as e:
+        return UNKNOWN, ("the seed baker will not import (%s), so where its receipt lives is "
+                         "UNKNOWN — not 'never checked'" % type(e).__name__)
     try:
         with open(p, encoding="utf-8") as fh:
             r = json.load(fh)

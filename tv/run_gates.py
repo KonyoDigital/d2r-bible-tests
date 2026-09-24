@@ -7181,15 +7181,33 @@ def _tree_diff(before, after):
     return sorted(_live_state_diff(before, after, names=sorted(set(before) | set(after))))
 
 
+def _cost_table():
+    """-> (table | {} | None, the sentence naming what the shards are balanced on).
+
+    ⚠ ONE DECISION, TWO READERS. The second eye on ea3f05da: after v3477 the shard banner still
+    printed "balanced by declared timeout" on every --shard run while cost_weights() balanced on the
+    measured table — the label outlived its referent at a second site after the docstring was fixed.
+    cost_weights() and the banner now read this, so the words cannot drift from the weights again.
+    [[label-outlived-referent]] [[unknown-stays-unknown]]
+    """
+    try:
+        import gate_costs as _gc
+        table = _gc.load()
+    except Exception as e:
+        return {}, "declared timeout — gate_costs would not import (%s)" % type(e).__name__
+    if table is None:
+        return None, "declared timeout — tv/gate_costs.json exists and is UNREADABLE"
+    if not table:
+        return {}, "declared timeout — there is no measured cost table"
+    return table, ("measured CI seconds from tv/gate_costs.json (%d gates measured; the median for "
+                   "any it has not seen)" % len(table))
+
+
 def cost_weights(gates=None):
     """{gate name: weight} — measured CI seconds from tv/gate_costs.json, the MEDIAN measured cost for
     a gate the table has not seen, or the declared timeout when there is no table at all."""
     gates = list(GATES if gates is None else gates)
-    try:
-        import gate_costs as _gc
-        table = _gc.load()
-    except Exception:
-        table = {}
+    table, _basis = _cost_table()
     if not table:
         return dict((g.name, float(g.timeout or 0)) for g in gates)
     vals = sorted(table.values())
@@ -7251,8 +7269,8 @@ def main(argv):
         if not only:
             print("⛔ REFUSED — shard %s is EMPTY; NO gate ran" % a.shard)
             return 2
-        print("── SHARD %d/%d: %d of %d gates (balanced by declared timeout) ──"
-              % (_k, _n, len(only), len(GATES)))
+        print("── SHARD %d/%d: %d of %d gates (balanced on %s) ──"
+              % (_k, _n, len(only), len(GATES), _cost_table()[1]))
 
     busy = _claim_the_tree()
     if busy:

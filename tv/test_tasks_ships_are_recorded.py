@@ -58,7 +58,10 @@ def _shipped(limit=200):
         if ln.startswith("COMMIT "):
             sha = ln.split()[1]
         elif ln.startswith("+") and not ln.startswith("+++"):
-            m = re.search(r'"ver"\s*:\s*"(v2[0-9]{3})"', ln)
+            # ⚠⚠ #123 — `v2[0-9]{3}` matched v2000-v2999 ONLY. From v3000 on it found ZERO ships
+            # and the gate sat red in every FULL clone ("git named 0 shipped versions") while CI's
+            # shallow clone skipped it — found by the v3483 census, not by the gate's own output.
+            m = re.search(r'"ver"\s*:\s*"(v[0-9]{3,5})"', ln)
             if m and sha:
                 rows.append((m.group(1), sha))
                 sha = None

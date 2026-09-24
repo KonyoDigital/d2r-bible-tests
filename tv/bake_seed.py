@@ -172,6 +172,16 @@ def game_says_missing(src):
 RECEIPT = os.environ.get("TV_BAKE_RECEIPT") or os.path.join(HERE, ".bake_seed_receipt.json")
 
 
+def receipt_path():
+    """Where the receipt lives, for the WRITER and the DOCTOR alike. -> str
+
+    ⚠ #219 follow-up — the second eye on ea3f05da: write_receipt read `env or RECEIPT` while the
+    doctor row read `env or <its own hard-coded path>`, so patching RECEIPT moved the writer and not
+    the reader — the receipt landed in the patched path and the row still opened the live file.
+    One resolver, two readers. [[copy-drift]]
+    """
+    return os.environ.get("TV_BAKE_RECEIPT") or RECEIPT
+
 def write_receipt(outcome, **facts):
     """Remember THAT the seed was checked, WHEN, and what it found. Never silent, never fatal.
 
@@ -181,7 +191,7 @@ def write_receipt(outcome, **facts):
     had nothing to read. A verdict with no expiry is not a verdict. [[stale-reading]] §4
     """
     import time as _t
-    path = os.environ.get("TV_BAKE_RECEIPT") or RECEIPT
+    path = receipt_path()
     rec = dict(facts, outcome=outcome, ts=int(_t.time() * 1000))
     try:
         tmp = path + ".tmp"

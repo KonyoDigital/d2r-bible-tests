@@ -64,6 +64,40 @@ class TheGateSetShardsCleanly(unittest.TestCase):
             med = sorted(table.values())[len(table) // 2]
             self.assertEqual(w[unseen[0]], med, "an unmeasured gate did not weigh the median")
 
+    def test_the_banner_names_the_basis_the_weights_actually_used(self):
+        """#219 follow-up — the second eye on ea3f05da: every --shard run printed "balanced by
+        declared timeout" while cost_weights() balanced on the measured table. One decision
+        (_cost_table), two readers; DRIVEN through all three states, and the banner and the weights
+        are both pinned to it."""
+        import ast
+        import inspect
+        import gate_costs as _gc
+        real = _gc.load
+        try:
+            for table, word in (({"a": 1.0}, "measured"), ({}, "no measured cost table"),
+                                (None, "UNREADABLE")):
+                _gc.load = lambda *a, _t=table, **k: _t
+                got, basis = RG._cost_table()
+                self.assertEqual(got, table)
+                self.assertIn(word, basis, "a %r table was described as %r" % (table, basis))
+        finally:
+            _gc.load = real
+        self.assertIn("measured", RG._cost_table()[1],
+                      "premise: the committed table is readable, so the basis must say measured")
+        tree = ast.parse(inspect.getsource(RG))
+        banner = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                  and getattr(n.func, "id", "") == "print" and n.args
+                  and isinstance(n.args[0], ast.BinOp)
+                  and isinstance(n.args[0].left, ast.Constant)
+                  and "SHARD %d/%d" in str(n.args[0].left.value)]
+        self.assertEqual(len(banner), 1, "the shard banner moved — this law is judging nothing")
+        self.assertNotIn("declared timeout", banner[0].args[0].left.value,
+                         "the banner hard-codes a basis again instead of asking _cost_table()")
+        self.assertIn("_cost_table", ast.dump(banner[0]),
+                      "the banner does not ask _cost_table() which basis the weights used")
+        self.assertIn("_cost_table", inspect.getsource(RG.cost_weights),
+                      "cost_weights() decides its basis somewhere the banner cannot see")
+
     def test_a_slice_that_is_not_a_slice_is_refused(self):
         for k, n in ((0, 2), (3, 2), (1, 10 ** 6)):
             with self.assertRaises(ValueError, msg="shard %d/%d was accepted" % (k, n)):

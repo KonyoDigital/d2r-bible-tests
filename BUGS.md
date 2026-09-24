@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1187 - A FIX THAT NAMED ITS LABEL AT ONE SITE, AND A SHIP READER THAT STOPPED AT v2999
+
+**fix: after v3483.** Two findings from the #231 lane on my own ea3f05da, both confirmed by reading: (1) the shard banner
+still printed "balanced by declared timeout" after I corrected the docstring — one decision (`_cost_table()`) now feeds
+both `cost_weights()` and the banner, and all three table states are driven; (2) my registry note for `bake_seed.RECEIPT`
+was wrong AND hid a split: the doctor resolved the receipt path itself, so a patched constant moved the writer and not the
+reader. `bake_seed.receipt_path()` is now the one resolver; a driven case writes a receipt with a fact no real run makes
+and the row must report it. And from the v3483 census's UNPROVABLE list: `test_tasks_ships_are_recorded` read ships with
+`"(v2[0-9]{3})"`, so from v3000 it found ZERO and sat red in every full clone (CI's shallow clone skips it) — widened to
+`v[0-9]{3,5}`; green and PROVEN. The census (03:07-03:48Z, after v3482 changed heart2): 1376 PROVEN · 0 BLIND · 0 INVALID ·
+10 gates UNPROVABLE, 9 never previously proved; the tenth (`test_classify_corroborator`) re-proved 2/2 alone on a quiet
+machine — it errors under 4-lane load, a timing sensitivity, not today's code. `test_end_routes` is red on his REAL ledger
+(94.95% vs a 95% floor) — data, not code; the floor is not lowered.
+
 ### REG-1186 - THE TWO HASHES BRACKETED A WINDOW, NOT THE PICTURE GROK READ
 
 **v3483 - the cross-family eye on the SHIPPED v3479 bytes (grok-4.7, 5 findings, 4 substantive), each reproduced by
