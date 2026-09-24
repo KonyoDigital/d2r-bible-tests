@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3500",
+  "ver": "v3501",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3500: Escape never quits over an open question; a self-updated console installs Pillow at boot; a machine that died mid-restart is asked about and one switched off never is; the fleet relay carries the measured bit; test runs leave no scratch dirs",
+  "note": "v3501: a doctor pass names its priming steps as well as its checks, so a stalled first pass on Windows says where it sits; the Kai closer reads frames on Windows through ocr_win; a verdict drained from a field counts as declared",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
