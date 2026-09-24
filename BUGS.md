@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1202 - ON A MACHINE WITH NO HISTORY THE RIVER DROPPED ITS DOOR SPLIT INSTEAD OF SAYING UNKNOWN
+
+**v3489 - #123, test_reel_door (CI red, green here).** `river.j_capture` returned early when there was no history
+directory (every CI runner) or it could not be listed, and both returns skipped the door-split decoration — so `doorsSay`
+VANISHED and a reader could not tell "nobody split the doors" from "the field was dropped". Both early returns now carry
+`doors: None` and a `doorsSay` naming why the split is UNKNOWN; the joint's own grade is untouched (UNKNOWN). A/B with the
+no-history branch forced: HEAD fails the CI-red case exactly as CI did, the fix passes. New driven case on that branch +
+proof; 6/6, 5/5 PROVEN.
+
 ### REG-1201 - THE FIXED-WINDOW RATCHET WAS BREACHED BY FIFTEEN DAYS OF ACCUMULATION
 
 **test: after v3488 - #123, test_a_source_window_must_reach_its_subject (red here; UNPROVABLE in the census).** Fixed-size

@@ -102,6 +102,24 @@ class TestAReelSaysWhichDoorOpenedIt(unittest.TestCase):
                                      "UNBUILT", "UNKNOWN"),
                       "the capture joint's state is no longer a known verdict: %r" % cap["state"])
 
+    def test_a_machine_with_NO_history_still_says_the_split_is_unknown(self):
+        """⚠ #123 — DRIVEN on the branch every CI runner takes. j_capture's early return skipped the
+        door split, so the key VANISHED where there is no history — red on CI, green on his Mac,
+        same commit. A missing field reads as a dropped one; an UNKNOWN sentence reads as measured."""
+        import river
+        real = river._hist_dir
+        river._hist_dir = lambda *a, **k: None
+        try:
+            cap = river.j_capture()
+        finally:
+            river._hist_dir = real
+        self.assertEqual(str(cap.get("state")).upper(), "UNKNOWN",
+                         "premise: with no history the capture joint must grade UNKNOWN: %r" % cap)
+        self.assertIn("doorsSay", cap, "the door split vanished on a machine with no history")
+        self.assertIn("UNKNOWN", cap.get("doorsSay") or "",
+                      "the split on a no-history machine does not say it is UNKNOWN: %r"
+                      % cap.get("doorsSay"))
+
     # ── #66, the reply ───────────────────────────────────────────────────────────────────────
     def test_the_already_rolling_reply_names_the_door(self):
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
@@ -154,5 +172,12 @@ RED_PROOF = [
         "find": '                    "door": _rolling, "askedFor": _asked, "doorMatches": _same,',
         "replace": "",
         "matches": 1,
+    },
+    {
+        "why": "#123 - the no-history early return drops the door split again: the key vanishes on every CI runner and a reader cannot tell 'unknown' from 'dropped'",
+        "file": "river.py",
+        "find": "        j[\"doors\"], j[\"doorsSay\"] = None, (\"which door opened each reel is UNKNOWN — there is no \"\n                                           \"history directory to split\")\n",
+        "replace": "",
+        "matches": 1
     },
 ]

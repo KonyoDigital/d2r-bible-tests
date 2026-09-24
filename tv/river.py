@@ -139,14 +139,23 @@ def _joint(name, what, n, upstream, why="", unit="item", unbuilt_why=None):
 def j_capture():
     """disk -> reels. Is footage arriving at all?"""
     h = _hist_dir()
+    # ⚠ #123 — the two early returns used to skip the door split entirely, so on a machine with no
+    # history (every CI runner) the capture joint carried NO `doorsSay` key and a reader could not
+    # tell "nobody split the doors" from "the split field was dropped". The split is UNKNOWN there,
+    # and says why; the joint's own grade is untouched. [[unknown-stays-unknown]]
     if not h:
-        return _joint("capture", "reels on disk", None, None,
-                      "no history directory found — TV_HIST unset and the default is absent",
-                      "reel")
+        j = _joint("capture", "reels on disk", None, None,
+                   "no history directory found — TV_HIST unset and the default is absent", "reel")
+        j["doors"], j["doorsSay"] = None, ("which door opened each reel is UNKNOWN — there is no "
+                                           "history directory to split")
+        return j
     try:
         reels = [d for d in os.listdir(h) if os.path.isdir(os.path.join(h, d))]
     except OSError as e:
-        return _joint("capture", "reels on disk", None, None, str(e)[:70], "reel")
+        j = _joint("capture", "reels on disk", None, None, str(e)[:70], "reel")
+        j["doors"], j["doorsSay"] = None, ("which door opened each reel is UNKNOWN — the history "
+                                           "directory could not be listed (%s)" % type(e).__name__)
+        return j
     # upstream for capture is the game itself, which we cannot measure — so a zero here is
     # UNKNOWN-shaped, not STARVED. Report the count and say the upstream is unmeasurable.
     j = _joint("capture", "reels on disk", len(reels), len(reels) or None,
