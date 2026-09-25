@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1289 - EVERY CURRENT CONSOLE'S FLEET COUNTS WERE HIDDEN AS "NEVER SYNCED"
+
+**fix - #240, his report 2026-09-25.** From his ALT: *"when i look at dean it shows me his sets/and uniques and
+runerword. but when i look at grokbot or KONYO ... i dont see the numbers anywahere for the others.. its like as if
+im the same person on all three"*. MEASURED over SSH on the ALT's own /api/fleet and /api/fleet_compare: the rows
+were always individual (Konyo 134/312/99, GrokBot 128/309/99, the ALT 2/4/0, Dean 132/0/98, each compared
+separately). What hid them: every v3504 tally sealed `measured=False`, "runewords, sets, uniques were never synced",
+beside a ledgerVerdict whose ledgers all said SYNCED, and the card prints "- never synced" in place of the number
+on False. Dean's older build seals no `measured`, so his were the only numbers left. TWO DEFECTS: grail_tally asked
+ledger_authority.classify_row while the tally still held its starting ok:False (classify_row echoes it, so every
+verdict read ok:False), and `_seal_tally_verdict` read that ok as "is it a count" and named every ledger whose
+provenance was not "EARNED" - a word the authority has never emitted. The v3389 law's fixtures spoke "EARNED" too,
+and the doctor row compared against the same `ok`, so it was blind to hidden counts by construction. NOW: the seal
+classifies after ok is sealed and answers PER LEDGER (`measuredBy`: SYNCED/SEEDED/MANUAL are counts, UNSYNCED is
+not, anything else UNKNOWN), so one empty store no longer blanks its neighbours; the relay carries `measuredBy`
+(the seventh joint of this one feature); each card bar reads its own ledger; the doctor row judges each ledger both
+ways and went red on his live roster (8 ledgers across 4 rows). Guard: `test_each_console_shows_its_own_counts`
+(11 cases, 5 proofs), PROVEN; v3389's law moved onto the authority's real vocabulary; two structural laws
+re-anchored on the seal (one had stayed green on grail_tally's starting dict).
+
 ### REG-1288 - A HEADLESS CONSOLE'S BANNER CLAIMED A NATIVE WINDOW
 
 **fix - #145, witnessed 2026-09-25.** The supervisor revives the console with `control_app.py --no-open`

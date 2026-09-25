@@ -219,6 +219,17 @@ export async function onRequestPost(context) {
                     measured: (typeof t.measured === 'boolean') ? t.measured : null,
                     measuredWhy: (typeof t.measuredWhy === 'string')
                       ? t.measuredWhy.replace(/\s+/g, ' ').trim().slice(0, 200) : null,
+                    // ⚠ #240 — THE SEVENTH JOINT, carried in the same commit that mints it. `measured` is one
+                    // bit for a whole row, and one ledger never synced blanked its neighbours; the seal now
+                    // answers PER LEDGER. Only the three ledger names cross, each a real boolean or null.
+                    measuredBy: (function (m) {
+                      if (!m || typeof m !== 'object') return null;
+                      const o = {};
+                      for (const k of ['sets', 'uniques', 'runewords']) {
+                        if (k in m) o[k] = (typeof m[k] === 'boolean') ? m[k] : null;
+                      }
+                      return Object.keys(o).length ? o : null;
+                    })(t.measuredBy),
                     at: Number.isFinite(at) ? at : null };
       if (!out.ok) {
         const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';

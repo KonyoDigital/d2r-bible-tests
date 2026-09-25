@@ -5426,8 +5426,9 @@ def _check_a_tally_agrees_with_its_own_ledger_verdict():
     [[a-gate-can-perturb-what-it-measures]]
 
     FOUR STATES:
-      ok         -> every row whose authority refused it also says so in its own headline
-      missing    -> a row publishes counts its own verdict refuses; names the machines
+      ok         -> every judged ledger's headline agrees with its own provenance, both ways
+      missing    -> a ledger disagrees - a never-synced 0 shown as a count, or (#240) a real
+                    count hidden as never synced; names the machine and the ledger
       unmeasured -> no roster, or no row carries a verdict to compare against
       unknown    -> a reader would not run. Never ok.
     """
@@ -5449,23 +5450,44 @@ def _check_a_tally_agrees_with_its_own_ledger_verdict():
             if isinstance(r, dict) and isinstance(r.get("tally"), dict)]
     if not rows:
         return UNMEASURED, "no row on the roster carries a tally at all"
+    # ⚠⚠ #240 — JUDGED PER LEDGER, IN BOTH DIRECTIONS. This compared the headline against
+    # `ledgerVerdict.ok`, which answers "did the row answer" (classify_row copies the tally's ok),
+    # never "is it a count" - so it could only ever catch a zero shown as progress, and it was
+    # BLIND to the opposite defect by construction: on 2026-09-25 every current console hid real
+    # counts (134, 312, 99 ...) as "never synced" and this row stayed quiet. The authority's word
+    # for each ledger is the independent side; the headline for that ledger (`measuredBy`, or the
+    # row bit on a peer too old to send it) must agree with it either way.
+    _MEAS = {"SYNCED": True, "SEEDED": True, "MANUAL": True, "UNSYNCED": False}
     judged, bad = [], []
     for r in rows:
         t = r["tally"]
         lv = t.get("ledgerVerdict")
-        if not isinstance(lv, dict) or lv.get("ok") is None:
+        led_rows = [L for L in ((lv or {}).get("ledgers") or []) if isinstance(L, dict)
+                    and L.get("ledger") in ("sets", "uniques", "runewords")
+                    and isinstance(t.get(L.get("ledger")), dict)
+                    and str(L.get("provenance") or "").upper() in _MEAS]
+        if not isinstance(lv, dict) or not led_rows:
             continue                      # no verdict to disagree WITH
         judged.append(r)
-        if lv.get("ok") is False and t.get("measured") is not False:
-            bad.append("%s (measured=%r)" % (r.get("nickname") or r.get("machine"),
-                                             t.get("measured")))
+        by = t.get("measuredBy") if isinstance(t.get("measuredBy"), dict) else None
+        who = r.get("nickname") or r.get("machine")
+        for L in led_rows:
+            led = L["ledger"]
+            want = _MEAS[str(L.get("provenance")).upper()]
+            said = by.get(led) if (by is not None and led in by) else t.get("measured")
+            if want is False and said is not False:
+                bad.append("%s %s is %s but reads as a count (measured=%r)"
+                           % (who, led, L.get("provenance"), said))
+            elif want is True and said is False:
+                bad.append("%s %s is %s but its %s figure is hidden as never synced"
+                           % (who, led, L.get("provenance"), (t.get(led) or {}).get("have")))
     if not judged:
         return UNMEASURED, ("%d row(s) carry a tally but none carries a ledger verdict, so the "
                             "two sides cannot be compared - UNKNOWN, not agreement" % len(rows))
     if bad:
-        return MISSING, ("%d of %d judged row(s) publish counts their own ledger verdict "
-                         "refuses, so a 0 there reads as progress rather than as nothing ever "
-                         "handed over: %s" % (len(bad), len(judged), "; ".join(bad[:4])))
+        return MISSING, ("%d ledger(s) across %d judged row(s) disagree with their own ledger "
+                         "verdict - a never-synced 0 read as progress, or a real count hidden as "
+                         "never synced: %s" % (len(bad), len(judged), "; ".join(bad[:4])))
     return OK, ("all %d judged row(s) agree with their own ledger verdict (%d row(s) carry no "
                 "verdict and were not judged)" % (len(judged), len(rows) - len(judged)))
 

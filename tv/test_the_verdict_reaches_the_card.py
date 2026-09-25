@@ -88,7 +88,13 @@ class TheVerdictReachesTheCard(unittest.TestCase):
 
     # ── HOP 1: the tally COMPUTES it ──────────────────────────────────────────────────────────
     def test_the_tally_carries_the_authority_verdict(self):
-        i = APP.find("def grail_tally")
+        # #240 — the authority is asked INSIDE the seal, after `ok` is decided; grail_tally hands it
+        # the world. Asked in grail_tally's own body it saw ok:False and every verdict read ok:False.
+        g = APP.find("def grail_tally")
+        self.assertIn('return _seal_tally_verdict(out, "the board answered but carried no counts", '
+                      'world=_world)', _code_only(APP[g:APP.find("\ndef ", g + 1)]),
+                      "grail_tally no longer hands its world to the seal, so no verdict is asked for")
+        i = APP.find("def _seal_tally_verdict")
         j = APP.find("\ndef ", i + 1)
         blk = _code_only(APP[i:j])
         self.assertIn('out["ledgerVerdict"]', blk,
@@ -98,10 +104,12 @@ class TheVerdictReachesTheCard(unittest.TestCase):
                       "the verdict is no longer produced by ledger_authority.classify_row")
 
     def test_a_failed_classification_is_UNKNOWN_not_a_cheerful_default(self):
-        i = APP.find("def grail_tally")
+        # #240 — anchored on the except branch itself; grail_tally's STARTING dict also says
+        # "ok": False, which is how this case stayed green whatever the classifier did.
+        i = APP.find("def _seal_tally_verdict")
         j = APP.find("\ndef ", i + 1)
         blk = _code_only(APP[i:j])
-        self.assertIn('"ok": False', blk,
+        self.assertIn('out["ledgerVerdict"] = {"ok": False, "why": "the authority could not classify', blk,
                       "a verdict that could not be computed no longer marks itself not-ok, so it "
                       "would render as 'nothing inherited here' — a clean answer nobody measured")
 

@@ -5480,6 +5480,13 @@ GATES = [
              "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
              "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
              "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
+    Gate("test_each_console_shows_its_own_counts",
+         [sys.executable, os.path.join(HERE, "test_each_console_shows_its_own_counts.py")], 60,
+         why="#240 - from his ALT, Konyo's and GrokBot's fleet rows showed no numbers while Dean's did ('as if im "
+             "the same person on all three'). The rows were individual; every v3504 tally sealed measured=False "
+             "over SYNCED ledgers (the authority was asked before ok was sealed, and the seal keyed on 'EARNED', "
+             "a word the authority never says), and the card blanks a False. Now per ledger (measuredBy) through "
+             "seal, relay, card and doctor. 11 cases, 5 red-proofs"),
     Gate("test_a_receipt_row_is_not_a_beat",
          [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
          why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "

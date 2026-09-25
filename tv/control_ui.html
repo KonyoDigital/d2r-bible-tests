@@ -24754,9 +24754,21 @@ function escC(s) {
             + '</div></div>';
         }
         var _isMe = !!(m && m.machine && j && j.me && m.machine === j.me);
-        var _cs = [_bar('sets', t.sets, _isMe, t.measured, t.measuredWhy),
-                   _bar('uniques', t.uniques, _isMe, t.measured, t.measuredWhy),
-                   _bar('runewords', t.runewords, _isMe, t.measured, t.measuredWhy)]
+        /* ⚠⚠ #240 — EACH LEDGER ITS OWN ANSWER. Konyo, from his ALT: *"when i look at grokbot or
+           KONYO ... i dont see the numbers anywahere for the others.. its like as if im the same
+           person on all three"*. Every current console sealed measured:false over SYNCED ledgers,
+           and this card blanked all three bars of every one of them - only Dean's older build,
+           which seals nothing, kept its numbers. The seal now answers per ledger (`measuredBy`),
+           so one never-synced store cannot blank its neighbours. The row-level bit is read only
+           for a peer too old to send `measuredBy`. [[unknown-stays-unknown]] */
+        var _measOf = function (lab) {
+          var by = t.measuredBy;
+          if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;
+          return t.measured;
+        };
+        var _cs = [_bar('sets', t.sets, _isMe, _measOf('sets'), t.measuredWhy),
+                   _bar('uniques', t.uniques, _isMe, _measOf('uniques'), t.measuredWhy),
+                   _bar('runewords', t.runewords, _isMe, _measOf('runewords'), t.measuredWhy)]
                   .filter(function (s) { return !!s; });
         var bars = _cs.length
           ? '<div class="ftt-counts">' + _cs.join('<i class="ftt-sep">\u00b7</i>') + '</div>'
@@ -24818,7 +24830,9 @@ function escC(s) {
            unknown, never as clean. [[unknown-stays-unknown]] */
         var _lv = t.ledgerVerdict || null;
         var _lvRows = (_lv && _lv.ledgers && _lv.ledgers.length)
-          ? _lv.ledgers.filter(function(L){ return L && L.provenance && L.provenance !== 'EARNED'; })
+          /* #240 — no `!== 'EARNED'` clause: ledger_authority has never said that word, so it filtered nothing
+             and taught the seal beside it to key on a provenance that does not exist. */
+          ? _lv.ledgers.filter(function(L){ return L && L.provenance; })
           : [];
         var seeded = _lvRows.length
           ? '<div class="ftt-seed ftt-seed-rows">'

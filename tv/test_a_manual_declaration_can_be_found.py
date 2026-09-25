@@ -57,9 +57,19 @@ def _call_kwargs(fn_name, callee):
 class AManualDeclarationCanBeFound(unittest.TestCase):
 
     def test_the_tally_tells_the_authority_which_world_it_is_about(self):
-        calls = _call_kwargs("grail_tally", "classify_row")
-        print("   classify_row calls in grail_tally: %r" % (calls,))
-        self.assertTrue(calls, "grail_tally no longer classifies its row at all")
+        # #240 — the world now travels in two hops: grail_tally hands it to the seal, and the seal
+        # asks the authority AFTER `ok` is decided (asked earlier, every verdict read ok:False).
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        gt = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "grail_tally")
+        hop1 = [[k.arg for k in n.keywords] for n in ast.walk(gt)
+                if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_seal_tally_verdict"]
+        print("   _seal_tally_verdict calls in grail_tally: %r" % (hop1,))
+        self.assertTrue(any("world" in kw for kw in hop1),
+                        "grail_tally no longer hands its world to the seal")
+        calls = _call_kwargs("_seal_tally_verdict", "classify_row")
+        print("   classify_row calls in the seal: %r" % (calls,))
+        self.assertTrue(calls, "the seal no longer classifies its row at all")
         self.assertTrue(any("world" in kw for kw in calls),
                         "classify_row is called without a world, so manual_for looks up world=None "
                         "and a declaration made on a real board can never be found — the writer "

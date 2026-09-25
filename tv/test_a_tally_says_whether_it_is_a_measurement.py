@@ -129,8 +129,13 @@ class ATallySaysWhetherItIsAMeasurement(unittest.TestCase):
 
     def test_a_synced_and_genuinely_empty_board_keeps_its_honest_zero(self):
         """THE BASELINE, and without it a fix that called EVERY zero unmeasured would pass.
-        A new player must be able to report nothing found and be believed."""
-        synced = {"ok": True, "ledgers": [{"ledger": "sets", "provenance": "EARNED"}]}
+        A new player must be able to report nothing found and be believed.
+
+        ⚠ #240 — IN THE AUTHORITY'S OWN WORDS. This fixture said "EARNED", a provenance
+        ledger_authority has never emitted, and the seal keyed on that word - so every real SYNCED
+        ledger on the fleet was branded "never synced" while this case stayed green."""
+        synced = {"ok": True, "ledgers": [{"ledger": k, "provenance": "SYNCED"}
+                                          for k in ("sets", "uniques", "runewords")]}
         out = CA._seal_tally_verdict(_row(synced, have=0), "carried no counts")
         self.assertIs(out["measured"], True,
                       "a genuinely synced, genuinely empty board was accused of not measuring")
@@ -154,7 +159,8 @@ class ATallySaysWhetherItIsAMeasurement(unittest.TestCase):
 
     def test_a_full_board_is_measured(self):
         """Discrimination in the other direction: the fix must not suppress real progress."""
-        synced = {"ok": True, "ledgers": [{"ledger": "sets", "provenance": "EARNED"}]}
+        synced = {"ok": True, "ledgers": [{"ledger": k, "provenance": "SYNCED"}
+                                          for k in ("sets", "uniques", "runewords")]}
         out = CA._seal_tally_verdict(_row(synced, have=128), "carried no counts")
         self.assertIs(out["measured"], True)
         self.assertEqual(out["sets"]["have"], 128, "the count itself was altered")
@@ -182,9 +188,11 @@ class ATallySaysWhetherItIsAMeasurement(unittest.TestCase):
                          "too, accusing every pre-v3389 console of lying")
 
     def test_all_three_bars_are_told_the_verdict(self):
-        """A field nobody reads is plumbing with no tap. [[the-unjoined-end]]"""
-        self.assertEqual(UI.count("t.measured, t.measuredWhy"), 3,
-                         "not all three ledger bars receive the verdict")
+        """A field nobody reads is plumbing with no tap. [[the-unjoined-end]]
+        #240 — each bar is told ITS OWN ledger's verdict, not the row's."""
+        for led in ("sets", "uniques", "runewords"):
+            self.assertEqual(UI.count("_measOf('%s'), t.measuredWhy" % led), 1,
+                             "the %s bar does not receive its own ledger's verdict" % led)
 
 
 RED_PROOF = [
@@ -192,8 +200,8 @@ RED_PROOF = [
         "why": "calling an unsynced board measured is the defect itself, and his real row must "
                "go red on it",
         "file": "tv/control_app.py",
-        "find": '    out["measured"] = False\n    out["measuredWhy"] = (\n',
-        "replace": '    out["measured"] = True\n    out["measuredWhy"] = (\n',
+        "find": '        out["measured"] = False\n        out["measuredWhy"] = "these counts are not a measurement: "',
+        "replace": '        out["measured"] = True\n        out["measuredWhy"] = "these counts are not a measurement: "',
         "matches": 1,
     },
     {
@@ -208,7 +216,7 @@ RED_PROOF = [
         "why": "restoring the truthiness test at a call site is the exact regression, and the "
                "one-writer law must catch a second copy appearing again",
         "file": "tv/control_app.py",
-        "find": '    return _seal_tally_verdict(out, "the board answered but carried no counts")',
+        "find": '    return _seal_tally_verdict(out, "the board answered but carried no counts", world=_world)',
         "replace": '    out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))\n'
                    '    if not out["ok"]:\n'
                    '        out["why"] = "the board answered but carried no counts"\n'

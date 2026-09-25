@@ -2231,7 +2231,15 @@ def _same_id(a, b):
     return a[:n] == b[:n]
 
 
-def _seal_tally_verdict(out, no_counts_why):
+#: #240 — WHAT EACH OF THE AUTHORITY'S PROVENANCES SAYS ABOUT "IS THIS FIGURE A COUNT".
+#: Keyed on ledger_authority.PROVENANCE, the only vocabulary that module speaks. Anything not
+#: listed (UNKNOWN, a word from a newer authority) reads None = UNKNOWN, never a guess.
+_PROVENANCE_MEASURED = {"SYNCED": True, "SEEDED": True, "MANUAL": True, "UNSYNCED": False}
+_TALLY_LEDGERS = ("sets", "uniques", "runewords")
+_NO_WORLD = object()
+
+
+def _seal_tally_verdict(out, no_counts_why, world=_NO_WORLD):
     """TWO QUESTIONS, TWO ANSWERS: did the board ANSWER, and is what it said a MEASUREMENT?
 
     v3389 (#133). Konyo, on his new PC's row: *"ok: True with have: 0 - a confident zero - while
@@ -2270,6 +2278,29 @@ def _seal_tally_verdict(out, no_counts_why):
         out["measured"] = False
         out["measuredWhy"] = no_counts_why
         return out
+    # ══ #240 — THE VERDICT IS ASKED FOR AFTER `ok` IS SEALED, NEVER BEFORE ══════════════════════
+    # Konyo, 2026-09-25, from his ALT: *"when i look at dean it shows me his sets/and uniques and
+    # runerword. but when i look at grokbot or KONYO ... i dont see the numbers anywahere ... its
+    # like as if im the same person on all three"*. MEASURED on the ALT's own /api/fleet: every
+    # v3504 row (Konyo 134/312/99, GrokBot 128/309/99, the ALT 2/4/0) carried measured=False,
+    # "runewords, sets, uniques were never synced", beside a ledgerVerdict whose ledgers all said
+    # SYNCED - and the card prints "- never synced" in place of every number when measured is
+    # False. Dean's older build seals no `measured`, so his numbers were the only ones left.
+    #
+    # TWO DEFECTS, one line apart. grail_tally called classify_row(out) while `out` still held its
+    # starting ok:False, and classify_row echoes that ok - so ledgerVerdict.ok was False on EVERY
+    # console, always. And this function then read ledgerVerdict.ok as "is it a measurement" and
+    # named every ledger whose provenance was not "EARNED" - a word ledger_authority has never
+    # said. The v3389 fixtures were written in that word too, so the law was green on fiction.
+    # [[the-unjoined-end]] [[gate-blind-to-unexercised-input]]
+    if world is not _NO_WORLD:
+        try:
+            import ledger_authority as _LA
+            out["ledgerVerdict"] = _LA.classify_row(out, world=world)
+        except Exception as _lae:
+            # UNKNOWN, never a cheerful default. [[unknown-stays-unknown]]
+            out["ledgerVerdict"] = {"ok": False, "why": "the authority could not classify this "
+                                                        "row: %s" % str(_lae)[:140]}
     lv = out.get("ledgerVerdict")
     if not isinstance(lv, dict):
         # ⚠ THE BOARD-STORE PATH REACHES HERE BY DESIGN. grail_tally returns that tally directly
@@ -2280,20 +2311,40 @@ def _seal_tally_verdict(out, no_counts_why):
         out["measuredWhy"] = ("no ledger verdict accompanies these counts, so whether they are a "
                               "measurement is UNKNOWN - they are not confirmed, and not denied")
         return out
-    if lv.get("ok") is True:
+    # ★ PER LEDGER, FROM THE AUTHORITY'S OWN WORD. `ledgerVerdict.ok` answers "did the row
+    # answer" (classify_row copies the tally's ok), never "is it a count", so it decides nothing
+    # here. Each reported ledger's provenance does: SYNCED/SEEDED/MANUAL are counts, UNSYNCED is
+    # "nothing was ever handed over", anything else is UNKNOWN. One ledger never synced must not
+    # blank its neighbours - the ALT's 2 set pieces and 4 uniques are real beside an empty
+    # runeword store - so the answer is carried per ledger in `measuredBy`, and the row-level
+    # `measured` stays for older readers: True only when every reported ledger is a count, False
+    # only when none is, None when they differ or any is unknown.
+    _prov = {}
+    for L in (lv.get("ledgers") or []):
+        if isinstance(L, dict) and L.get("ledger") in _TALLY_LEDGERS:
+            _prov[L["ledger"]] = _PROVENANCE_MEASURED.get(str(L.get("provenance") or "").upper())
+    _rep = [k for k in _TALLY_LEDGERS if isinstance(out.get(k), dict)]
+    out["measuredBy"] = {k: _prov.get(k) for k in _rep}
+    _never = [k for k in _rep if out["measuredBy"][k] is False]
+    _unk = [k for k in _rep if out["measuredBy"][k] is None]
+    _why = []
+    if _never:
+        _why.append("%s %s never synced on that board, so a 0 there means nothing was ever handed "
+                    "over, not that nothing was found"
+                    % (", ".join(_never), "were" if len(_never) != 1 else "was"))
+    if _unk:
+        _why.append("whether %s %s a count is UNKNOWN - %s"
+                    % (", ".join(_unk), "are" if len(_unk) != 1 else "is",
+                       str(lv.get("why") or "the ledger authority named no provenance for it")))
+    if not _never and not _unk:
         out["measured"] = True
         out["measuredWhy"] = ""
-        return out
-    _un = sorted({str(L.get("ledger") or "?") for L in (lv.get("ledgers") or [])
-                  if isinstance(L, dict)
-                  and str(L.get("provenance") or "").upper() not in ("EARNED", "")})
-    out["measured"] = False
-    out["measuredWhy"] = (
-        ("these counts are not a measurement: %s %s never synced on that board, so a 0 means "
-         "nothing was ever handed over, not that nothing was found"
-         % (", ".join(_un), "were" if len(_un) != 1 else "was"))
-        if _un else
-        (str(lv.get("why") or "the ledger authority refused these counts and gave no reason")))
+    elif _never and len(_never) == len(_rep):
+        out["measured"] = False
+        out["measuredWhy"] = "these counts are not a measurement: " + "; ".join(_why)
+    else:
+        out["measured"] = None
+        out["measuredWhy"] = "not every ledger here is a count: " + "; ".join(_why)
     return out
 
 
@@ -2474,7 +2525,6 @@ def grail_tally():
     # this carries the AUTHORITY's per-ledger verdict beside the raw flag instead of replacing it.
     # The raw flag stays so an older reader keeps working. [[the-unjoined-end]]
     try:
-        import ledger_authority as _LA
         # ══ v3197 — THE VERDICT NOW KNOWS WHICH WORLD IT IS ABOUT ═════════════════════════
         # `classify_row(tally, world=None, ...)` passes world to manual_for(), which resolves it
         # with world_key() = install id + profile. Called with world=None, a manual declaration
@@ -2492,13 +2542,13 @@ def grail_tally():
         # ⚠ AND IT STAYS HONEST WHEN THE BOARD IS SHUT: own is {} then, world is None, and
         # classify_row behaves exactly as before rather than inventing a world. An empty id is
         # refused by world_key itself, so a guessed world cannot match every id-less board at once.
-        out["ledgerVerdict"] = _LA.classify_row(out, world=(own.get("route") or None))
-    except Exception as _lae:
-        # UNKNOWN, never a cheerful default: a verdict that could not be computed must not read as
-        # "nothing inherited here". [[unknown-stays-unknown]]
-        out["ledgerVerdict"] = {"ok": False, "why": "the authority could not classify this row: %s"
-                                                    % str(_lae)[:140]}
-    return _seal_tally_verdict(out, "the board answered but carried no counts")
+        #
+        # ⚠ #240 — AND IT IS ASKED INSIDE THE SEAL, after `ok` is decided. Asked here, `out` still
+        # held its starting ok:False and every console published a verdict of ok:False.
+        _world = own.get("route") or None
+    except Exception:
+        _world = None
+    return _seal_tally_verdict(out, "the board answered but carried no counts", world=_world)
 
 
 _TALLY_CACHE = {"t": 0.0, "val": None}
