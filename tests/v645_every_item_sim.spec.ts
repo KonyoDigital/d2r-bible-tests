@@ -60,7 +60,13 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
       if (ownedBefore.has(n)) return true;
       if (VARIANTS[n] && ownedBefore.has(VARIANTS[n])) return true;
       const rr = w.d2rResolveItem ? w.d2rResolveItem(n) : null;
-      return !!(rr && rr.canonical && ownedBefore.has(rr.canonical));
+      if (rr && rr.canonical && ownedBefore.has(rr.canonical)) return true;
+      /* #165 — THE SAME DISPLAY-SUFFIX RULE `reachable` USES BELOW. The ledger keys the Shako as "Harlequin
+         Crest" (REG-1274) and the amulet as "Crescent Moon"; ITEMS carries "(Shako)" / "(amulet)". Once
+         REG-1275 let the floor run on a fresh board both were FOUND, read as missing here, and - a found
+         item never sits in the missing grid - came back UNREACHABLE. Measured on a real page: 73 -> 71
+         missing, and the only names left unreached are the two runes NOT_A_UNIQUE already excuses. */
+      return ownedBefore.has(String(n).replace(/\s*\([^)]+\)\s*$/, ''));
     };
     const missing = pool.filter((x: any) => !ownedUnderAnyName(x.n));
     const failures: string[] = [];
