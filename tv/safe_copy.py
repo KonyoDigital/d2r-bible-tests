@@ -48,6 +48,9 @@ HEAVY = (
     # (639 MB with two live). Copied, it pushed every sandbox over the 400 MB refusal, so while any
     # isolated agent ran, EVERY heart2 --prove on this Mac returned "no lane could build a sandbox".
     # A worktree is a whole second checkout; no sabotage test reads another agent's tree.
+    # ⚠ Like every name here it matches AT ANY DEPTH, so any directory called `worktrees` is skipped,
+    # not only `.claude/worktrees` - deliberate (the Grok CLI's lens review flagged the breadth; there
+    # is no other `worktrees` dir in the repo, and a checkout is never sabotage-test input).
     "worktrees",
 )
 
