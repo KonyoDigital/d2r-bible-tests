@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1296 - AFTER THE #240 FIX, PEERS STILL ON THE OLD SEAL STILL READ "-"
+
+**fix - measured on GrokBot's glass 2026-09-25 (its seat on 3cd6bb26, hover exercised).** Numbers showed for GrokBot,
+Dean and GrokBot·cursor; Konyo and the ALT still read "-/-/-" while their /api/fleet tallies carried 134/312/99 and
+2/4/0 - their consoles had not restarted, so they still published the old seal (measured=False, no measuredBy) and the
+card fell back to that row bit. Their own ledgerVerdict rows already said SYNCED, so the card now reads an old peer
+through its per-ledger provenance, with the seal's exact table, before the row bit. control_ui.html is served per
+request, so every console shows it on the next hover - no restart needed. Guard: +1 case, +1 proof, PROVEN.
+
 ### REG-1295 - THE SECOND EYE REVIEWED IN AN EMPTY FOLDER (#169 WIN 2)
 
 **fix - his ruling 2026-09-25 ("forget this use the grok cli instead").** The eye was run in an empty scratch

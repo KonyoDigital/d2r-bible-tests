@@ -143,6 +143,15 @@ class TheRelayAndTheCardCarryIt(unittest.TestCase):
     def test_an_old_peer_falls_back_to_the_row_bit(self):
         self.assertIs(self._meas({"measured": False}, "sets"), False)
 
+    def test_an_old_seal_is_read_through_its_own_provenance(self):
+        """MEASURED on GrokBot's glass after 3cd6bb26: Konyo and the ALT, still on the old seal, read "—"
+        although their tallies carry numbers. Their ledgerVerdict rows say SYNCED; that wins over the row bit."""
+        old = {"measured": False, "ledgerVerdict": {"ok": False, "ledgers": [
+            {"ledger": "sets", "provenance": "SYNCED"}, {"ledger": "runewords", "provenance": "UNSYNCED"}]}}
+        self.assertIs(self._meas(old, "sets"), True, "an old peer's synced count is still hidden as never synced")
+        self.assertIs(self._meas(old, "runewords"), False)
+        self.assertIs(self._meas(old, "uniques"), False, "no provenance row: the row bit stays the fallback")
+
 
 class TheDoctorSeesAHiddenCount(unittest.TestCase):
 
@@ -183,6 +192,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#240 - an old peer's broken row bit wins again; Konyo and the ALT read '-' on every other console",
+        "file": "tv/control_ui.html",
+        "find": "              if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#240 - a SYNCED ledger is called never synced again; his 134/312/99 print as '- never synced'",
         "file": "tv/control_app.py",

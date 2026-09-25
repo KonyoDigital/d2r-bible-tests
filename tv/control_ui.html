@@ -24764,6 +24764,20 @@ function escC(s) {
         var _measOf = function (lab) {
           var by = t.measuredBy;
           if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;
+          /* #240 — A PEER STILL RUNNING THE OLD SEAL sends the broken row bit (measured:false over SYNCED
+             ledgers) and no measuredBy. MEASURED on GrokBot's glass after 3cd6bb26: Konyo and the ALT still
+             read "—" because their consoles had not restarted. Their own ledgerVerdict rows already say
+             SYNCED, so read THAT, with the seal's exact table (control_app._PROVENANCE_MEASURED). */
+          try {
+            var lv = t.ledgerVerdict, ls = (lv && lv.ledgers) || [];
+            for (var i = 0; i < ls.length; i++) {
+              if (!ls[i] || ls[i].ledger !== lab || !ls[i].provenance) continue;
+              var pv = String(ls[i].provenance).toUpperCase();
+              if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;
+              if (pv === 'UNSYNCED') return false;
+              return null;
+            }
+          } catch (_lv) {}
           return t.measured;
         };
         var _cs = [_bar('sets', t.sets, _isMe, _measOf('sets'), t.measuredWhy),
