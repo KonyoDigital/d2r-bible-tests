@@ -2906,6 +2906,9 @@ MINE = {
         "#24 — a recorder that destroys its own evidence before writing the row is MY\n"
         "defect. He reported the black stage twice with screenshots; the machine had 27\n"
         "of them on file and could say nothing useful about any.",
+    "save reader tables":
+        "#174 — the .d2s reader's tables are generated from HIS install and kept in step\n"
+        "with a game patch by me; a stale bit width is not something he can act on.",
     "item vocabulary":
         "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
         "game patch is MY job. He asked for the feature; a stale affix table is not\n"
@@ -4824,6 +4827,33 @@ def _check_a_ui_fault_keeps_its_evidence():
                          "byte-identical to the 192 rows that never had one" % len(mine))
     return OK, ("%d of %d console-reported fault(s) carry a pre-rescue snapshot (was 8 of 200 "
                 "across all kinds when this shipped)" % (len(have), len(mine)))
+
+
+def _check_the_save_reader_matches_the_install():
+    """#174 — CAN A CHARACTER SAVE STILL BE READ, AND ARE ITS TABLES STILL THE INSTALL'S?
+
+    tv/d2s_read.py reads a D2R .d2s (format 105) byte-exact against tv/item_tables.json - stat bit widths, item
+    codes, unique/set/runeword names - generated ONCE from his 28 GB install. A game patch that moves a stat's
+    Save Bits makes every later import decode WRONG (the property lists shift) while every row still looks like
+    an item. So the tables' sourceHash is re-derived here and compared, exactly as `item vocabulary` does for the
+    affix lexicon. The reader was built without this row; the heart-first rule is that it ships with one.
+    THREE STATES: OK tables match the install · MISSING the install changed (STALE - regenerate) ·
+    UNKNOWN no tables / no install to compare against (a CI runner) - never OK.
+    """
+    try:
+        import item_tables as IT
+        import d2s_read  # noqa: F401  (a reader that will not import cannot read anything)
+    except Exception as e:
+        return UNKNOWN, "the save reader or its tables will not import: %s" % str(e)[:90]
+    try:
+        code, say = IT.verify()
+    except Exception as e:
+        return UNKNOWN, "the item-table verifier raised: %s" % str(e)[:110]
+    if code == getattr(IT, "SKIP", 77):
+        return UNKNOWN, say
+    if code != 0:
+        return MISSING, say + " - every .d2s import would decode against last patch's bit widths"
+    return OK, say
 
 
 def _check_the_item_vocabulary_can_name_his_loot():
@@ -8138,6 +8168,7 @@ CHECKS = [
      _check_a_queue_zero_came_from_a_read_that_WORKED),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
+    ("save reader tables", _check_the_save_reader_matches_the_install),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
     ("item facts captured", _check_the_item_facts_are_reaching_the_row),
@@ -8386,6 +8417,7 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # the mirror gate passed the whole time. PERIODIC still runs on its own, every
             # PERIODIC_EVERY ticks.
             "item vocabulary",
+            "save reader tables",      # #174 — re-derives from the install, same reason as its sibling
             "a worker read has a deadline",
             "no git child steals his screen",
             "the door and the writers agree",
@@ -8829,6 +8861,7 @@ WATCHES = {
     # element of its own. Empty tuple as a DECLARATION, not an omission: it reaches him
     # through the eagle line today, and through the unsure rows once they render a vocab.
     "item vocabulary":             (),
+    "save reader tables":          (),
     # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
     # omission: it reaches him through the eagle line, not through an element of its own.
     "fault evidence":              (),

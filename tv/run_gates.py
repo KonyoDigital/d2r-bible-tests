@@ -5480,6 +5480,11 @@ GATES = [
              "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
              "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
              "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
+    Gate("test_the_save_reader_watches_its_tables",
+         [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
+         why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
+             "stat's bit width makes every import decode wrong while it still looks like items. Its doctor row "
+             "re-derives sourceHash: fresh OK, stale MISSING, no install UNKNOWN. 4 cases, 1 red-proof"),
     Gate("test_the_eye_reads_the_commit_read_only",
          [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
          why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "

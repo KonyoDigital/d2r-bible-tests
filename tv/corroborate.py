@@ -2493,6 +2493,8 @@ NO_JOINT_YET = {
     'fault evidence': 'the row counts snapshots on console-reported fault rows; the real second source '
                           'would be a capture taken at the moment the stage went blank, and no capture is '
                           'triggered by that event.',
+    'save reader tables': 'the row re-derives the item tables from the install and compares sourceHash; the '
+                          'second source would be the game decoding a save itself, which it never reports.',
     'item vocabulary': 'the row re-derives the lexicon from the install and compares sourceHash; a real '
                           'second source would be the game reporting its own affix decomposition, which it '
                           'never does - and the base\\ table copies are byte-identical for the rare half, so '
