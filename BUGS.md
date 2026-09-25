@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1276 - THE HOST OS HAD TWO WRITERS; THE BANNER NOW READS THE HEAP
+
+**fix - #178, his ruling 2026-09-25 ("the banner reads the heap").** 22adfc76 established that the board_build door's
+`machine: windows` and the ribbon's LINUX answer two questions (D2R_MACHINE is the storage world, 'windows' including
+Linux). But the OS itself still had TWO writers - the cousin ribbon's own UA test and the door's raw
+navigator.platform - which is the shape his ruling forbids. Now `window.D2R_HOST_OS` is computed ONCE on the heap,
+beside D2R_MACHINE; the ribbon renders it and the door reports it (the raw probe only for a board older than the
+field). The ribbon's sentence keeps its length on purpose (v2061 measured this band colliding at narrow widths).
+VERIFIED ON PIXELS with an emulated Linux host: "🐧 LINUX — its own world · Mac untouched"; Windows host: WINDOWS.
+Guard: `test_the_banner_reads_the_heap` - the real block in node for Mac/Linux/Windows/Android, the ribbon reads
+the heap, the door reads it first (3 cases, 2 proofs), PROVEN.
+
 ### REG-1275 - EVERY FRESH INSTALL WAS FILED AS A LOST STORE, AND ITS SEED FLOOR REFUSED FOR EVER
 
 **fix - #165, found by tracing v659's and v1560's Routine I reds to one cause in a real page.** The v2988 loss

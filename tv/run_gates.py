@@ -5344,6 +5344,13 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_the_banner_reads_the_heap",
+         [sys.executable, os.path.join(HERE, "test_the_banner_reads_the_heap.py")], 60,
+         why="#178 (his ruling 2026-09-25: the banner reads the heap) - the host OS had two writers, the cousin "
+             "ribbon's own UA test and the board_build door's raw navigator.platform, which is how GrokBot's "
+             "Linux seat filed 'machine windows' beside a LINUX ribbon as a contradiction. Now window.D2R_HOST_OS "
+             "is computed once on the heap; the ribbon renders it (pixels: 'LINUX - its own world') and the door "
+             "reports it. The real block driven in node for 4 hosts. 3 cases, 2 red-proofs"),
     Gate("test_a_fresh_install_is_not_a_lost_store",
          [sys.executable, os.path.join(HERE, "test_a_fresh_install_is_not_a_lost_store.py")], 60,
          why="REG-1275 (#165) - the v2988 loss detector read 'has run before' from keys THIS boot had just "

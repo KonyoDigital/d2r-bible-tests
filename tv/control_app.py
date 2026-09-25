@@ -13725,7 +13725,10 @@ def board_build():
           "var pf=(_ctx.D2R_PROFILE!=null?_ctx.D2R_PROFILE:((b&&b.profile)!=null?b.profile:null));"
           "var mc=(_ctx.D2R_MACHINE!=null?_ctx.D2R_MACHINE:((b&&b.machine)!=null?b.machine:null));"
           # ⚠ #178 — the HOST, read in the SAME evaluation as the heap, so the two are one instant
-          "var np='';try{var _n=_ctx.navigator||navigator;np=String((_n.userAgentData&&_n.userAgentData.platform)"
+          # #178 — the heap's ONE host reading first (D2R_HOST_OS, what the ribbon renders); the raw probe
+          # only for a board older than the field
+          "var np='';try{np=String(_ctx.D2R_HOST_OS||'');}catch(_hp){}"
+          "if(!np)try{var _n=_ctx.navigator||navigator;np=String((_n.userAgentData&&_n.userAgentData.platform)"
           "||_n.platform||'');}catch(_np){}"
           "return JSON.stringify({typeofBuild:(typeof b),"
           "id:(b&&b.id)||null,profile:pf,machine:mc,platform:np,"

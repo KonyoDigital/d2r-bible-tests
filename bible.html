@@ -3886,6 +3886,25 @@ window.D2R_MACHINE = (function(){
     return m;
   } catch(e) { return 'mac'; }
 })();
+/* #178 (his ruling 2026-09-25: "the banner reads the heap") — ONE WRITER FOR THE HOST OS. D2R_MACHINE above is the
+   STORAGE WORLD ('mac' | 'windows', Linux included in 'windows'); the operating system is a second fact, and it had
+   TWO writers - the cousin ribbon's own UA test and the board_build door's raw navigator.platform - which is how
+   GrokBot's Linux seat read "machine windows" beside a ribbon saying LINUX and filed it as a contradiction. Computed
+   ONCE here; the ribbon renders it and the door reports it. */
+window.D2R_HOST_OS = (function(){
+  try {
+    var p = [];
+    if (navigator.userAgentData && navigator.userAgentData.platform) p.push(navigator.userAgentData.platform);
+    if (navigator.platform) p.push(navigator.platform);
+    if (navigator.userAgent) p.push(navigator.userAgent);
+    var s = p.join(' ');
+    if (/macintosh|mac os|macos|\bmac\b|iphone|ipad/i.test(s)) return 'MAC';
+    if (/android/i.test(s)) return 'ANDROID';
+    if (/linux|x11|ubuntu|debian/i.test(s)) return 'LINUX';
+    if (/win/i.test(s)) return 'WINDOWS';
+  } catch(e){}
+  return 'THIS MACHINE';
+})();
 // ══ v1499 — THE WORLD IS DECIDED BY THE INSTALL, NOT THE OPERATING SYSTEM ══════════════════════
 // Konyo: "if i go login on my windows (adi's my wife's pc) it should be a clean slate completely for
 // anyone new registering."
@@ -49035,18 +49054,12 @@ try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-pr
    Grok's W-world already lives on Grok's machine and shares nothing with Dean's but a prefix
    NAME. Isolation is already per-machine. Only the label was lying. */
 try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-shell');
+  /* #178 — the ribbon RENDERS the heap's one host reading (window.D2R_HOST_OS, beside D2R_MACHINE); it no longer
+     derives its own, so the sentence on screen and the board_build door can never name two different machines. */
   var _wm = (function(){
-    try {
-      var p = [];
-      if (navigator.userAgentData && navigator.userAgentData.platform) p.push(navigator.userAgentData.platform);
-      if (navigator.platform) p.push(navigator.platform);
-      if (navigator.userAgent) p.push(navigator.userAgent);
-      var s = p.join(' ');
-      if (/linux|x11|ubuntu|debian/i.test(s) && !/android/i.test(s)) return { w: 'LINUX', i: '🐧' };
-      if (/android/i.test(s)) return { w: 'ANDROID', i: '📱' };
-      if (/win/i.test(s)) return { w: 'WINDOWS', i: '🪟' };
-    } catch(e){}
-    return { w: 'THIS MACHINE', i: '🖥' };
+    var w = window.D2R_HOST_OS || 'THIS MACHINE';
+    var icons = { LINUX: '🐧', ANDROID: '📱', WINDOWS: '🪟', MAC: '🍎' };
+    return { w: w, i: icons[w] || '🖥' };
   })();
   /* ⚠⚠ v3272 — A BAND HE CANNOT GET RID OF IS A TRAP, AND GROK BOT FILED IT AS ONE.
      From his NATIVE Linux seat, 2026-09-17 18:06 IDT: *"Trap: persistent 🐧 LINUX toast."*
