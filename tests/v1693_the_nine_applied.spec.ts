@@ -1,5 +1,6 @@
 import { test, expect } from './_net_stub';
 import * as path from 'path';
+import { suppressOneShots } from './_oneshots';
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    v1693 — HIS RULING ON THE NINE, APPLIED: THE TALLY IS FINALLY THE NUMBER HE ACTUALLY HAS.
@@ -135,6 +136,18 @@ async function seed(page: any, overrides: Record<string, string> = {}) {
   await page.waitForTimeout(1500);
 }
 
+/* REG-1270 — THE BASELINE IS MEASURED, NEVER A 2026-08-11 LITERAL (see v1692's twin). The same ledger booted as a
+   LATER load (every one-shot flagged) in its OWN context is what the twelve are counted from. Measured in a real
+   page on the 309-name seed: baseline 297 / 420 keys; a fresh boot 309 / 432, batches [2, 9, 1]. */
+async function baseline(browser: any) {
+  const ctx = await browser.newContext();
+  try {
+    const p = await ctx.newPage();
+    await seed(p, suppressOneShots());
+    return await scan(p);
+  } finally { await ctx.close(); }
+}
+
 async function openUniquesTab(page: any) {
   await page.click('.tab[data-tab="funi"]');
   await page.waitForTimeout(400);
@@ -192,13 +205,14 @@ test('(0) SANITY — his real 346-key ledger is in the page before any apply fir
    Diggler all fire in the same load, 236 → 248. RED against HEAD's committed bible.html (no
    working-tree changes): found stops at 238, none of the nine or Diggler land, d2r_grailUnfound
    stays at 9 keys — measured via the RED-PROVE seam in the header. */
-test('(1) UP — first load applies v1692 + the nine + The Diggler, 236 → 248, and each lands honestly', async ({ page }) => {
+test('(1) UP — first load applies v1692 + the nine + The Diggler, twelve names, and each lands honestly', async ({ page, browser }) => {
+  const base = await baseline(browser);   // REG-1270
   await seed(page);
   const s = await scan(page);
   const txt = await openUniquesTab(page);
-  expect(namedCards(txt).found, 'the screen after the boot auto-apply').toBe(N_AFTER);
-  expect(s.found, 'funiScan().found after the boot auto-apply').toBe(N_AFTER);
-  expect(s.bootFoundLogKeys, 'his ledger grew by exactly the twelve applied names (2 + 9 + 1)').toBe(N_LEDGER_AFTER);
+  expect(namedCards(txt).found, 'the screen after the boot auto-apply agrees with the engine').toBe(s.found);
+  expect(s.found, 'the first load added EXACTLY the twelve names to the tally').toBe(base.found + N_ADDED);
+  expect(s.bootFoundLogKeys, 'his ledger grew by exactly the twelve applied names (2 + 9 + 1)').toBe(base.bootFoundLogKeys + N_ADDED);
   for (const n of THE_NINE) {
     expect(Object.prototype.hasOwnProperty.call(s.foundLog, n), n + ' must be written to d2r_foundLog').toBe(true);
     expect(Object.prototype.hasOwnProperty.call(s.grailUnfound, n), n + ' must be DELETED from d2r_grailUnfound once applied — a leftover un-tick re-surfaces a solved conflict').toBe(false);
@@ -208,15 +222,16 @@ test('(1) UP — first load applies v1692 + the nine + The Diggler, 236 → 248,
 });
 
 /* ── (2) SURVIVES RELOAD — the seed-floor must not re-suppress the applied names ─────────────── */
-test('(2) RELOAD — the ten stay applied and d2r_grailUnfound stays empty after a real page reload', async ({ page }) => {
+test('(2) RELOAD — the ten stay applied and d2r_grailUnfound stays empty after a real page reload', async ({ page, browser }) => {
+  const base = await baseline(browser);   // REG-1270
   await seed(page);
   await openUniquesTab(page); // let the first-load auto-apply run and render
   await page.reload();
   await page.waitForTimeout(1500);
   const s = await scan(page);
   const txt = await openUniquesTab(page);
-  expect(namedCards(txt).found, 'the screen after reload — must NOT fall back to 238').toBe(N_AFTER);
-  expect(s.found, 'funiScan().found after reload').toBe(N_AFTER);
+  expect(namedCards(txt).found, 'the screen after reload agrees with the engine').toBe(s.found);
+  expect(s.found, 'after a reload the twelve are still counted - it must NOT fall back').toBe(base.found + N_ADDED);
   for (const n of THE_NINE) {
     expect(Object.prototype.hasOwnProperty.call(s.foundLog, n), n + ' survived the reload in d2r_foundLog').toBe(true);
   }
@@ -230,11 +245,12 @@ test('(2) RELOAD — the ten stay applied and d2r_grailUnfound stays empty after
    part without touching v1692's — an undo that silently unwinds a PRIOR ship's write would be its
    own bug. A third call (not asserted here) would additionally undo v1692, which is out of scope
    for this ship's proof. ─────────────────────────────────────────────────────────────────────── */
-test('(3) UNDO — two chronicleUndoLast() calls return 238 AND restore all nine grailUnfound entries', async ({ page }) => {
+test('(3) UNDO — two chronicleUndoLast() calls return to the v1692-only state AND restore all nine grailUnfound entries', async ({ page, browser }) => {
+  const base = await baseline(browser);   // REG-1270
   await seed(page);
   await openUniquesTab(page);
   const before = await scan(page);
-  expect(before.found, 'sanity before undo').toBe(N_AFTER);
+  expect(before.found, 'sanity before undo: the twelve are counted').toBe(base.found + N_ADDED);
   expect(before.batches.length, 'three batches recorded at boot: v1692, the ruling nine, The Diggler').toBe(3);
 
   const u1 = await page.evaluate(() => (window as any).chronicleUndoLast()); // undoes Diggler (last pushed)
@@ -246,9 +262,9 @@ test('(3) UNDO — two chronicleUndoLast() calls return 238 AND restore all nine
 
   expect(u1.undone, 'first undo reverses The Diggler batch').toBe(1);
   expect(u2.undone, 'second undo reverses the nine-name ruling batch').toBe(THE_NINE.length);
-  expect(after.found, 'funiScan().found back to the v1692-only 238').toBe(N_V1692_ONLY);
-  expect(namedCards(txt.replace(/\s+/g, ' ')).found, 'the screen back to 238').toBe(N_V1692_ONLY);
-  expect(after.bootFoundLogKeys, 'his ledger back to the v1692-only key count').toBe(N_FOUNDLOG + 2);
+  expect(after.found, 'funiScan().found back to the v1692-only state: the baseline + its two').toBe(base.found + 2);
+  expect(namedCards(txt.replace(/\s+/g, ' ')).found, 'the screen back to the v1692-only state').toBe(base.found + 2);
+  expect(after.bootFoundLogKeys, 'his ledger back to the v1692-only key count').toBe(base.bootFoundLogKeys + 2);
   const restored = JSON.parse(LEDGER.d2r_grailUnfound);
   expect(after.grailUnfound, 'd2r_grailUnfound restored to exactly what it was before the apply — an undo that leaves the un-ticks cleared is not an undo').toEqual(restored);
   for (const n of THE_NINE) {
