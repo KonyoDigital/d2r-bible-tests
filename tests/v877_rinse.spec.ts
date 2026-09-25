@@ -150,7 +150,11 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
     await simToggle(page);
-    await page.waitForTimeout(1000);
+    // REG-1284 — wait for the FILM, not a clock. The first /api/sessions on a cold console took 9 s and the
+    // theatre gave up at 8 (red in every Routine I run); fixed, the film still arrives ~1 s after the click on
+    // a quiet Mac, so a fixed 1000 ms graded the runner's speed. The premise assertion below still stands.
+    await expect.poll(() => page.evaluate(() => ((window as any).TH?.beats || []).length),
+      { timeout: 15000 }).toBeGreaterThan(0);
     // v1459 — assert the PREMISE first with a number. When the fixture shipped no film, TH.beats was
     // 0 and this spec failed on the play-button label, which reads like a keyboard bug and is not one.
     const beats = await page.evaluate(() => ((window as any).TH?.beats || []).length);
@@ -167,7 +171,11 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
     await simToggle(page);
-    await page.waitForTimeout(1000);
+    // REG-1284 — wait for the FILM, not a clock. The first /api/sessions on a cold console took 9 s and the
+    // theatre gave up at 8 (red in every Routine I run); fixed, the film still arrives ~1 s after the click on
+    // a quiet Mac, so a fixed 1000 ms graded the runner's speed. The premise assertion below still stands.
+    await expect.poll(() => page.evaluate(() => ((window as any).TH?.beats || []).length),
+      { timeout: 15000 }).toBeGreaterThan(0);
     const readNo = async () =>
       ((await page.locator('#th-caption').textContent().catch(() => '')) || '').match(/read #(\d+)/)?.[1] || null;
     await page.keyboard.press('Home');

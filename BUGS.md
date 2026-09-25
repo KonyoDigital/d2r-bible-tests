@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1284 - THE FIRST THEATRE OPEN AFTER EVERY (RE)START WAITED 9 S ON A TEST-FILE SCAN AND WAS ABORTED
+
+**fix - found chasing v877 (#165), red in every Routine I log since before this session.** `/api/sessions` called
+`frame_authority.test_referenced_reels()`, which re-reads every test file whenever their size/mtime key changes -
+on a fresh world, and on his console after EVERY ship. The page aborts that fetch at 8 s and closes the stage
+("could not reach the console - the stage was closed rather than left black"). MEASURED on a scratch console: the
+first /api/sessions took 9.03 s, the next 0.01 s; light endpoints answered in 0.05 s at the same moment; a stack
+dump two seconds in sat inside the scan. The scan only MARKS rows as fixtures, and its caller already reads
+"cannot tell" as "mark nothing, show everything" - so it now asks `test_referenced_reels_nowait()` (the last set
+computed, or None while a background thread computes it) and the console warms it at boot. After: 0.08 s cold, film
+on screen ~1 s after the click. v877 now waits for the film, not a fixed 1000 ms. Guard:
+`test_the_theatre_never_waits_on_the_fixture_scan` - the real handler answers in < 1 s with a 5 s scan and marks
+nothing; the accessor never blocks and answers once ready; the theatre asks the accessor and boot warms it
+(3 cases, 2 proofs), PROVEN.
+
 ### REG-1283 - EVERY SCRATCH CONSOLE STAMPED HIS LANE TRACES, THE CORROBORATOR'S SECOND WITNESS
 
 **fix - found chasing v877 (#165).** `lane_trace.DIR` was hard-wired to his live `tv/.lane_trace`, and

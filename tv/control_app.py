@@ -6575,6 +6575,13 @@ def start_background_watchers(why):
     if stood_down:
         print("   %d watcher(s) stood down (TV_STUB harness): %s"
               % (len(stood_down), ", ".join(n.replace("tvd-", "") for n in stood_down)), flush=True)
+    # REG-1284 — warm the theatre's fixture set at boot, off the request path, so the first open after a
+    # (re)start does not wait on a scan that changes key with every ship
+    try:
+        import frame_authority as _fa_warm
+        _fa_warm.test_referenced_reels_nowait()
+    except Exception:
+        pass
     return {"started": started, "failed": failed, "stoodDown": stood_down,
             "roster": [n for n, _ in roster]}
 
@@ -33595,7 +33602,12 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import glob as _glob
                 import frame_authority as _fa
-                _named = set(_fa.test_referenced_reels() or ())
+                # REG-1284 — never the 9-second scan on this request: a set not ready yet is UNKNOWN,
+                # which the except below already answers with "mark nothing, show everything"
+                _ready = _fa.test_referenced_reels_nowait()
+                if _ready is None:
+                    raise LookupError("the fixture set is still being computed")
+                _named = _ready
                 # ⚠ `os`, NOT `_os`. v3086 wrote `_os` — a name bound NOWHERE — and the
                 # `except Exception` below swallowed the NameError, so the fixture set came back
                 # EMPTY and nothing was hidden at all. The code looked wired and did nothing.

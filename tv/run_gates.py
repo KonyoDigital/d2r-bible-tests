@@ -5363,6 +5363,12 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_the_theatre_never_waits_on_the_fixture_scan",
+         [sys.executable, os.path.join(HERE, "test_the_theatre_never_waits_on_the_fixture_scan.py")], 120,
+         why="REG-1284 (#165) - the theatre ran frame_authority's test-file scan inside /api/sessions; cold (a fresh "
+             "world, or his console after every ship) it took 9.03 s and the page aborts at 8 s - the first open "
+             "after a restart failed, and v877 was red in every Routine I run. A non-blocking accessor (None = "
+             "mark nothing) + a boot warm-up: 0.08 s cold. Driven on the real handler with a 5 s scan. 3 cases, 2 red-proofs"),
     Gate("test_a_scratch_console_leaves_no_trace_in_his_world",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_leaves_no_trace_in_his_world.py")], 120,
          why="REG-1283 - lane_trace.DIR was always his live tv/.lane_trace, so every scratch console (the render gate's "

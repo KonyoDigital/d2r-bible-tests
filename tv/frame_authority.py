@@ -656,6 +656,35 @@ def _executable_only(src, path=""):
         return "\n".join(kept)          # docstrings gone, comments not — still safer than before
 
 
+_FIXTURE_BG = {"thread": None, "last": None}
+
+
+def test_referenced_reels_nowait():
+    """The fixture set WITHOUT blocking a request: the last one computed, or None while the first
+    computation runs in the background (and this call starts or refreshes it). -> set | None
+
+    ⚠⚠ REG-1284 — A 9-SECOND SCAN ON THE THEATRE'S REQUEST PATH. test_referenced_reels() reads every test
+    file whenever their size/mtime key changes: on a fresh world, and on his console after EVERY ship.
+    The theatre called it inside /api/sessions, and the page aborts that fetch at 8 s and closes the
+    stage ("could not reach the console"). MEASURED on a scratch console: first /api/sessions 9.03 s,
+    then 0.01 s; a stack dump two seconds in sat inside this scan. It only MARKS rows as fixtures, and
+    its caller already reads "cannot tell" as "mark nothing, show everything" - so not yet knowing
+    must not cost him the open. [[unknown-stays-unknown]]"""
+    import threading
+    th = _FIXTURE_BG["thread"]
+    if th is None or not th.is_alive():
+        def _run():
+            try:
+                _FIXTURE_BG["last"] = frozenset(test_referenced_reels() or ())
+            except Exception:
+                pass
+        th = threading.Thread(target=_run, name="fixture-reels", daemon=True)
+        _FIXTURE_BG["thread"] = th
+        th.start()
+    last = _FIXTURE_BG["last"]
+    return set(last) if last is not None else None
+
+
 def test_referenced_reels(repo=None):
     """Reel ids the TEST SUITE opens by name. A reel a test reads is a FIXTURE, whatever the ledgers
     say about it.
