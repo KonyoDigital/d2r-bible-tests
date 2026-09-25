@@ -176,6 +176,15 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
 
 test('v561 — grail bulk-import: AI-read FOUND names batch-tick into the LEDGER + d2r_setPieces (v677)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
+  /* #165 — THE TOAST COUNTS WHAT IS NEW, SO THE EXPECTED COUNT IS READ, NOT WRITTEN. `_GRAIL_SEED` holds
+     "The Stone of Jordan", so a board the seed floor has run on already owns it and the import adds one
+     unique, not two. The literal "+2" was true only while the floor refused on a fresh profile
+     (REG-1275). Baseline first, and the premise that the import path adds at least one. */
+  const before = await page.evaluate(() => {
+    const log = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
+    return ['The Stone of Jordan', 'Windforce'].filter((n) => !(n in log)).length;
+  });
+  expect(before, 'premise: at least one of the two real uniques is new, or the import adds nothing to count').toBeGreaterThan(0);
   // fire the intake with a stubbed AI endpoint; the flow writes the stores then RELOADS to resync every view
   await page.evaluate(async () => {
     const w: any = window;
@@ -215,6 +224,6 @@ test('v561 — grail bulk-import: AI-read FOUND names batch-tick into the LEDGER
      Measured at HEAD: "Grail imported" appears 0 times in bible.html, "Chronicle imported" once
      (:45509) — the toast reads "📸 Chronicle imported! +2 uniques · +0 set pieces". */
   expect(r.toast).toMatch(/Chronicle imported/);
-  expect(r.toast).toMatch(/\+2 uniques/);
+  expect(r.toast).toMatch(new RegExp('\\+' + before + ' uniques'));
   expect(r.foundNow).toBeGreaterThanOrEqual(2);   // the Uniques Forge sees them immediately post-reload
 });
