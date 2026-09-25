@@ -190,6 +190,41 @@ class TheWindowsLampCallsOffOffNotDead(unittest.TestCase):
         self.assertEqual(spawned, [], "capture_win.ps1 was spawned under TV_CAPTURE=off")
 
 
+class ALiveConsoleWithCaptureOffIsNotFrozen(unittest.TestCase):
+    """REG-1285 — the cross-family eye on #231 (look at a78eeff6): with TV_CAPTURE=off the agent goes live, the
+    lamp reads OFF, and the doctor's live_frames check still BLOCKED "Capture is frozen" on no eye.jpg."""
+
+    def setUp(self):
+        import tempfile
+        import control_app as ca
+        self.ca = ca
+        self.frames = tempfile.mkdtemp(prefix="liveframes-")
+        self._was = os.environ.get("TV_CAPTURE")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.frames, ignore_errors=True)
+        if self._was is None:
+            os.environ.pop("TV_CAPTURE", None)
+        else:
+            os.environ["TV_CAPTURE"] = self._was
+
+    def test_off_and_live_with_no_frame_does_not_block(self):
+        os.environ["TV_CAPTURE"] = "off"
+        row = self.ca._live_frames_check(True, self.frames)
+        self.assertTrue(row["ok"], "capture OFF by setting read as a frozen capture: %r" % row)
+        self.assertIn("OFF by this console's setting", row["detail"])
+
+    def test_premise_a_live_capture_with_no_frame_still_blocks(self):
+        os.environ["TV_CAPTURE"] = "auto"
+        row = self.ca._live_frames_check(True, self.frames)
+        self.assertFalse(row["ok"])
+        self.assertEqual(row["severity"], "block")
+
+    def test_the_doctor_asks_this_check(self):
+        self.assertIn("_live_frames_check", self.ca.doctor_payload.__code__.co_names)
+
+
 class TheRenderHarnessSpawnsItsConsoleWithCaptureOff(unittest.TestCase):
 
     def test_the_private_console_env_carries_TV_CAPTURE_off(self):
@@ -210,6 +245,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1285 - a console whose capture is OFF by setting reads as frozen and blocks again",
+        "file": "control_app.py",
+        "find": "    if live and not fresh and _capture_off():\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1272 - the lamp reads an intentionally-off capture as dead again: five relaunches, then DEAD",
         "file": "control_app.py",

@@ -32427,6 +32427,42 @@ def farmgate_payload():
     return {"ok": True, "verdict": verdict, "vers": vers, "checks": checks}
 
 
+def _live_frames_check(live, frames_dir=None):
+    """doctor check 8 - freshness only MATTERS (blocks) when we claim to be LIVE. -> one _chk row"""
+    frames_dir = frames_dir or os.path.join(HERE, "frames")
+    now = time.time()
+    newest, ages = None, []
+    # v2324 — the live frame is written as JPEG now (the BMP conversion cost 46ms and 12MB per
+    # frame and recovered nothing). This list must carry EVERY name the writer may use, or the
+    # doctor reports "no frame while LIVE" against a capture that is working perfectly — a false
+    # block, which is worse than no check at all because it trains him to ignore this one.
+    # The .bmp stays in the list on purpose: an older build in the same directory still writes it.
+    for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
+        fp = os.path.join(frames_dir, label)
+        if os.path.isfile(fp):
+            age = now - os.path.getmtime(fp)
+            ages.append("%s=%.1fs" % (label, age))
+            newest = age if newest is None else min(newest, age)
+    fresh = newest is not None and newest <= 10
+    # REG-1285 — CAPTURE OFF BY SETTING IS NOT A FROZEN CAPTURE. With TV_CAPTURE=off the agent still goes live
+    # and the capture lamp reads OFF (REG-1272), but this check never asked the setting: no eye.jpg blocked
+    # with "Capture is frozen - check the D2R window", the same false frozen reading REG-1272 removed from
+    # the self-check (the cross-family eye on #231, look at a78eeff6). No frame is EXPECTED, so say that.
+    if live and not fresh and _capture_off():
+        return (_chk(
+            "live_frames", True, "warn",
+            "capture is OFF by this console's setting (TV_CAPTURE=off) - no live frame is expected"))
+    elif live and not fresh:
+        return (_chk(
+            "live_frames", False, "block",
+            ("frames stale: %s" % ", ".join(ages)) if ages else "no eye.jpg / live frame while LIVE",
+            "Capture is frozen — check the D2R window and capture_win.ps1"))
+    else:
+        return (_chk(
+            "live_frames", True, "warn",
+            ", ".join(ages) if ages else "no frames yet (agent off)"))
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -32514,30 +32550,7 @@ def doctor_payload():
                            "git fetch origin && git rev-list HEAD..origin/main --count"))
 
     # 8) live frames — freshness only MATTERS (blocks) when we claim to be LIVE
-    live = (_agent_mode == "live")
-    now = time.time()
-    newest, ages = None, []
-    # v2324 — the live frame is written as JPEG now (the BMP conversion cost 46ms and 12MB per
-    # frame and recovered nothing). This list must carry EVERY name the writer may use, or the
-    # doctor reports "no frame while LIVE" against a capture that is working perfectly — a false
-    # block, which is worse than no check at all because it trains him to ignore this one.
-    # The .bmp stays in the list on purpose: an older build in the same directory still writes it.
-    for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
-        fp = os.path.join(HERE, "frames", label)
-        if os.path.isfile(fp):
-            age = now - os.path.getmtime(fp)
-            ages.append("%s=%.1fs" % (label, age))
-            newest = age if newest is None else min(newest, age)
-    fresh = newest is not None and newest <= 10
-    if live and not fresh:
-        checks.append(_chk(
-            "live_frames", False, "block",
-            ("frames stale: %s" % ", ".join(ages)) if ages else "no eye.jpg / live frame while LIVE",
-            "Capture is frozen — check the D2R window and capture_win.ps1"))
-    else:
-        checks.append(_chk(
-            "live_frames", True, "warn",
-            ", ".join(ages) if ages else "no frames yet (agent off)"))
+    checks.append(_live_frames_check(_agent_mode == "live"))
 
     # 9) agent bridge heartbeat — OFF is normal, so warn only
     bp = _bridge_ping()

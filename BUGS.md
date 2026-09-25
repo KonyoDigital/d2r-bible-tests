@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1285 - A CONSOLE WHOSE CAPTURE IS OFF BY SETTING STILL READ "CAPTURE IS FROZEN" IN THE DOCTOR
+
+**fix - found by the cross-family eye on #231 (comment 5826238767, look at a78eeff6, my REG-1272).** With
+`TV_CAPTURE=off` a Windows console's agent still goes live and the capture lamp correctly reads OFF, but the
+doctor's `live_frames` check never asked the setting: with no eye.jpg it BLOCKED with "Capture is frozen - check
+the D2R window and capture_win.ps1", the same false frozen reading REG-1272 removed from the self-check. The check
+is now `_live_frames_check(live, frames_dir)` (lifted out of doctor_payload so a law can drive it) and says "capture
+is OFF by this console's setting - no live frame is expected" instead of blocking; a live capture with no frame
+still blocks. Guard: `test_a_scratch_console_never_films_his_screen` gains three cases (off does not block,
+premise: auto still blocks, the doctor asks this helper) - 7 proofs, PROVEN.
+
 ### REG-1284 - THE FIRST THEATRE OPEN AFTER EVERY (RE)START WAITED 9 S ON A TEST-FILE SCAN AND WAS ABORTED
 
 **fix - found chasing v877 (#165), red in every Routine I log since before this session.** `/api/sessions` called
