@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1290 - THE ALT WAS BILLED FOR HANDOFF LANES NOBODY WORKS THERE
+
+**fix - #141, measured over SSH 2026-09-25.** The ALT's doctor read 117 checks with ONE missing: "handoff lanes
+drained" - "#231 has 105 look(s) NOT yet in the ledger; #230 has NO watermark at all". Measured on the box: 0 looks
+filed, no #230 watermark ever written. The lanes are worked where the code is worked, so there was never a drain
+on that machine to fall behind; billing it made the one red row on a healthy console a false one. A machine that
+has NEVER drained either lane now reads UNMEASURED (the question is about another machine); one that drained even
+once keeps the full bar, so a drainer that stops is still caught. Guard: `test_a_handoff_lane_must_not_pile_up`
++2 cases and its first 2 red-proofs (one per direction), PROVEN.
+
 ### REG-1289 - EVERY CURRENT CONSOLE'S FLEET COUNTS WERE HIDDEN AS "NEVER SYNCED"
 
 **fix - #240, his report 2026-09-25.** From his ALT: *"when i look at dean it shows me his sets/and uniques and

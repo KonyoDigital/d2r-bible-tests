@@ -80,6 +80,26 @@ class AHandoffLaneMustNotPileUp(unittest.TestCase):
                          % why)
         self.assertIn("#231", why)
 
+    def test_a_machine_that_NEVER_drained_is_UNMEASURED_not_billed(self):
+        """#141 — the ALT read MISSING for lanes nobody works there. No watermark ever written and
+        not one look ever filed: there is no drain on this machine to fall behind."""
+        self._H._marks = lambda: {}
+        self._drain_stub(pending=True)
+        st, why = self.fn()
+        self.assertEqual(st, D.UNMEASURED, "a machine that never drained was billed: %s" % why)
+        self.assertIn("never drained", why)
+
+    def test_a_machine_that_drained_ONCE_keeps_the_full_bar(self):
+        """The discrimination: one filed look means a drainer lives here, so a missing #230
+        watermark is a backlog again."""
+        import second_eye_drain as SD
+        self._H._marks = lambda: {}
+        self._drain_stub(pending=False)
+        SD.already_recorded = lambda: {"41"}
+        st, why = self.fn()
+        self.assertEqual(st, D.MISSING, why)
+        self.assertIn("NO watermark", why)
+
     def test_an_UNREADABLE_watermark_is_UNKNOWN_and_never_an_empty_queue(self):
         """[[unknown-stays-unknown]] — a store nobody could read must not look like nothing pending."""
         self._H._marks = lambda: None
@@ -148,3 +168,21 @@ class AHandoffLaneMustNotPileUp(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "#141 - a machine that never drained either lane is billed MISSING again (the ALT's false bill)",
+        "file": "tv/console_doctor.py",
+        "find": '    if not (marks.get("230") or {}).get("ts") and _filed == 0:\n',
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#141 - the exemption widens to any machine missing a #230 watermark, hiding a drainer that stopped",
+        "file": "tv/console_doctor.py",
+        "find": '    if not (marks.get("230") or {}).get("ts") and _filed == 0:\n',
+        "replace": '    if not (marks.get("230") or {}).get("ts"):\n',
+        "matches": 1,
+    },
+]

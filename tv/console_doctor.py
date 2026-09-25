@@ -7926,6 +7926,7 @@ def _check_the_handoff_lanes_are_being_drained():
                          "and #231 is UNKNOWN rather than empty")
     now = _t.time()
     stale, said, _unreachable = [], [], []
+    _filed = None
 
     # ⚠⚠ THE TWO LANES ARE READ BY DIFFERENT MECHANISMS AND ASKING ONE STORE ABOUT BOTH CRIES WOLF.
     # #231 is drained by tv/second_eye_drain.py, which is idempotent through the LEDGER (verdictFrom
@@ -7982,6 +7983,17 @@ def _check_the_handoff_lanes_are_being_drained():
     except Exception as _e:
         said.append("#231 drain could not be asked (%s)" % type(_e).__name__)
 
+    # ⚠⚠ #141 — A MACHINE THAT HAS NEVER DRAINED EITHER LANE IS NOT A DRAINER. MEASURED over SSH on
+    # the ALT, 2026-09-25: this row read MISSING - "#231 has 105 look(s) NOT yet in the ledger; #230
+    # has NO watermark at all" - on a box where nobody works the lanes; draining happens where the
+    # code is worked. No watermark was ever written AND not one look was ever filed, so there is no
+    # drain here to fall behind. That is UNMEASURED, not a backlog: whether the drainer keeps up is
+    # a fact about ANOTHER machine. A machine that drained even once keeps the full bar, so a lane
+    # that stopped is still caught. [[strictness-that-closes-the-lane]] [[unknown-stays-unknown]]
+    if not (marks.get("230") or {}).get("ts") and _filed == 0:
+        return UNMEASURED, ("this machine has never drained either lane (no #230 watermark, no #231 "
+                            "look filed), so it is not where the lanes are worked; whether the "
+                            "machine that works them keeps up is not measurable from here")
     for issue in ("230",):
         ts = (marks.get(issue) or {}).get("ts")
         if not ts:
