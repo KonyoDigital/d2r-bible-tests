@@ -89,8 +89,10 @@ class TheConsoleServesHisInstallFont(unittest.TestCase):
 
     def test_the_route_serves_the_font_or_says_why(self):
         src = inspect.getsource(CA)
-        i = src.index('if path == "/api/d2r_font/exocet":')
-        block = src[i:i + 900]
+        start = 'if path == "/api/d2r_font/exocet":'
+        self.assertEqual(src.count(start), 1, "the route is missing or registered twice")
+        i = src.index(start)
+        block = src[i:src.index('if path == "/api/own_board_claim":', i)]   # this route, up to the next one
         self.assertIn('d2r_font("exocet")', block)
         self.assertIn('"font/otf"', block)
         self.assertIn("self._json(404", block)
