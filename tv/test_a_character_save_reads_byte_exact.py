@@ -26,7 +26,9 @@ THE TWO FORMAT-105 BITS (measured on three of his saves, 144 top-level items, no
   · DRIVEN: a short item count, a missing format bit, a truncated file and a bad checksum all come
     back ok=False with the byte where it stopped — never a partial list called complete.
   · DRIVEN: a runeword past runes.txt row 79 is UNKNOWN with both candidates, never guessed.
-  · MEASURED when present: his TESTCLAUDE.d2s — 49 top-level items, Jalal's Mane on the head.
+  · MEASURED when present: his TESTCLAUDE.d2s — 49 top-level items, Jalal's Mane on the head — and
+    his BLANK.d2s — 28 top-level items, none equipped, the study's sniffed "pad" at 0x490 read as
+    Mephisto's Brain's trailing bit.
 RED_PROOF below.
 """
 import io
@@ -53,6 +55,7 @@ import item_tables as I  # noqa: E402
 
 T = I.load()
 REAL = os.environ.get("D2S_REAL_SAVE") or os.path.join(os.path.expanduser("~"), "Desktop", "TESTCLAUDE.d2s")
+BLANK = os.environ.get("D2S_BLANK_SAVE") or os.path.join(os.path.expanduser("~"), "Desktop", "BLANK.d2s")
 LAST_PLAYED = 1790326379
 
 #: The D2R item-code Huffman table, written out here rather than derived from the reader's tree, so a
@@ -450,6 +453,40 @@ class HisRealSave(unittest.TestCase):
               for it in self.res["items"] if it.get("isRuneword")}
         self.assertEqual(rw, {"Breath of the Dying": ["r26", "r15", "r01", "r02", "r33", "r05"],
                               "Fortitude": ["r01", "r12", "r14", "r28"]})
+
+
+@unittest.skipUnless(os.path.isfile(BLANK) and T is not None,
+                     "UNMEASURED: his blank planner save %s is not on this machine (or the tables are absent)"
+                     % BLANK)
+class HisBlankSave(unittest.TestCase):
+    """A second real save: a blank planner Druid, belt potions and stash keys/organs/shards/cube only.
+    The study decoder had to SNIFF a 0x00 'pad' at 0x490 here, before Token of Absolution — the same
+    boundary as in TESTCLAUDE. It is the last byte of Mephisto's Brain, whose list ends exactly on a
+    byte boundary, so the trailing format-105 bit costs a whole byte. No sniff reads it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.res = R.read(BLANK)
+        with io.open(BLANK, "rb") as fh:
+            cls.blob = fh.read()
+
+    def test_it_decodes_byte_exact_with_nothing_equipped(self):
+        v = self.res["verify"]
+        self.assertTrue(self.res["ok"], self.res["why"])
+        self.assertTrue(v["endsOnCorpseTag"] and v["checksumOk"] and v["sizeMatches"])
+        self.assertEqual((v["itemCount"], v["declaredItemCount"], v["bytesConsumed"]), (28, 28, 0x55D))
+        self.assertEqual([it["code"] for it in self.res["items"] if it["location"] == "equipped"], [])
+        print("   his blank save: 28 top-level items, none equipped, ends on the corpse tag at 0x55D")
+
+    def test_the_sniffed_pad_is_the_brain_s_trailing_bit(self):
+        codes = [it["code"] for it in self.res["items"]]
+        brain = self.res["items"][codes.index("mbr")]
+        token = self.res["items"][codes.index("toa")]
+        end = (brain["bitStart"] + brain["bits"]) // 8
+        self.assertEqual(self.blob[0x490:0x491], b"\x00", "the byte the study sniffed as a pad is not at 0x490")
+        self.assertEqual((brain["bitStart"] // 8, end), (0x480, 0x491),
+                         "Mephisto's Brain no longer owns the 0x00 at 0x490")
+        self.assertEqual(token["bitStart"] // 8, 0x491, "Token of Absolution does not start right after it")
 
 
 if __name__ == "__main__":

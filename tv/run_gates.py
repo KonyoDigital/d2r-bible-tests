@@ -5494,7 +5494,8 @@ GATES = [
              "A synthetic save (the repo is public - his saves never enter it) round-trips every field; a short "
              "count, a missing format-105 bit, truncation and a bad checksum all come back ok=False with the byte; "
              "a runeword past runes.txt row 79 is UNKNOWN, never guessed. His TESTCLAUDE.d2s (49 items, "
-             "Jalal's Mane) is MEASURED when present, UNMEASURED otherwise. 19 cases, 7 red-proofs"),
+             "Jalal's Mane) and BLANK.d2s (28 items, none equipped, the study's sniffed pad read as a trailing bit) "
+             "are MEASURED when present, UNMEASURED otherwise. 21 cases, 7 red-proofs"),
     Gate("test_a_receipt_row_is_not_a_beat",
          [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
          why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "
