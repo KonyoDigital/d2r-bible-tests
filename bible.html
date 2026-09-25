@@ -52146,6 +52146,13 @@ window._CH_PILL_MAP = {
       if (card && card.classList.contains('collapsed')) card.classList.remove('collapsed');
       var t = document.querySelector('#ibx-needsyou [data-ask="' + String(id).replace(/"/g, '') + '"]');
       if (!t) return { landed: null, why: 'the inbox does not show this question (answered, or no longer asked)' };
+      /* #25 (his report 2026-09-25: the route "doesn't route me properly" - Tools with a BLACK page body, scrollbar
+         mid-page). A card whose pane has not laid out yet has a ZERO-SIZE rect, and scrolling to it lands in empty
+         space - which this function then reported as landed. Not reproduced in Chrome (the pane lays out before the
+         call there); hardened against the one mechanism that yields a blank page: a zero-size target is NOT a
+         landing, and the caller retries until it has real size. */
+      var _r00 = t.getBoundingClientRect();
+      if (!_r00.width && !_r00.height) return { landed: null, retry: true, why: 'the question is not laid out yet' };
       /* INSTANT, then clear of the dock. A smooth scroll read mid-animation reports a rect the page is
          about to leave. The lift is DEFENSIVE: at 375px the fixed dock is a quarter of the screen,
          and a whole centred SECTION put its answered row under it -- but a single centred card

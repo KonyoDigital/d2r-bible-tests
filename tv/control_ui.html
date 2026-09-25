@@ -9771,8 +9771,11 @@ window._lockMark = function(isOpen, px, label){
         var w = null; try { w = fr && fr.contentWindow; } catch (e) { w = null; }
         try {
           if (w && typeof w.d2rOpenAsk === 'function'){
-            clearInterval(t);
             var got = null; try { got = w.d2rOpenAsk(id); } catch (e) { got = null; }
+            /* #25 — a question whose pane has not laid out yet answers retry:true; keep polling
+               (the same 40 x 80 ms budget) rather than leaving him on a blank page. */
+            if (got && got.retry && n <= 40) return;
+            clearInterval(t);
             if (!got || !got.landed) toast('couldn\u2019t open that question in the inbox \u2014 '
                                            + ((got && got.why) || 'the board did not say why'), 4600);
             return;

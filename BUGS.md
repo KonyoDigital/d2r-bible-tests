@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1297 - "CHOOSE IN INBOX" COULD REPORT A LANDING ON A QUESTION THAT HAD NO LAYOUT YET
+
+**hardening - #25, his report 2026-09-25 (Tools tab with a BLACK body, scrollbar mid-page, question only in the pop).**
+NOT reproduced: headless Chrome lands the question in view from a fresh load, a collapsed dock and a page scrolled to
+the bottom of Uniques; GrokBot's WebKit seat had no open question to click. The one mechanism that yields exactly his
+picture: d2rOpenAsk scrolled to a card whose pane had not laid out (a ZERO-SIZE rect), landed in empty space, and
+reported `landed`. Now a zero-size target answers `retry`, and the console's route keeps polling inside its existing
+40 x 80 ms budget, ending in the honest toast if it never lays out. The real-page probe still lands (top 606). #25
+stays OPEN until his window is seen landing. Guard: `test_the_ask_route_waits_for_its_question` (4 cases, 2 proofs).
+
 ### REG-1296 - AFTER THE #240 FIX, PEERS STILL ON THE OLD SEAL STILL READ "-"
 
 **fix - measured on GrokBot's glass 2026-09-25 (its seat on 3cd6bb26, hover exercised).** Numbers showed for GrokBot,
