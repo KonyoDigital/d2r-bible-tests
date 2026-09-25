@@ -60,8 +60,10 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": 't.ledgerVerdict',
-        "replace": '_HEART2_TAMPERED_',
+        # re-anchored 2026-09-25: #240's _measOf reads t.ledgerVerdict too, so the bare token matched twice.
+        # This proof has always meant the card's own seed-block read; name that statement exactly.
+        "find": '        var _lv = t.ledgerVerdict || null;',
+        "replace": '        var _lv = _HEART2_TAMPERED_ || null;',
         "matches": 1,
     },
 ]
