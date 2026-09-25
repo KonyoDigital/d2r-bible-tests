@@ -50,7 +50,12 @@ test.describe('v65 grail tier breakdown + backup/restore', () => {
 
   test('export builds a valid portable snapshot of the user\'s own state', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const it = (ITEMS as any[]).find((i) => (i.tier === 'grail' || i.tier === 'uber') && !owned.has(i.n));
+      /* #165 — NOT FOUND IN THE LEDGER, not merely absent from the vault. `owned` is the vault; the grail
+         lives in d2r_foundLog. Since REG-1275 a fresh board floors the seed, so the first vault-absent
+         grail (Annihilus) is already FOUND and toggleOwned UN-ticks it - the snapshot rightly omits it.
+         Measured on a real page: the ledger-aware pick is included in the export. */
+      const it = (ITEMS as any[]).find((i) => (i.tier === 'grail' || i.tier === 'uber') && !owned.has(i.n)
+        && !((window as any)._gFound && (window as any)._gFound(i.n)));
       (window as any).toggleOwned(it.n);
       (window as any).exportProgress();
       const ta = document.getElementById('backup-textarea') as HTMLTextAreaElement;
