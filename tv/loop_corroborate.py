@@ -35,6 +35,9 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# REG-1283 - read the traces from the SAME world lane_trace writes them to; a hard-coded HERE read
+# his live traces from inside a fixture's world.
+import lane_trace as _lt  # noqa: E402
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
@@ -74,13 +77,13 @@ LOOPS = {
     # cross-family second eye on the shipped v3076 diff. A fabricated alarm about a working
     # machine is the worst thing this organ can emit. [[feedback-threshold-above-the-ceiling]]
     "_drift_loop": ("tvd-version-drift",
-                    os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 300.0),
+                    _lt.path_of("tvd-version-drift"), 300.0),
     "_shadow_watch_loop": ("tvd-shadow-watch",
-                           os.path.join(HERE, ".lane_trace", "tvd-shadow-watch.json"), 30.0),
+                           _lt.path_of("tvd-shadow-watch"), 30.0),
     "_orphan_exit_loop": ("_orphan_exit_loop",
-                          os.path.join(HERE, ".lane_trace", "_orphan_exit_loop.json"), 30.0),
+                          _lt.path_of("_orphan_exit_loop"), 30.0),
     "_orphan_watch": ("_orphan_watch",
-                      os.path.join(HERE, ".lane_trace", "_orphan_watch.json"), 20.0),
+                      _lt.path_of("_orphan_watch"), 20.0),
 }
 
 #: how many declared periods a trace may fall behind before the pair is a contradiction. Generous

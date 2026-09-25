@@ -5363,6 +5363,12 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_a_scratch_console_leaves_no_trace_in_his_world",
+         [sys.executable, os.path.join(HERE, "test_a_scratch_console_leaves_no_trace_in_his_world.py")], 120,
+         why="REG-1283 - lane_trace.DIR was always his live tv/.lane_trace, so every scratch console (the render gate's "
+             "each push) stamped the corroborator's second witness that HIS loops ran (measured: a scratch console "
+             "booted 06:07:12 wrote _orphan_exit_loop.json at 06:07:18), and loop_corroborate read the same hard-coded "
+             "path. Both now follow tv_diablo._fixture_root. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
     Gate("test_importing_a_suite_isolates_his_stores",
          [sys.executable, os.path.join(HERE, "test_importing_a_suite_isolates_his_stores.py")], 120,
          why="REG-1281 - test_control isolated control_app's chronicle/vault paths only in setUpModule, and a harness "

@@ -42,7 +42,24 @@ import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DIR = os.path.join(HERE, ".lane_trace")
+
+
+def _world():
+    """REG-1283 — WHOSE WORLD THESE TRACES DESCRIBE. DIR was always his live tv/.lane_trace, so every scratch
+    console (the render gate's on each push, a probe's) stamped HIS lane traces - and these files are the
+    corroborator's second witness that his own loops ran. MEASURED 2026-09-25: a scratch console booted
+    at 06:07:12 wrote .lane_trace/_orphan_exit_loop.json at 06:07:18. The one rule every other state file
+    uses (tv_diablo._fixture_root: a TV_HIST outside this tree names a fixture's world), called, not
+    copied; and a request for isolation that cannot be honoured never degrades to his tree (v2783)."""
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        _h = (os.environ.get("TV_HIST") or "").strip()
+        return _h if _h else HERE
+
+
+DIR = os.path.join(_world(), ".lane_trace")
 
 
 def path_of(lane):

@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1283 - EVERY SCRATCH CONSOLE STAMPED HIS LANE TRACES, THE CORROBORATOR'S SECOND WITNESS
+
+**fix - found chasing v877 (#165).** `lane_trace.DIR` was hard-wired to his live `tv/.lane_trace`, and
+`loop_corroborate.LOOPS` read the same hard-coded paths. Those per-lane files are the corroborator's second,
+independent witness that his own loops ran - and every scratch console (the render gate's private console on each
+push, any probe's) wrote them. MEASURED 2026-09-25: a scratch console booted at 06:07:12 wrote
+`.lane_trace/_orphan_exit_loop.json` at 06:07:18. A heartbeat from another process is a witness that can lie in
+the healthy direction. Both now follow the one rule every other state file uses, `tv_diablo._fixture_root`
+(called, not copied; an isolation request that cannot be honoured never degrades to his tree). Guard:
+`test_a_scratch_console_leaves_no_trace_in_his_world` - a fresh interpreter in a fixture world writes its probe
+trace there, his live trace is untouched, the corroborator reads the fixture's; premise: no TV_HIST is his tree
+(2 cases, 2 proofs), PROVEN.
+
 ### REG-1282 - ANY STARTUP FILE NAMED LIKE THE CONSOLE READ AS THE CONSOLE STARTING AT SIGN-IN
 
 **fix - found by the cross-family eye on #231 (comment 5825474191, look at 34129c99, my REG-1263).**
