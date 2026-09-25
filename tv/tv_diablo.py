@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3505"   # the vault mule window equips and every console panel closes on Esc
+VERSION = "v3506"   # the Character Builder and the game-data stats engine
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

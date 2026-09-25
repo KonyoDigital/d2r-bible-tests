@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3505",
+  "ver": "v3506",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3505: REG-1286 to REG-1306: the vault mule window in the d2planner shell with equipment slots, a slot picker and stats that say their source, the Esc on a console panel no longer quits the console, the Windows console is not reloaded under his game, each console shows its own counts, the eye workers bound their writes, and the game font is served from his install",
+  "note": "v3506: the Character Builder in the Tools tab clones the maxroll planner over the whole item database with the game font and an in-game tooltip, its stats come from the game data with Hell penalties and caps, mule items move by hand and stay, and no console child opens a window on Windows",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
