@@ -33,6 +33,13 @@ test_the_mule_window_fits_at_every_width.py. What this law keeps is the STRUCTUR
 panels are min-height floors, every size in the window rides the unit (--fs-mp-* = token x --kf, floored at
 --fs-micro), a header's title and control own grid columns, and a resize re-lays the window only when a layout
 number moved (a phone keyboard is a height-only resize, and a re-render replaced the box he was typing in).
+
+⚠ #174 v-B MOVED THREE OF THESE NUMBERS, ON PURPOSE, AND THE WITNESS DID NOT MOVE. Spec §5/§7: their left column
+squeezes the doll and a second eye read ours as "a compact cluster of SMALLER slots", so the EQUIPMENT body now runs
+on its own unit, --du = DOLL_K x --u (DOLL_K = 1.25). THEIR_SLOTS below is still their measured table, byte for
+byte — the slots are those numbers on --du; the LEFT column is their 322 on --du; the EQUIPMENT panel is their 36px
+header plus their 364px body on --du. The window's outer 1044 | 300 split, and so its type at every width, is
+unchanged; and stacked (under 900) --du is --u, because there the unit already IS the doll filling the phone.
 RED_PROOF below.
 """
 import io
@@ -71,9 +78,11 @@ THEIR_SLOTS = {
     "feet": (247, 199, 60, 60),
 }
 THEIR_COLUMNS = {"left": 322, "centre": 716, "right": 300, "gutter": 6, "column": 1350}
+DOLL_K = 1.25                # spec §5: the doll at ~1.25x their 30px cell — the ONE upgrade to their geometry
 THEIR_HEIGHTS = {            # panel heights, same capture — FIXED: their content is laid out inside them
-    ".mp-eq": 400, ".mp-cp": 628, ".mp-notes": 206, ".mp-stats": 726, ".mp-set": 84,
+    ".mp-cp": 628, ".mp-notes": 206, ".mp-stats": 726, ".mp-set": 84,
 }
+THEIR_EQ = (36, 364)         # the EQUIPMENT panel: their 36px header + their 364px body (400 in their capture)
 # ⚠ THE PROSE PANELS ARE A FLOOR, NOT A HEIGHT. Each holds one honest sentence, and a fixed height cut that
 # sentence at every width where the words out-grew the box — the MERCENARY note lost its "(v-C)" line at his
 # 1120 while this law, reading innerHTML, stayed green. They are their measured height when the words fit and
@@ -208,11 +217,26 @@ class TheDollIsTheirs(unittest.TestCase):
     def test_the_ten_slots_sit_at_their_measured_rects(self):
         html = _drive()["html"]
         got = {}
-        for m in re.finditer(r'data-slot="(\w+)" style="left:calc\((\d+)\*var\(--u\)\);top:calc\((\d+)\*var\(--u\)\);'
-                             r'width:calc\((\d+)\*var\(--u\)\);height:calc\((\d+)\*var\(--u\)\)"', html):
+        for m in re.finditer(r'data-slot="(\w+)" style="left:calc\((\d+)\*var\(--du\)\);top:calc\((\d+)\*var\(--du\)\);'
+                             r'width:calc\((\d+)\*var\(--du\)\);height:calc\((\d+)\*var\(--du\)\)"', html):
             got[m.group(1)] = tuple(int(x) for x in m.groups()[1:])
         self.assertEqual(len(re.findall(r'class="mp-slot', html)), 10, "the doll does not have ten slots")
         self.assertEqual(got, THEIR_SLOTS, "a doll slot left the rect measured off their builder")
+        # every slot sits in the doll box, whose origin keeps their 36px header on the window's own unit
+        box = html.index('<div class="mp-dollbox">')
+        self.assertTrue(box < html.index('data-slot="rarm"') < html.index('<div class="mp-inv">'))
+
+    def test_the_doll_unit_is_their_cell_times_the_upgrade(self):
+        """Spec §5: ~1.25x their cell, gutters included. The CSS unit and the script's factor are ONE number — the
+        inventory cell is computed from the script's, the slots are drawn on the CSS's. [[copy-drift]]"""
+        s = _src("bible.html")
+        self.assertEqual(s.count(".mp{--du:calc(%s*var(--u))}" % DOLL_K), 1, "the doll's unit is not %s x --u" % DOLL_K)
+        self.assertEqual(s.count("  var MP_DOLL_K = %s;" % DOLL_K), 1, "the script's doll factor is not the CSS's")
+        self.assertEqual(s.count(".mp-dollbox{position:absolute;left:0;top:calc(36*var(--u) - 36*var(--du));"), 1,
+                         "the doll box no longer keeps their 36px header, so every slot drifts")
+        # stacked (a phone), the unit IS the doll's — it already fills the width, so the upgrade is not applied twice
+        self.assertEqual(s.count(".mp.mp-stack{--du:var(--u)}"), 1, "a phone applies the desktop doll upgrade on top "
+                                                                    "of a unit that already fills its width")
 
     def test_the_inventory_is_ten_by_four_inside_the_equipment_panel(self):
         html = _drive()["html"]
@@ -235,15 +259,19 @@ class TheThreeColumns(unittest.TestCase):
         self.assertEqual(s.count(".mp{display:grid;grid-template-columns:calc(1044*var(--u)) calc(%d*var(--u));"
                                  "column-gap:calc(%d*var(--u));width:calc(%d*var(--u));"
                                  % (c["right"], c["gutter"], c["column"])), 1, "the outer column split moved")
-        self.assertEqual(s.count(".mp-lc{display:grid;grid-template-columns:calc(%d*var(--u)) calc(%d*var(--u));"
-                                 "column-gap:calc(%d*var(--u));" % (c["left"], c["centre"], c["gutter"])), 1,
-                         "the LEFT | CENTRE split is no longer 322 | 716")
+        # v-B: LEFT is their 322 on the doll's unit; the centre takes the rest of their 1044
+        self.assertEqual(s.count(".mp-lc{display:grid;grid-template-columns:calc(%d*var(--du)) minmax(0,1fr);"
+                                 "column-gap:calc(%d*var(--u));" % (c["left"], c["gutter"])), 1,
+                         "the LEFT | CENTRE split is no longer their 322 on the doll's unit | the rest of 1044")
 
     def test_the_css_carries_their_panel_heights(self):
         s = _src("bible.html")
         for sel, h in THEIR_HEIGHTS.items():
             m = re.findall(r"^" + re.escape(sel) + r"\{height:calc\((\d+)\*var\(--u\)\)", s, re.M)
             self.assertEqual(m, [str(h)], "%s is not the %dpx panel measured off their builder" % (sel, h))
+        self.assertEqual(sum(THEIR_EQ), 400)
+        self.assertEqual(re.findall(r"^\.mp-eq\{height:([^}]*)\}", s, re.M), ["calc(%d*var(--u) + %d*var(--du))" % THEIR_EQ],
+                         "EQUIPMENT is not their 36px header + their 364px body on the doll's unit")
 
     def test_a_prose_panel_is_a_floor_that_grows_never_a_box_that_cuts(self):
         s = _src("bible.html")
@@ -511,8 +539,15 @@ RED_PROOF = [
     {
         "why": "#174 - the LEFT column stops being their 322px (proportions lost)",
         "file": "bible.html",
-        "find": ".mp-lc{display:grid;grid-template-columns:calc(322*var(--u)) calc(716*var(--u));",
-        "replace": ".mp-lc{display:grid;grid-template-columns:calc(360*var(--u)) calc(716*var(--u));",
+        "find": ".mp-lc{display:grid;grid-template-columns:calc(322*var(--du)) minmax(0,1fr);",
+        "replace": ".mp-lc{display:grid;grid-template-columns:calc(360*var(--du)) minmax(0,1fr);",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B - the doll falls back to their squeezed 30px cell (spec §5: it may not read smaller than theirs)",
+        "file": "bible.html",
+        "find": ".mp{--du:calc(1.25*var(--u))}",
+        "replace": ".mp{--du:calc(1*var(--u))}",
         "matches": 1,
     },
     {

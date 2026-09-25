@@ -6998,7 +6998,10 @@ GATES = [
              "Also pins the #174 fit fixes structurally: the four prose panels are min-height floors, every size "
              "in the window is a --fs-mp-* token = root token x --kf floored at --fs-micro, a header title and "
              "its control own grid columns, and a resize re-lays the window only when its layout signature "
-             "moves (a phone keyboard is a height-only resize). 20 cases, 11 red-proofs",
+             "moves (a phone keyboard is a height-only resize). #174 v-B: the doll runs on its own unit, "
+             "--du = 1.25 x --u (spec §5 - it may not read smaller than theirs): their slot table unchanged on "
+             "--du, LEFT = their 322 on --du, EQUIPMENT = their 36px header + 364px body on --du. 25 cases, "
+             "15 red-proofs",
          skip_ok=()),
     Gate("test_the_mule_window_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 120,
@@ -7012,8 +7015,24 @@ GATES = [
              "its panel, nothing sideways, no header title under its control, type = token x min(1,k) floored "
              "at --fs-micro, 2000 = their measured rects, the caret survives a keyboard and a background "
              "re-render. Seen RED on the pre-fix page (7 of 9 cases). No browser binary = declared skip (77), "
-             "never a pass. 9 cases, 6 red-proofs",
+             "never a pass. #174 v-B: every width measured AGAIN with three items worn through the picker and the "
+             "picker open (new words in new boxes), and 2000 = their rects with the one declared upgrade (the doll "
+             "on DOLL_K = 1.25). 10 cases, 7 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_the_mule_window_equips_and_says_its_source",
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
+         needs_app=False,
+         why="#174 v-B - the mule window equips from its own locker and every stat says its source. Drives the "
+             "SHIPPED vault span, ITEM_CODEX / ITEM_TIP / tipOf, the routed store and the Backup exporter in node: "
+             "d2r_muleEquip's shape and a manual placement always winning over an analyzer route; a ring never "
+             "offered for the helm and every item left out counted with its reason (no slot on record = never "
+             "offered); the text parser (exact / a range never averaged / UNKNOWN for what needs a character / "
+             "mixed as >= exact + range); the store forked per world and riding Backup & Share; Esc closes the "
+             "picker first; a worn copy leaves the stash on both surfaces; one hover card on an equipped slot; "
+             "NOTES saved on Enter/blur with its draft surviving a re-render. The slot table is the game's: "
+             "checked against tv/item_tables.json kinds in CI, the subtypes against the install where it is "
+             "(UNMEASURED, never passed, elsewhere). 16 cases, 18 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
