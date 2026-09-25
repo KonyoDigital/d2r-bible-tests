@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1275 - EVERY FRESH INSTALL WAS FILED AS A LOST STORE, AND ITS SEED FLOOR REFUSED FOR EVER
+
+**fix - #165, found by tracing v659's and v1560's Routine I reds to one cause in a real page.** The v2988 loss
+detector calls an empty ledger a LOSS (records d2r_storeEmptied, refuses the seed floor so a real loss stays visible
+and recoverable) when one of three one-time keys already exists - and its comment promised "a fresh install is
+unaffected, by construction ... `_hadRun` reads bare keys that no new install has ever written". But THIS boot writes
+all three before the detector runs (d2r_installIdCache ~:3908, d2r_chronSyncMerged_v1 ~:4550, d2r_pieceAlias_v2
+~:4613). MEASURED in a fresh profile: the FIRST load recorded "the store lost its contents", found 0; the second load
+the same, boots:2 - a brand-new owner board would stay empty for ever with a false loss on its record. Now "has this
+board run before" is a SNAPSHOT taken at the top of the first script, before any write, and the detector reads it
+(null = unreadable -> the old reading). Proven both ways in fresh profiles: a fresh install -> hadRunAtBoot false,
+floored (found 310), no loss; a board that ran and then emptied -> still caught (loss recorded, floor refused, found
+0). Guards: `test_a_fresh_install_is_not_a_lost_store` (source order: the snapshot precedes all three writes; the
+detector reads it; 1 proof, PROVEN) and tests/v3503_a_fresh_install_is_not_a_lost_store.spec.ts (both behaviours,
+real browser, CI). ⚠ A board ALREADY misfiled keeps its keys and its empty ledger, so it still reads as a loss -
+his own board is non-empty and was never affected.
+
 ### REG-1274 - THE SEED FLOORED A SHAKO THE TALLY COULD NOT COUNT, AND I RETRACTED THE SUSPICION TOO EARLY
 
 **fix - #165, found while pre-verifying v1692 (1)'s rewrite in a real page.** The v3313 bake copied his foundLog key

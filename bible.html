@@ -3752,6 +3752,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      page renders immediately in the system fallback (var(--serif-display)/var(--sans) stacks) and
      swaps to Cinzel/Playfair/Inter once they arrive (display=swap → no invisible-text flash). -->
 <script>
+  /* REG-1275 — "HAS THIS BOARD RUN BEFORE" IS READ BEFORE THIS BOOT WRITES ANYTHING. The loss detector
+     (v2988, ~:20909) decides an empty ledger BECAME empty when one of three one-time keys exists - but THIS
+     boot writes all three first (d2r_installIdCache ~:3908, d2r_chronSyncMerged_v1 ~:4550,
+     d2r_pieceAlias_v2 ~:4613). MEASURED in a fresh profile: the very first load recorded d2r_storeEmptied
+     ("the store lost its contents") and the seed floor refused, on every later load too. Its own comment
+     promised "a fresh install is unaffected, by construction". So the reading is taken HERE, first.
+     null = storage could not be read (UNKNOWN), and the detector then falls back to its old reading. */
+  try {
+    window.__d2rHadRunAtBoot = !!(window.localStorage.getItem('d2r_pieceAlias_v2')
+      || window.localStorage.getItem('d2r_chronSyncMerged_v1') || window.localStorage.getItem('d2r_installIdCache'));
+  } catch (e) { window.__d2rHadRunAtBoot = null; }
   /* ══ v2714 — ONE DEFINITION OF THE CHRONICLE DENOMINATOR ═══════════════════════════════════
    Konyo, 2026-09-06: "this needs a unified and sharing logic.. no reason for it to render
    something in the roster or fleet different from the consoles main tabs". He was right to
@@ -20911,7 +20922,9 @@ window.renderHighValueFinds = renderHighValueFinds;
       var _wasEmpty = !LS.getItem('d2r_foundLog') && !LS.getItem('d2r_setPieces');
       /* these one-time flags are BARE keys written on earlier loads. Present with an empty ledger
          means the store did NOT start empty — it BECAME empty, which no new install can do. */
-      var _hadRun = !!(LS.getItem('d2r_pieceAlias_v2') || LS.getItem('d2r_chronSyncMerged_v1')
+      // REG-1275 — the snapshot taken before this boot wrote these keys, never a re-read of them now
+      var _hadRun = (typeof window.__d2rHadRunAtBoot === 'boolean') ? window.__d2rHadRunAtBoot
+                  : !!(LS.getItem('d2r_pieceAlias_v2') || LS.getItem('d2r_chronSyncMerged_v1')
                        || LS.getItem('d2r_installIdCache'));
       /* ⚠⚠ v2993 — AND CLOSE IT WHEN IT RECOVERS. The record had no exit: `restore_ledger.py
          --apply` is a merge-max chronicleApply — it puts the NAMES back and never removes

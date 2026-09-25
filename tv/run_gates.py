@@ -5344,6 +5344,12 @@ GATES = [
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
              "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+    Gate("test_a_fresh_install_is_not_a_lost_store",
+         [sys.executable, os.path.join(HERE, "test_a_fresh_install_is_not_a_lost_store.py")], 60,
+         why="REG-1275 (#165) - the v2988 loss detector read 'has run before' from keys THIS boot had just "
+             "written, so every fresh install was filed as a lost store and the seed floor refused it for ever "
+             "(measured: first load found 0 + d2r_storeEmptied). The reading is now a snapshot taken before any "
+             "write; a store that ran and then emptied is still caught (spec v3503). 2 cases, 1 red-proof"),
     Gate("test_each_console_says_its_own_system",
          [sys.executable, os.path.join(HERE, "test_each_console_says_its_own_system.py")], 90,
          why="#229 - the roadmap's last build item: from the fleet, see each console stand on its own. The "

@@ -43,9 +43,14 @@ test('cockpit renders 4 cards + live KPIs + freshness chips on the seeded profil
   });
   expect(r.active).toBe(true);
   expect(r.cards).toBe(6);                                    // ops · tz · intel · log · 📺 TV DIABLO (v710) · ⚔️ DAILY TASK FORCE (v907)
-  expect(r.kpiText).toContain('Chronicle');
-  // v2674 — the cockpit KPI strip now reads "99/99Chronicle248/403Chronicle108/135Sets699%MF".
-  expect(r.kpiText).toContain('Chronicle');
+  /* REG-1275 (#165) — v3287 (2026-09-18) "the chips name what they count": the strip reads
+     "99/99Runewords 0/403Uniques 0/135Sets 699%MF /p1Players" and the word "Chronicle" - which labelled two
+     different counts - is gone ON PURPOSE. This asserted the retired label for every run since. It now states
+     v3287's own law: each count is named for what it counts, and the ambiguous word does not come back. */
+  for (const label of ['Runewords', 'Uniques', 'Sets']) {
+    expect(r.kpiText, 'the KPI strip names what it counts: ' + label).toContain(label);
+  }
+  expect(r.kpiText, 'the retired label that named two different counts').not.toContain('Chronicle');
   // v691 (🏓 R1) — 2+ stale stashes collapse into ONE intel-gate chip ('N of 4 stashes unscanned');
   // per-stash chips return as intel freshens. Fresh profile ⇒ the single gate.
   expect(r.chips).toBeGreaterThanOrEqual(1);
