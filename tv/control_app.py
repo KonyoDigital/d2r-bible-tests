@@ -1822,6 +1822,59 @@ def board_tally_load():
         return None
 
 
+_NO_TALLY = object()
+
+
+def own_board_may_autoclaim(backup_dir=None, tally=_NO_TALLY):
+    """#239 — MAY THIS CONSOLE'S OWN WINDOW CLAIM ITS BOARD WITHOUT A CLICK? -> dict
+
+    His ruling, 2026-09-25: "this is already architected in a way.. check blueprints and wire just
+    whats needed". bible.html asks this from inside the console's native window (pywebview is the
+    proof it is that window) when its store holds no claim at all.
+
+    ⛔ RESTORE, NEVER RESEED. The answer is YES only when this machine has never held a populated
+    board. Two independent records can say it did, and EITHER one is enough to refuse:
+      · a ledger snapshot in the backup dir - `_ledger_snapshot_once` refuses to file an EMPTY
+        ledger, so any snapshot at all is a board that once had entries;
+      · a banked board tally with have > 0 on any ledger.
+    A machine that lost its store must be given it BACK. A fresh empty world laid over that loss is
+    the 2026-09-08 "my profile is missing" night, and the bar that asks him stays exactly as it was.
+    ⚠ A RECORD THAT CANNOT BE READ IS A REFUSAL, never a yes: UNKNOWN about his past is not
+    permission to start a new world over it. [[unknown-stays-unknown]]
+    """
+    bdir = backup_dir or _LEDGER_BACKUP_DIR
+    try:
+        snaps = sorted(f for f in os.listdir(bdir)
+                       if f.startswith("ledger_") and f.endswith(".json")) if os.path.isdir(bdir) else []
+    except Exception as e:
+        return {"ok": False, "may": False,
+                "why": "the ledger backups could not be listed (%s), so whether this machine held a "
+                       "board before is UNKNOWN - no automatic claim" % type(e).__name__}
+    try:
+        t = board_tally_load() if tally is _NO_TALLY else tally
+    except Exception as e:
+        return {"ok": False, "may": False,
+                "why": "the banked board tally could not be read (%s) - UNKNOWN, no automatic claim"
+                       % type(e).__name__}
+    had = []
+    if isinstance(t, dict):
+        for led in ("sets", "uniques", "runewords"):
+            v = t.get(led)
+            if isinstance(v, dict) and isinstance(v.get("have"), int) and v["have"] > 0:
+                had.append("%s %d" % (led, v["have"]))
+    if snaps or had:
+        return {"ok": True, "may": False, "snapshots": len(snaps), "tally": had,
+                "why": ("this machine held a populated board before (%s) - it is RESTORED, never "
+                        "replaced by a new empty world. Restore from the newest ledger backup, or "
+                        "press 'This browser is mine' if a new world is really what you want."
+                        % "; ".join(([("%d ledger backup(s), newest %s" % (len(snaps), snaps[-1]))]
+                                     if snaps else []) + (["banked tally " + ", ".join(had)]
+                                                          if had else [])))}
+    return {"ok": True, "may": True, "snapshots": 0, "tally": [],
+            "why": "this machine has never held a populated board, so the console's own window "
+                   "claims it - a new world named for this install"}
+
+
 def board_own_route_id():
     """The install id of THE BOARD'S OWN persisted store. -> str | None
 
@@ -34344,6 +34397,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, fleet_compare((_q.get("machine") or [""])[0],
                                           (_q.get("ledger") or ["sets"])[0]))
             return
+        if path == "/api/own_board_claim":
+            # #239 — asked by bible.html from inside this console's own window. Reads only.
+            self._json(200, own_board_may_autoclaim())
+            return
         if path == "/api/heart":
             # v2443 — ♥ THE HEART. Derived per read (45 s memo), never stored. ?force=1 re-derives.
             self._json(200, heart_state(force=("force=1" in (self.path or ""))))
@@ -36399,13 +36456,13 @@ class Handler(BaseHTTPRequestHandler):
             why_nav = None
             w = globals().get("_MAIN_WIN")
             if w is not None and globals().get("_WINDOW_LIVE"):
-                claim_js = (
-                    "try{if(!localStorage.getItem('d2r_ownerClaim'))"
-                    "{localStorage.setItem('d2r_ownerClaim','*');}}catch(_c){}"
-                    if claim else "")
-                js = ("(function(){try{%s window.location.href=%s;return 'ok';}"
+                # ⚠ #239 — THIS DOOR NO LONGER WRITES A CLAIM. It wrote '*' and named NO ledger,
+                # which v2692 says adopts the owner's seed one find later, and nothing called it.
+                # The board now claims ITSELF in this window through the one routine the button
+                # uses (window._d2rClaimThisBrowser), guarded by own_board_may_autoclaim().
+                js = ("(function(){try{window.location.href=%s;return 'ok';}"
                       "catch(e){return 'err:'+String(e&&e.message||e)}})()") % (
-                          claim_js, json.dumps(nav))
+                          json.dumps(nav),)
                 try:
                     raw = _ejs(w, js, timeout=4.0)
                     navigated = (str(raw) == "ok")
@@ -36423,6 +36480,8 @@ class Handler(BaseHTTPRequestHandler):
                 "spawned": False,
                 "navigated": navigated,
                 "why": why_nav,
+                # #239 — a claim request is answered, not silently dropped: the board decides.
+                "claim": (own_board_may_autoclaim() if claim else None),
             })
             return
         if path == "/api/window":

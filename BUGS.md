@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1292 - HIS ANSWERS STORE WAS ONE `git add -A` FROM A PUBLIC REPO
+
+**fix - found 2026-09-25 when he answered the shadow-gate question ("Keep it as it is").** #223 stores his answers
+through `_decision_path("his_answers.json")`; the scratch forms were covered by `tv/*.scratch-*` but the PRIMARY file
+had no ignore line, so it appeared untracked in this PUBLIC repo. Measured: 0 commits ever touched it - never
+published. Fourth time for this class (.gitignore records v2413, v2428 and the auto_relaunch sweep), each fixed by
+listing an instance. Now ignored, and `test_every_decision_file_is_ignored` reads every `_decision_path` name out of
+control_app.py and asks git's own matcher (a throwaway repo seeded with the tree's .gitignore files), primary and
+scratch form. 2 cases, 1 proof (first INVALID - it tampered tv/.gitignore - re-aimed), PROVEN.
+
+### REG-1291 - THE CONSOLE'S OWN WINDOW NEEDED A CLAIM CLICK, AND ITS UNUSED CLAIM DOOR NAMED NO LEDGER
+
+**fix - #239, his go 2026-09-25 ("check blueprints and wire just whats needed").** Measured before wiring: the
+console already had a claim door, `POST /api/board {claim:true}`, that wrote `d2r_ownerClaim='*'` inside its own
+window - with NO ledger name, the exact state the v2692 rule says adopts the owner's seed one find later - and
+nothing in the product called it. A new machine's board therefore sat in a guest world until someone pressed
+"This browser is mine". NOW: one routine (`window._d2rClaimThisBrowser`) makes the button's two writes, claim + a
+ledger name, and both doors use it. The board claims itself only inside a pywebview window (the console's own;
+a browser tab never has `window.pywebview`, and a spoofed `pywebviewready` does not count), only on a store with
+no claim at all, and only when `GET /api/own_board_claim` says this machine never held a populated board - no
+ledger snapshot (the snapshotter refuses empty ledgers, so any snapshot is proof) and no banked tally with have >
+0. RESTORE, NEVER RESEED: a machine that held a board keeps the bar, and the "board is claimed" doctor row now says
+the console refused and why. The old door writes nothing and answers the verdict. Guard:
+`test_the_console_window_claims_its_own_board` (12 cases, 5 proofs, one first seen BLIND and fixed), PROVEN.
+
 ### REG-1290 - THE ALT WAS BILLED FOR HANDOFF LANES NOBODY WORKS THERE
 
 **fix - #141, measured over SSH 2026-09-25.** The ALT's doctor read 117 checks with ONE missing: "handoff lanes

@@ -4787,6 +4787,37 @@ try {
 </div>
 <script>
 (function(){
+  /* ══ #239 — ONE CLAIM ROUTINE, TWO DOORS ════════════════════════════════════════════════════
+     The button below and the console's own window (further down) claim through THIS function and
+     nothing else, so the v2692 rule - a claim names its ledger in the same breath - cannot be
+     honoured by one door and skipped by the other. The console had a second claim door
+     (POST /api/board {claim:true}) that wrote '*' and named NO ledger: the exact state v2692 says
+     adopts the owner's seed one find later. It is retired in the same version. [[copy-drift]] */
+  window._d2rClaimThisBrowser = function(){
+    try {
+      // ONE key. The whole migration is this write — nothing is copied, moved or renamed, which is
+      // why there is no half-migrated state and why re-clicking is harmless.
+      window.localStorage.setItem('d2r_ownerClaim', window._D2R_INSTALL || '*');
+      /* ⚠⚠ v2692 — NAME THE LEDGER AT THE MOMENT OF THE CLAIM, OR THE HEURISTIC RECAPTURES IT.
+         _D2R_LEDGER resolves an UNNAMED store by asking whether it already carries a chronicle,
+         because every install predating that line is unnamed and must keep Konyo's floor. That
+         rule is safe only while an unnamed store stays empty. A newly-claimed browser is empty
+         TODAY and stops being empty the moment its owner finds one item — and on the next load
+         it would answer "unnamed, has a chronicle", adopt 'KonyoEndgame', and be handed 245
+         finds that are not his. The migration rule would have re-created the exact defect this
+         version fixes, one find later.
+         So a claim writes a name immediately. Only when there is none: a board already claimed
+         before this shipped keeps its unnamed-with-data reading, which is what protects his own
+         chronicle. [[the-unjoined-end]] */
+      try {
+        if (!String(window.localStorage.getItem('d2r_ledgerName') || '').trim()) {
+          window.localStorage.setItem('d2r_ledgerName',
+            'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8));
+        }
+      } catch(e){}
+      return true;
+    } catch(e){ return false; }
+  };
   try {
     var claimed = null;
     try { claimed = window.localStorage.getItem('d2r_ownerClaim'); } catch(e){}
@@ -4808,32 +4839,43 @@ try {
     document.body.classList.add('has-claim-bar');
     var btn = document.getElementById('claim-btn');
     btn.onclick = function(){
-      try {
-        // ONE key. The whole migration is this write — nothing is copied, moved or renamed, which is
-        // why there is no half-migrated state and why re-clicking is harmless.
-        window.localStorage.setItem('d2r_ownerClaim', window._D2R_INSTALL || '*');
-        /* ⚠⚠ v2692 — NAME THE LEDGER AT THE MOMENT OF THE CLAIM, OR THE HEURISTIC RECAPTURES IT.
-           _D2R_LEDGER resolves an UNNAMED store by asking whether it already carries a chronicle,
-           because every install predating that line is unnamed and must keep Konyo's floor. That
-           rule is safe only while an unnamed store stays empty. A newly-claimed browser is empty
-           TODAY and stops being empty the moment its owner finds one item — and on the next load
-           it would answer "unnamed, has a chronicle", adopt 'KonyoEndgame', and be handed 245
-           finds that are not his. The migration rule would have re-created the exact defect this
-           version fixes, one find later.
-           So a claim writes a name immediately. Only when there is none: a board already claimed
-           before this shipped keeps its unnamed-with-data reading, which is what protects his own
-           chronicle. [[the-unjoined-end]] */
-        try {
-          if (!String(window.localStorage.getItem('d2r_ledgerName') || '').trim()) {
-            window.localStorage.setItem('d2r_ledgerName',
-              'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8));
-          }
-        } catch(e){}
-      } catch(e){}
+      window._d2rClaimThisBrowser();
       btn.disabled = true;
       btn.textContent = 'claimed — reloading…';
       setTimeout(function(){ location.reload(); }, 250);
     };
+    /* ══ #239 — THE CONSOLE'S OWN WINDOW NEEDS NO CLAIM STEP ════════════════════════════════
+       His ruling, 2026-09-25: "this is already architected in a way.. check blueprints and wire
+       just whats needed". A board opened INSIDE its console's native window is that console's
+       world by construction - it is the one window the console itself made. pywebview injects
+       `window.pywebview` and fires `pywebviewready` in every window it creates and in nothing
+       else, so on this page that is the proof; a browser tab on the same address never has it.
+       ⛔ RESTORE, NEVER RESEED. The console answers /api/own_board_claim with may:true ONLY when
+       this machine has never held a populated board (no ledger backup with counts, no banked
+       tally). A machine that lost its store must get it BACK, not a fresh empty world laid over
+       the loss - that is the 2026-09-08 "my profile is missing" night. Any other answer, or no
+       answer, leaves this bar exactly as it was. [[unknown-stays-unknown]]
+       It fires only here, where no claim exists at all: a claim that stopped matching is the
+       v2776 recovery above, never this. */
+    var _own = function(){
+      try {
+        if (!window.pywebview) return;
+        if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+        fetch('/api/own_board_claim').then(function(r){ return r.json(); }).then(function(j){
+          window.__d2rOwnClaim = { may: !!(j && j.may === true), why: (j && j.why) || null, at: Date.now() };
+          if (!j || j.may !== true) return;
+          if (window.localStorage.getItem('d2r_ownerClaim')) return;   // claimed meanwhile
+          if (window._d2rClaimThisBrowser()) {
+            btn.disabled = true;
+            btn.textContent = 'this console\u2019s own board — claiming…';
+            setTimeout(function(){ location.reload(); }, 250);
+          }
+        }).catch(function(){
+          window.__d2rOwnClaim = { may: false, why: 'the console did not answer', at: Date.now() };
+        });
+      } catch(e){}
+    };
+    if (window.pywebview) _own(); else window.addEventListener('pywebviewready', _own, { once: true });
   } catch(e){}
 })();
 </script>

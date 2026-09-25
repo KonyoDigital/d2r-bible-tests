@@ -5480,6 +5480,22 @@ GATES = [
              "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
              "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
              "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
+    Gate("test_every_decision_file_is_ignored",
+         [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
+         why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
+             "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
+             "asked of git check-ignore, primary and scratch form. 2 cases, 1 red-proof"),
+    Gate("test_every_decision_file_is_ignored",
+         [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
+         why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
+             "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
+             "asked of git check-ignore, primary and scratch form. 2 cases, 1 red-proof"),
+    Gate("test_the_console_window_claims_its_own_board",
+         [sys.executable, os.path.join(HERE, "test_the_console_window_claims_its_own_board.py")], 60,
+         why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
+             "ledger name and nothing called it. Now one routine claims + names the ledger; it runs by itself only in "
+             "a pywebview window on a store with no claim, and only when this machine never held a populated board "
+             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 5 red-proofs"),
     Gate("test_each_console_shows_its_own_counts",
          [sys.executable, os.path.join(HERE, "test_each_console_shows_its_own_counts.py")], 60,
          why="#240 - from his ALT, Konyo's and GrokBot's fleet rows showed no numbers while Dean's did ('as if im "

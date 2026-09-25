@@ -243,6 +243,11 @@ tv/auto_relaunch.scratch-*.json
 # meant to be tracked. [[sweep-dont-ask]] [[feedback-generalize-fixes]]
 tv/*.scratch-*
 tv/.*.scratch-*
+# ⚠ #223's answers store - HIS answers to the console's questions, per machine. `_decision_path("his_answers.json")`
+# shipped without an ignore line: the scratch forms above covered it, the PRIMARY did not, and on 2026-09-25 his first
+# answer ("Keep it as it is") sat untracked in a public repo one `git add -A` away. Fourth time for this class, so
+# test_every_decision_file_is_ignored now reads every _decision_path name out of the code and asks git.
+tv/his_answers.json
 
 
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and

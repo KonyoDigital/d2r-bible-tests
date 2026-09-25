@@ -157,9 +157,22 @@ def _check_the_board_world_is_claimed():
         _tail = "" if not (isinstance(_d, dict) and _d.get("state") == "ok") else " · " + str(_d.get("why"))
         return OK, ("the board is CLAIMED — it writes the bare keys, so what is applied persists"
                     + _tail)
+    # ⚠ #239 — SAY WHAT THE AUTOMATIC CLAIM DECIDED. The console's own window now claims a board
+    # with no claim by itself, unless this machine held a populated board before (restore, never
+    # reseed). Still unclaimed means one of: that refusal, a board open in a browser rather than the
+    # console window, or a claim that belongs to another install. The row names the first, because
+    # it is the one with an action. [[the-unjoined-end]]
+    _auto = ""
+    try:
+        import control_app as _ca
+        _v = _ca.own_board_may_autoclaim()
+        if isinstance(_v, dict) and _v.get("may") is False:
+            _auto = "  The console's own window did NOT claim it by itself: " + str(_v.get("why"))[:220]
+    except Exception:
+        _auto = "  Whether the console's own window may claim it is UNKNOWN (the verdict would not run)."
     return MISSING, ("the board is an UNCLAIMED guest world (prefix %r) holding %d ledger entries — "
                      "anything applied here is lost on the next launch. Open the board and press "
-                     "'This browser is mine'." % (got.get("pfx"), total))
+                     "'This browser is mine'.%s" % (got.get("pfx"), total, _auto))
 
 
 def _tree_version():
