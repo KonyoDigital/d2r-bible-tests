@@ -15,7 +15,7 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-25 (morning) · 1 active · 4 his rulings · 6 parked · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-25 (morning) · 0 active · 4 his rulings · 6 parked · viewer :17955
 
 > The live surfaces are the viewer (:17955) and the session board (`~/.claude/tasks/session-27691f89`). This section
 > mirrors them. Rewritten 2026-09-25 ~06:00 after the overnight run.
@@ -24,7 +24,7 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 | # | where it stands |
 |---|---|
-| **#165** | Routine I by title: 33 -> 26 (b016046c) -> 20 (87379bbd; REG-1275 cleared the 19-spec empty-fresh-board family). The 13 specs REG-1275 turned red were fixtures written against the OLD empty fresh board - each moved to names a floored board really lacks, checked on a real page; chasing one found REG-1280 (a registered Bone Break vanished from his vault on reload). Left: v877 x2 - its self-hosted console loads no film on CI (red in every log since before this session). NEXT: read the Routine I delta on the pushed batch. |
+| **#165** | ✅ DONE 2026-09-25 07:50 — Routine I GREEN on f45d0cff, every shard (slow included). Arc by title: 36 -> 33 -> 26 -> 20 -> 3 -> 0. REG-1275 cleared the empty-fresh-board family; the 13 specs it turned red were fixtures written against the old empty board, each moved to names a floored board really lacks (real-page checked); on the way: REG-1280 (a registered Bone Break vanished from his vault on reload), REG-1284 (the first theatre open after every restart waited 9 s on a test-file scan - v877), and two instrument fixes (v645's suffix rule, the dead-click sweep counting open boxes). |
 
 ### ⛔ WAITING ON HIM — each a one-line ruling
 

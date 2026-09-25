@@ -42,6 +42,7 @@ short of the bar. The proxy was too generous, as flagged.
 """
 import io
 import os
+import shutil
 import sys
 import unittest
 
@@ -383,7 +384,7 @@ class TheRiverNamesTheRightCulprit(unittest.TestCase):
                 os.environ.pop("TV_HIST", None)
             else:
                 os.environ["TV_HIST"] = _was
-            os.rmdir(_h)
+            shutil.rmtree(_h, ignore_errors=True)
             if real is not None:
                 sys.modules["reel_retention"] = real
             else:
