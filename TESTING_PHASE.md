@@ -1230,7 +1230,7 @@ As a needs-you row: amber, under WAITING ON YOU, with the button 'YOUR CALL — 
 | TV·D | The ON AIR / MINI refusal below the 8 GB floor, and the DISK FULL banner | It needs less than 8 GB free (14.0 GB today). | Nothing, by design: fixture-only. |
 | TV·D | Consoles with TV_CAPTURE=off (REG-1252, REG-1272, REG-1285) | None of your real consoles runs with capture off. | Nothing: scratch and CI consoles only. |
 | TV·D | The Windows full-virtual fallback (finding 22) | It needs exclusive fullscreen on Windows. Whether your setup can do that is UNKNOWN. | A Windows machine that runs D2R in exclusive fullscreen. |
-| Fleet | Esc on the state panel, the fleet window, the heart panel or the receipts view | The shipped code also quits the console (finding 23). | The fix first: add those panels to the empty-console overlay list, or stop the event. A node harness can prove it. Then the hand test is: panel open → Esc once → the panel closes and the console stays. |
+| Fleet | Esc on the state panel, the fleet window, the heart panel or the receipts view | ✅ Fixed in REG-1304 (finding 23) - live on your screen once your console relaunches onto it. | Now a hand test: panel open → Esc once → the panel closes and the console stays. Until the relaunch, close these panels with ✕. |
 | Fleet | The by-design quit on an empty console page | It is never a hand step. | Fixture-only. |
 | Fleet | #239's `may:true` path (a machine that never held a board claims itself) | Staging it means emptying a store, which restore-never-reseed forbids. | A fresh install, or the Wife PC if it ever updates. |
 | Fleet | A spoofed `pywebviewready` being refused | Only devtools or a harness can send one. | A harness. |

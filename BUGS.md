@@ -14,7 +14,9 @@ error(s) while this target ran ... TypeError: Cannot read properties of null (re
 Force target. That target rendered clean alone and in a full 24-target rerun on the same tree, and no innerHTML write
 was added since the last published build - an intermittent throw somewhere in the board, with nothing to chase:
 render_check kept only the exception's first line. It now keeps the first stack frame (the description's `at` line,
-else exceptionDetails.stackTrace), so the next occurrence names file and line. The throw itself stays OPEN until it
+else exceptionDetails.stackTrace), so the next occurrence names file and line. ⚠ The #231 eye on the shipped 1e1f946e found the fix
+in ONE of three writers of the same list (send()); ev() and the in-page collector still cut to one line - all three now
+call one shared rule, _err_place, and the in-page hook pushes the error's stack. The throw itself stays OPEN until it
 does. [[suspect-the-instrument]] [[unknown-stays-unknown]]
 
 ### REG-1305 - A "CHEAP" DOCTOR ROW ASKED HIS CONSOLE A 2.5-SECOND QUESTION ON EVERY TICK, AND REFUSED TWO PUSHES

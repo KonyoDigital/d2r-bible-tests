@@ -2808,6 +2808,29 @@ except Exception:                           # which is why the caller also tears
     pass
 
 
+def _err_place(text, details=None):
+    """REG-1306 — ONE RULE FOR EVERY WRITER OF page_errors: WHAT threw, and WHERE.
+
+    The first cut of REG-1306 added the place only in _Tab.send() (Runtime.exceptionThrown); the #231
+    eye on the shipped 1e1f946e found the two other writers of the same list - _Tab.ev() (an
+    exception out of an evaluated expression, which is where an activation click's handler lands) and
+    the in-page __rcErrors drain - still cutting every error to its first line. Three copies of one
+    rule is copy-drift; this is the rule, and all three call it. [[copy-drift]] [[sweep-dont-ask]]
+    `text` is the error's description (first line = what; a later `at ...` line = where); `details`
+    is CDP exceptionDetails when there is one (its structured stackTrace is the fallback place)."""
+    lines = str(text or "").splitlines()
+    at = next((l.strip() for l in lines[1:] if l.strip().startswith("at ")), "")
+    if not at and isinstance(details, dict):
+        cf = (((details.get("stackTrace") or {}).get("callFrames")) or [{}])[0]
+        if cf.get("url") or cf.get("lineNumber") is not None:
+            at = "at %s (%s:%s:%s)" % (cf.get("functionName") or "?",
+                                       str(cf.get("url") or "?").rsplit("/", 1)[-1],
+                                       (cf.get("lineNumber") or 0) + 1, (cf.get("columnNumber") or 0) + 1)
+    if not lines:
+        return ""
+    return lines[0][:200] + ("  " + at[:160] if at else "")
+
+
 def _chrome_up():
     """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers."""
     import urllib.request
@@ -2980,20 +3003,8 @@ class _Tab(object):
                 # keep the first 12 — a broken render can throw on every animation frame, and a
                 # thousand copies of one sentence is not more information than one copy of it
                 if len(self.page_errors) < 12:
-                    # REG-1306 — AND WHERE IT DIED. The first line says WHAT threw; alone it sent a
-                    # refused push hunting ("Cannot read properties of null (reading 'innerHTML')"
-                    # on a target that renders clean alone). The first stack frame names the file
-                    # and line, which is the whole next step. [[suspect-the-instrument]]
-                    _lines = str(_txt).splitlines()
-                    _at = next((l.strip() for l in _lines[1:] if l.strip().startswith("at ")), "")
-                    if not _at:
-                        _cf = (((_e.get("stackTrace") or {}).get("callFrames")) or [{}])[0]
-                        if _cf.get("url") or _cf.get("lineNumber") is not None:
-                            _at = "at %s (%s:%s:%s)" % (_cf.get("functionName") or "?",
-                                                        str(_cf.get("url") or "?").rsplit("/", 1)[-1],
-                                                        (_cf.get("lineNumber") or 0) + 1,
-                                                        (_cf.get("columnNumber") or 0) + 1)
-                    self.page_errors.append((_lines[0][:200] + ("  " + _at[:160] if _at else "")) if _lines else "")
+                    # REG-1306 — AND WHERE IT DIED (the first stack frame), by the one shared rule.
+                    self.page_errors.append(_err_place(_txt, _e))
                 continue
             if r.get("method") == "Page.javascriptDialogOpening":
                 self.n += 1
@@ -3034,7 +3045,7 @@ class _Tab(object):
             # which is why the first cut of this collector stayed empty through the very defect
             # it was written for. `last_exc` is left exactly as it was so no caller changes.
             if len(self.page_errors) < 12:
-                self.page_errors.append(str(self.last_exc).splitlines()[0][:200])
+                self.page_errors.append(_err_place(self.last_exc, _x))   # REG-1306 - and where
         else:
             self.last_exc = None
         return _r.get("result", {}).get("value")
@@ -4260,7 +4271,7 @@ def check(name, spec, shots=True):
                      "window.__rcErrors.push(String(m).slice(0,400));};"
                      "window.addEventListener('error',function(e){"
                      "var m=(e&&(e.message||(e.error&&e.error.message)))||'';"
-                     "if(m){p(m);return;}"
+                     "if(m){p((e.error&&e.error.stack)||(m+(e.filename?'\\n    at '+String(e.filename).split('/').pop()+':'+e.lineno+':'+e.colno:'')));return;}"
                      "var t=e&&e.target;"
                      "if(t&&t.tagName){window.__rcResErr++;return;}"
                      "p('an error event with no message and no target');},true);"
@@ -4774,7 +4785,7 @@ def check(name, spec, shots=True):
         # drain the in-page collector and merge it with anything the CDP paths did catch
         try:
             for _m in (tab.ev("(window.__rcErrors||[]).slice(0,12)") or []):
-                _m = str(_m).splitlines()[0][:200] if str(_m).strip() else str(_m)[:200]
+                _m = _err_place(_m) if str(_m).strip() else str(_m)[:200]   # REG-1306 - and where
                 if _m not in tab.page_errors and len(tab.page_errors) < 12:
                     tab.page_errors.append(_m)
         except Exception:

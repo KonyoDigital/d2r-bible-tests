@@ -11,8 +11,12 @@ file and line.
   · DRIVEN (render_check._Tab.send on a fake CDP socket - the SHIPPED collector): an exception whose
     description carries a stack keeps its first `at` frame; one that carries only a structured stackTrace gets
     `at fn (file:line:col)` built from it; one with neither keeps just its first line (never an invented place).
+  · DRIVEN (the #231 eye on 1e1f946e: two other writers of the same list still cut to one line): _Tab.ev() -
+    an exception out of an evaluated expression, where an activation click lands - names its place too; the
+    in-page collector (the SHIPPED hook script, run in node) pushes the error's stack, and the drain keeps it.
 RED_PROOF below.
 """
+import io
 import json
 import os
 import sys
@@ -78,23 +82,70 @@ class APageErrorNamesWhereItDied(unittest.TestCase):
         self.assertEqual(errs, ["Error: thrown from nowhere in particular"])
 
 
+    def test_an_exception_out_of_an_evaluated_expression_names_its_place(self):
+        t = RC._Tab.__new__(RC._Tab)
+        t.ws = _Socket([json.dumps({"id": 1, "result": {"result": {}, "exceptionDetails": {
+            "exception": {"description": "TypeError: Cannot read properties of null (reading 'innerHTML')\n"
+                                         "    at openTaskForce (http://h/board:5650:9)"}}}})])
+        t.n = 0
+        t.page_errors = []
+        t.last_exc = None
+        t.ev("document.body.click()")
+        self.assertEqual(len(t.page_errors), 1)
+        self.assertIn("at openTaskForce (http://h/board:5650:9)", t.page_errors[0],
+                      "ev() still cuts the error to its first line: %r" % t.page_errors)
+
+    def test_the_in_page_collector_keeps_the_stack(self):
+        import shutil, subprocess
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is absent - this case is UNMEASURED, not passing")
+        src = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
+        i = src.index('        _ERR_HOOK = (')
+        j = src.index('        tab.send("Page.addScriptToEvaluateOnNewDocument", source=_ERR_HOOK)', i)
+        ns = {}
+        exec(compile(src[i:j].strip(), "_ERR_HOOK", "exec"), {}, ns)
+        js = ("var L={}; var window={addEventListener:function(t,f){L[t]=f;}};\n" + ns["_ERR_HOOK"] + "\n"
+              "L.error({message:'TypeError: boom', error:{message:'boom', stack:'TypeError: boom\\n    at paint (http://h/board:39808:4)'}});\n"
+              "console.log(JSON.stringify(window.__rcErrors));")
+        r = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[:400])
+        pushed = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(len(pushed), 1)
+        self.assertIn("at paint (http://h/board:39808:4)", RC._err_place(pushed[0]),
+                      "the in-page collector drops the place: %r" % pushed)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
     {
-        "why": "REG-1306 - the gate keeps only the first line again: an intermittent page error names what died, never where",
+        "why": "REG-1306 - the shared rule keeps only the first line again: every writer names what died, never where",
         "file": "render_check.py",
-        "find": "                    self.page_errors.append((_lines[0][:200] + (\"  \" + _at[:160] if _at else \"\")) if _lines else \"\")\n",
-        "replace": "                    self.page_errors.append(_lines[0][:200] if _lines else \"\")\n",
+        "find": "    return lines[0][:200] + (\"  \" + at[:160] if at else \"\")\n",
+        "replace": "    return lines[0][:200]\n",
         "matches": 1,
     },
     {
         "why": "REG-1306 - a structured stackTrace is ignored, so an exception without a described stack loses its place",
         "file": "render_check.py",
-        "find": "                    if not _at:\n                        _cf = (((_e.get(\"stackTrace\") or {}).get(\"callFrames\")) or [{}])[0]\n",
-        "replace": "                    if False:\n                        _cf = (((_e.get(\"stackTrace\") or {}).get(\"callFrames\")) or [{}])[0]\n",
+        "find": "    if not at and isinstance(details, dict):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1306 (#231 on 1e1f946e) - ev() cuts its exception to the first line again, where an activation click lands",
+        "file": "render_check.py",
+        "find": "                self.page_errors.append(_err_place(self.last_exc, _x))   # REG-1306 - and where\n",
+        "replace": "                self.page_errors.append(str(self.last_exc).splitlines()[0][:200])\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1306 (#231 on 1e1f946e) - the in-page collector pushes the bare message again, without the stack",
+        "file": "render_check.py",
+        "find": "\"if(m){p((e.error&&e.error.stack)||",
+        "replace": "\"if(m){p((m)||",
         "matches": 1,
     },
 ]
