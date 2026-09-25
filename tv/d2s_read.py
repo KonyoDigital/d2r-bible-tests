@@ -49,6 +49,11 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 FORMAT = 105
 MAGIC = 0xAA55AA55

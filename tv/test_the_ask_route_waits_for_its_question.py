@@ -17,11 +17,19 @@ RED_PROOF below.
 import io
 import json
 import os
+import sys
 import shutil
 import subprocess
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 ROOT = os.path.dirname(HERE)
 NODE = shutil.which("node")
 

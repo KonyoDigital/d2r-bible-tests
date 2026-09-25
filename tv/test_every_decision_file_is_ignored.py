@@ -12,6 +12,7 @@ records the same slip three times before (v2413, v2428, the auto_relaunch sweep)
 RED_PROOF below.
 """
 import os
+import sys
 import re
 import shutil
 import subprocess
@@ -19,6 +20,13 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 ROOT = os.path.dirname(HERE)
 GIT = shutil.which("git")
 
