@@ -368,9 +368,22 @@ class TheRiverNamesTheRightCulprit(unittest.TestCase):
                         "say": "1 reel(s) may go"}
         real = sys.modules.get("reel_retention")
         sys.modules["reel_retention"] = _RR
+        # ⚠ A HISTORY DIRECTORY OF ITS OWN. j_prune answers "no history directory" before it asks the
+        # planner, and on CI tv/frames/hist exists only if an EARLIER gate in the same shard made it -
+        # so this case passed or failed with the shard's composition (it went red on e6d71ca5 when new
+        # gates reshuffled the shards). The case is about which KEY is read; the folder is scaffolding.
+        import tempfile as _tf
+        _h = _tf.mkdtemp(prefix="river-prune-")
+        _was = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = _h
         try:
             j = RV.j_prune()
         finally:
+            if _was is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = _was
+            os.rmdir(_h)
             if real is not None:
                 sys.modules["reel_retention"] = real
             else:
