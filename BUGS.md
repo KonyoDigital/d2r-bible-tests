@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1304 - ESC ON A CONSOLE PANEL CLOSED THE PANEL AND QUIT HIS CONSOLE
+
+**fix - found by the testing-phase catalogue's checker (finding 23, 2026-09-25) and reproduced on real input before the
+fix.** Esc on THE STATE OF THIS CONSOLE (#ver-xref - its own X is titled "close (Esc)"), the fleet window (#fleet-xref),
+the heart (#heart-ov) or a receipt's full frame (#rcpt-full) closed the panel AND POSTed /api/quit. Each panel's
+listener closed its panel without marking the key, so the v1420 empty-page handler then saw an empty page; the receipt
+viewer's listener is registered lazily, after that handler, so the quit ran while the frame was still up. A/B on a
+scratch console, real click + real Esc: the pre-fix build logged `api-quit:escape-empty-stack` and stopped answering;
+the fixed build closed the panel and stayed up. What is open is now read at PRESS time by a window-capture listener
+(the four panels by name, plus ANY visible dialog, so the next panel cannot bring it back; an exception = open), and the
+panels mark the key they handle. Esc on a genuinely empty console still quits, by his v1420 design. Law: 7 cases, the
+shipped listeners in node in the page's own order, 3 red-proofs. [[the-unjoined-end]]
+
 ### REG-1303 - ON WINDOWS THE CONSOLE'S WINDOW WITNESS WAS BLIND, SO A CONSOLE BEHIND HIS GAME WAS RELOADED UNDER HIM
 
 **fix - found reading the ALT's doctor ("console UI faults: healed from 7 faults in 24h") and its ui_faults.jsonl over

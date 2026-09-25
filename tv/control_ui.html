@@ -9258,7 +9258,7 @@ window._lockMark = function(isOpen, px, label){
       img.alt = ''; img.onerror = function(){ cap.textContent = 'that frame is not on disk any more'; };
       wrap.appendChild(img); wrap.appendChild(cap);
       wrap.addEventListener('click', close);
-      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wrap.classList.contains('on')){ e.preventDefault(); close(); } });
       document.body.appendChild(wrap);
       return wrap;
     }
@@ -15168,7 +15168,7 @@ window._lockMark = function(isOpen, px, label){
       if (ev.target === _hOv || (ev.target.closest && ev.target.closest('#hrt-close'))) _heartClose();
     });
     document.addEventListener('keydown', function(ev){
-      if (ev.key === 'Escape') _heartClose();
+      if (ev.key === 'Escape' && _hOv && !_hOv.hidden){ ev.preventDefault(); _heartClose(); }   /* REG-1304 */
     });
     /* The chip's counts are painted from a DEFERRED first read, never from the hot status poll:
        the census walks the source and costs ~2.5s, and a 2.5s job on a few-second poll is how
@@ -15195,7 +15195,7 @@ window._lockMark = function(isOpen, px, label){
       if (ev.target === _vxOv || (ev.target.closest && ev.target.closest('#vx-close'))) _verXrefClose();
     });
     document.addEventListener('keydown', function(ev){
-      if (ev.key === 'Escape') _verXrefClose();
+      if (ev.key === 'Escape' && _vxOv && !_vxOv.hidden){ ev.preventDefault(); _verXrefClose(); }   /* REG-1304 */
     });
 
     /* ⚠⚠ v3035 — #fleet-xref IS THE ORIGINAL OF THESE THREE PANELS AND THE ONLY ONE THAT COULD
@@ -15220,7 +15220,7 @@ window._lockMark = function(isOpen, px, label){
         if (ev.target === _fxOv) _fxOv.hidden = true;
       });
       document.addEventListener('keydown', function(ev){
-        if (ev.key === 'Escape' && !_fxOv.hidden) _fxOv.hidden = true;
+        if (ev.key === 'Escape' && !_fxOv.hidden){ ev.preventDefault(); _fxOv.hidden = true; }   /* REG-1304 */
       });
     }
   } catch (e) {}
@@ -22135,6 +22135,42 @@ window._lockMark = function(isOpen, px, label){
     }
   });
 
+  // ⚠⚠ REG-1304 — WHAT WAS OPEN IS READ WHEN THE KEY IS PRESSED, BEFORE ANY PANEL CAN CLOSE ITSELF.
+  // MEASURED 2026-09-25 (the testing-phase catalogue, finding 23, confirmed in this file): Esc on THE STATE OF
+  // THIS CONSOLE (#ver-xref, whose own ✕ is titled "close (Esc)"), the fleet window (#fleet-xref), the heart
+  // (#heart-ov) or a receipt's full frame (#rcpt-full) closed the panel AND quit his console. Their listeners
+  // run first, close the panel and do not mark the key, so the empty-page handler below then saw an empty
+  // page; #rcpt-full's listener is even registered lazily, AFTER that handler, so the quit ran while the frame
+  // was still up. Asking "is anything open" at quit time asks after the answer has been destroyed. So a
+  // WINDOW-CAPTURE listener - the first thing any keydown reaches - records it at press time, knows these
+  // panels by name, and treats ANY visible dialog as open, so a panel added later cannot bring this back.
+  // An exception answers 'unknown', and unknown never quits. [[unknown-stays-unknown]]
+  function _consoleOverlayOpen(){
+    try {
+      if (typeof TH !== 'undefined' && TH.open) return 'theatre';
+      if (typeof CH !== 'undefined' && CH.open) return 'inbox';
+      if (typeof TLY !== 'undefined' && TLY.open) return 'tally';
+      if (typeof RLOG !== 'undefined' && RLOG.open) return 'log';
+      if (typeof LEG !== 'undefined' && LEG.open) return 'legend';
+      if (document.body.classList.contains('shell-open')) return 'shell';
+      var ids = ['forensics-ov', 'th-dossier-ov', 'ch-ask', 'fleet-xref', 'ver-xref', 'heart-ov'];
+      for (var i = 0; i < ids.length; i++){
+        var el = document.getElementById(ids[i]);
+        if (el && !el.hidden) return ids[i];
+      }
+      var rf = document.getElementById('rcpt-full');
+      if (rf && rf.classList.contains('on')) return 'rcpt-full';
+      var dl = document.querySelectorAll('[role="dialog"]:not([hidden]), [aria-modal="true"]:not([hidden])');
+      for (var j = 0; j < dl.length; j++){
+        if (dl[j].getClientRects && dl[j].getClientRects().length) return dl[j].id || 'a dialog';
+      }
+    } catch (_e) { return 'unknown'; }
+    return '';
+  }
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') window._escOverlayAtPress = _consoleOverlayOpen();
+  }, true);
+
   // v1420 — Esc on the EMPTY console homepage = quit the native app.
   // Capture-phase overlay handlers (theatre / shell / chronicle / forensics / …) run first
   // and stopPropagation. If nothing claimed Esc, user means "leave the console" — same as ✕.
@@ -22142,6 +22178,7 @@ window._lockMark = function(isOpen, px, label){
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (e.defaultPrevented) return;
+    if (window._escOverlayAtPress) { window._escOverlayAtPress = ''; return; }   /* REG-1304 - open at press time */
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     try {
       if (typeof TH !== 'undefined' && TH.open) return;

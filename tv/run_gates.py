@@ -5502,6 +5502,13 @@ GATES = [
              "witness was always UNKNOWN and the silence rescue reloaded a console Citrix was covering: 13 rescues "
              "since 09-20, 7 in one night. A Win32 window list now feeds the same layer/union/95% arithmetic; the "
              "shipped silence branch is driven through it. 10 cases, 4 red-proofs"),
+    Gate("test_esc_on_a_console_panel_never_quits",
+         [sys.executable, os.path.join(HERE, "test_esc_on_a_console_panel_never_quits.py")], 60,
+         why="REG-1304 - Esc on THE STATE OF THIS CONSOLE (its own X says 'close (Esc)'), the fleet window, the heart "
+             "or a receipt's full frame closed the panel AND quit his console: each listener closed its panel without "
+             "marking the key, so the v1420 empty-page handler saw an empty page. What is open is now read at PRESS "
+             "time in a window-capture listener. The shipped listeners run in node in the page's own order. "
+             "7 cases, 3 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
