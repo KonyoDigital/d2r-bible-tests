@@ -35,16 +35,19 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 | **#239** | one synced identity - DESIGN on the card: a board served in its console's own window is that console's world by construction (a per-boot window token, the claim pinned to the console id, restore-not-reseed on an emptied store); file:// and the public site stay guests. It edits `_D2R_OWNER`, the exact path of the 2026-09-08 "my profile is missing" incident, so it waits for his go and his eyes. |
 | **#173** | the bridge nobody can name - kept open, his ruling. |
 
-### 🅿 PARKED — cannot move by code; each names the event that reopens it (his call, 2026-09-25)
+### 🅿 PARKED — each names exactly what unblocks it (updated 2026-09-25 after his ask)
 
-| # | why it cannot move | reopens when |
+| # | what it needs | who |
 |---|---|---|
-| **#174** | explicitly last, by his order | he says start |
-| **#169** | second-eye Win 2/3 blocked on the Grok CLI transport | the CLI transport works on Windows |
-| **#141** | the ALT pixel probe photographs D2R while the game holds the foreground | a moment when the console, not the game, is foreground |
-| **#145** | no machine is observably headless; the silence itself is fixed | a headless console is seen |
-| **#53** | magic/rare rosters - a data blocker | the roster data exists |
-| **#60** | vault attributes - the pricing half needs one paid vault read | he approves the read |
+| **#174** | his "start" (direction already recorded: the Maxroll d2planner shell, our data) | him |
+| **#60** | his OK for one paid AI vault read (the CASC extraction is done; the attribute half waits on it) | him |
+| **#53** | one real magic/rare item filmed and read by the vault reader, so its facts can be measured end to end (the vocabulary is built) | him (one stash read on air) |
+| **#141** | a moment when the console, not D2R, is the foreground window on the ALT PC - the probe runs in his interactive session | him (say when) |
+| **#169** | a reviewer that finishes large reviews: Grok CLI stalls on big payloads, the xAI API is out of credits, Codex is capped until Oct 12 | him (credits) or wait |
+
+**#145 closed 2026-09-25 (REG-1288):** a supervisor revive (--no-open) was WITNESSED headless (0 windows) under a banner
+that claimed "native window" - fixed. The supervisor is paused since 09-17; re-arming it (and whether it should revive
+WITH a window) is his call only if he wants it back.
 
 **Closed 2026-09-25:** #192 (exempt the grader - measured, no change needed) · #178 (the banner reads the heap, REG-1276) ·
 #229 ruling (both files stay tracked) · #221 dug + fixed (REG-1277) · #172 refuted as a defect. Shipped v3503 (REG-1274..1276)
