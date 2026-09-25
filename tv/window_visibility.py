@@ -43,17 +43,118 @@ def _quartz():
         return None
 
 
-def on_screen(pid=None, quartz=None):
+# ══ REG-1303 — THE SAME WITNESS ON WINDOWS ════════════════════════════════════════════════════
+# Everything below this module's docstring was Quartz-only, so on the ALT (Windows) every answer
+# was UNKNOWN - and the silence rescue treats UNKNOWN as "go ahead" by design (REG-596: only a
+# POSITIVELY observed covering may refuse). MEASURED 2026-09-25 over SSH on the ALT: 13
+# `console-rescued-by-server` since 09-20, 7 in one night, every one "silent for 60-84s" with the
+# last beat hidden False / painting True / frozenBeats 0 and `pixelBlank: Quartz is not importable
+# here`. That is REG-594's exact signature - a healthy console covered between two beats - walking
+# in through the one platform its fix never reached. No sleep was involved: the System log holds no
+# Kernel-Power 42/107/506/507 that night. MEASURED THE SAME DAY by this code, run in his session on
+# the ALT: "Boosteroid (100.0%) is on top of it" - the cloud-gaming window he plays D2R through
+# covers the full-screen console while he plays, which is exactly when the reloads fired.
+#
+# THE ROWS ARE SHAPED LIKE QUARTZ'S ON PURPOSE, so on_screen() and covered_by() keep ONE algorithm
+# (the layer rule, the union arithmetic, the 95% bar) instead of a Windows copy that drifts.
+# [[copy-drift]] Front-to-back comes from GetTopWindow + GW_HWNDNEXT. Always-on-top windows (the
+# taskbar, overlays) get their own layer - the Dock's lesson: system chrome spans the screen and
+# hides nothing. Cloaked (another virtual desktop) and click-through transparent windows are not
+# listed, because they cover nothing he could have been looking at.
+class _Win32(object):
+    """Win32 window list as Quartz-shaped rows, front to back. Stdlib ctypes only."""
+
+    def rows(self):
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        try:
+            dwm = ctypes.windll.dwmapi
+        except Exception:
+            dwm = None
+        GW_HWNDNEXT, GWL_EXSTYLE = 2, -20
+        DWMWA_CLOAKED = 14
+        out, hwnd, n = [], user32.GetTopWindow(None), 0
+        while hwnd and n < 4000:                       # a bound, never an endless walk
+            n += 1
+            try:
+                if user32.IsWindowVisible(hwnd):
+                    cloaked = wintypes.DWORD(0)
+                    if dwm is not None:
+                        try:
+                            dwm.DwmGetWindowAttribute(wintypes.HWND(hwnd), DWMWA_CLOAKED,
+                                                      ctypes.byref(cloaked), ctypes.sizeof(cloaked))
+                        except Exception:
+                            pass
+                    ex = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                    r = wintypes.RECT()
+                    user32.GetWindowRect(hwnd, ctypes.byref(r))
+                    pid = wintypes.DWORD(0)
+                    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                    buf = ctypes.create_unicode_buffer(256)
+                    user32.GetWindowTextW(hwnd, buf, 255)
+                    row = _win_row(int(pid.value), buf.value, (r.left, r.top, r.right, r.bottom),
+                                   ex, bool(user32.IsIconic(hwnd)), cloaked.value)
+                    if row is not None:
+                        out.append(row)
+            except Exception:
+                pass
+            hwnd = user32.GetWindow(hwnd, GW_HWNDNEXT)
+        return out
+
+
+WS_EX_TOPMOST, WS_EX_TRANSPARENT = 0x8, 0x20
+
+
+def _win_row(pid, title, ltrb, exstyle, iconic, cloaked):
+    """ONE window -> a Quartz-shaped row, or None when it covers nothing he could be looking at.
+    Pure, so the rule is driven by a law on any machine: cloaked (another virtual desktop) and
+    click-through transparent windows are not listed; always-on-top gets its own layer, the way
+    the Dock and the menu bar do on the Mac."""
+    if cloaked or (int(exstyle) & WS_EX_TRANSPARENT):
+        return None
+    l, t, r, b = ltrb
+    return {"kCGWindowOwnerPID": int(pid), "kCGWindowOwnerName": title or "(untitled)",
+            "kCGWindowBounds": {"X": l, "Y": t, "Width": r - l, "Height": b - t},
+            "kCGWindowLayer": 1 if (int(exstyle) & WS_EX_TOPMOST) else 0,
+            "iconic": bool(iconic)}
+
+
+def _win():
+    import sys as _sys
+    return _Win32() if _sys.platform == "win32" else None
+
+
+def _win_list(pid, win):
+    """-> (rows | None, why, minimized). Rows exclude minimized windows, exactly as Quartz's
+    OnScreenOnly does; `minimized` says whether one of THIS pid's windows is minimized."""
+    try:
+        rows = list(win.rows() or [])
+    except Exception as exc:
+        return None, "the window list could not be read (%s)" % type(exc).__name__, False
+    mini = any(int(r.get("kCGWindowOwnerPID", -1)) == pid and r.get("iconic") for r in rows)
+    return [r for r in rows if not r.get("iconic")], "", mini
+
+
+def on_screen(pid=None, quartz=None, win=None):
     """Return (True|False|None, why). None means NOT ESTABLISHED - never 'no'."""
     pid = os.getpid() if pid is None else int(pid)
-    Q = quartz if quartz is not None else _quartz()
-    if Q is None:
+    Q = quartz if quartz is not None else (None if win is not None else _quartz())
+    W = win if win is not None else (_win() if Q is None else None)
+    if Q is None and W is None:
         return None, "Quartz is not importable here - cannot ask the window server"
-    try:
-        opts = Q.kCGWindowListOptionOnScreenOnly | Q.kCGWindowListExcludeDesktopElements
-        rows = Q.CGWindowListCopyWindowInfo(opts, Q.kCGNullWindowID)
-    except Exception as exc:
-        return None, "the window server refused the list (%s)" % type(exc).__name__
+    if Q is not None:
+        try:
+            opts = Q.kCGWindowListOptionOnScreenOnly | Q.kCGWindowListExcludeDesktopElements
+            rows = Q.CGWindowListCopyWindowInfo(opts, Q.kCGNullWindowID)
+        except Exception as exc:
+            return None, "the window server refused the list (%s)" % type(exc).__name__
+    else:
+        rows, _wwhy, _mini = _win_list(pid, W)        # REG-1303 - the Windows witness
+        if rows is None:
+            return None, _wwhy
+        if _mini and not any(int(r.get("kCGWindowOwnerPID", -1)) == pid for r in rows):
+            return False, "pid %d's window is minimized, so it is not on his screen" % pid
     if rows is None:
         return None, "the window server returned nothing at all"
 
@@ -108,7 +209,7 @@ def _union_area(rects):
     return total
 
 
-def covered_by(pid=None, quartz=None):
+def covered_by(pid=None, quartz=None, win=None):
     """What is sitting ON TOP of his window? -> (list-of-descriptions | None, why)
 
     ⚠⚠ REG-594 — "LISTED ON SCREEN" IS NOT "HE CAN SEE IT", AND THE GAP COST A WHOLE DAY.
@@ -128,14 +229,24 @@ def covered_by(pid=None, quartz=None):
     so anything listed before his is above it. [[feedback-verify-not-proxy]]
     """
     pid = os.getpid() if pid is None else int(pid)
-    Q = quartz if quartz is not None else _quartz()
-    if Q is None:
+    Q = quartz if quartz is not None else (None if win is not None else _quartz())
+    W = win if win is not None else (_win() if Q is None else None)
+    if Q is None and W is None:
         return None, "Quartz is not importable here - occlusion cannot be asked"
-    try:
-        opts = Q.kCGWindowListOptionOnScreenOnly | Q.kCGWindowListExcludeDesktopElements
-        rows = Q.CGWindowListCopyWindowInfo(opts, Q.kCGNullWindowID)
-    except Exception as exc:
-        return None, "the window server refused the list (%s)" % type(exc).__name__
+    if Q is not None:
+        try:
+            opts = Q.kCGWindowListOptionOnScreenOnly | Q.kCGWindowListExcludeDesktopElements
+            rows = Q.CGWindowListCopyWindowInfo(opts, Q.kCGNullWindowID)
+        except Exception as exc:
+            return None, "the window server refused the list (%s)" % type(exc).__name__
+    else:
+        rows, _wwhy, _mini = _win_list(pid, W)        # REG-1303 - the Windows witness
+        if rows is None:
+            return None, _wwhy
+        # A minimized console is hidden completely - the strongest case of "he cannot see it",
+        # and the one Quartz's on-screen list can never name.
+        if _mini and not any(int(r.get("kCGWindowOwnerPID", -1)) == pid for r in rows):
+            return ["minimized (100.0%)"], "his console is minimized, so he cannot see it"
     if rows is None:
         return None, "the window server returned nothing at all"
     mine, mine_layer, above = None, None, []
@@ -202,7 +313,7 @@ def covered_by(pid=None, quartz=None):
                  % (", ".join(out), pct))
 
 
-def contradicts_a_hidden_beat(pid=None, quartz=None):
+def contradicts_a_hidden_beat(pid=None, quartz=None, win=None):
     """True ONLY when the OS positively says the window is on screen AND NOTHING IS COVERING IT,
     while the page's last word was 'hidden'. Unknown stays unknown, and unknown does NOT overrule
     v2325.
@@ -211,10 +322,10 @@ def contradicts_a_hidden_beat(pid=None, quartz=None):
     another app, which is how a healthy console got reloaded seven times in one day. A covered
     window CONFIRMS a hidden beat; it does not contradict it. See covered_by().
     """
-    seen, why = on_screen(pid=pid, quartz=quartz)
+    seen, why = on_screen(pid=pid, quartz=quartz, win=win)
     if seen is not True:
         return False, why
-    cov, cwhy = covered_by(pid=pid, quartz=quartz)
+    cov, cwhy = covered_by(pid=pid, quartz=quartz, win=win)
     if cov is None:
         # ⚠ UNKNOWN IS NOT PERMISSION. If occlusion could not be asked, the old answer is not
         # safe to keep - it is the answer that caused the false alarms.

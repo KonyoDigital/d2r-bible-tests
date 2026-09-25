@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1303 - ON WINDOWS THE CONSOLE'S WINDOW WITNESS WAS BLIND, SO A CONSOLE BEHIND HIS GAME WAS RELOADED UNDER HIM
+
+**fix - found reading the ALT's doctor ("console UI faults: healed from 7 faults in 24h") and its ui_faults.jsonl over
+SSH, 2026-09-25.** 13 `console-rescued-by-server` since 09-20, 7 in one night, each "silent for 60-84s" with the last
+beat hidden False / painting True / frozenBeats 0 and `pixelBlank: Quartz is not importable here`. window_visibility
+asked only Quartz, so on Windows every covered/on-screen answer was UNKNOWN, and the silence rescue treats UNKNOWN as
+"go ahead" by design (REG-596). REG-594's fault on the one platform its fix never reached; no sleep involved (System log:
+no Kernel-Power 42/107/506/507). A Win32 walk (GetTopWindow + GW_HWNDNEXT; cloaked and click-through windows skipped;
+always-on-top on its own layer, like the Dock) now feeds the SAME layer/union/95% arithmetic; a minimized console counts
+as fully hidden. MEASURED by that code in his session on the ALT: "Boosteroid (100.0%) is on top of it" - the cloud
+gaming window he plays D2R through covers the console exactly while he plays. Law: 10 cases incl. the shipped silence
+branch, 4 red-proofs (the first cut had one BLIND proof - the layer rule lived inside the ctypes walk no case could run -
+so the per-window rule became the pure `_win_row`). [[heart-first]] [[unknown-stays-unknown]]
+
 ### REG-1302 - THE DOCTOR TOLD HIM THREE PRESENT MACHINES WERE AWAY, BECAUSE IT AGED A CACHE AGAINST ITS OWN CLOCK
 
 **fix - found reading his Mac console's doctor 2026-09-25 ("GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)")

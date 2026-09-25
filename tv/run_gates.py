@@ -5496,6 +5496,12 @@ GATES = [
          why="REG-1302 - the 'a present machine has a fresh last-seen' doctor row aged ONE cached roster against "
              "the check's own clock, so it measured the cache: 'GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)' "
              "while the same rows were 133-226 s old. Now aged at the roster's own clock. 5 cases, 2 red-proofs"),
+    Gate("test_a_windows_console_is_seen_by_its_own_os",
+         [sys.executable, os.path.join(HERE, "test_a_windows_console_is_seen_by_its_own_os.py")], 60,
+         why="REG-1303 - window_visibility asked only Quartz, so on the ALT (Windows) the console's covered/on-screen "
+             "witness was always UNKNOWN and the silence rescue reloaded a console Citrix was covering: 13 rescues "
+             "since 09-20, 7 in one night. A Win32 window list now feeds the same layer/union/95% arithmetic; the "
+             "shipped silence branch is driven through it. 10 cases, 4 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
