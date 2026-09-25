@@ -155,6 +155,13 @@ LEDGER = {"reels": [
 
 RED_PROOF = [
     {
+        "why": "#221 - a departure with a recorded cause is read as unexplained again: his ruling is lost",
+        "file": "end_routes.py",
+        "find": "        elif nm in (src.get(\"known\") or {}):\n",
+        "replace": "        elif False:\n",
+        "matches": 1,
+    },
+    {
         "why": 'the law requires this text in end_routes.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'end_routes.py',
         "find": 'a structural survey',
@@ -440,6 +447,37 @@ class EndRoutePredicate(unittest.TestCase):
                     if isinstance(t, ast.Name) and t.id == "MIN_PAGES":
                         self.fail("end_routes.py assigns its own MIN_PAGES at line %d — a copy of "
                                   "the deleter's constant" % node.lineno)
+
+    # ── #221 — a departure with a NAMED cause (his ruling 2026-09-25: "mark them") ──────────────
+
+    def _held_departed(self, known=None):
+        led = {"reels": list(LEDGER["reels"]) + [
+            {"reel": F_HELD, "session": F_HELD[len("reel_"):], "mb": 31.8, "pages": 0,
+             "why": "read (0 pages) and sealed by BOTH lanes — it has given up its information",
+             "deletedTs": 1788268000000, "frames": 154, "focus": "stash", "startedTs": None}]}
+        d = self._fix(ledger=led)
+        if known is not None:
+            with io.open(os.path.join(d, ER.KNOWN_DEPARTURES), "w", encoding="utf-8") as fh:
+                json.dump({"reels": known}, fh)
+        return d
+
+    def test_a_recorded_departure_is_explained_in_its_own_bucket(self):
+        d = self._held_departed({F_HELD: {"cause": "REG-1277"}})
+        got = ER.derived_from(hist_dir=d)
+        self.assertEqual(got["byDoor"].get("knownDefect"), 1, got["byDoor"])
+        self.assertEqual(got["unexplained"], [], "a departure with a recorded cause still reads unexplained")
+        self.assertEqual(got["knownDefects"], [{"reel": F_HELD, "cause": "REG-1277"}])
+        self.assertEqual(got["coverage"], 1.0)
+
+    def test_premise_the_same_departure_unrecorded_stays_unexplained(self):
+        got = ER.derived_from(hist_dir=self._held_departed())
+        self.assertEqual([u["reel"] for u in got["unexplained"]], [F_HELD])
+        self.assertEqual(got["knownState"], "absent", "a fixture with no record read his live one")
+
+    def test_a_recorded_departure_never_qualifies_as_a_route(self):
+        d = self._held_departed({F_HELD: {"cause": "REG-1277"}})
+        self.assertNotEqual(ER.verdict(F_HELD, hist_dir=d)["say"], "QUALIFIED",
+                            "naming the cause of a departure made the reel qualify for the end route")
 
     # ── ⚠⚠ THE SELF-REFUTING LAW — the predicate must still explain the reels it came from ─────
 

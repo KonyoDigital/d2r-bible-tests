@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1287 - THE 18 REG-1277 DEPARTURES ARE RECORDED AS A NAMED DEFECT, BY HIS RULING
+
+**ruling + change, 2026-09-25, #221 ("yea mark them").** The 18 reels tombstoned 2026-09-10..18 can never be
+re-explained by an end-route door - they left before anything extracted them (REG-1277) - and the earlier ruling
+kept them visible as unexplained rows, holding `test_end_routes`' real-shelf case red at 94.95% (floor 95%). They
+are now listed in `tv/known_departures.json` (a data file - `test_referenced_reels` scans tv/*.py for real reel
+ids) with cause REG-1277, and `end_routes.derived_from` counts them in their own `knownDefect` bucket: explained
+by a NAMED cause, never a route that qualified. Measured on his ledger: 98.90%, knownDefect 18, and the one other
+unexplained row (reel_s_222_2, outside the ruling) stays visible. Under a fixture there is no fallback to his file.
+Guard: three cases in `test_end_routes` (recorded -> its own bucket and coverage; unrecorded -> still unexplained;
+a recorded departure never qualifies) + a red-proof, PROVEN.
+
+### REG-1286 - SWITCHING VIEWS LEFT THE THEATRE OPEN OVER THE NEW VIEW
+
+**ruling + fix, 2026-09-25, #172 ("yea i guess it should").** The theatre deliberately covers every non-Sessions
+view while open; the seat's long-running "freeze" was its driver reopening the theatre and going to the Vault,
+where the theatre's film stage covered the vault (confirmed on #230: THEATRE_FILM_STAGE; a «-back close returned the
+shelf). The header-tab handler now closes an open theatre when the click moves to a different view; the tab
+already showing leaves it alone. `thClose` is exported beside `thOpen`. MEASURED on a scratch console with fixture
+film: open -> Vault -> closed, open -> Sessions -> closed, open -> same tab -> still open. Guard:
+`test_switching_views_closes_the_theatre` runs the shipped guard in node (4 cases, 2 proofs), PROVEN; the browser
+half is a new case in tests/v877_rinse.spec.ts on a real console.
+
 ### REG-1285 - A CONSOLE WHOSE CAPTURE IS OFF BY SETTING STILL READ "CAPTURE IS FROZEN" IN THE DOCTOR
 
 **fix - found by the cross-family eye on #231 (comment 5826238767, look at a78eeff6, my REG-1272).** With

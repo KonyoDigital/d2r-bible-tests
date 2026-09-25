@@ -215,6 +215,30 @@ def _store_paths(hist_dir=None):
     return out
 
 
+KNOWN_DEPARTURES = "known_departures.json"
+
+
+def known_departures(hist_dir=None):
+    """Tombstones whose departure has a NAMED cause, recorded by his ruling. -> (dict reel->row, state)
+
+    ⚠⚠ #221 — HIS RULING 2026-09-25: "mark them". REG-1277 found what deleted the 18 reels tombstoned
+    2026-09-10..18 (the retention lane read one LIVE-lane witness as an extraction while the sweep had
+    taken 0 rows). They can never be re-explained by a door - they left before anything extracted them -
+    and the earlier ruling kept them visible as unexplained rows. This records them as departures with a
+    KNOWN CAUSE instead: counted as explained, in their own bucket, and never as a route that qualified.
+    A DATA file, not literals here: test_referenced_reels scans tv/*.py for real reel ids and would read
+    them as fixtures. Same redirect rule as _store_paths: under a fixture, no fallback to his file.
+    state: "ok" | "absent" (nothing recorded - an honest empty) | "unreadable" (UNKNOWN -> none applied)."""
+    _env = (os.environ.get("TV_HIST") or "").strip()
+    if not (_env and os.path.isabs(_env)):
+        _env = ""
+    hist = hist_dir or _env
+    base = os.path.realpath(hist) if hist else HERE
+    blob, st = _read(os.path.join(base, KNOWN_DEPARTURES))
+    rows = (blob or {}).get("reels") if isinstance(blob, dict) else None
+    return ((rows if isinstance(rows, dict) else {}) if st == "ok" else {}), st
+
+
 def sources(hist_dir=None):
     """Every store this predicate reads, taken ONCE. -> dict
 
@@ -235,6 +259,7 @@ def sources(hist_dir=None):
         elif st == "absent":
             out["absent"].append(nm)
     out["minPages"], out["minPagesWhy"] = _min_pages()
+    out["known"], out["knownState"] = known_departures(hist_dir)
     return out
 
 
@@ -590,7 +615,7 @@ def derived_from(hist_dir=None, src=None):
                                                   "not zero"
                 % (src.get("ledgerState"), src["paths"]["reel_tombstones.json"])}
     rows = (src.get("ledger") or {}).get("reels") or []
-    by_door, unexplained, label_lies, nameless = {}, [], 0, 0
+    by_door, unexplained, label_lies, nameless, known_rows = {}, [], 0, 0, []
     mb = {}
     for r in rows:
         if not isinstance(r, dict):
@@ -618,6 +643,10 @@ def derived_from(hist_dir=None, src=None):
               and sem.get("vaultSealed") is False):
             # read, but the vault clause cannot be settled now the frames are gone.
             bucket = "semanticUnconfirmed"
+        elif nm in (src.get("known") or {}):
+            # #221 — a departure with a NAMED cause (his ruling): explained, never a route that qualified
+            bucket = "knownDefect"
+            known_rows.append({"reel": nm, "cause": str((src["known"][nm] or {}).get("cause") or "")})
         else:
             bucket = "unexplained"
             unexplained.append({"reel": nm, "mb": r.get("mb"),
@@ -632,17 +661,18 @@ def derived_from(hist_dir=None, src=None):
             label_lies += 1
     n = sum(by_door.values())
     explained = (by_door.get("structural", 0) + by_door.get("semantic", 0)
-                 + by_door.get("unextracted", 0))
+                 + by_door.get("unextracted", 0) + by_door.get("knownDefect", 0))
     cov = (float(explained) / n) if n else None
     return {
         "ok": True, "rows": n, "nameless": nameless, "byDoor": by_door, "mbByDoor": mb,
         "unexplained": unexplained, "coverage": (round(cov, 4) if cov is not None else None),
+        "knownDefects": known_rows, "knownState": src.get("knownState"),
         "coverageFloor": DERIVED_COVERAGE_FLOOR,
         "labelContradictions": label_lies,
         "why": ("%s of %d ledger row(s) are explained by a door this module still asks (%.2f%%, "
-                "floor %.0f%%). %s ⚠ %d row(s) carry 'sealed by BOTH lanes' in the permanent "
+                "floor %.0f%%; %d of them by a NAMED defect, not a door). %s ⚠ %d row(s) carry 'sealed by BOTH lanes' in the permanent "
                 "record with no vault seal in any store."
-                % (explained, n, (cov or 0) * 100, DERIVED_COVERAGE_FLOOR * 100,
+                % (explained, n, (cov or 0) * 100, DERIVED_COVERAGE_FLOOR * 100, len(known_rows),
                    ("Every row is explained." if not unexplained else
                     "UNEXPLAINED: " + ", ".join(u["reel"] for u in unexplained[:6])),
                    label_lies)
