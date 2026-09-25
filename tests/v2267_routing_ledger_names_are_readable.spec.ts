@@ -65,14 +65,24 @@ test.describe('v2267 — the routing ledger says WHICH item, not just where it w
       // navigation and clobber what the app just wrote.
       // ⚠ LONG NAMES ON PURPOSE: the shortest ones would fit any column and could not fail, which
       // would make this gate green by fixture rather than by fact. [[feedback-blind-fixture-green-gate]]
+      // #165 — AND PLANTED THE WAY THE VAULT PLANTS THEM. Measured on a real page: only 3 of these 14
+      // rendered, because the board's own load passes are right about the fixture. vaultAutoAssign drops
+      // the filing of any name the vault catalogue cannot resolve, the vault cleanse then strips a
+      // _GRAIL_SEED name that is not filed to a mule, and the catalogue prune drops a name no catalogue
+      // knows. "Reaper's Toll" is "The Reaper's Toll" in ITEMS, and the vault calls the Shako
+      // "Harlequin Crest (Shako)". So: catalogue names, each filed to its mule, as tvVaultRegister does.
+      // After: 14 of 14 rendered at 1440, 901 and 375, and still 14 after a reload.
       await page.addInitScript(() => {
         if (!localStorage.getItem('__v2267_seeded')) {
-          localStorage.setItem('d2r_owned', JSON.stringify([
-            "Andariel's Visage", "Bartuc's Cut-Throat", "Blade of Ali Baba",
-            "Death's Web", "Gore Rider", "Harlequin Crest", "Herald of Zakarum",
-            "Reaper's Toll", "Stormshield", "Titan's Revenge", "Verdungo's Hearty Cord",
-            "Arreat's Face", "Crown of Ages", "Mara's Kaleidoscope",
-          ]));
+          const filed: Record<string, string> = {
+            "Andariel's Visage": 'uni-armor', "Bartuc's Cut-Throat": 'uni-weap', "Blade of Ali Baba": 'uni-weap',
+            "Death's Web": 'uni-weap', "Gore Rider": 'uni-armor', "Harlequin Crest (Shako)": 'uni-armor',
+            "Herald of Zakarum": 'uni-armor', "The Reaper's Toll": 'uni-weap', "Stormshield": 'uni-armor',
+            "Titan's Revenge": 'uni-weap', "Verdungo's Hearty Cord": 'uni-armor', "Arreat's Face": 'uni-armor',
+            "Crown of Ages": 'uni-armor', "Mara's Kaleidoscope": 'uni-small',
+          };
+          localStorage.setItem('d2r_owned', JSON.stringify(Object.keys(filed)));
+          localStorage.setItem('d2r_muleAssign', JSON.stringify(filed));
           localStorage.setItem('__v2267_seeded', '1');
         }
       });
