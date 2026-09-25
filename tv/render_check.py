@@ -2980,7 +2980,20 @@ class _Tab(object):
                 # keep the first 12 — a broken render can throw on every animation frame, and a
                 # thousand copies of one sentence is not more information than one copy of it
                 if len(self.page_errors) < 12:
-                    self.page_errors.append(str(_txt).splitlines()[0][:200])
+                    # REG-1306 — AND WHERE IT DIED. The first line says WHAT threw; alone it sent a
+                    # refused push hunting ("Cannot read properties of null (reading 'innerHTML')"
+                    # on a target that renders clean alone). The first stack frame names the file
+                    # and line, which is the whole next step. [[suspect-the-instrument]]
+                    _lines = str(_txt).splitlines()
+                    _at = next((l.strip() for l in _lines[1:] if l.strip().startswith("at ")), "")
+                    if not _at:
+                        _cf = (((_e.get("stackTrace") or {}).get("callFrames")) or [{}])[0]
+                        if _cf.get("url") or _cf.get("lineNumber") is not None:
+                            _at = "at %s (%s:%s:%s)" % (_cf.get("functionName") or "?",
+                                                        str(_cf.get("url") or "?").rsplit("/", 1)[-1],
+                                                        (_cf.get("lineNumber") or 0) + 1,
+                                                        (_cf.get("columnNumber") or 0) + 1)
+                    self.page_errors.append((_lines[0][:200] + ("  " + _at[:160] if _at else "")) if _lines else "")
                 continue
             if r.get("method") == "Page.javascriptDialogOpening":
                 self.n += 1

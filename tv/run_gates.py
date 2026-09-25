@@ -5514,6 +5514,12 @@ GATES = [
          why="#174 v-B2 - the d2planner sets item text in Blizzard's Exocet, which may never be committed to this public "
              "repo; his install carries it (68,596 bytes, OTTO), so the console streams it from there, in memory only, "
              "404 + the reason without an install, never a non-font, never a name outside its table. 5 cases, 3 red-proofs"),
+    Gate("test_a_page_error_names_where_it_died",
+         [sys.executable, os.path.join(HERE, "test_a_page_error_names_where_it_died.py")], 60,
+         why="REG-1306 - the render gate refused a push on 'Cannot read properties of null (reading innerHTML)' "
+             "and kept only that first line, so an intermittent red (clean alone and in a full rerun) named what "
+             "died and never where. It now keeps the first stack frame. The shipped collector is driven on a fake "
+             "CDP socket. 3 cases, 2 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

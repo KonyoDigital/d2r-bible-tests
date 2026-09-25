@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1306 - THE RENDER GATE SAID WHAT A PAGE ERROR WAS BUT NEVER WHERE IT THREW
+
+**fix (instrument) - the third push of 2026-09-25 was refused** by the render gate: "the page threw 1 uncaught
+error(s) while this target ran ... TypeError: Cannot read properties of null (reading 'innerHTML')" on the Task
+Force target. That target rendered clean alone and in a full 24-target rerun on the same tree, and no innerHTML write
+was added since the last published build - an intermittent throw somewhere in the board, with nothing to chase:
+render_check kept only the exception's first line. It now keeps the first stack frame (the description's `at` line,
+else exceptionDetails.stackTrace), so the next occurrence names file and line. The throw itself stays OPEN until it
+does. [[suspect-the-instrument]] [[unknown-stays-unknown]]
+
 ### REG-1305 - A "CHEAP" DOCTOR ROW ASKED HIS CONSOLE A 2.5-SECOND QUESTION ON EVERY TICK, AND REFUSED TWO PUSHES
 
 **fix - found by the pre-push gate refusing twice, 2026-09-25.** The first refusal read like noise (the cheap subset
