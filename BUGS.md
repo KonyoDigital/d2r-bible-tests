@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1282 - ANY STARTUP FILE NAMED LIKE THE CONSOLE READ AS THE CONSOLE STARTING AT SIGN-IN
+
+**fix - found by the cross-family eye on #231 (comment 5825474191, look at 34129c99, my REG-1263).**
+`_sign_in_start` accepted any Startup-folder name containing "diablo" or starting "tvd", so the game's own
+shortcut, a note or an old copy made the row OK, the question was never asked, and after a reboot the console
+stayed off with a quiet mailbox. An entry now counts only when its bytes name the launcher (`start_tvd_win` or
+`control_app.py`, ASCII or UTF-16LE - a .lnk stores its arguments UTF-16LE; his real entry would be a copy of the
+installer's `TV DIABLO.lnk`, which runs start_tvd_win.ps1); an entry that cannot be read makes the answer UNKNOWN,
+never OK. Guard: `test_a_windows_console_asks_before_it_starts_at_sign_in` gains the game-shortcut case and the
+unreadable case, its shortcut fixture now carries a real UTF-16 target (8 cases, 3 proofs), PROVEN.
+
 ### REG-1281 - MY TEST HARNESS OVERWROTE HIS LIVE CHRONICLE EVIDENCE; RESTORED BYTE-EXACT
 
 **incident + fix, 2026-09-25, mine.** Hunting an order-dependent test_control failure, I ran its cases one at a

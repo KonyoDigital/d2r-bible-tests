@@ -3204,6 +3204,19 @@ def _ask_mid_restart(row):
 SIGN_IN_TASK = "TV DIABLO at sign-in"
 
 
+LAUNCH_MARKERS = ("start_tvd_win", "control_app.py")
+
+
+def _launches_this_console(path):
+    """Does this Startup entry launch THIS console? -> True / False / None (could not read it)."""
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read(262144).lower()
+    except OSError:
+        return None
+    return any(m.encode("ascii") in raw or m.encode("utf-16-le") in raw for m in LAUNCH_MARKERS)
+
+
 def _sign_in_start(run=None, startup_dir=None, is_win=None):
     """-> {"state", "how", "why"}: does THIS Windows console come back by itself after a restart?
 
@@ -3218,11 +3231,21 @@ def _sign_in_start(run=None, startup_dir=None, is_win=None):
     if startup_dir is None:
         startup_dir = os.path.join(os.environ.get("APPDATA") or "", "Microsoft", "Windows",
                                    "Start Menu", "Programs", "Startup")
+    # ⚠⚠ REG-1282 — AN ENTRY COUNTS WHEN IT LAUNCHES THIS CONSOLE, NOT WHEN ITS NAME SOUNDS LIKE IT. This
+    # accepted any Startup name containing "diablo" or starting "tvd", so the game's own shortcut, a note or
+    # an old copy read OK, the question was never asked, and after a reboot the console stayed off with a
+    # quiet mailbox (the cross-family eye on #231, look at 34129c99). His real entry would be a copy of the
+    # installer's "TV DIABLO.lnk", whose arguments name start_tvd_win.ps1 - a .lnk stores that UTF-16LE.
+    # An entry that cannot be read is UNKNOWN, never OK. [[unknown-stays-unknown]]
+    unread = []
     try:
-        for n in os.listdir(startup_dir):
-            if "diablo" in n.lower() or n.lower().startswith("tvd"):
+        for n in sorted(os.listdir(startup_dir)):
+            launches = _launches_this_console(os.path.join(startup_dir, n))
+            if launches is True:
                 return {"state": OK, "how": "startup:" + n,
                         "why": "this console starts at sign-in from the Startup folder (%s)" % n}
+            if launches is None:
+                unread.append(n)
     except OSError:
         pass                                        # no Startup folder is not an answer yet
     try:
@@ -3237,6 +3260,11 @@ def _sign_in_start(run=None, startup_dir=None, is_win=None):
     if getattr(r, "returncode", 1) == 0:
         return {"state": OK, "how": "task:" + SIGN_IN_TASK,
                 "why": "this console starts at sign-in (scheduled task '%s')" % SIGN_IN_TASK}
+    if unread:
+        return {"state": UNKNOWN, "how": None,
+                "why": "no '%s' task, and %d Startup entr%s could not be read (%s), so whether one of them "
+                       "starts this console is UNKNOWN" % (SIGN_IN_TASK, len(unread),
+                                                           "y" if len(unread) == 1 else "ies", ", ".join(unread[:3]))}
     return {"state": MISSING, "how": None,
             "why": ("nothing starts this console when the PC signs in: no '%s' task and nothing in the "
                     "Startup folder - after a reboot it stays off until someone opens it" % SIGN_IN_TASK)}

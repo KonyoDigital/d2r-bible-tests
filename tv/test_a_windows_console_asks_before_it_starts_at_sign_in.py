@@ -11,6 +11,7 @@ call: the console asks in his mailbox, and only a "yes" hands the setup to Claud
   · JOINED: the row is in CHECKS, WATCHES, ASKS and corroborate, and attach_asks puts the ask on the row.
 RED_PROOF below.
 """
+import io
 import os
 import shutil
 import sys
@@ -68,11 +69,28 @@ class AWindowsConsoleAsksBeforeItStartsAtSignIn(unittest.TestCase):
         self.assertEqual(r["state"], cd.OK)
         self.assertEqual(cd._ask_sign_in_start({"state": r["state"]}), [])
 
+    def _lnk(self, name, target_args):
+        # a .lnk stores its arguments as UTF-16LE among binary fields - so does this fixture
+        with open(os.path.join(self.startup, name), "wb") as fh:
+            fh.write(b"L\x00\x00\x00\x01\x14\x02\x00" + b"\x00" * 40 + target_args.encode("utf-16-le") + b"\x00\x00")
+
     def test_a_startup_shortcut_is_ok_without_asking_windows(self):
-        open(os.path.join(self.startup, "TV DIABLO.lnk"), "w").close()
+        self._lnk("TV DIABLO.lnk", '-ExecutionPolicy Bypass -File "C:\\tvd\\tv\\start_tvd_win.ps1"')
         r = cd._sign_in_start(run=self._run(1), startup_dir=self.startup, is_win=True)
         self.assertEqual(r["state"], cd.OK)
         self.assertEqual(self.calls, [])
+
+    def test_a_shortcut_that_launches_something_else_is_not_this_console(self):
+        # REG-1282 — the cross-family eye's case: the game's own shortcut, named like the console
+        self._lnk("Diablo II Resurrected.lnk", '"C:\\Program Files (x86)\\Diablo II Resurrected\\D2R.exe"')
+        io.open(os.path.join(self.startup, "tvd notes.txt"), "w", encoding="utf-8").write("remember to farm")
+        r = cd._sign_in_start(run=self._run(1), startup_dir=self.startup, is_win=True)
+        self.assertEqual(r["state"], cd.MISSING, "a shortcut that launches the GAME read as this console starting: " + r["why"])
+
+    def test_an_unreadable_entry_is_unknown_not_ok(self):
+        os.mkdir(os.path.join(self.startup, "TV DIABLO.lnk"))     # a directory cannot be read as a file
+        r = cd._sign_in_start(run=self._run(1), startup_dir=self.startup, is_win=True)
+        self.assertEqual(r["state"], cd.UNKNOWN, r["why"])
 
     def test_a_failed_query_is_unknown(self):
         def boom(argv, **kw):
@@ -106,6 +124,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1282 - any Startup entry counts again: the game's shortcut reads as this console starting",
+        "file": "console_doctor.py",
+        "find": "    return any(m.encode(\"ascii\") in raw or m.encode(\"utf-16-le\") in raw for m in LAUNCH_MARKERS)\n",
+        "replace": "    return True\n",
+        "matches": 1,
+    },
     {
         "why": "#229 - a failed schtasks query reads as 'not set up' and asks him about a task that may exist",
         "file": "console_doctor.py",
