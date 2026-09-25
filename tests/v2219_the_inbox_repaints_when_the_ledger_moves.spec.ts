@@ -18,7 +18,10 @@ import * as path from 'path';
 // never the broken half.
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
-const NAME = 'Shadow Dancer';
+// #165 — THE SUBJECT MUST BE A UNIQUE A FLOORED BOARD HAS NOT FOUND. Since REG-1275 a fresh board floors
+// the seed like his; Shadow Dancer is seeded found, so the queue settled it before the test could look. Measured
+// on a real page: Warshrike is unfound, is queued, and stays queued across a reload.
+const NAME = 'Warshrike';
 
 test.describe('v2219 the inbox repaints when the ledger moves', () => {
   test.beforeEach(async ({ page }) => {
