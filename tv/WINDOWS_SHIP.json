@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3502",
+  "ver": "v3503",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3502: each console tells the fleet whether its own tree is established and how many reels sit on its shelf; a Windows console with capture off reads OFF instead of a dead capture relaunched five times",
+  "note": "v3503: a brand-new board is no longer filed as a lost store and gets its seed floor on the first load; the host operating system is read once on the heap and both the ribbon and the board door read it; the seed floors a Shako the tally can count",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
