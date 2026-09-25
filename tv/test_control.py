@@ -370,25 +370,35 @@ def _screenish(size, seed, shade=None):
 # Per-class redirects are the wrong shape for this: the guarantee has to hold for classes nobody has
 # written yet, and the failure is silent. One module-level redirect covers the file, and
 # run_gates.py fingerprints the live files around the whole set so a miss anywhere fails the run.
+# ⚠⚠ REG-1281 — AT IMPORT, AND DISCOVERED, NOT LISTED. This redirect lived in setUpModule, which a
+# harness that runs this file's cases one by one never calls - and on 2026-09-25 mine did exactly that
+# (a per-test census watcher): fixture evidence ("Windforce", reel_s_1, f0.jpg) overwrote his live
+# chron_evidence.json - 324 uniques, 126 sets, 2,714 pages - and seeded chron_autoread,
+# chron_last_result and chron_hunt_memory. Restored byte-exact from a copy. And the hand list covered
+# five of the eight state paths: _VAULT_SEEN_PATH (his DURABLE vault witnesses), _CHRON_HUNT_MEM_PATH
+# and _VAULT_RESULT_PATH were never on it - the rot its own v1776 note predicted. Importing this module
+# now isolates every _CHRON_*/_VAULT_* path; setUpModule re-asserts it. [[feedback-fixtures-never-touch-live-data]]
+_MOD_TMP = tempfile.mkdtemp(prefix="d2r_state_")
+_MOD_PATHS = {}
+_MOD_NAMES = {"_CHRON_RESULT_PATH": "result.json", "_CHRON_AUTOREAD_PATH": "autoread.json",
+              "_CHRON_SWEPT_PATH": "swept.json", "_CHRON_EVIDENCE_PATH": "evidence.json",
+              "_VAULT_SWEPT_PATH": "vault_swept.json"}
+
+
+def _isolate_live_state():
+    """Point every chronicle/vault state path of control_app into this module's sandbox. Idempotent."""
+    for attr in sorted(a for a in dir(ca) if re.match(r"^_(CHRON|VAULT)_[A-Z_]*_PATH$", a)):
+        if attr in _MOD_PATHS or not isinstance(getattr(ca, attr), str):
+            continue
+        _MOD_PATHS[attr] = getattr(ca, attr)
+        setattr(ca, attr, os.path.join(_MOD_TMP, _MOD_NAMES.get(attr, attr.strip("_").lower() + ".json")))
+
+
+_isolate_live_state()
+
+
 def setUpModule():
-    global _MOD_TMP, _MOD_PATHS
-    import tempfile as _tf
-    _MOD_TMP = _tf.mkdtemp(prefix="d2r_state_")
-    _MOD_PATHS = {}
-    for attr, name in (("_CHRON_RESULT_PATH", "result.json"),
-                       ("_CHRON_AUTOREAD_PATH", "autoread.json"),
-                       ("_CHRON_SWEPT_PATH", "swept.json"),
-                       # v1776 — a NEW state file must join this list the day it is created, or the
-                       # suite starts writing his console again (REG-179, by me, twice)
-                       ("_CHRON_EVIDENCE_PATH", "evidence.json"),
-                       # v1778 — the VAULT sweep keeps its own swept-memory beside the console, and
-                       # nothing here isolated it: the suite has been writing his live vault state
-                       # the whole time. Same class as REG-179, different feature. Found by
-                       # review_lite.py comparing this list against the _*_PATH constants.
-                       ("_VAULT_SWEPT_PATH", "vault_swept.json")):
-        if hasattr(ca, attr):
-            _MOD_PATHS[attr] = getattr(ca, attr)
-            setattr(ca, attr, os.path.join(_MOD_TMP, name))
+    _isolate_live_state()
 
 
 def tearDownModule():

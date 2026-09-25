@@ -35,6 +35,7 @@ import g5_grok_eyes as g5  # noqa: E402
 # the FIXTURE, not the call site. [[feedback-fixtures-never-touch-live-data]]
 _G5_SANDBOX = tempfile.mkdtemp(prefix="g5-tests-")
 _G5_KEEP_STATS = os.environ.get("G5_STATS_PATH")
+os.environ["G5_STATS_PATH"] = os.path.join(_G5_SANDBOX, "g5_stats.json")  # REG-1281 — at import too: a harness that skips setUpModule must not reach his real stats
 
 
 RED_PROOF = [

@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1281 - MY TEST HARNESS OVERWROTE HIS LIVE CHRONICLE EVIDENCE; RESTORED BYTE-EXACT
+
+**incident + fix, 2026-09-25, mine.** Hunting an order-dependent test_control failure, I ran its cases one at a
+time through a small runner (`TestCase.run` per case). That never calls `setUpModule`, which is where
+test_control redirected control_app's chronicle/vault state paths - so at 04:47-04:51 fixture data went to his
+LIVE tree: `chron_evidence.json` replaced wholesale ("Windforce", reel_s_1, f0.jpg - his bank was 324 uniques,
+126 sets, 2,714 pages), `chron_last_result.json` replaced, fixture entries appended to `chron_autoread.json`
+(done 9/7777, reel_test_1784, reel_cursed, skipped 7777), four keys stamped in `chron_hunt_memory.json`. Caught
+by three laws that read his real evidence going red in a full local gate run (test_two_vocabularies_for_one_item,
+test_a_receipt_can_actually_be_opened, test_counter_ledger). RESTORED: the bank from a byte-copy with its
+original v3147 provenance (md5 dad45ae2; its content identical to the 09-24 render worlds, so it was unchanged
+since 09-15), last_result from the newest render world, the fixture entries removed from the other two; the
+damaged files are kept in the job's forensics folder. All three laws green again.
+The hand-kept list also covered five of eight state paths (not _VAULT_SEEN_PATH - his durable vault witnesses -
+_CHRON_HUNT_MEM_PATH or _VAULT_RESULT_PATH). Now importing test_control isolates every `_CHRON_*/_VAULT_*_PATH`,
+discovered by pattern; the two G5 suites set their stats path at import too. Guard:
+`test_importing_a_suite_isolates_his_stores` imports each suite in a fresh interpreter and runs nothing
+(2 cases, 2 proofs), PROVEN.
+
 ### REG-1280 - A REGISTERED BONE BREAK VANISHED FROM HIS VAULT ON THE NEXT LOAD
 
 **fix - found chasing #165 (v2208 went red once REG-1275 let the seed floor run on a fresh board).** The floor's

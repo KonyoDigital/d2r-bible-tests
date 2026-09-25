@@ -5363,6 +5363,12 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_importing_a_suite_isolates_his_stores",
+         [sys.executable, os.path.join(HERE, "test_importing_a_suite_isolates_his_stores.py")], 120,
+         why="REG-1281 - test_control isolated control_app's chronicle/vault paths only in setUpModule, and a harness "
+             "that ran its cases one by one (mine, 2026-09-25) wrote fixture evidence over his live chron_evidence.json "
+             "(324 uniques / 2,714 pages; restored byte-exact). Importing a suite now isolates every _CHRON_*/_VAULT_* "
+             "path (8, discovered not listed) and the G5 stats path. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
     Gate("test_a_shared_stash_item_survives_the_vault_cleanse",
          [sys.executable, os.path.join(HERE, "test_a_shared_stash_item_survives_the_vault_cleanse.py")], 60,
          why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned on each "

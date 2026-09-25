@@ -56,6 +56,7 @@ import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs le
 _fx_tmp.contain()
 _G5_STATS_SANDBOX = tempfile.mkdtemp(prefix="fleet-g5-")
 _G5_STATS_KEEP = os.environ.get("G5_STATS_PATH")
+os.environ["G5_STATS_PATH"] = os.path.join(_G5_STATS_SANDBOX, "g5_stats.json")  # REG-1281 — at import too: a harness that skips setUpModule must not reach his real stats
 
 
 def setUpModule():
