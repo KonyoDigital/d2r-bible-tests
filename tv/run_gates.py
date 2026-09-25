@@ -5363,6 +5363,11 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_a_headless_console_says_it_has_no_window",
+         [sys.executable, os.path.join(HERE, "test_a_headless_console_says_it_has_no_window.py")], 90,
+         why="#145 - the supervisor revives with --no-open, headless by construction; witnessed on a scratch port: "
+             "0 windows for the process, while its banner read 'native window'. The banner now says HEADLESS and "
+             "drops the close-the-window line. Driven on a real isolated boot, killed by PID. 1 case, 1 red-proof"),
     Gate("test_switching_views_closes_the_theatre",
          [sys.executable, os.path.join(HERE, "test_switching_views_closes_the_theatre.py")], 60,
          why="#172 - his ruling 2026-09-25: switching views closes the theatre. It deliberately covers every "

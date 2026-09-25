@@ -36850,11 +36850,16 @@ def main():
     # v948.8 — was a hardcoded "v935.8" literal, frozen ~13 versions ago (drift
     # spotted auditing the closer log during the materials retro round); _app_ver()
     # mirrors status_payload's stamp so this banner can never drift from ship again.
-    print(f"📺 TV DIABLO Control {_app_ver()} · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/", flush=True)
+    # #145 — SAY WHETHER THERE IS A WINDOW. A --no-open console (the supervisor's revive) printed "native window"
+    # while owning none: witnessed 2026-09-25 on a scratch port, System Events counted 0 windows for the
+    # process under that banner. "I can't see it" then reads as lost data when the truth is no window.
+    _win_word = "HEADLESS - no window (--no-open)" if no_open else "native window"
+    print(f"📺 TV DIABLO Control {_app_ver()} · {plat} · {_win_word} · http://127.0.0.1:{CONTROL_PORT}/", flush=True)
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}", flush=True)
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch", flush=True)
-    print("   close the app window → auto-stops ON AIR (exit safeguard · same as tvd stop).", flush=True)
+    if not no_open:
+        print("   close the app window → auto-stops ON AIR (exit safeguard · same as tvd stop).", flush=True)
 
     # v935.8 — reclaim orphans left by a prior crash/close (the "always on" feeling)
     try:

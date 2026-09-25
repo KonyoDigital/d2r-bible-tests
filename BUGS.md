@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1288 - A HEADLESS CONSOLE'S BANNER CLAIMED A NATIVE WINDOW
+
+**fix - #145, witnessed 2026-09-25.** The supervisor revives the console with `control_app.py --no-open`
+(tvd_supervisor.sh:114), which is headless by construction. Booted exactly that on a scratch port, isolated: it
+answered /api/status, and System Events counted 0 windows for the process - while its boot banner read "... · mac ·
+native window · ...". The banner is what gets read when "I can't see it" happens, and it pointed at a window that
+did not exist. It now says "HEADLESS - no window (--no-open)" and drops "close the app window" there. Also measured:
+the supervisor has been STOOD DOWN since 2026-09-17 00:44 by `.tvd_supervisor_pause`, so no headless revive can
+happen today. Guard: `test_a_headless_console_says_it_has_no_window` boots a real isolated --no-open console, reads
+its banner, kills it by PID (1 case, 1 proof), PROVEN.
+
 ### REG-1287 - THE 18 REG-1277 DEPARTURES ARE RECORDED AS A NAMED DEFECT, BY HIS RULING
 
 **ruling + change, 2026-09-25, #221 ("yea mark them").** The 18 reels tombstoned 2026-09-10..18 can never be
