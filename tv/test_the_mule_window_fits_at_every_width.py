@@ -28,6 +28,22 @@ WHAT IS MEASURED, per width (2000x1300, 1280x800, 1120x628, 1024x768, 901x900, 8
 and once, on a phone (390x844): a keyboard opening (a HEIGHT-only resize) leaves the Stats search box the SAME
 node with the caret in it, and a background re-render (an item assigned while it is up) puts the caret back.
 
+#174 v-B — THE SAME QUESTIONS, ASKED AGAIN WITH THE DOLL IN USE. Every width is measured a second time with three
+items equipped (a weapon, two rings — worn art, the ✕ controls, stat values with their source tags) and the picker
+open on the left hand (its list, its "left out" footer): new words in new boxes are exactly what v-A's pass cannot
+see. And the geometry at 2000 is their rects with the ONE declared upgrade (spec §5): the EQUIPMENT body on the
+doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` applies the upgrade to it.
+
+#174 v-B review — THE EQUIP PASS IS REAL INPUT, and THE GOLD BOX IS ONE LINE.
+  · The doll is filled the way he fills it: a CDP mouse press and release at the centre of the slot, then at the
+    centre of the option — each time checking the point lands on that element (elementFromPoint), so a control
+    covered by something else fails here instead of being clicked through by a programmatic .click().
+  · "N worn on the doll · M on this mule" wrapped the stash's gold box to two lines at 2000 wide; the stash cell
+    budget (_mpLayout) assumes one, so the stash view scrolled 1.5px and cut the box's border. Every width in
+    columns now requires the gold box to be one line and the stash view not to scroll, plain and with the doll in use.
+  · The worn weapon is Lightsabre (one-handed): beside Windforce the left hand now offers only its quiver, which
+    this locker does not hold — an empty picker would measure nothing.
+
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
 so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
 The Chrome it starts is killed by the handle it holds, and its temp profile goes with it.
@@ -67,7 +83,7 @@ def _free_port():
 os.environ["TV_RENDER_PORT"] = str(_free_port())
 import render_check as RC  # noqa: E402
 
-from test_the_mule_window_is_the_planner_shell import THEIR_SLOTS  # noqa: E402  ONE witness table
+from test_the_mule_window_is_the_planner_shell import THEIR_SLOTS, DOLL_K, THEIR_EQ  # noqa: E402  ONE witness table
 
 NO_BROWSER = "no Chrome/Chromium on this machine, so the mule window was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
@@ -83,6 +99,32 @@ THEIR_PANELS = {
 }
 TOL_2000 = 4.0          # spec §4: ±4 px at 2000 wide
 SW_TOL = 4.0            # S&W is measured off their PNG (182..239), the least exact of the reference numbers
+LEFT_PANELS = ("mp-eq", "mp-prim", "mp-merc", "mp-loot", "mp-sw")
+CENTRE_PANELS = ("mp-cp", "mp-notes")
+
+
+def _ours(c):
+    """THEIR panel rect with the one declared v-B upgrade: the LEFT column is their 322 on the doll's unit, the
+    EQUIPMENT panel their 36px header + their 364px body on it, so every left panel below EQUIPMENT moves down by
+    what EQUIPMENT grew and the centre moves right and narrows by what LEFT grew. Nothing else moves."""
+    x, y, w, h = THEIR_PANELS[c]
+    grow_w = 322 * DOLL_K - 322
+    grow_h = (THEIR_EQ[0] + THEIR_EQ[1] * DOLL_K) - sum(THEIR_EQ)
+    if c in LEFT_PANELS:
+        w = 322 * DOLL_K
+        if c == "mp-eq":
+            h = THEIR_EQ[0] + THEIR_EQ[1] * DOLL_K
+        else:
+            y += grow_h
+    elif c in CENTRE_PANELS:
+        x, w = x + grow_w, w - grow_w
+    return (x, y, w, h)
+
+
+def _our_slot(s):
+    """their slot rect, on the doll's unit, under their 36px header"""
+    x, y, w, h = THEIR_SLOTS[s]
+    return (x * DOLL_K, THEIR_EQ[0] + (y - THEIR_EQ[0]) * DOLL_K, w * DOLL_K, h * DOLL_K)
 
 SEED = r"""(function(items, mule){
   try { localStorage.setItem('d2r_ownerClaim','*'); } catch(e){}
@@ -96,9 +138,15 @@ MEASURE = r"""(function(){ try {
   var ob = mp.getBoundingClientRect();
   var rel = function(el, b){ if (!el) return null; var r = el.getBoundingClientRect(); b = b || ob;
     return [r.left - b.left, r.top - b.top, r.width, r.height]; };
-  var out = { k: +mp.getAttribute('data-k'),
+  var sv = box.querySelector('.mp-v-stash'), gb = box.querySelector('.mp-v-stash .vd-goldbox'), gl = null;
+  if (gb && sv && !sv.hidden){ var gs = getComputedStyle(gb), gr = gb.getBoundingClientRect();
+    gl = (gr.height - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - parseFloat(gs.borderTopWidth) - parseFloat(gs.borderBottomWidth)) / parseFloat(gs.lineHeight); }
+  var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null,
+    stashScroll: (sv && !sv.hidden) ? [sv.scrollHeight, sv.clientHeight] : null,
     stack: mp.classList.contains('mp-stack'), hscroll: [box.scrollWidth, box.clientWidth], panels: {}, slots: {},
-    cut: [], outside: [], sideways: [], collide: [], nText: 0 };
+    cut: [], outside: [], sideways: [], collide: [], nText: 0,
+    worn: box.querySelectorAll('.mp-slot.mp-has').length, sv: box.querySelectorAll('.mp-sv').length,
+    pick: box.querySelectorAll('.mp-pick').length, opts: box.querySelectorAll('.mp-pick .mp-opt').length };
   ['mp-set','mp-eq','mp-prim','mp-merc','mp-loot','mp-sw','mp-cp','mp-notes','mp-auth','mp-show','mp-stats'].forEach(function(c){
     out.panels[c] = rel(box.querySelector('.' + c)); });
   var eo = box.querySelector('.mp-eq').getBoundingClientRect();
@@ -173,6 +221,46 @@ MEASURE = r"""(function(){ try {
   return JSON.stringify(out);
  } catch(e){ return JSON.stringify({ err: String(e) }); } })()"""
 
+#: #174 v-B review — equip through the window's own picker with REAL INPUT: the centre of an element, scrolled into
+#: view, is hit-tested (elementFromPoint must be that element or inside it) and then pressed with CDP mouse events.
+#: A programmatic .click() skips hit-testing, so a covered or clipped control would be "clicked" anyway.
+AIM = r"""(function(sel, i){ var e = document.querySelectorAll(sel)[i]; if (!e) return JSON.stringify(null);
+  e.scrollIntoView({ block: 'center', inline: 'nearest' }); var r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  var at = document.elementFromPoint(x, y); return JSON.stringify({ x: x, y: y, hit: !!(at && (at === e || e.contains(at))) }); })(%s, %d)"""
+OPT_AT = r"""(function(want){ var o = document.querySelectorAll('#vault-detail .mp-pick .mp-opt');
+  for (var i = 0; i < o.length; i++) if ((o[i].textContent || '').indexOf(want) >= 0) return i; return -1; })(%s)"""
+WEAR = [["rarm", "Lightsabre"], ["rrin", "Nagelring"], ["lrin", "Raven Frost"]]
+
+
+def _press(t, sel, i=0):
+    """a real mouse press + release at the centre of sel[i] -> None, or why it could not be pressed"""
+    a = json.loads(t.ev(AIM % (json.dumps(sel), i)))
+    if not a:
+        return "no %s[%d] on the page" % (sel, i)
+    if not a["hit"]:
+        return "the centre of %s[%d] is covered by another element" % (sel, i)
+    for kind in ("mouseMoved", "mousePressed", "mouseReleased"):
+        t.send("Input.dispatchMouseEvent", type=kind, x=a["x"], y=a["y"], button="none" if kind == "mouseMoved" else "left",
+               clickCount=0 if kind == "mouseMoved" else 1)
+    time.sleep(0.2)
+    return None
+
+
+def _equip(t, mule, want):
+    """open the picker on each slot and choose the item, by real input -> [names equipped] + [why not]"""
+    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(mule))
+    time.sleep(0.3)
+    got = []
+    for slot, name in want:
+        why = _press(t, '#vault-detail .mp-slot[data-slot="%s"]' % slot)
+        if why:
+            got.append("NOT PRESSED: " + why)
+            continue
+        i = t.ev(OPT_AT % json.dumps(name))
+        why = ("%s was not offered for the %s" % (name, slot)) if i is None or i < 0 else _press(t, "#vault-detail .mp-pick .mp-opt", i)
+        got.append(("NOT CHOSEN: " + why) if why else name)
+    return got
+
 FOCUS_TYPE = r"""(function(){ var i = document.querySelector('#vault-detail .mp-search input'); if (!i) return 'no search box';
   i.focus(); i.value = 'fire'; window._mpFilter('fire'); i.setSelectionRange(2, 3); window.__mpBox = i;
   return document.activeElement === i ? 'typing' : 'focus refused'; })()"""
@@ -223,6 +311,19 @@ def _measure():
             t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(MULE))
             time.sleep(0.35)
             res["%dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+        # #174 v-B — the same widths with the doll in use and the picker open on the left hand
+        t.send("Emulation.setDeviceMetricsOverride", width=WIDTHS[0][0], height=WIDTHS[0][1], deviceScaleFactor=1,
+               mobile=False)
+        time.sleep(0.25)
+        res["equipped"] = _equip(t, MULE, WEAR)
+        for (w, h) in WIDTHS:
+            t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
+            time.sleep(0.25)
+            t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); window._mpPick('larm'); return 1; })()"
+                 % json.dumps(MULE))
+            time.sleep(0.35)
+            res["eq %dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+        t.ev("(function(){ window._mpPick(null); return 1; })()")
         # the phone: type in the Stats search, open a keyboard (height-only resize), then re-render underneath
         t.send("Emulation.setDeviceMetricsOverride", width=390, height=844, deviceScaleFactor=1, mobile=True)
         time.sleep(0.25)
@@ -251,42 +352,72 @@ def _near(a, b, tol):
     return all(abs(x - y) <= tol for x, y in zip(a, b))
 
 
+def _states():
+    """(label, measurement) for every width, plain and with the doll in use + the picker open"""
+    r = _measure()
+    out = []
+    for w, h in WIDTHS:
+        out.append(("%dx%d" % (w, h), r["%dx%d" % (w, h)]))
+        out.append(("%dx%d equipped+picker" % (w, h), r["eq %dx%d" % (w, h)]))
+    return out
+
+
 class TheWindowFitsAtEveryWidth(unittest.TestCase):
 
     def test_the_fixture_reached_the_window(self):
         """PRINT THE DENOMINATOR: a window that rendered no text passes every check below."""
         r = _measure()
         self.assertEqual(r.get("seeded"), len(ITEMS), "the fixture did not put its items in the locker")
-        for w, h in WIDTHS:
-            m = r["%dx%d" % (w, h)]
-            self.assertNotIn("err", m, "%dx%d: %s" % (w, h, m.get("err")))
-            self.assertGreaterEqual(m["nText"], 120, "%dx%d: only %d text nodes measured" % (w, h, m["nText"]))
+        for label, m in _states():
+            self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
+            self.assertGreaterEqual(m["nText"], 120, "%s: only %d text nodes measured" % (label, m["nText"]))
         self.assertEqual(r.get("errors"), [], "the page threw while the window was open")
 
-    def test_no_word_or_control_is_cut_or_outside_its_panel(self):
+    def test_the_doll_in_use_was_really_measured(self):
+        """#174 v-B — the equipped pass is only a check if the doll WAS in use: three items worn through the picker,
+        stat values drawn, the picker open with choices in it — at every width."""
         r = _measure()
-        bad = []
+        self.assertEqual(r.get("equipped"), [p[1] for p in WEAR], "the picker did not equip the fixture's items")
         for w, h in WIDTHS:
-            m = r["%dx%d" % (w, h)]
-            bad += ["%dx%d %s" % (w, h, x) for x in m["cut"] + m["outside"]]
+            m = r["eq %dx%d" % (w, h)]
+            self.assertEqual((m["worn"], m["pick"]), (len(WEAR), 1), "%dx%d: worn %s, picker %s" % (w, h, m["worn"], m["pick"]))
+            self.assertGreater(m["sv"], 0, "%dx%d: no stat value was drawn from the worn gear" % (w, h))
+            self.assertGreater(m["opts"], 0, "%dx%d: the left-hand picker offered nothing" % (w, h))
+
+    def test_no_word_or_control_is_cut_or_outside_its_panel(self):
+        bad = []
+        for label, m in _states():
+            bad += ["%s %s" % (label, x) for x in m["cut"] + m["outside"]]
         self.assertEqual(bad, [], "text or a control in the mule window is cut or spills out of its panel:\n  "
                          + "\n  ".join(bad))
 
     def test_nothing_scrolls_sideways(self):
-        r = _measure()
         bad = []
-        for w, h in WIDTHS:
-            m = r["%dx%d" % (w, h)]
+        for label, m in _states():
             if m["hscroll"][0] > m["hscroll"][1] + 1:
-                bad.append("%dx%d the window itself %d/%d" % (w, h, m["hscroll"][0], m["hscroll"][1]))
-            bad += ["%dx%d %s" % (w, h, x) for x in m["sideways"]]
+                bad.append("%s the window itself %d/%d" % (label, m["hscroll"][0], m["hscroll"][1]))
+            bad += ["%s %s" % (label, x) for x in m["sideways"]]
         self.assertEqual(bad, [], "part of the mule window scrolls sideways:\n  " + "\n  ".join(bad))
 
+    def test_the_gold_box_is_one_line_and_the_stash_never_scrolls(self):
+        """#174 v-B review — the stash cell budget assumes a one-line gold box; a second line scrolled the stash view
+        and cut the box's border at 2000 wide. In columns, plain and with the doll in use, at every width."""
+        bad, seen = [], 0
+        for label, m in _states():
+            if m.get("stack") or m.get("goldLines") is None:
+                continue
+            seen += 1
+            if round(m["goldLines"]) != 1:
+                bad.append("%s the gold box is %.2f lines: %r" % (label, m["goldLines"], m["goldText"]))
+            if m["stashScroll"] and m["stashScroll"][0] > m["stashScroll"][1]:
+                bad.append("%s the stash view scrolls %d/%d" % (label, m["stashScroll"][0], m["stashScroll"][1]))
+        self.assertGreaterEqual(seen, 10, "the gold box was measured at only %d column-layout states" % seen)
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
     def test_no_header_title_runs_under_its_control(self):
-        r = _measure()
         bad = []
-        for w, h in WIDTHS:
-            bad += ["%dx%d %s" % (w, h, x) for x in r["%dx%d" % (w, h)]["collide"]]
+        for label, m in _states():
+            bad += ["%s %s" % (label, x) for x in m["collide"]]
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_the_type_is_its_token_times_the_unit_never_below_the_floor(self):
@@ -309,17 +440,20 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                                                                 tok[key], kf, want))
 
     def test_at_2000_the_panels_and_the_doll_are_their_measured_rects(self):
-        m = _measure()["2000x1300"]
-        self.assertEqual(m["k"], 1.0)
+        """their rects, with the one declared upgrade (_ours / _our_slot) — plain and with the doll in use"""
         bad = []
-        for c, want in THEIR_PANELS.items():
-            got = m["panels"][c]
-            if not got or not _near(got, want, SW_TOL if c == "mp-sw" else TOL_2000):
-                bad.append("%s %s, measured %s" % (c, list(want), [round(x, 2) for x in got] if got else None))
-        for s, want in THEIR_SLOTS.items():
-            got = m["slots"].get(s)
-            if not got or not _near(got, want, 0.5):
-                bad.append("slot %s %s, measured %s" % (s, list(want), got))
+        for key in ("2000x1300", "eq 2000x1300"):
+            m = _measure()[key]
+            self.assertEqual(m["k"], 1.0)
+            for c in THEIR_PANELS:
+                want, got = _ours(c), m["panels"][c]
+                if not got or not _near(got, want, SW_TOL if c == "mp-sw" else TOL_2000):
+                    bad.append("%s %s %s, measured %s" % (key, c, [round(v, 2) for v in want],
+                                                          [round(x, 2) for x in got] if got else None))
+            for s in THEIR_SLOTS:
+                want, got = _our_slot(s), m["slots"].get(s)
+                if not got or not _near(got, want, 0.5):
+                    bad.append("%s slot %s %s, measured %s" % (key, s, list(want), got))
         self.assertEqual(bad, [], "at 2000x1300 the window left their geometry:\n  " + "\n  ".join(bad))
 
     def test_at_1280_the_fixed_panels_are_their_rects_times_the_unit(self):
@@ -328,7 +462,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertLess(k, 1.0)
         bad = []
         for c in ("mp-eq", "mp-cp", "mp-notes", "mp-stats", "mp-set"):
-            want = [v * k for v in THEIR_PANELS[c]]
+            want = [v * k for v in _ours(c)]
             if not _near(m["panels"][c], want, 1.0):
                 bad.append("%s %s, measured %s" % (c, [round(v, 1) for v in want], [round(v, 1) for v in m["panels"][c]]))
         self.assertEqual(bad, [], "at 1280 the window is not their geometry times k:\n  " + "\n  ".join(bad))
@@ -350,10 +484,35 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "#174 - the MERCENARY panel is a fixed height again, so its sentence is cut where the words out-grow it",
+        # #174 v-B moved the tightest prose panel: the LEFT column is now their 322 on the doll's unit, so MERCENARY's
+        # sentence fits its 80u at every width (scanned 320..1600 with the panel fixed: never cut), while STRENGTHS
+        # AND WEAKNESSES, fixed at its 57u, cuts its sentence at 1024, 960, 920 and 901 wide. The defect class is the
+        # same — a prose panel with a fixed height cuts its own sentence — so the proof now aims where it still bites.
+        "why": "#174 - a prose panel (STRENGTHS AND WEAKNESSES) is a fixed height again, so its sentence is cut where the words out-grow it",
         "file": "bible.html",
-        "find": ".mp-merc{min-height:calc(80*var(--u))}\n",
-        "replace": ".mp-merc{height:calc(80*var(--u))}\n",
+        "find": ".mp-sw{min-height:calc(57*var(--u))}\n",
+        "replace": ".mp-sw{height:calc(57*var(--u))}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B - the picker's choice never reaches the doll, so the equipped pass measures an empty doll and calls it fitting",
+        "file": "bible.html",
+        "find": "      try { _mpEqWrite(r.all); }\n",
+        "replace": "      try { void 0; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the gold box says its worn copies in a sentence that wraps it, and the stash view scrolls",
+        "file": "bible.html",
+        "find": "+ ' in inventory · ' + _wornHere + ' worn</div>'",
+        "replace": "+ ' in inventory · ' + _wornHere + ' worn on the doll · ' + (_thisMuleN + _wornHere) + ' on this mule</div>'",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a doll slot stops taking the pointer, so real input cannot open it (a .click() would have)",
+        "file": "bible.html",
+        "find": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n",
+        "replace": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n.mp-slot{pointer-events:none}\n",
         "matches": 1,
     },
     {

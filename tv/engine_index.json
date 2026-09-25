@@ -1055,6 +1055,21 @@
     "purpose": "Alphabetical-order detector: a batch of names ascending against the roster came off a Chronicle MENU page, not out of one of his containers.",
     "territory": "vault"
   },
+  "mule_slot_map.py": {
+    "entryPoints": [
+      "build",
+      "rules",
+      "named",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the two ⟦MULE_BASE_SLOT⟧ markers and nowhere else. The slot SUBTYPE (a Shako is a helm, not a torso) exists only in the install's excel `type` column, so --check without an install is 77 = UNKNOWN, never green; CI still proves every name's KIND against the committed tv/item_tables.json. The named-item map is derived from item_tables.json alone and drops, rather than guesses, a name whose bases sit in different slots. The game names \"The Stone of Jordan\"; the board says \"Stone of Jordan\" - the page folds case, curly apostrophes and a leading The before looking a name up.",
+    "purpose": "#174 v-B: generates the doll-slot table the mule window's picker reads - every base item's slot kind (helm / armor / shield / weapon / gloves / belt / boots / ring / amulet / quiver / carried) from his install's armor/weapons/misc .txt `type` column, plus every unique and set item's base from tv/item_tables.json, plus (#174 v-B review) what a hand can hold beside the other: weapons.txt 2handed / 1or2handed, what a bow shoots (itemtypes.txt Shoots) and which bases one class alone uses (itemtypes.txt Class) - and writes it into bible.html as MULE_BASE_SLOT_SRC / MULE_NAMED_BASE_SRC / MULE_BASE_RULES_SRC. --check compares the block with a fresh pull.",
+    "territory": "vault"
+  },
   "my_orphans.py": {
     "entryPoints": [
       "suspects",

@@ -6811,7 +6811,9 @@ class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
     #: normalisers that key an item's IDENTITY — a store row, a registry lookup, a match against
     #: ITEMS. These MUST fold, because a miss here creates or loses a row.
     #: v2765 — `_qlvlOf` joined: it resolves an item NAME to a row, so it keys identity.
-    MUST_FOLD = ("_regKey", "_cnV", "_qlvlOf")
+    #: #174 v-B — `_mpClean` joined: the mule window's picker resolves a name to its base and slot
+    #: through it (the game's unique table, the install's base map), so it keys identity.
+    MUST_FOLD = ("_regKey", "_cnV", "_qlvlOf", "_mpClean")
 
     def setUp(self):
         p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
@@ -6869,8 +6871,10 @@ class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
         # v2765 — RAISED 12 -> 13 DELIBERATELY, which is what this law asks for. The new one is
         # `_qlvlOf` (the MISSING wall's level reader). It DOES key identity, so the other branch of
         # the rule was taken too: it folds the curly apostrophe and has joined MUST_FOLD above.
-        self.assertLessEqual(len(found), 13,
-                             "a new name-normaliser appeared (%d now, 13 known). Decide whether it "
+        # #174 v-B — RAISED 13 -> 14 DELIBERATELY for `_mpClean` (the mule window's picker): it keys
+        # identity, so it folds the curly apostrophe and has joined MUST_FOLD above as well.
+        self.assertLessEqual(len(found), 14,
+                             "a new name-normaliser appeared (%d now, 14 known). Decide whether it "
                              "keys IDENTITY: if it does it must fold the curly apostrophe and join "
                              "MUST_FOLD; if it does not, raise this bound deliberately. %s"
                              % (len(found), sorted(found)))
