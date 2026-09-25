@@ -5485,6 +5485,12 @@ GATES = [
          why="#25 - his CHOOSE IN INBOX landed on a black Tools page. Not reproduced in Chrome; hardened against the "
              "one mechanism that yields that picture: a zero-size (not laid out) question is no longer 'landed', "
              "and the route retries inside its 40 x 80 ms budget. 4 cases, 2 red-proofs"),
+    Gate("test_the_eye_workers_bound_their_writes",
+         [sys.executable, os.path.join(HERE, "test_the_eye_workers_bound_their_writes.py")], 60,
+         why="REG-1300 - v3391 bounded control_app's pipe WRITE and left its two twins in tv_diablo "
+             "(VisionWorker.ask, OcrWorker.read): a worker that stops draining stdin held the vision/OCR lane "
+             "for ever. The doctor row named both lines on the Mac and the ALT. The shipped classes are driven "
+             "against a stdin-deaf worker with a payload past the pipe buffer. 5 cases, 4 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

@@ -5147,7 +5147,9 @@ def _check_a_worker_read_has_a_deadline():
             if base.startswith("test_") or base == "console_doctor.py":
                 continue
             try:
-                src = _io.open(path, encoding="utf-8", errors="replace").read()
+                # closed here, not by the collector: this row opens every tv/ module on each pass
+                with _io.open(path, encoding="utf-8", errors="replace") as _fh:
+                    src = _fh.read()
             except Exception:
                 continue
             scanned += 1
@@ -5244,7 +5246,8 @@ def _check_no_browser_is_launched_unreaped():
     HELPER = "_run_browser_bounded"
 
     try:
-        src = _io.open(GATE, encoding="utf-8", errors="replace").read()
+        with _io.open(GATE, encoding="utf-8", errors="replace") as _fh:
+            src = _fh.read()
         tree = _ast.parse(src)
         lines = src.split("\n")
     except Exception as e:
@@ -5517,13 +5520,36 @@ def _check_a_tally_agrees_with_its_own_ledger_verdict():
         for L in led_rows:
             led = L["ledger"]
             want = _MEAS[str(L.get("provenance")).upper()]
-            said = by.get(led) if (by is not None and led in by) else t.get("measured")
+            # ⚠ REG-1301 — AN OLD SEAL IS NOT THE SAME FACT AS A HIDDEN COUNT ANY MORE. Since
+            # e81d7aab the card reads a peer with no `measuredBy` through its own provenance
+            # (_measOf), so an old seal's contradiction no longer reaches the glass of a current
+            # console - it reaches only an older card. MEASURED 2026-09-25 on his live roster: Konyo
+            # (a console still running the pre-#240 seal) published measured=False beside three
+            # SYNCED ledgers while every current card showed 134/309/99, and this row said "hidden
+            # as never synced" - true of the payload, false of the screen. Found by the #231 eye.
+            # Still MISSING (the payload contradicts itself and older peers still hide it); the
+            # sentence now says what is true and what clears it.
+            old_seal = not (by is not None and led in by)
+            said = t.get("measured") if old_seal else by.get(led)
             if want is False and said is not False:
-                bad.append("%s %s is %s but reads as a count (measured=%r)"
-                           % (who, led, L.get("provenance"), said))
+                if old_seal:
+                    bad.append("%s %s is %s but its old seal does not say so (measured=%r, no "
+                               "measuredBy) - current cards read the provenance, an older card "
+                               "shows the 0 as a count; that console needs the per-ledger seal"
+                               % (who, led, L.get("provenance"), said))
+                else:
+                    bad.append("%s %s is %s but reads as a count (measured=%r)"
+                               % (who, led, L.get("provenance"), said))
             elif want is True and said is False:
-                bad.append("%s %s is %s but its %s figure is hidden as never synced"
-                           % (who, led, L.get("provenance"), (t.get(led) or {}).get("have")))
+                if old_seal:
+                    bad.append("%s %s is %s but its old seal says never synced (measured=False, "
+                               "no measuredBy) - current cards read the provenance and show %s, an "
+                               "older card still hides it; restarting that console onto the "
+                               "per-ledger seal clears it"
+                               % (who, led, L.get("provenance"), (t.get(led) or {}).get("have")))
+                else:
+                    bad.append("%s %s is %s but its %s figure is hidden as never synced"
+                               % (who, led, L.get("provenance"), (t.get(led) or {}).get("have")))
     if not judged:
         return UNMEASURED, ("%d row(s) carry a tally but none carries a ledger verdict, so the "
                             "two sides cannot be compared - UNKNOWN, not agreement" % len(rows))

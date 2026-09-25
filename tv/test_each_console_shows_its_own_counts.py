@@ -21,7 +21,8 @@ word too, so it was green on fiction.
   · DRIVEN: an empty board is still refused (the v3389 baseline).
   · DRIVEN (node, the real relay shaper): `measuredBy` crosses; a non-boolean arrives as null.
   · DRIVEN (node, the card's own reader): each bar reads its own ledger; the row bit only for an old peer.
-  · DRIVEN: the doctor row goes red on a real count hidden as never synced, and green once fixed.
+  · DRIVEN: the doctor row goes red on a real count hidden as never synced, and green once fixed;
+    an OLD seal is named as an old seal (REG-1301), never as a count the screen hides.
   · JOINED: grail_tally no longer classifies before the seal.
 RED_PROOF below.
 """
@@ -168,12 +169,28 @@ class TheDoctorSeesAHiddenCount(unittest.TestCase):
         return {"ok": False, "ledgers": [{"ledger": k, "provenance": "SYNCED"} for k in LEDGERS]}
 
     def test_a_real_count_hidden_as_never_synced_is_missing(self):
-        """The shape every v3504 console published on 2026-09-25."""
+        """A CURRENT seal that says never synced over a SYNCED ledger: the card reads measuredBy
+        first, so this count really is hidden on every screen."""
         t = {"sets": {"have": 128}, "uniques": {"have": 309}, "runewords": {"have": 99},
+             "measured": None, "measuredBy": {"sets": False, "uniques": True, "runewords": True},
+             "ledgerVerdict": self._verdict()}
+        st, why = self._run(t)
+        self.assertEqual(st, CD.MISSING, "the doctor stayed quiet over a hidden count: %s" % why)
+        self.assertIn("128 figure is hidden as never synced", why)
+
+    def test_an_old_seal_is_named_as_an_old_seal_not_a_hidden_count(self):
+        """REG-1301 - the shape his own console published on 2026-09-25 (the pre-#240 seal: measured
+        False, no measuredBy, three SYNCED ledgers). Since e81d7aab the card reads it through its
+        provenance and SHOWS 134 - so "hidden as never synced" was false of the screen. Still MISSING
+        (the payload contradicts itself and older cards still hide it), in words that are true."""
+        t = {"sets": {"have": 134}, "uniques": {"have": 309}, "runewords": {"have": 99},
              "measured": False, "ledgerVerdict": self._verdict()}
         st, why = self._run(t)
-        self.assertEqual(st, CD.MISSING, "the doctor stayed quiet over hidden counts: %s" % why)
-        self.assertIn("hidden as never synced", why)
+        self.assertEqual(st, CD.MISSING, "an old peer's self-contradicting seal went quiet: %s" % why)
+        self.assertIn("old seal says never synced", why)
+        self.assertIn("current cards read the provenance and show 134", why)
+        self.assertNotIn("figure is hidden as never synced", why,
+                         "an old seal is called a hidden count although every current card shows it")
 
     def test_the_fixed_shape_agrees(self):
         t = {"sets": {"have": 128}, "uniques": {"have": 309}, "runewords": {"have": 99},
@@ -225,6 +242,13 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "          if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1301 - the doctor calls an old seal a hidden count again, though every current card shows it",
+        "file": "tv/console_doctor.py",
+        "find": "                if old_seal:\n                    bad.append(\"%s %s is %s but its old seal says never synced (measured=False, \"\n",
+        "replace": "                if False:\n                    bad.append(\"%s %s is %s but its old seal says never synced (measured=False, \"\n",
         "matches": 1,
     },
     {

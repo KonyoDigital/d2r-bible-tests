@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1301 - THE DOCTOR CALLED AN OLD SEAL A HIDDEN COUNT, WHILE EVERY CURRENT CARD SHOWED THE NUMBER
+
+**fix - found by the #231 second eye reviewing e81d7aab (2026-09-25), reproduced on his live roster.** e81d7aab taught
+the fleet card to read a peer with no `measuredBy` through its own ledger provenance, so an old seal (measured=False
+beside SYNCED ledgers) shows its real 134/309/99. The doctor row "a tally agrees with its own ledger verdict" still read
+that row bit and said "134 figure is hidden as never synced" - true of the payload, false of every current screen.
+MEASURED: his own console (still running the pre-#240 seal in memory) published exactly that shape while the card
+showed the numbers. Still MISSING - the payload contradicts itself and an older card still hides it - but the sentence
+now names an OLD SEAL and what clears it (that console restarting onto the per-ledger seal). A current seal that really
+hides a count keeps the old words; the law pins both. [[measured-true-read-wrong]]
+
+### REG-1300 - THE EYE'S TWO WARM WORKERS WROTE TO A PIPE WITH NO DEADLINE (THE TWINS v3391 LEFT)
+
+**fix - found by the doctor row "a worker read has a deadline", MISSING on his Mac console AND the ALT's (2026-09-25),
+naming tv_diablo.py:3614 and :4428.** v3391 bounded control_app._ocr_ask's stdin WRITE (a blocking write does not raise,
+and its deadline was computed after it) and left the same two lines in VisionWorker.ask and OcrWorker.read - the vision
+lane and the OCR fast lane. A worker that stops draining its stdin held either lane for ever with its bound not yet
+started. Both now start the deadline first and write through `_pipe_write_by` (a sender thread, a bounded wait); a write
+that does not land drops the worker and `_bury_worker` kills it with its pipes closed OFF the caller's thread, so a stale
+request can never pair with the next reply. Moving the `deadline =` line up would have turned the row green and bounded
+nothing - the law drives the shipped classes against a stdin-deaf worker with a 200 KB payload (past the 16 KB pipe
+buffer). The same row leaked one open file per tv/ module on every pass (212 per pass); closed with `with`.
+[[copy-drift]] [[the-unjoined-end]]
+
 ### REG-1299 - THE SESSIONS PAGE SCROLLED 505PX SIDEWAYS WHENEVER THE TERROR ZONE MADE ONE OPS ROW LONG
 
 **fix - found by the pre-push render gate 2026-09-25 (pop-asks, 1440x1000), blocking a 15-commit push.** A/B'd first:

@@ -3540,6 +3540,71 @@ def _sub_budget_record():
         except Exception:
             pass
 
+
+# ⚠⚠ REG-1300 — THE WRITE TO A WARM WORKER IS BOUNDED TOO, AND ITS DEADLINE STARTS BEFORE IT.
+# v3391 fixed exactly this in control_app._ocr_ask and left its two twins here: VisionWorker.ask
+# and OcrWorker.read both did `self.p.stdin.write(...); flush()` and only THEN computed the
+# deadline their docstrings promise. A blocking write does not raise, so the try/except around it
+# could never fire, and a worker that stops draining its stdin held the caller - the whole vision
+# or OCR lane - for ever, with a bound that had not started. The "a worker read has a deadline"
+# doctor row named both lines (tv_diablo.py:3614, :4428) on the Mac AND the ALT, 2026-09-25.
+# ⚠ Moving the `deadline =` line above the write turns that row green and bounds NOTHING - the row
+# grades ORDER because order is what it can see; the write itself is what has to be bounded.
+# [[copy-drift]] [[the-unjoined-end]]
+def _pipe_write_by(proc, data, deadline):
+    """Write + flush `data` to proc.stdin on a helper thread; True only if it landed before
+    `deadline` (time.monotonic()). False means the worker is not draining its input: the caller
+    must abandon it (_bury_worker), because the abandoned write may still land later and pair a
+    stale request with the next reply."""
+    import queue as _q
+    done = _q.Queue()
+
+    def _send():
+        try:
+            proc.stdin.write(data)
+            proc.stdin.flush()
+            done.put(True)
+        except Exception:
+            done.put(False)
+
+    try:
+        threading.Thread(target=_send, daemon=True, name="worker-send").start()
+        return done.get(timeout=max(0.05, deadline - time.monotonic())) is True
+    except Exception:
+        return False
+
+
+def _bury_worker(p):
+    """Kill a worker whose write never landed and close its pipes OFF the caller's thread.
+
+    stop() closes stdin on the caller's thread, and closing a stream another thread is still
+    blocked writing to waits on that writer's lock - so a child whose pipe outlives it (a
+    grandchild holding the read end) would move the hang into stop() instead of ending it."""
+    if not p:
+        return
+    try:
+        p.kill()
+    except Exception:
+        pass
+
+    def _bury(pr):
+        try:
+            pr.wait()
+        except Exception:
+            pass
+        for stream in (pr.stdin, pr.stdout, pr.stderr):
+            try:
+                if stream:
+                    stream.close()
+            except Exception:
+                pass
+
+    try:
+        threading.Thread(target=_bury, args=(p,), daemon=True, name="bury-deaf-worker").start()
+    except Exception:
+        pass
+
+
 class VisionWorker:
     def __init__(self, model=None):
         # v720.1 — lock: warm thread + settle-read must never interleave on one stream
@@ -3611,7 +3676,12 @@ class VisionWorker:
                 if self.p is None or self.p.poll() is not None or self.turns >= WORKER_MAX_TURNS:
                     self.stop(); self._spawn()
                 msg = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
-                self.p.stdin.write(json.dumps(msg) + "\n"); self.p.stdin.flush()
+                # REG-1300 — the deadline starts BEFORE the write, and the write is bounded by it.
+                deadline = time.monotonic() + timeout
+                if not _pipe_write_by(self.p, json.dumps(msg) + "\n", deadline):
+                    p, self.p = self.p, None
+                    _bury_worker(p)     # not draining its input - never reuse it
+                    return None
                 # v1200 — monotonic, not wall-clock: this deadline is the LITERAL enforcement of
                 # LIVE_READ_TIMEOUT_S, the Master Brain law rounds 1-4 all protected from other
                 # angles. time.time() can jump BACKWARD (NTP resync on sleep/wake — routine over
@@ -3620,7 +3690,7 @@ class VisionWorker:
                 # the jump, so `self.q.get(timeout=...)` blocks for however long the clock
                 # jumped — reintroducing the exact "hang the entire live lane" failure this whole
                 # arc exists to eliminate, in the ONE place that's supposed to guarantee it can't.
-                deadline = time.monotonic() + timeout
+                # (REG-1300: `deadline` is now set above the write, on the same monotonic clock.)
                 while time.monotonic() < deadline:
                     try: line = self.q.get(timeout=max(0.1, deadline - time.monotonic()))
                     except Exception: break
@@ -4425,13 +4495,16 @@ class OcrWorker:
                     if not self._spawn():
                         return None
                 ap = os.path.abspath(path)
-                self.p.stdin.write(ap + "\n")
-                self.p.stdin.flush()
                 # v1200 — same class as VisionWorker.ask(): monotonic, not wall-clock, so a
                 # backward NTP jump mid-poll can't balloon the wait past the intended budget
                 # (short window here, 1.2-1.5s, but the OCR/text-eye lane depends on it staying
                 # fast every single poll — a stuck wait here starves the whole fast lane).
+                # REG-1300 — and it starts BEFORE the write, which it now bounds.
                 deadline = time.monotonic() + timeout
+                if not _pipe_write_by(self.p, ap + "\n", deadline):
+                    p, self.p = self.p, None
+                    _bury_worker(p)     # not draining its input - never reuse it
+                    return None
                 while time.monotonic() < deadline:
                     try:
                         line = self.q.get(timeout=max(0.05, deadline - time.monotonic()))
