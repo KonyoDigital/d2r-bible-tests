@@ -82,6 +82,30 @@ def _free_block():
     raise unittest.SkipTest("no free port pair found - UNMEASURED, not passing")
 
 
+def _full_window():
+    """Hold all 41 ports of a window [base, base+40] with real listeners. -> (base, sockets)"""
+    for _ in range(30):
+        a = socket.socket()
+        a.bind(("127.0.0.1", 0))
+        base = a.getsockname()[1]
+        a.close()
+        if base < 9300 or base > 65000 - 41:
+            continue
+        held = []
+        try:
+            for p in range(base, base + 41):
+                s = socket.socket()
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(("127.0.0.1", p))
+                s.listen(1)
+                held.append(s)
+            return base, held
+        except OSError:
+            for s in held:
+                s.close()
+    raise unittest.SkipTest("no window of 41 free ports found - UNMEASURED, not passing")
+
+
 @unittest.skipIf(shutil.which("bash") is None,
                  "bash absent - this law is UNMEASURED, not passing")
 class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
@@ -102,6 +126,24 @@ class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
             held.close()
         self.assertNotEqual(got, p, "the gate chose a port something else is listening on - it would adopt that browser")
         self.assertGreater(got, p)
+
+    def test_a_full_window_refuses_and_never_adopts(self):
+        """REG-1278 - every port in the window answers: the gate must REFUSE, never fall back to the
+        start port it just proved taken (the cross-family eye on #231 found that fallback)."""
+        base, held = _full_window()
+        try:
+            script = _snippet() + '\necho "CHOSEN=$TV_RENDER_PORT"\n'
+            env = dict(os.environ, TV_RENDER_PORT_FROM=str(base))
+            r = subprocess.run(["bash", "-c", "set -u\n_pp_el() { echo 0m00s; }\n" + script],
+                               capture_output=True, text=True, timeout=120, env=env)
+        finally:
+            for h in held:
+                h.close()
+        self.assertNotEqual(r.returncode, 0,
+                            "every port answered and the snippet carried on (it chose %r) - the render block "
+                            "would grade in a browser it did not start" % r.stdout.strip()[-40:])
+        self.assertNotIn("CHOSEN=", r.stdout, "a port was exported although none was free")
+        self.assertIn("ALL answer", r.stdout + r.stderr, "the refusal does not say why")
 
     def test_never_his_ports(self):
         self.assertGreaterEqual(_choose(9222), 9224, "the gate may never choose his Chrome (9222) or TradingView (9223)")
@@ -126,6 +168,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1278 - a full window falls back to the start port again: the gate adopts the browser holding it",
+        "file": "hooks/pre-push",
+        "find": "          (reap) and push again.\"\n  exit 1\n",
+        "replace": "          (reap) and push again.\"\n  _rp_port=\"$_rp_from\"\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1258 - the hook adopts whatever answers on the first port again (another session's browser)",
         "file": "hooks/pre-push",

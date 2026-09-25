@@ -54,7 +54,17 @@ for _rp in $(seq "$_rp_from" $((_rp_from + 40))); do
   if (exec 3<>"/dev/tcp/127.0.0.1/$_rp") 2>/dev/null; then continue; fi
   _rp_port="$_rp"; break
 done
-export TV_RENDER_PORT="${_rp_port:-$_rp_from}"
+# REG-1278 — A FULL WINDOW REFUSES; IT NEVER FALLS BACK. This exported the start port when every
+# port answered, and the start port is exactly the one the loop had just proved taken, so the
+# render block found a browser there and graded the page in it. One busy port was skipped; a full
+# window was adopted (found by the cross-family eye on #231). Nothing here is ours, so say so.
+if [ -z "$_rp_port" ]; then
+  echo "pre-push: [$(_pp_el)] 🔴 ports ${_rp_from}-$((_rp_from + 40)) ALL answer, so this gate cannot start a browser of"
+  echo "          its own - and grading in one it did not start is REG-1258. Clear leaked scratch browsers"
+  echo "          (reap) and push again."
+  exit 1
+fi
+export TV_RENDER_PORT="$_rp_port"
 # <<< choose-render-port
 
 # v1576 — KEEP THE EVIDENCE. Every gate below used to run with `>/dev/null 2>&1`, so a

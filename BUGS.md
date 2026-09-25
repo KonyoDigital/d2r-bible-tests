@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1278 - A FULL PORT WINDOW FELL BACK TO THE PORT IT HAD JUST PROVED TAKEN
+
+**fix - found by the cross-family eye on #231 (comment 5824941236, look at 55a9c207).** REG-1258's port choice
+skipped a busy port, but when EVERY port from the start through the next 40 answered, the loop left the choice
+empty and `${_rp_port:-$_rp_from}` exported the start port - the one it had just proved taken - so the render
+block found a browser there and graded the page in it. One busy port was skipped; a full window was adopted.
+Now a full window refuses the push and says to reap leaked scratch browsers. Guard:
+`test_the_gate_never_adopts_a_browser_it_did_not_start` gains a case that holds all 41 ports with real
+listeners and requires a refusal with no port exported (6 cases, 3 proofs), PROVEN.
+
 ### REG-1277 - A LIVE WITNESS WAS READ AS AN EXTRACTION, AND 13 REELS WERE TOMBSTONED ON IT
 
 **fix - #221, his ruling 2026-09-25 ("Dig").** What deleted the 18 unexplained reels, MEASURED read-only: his
