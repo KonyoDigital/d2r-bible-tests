@@ -81,6 +81,31 @@ def _contains_at_module_level(path):
                for n in tree.body)
 
 
+MAKERS = ("mkdtemp", "mkstemp", "TemporaryDirectory", "NamedTemporaryFile")
+
+
+def made_before_contain(path):
+    """Top-level statements that make a temp path BEFORE the module's contain() runs. -> [lineno]
+
+    A path made first lands in the real temp dir, outside the parent contain() removes at exit - the
+    cross-family eye found test_gate_cache doing exactly that while the law above stayed green, because
+    it asked only whether contain() appears. A statement counts when it calls a maker directly, or
+    calls a module-level function whose body does (test_control's census file is made that way)."""
+    tree = ast.parse(io.open(path, encoding="utf-8").read())
+    makes = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+             and any(isinstance(c, ast.Call) and _name(c) in MAKERS for c in ast.walk(n))}
+    out = []
+    for n in tree.body:
+        if (isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
+                and isinstance(n.value.func, ast.Attribute) and n.value.func.attr == "contain"):
+            return out
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if any(isinstance(c, ast.Call) and (_name(c) in MAKERS or _name(c) in makes) for c in ast.walk(n)):
+            out.append(n.lineno)
+    return []          # never contained: the case above owns that question
+
+
 def _tests():
     return sorted(glob.glob(os.path.join(HERE, "test_*.py")))
 
@@ -121,6 +146,26 @@ class ATestRunLeavesNoScratchDirs(unittest.TestCase):
                for u in [unpaired_sites(p)] if u and not _contains_at_module_level(p)]
         self.assertEqual(bad, [], "these suites make scratch dirs they never remove and do not call "
                          "fixture_tmp.contain() at import: %r" % bad)
+
+    def test_contain_runs_before_the_first_scratch_path(self):
+        bad = ["%s:%s" % (os.path.basename(p), ",".join(map(str, early))) for p in _tests()
+               for early in [made_before_contain(p)] if early]
+        self.assertEqual(bad, [], "these suites make a scratch path before fixture_tmp.contain() runs, so it "
+                         "lands outside the parent removed at exit: %r" % bad)
+
+    def test_premise_the_order_finder_sees_a_path_made_first(self):
+        import tempfile as _t
+        fd, fx = _t.mkstemp(suffix=".py")
+        os.close(fd)
+        try:
+            io.open(fx, "w", encoding="utf-8").write(
+                "import tempfile\nimport fixture_tmp as _fx_tmp\n"
+                "def _mk():\n    return tempfile.mkstemp()\n"
+                "A = tempfile.mkdtemp()\nB = _mk()\n_fx_tmp.contain()\nC = tempfile.mkdtemp()\n")
+            self.assertEqual(made_before_contain(fx), [5, 6], "the finder cannot see a direct maker or one "
+                             "reached through a module function - the case above would pass on anything")
+        finally:
+            os.remove(fx)
 
     def test_premise_an_uncontained_run_leaves_its_dirs(self):
         self.assertEqual(len(_run_child(False)), 3, "premise: an uncontained child should leave 3 dirs")
@@ -167,6 +212,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#171 - test_gate_cache makes its scratch dir before contain() again: that dir leaks on every run",
+        "file": "test_gate_cache.py",
+        "find": "_fx_tmp.contain()\n_TMP = tempfile.mkdtemp(prefix=\"gatecache_\")\n",
+        "replace": "_TMP = tempfile.mkdtemp(prefix=\"gatecache_\")\n_fx_tmp.contain()\n",
+        "matches": 1,
+    },
     {
         "why": "#171 - test_control stops containing its run: its 35 unpaired scratch dirs leak on every gate again",
         "file": "test_control.py",

@@ -50,6 +50,10 @@ import unittest
 # harness can be scrupulous about the leak it KNOWS about and still have another. G5_STATS_PATH is
 # the override g5_grok_eyes reads first, so this is precise — it moves the stats file and nothing
 # else this suite reads. [[feedback-fixtures-never-touch-live-data]]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# #171 — CONTAINED FIRST: a scratch path made before contain() lands outside the parent it removes.
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 _G5_STATS_SANDBOX = tempfile.mkdtemp(prefix="fleet-g5-")
 _G5_STATS_KEEP = os.environ.get("G5_STATS_PATH")
 
@@ -73,8 +77,6 @@ PAGE_CONSOLE = os.path.join(ROOT, "functions", "console.js")
 PAGE_VISITS = os.path.join(ROOT, "functions", "visits.js")
 
 sys.path.insert(0, HERE)
-import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
-_fx_tmp.contain()
 
 NODE = shutil.which("node")
 NODE_TIMEOUT = 40  # a handler that never terminates must fail the gate, not hang it

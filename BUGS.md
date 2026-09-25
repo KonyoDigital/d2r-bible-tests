@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1280 - A REGISTERED BONE BREAK VANISHED FROM HIS VAULT ON THE NEXT LOAD
+
+**fix - found chasing #165 (v2208 went red once REG-1275 let the seed floor run on a fresh board).** The floor's
+"one-time vault cleanse" (v677) runs on EVERY owner load and deletes each _GRAIL_SEED / _UNI_EXTRA name in `owned`
+that has no mule filing - residue the v659-v676 floors left. A shared-stash item is never filed: the shared stash
+has no mule, and `tvVaultRegister('Bone Break')` answers `mule:null` ("unsorted") by design. Bone Break is a seed
+name, so a sunder charm he registered was deleted on his next reload. MEASURED on a real page: registered Bone
+Break + Black Cleft, reloaded - Bone Break gone, Black Cleft (in no seed) kept; after the fix both survive. The
+catalogue prune above it already spared `_SHARED_KEEP` (v2208); the cleanse is the second deleter and never
+learned it. Guard: `test_a_shared_stash_item_survives_the_vault_cleanse` runs the SHIPPED cleanse statement with
+the SHIPPED `_SHARED_KEEP` in node - shared kept, floor residue still stripped, filed and unseeded names kept
+(3 cases, 1 proof), PROVEN.
+
+### REG-1279 - A SCRATCH DIR MADE BEFORE contain() RAN LEAKED, AND THE LAW ONLY ASKED WHETHER contain() APPEARED
+
+**fix - found by the cross-family eye on #231 (comment 5825217156, look at eadea07e, my #171 work).**
+`test_gate_cache.py` made `gatecache_*` at import and called `fixture_tmp.contain()` six lines later, so the dir
+landed in the real temp dir, outside the parent contain() removes, on every run. The law stayed green because it
+checked that contain() is present at module level, never that it runs first. A/B in a clean temp base: HEAD left
+`gatecache_hece4b58`; now nothing. contain() now runs first in all three suites that made a path early
+(test_gate_cache, test_console_fleet, test_control - the latter two cleaned theirs up, the first did not).
+Guard: `test_a_test_run_leaves_no_scratch_dirs` gains `made_before_contain` (a direct maker, or a module function
+that makes one, before contain()) with a premise that it sees both shapes (8 cases, 4 proofs), PROVEN.
+
 ### REG-1278 - A FULL PORT WINDOW FELL BACK TO THE PORT IT HAD JUST PROVED TAKEN
 
 **fix - found by the cross-family eye on #231 (comment 5824941236, look at 55a9c207).** REG-1258's port choice
