@@ -7022,6 +7022,35 @@ GATES = [
              "READS disagree (67.5%) while 66/165 distinct FRAMES do (40.0%). The row reads it, "
              "states both denominators, and is red only on staleness or a majority by BOTH.",
          skip_ok=()),
+    Gate("test_the_character_builder_is_their_builder",
+         [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,
+         needs_app=False,
+         why="#174 v-B2 - the Character Builder (a tool of its own; the mules stay mules) is the d2planner's builder "
+             "over the game's own tables: drives the SHIPPED builder block, the generated CB_DB block (from his "
+             "install, tv/char_builder_db.py), CHARS, LSR, the fork sets and the Backup exporter in node. The helm's "
+             "rail is their Helmets / Circlets / Pelts (Druid) / Primal Helms (Barbarian) and the list is the ENTIRE "
+             "database for the slot; gloves have no Runewords tab; a runeword is offered only on bases that hold its "
+             "runes (Enigma on Mage Plate, never Quilted Armor); a roll box is clamped to its range - typed = EXACT "
+             "under the game's own key, out of range = refused and unsaved, blank = the range (Crown of Ages "
+             "Defense 349-399 untouched, 399 typed, hand-checked); d2r_charBuilds is the brief's shape, forked per "
+             "account and carried by Backup & Share; Esc closes the picker, then the builder; a whole session reads "
+             "no vault store and calls no mule; the tooltip's colours are spec 8 and a requirement is red only when "
+             "KNOWN failed; Crafted is the game's cube, witnessed by the board's CRAFTS; the block's names are "
+             "tv/item_tables.json's; STATS is the stats engine's rows with their source (a capped one with its raw) "
+             "and, with no engine, every row UNKNOWN and no number drawn. 10 cases, 10 red-proofs",
+         skip_ok=()),
+    Gate("test_the_character_builder_fits_at_every_width",
+         [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 150,
+         needs_app=False,
+         why="#174 v-B2 - the Character Builder measured in a REAL browser (its own headless Chrome on a free port) at "
+             "7 widths in 5 states - as it opens, with Crown of Ages worn and Annihilus in the inventory, the helm's "
+             "picker open, the helm in Edit, the stash open: no word or control cut or outside its panel, nothing "
+             "sideways, no header title under its control, the modal on screen and NEVER over the glowing slot it "
+             "serves (it covered the helm at 1024 and 901 until the placement took the roomier side), 2000 = their "
+             "literal 322 | 716 | 300 columns with the doll filling the centre, and under 900 the character first. "
+             "The entry and the equip are REAL input (Tools tab, the card, the slot, the search box, typed keys, a "
+             "roll, a charm dropped and dragged). No browser binary = declared skip (77). 7 cases, 4 red-proofs",
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
          needs_app=False,

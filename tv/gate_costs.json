@@ -1,7 +1,7 @@
 {
- "source": "run_gates per-gate rows from 2 CI job log(s)",
- "gates": 586,
- "totalSeconds": 1362.2,
+ "source": "run_gates per-gate rows from 2 CI job log(s) + 2 gates (#174 v-B2 character builder) measured by run_gates' own rows on the Mac, 2026-09-25 - refresh from CI to replace them",
+ "gates": 588,
+ "totalSeconds": 1394.0,
  "costs": {
   "blueprint-agrees": 1.6,
   "chronicle-doctor": 0.1,
@@ -415,6 +415,8 @@
   "test_the_census_population_is_safe_to_name_by_file": 3.1,
   "test_the_census_says_how_much_of_it_is_pixels": 2.4,
   "test_the_census_sees_a_stamped_lane": 2.0,
+  "test_the_character_builder_fits_at_every_width": 30.5,
+  "test_the_character_builder_is_their_builder": 1.3,
   "test_the_chronicle_counts_a_sunder_once": 0.1,
   "test_the_chronicle_inbox_asks_on_the_page": 0.2,
   "test_the_code_running_is_the_code_on_disk": 0.1,
