@@ -2205,5 +2205,25 @@
     "gotcha": "A changed fingerprint REOPENS the question and keeps the old answer as stale history; ruled holds 30 days, snooze 7, handoff until the question changes. An unreadable store is reported and NEVER written over. The path is chosen by the console (_decision_path), so each machine keeps its own answers.",
     "purpose": "Keeps his answers to the questions THIS console asked him (console_doctor.ASKS), one per question with the question's fingerprint, and applies them at read time so an answered question stops billing him and the row says what he chose.",
     "territory": "console-ui"
+  },
+  "item_tables.py": {
+    "entryPoints": [
+      "build",
+      "load",
+      "verify",
+      "main"
+    ],
+    "gotcha": "THE STATS BLOCK AND AN ITEM USE DIFFERENT WIDTHS for the same stat: csvBits (character 'gf' section) vs saveBits (item bitstream) - strength is 10 bits in one and 8 in the other, and reading one with the other derails. A table KEY is not a display name: 97 unique keys differ from what the game prints (Thudergod's Vigor is Thundergod's Vigor), so names come from item-names.json / item-runes.json and `namesFrom` says which. runes.txt has no Runeword80, so the row and the RunewordN key disagree from row 80 on; both are stored and neither is picked. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "Generates tv/item_tables.json from the D2R CASC: exactly what tv/d2s_read.py needs to decode a character save - per stat id its item and character-save bit widths, per item code its display name, kind (armor/weapon/misc) and stackable flag, uniques and set items by *ID, and runewords by 1-based runes.txt row. load() returns None, never an empty dict, when it has not been generated.",
+    "territory": "vault"
+  },
+  "d2s_read.py": {
+    "entryPoints": [
+      "read",
+      "main"
+    ],
+    "gotcha": "A PARTIAL ITEM LIST IS NEVER COMPLETE: the bitstream has no per-item length, so ok is True only when the declared TOP-LEVEL count (socketed children ride inside their parent) ends exactly on the corpse 'JM', the stats block ends on 'if', and the file's size and checksum hold. Format 105 adds ONE bit after the type-specific block and ONE bit after the last property list before byte-align - the study decoder's '8 bits after a runeword list' and sniffed '0x00 pad' are that same trailing bit on a list that ends on a byte boundary. A runeword past runes.txt row 79 is named None with both candidates, because row and key disagree there and no save has told which the game means.",
+    "purpose": "Reads a D2R character save (.d2s, format 105) byte-exact: header (name, class, level, last played), the stats block by name, the 30 skill bytes, every item with location/slot/panel/x/y, code, name, quality, unique/set/runeword names, sockets and socketed children, ethereal, ilvl, defense, durability and properties as [{stat, param, value}], plus merc/golem presence and a verify block (bytesConsumed, endsOnCorpseTag, itemCount, stoppedAt).",
+    "territory": "vault"
   }
 }

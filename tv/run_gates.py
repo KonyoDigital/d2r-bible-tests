@@ -5487,6 +5487,14 @@ GATES = [
              "over SYNCED ledgers (the authority was asked before ok was sealed, and the seal keyed on 'EARNED', "
              "a word the authority never says), and the card blanks a False. Now per ledger (measuredBy) through "
              "seal, relay, card and doctor. 11 cases, 5 red-proofs"),
+    Gate("test_a_character_save_reads_byte_exact",
+         [sys.executable, os.path.join(HERE, "test_a_character_save_reads_byte_exact.py")], 60,
+         why="tv/d2s_read.py reads a D2R .d2s (format 105): an item bitstream has no per-item length, so one "
+             "misread bit leaves item-shaped garbage; the only witness is ending exactly on the corpse 'JM'. "
+             "A synthetic save (the repo is public - his saves never enter it) round-trips every field; a short "
+             "count, a missing format-105 bit, truncation and a bad checksum all come back ok=False with the byte; "
+             "a runeword past runes.txt row 79 is UNKNOWN, never guessed. His TESTCLAUDE.d2s (49 items, "
+             "Jalal's Mane) is MEASURED when present, UNMEASURED otherwise. 19 cases, 7 red-proofs"),
     Gate("test_a_receipt_row_is_not_a_beat",
          [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
          why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "
