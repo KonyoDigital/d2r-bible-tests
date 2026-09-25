@@ -307,7 +307,12 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
         // CC 2026-06-01 unify: TZ zone / super-unique cards open an inline droppable
         // detail box (toggles the [hidden] attr, no .show class) — count open boxes so
         // that legit state change is observable and never mis-flagged as a dead click.
-        openDetails: document.querySelectorAll('.tz-zone-detail:not([hidden]),.su-detail:not([hidden])').length,
+        // #165 — WHICH boxes are open, not HOW MANY. Opening one zone's box closes the other, so a click from
+        // the first boss card to the last moved the open box (tz-zone-detail-10 -> tz-zone-detail-4) with the
+        // count at 1 both sides - a real switch read as "no state change" once the rotation put zone-detail
+        // cards at both ends of the sample (measured on a real page).
+        openDetails: [...document.querySelectorAll('.tz-zone-detail:not([hidden]),.su-detail:not([hidden])')]
+          .map((d) => d.id || d.className).join(','),
         scrollY: Math.round(window.scrollY / 50),
       });
     });
