@@ -35220,63 +35220,80 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vault-detail.vd-fs.mp-on{display:block;background:var(--bg);padding:14px 16px 30px}
 .mp{display:grid;grid-template-columns:calc(1044*var(--u)) calc(300*var(--u));column-gap:calc(6*var(--u));width:calc(1350*var(--u));margin:0 auto;align-items:start;color:var(--text);font-family:var(--sans);line-height:var(--lh-snug)}
 .mp *{box-sizing:border-box}
+/* #174 — THE WINDOW'S TYPE RIDES THE SAME UNIT AS ITS BOXES. Every length here is N*--u and the text was not:
+   a 15px header in a 322*0.72px panel is how "TRENGTHS AND WEAKNESSE" and a Stash button over the EQUIPMENT
+   title reached the screen between 900 and 1250 wide, and how the MERCENARY note lost its last line (the one
+   carrying its phase tag) at his 1120. --kf is the unit as a plain number capped at 1, written by openMuleCard
+   beside --u, so at 2000 wide every size below is exactly its token. The floor is --fs-micro, the smallest step
+   of the scale: under it the words stay legible, and the prose panels GROW (min-height) instead of cutting them. */
+.mp{--fs-mp-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-mp-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-mp-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-mp-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-mp-micro:var(--fs-micro)}
 .mp-main,.mp-right,.mp-left,.mp-centre{min-width:0}
 .mp-right,.mp-left,.mp-centre{display:flex;flex-direction:column;gap:calc(6*var(--u))}
 .mp-lc{display:grid;grid-template-columns:calc(322*var(--u)) calc(716*var(--u));column-gap:calc(6*var(--u));margin-top:calc(6*var(--u));align-items:start}
 /* header row — their Class · Level · tag row and Export · Import · profile · settings */
-.mp-top{height:calc(92*var(--u));display:flex;justify-content:space-between;gap:calc(6*var(--u))}
+.mp-top{min-height:calc(92*var(--u));display:flex;justify-content:space-between;gap:calc(6*var(--u))}
 .mp-top-l,.mp-top-r{display:flex;flex-direction:column;justify-content:space-between;min-width:0}
 .mp-top-r{align-items:flex-end}
 .mp-row{display:flex;gap:calc(7*var(--u));align-items:center;min-width:0}
-.mp-box{height:calc(38*var(--u));display:flex;align-items:center;gap:8px;padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:0;white-space:nowrap;overflow:hidden}
-.mp-box-k{color:var(--text-dim);font-size:var(--fs-body)}
-.mp-box-v{color:var(--text);font-size:var(--fs-title);font-weight:var(--fw-medium)}
+.mp-box{height:calc(38*var(--u));display:flex;align-items:center;gap:calc(8*var(--u));padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:0;white-space:nowrap;overflow:hidden}
+.mp-box-k{color:var(--text-dim);font-size:var(--fs-mp-body)}
+.mp-box-v{color:var(--text);font-size:var(--fs-mp-title);font-weight:var(--fw-medium)}
 .mp-id{min-width:calc(227*var(--u));max-width:calc(420*var(--u))}
 .mp-lvl{width:calc(119*var(--u))}
-.mp .vd-name{flex:0 1 auto;font-family:var(--sans);font-size:var(--fs-title);min-width:0;overflow:hidden;text-overflow:ellipsis}
-.mp .vd-icon{font-size:var(--fs-title)}
-.mp .vd-sub{margin:0;overflow:hidden;text-overflow:ellipsis}
-.mp-subbox{max-width:calc(640*var(--u))}
-.mp-btn{height:calc(34*var(--u));display:inline-flex;align-items:center;gap:6px;padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer;white-space:nowrap}
+.mp .vd-name{flex:0 1 auto;font-family:var(--sans);font-size:var(--fs-mp-title);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mp .vd-icon{font-size:var(--fs-mp-title)}
+/* the sub-line WRAPS: an ellipsis here cut "(sizes approximated)" off at 901 and at a phone's 375 */
+.mp .vd-sub{margin:0;font-size:var(--fs-mp-meta);line-height:var(--lh-tight)}
+.mp-subbox{max-width:calc(640*var(--u));height:auto;min-height:calc(38*var(--u));white-space:normal;padding-top:calc(4*var(--u));padding-bottom:calc(4*var(--u))}
+.mp-btn{height:calc(34*var(--u));display:inline-flex;align-items:center;gap:calc(6*var(--u));padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer;white-space:nowrap}
 .mp-btn:hover:not([disabled]){border-color:var(--gold);color:var(--gold-bright)}
 .mp-btn[disabled]{opacity:.5;cursor:not-allowed}
-.mp-chip{font-size:var(--fs-meta);color:var(--text-dim);letter-spacing:var(--ls-snug);padding:0 calc(8*var(--u))}
-.mp .vd-close{height:calc(34*var(--u));border-radius:4px;font-size:var(--fs-body);font-weight:var(--fw-medium)}
+.mp-chip{font-size:var(--fs-mp-meta);color:var(--text-dim);letter-spacing:var(--ls-snug);padding:0 calc(8*var(--u))}
+.mp .vd-close{height:calc(34*var(--u));border-radius:4px;font-size:var(--fs-mp-body);font-weight:var(--fw-medium)}
 /* panels — their rgb(18,19,20) card on a rgb(10,10,10) page is our --surface on --bg */
 .mp-p{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;min-width:0}
-.mp-h{height:calc(36*var(--u));display:flex;align-items:center;justify-content:center;position:relative;padding:0 calc(8*var(--u));font-size:var(--fs-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;color:var(--gold-bright);background:rgba(0,0,0,.26);border-bottom:1px solid var(--border);white-space:nowrap}
-.mp-h-r{position:absolute;right:calc(6*var(--u));top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:4px}
-.mp-h-r .mp-btn{height:calc(28*var(--u));font-size:var(--fs-meta)}
-.mp-empty{padding:calc(6*var(--u)) calc(12*var(--u));font-size:var(--fs-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight)}
+/* a header is THREE columns — nothing | title | its control. The Stash button used to be absolute over a
+   centred title, so a narrower panel slid one under the other ("EQUIPMEN" at 920). Equal side columns keep
+   the title centred at their widths; when room runs out the title gives way and WRAPS rather than hiding. */
+.mp-h{min-height:calc(36*var(--u));display:grid;grid-template-columns:1fr auto 1fr;column-gap:calc(6*var(--u));align-items:center;position:relative;padding:0 calc(8*var(--u));font-size:var(--fs-mp-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;color:var(--gold-bright);background:rgba(0,0,0,.26);border-bottom:1px solid var(--border);text-align:center;line-height:var(--lh-tightest)}
+.mp-h-t{grid-column:2}
+.mp-h-r{grid-column:3;justify-self:end;display:flex;align-items:center;gap:calc(4*var(--u));margin-right:calc(-2*var(--u))}
+.mp-h-r .mp-btn{height:calc(28*var(--u));font-size:var(--fs-mp-meta)}
+.mp-empty{padding:calc(3*var(--u)) calc(12*var(--u));font-size:var(--fs-mp-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight)}
 .mp-empty b{color:var(--text-muted);font-weight:var(--fw-medium)}
-.mp-set{height:calc(84*var(--u));margin-top:calc(6*var(--u))}
-.mp-settabs{display:flex;align-items:center;gap:calc(6*var(--u));height:calc(47*var(--u));padding:0 calc(7*var(--u));overflow-x:auto;overflow-y:hidden}
-.mp-settab{flex:none;height:calc(39*var(--u));display:inline-flex;align-items:center;padding:0 calc(13*var(--u));border-radius:4px;background:var(--surface-2);border:1px solid var(--border-light);color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer}
+.mp-set{height:calc(84*var(--u));margin-top:calc(6*var(--u));display:flex;flex-direction:column}
+.mp-settabs{display:flex;align-items:center;gap:calc(6*var(--u));flex:1 1 auto;min-height:0;padding:0 calc(7*var(--u));overflow-x:auto;overflow-y:hidden}
+.mp-settab{flex:none;height:calc(39*var(--u));display:inline-flex;align-items:center;padding:0 calc(13*var(--u));border-radius:4px;background:var(--surface-2);border:1px solid var(--border-light);color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
 .mp-settab.on{background:var(--gold-bright);border-color:var(--gold-bright);color:#1a1208}
 .mp-settab-ghost{cursor:help;background:transparent;border-style:dashed;color:var(--text-dim);font-weight:var(--fw-normal)}
-.mp .vd-mule-nav{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-meta);color:var(--gold-bright);letter-spacing:var(--ls-snug)}
-.mp .vd-mule-arrow{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);border-radius:3px;cursor:pointer;font-size:var(--fs-micro);padding:1px 6px}
+.mp .vd-mule-nav{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-mp-meta);color:var(--gold-bright);letter-spacing:var(--ls-snug)}
+.mp .vd-mule-arrow{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);border-radius:3px;cursor:pointer;font-size:var(--fs-mp-micro);padding:1px 6px}
 /* EQUIPMENT — the paper-doll at their slot rects, then the 10x4 inventory in the same panel */
 .mp-eq{height:calc(400*var(--u))}
 .mp-doll{position:absolute;left:0;right:0;top:calc(36*var(--u));bottom:0;background:radial-gradient(ellipse at 50% 32%,#241a10,#110c07 72%);box-shadow:inset 0 0 40px rgba(0,0,0,.7)}
 .mp-slot{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1c1814,#0b0906);border:1px solid #3a322a;border-radius:3px;box-shadow:inset 0 0 12px rgba(0,0,0,.8);cursor:help}
-.mp-slot span{font-size:var(--fs-title);filter:grayscale(1);opacity:.4}
-.mp-slot.mp-slot-lg span{font-size:var(--fs-display);opacity:.32}
+.mp-slot span{font-size:var(--fs-mp-title);filter:grayscale(1);opacity:.4}
+.mp-slot.mp-slot-lg span{font-size:var(--fs-mp-display);opacity:.32}
 .mp-slot:hover{border-color:var(--gold-dim)}
 /* their rects were measured from the panel's OUTER edge; an absolute child starts inside its 1px border */
 .mp-slot,.mp-swap{margin:-1px 0 0 -1px}
-.mp-swap{position:absolute;width:calc(29*var(--u));height:calc(14*var(--u));display:flex;align-items:center;justify-content:center;padding:0;background:#15110d;border:1px solid #3a322a;border-radius:2px;color:var(--text-dim);font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);line-height:var(--lh-none);cursor:pointer}
+.mp-swap{position:absolute;width:calc(29*var(--u));height:calc(14*var(--u));display:flex;align-items:center;justify-content:center;padding:0;background:#15110d;border:1px solid #3a322a;border-radius:2px;color:var(--text-dim);font-family:var(--sans);font-size:var(--fs-mp-micro);font-weight:var(--fw-semibold);line-height:var(--lh-none);cursor:pointer}
 .mp-swap.on{background:var(--gold-bright);border-color:var(--gold-bright);color:#1a1208}
 .mp-inv{position:absolute;left:0;right:0;top:calc(266*var(--u));display:flex;flex-direction:column;align-items:center}
 .mp-inv .vd-grid{border-width:1px;border-radius:3px}
-.mp-prim{height:calc(102*var(--u))}
-.mp-merc{height:calc(80*var(--u))}
-.mp-loot{height:calc(88*var(--u))}
+/* the four PROSE panels are their measured height when the words fit and taller when they do not — a
+   fixed height cut the MERCENARY note in half at 1120 while the law, reading innerHTML, stayed green. The
+   one honest line sits in the middle of the panel, not on top of a hole. */
+.mp-prim{min-height:calc(102*var(--u))}
+.mp-merc{min-height:calc(80*var(--u))}
+.mp-loot{min-height:calc(88*var(--u))}
 .mp-sw{min-height:calc(57*var(--u))}
+.mp-prim,.mp-merc,.mp-loot,.mp-sw{display:flex;flex-direction:column}
+.mp-prim>.mp-empty,.mp-merc>.mp-empty,.mp-loot>.mp-empty,.mp-sw>.mp-empty{margin:auto 0}
 /* CENTRE — [STASH | SKILL TREE | CALCULATIONS]; for a storage locker the STASH is the default view */
 .mp-cp{height:calc(628*var(--u));display:flex;flex-direction:column}
 .mp-ctabs{display:flex;height:calc(36*var(--u));flex:none;border-bottom:1px solid var(--border)}
-.mp-ctab{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.34);border:0;border-right:1px solid var(--border);color:var(--text-muted);font-family:var(--sans);font-size:var(--fs-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;cursor:pointer}
+.mp-ctab{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.34);border:0;border-right:1px solid var(--border);color:var(--text-muted);font-family:var(--sans);font-size:var(--fs-mp-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;cursor:pointer;padding:0 calc(4*var(--u));text-align:center;line-height:var(--lh-tightest)}
 .mp-ctab:last-child{border-right:0}
 .mp-ctab.on{background:var(--surface);color:var(--gold-bright);box-shadow:inset 0 -2px 0 var(--gold-bright)}
 .mp-view{flex:1;min-height:0;overflow:auto;padding:calc(8*var(--u)) calc(10*var(--u))}
@@ -35284,35 +35301,35 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-v-stash{display:flex;flex-direction:column;align-items:center}
 .mp-v-stash .vd-tabs{align-self:stretch;margin:0 auto 6px;max-width:100%}
 .mp-v-stash .vd-pagebar{margin-top:6px}
-.mp-v-stash .vd-goldbox{margin-top:6px;width:auto;padding:4px 14px;white-space:nowrap}
-.mp-calc{width:100%;border-collapse:collapse;font-size:var(--fs-body)}
+.mp-v-stash .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;font-size:var(--fs-mp-body)}
+.mp-calc{width:100%;border-collapse:collapse;font-size:var(--fs-mp-body)}
 .mp-calc td{padding:4px 8px;border-bottom:1px solid rgba(58,47,30,.6)}
 .mp-calc td:last-child{text-align:right;font-family:var(--mono);color:var(--gold-bright);white-space:nowrap}
 .mp-calc .mp-unk{color:var(--text-dim)}
 .mp-notes{height:calc(206*var(--u));display:flex;flex-direction:column}
-.mp-notes-b{flex:1;min-height:0;overflow:auto;padding:calc(10*var(--u)) calc(16*var(--u));font-size:var(--fs-body);color:var(--text-muted)}
+.mp-notes-b{flex:1;min-height:0;overflow:auto;padding:calc(10*var(--u)) calc(16*var(--u));font-size:var(--fs-mp-body);color:var(--text-muted)}
 .mp-notes-b .vd-overflow,.mp-notes-b .vm-empty{max-width:none;margin:0 0 8px}
 .mp-note{color:var(--text)}
 .mp-dim{color:var(--text-dim);font-style:italic}
 /* RIGHT — AUTHOR / BUILD SHOWCASE carry this locker; STATS is every stat, honestly UNKNOWN until v-B */
-.mp-auth,.mp-show{height:calc(150*var(--u));display:flex;flex-direction:column}
-.mp-kv{padding:calc(8*var(--u)) calc(14*var(--u));font-size:var(--fs-body);overflow:auto;flex:1;min-height:0}
+.mp-auth,.mp-show{min-height:calc(150*var(--u));display:flex;flex-direction:column}
+.mp-kv{padding:calc(8*var(--u)) calc(14*var(--u));font-size:var(--fs-mp-body);overflow:auto;flex:1;min-height:0}
 .mp-kv div{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
 .mp-kv span:first-child{color:var(--text-muted)}
 .mp-kv span:last-child{color:var(--text);font-family:var(--mono);text-align:right}
 .mp-stats{height:calc(726*var(--u));display:flex;flex-direction:column}
-.mp-stats .mp-h{height:calc(44*var(--u))}
+.mp-stats .mp-h{min-height:calc(44*var(--u))}
 .mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
-.mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer}
+.mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
 .mp-seg button.on{background:var(--gold-bright);color:#1a1208}
-.mp-cls,.mp-search{margin:calc(8*var(--u)) calc(12*var(--u)) 0;height:calc(32*var(--u));display:flex;align-items:center;padding:0 10px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,.25);font-size:var(--fs-meta);color:var(--text-dim);white-space:nowrap;overflow:hidden}
-.mp-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font-family:var(--sans);font-size:var(--fs-body)}
+.mp-cls,.mp-search{margin:calc(8*var(--u)) calc(12*var(--u)) 0;min-height:calc(32*var(--u));display:flex;align-items:center;padding:calc(3*var(--u)) calc(10*var(--u));border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,.25);font-size:var(--fs-mp-meta);color:var(--text-dim);line-height:var(--lh-tight)}
+.mp-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body)}
 .mp-st{flex:1;min-height:0;overflow:auto;padding:calc(6*var(--u)) calc(12*var(--u)) calc(12*var(--u))}
-.mp-st-g{margin-top:calc(12*var(--u));font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);color:var(--gold)}
-.mp-st-why{font-size:var(--fs-micro);color:var(--text-dim);font-style:italic;margin:1px 0 3px}
-.mp-st-r{display:flex;justify-content:space-between;gap:8px;padding:2px 6px;font-size:var(--fs-body)}
+.mp-st-g{margin-top:calc(12*var(--u));font-size:var(--fs-mp-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);color:var(--gold)}
+.mp-st-why{font-size:var(--fs-mp-micro);color:var(--text-dim);font-style:italic;margin:1px 0 3px}
+.mp-st-r{display:flex;justify-content:space-between;gap:8px;padding:2px 6px;font-size:var(--fs-mp-body)}
 .mp-st-r[hidden]{display:none}
-.mp-unk{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:var(--ls-snug);color:var(--text-dim);cursor:help}
+.mp-unk{font-family:var(--mono);font-size:var(--fs-mp-meta);letter-spacing:var(--ls-snug);color:var(--text-dim);cursor:help}
 /* under 900 wide the three columns STACK (their builder does the same); --u is then the doll's scale */
 .mp.mp-stack{grid-template-columns:minmax(0,1fr);row-gap:6px;width:100%}
 .mp.mp-stack .mp-lc{grid-template-columns:minmax(0,1fr);row-gap:6px}
@@ -35323,6 +35340,9 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp.mp-stack .mp-eq{width:calc(322*var(--u));max-width:100%;margin:0 auto}
 .mp.mp-stack .mp-cp,.mp.mp-stack .mp-stats,.mp.mp-stack .mp-notes{height:auto}
 .mp.mp-stack .mp-stats .mp-st{max-height:60vh}
+/* a phone: the mule tabs wrap onto a second row instead of scrolling the ghost tab off the edge */
+.mp.mp-stack .mp-set{height:auto}
+.mp.mp-stack .mp-settabs{flex-wrap:wrap;overflow:visible;padding-top:calc(6*var(--u));padding-bottom:calc(6*var(--u))}
 /* mule ID card — in-game stash/inventory replica */
 .vault-detail{margin-top:14px;border:1px solid rgba(212,168,71,.5);border-radius:12px;background:linear-gradient(180deg,rgba(24,17,9,.97),rgba(14,10,5,.99));box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 10px 34px rgba(0,0,0,.6),0 0 30px rgba(212,168,71,.08);padding:14px}
 .vd-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
@@ -39420,6 +39440,22 @@ window.vaultAutoAssign = function(){
     return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };
   }
   window._mpScale = _mpScale;
+  /* #174 fix — EVERY viewport-derived number of the window in one place, with a signature. The resize handler
+     re-lays the window only when this changes: a re-render replaces the Stats search box he is typing in, and
+     a phone keyboard opening is a HEIGHT-only resize that changes nothing here. The stash cell is part of the
+     signature because under 900 it follows the width while k sits clamped at 1.25. */
+  function _mpLayout(vw, vh){
+    var sc = _mpScale(vw, vh), k = sc.k;
+    // the inventory pitch is their 30px cell (a 28px cell + the grid's 2px gap), times the same unit
+    var invCell = Math.max(14, Math.round(30 * k) - 2);
+    // the stash fills the centre panel: 628 tall less its tab band and padding (they scale), less the five tabs,
+    // the page bar and the gold box (~96px of text) and the grid's own frame (28px)
+    var cell = sc.stack ? Math.max(20, Math.min(48, Math.floor((vw - 48 - 24 - 28) / 10)))
+                        : Math.max(20, Math.floor((576 * k - 124) / 10));
+    return { stack: sc.stack, k: k, invCell: invCell, cell: cell,
+             sig: k.toFixed(4) + '|' + (sc.stack ? 'stack' : 'cols') + '|' + invCell + '|' + cell };
+  }
+  window._mpLayout = _mpLayout;
   var _mpView = 'stash', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '';
   window._mpSet = function(kind, v){
     if (kind === 'view') _mpView = v; else if (kind === 'diff') _mpDiff = v; else if (kind === 'swap') _mpSwap = v;
@@ -39436,6 +39472,7 @@ window.vaultAutoAssign = function(){
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
     if (!m||!box) return;
+    var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mulePage = 0; _mpView = 'stash'; _mpQ = ''; }   // v405 — reset to the first mule when switching lockers
     openMuleId = muleId;
     // v235: remember the tab the card was opened from (the vault lives in Tools)
@@ -39466,14 +39503,9 @@ window.vaultAutoAssign = function(){
     var _thisMuleN = _cur.stash.length + _cur.inv.length;
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
-    var sc = _mpScale(vw, vh), k = sc.k;
+    var sc = _mpLayout(vw, vh), k = sc.k;
     var U = function(n){ return 'calc(' + n + '*var(--u))'; };
-    // the inventory pitch is their 30px cell (a 28px cell + the grid's 2px gap), times the same unit
-    var invCell = Math.max(14, Math.round(30 * k) - 2);
-    // the stash fills the centre panel: 628 tall less its tab band and padding (they scale), less the five tabs,
-    // the page bar and the gold box (fixed text, ~96px) and the grid's own frame (28px)
-    var cell = sc.stack ? Math.max(20, Math.min(48, Math.floor((vw - 48 - 24 - 28) / 10)))
-                        : Math.max(20, Math.floor((576 * k - 124) / 10));
+    var invCell = sc.invCell, cell = sc.cell;
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
     var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span></div>'; })
       .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span></div>'; })).join('');
@@ -39488,6 +39520,7 @@ window.vaultAutoAssign = function(){
       ? '<span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage-1)+')">◄</span><span>🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages+'</span><span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage+1)+')">►</span>'
       : '<span class="vp-arrow">◄</span><span>Page 1 / 1</span><span class="vp-arrow">►</span>';
     var soon = function(what, phase){ return '<div class="mp-empty"><b>Nothing fills this yet.</b> ' + what + ' (' + phase + ').</div>'; };
+    var H = function(title, right){ return '<div class="mp-h"><span class="mp-h-t">' + title + '</span>' + (right ? '<span class="mp-h-r">' + right + '</span>' : '') + '</div>'; };
     // ── header row: identity where their Class sits, the item count where their Level sits ──
     var head = '<div class="mp-top">'
       + '<div class="mp-top-l">'
@@ -39506,7 +39539,7 @@ window.vaultAutoAssign = function(){
     var setTabs = '';
     for (var _i = 0; _i < _muleTotalPages; _i++) setTabs += '<button class="mp-settab'+(_i===_mulePage?' on':'')+'" onclick="window._muleSetPage('+_i+')">Mule '+(_i+1)+'</button>';
     setTabs += '<span class="mp-settab mp-settab-ghost" title="there is no manual “new mule”: when one mule is full (140 cells) the packer opens the next by itself">+ next mule opens when this one is full</span>';
-    var buildSet = '<section class="mp-p mp-set"><div class="mp-h">Mules in this locker<span class="mp-h-r">'+_muleTag+'</span></div>'
+    var buildSet = '<section class="mp-p mp-set">'+H('Mules in this locker', _muleTag)
       + '<div class="mp-settabs">'+setTabs+'</div></section>';
     // ── LEFT: EQUIPMENT (doll + inventory) → PRIMARY SKILLS → MERCENARY → LOOT FILTER → STRENGTHS AND WEAKNESSES ──
     var doll = MULE_DOLL_SLOTS.map(function(s){
@@ -39518,14 +39551,14 @@ window.vaultAutoAssign = function(){
         + ' title="weapon set '+(t[1]===1?'I':'II')+' — both sets are empty until v-B">'+(t[1]===1?'I':'II')+'</button>';
     }).join('');
     var left = '<div class="mp-left">'
-      + '<section class="mp-p mp-eq"><div class="mp-h">Equipment<span class="mp-h-r"><button class="mp-btn mp-stash-btn" onclick="window._mpSet(\'view\',\'stash\')" title="show this mule’s 10×10 stash in the centre">▤ Stash</button></span></div>'
+      + '<section class="mp-p mp-eq">'+H('Equipment', '<button class="mp-btn mp-stash-btn" onclick="window._mpSet(\'view\',\'stash\')" title="show this mule’s 10×10 stash in the centre">▤ Stash</button>')
       +   '<div class="mp-doll"></div>' + doll + swap
       +   '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell) + '</div>'
       + '</section>'
-      + '<section class="mp-p mp-prim"><div class="mp-h">Primary skills</div>'+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
-      + '<section class="mp-p mp-merc"><div class="mp-h">Mercenary</div>'+soon('A locker has no hireling; an imported character’s would show here', 'v-C')+'</section>'
-      + '<section class="mp-p mp-loot"><div class="mp-h">Loot filter</div>'+soon('No loot filter is linked to this mule', 'not scheduled')+'</section>'
-      + '<section class="mp-p mp-sw"><div class="mp-h">Strengths and weaknesses</div>'+soon('Only a character has these; a bound character would fill it', 'v-C')+'</section>'
+      + '<section class="mp-p mp-prim">'+H('Primary skills')+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
+      + '<section class="mp-p mp-merc">'+H('Mercenary')+soon('A locker has no hireling; an imported character’s would show here', 'v-C')+'</section>'
+      + '<section class="mp-p mp-loot">'+H('Loot filter')+soon('No loot filter is linked to this mule', 'not scheduled')+'</section>'
+      + '<section class="mp-p mp-sw">'+H('Strengths and weaknesses')+soon('Needs a character', 'v-C')+'</section>'
       + '</div>';
     // ── CENTRE: [STASH | SKILL TREE | CALCULATIONS] — the stash is a locker’s default view ──
     var ctab = function(key, label){ return '<button class="mp-ctab'+(_mpView===key?' on':'')+'" data-view="'+key+'" onclick="window._mpSet(\'view\',\''+key+'\')">'+label+'</button>'; };
@@ -39559,7 +39592,7 @@ window.vaultAutoAssign = function(){
       +   '<div class="mp-view mp-v-tree"'+(_mpView==='tree'?'':' hidden')+'>'+soon('A skill tree belongs to a character with a class, and this mule is a storage locker. A .d2s import binds a class; the tree data and icons come from his install', 'v-C, v-D')+'</div>'
       +   '<div class="mp-view mp-v-calc"'+(_mpView==='calc'?'':' hidden')+'>'+calc+'</div>'
       + '</section>'
-      + '<section class="mp-p mp-notes"><div class="mp-h">Notes</div><div class="mp-notes-b">'
+      + '<section class="mp-p mp-notes">'+H('Notes')+'<div class="mp-notes-b">'
       +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> (140 cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
       +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
       +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
@@ -39574,29 +39607,46 @@ window.vaultAutoAssign = function(){
             return '<div class="mp-st-r" data-k="'+r.toLowerCase()+'"'+(hid?' hidden':'')+'><span>'+r+'</span>'+UNK(g[1])+'</div>'; }).join('');
     }).join('');
     var right = '<div class="mp-right">'
-      + '<section class="mp-p mp-auth"><div class="mp-h">Locker</div><div class="mp-kv">'
+      + '<section class="mp-p mp-auth">'+H('Locker')+'<div class="mp-kv">'
       +   '<div><span>Name</span><span>'+(m.icon||'📦')+' '+esc(m.name)+'</span></div>'
       +   '<div><span>Kind</span><span>storage locker</span></div>'
       +   '<div><span>Character</span><span>none bound</span></div>'
       + '</div></section>'
-      + '<section class="mp-p mp-show"><div class="mp-h">Summary</div><div class="mp-kv">'
+      + '<section class="mp-p mp-show">'+H('Summary')+'<div class="mp-kv">'
       +   '<div><span>Items</span><span>'+_physN+'</span></div>'
       +   '<div><span>Mules</span><span>'+_muleTotalPages+'</span></div>'
       +   '<div><span>On Mule '+(_mulePage+1)+'</span><span>'+_thisMuleN+'</span></div>'
       +   '<div><span>Last mule</span><span>'+(_load.roomLeft ? (_load.lastPct+'%') : 'FULL')+'</span></div>'
       + '</div></section>'
-      + '<section class="mp-p mp-stats"><div class="mp-h">Stats<span class="mp-h-r"><button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button></span></div>'
+      + '<section class="mp-p mp-stats">'+H('Stats', '<button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button>')
       +   '<div class="mp-seg">'+diffBtn('normal','Normal')+diffBtn('nightmare','Nightmare')+diffBtn('hell','Hell')+'</div>'
       +   '<div class="mp-cls" title="a .d2s import binds a class and level (v-C)">Character — none bound to this locker</div>'
       +   '<label class="mp-search">⌕&nbsp;<input type="search" placeholder="Search" value="'+esc(_mpQ)+'" oninput="window._mpFilter(this.value)" aria-label="filter the stats"></label>'
       +   '<div class="mp-st">'+stats+'</div>'
       + '</section>'
       + '</div>';
-    box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+'" style="--u:'+k.toFixed(4)+'px" data-k="'+k.toFixed(4)+'">'
+    /* #174 fix — A RE-RENDER MUST NOT TAKE THE CARET FROM HIM. This rebuilds the whole window through innerHTML,
+       and it runs again while the window is up: a resize, refreshOpenCard when an item is assigned in the
+       background (AI intake's mule-keep, the Chronicle fan-out), a difficulty tab. Each replaced the Stats search
+       box he was typing in — measured at 390x844, a height-only resize (a phone keyboard opening) left the focus
+       on BODY, so the keyboard closed on the first letter. The open window now carries its caret, its selection
+       and its own scroll positions across the rebuild; a fresh open still starts at the top. */
+    var _keep = null;
+    if (_again){
+      var _ae = document.activeElement, _st0 = box.querySelector('.mp-st');
+      _keep = { top: box.scrollTop, st: _st0 ? _st0.scrollTop : 0, q: null };
+      if (_ae && box.contains(_ae) && _ae.matches && _ae.matches('.mp-search input')) _keep.q = [_ae.selectionStart, _ae.selectionEnd];
+    }
+    box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
       + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div></div>'
       + right
       + '</div>';
-    box.scrollTop = 0;
+    box.scrollTop = _keep ? _keep.top : 0;
+    if (_keep){
+      var _st1 = box.querySelector('.mp-st'); if (_st1) _st1.scrollTop = _keep.st;
+      var _in = _keep.q && box.querySelector('.mp-search input');
+      if (_in){ try { _in.focus({ preventScroll: true }); _in.setSelectionRange(_keep.q[0], _keep.q[1]); } catch (e) {} }
+    }
   };
   window.vaultCloseCard = function(){
     var b=document.getElementById('vault-detail');
@@ -39614,7 +39664,9 @@ window.vaultAutoAssign = function(){
       e.preventDefault(); window._muleSetPage(_mulePage + (e.key==='ArrowRight'?1:-1));
     }
   });
-  // #174 — the window's one unit comes from the viewport, so a resize re-lays it (debounced, scroll kept)
+  // #174 — the window's one unit comes from the viewport, so a resize re-lays it (debounced) — but ONLY when a
+  // number the layout is built from moved. A height-only resize (a phone keyboard) re-rendered the whole window
+  // and took the Stats search box out from under his typing; openMuleCard now keeps caret and scroll either way.
   var _mpResizeT = null;
   window.addEventListener('resize', function(){
     if (!openMuleId) return;
@@ -39622,7 +39674,9 @@ window.vaultAutoAssign = function(){
     _mpResizeT = setTimeout(function(){
       var box = document.getElementById('vault-detail');
       if (!openMuleId || !box || box.hidden) return;
-      var st = box.scrollTop; window.openMuleCard(openMuleId); box.scrollTop = st;
+      var mp = box.querySelector('.mp');
+      if (mp && mp.getAttribute('data-sig') === _mpLayout(window.innerWidth || 1440, window.innerHeight || 900).sig) return;
+      window.openMuleCard(openMuleId);
     }, 160);
   });
   // v210: live re-pack — any assignment change re-tetrises an OPEN mule card

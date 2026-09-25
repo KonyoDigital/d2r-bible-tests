@@ -25,6 +25,14 @@ And the honesty rule: a locker has no class, no level and nothing equipped, so e
     out of bible.html and run over a minimal DOM stub; every assertion reads what it rendered.
   · READ (source): the CSS column widths and panel heights, the static markup's dialog role, and the console's
     Esc probe selector — each anchored on a string that occurs exactly once.
+
+⚠ WHAT THIS LAW CANNOT SEE, AND WHO DOES. It reads the HTML the window writes, so a sentence that is on the page
+but cut in half by its panel passes here — which is exactly how the MERCENARY note lost its "(v-C)" line at 1120
+while every case below stayed green. The fit is judged in a real browser by
+test_the_mule_window_fits_at_every_width.py. What this law keeps is the STRUCTURE those fixes rest on: the prose
+panels are min-height floors, every size in the window rides the unit (--fs-mp-* = token x --kf, floored at
+--fs-micro), a header's title and control own grid columns, and a resize re-lays the window only when a layout
+number moved (a phone keyboard is a height-only resize, and a re-render replaced the box he was typing in).
 RED_PROOF below.
 """
 import io
@@ -63,10 +71,15 @@ THEIR_SLOTS = {
     "feet": (247, 199, 60, 60),
 }
 THEIR_COLUMNS = {"left": 322, "centre": 716, "right": 300, "gutter": 6, "column": 1350}
-THEIR_HEIGHTS = {            # panel heights, same capture
-    ".mp-eq": 400, ".mp-prim": 102, ".mp-merc": 80, ".mp-loot": 88,
-    ".mp-cp": 628, ".mp-notes": 206, ".mp-stats": 726, ".mp-set": 84,
+THEIR_HEIGHTS = {            # panel heights, same capture — FIXED: their content is laid out inside them
+    ".mp-eq": 400, ".mp-cp": 628, ".mp-notes": 206, ".mp-stats": 726, ".mp-set": 84,
 }
+# ⚠ THE PROSE PANELS ARE A FLOOR, NOT A HEIGHT. Each holds one honest sentence, and a fixed height cut that
+# sentence at every width where the words out-grew the box — the MERCENARY note lost its "(v-C)" line at his
+# 1120 while this law, reading innerHTML, stayed green. They are their measured height when the words fit and
+# taller when they do not. S&W is 57 in their capture (low_2000x1300.png, 182..239). The real-layout law
+# (test_the_mule_window_fits_at_every_width.py) proves in a browser that 2000 still renders these heights.
+THEIR_PROSE_HEIGHTS = {".mp-prim": 102, ".mp-merc": 80, ".mp-loot": 88, ".mp-sw": 57}
 STAT_GROUPS = ["ATTRIBUTES", "DEFENSES", "RESISTANCES", "WEAPON", "SPELLS", "ADVENTURE"]
 
 CUT_START = "  var _MULE_COPY_CAP = 3;"
@@ -111,6 +124,15 @@ function mkEl(attrs){
     removeAttribute: function(k){ delete a[k]; }, querySelector: function(){ return null; } };
 }
 var box = mkEl(%(attrs)s);
+/* every innerHTML write is COUNTED, and '.mp' answers with the layout signature the page wrote — so the resize
+   handler's "re-lay only when a layout number moved" is judged on what the shipped code did, not on its source */
+var _writes = 0, _html = '';
+Object.defineProperty(box, 'innerHTML', { get: function(){ return _html; }, set: function(v){ _html = v; _writes++; } });
+box.querySelector = function(sel){
+  if (sel !== '.mp') return null;
+  var m = /data-sig="([^"]*)"/.exec(_html);
+  return m ? { getAttribute: function(k){ return k === 'data-sig' ? m[1] : null; } } : null;
+};
 var body = { appendChild: function(el){ el.parentElement = body; } };
 var document = { body: body, documentElement: mkEl({}),
   getElementById: function(id){ return id === 'vault-detail' ? box : null; },
@@ -138,6 +160,9 @@ var out = { html: box.innerHTML, role: box.getAttribute('role'), modal: box.getA
             label: box.getAttribute('aria-label'), hidden: box.hidden, fs: box.classList.contains('vd-fs'),
             on: box.classList.contains('mp-on') };
 if (%(page)d >= 0){ window._muleSetPage(%(page)d); out.html2 = box.innerHTML; }
+out.writes = [_writes];
+%(resize)s.forEach(function(wh){ window.innerWidth = wh[0]; window.innerHeight = wh[1];
+  (WLISTEN.resize || []).forEach(function(f){ f({}); }); out.writes.push(_writes); });
 if (%(esc)s){
   (LISTEN.keydown || []).forEach(function(f){ f({ key: 'Escape', target: null, preventDefault: function(){} }); });
   out.after = { hidden: box.hidden, fs: box.classList.contains('vd-fs'), on: box.classList.contains('mp-on'), switched: switched };
@@ -148,13 +173,14 @@ console.log(JSON.stringify(out));
 SMALL = {"Windforce": [2, 4], "Stone of Jordan": [1, 1], "Shako": [2, 2], "Arachnid Mesh": [2, 1]}
 
 
-def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None):
+def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None, resize=()):
     if assign is None:
         assign = dict((n, "uni-weap") for n in SMALL)
     js = HARNESS % {
         "attrs": json.dumps(_static_attrs() if attrs is None else attrs),
         "w": w, "h": h, "assign": json.dumps(assign), "sizes": json.dumps(sizes or SMALL),
         "span": _vault_span(), "mule": json.dumps(mule), "page": page, "esc": "true" if esc else "false",
+        "resize": json.dumps([list(x) for x in resize]),
     }
     r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
@@ -163,7 +189,7 @@ def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, es
 
 
 def _unit(html):
-    m = re.search(r'<div class="mp[^"]*" style="--u:([0-9.]+)px"', html)
+    m = re.search(r'<div class="mp[^"]*" style="--u:([0-9.]+)px[;"]', html)
     assert m, "the window carries no --u unit"
     return float(m.group(1))
 
@@ -211,6 +237,15 @@ class TheThreeColumns(unittest.TestCase):
             m = re.findall(r"^" + re.escape(sel) + r"\{height:calc\((\d+)\*var\(--u\)\)", s, re.M)
             self.assertEqual(m, [str(h)], "%s is not the %dpx panel measured off their builder" % (sel, h))
 
+    def test_a_prose_panel_is_a_floor_that_grows_never_a_box_that_cuts(self):
+        s = _src("bible.html")
+        for sel, h in THEIR_PROSE_HEIGHTS.items():
+            m = re.findall(r"^" + re.escape(sel) + r"\{min-height:calc\((\d+)\*var\(--u\)\)\}", s, re.M)
+            self.assertEqual(m, [str(h)], "%s must be min-height %d (their height when the words fit, taller when "
+                                          "they do not) — a fixed height cuts its sentence" % (sel, h))
+            self.assertEqual(re.findall(r"^" + re.escape(sel) + r"\{height:", s, re.M), [],
+                             "%s is a fixed height again — the sentence inside it will be cut" % sel)
+
     def test_the_panels_live_in_their_columns_in_their_order(self):
         html = _drive()["html"]
         order = ['<div class="mp-top">', '<section class="mp-p mp-set">', '<div class="mp-left">',
@@ -230,6 +265,57 @@ class TheThreeColumns(unittest.TestCase):
         self.assertLess(k, 1.0)
         self.assertLessEqual(THEIR_COLUMNS["column"] * k + 48, 1280.01, "at 1280 the three columns scroll sideways")
         self.assertIn('class="mp mp-stack"', _drive(w=800, h=1000)["html"], "under 900 the columns do not stack")
+
+    def test_the_type_rides_the_unit_with_a_floor(self):
+        """A 15px header in a 322*0.72px panel is how the text got cut between 900 and 1250 wide. Every size in
+        the window's block is a scaled token; each scaled token is its root token times --kf, floored at the
+        smallest step of the scale; and openMuleCard writes --kf = min(1, k) beside --u."""
+        s = _src("bible.html")
+        a = s.index("/* ══ #174 v-A — THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL, IN OUR THEME.")
+        b = s.index("/* mule ID card — in-game stash/inventory replica */", a)
+        blk = re.sub(r"/\*.*?\*/", " ", s[a:b], flags=re.S)
+        sizes = re.findall(r"font-size:([^;}]+)", blk)
+        self.assertGreaterEqual(len(sizes), 20, "the window's CSS block carries almost no sizes — the anchor moved")
+        raw = [v for v in sizes if not re.match(r"var\(--fs-mp-(display|title|body|meta|micro)\)$", v.strip())]
+        self.assertEqual(raw, [], "a size in the mule window does not ride the unit: %s" % raw)
+        for t in ("display", "title", "body", "meta"):
+            self.assertEqual(blk.count("--fs-mp-%s:max(var(--fs-micro),calc(var(--fs-%s)*var(--kf,1)))" % (t, t)), 1,
+                             "--fs-mp-%s is not its token times the unit, floored at --fs-micro" % t)
+        self.assertEqual(blk.count("--fs-mp-micro:var(--fs-micro)"), 1)
+        for (w, h, kf) in ((2000, 1300, "1.0000"), (1280, 800, "0.9126"), (800, 1000, "1.0000")):
+            m = re.search(r'style="--u:[0-9.]+px;--kf:([0-9.]+)"', _drive(w=w, h=h)["html"])
+            self.assertTrue(m, "openMuleCard no longer writes --kf beside --u")
+            self.assertEqual(m.group(1), kf, "at %dx%d --kf is not min(1, k)" % (w, h))
+
+    def test_a_header_title_and_its_control_have_their_own_columns(self):
+        """The Stash button sat position:absolute over a centred title, so a narrower panel slid one under the
+        other ("EQUIPMEN" at 920). Title and control each own a grid column now."""
+        s = _src("bible.html")
+        self.assertEqual(s.count(".mp-h{min-height:calc(36*var(--u));display:grid;grid-template-columns:1fr auto 1fr;"), 1,
+                         "the header is no longer nothing | title | control")
+        hr = re.findall(r"^\.mp-h-r\{([^}]*)\}", s, re.M)
+        self.assertEqual(len(hr), 1)
+        self.assertIn("grid-column:3", hr[0])
+        self.assertNotIn("position:absolute", hr[0], "the header control floats over the title again")
+        html = _drive()["html"]
+        heads = re.findall(r'<div class="mp-h">(.{0,40})', html)
+        self.assertEqual(len(heads), 10, "the window no longer has its ten panel headers")
+        for hd in heads:
+            self.assertTrue(hd.startswith('<span class="mp-h-t">'), "a header title is not in its own column: %r" % hd)
+
+    def test_a_resize_re_lays_the_window_only_when_a_layout_number_moves(self):
+        """A height-only resize (a phone keyboard opening) re-rendered the whole window and took the Stats search
+        box out from under his typing. The handler compares the layout signature the page wrote."""
+        out = _drive(w=390, h=844, resize=[(390, 464), (390, 844), (1280, 800), (1280, 700), (460, 900), (560, 900)])
+        w = out["writes"]
+        self.assertEqual(w[0], 1, "opening the window should write it once")
+        self.assertEqual(w[1] - w[0], 0, "a height-only resize re-rendered the window (the keyboard case)")
+        self.assertEqual(w[2] - w[1], 0, "a resize back to the same size re-rendered the window")
+        self.assertEqual(w[3] - w[2], 1, "a width that changes the unit did not re-lay the window")
+        self.assertEqual(w[4] - w[3], 0, "a height-only resize at 1280 re-rendered the window")
+        self.assertEqual(w[5] - w[4], 1, "going stacked did not re-lay the window")
+        self.assertEqual(w[6] - w[5], 1, "under 900 k sits clamped at 1.25 but the stash cell follows the width; "
+                                        "a resize that moves only the cell did not re-lay the window")
 
     def test_the_centre_defaults_to_the_stash_with_our_five_tabs(self):
         html = _drive()["html"]
@@ -378,6 +464,34 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "'<div class=\"mp-inv\">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell) + '</div>'",
         "replace": "'<div class=\"mp-inv\"></div>'",
+        "matches": 1,
+    },
+    {
+        "why": "#174 - a prose panel is a fixed height again, so the sentence inside it is cut where it out-grows it",
+        "file": "bible.html",
+        "find": ".mp-loot{min-height:calc(88*var(--u))}\n",
+        "replace": ".mp-loot{height:calc(88*var(--u))}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 - the scaled meta type loses its floor, so a narrow window renders notes below the smallest token",
+        "file": "bible.html",
+        "find": "--fs-mp-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)))",
+        "replace": "--fs-mp-meta:calc(var(--fs-meta)*var(--kf,1))",
+        "matches": 1,
+    },
+    {
+        "why": "#174 - the header control floats over a centred title again (the Stash button over EQUIPMENT)",
+        "file": "bible.html",
+        "find": ".mp-h-r{grid-column:3;justify-self:end;",
+        "replace": ".mp-h-r{position:absolute;right:calc(6*var(--u));top:50%;transform:translateY(-50%);",
+        "matches": 1,
+    },
+    {
+        "why": "#174 - every resize re-renders the window, so a phone keyboard takes the search box from under his typing",
+        "file": "bible.html",
+        "find": "      if (mp && mp.getAttribute('data-sig') === _mpLayout(window.innerWidth || 1440, window.innerHeight || 900).sig) return;\n",
+        "replace": "",
         "matches": 1,
     },
     {
