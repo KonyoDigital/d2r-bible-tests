@@ -265,8 +265,14 @@ def _vault_lane_owes(reel_path):
 _TRIAGE_CACHE = {"at": None, "store": None}
 
 
-def _panels_never_banked(reel):
+_UNSUPPLIED = object()
+
+
+def _panels_never_banked(reel, seal=_UNSUPPLIED):
     """A full survey saw panels here, and the vault ledger holds nothing from this reel. -> bool
+
+    `seal` is the caller's own vault_swept entry for this reel (plan() passes the one it already
+    read from ITS store, None when there is none); left out, the live seal store is asked.
 
     ⚠ UNKNOWN KEEPS THE REEL, as everywhere in this file: no survey, a sampled pass, an unreadable
     store or any exception returns False only when we can positively say the panels were banked;
@@ -306,17 +312,36 @@ def _panels_never_banked(reel):
         # seal_releases_frames says yes ONLY for a COVERED seal, or an EMPTY one that carries
         # examinedEmpty — the flag v3074 writes when every panel was read AND cross-checked with
         # no pixel error and no over-read. A default "nothing was taken" seal still returns False.
+        _row = seal if seal is not _UNSUPPLIED else None
         try:
             import frame_authority as _fa
-            _seals, _sok = _fa.sealed_sessions()
-            if _sok:
-                _row = _seals.get(reel) or _seals.get(str(reel).replace("reel_", "", 1))
-                if isinstance(_row, dict):
-                    _releases, _ = _fa.seal_releases_frames(_row)
-                    if _releases:
-                        return False      # examined, cross-checked, no name to be had
+            if seal is _UNSUPPLIED:
+                _seals, _sok = _fa.sealed_sessions()
+                if _sok:
+                    _row = _seals.get(reel) or _seals.get(str(reel).replace("reel_", "", 1))
+            if isinstance(_row, dict):
+                _releases, _ = _fa.seal_releases_frames(_row)
+                if _releases:
+                    return False      # examined, cross-checked, no name to be had
         except Exception:
             pass                          # UNKNOWN KEEPS THE REEL — fall through and hold
+        # ⚠⚠⚠ REG-1277 (#221) — A LIVE WITNESS IS NOT AN EXTRACTION, AND READING IT AS ONE DELETED
+        # THIRTEEN REELS. The line below asks "is this session in the durable stores", and one item
+        # the LIVE lane read while filming puts it there. MEASURED from his console's own stdout:
+        # at 01:36:21 on 2026-09-10 it relaunched onto v2875 and one second later printed "freed
+        # 3565 MB by removing 7 reel(s)" — the exact "7 candidates (3,565 MB)" v2875's commit had
+        # measured as a dry run. Five more passes that day took 11 more. 13 of the 18 had a FULL
+        # survey with panels and a vault seal with rows 0: reel_s_1787523300658_1 held 2,385 frames
+        # (3,002.9 MB, 18 panels) and went on ONE durable row, a Deep Worldstone Shard seen live.
+        # reel_s_1788105158696_89699 is named in v2875's own comment below as a reel this rule
+        # exists to hold; it left three minutes after that comment was committed. end_routes asked
+        # the same reels and refused every one — the two answers disagreed and nothing compared them.
+        # A seal that took 0 rows extracted nothing, whatever else names the session.
+        # [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]
+        if isinstance(_row, dict):
+            _n = _row.get("rows")
+            if isinstance(_n, bool) or not isinstance(_n, int) or _n <= 0:
+                return True
         return _reel_ts_key(reel) not in _DURABLE
     except Exception:
         return False
@@ -806,7 +831,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             why = _rule("zero-pages",
                         "sealed with 0 pages — that is 'this reader found nothing', not 'done'; "
                         "the engine reopens these when the prompt improves")
-        elif _panels_never_banked(reel):
+        elif _panels_never_banked(reel, ve):
             # ⚠⚠⚠ v2875 — THE SAFETY HALF OF _no_chronicle_to_find, AND IT IS NOT OPTIONAL.
             # Lifting the chronicle hold exposed eleven reels the chain then called
             # "sealed by BOTH lanes — it has given up its information". MEASURED, they had not:

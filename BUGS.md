@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1277 - A LIVE WITNESS WAS READ AS AN EXTRACTION, AND 13 REELS WERE TOMBSTONED ON IT
+
+**fix - #221, his ruling 2026-09-25 ("Dig").** What deleted the 18 unexplained reels, MEASURED read-only: his
+console's OWN retention lane, in its own process. control_app.log prints `CONSOLE BOOT v2875 pid=91996
+2026-09-10T01:36:21` (a version-drift auto-relaunch) and one second later `freed 3565 MB by removing 7 reel(s)`;
+five more passes that day took 11 more (6 at 03:26:19, one second after the v2878 boot). No gate and no fixture
+touched them, so hypothesis (B) is refuted. The card's "12 share 01:36:22" was wrong: 7 did.
+v2875's commit had measured the same plan as a dry run - "7 candidates (3,565 MB) ... panels on film AND rows
+durable" - and the console executed it. 13 of the 18 had a FULL survey with panels (1-123) and a vault seal with
+rows 0. `_panels_never_banked` asked only "is this session in the durable stores", and one or two items the LIVE
+lane read while filming put it there. reel_s_1787523300658_1: 2,385 frames, 3,002.9 MB, 18 panels, released on
+one row. reel_s_1788105158696_89699 is named in v2875's own comment as a reel the rule exists to hold, and it
+left three minutes after that commit. end_routes refused every one of them, and nothing compared the two.
+Now: a seal that took 0 rows holds whatever else names the session (the examined-empty exit stays open);
+plan() hands the rule the seal from ITS store, not the live one; `end_routes.deleter_disagrees` names any reel
+the deleter offers while every door refused it, report() carries it, and the doctor's end-routes row leads
+with it. Measured today: 0 candidates before and after, and 2 recent reels (268 and 64 panels, seal rows 0,
+durable only by a live row) would have left the same way once they aged out. They now hold.
+Guard: `test_a_live_witness_is_not_an_extraction` - the real plan() on a fixture shelf (the 221 shape held,
+examined-empty released, durable rows not held), the comparison, the doctor row (7 cases, 4 proofs), PROVEN.
+Open: `rows-not-banked` asks the same session-level question for a seal WITH rows, so a live row can still
+stand in for unbanked swept rows. It is UNMEASURED on his shelf (no reel reaches that rule today).
+
 ### REG-1276 - THE HOST OS HAD TWO WRITERS; THE BANNER NOW READS THE HEAP
 
 **fix - #178, his ruling 2026-09-25 ("the banner reads the heap").** 22adfc76 established that the board_build door's

@@ -5363,6 +5363,14 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_a_live_witness_is_not_an_extraction",
+         [sys.executable, os.path.join(HERE, "test_a_live_witness_is_not_an_extraction.py")], 90,
+         why="REG-1277 (#221) - his ruling was DIG. The 18 unexplained tombstones were his console's own "
+             "retention lane (stdout: v2875 booted 01:36:21, 'freed 3565 MB by removing 7 reel(s)' one "
+             "second later; 11 more that day). 13 had panels and a seal that took 0 rows, and went because "
+             "one LIVE-lane row put the session in the durable stores - a 2,385-frame reel left on one row. "
+             "A seal with 0 rows now holds; the deleter and the end-route doors are compared and the doctor "
+             "leads with any disagreement. 7 cases, 4 red-proofs"),
     Gate("test_the_seed_holds_no_one_shot_name",
          [sys.executable, os.path.join(HERE, "test_the_seed_holds_no_one_shot_name.py")], 60,
          why="REG-1271 (#165) - the v3313 bake seeded Fleshrender, Gloom's Trap and The Diggler, the names "

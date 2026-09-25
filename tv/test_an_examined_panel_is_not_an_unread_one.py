@@ -177,8 +177,8 @@ RED_PROOF = [
                "reads exactly like one nobody ever opened — a hold no future run can lift, which "
                "is what pinned 8 of his reels and kept `eligible` at zero forever",
         "file": "reel_retention.py",
-        "find": "                    if _releases:\n                        return False",
-        "replace": "                    if False:\n                        return False",
+        "find": "                if _releases:\n                    return False",
+        "replace": "                if False:\n                    return False",
         "matches": 1,
     },
     {

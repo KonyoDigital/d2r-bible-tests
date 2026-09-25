@@ -681,6 +681,19 @@ CIRCUMSTANTIAL_HOLDS = ("recent", "test-fixture", "target-met", "no-witness-inde
                         "ledger-unreadable")
 
 
+def deleter_disagrees(rows):
+    """Reels the DELETER offers while every end-route door refused them. -> sorted list of names
+
+    ⚠⚠ REG-1277 (#221) — THE TWO ANSWERS NOTHING COMPARED. reel_retention decides what leaves;
+    this module decides what may. On 2026-09-10 the deleter released 13 reels this module refused on
+    "extracted rows before the tombstone", and the disagreement sat in two reports nobody lined up.
+    `say` HELD is every door refusing; `safetyHold` "eligible" is the deleter's offer. Both at once
+    is a tombstone about to be written over an unextracted reel. [[feedback-contradiction-is-the-finding]]
+    """
+    return sorted(str(x.get("reel")) for x in (rows or [])
+                  if isinstance(x, dict) and x.get("say") == "HELD" and x.get("safetyHold") == "eligible")
+
+
 def report(hist_dir=None, safety=True):
     """Every reel on the shelf, its verdict, and what is missing. -> dict. Writes nothing."""
     src = sources(hist_dir)
@@ -725,6 +738,8 @@ def report(hist_dir=None, safety=True):
             "derivedFrom": derived_from(hist_dir, src=src),
             "deadEnded": sum(1 for r in rows if r["deadEnded"]),
             "finishedWaiting": sum(1 for r in rows if r["finishedWaiting"]),
+            # None = the deleter was not asked, which is UNKNOWN and never "they agree"
+            "deleterWouldRelease": (deleter_disagrees(rows) if tags is not None else None),
             "why": (walk_why or
                     ("%d reel(s) on the shelf: %d dead-ended (every door refused, with numbers), "
                      "%d finished and held only by circumstance. ⚠ A dead-ended reel is what his "

@@ -1058,6 +1058,16 @@ def _check_every_reel_can_still_reach_an_end_route():
     if dead is None or walked is None:
         # a count nobody took is not zero
         return UNKNOWN, "the report carried no dead-ended count, so nothing is known"
+    # ⚠⚠ REG-1277 (#221) — THE DELETER AND THESE DOORS MUST AGREE BEFORE ANYTHING LEAVES, and this
+    # leads the row because a tombstone cannot be taken back. 13 reels left on 2026-09-10 while this
+    # module refused every one; the two answers were never compared. [[the-unjoined-end]]
+    _released_unextracted = r.get("deleterWouldRelease")
+    if _released_unextracted:
+        return MISSING, ("the reel deleter would RELEASE %d reel(s) every end-route door refuses (%s) - "
+                         "they hold panels nothing extracted, and a tombstone is for ever. The two "
+                         "authorities disagree; the deleter's rule is the one to read (reel_retention)."
+                         % (len(_released_unextracted),
+                            ", ".join(str(x) for x in _released_unextracted[:3])))
     if not dead:
         return OK, ("no reel is dead-ended: %s of %s finished and waiting only on circumstance"
                     % (waiting, walked))

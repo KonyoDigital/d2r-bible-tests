@@ -84,8 +84,8 @@ RED_PROOF = [
                "on the strength of a seal with zero rows behind it — the stash rows live only in "
                "those frames, and deleting them destroys the only copy",
         "file": "reel_retention.py",
-        "find": "        elif _panels_never_banked(reel):",
-        "replace": "        elif False and _panels_never_banked(reel):",
+        "find": "        elif _panels_never_banked(reel, ve):",
+        "replace": "        elif False and _panels_never_banked(reel, ve):",
         "matches": 1,
     },
 ]
