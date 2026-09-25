@@ -1720,7 +1720,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3504** | `(this commit)` | v3504 — REG-1277 to REG-1285: a live witness is not an extraction, a shared-stash item survives the vault cleanse, the first theatre open after a restart no longer waits on a test-file scan, scratch consoles leave the lane traces alone, a console with capture off is not frozen |
+| **v3505** | `(this commit)` | v3505 — REG-1286 to REG-1306: the vault mule window in the d2planner shell with equipment slots, a slot picker and stats that say their source, the Esc on a console panel no longer quits the console, the Windows console is not reloaded under his game, each console shows its own counts, the eye workers bound their writes, and the game font is served from his install |
+| **v3504** | `f805a230` | v3504 — REG-1277 to REG-1285: a live witness is not an extraction, a shared-stash item survives the vault cleanse, the first theatre open after a restart no longer waits on a test-file scan, scratch consoles leave the lane traces alone, a console with capture off is not frozen |
 | **v3503** | `c836aa5b` | v3503 — a brand-new board is no longer filed as a lost store and gets its seed floor on the first load; the host operating system is read once on the heap and both the ribbon and the board door read it; the seed floors a Shako the tally can count |
 | **v3502** | `a32fc401` | v3502 — each console tells the fleet whether its own tree is established and how many reels sit on its shelf; a Windows console with capture off reads OFF instead of a dead capture relaunched five times |
 | **v3501** | `6e0bc214` | v3501 — a doctor pass names its priming steps as well as its checks, so a stalled first pass on Windows says where it sits; the Kai closer reads frames on Windows through ocr_win; a verdict drained from a field counts as declared |
