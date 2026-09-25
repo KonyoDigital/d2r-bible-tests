@@ -68,12 +68,15 @@ test.describe('v1747 — the tally search bar', () => {
   });
 
   test('★★★ tallying writes through the same path as the manual tick', async ({ page }) => {
+    // #165 — the subject must be a unique a floored board has NOT found. Since REG-1275 a fresh board
+    // floors the seed like his, and REG-1274 seeds the Shako as `Harlequin Crest`, so it was already
+    // found. Measured on a real page: Crown of Ages 310 -> 311, top hit, query kept.
     await openTab(page, 'funi');
     const r = await page.evaluate(async () => {
       const w: any = window;
-      const before = { found: w.funiScan().found, has: !!(w._gFound && w._gFound('Harlequin Crest')) };
+      const before = { found: w.funiScan().found, has: !!(w._gFound && w._gFound('Crown of Ages')) };
       const inp = document.querySelector('#tab-funi .tsrch .tsrch-i') as HTMLInputElement;
-      inp.value = 'harlequin';
+      inp.value = 'crown of ages';
       w._tallySearchRun(inp);
       await new Promise((x) => setTimeout(x, 220));
       const go = document.querySelector('#tab-funi .tsrch .tsrch-go') as HTMLButtonElement | null;
@@ -83,17 +86,17 @@ test.describe('v1747 — the tally search bar', () => {
       const inp2 = document.querySelector('#tab-funi .tsrch .tsrch-i') as HTMLInputElement | null;
       return {
         before,
-        after: { found: w.funiScan().found, has: !!(w._gFound && w._gFound('Harlequin Crest')) },
+        after: { found: w.funiScan().found, has: !!(w._gFound && w._gFound('Crown of Ages')) },
         queryKept: inp2 ? inp2.value : null,
       };
     });
     expect((r as any).err, (r as any).err || '').toBeUndefined();
     // non-vacuity: it must have been UN-found first, or "it became found" proves nothing
-    expect(r.before.has, 'Harlequin Crest was already found — the tick proves nothing').toBe(false);
+    expect(r.before.has, 'Crown of Ages was already found — the tick proves nothing').toBe(false);
     expect(r.after.has, 'tallying did not mark it found').toBe(true);
     expect(r.after.found, 'the found COUNT did not move').toBe(r.before.found + 1);
     // he ticks several in a row while farming — the query must survive the re-render
-    expect(r.queryKept, 'the typed query was lost on re-render').toBe('harlequin');
+    expect(r.queryKept, 'the typed query was lost on re-render').toBe('crown of ages');
   });
 
   test('★★★ the hover anchor is the keyword, so v654 cannot refuse it', async ({ page }) => {
