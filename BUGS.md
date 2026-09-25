@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1307 - THE MULE-WINDOW LAWS WERE GREEN ON HIS MAC AND COULD NOT START ON THE CI RUNNER
+
+**fix (instrument) - found by #174 v-B2 builder C while refreshing the gate cost table.** CI run 36163221309 on main
+1e1f946e: test_the_mule_window_is_the_planner_shell "FAILED (errors=19)" in 1.5 s and
+test_the_mule_window_equips_and_says_its_source "FAILED (errors=26)" in 2.7 s - every node-driven case an ERROR, not a
+failure - while both were green here. Their harness ran `node -e <program>`: the whole cut of bible.html in ONE argv
+string. Linux caps a single argument at 131,072 bytes (MAX_ARG_STRLEN); macOS does not. At that commit the vault span
+alone was 128,195 bytes (with the harness, over the cap), and the equip law's program was ~450 KB. Every mule-window
+harness now hands node its program on stdin (`node -`), and test_the_mule_window_places_by_hand drives each law's own
+_drive with subprocess.run captured and measures what it would hand the OS (red-proven: revert one call to `-e` and
+it goes red). The host machine is a fixture. [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+
 ### REG-1306 - THE RENDER GATE SAID WHAT A PAGE ERROR WAS BUT NEVER WHERE IT THREW
 
 **fix (instrument) - the third push of 2026-09-25 was refused** by the render gate: "the page threw 1 uncaught

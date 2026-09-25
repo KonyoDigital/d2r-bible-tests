@@ -7062,10 +7062,10 @@ GATES = [
              "Also pins the #174 fit fixes structurally: the four prose panels are min-height floors, every size "
              "in the window is a --fs-mp-* token = root token x --kf floored at --fs-micro, a header title and "
              "its control own grid columns, and a resize re-lays the window only when its layout signature "
-             "moves (a phone keyboard is a height-only resize). #174 v-B: the doll runs on its own unit, "
-             "--du = 1.25 x --u (spec §5 - it may not read smaller than theirs): their slot table unchanged on "
-             "--du, LEFT = their 322 on --du, EQUIPMENT = their 36px header + 364px body on --du. 25 cases, "
-             "15 red-proofs",
+             "moves (a phone keyboard is a height-only resize). #174 v-B2: the columns are their LITERAL 322 | 716 | "
+             "300 again (v-B's 1.25x doll unit is gone - his 'literally the same'), the five stash tabs are buttons "
+             "that switch the grid, and the unit also answers the height (a height-only resize at 1280 re-lays the "
+             "window exactly when it moves the unit). 25 cases, 17 red-proofs",
          skip_ok=()),
     Gate("test_the_mule_window_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 120,
@@ -7080,8 +7080,13 @@ GATES = [
              "at --fs-micro, 2000 = their measured rects, the caret survives a keyboard and a background "
              "re-render. Seen RED on the pre-fix page (7 of 9 cases). No browser binary = declared skip (77), "
              "never a pass. #174 v-B: every width measured AGAIN with three items worn through the picker and the "
-             "picker open (new words in new boxes), and 2000 = their rects with the one declared upgrade (the doll "
-             "on DOLL_K = 1.25). 10 cases, 7 red-proofs",
+             "picker open (new words in new boxes). #174 v-B2: 2000 = their rects literally (DOLL_K = 1); 1280x695 (his "
+             "console's board) joins the widths and the part he packs from (header, mule bar, doll + inventory, "
+             "stash panel) plus STATS end inside the window (the Grok seat's 'bottoms sliced'); a worn item's hover "
+             "card never covers the mule bar ('ES IN THIS LOCKER'); and a REAL-INPUT drag pass: a ring dropped on a "
+             "cell locks there with a green footprint in the air and survives a reload (2000 stash, 1280x695 "
+             "inventory), a 2x4 past the edge is red and refused with nothing written, the keyboard carries an item, "
+             "a right-click unlocks it, a drop on the Gems tab moves it there. 16 cases, 15 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -7114,6 +7119,23 @@ GATES = [
              "OK / MISSING / UNKNOWN and registered, and the block's uniques and set items against tv/item_tables.json "
              "(a second generator). The real install's --check runs where the install is, UNMEASURED elsewhere. "
              "30 cases, 13 red-proofs",
+         skip_ok=()),
+    Gate("test_the_mule_window_places_by_hand",
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_places_by_hand.py")], 90,
+         needs_app=False,
+         why="#174 v-B2 - his order: move an item to any cell and it LOCKS there (his_mule_locked_21: a ring he dragged "
+             "would not move - nothing in the window could hold a chosen cell). Drives the SHIPPED vault span in node: "
+             "packGrid takes occupied rectangles; _muleLoad lays d2r_mulePos spots FIRST and first-fit flows around "
+             "them (every item once, no overlap, grid-fault clean, on a spilled Mule 2 and in the inventory); a "
+             "footprint past the edge or over another hand-placed item is refused with its reason and nothing is "
+             "written; a spot that no longer fits is REPORTED (loader, window NOTES, calc row, shelf card) and never "
+             "rewritten; unlock returns it to first-fit; a drop on a Mule tab or a stash tab lands in the first free "
+             "cell there; copies place one by one; the store forks per world and rides Backup & Share; the shelf "
+             "card's shipped line and the window read the same packer; SUMMARY, CALCULATIONS and the gold box count "
+             "one mule the same with gear worn (the Grok seat's v-B finding). And every mule-window harness hands "
+             "node its program on STDIN: as one argv string (node -e) the cut passed Linux's 131,072-byte "
+             "argument cap, so the shell and equip laws were RED on CI (main 1e1f946e: errors=19 / errors=26) "
+             "while green on the Mac. 14 cases, 11 red-proofs",
          skip_ok=()),
 ]
 

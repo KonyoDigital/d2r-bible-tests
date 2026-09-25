@@ -34774,10 +34774,12 @@ class TestV2239OneMuleGeometry(unittest.TestCase):
         # If the packer keeps its own 10x4 the layout and the label part company silently: the card
         # says 150 while only 140 cells can ever be filled.
         s = self._bible()
-        self.assertIn("packGrid(st.left, MULE_INV_W, MULE_INV_H)", s,
-                      "the inventory packer is back on a literal grid")
-        self.assertIn("packGrid(rem, MULE_STASH_W, MULE_STASH_H)", s,
-                      "the stash packer is back on a literal grid")
+        # #174 v-B2 — packGrid gained a 4th argument (the rectangles he placed by hand, seeded as occupied), so the
+        # call may continue after the constants; the law is the constants, not the closing paren
+        self.assertRegex(s, r"packGrid\(st\.left, MULE_INV_W, MULE_INV_H[,)]",
+                         "the inventory packer is back on a literal grid")
+        self.assertRegex(s, r"packGrid\(rem, MULE_STASH_W, MULE_STASH_H[,)]",
+                         "the stash packer is back on a literal grid")
 
     def test_the_inventory_is_FOUR_rows_and_the_mule_is_140(self):
         # ⚠ v2239 PINNED THIS AT 10x5 AND IT WAS WRONG. He reported the inventory should be 5 rows,

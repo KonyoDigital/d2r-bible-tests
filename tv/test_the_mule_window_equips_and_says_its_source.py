@@ -200,7 +200,7 @@ def _drive(scenario, assign=None, copies=None, store=None):
         "copies": json.dumps(copies or {}), "tables": tables, "helpers": helpers, "span": _vault_span(),
         "scenario": scenario,
     }
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=90)
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=90)
     if r.returncode != 0:
         raise AssertionError("the shipped mule window would not run - UNKNOWN, not passing: %s" % r.stderr[:900])
     return json.loads(r.stdout.strip().splitlines()[-1])
@@ -706,7 +706,7 @@ class TheStoreIsAccountStateAndTravels(unittest.TestCase):
           var out = {};
           %s
           console.log(JSON.stringify(out));""" % (router, backup, scenario)
-        r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("the shipped router / exporter would not run - UNKNOWN: %s" % r.stderr[:600])
         return json.loads(r.stdout.strip().splitlines()[-1])
@@ -776,7 +776,7 @@ class TheWindowAroundThePicker(unittest.TestCase):
         js = ("var got = null, _isMule = true, items = ['A'], magicItems = [], m = { id: 'uni-armor' }, _ld = null;"
               "function _muleLoad(n, w){ got = w; return {}; } function _mpWornFor(id){ return { mule: id }; }\n"
               + shelf + "\nconsole.log(JSON.stringify(got));")
-        r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr[:400])
         self.assertEqual(json.loads(r.stdout.strip()), {"mule": "uni-armor"},
                          "the shelf card packs without the doll's worn map, so its gauge and the window disagree")
@@ -968,8 +968,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B - the shelf card packs without the doll's worn map (its gauge and the window disagree)",
         "file": "bible.html",
-        "find": "_ld = _muleLoad(items.concat(magicItems), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null); }",
-        "replace": "_ld = _muleLoad(items.concat(magicItems)); }",
+        "find": "_ld = _muleLoad(items.concat(magicItems), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null, m.id); }",
+        "replace": "_ld = _muleLoad(items.concat(magicItems), null, m.id); }",
         "matches": 1,
     },
     {

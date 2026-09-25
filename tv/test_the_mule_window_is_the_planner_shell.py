@@ -34,12 +34,16 @@ panels are min-height floors, every size in the window rides the unit (--fs-mp-*
 --fs-micro), a header's title and control own grid columns, and a resize re-lays the window only when a layout
 number moved (a phone keyboard is a height-only resize, and a re-render replaced the box he was typing in).
 
-⚠ #174 v-B MOVED THREE OF THESE NUMBERS, ON PURPOSE, AND THE WITNESS DID NOT MOVE. Spec §5/§7: their left column
-squeezes the doll and a second eye read ours as "a compact cluster of SMALLER slots", so the EQUIPMENT body now runs
-on its own unit, --du = DOLL_K x --u (DOLL_K = 1.25). THEIR_SLOTS below is still their measured table, byte for
-byte — the slots are those numbers on --du; the LEFT column is their 322 on --du; the EQUIPMENT panel is their 36px
-header plus their 364px body on --du. The window's outer 1044 | 300 split, and so its type at every width, is
-unchanged; and stacked (under 900) --du is --u, because there the unit already IS the doll filling the phone.
+⚠ #174 v-B MOVED THREE OF THESE NUMBERS AND #174 v-B2 PUT THEM BACK — THE WITNESS NEVER MOVED. v-B ran the EQUIPMENT
+body on its own unit, --du = 1.25 x --u (spec §5's "upgrade"), which widened LEFT to 402 and narrowed the centre to
+636. His later word is "literally the same", so DOLL_K is 1: the slots are THEIR_SLOTS on their cell, LEFT is their
+322, the centre their 716, the EQUIPMENT panel their 36px header + 364px body. --du stays the doll's unit (the CSS and
+the script's MP_DOLL_K are held equal here), and stacked (under 900) it is --u as before.
+
+#174 v-B2 ALSO: the five stash tabs are CONTROLS now (a button per tab, the open one marked, each switching the grid)
+— v-B drew them as dim labels with nothing behind them; and the unit also answers the window's HEIGHT (the part he
+packs from — header, mule bar, stash panel — fits the viewport, floored at 0.7), so a height-only resize at 1280
+re-lays the window exactly when that moves the unit, and never otherwise.
 RED_PROOF below.
 """
 import io
@@ -78,7 +82,7 @@ THEIR_SLOTS = {
     "feet": (247, 199, 60, 60),
 }
 THEIR_COLUMNS = {"left": 322, "centre": 716, "right": 300, "gutter": 6, "column": 1350}
-DOLL_K = 1.25                # spec §5: the doll at ~1.25x their 30px cell — the ONE upgrade to their geometry
+DOLL_K = 1                   # #174 v-B2: their 30px cell, literally ("literally the same") — v-B had 1.25
 THEIR_HEIGHTS = {            # panel heights, same capture — FIXED: their content is laid out inside them
     ".mp-cp": 628, ".mp-notes": 206, ".mp-stats": 726, ".mp-set": 84,
 }
@@ -199,7 +203,11 @@ def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, es
         "resize": json.dumps([list(x) for x in resize]),
         "keys": json.dumps([list(k) for k in keys]),
     }
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+    # ⚠ #174 v-B2 — THE PROGRAM GOES ON STDIN, NEVER ON ARGV. `node -e <js>` passed the whole cut as ONE argument;
+    # Linux caps a single argument at 131,072 bytes (MAX_ARG_STRLEN) and macOS does not, so this law was green on his
+    # Mac and could not even start on the CI runner: measured on main 1e1f946e, "FAILED (errors=19)" in 1.5s — the
+    # vault span alone was 128,195 bytes. test_the_mule_window_places_by_hand pins every mule-window harness to stdin.
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("the shipped mule window would not run - UNKNOWN, not passing: %s" % r.stderr[:600])
     return json.loads(r.stdout.strip().splitlines()[-1])
@@ -227,8 +235,8 @@ class TheDollIsTheirs(unittest.TestCase):
         self.assertTrue(box < html.index('data-slot="rarm"') < html.index('<div class="mp-inv">'))
 
     def test_the_doll_unit_is_their_cell_times_the_upgrade(self):
-        """Spec §5: ~1.25x their cell, gutters included. The CSS unit and the script's factor are ONE number — the
-        inventory cell is computed from the script's, the slots are drawn on the CSS's. [[copy-drift]]"""
+        """#174 v-B2: their cell, literally (DOLL_K = 1; v-B's 1.25 upgrade is gone). The CSS unit and the script's factor
+        are ONE number — the inventory cell is computed from the script's, the slots are drawn on the CSS's. [[copy-drift]]"""
         s = _src("bible.html")
         self.assertEqual(s.count(".mp{--du:calc(%s*var(--u))}" % DOLL_K), 1, "the doll's unit is not %s x --u" % DOLL_K)
         self.assertEqual(s.count("  var MP_DOLL_K = %s;" % DOLL_K), 1, "the script's doll factor is not the CSS's")
@@ -342,15 +350,20 @@ class TheThreeColumns(unittest.TestCase):
     def test_a_resize_re_lays_the_window_only_when_a_layout_number_moves(self):
         """A height-only resize (a phone keyboard opening) re-rendered the whole window and took the Stats search
         box out from under his typing. The handler compares the layout signature the page wrote."""
-        out = _drive(w=390, h=844, resize=[(390, 464), (390, 844), (1280, 800), (1280, 700), (460, 900), (560, 900)])
+        out = _drive(w=390, h=844, resize=[(390, 464), (390, 844), (1280, 800), (1280, 820), (1280, 695), (460, 900),
+                                           (560, 900)])
         w = out["writes"]
         self.assertEqual(w[0], 1, "opening the window should write it once")
         self.assertEqual(w[1] - w[0], 0, "a height-only resize re-rendered the window (the keyboard case)")
         self.assertEqual(w[2] - w[1], 0, "a resize back to the same size re-rendered the window")
         self.assertEqual(w[3] - w[2], 1, "a width that changes the unit did not re-lay the window")
-        self.assertEqual(w[4] - w[3], 0, "a height-only resize at 1280 re-rendered the window")
-        self.assertEqual(w[5] - w[4], 1, "going stacked did not re-lay the window")
-        self.assertEqual(w[6] - w[5], 1, "under 900 k sits clamped at 1.25 but the stash cell follows the width; "
+        self.assertEqual(w[4] - w[3], 0, "a height-only resize at 1280 that leaves the unit alone (the width still "
+                                        "decides) re-rendered the window")
+        # #174 v-B2 — 1280x695 is his console's board under its header: the height now decides the unit, so the
+        # stash panel he packs from fits the window; that resize MUST re-lay it
+        self.assertEqual(w[5] - w[4], 1, "a height-only resize that moves the unit (1280x695) did not re-lay the window")
+        self.assertEqual(w[6] - w[5], 1, "going stacked did not re-lay the window")
+        self.assertEqual(w[7] - w[6], 1, "under 900 k sits clamped at 1.25 but the stash cell follows the width; "
                                         "a resize that moves only the cell did not re-lay the window")
 
     def test_the_centre_defaults_to_the_stash_with_our_five_tabs(self):
@@ -358,8 +371,14 @@ class TheThreeColumns(unittest.TestCase):
         self.assertIn('<div class="mp-view mp-v-stash">', html, "a locker's centre is not the stash by default")
         st = html.index('<div class="mp-view mp-v-stash">')
         end = html.index('<div class="mp-view mp-v-tree"', st)
+        # #174 v-B2 — each tab is a CONTROL: a button that switches the grid, the open one marked (v-B: dim labels
+        # with nothing behind them, which the Grok seat read as "barely clickable")
         for t in ("Personal", "Shared", "Gems", "Materials", "Runes"):
-            self.assertIn(">%s</div>" % t, html[st:end])
+            m = re.search(r'<button type="button" class="vd-tab( vt-on)?" role="tab" aria-selected="(true|false)" '
+                          r'data-tab="%s"[^>]*onclick="window._mpSet\(\'stab\',\'%s\'\)"[^>]*>%s</button>'
+                          % (t.lower(), t.lower(), t), html[st:end])
+            self.assertTrue(m, "the %s stash tab is not a button that switches the grid" % t)
+            self.assertEqual(bool(m.group(1)), t == "Personal", "%s: the open tab is not the one marked" % t)
         self.assertEqual(html[st:end].count('class="vd-cell vd-red"'), 100, "the centre stash is not 10x10")
         for v in ("stash", "tree", "calc"):
             self.assertEqual(html.count('data-view="%s"' % v), 1)
@@ -544,17 +563,31 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#174 v-B - the doll falls back to their squeezed 30px cell (spec §5: it may not read smaller than theirs)",
+        "why": "#174 v-B2 - the doll leaves their literal geometry again (v-B's 1.25x upgrade comes back: LEFT 402, not their 322)",
         "file": "bible.html",
-        "find": ".mp{--du:calc(1.25*var(--u))}",
-        "replace": ".mp{--du:calc(1*var(--u))}",
+        "find": ".mp{--du:calc(1*var(--u))}",
+        "replace": ".mp{--du:calc(1.25*var(--u))}",
         "matches": 1,
     },
     {
         "why": "#174 - the 10x4 inventory leaves the EQUIPMENT panel",
         "file": "bible.html",
-        "find": "'<div class=\"mp-inv\">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell) + '</div>'",
+        "find": "'<div class=\"mp-inv\">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell, _gOpt('inv')) + '</div>'",
         "replace": "'<div class=\"mp-inv\"></div>'",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the stash tabs are dim labels again that switch nothing (the Grok seat: barely clickable)",
+        "file": "bible.html",
+        "find": "+ ' onclick=\"window._mpSet(\\'stab\\',\\'' + t + '\\')\" title=\"' + MULE_AREAS[t][2] + ' tab of Mule '",
+        "replace": "+ ' title=\"' + MULE_AREAS[t][2] + ' tab of Mule '",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the unit answers the width alone again, so at 1280 in the console the stash he packs from runs off the bottom",
+        "file": "bible.html",
+        "find": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W, Math.max(MP_K_FLOOR, (vh - MP_PAD_V) / MP_WORK_H)) };",
+        "replace": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };",
         "matches": 1,
     },
     {

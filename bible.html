@@ -4260,7 +4260,7 @@ window._LP_FORKED = new Set([
      A guard that reads source fails on its own reach before it fails on the code, and the tell was
      there both times: the names were provably present in the parsed blob while absent from the
      parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
-  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -28638,6 +28638,14 @@ window._jewelTipHtml = _jewelTipHtml;
           tip.style.left = x + 'px'; tip.style.top = y + 'px'; return;
         }
         y = r.top + r.height/2 - h/2;                        // vertically centred on the item
+        /* #174 v-B2 — IN THE MULE WINDOW THE CARD STAYS BELOW ITS PANEL'S HEADER. Centred on the helm (the top of
+           the doll) a 360px card rose over the "MULES IN THIS LOCKER" band and read it "ES IN THIS LOCKER" (the Grok
+           seat, v-B; reproduced: the card's rect crossed the heading's). Its top is floored at the bottom of the header
+           of the panel its item sits in; the viewport clamp below still wins, so it is never cut off-screen. */
+        try {
+          var _mpP = cur && cur.closest && cur.closest('#vault-detail .mp-p'), _mpH = _mpP && _mpP.querySelector('.mp-h, .mp-ctabs');
+          if (_mpH) y = Math.max(y, _mpH.getBoundingClientRect().bottom + 4);
+        } catch (_e) {}
         y = Math.min(Math.max(8, y), vh - h - 8);            // clamped, never off-screen
       } else {
         x = e.clientX + 16; y = e.clientY + 18;
@@ -35295,14 +35303,13 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp{--fs-mp-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-mp-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-mp-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-mp-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-mp-micro:var(--fs-micro)}
 .mp-main,.mp-right,.mp-left,.mp-centre{min-width:0}
 .mp-right,.mp-left,.mp-centre{display:flex;flex-direction:column;gap:calc(6*var(--u))}
-/* #174 v-B — THE DOLL MAY NOT READ SMALLER THAN THEIRS (spec §5, §7). Their left column squeezes the doll —
-   rings, gloves, belt and boots nearly touch — and a second eye read ours as "a compact cluster of SMALLER
-   slots". So the EQUIPMENT body runs on its own unit, --du = 1.25 x --u: their slot table unchanged, every
-   rect and every gutter a quarter larger, the 10x4 inventory at >= 34px cells at 2000 wide. The LEFT column
-   is their 322 on that unit and the centre takes the rest of their 1044 — the window's outer width, and so
-   its type at every width, does not move. The factor is MP_DOLL_K in the vault script; a law holds the two
-   equal. [[copy-drift]] */
-.mp{--du:calc(1.25*var(--u))}
+/* #174 v-B2 — THE COLUMNS ARE THEIRS, LITERALLY: 322 | 716 | 300 at 2000 wide. v-B ran the EQUIPMENT body on
+   its own unit, --du = 1.25 x --u (spec §5's "upgrade"), which widened LEFT to 402 and narrowed the centre to 636.
+   His later word is "literally the same", so the doll is back at their geometry: --du = 1 x --u, their slot table
+   on their cell, LEFT their 322, the centre their 716. HD comes from art and texture, not a wider column. --du
+   stays the doll's unit (stacked it is --u too); the factor is MP_DOLL_K in the vault script, and a law holds the
+   two equal. [[copy-drift]] */
+.mp{--du:calc(1*var(--u))}
 .mp-lc{display:grid;grid-template-columns:calc(322*var(--du)) minmax(0,1fr);column-gap:calc(6*var(--u));margin-top:calc(6*var(--u));align-items:start}
 /* header row — their Class · Level · tag row and Export · Import · profile · settings */
 .mp-top{min-height:calc(92*var(--u));display:flex;justify-content:space-between;gap:calc(6*var(--u))}
@@ -35412,6 +35419,35 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-v-stash .vd-tabs{align-self:stretch;margin:0 auto 6px;max-width:100%}
 .mp-v-stash .vd-pagebar{margin-top:6px}
 .mp-v-stash .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;font-size:var(--fs-mp-body)}
+/* #174 v-B2 — THE FIVE STASH TABS ARE CONTROLS. v-B drew them as 10.5px grey small-caps labels with nothing behind
+   them; the Grok seat read them "barely clickable", and they were not clickable at all. Now each is a button in
+   the window's own type, the open one solid gold like the mule tabs above it, and each is a drop target too. */
+.mp-v-stash .vd-tabs{gap:calc(3*var(--u));box-sizing:border-box}
+.mp-v-stash .vd-tab{flex:1 1 auto;min-width:max-content;white-space:nowrap;font-family:var(--sans);font-variant-caps:normal;font-size:var(--fs-mp-meta);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);line-height:var(--lh-tight);padding:calc(4*var(--u)) calc(4*var(--u));background:var(--surface-2);border:1px solid var(--border-light);border-bottom-color:var(--gold-dim);border-radius:4px 4px 0 0;color:var(--text);cursor:pointer;box-shadow:none}
+.mp-v-stash .vd-tab:hover{border-color:var(--gold);color:var(--gold-bright)}
+.mp-v-stash .vd-tab.vt-on{background:var(--gold-bright);border-color:var(--gold-bright);color:#1a1208;box-shadow:none}
+.mp-v-stash .vd-tab b{font-weight:var(--fw-semibold)}
+.mp-v-stash .vd-tab:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
+/* #174 v-B2 — AN ITEM HE CAN MOVE. It grabs, it never scrolls the page from under a finger, its art never starts the
+   browser's own image drag; placed by hand it wears a gold ring and a lock, a spot that no longer fits is dashed
+   red, and while it is in the air the cells it would cover are tinted green (fits) or red (does not) — their look. */
+.mp .vd-item[data-key]{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.mp .vd-item[data-key] img{-webkit-user-drag:none}
+.mp .vd-item[data-key]:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px;z-index:4}
+.mp .vd-item.vd-held{box-shadow:inset 0 0 0 1px var(--gold-bright),0 0 10px rgba(240,192,96,.35)}
+.mp .vd-item.vd-bad{border-style:dashed;border-color:var(--hell)}
+.mp .vd-item.vd-lifted{opacity:.35}
+/* the lock never reaches the tile's centre (40% at most): at 1280 a 1x1 inventory cell is ~22px, and a 12px badge on it
+   put the unlock under the pointer that meant to pick the ring up again */
+.mp .vd-unlock{position:absolute;top:0;right:0;width:calc(12*var(--u));height:calc(12*var(--u));max-width:40%;max-height:40%;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:0;margin:0;background:rgba(10,8,5,.86);border:1px solid var(--border-light);border-radius:0 2px 0 3px;color:var(--gold-bright);font-family:var(--sans);font-size:var(--fs-mp-micro);line-height:var(--lh-none);cursor:pointer;z-index:2}
+.mp .vd-unlock:hover{border-color:var(--gold-bright)}
+.mp .vd-drop{position:absolute;border-radius:3px;pointer-events:none;z-index:5}
+.mp .vd-drop-ok{background:rgba(40,160,70,.45);box-shadow:inset 0 0 0 2px rgba(102,255,136,.9)}
+.mp .vd-drop-no{background:rgba(180,30,30,.45);box-shadow:inset 0 0 0 2px rgba(255,64,64,.9)}
+.mp .mp-settab.vd-over,.mp .vd-tab.vd-over{outline:2px solid var(--best);outline-offset:1px}
+.mp .vl-hand{color:var(--gold-bright);font-size:var(--fs-mp-micro)}
+.mp .vl-bad{color:var(--hell);font-size:var(--fs-mp-micro)}
+.mp .mp-calc tr.mp-calc-bad td{color:var(--hell)}
 .mp-calc{width:100%;border-collapse:collapse;font-size:var(--fs-mp-body)}
 .mp-calc td{padding:4px 8px;border-bottom:1px solid rgba(58,47,30,.6)}
 .mp-calc td:last-child{text-align:right;font-family:var(--mono);color:var(--gold-bright);white-space:nowrap}
@@ -35437,6 +35473,10 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-kv span:first-child{color:var(--text-muted)}
 .mp-kv span:last-child{color:var(--text);font-family:var(--mono);text-align:right}
 .mp-stats{height:calc(726*var(--u));display:flex;flex-direction:column}
+/* #174 v-B2 — in columns, STATS ends at the bottom of the window (its list scrolls inside it) rather than running off
+   the glass under it: the Grok seat at 1280 read "Stats stops at Life". 312 = their AUTHOR + SHOWCASE + gutters above
+   it, 30 = the window's top padding and a bottom breath. At 2000x1300 this is 958px of room for their 726. */
+.mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}
 .mp-stats .mp-h{min-height:calc(44*var(--u))}
 .mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
@@ -35489,6 +35529,17 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-zone-inv{display:flex;flex-direction:column;justify-content:flex-end}
 .vd-char-hint{flex:1;min-height:60px;display:flex;align-items:center;justify-content:center;color:rgba(117,102,87,.4);font-size:var(--fs-meta);font-style:italic;letter-spacing:var(--ls-normal)}
 .vd-zone-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:var(--ls-wide);font-size:var(--fs-body);color:var(--gold,#d4a847);margin:12px 0 6px}
+/* #174 v-B2 — the item in the air while he drags it (on <body>, so no panel clips it), and the one line that says
+   what a drop did or why it was refused. The board's hover card stays down for the whole drag. */
+.vd-ghost{position:fixed;z-index:2147483100;pointer-events:none;display:flex;align-items:center;justify-content:center;background:transparent;border:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.8))}
+.vd-ghost .d2art-wrap{width:94%;height:94%;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center}
+.vd-ghost .d2art-wrap .d2art-img,.vd-ghost img{width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;min-width:0;min-height:0;object-fit:contain}
+#mp-dragsay{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147483200;max-width:min(720px,calc(100vw - 32px));padding:8px 14px;border-radius:6px;border:1px solid var(--border-light);background:rgba(16,12,7,.96);color:var(--text);font-family:var(--sans);font-size:var(--fs-body);line-height:var(--lh-snug);box-shadow:0 10px 30px rgba(0,0,0,.7);opacity:0;pointer-events:none;transition:opacity .15s}
+#mp-dragsay.on{opacity:1}
+#mp-dragsay.ok{border-color:var(--best)}
+#mp-dragsay.no{border-color:var(--hell)}
+html.mp-dragging #arttip{display:none !important}
+html.mp-dragging,html.mp-dragging *{cursor:grabbing !important}
 .vd-gridfault{font:11px var(--mono,monospace);color:#ff8a6a;background:rgba(120,30,20,.28);border:1px solid rgba(255,120,90,.45);border-radius:4px;padding:3px 8px;margin:0 0 5px;display:inline-block}
 .vd-grid{position:relative;display:grid;gap:2px;background:rgba(0,0,0,.65);border:2px solid rgba(212,168,71,.45);border-radius:6px;padding:3px;width:max-content;max-width:100%;box-shadow:inset 0 0 18px rgba(0,0,0,.8)}
 .vd-cell{width:auto;height:auto;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
@@ -37275,7 +37326,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _ld = null;
       /* #174 v-B — the SAME worn map the mule window packs with: a copy on the doll frees its stash cells here
          too, or this gauge and the window two clicks away would disagree about one locker (v2211). */
-      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(items.concat(magicItems), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null); }
+      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(items.concat(magicItems), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null, m.id); }
       catch(e){ _ld = null; }
       /* ⚠ AND A MISSING LOADER MUST NOT READ AS "IT FITS". The v2211 catch fell back to muleN = 1,
          so if _muleLoad were ever out of scope a locker holding 300 items would paint a tidy full
@@ -37423,6 +37474,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                            + _ld.biggest.w+'x'+_ld.biggest.h+' fits into')
                 : (pct+'% of one mule — '+_ld.lastCells+' of '+capCells+' cells (a ' + (window.MULE_GEOM_SAY || '10x10 stash + a 10x4 inventory') + ')'))
              + '"><div class="vm-gauge-fill'+((pct>=85||_spilled||_full)?' vg-hot':'')+(!_known?' vg-unknown':'')+'" style="width:'+(_known?(_full?100:pct):0)+'%"></div></div>'
+        /* #174 v-B2 — the same report the window prints, from the same packer: a spot he chose that no longer fits */
+        + ((_known && _ld.conflicts && _ld.conflicts.length) ? '<div class="vm-note vm-bad-spots" title="' + esc(_ld.conflicts.map(function(c){ return c.n + ' — wanted ' + c.spot + ': ' + c.why; }).join(' · '))
+            + '">⚠ ' + _ld.conflicts.length + ' item' + (_ld.conflicts.length === 1 ? '' : 's') + ' you placed by hand no longer fit' + (_ld.conflicts.length === 1 ? 's its' : ' their') + ' spot — open the locker to see which</div>' : '')
         + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
         + '<div class="vm-body">'
         + setRows
@@ -39252,9 +39306,17 @@ window.vaultAutoAssign = function(){
   }
   // first-fit-decreasing packer over a w×h grid
   var _MULE_COPY_CAP = 3;   // v403 — mule shows at most 3 of the same base, each in its own slot
-  function packGrid(items, gw, gh){
+  /* #174 v-B2 — `occ` is the rectangles already TAKEN before first-fit starts: the items he placed by hand
+     (d2r_mulePos), seeded here so the packer flows around them instead of over them. Absent, the grid starts
+     empty, exactly as every caller before the manual placement packed. A rectangle outside the grid marks
+     only its cells inside it — _muleLoad never seeds one (it refuses a spot that does not fit first). */
+  function packGrid(items, gw, gh, occ){
     var grid=[], placed=[], left=[];
     for (var y=0;y<gh;y++){ grid.push(new Array(gw).fill(false)); }
+    (occ || []).forEach(function(r){
+      for (var oy = Math.max(0, r.y|0); oy < Math.min(gh, (r.y|0) + (r.h||1)); oy++)
+        for (var ox = Math.max(0, r.x|0); ox < Math.min(gw, (r.x|0) + (r.w||1)); ox++) grid[oy][ox] = true;
+    });
     function fits(x,y,w,h){
       if (x+w>gw||y+h>gh) return false;
       for (var dy=0;dy<h;dy++) for (var dx=0;dx<w;dx++) if (grid[y+dy][x+dx]) return false;
@@ -39263,7 +39325,7 @@ window.vaultAutoAssign = function(){
     function mark(x,y,w,h){ for (var dy=0;dy<h;dy++) for (var dx=0;dx<w;dx++) grid[y+dy][x+dx]=true; }
     items.forEach(function(it){
       for (var y=0;y<gh;y++) for (var x=0;x<gw;x++){
-        if (fits(x,y,it.w,it.h)){ mark(x,y,it.w,it.h); placed.push({n:it.n,x:x,y:y,w:it.w,h:it.h}); return; }
+        if (fits(x,y,it.w,it.h)){ mark(x,y,it.w,it.h); placed.push(it.key != null ? {n:it.n,key:it.key,x:x,y:y,w:it.w,h:it.h,bad:it.bad||null} : {n:it.n,x:x,y:y,w:it.w,h:it.h}); return; }
       }
       left.push(it);
     });
@@ -39287,7 +39349,7 @@ window.vaultAutoAssign = function(){
     return { cap: cap, used: used, oob: oob, over: over,
              fault: (used > cap) || !!oob || !!over };
   };
-  function gridHtml(placed, gw, gh, cell){
+  function gridHtml(placed, gw, gh, cell, opt){
     /* ⚠ v2240 — AN OVER-FULL GRID MUST SAY SO, NOT BE SQUINTED AT. Konyo, on a mule card: "those
        items that were squezed in here are 8 slots.. and there isnt enough room in this mule for
        those items". He was reading it off the PIXELS, which is the one place a packing error is
@@ -39307,11 +39369,30 @@ window.vaultAutoAssign = function(){
         + (_f.over ? ' \u00b7 ' + _f.over + ' overlapping' : '') + '</div>'
       : '';
     var cells=''; for (var i=0;i<gw*gh;i++) cells+='<div class="vd-cell"></div>';
+    /* #174 v-B2 — `opt` = {area, page, label} makes every item in the grid a tile he can MOVE: pointer drag
+       (mouse and touch), or the keyboard (focus it, Enter picks it up, arrows move, Enter drops, Esc cancels).
+       Each tile carries its key and its real footprint — the packer's own w x h — so the drop is judged on the
+       same rectangle the packer placed. A tile he placed by hand is LOCKED (vd-held) and wears a small unlock;
+       a hand-placed spot that no longer fits is packed automatically and marked (vd-bad) with the reason. */
+    var _spot = function(p){ return (opt && opt.label ? opt.label + ' · ' : '') + 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     var blocks=placed.map(function(p){
       var _vr=(window._artRarity?window._artRarity(p.n):'');
-      return '<div class="vd-item'+(_vr?' vd-r-'+_vr:'')+'" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+esc(p.n)+' ('+p.w+'×'+p.h+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')+'</div>';
+      var _mv = !!(opt && p.key != null);
+      var _say = esc(p.n) + ' (' + p.w + '×' + p.h + ')'
+        + (_mv ? (p.manual ? ' — placed by hand at ' + esc(_spot(p)) + '. Drag to move it; right-click (or the lock) returns it to auto-pack'
+                 : p.bad ? ' — ⚠ ' + esc(p.bad) + '. Packed automatically until you place it again or unlock it'
+                 : ' — packed automatically at ' + esc(_spot(p)) + '. Drag it to any cell where it fits and it locks there') : '');
+      return '<div class="vd-item'+(_vr?' vd-r-'+_vr:'')+(_mv && p.manual ? ' vd-held' : '')+(_mv && p.bad ? ' vd-bad' : '')+'" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+_say+'"'
+        + (_mv ? ' data-key="' + esc(p.key) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="it-' + opt.area + '-' + p.x + '-' + p.y + '"'
+               + ' tabindex="0" role="button" aria-roledescription="movable item" aria-label="' + _say + '. Enter picks it up, arrow keys move it, Enter drops, Escape cancels'
+               + (p.manual || p.bad ? ', U unlocks' : '') + '"' : '')
+        + ' onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')
+        + (_mv && (p.manual || p.bad) ? '<button type="button" class="vd-unlock" tabindex="-1" data-unlock="' + esc(p.key) + '" title="unlock — back to auto-pack (right-click the item does the same)" aria-label="unlock ' + esc(p.n) + ' — back to auto-pack">' + (p.bad ? '⚠' : '🔒') + '</button>' : '')
+        + '</div>';
     }).join('');
-    return _note + '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
+    return _note + '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px"'
+      + (opt ? ' data-area="' + opt.area + '" data-page="' + (opt.page | 0) + '" data-gw="' + gw + '" data-gh="' + gh + '" data-cell="' + cell + '"' : '')
+      + '>'+cells+blocks+'</div>';
   }
   // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
   // "worth keeping close" keepers (Konyo's corrected scheme): Pg1 💎 Trade = the auto-sorted keepers,
@@ -39425,7 +39506,37 @@ window.vaultAutoAssign = function(){
      have made two copies of the packing rule, and they would disagree the first time either moved
      — which is exactly how the card and the drill-down came to disagree in the first place. This
      span now exists in ONE place and both surfaces call it. [[copy-drift]] */
-  function _muleLoad(names, worn){
+  /* ══ #174 v-B2 — HE PLACES THEM BY HAND, AND THE PACKER FLOWS AROUND WHAT HE PLACED.
+     His order (2026-09-25, a ring he tried to drag to another box would not move): "i want them freely being able
+     to be manually overdriven meaning i can move them and unlock them to lock them in a different cube in the order
+     i choose regardless of where it was vaulted".
+
+     THE STORE: d2r_mulePos = {muleId: {itemKey: {tab, page, x, y, at}}} — account state, forked like d2r_muleAssign
+     (_LP_FORKED) and carried by Backup & Share. `tab` is one of the stash's five tabs or the inventory (MULE_AREAS),
+     `page` the mule of this locker (0 = Mule 1), x/y the top-left cell. An itemKey is the item's name, and a second
+     or third copy of the same base is "<name> #2" / "#3" — each physical copy is placed on its own.
+
+     THE ORDER: the hand-placed rectangles are laid FIRST, exactly where he put them, oldest placement first, and
+     seeded into packGrid as occupied — so first-fit flows the rest around them and the v2212 occupancy (counted
+     from the placed rectangles) includes them. A spot that no longer fits (the item grew, the cells are taken by an
+     earlier placement, a tab this window does not have) is REPORTED — `conflicts`, and on the item itself — and the
+     item is packed automatically until he places it again or unlocks it. His spot is kept, never rewritten.
+     The shelf card and the window both call this with the locker's id, so they read the SAME packer. [[copy-drift]] */
+  var MULE_AREAS = { personal: [MULE_STASH_W, MULE_STASH_H, 'Personal'], shared: [MULE_STASH_W, MULE_STASH_H, 'Shared'],
+                     gems: [MULE_STASH_W, MULE_STASH_H, 'Gems'], materials: [MULE_STASH_W, MULE_STASH_H, 'Materials'],
+                     runes: [MULE_STASH_W, MULE_STASH_H, 'Runes'], inv: [MULE_INV_W, MULE_INV_H, 'Inventory'] };
+  var MULE_STASH_TABS = ['personal', 'shared', 'gems', 'materials', 'runes'];
+  var MP_POS_KEY = 'd2r_mulePos';
+  function _mulePosAll(){
+    try {
+      var v = JSON.parse(window.LSR.getItem(MP_POS_KEY) || '{}');
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    } catch (e) { return {}; }
+  }
+  function _mulePosWrite(all){ window.LSR.setItem(MP_POS_KEY, JSON.stringify(all)); }
+  function _muleItemKey(n, ci){ return ci ? n + ' #' + (ci + 1) : n; }
+  try { window.MULE_AREAS = MULE_AREAS; window._muleItemKey = _muleItemKey; } catch (e) {}
+  function _muleLoad(names, worn, muleId, posAll){
     /* v403 — a QUANTITY base owned xN takes N SEPARATE grid slots: each physical copy packs on its
        own, assorted alongside the other units (Konyo's 3 Threshers = 3 cells). */
     /* #174 v-B — A COPY WORN ON THE DOLL HAS LEFT THE GRID. `worn` is {name: copies on the doll}
@@ -39438,28 +39549,76 @@ window.vaultAutoAssign = function(){
       var _w = Math.min(cc, Math.max(0, (worn && worn[n]) | 0));
       _wornN += _w;
       for (var _ci = 0; _ci < cc - _w; _ci++){
-        sized.push({n:n, w:s[0], h:s[1], area:s[0]*s[1], set:(t&&t.setName)||'', ct:cc});
+        sized.push({n:n, key:_muleItemKey(n, _ci), w:s[0], h:s[1], area:s[0]*s[1], set:(t&&t.setName)||'', ct:cc});
       }
     });
     /* v211: same-set pieces pack as NEIGHBORS — sort groups sets together first (first-fit places
        consecutive items adjacently), then big-first within a group */
-    sized.sort(function(a,b){
+    var _order = function(a,b){
       if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
       if (a.n !== b.n) return b.area-a.area || (a.n<b.n?-1:1);   // keep copies of the same base adjacent
       return b.area-a.area || b.h-a.h;
+    };
+    sized.sort(_order);
+    /* #174 v-B2 — THE HAND-PLACED ONES FIRST. `muleId` names the locker whose spots apply (absent: none — every
+       caller that predates the manual placement packs exactly as before); `posAll` lets a caller ask "what if"
+       with a store it has not written yet (_mpPlace does, so a drop is judged by this very packer). */
+    var _pos = (muleId != null) ? ((posAll || _mulePosAll())[muleId] || {}) : {};
+    if (!_pos || typeof _pos !== 'object') _pos = {};
+    var _hand = [], _auto = [], _bad = [], _handAt = {}, _maxPage = -1, _handN = 0;
+    sized.forEach(function(it){ (Object.prototype.hasOwnProperty.call(_pos, it.key) && _pos[it.key] ? _hand : _auto).push(it); });
+    _hand.sort(function(a, b){
+      var ta = String(_pos[a.key].at || ''), tb = String(_pos[b.key].at || '');
+      return ta < tb ? -1 : ta > tb ? 1 : (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
     });
+    _hand.forEach(function(it){
+      var p = _pos[it.key], A = MULE_AREAS[p.tab], pg = p.page, x = p.x, y = p.y, why = null;
+      var _int = function(v){ return typeof v === 'number' && v === Math.floor(v); };
+      if (!A) why = 'it was placed in "' + p.tab + '", which is not a tab of this window';
+      else if (!_int(pg) || pg < 0 || pg >= 80) why = 'its mule (' + pg + ') is not one a locker can have';
+      else if (!_int(x) || !_int(y) || x < 0 || y < 0) why = 'its cell (' + x + ', ' + y + ') is not a cell of the grid';
+      else if (x + it.w > A[0] || y + it.h > A[1])
+        why = 'a ' + it.w + '×' + it.h + ' at col ' + (x + 1) + ' · row ' + (y + 1) + ' runs past the edge of the ' + A[0] + '×' + A[1] + ' ' + A[2] + ' grid';
+      else {
+        var here = ((_handAt[pg] = _handAt[pg] || {})[p.tab] = _handAt[pg][p.tab] || []);
+        for (var i = 0; i < here.length && !why; i++){
+          var o = here[i];
+          if (x < o.x + o.w && o.x < x + it.w && y < o.y + o.h && o.y < y + it.h) why = 'its cells are taken by ' + o.n + ', placed there by hand first';
+        }
+        if (!why){ here.push({ n: it.n, key: it.key, x: x, y: y, w: it.w, h: it.h, manual: true }); _handN++; if (pg > _maxPage) _maxPage = pg; }
+      }
+      if (why){
+        var _sp = (A ? A[2] : String(p.tab)) + ' · Mule ' + ((_int(pg) ? pg : 0) + 1) + ' · col ' + ((_int(x) ? x : 0) + 1) + ' · row ' + ((_int(y) ? y : 0) + 1);
+        _bad.push({ key: it.key, n: it.n, w: it.w, h: it.h, want: p, spot: _sp, why: why });
+        _auto.push({ n: it.n, key: it.key, w: it.w, h: it.h, area: it.area, set: it.set, ct: it.ct,
+                     bad: 'your spot (' + _sp + ') no longer fits: ' + why });
+      }
+    });
+    _auto.sort(_order);
     /* v405 — pack across as many mule characters as needed: stash(10x10) then inventory(10x4).
-       Greedily fill mule 1, spill the rest onto mule 2, and so on. */
-    var mules = [], rem = sized.slice(), guard = 0;
+       Greedily fill mule 1, spill the rest onto mule 2, and so on. #174 v-B2 — each mule's hand-placed rectangles
+       are seeded as occupied first, and a mule he placed something on exists even when first-fit needs fewer. */
+    var mules = [], rem = _auto.slice(), guard = 0, _pg = 0;
     do {
-      var st = packGrid(rem, MULE_STASH_W, MULE_STASH_H);
-      var iv = packGrid(st.left, MULE_INV_W, MULE_INV_H);
-      mules.push({ stash: st.placed, inv: iv.placed });
-      rem = iv.left;
-    } while (rem.length && ++guard < 80);
+      var _o = _handAt[_pg] || {};
+      var st = packGrid(rem, MULE_STASH_W, MULE_STASH_H, _o.personal);
+      var iv = packGrid(st.left, MULE_INV_W, MULE_INV_H, _o.inv);
+      mules.push({ stash: (_o.personal || []).concat(st.placed), inv: (_o.inv || []).concat(iv.placed),
+                   tabs: { shared: _o.shared || [], gems: _o.gems || [], materials: _o.materials || [], runes: _o.runes || [] } });
+      rem = iv.left; _pg++;
+    } while ((rem.length || _pg <= _maxPage) && ++guard < 80);
     var cells = 0;
     sized.forEach(function(it){ cells += (it.w||1) * (it.h||1); });
-    var first = mules[0] || {stash:[], inv:[]};
+    var first = mules[0] || {stash:[], inv:[], tabs:{}};
+    /* what a mule holds, counted once: its five stash tabs and its inventory (the doll's worn copies are the
+       caller's to add — they are on the character, not in a grid) */
+    var _count = function(m){
+      var t = (m.stash || []).length + (m.inv || []).length;
+      Object.keys(m.tabs || {}).forEach(function(k){ t += m.tabs[k].length; });
+      return t;
+    };
+    var _tabCells = 0;
+    mules.forEach(function(m){ Object.keys(m.tabs || {}).forEach(function(k){ m.tabs[k].forEach(function(x){ _tabCells += (x.w||1) * (x.h||1); }); }); });
     /* ⚠ v2212 — OCCUPANCY IS COUNTED FROM THE PLACED RECTANGLES, NOT INFERRED FROM THE TOTAL.
        v2211 computed the last mule's fill as `cells - (muleN-1)*140`, which silently assumes every
        finished mule used all 140 of its cells. Rectangle packing does not do that. A cross-family
@@ -39500,19 +39659,21 @@ window.vaultAutoAssign = function(){
          mule with no room reported roomLeft:true and the fix fixed nothing. Measured: 15 x 2x4
          said "room" while the packer spilled the 16th onto a second mule. The probe has to be the
          same question the packer asks, on the same contents. [[feedback-suspect-the-instrument]] */
-      var _held = (last.stash || []).concat(last.inv || []);
+      /* #174 v-B2 — the same question with his hand-placed rectangles where he put them: they are seeded as
+         occupied (never re-packed), and only what the packer placed is packed again with the probe. */
+      var _lo = _handAt[mules.length - 1] || {};
+      var _held = (last.stash || []).concat(last.inv || []).filter(function(x){ return !x.manual; });
       var _probe = [{n: '__probe', w: _big.w, h: _big.h, area: _big.w * _big.h, set: '', ct: 1}];
-      var _rem2 = _held.concat(_probe), _n2 = 0, _g2 = 0;
-      do {
-        var _s2 = packGrid(_rem2, 10, 10);
-        var _i2 = packGrid(_s2.left, 10, 4);
-        _n2++;
-        _rem2 = _i2.left;
-      } while (_rem2.length && ++_g2 < 80);
-      _roomLeft = (_n2 <= 1);          /* one more still fits on THIS mule */
+      var _s2 = packGrid(_held.concat(_probe), MULE_STASH_W, MULE_STASH_H, _lo.personal);
+      var _i2 = packGrid(_s2.left, MULE_INV_W, MULE_INV_H, _lo.inv);
+      _roomLeft = !_i2.left.length;    /* one more still fits on THIS mule */
     } catch(e){ _roomLeft = true; }   /* cannot tell -> never claim it is full */
     return { sized: sized, phys: sized.length + _wornN, worn: _wornN, cells: cells, mules: mules, rem: rem,
-             firstCount: first.stash.length + first.inv.length,
+             firstCount: _count(first),
+             /* #174 v-B2 — what each mule holds (all five stash tabs + the inventory), the hand-placed count,
+                the spots that no longer fit (reported, never silently moved), and the cells in the four tabs the
+                packer never fills (they are not part of a mule's 140) */
+             count: _count, handPlaced: _handN, conflicts: _bad, tabCells: _tabCells,
              /* the LAST mule's real occupancy, and its fill as a percentage — ONE definition, so
                 the card cannot drift from the packer the way the whole v2211 fix existed to stop */
              lastCells: _occ(last),
@@ -39603,7 +39764,7 @@ window.vaultAutoAssign = function(){
     });
     return o;
   })();
-  var MP_DOLL_K = 1.25;                         // spec §5: the doll at ~1.25x their 30px cell, gutters included
+  var MP_DOLL_K = 1;                            // #174 v-B2: their 30px cell, literally (v-B had 1.25 — his word since: "literally the same")
   var MP_SLOT_WEARS = { head: ['helm'], tors: ['armor'], rarm: ['weapon'], larm: ['shield', 'weapon', 'quiver'],
                         glov: ['gloves'], belt: ['belt'], feet: ['boots'], rrin: ['ring'], lrin: ['ring'], neck: ['amulet'] };
   var MP_WEAPON_SLOT = { rarm: 1, larm: 1 };     // only the hands swap (I / II); the rest of the doll is shared
@@ -40232,12 +40393,20 @@ window.vaultAutoAssign = function(){
   try { window.MULE_DOLL_SLOTS = MULE_DOLL_SLOTS; window.MULE_STATS = MULE_STATS; window.MP_ROW_KEY = MP_ROW_KEY; } catch (e) {}
   // ONE unit for the whole window. 1px at 2000 wide (their measured rects, exactly); below that it shrinks
   // so the three columns keep their proportions; under 900 the columns stack and the unit is the doll's.
+  /* #174 v-B2 — THE PART HE PACKS FROM FITS THE WINDOW'S HEIGHT TOO. The Grok seat on v-B, at 1280 in the console
+     (whose board is 1280x~695 under its header): "the bottoms are sliced off … the inventory you are told to pack
+     exactly is the part that loses its shape" — reproduced: the stash panel ran 64px past the bottom (its page bar
+     and gold box off the glass) and PRIMARY SKILLS 37px. The unit was set by the width alone. It is now also held
+     to the height of their header row + mule bar + stash panel (92 + 6 + 84 + 6 + 628 px) and the window's own
+     padding, floored at 0.7 so a short window scrolls rather than shrinking the words below the scale. At 2000x1300
+     and 1280x800 the width still decides, exactly as before. */
+  var MP_WORK_H = 92 + 6 + 84 + 6 + 628, MP_PAD_V = 30, MP_K_FLOOR = 0.7;
   function _mpScale(vw, vh){
     // stacked, the unit is the doll's: their 322px EQUIPMENT width fills the phone (v-B's doll unit is --u here)
     if (vw < 900) return { stack: true, k: Math.max(0.6, Math.min(1.25, (vw - 48) / 322)) };
     var grow = Math.max(1, Math.min(vw / 2000, vh / 1300));
     // 48 = the 16px gutters either side + the window's own vertical scrollbar, so a 1280 screen never scrolls sideways
-    return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };
+    return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W, Math.max(MP_K_FLOOR, (vh - MP_PAD_V) / MP_WORK_H)) };
   }
   window._mpScale = _mpScale;
   /* #174 fix — EVERY viewport-derived number of the window in one place, with a signature. The resize handler
@@ -40257,9 +40426,10 @@ window.vaultAutoAssign = function(){
              sig: k.toFixed(4) + '|' + (sc.stack ? 'stack' : 'cols') + '|' + invCell + '|' + cell };
   }
   window._mpLayout = _mpLayout;
-  var _mpView = 'stash', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '';
+  var _mpView = 'stash', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '', _mpStab = 'personal';
   window._mpSet = function(kind, v){
     if (kind === 'view') _mpView = v; else if (kind === 'diff') _mpDiff = v; else if (kind === 'swap') _mpSwap = v;
+    else if (kind === 'stab' && MULE_AREAS[v] && v !== 'inv'){ _mpStab = v; _mpFocusNext = 'stab-' + v; }   // #174 v-B2 — the five stash tabs
     var box = document.getElementById('vault-detail'), st = box ? box.scrollTop : 0;
     if (openMuleId) window.openMuleCard(openMuleId);
     if (box) box.scrollTop = st;
@@ -40275,7 +40445,8 @@ window.vaultAutoAssign = function(){
     if (!m||!box) return;
     var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mpNoteFlush(); _mpPickAt = null; _mpPickErr = ''; _mpNoteSaid = null; }   // #174 v-B — a note being typed is saved, never dropped
-    if (muleId !== openMuleId){ _mulePage = 0; _mpView = 'stash'; _mpQ = ''; }   // v405 — reset to the first mule when switching lockers
+    if (muleId !== openMuleId){ _mulePage = 0; _mpView = 'stash'; _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers
+    if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
     openMuleId = muleId;
     // v235: remember the tab the card was opened from (the vault lives in Tools)
     // so closing returns here, not wherever a stray hotkey routed to.
@@ -40303,23 +40474,38 @@ window.vaultAutoAssign = function(){
     var _live = _mpLive(muleId, _eqAll);
     var _liveAt = function(slot){ return (_live.at[_mpSetOf(slot, _mpSwap)] || {})[slot] || null; };
     var _deadAt = function(slot){ return _live.dead[_mpSetOf(slot, _mpSwap) + '.' + slot] || null; };
-    var _load = _muleLoad(names, _mpWornFor(muleId, _eqAll));
+    // #174 v-B2 — with this locker's id, so his hand-placed spots are laid first (the shelf card passes the same id)
+    var _load = _muleLoad(names, _mpWornFor(muleId, _eqAll), muleId);
     var sized = _load.sized, _physN = _load.phys, _mules = _load.mules, _rem = _load.rem;
     _muleTotalPages = _mules.length || 1;
     if (_mulePage >= _muleTotalPages) _mulePage = _muleTotalPages - 1;
     if (_mulePage < 0) _mulePage = 0;
-    var _cur = _mules[_mulePage] || { stash: [], inv: [] };
+    var _cur = _mules[_mulePage] || { stash: [], inv: [], tabs: {} };
+    var _curTabs = _cur.tabs || {};
     var stash = { placed: _cur.stash, left: [] };
     var inv = { placed: _cur.inv, left: (_mulePage === _muleTotalPages - 1 ? _rem : []) };   // only the LAST page can carry a (capped) remainder
-    var _thisMuleN = _cur.stash.length + _cur.inv.length;
+    /* #174 v-B2 — ONE COUNT OF WHAT IS ON THIS MULE, read by the header, SUMMARY, CALCULATIONS and the gold box alike.
+       The Grok seat, on v-B: SUMMARY said "On Mule 1: 10" while the line under the stash added up to 20 (stash +
+       inventory + worn), and 19 / 20 / 10 as gear moved on and off the doll — SUMMARY counted the grid only. What a
+       mule holds is its five stash tabs, its inventory and (Mule 1) what its doll wears. */
+    var _thisMuleN = _load.count ? _load.count(_cur) : (_cur.stash.length + _cur.inv.length);
+    var _stashN = _thisMuleN - _cur.inv.length;                    // all five stash tabs of this mule
+    var _wornHere = (_mulePage === 0) ? (_load.worn || 0) : 0;     // the doll is Mule 1's character
+    var _onMuleN = _thisMuleN + _wornHere;
+    // #174 v-B2 — what makes a grid's items movable: which area of which mule it is, and how a spot is said
+    var _gOpt = function(area){ return { area: area, page: _mulePage,
+      label: MULE_AREAS[area][2] + (area === 'inv' ? '' : ' stash') + (_muleTotalPages > 1 ? ' · Mule ' + (_mulePage + 1) : '') }; };
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
     var sc = _mpLayout(vw, vh), k = sc.k;
     var U = function(n){ return 'calc(' + n + '*var(--u))'; };
     var invCell = sc.invCell, cell = sc.cell;
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
-    var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span></div>'; })
-      .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span></div>'; })).join('');
+    var _lockTag = function(p){ return p.manual ? ' <span class="vl-hand" title="placed by hand — locked there">🔒 by hand</span>' : p.bad ? ' <span class="vl-bad" title="' + esc(p.bad) + '">⚠ spot no longer fits</span>' : ''; };
+    var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })
+      .concat(MULE_STASH_TABS.slice(1).reduce(function(a, t){ return a.concat((_curTabs[t] || []).map(function(p){
+        return '<div>'+esc(p.n)+' → <span class="vl-slot">'+MULE_AREAS[t][2].toUpperCase()+' '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })); }, []))
+      .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })).join('');
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
     var _muleLabel = _muleTotalPages > 1 ? (' #' + (_mulePage + 1)) : '';
     var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 40-cell inventory = 140 cells). Click the arrows — or press ← → — to step through the mules.">'
@@ -40339,7 +40525,7 @@ window.vaultAutoAssign = function(){
       +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+esc(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
       +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v">'+_physN+'</span></div>'
       +   '</div>'
-      +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_thisMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
+      +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_onMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
       + '</div>'
       + '<div class="mp-top-r">'
       +   '<div class="mp-row"><button class="mp-btn" disabled title="a .d2s import turns this mule into a character (class, level, stats, doll) — it arrives in v-C">⇪ Import .d2s</button></div>'
@@ -40348,7 +40534,8 @@ window.vaultAutoAssign = function(){
       + '</div>';
     // ── BUILD SET → the mule pages of this one locker ──
     var setTabs = '';
-    for (var _i = 0; _i < _muleTotalPages; _i++) setTabs += '<button class="mp-settab'+(_i===_mulePage?' on':'')+'" onclick="window._muleSetPage('+_i+')">Mule '+(_i+1)+'</button>';
+    // #174 v-B2 — each mule tab is also a DROP TARGET: an item dropped on "Mule k" moves to that mule and locks in its first free cell
+    for (var _i = 0; _i < _muleTotalPages; _i++) setTabs += '<button class="mp-settab'+(_i===_mulePage?' on':'')+'" onclick="window._muleSetPage('+_i+')" data-page="'+_i+'" title="Mule '+(_i+1)+' — drop an item here to move it to this mule">Mule '+(_i+1)+'</button>';
     setTabs += '<span class="mp-settab mp-settab-ghost" title="there is no manual “new mule”: when one mule is full (140 cells) the packer opens the next by itself">+ next mule opens when this one is full</span>';
     var buildSet = '<section class="mp-p mp-set">'+H('Mules in this locker', _muleTag)
       + '<div class="mp-settabs">'+setTabs+'</div></section>';
@@ -40451,7 +40638,7 @@ window.vaultAutoAssign = function(){
     var left = '<div class="mp-left">'
       + '<section class="mp-p mp-eq">'+H('Equipment', '<button class="mp-btn mp-stash-btn" onclick="window._mpSet(\'view\',\'stash\')" title="show this mule’s 10×10 stash in the centre">▤ Stash</button>')
       +   '<div class="mp-doll"></div><div class="mp-dollbox">' + doll + swap + '</div>'
-      +   '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell) + '</div>'
+      +   '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell, _gOpt('inv')) + '</div>'
       +   pick
       + '</section>'
       + '<section class="mp-p mp-prim">'+H('Primary skills')+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
@@ -40491,9 +40678,12 @@ window.vaultAutoAssign = function(){
     var calc = '<table class="mp-calc"><tbody>'
       + '<tr><td>Items in this locker</td><td>'+_physN+'</td></tr>'
       + '<tr><td>Mules they fill ('+MULE_CAP+' cells each)</td><td>'+_muleTotalPages+'</td></tr>'
-      + '<tr><td>Items on Mule '+(_mulePage+1)+'</td><td>'+_thisMuleN+'</td></tr>'
+      + '<tr title="its five stash tabs + its inventory + what its doll wears — the total the line under the stash adds up to"><td>Items on Mule '+(_mulePage+1)+'</td><td>'+_onMuleN+'</td></tr>'
       + '<tr><td>Cells placed / capacity</td><td>'+_load.placedCells+' / '+(_load.capCells*_muleTotalPages)+'</td></tr>'
-      + '<tr><td>Last mule</td><td>'+(_load.roomLeft ? (_load.lastPct+'% full') : ('FULL for a '+_load.biggest.w+'×'+_load.biggest.h))+'</td></tr>'
+      + '<tr title="how much of the last mule’s '+MULE_CAP+'-cell grid (Personal stash + inventory) is used — worn gear is on the doll, not in the grid, so it frees cells"><td>Last mule’s grid</td><td>'+(_load.roomLeft ? (_load.lastPct+'% full') : ('FULL for a '+_load.biggest.w+'×'+_load.biggest.h))+'</td></tr>'
+      + '<tr><td>Placed by hand (locked)</td><td>'+(_load.handPlaced || 0)+'</td></tr>'
+      + ((_load.conflicts || []).length ? '<tr class="mp-calc-bad"><td>Hand-placed spots that no longer fit</td><td>'+_load.conflicts.length+'</td></tr>' : '')
+      + (_load.tabCells ? '<tr><td>Cells used in the Shared / Gems / Materials / Runes tabs</td><td>'+_load.tabCells+'</td></tr>' : '')
       + '<tr><td>Set pieces held here</td><td>'+_setN+'</td></tr>'
       + '<tr><td>Trade value (high · med)</td><td>'+(_tiers ? (_tiers.high+' · '+_tiers.med) : UNK('the value table did not load'))+'</td></tr>'
       + '<tr><td>Magic find the worn gear adds</td><td>'+SV('mf')+'</td></tr>'
@@ -40503,16 +40693,29 @@ window.vaultAutoAssign = function(){
        2000 wide: the stash cell budget (_mpLayout) assumes one, so the stash view scrolled and cut its border. The
        worn copies (mule 1's) now read "N worn", stash + inventory + worn being this mule's count, and the title
        says the whole sentence. The words never out-grow v-A's "N on this mule", which fits every width. */
-    var _wornHere = (_mulePage === 0) ? (_load.worn || 0) : 0;
+    /* #174 v-B2 — "in stash" is all five tabs of this mule; the total is _onMuleN, the number SUMMARY prints */
     var _goldbox = _wornHere
-      ? '<div class="vd-goldbox" title="' + stash.placed.length + ' in the stash + ' + inv.placed.length + ' in the inventory + ' + _wornHere
-          + ' worn on the doll = ' + (_thisMuleN + _wornHere) + ' on this mule">🪙 ' + stash.placed.length + ' in stash · ' + inv.placed.length + ' in inventory · ' + _wornHere + ' worn</div>'
-      : '<div class="vd-goldbox">🪙 ' + stash.placed.length + ' in stash · ' + inv.placed.length + ' in inventory · ' + _thisMuleN + ' on this mule</div>';
+      ? '<div class="vd-goldbox" title="' + _stashN + ' in the stash + ' + inv.placed.length + ' in the inventory + ' + _wornHere
+          + ' worn on the doll = ' + _onMuleN + ' on this mule">🪙 ' + _stashN + ' in stash · ' + inv.placed.length + ' in inventory · ' + _wornHere + ' worn</div>'
+      : '<div class="vd-goldbox">🪙 ' + _stashN + ' in stash · ' + inv.placed.length + ' in inventory · ' + _onMuleN + ' on this mule</div>';
+    /* #174 v-B2 — THE FIVE STASH TABS ARE CONTROLS. v-B drew them as dim labels with nothing behind them (the Grok
+       seat: "barely clickable" — they were not clickable at all). Personal is what the packer fills; the other four
+       hold only what he places there by hand, and each tab is also a drop target. */
+    var _stabPlaced = (_mpStab === 'personal') ? stash.placed : (_curTabs[_mpStab] || []);
+    var _stabHtml = MULE_STASH_TABS.map(function(t){
+      var n = (t === 'personal') ? stash.placed.length : (_curTabs[t] || []).length, on = (t === _mpStab);
+      return '<button type="button" class="vd-tab' + (on ? ' vt-on' : '') + '" role="tab" aria-selected="' + on + '" data-tab="' + t + '" data-fk="stab-' + t + '"'
+        + ' onclick="window._mpSet(\'stab\',\'' + t + '\')" title="' + MULE_AREAS[t][2] + ' tab of Mule ' + (_mulePage + 1) + ' — '
+        + (n ? n + ' item' + (n === 1 ? '' : 's') : 'empty')
+        + (t === 'personal' ? ' (the packer fills this one)' : ' (only what you place here by hand — what the game lets this tab hold is not on record here)')
+        + '. Drop an item on the tab to move it here">' + MULE_AREAS[t][2] + (n && t !== 'personal' ? ' <b>' + n + '</b>' : '') + '</button>';
+    }).join('');
     var centre = '<div class="mp-centre">'
       + '<section class="mp-p mp-cp"><div class="mp-ctabs">'+ctab('stash','Stash')+ctab('tree','Skill tree')+ctab('calc','Calculations')+'</div>'
       +   '<div class="mp-view mp-v-stash"'+(_mpView==='stash'?'':' hidden')+'>'
-      +     '<div class="vd-tabs">' + TABS.map(function(t,i){ return '<div class="vd-tab'+(i===0?' vt-on':'')+'">'+t+'</div>'; }).join('') + '</div>'
-      +     gridHtml(stash.placed,MULE_STASH_W,MULE_STASH_H,cell).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
+      /* the tab row is the grid's own width (their in-game tabs span the stash), each tab at least its word */
+      +     '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '" style="width:' + (MULE_STASH_W * cell + (MULE_STASH_W - 1) * 2 + 10) + 'px">' + _stabHtml + '</div>'
+      +     gridHtml(_stabPlaced,MULE_STASH_W,MULE_STASH_H,cell,_gOpt(_mpStab)).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar">' + _muleArrows + '</div>'
       +     _goldbox
       +   '</div>'
@@ -40522,6 +40725,12 @@ window.vaultAutoAssign = function(){
       + '<section class="mp-p mp-notes">'+H('Notes', '<span class="mp-note-st'+(_noteSaid ? (_noteSaid.ok ? ' ok' : ' err') : '')+'">'+(_noteSaid ? esc(_noteSaid.t) : 'Enter saves · Shift+Enter new line')+'</span>')+'<div class="mp-notes-b">'
       +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> ('+MULE_CAP+' cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
       +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
+      /* #174 v-B2 — A HAND-PLACED SPOT THAT NO LONGER FITS IS SAID, NEVER SILENTLY MOVED. The packer placed the item
+         for now and marked it on the grid; his spot stays in the store until he places it again or unlocks it. */
+      +   ((_load.conflicts || []).length ? (function(cf){ var n = cf.length;
+            return '<div class="vd-overflow mp-bad-spots" role="status">⚠ <strong>' + n + ' item' + (n === 1 ? '' : 's') + ' you placed by hand no longer fit' + (n === 1 ? 's its' : ' their') + ' spot</strong>'
+              + ' — packed automatically for now (marked on the grid) until you place ' + (n === 1 ? 'it' : 'them') + ' again or unlock ' + (n === 1 ? 'it' : 'them') + ': '
+              + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + c.w + '×' + c.h + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why); }).join(' · ') + '</div>'; })(_load.conflicts) : '')
       +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
       /* #174 v-B — the note is an EDITOR over the locker's own field (d2r_muleRoster), saved on Enter or blur
          through the routed store; a draft he has not saved yet survives a re-render underneath him */
@@ -40554,8 +40763,8 @@ window.vaultAutoAssign = function(){
       + '<section class="mp-p mp-show">'+H('Summary')+'<div class="mp-kv">'
       +   '<div><span>Items</span><span>'+_physN+'</span></div>'
       +   '<div><span>Mules</span><span>'+_muleTotalPages+'</span></div>'
-      +   '<div><span>On Mule '+(_mulePage+1)+'</span><span>'+_thisMuleN+'</span></div>'
-      +   '<div><span>Last mule</span><span>'+(_load.roomLeft ? (_load.lastPct+'%') : 'FULL')+'</span></div>'
+      +   '<div title="its five stash tabs + its inventory + what its doll wears — the same total as the line under the stash"><span>On Mule '+(_mulePage+1)+'</span><span>'+_onMuleN+'</span></div>'
+      +   '<div title="how much of the last mule’s '+MULE_CAP+'-cell grid (Personal stash + inventory) is used — worn gear is on the doll, not in the grid"><span>Last mule’s grid</span><span>'+(_load.roomLeft ? (_load.lastPct+'%') : 'FULL')+'</span></div>'
       + '</div></section>'
       + '<section class="mp-p mp-stats">'+H('Stats', '<button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button>')
       +   '<div class="mp-seg">'+diffBtn('normal','Normal')+diffBtn('nightmare','Nightmare')+diffBtn('hell','Hell')+'</div>'
@@ -40609,6 +40818,8 @@ window.vaultAutoAssign = function(){
   window.vaultCloseCard = function(){
     try { _mpNoteFlush(); } catch (e) {}     // #174 v-B — closing never drops a note he was typing
     _mpPickAt = null; _mpPickErr = '';
+    // #174 v-B2 — a drag or a keyboard carry in flight is put back, and its message goes with the window
+    try { if (_mpDrag){ _mpDragEnd(_mpDrag); _mpDrag = null; } if (_mpCarry) _mpCarryEnd(); var _ds = document.getElementById('mp-dragsay'); if (_ds) _ds.className = ''; } catch (e) {}
     var b=document.getElementById('vault-detail');
     if(b){ b.hidden=true; b.classList.remove('vd-fs'); b.classList.remove('mp-on'); }
     document.documentElement.classList.remove('vd-lock');
@@ -40633,6 +40844,297 @@ window.vaultAutoAssign = function(){
     if (e.preventDefault) e.preventDefault();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
     window._mpPick(null);
+  }, true);
+  /* ══ #174 v-B2 — MOVING AN ITEM BY HAND: the pointer (mouse and touch), the keyboard, the mule tabs, the stash tabs.
+     His order: "i can move them and unlock them to lock them in a different cube in the order i choose regardless of
+     where it was vaulted" (his_mule_locked_21: a ring he dragged would not move). Their builder, measured (spec §9,
+     planner/equip/13-15): press on the item, move, release on another cell — it moves there and stays, and while it
+     is in the air the cells it would cover are tinted GREEN where it fits. Ours tints RED where it does not and says why.
+
+     ONE WRITER, JUDGED BY THE PACKER. _mpPlace runs _muleLoad with the new spot before it writes anything, and
+     writes only when the packer places the item exactly there — so a drop can never be accepted by the window and
+     then moved by the packer, and the shelf card (the same _muleLoad, the same id) can never disagree. The tint
+     while dragging is only a preview of the same rule; the drop is always asked of the packer. */
+  function _mpLoadNow(muleId, posAll){
+    var nm = Object.keys(assign).filter(function(n){ return assign[n] === muleId; }).sort();
+    return _muleLoad(nm, _mpWornFor(muleId, _mpEqAll()), muleId, posAll);
+  }
+  function _mpFind(ld, key){ var it = null; (ld.sized || []).forEach(function(s){ if (s.key === key) it = s; }); return it; }
+  function _mpSpotSay(s){ return MULE_AREAS[s.tab][2] + (s.tab === 'inv' ? '' : ' stash') + ' · Mule ' + (s.page + 1) + ' · col ' + (s.x + 1) + ' · row ' + (s.y + 1); }
+  /* -> {ok, n, w, h, spot} or {ok:false, why}. PURE until it writes, and it writes only an accepted spot. */
+  window._mpPlace = function(muleId, key, spot){
+    if (!muleId || muleId === 'shared' || !muleById(muleId)) return { ok: false, why: 'that is not a mule of this vault' };
+    var A = spot && MULE_AREAS[spot.tab];
+    if (!A) return { ok: false, why: 'there is no "' + (spot && spot.tab) + '" to place into' };
+    var all = _mulePosAll(), now = _mpLoadNow(muleId, all), it = _mpFind(now, key);
+    if (!it) return { ok: false, why: key + ' is not in this locker’s grids (it is worn on the doll, or not assigned here)' };
+    var x = spot.x, y = spot.y, pg = spot.page, whole = function(v){ return typeof v === 'number' && v === Math.floor(v); };
+    if (!whole(x) || !whole(y) || !whole(pg)) return { ok: false, why: 'a spot is a whole cell' };
+    if (pg < 0 || pg >= now.mules.length) return { ok: false, why: 'there is no Mule ' + (pg + 1) + ' in this locker' };
+    if (x < 0 || y < 0 || x + it.w > A[0] || y + it.h > A[1])
+      return { ok: false, why: 'a ' + it.w + '×' + it.h + ' does not fit at col ' + (x + 1) + ' · row ' + (y + 1) + ' — it would run past the edge of the ' + A[0] + '×' + A[1] + ' ' + A[2] + ' grid' };
+    var next = JSON.parse(JSON.stringify(all));
+    next[muleId] = (next[muleId] && typeof next[muleId] === 'object') ? next[muleId] : {};
+    next[muleId][key] = { tab: spot.tab, page: pg, x: x, y: y, at: new Date().toISOString() };
+    var ld = _mpLoadNow(muleId, next), bad = null;
+    (ld.conflicts || []).forEach(function(c){ if (c.key === key) bad = c; });
+    if (bad) return { ok: false, why: 'a ' + it.w + '×' + it.h + ' does not fit there — ' + bad.why };
+    try { _mulePosWrite(next); } catch (e){ return { ok: false, why: 'the spot could not be saved (' + (e && e.message || e) + ')' }; }
+    return { ok: true, n: it.n, w: it.w, h: it.h, spot: { tab: spot.tab, page: pg, x: x, y: y } };
+  };
+  /* back to auto-pack: his spot is removed, and the packer places the item wherever first-fit puts it */
+  window._mpUnlock = function(muleId, key){
+    var all = _mulePosAll();
+    if (!all[muleId] || !Object.prototype.hasOwnProperty.call(all[muleId], key)) return { ok: false, why: key + ' is not placed by hand' };
+    delete all[muleId][key];
+    if (!Object.keys(all[muleId]).length) delete all[muleId];
+    try { _mulePosWrite(all); } catch (e){ return { ok: false, why: 'the unlock could not be saved (' + (e && e.message || e) + ')' }; }
+    return { ok: true };
+  };
+  /* a drop on a MULE tab (tab null: Personal, then the inventory) or on a STASH tab: the first cell where nothing
+     sits now, else the first one only the packer's own items sit on (they flow on around it) */
+  window._mpMoveTo = function(muleId, key, page, tab){
+    var now = _mpLoadNow(muleId, _mulePosAll()), it = _mpFind(now, key);
+    if (!it) return { ok: false, why: key + ' is not in this locker’s grids' };
+    var m = now.mules[page];
+    if (!m) return { ok: false, why: 'there is no Mule ' + (page + 1) + ' in this locker' };
+    var areas = tab ? [tab] : ['personal', 'inv'];
+    var held = function(a){ return (a === 'personal' ? m.stash : a === 'inv' ? m.inv : ((m.tabs || {})[a] || [])).filter(function(p){ return p.key !== key; }); };
+    var free = function(list, x, y, A){
+      if (x + it.w > A[0] || y + it.h > A[1]) return false;
+      for (var i = 0; i < list.length; i++){ var o = list[i]; if (x < o.x + o.w && o.x < x + it.w && y < o.y + o.h && o.y < y + it.h) return false; }
+      return true;
+    };
+    for (var ps = 0; ps < 2; ps++) for (var ai = 0; ai < areas.length; ai++){
+      var A = MULE_AREAS[areas[ai]];
+      if (!A) continue;
+      var list = held(areas[ai]).filter(function(p){ return ps === 0 || p.manual; });
+      for (var y = 0; y < A[1]; y++) for (var x = 0; x < A[0]; x++) if (free(list, x, y, A)){
+        var r = window._mpPlace(muleId, key, { tab: areas[ai], page: page, x: x, y: y });
+        if (r.ok) return r;
+      }
+    }
+    return { ok: false, why: 'Mule ' + (page + 1) + (tab ? '’s ' + MULE_AREAS[tab][2] + ' tab' : '') + ' has no room for a ' + it.w + '×' + it.h + ' — not even where only the packer’s items sit' };
+  };
+  var _mpDrag = null, _mpCarry = null, _mpDragEndAt = 0, _mpSayT = null;
+  function _mpSay(t, ok){
+    window._mpSaid = { t: t, ok: !!ok };
+    try {
+      var el = document.getElementById('mp-dragsay');
+      if (!el){ el = document.createElement('div'); el.id = 'mp-dragsay'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+      el.textContent = t; el.className = 'on ' + (ok ? 'ok' : 'no');
+      clearTimeout(_mpSayT); _mpSayT = setTimeout(function(){ el.className = ''; }, 4500);
+    } catch (e) {}
+  }
+  function _mpPitch(g){ return (+g.getAttribute('data-cell') || 28) + 2; }
+  function _mpCellAt(g, cx, cy){
+    var r = g.getBoundingClientRect(), p = _mpPitch(g);
+    return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p), y: Math.floor((cy - r.top - g.clientTop - 3) / p) };
+  }
+  /* the preview's rule, read off the grid as drawn: inside the grid, and over no item placed by hand but this one */
+  function _mpFitsIn(g, key, x, y, w, h){
+    var gw = +g.getAttribute('data-gw'), gh = +g.getAttribute('data-gh');
+    if (x < 0 || y < 0 || x + w > gw || y + h > gh) return { ok: false, why: 'a ' + w + '×' + h + ' would run past the edge of the grid there' };
+    var hs = g.querySelectorAll('.vd-item.vd-held[data-key]');
+    for (var i = 0; i < hs.length; i++){
+      var e = hs[i]; if (e.getAttribute('data-key') === key) continue;
+      var ox = +e.getAttribute('data-x'), oy = +e.getAttribute('data-y'), ow = +e.getAttribute('data-w'), oh = +e.getAttribute('data-h');
+      if (x < ox + ow && ox < x + w && y < oy + oh && oy < y + h) return { ok: false, why: 'those cells hold ' + e.getAttribute('data-key') + ', placed there by hand' };
+    }
+    return { ok: true };
+  }
+  function _mpClearPreview(){
+    try {
+      [].forEach.call(document.querySelectorAll('#vault-detail .vd-drop'), function(d){ if (d.parentNode) d.parentNode.removeChild(d); });
+      [].forEach.call(document.querySelectorAll('#vault-detail .vd-over'), function(e){ e.classList.remove('vd-over'); });
+    } catch (e) {}
+  }
+  function _mpPreview(g, x, y, w, h, ok){
+    var d = document.createElement('div'), c = _mpPitch(g) - 2;
+    d.className = 'vd-drop ' + (ok ? 'vd-drop-ok' : 'vd-drop-no');
+    d.style.left = (3 + x * (c + 2)) + 'px'; d.style.top = (3 + y * (c + 2)) + 'px';
+    d.style.width = (w * c + (w - 1) * 2) + 'px'; d.style.height = (h * c + (h - 1) * 2) + 'px';
+    g.appendChild(d);
+  }
+  /* what the pointer is over: a grid cell (with the footprint's top-left), a mule tab, or a stash tab */
+  function _mpTrack(d, cx, cy){
+    // between grids the ghost follows the pointer at the size it was lifted at
+    if (d.ghost){ d.ghost.style.left = (cx - d.ox) + 'px'; d.ghost.style.top = (cy - d.oy) + 'px'; d.ghost.style.width = d.gw0 + 'px'; d.ghost.style.height = d.gh0 + 'px'; }
+    _mpClearPreview();
+    d.target = null;
+    var el = document.elementFromPoint(cx, cy), box = document.getElementById('vault-detail');
+    if (!el || !box || !box.contains(el)) return;
+    var g = el.closest('.vd-grid[data-area]'), mt = el.closest('.mp-settab[data-page]'), st = el.closest('.mp-v-stash .vd-tab[data-tab]');
+    if (g){
+      var c = _mpCellAt(g, cx, cy), x = c.x - d.gx, y = c.y - d.gy, f = _mpFitsIn(g, d.key, x, y, d.w, d.h);
+      _mpPreview(g, x, y, d.w, d.h, f.ok);
+      d.target = { tab: g.getAttribute('data-area'), page: +g.getAttribute('data-page'), x: x, y: y, ok: f.ok, why: f.why };
+      /* over a grid the ghost SITS on the cells it would take, at their size, tinted under it — their look (the
+         item on the green cells), and a stash-sized ghost never hides a small inventory cell's tint */
+      if (d.ghost){
+        var gr = g.getBoundingClientRect(), p = _mpPitch(g);
+        d.ghost.style.left = (gr.left + g.clientLeft + 3 + x * p) + 'px'; d.ghost.style.top = (gr.top + g.clientTop + 3 + y * p) + 'px';
+        d.ghost.style.width = (d.w * (p - 2) + (d.w - 1) * 2) + 'px'; d.ghost.style.height = (d.h * (p - 2) + (d.h - 1) * 2) + 'px';
+      }
+    } else if (mt){ mt.classList.add('vd-over'); d.target = { mule: +mt.getAttribute('data-page') }; }
+    else if (st){ st.classList.add('vd-over'); d.target = { stab: st.getAttribute('data-tab') }; }
+  }
+  function _mpDragEnd(d){
+    try { if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost); } catch (e) {}
+    try { if (d.el) d.el.classList.remove('vd-lifted'); document.documentElement.classList.remove('mp-dragging'); } catch (e) {}
+    _mpClearPreview();
+  }
+  /* the landing, shared by the pointer and the keyboard -> true when the item moved */
+  function _mpCommit(key, t){
+    if (!openMuleId) return false;
+    if (!t){ _mpSay('Put back — drop it on a cell of the stash or the inventory, or on a Mule tab or a stash tab', false); return false; }
+    var r;
+    if (t.mule != null) r = window._mpMoveTo(openMuleId, key, t.mule, null);
+    else if (t.stab) r = window._mpMoveTo(openMuleId, key, _mulePage, t.stab);
+    else r = window._mpPlace(openMuleId, key, { tab: t.tab, page: t.page, x: t.x, y: t.y });
+    if (!r.ok){ _mpSay('⚠ ' + key + ' stays where it was — ' + r.why, false); return false; }
+    if (r.spot.tab !== 'inv') _mpStab = r.spot.tab;
+    _mulePage = r.spot.page;
+    _mpFocusNext = 'it-' + r.spot.tab + '-' + r.spot.x + '-' + r.spot.y;
+    _mpRefresh();
+    _mpSay('🔒 ' + r.n + ' locked at ' + _mpSpotSay(r.spot) + ' — right-click it, or its lock, to send it back to auto-pack', true);
+    return true;
+  }
+  function _mpUnlockKey(key){
+    var r = window._mpUnlock(openMuleId, key);
+    if (!r.ok){ _mpSay('⚠ ' + r.why, false); return false; }
+    _mpRefresh();
+    _mpSay('🔓 ' + key + ' unlocked — the packer places it again', true);
+    return true;
+  }
+  document.addEventListener('pointerdown', function(e){
+    if (_mpCarry) _mpCarryEnd();
+    if (e.button !== 0 || !openMuleId || !e.target || !e.target.closest || e.target.closest('.vd-unlock')) return;
+    var it = e.target.closest('#vault-detail .vd-item[data-key]'), g = it && it.closest('.vd-grid[data-area]');
+    if (!g) return;
+    var r = it.getBoundingClientRect(), p = _mpPitch(g), w = +it.getAttribute('data-w') || 1, h = +it.getAttribute('data-h') || 1;
+    _mpDrag = { id: e.pointerId, key: it.getAttribute('data-key'), el: it, w: w, h: h, on: false, ghost: null, target: null,
+                gx: Math.max(0, Math.min(w - 1, Math.floor((e.clientX - r.left) / p))), gy: Math.max(0, Math.min(h - 1, Math.floor((e.clientY - r.top) / p))),
+                ox: e.clientX - r.left, oy: e.clientY - r.top, sx: e.clientX, sy: e.clientY };
+  });
+  document.addEventListener('pointermove', function(e){
+    var d = _mpDrag;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.on){
+      if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 6) return;   // under 6px it is still a click
+      d.on = true;
+      try { var at = document.getElementById('arttip'); if (at) at.classList.remove('on'); } catch (x) {}
+      var r = d.el.getBoundingClientRect(), gh = document.createElement('div');
+      gh.className = 'vd-ghost'; gh.style.width = r.width + 'px'; gh.style.height = r.height + 'px'; d.gw0 = r.width; d.gh0 = r.height;
+      gh.innerHTML = d.el.innerHTML;
+      var u = gh.querySelector('.vd-unlock'); if (u && u.parentNode) u.parentNode.removeChild(u);
+      document.body.appendChild(gh); d.ghost = gh;
+      d.el.classList.add('vd-lifted'); document.documentElement.classList.add('mp-dragging');
+    }
+    if (e.cancelable) e.preventDefault();
+    _mpTrack(d, e.clientX, e.clientY);
+  }, { passive: false });
+  document.addEventListener('pointerup', function(e){
+    var d = _mpDrag;
+    if (!d || e.pointerId !== d.id) return;
+    _mpDrag = null;
+    if (!d.on) return;                        // a press and release in place is a click: the item's card opens as always
+    _mpDragEndAt = Date.now();
+    _mpTrack(d, e.clientX, e.clientY);        // judged where it was let go
+    var t = d.target;
+    _mpDragEnd(d);
+    _mpCommit(d.key, t);
+  });
+  document.addEventListener('pointercancel', function(e){
+    var d = _mpDrag;
+    if (!d || e.pointerId !== d.id) return;
+    _mpDrag = null;
+    if (d.on){ _mpDragEnd(d); _mpSay('Put back — the drag was interrupted', false); }
+  });
+  // an item's art is an <img>: the browser's own image drag would take the pointer away mid-move
+  document.addEventListener('dragstart', function(e){
+    if (e.target && e.target.closest && e.target.closest('#vault-detail .vd-item[data-key]') && e.preventDefault) e.preventDefault();
+  }, true);
+  /* CAPTURE: the lock button unlocks without opening the item's card, and the click a drag ends in is swallowed */
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!openMuleId || !t || !t.closest || !t.closest('#vault-detail')) return;
+    var u = t.closest('.vd-unlock[data-unlock]');
+    if (u || Date.now() - _mpDragEndAt < 450){
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
+      if (u) _mpUnlockKey(u.getAttribute('data-unlock'));
+    }
+  }, true);
+  // right-click a placed item: back to auto-pack. An item the packer placed keeps the browser's own menu.
+  document.addEventListener('contextmenu', function(e){
+    var it = openMuleId && e.target && e.target.closest && e.target.closest('#vault-detail .vd-item.vd-held[data-key], #vault-detail .vd-item.vd-bad[data-key]');
+    if (!it) return;
+    if (e.preventDefault) e.preventDefault();
+    _mpUnlockKey(it.getAttribute('data-key'));
+  });
+  /* THE KEYBOARD: focus an item, Enter (or Space) picks it up, the arrows move its footprint, PageUp / PageDown carry
+     it between the stash and the inventory, Enter drops, Esc puts it back; U (or Delete) unlocks a placed one.
+     CAPTURE, so a carried item's arrows never step the mule pages and its Esc never closes the window. */
+  function _mpCarryShow(){
+    var c = _mpCarry;
+    _mpClearPreview();
+    var f = _mpFitsIn(c.grid, c.key, c.x, c.y, c.w, c.h);
+    _mpPreview(c.grid, c.x, c.y, c.w, c.h, f.ok);
+    c.target = { tab: c.grid.getAttribute('data-area'), page: +c.grid.getAttribute('data-page'), x: c.x, y: c.y, ok: f.ok, why: f.why };
+    return f;
+  }
+  function _mpCarryEnd(){
+    var c = _mpCarry; _mpCarry = null;
+    try { if (c && c.el) c.el.classList.remove('vd-lifted'); } catch (e) {}
+    if (c) _mpClearPreview();
+  }
+  document.addEventListener('keydown', function(e){
+    if (!openMuleId) return;
+    var stop = function(){ if (e.preventDefault) e.preventDefault(); if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation(); };
+    var c = _mpCarry, k = e.key;
+    if (c){
+      if (k === 'Escape'){ stop(); _mpCarryEnd(); try { c.el.focus({ preventScroll: true }); } catch (x) {} _mpSay('Put back — ' + c.key + ' stays where it was', false); return; }
+      if (k === 'Enter' || k === ' '){ stop(); var t = c.target; _mpCarryEnd(); _mpCommit(c.key, t); return; }
+      var dx = k === 'ArrowLeft' ? -1 : k === 'ArrowRight' ? 1 : 0, dy = k === 'ArrowUp' ? -1 : k === 'ArrowDown' ? 1 : 0;
+      if (dx || dy){
+        stop();
+        var gw = +c.grid.getAttribute('data-gw'), gh = +c.grid.getAttribute('data-gh');
+        c.x = Math.max(0, Math.min(gw - c.w, c.x + dx)); c.y = Math.max(0, Math.min(gh - c.h, c.y + dy));
+        var f = _mpCarryShow();
+        _mpSay(c.key + ' → ' + _mpSpotSay(c.target) + (f.ok ? ' — fits; Enter drops it here' : ' — ' + f.why), f.ok);
+        return;
+      }
+      if (k === 'PageUp' || k === 'PageDown'){
+        stop();
+        var box = document.getElementById('vault-detail');
+        var sg = box && box.querySelector('.mp-v-stash:not([hidden]) .vd-grid[data-area]'), ig = box && box.querySelector('.mp-inv .vd-grid[data-area]');
+        var to = (c.grid === ig) ? sg : ig;
+        if (to){
+          c.grid = to;
+          c.x = Math.max(0, Math.min(+to.getAttribute('data-gw') - c.w, c.x)); c.y = Math.max(0, Math.min(+to.getAttribute('data-gh') - c.h, c.y));
+          var f2 = _mpCarryShow();
+          _mpSay(c.key + ' → ' + _mpSpotSay(c.target) + (f2.ok ? ' — fits; Enter drops it here' : ' — ' + f2.why), f2.ok);
+        }
+        return;
+      }
+      if (k === 'Tab') _mpCarryEnd();          // leaving the item puts it back
+      return;
+    }
+    var it = e.target && e.target.closest && e.target.closest('#vault-detail .vd-item[data-key]');
+    var g = it && it.closest('.vd-grid[data-area]');
+    if (!g) return;
+    if (k === 'Enter' || k === ' '){
+      stop();
+      _mpCarry = { key: it.getAttribute('data-key'), el: it, grid: g, w: +it.getAttribute('data-w') || 1, h: +it.getAttribute('data-h') || 1,
+                   x: +it.getAttribute('data-x') || 0, y: +it.getAttribute('data-y') || 0, target: null };
+      it.classList.add('vd-lifted');
+      _mpCarryShow();
+      _mpSay('Picked up ' + _mpCarry.key + ' — arrow keys move it, PageUp / PageDown switch between the stash and the inventory, Enter drops, Esc puts it back', true);
+    } else if ((k === 'u' || k === 'U' || k === 'Delete' || k === 'Backspace') && (it.classList.contains('vd-held') || it.classList.contains('vd-bad'))){
+      stop();
+      _mpUnlockKey(it.getAttribute('data-key'));
+    }
   }, true);
   // #174 — the window's one unit comes from the viewport, so a resize re-lays it (debounced) — but ONLY when a
   // number the layout is built from moved. A height-only resize (a phone keyboard) re-rendered the whole window
