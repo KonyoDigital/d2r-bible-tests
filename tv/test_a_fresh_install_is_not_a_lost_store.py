@@ -16,8 +16,17 @@ RED_PROOF below.
 """
 import io
 import os
+import sys
 import re
 import unittest
+
+_HERE0 = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE0)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
