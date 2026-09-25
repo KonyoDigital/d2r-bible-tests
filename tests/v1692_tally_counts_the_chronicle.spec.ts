@@ -131,6 +131,21 @@ async function seed(page: any, overrides: Record<string, string> = {}, once = fa
   await page.waitForTimeout(1500);
 }
 
+/* REG-1270 — THE BASELINE IS MEASURED, NEVER A 2026-08-11 LITERAL. The fixture ledger is frozen; the seed the
+   board floors into it is not (243 names when this file was written, 309 now), so an absolute count pinned here
+   goes stale on every bake - bake_seed.py itself says so. The same ledger booted as a LATER load (every one-shot
+   flagged), in its OWN context so no storage leaks between them, is the baseline each law is stated against.
+   Measured in a real page on the 309-name seed: baseline 297 found / 420 keys; a first load 309 / 432, batches
+   [2, 9, 1] - exactly the twelve, exactly three batches. */
+async function baseline(browser: any) {
+  const ctx = await browser.newContext();
+  try {
+    const p = await ctx.newPage();
+    await seed(p, SUPPRESS);
+    return await scan(p);
+  } finally { await ctx.close(); }
+}
+
 // His own click on the 🏆 F·uniques tab — the render path that puts the number on his screen.
 async function openUniquesTab(page: any) {
   await page.click('.tab[data-tab="funi"]');
@@ -218,26 +233,35 @@ test('(1) COUNTS — the Uniques tab reads 236 of his own finds, F·Sets reads 1
   const txt = await openUniquesTab(page);
   const screen = namedCards(txt);
   const s = await scan(page);
-  expect(screen.found, 'the number ON HIS SCREEN (#funi-body "named cards")').toBe(N_UNIQUES);
-  expect(s.found, 'funiScan().found must agree with the screen').toBe(N_UNIQUES);
+  // REG-1270 — no absolute: the seed the board floors in moves with every bake. The screen must agree with the
+  // engine, and every unique HIS injected ledger holds (and he has not un-ticked) must be among the found.
+  expect(screen.found, 'funiScan().found must agree with the number ON HIS SCREEN (#funi-body "named cards")').toBe(s.found);
   expect(screen.total, 'THE SCREEN AND funiScan() PRINT DIFFERENT DENOMINATORS — two answers to one question').toBe(s.total);
   expect(s.total, 'the universe is the v1691 boss-drop shortlist again — that is the undercount this ship exists to end').not.toBe(N_ROSTER_V1691);
-  expect(s.total, 'a roster smaller than his own finds is not a roster').toBeGreaterThan(N_UNIQUES);
-  // THE DURABLE FORM OF "236": his ledger's own unique names, counted by the resolver. 346 keys
-  // partition with nothing left over — 236 unique + 110 set-piece, zero base, zero unknown — and
-  // the tally on screen is exactly that first number. This is what "the tally counts the Chronicle
-  // he actually has" means, and it survives any future roster tuning.
-  const partition = await page.evaluate(() => {
+  expect(s.total, 'a roster smaller than his own finds is not a roster').toBeGreaterThan(s.found);
+  /* THE DURABLE FORM OF "236": his ledger's own unique names, counted by the resolver. His 346 keys partition
+     with nothing left over - 236 unique + 110 set-piece, zero base, zero unknown.
+     ⚠ REG-1270/1274 — the COUNTS moved (the seed floor adds names), so the law is stated without them: the
+     ledger as the board holds it classifies completely, and every unique of HIS injected ledger is counted.
+     The board migrates two old Natalya slot labels on boot (v2119), so it is the POST-boot store that is
+     partitioned; its one unclassifiable key was the seed's own `Harlequin Crest (Shako)` - now seeded as the
+     resolvable `Harlequin Crest` (REG-1274). */
+  const injected = Object.keys(JSON.parse(LEDGER.d2r_foundLog));
+  const unfound = Object.keys(JSON.parse(LEDGER.d2r_grailUnfound || '{}'));
+  const part = await page.evaluate((a: { names: string[], unfound: string[] }) => {
     const w = window as any;
     const out: Record<string, number> = {};
+    // his ledger AS THE BOARD HOLDS IT: after its own migrations (v2119 renames two old Natalya slot labels)
     for (const n of Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'))) {
       const k = w.d2rResolveItem(n).kind; out[k] = (out[k] || 0) + 1;
     }
-    return out;
-  });
-  expect(partition, "his 346-key ledger must partition into uniques + set pieces with NOTHING unclassified").toEqual({ 'unique': N_UNIQUES, 'set-piece': N_PIECES_IN_LOG });
-  expect(screen.found, 'the screen must print HIS ledger count, not a roster artefact').toBe(partition['unique']);
-  expect(s.havePieces, 'fsetsScan().havePieces — his 110 set pieces').toBe(N_SETPIECES);
+    const missing = new Set(((w.funiScan().missing) || []).map((x: any) => x.n));
+    const uncounted = a.names.filter((n) => w.d2rResolveItem(n).kind === 'unique' && a.unfound.indexOf(n) < 0 && missing.has(n));
+    return { out, uncounted };
+  }, { names: injected, unfound });
+  expect(Object.keys(part.out).sort(), "his ledger must partition into uniques + set pieces with NOTHING unclassified (REG-1274: the seed once floored an unresolvable alias spelling)").toEqual(['set-piece', 'unique']);
+  expect(part.uncounted, 'a unique HIS OWN ledger holds (and he never un-ticked) is not counted as found').toEqual([]);
+  expect(s.havePieces, 'fsetsScan().havePieces — his 110 set pieces are all counted (the set seed may floor more)').toBeGreaterThanOrEqual(N_SETPIECES);
   expect(s.totalPieces, 'fsetsScan().totalPieces').toBe(N_SETS_TOTAL);
 });
 
@@ -275,16 +299,17 @@ test('(2) CLASSIFY — d2rResolveItem separates unique / base / set-piece / unkn
    chronicleApply — the same adds-only path his hand-tick uses — and the screen reads 238. Then
    chronicleUndoLast() puts the screen back to 236 and his ledger back to 346 keys. An auto-apply
    without a working undo is a write he cannot take back; that is the whole risk of this ship. */
-test('(3) UP — first load applies the two verified finds by itself, 236 → 238, and undo returns 236', async ({ page }) => {
+test('(3) UP — a first load applies the twelve one-shot names by itself, and undo returns to the baseline', async ({ page, browser }) => {
+  const base = await baseline(browser);   // REG-1270 — the same ledger as a LATER load, measured, never a literal
   await seed(page);   // no SUPPRESS: this is his first load of v1692
   const before = await scan(page);
   const txt = await openUniquesTab(page);
-  expect(namedCards(txt).found, 'the screen after the boot auto-apply').toBe(N_AFTER);
-  expect(before.found, 'funiScan().found after the boot auto-apply').toBe(N_AFTER);
+  expect(namedCards(txt).found, 'the screen after the boot auto-apply agrees with the engine').toBe(before.found);
+  expect(before.found, 'the first load added EXACTLY the twelve one-shot names to the tally').toBe(base.found + N_APPLIED_ON_FIRST_LOAD);
   /* v1695 — a FIRST load now runs three one-shots, not one: v1692's two verified finds, then
      v1693's nine-name ruling and The Diggler. 346 + 12 = 358, and every one of the twelve is
      named below so this stays an inventory rather than a magic number that drifts. */
-  expect(before.bootFoundLogKeys, 'his ledger grew by exactly the twelve applied names').toBe(N_FOUNDLOG + N_APPLIED_ON_FIRST_LOAD);
+  expect(before.bootFoundLogKeys, 'his ledger grew by exactly the twelve applied names').toBe(base.bootFoundLogKeys + N_APPLIED_ON_FIRST_LOAD);
   expect(before.hasFleshrender && before.hasGloomsTrap, 'both names landed in d2r_foundLog (the LEDGER), not in d2r_owned (the vault)').toBe(true);
   expect(before.batches.length, 'each one-shot recorded its own undoable batch').toBe(N_BATCHES_ON_FIRST_LOAD);
   expect(before.batches[0].uniques, 'the v1692 batch records only what it actually flipped').toEqual(['Fleshrender', "Gloom's Trap"]);
@@ -307,9 +332,9 @@ test('(3) UP — first load applies the two verified finds by itself, 236 → 23
   const after = await scan(page);
   expect(undoneTotal, 'every applied name came back off').toBe(N_APPLIED_ON_FIRST_LOAD);
   expect(after.batches.length, 'no batch left behind').toBe(0);
-  expect(after.found, 'funiScan().found back to the pre-apply baseline').toBe(N_UNIQUES);
-  expect(after.bootFoundLogKeys, 'his ledger back to its original key count').toBe(N_FOUNDLOG);
-  expect(namedCards((await page.textContent('#funi-body')) || '').found, 'the screen back to 236').toBe(N_UNIQUES);
+  expect(after.found, 'funiScan().found back to the pre-apply baseline').toBe(base.found);
+  expect(after.bootFoundLogKeys, 'his ledger back to the baseline key count').toBe(base.bootFoundLogKeys);
+  expect(namedCards((await page.textContent('#funi-body')) || '').found, 'the screen back to the baseline').toBe(base.found);
 
   // and the same two names applied BY HAND from an already-flagged load do the same 236 → 238.
   const manual = await page.evaluate(() => {
@@ -322,7 +347,7 @@ test('(3) UP — first load applies the two verified finds by itself, 236 → 23
      at his 236 baseline and this hand-apply adds exactly the TWO v1692 names. N_AFTER is the
      twelve-name first-load state and stopped being the right constant here the moment v1693 added
      its one-shots — the third time in this file one number quietly came to mean two things. */
-  expect(manual.found, 'a hand-apply of the two v1692 names reaches 236 + 2').toBe(N_UNIQUES + 2);
+  expect(manual.found, 'a hand-apply of the two v1692 names reaches the baseline + 2').toBe(base.found + 2);
 });
 
 /* ── (4) ADDS ONLY — A CHRONICLE READ CAN NEVER COST HIM AN ITEM ──────────────────────────────
@@ -343,7 +368,7 @@ test('(4) NEVER REMOVES — re-applying names he already has skips them and the 
              batches: JSON.parse(localStorage.getItem('d2r_chronApplied') || '[]').length };
   });
   expect(r.already.length, 'three real already-found unique names off his own ledger').toBe(3);
-  expect(r.beforeFound, 'baseline before the re-apply').toBe(N_UNIQUES);
+  expect(r.beforeFound, 'a real baseline before the re-apply, not an empty board').toBeGreaterThan(0);
   expect(r.skipped.sort(), 'all three were skipped as already-found').toEqual([...r.already].sort());
   expect(r.appliedUniques, 'nothing was flipped').toEqual([]);
   expect(r.afterFound, 'THE TALLY MUST NOT DROP — a toggle bug here silently un-finds real items').toBe(r.beforeFound);

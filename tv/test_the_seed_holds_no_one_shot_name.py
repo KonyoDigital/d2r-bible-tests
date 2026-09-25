@@ -80,6 +80,21 @@ class TheSeedHoldsNoOneShotName(unittest.TestCase):
         stray = sorted((set(seed) & self.owned) - ruling)
         self.assertEqual(stray, [], "_GRAIL_SEED holds names a boot one-shot owns (a second witness): %r" % stray)
 
+    def test_every_seeded_name_is_one_the_board_can_count(self):
+        # REG-1274 — the floor wrote `Harlequin Crest (Shako)`, a key the resolver calls unknown; the Shako was
+        # not counted (measured: found 297 -> 298 once the seed carried `Harlequin Crest`)
+        roster = bake_seed.unique_roster(self.src)
+        self.assertGreater(len(roster), 400, "premise: the roster was read")
+        seed = _literal(self.src, "_GRAIL_SEED")
+        off = sorted(n for n in seed if bake_seed._norm_key(n) not in roster)
+        self.assertEqual(off, [], "_GRAIL_SEED holds names the board's roster cannot count: %r" % off)
+
+    def test_the_baker_folds_a_vault_spelling_and_refuses_the_unknown(self):
+        roster = bake_seed.unique_roster(self.src)
+        self.assertEqual(bake_seed.seed_name("Harlequin Crest (Shako)", roster), "Harlequin Crest")
+        self.assertEqual(bake_seed.seed_name("Atma\u2019s Scarab", roster) is not None, True)
+        self.assertIsNone(bake_seed.seed_name("Naglring", roster), "a misread no roster name matches must not be seeded")
+
     def test_a_far_flag_does_not_inflate_the_scan(self):
         fixture = ("var bk=['d2r_v1692FleshrenderApplied'];\n" + "x;\n" * 500 +
                    "var s=['Not A One Shot', \"Nor This\"];\n" + "y;\n" * 500 +
@@ -93,6 +108,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1274 - the seed carries the vault spelling again: the floor writes a key the tally cannot count",
+        "file": "bible.html",
+        "find": "\"Harlequin Crest\":\"Sep 16, 2026 · 15:28\",",
+        "replace": "\"Harlequin Crest (Shako)\":\"Sep 16, 2026 · 15:28\",",
+        "matches": 1,
+    },
     {
         "why": "REG-1271 - The Diggler is seeded again: v1693's one-shot is no longer its only witness",
         "file": "bible.html",

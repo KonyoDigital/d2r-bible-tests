@@ -113,6 +113,52 @@ def _lit(src, name):
     return json.loads(m.group(1)), m
 
 
+def _norm_key(s):
+    """bible.html's _normKey, mirrored: NFKD, curly quotes -> ', dashes -> -, lowercase, alphanumerics only."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s if s is not None else ""))
+    s = s.replace("\u2018", "'").replace("\u2019", "'").replace("\u02bc", "'").replace("\u2013", "-").replace("\u2014", "-")
+    return re.sub(r"[^a-z0-9]+", "", s.lower())
+
+
+def unique_roster(src):
+    """{normKey: canonical} over ITEM_VALUE and _UNI_EXTRA - the names the board's resolver can count."""
+    out = {}
+    for marker in ("window.ITEM_VALUE = ", "const _UNI_EXTRA = "):
+        try:
+            i = src.index(marker)
+            a = src.index("{", i)
+            depth = 0
+            for k in range(a, len(src)):
+                if src[k] == "{":
+                    depth += 1
+                elif src[k] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        for name in json.loads(src[a:k + 1]):
+                            out.setdefault(_norm_key(name), name)
+                        break
+        except Exception:
+            continue
+    return out
+
+
+def seed_name(n, roster):
+    """-> the name to SEED for a ledger key, or None when the board could never count it.
+
+    ⚠ REG-1274 — the v3313 bake copied `Harlequin Crest (Shako)` (a vault-key spelling sitting in his
+    foundLog, v1933 debris) straight into _GRAIL_SEED. The floor then wrote a key d2rResolveItem calls
+    unknown and funiScan did not count - MEASURED: seeding the resolvable `Harlequin Crest` moved a real
+    page's found 297 -> 298. A trailing parenthetical is folded to its roster name; a name the roster cannot
+    match at all is REPORTED and not seeded (report, never remove: his ledger keeps it)."""
+    if _norm_key(n) in roster:
+        return n
+    bare = re.sub(r"\s*\([^)]*\)\s*$", "", n)
+    if bare != n and _norm_key(bare) in roster:
+        return roster[_norm_key(bare)]
+    return None
+
+
 def one_shot_owned(src):
     """Names a boot one-shot applies with its own provenance. Seeding them is refused. -> set
 
@@ -259,10 +305,20 @@ def bake(write=False, root=None):
             del new_set[n]
 
     new_grail = dict(old_grail)
+    roster = unique_roster(src)
+    unseedable = []
     for n, d in fl.items():
         if n in sp_set or n in owned or not d:
             continue                      # rules 3 + 4
-        new_grail.setdefault(n, d)
+        sn = seed_name(n, roster) if roster else n      # REG-1274 — rule 5: seed only what the board can count
+        if sn is None:
+            unseedable.append(n)
+            continue
+        # ⚠ rule 4 stays ONE line above - a second copy here made that refusal's own proof BLIND (REG-1274);
+        # a suffixed one-shot spelling that folds onto a one-shot name is caught by the seed law at the gate.
+        new_grail.setdefault(sn, d)
+    if unseedable:
+        print("not seeded (the board's roster cannot count them - his ledger keeps them): %s" % ", ".join(sorted(unseedable)[:12]))
 
     assert set(old_set) <= set(new_set), "the bake would LOSE set names"      # rule 2
     assert set(old_grail) <= set(new_grail), "the bake would LOSE grail names"

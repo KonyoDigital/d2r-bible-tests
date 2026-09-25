@@ -76,8 +76,21 @@ class TestTheBakerRefuses(unittest.TestCase):
         self.assertIsNotNone(got, "found no store at all")
         self.assertIn("a" * 8, got, "picked a store with no d2r_foundLog in it")
 
+    def _unseeded_unique(self):
+        # REG-1274 — rule 5 seeds only names the board can count, so drift needs a REAL roster unique that is
+        # not seeded yet (an invented name is now correctly refused). Chosen from the page, never hand-listed.
+        src = self._src()
+        roster = bake_seed.unique_roster(src)
+        seeded, _m = bake_seed._lit(src, "_GRAIL_SEED")
+        owned = bake_seed.one_shot_owned(src)
+        have = {bake_seed._norm_key(n) for n in seeded}
+        for key, name in sorted(roster.items()):
+            if key not in have and name not in owned:
+                return name
+        self.fail("premise: every roster unique is already seeded - nothing can drift")
+
     def test_report_only_by_default(self):
-        _mkstore(self.root, "d" * 8, {"Totally New Unique": "Jan 1, 2026 · 01:00"}, [])
+        _mkstore(self.root, "d" * 8, {self._unseeded_unique(): "Jan 1, 2026 · 01:00"}, [])
         before = self._src()
         rc = bake_seed.bake(write=False, root=self.root)
         self.assertEqual(self._src(), before, "a REPORT wrote to bible.html")

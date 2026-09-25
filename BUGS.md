@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1274 - THE SEED FLOORED A SHAKO THE TALLY COULD NOT COUNT, AND I RETRACTED THE SUSPICION TOO EARLY
+
+**fix - #165, found while pre-verifying v1692 (1)'s rewrite in a real page.** The v3313 bake copied his foundLog key
+`Harlequin Crest (Shako)` - a vault-key spelling that sits in his ledger as v1933 debris - into _GRAIL_SEED, so every
+boot floored a key `d2rResolveItem` calls unknown. v3313's own law says the seed may carry alias spellings because
+`_ownedHas` folds them, and I retracted my first suspicion on reading that. MEASURED instead of read: seeding the
+resolvable `Harlequin Crest` moved the page's found 297 -> 298, so on this path the suffixed key had NOT been counted -
+the Shako was missing from the tally on any board whose ledger held only that spelling. The seed now carries
+`Harlequin Crest` (same item, same date). The baker gains rule 5 - seed only a name the board's roster can count
+(`seed_name`: fold a trailing parenthetical onto its roster name; REPORT a name no roster matches, never seed it; his
+ledger keeps it either way) - mirroring bible.html's `_normKey`. My first cut also re-checked rule 4 after folding,
+which made rule 4's own proof BLIND; the duplicate is gone. test_bake_seed's drift case now picks a real unseeded
+roster unique from the page (an invented name is now refused, correctly). v1692 (1) is stated without counts: his
+post-boot ledger classifies completely (the board renames two old Natalya slot labels on boot, v2119, so it is the
+post-boot store that is partitioned) and every unique of his injected ledger is counted. Guard: 2 new cases in
+`test_the_seed_holds_no_one_shot_name` (every seeded name is one the roster counts; the baker folds and refuses) + a
+proof; all PROVEN. Visible on his board after the next version: the floor adds `Harlequin Crest` to a ledger that
+held only the suffixed spelling - his uniques count may rise by one, and that is the Shako being counted at last.
+
 ### REG-1273 - THE FLEET COULD NOT SEE WHETHER A CONSOLE STOOD ON ITS OWN
 
 **feat - #229's last build item ("counts-only tree/shelf block in the beacon").** Each clone has its own reels and
@@ -44,8 +63,8 @@ twelve (`one_shot_names_by_flag` exposes them per flag). The three are removed f
 seed floor only ever ADDS, so nothing leaves any ledger. The nine the ruling one-shot applies stay: they were in the
 Chronicle-captured seed (245) before that one-shot existed. This also frees v1692 (3) "first load applies the two
 verified finds", which could not move while the seed already held both. A first suspicion, that the seed's
-"Harlequin Crest (Shako)" was uncounted, was RETRACTED on reading v3313's law: `_ownedHas` folds it onto
-"Harlequin Crest" by design (v2267). Guard: `test_the_seed_holds_no_one_shot_name` (3 cases, 2 proofs), PROVEN.
+"Harlequin Crest (Shako)" was uncounted, was retracted on reading v3313's law - and the RETRACTION WAS WRONG:
+measured in a real page it was not counted (REG-1274). Guard: `test_the_seed_holds_no_one_shot_name` (3 cases, 2 proofs), PROVEN.
 
 ### REG-1270 - ROUTINE I'S FAMILY A: A 2026-08-11 FIXTURE MEASURED AGAINST A SEED THAT KEPT GROWING
 
