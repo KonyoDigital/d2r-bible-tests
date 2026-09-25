@@ -2493,6 +2493,17 @@ NO_JOINT_YET = {
     'fault evidence': 'the row counts snapshots on console-reported fault rows; the real second source '
                           'would be a capture taken at the moment the stage went blank, and no capture is '
                           'triggered by that event.',
+    # #174 v-B2 - NO_JOINT_YET, not COVERED_BY: the row re-derives ONE source (the install) through ONE generator.
+    # tv/item_tables.json is a second generator over the same tables, and the law compares the two in CI (every
+    # unique / set name on the same base code) - that catches a transform bug, but it is one install read twice,
+    # not a second witness to what the game sums.
+    # #174 v-B2 fix round - the same shape for the builder's CB_DB block: one install, one generator
+    'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
+                          'would be the game listing its own item database, which it never writes anywhere this '
+                          'console can read.',
+    'character sheet data': 'the row re-derives the CHAR_PROPS block from the install and compares it; a real second '
+                          'source would be the game reporting a character sheet itself (its own resistances and '
+                          'totals), which it never writes anywhere this console can read.',
     'save reader tables': 'the row re-derives the item tables from the install and compares sourceHash; the '
                           'second source would be the game decoding a save itself, which it never reports.',
     'item vocabulary': 'the row re-derives the lexicon from the install and compares sourceHash; a real '

@@ -2261,5 +2261,32 @@
     "gotcha": "pythonw.exe owns no console, so EVERY console-subsystem child (git, powershell, schtasks, tasklist, python.exe) allocates a visible window that steals focus from a full-screen game unless the spawn passes CREATE_NO_WINDOW. MEASURED 2026-09-26: 82 spawn sites in 38 tv/ modules passed no creationflags. This replaces subprocess.Popen ONCE per process (run/call/check_output build Popen from the module's globals), so it must be installed BEFORE the first spawn - control_app and tv_diablo do it at import. A deliberate CREATE_NEW_CONSOLE / DETACHED_PROCESS is kept. git_quiet.py still owns git (its wrapper respawns the real git, so the binary is called directly).",
     "purpose": "The one door that makes every child of a Windows console/agent process windowless (REG-1307).",
     "territory": "routines-infra"
+  },
+  "char_builder_db.py": {
+    "entryPoints": [
+      "build",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the two ⟦CB_DB⟧ markers and nowhere else, as a <script type=\"application/json\"> the builder parses on first open. Every property line is rendered from the game's own words (properties.txt -> itemstatcost.txt descfunc / descstrpos -> item-modifiers.json), and each rolled value keeps the COLUMN it came from (p3 = prop3 / T1Code3 / mod 3, a2b = a set item's aprop2b) - the key the builder stores a typed roll under. A property the tables name but do not describe becomes an UNKNOWN line naming its code, never dropped. Without an install --check is 77 = UNKNOWN; CI checks the block's names against tv/item_tables.json instead. The duplicate display names are the game's (8 Rainbow Facets, the Colossal Jewel printing \"Jewel\"): they are told apart by the property that differs, or by the table name - never by position.",
+    "purpose": "#174 v-B2: generates the Character Builder's item database from his install's CASC - every base (type, tier family, sockets, requirements, defense / damage, hands, size, whether it can be ethereal), every unique, set item, runeword (with the item types it may be made in and those it excludes) and crafted cube recipe, each with its property lines rendered from the game's own strings and every rolled value a range; the runes and gems that fill a socket; the classes' skill-tab strings; and per doll slot the rail of base categories (itemtypes.txt UICategory + class locks). The doctor row 'builder item data' runs its --check (#174 v-B2 fix round). A per-level line is [\"L\", lo, key, hi, shift] (the par, or the min..max roll, and itemstatcost's op param), a random class [\"C\", lo, key, hi].",
+    "territory": "vault"
+  },
+  "char_props.py": {
+    "entryPoints": [
+      "assemble",
+      "build",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
+    "territory": "vault"
   }
 }

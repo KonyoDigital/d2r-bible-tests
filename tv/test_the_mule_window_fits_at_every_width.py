@@ -25,7 +25,11 @@ WHAT IS MEASURED, per width (2000x1300, 1280x800, 1120x628, 1024x768, 901x900, 8
   · the window's type is its token times min(1, k), floored at the smallest token (--fs-micro)
   · at 2000x1300 the panels and the ten doll slots are their measured rects (spec §1); at 1280 they are those
     rects times k
-and once, on a phone (390x844): a keyboard opening (a HEIGHT-only resize) leaves the Stats search box the SAME
+#174 v-B2 FIX ROUND, the pixel seat's 375 findings, by real input: a stash item dragged to the top edge scrolls the
+window until another mule's tab is reachable, and dropping on it moves the item there (the tabs sat ~1500px above it
+and only a wheel turned mid-drag reached them); the keyboard's ] carries an item to the next mule; and on a coarse
+pointer a real tap 6px beside a placed ring's 10px lock unlocks it, while the ring's own middle is still the ring.
+And once, on a phone (390x844): a keyboard opening (a HEIGHT-only resize) leaves the Stats search box the SAME
 node with the caret in it, and a background re-render (an item assigned while it is up) puts the caret back.
 
 #174 v-B — THE SAME QUESTIONS, ASKED AGAIN WITH THE DOLL IN USE. Every width is measured a second time with three
@@ -43,6 +47,27 @@ doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` appli
     columns now requires the gold box to be one line and the stash view not to scroll, plain and with the doll in use.
   · The worn weapon is Lightsabre (one-handed): beside Windforce the left hand now offers only its quiver, which
     this locker does not hold — an empty picker would measure nothing.
+
+#174 v-B2 — THE LITERAL COLUMNS, THE CONSOLE'S HEIGHT, THE HOVER CARD, AND A REAL DRAG.
+  · 2000 is their rects LITERALLY again (DOLL_K = 1: LEFT 322, centre 716 — his "literally the same"); `_ours()` is
+    their capture unchanged.
+  · 1280x695 joins the widths: his console's board under its own header. The Grok seat on v-B read the bottoms
+    "sliced" there — reproduced: the stash panel 64px and PRIMARY SKILLS 37px under the glass. The unit now answers
+    the height too, so the header, the mule bar, the doll with its inventory and the stash panel all end inside the
+    window, and STATS ends at the window's bottom with its list scrolling inside (at 1280x800 its height is
+    min(726k, the room below it)).
+  · The hover card of an item on the doll never covers the MULES IN THIS LOCKER band (it read "ES IN THIS LOCKER"):
+    hovered with a real mouse move, its top sits at or under the EQUIPMENT header.
+    #174 v-B2 integration: that card is now the Character Builder's ONE in-game box, window.d2Tip (#cb-tip) - the
+    worn weapon, the worn ring and a stash tile are hovered with a real mouse move at 2000 and at his console's
+    1280x695, and each must open #cb-tip naming the hovered item, leave the board's #arttip SHUT (one box, never
+    two), keep off the mule bar, and sit at or under the header of the panel its item is in.
+  · THE DRAG, WITH REAL INPUT (press, ten moves with the button held, release — never a synthetic event): a ring
+    dropped on a cell LOCKS there, the cells it would cover tinted green in the air, and a RELOAD keeps it; a 2x4
+    dropped past the grid's edge is tinted red and refused, the store untouched; the keyboard carries an item
+    (Enter, arrows, Enter); a right-click unlocks it; a drop on the Gems tab moves an item there; at 1280x695 a ring
+    moves from the stash to the inventory and survives a reload. Every target cell is found from the RENDERED cell,
+    never from the product's own geometry.
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
 so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
@@ -86,7 +111,8 @@ import render_check as RC  # noqa: E402
 from test_the_mule_window_is_the_planner_shell import THEIR_SLOTS, DOLL_K, THEIR_EQ  # noqa: E402  ONE witness table
 
 NO_BROWSER = "no Chrome/Chromium on this machine, so the mule window was not rendered"
-WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
+WIDTHS = ((2000, 1300), (1280, 800), (1280, 695), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
+CONSOLE = (1280, 695)   # #174 v-B2 — his console's board at 1280 wide, under the console's own header
 MULE = "uni-weap"
 ITEMS = ["Windforce", "Doombringer", "The Grandfather", "Stormlash", "Lightsabre", "Nagelring", "Raven Frost"]
 
@@ -104,9 +130,10 @@ CENTRE_PANELS = ("mp-cp", "mp-notes")
 
 
 def _ours(c):
-    """THEIR panel rect with the one declared v-B upgrade: the LEFT column is their 322 on the doll's unit, the
-    EQUIPMENT panel their 36px header + their 364px body on it, so every left panel below EQUIPMENT moves down by
-    what EQUIPMENT grew and the centre moves right and narrows by what LEFT grew. Nothing else moves."""
+    """THEIR panel rect on the doll's unit (DOLL_K). #174 v-B2: DOLL_K is 1 — their capture, literally — so this is
+    their rect unchanged; it stays parametric so a future declared upgrade moves every dependent rect with it: the
+    LEFT column their 322 on the doll's unit, EQUIPMENT their 36px header + 364px body on it, the left panels below
+    moving down and the centre moving right by what those grew."""
     x, y, w, h = THEIR_PANELS[c]
     grow_w = 322 * DOLL_K - 322
     grow_h = (THEIR_EQ[0] + THEIR_EQ[1] * DOLL_K) - sum(THEIR_EQ)
@@ -141,7 +168,7 @@ MEASURE = r"""(function(){ try {
   var sv = box.querySelector('.mp-v-stash'), gb = box.querySelector('.mp-v-stash .vd-goldbox'), gl = null;
   if (gb && sv && !sv.hidden){ var gs = getComputedStyle(gb), gr = gb.getBoundingClientRect();
     gl = (gr.height - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - parseFloat(gs.borderTopWidth) - parseFloat(gs.borderBottomWidth)) / parseFloat(gs.lineHeight); }
-  var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null,
+  var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null, mpTop: ob.top, vh: innerHeight,
     stashScroll: (sv && !sv.hidden) ? [sv.scrollHeight, sv.clientHeight] : null,
     stack: mp.classList.contains('mp-stack'), hscroll: [box.scrollWidth, box.clientWidth], panels: {}, slots: {},
     cut: [], outside: [], sideways: [], collide: [], nText: 0,
@@ -261,6 +288,294 @@ def _equip(t, mule, want):
         got.append(("NOT CHOSEN: " + why) if why else name)
     return got
 
+#: #174 v-B2 — the hover card of an item, against the mule bar and the header of the panel the item is in.
+#: #174 v-B2 integration: the card is window.d2Tip's box (#cb-tip); the board's #arttip must stay shut (one box)
+HOVER = r"""(function(sel){ var t = document.getElementById('cb-tip'), at = document.getElementById('arttip'),
+      s = document.querySelector('#vault-detail .mp-set'), a = document.querySelector(sel), p = a && a.closest('.mp-p'),
+      h = p && p.querySelector('.mp-h, .mp-ctabs'), w = a && (a.querySelector('.d2art-wrap[aria-label]') || a);
+  if (!s || !a || !h) return JSON.stringify({ err: 'no mule bar, hovered item or panel header on the page (' + sel + ')' });
+  if (!t) return JSON.stringify({ on: false, err: 'the in-game box (#cb-tip) was never created - no hover opened it' });
+  var cs = getComputedStyle(t), r = t.getBoundingClientRect(), b = s.getBoundingClientRect(), first = t.firstElementChild;
+  return JSON.stringify({ on: !t.hidden && cs.display !== 'none' && r.height > 0, name: first ? first.textContent : null,
+    want: w.getAttribute('aria-label'), arttip: !!(at && at.classList.contains('on')),
+    tip: [r.left, r.top, r.right, r.bottom], bar: [b.left, b.top, b.right, b.bottom], headBottom: h.getBoundingClientRect().bottom,
+    overBar: !(r.right <= b.left || r.left >= b.right || r.bottom <= b.top || r.top >= b.bottom) }); })(%s)"""
+#: the hovered items: the worn right-hand weapon; the worn right RING, whose short box fits ABOVE it and would cross
+#: the EQUIPMENT header and the mule bar if the floor were gone (a weapon's tall box never fits above anything near
+#: the top, so it goes below on its own and cannot tell the floor from no floor - measured: 470px at 1280x695); and
+#: a stash tile (the smallest, top-most), so a grid tile is proven to open the same box. Each named by an attribute
+#: the render gives it, found fresh.
+HOVER_AT = (("weapon", '#vault-detail .mp-slot[data-slot="rarm"]'),
+            ("ring", '#vault-detail .mp-slot[data-slot="rrin"]'),
+            ("stash", None))
+TOPLEFT = r"""(function(){ var g = document.querySelector('#vault-detail .mp-v-stash .vd-grid[data-area]'); if (!g) return 'null';
+  var n = function(e, a){ return +e.getAttribute(a); };
+  var it = [].slice.call(g.querySelectorAll('.vd-item[data-fk]')).sort(function(a, b){ return (n(a, 'data-w') * n(a, 'data-h') - n(b, 'data-w') * n(b, 'data-h')) || (n(a, 'data-y') - n(b, 'data-y')) || (n(a, 'data-x') - n(b, 'data-x')); })[0];
+  return JSON.stringify(it ? '#vault-detail .vd-item[data-fk="' + it.getAttribute('data-fk') + '"]' : null); })()"""
+
+
+def _hover_worn(t):
+    """open the window, park the pointer, then a REAL mouse move onto each item's art; returns {what: probe}"""
+    out = {}
+    for what, sel in HOVER_AT:
+        _open(t)
+        if sel is None:
+            sel = json.loads(t.ev(TOPLEFT))
+            if not sel:
+                out[what] = {"err": "the stash has no tile to hover"}
+                continue
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
+        time.sleep(0.3)
+        r = json.loads(t.ev("(function(){ var a = document.querySelector(%s), e = a && (a.querySelector('.d2art-wrap[aria-label]') || a);"
+                            " if (!e) return 'null'; e.scrollIntoView({ block: 'nearest', inline: 'nearest' });"
+                            " var r = e.getBoundingClientRect(); return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]); })()"
+                            % json.dumps(sel)))
+        if not r:
+            out[what] = {"err": "no art anchor for %s" % sel}
+            continue
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=r[0], y=r[1], button="none")
+        time.sleep(0.7)
+        out[what] = json.loads(t.ev(HOVER % json.dumps(sel)))
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
+        time.sleep(0.2)
+    return out
+
+
+#: #174 v-B2 — the drag pass. A tile by (part of) its key: where it sits, whether it is locked, and whether its centre
+#: is really the tile (elementFromPoint), so a covered item fails instead of being pressed through
+TILE = r"""(function(k){ var e = [].filter.call(document.querySelectorAll('#vault-detail .vd-item[data-key]'), function(e){ return e.getAttribute('data-key').indexOf(k) >= 0; })[0];
+  if (!e) return JSON.stringify(null);
+  e.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  var g = e.closest('.vd-grid'), r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, at = document.elementFromPoint(x, y);
+  return JSON.stringify({ key: e.getAttribute('data-key'), area: g.getAttribute('data-area'), x: +e.getAttribute('data-x'), y: +e.getAttribute('data-y'),
+    held: e.classList.contains('vd-held'), cx: x, cy: y, hit: !!(at && (at === e || e.contains(at))),
+    lock: !!(at && at.closest && at.closest('.vd-unlock')) }); })(%s)"""
+#: the centre of the RENDERED cell (x, y) of a grid — found from the cell element itself, never from the product's geometry
+CELL_AT = r"""(function(area, x, y){ var g = document.querySelector('#vault-detail .vd-grid[data-area="' + area + '"]'); if (!g) return 'null';
+  var c = g.querySelectorAll('.vd-cell')[y * (+g.getAttribute('data-gw')) + x]; if (!c) return 'null';
+  var r = c.getBoundingClientRect(); return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]); })(%s, %d, %d)"""
+MID = r"""JSON.stringify({ drop: (document.querySelector('#vault-detail .vd-drop') || {}).className || null, ghost: !!document.querySelector('.vd-ghost') })"""
+POS = r"""(function(){ try { return JSON.stringify(JSON.parse(window.LSR.getItem('d2r_mulePos') || '{}')[%s] || {}); } catch (e){ return '{}'; } })()"""
+
+
+def _open(t):
+    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); document.getElementById('vault-detail').scrollTop = 0; return 1; })()"
+         % json.dumps(MULE))
+    time.sleep(0.35)
+
+
+def _tile(t, k):
+    return json.loads(t.ev(TILE % json.dumps(k)))
+
+
+def _real_drag(t, a, b, mid_js=MID):
+    """press, ten moves with the left button held, release — the real drag, as the pointer does it"""
+    t.send("Input.dispatchMouseEvent", type="mouseMoved", x=a[0], y=a[1], button="none", buttons=0)
+    t.send("Input.dispatchMouseEvent", type="mousePressed", x=a[0], y=a[1], button="left", buttons=1, clickCount=1)
+    for i in range(1, 11):
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=a[0] + (b[0] - a[0]) * i / 10.0,
+               y=a[1] + (b[1] - a[1]) * i / 10.0, button="left", buttons=1)
+        time.sleep(0.03)
+    seen = t.ev(mid_js)
+    seen = json.loads(seen) if isinstance(seen, str) else seen
+    t.send("Input.dispatchMouseEvent", type="mouseReleased", x=b[0], y=b[1], button="left", buttons=0, clickCount=1)
+    time.sleep(0.45)
+    return seen
+
+
+def _key(t, key, vk):
+    for kind in ("keyDown", "keyUp"):
+        p = dict(type=kind, key=key, code=key, windowsVirtualKeyCode=vk, nativeVirtualKeyCode=vk)
+        if kind == "keyDown" and key == "Enter":
+            p["text"] = "\r"
+        t.send("Input.dispatchKeyEvent", **p)
+    time.sleep(0.25)
+
+
+def _reload(t, bible):
+    t.send("Page.navigate", url="file://" + bible)
+    for _ in range(160):
+        time.sleep(0.25)
+        try:
+            if t.ev("(function(){try{return !!(window.openMuleCard&&window.vaultAssign&&window.tvVaultRegister&&window._mpLayout)}catch(e){return false}})()") is True:
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def _drag_pass(t, bible):
+    """THE DRAG, with real input, in the owner's world (reloaded first: the claim is set after the first load, so a
+    reload is the only way the spots are read back from the world they were written to)"""
+    out = {}
+    if not _reload(t, bible):
+        return {"err": "bible.html did not come back after a reload - UNKNOWN, not passing"}
+    time.sleep(0.4)
+    out["seeded"] = t.ev(SEED % (json.dumps(ITEMS + ["The Stone of Jordan"]), json.dumps(MULE)))
+    for label, (w, h), want in (("2000", (2000, 1300), ("personal", 9, 9)), ("console", CONSOLE, ("inv", 9, 3))):
+        t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
+        time.sleep(0.25)
+        _open(t)
+        d = {"want": list(want), "from": _tile(t, "Jordan")}
+        b = json.loads(t.ev(CELL_AT % (json.dumps(want[0]), want[1], want[2])))
+        if d["from"] and d["from"]["hit"] and b:
+            d["mid"] = _real_drag(t, (d["from"]["cx"], d["from"]["cy"]), b)
+        d["after"] = _tile(t, "Jordan")
+        d["store"] = json.loads(t.ev(POS % json.dumps(MULE))).get(d["from"]["key"] if d["from"] else "", {})
+        _reload(t, bible)
+        time.sleep(0.3)
+        _open(t)
+        d["reloaded"] = _tile(t, "Jordan")
+        out[label] = d
+        if label != "2000":
+            continue
+        # a 2x4 pulled past the grid's right edge: red in the air, refused, nothing written
+        f = {"from": _tile(t, "Windforce")}
+        c = json.loads(t.ev(CELL_AT % (json.dumps(f["from"]["area"] if f["from"] else "personal"), 9, 1)))
+        if f["from"] and f["from"]["hit"] and c:
+            f["mid"] = _real_drag(t, (f["from"]["cx"], f["from"]["cy"]), c)
+        f["after"] = _tile(t, "Windforce")
+        f["store"] = json.loads(t.ev(POS % json.dumps(MULE)))
+        f["said"] = json.loads(t.ev("JSON.stringify(window._mpSaid || null)"))
+        out["refuse"] = f
+        # the keyboard: focus the ring, Enter, Left, Up, Enter
+        _open(t)
+        k = {"focused": t.ev("(function(){ var e = [].filter.call(document.querySelectorAll('#vault-detail .vd-item[data-key]'), function(e){ return e.getAttribute('data-key').indexOf('Jordan') >= 0; })[0];"
+                             " if (!e) return false; e.focus(); return document.activeElement === e; })()")}
+        _key(t, "Enter", 13)
+        k["carry"] = json.loads(t.ev(MID))["drop"]
+        _key(t, "ArrowLeft", 37)
+        _key(t, "ArrowUp", 38)
+        _key(t, "Enter", 13)
+        time.sleep(0.2)
+        k["after"] = _tile(t, "Jordan")
+        k["open"] = t.ev("!document.getElementById('vault-detail').hidden")
+        out["keys"] = k
+        # a right-click on the placed ring: back to auto-pack
+        u = _tile(t, "Jordan")
+        if u:
+            t.send("Input.dispatchMouseEvent", type="mouseMoved", x=u["cx"], y=u["cy"], button="none")
+            t.send("Input.dispatchMouseEvent", type="mousePressed", x=u["cx"], y=u["cy"], button="right", buttons=2, clickCount=1)
+            t.send("Input.dispatchMouseEvent", type="mouseReleased", x=u["cx"], y=u["cy"], button="right", buttons=0, clickCount=1)
+            time.sleep(0.4)
+        out["unlock"] = {"after": _tile(t, "Jordan"), "store": json.loads(t.ev(POS % json.dumps(MULE)))}
+        # a drop on the Gems tab
+        g = {"from": _tile(t, "Nagelring")}
+        tb = json.loads(t.ev("(function(){ var e = document.querySelector('#vault-detail .mp-v-stash .vd-tab[data-tab=\"gems\"]'); if (!e) return 'null';"
+                             " var r = e.getBoundingClientRect(); return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]); })()"))
+        if g["from"] and g["from"]["hit"] and tb:
+            g["over"] = _real_drag(t, (g["from"]["cx"], g["from"]["cy"]), tb,
+                                   "!!document.querySelector('#vault-detail .vd-tab[data-tab=\"gems\"].vd-over')")
+        g["after"] = _tile(t, "Nagelring")
+        out["gems"] = g
+    return out
+
+
+#: #174 v-B2 fix round - a locker big enough to spill onto a second mule: the board's own unique body armors (2x3)
+BIG = "uni-armor"
+BIG_SEED = r"""(function(mule){
+  try { localStorage.setItem('d2r_ownerClaim','*'); } catch(e){}
+  var names = Object.keys(ITEM_CODEX).filter(function(n){ var c = ITEM_CODEX[n] || {}; return c.rarity === 'unique'
+    && /Plate|Mail|Armor|Coat|Hauberk|Robe|Shell|Cuirass|Breast|Jacket|Leather|Wyrmhide|Scarab|Serpent/i.test(c.base || ''); }).sort().slice(0, 34);
+  var ok = 0; names.forEach(function(n){ try { window.tvVaultRegister(n); window.vaultAssign(n, mule); ok++; } catch(e){} });
+  return JSON.stringify(ok); })(%s)"""
+FIRST_STASH_KEY = r"""(function(){ var g = document.querySelector('#vault-detail .vd-grid[data-area="personal"][data-page="0"]');
+  var e = g && g.querySelector('.vd-item[data-key]'); return e ? e.getAttribute('data-key') : null; })()"""
+RECT = r"""(function(sel){ var e = document.querySelector(sel); if (!e) return 'null'; var r = e.getBoundingClientRect();
+  return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2, r.left, r.top, r.right, r.bottom]); })(%s)"""
+SCROLL = "document.getElementById('vault-detail').scrollTop"
+PAGE_OF = r"""(function(mule, k){ try { var p = (JSON.parse(window.LSR.getItem('d2r_mulePos') || '{}')[mule] || {})[k]; return p ? p.page : null; } catch (e){ return null; } })(%s, %s)"""
+
+
+def _phone_pass(t):
+    """#174 v-B2 fix round - the pixel seat at 375: a stash item could reach another mule's tab only by turning the
+    wheel mid-drag (the tabs sit ~1500px above it and nothing scrolled), a keyboard had no key that changes mule, and
+    the lock that unlocks a placed item was a 10px target with no touch alternative. All REAL input."""
+    out = {"seed": t.ev(BIG_SEED % json.dumps(BIG))}
+    t.send("Emulation.setDeviceMetricsOverride", width=375, height=812, deviceScaleFactor=1, mobile=True)
+    time.sleep(0.3)
+    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); document.getElementById('vault-detail').scrollTop = 0; return 1; })()"
+         % json.dumps(BIG))
+    time.sleep(0.45)
+    out["mules"] = t.ev("document.querySelectorAll('#vault-detail .mp-settab[data-page]').length")
+    out["tabAtTop"] = json.loads(t.ev(RECT % json.dumps('#vault-detail .mp-settab[data-page="1"]')))
+    k = t.ev(FIRST_STASH_KEY)
+    out["key"] = k
+    fr = _tile(t, k) if k else None
+    out["from"] = fr
+    if fr and fr["hit"]:
+        out["startScroll"] = t.ev(SCROLL)
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=fr["cx"], y=fr["cy"], button="none", buttons=0)
+        t.send("Input.dispatchMouseEvent", type="mousePressed", x=fr["cx"], y=fr["cy"], button="left", buttons=1, clickCount=1)
+        for i in range(1, 11):
+            t.send("Input.dispatchMouseEvent", type="mouseMoved", x=fr["cx"], y=fr["cy"] + (20 - fr["cy"]) * i / 10.0,
+                   button="left", buttons=1)
+            time.sleep(0.03)
+        for i in range(50):                      # held at the top edge: the window must scroll under the pointer
+            t.send("Input.dispatchMouseEvent", type="mouseMoved", x=fr["cx"], y=20 + (i % 2), button="left", buttons=1)
+            time.sleep(0.05)
+        out["heldScroll"] = t.ev(SCROLL)
+        tb = json.loads(t.ev(RECT % json.dumps('#vault-detail .mp-settab[data-page="1"]')))
+        out["tabAfter"] = tb
+        if tb:
+            for i in range(1, 7):
+                t.send("Input.dispatchMouseEvent", type="mouseMoved", x=fr["cx"] + (tb[0] - fr["cx"]) * i / 6.0,
+                       y=21 + (tb[1] - 21) * i / 6.0, button="left", buttons=1)
+                time.sleep(0.04)
+            out["over"] = t.ev("!!document.querySelector('#vault-detail .mp-settab[data-page=\"1\"].vd-over')")
+            t.send("Input.dispatchMouseEvent", type="mouseReleased", x=tb[0], y=tb[1], button="left", buttons=0, clickCount=1)
+        else:
+            t.send("Input.dispatchMouseEvent", type="mouseReleased", x=fr["cx"], y=20, button="left", buttons=0, clickCount=1)
+        time.sleep(0.5)
+        out["page"] = t.ev(PAGE_OF % (json.dumps(BIG), json.dumps(k)))
+    # the keyboard: ] carries a stash item to the next mule, Enter moves it there
+    t.send("Emulation.setDeviceMetricsOverride", width=2000, height=1300, deviceScaleFactor=1, mobile=False)
+    time.sleep(0.3)
+    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); window._muleSetPage(0); return 1; })()" % json.dumps(BIG))
+    time.sleep(0.4)
+    k2 = t.ev(FIRST_STASH_KEY)
+    kb = {"key": k2, "focused": t.ev("(function(k){ var e = [].filter.call(document.querySelectorAll('#vault-detail .vd-item[data-key]'), function(e){ return e.getAttribute('data-key') === k; })[0];"
+                                     " if (!e) return false; e.focus(); return document.activeElement === e; })(%s)" % json.dumps(k2))}
+    _key(t, "Enter", 13)
+    _key(t, "]", 221)
+    kb["over"] = t.ev("!!document.querySelector('#vault-detail .mp-settab[data-page=\"1\"].vd-over')")
+    kb["said"] = json.loads(t.ev("JSON.stringify(window._mpSaid || null)"))
+    _key(t, "Enter", 13)
+    time.sleep(0.3)
+    kb["page"] = t.ev(PAGE_OF % (json.dumps(BIG), json.dumps(k2)))
+    out["keys"] = kb
+    # a finger on a placed ring's lock: 375, a coarse pointer, a real tap in the pad beside the 10px glyph
+    tp = {}
+    try:
+        t.send("Emulation.setTouchEmulationEnabled", enabled=True, maxTouchPoints=1)
+        t.send("Emulation.setDeviceMetricsOverride", width=375, height=812, deviceScaleFactor=1, mobile=True)
+        time.sleep(0.3)
+        tp["coarse"] = t.ev("matchMedia('(pointer: coarse)').matches")
+        tp["placed"] = json.loads(t.ev("JSON.stringify(window._mpPlace(%s, 'Raven Frost', { tab: 'personal', page: 0, x: 5, y: 5 }))" % json.dumps(MULE)))
+        _open(t)
+        tl = _tile(t, "Raven Frost")
+        tp["tile"] = tl
+        lk = json.loads(t.ev(r"""(function(){ var e = [].filter.call(document.querySelectorAll('#vault-detail .vd-item[data-key]'), function(e){ return e.getAttribute('data-key').indexOf('Raven Frost') >= 0; })[0];
+          var u = e && e.querySelector('.vd-unlock'); if (!u) return 'null'; u.scrollIntoView({ block: 'nearest' }); var r = u.getBoundingClientRect();
+          var at = document.elementFromPoint(r.right + 6, r.top - 6), c = e.getBoundingClientRect(), mid = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
+          return JSON.stringify({ w: r.width, h: r.height, x: r.right + 6, y: r.top - 6, padHits: !!(at && at.closest && at.closest('.vd-unlock')),
+            midIsLock: !!(mid && mid.closest && mid.closest('.vd-unlock')) }); })()"""))
+        tp["lock"] = lk
+        if lk:
+            t.send("Input.dispatchTouchEvent", type="touchStart", touchPoints=[{"x": lk["x"], "y": lk["y"]}])
+            time.sleep(0.05)
+            t.send("Input.dispatchTouchEvent", type="touchEnd", touchPoints=[])
+            time.sleep(0.5)
+        tp["after"] = t.ev(PAGE_OF % (json.dumps(MULE), json.dumps("Raven Frost")))
+    finally:
+        try:
+            t.send("Emulation.setTouchEmulationEnabled", enabled=False)
+        except Exception:
+            pass
+    out["touch"] = tp
+    return out
+
+
 FOCUS_TYPE = r"""(function(){ var i = document.querySelector('#vault-detail .mp-search input'); if (!i) return 'no search box';
   i.focus(); i.value = 'fire'; window._mpFilter('fire'); i.setSelectionRange(2, 3); window.__mpBox = i;
   return document.activeElement === i ? 'typing' : 'focus refused'; })()"""
@@ -316,6 +631,11 @@ def _measure():
                mobile=False)
         time.sleep(0.25)
         res["equipped"] = _equip(t, MULE, WEAR)
+        res["hover"] = {}
+        for (w, h) in (WIDTHS[0], CONSOLE):
+            t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
+            time.sleep(0.25)
+            res["hover"]["%dx%d" % (w, h)] = _hover_worn(t)
         for (w, h) in WIDTHS:
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
@@ -337,6 +657,14 @@ def _measure():
              % json.dumps(MULE))
         time.sleep(0.3)
         res["refresh"] = json.loads(t.ev(FOCUS_READ))
+        try:
+            res["drag"] = _drag_pass(t, bible)
+        except Exception as e:          # the instrument failed: said once, as UNKNOWN, never as a pass
+            res["drag"] = {"err": "the drag pass itself failed - UNKNOWN, not passing: %r" % (e,)}
+        try:
+            res["phone"] = _phone_pass(t)
+        except Exception as e:
+            res["phone"] = {"err": "the phone pass itself failed - UNKNOWN, not passing: %r" % (e,)}
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -463,9 +791,125 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         bad = []
         for c in ("mp-eq", "mp-cp", "mp-notes", "mp-stats", "mp-set"):
             want = [v * k for v in _ours(c)]
+            if c == "mp-stats":
+                # #174 v-B2 — STATS ends at the window's bottom (its list scrolls inside): min(726k, the room below it)
+                want[3] = min(want[3], m["vh"] - 30 - 312 * k)
             if not _near(m["panels"][c], want, 1.0):
                 bad.append("%s %s, measured %s" % (c, [round(v, 1) for v in want], [round(v, 1) for v in m["panels"][c]]))
         self.assertEqual(bad, [], "at 1280 the window is not their geometry times k:\n  " + "\n  ".join(bad))
+
+    def test_in_his_console_at_1280_the_part_he_packs_from_fits_the_window(self):
+        """#174 v-B2 — the Grok seat's "bottoms sliced" at 1280, reproduced at 1280x695 (the console's board): the stash
+        panel ran 64px and PRIMARY SKILLS 37px under the glass. Header, mule bar, doll + inventory and the stash panel
+        (its page bar and gold box inside it) now end inside the window, and STATS ends at its bottom."""
+        bad = []
+        for key in ("%dx%d" % CONSOLE, "eq %dx%d" % CONSOLE):
+            m = _measure()[key]
+            self.assertLess(m["k"], _measure()["1280x800"]["k"], "%s: the height did not set the unit" % key)
+            for c in ("mp-set", "mp-eq", "mp-cp", "mp-prim", "mp-stats"):
+                bottom = m["mpTop"] + m["panels"][c][1] + m["panels"][c][3]
+                if bottom > m["vh"] + 0.5:
+                    bad.append("%s %s ends %.1fpx under the window's bottom" % (key, c, bottom - m["vh"]))
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
+    def test_the_hover_card_never_covers_the_mule_bar(self):
+        """#174 v-B2 — hovered with a real mouse move, the card of a worn weapon stays under the EQUIPMENT header: on
+        v-B it rose over MULES IN THIS LOCKER and read it "ES IN THIS LOCKER". #174 v-B2 integration: the card is the
+        builder's in-game box (#cb-tip) naming the hovered item, the board's #arttip stays shut; the worn ring (a short
+        box that fits above it) and a stash tile are hovered too, and no box rises over its own panel's header."""
+        hover = _measure()["hover"]
+        self.assertEqual(len(hover), 2, "the hover card was measured at %d sizes, not 2" % len(hover))
+        seen = 0
+        for size, byItem in sorted(hover.items()):
+            self.assertEqual(sorted(byItem), ["ring", "stash", "weapon"], "%s: hovered %s" % (size, sorted(byItem)))
+            for what, hv in sorted(byItem.items()):
+                key = "%s %s" % (size, what)
+                self.assertNotIn("err", hv, "%s: %s" % (key, hv.get("err")))
+                self.assertTrue(hv["on"], "%s: the in-game box never showed - UNKNOWN, not passing" % key)
+                self.assertEqual(hv["name"], hv["want"], "%s: the box names %r, the hovered item is %r" % (key, hv["name"], hv["want"]))
+                self.assertFalse(hv["arttip"], "%s: the board's #arttip opened too - two boxes for one hover" % key)
+                self.assertFalse(hv["overBar"], "%s: the box %s covers the mule bar %s" % (key, hv["tip"], hv["bar"]))
+                self.assertGreaterEqual(hv["tip"][1], hv["headBottom"] - 0.5, "%s: the box rose over its panel's header" % key)
+                seen += 1
+        self.assertEqual(seen, 6, "PRINT THE DENOMINATOR: %d of 6 hovers were measured" % seen)
+
+    def test_a_real_drag_locks_an_item_where_it_is_dropped_and_a_reload_keeps_it(self):
+        dr = _measure()["drag"]
+        self.assertNotIn("err", dr, dr.get("err"))
+        for key in ("2000", "console"):
+            d = dr[key]
+            self.assertTrue(d["from"] and d["from"]["hit"], "%s: the ring could not be pressed (covered or absent): %s" % (key, d["from"]))
+            self.assertEqual(d.get("mid"), {"drop": "vd-drop vd-drop-ok", "ghost": True},
+                             "%s: in the air the ring showed no ghost or no green footprint: %s" % (key, d.get("mid")))
+            want = d["want"]
+            for when in ("after", "reloaded"):
+                t = d[when]
+                self.assertTrue(t, "%s %s: the ring is not in the window" % (key, when))
+                self.assertEqual((t["area"], t["x"], t["y"], t["held"]), (want[0], want[1], want[2], True),
+                                 "%s %s: the ring is not locked on the cell it was dropped on: %s" % (key, when, t))
+                # the lock is a corner badge: a press on the ring's centre must pick the ring up, never unlock it
+                self.assertFalse(t["lock"], "%s %s: the ring's centre is its unlock button - the next press there "
+                                            "would unlock it instead of moving it" % (key, when))
+            self.assertEqual(dict((k, d["store"].get(k)) for k in ("tab", "x", "y", "page")),
+                             {"tab": want[0], "x": want[1], "y": want[2], "page": 0}, "%s: the store does not hold the drop" % key)
+
+    def test_a_drop_that_does_not_fit_is_refused_on_screen(self):
+        self.assertNotIn("err", _measure()["drag"], _measure()["drag"].get("err"))
+        d = _measure()["drag"]["refuse"]
+        self.assertTrue(d["from"] and d["from"]["hit"], d["from"])
+        self.assertEqual(d.get("mid"), {"drop": "vd-drop vd-drop-no", "ghost": True}, "a 2x4 past the edge was not tinted red in the air")
+        self.assertEqual((d["after"]["x"], d["after"]["y"], d["after"]["held"]), (d["from"]["x"], d["from"]["y"], False),
+                         "a refused 2x4 moved or was locked")
+        self.assertNotIn(d["from"]["key"], d["store"], "a refused drop wrote the store")
+        self.assertIs((d["said"] or {}).get("ok"), False)
+        self.assertIn("stays where it was", (d["said"] or {}).get("t", ""))
+
+    def test_the_keyboard_carries_an_item_right_click_unlocks_it_and_a_stash_tab_takes_a_drop(self):
+        d = _measure()["drag"]
+        self.assertNotIn("err", d, d.get("err"))
+        k = d["keys"]
+        self.assertTrue(k["focused"], "the ring could not take focus")
+        self.assertEqual(k["carry"], "vd-drop vd-drop-ok", "Enter did not pick the ring up (no footprint shown)")
+        self.assertEqual((k["after"]["x"], k["after"]["y"], k["after"]["held"]), (8, 8, True),
+                         "Enter, Left, Up, Enter did not move the ring one cell up-left and lock it: %s" % k["after"])
+        self.assertIs(k["open"], True, "a carried item's keys closed the window")
+        r = d["unlock"]
+        self.assertFalse(r["after"]["held"], "a right-click did not unlock the ring")
+        self.assertNotIn(r["after"]["key"], r["store"], "the unlock left his spot in the store")
+        g = d["gems"]
+        self.assertTrue(g["from"] and g["from"]["hit"], g["from"])
+        self.assertIs(g.get("over"), True, "the Gems tab did not light up under the dragged item")
+        self.assertEqual((g["after"]["area"], g["after"]["x"], g["after"]["y"], g["after"]["held"]), ("gems", 0, 0, True),
+                         "a drop on the Gems tab did not land in the Gems tab's first cell: %s" % g["after"])
+
+    def test_at_375_a_drag_scrolls_the_window_to_another_mules_tab(self):
+        ph = _measure()["phone"]
+        self.assertNotIn("err", ph, ph.get("err"))
+        self.assertGreaterEqual(ph["mules"], 2, "PRINT THE DENOMINATOR: the big locker did not spill onto a second mule (%s)" % ph)
+        self.assertTrue(ph["from"] and ph["from"]["hit"], "the stash item could not be pressed: %s" % ph.get("from"))
+        self.assertGreater(ph["startScroll"], 400, "the fixture lost its point: the stash item was not far below the Mule tabs")
+        self.assertLess(ph["heldScroll"], ph["startScroll"] - 400, "held at the top edge, the window did not scroll (%s -> %s)"
+                        % (ph["startScroll"], ph["heldScroll"]))
+        self.assertIs(ph.get("over"), True, "the Mule 2 tab did not light up under the dragged item")
+        self.assertEqual(ph.get("page"), 1, "the drop on the Mule 2 tab did not move the item to Mule 2")
+
+    def test_the_keyboard_carries_an_item_to_another_mule(self):
+        kb = _measure()["phone"]["keys"]
+        self.assertTrue(kb["focused"], "the stash item could not take focus")
+        self.assertIs(kb["over"], True, "] did not point the carried item at the next mule's tab")
+        self.assertIn("Mule 2", (kb["said"] or {}).get("t", ""))
+        self.assertEqual(kb["page"], 1, "Enter after ] did not move the item to Mule 2")
+
+    def test_a_finger_can_unlock_a_placed_item(self):
+        tp = _measure()["phone"]["touch"]
+        self.assertIs(tp["coarse"], True, "the touch emulation did not make the pointer coarse - UNKNOWN, not passing")
+        self.assertTrue((tp["placed"] or {}).get("ok"), tp["placed"])
+        lk = tp["lock"]
+        self.assertTrue(lk, "the placed ring drew no lock")
+        self.assertLessEqual(max(lk["w"], lk["h"]), 13, "the lock's glyph grew (%s) - the pad was to be invisible" % lk)
+        self.assertTrue(lk["padHits"], "a finger 6px beside the 10px lock misses it: no touch-sized target")
+        self.assertFalse(lk["midIsLock"], "the pad covers the ring's own middle - a 1x1 could no longer be dragged by touch")
+        self.assertIsNone(tp["after"], "a real tap in the lock's pad did not unlock the ring")
 
     def test_a_keyboard_opening_leaves_the_search_box_he_is_typing_in(self):
         r = _measure()
@@ -483,6 +927,27 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B2 fix round - the window stops scrolling under a drag (at 375 another mule's tab is out of reach)",
+        "file": "bible.html",
+        "find": "    _mpTrack(d, e.clientX, e.clientY);\n    _mpAutoScroll(d, e.clientX, e.clientY);\n",
+        "replace": "    _mpTrack(d, e.clientX, e.clientY);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the keyboard carry has no key that changes mule again",
+        "file": "bible.html",
+        "find": "      if (k === '[' || k === ']'){\n",
+        "replace": "      if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the lock is a 10px target on a phone again",
+        "file": "bible.html",
+        "find": "  .mp .vd-unlock::after{content:\"\";position:absolute;inset:-10px}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         # #174 v-B moved the tightest prose panel: the LEFT column is now their 322 on the doll's unit, so MERCENARY's
         # sentence fits its 80u at every width (scanned 320..1600 with the panel fixed: never cut), while STRENGTHS
@@ -513,6 +978,69 @@ RED_PROOF = [
         "file": "bible.html",
         "find": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n",
         "replace": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n.mp-slot{pointer-events:none}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the hover card of an item rises over its panel's header again (it read ES IN THIS LOCKER); since the integration the card is window.d2Tip and its floor is passed here",
+        "file": "bible.html",
+        "find": "    window.d2Tip.show(entry, el, { floor: floorOf(el) });\n",
+        "replace": "    window.d2Tip.show(entry, el);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 integration - the board's #arttip opens over the mule window's in-game box again: two boxes for one hover",
+        "file": "bible.html",
+        "find": "      try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return; } catch (_e) {}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 integration - the mule window's hover opens no in-game box at all (the lane listens to nothing)",
+        "file": "bible.html",
+        "find": "    if (el !== cur) show(el);\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the unit answers the width alone again, so in his console at 1280 the stash he packs from runs under the glass",
+        "file": "bible.html",
+        "find": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W, Math.max(MP_K_FLOOR, (vh - MP_PAD_V) / MP_WORK_H)) };",
+        "replace": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - a dragged item lands one cell off from where it was let go (the drop reads the wrong cell)",
+        "file": "bible.html",
+        "find": "    return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p), y: Math.floor((cy - r.top - g.clientTop - 3) / p) };\n",
+        "replace": "    return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p) - 1, y: Math.floor((cy - r.top - g.clientTop - 3) / p) };\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - a drag never starts: the tiles take no pointer (his_mule_locked_21 - the ring would not move)",
+        "file": "bible.html",
+        "find": "    var it = e.target.closest('#vault-detail .vd-item[data-key]'), g = it && it.closest('.vd-grid[data-area]');\n",
+        "replace": "    var it = null, g = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the keyboard cannot pick an item up",
+        "file": "bible.html",
+        "find": "      _mpCarry = { key: it.getAttribute('data-key'), el: it, grid: g, w: +it.getAttribute('data-w') || 1, h: +it.getAttribute('data-h') || 1,\n",
+        "replace": "      return; _mpCarry = { key: it.getAttribute('data-key'), el: it, grid: g, w: +it.getAttribute('data-w') || 1, h: +it.getAttribute('data-h') || 1,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - STATS runs under the glass again at 1280 (the Grok seat: Stats stops at Life)",
+        "file": "bible.html",
+        "find": ".mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 - the lock badge covers a small tile's centre again (1280 inventory), so pressing the ring unlocks it",
+        "file": "bible.html",
+        "find": "height:calc(12*var(--u));max-width:40%;max-height:40%;overflow:hidden;display:flex;",
+        "replace": "height:calc(12*var(--u));min-width:12px;min-height:12px;overflow:hidden;display:flex;",
         "matches": 1,
     },
     {

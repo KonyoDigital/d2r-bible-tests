@@ -618,6 +618,8 @@
   "vault_apply_crossfamily": 0.1,
   "verdict_provenance": 0.1,
   "visual-lock": 0.3,
-  "write_census": 0.1
+  "write_census": 0.1,
+  "test_the_character_builder_fits_at_every_width": 30.5,
+  "test_the_character_builder_is_their_builder": 1.3
  }
 }

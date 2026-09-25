@@ -275,6 +275,23 @@ REGISTRY = {
         "anchor (test_frozen_frames.py). So patching DEFAULT_DIR redirects NOTHING live — it is "
         "the documented trap `default_dir()` own docstring warns about, kept because deleting a "
         "symbol a test reads is a separate change. [[the-unjoined-end]] [[stale-reading]]"),
+    # ---- #174: the byte-exact save law's two real saves. Registered by the v-B2 integration after
+    # this gate was RED on CI at main 1e1f946e (run 36163221309, shard 2) and on the Mac alike -
+    # the law landed with its two constants and no entry here. Both are READ-ONLY inputs.
+    "test_a_character_save_reads_byte_exact.py:REAL": (
+        "D2S_REAL_SAVE", "import-bound",
+        "MEASURED by running it: set D2S_REAL_SAVE AFTER importing the law and REAL does not move - "
+        "a later os.environ[...] is a silent no-op (the literal appears ONCE, at module level, "
+        "parsed not grepped). Its readers are the HisRealSave class's skipUnless (evaluated at "
+        "import) and its setUpClass (R.read(REAL), read-only). Nothing ever writes it: it names "
+        "his own .d2s, so the only safe redirect is D2S_REAL_SAVE set BEFORE import, or "
+        "mock.patch.object on the module attribute before the class is defined - in practice the "
+        "file is absent on CI and the class skips, UNMEASURED there, never passed."),
+    "test_a_character_save_reads_byte_exact.py:BLANK": (
+        "D2S_BLANK_SAVE", "import-bound",
+        "MEASURED with REAL, same way: set after import and BLANK does not move. Readers: the "
+        "HisBlankSave class's skipUnless (import) and its setUpClass (R.read(BLANK) and "
+        "io.open(BLANK, 'rb') - read-only). Never written. Absent on CI, so the class skips there."),
 }
 
 _KINDS = ("import-bound", "call-time")

@@ -1,7 +1,7 @@
 # TESTING PHASE — hand tests, by scenario
 
 **What:** your 2026-09-25 ruling: *"we still need to do testing pinpointed scenarios and items lists to test and debug manually each ... we are still in the wiring and backend of it all. once we ship everything we will start testing"*.  
-**What is in it:** 33 scenarios in 4 areas (Vault · Chronicle · TV·D · Fleet). Each one was checked against the shipped code and your live console on 2026-09-25.  
+**What is in it:** 34 scenarios in 4 areas (Vault · Chronicle · TV·D · Fleet). Each one was checked against the shipped code and your live console on 2026-09-25.  
 **How:** pick a scenario, do its steps, and mark its box in the index ✅ / ❌ / ❓.  
 **On ❌ or ❓:** paste the scenario ID, the ❌ line that matched, and what the screen showed into a GitHub comment, or tell Claude.  
 **Legend:** ✅ pass · ❌ fail · ❓ could not tell · 💳 spends paid reads · ⏸ waits for v-B to merge
@@ -16,6 +16,7 @@
 | ☐ | [VAULT-INTAKE-01](#vault-intake-01) | Inventory read is HELD, stash read is filed to its locker | Vault | 5 | live vault door · v2346 ruling |
 | ☐ | [MULE-VB-01](#mule-vb-01) | ⏸ Slot picker offers only this locker's fitting items | Vault | 5 | #174 v-B |
 | ☐ | [MULE-VB-02](#mule-vb-02) | ⏸ Stats summed from item text; ranges, never averages | Vault | 5 | #174 v-B |
+| ☐ | [MULE-VB2-01](#mule-vb2-01) | ⏸ Drag an item to any cell: it locks there, survives a relaunch, unlocks | Vault | 5 | #174 v-B2 |
 | ☐ | [MULE-02](#mule-02) | Stepping mules keeps the console alive; numbers match the plate | Vault | 3 | #174 · REG-1071 / REG-1089 |
 | ☐ | [VAULT-PROOF-01](#vault-proof-01) | '⚖ n' proof chip per locker; no chip on the public site | Vault | 3 | #105 · REG-1052 |
 | ☐ | [MR-01](#mr-01) | A stash read tags magic / rare / grail / base / unknown correctly | Chronicle | 5 💳 | #53 (v3364) |
@@ -274,6 +275,37 @@ Includes #174 (mule window) and #60 (item facts). Baseline on 2026-09-25, from a
 **Cost:** About 5 min, no paid reads.  
 **Unknowns:** Whether you own Tarnhelm or Stealskull in the same locker. Without a rolled MF item in one locker, the range half is NOT_EXERCISED. Row wording may change before v-B merges.  
 **Read from:** bible.html (v-B worktree):_mpParseProp, _mpContrib, _mpSumStat, MULE_STATS · bible.html:ITEM_CODEX
+
+<a id="mule-vb2-01"></a>
+### MULE-VB2-01 — PENDING-v-B2: drag any item in the mule window to any cell where it fits — it locks there, survives a relaunch, and unlocks back to auto-pack
+
+> ⏸ **PENDING v-B2.** This is not on your screen until v-B2 merges to main and the console relaunches onto it. Skip it for now.
+
+**Proves:** #174 v-B2 manual placement, your order of 2026-09-25 (the ring in his_mule_locked_21 that would not move). A drop LOCKS the item; the packer flows the rest around it; a spot that does not fit is refused; unlock returns it to auto-pack. Proven in a real browser with real mouse and key input by test_the_mule_window_fits_at_every_width.py, and by node cases on the shipped packer.  
+**Setup:** Any locker holding at least one ring and one big item (a body armor or a bow). UNI-ARMOR if it holds them.
+
+**Items:**
+- A ring (1×1): the item you drag. Why: the one in your screenshot.
+- A body armor or a bow (2×3 / 2×4): the item you drag past the grid's right edge, to see a refusal.
+
+**Steps:**
+1. Open the locker → press on the ring, hold, move it to another stash cell, release.
+2. Watch the cells while it is in the air, then look at the ring after the drop.
+3. Relaunch the console, reopen the locker.
+4. Drag the armor so it would stick out past the stash's right edge, release.
+5. Drag the ring onto the INVENTORY under the doll, then onto the 'Gems' stash tab, then (if the locker has two mules) onto the 'Mule 2' tab.
+6. Right-click the ring (or click its small 🔒).
+7. Keyboard: press Tab until an item in the stash is outlined, then Enter, the arrow keys, Enter again.
+
+**✅ Expect:** In the air the cells it would cover are tinted GREEN; after the drop the ring sits on that cell with a gold ring and a 🔒, and a line at the bottom says '🔒 … locked at Personal stash · Mule 1 · col … · row …'. The other items moved around it, none overlapping. After the relaunch it is still there. The armor past the edge is tinted RED and stays where it was, with a line saying why. The Gems tab reads 'Gems 1' and shows the ring. Right-click returns it to where the packer puts it (no gold ring, no 🔒). Enter / arrows / Enter moves the focused item one cell per arrow and locks it. The SUMMARY 'On Mule 1' number always equals the line under the stash.
+
+**❌ Fail looks like:** The ring snaps back on release (the screenshot's defect). Two items drawn on one cell. The ring moved after the relaunch. The armor accepted past the edge. Right-click opening the browser menu on a locked item. An arrow key turning the mule page while an item is picked up. SUMMARY 'On Mule 1' and the gold box disagreeing.
+
+**🔎 Debug first:** the d2r_mulePos store in your board, then _muleLoad's `conflicts` for the locker (a spot that no longer fits is REPORTED in the NOTES panel and on the locker plate, never silently moved), then _mpPlace's answer for the drop.
+
+**Cost:** About 5 min, no paid reads.  
+**Unknowns:** Which items your board files in which locker (your board store was not read). What the game lets the Shared / Gems / Materials / Runes tabs hold is not on record here; the window places what you place.  
+**Read from:** bible.html (v-B2 worktree): packGrid, _muleLoad, _mpPlace, _mpUnlock, _mpMoveTo, openMuleCard · tv/test_the_mule_window_places_by_hand.py · tv/test_the_mule_window_fits_at_every_width.py
 
 <a id="mule-02"></a>
 ### MULE-02 — #174 + REG-1071: stepping a multi-mule locker with ← → and the ◄ ► arrows keeps the console alive, and the window's numbers match the locker plate
@@ -1217,6 +1249,7 @@ As a needs-you row: amber, under WAITING ON YOU, with the button 'YOUR CALL — 
 | Vault / Chronicle | #53 magic/rare tag on a panel | `vocab` appears in no panel. It shows only in the doctor row *item vocabulary* and in GET `/api/vault_sweep`. | A renderer for `vocab`, and keeping the tag on owned rows (finding 10). |
 | Vault | #174 v-C `.d2s` import: EXACT stats and the class / level / skills / mercenary panels | `tv/d2s_read.py` has no caller, and *⇪ Import .d2s* is disabled by design. | Wiring v-C. You can check one thing today: the eagle row *save reader tables* should read ✓ on your Mac. |
 | Vault | #174 v-B (MULE-VB-01, MULE-VB-02) | It exists only in its unmerged worktree. | Merge v-B, then relaunch. |
+| Vault | #174 v-B2 (MULE-VB2-01) | It exists only in its unmerged worktree. | Merge v-B2, then relaunch. |
 | Vault | #174 v-D skill trees and v-E auto-route ("a manual placement always wins") | Not built. Today it can be proven only through the pure function `_mpEqPlace`. | Build v-D and v-E. |
 | Vault | A possible REG-1280 sibling: the v677 cleanse deletes owned grail-seed names that have no mule filing | You cannot observe it by hand. | Your ruling on whether it is intended cleanup or a live deleter, then a guard. |
 | Chronicle | A hand tick banks a `hand` witness (HAND-01's second half) | No UI sends `want:true`, and `/api/evidence` cannot show the tag anyway (findings 11 and 12). | Fix both findings. HAND-01's witness half then becomes a real test. |
@@ -1245,6 +1278,7 @@ As a needs-you row: amber, under WAITING ON YOU, with the button 'YOUR CALL — 
 - **ESC-01, ESC-02:** only if the 📜 Inbox pill's tooltip starts *Chronicle · N pending* with N ≥ 1.
 - **MULE-02:** only if a locker plate shows the *×N🧍* badge with N ≥ 2.
 - **MULE-VB-01, MULE-VB-02:** after v-B merges.
+- **MULE-VB2-01:** after v-B2 merges.
 - **ALT-01, then DOCTOR-01:** after the next push reaches the ALT.
 - **REC-06:** at a Windows machine with D2R installed.
 

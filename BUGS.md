@@ -16,7 +16,10 @@ node the cut page as ONE `node -e <script>` argument of 134,724 and up to 422,61
 string at 131,072 (MAX_ARG_STRLEN) and macOS does not, so on CI every case died before node started. The scripts now
 go to node on stdin (`node -`), which has no such bound. The deeper miss was mine: two pushes went out and the CI
 verdict was never read. 24 more `node -e` sites in 27 test files pass today only because their scripts are still under
-128 KB - tracked as follow-up. [[test-venue]] [[feedback-ci-verdict-before-seal]]
+128 KB - tracked as follow-up. ⚠ #174 v-B2 builder C found the SAME defect independently (it had numbered it
+REG-1307, renumbered here) and added a measuring law: test_the_mule_window_places_by_hand drives each mule-window
+law's own _drive with subprocess.run captured and checks what it would hand the OS (red-proven by reverting one
+call to `-e`). [[test-venue]] [[feedback-ci-verdict-before-seal]]
 
 ### REG-1307 - ON WINDOWS A TERMINAL WINDOW KEPT JUMPING UP AND PULLING HIM (AND DEAN) OUT OF THE GAME
 
