@@ -22,12 +22,23 @@ the committed tv/item_tables.json (weapons are weapons, armour slots are armour,
 What only an install can prove is the SUBTYPE — that a Shako is worn on the head and not the torso — and that
 is this file's --check. [[unknown-stays-unknown]] [[copy-drift]]
 
-AND THE NAMED ITEMS' BASES. The board's own tables leave the commonest mule items without a base: "Stone of Jordan"
-and "Harlequin Crest" are in neither ITEM_CODEX nor ITEM_TIP, so the picker could only have called them UNKNOWN.
-The game's uniqueitems / setitems tables name every one with its base code, and tv/item_tables.json already
-carries them (name -> code -> base name). MULE_NAMED_BASE is that join, written beside the slot map. It is derived
-from the COMMITTED item_tables.json alone, so the law re-derives it in CI and compares byte for byte. A name the
-game gives two bases of different slots (none today) is left out rather than guessed.
+AND THE NAMED ITEMS' BASES. The board's own tables are keyed by the board's own spellings: the codex has "The
+Stone of Jordan" and "Harlequin Crest (Shako)", so a name typed or read any other way ("Stone of Jordan", "Harlequin
+Crest") finds no base there, and the picker could only have called it UNKNOWN. The game's uniqueitems / setitems
+tables name every one with its base code, and tv/item_tables.json already carries them (name -> code -> base name).
+MULE_NAMED_BASE is that join, written beside the slot map. It is derived from the COMMITTED item_tables.json alone,
+so the law re-derives it in CI and compares byte for byte. A name the game gives two bases of different slots (none
+today) is left out rather than guessed.
+
+#174 v-B review — AND WHAT A HAND CAN HOLD BESIDE THE OTHER. A slot kind alone let the doll wear Windforce (a Hydra
+Bow) beside Stormshield and sum both, a loadout no class can wear. The same install tables carry the three facts
+that decide it, and this file writes them beside the slot map as MULE_BASE_RULES_SRC:
+  · hands  — weapons.txt `2handed` / `1or2handed`: "2" needs both hands for every class; "12" is a two-hander a
+             Barbarian holds in one hand. Every other weapon is one-handed.
+  · ammo   — itemtypes.txt `Shoots` (through the `Equiv` chain): what a bow or crossbow shoots, named as the quiver
+             base the game prints ("Arrows", "Bolts").
+  · class  — itemtypes.txt `Class` (through the `Equiv` chain): the bases one class alone can use (an orb is the
+             Sorceress's, a claw the Assassin's, a Voodoo head the Necromancer's).
 """
 import io
 import json
@@ -60,13 +71,31 @@ TYPE_SLOT = {
     "bowq": "quiver", "xboq": "quiver",
 }
 KINDS = ("helm", "armor", "shield", "weapon", "gloves", "belt", "boots", "ring", "amulet", "quiver", "none")
+#: itemtypes.txt `Class` code -> the class name the game prints. A code not here is refused, never guessed.
+CLASS_NAME = {"ama": "Amazon", "ass": "Assassin", "bar": "Barbarian", "dru": "Druid", "nec": "Necromancer",
+              "pal": "Paladin", "sor": "Sorceress", "war": "Warlock"}
+ITEMTYPES = r"data:data\global\excel\itemtypes.txt"
+RULE_KEYS = ("hands", "ammo", "class")
+_PULLED = {}
+
+
+def _blobs():
+    """{label: bytes or None} for the tables this file reads — pulled once per process."""
+    if not _PULLED:
+        import item_tables as IT
+        want = ("armor", "weapons", "misc", "itemnames")
+        for label, path in IT.SOURCES:
+            if label in want:
+                _PULLED[label] = IT._pull(path)
+        _PULLED["itemtypes"] = IT._pull(ITEMTYPES)
+    return _PULLED
 
 
 def build():
     """-> ({kind: sorted [display name]}, None) or (None, why). Pulls; writes nothing."""
     import item_tables as IT
     want = ("armor", "weapons", "misc", "itemnames")
-    blobs = dict((label, IT._pull(path)) for label, path in IT.SOURCES if label in want)
+    blobs = _blobs()
     absent = [k for k in want if blobs.get(k) is None]
     if absent:
         return None, "could not pull %s from the install — the slot of a base is UNKNOWN here" % ", ".join(absent)
@@ -96,6 +125,77 @@ def build():
     for k in out:
         out[k].sort()
     return out, None
+
+
+def rules():
+    """-> ({"hands": {"2"|"12": [names]}, "ammo": {quiver name: [names]}, "class": {class: [names]}}, None) or
+    (None, why). Every name is a display name exactly as build() files it. Pulls; writes nothing."""
+    import item_tables as IT
+    blobs = _blobs()
+    absent = [k for k in ("armor", "weapons", "misc", "itemnames", "itemtypes") if blobs.get(k) is None]
+    if absent:
+        return None, "could not pull %s from the install — what a hand can hold beside the other is UNKNOWN here" % (
+            ", ".join(absent))
+    names = IT._strings(blobs["itemnames"])
+    types = dict((r.get("Code"), r) for r in IT._rows(blobs["itemtypes"]) or [] if r.get("Code"))
+    if names is None or not types:
+        return None, "item-names.json or itemtypes.txt was pulled but would not parse"
+
+    def walk(code, col, seen=()):
+        r = types.get(code)
+        if not r or code in seen:
+            return None
+        if r.get(col):
+            return r[col]
+        for e in (r.get("Equiv1"), r.get("Equiv2")):
+            if e:
+                v = walk(e, col, seen + (code,))
+                if v:
+                    return v
+        return None
+
+    def shown(r):
+        return names.get(r.get("namestr") or "") or r.get("name") or r.get("code")
+
+    quiver = {}
+    for r in IT._rows(blobs["misc"]) or []:
+        if r.get("code") and r.get("type") in ("bowq", "xboq"):
+            quiver.setdefault(r["type"], set()).add(shown(r))
+    out = {"hands": {"2": set(), "12": set()}, "ammo": {}, "class": {}}
+    said = {}
+    clash = []
+
+    def put(key, val, n):
+        if said.get((key, n), val) != val:
+            clash.append("%s: %s %s vs %s" % (n, key, said[(key, n)], val))
+        said[(key, n)] = val
+
+    for label in ("armor", "weapons", "misc"):
+        for r in IT._rows(blobs[label]) or []:
+            if not r.get("code"):
+                continue
+            n = shown(r)
+            if label == "weapons":
+                hands = "12" if r.get("1or2handed") == "1" else ("2" if r.get("2handed") == "1" else "1")
+                put("hands", hands, n)
+                if hands != "1":
+                    out["hands"][hands].add(n)
+                sh = walk(r.get("type"), "Shoots")
+                if sh:
+                    q = sorted(quiver.get(sh) or [])
+                    if len(q) != 1:
+                        return None, "%s shoots %r, which names %d quiver bases — refusing to guess" % (n, sh, len(q))
+                    put("ammo", q[0], n)
+                    out["ammo"].setdefault(q[0], set()).add(n)
+            c = walk(r.get("type"), "Class")
+            if c:
+                if c not in CLASS_NAME:
+                    return None, "itemtypes.txt names a class %r this map does not know (%s) — refusing to guess" % (c, n)
+                put("class", CLASS_NAME[c], n)
+                out["class"].setdefault(CLASS_NAME[c], set()).add(n)
+    if clash:
+        return None, "one display name, two rules: %s" % "; ".join(clash[:5])
+    return dict((k, dict((v, sorted(ns)) for v, ns in out[k].items() if ns)) for k in RULE_KEYS), None
 
 
 def named(tables=None, slots=None):
@@ -132,7 +232,7 @@ def named(tables=None, slots=None):
     return out, sorted(dropped)
 
 
-def render(m, nb):
+def render(m, nb, ru):
     """The block, byte for byte, as it sits in bible.html (markers included)."""
     lines = [MARK_OPEN + " from the D2R CASC: armor/weapons/misc .txt `type` -> the doll slot the game wears"
              " it in, named as item-names.json prints it; and every unique / set item's base, from"
@@ -145,6 +245,13 @@ def render(m, nb):
     lines.append("  };")
     lines.append("  var MULE_NAMED_BASE_SRC = %s;" % json.dumps(
         "|".join("%s=%s" % (n, nb[n]) for n in sorted(nb)), ensure_ascii=False))
+    lines.append("  var MULE_BASE_RULES_SRC = {")
+    body = []
+    for k in RULE_KEYS:
+        body.append("    %s: {%s}" % (json.dumps(k), ", ".join("%s: %s" % (json.dumps(v), json.dumps(
+            "|".join(ru[k][v]), ensure_ascii=False)) for v in sorted(ru.get(k) or {}))))
+    lines.append(",\n".join(body))
+    lines.append("  };")
     lines.append(MARK_CLOSE)
     return "\n".join(lines)
 
@@ -159,7 +266,7 @@ def _span(src):
 
 
 def embedded(src=None):
-    """-> ({kind: [names]}, {name: base}) parsed from the block bible.html carries, or None."""
+    """-> ({kind: [names]}, {name: base}, {rule: {value: [names]}}) parsed from the block bible.html carries, or None."""
     if src is None:
         with io.open(BIBLE, encoding="utf-8") as f:
             src = f.read()
@@ -174,7 +281,11 @@ def embedded(src=None):
     c = blk.index("var MULE_NAMED_BASE_SRC = ") + len("var MULE_NAMED_BASE_SRC = ")
     e = blk.index(";\n", c)
     nb = dict(p.split("=", 1) for p in json.loads(blk[c:e]).split("|") if "=" in p)
-    return slots, nb
+    f = blk.index("var MULE_BASE_RULES_SRC = {") + len("var MULE_BASE_RULES_SRC = ")
+    g = blk.index("\n  };", f) + len("\n  }")
+    rd = json.loads(blk[f:g].strip())
+    ru = dict((k, dict((v, [x for x in ns.split("|") if x]) for v, ns in (rd.get(k) or {}).items())) for k in RULE_KEYS)
+    return slots, nb, ru
 
 
 def check():
@@ -185,11 +296,15 @@ def check():
     fresh, why = build()
     if fresh is None:
         return SKIP, "cannot re-derive here (%s), so whether the block matches the install is UNKNOWN" % why
+    ru, why = rules()
+    if ru is None:
+        return SKIP, "cannot re-derive here (%s), so whether the block matches the install is UNKNOWN" % why
     nb, dropped = named(slots=fresh)
-    if fresh == have[0] and nb == have[1]:
-        return 0, "the doll-slot map matches the install (%s; %d named items%s)" % (", ".join(
+    if fresh == have[0] and nb == have[1] and ru == have[2]:
+        return 0, "the doll-slot map matches the install (%s; %d named items%s; %s)" % (", ".join(
             "%s %d" % (k, len(fresh[k])) for k in KINDS if fresh[k]), len(nb),
-            (", %d left out as ambiguous: %s" % (len(dropped), ", ".join(dropped))) if dropped else "")
+            (", %d left out as ambiguous: %s" % (len(dropped), ", ".join(dropped))) if dropped else "",
+            "; ".join("%s %s" % (k, ", ".join("%s %d" % (v, len(ru[k][v])) for v in sorted(ru[k]))) for k in RULE_KEYS))
     diff = []
     for k in KINDS:
         a, b = set(have[0].get(k) or []), set(fresh.get(k) or [])
@@ -197,6 +312,10 @@ def check():
             diff.append("%s: +%d -%d" % (k, len(b - a), len(a - b)))
     if nb != have[1]:
         diff.append("named items: %d in the block, %d from item_tables.json" % (len(have[1]), len(nb or {})))
+    for k in RULE_KEYS:
+        if (ru.get(k) or {}) != (have[2].get(k) or {}):
+            diff.append("%s: the block says %s, the install %s" % (k, dict((v, len(n)) for v, n in (have[2].get(k) or {}).items()),
+                                                                  dict((v, len(n)) for v, n in (ru.get(k) or {}).items())))
     return 1, "the install disagrees with the block in bible.html: %s — run --write" % "; ".join(diff)
 
 
@@ -206,6 +325,9 @@ def write():
     fresh, why = build()
     if fresh is None:
         return SKIP, "not written: %s" % why
+    ru, why = rules()
+    if ru is None:
+        return SKIP, "not written: %s" % why
     nb, dropped = named(slots=fresh)
     if nb is None:
         return 1, "not written: %s" % "; ".join(dropped)
@@ -214,12 +336,12 @@ def write():
     sp = _span(src)
     if not sp:
         return 1, "the MULE_BASE_SLOT markers are not in bible.html exactly once — refusing to guess where it goes"
-    new = src[:sp[0]] + render(fresh, nb) + src[sp[1]:]
+    new = src[:sp[0]] + render(fresh, nb, ru) + src[sp[1]:]
     if new == src:
         return 0, "already current"
     from bump_version import atomic_write
     atomic_write(BIBLE, new)
-    return 0, "wrote the doll-slot map (%d base names) and %d named items' bases%s" % (
+    return 0, "wrote the doll-slot map (%d base names), the hand / ammo / class rules and %d named items' bases%s" % (
         sum(len(v) for v in fresh.values()), len(nb),
         (" — %d left out as ambiguous: %s" % (len(dropped), ", ".join(dropped))) if dropped else "")
 

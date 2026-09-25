@@ -3,8 +3,9 @@
 
 His words: click a doll slot and pick from this mule's items; hover is the board's own item card; the stats are
 computed from what is worn. Spec §6 decides how honest each number may be, and this law holds each rule to the
-SHIPPED code, driven in node (the vault span of bible.html, the board's own ITEM_CODEX / ITEM_TIP / tipOf, the
-routed store and the Backup exporter — each cut out of bible.html and run, never re-typed here):
+SHIPPED code, driven in node (the vault span of bible.html, the board's own ITEM_CODEX / ITEM_TIP / tipOf, its set
+and runeword tables with findSetPiece / _codexSetMember / findRuneword, the routed store and the Backup exporter —
+each cut out of bible.html and run, never re-typed here):
 
   · THE STORE. d2r_muleEquip = {muleId: {setI: {slot: {name, source, at}}, setII: {rarm, larm}}}; only the hands
     swap. A MANUAL placement always wins: an analyzer route (v-E) can never replace what his hand put there, and an
@@ -23,6 +24,22 @@ routed store and the Backup exporter — each cut out of bible.html and run, nev
     (tv/mule_slot_map.py): here every name in it is checked against the committed tv/item_tables.json kinds, and
     MULE_NAMED_BASE is re-derived from item_tables.json and compared exactly. Only the SUBTYPE (helm vs torso)
     needs the install — that case runs where the install is, and says UNMEASURED where it is not.
+
+#174 v-B REVIEW — what three independent seats found in the shipped build, each reproduced before it was fixed:
+  · CLASS SKILLS ADD TO ONE CLASS. The Oculus (+3 Sorceress) and Homunculus (+2 Necromancer) read "+ Class Skills
+    5 TEXT" — a number no character ever gets; the .d2s path threw the class param away and did the same.
+  · A GHOST IS NOT WORN. An item reassigned to another locker stayed on the first doll, still summed, and the one
+    copy could then be worn on the second locker's doll too. Only a LIVE entry counts (_mpLive).
+  · THE HANDS HOLD WHAT THE GAME ALLOWS. Windforce (a Hydra Bow — weapons.txt `2handed`) sat beside Stormshield and
+    both were summed; a two-handed spear and a Sorceress-only orb were offered for the left hand; an orb and a
+    Necromancer's head were worn together. The rules are the install's (weapons.txt, itemtypes.txt), generated.
+  · AN IMPORT CARRIES WHAT ITS SAVE CARRIES. The store's only writer dropped runewordProps and socketed children,
+    so an imported Enigma read FRW "0% EXACT". A part the store did not carry makes the number UNKNOWN (≥).
+  · A NAME FINDS ITS TEXT THE WAY IT FINDS ITS SLOT ("Stone of Jordan", "Harlequin Crest", runewords, the codex's
+    own set-piece spellings), and an UNKNOWN names the keys it tried. Two texts that disagree (Arioc's Needle: 2 vs
+    2–4) print their union and say so. +Vitality / +Energy are UNKNOWN parts of Life / Mana, never a silent 0.
+  · THE HARNESS REACHES EVERY BRANCH. The runeword-base fit, the set-piece text and the set-piece slot fit were
+    typeof-skipped here, so a sabotage of any of them stayed green.
 
 ⚠ WHAT THIS LAW CANNOT SEE: pixels. That the picker, the worn art and the stat tags fit at every width is
 test_the_mule_window_fits_at_every_width.py's second pass, in a real browser.
@@ -53,8 +70,14 @@ import mule_slot_map as MSM  # noqa: E402
 
 NODE = shutil.which("node")
 MULE = "uni-armor"
-LOCKER = ["Harlequin Crest", "Stone of Jordan", "Mara's Kaleidoscope", "Arachnid Mesh", "The Oculus", "Annihilus",
-          "Mystery Relic", "Nagelring", "Magefist"]
+#: the board's own spellings — what tvVaultRegister stores ("Harlequin Crest" registers as "Harlequin Crest (Shako)").
+#: Beast Bite Ring is a rolled rare: it fits a ring slot by its own name and has no text anywhere, the honest UNKNOWN.
+LOCKER = ["Harlequin Crest (Shako)", "The Stone of Jordan", "Mara's Kaleidoscope", "Arachnid Mesh", "The Oculus",
+          "Annihilus", "Mystery Relic", "Nagelring", "Magefist", "Beast Bite Ring"]
+#: a weapons locker for the two-hands rules: a bow, its two quivers, a shield, a two-handed spear, a one-handed sword
+#: and flail (a Barbarian holds both), two claws (an Assassin holds both), an orb and a Voodoo head (two classes)
+HANDS = ["Windforce", "Arrows", "Bolts", "Stormshield", "Arioc's Needle", "Lightsabre", "Stormlash",
+         "Bartuc's Cut-Throat", "Jade Talon", "The Oculus", "Homunculus"]
 
 
 def _src():
@@ -73,6 +96,24 @@ def _line(s, start):
     assert s.count(start) == 1, "the line %r is not unique (%d)" % (start[:60], s.count(start))
     i = s.index(start)
     return s[i:s.index("\n", i) + 1]
+
+
+def _block(s, start):
+    """a top-level `const X = [ ... ];` table, up to its own closing line"""
+    return _between(s, start, "\n];\n") + "\n];\n"
+
+
+def _sets_and_runewords(s):
+    """#174 v-B review — the set and runeword tables the fit and the text read, and the finders over them. Without
+    these the harness typeof-skipped three shipped branches, and a sabotage of any of them stayed green."""
+    return (_line(s, "function _norm(s){") + _block(s, "const ITEM_SETS = [") + _block(s, "const SET_PIECES_EXTRA = [")
+            + _block(s, "const SET_PIECES_EXTRA2 = [") + _line(s, "function __allSets(){")
+            + _line(s, "function __pieceBase(pc){") + _line(s, "function __pieceSlot(pc){")
+            + _between(s, "function findSetPiece(name){", "window.findSetPiece = findSetPiece;")
+            + _between(s, "function _codexSetMember(name){", "function _setPieceTipHtml(sp){")
+            + _block(s, "const RUNEWORDS = [") + _line(s, "const RUNEWORD_TIP = {") + _line(s, "function _rwNorm(s){")
+            + _line(s, "const _RW_TIP_INDEX = ")
+            + _between(s, "function findRuneword(name){", "window.findRuneword = findRuneword;"))
 
 
 HARNESS = r"""
@@ -132,7 +173,12 @@ function footer(){ var i = box.innerHTML.indexOf('<div class="mp-pick-f">'); ret
 function row(label){ var re = new RegExp('<div class="mp-st-r[^"]*" data-k="' + label.toLowerCase().replace(/[+]/g, '\\+') + '"[^>]*><span>[^<]*</span>(.*?)</div>'), m = re.exec(box.innerHTML);
   if (!m) return null; var c = m[1], v = /<b>([^<]*)<\/b><i>([^<]*)<\/i>/.exec(c), t = /title="([^"]*)"/.exec(c);
   return v ? { value: unesc(v[1]), tag: v[2], title: unesc(t ? t[1] : '') } : { value: /UNKNOWN/.test(c) ? 'UNKNOWN' : c, tag: null, title: unesc(t ? t[1] : '') }; }
+function slotSay(slot){ var h = box.innerHTML, i = h.indexOf('data-slot="' + slot + '"'); if (i < 0) return null;
+  var b = h.slice(h.lastIndexOf('<button', i), h.indexOf('>', i) + 1), c = /class="([^"]*)"/.exec(b), a = /aria-label="([^"]*)"/.exec(b);
+  return { cls: c ? c[1] : '', say: unesc(a ? a[1] : '') }; }
 function eq(){ return JSON.parse(STORE['d2r_muleEquip'] || '{}'); }
+function liveCount(name){ var n = 0; roster.forEach(function(r){ var L = window._mpLive(r.id, eq());
+  ['setI', 'setII'].forEach(function(s){ Object.keys(L.at[s]).forEach(function(k){ if (L.at[s][k].name === name) n++; }); }); }); return n; }
 var out = {};
 %(scenario)s
 console.log(JSON.stringify(out));
@@ -141,7 +187,7 @@ console.log(JSON.stringify(out));
 
 def _drive(scenario, assign=None, copies=None, store=None):
     s = _src()
-    tables = _line(s, "const ITEM_CODEX = {") + _line(s, "const ITEM_TIP = {")
+    tables = _line(s, "const ITEM_CODEX = {") + _line(s, "const ITEM_TIP = {") + _sets_and_runewords(s)
     helpers = (_line(s, "  var RK='d2r_muleRoster', AK='d2r_muleAssign';")
                + _line(s, "  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }")
                + _line(s, "  function art(n, glyph, size){")
@@ -160,12 +206,18 @@ def _drive(scenario, assign=None, copies=None, store=None):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
+def _hands_locker():
+    a = dict((n, MULE) for n in LOCKER)
+    a.update((n, "uni-weap") for n in HANDS)
+    return a
+
+
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class TheStoreAndItsPrecedence(unittest.TestCase):
 
     def test_choosing_writes_the_store_in_its_shape(self):
         out = _drive("""
-          window.openMuleCard('uni-armor'); window._mpPick('head'); out.chose = choose('Harlequin Crest');
+          window.openMuleCard('uni-armor'); window._mpPick('head'); out.chose = choose('Harlequin Crest (Shako)');
           out.eq = eq(); out.pickOpen = box.innerHTML.indexOf('class="mp-pick"') >= 0;
           window._mpSet('swap', 2); window._mpPick('rarm'); out.chose2 = choose('The Oculus'); out.eq2 = eq();
           window._mpPick('neck'); out.chose3 = choose("Mara's Kaleidoscope"); out.eq3 = eq();""")
@@ -173,7 +225,7 @@ class TheStoreAndItsPrecedence(unittest.TestCase):
         self.assertFalse(out["pickOpen"], "choosing an item left the picker open")
         e = out["eq"][MULE]["setI"]["head"]
         self.assertEqual(sorted(e), ["at", "name", "source"])
-        self.assertEqual((e["name"], e["source"]), ("Harlequin Crest", "manual"))
+        self.assertEqual((e["name"], e["source"]), ("Harlequin Crest (Shako)", "manual"))
         datetime.strptime(e["at"][:19], "%Y-%m-%dT%H:%M:%S")
         self.assertEqual(out["eq2"][MULE]["setII"]["rarm"]["name"], "The Oculus", "weapon set II did not keep its own hand")
         self.assertNotIn("rarm", out["eq2"][MULE]["setI"], "a set-II weapon landed in set I")
@@ -211,21 +263,21 @@ class OnlyWhatFitsIsOffered(unittest.TestCase):
         out = _drive("""
           window.openMuleCard('uni-armor');
           window._mpPick('head'); out.head = options(); out.headFoot = footer();
-          window._mpPick('rrin'); out.rrin = options(); out.chose = choose('Stone of Jordan');
+          window._mpPick('rrin'); out.rrin = options(); out.chose = choose('The Stone of Jordan');
           window._mpPick('lrin'); out.lrin = options(); out.lrinFoot = footer();
           window._mpPick('rarm'); out.rarm = options();
           window._mpPick('neck'); out.neck = options();""")
-        self.assertEqual(out["head"], ["Harlequin Crest"], "the helm picker offered something that is not a helm")
+        self.assertEqual(out["head"], ["Harlequin Crest (Shako)"], "the helm picker offered something that is not a helm")
         foot = out["headFoot"]
-        self.assertIn("Left out: 8 of 9", foot)
-        self.assertIn("6 fit other slots:", foot)
-        self.assertIn("Stone of Jordan (ring)", foot, "a ring left out of the helm picker is not named with its slot")
+        self.assertIn("Left out: 9 of 10", foot)
+        self.assertIn("7 fit other slots:", foot)
+        self.assertIn("Nagelring (ring)", foot, "a ring left out of the helm picker is not named with its slot")
         self.assertIn("1 is carried, never worn: Annihilus", foot)
         self.assertIn("1 has no slot on record, so it is not offered: Mystery Relic (no base type is on record for it)", foot)
-        self.assertEqual(sorted(out["rrin"]), ["Nagelring", "Stone of Jordan"])
+        self.assertEqual(sorted(out["rrin"]), ["Beast Bite Ring", "Nagelring", "The Stone of Jordan"])
         self.assertIs(out["chose"], True)
-        self.assertEqual(out["lrin"], ["Nagelring"], "the one Stone of Jordan, already worn, was offered again")
-        self.assertIn("1 is already worn in another slot: Stone of Jordan", out["lrinFoot"])
+        self.assertEqual(sorted(out["lrin"]), ["Beast Bite Ring", "Nagelring"], "the one Stone of Jordan, already worn, was offered again")
+        self.assertIn("1 is already worn in another slot: The Stone of Jordan", out["lrinFoot"])
         self.assertEqual(out["rarm"], ["The Oculus"])
         self.assertEqual(out["neck"], ["Mara's Kaleidoscope"])
 
@@ -243,6 +295,31 @@ class OnlyWhatFitsIsOffered(unittest.TestCase):
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheHarnessReachesEveryBranch(unittest.TestCase):
+    """#174 v-B review — the runeword-base fit, the set-piece text and the set-piece slot fit, each on the SHIPPED
+    tables. Before, the harness never loaded them and the typeof guards skipped all three in silence."""
+
+    def test_a_runeword_fits_by_its_base_and_a_set_piece_reads_its_own_affixes(self):
+        out = _drive("""
+          out.reach = [typeof RUNEWORDS, typeof findSetPiece, typeof _codexSetMember, typeof findRuneword, typeof ITEM_SETS];
+          var e = window._mpFit('Enigma'); out.enigma = [e.kind, e.from, e.base];
+          var c = window._mpContrib({ name: "Tal Rasha's Horadric Crest", source: 'manual' });
+          out.tal = { src: c.src, from: c.from, fire: c.per.fire, life: c.per.life, mana: c.per.mana };
+          SET_PIECES_EXTRA.push({ name: 'Planted Kit (set)', pieces: ['Planted Visor (war hat)'] });
+          var p = window._mpFit('Planted Visor'); out.planted = [p.kind, p.from, p.base];""")
+        self.assertEqual(out["reach"], ["object", "function", "function", "function", "object"],
+                         "the harness no longer carries the set / runeword tables the shipped fit and text read")
+        self.assertEqual(out["enigma"], ["armor", "runeword base", "3-sock body armor"])
+        tal = out["tal"]
+        self.assertEqual((tal["src"], tal["from"]), ("range", "ITEM_CODEX set piece text"))
+        self.assertEqual((tal["fire"]["lo"], tal["fire"]["hi"]), (15, 15), "Horadric Crest's All Resistances +15 was not read")
+        self.assertEqual((tal["life"]["lo"], tal["mana"]["lo"]), (60, 30))
+        # no set piece on today's tables reaches findSetPiece (the game table answers first), so this branch is
+        # driven with a planted piece — a working finder would otherwise be indistinguishable from a broken one
+        self.assertEqual(out["planted"], ["helm", "set piece slot", "war hat"])
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class EachNumberSaysItsSource(unittest.TestCase):
 
     def test_the_text_parser_reads_ranges_and_refuses_what_needs_a_character(self):
@@ -250,7 +327,9 @@ class EachNumberSaysItsSource(unittest.TestCase):
                  "Fire Resist +-30%", "+2 To All Skills", "+1 to Sorceress Skill Levels", "15-30% Better Chance of Getting Magic Items",
                  "+[1-99] To Life (Based On Character Level)", "Increase Maximum Life 5%", "+5% to Maximum Fire Resist",
                  "-25% To Enemy Fire Resistance", "Replenish Life +10", "+40 To Mana", "+10 to Mana after each Kill",
-                 "25% Faster Run/Walk", "+30% Faster Hit Recovery", "20% Increased Attack Speed"]
+                 "25% Faster Run/Walk", "+30% Faster Hit Recovery", "20% Increased Attack Speed",
+                 "+20 to Vitality", "+[10-20] To Energy", "+5 To All Attributes", "+2 to Str/Vit/Energy",
+                 "+[1-99] To Vitality (Based On Character Level)", "+1 Energy Shield (Sorceress Only)"]
         out = _drive("out.p = %s.map(function(l){ return window._mpParseProp(l); });" % json.dumps(lines))
         p = dict(zip(lines, out["p"]))
         self.assertEqual(p["+[20-30]% Faster Cast Rate"], [{"k": "fcr", "lo": 20, "hi": 30}])
@@ -259,18 +338,25 @@ class EachNumberSaysItsSource(unittest.TestCase):
         self.assertEqual(p["Fire Resist +30%"], [{"k": "fire", "lo": 30, "hi": 30}])
         self.assertEqual(p["Fire Resist +-30%"], [{"k": "fire", "lo": -30, "hi": -30}])
         self.assertEqual(p["+2 To All Skills"], [{"k": "allsk", "lo": 2, "hi": 2}])
-        self.assertEqual(p["+1 to Sorceress Skill Levels"], [{"k": "clsk", "lo": 1, "hi": 1}])
+        self.assertEqual(p["+1 to Sorceress Skill Levels"], [{"k": "clsk", "lo": 1, "hi": 1, "cls": "Sorceress"}],
+                         "a class-skill line lost the class it adds to")
         self.assertEqual(p["15-30% Better Chance of Getting Magic Items"], [{"k": "mf", "lo": 15, "hi": 30}])
         self.assertEqual([sorted(c) for c in p["+[1-99] To Life (Based On Character Level)"]], [["k", "why"]])
         self.assertEqual(p["Increase Maximum Life 5%"][0]["k"], "life")
         self.assertIn("why", p["Increase Maximum Life 5%"][0])
         for none in ("+5% to Maximum Fire Resist", "-25% To Enemy Fire Resistance", "Replenish Life +10",
-                     "+10 to Mana after each Kill"):
+                     "+10 to Mana after each Kill", "+1 Energy Shield (Sorceress Only)"):
             self.assertEqual(p[none], [], "%r is not the stat it names" % none)
         self.assertEqual(p["+40 To Mana"], [{"k": "mana", "lo": 40, "hi": 40}])
         self.assertEqual(p["25% Faster Run/Walk"][0]["k"], "frw")
         self.assertEqual(p["+30% Faster Hit Recovery"][0]["k"], "fhr")
         self.assertEqual(p["20% Increased Attack Speed"][0]["k"], "ias")
+        # #174 v-B review — +Vitality / +Energy add life / mana by the character's class: an UNKNOWN part, never nothing
+        self.assertEqual([(c["k"], "why" in c) for c in p["+20 to Vitality"]], [("life", True)])
+        self.assertEqual([(c["k"], "why" in c) for c in p["+[10-20] To Energy"]], [("mana", True)])
+        for both in ("+5 To All Attributes", "+2 to Str/Vit/Energy"):
+            self.assertEqual([(c["k"], "why" in c) for c in p[both]], [("life", True), ("mana", True)], both)
+        self.assertEqual([(c["k"], "why" in c) for c in p["+[1-99] To Vitality (Based On Character Level)"]], [("life", True)])
 
     def test_exact_range_unknown_and_mixed_sum(self):
         out = _drive("""
@@ -298,17 +384,19 @@ class EachNumberSaysItsSource(unittest.TestCase):
           window.openMuleCard('uni-armor');
           window._mpPick('neck'); choose("Mara's Kaleidoscope");
           window._mpPick('belt'); choose('Arachnid Mesh');
-          var a = window._mpEqPlace(eq(), 'uni-armor', 'setI', 'rrin', { name: 'Stone of Jordan', source: 'import',
+          var a = window._mpEqPlace(eq(), 'uni-armor', 'setI', 'rrin', { name: 'The Stone of Jordan', source: 'import',
                     props: [{ stat: 'item_allskills', value: 1 }, { stat: 'maxmana', value: 20 }, { stat: 'item_maxmana_percent', value: 25 }] });
           window.LSR.setItem('d2r_muleEquip', JSON.stringify(a.all));
           window.openMuleCard('uni-armor');
           out.A = { skills: row('+ All Skills'), fcr: row('Faster Cast Rate'), fire: row('Fire Resistance'), mana: row('Mana'),
                     mf: row('Magic Find'), str: row('Strength'), src: box.innerHTML.indexOf('class="mp-st-src"') >= 0 };
-          window._mpPick('head'); choose('Harlequin Crest');
-          out.B = { skills: row('+ All Skills'), mf: row('Magic Find') };""")
-        A, B = out["A"], out["B"]
+          window._mpPick('head'); choose('Harlequin Crest (Shako)');
+          out.B = { skills: row('+ All Skills'), mf: row('Magic Find') };
+          window._mpPick('lrin'); choose('Beast Bite Ring');
+          out.C = { mf: row('Magic Find'), frw: row('Faster Run/Walk') };""")
+        A, B, C = out["A"], out["B"], out["C"]
         self.assertEqual((A["skills"]["value"], A["skills"]["tag"]), ("\u2265 1 + 3", "MIXED"))
-        self.assertIn("Stone of Jordan \u2014 EXACT from its .d2s: 1", A["skills"]["title"])
+        self.assertIn("The Stone of Jordan \u2014 EXACT from its .d2s: 1", A["skills"]["title"])
         self.assertIn("Mara's Kaleidoscope \u2014 by name, ITEM_CODEX text: 2", A["skills"]["title"])
         self.assertEqual((A["fcr"]["value"], A["fcr"]["tag"]), ("20%", "TEXT"))
         self.assertEqual((A["fire"]["value"], A["fire"]["tag"]), ("20\u201330%", "TEXT"), "the rolled range was not kept a range")
@@ -317,9 +405,287 @@ class EachNumberSaysItsSource(unittest.TestCase):
         self.assertEqual((A["mf"]["value"], A["mf"]["tag"]), ("0%", "MIXED"))
         self.assertEqual(A["str"]["value"], "UNKNOWN", "a row the gear is not read for printed a number")
         self.assertTrue(A["src"], "the stats no longer say what EXACT / TEXT / MIXED mean")
-        self.assertEqual(B["mf"]["value"], "UNKNOWN", "an item with no text on record let the others' zero stand as measured")
-        self.assertIn("Harlequin Crest: no property text is on record for it", B["mf"]["title"])
-        self.assertEqual(B["skills"]["value"], "\u2265 1 + 3")
+        # the board's own spelling of the Shako carries its text: +2 skills and 50% magic find, by name
+        self.assertEqual((B["skills"]["value"], B["skills"]["tag"]), ("\u2265 1 + 5", "MIXED"))
+        self.assertEqual((B["mf"]["value"], B["mf"]["tag"]), ("50%", "TEXT"))
+        self.assertIn("Harlequin Crest (Shako) \u2014 by name, ITEM_CODEX text: 50%", B["mf"]["title"])
+        # a rolled rare with no text anywhere: a known part becomes a floor, known zeros become UNKNOWN, and the
+        # reason names the keys it tried
+        self.assertEqual((C["mf"]["value"], C["mf"]["tag"]), ("\u2265 50%", "MIXED"), "the no-text ring's part was read as nothing")
+        self.assertEqual(C["frw"]["value"], "UNKNOWN", "an item with no text on record let the others' zero stand as measured")
+        self.assertIn('Beast Bite Ring: no property text is on record under "Beast Bite Ring", "The Beast Bite Ring"',
+                      C["frw"]["title"])
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class ClassSkillsAddToOneClass(unittest.TestCase):
+    """#174 v-B review — "+3 to Sorceress Skill Levels" and "+2 to Necromancer Skill Levels" read "+ Class Skills 5".
+    No character gets that. Lines of two classes are UNKNOWN, each class's part named; one class prints its name."""
+
+    def test_two_classes_are_never_one_number_by_name_or_from_a_save(self):
+        out = _drive("""
+          var S = window._mpSumStat, C = window._mpContrib;
+          var imp = function(n, param, v){ return C({ name: n, source: 'import', props: [{ stat: 'item_addclassskills', param: param, value: v }] }); };
+          out.text = S([C({ name: 'The Oculus', source: 'manual' }), C({ name: 'Homunculus', source: 'manual' })], 'clsk');
+          out.exact = S([imp('A', 1, 3), imp('B', 2, 2)], 'clsk');
+          out.one = S([C({ name: 'The Oculus', source: 'manual' })], 'clsk');
+          out.sameTwo = S([imp('A', 1, 3), imp('B', 1, 1)], 'clsk');
+          out.noClass = S([imp('X', 9, 1)], 'clsk');
+          out.ids = MP_CLASS_BY_ID;""")
+        self.assertEqual(out["text"]["kind"], "unknown", "two classes' skill lines were summed into one number")
+        self.assertIn("Necromancer: Homunculus 2", out["text"]["why"])
+        self.assertIn("Sorceress: The Oculus 3", out["text"]["why"])
+        self.assertEqual(out["exact"]["kind"], "unknown", "the .d2s path summed two classes (the class param was thrown away)")
+        self.assertIn("Necromancer: B 2", out["exact"]["why"])
+        self.assertEqual((out["one"]["text"], out["one"]["tag"]), ("3 Sorceress", "TEXT"))
+        self.assertEqual((out["sameTwo"]["text"], out["sameTwo"]["tag"]), ("4 Sorceress", "EXACT"))
+        self.assertEqual(out["noClass"]["kind"], "unknown")
+        self.assertIn("(id 9) is not on record", out["noClass"]["why"])
+        import d2s_read
+        self.assertEqual(out["ids"], [d2s_read.CLASSES[i] for i in range(len(d2s_read.CLASSES))],
+                         "the page's class ids are not the .d2s reader's")
+
+    def test_the_window_row_names_each_class_and_sums_none(self):
+        items = ["Wormskull", "Visceratuant"]
+        out = _drive("""
+          window.openMuleCard('uni-armor'); window._mpPick('head'); choose('Wormskull');
+          out.one = row('+ Class Skills');
+          window._mpPick('larm'); choose('Visceratuant');
+          out.two = row('+ Class Skills');""", assign=dict((n, MULE) for n in items))
+        self.assertEqual((out["one"]["value"], out["one"]["tag"]), ("1 Necromancer", "TEXT"))
+        self.assertEqual(out["two"]["value"], "UNKNOWN", "the window summed two classes' skill lines")
+        self.assertIn("different classes", out["two"]["title"])
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class AGhostIsNotWorn(unittest.TestCase):
+    """#174 v-B review — an item reassigned to another locker stayed on the first doll, still summed, and the one copy
+    could then be worn on the second locker's doll as well."""
+
+    def test_a_reassigned_item_is_not_counted_and_is_worn_once(self):
+        a = dict((n, MULE) for n in LOCKER)
+        out = _drive("""
+          window.openMuleCard('uni-armor');
+          window._mpPick('neck'); choose("Mara's Kaleidoscope");
+          window._mpPick('rrin'); out.chose = choose('The Stone of Jordan');
+          out.before = row('+ All Skills');
+          assign['The Stone of Jordan'] = 'uni-weap';
+          window.openMuleCard('uni-armor');
+          out.slot = slotSay('rrin'); out.after = row('+ All Skills');
+          out.dead = /<div class="mp-st-src mp-st-dead">([^<]*<b>[^<]*<\\/b>[^<]*)<\\/div>/.exec(box.innerHTML);
+          out.dead = out.dead ? unesc(out.dead[1].replace(/<[^>]+>/g, '')) : null;
+          out.wornArmor = window._mpWornFor('uni-armor');
+          window.openMuleCard('uni-weap'); window._mpPick('lrin'); out.offer = options();
+          out.chose2 = choose('The Stone of Jordan');
+          out.live = liveCount('The Stone of Jordan');""", assign=a)
+        self.assertIs(out["chose"], True)
+        self.assertEqual((out["before"]["value"], out["before"]["tag"]), ("3", "TEXT"))
+        self.assertIn("mp-gone", out["slot"]["cls"])
+        self.assertIn("NOT WORN, NOT COUNTED: no longer in this locker", out["slot"]["say"])
+        self.assertEqual((out["after"]["value"], out["after"]["tag"]), ("2", "TEXT"), "the ghost's +1 is still summed")
+        self.assertNotIn("The Stone of Jordan", out["after"]["title"])
+        self.assertIn("The Stone of Jordan (no longer in this locker)", out["dead"] or "",
+                      "the stats do not say which slot they left out")
+        self.assertNotIn("The Stone of Jordan", out["wornArmor"])
+        self.assertIn("The Stone of Jordan", out["offer"])
+        self.assertIs(out["chose2"], True)
+        self.assertEqual(out["live"], 1, "the one Stone of Jordan is worn on two dolls")
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheHandsHoldWhatTheGameAllows(unittest.TestCase):
+    """#174 v-B review — Windforce (two-handed) beside Stormshield, a two-handed spear or an orb in the left hand, an
+    orb beside a Necromancer's head: none of these is a loadout any class can wear, and the doll summed them."""
+
+    def _run(self, scenario):
+        return _drive("window.openMuleCard('uni-weap');\n" + scenario, assign=_hands_locker())
+
+    def test_a_two_hander_leaves_the_left_hand_only_its_quiver(self):
+        out = self._run("""
+          window._mpPick('rarm'); out.rarm = options(); choose('Windforce');
+          window._mpPick('larm'); out.larm = options(); out.foot = footer();
+          out.shield = window._mpHandsWhy(window._mpGear('Windforce'), window._mpGear('Stormshield'));
+          out.staff = window._mpHandsWhy(window._mpGear("Arioc's Needle"), window._mpGear('Stormshield'));""")
+        self.assertIn("Windforce", out["rarm"])
+        self.assertEqual(out["larm"], ["Arrows"], "the left hand beside a two-handed bow offered more than its quiver")
+        self.assertIn("Bartuc's Cut-Throat, Homunculus, Jade Talon, Lightsabre, Stormlash, Stormshield \u2014 Windforce is a two-handed "
+                      "Hydra Bow: the left hand holds only its Arrows", out["foot"], "one reason is not said once for every item it keeps out")
+        self.assertIn("Bolts \u2014 Windforce shoots Arrows, not Bolts", out["foot"])
+        self.assertEqual(out["shield"], "Windforce is a two-handed Hydra Bow: the left hand holds only its Arrows")
+        self.assertEqual(out["staff"], "Arioc's Needle is a two-handed Hyperion Spear: the left hand holds nothing")
+
+    def test_the_left_hand_never_takes_a_two_hander_or_a_class_weapon(self):
+        out = self._run("window._mpPick('larm'); out.larm = options(); out.foot = footer();")
+        self.assertNotIn("Arioc's Needle", out["larm"], "a two-handed spear was offered for the left hand")
+        self.assertNotIn("The Oculus", out["larm"], "a Sorceress-only orb was offered as a second weapon")
+        for n in ("Stormshield", "Homunculus", "Lightsabre", "Stormlash", "Bartuc's Cut-Throat", "Arrows", "Bolts"):
+            self.assertIn(n, out["larm"])
+        self.assertIn("Arioc's Needle \u2014 a two-handed Hyperion Spear is held in the right hand", out["foot"])
+        self.assertIn("The Oculus \u2014 a Sorceress-only weapon, and a Sorceress never holds a second weapon", out["foot"])
+
+    def test_a_shield_keeps_two_handers_out_of_the_right_hand(self):
+        out = self._run("""
+          window._mpPick('larm'); choose('Stormshield');
+          window._mpPick('rarm'); out.rarm = options(); out.foot = footer();""")
+        self.assertNotIn("Windforce", out["rarm"])
+        self.assertNotIn("Arioc's Needle", out["rarm"])
+        self.assertIn("Lightsabre", out["rarm"])
+        self.assertIn("Windforce is a two-handed Hydra Bow: the left hand holds only its Arrows, and it holds Stormshield", out["foot"])
+
+    def test_two_weapons_only_as_a_barbarian_or_two_claws(self):
+        out = self._run("""
+          window._mpPick('rarm'); choose('Lightsabre');
+          window._mpPick('larm'); out.sword = options(); out.swordFoot = footer();
+          window._mpPick('rarm'); choose("Bartuc's Cut-Throat");
+          window._mpPick('larm'); out.claw = options();""")
+        self.assertIn("Stormlash", out["sword"], "a Barbarian's second one-handed weapon was refused")
+        self.assertNotIn("Bartuc's Cut-Throat", out["sword"])
+        self.assertIn("Bartuc's Cut-Throat \u2014 no class holds Lightsabre and Bartuc's Cut-Throat together", out["swordFoot"])
+        self.assertIn("Jade Talon", out["claw"], "an Assassin's second claw was refused")
+        self.assertNotIn("Stormlash", out["claw"])
+
+    def test_one_class_per_doll(self):
+        out = self._run("""
+          window._mpPick('rarm'); choose('The Oculus');
+          window._mpPick('larm'); out.larm = options(); out.foot = footer();""")
+        self.assertNotIn("Homunculus", out["larm"], "a Necromancer's head was offered beside a Sorceress's orb")
+        self.assertIn("Homunculus \u2014 Necromancer-only, and The Oculus (Sorceress-only) is worn", out["foot"])
+
+    def test_a_stored_impossible_loadout_is_drawn_and_never_summed(self):
+        store = {"d2r_muleEquip": json.dumps({"uni-weap": {
+            "setI": {"rarm": {"name": "The Oculus", "source": "manual", "at": "2026-09-25T10:00:00.000Z"},
+                     "larm": {"name": "Homunculus", "source": "manual", "at": "2026-09-25T10:00:01.000Z"}},
+            "setII": {"rarm": {"name": "Windforce", "source": "manual", "at": "2026-09-25T10:00:02.000Z"},
+                      "larm": {"name": "Stormshield", "source": "manual", "at": "2026-09-25T10:00:03.000Z"}}}})}
+        out = _drive("""
+          window.openMuleCard('uni-weap');
+          out.I = { larm: slotSay('larm'), clsk: row('+ Class Skills') };
+          window._mpSet('swap', 2);
+          out.II = { larm: slotSay('larm'), cold: row('Cold Resistance'), ias: row('Increased Attack Speed') };
+          out.worn = window._mpWornFor('uni-weap');""", assign=_hands_locker(), store=store)
+        self.assertIn("mp-gone", out["I"]["larm"]["cls"])
+        self.assertIn("NOT WORN, NOT COUNTED: Necromancer-only, and The Oculus (Sorceress-only) was worn first", out["I"]["larm"]["say"])
+        self.assertEqual((out["I"]["clsk"]["value"], out["I"]["clsk"]["tag"]), ("3 Sorceress", "TEXT"))
+        self.assertIn("mp-gone", out["II"]["larm"]["cls"])
+        self.assertIn("NOT WORN, NOT COUNTED: Windforce is a two-handed Hydra Bow: the left hand holds only its Arrows",
+                      out["II"]["larm"]["say"])
+        self.assertNotIn("Stormshield", out["II"]["cold"]["title"], "a shield beside a two-handed bow was summed")
+        self.assertEqual(out["II"]["ias"]["value"], "20%")
+        self.assertEqual(out["worn"], {"The Oculus": 1, "Windforce": 1}, "an unwearable piece left the grid")
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class AnImportCarriesWhatItsSaveCarries(unittest.TestCase):
+    """#174 v-B review — the store's only writer kept props alone; the EXACT reader wanted runewordProps too."""
+
+    def test_the_runeword_list_and_the_sockets_reach_the_sum(self):
+        out = _drive("""
+          var P = window._mpEqPlace, S = window._mpSumStat, C = window._mpContrib;
+          var put = function(slot, e){ var r = P({}, 'm', 'setI', slot, e); return r.all.m.setI[slot]; };
+          var rw = { name: 'Enigma', source: 'import', isRuneword: true, props: [{ stat: 'armorclass', value: 750 }],
+                     runewordProps: [{ stat: 'item_fastermovevelocity', value: 45 }, { stat: 'item_allskills', value: 2 }],
+                     socketedCount: 0, socketed: [] };
+          var e1 = put('tors', rw); out.keys = Object.keys(e1).sort();
+          out.frw = S([C(e1)], 'frw'); out.allsk = S([C(e1)], 'allsk');
+          var jw = put('head', { name: 'Harlequin Crest (Shako)', source: 'import', props: [{ stat: 'item_allskills', value: 2 }], socketedCount: 1,
+                     socketed: [{ name: 'Jewel', code: 'jew', simple: false, props: [{ stat: 'fireresist', value: 19 }, { stat: 'coldresist', value: 19 }] }] });
+          out.fire = S([C(jw)], 'fire');
+          var runes = JSON.parse(JSON.stringify(rw)); runes.socketedCount = 1; runes.socketed = [{ name: 'Jah Rune', code: 'r31', simple: true, props: [] }];
+          out.runes = S([C(put('tors', runes))], 'frw');
+          var bare = { name: 'Enigma', source: 'import', isRuneword: true, props: [] };
+          out.bare = S([C(put('tors', bare))], 'frw');
+          var holes = { name: 'Shako', source: 'import', props: [], socketedCount: 2, socketed: [] };
+          out.holes = S([C(put('head', holes))], 'fire');""")
+        self.assertEqual(out["keys"], ["at", "isRuneword", "name", "props", "runewordProps", "socketed", "socketedCount", "source"])
+        self.assertEqual((out["frw"]["text"], out["frw"]["tag"]), ("45%", "EXACT"), "the runeword's own list did not reach the sum")
+        self.assertEqual(out["allsk"]["text"], "2")
+        self.assertEqual((out["fire"]["text"], out["fire"]["tag"]), ("19%", "EXACT"), "a socketed jewel's resist was dropped")
+        self.assertEqual((out["runes"]["text"], out["runes"]["tag"]), ("\u2265 45%", "MIXED"),
+                         "a socketed rune's bonus (unread) let the number stand as EXACT")
+        self.assertIn("its socketed Jah Rune adds by the item type", out["runes"]["say"])
+        self.assertEqual(out["bare"]["kind"], "unknown", "a runeword without its own list read as an EXACT number")
+        self.assertIn("the runeword's own properties were not carried", out["bare"]["why"])
+        self.assertEqual(out["holes"]["kind"], "unknown")
+        self.assertIn("2 socketed items were not carried", out["holes"]["why"])
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class ANameFindsItsText(unittest.TestCase):
+    """#174 v-B review — a name finds its text the way it finds its slot; an UNKNOWN names the keys it tried."""
+
+    def test_the_boards_own_spellings_runewords_and_the_codex_set_names(self):
+        names = ["Stone of Jordan", "Harlequin Crest", "Enigma", "Cow King's Hooves (heavy boots)", "Whitstan's Guard",
+                 "Griswold's Redemption", "Beast Bite Ring"]
+        out = _drive("""out.c = %s.map(function(n){ var c = window._mpContrib({ name: n, source: 'manual' });
+          return { src: c.src, from: c.from, why: c.why || null, allsk: c.per.allsk || null, mf: c.per.mf || null, frw: c.per.frw || null }; });"""
+                     % json.dumps(names))
+        c = dict(zip(names, out["c"]))
+        self.assertEqual((c["Stone of Jordan"]["from"], c["Stone of Jordan"]["allsk"]["lo"]), ("ITEM_CODEX text", 1))
+        self.assertEqual((c["Harlequin Crest"]["allsk"]["lo"], c["Harlequin Crest"]["mf"]["lo"]), (2, 50))
+        self.assertEqual((c["Enigma"]["from"], c["Enigma"]["frw"]["lo"]), ("RUNEWORD_TIP text", 45))
+        ck = c["Cow King's Hooves (heavy boots)"]
+        self.assertEqual((ck["from"], ck["frw"]["lo"], ck["mf"]["lo"]), ("ITEM_CODEX set piece text", 30, 25))
+        for n in ("Whitstan's Guard", "Griswold's Redemption"):
+            self.assertEqual((c[n]["src"], c[n]["from"]), ("range", "ITEM_CODEX set piece text"), n)
+        bb = c["Beast Bite Ring"]
+        self.assertEqual(bb["src"], "unknown")
+        self.assertEqual(bb["why"], 'no property text is on record under "Beast Bite Ring", "The Beast Bite Ring" '
+                                    '(ITEM_CODEX, its set pieces, RUNEWORD_TIP, ITEM_TIP)')
+
+    def test_the_codex_spelling_table_is_what_the_tables_say(self):
+        """MP_TEXT_ALIAS is re-derived here from the page's own tables: every game unique / set name that no folded
+        key reaches, paired with the one codex set-piece name within two letters of it. Exactly, both ways."""
+        out = _drive("""
+          out.alias = MP_TEXT_ALIAS; out.keys = Object.keys(ITEM_CODEX).concat(Object.keys(ITEM_TIP));
+          out.mem = []; Object.keys(ITEM_CODEX).forEach(function(k){ (ITEM_CODEX[k].setMembers || []).forEach(function(m){ out.mem.push(m.name); }); });""")
+        _, named, _ = MSM.embedded()
+
+        def fold(x):
+            x = re.sub(r"\s*\([^)]*\)\s*$", "", x.lower().replace("\u2019", "'"))
+            return re.sub(r"\s+", " ", re.sub(r"^the\s+", "", x)).strip()
+
+        def lev(a, b):
+            prev = list(range(len(b) + 1))
+            for i, ca in enumerate(a, 1):
+                cur = [i]
+                for j, cb in enumerate(b, 1):
+                    cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+                prev = cur
+            return prev[-1]
+        reached = set(fold(k) for k in out["keys"] + out["mem"])
+        game = set(fold(n) for n in named)
+        mem = dict((fold(m), m) for m in out["mem"] if fold(m) not in game)
+        derived = {}
+        for n in named:
+            f = fold(n)
+            if f in reached:
+                continue
+            near = [m for g, m in mem.items() if abs(len(g) - len(f)) <= 2 and lev(f, g) <= 2]
+            if len(near) == 1:
+                derived[f] = near[0]
+        self.assertEqual(out["alias"], derived, "MP_TEXT_ALIAS is not what the page's own tables say")
+        self.assertGreater(len(derived), 0)
+
+    def test_two_texts_that_disagree_print_their_union_and_say_so(self):
+        out = _drive("""
+          var c = window._mpContrib({ name: "Arioc's Needle", source: 'manual' });
+          out.c = { from: c.from, allsk: c.per.allsk, note: c.note };
+          out.s = window._mpSumStat([c], 'allsk');""")
+        self.assertEqual((out["c"]["allsk"]["lo"], out["c"]["allsk"]["hi"]), (2, 4),
+                         "one text's reading was taken over the other's without a word")
+        self.assertEqual(out["c"]["note"]["allsk"], "ITEM_CODEX says 2, ITEM_TIP says 2\u20134")
+        self.assertEqual((out["s"]["text"], out["s"]["tag"]), ("2\u20134", "TEXT"))
+        self.assertIn("(ITEM_CODEX says 2, ITEM_TIP says 2\u20134)", out["s"]["say"])
+
+    def test_vitality_and_energy_leave_life_and_mana_unknown(self):
+        out = _drive("""
+          var C = window._mpContrib, S = window._mpSumStat;
+          out.oc = { life: S([C({ name: 'The Oculus', source: 'manual' })], 'life'), mana: S([C({ name: 'The Oculus', source: 'manual' })], 'mana') };
+          out.imp = S([C({ name: 'X', source: 'import', props: [{ stat: 'vitality', value: 20 }, { stat: 'maxhp', value: 30 }] })], 'life');""")
+        self.assertEqual(out["oc"]["life"]["kind"], "unknown", "The Oculus's +20 Vitality left Life a complete-looking 0")
+        self.assertIn("+Vitality adds life by the character's class", out["oc"]["life"]["why"])
+        self.assertEqual(out["oc"]["mana"]["kind"], "unknown")
+        self.assertEqual((out["imp"]["text"], out["imp"]["tag"]), ("\u2265 30", "MIXED"))
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
@@ -390,13 +756,16 @@ class TheWindowAroundThePicker(unittest.TestCase):
           out.before = cnt();
           window._mpPick('rarm'); choose('The Oculus');
           out.after = cnt();
-          out.gold = /<div class="vd-goldbox">([^<]*)<\\/div>/.exec(box.innerHTML)[1];
+          var g = /<div class="vd-goldbox"( title="[^"]*")?>([^<]*)<\\/div>/.exec(box.innerHTML);
+          out.gold = g[2]; out.goldTitle = g[1] || '';
           out.items = /<span class="mp-box-k">Items<\\/span><span class="mp-box-v">(\\d+)<\\/span>/.exec(box.innerHTML)[1];
           out.load = window._muleLoad(%s, window._mpWornFor('uni-armor'));
           out.load = { phys: out.load.phys, worn: out.load.worn, sized: out.load.sized.length };
           out.renders = renders;""" % json.dumps(sorted(LOCKER)))
         self.assertEqual(out["after"], out["before"] - 1, "the worn copy is still drawn in the stash")
-        self.assertIn("1 worn on the doll", out["gold"])
+        # #174 v-B review — the worn count keeps the gold box on one line; the title carries the whole sentence
+        self.assertTrue(out["gold"].endswith(" · 1 worn"), out["gold"])
+        self.assertIn("+ 1 worn on the doll = %d on this mule" % len(LOCKER), out["goldTitle"])
         self.assertEqual(out["items"], str(len(LOCKER)), "a worn item stopped counting as one of this locker's items")
         self.assertEqual(out["load"], {"phys": len(LOCKER), "worn": 1, "sized": len(LOCKER) - 1})
         self.assertGreater(out["renders"], 0, "equipping did not refresh the shelf, whose gauge the worn copy frees")
@@ -458,7 +827,7 @@ class TheSlotTableIsTheGames(unittest.TestCase):
         import item_tables as IT
         self.T = IT.load()
         self.assertIsNotNone(self.T, "tv/item_tables.json is missing — UNKNOWN, not passing")
-        self.slots, self.named = MSM.embedded()
+        self.slots, self.named, self.rules = MSM.embedded()
 
     def test_every_name_in_the_block_is_a_base_of_the_kind_it_claims(self):
         by_kind = {}
@@ -475,6 +844,23 @@ class TheSlotTableIsTheGames(unittest.TestCase):
         self.assertEqual(carried, by_kind["misc"], "rings, amulets and carried things are not exactly the game's misc")
         self.assertEqual(self.slots["ring"], ["Ring"])
         self.assertIn("Amulet", self.slots["amulet"])
+
+    def test_the_hand_and_class_rules_name_real_bases(self):
+        """#174 v-B review — the hands and ammo rules name only weapons; each ammo is a quiver base; the class
+        rule names weapons and armour. Which base is which is the install's to say (test_the_subtypes_...)."""
+        weapons, quivers = set(self.slots["weapon"]), set(self.slots["quiver"])
+        worn = weapons | set().union(*(set(self.slots[k]) for k in ("helm", "armor", "shield", "gloves", "belt", "boots")))
+        self.assertEqual(sorted(self.rules["hands"]), ["12", "2"])
+        for v, ns in self.rules["hands"].items():
+            self.assertTrue(ns and set(ns) <= weapons, "hands %s names a non-weapon" % v)
+        self.assertEqual(set(self.rules["ammo"]), quivers, "a bow shoots something that is not a quiver base")
+        for v, ns in self.rules["ammo"].items():
+            self.assertTrue(set(ns) <= set(self.rules["hands"]["2"]), "something that shoots %s is not two-handed" % v)
+        for v, ns in self.rules["class"].items():
+            self.assertIn(v, MSM.CLASS_NAME.values())
+            self.assertTrue(ns and set(ns) <= worn, "the %s class rule names a base that is not worn" % v)
+        self.assertIn("Hydra Bow", self.rules["ammo"]["Arrows"])
+        self.assertIn("Swirling Crystal", self.rules["class"]["Sorceress"])
 
     def test_the_named_bases_are_derived_from_the_game_tables(self):
         nb, dropped = MSM.named(self.T, self.slots)
@@ -526,8 +912,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B - a mixed sum reads as one number instead of >= exact + range",
         "file": "bible.html",
-        "find": "    if (mixed) return { kind: 'mixed', text: '≥ ' + parts,",
-        "replace": "    if (mixed) return { kind: 'mixed', text: parts,",
+        "find": "    if (mixed) return { kind: 'mixed', text: '≥ ' + parts",
+        "replace": "    if (mixed) return { kind: 'mixed', text: parts",
         "matches": 1,
     },
     {
@@ -619,6 +1005,189 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    \"ring\": \"Ring\",\n",
         "replace": "    \"ring\": \"\",\n",
+        "matches": 1,
+    },
+    # ── #174 v-B review ──
+    {
+        "why": "#174 v-B review - two classes' skill lines are summed into one number no character gets",
+        "file": "bible.html",
+        "find": "    if (nCls > 1) return { kind: 'unknown', why: 'the worn lines add to different classes — '",
+        "replace": "    if (false) return { kind: 'unknown', why: 'the worn lines add to different classes — '",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the .d2s path throws item_addclassskills' class param away again",
+        "file": "bible.html",
+        "find": "          var cn = MP_CLASS_BY_ID[p.param], c = at('clsk');",
+        "replace": "          var cn = MP_CLASS_BY_ID[1], c = at('clsk');",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a class-skill text line loses the class it adds to",
+        "file": "bible.html",
+        "find": "      var cls = (MP_PROP_RULES[i][1][0] === 'clsk' && m[3]) ?",
+        "replace": "      var cls = (false && m[3]) ?",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - an item reassigned to another locker stays live on the first doll (summed, and worn twice)",
+        "file": "bible.html",
+        "find": "        if (e.source !== 'import' && assign[e.name] !== muleId){ dead[set + '.' + slot] = 'no longer in this locker'; return; }",
+        "replace": "        if (false){ dead[set + '.' + slot] = 'no longer in this locker'; return; }",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the stats stop saying which slots they left out",
+        "file": "bible.html",
+        "find": "      + (_unworn.length ? '<div class=\"mp-st-src mp-st-dead\">",
+        "replace": "      + (false ? '<div class=\"mp-st-src mp-st-dead\">",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a two-hander leaves the left hand free for a shield (Windforce beside Stormshield)",
+        "file": "bible.html",
+        "find": "    if (R.hands === 2){\n",
+        "replace": "    if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a two-handed weapon is offered for the left hand",
+        "file": "bible.html",
+        "find": "      if (L.hands === 2) return 'a two-handed '",
+        "replace": "      if (false) return 'a two-handed '",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a class weapon that class never dual-wields (an orb) is offered as a second weapon",
+        "file": "bible.html",
+        "find": "      if (L.cls && L.cls !== 'Assassin') return",
+        "replace": "      if (false) return",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - two weapons are offered together that no class holds (a sword beside a claw)",
+        "file": "bible.html",
+        "find": "      if (!R.cls && !L.cls) return null;\n",
+        "replace": "      return null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the picker offers a piece of another class than the one already worn",
+        "file": "bible.html",
+        "find": "          if (g.cls && _clsOn[ci].cls !== g.cls) why =",
+        "replace": "          if (false) why =",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a stored doll of two classes is summed as if one character wore it",
+        "file": "bible.html",
+        "find": "      if (x.g.cls !== first.g.cls)\n",
+        "replace": "      if (false)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a stored shield beside a two-hander is summed and taken off the grid",
+        "file": "bible.html",
+        "find": "      if (why){ dead[set + '.larm'] = why; delete seen[set].larm; }",
+        "replace": "      if (false){ dead[set + '.larm'] = why; delete seen[set].larm; }",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the generated rules lose every two-hander (the install's weapons.txt is no longer read)",
+        "file": "bible.html",
+        "find": ", \"2\": \"",
+        "replace": ", \"22\": \"",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the store drops an import's runeword list again (Enigma reads FRW 0% EXACT)",
+        "file": "bible.html",
+        "find": "    if (Array.isArray(entry.runewordProps)) e.runewordProps = entry.runewordProps;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a socketed jewel's properties never reach the EXACT sum",
+        "file": "bible.html",
+        "find": "      (Array.isArray(e.socketed) ? e.socketed : []).forEach(function(k){ if (k && Array.isArray(k.props)) lists.push(k.props); });\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a runeword whose own list was not carried still reads as an EXACT number",
+        "file": "bible.html",
+        "find": "      if (e.isRuneword && !Array.isArray(e.runewordProps)) gap.push(",
+        "replace": "      if (false) gap.push(",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a name whose text sits under a folded key (Harlequin Crest -> (Shako)) reads UNKNOWN",
+        "file": "bible.html",
+        "find": "      return (ix[id] && ix[id][f]) || null;\n",
+        "replace": "      return null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a runeword's text in RUNEWORD_TIP is never read",
+        "file": "bible.html",
+        "find": "        if (rw && rw.l && rw.l.length) got.push({ lines: rw.l, from: 'RUNEWORD_TIP', key: rk });",
+        "replace": "        if (false) got.push({ lines: rw.l, from: 'RUNEWORD_TIP', key: rk });",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the codex's own set-piece spellings are not asked (Cow King's Hooves reads UNKNOWN)",
+        "file": "bible.html",
+        "find": "    if (MP_TEXT_ALIAS[_mpFold(bare)]) add(MP_TEXT_ALIAS[_mpFold(bare)]);\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - an UNKNOWN stops naming the keys it tried (a false 'nothing on record')",
+        "file": "bible.html",
+        "find": "'no property text is on record under ' + t.tried.map(function(k){ return '\"' + k + '\"'; }).join(', ')",
+        "replace": "'no property text is on record for it' + t.tried.slice(0, 0).join('')",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - two texts that disagree: the first source's reading is taken without a word",
+        "file": "bible.html",
+        "find": "          a.lo = Math.min(a.lo, b.lo); a.hi = Math.max(a.hi, b.hi);\n        } else if",
+        "replace": "          void 0;\n        } else if",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - +Vitality / +Energy are read as nothing, so Life and Mana print a complete-looking 0",
+        "file": "bible.html",
+        "find": "    if (_vit || _ene){\n",
+        "replace": "    if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the runeword-base fit is wrong (Enigma offered as a ring) and the harness must see it",
+        "file": "bible.html",
+        "find": "        if (_rw.length === 1) add('runeword base', _rw[0].base);\n",
+        "replace": "        if (_rw.length === 1) add('runeword base', 'Ring');\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a set piece's own affixes are replaced, and the harness must see it",
+        "file": "bible.html",
+        "find": "          if (cm && cm.affixes && cm.affixes.length) got.push({ lines: cm.affixes, from: 'ITEM_CODEX set piece', key: cm.name });",
+        "replace": "          if (cm && cm.affixes && cm.affixes.length) got.push({ lines: ['+99 to All Skills'], from: 'ITEM_CODEX set piece', key: cm.name });",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - findSetPiece's slot is ignored (a set piece fits the ring), and the harness must see it",
+        "file": "bible.html",
+        "find": "if (_sp) add('set piece slot', _sp.slot); } catch (e) {}",
+        "replace": "if (_sp) add('set piece slot', 'ring'); } catch (e) {}",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the gold box says the worn copies in a sentence that wraps it to two lines",
+        "file": "bible.html",
+        "find": "+ ' in inventory · ' + _wornHere + ' worn</div>'",
+        "replace": "+ ' in inventory · ' + _wornHere + ' worn on the doll · ' + (_thisMuleN + _wornHere) + ' on this mule</div>'",
         "matches": 1,
     },
 ]

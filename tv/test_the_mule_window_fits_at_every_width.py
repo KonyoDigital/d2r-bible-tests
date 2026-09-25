@@ -34,6 +34,16 @@ open on the left hand (its list, its "left out" footer): new words in new boxes 
 see. And the geometry at 2000 is their rects with the ONE declared upgrade (spec §5): the EQUIPMENT body on the
 doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` applies the upgrade to it.
 
+#174 v-B review — THE EQUIP PASS IS REAL INPUT, and THE GOLD BOX IS ONE LINE.
+  · The doll is filled the way he fills it: a CDP mouse press and release at the centre of the slot, then at the
+    centre of the option — each time checking the point lands on that element (elementFromPoint), so a control
+    covered by something else fails here instead of being clicked through by a programmatic .click().
+  · "N worn on the doll · M on this mule" wrapped the stash's gold box to two lines at 2000 wide; the stash cell
+    budget (_mpLayout) assumes one, so the stash view scrolled 1.5px and cut the box's border. Every width in
+    columns now requires the gold box to be one line and the stash view not to scroll, plain and with the doll in use.
+  · The worn weapon is Lightsabre (one-handed): beside Windforce the left hand now offers only its quiver, which
+    this locker does not hold — an empty picker would measure nothing.
+
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
 so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
 The Chrome it starts is killed by the handle it holds, and its temp profile goes with it.
@@ -128,7 +138,11 @@ MEASURE = r"""(function(){ try {
   var ob = mp.getBoundingClientRect();
   var rel = function(el, b){ if (!el) return null; var r = el.getBoundingClientRect(); b = b || ob;
     return [r.left - b.left, r.top - b.top, r.width, r.height]; };
-  var out = { k: +mp.getAttribute('data-k'),
+  var sv = box.querySelector('.mp-v-stash'), gb = box.querySelector('.mp-v-stash .vd-goldbox'), gl = null;
+  if (gb && sv && !sv.hidden){ var gs = getComputedStyle(gb), gr = gb.getBoundingClientRect();
+    gl = (gr.height - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - parseFloat(gs.borderTopWidth) - parseFloat(gs.borderBottomWidth)) / parseFloat(gs.lineHeight); }
+  var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null,
+    stashScroll: (sv && !sv.hidden) ? [sv.scrollHeight, sv.clientHeight] : null,
     stack: mp.classList.contains('mp-stack'), hscroll: [box.scrollWidth, box.clientWidth], panels: {}, slots: {},
     cut: [], outside: [], sideways: [], collide: [], nText: 0,
     worn: box.querySelectorAll('.mp-slot.mp-has').length, sv: box.querySelectorAll('.mp-sv').length,
@@ -207,19 +221,45 @@ MEASURE = r"""(function(){ try {
   return JSON.stringify(out);
  } catch(e){ return JSON.stringify({ err: String(e) }); } })()"""
 
-#: equip through the window's own picker — open a slot, press the option naming the item — never by writing the store
-EQUIP = r"""(function(mule, want){ try {
-  window.vaultCloseCard(); window.openMuleCard(mule);
-  var got = [];
-  want.forEach(function(p){
-    window._mpPick(p[0]);
-    var opts = document.querySelectorAll('#vault-detail .mp-pick .mp-opt'), hit = -1;
-    for (var i = 0; i < opts.length; i++) if ((opts[i].textContent || '').indexOf(p[1]) >= 0){ hit = i; break; }
-    if (hit >= 0){ opts[hit].click(); got.push(p[1]); } else window._mpPick(null);
-  });
-  return JSON.stringify(got);
- } catch(e){ return JSON.stringify({ err: String(e) }); } })(%s, %s)"""
-WEAR = [["rarm", "Windforce"], ["rrin", "Nagelring"], ["lrin", "Raven Frost"]]
+#: #174 v-B review — equip through the window's own picker with REAL INPUT: the centre of an element, scrolled into
+#: view, is hit-tested (elementFromPoint must be that element or inside it) and then pressed with CDP mouse events.
+#: A programmatic .click() skips hit-testing, so a covered or clipped control would be "clicked" anyway.
+AIM = r"""(function(sel, i){ var e = document.querySelectorAll(sel)[i]; if (!e) return JSON.stringify(null);
+  e.scrollIntoView({ block: 'center', inline: 'nearest' }); var r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  var at = document.elementFromPoint(x, y); return JSON.stringify({ x: x, y: y, hit: !!(at && (at === e || e.contains(at))) }); })(%s, %d)"""
+OPT_AT = r"""(function(want){ var o = document.querySelectorAll('#vault-detail .mp-pick .mp-opt');
+  for (var i = 0; i < o.length; i++) if ((o[i].textContent || '').indexOf(want) >= 0) return i; return -1; })(%s)"""
+WEAR = [["rarm", "Lightsabre"], ["rrin", "Nagelring"], ["lrin", "Raven Frost"]]
+
+
+def _press(t, sel, i=0):
+    """a real mouse press + release at the centre of sel[i] -> None, or why it could not be pressed"""
+    a = json.loads(t.ev(AIM % (json.dumps(sel), i)))
+    if not a:
+        return "no %s[%d] on the page" % (sel, i)
+    if not a["hit"]:
+        return "the centre of %s[%d] is covered by another element" % (sel, i)
+    for kind in ("mouseMoved", "mousePressed", "mouseReleased"):
+        t.send("Input.dispatchMouseEvent", type=kind, x=a["x"], y=a["y"], button="none" if kind == "mouseMoved" else "left",
+               clickCount=0 if kind == "mouseMoved" else 1)
+    time.sleep(0.2)
+    return None
+
+
+def _equip(t, mule, want):
+    """open the picker on each slot and choose the item, by real input -> [names equipped] + [why not]"""
+    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(mule))
+    time.sleep(0.3)
+    got = []
+    for slot, name in want:
+        why = _press(t, '#vault-detail .mp-slot[data-slot="%s"]' % slot)
+        if why:
+            got.append("NOT PRESSED: " + why)
+            continue
+        i = t.ev(OPT_AT % json.dumps(name))
+        why = ("%s was not offered for the %s" % (name, slot)) if i is None or i < 0 else _press(t, "#vault-detail .mp-pick .mp-opt", i)
+        got.append(("NOT CHOSEN: " + why) if why else name)
+    return got
 
 FOCUS_TYPE = r"""(function(){ var i = document.querySelector('#vault-detail .mp-search input'); if (!i) return 'no search box';
   i.focus(); i.value = 'fire'; window._mpFilter('fire'); i.setSelectionRange(2, 3); window.__mpBox = i;
@@ -275,7 +315,7 @@ def _measure():
         t.send("Emulation.setDeviceMetricsOverride", width=WIDTHS[0][0], height=WIDTHS[0][1], deviceScaleFactor=1,
                mobile=False)
         time.sleep(0.25)
-        res["equipped"] = json.loads(t.ev(EQUIP % (json.dumps(MULE), json.dumps(WEAR))))
+        res["equipped"] = _equip(t, MULE, WEAR)
         for (w, h) in WIDTHS:
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
@@ -358,6 +398,21 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s the window itself %d/%d" % (label, m["hscroll"][0], m["hscroll"][1]))
             bad += ["%s %s" % (label, x) for x in m["sideways"]]
         self.assertEqual(bad, [], "part of the mule window scrolls sideways:\n  " + "\n  ".join(bad))
+
+    def test_the_gold_box_is_one_line_and_the_stash_never_scrolls(self):
+        """#174 v-B review — the stash cell budget assumes a one-line gold box; a second line scrolled the stash view
+        and cut the box's border at 2000 wide. In columns, plain and with the doll in use, at every width."""
+        bad, seen = [], 0
+        for label, m in _states():
+            if m.get("stack") or m.get("goldLines") is None:
+                continue
+            seen += 1
+            if round(m["goldLines"]) != 1:
+                bad.append("%s the gold box is %.2f lines: %r" % (label, m["goldLines"], m["goldText"]))
+            if m["stashScroll"] and m["stashScroll"][0] > m["stashScroll"][1]:
+                bad.append("%s the stash view scrolls %d/%d" % (label, m["stashScroll"][0], m["stashScroll"][1]))
+        self.assertGreaterEqual(seen, 10, "the gold box was measured at only %d column-layout states" % seen)
+        self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_no_header_title_runs_under_its_control(self):
         bad = []
@@ -444,6 +499,20 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      try { _mpEqWrite(r.all); }\n",
         "replace": "      try { void 0; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - the gold box says its worn copies in a sentence that wraps it, and the stash view scrolls",
+        "file": "bible.html",
+        "find": "+ ' in inventory · ' + _wornHere + ' worn</div>'",
+        "replace": "+ ' in inventory · ' + _wornHere + ' worn on the doll · ' + (_thisMuleN + _wornHere) + ' on this mule</div>'",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B review - a doll slot stops taking the pointer, so real input cannot open it (a .click() would have)",
+        "file": "bible.html",
+        "find": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n",
+        "replace": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n.mp-slot{pointer-events:none}\n",
         "matches": 1,
     },
     {
