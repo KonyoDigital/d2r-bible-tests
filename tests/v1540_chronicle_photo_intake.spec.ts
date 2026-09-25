@@ -53,7 +53,14 @@ const boot = async (page: any) => {
 test.describe('v1540 — the Chronicle path that needs no console', () => {
   test('★ NOTHING is written by a read — the grail only moves when he registers', async ({ page }) => {
     await boot(page);
-    await stubIntake(page, { found: ['Harlequin Crest'], notFound: [], sets: [], witness: 'none',
+    /* #165 — read a name the board has NOT found, as the case below does. Harlequin Crest is seeded found,
+       so since REG-1275 floors a fresh board the reader proposed nothing and "> 0" could not hold. */
+    const miss = await page.evaluate(() => {
+      const m = ((window as any).funiScan().missing || [])[0];
+      return m ? (m.n || m.name || m) : '';
+    });
+    expect(miss, 'the board must have at least one missing unique to test with').toBeTruthy();
+    await stubIntake(page, { found: [miss], notFound: [], sets: [], witness: 'none',
       printed: {}, read: { found: 1, notFound: 0 }, unrecognized: [] });
     const before = await page.evaluate(() => (window as any).LSR.getItem('d2r_foundLog') || '{}');
     const p = await read(page, 'uniques');
