@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1298 - #174 v-A: THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL (+ FOUR REVIEW LEFTOVERS)
+
+**feature + fix - his order 2026-09-25 ("literally exactly like the d2r planner ... same structure and same UI and UX",
+Grok + GrokBot hard).** A workflow built it (one builder in a worktree), an independent geometry audit re-measured it
+(every panel and all 10 doll slots match their builder at 0 px at 2000 wide, x0.9126 at 1280, stacked under 900),
+a code review read it, and a fix round cleared the audit's findings (clipping between 900 and 1250 px, the 375 px
+sideways scrollers, a resize re-render that dropped his caret). The console-side Esc bug is fixed: `#vault-detail`
+is a `role="dialog"`, so Esc closes the mule window and leaves the shell open (A/B reproduced the old bug). Four
+review findings the fix round did not list were fixed on main: roster icons escaped at three sinks; the "very high"
+value column (a tier ITEM_VALUE never has, so always a fabricated 0) now counts high · med; "140 cells" derives
+from MULE_CAP, whose own comment said 150 while the product was 140; the arrow-key guard for text fields is pinned.
+The Grok CLI courier seat TIMED OUT (it cropped instead of looking) - EMPTY, not agreement; re-run look-only.
+Guards: `test_the_mule_window_is_the_planner_shell` (24 cases, 14 proofs), `test_the_mule_window_fits_at_every_width`.
+
 ### REG-1297 - "CHOOSE IN INBOX" COULD REPORT A LANDING ON A QUESTION THAT HAD NO LAYOUT YET
 
 **hardening - #25, his report 2026-09-25 (Tools tab with a BLACK body, scrollbar mid-page, question only in the pop).**

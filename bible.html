@@ -37283,7 +37283,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // clearly distinguished as the cross-account storage — not just another mule.
       return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+(total===0?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
-        + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
+        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count"'
           + ' title="'+total+' item'+(total===1?'':'s')
           + (_known ? (' · '+cells+' cells, packed across '+muleN+' mule'+(muleN===1?'':'s')
@@ -39297,7 +39297,7 @@ window.vaultAutoAssign = function(){
   // That is `copy-drift` with a number instead of a file. One source now; the prose derives.
   var MULE_STASH_W = 10, MULE_STASH_H = 10;      // personal stash
   var MULE_INV_W = 10,   MULE_INV_H = 4;         // inventory — 10x4, the base-game grid
-  var MULE_CAP = MULE_STASH_W * MULE_STASH_H + MULE_INV_W * MULE_INV_H;   // 150
+  var MULE_CAP = MULE_STASH_W * MULE_STASH_H + MULE_INV_W * MULE_INV_H;   // 140 (10x10 + 10x4) - the comment said 150 for as long as the product was 140
   var MULE_GEOM_SAY = MULE_STASH_W + 'x' + MULE_STASH_H + ' stash + a '
                     + MULE_INV_W + 'x' + MULE_INV_H + ' inventory = ' + MULE_CAP + ' cells';
   // ⚠ ON window, because the two places that PRINT this geometry live in a different scope from the
@@ -39567,7 +39567,7 @@ window.vaultAutoAssign = function(){
     var head = '<div class="mp-top">'
       + '<div class="mp-top-l">'
       +   '<div class="mp-row">'
-      +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
+      +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+esc(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
       +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v">'+_physN+'</span></div>'
       +   '</div>'
       +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_thisMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
@@ -39608,18 +39608,20 @@ window.vaultAutoAssign = function(){
     sized.forEach(function(it){ if (it.set && !_setSeen[it.n]){ _setSeen[it.n] = 1; _setN++; } });
     var _tiers = null;
     if (typeof _itemValue === 'function'){
-      _tiers = { vhigh: 0, high: 0 };
-      names.forEach(function(n){ var t = _itemValue(n); if (t === 'vhigh' || t === 'high') _tiers[t]++; });
+      /* #174 review — ITEM_VALUE's tiers are high / med / low / none / trash. 'vhigh' is not one of them, so a
+         'very high' column could only ever print a fabricated 0 dressed as a count. Count the tiers that exist. */
+      _tiers = { high: 0, med: 0 };
+      names.forEach(function(n){ var t = _itemValue(n); if (t === 'high' || t === 'med') _tiers[t]++; });
     }
     var UNK = function(why){ return '<span class="mp-unk" title="UNKNOWN — '+why+'">UNKNOWN</span>'; };
     var calc = '<table class="mp-calc"><tbody>'
       + '<tr><td>Items in this locker</td><td>'+_physN+'</td></tr>'
-      + '<tr><td>Mules they fill (140 cells each)</td><td>'+_muleTotalPages+'</td></tr>'
+      + '<tr><td>Mules they fill ('+MULE_CAP+' cells each)</td><td>'+_muleTotalPages+'</td></tr>'
       + '<tr><td>Items on Mule '+(_mulePage+1)+'</td><td>'+_thisMuleN+'</td></tr>'
       + '<tr><td>Cells placed / capacity</td><td>'+_load.placedCells+' / '+(_load.capCells*_muleTotalPages)+'</td></tr>'
       + '<tr><td>Last mule</td><td>'+(_load.roomLeft ? (_load.lastPct+'% full') : ('FULL for a '+_load.biggest.w+'×'+_load.biggest.h))+'</td></tr>'
       + '<tr><td>Set pieces held here</td><td>'+_setN+'</td></tr>'
-      + '<tr><td>Trade value (very high · high)</td><td>'+(_tiers ? (_tiers.vhigh+' · '+_tiers.high) : UNK('the value table did not load'))+'</td></tr>'
+      + '<tr><td>Trade value (high · med)</td><td>'+(_tiers ? (_tiers.high+' · '+_tiers.med) : UNK('the value table did not load'))+'</td></tr>'
       + '<tr><td>Effective magic find</td><td>'+UNK('nothing is equipped, so no item feeds it (v-B)')+'</td></tr>'
       + '</tbody></table>'
       + (names.length ? '<div class="vd-list">'+(_muleTotalPages>1?'<div style="opacity:.7;font-size:var(--fs-meta);margin-bottom:4px">— showing Mule '+(_mulePage+1)+' of '+_muleTotalPages+' —</div>':'')+list+'</div>' : '');
@@ -39635,7 +39637,7 @@ window.vaultAutoAssign = function(){
       +   '<div class="mp-view mp-v-calc"'+(_mpView==='calc'?'':' hidden')+'>'+calc+'</div>'
       + '</section>'
       + '<section class="mp-p mp-notes">'+H('Notes')+'<div class="mp-notes-b">'
-      +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> (140 cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
+      +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> ('+MULE_CAP+' cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
       +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
       +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
       +   '<div class="mp-note">'+(m.note ? esc(m.note) : '<span class="mp-dim">no note on this locker</span>')+'</div>'
@@ -39650,7 +39652,7 @@ window.vaultAutoAssign = function(){
     }).join('');
     var right = '<div class="mp-right">'
       + '<section class="mp-p mp-auth">'+H('Locker')+'<div class="mp-kv">'
-      +   '<div><span>Name</span><span>'+(m.icon||'📦')+' '+esc(m.name)+'</span></div>'
+      +   '<div><span>Name</span><span>'+esc((m.icon||'📦')+' '+m.name)+'</span></div>'
       +   '<div><span>Kind</span><span>storage locker</span></div>'
       +   '<div><span>Character</span><span>none bound</span></div>'
       + '</div></section>'

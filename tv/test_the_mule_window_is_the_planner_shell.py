@@ -144,7 +144,8 @@ var window = { innerWidth: %(w)d, innerHeight: %(h)d, switchTab: function(t){ sw
 function setTimeout(f){ f(); } function clearTimeout(){}
 var roster = [{ id: 'uni-weap', name: 'UNI-WEAPONS', icon: 'W', note: 'unique melee + caster weapons' },
               { id: 'bases', name: 'SOCKETED', icon: 'S', note: 'socketed bases' },
-              { id: 'empty', name: 'EMPTY-ONE', icon: 'E', note: '' }];
+              { id: 'empty', name: 'EMPTY-ONE', icon: 'E', note: '' },
+              { id: 'xss', name: 'X-LOCKER', icon: '<img src=x onerror=alert(1)>', note: '' }];
 function muleById(id){ for (var i = 0; i < roster.length; i++) if (roster[i].id === id) return roster[i]; return null; }
 var assign = %(assign)s, SIZES = %(sizes)s;
 function vaultSize(n){ return SIZES[n] || [2, 4]; }
@@ -154,6 +155,7 @@ function art(n){ return '<i class="a">' + n + '</i>'; }
 function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function _renderSharedStash(){}
+function _itemValue(n){ return ({ 'Windforce': 'high', 'Stone of Jordan': 'med', 'Shako': 'low' })[n] || ''; }
 %(span)s
 window.openMuleCard(%(mule)s);
 var out = { html: box.innerHTML, role: box.getAttribute('role'), modal: box.getAttribute('aria-modal'),
@@ -163,6 +165,11 @@ if (%(page)d >= 0){ window._muleSetPage(%(page)d); out.html2 = box.innerHTML; }
 out.writes = [_writes];
 %(resize)s.forEach(function(wh){ window.innerWidth = wh[0]; window.innerHeight = wh[1];
   (WLISTEN.resize || []).forEach(function(f){ f({}); }); out.writes.push(_writes); });
+out.keys = [];
+%(keys)s.forEach(function(k){
+  (LISTEN.keydown || []).forEach(function(f){ f({ key: k[0], target: k[1] ? { tagName: k[1] } : null, preventDefault: function(){} }); });
+  var m = /Mule (\d+) \/ (\d+)/.exec(box.innerHTML); out.keys.push(m ? Number(m[1]) : null);
+});
 if (%(esc)s){
   (LISTEN.keydown || []).forEach(function(f){ f({ key: 'Escape', target: null, preventDefault: function(){} }); });
   out.after = { hidden: box.hidden, fs: box.classList.contains('vd-fs'), on: box.classList.contains('mp-on'), switched: switched };
@@ -173,7 +180,7 @@ console.log(JSON.stringify(out));
 SMALL = {"Windforce": [2, 4], "Stone of Jordan": [1, 1], "Shako": [2, 2], "Arachnid Mesh": [2, 1]}
 
 
-def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None, resize=()):
+def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None, resize=(), keys=()):
     if assign is None:
         assign = dict((n, "uni-weap") for n in SMALL)
     js = HARNESS % {
@@ -181,6 +188,7 @@ def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, es
         "w": w, "h": h, "assign": json.dumps(assign), "sizes": json.dumps(sizes or SMALL),
         "span": _vault_span(), "mule": json.dumps(mule), "page": page, "esc": "true" if esc else "false",
         "resize": json.dumps([list(x) for x in resize]),
+        "keys": json.dumps([list(k) for k in keys]),
     }
     r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
@@ -388,6 +396,33 @@ class TheOldBehaviourSurvives(unittest.TestCase):
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheReviewsLowFindingsStayFixed(unittest.TestCase):
+    """#174 v-A review (2026-09-25): four low findings the fix round did not list, fixed on main and pinned here."""
+
+    def _big(self, keys):
+        names = ["Base %d" % i for i in range(60)]
+        return _drive(mule="bases", assign=dict((n, "bases") for n in names),
+                      sizes=dict((n, [2, 4]) for n in names), keys=keys)
+
+    def test_arrow_keys_step_the_mules(self):
+        self.assertEqual(self._big([("ArrowRight", None)])["keys"], [2], "ArrowRight did not step to Mule 2")
+
+    def test_arrow_keys_in_a_text_field_are_his_caret_not_a_page_turn(self):
+        self.assertEqual(self._big([("ArrowRight", "INPUT")])["keys"], [1],
+                         "typing in the Stats search turned the mule page")
+
+    def test_a_locker_icon_is_escaped(self):
+        html = _drive(mule="xss", assign={})["html"]
+        self.assertNotIn("<img src=x", html, "a roster icon reached the page as markup")
+        self.assertIn("&lt;img src=x", html)
+
+    def test_the_value_count_uses_tiers_that_exist(self):
+        html = _drive()["html"]
+        self.assertIn("Trade value (high · med)", html, "the calculations row names a tier ITEM_VALUE never has")
+        self.assertIn("1 · 1", html)
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class EscClosesTheWindowNotTheShell(unittest.TestCase):
 
     def test_the_markup_declares_a_dialog(self):
@@ -423,6 +458,27 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#174 review - arrow keys typed into the Stats search turn the mule page again",
+        "file": "bible.html",
+        "find": "             && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || ''))){\n",
+        "replace": "             ){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 review - a roster icon reaches the mule window header as raw markup",
+        "file": "bible.html",
+        "find": "<span class=\"vd-icon\">'+esc(m.icon||'📦')+'</span><span class=\"vd-name\">'+esc(m.name)+_muleLabel",
+        "replace": "<span class=\"vd-icon\">'+(m.icon||'📦')+'</span><span class=\"vd-name\">'+esc(m.name)+_muleLabel",
+        "matches": 1,
+    },
+    {
+        "why": "#174 review - the value row counts a 'vhigh' tier that ITEM_VALUE never returns (a fabricated 0)",
+        "file": "bible.html",
+        "find": "      _tiers = { high: 0, med: 0 };\n",
+        "replace": "      _tiers = { high: 0, med: 0, vhigh: 0 };\n      _tiers.med = undefined;\n",
+        "matches": 1,
+    },
     {
         "why": "#174 - the mule window's markup is not a dialog, so the console's Esc probe sends him HOME",
         "file": "bible.html",
