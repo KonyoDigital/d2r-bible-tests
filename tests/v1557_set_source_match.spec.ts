@@ -68,7 +68,12 @@ test.describe('v1557 — the set-name match, and the absence it used to hide', (
       return { working: rows.length, withSource: rows.filter(Boolean).length };
     });
     expect(r.working).toBeGreaterThan(10);
-    expect(r.withSource, 'was 7 of 16 before the key was fixed').toBeGreaterThanOrEqual(9);
+    /* #165 — A RATE, BECAUSE THE POPULATION MOVES. The fix was measured as 7 of 16 -> 9 of 16. Since REG-1275
+       a fresh board floors the seed like his, so "working" is a different set of sets (measured: 14, eight
+       with a source; the six without are the low "(set)" sets the next case covers). A fixed count graded
+       the population, not the key; the rate the fix reached is what a broken key would lose. */
+    expect(r.withSource / r.working, `${r.withSource} of ${r.working} - was 7 of 16 before the key was fixed`)
+      .toBeGreaterThanOrEqual(9 / 16);
   });
 
   test('★ a set with NO source says so instead of trailing off', async ({ page }) => {
