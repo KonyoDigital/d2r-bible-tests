@@ -9682,6 +9682,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-session .sc-tag.step{color:#e9d07a;border-color:rgba(205,177,87,.4)}
 #tab-session .sc-tag.want{color:#9fd4ff;border-color:rgba(91,159,208,.4)}
 #tab-session .sc-row-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 2026-09-25 — a GRID ITEM's automatic minimum is its content's min-content, so one nowrap ops row ("… next Bul-Kathos'
+   Sacred Charge — Hell TZ Mephisto 1:662 ~5.7h to find", its length set by the CURRENT terror zone) grew the track
+   and the DOCUMENT scrolled 505px sideways at 1440 (render gate, pop-asks) - on code that passed an hour earlier under
+   a shorter TZ. The row's own min-width:0 cannot help while its card has none. */
+#tab-session .sc-card{min-width:0}
 #tab-session .sc-act{flex:0 0 auto;border:none;background:none;color:var(--gold);font-size:var(--fs-meta);cursor:pointer;padding:2px 6px}
 #tab-session .sc-act:hover{color:var(--gold-bright);text-decoration:underline}
 #tab-session .sc-empty{color:var(--text-dim);font-size:12.5px;font-style:italic;padding:6px 0}

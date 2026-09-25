@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1299 - THE SESSIONS PAGE SCROLLED 505PX SIDEWAYS WHENEVER THE TERROR ZONE MADE ONE OPS ROW LONG
+
+**fix - found by the pre-push render gate 2026-09-25 (pop-asks, 1440x1000), blocking a 15-commit push.** A/B'd first:
+the already-published 3cd6bb26 failed the SAME way, though it passed this gate at 11:36 - so no commit caused it; the
+data moved. Instrumented a throwaway copy of the gate to name the offender: an ops row whose nowrap text is set by the
+CURRENT terror zone ("... next Bul-Kathos' Sacred Charge — Hell TZ Mephisto 1:662 ~5.7h to find"). The row already had
+min-width:0 + ellipsis, but its CARD is a grid item whose automatic minimum is its content's min-content, so the track
+grew to 1906px on a 1440 page. `#tab-session .sc-card{min-width:0}` lets the ellipsis do its job; the target renders
+clean. A latent layout defect a live string finally exercised. [[gate-blind-to-unexercised-input]]
+
 ### REG-1298 - #174 v-A: THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL (+ FOUR REVIEW LEFTOVERS)
 
 **feature + fix - his order 2026-09-25 ("literally exactly like the d2r planner ... same structure and same UI and UX",
