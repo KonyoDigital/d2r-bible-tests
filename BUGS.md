@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1305 - A "CHEAP" DOCTOR ROW ASKED HIS CONSOLE A 2.5-SECOND QUESTION ON EVERY TICK, AND REFUSED TWO PUSHES
+
+**fix - found by the pre-push gate refusing twice, 2026-09-25.** The first refusal read like noise (the cheap subset
+9,100 ms against 9,000, culprits moving between reruns). The second named one row twice at exactly its timeout: "the
+shelf tabs are his stations (4003 ms, again 4002 ms)". MEASURED: that row GETs /api/river from his live console, and
+/api/river recomputes reel_router over every reel on every call - 2.2-2.6 s idle at 216 reels, past the row's 4 s
+timeout under the gate's load. So the every-tick subset paid ~2.5 s for it on every eagle tick and every console boot.
+Moved to PERIODIC ON MERIT: what it asks (does every stamped station have a name in his vocabulary) changes only when
+station keys or the label map change, both code, and a code change re-execs the console and re-runs every row. The
+every-tick subset's dearest row is now 500 ms. [[a-gate-can-perturb-what-it-measures]] [[suspect-the-instrument]]
+
 ### REG-1304 - ESC ON A CONSOLE PANEL CLOSED THE PANEL AND QUIT HIS CONSOLE
 
 **fix - found by the testing-phase catalogue's checker (finding 23, 2026-09-25) and reproduced on real input before the

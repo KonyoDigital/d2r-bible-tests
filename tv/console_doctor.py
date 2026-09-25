@@ -8432,6 +8432,14 @@ SLOW = ("the other doctors",)
 # include_slow=False, so "SLOW is exactly where sweep would find went to die". A row moved
 # to SLOW stops being supervision. PERIODIC keeps it running on a cadence.
 PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
+            # ⚠ REG-1305 — MEASURED, AND IT REFUSED TWO PUSHES ON 2026-09-25. This row GETs
+            # /api/river, which recomputes reel_router over every reel on every call ("recomputed
+            # every call, stored nowhere"): 2.2-2.6 s on his idle console at 216 reels, and its own
+            # 4 s _get timeout under the gate's load ("4003 ms, again 4002 ms"). MOVED ON MERIT:
+            # what it asks - does every stamped station have a name in his vocabulary - changes
+            # only when the station keys or the label map change, and both are CODE; a code change
+            # re-execs the console and re-runs every row anyway. Hourly loses nothing.
+            "the shelf tabs are his stations",
             # ⚠⚠ v3462 — THIS ROW SHELLS OUT TO `gh` AND WAS ON THE EVERY-TICK ROSTER.
             # A stalled gh would stall the whole doctor tick — which runs at every console
             # BOOT and on the ten-minute watchdog — so a GitHub hiccup could hold up his
