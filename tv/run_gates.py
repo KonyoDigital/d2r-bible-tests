@@ -6942,6 +6942,16 @@ GATES = [
              "READS disagree (67.5%) while 66/165 distinct FRAMES do (40.0%). The row reads it, "
              "states both denominators, and is red only on staleness or a majority by BOTH.",
          skip_ok=()),
+    Gate("test_the_mule_window_is_the_planner_shell",
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
+         needs_app=False,
+         why="#174 v-A - the mule window is rebuilt as the d2planner builder's shell: three columns "
+             "322|716|300, their ten measured doll slots, the 10x4 inventory under the doll, the "
+             "10x10 stash as a locker's centre view, every stat UNKNOWN with a reason. And Esc: "
+             "#vault-detail matched none of the console's overlay selectors, so Esc closed the SHELL "
+             "and left the window up; it is now a role=dialog. Drives the SHIPPED openMuleCard in node. "
+             "16 cases, 7 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -10066,7 +10066,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <div id="vault-suggested" class="vault-throwout" hidden></div>
       <!-- v342.15: shared-stash advisory ("don't mule these") -->
       <div id="vault-keep" class="vault-keep" hidden></div>
-      <div class="vault-detail" id="vault-detail" hidden></div>
+      <div class="vault-detail" id="vault-detail" role="dialog" aria-modal="true" aria-label="Mule window (Esc closes)" hidden></div>
       <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
     </div>
   </div>
@@ -35208,20 +35208,121 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-pagebar{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:9px;font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:var(--ls-label);font-size:12px;color:#bfa977}
 .vd-pagebar span.vp-arrow{color:#6a5a40}
 .vd-goldbox{margin:8px auto 0;width:60%;text-align:center;background:#0d0a07;border:2px solid #3a322a;border-radius:3px;padding:4px;font-family:var(--mono,monospace);font-size:var(--fs-body);color:#e8c860;letter-spacing:var(--ls-wide)}
-/* equipment region — mirrors the in-game inventory top half */
-.vd-equip{display:grid;grid-template-columns:repeat(10,var(--eqc,40px));grid-template-rows:repeat(6,var(--eqc,40px));gap:2px;width:max-content;margin:0 auto 8px;padding:3px}
-.vd-eq{background:linear-gradient(160deg,#1c1814,#0e0b08);border:1px solid #3a322a;border-radius:3px;display:flex;align-items:center;justify-content:center;color:rgba(122,108,88,.35);box-shadow:inset 0 0 12px rgba(0,0,0,.75)}
-.vd-eq span{font-size:clamp(14px,2.2vh,26px);filter:grayscale(1);opacity:.45}
-.vd-eq.eq-w1{grid-column:1/3;grid-row:1/5}
-.vd-eq.eq-helm{grid-column:5/7;grid-row:1/3}
-.vd-eq.eq-amu{grid-column:7/8;grid-row:2/3;align-self:center;justify-self:center;width:84%;height:84%}
-.vd-eq.eq-body{grid-column:5/7;grid-row:3/6}
-.vd-eq.eq-w2{grid-column:9/11;grid-row:1/5}
-.vd-eq.eq-glove{grid-column:1/3;grid-row:5/7}
-.vd-eq.eq-ring1{grid-column:4/5;grid-row:6/7;align-self:center;justify-self:center;width:84%;height:84%}
-.vd-eq.eq-belt{grid-column:5/7;grid-row:6/7}
-.vd-eq.eq-ring2{grid-column:7/8;grid-row:6/7;align-self:center;justify-self:center;width:84%;height:84%}
-.vd-eq.eq-boot{grid-column:9/11;grid-row:5/7}
+/* ══ #174 v-A — THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL, IN OUR THEME.
+   His words: click a mule and a fullscreen window floats over the vault, the planner's EXACT layout and
+   structure, "just with our theme". Their CODE is not copied; their GEOMETRY is — measured off their builder
+   at 2000px wide (DPR 1): a 1350-wide content column of three columns, 322 | 716 | 300, 6px gutters. Every
+   length below is that measurement times ONE unit, --u, which openMuleCard sets from the viewport (1px at
+   2000 wide, smaller at 1280 so the columns keep their proportions, a stacked column under 900). The doll's
+   slot rects live in ONE table (MULE_DOLL_SLOTS in the vault script), never here, so the CSS cannot drift from
+   the numbers the law reads. [[copy-drift]] Their slate/blue is our surface/gold: where they paint blue we
+   paint --gold-bright. */
+.vault-detail.vd-fs.mp-on{display:block;background:var(--bg);padding:14px 16px 30px}
+.mp{display:grid;grid-template-columns:calc(1044*var(--u)) calc(300*var(--u));column-gap:calc(6*var(--u));width:calc(1350*var(--u));margin:0 auto;align-items:start;color:var(--text);font-family:var(--sans);line-height:var(--lh-snug)}
+.mp *{box-sizing:border-box}
+.mp-main,.mp-right,.mp-left,.mp-centre{min-width:0}
+.mp-right,.mp-left,.mp-centre{display:flex;flex-direction:column;gap:calc(6*var(--u))}
+.mp-lc{display:grid;grid-template-columns:calc(322*var(--u)) calc(716*var(--u));column-gap:calc(6*var(--u));margin-top:calc(6*var(--u));align-items:start}
+/* header row — their Class · Level · tag row and Export · Import · profile · settings */
+.mp-top{height:calc(92*var(--u));display:flex;justify-content:space-between;gap:calc(6*var(--u))}
+.mp-top-l,.mp-top-r{display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.mp-top-r{align-items:flex-end}
+.mp-row{display:flex;gap:calc(7*var(--u));align-items:center;min-width:0}
+.mp-box{height:calc(38*var(--u));display:flex;align-items:center;gap:8px;padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:0;white-space:nowrap;overflow:hidden}
+.mp-box-k{color:var(--text-dim);font-size:var(--fs-body)}
+.mp-box-v{color:var(--text);font-size:var(--fs-title);font-weight:var(--fw-medium)}
+.mp-id{min-width:calc(227*var(--u));max-width:calc(420*var(--u))}
+.mp-lvl{width:calc(119*var(--u))}
+.mp .vd-name{flex:0 1 auto;font-family:var(--sans);font-size:var(--fs-title);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mp .vd-icon{font-size:var(--fs-title)}
+.mp .vd-sub{margin:0;overflow:hidden;text-overflow:ellipsis}
+.mp-subbox{max-width:calc(640*var(--u))}
+.mp-btn{height:calc(34*var(--u));display:inline-flex;align-items:center;gap:6px;padding:0 calc(12*var(--u));background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer;white-space:nowrap}
+.mp-btn:hover:not([disabled]){border-color:var(--gold);color:var(--gold-bright)}
+.mp-btn[disabled]{opacity:.5;cursor:not-allowed}
+.mp-chip{font-size:var(--fs-meta);color:var(--text-dim);letter-spacing:var(--ls-snug);padding:0 calc(8*var(--u))}
+.mp .vd-close{height:calc(34*var(--u));border-radius:4px;font-size:var(--fs-body);font-weight:var(--fw-medium)}
+/* panels — their rgb(18,19,20) card on a rgb(10,10,10) page is our --surface on --bg */
+.mp-p{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;min-width:0}
+.mp-h{height:calc(36*var(--u));display:flex;align-items:center;justify-content:center;position:relative;padding:0 calc(8*var(--u));font-size:var(--fs-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;color:var(--gold-bright);background:rgba(0,0,0,.26);border-bottom:1px solid var(--border);white-space:nowrap}
+.mp-h-r{position:absolute;right:calc(6*var(--u));top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:4px}
+.mp-h-r .mp-btn{height:calc(28*var(--u));font-size:var(--fs-meta)}
+.mp-empty{padding:calc(6*var(--u)) calc(12*var(--u));font-size:var(--fs-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight)}
+.mp-empty b{color:var(--text-muted);font-weight:var(--fw-medium)}
+.mp-set{height:calc(84*var(--u));margin-top:calc(6*var(--u))}
+.mp-settabs{display:flex;align-items:center;gap:calc(6*var(--u));height:calc(47*var(--u));padding:0 calc(7*var(--u));overflow-x:auto;overflow-y:hidden}
+.mp-settab{flex:none;height:calc(39*var(--u));display:inline-flex;align-items:center;padding:0 calc(13*var(--u));border-radius:4px;background:var(--surface-2);border:1px solid var(--border-light);color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer}
+.mp-settab.on{background:var(--gold-bright);border-color:var(--gold-bright);color:#1a1208}
+.mp-settab-ghost{cursor:help;background:transparent;border-style:dashed;color:var(--text-dim);font-weight:var(--fw-normal)}
+.mp .vd-mule-nav{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-meta);color:var(--gold-bright);letter-spacing:var(--ls-snug)}
+.mp .vd-mule-arrow{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);border-radius:3px;cursor:pointer;font-size:var(--fs-micro);padding:1px 6px}
+/* EQUIPMENT — the paper-doll at their slot rects, then the 10x4 inventory in the same panel */
+.mp-eq{height:calc(400*var(--u))}
+.mp-doll{position:absolute;left:0;right:0;top:calc(36*var(--u));bottom:0;background:radial-gradient(ellipse at 50% 32%,#241a10,#110c07 72%);box-shadow:inset 0 0 40px rgba(0,0,0,.7)}
+.mp-slot{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1c1814,#0b0906);border:1px solid #3a322a;border-radius:3px;box-shadow:inset 0 0 12px rgba(0,0,0,.8);cursor:help}
+.mp-slot span{font-size:var(--fs-title);filter:grayscale(1);opacity:.4}
+.mp-slot.mp-slot-lg span{font-size:var(--fs-display);opacity:.32}
+.mp-slot:hover{border-color:var(--gold-dim)}
+/* their rects were measured from the panel's OUTER edge; an absolute child starts inside its 1px border */
+.mp-slot,.mp-swap{margin:-1px 0 0 -1px}
+.mp-swap{position:absolute;width:calc(29*var(--u));height:calc(14*var(--u));display:flex;align-items:center;justify-content:center;padding:0;background:#15110d;border:1px solid #3a322a;border-radius:2px;color:var(--text-dim);font-family:var(--sans);font-size:var(--fs-micro);font-weight:var(--fw-semibold);line-height:var(--lh-none);cursor:pointer}
+.mp-swap.on{background:var(--gold-bright);border-color:var(--gold-bright);color:#1a1208}
+.mp-inv{position:absolute;left:0;right:0;top:calc(266*var(--u));display:flex;flex-direction:column;align-items:center}
+.mp-inv .vd-grid{border-width:1px;border-radius:3px}
+.mp-prim{height:calc(102*var(--u))}
+.mp-merc{height:calc(80*var(--u))}
+.mp-loot{height:calc(88*var(--u))}
+.mp-sw{min-height:calc(57*var(--u))}
+/* CENTRE — [STASH | SKILL TREE | CALCULATIONS]; for a storage locker the STASH is the default view */
+.mp-cp{height:calc(628*var(--u));display:flex;flex-direction:column}
+.mp-ctabs{display:flex;height:calc(36*var(--u));flex:none;border-bottom:1px solid var(--border)}
+.mp-ctab{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.34);border:0;border-right:1px solid var(--border);color:var(--text-muted);font-family:var(--sans);font-size:var(--fs-title);font-weight:var(--fw-medium);letter-spacing:var(--ls-snug);text-transform:uppercase;cursor:pointer}
+.mp-ctab:last-child{border-right:0}
+.mp-ctab.on{background:var(--surface);color:var(--gold-bright);box-shadow:inset 0 -2px 0 var(--gold-bright)}
+.mp-view{flex:1;min-height:0;overflow:auto;padding:calc(8*var(--u)) calc(10*var(--u))}
+.mp-view[hidden]{display:none}
+.mp-v-stash{display:flex;flex-direction:column;align-items:center}
+.mp-v-stash .vd-tabs{align-self:stretch;margin:0 auto 6px;max-width:100%}
+.mp-v-stash .vd-pagebar{margin-top:6px}
+.mp-v-stash .vd-goldbox{margin-top:6px;width:auto;padding:4px 14px;white-space:nowrap}
+.mp-calc{width:100%;border-collapse:collapse;font-size:var(--fs-body)}
+.mp-calc td{padding:4px 8px;border-bottom:1px solid rgba(58,47,30,.6)}
+.mp-calc td:last-child{text-align:right;font-family:var(--mono);color:var(--gold-bright);white-space:nowrap}
+.mp-calc .mp-unk{color:var(--text-dim)}
+.mp-notes{height:calc(206*var(--u));display:flex;flex-direction:column}
+.mp-notes-b{flex:1;min-height:0;overflow:auto;padding:calc(10*var(--u)) calc(16*var(--u));font-size:var(--fs-body);color:var(--text-muted)}
+.mp-notes-b .vd-overflow,.mp-notes-b .vm-empty{max-width:none;margin:0 0 8px}
+.mp-note{color:var(--text)}
+.mp-dim{color:var(--text-dim);font-style:italic}
+/* RIGHT — AUTHOR / BUILD SHOWCASE carry this locker; STATS is every stat, honestly UNKNOWN until v-B */
+.mp-auth,.mp-show{height:calc(150*var(--u));display:flex;flex-direction:column}
+.mp-kv{padding:calc(8*var(--u)) calc(14*var(--u));font-size:var(--fs-body);overflow:auto;flex:1;min-height:0}
+.mp-kv div{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
+.mp-kv span:first-child{color:var(--text-muted)}
+.mp-kv span:last-child{color:var(--text);font-family:var(--mono);text-align:right}
+.mp-stats{height:calc(726*var(--u));display:flex;flex-direction:column}
+.mp-stats .mp-h{height:calc(44*var(--u))}
+.mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
+.mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-body);font-weight:var(--fw-medium);cursor:pointer}
+.mp-seg button.on{background:var(--gold-bright);color:#1a1208}
+.mp-cls,.mp-search{margin:calc(8*var(--u)) calc(12*var(--u)) 0;height:calc(32*var(--u));display:flex;align-items:center;padding:0 10px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,.25);font-size:var(--fs-meta);color:var(--text-dim);white-space:nowrap;overflow:hidden}
+.mp-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font-family:var(--sans);font-size:var(--fs-body)}
+.mp-st{flex:1;min-height:0;overflow:auto;padding:calc(6*var(--u)) calc(12*var(--u)) calc(12*var(--u))}
+.mp-st-g{margin-top:calc(12*var(--u));font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);color:var(--gold)}
+.mp-st-why{font-size:var(--fs-micro);color:var(--text-dim);font-style:italic;margin:1px 0 3px}
+.mp-st-r{display:flex;justify-content:space-between;gap:8px;padding:2px 6px;font-size:var(--fs-body)}
+.mp-st-r[hidden]{display:none}
+.mp-unk{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:var(--ls-snug);color:var(--text-dim);cursor:help}
+/* under 900 wide the three columns STACK (their builder does the same); --u is then the doll's scale */
+.mp.mp-stack{grid-template-columns:minmax(0,1fr);row-gap:6px;width:100%}
+.mp.mp-stack .mp-lc{grid-template-columns:minmax(0,1fr);row-gap:6px}
+.mp.mp-stack .mp-top{height:auto;flex-direction:column;gap:6px}
+.mp.mp-stack .mp-top-r{align-items:flex-start}
+.mp.mp-stack .mp-top-l,.mp.mp-stack .mp-top-r{gap:6px}
+.mp.mp-stack .mp-row{flex-wrap:wrap}
+.mp.mp-stack .mp-eq{width:calc(322*var(--u));max-width:100%;margin:0 auto}
+.mp.mp-stack .mp-cp,.mp.mp-stack .mp-stats,.mp.mp-stack .mp-notes{height:auto}
+.mp.mp-stack .mp-stats .mp-st{max-height:60vh}
 /* mule ID card — in-game stash/inventory replica */
 .vault-detail{margin-top:14px;border:1px solid rgba(212,168,71,.5);border-radius:12px;background:linear-gradient(180deg,rgba(24,17,9,.97),rgba(14,10,5,.99));box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 10px 34px rgba(0,0,0,.6),0 0 30px rgba(212,168,71,.08);padding:14px}
 .vd-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
@@ -39266,10 +39367,76 @@ window.vaultAutoAssign = function(){
 
   window._muleSetPage = function(i){ var n = _muleTotalPages || 1; _mulePage = ((i % n) + n) % n; window.openMuleCard(openMuleId); };
   var _muleTotalPages = 1;
+  /* ══ #174 v-A — THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL.
+     His words (2026-09-25): click a mule and a fullscreen window floats over the vault, with the d2planner's
+     EXACT layout, structure, UI and UX, "upgraded", in OUR theme, over OUR data. This is the SHELL (v-A):
+     their structure and geometry, the packing this card has always done, and an honest empty state in
+     every panel nothing fills yet. Equipping (v-B), .d2s import (v-C), skill trees (v-D) and auto-routing
+     (v-E) each fill a panel that already says, here, what would fill it.
+
+     ⚠ ONE GEOMETRY, STATED ONCE. Their builder, measured at 2000px wide (DPR 1): a 1350px content column,
+     LEFT 322 · CENTRE 716 · RIGHT 300, 6px gutters. The doll's ten slot rects are their pixels relative to
+     the 322x400 EQUIPMENT panel on their 30px cell. The table below is the ONLY copy: the render reads it,
+     the CSS reads the unit it is multiplied by, and the law reads the same table off window — so a slot
+     cannot move in one place and not the other. [[copy-drift]]
+
+     ⚠ AND EVERY STAT IS UNKNOWN, ON PURPOSE. A locker has no class, no level and nothing equipped, so there
+     is no number to show. A 0 would read as "measured, and zero"; each row says UNKNOWN and why, until v-B
+     computes it from equipped properties. [[unknown-stays-unknown]] */
+  var MP_COL_W = 1350;                          // their content column at 2000px wide
+  var MULE_DOLL_SLOTS = [                       // [slot, glyph, name, x, y, w, h] in their panel pixels
+    ['rarm', '\u{1F5E1}', 'right hand',          16,  65, 60, 120],
+    ['larm', '\u{1F6E1}', 'left hand / shield', 247,  65, 60, 120],
+    ['head', '⛑',    'helm',               131,  50, 60,  60],
+    ['neck', '\u{1F4FF}', 'amulet',             203, 102, 30,  30],
+    ['tors', '\u{1F9BA}', 'body armor',         131, 125, 60,  90],
+    ['glov', '\u{1F9E4}', 'gloves',              15, 199, 60,  60],
+    ['rrin', '\u{1F48D}', 'right ring',          88, 230, 30,  30],
+    ['belt', '〰',    'belt',               131, 230, 60,  30],
+    ['lrin', '\u{1F48D}', 'left ring',          203, 230, 30,  30],
+    ['feet', '\u{1F97E}', 'boots',              247, 199, 60,  60]
+  ];
+  var MULE_STATS = [                            // [group, why it is UNKNOWN, rows]
+    ['ATTRIBUTES', 'a locker has no class or level, so it has no base attributes',
+      ['Strength', 'Dexterity', 'Vitality', 'Energy', 'Life', 'Mana', 'Mana Regeneration']],
+    ['DEFENSES', 'nothing is equipped on this doll, so no armor feeds these',
+      ['Defense', 'Chance to Block', 'Faster Hit Recovery']],
+    ['RESISTANCES', 'resists need equipped items and a character in a difficulty; neither exists here',
+      ['Fire Resistance', 'Cold Resistance', 'Lightning Resistance', 'Poison Resistance']],
+    ['WEAPON', 'no weapon is equipped in either weapon set',
+      ['Attack Damage', 'Attack Rating', 'Increased Attack Speed', 'Crushing Blow', 'Deadly Strike', 'Open Wounds']],
+    ['SPELLS', 'no skills and no caster gear are known for a locker',
+      ['Faster Cast Rate', '+ All Skills', 'Elemental Skill Damage']],
+    ['ADVENTURE', 'find and speed are item properties, and nothing is equipped',
+      ['Magic Find', 'Gold Find', 'Faster Run/Walk', 'Light Radius']]
+  ];
+  try { window.MULE_DOLL_SLOTS = MULE_DOLL_SLOTS; window.MULE_STATS = MULE_STATS; } catch (e) {}
+  // ONE unit for the whole window. 1px at 2000 wide (their measured rects, exactly); below that it shrinks
+  // so the three columns keep their proportions; under 900 the columns stack and the unit is the doll's.
+  function _mpScale(vw, vh){
+    if (vw < 900) return { stack: true, k: Math.max(0.6, Math.min(1.25, (vw - 48) / 322)) };
+    var grow = Math.max(1, Math.min(vw / 2000, vh / 1300));
+    // 48 = the 16px gutters either side + the window's own vertical scrollbar, so a 1280 screen never scrolls sideways
+    return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };
+  }
+  window._mpScale = _mpScale;
+  var _mpView = 'stash', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '';
+  window._mpSet = function(kind, v){
+    if (kind === 'view') _mpView = v; else if (kind === 'diff') _mpDiff = v; else if (kind === 'swap') _mpSwap = v;
+    var box = document.getElementById('vault-detail'), st = box ? box.scrollTop : 0;
+    if (openMuleId) window.openMuleCard(openMuleId);
+    if (box) box.scrollTop = st;
+    if (kind === 'view' && box){ try { var cp = box.querySelector('.mp-cp'); if (cp && cp.scrollIntoView) cp.scrollIntoView({ block: 'nearest' }); } catch(e){} }
+  };
+  window._mpFilter = function(q){
+    _mpQ = String(q || '').toLowerCase();
+    var rows = document.querySelectorAll('#vault-detail .mp-st-r');
+    for (var i = 0; i < rows.length; i++) rows[i].hidden = !!_mpQ && (rows[i].getAttribute('data-k') || '').indexOf(_mpQ) < 0;
+  };
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
     if (!m||!box) return;
-    if (muleId !== openMuleId) _mulePage = 0;   // v405 — reset to the first mule when switching lockers
+    if (muleId !== openMuleId){ _mulePage = 0; _mpView = 'stash'; _mpQ = ''; }   // v405 — reset to the first mule when switching lockers
     openMuleId = muleId;
     // v235: remember the tab the card was opened from (the vault lives in Tools)
     // so closing returns here, not wherever a stray hotkey routed to.
@@ -39277,9 +39444,16 @@ window.vaultAutoAssign = function(){
     // a display:none ancestor (collapsed card) kills fixed children — live on <body>
     if (box.parentElement !== document.body) document.body.appendChild(box);
     box.classList.add('vd-fs');
+    /* #174 — A DIALOG, SAID SO. The console's Esc probe forwards Esc into the board only for an overlay it can
+       recognise ([role="dialog"]:not([hidden]) among them). This window matched none of its selectors, so with
+       the console focused Esc sent him HOME instead of back to the vault. The static markup carries the role
+       too; this keeps the label naming the locker that is open. */
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', m.name + ' — mule window (Esc closes)');
     document.documentElement.classList.add('vd-lock');
     // v363 — SHARED STASH gets its own 5-page auto-assorted view (not the mule stash+inventory layout).
-    if (muleId === 'shared'){ _renderSharedStash(box); return; }
+    if (muleId === 'shared'){ box.classList.remove('mp-on'); _renderSharedStash(box); return; }
+    box.classList.add('mp-on');
     var names = Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     var _load = _muleLoad(names);
     var sized = _load.sized, _physN = _load.phys, _mules = _load.mules, _rem = _load.rem;
@@ -39290,16 +39464,20 @@ window.vaultAutoAssign = function(){
     var stash = { placed: _cur.stash, left: [] };
     var inv = { placed: _cur.inv, left: (_mulePage === _muleTotalPages - 1 ? _rem : []) };   // only the LAST page can carry a (capped) remainder
     var _thisMuleN = _cur.stash.length + _cur.inv.length;
-    // v214: fullscreen game calibration — both panels sized like 1920×1080 D2R
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
-    var cell = Math.max(26, Math.min(60, Math.floor(Math.min((vw * 0.30) / 10, (vh - 330) / 10))));
-    var eqc = cell;   // v235: equipment cells = the SAME unit cell as stash/inventory (was 0.72 → misaligned)
+    var sc = _mpScale(vw, vh), k = sc.k;
+    var U = function(n){ return 'calc(' + n + '*var(--u))'; };
+    // the inventory pitch is their 30px cell (a 28px cell + the grid's 2px gap), times the same unit
+    var invCell = Math.max(14, Math.round(30 * k) - 2);
+    // the stash fills the centre panel: 628 tall less its tab band and padding (they scale), less the five tabs,
+    // the page bar and the gold box (fixed text, ~96px) and the grid's own frame (28px)
+    var cell = sc.stack ? Math.max(20, Math.min(48, Math.floor((vw - 48 - 24 - 28) / 10)))
+                        : Math.max(20, Math.floor((576 * k - 124) / 10));
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
     var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span></div>'; })
       .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span></div>'; })).join('');
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
-    var EQ=[['eq-w1','🗡'],['eq-helm','⛑'],['eq-amu','📿'],['eq-body','🛡'],['eq-w2','🛡'],['eq-glove','🧤'],['eq-ring1','💍'],['eq-belt','〰'],['eq-ring2','💍'],['eq-boot','🥾']];
     var _muleLabel = _muleTotalPages > 1 ? (' #' + (_mulePage + 1)) : '';
     var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 40-cell inventory = 140 cells). Click the arrows — or press ← → — to step through the mules.">'
       + '<button class="vd-mule-arrow" onclick="window._muleSetPage('+(_mulePage-1)+')" title="previous mule (←)">◄</button>'
@@ -39309,31 +39487,120 @@ window.vaultAutoAssign = function(){
     var _muleArrows = _muleTotalPages > 1
       ? '<span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage-1)+')">◄</span><span>🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages+'</span><span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage+1)+')">►</span>'
       : '<span class="vp-arrow">◄</span><span>Page 1 / 1</span><span class="vp-arrow">►</span>';
-    box.innerHTML = '<div class="vd-head"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span>'
-      + '<span class="vd-sub" style="margin:0 14px 0 6px">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_thisMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span>'
-      + _muleTag
-      + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
-      + '<div class="vd-game-row">'
-      +   '<div class="vd-panel"><div class="vd-panel-title">Stash</div>'
-      +     '<div class="vd-tabs">' + TABS.map(function(t,i){ return '<div class="vd-tab'+(i===0?' vt-on':'')+'">'+t+'</div>'; }).join('') + '</div>'
-      +     gridHtml(stash.placed,10,10,cell).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
-      +     '<div class="vd-pagebar">' + _muleArrows + '</div>'
-      +     '<div class="vd-goldbox">🪙 ' + stash.placed.length + ' in stash · ' + _thisMuleN + ' on this mule</div>'
+    var soon = function(what, phase){ return '<div class="mp-empty"><b>Nothing fills this yet.</b> ' + what + ' (' + phase + ').</div>'; };
+    // ── header row: identity where their Class sits, the item count where their Level sits ──
+    var head = '<div class="mp-top">'
+      + '<div class="mp-top-l">'
+      +   '<div class="mp-row">'
+      +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
+      +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v">'+_physN+'</span></div>'
       +   '</div>'
-      +   '<div class="vd-panel"><div class="vd-panel-title">Inventory</div>'
-      +     '<div class="vd-equip" style="--eqc:'+eqc+'px">' + EQ.map(function(e){ return '<div class="vd-eq '+e[0]+'"><span>'+e[1]+'</span></div>'; }).join('') + '</div>'
-      +     gridHtml(inv.placed,10,4,cell)
-      +     '<div class="vd-goldbox">🪙 ' + inv.placed.length + ' in inventory</div>'
-      +   '</div>'
+      +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_thisMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
       + '</div>'
-      + (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> (140 cells each). Use ◄ ► above to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
-      + (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
-      + (names.length ? '<div class="vd-list">'+(_muleTotalPages>1?'<div style="opacity:.7;font-size:var(--fs-meta);margin-bottom:4px">— showing Mule '+(_mulePage+1)+' of '+_muleTotalPages+' —</div>':'')+list+'</div>' : '<div class="vm-empty" style="padding:8px 2px">empty locker — assign items above, then this card shows exactly where each one sits</div>');
+      + '<div class="mp-top-r">'
+      +   '<div class="mp-row"><button class="mp-btn" disabled title="a .d2s import turns this mule into a character (class, level, stats, doll) — it arrives in v-C">⇪ Import .d2s</button></div>'
+      +   '<div class="mp-row"><span class="mp-chip">Esc closes · ← → steps mules</span><button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
+      + '</div>'
+      + '</div>';
+    // ── BUILD SET → the mule pages of this one locker ──
+    var setTabs = '';
+    for (var _i = 0; _i < _muleTotalPages; _i++) setTabs += '<button class="mp-settab'+(_i===_mulePage?' on':'')+'" onclick="window._muleSetPage('+_i+')">Mule '+(_i+1)+'</button>';
+    setTabs += '<span class="mp-settab mp-settab-ghost" title="there is no manual “new mule”: when one mule is full (140 cells) the packer opens the next by itself">+ next mule opens when this one is full</span>';
+    var buildSet = '<section class="mp-p mp-set"><div class="mp-h">Mules in this locker<span class="mp-h-r">'+_muleTag+'</span></div>'
+      + '<div class="mp-settabs">'+setTabs+'</div></section>';
+    // ── LEFT: EQUIPMENT (doll + inventory) → PRIMARY SKILLS → MERCENARY → LOOT FILTER → STRENGTHS AND WEAKNESSES ──
+    var doll = MULE_DOLL_SLOTS.map(function(s){
+      return '<div class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+'" data-slot="'+s[0]+'" style="left:'+U(s[3])+';top:'+U(s[4])+';width:'+U(s[5])+';height:'+U(s[6])+'"'
+        + ' title="'+s[2]+' — empty. Nothing is equipped on a locker yet; equipping from this mule’s items arrives in v-B."><span>'+s[1]+'</span></div>';
+    }).join('');
+    var swap = [[16,1],[47,2],[247,1],[278,2]].map(function(t){
+      return '<button class="mp-swap'+(_mpSwap===t[1]?' on':'')+'" style="left:'+U(t[0])+';top:'+U(48)+'" onclick="window._mpSet(\'swap\','+t[1]+')"'
+        + ' title="weapon set '+(t[1]===1?'I':'II')+' — both sets are empty until v-B">'+(t[1]===1?'I':'II')+'</button>';
+    }).join('');
+    var left = '<div class="mp-left">'
+      + '<section class="mp-p mp-eq"><div class="mp-h">Equipment<span class="mp-h-r"><button class="mp-btn mp-stash-btn" onclick="window._mpSet(\'view\',\'stash\')" title="show this mule’s 10×10 stash in the centre">▤ Stash</button></span></div>'
+      +   '<div class="mp-doll"></div>' + doll + swap
+      +   '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell) + '</div>'
+      + '</section>'
+      + '<section class="mp-p mp-prim"><div class="mp-h">Primary skills</div>'+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
+      + '<section class="mp-p mp-merc"><div class="mp-h">Mercenary</div>'+soon('A locker has no hireling; an imported character’s would show here', 'v-C')+'</section>'
+      + '<section class="mp-p mp-loot"><div class="mp-h">Loot filter</div>'+soon('No loot filter is linked to this mule', 'not scheduled')+'</section>'
+      + '<section class="mp-p mp-sw"><div class="mp-h">Strengths and weaknesses</div>'+soon('Only a character has these; a bound character would fill it', 'v-C')+'</section>'
+      + '</div>';
+    // ── CENTRE: [STASH | SKILL TREE | CALCULATIONS] — the stash is a locker’s default view ──
+    var ctab = function(key, label){ return '<button class="mp-ctab'+(_mpView===key?' on':'')+'" data-view="'+key+'" onclick="window._mpSet(\'view\',\''+key+'\')">'+label+'</button>'; };
+    var _setN = 0, _setSeen = {};
+    sized.forEach(function(it){ if (it.set && !_setSeen[it.n]){ _setSeen[it.n] = 1; _setN++; } });
+    var _tiers = null;
+    if (typeof _itemValue === 'function'){
+      _tiers = { vhigh: 0, high: 0 };
+      names.forEach(function(n){ var t = _itemValue(n); if (t === 'vhigh' || t === 'high') _tiers[t]++; });
+    }
+    var UNK = function(why){ return '<span class="mp-unk" title="UNKNOWN — '+why+'">UNKNOWN</span>'; };
+    var calc = '<table class="mp-calc"><tbody>'
+      + '<tr><td>Items in this locker</td><td>'+_physN+'</td></tr>'
+      + '<tr><td>Mules they fill (140 cells each)</td><td>'+_muleTotalPages+'</td></tr>'
+      + '<tr><td>Items on Mule '+(_mulePage+1)+'</td><td>'+_thisMuleN+'</td></tr>'
+      + '<tr><td>Cells placed / capacity</td><td>'+_load.placedCells+' / '+(_load.capCells*_muleTotalPages)+'</td></tr>'
+      + '<tr><td>Last mule</td><td>'+(_load.roomLeft ? (_load.lastPct+'% full') : ('FULL for a '+_load.biggest.w+'×'+_load.biggest.h))+'</td></tr>'
+      + '<tr><td>Set pieces held here</td><td>'+_setN+'</td></tr>'
+      + '<tr><td>Trade value (very high · high)</td><td>'+(_tiers ? (_tiers.vhigh+' · '+_tiers.high) : UNK('the value table did not load'))+'</td></tr>'
+      + '<tr><td>Effective magic find</td><td>'+UNK('nothing is equipped, so no item feeds it (v-B)')+'</td></tr>'
+      + '</tbody></table>'
+      + (names.length ? '<div class="vd-list">'+(_muleTotalPages>1?'<div style="opacity:.7;font-size:var(--fs-meta);margin-bottom:4px">— showing Mule '+(_mulePage+1)+' of '+_muleTotalPages+' —</div>':'')+list+'</div>' : '');
+    var centre = '<div class="mp-centre">'
+      + '<section class="mp-p mp-cp"><div class="mp-ctabs">'+ctab('stash','Stash')+ctab('tree','Skill tree')+ctab('calc','Calculations')+'</div>'
+      +   '<div class="mp-view mp-v-stash"'+(_mpView==='stash'?'':' hidden')+'>'
+      +     '<div class="vd-tabs">' + TABS.map(function(t,i){ return '<div class="vd-tab'+(i===0?' vt-on':'')+'">'+t+'</div>'; }).join('') + '</div>'
+      +     gridHtml(stash.placed,MULE_STASH_W,MULE_STASH_H,cell).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
+      +     '<div class="vd-pagebar">' + _muleArrows + '</div>'
+      +     '<div class="vd-goldbox">🪙 ' + stash.placed.length + ' in stash · ' + inv.placed.length + ' in inventory · ' + _thisMuleN + ' on this mule</div>'
+      +   '</div>'
+      +   '<div class="mp-view mp-v-tree"'+(_mpView==='tree'?'':' hidden')+'>'+soon('A skill tree belongs to a character with a class, and this mule is a storage locker. A .d2s import binds a class; the tree data and icons come from his install', 'v-C, v-D')+'</div>'
+      +   '<div class="mp-view mp-v-calc"'+(_mpView==='calc'?'':' hidden')+'>'+calc+'</div>'
+      + '</section>'
+      + '<section class="mp-p mp-notes"><div class="mp-h">Notes</div><div class="mp-notes-b">'
+      +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> (140 cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
+      +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
+      +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
+      +   '<div class="mp-note">'+(m.note ? esc(m.note) : '<span class="mp-dim">no note on this locker</span>')+'</div>'
+      + '</div></section>'
+      + '</div>';
+    // ── RIGHT: AUTHOR → this locker · BUILD SHOWCASE → its summary · STATS ──
+    var diffBtn = function(key, label){ return '<button class="'+(_mpDiff===key?'on':'')+'" onclick="window._mpSet(\'diff\',\''+key+'\')">'+label+'</button>'; };
+    var stats = MULE_STATS.map(function(g){
+      return '<div class="mp-st-g">'+g[0]+(g[0]==='RESISTANCES'?' · '+_mpDiff.toUpperCase():'')+'</div><div class="mp-st-why">'+g[1]+'</div>'
+        + g[2].map(function(r){ var hid = _mpQ && r.toLowerCase().indexOf(_mpQ) < 0;
+            return '<div class="mp-st-r" data-k="'+r.toLowerCase()+'"'+(hid?' hidden':'')+'><span>'+r+'</span>'+UNK(g[1])+'</div>'; }).join('');
+    }).join('');
+    var right = '<div class="mp-right">'
+      + '<section class="mp-p mp-auth"><div class="mp-h">Locker</div><div class="mp-kv">'
+      +   '<div><span>Name</span><span>'+(m.icon||'📦')+' '+esc(m.name)+'</span></div>'
+      +   '<div><span>Kind</span><span>storage locker</span></div>'
+      +   '<div><span>Character</span><span>none bound</span></div>'
+      + '</div></section>'
+      + '<section class="mp-p mp-show"><div class="mp-h">Summary</div><div class="mp-kv">'
+      +   '<div><span>Items</span><span>'+_physN+'</span></div>'
+      +   '<div><span>Mules</span><span>'+_muleTotalPages+'</span></div>'
+      +   '<div><span>On Mule '+(_mulePage+1)+'</span><span>'+_thisMuleN+'</span></div>'
+      +   '<div><span>Last mule</span><span>'+(_load.roomLeft ? (_load.lastPct+'%') : 'FULL')+'</span></div>'
+      + '</div></section>'
+      + '<section class="mp-p mp-stats"><div class="mp-h">Stats<span class="mp-h-r"><button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button></span></div>'
+      +   '<div class="mp-seg">'+diffBtn('normal','Normal')+diffBtn('nightmare','Nightmare')+diffBtn('hell','Hell')+'</div>'
+      +   '<div class="mp-cls" title="a .d2s import binds a class and level (v-C)">Character — none bound to this locker</div>'
+      +   '<label class="mp-search">⌕&nbsp;<input type="search" placeholder="Search" value="'+esc(_mpQ)+'" oninput="window._mpFilter(this.value)" aria-label="filter the stats"></label>'
+      +   '<div class="mp-st">'+stats+'</div>'
+      + '</section>'
+      + '</div>';
+    box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+'" style="--u:'+k.toFixed(4)+'px" data-k="'+k.toFixed(4)+'">'
+      + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div></div>'
+      + right
+      + '</div>';
     box.scrollTop = 0;
   };
   window.vaultCloseCard = function(){
     var b=document.getElementById('vault-detail');
-    if(b){ b.hidden=true; b.classList.remove('vd-fs'); }
+    if(b){ b.hidden=true; b.classList.remove('vd-fs'); b.classList.remove('mp-on'); }
     document.documentElement.classList.remove('vd-lock');
     openMuleId=null;
     // v235: route back to where the card was opened from (Tools/vault), not TZ zones.
@@ -39342,9 +39609,21 @@ window.vaultAutoAssign = function(){
   document.addEventListener('keydown', function(e){
     if (e.key==='Escape' && openMuleId){ window.vaultCloseCard(); }
     // v437 — ← / → step through a multi-mule locker (only when a non-shared mule card with >1 page is open)
-    else if (openMuleId && openMuleId!=='shared' && _muleTotalPages>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){
+    else if (openMuleId && openMuleId!=='shared' && _muleTotalPages>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')
+             && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || ''))){
       e.preventDefault(); window._muleSetPage(_mulePage + (e.key==='ArrowRight'?1:-1));
     }
+  });
+  // #174 — the window's one unit comes from the viewport, so a resize re-lays it (debounced, scroll kept)
+  var _mpResizeT = null;
+  window.addEventListener('resize', function(){
+    if (!openMuleId) return;
+    clearTimeout(_mpResizeT);
+    _mpResizeT = setTimeout(function(){
+      var box = document.getElementById('vault-detail');
+      if (!openMuleId || !box || box.hidden) return;
+      var st = box.scrollTop; window.openMuleCard(openMuleId); box.scrollTop = st;
+    }, 160);
   });
   // v210: live re-pack — any assignment change re-tetrises an OPEN mule card
   function refreshOpenCard(){
