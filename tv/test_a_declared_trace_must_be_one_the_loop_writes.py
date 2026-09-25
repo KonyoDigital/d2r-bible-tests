@@ -194,8 +194,8 @@ RED_PROOF = [
                "one-character typo that makes the row UNKNOWN for ever while the census goes on "
                "counting the organ as COVERED, with nothing anywhere showing red",
         "file": "loop_corroborate.py",
-        "find": 'os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 300.0),',
-        "replace": 'os.path.join(HERE, ".lane_trace", "tvd-version-drfit.json"), 300.0),',
+        "find": '_lt.path_of("tvd-version-drift"), 300.0),',
+        "replace": '_lt.path_of("tvd-version-drfit"), 300.0),',
         "matches": 1,
     },
     {
