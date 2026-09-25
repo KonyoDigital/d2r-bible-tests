@@ -2225,5 +2225,17 @@
     "gotcha": "A PARTIAL ITEM LIST IS NEVER COMPLETE: the bitstream has no per-item length, so ok is True only when the declared TOP-LEVEL count (socketed children ride inside their parent) ends exactly on the corpse 'JM', the stats block ends on 'if', and the file's size and checksum hold. Format 105 adds ONE bit after the type-specific block and ONE bit after the last property list before byte-align - the study decoder's '8 bits after a runeword list' and sniffed '0x00 pad' are that same trailing bit on a list that ends on a byte boundary. A runeword past runes.txt row 79 is named None with both candidates, because row and key disagree there and no save has told which the game means.",
     "purpose": "Reads a D2R character save (.d2s, format 105) byte-exact: header (name, class, level, last played), the stats block by name, the 30 skill bytes, every item with location/slot/panel/x/y, code, name, quality, unique/set/runeword names, sockets and socketed children, ethereal, ilvl, defense, durability and properties as [{stat, param, value}], plus merc/golem presence and a verify block (bytesConsumed, endsOnCorpseTag, itemCount, stoppedAt).",
     "territory": "vault"
+  },
+  "skill_tables.py": {
+    "entryPoints": [
+      "assemble",
+      "build",
+      "load",
+      "verify",
+      "main"
+    ],
+    "gotcha": "A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\\base\\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.",
+    "territory": "vault"
   }
 }

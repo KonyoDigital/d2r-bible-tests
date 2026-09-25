@@ -1,0 +1,3964 @@
+{
+ "_comment": "GENERATED from the D2R CASC. Do not hand-edit - run: python3 tv/skill_tables.py --write",
+ "classOrder": [
+  "ama",
+  "sor",
+  "nec",
+  "pal",
+  "bar",
+  "dru",
+  "ass",
+  "war"
+ ],
+ "classes": {
+  "ama": {
+   "iconFile": "Spells\\amazon\\AmSkillicon",
+   "id": 0,
+   "key": "Amazon",
+   "name": "Amazon",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem1",
+     "name": "Javelin and Spear",
+     "nameKey": "SkillCategoryAm1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 8,
+       "id": 10,
+       "key": "Jab",
+       "maxlvl": 20,
+       "name": "Jab",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 16,
+       "id": 14,
+       "key": "Power Strike",
+       "maxlvl": 20,
+       "name": "Power Strike",
+       "prereqKeys": [
+        "Jab"
+       ],
+       "prereqs": [
+        10
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 18,
+       "id": 15,
+       "key": "Poison Javelin",
+       "maxlvl": 20,
+       "name": "Poison Javelin",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 26,
+       "id": 19,
+       "key": "Impale",
+       "maxlvl": 20,
+       "name": "Impale",
+       "prereqKeys": [
+        "Jab"
+       ],
+       "prereqs": [
+        10
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 20,
+       "key": "Lightning Bolt",
+       "maxlvl": 20,
+       "name": "Lightning Bolt",
+       "prereqKeys": [
+        "Poison Javelin"
+       ],
+       "prereqs": [
+        15
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 36,
+       "id": 24,
+       "key": "Charged Strike",
+       "maxlvl": 20,
+       "name": "Charged Strike",
+       "prereqKeys": [
+        "Power Strike",
+        "Lightning Bolt"
+       ],
+       "prereqs": [
+        14,
+        20
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 38,
+       "id": 25,
+       "key": "Plague Javelin",
+       "maxlvl": 20,
+       "name": "Plague Javelin",
+       "prereqKeys": [
+        "Lightning Bolt"
+       ],
+       "prereqs": [
+        20
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 48,
+       "id": 30,
+       "key": "Fend",
+       "maxlvl": 20,
+       "name": "Fend",
+       "prereqKeys": [
+        "Impale"
+       ],
+       "prereqs": [
+        19
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 56,
+       "id": 34,
+       "key": "Lightning Strike",
+       "maxlvl": 20,
+       "name": "Lightning Strike",
+       "prereqKeys": [
+        "Charged Strike"
+       ],
+       "prereqs": [
+        24
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 58,
+       "id": 35,
+       "key": "Lightning Fury",
+       "maxlvl": 20,
+       "name": "Lightning Fury",
+       "prereqKeys": [
+        "Plague Javelin"
+       ],
+       "prereqs": [
+        25
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem2",
+     "name": "Passive and Magic",
+     "nameKey": "SkillCategoryAm2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 4,
+       "id": 8,
+       "key": "Inner Sight",
+       "maxlvl": 20,
+       "name": "Inner Sight",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 6,
+       "id": 9,
+       "key": "Critical Strike",
+       "maxlvl": 20,
+       "name": "Critical Strike",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 14,
+       "id": 13,
+       "key": "Dodge",
+       "maxlvl": 20,
+       "name": "Dodge",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 22,
+       "id": 17,
+       "key": "Slow Missiles",
+       "maxlvl": 20,
+       "name": "Slow Missiles",
+       "prereqKeys": [
+        "Inner Sight"
+       ],
+       "prereqs": [
+        8
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 24,
+       "id": 18,
+       "key": "Avoid",
+       "maxlvl": 20,
+       "name": "Avoid",
+       "prereqKeys": [
+        "Dodge"
+       ],
+       "prereqs": [
+        13
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 34,
+       "id": 23,
+       "key": "Penetrate",
+       "maxlvl": 20,
+       "name": "Penetrate",
+       "prereqKeys": [
+        "Critical Strike"
+       ],
+       "prereqs": [
+        9
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 44,
+       "id": 28,
+       "key": "Dopplezon",
+       "maxlvl": 20,
+       "name": "Decoy",
+       "prereqKeys": [
+        "Slow Missiles"
+       ],
+       "prereqs": [
+        17
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 46,
+       "id": 29,
+       "key": "Evade",
+       "maxlvl": 20,
+       "name": "Evade",
+       "prereqKeys": [
+        "Avoid"
+       ],
+       "prereqs": [
+        18
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 52,
+       "id": 32,
+       "key": "Valkyrie",
+       "maxlvl": 20,
+       "name": "Valkyrie",
+       "prereqKeys": [
+        "Dopplezon",
+        "Evade"
+       ],
+       "prereqs": [
+        28,
+        29
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 54,
+       "id": 33,
+       "key": "Pierce",
+       "maxlvl": 20,
+       "name": "Pierce",
+       "prereqKeys": [
+        "Penetrate"
+       ],
+       "prereqs": [
+        23
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem3",
+     "name": "Bow and Crossbow",
+     "nameKey": "SkillCategoryAm3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 6,
+       "key": "Magic Arrow",
+       "maxlvl": 20,
+       "name": "Magic Arrow",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 2,
+       "id": 7,
+       "key": "Fire Arrow",
+       "maxlvl": 20,
+       "name": "Fire Arrow",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 10,
+       "id": 11,
+       "key": "Cold Arrow",
+       "maxlvl": 20,
+       "name": "Cold Arrow",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 12,
+       "id": 12,
+       "key": "Multiple Shot",
+       "maxlvl": 20,
+       "name": "Multiple Shot",
+       "prereqKeys": [
+        "Magic Arrow"
+       ],
+       "prereqs": [
+        6
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 20,
+       "id": 16,
+       "key": "Exploding Arrow",
+       "maxlvl": 20,
+       "name": "Exploding Arrow",
+       "prereqKeys": [
+        "Fire Arrow",
+        "Multiple Shot"
+       ],
+       "prereqs": [
+        7,
+        12
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 21,
+       "key": "Ice Arrow",
+       "maxlvl": 20,
+       "name": "Ice Arrow",
+       "prereqKeys": [
+        "Cold Arrow"
+       ],
+       "prereqs": [
+        11
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 32,
+       "id": 22,
+       "key": "Guided Arrow",
+       "maxlvl": 20,
+       "name": "Guided Arrow",
+       "prereqKeys": [
+        "Cold Arrow",
+        "Multiple Shot"
+       ],
+       "prereqs": [
+        11,
+        12
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 40,
+       "id": 26,
+       "key": "Strafe",
+       "maxlvl": 20,
+       "name": "Strafe",
+       "prereqKeys": [
+        "Guided Arrow"
+       ],
+       "prereqs": [
+        22
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 42,
+       "id": 27,
+       "key": "Immolation Arrow",
+       "maxlvl": 20,
+       "name": "Immolation Arrow",
+       "prereqKeys": [
+        "Exploding Arrow"
+       ],
+       "prereqs": [
+        16
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 50,
+       "id": 31,
+       "key": "Freezing Arrow",
+       "maxlvl": 20,
+       "name": "Freezing Arrow",
+       "prereqKeys": [
+        "Ice Arrow"
+       ],
+       "prereqs": [
+        21
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "ass": {
+   "iconFile": "Spells\\Assassin\\AsSkillicon",
+   "id": 6,
+   "key": "Assassin",
+   "name": "Assassin",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem21",
+     "name": "Martial Arts",
+     "nameKey": "SkillCategoryAs1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 40,
+       "id": 254,
+       "key": "Tiger Strike",
+       "maxlvl": 20,
+       "name": "Tiger Strike",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 42,
+       "id": 255,
+       "key": "Dragon Talon",
+       "maxlvl": 20,
+       "name": "Dragon Talon",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 44,
+       "id": 259,
+       "key": "Fists of Fire",
+       "maxlvl": 20,
+       "name": "Fists of Fire",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 46,
+       "id": 260,
+       "key": "Dragon Claw",
+       "maxlvl": 20,
+       "name": "Dragon Claw",
+       "prereqKeys": [
+        "Dragon Talon"
+       ],
+       "prereqs": [
+        255
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 50,
+       "id": 265,
+       "key": "Cobra Strike",
+       "maxlvl": 20,
+       "name": "Cobra Strike",
+       "prereqKeys": [
+        "Tiger Strike"
+       ],
+       "prereqs": [
+        254
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 58,
+       "id": 269,
+       "key": "Claws of Thunder",
+       "maxlvl": 20,
+       "name": "Claws of Thunder",
+       "prereqKeys": [
+        "Fists of Fire"
+       ],
+       "prereqs": [
+        259
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 48,
+       "id": 270,
+       "key": "Dragon Tail",
+       "maxlvl": 20,
+       "name": "Dragon Tail",
+       "prereqKeys": [
+        "Dragon Claw"
+       ],
+       "prereqs": [
+        260
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 52,
+       "id": 274,
+       "key": "Blades of Ice",
+       "maxlvl": 20,
+       "name": "Blades of Ice",
+       "prereqKeys": [
+        "Claws of Thunder"
+       ],
+       "prereqs": [
+        269
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 54,
+       "id": 275,
+       "key": "Dragon Flight",
+       "maxlvl": 20,
+       "name": "Dragon Flight",
+       "prereqKeys": [
+        "Dragon Tail"
+       ],
+       "prereqs": [
+        270
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 56,
+       "id": 280,
+       "key": "Royal Strike",
+       "maxlvl": 20,
+       "name": "Phoenix Strike",
+       "prereqKeys": [
+        "Cobra Strike",
+        "Blades of Ice"
+       ],
+       "prereqs": [
+        265,
+        274
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem20",
+     "name": "Shadow Disciplines",
+     "nameKey": "SkillCategoryAs2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 20,
+       "id": 252,
+       "key": "Claw Mastery",
+       "maxlvl": 20,
+       "name": "Claw Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 22,
+       "id": 253,
+       "key": "Psychic Hammer",
+       "maxlvl": 20,
+       "name": "Psychic Hammer",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 36,
+       "id": 258,
+       "key": "Quickness",
+       "maxlvl": 20,
+       "name": "Burst of Speed",
+       "prereqKeys": [
+        "Claw Mastery"
+       ],
+       "prereqs": [
+        252
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 26,
+       "id": 263,
+       "key": "Weapon Block",
+       "maxlvl": 20,
+       "name": "Weapon Block",
+       "prereqKeys": [
+        "Claw Mastery"
+       ],
+       "prereqs": [
+        252
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 24,
+       "id": 264,
+       "key": "Cloak of Shadows",
+       "maxlvl": 20,
+       "name": "Cloak of Shadows",
+       "prereqKeys": [
+        "Psychic Hammer"
+       ],
+       "prereqs": [
+        253
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 267,
+       "key": "Fade",
+       "maxlvl": 20,
+       "name": "Fade",
+       "prereqKeys": [
+        "Quickness"
+       ],
+       "prereqs": [
+        258
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 38,
+       "id": 268,
+       "key": "Shadow Warrior",
+       "maxlvl": 20,
+       "name": "Shadow Warrior",
+       "prereqKeys": [
+        "Cloak of Shadows",
+        "Weapon Block"
+       ],
+       "prereqs": [
+        264,
+        263
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 34,
+       "id": 273,
+       "key": "Mind Blast",
+       "maxlvl": 20,
+       "name": "Mind Blast",
+       "prereqKeys": [
+        "Cloak of Shadows"
+       ],
+       "prereqs": [
+        264
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 28,
+       "id": 278,
+       "key": "Venom",
+       "maxlvl": 20,
+       "name": "Venom",
+       "prereqKeys": [
+        "Fade"
+       ],
+       "prereqs": [
+        267
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 32,
+       "id": 279,
+       "key": "Shadow Master",
+       "maxlvl": 20,
+       "name": "Shadow Master",
+       "prereqKeys": [
+        "Shadow Warrior"
+       ],
+       "prereqs": [
+        268
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem19",
+     "name": "Traps",
+     "nameKey": "SkillCategoryAs3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 251,
+       "key": "Fire Trauma",
+       "maxlvl": 20,
+       "name": "Fire Blast",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 2,
+       "id": 256,
+       "key": "Shock Field",
+       "maxlvl": 20,
+       "name": "Shock Web",
+       "prereqKeys": [
+        "Fire Trauma"
+       ],
+       "prereqs": [
+        251
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 4,
+       "id": 257,
+       "key": "Blade Sentinel",
+       "maxlvl": 20,
+       "name": "Blade Sentinel",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 6,
+       "id": 261,
+       "key": "Charged Bolt Sentry",
+       "maxlvl": 20,
+       "name": "Charged Bolt Sentry",
+       "prereqKeys": [
+        "Shock Field"
+       ],
+       "prereqs": [
+        256
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 8,
+       "id": 262,
+       "key": "Wake of Fire Sentry",
+       "maxlvl": 20,
+       "name": "Wake of Fire",
+       "prereqKeys": [
+        "Fire Trauma"
+       ],
+       "prereqs": [
+        251
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 10,
+       "id": 266,
+       "key": "Blade Fury",
+       "maxlvl": 20,
+       "name": "Blade Fury",
+       "prereqKeys": [
+        "Blade Sentinel",
+        "Wake of Fire Sentry"
+       ],
+       "prereqs": [
+        257,
+        262
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 12,
+       "id": 271,
+       "key": "Lightning Sentry",
+       "maxlvl": 20,
+       "name": "Lightning Sentry",
+       "prereqKeys": [
+        "Charged Bolt Sentry"
+       ],
+       "prereqs": [
+        261
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 14,
+       "id": 272,
+       "key": "Inferno Sentry",
+       "maxlvl": 20,
+       "name": "Wake of Inferno",
+       "prereqKeys": [
+        "Wake of Fire Sentry"
+       ],
+       "prereqs": [
+        262
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 16,
+       "id": 276,
+       "key": "Death Sentry",
+       "maxlvl": 20,
+       "name": "Death Sentry",
+       "prereqKeys": [
+        "Lightning Sentry"
+       ],
+       "prereqs": [
+        271
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 18,
+       "id": 277,
+       "key": "Blade Shield",
+       "maxlvl": 20,
+       "name": "Blade Shield",
+       "prereqKeys": [
+        "Blade Fury"
+       ],
+       "prereqs": [
+        266
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "bar": {
+   "iconFile": "Spells\\Barbarian\\BaSkillicon",
+   "id": 4,
+   "key": "Barbarian",
+   "name": "Barbarian",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem10",
+     "name": "Warcries",
+     "nameKey": "SkillCategoryBa1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 8,
+       "id": 130,
+       "key": "Howl",
+       "maxlvl": 20,
+       "name": "Howl",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 10,
+       "id": 131,
+       "key": "Find Potion",
+       "maxlvl": 20,
+       "name": "Find Potion",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 22,
+       "id": 137,
+       "key": "Taunt",
+       "maxlvl": 20,
+       "name": "Taunt",
+       "prereqKeys": [
+        "Howl"
+       ],
+       "prereqs": [
+        130
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 24,
+       "id": 138,
+       "key": "Shout",
+       "maxlvl": 20,
+       "name": "Shout",
+       "prereqKeys": [
+        "Howl"
+       ],
+       "prereqs": [
+        130
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 32,
+       "id": 142,
+       "key": "Find Item",
+       "maxlvl": 20,
+       "name": "Find Item",
+       "prereqKeys": [
+        "Find Potion"
+       ],
+       "prereqs": [
+        131
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 40,
+       "id": 146,
+       "key": "Battle Cry",
+       "maxlvl": 20,
+       "name": "Battle Cry",
+       "prereqKeys": [
+        "Taunt"
+       ],
+       "prereqs": [
+        137
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 46,
+       "id": 149,
+       "key": "Battle Orders",
+       "maxlvl": 20,
+       "name": "Battle Orders",
+       "prereqKeys": [
+        "Shout"
+       ],
+       "prereqs": [
+        138
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 48,
+       "id": 150,
+       "key": "Grim Ward",
+       "maxlvl": 20,
+       "name": "Grim Ward",
+       "prereqKeys": [
+        "Find Item"
+       ],
+       "prereqs": [
+        142
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 56,
+       "id": 154,
+       "key": "War Cry",
+       "maxlvl": 20,
+       "name": "War Cry",
+       "prereqKeys": [
+        "Battle Cry",
+        "Battle Orders"
+       ],
+       "prereqs": [
+        146,
+        149
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 58,
+       "id": 155,
+       "key": "Battle Command",
+       "maxlvl": 20,
+       "name": "Battle Command",
+       "prereqKeys": [
+        "Battle Orders"
+       ],
+       "prereqs": [
+        149
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem12",
+     "name": "Combat Masteries",
+     "nameKey": "SkillCategoryBa2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 2,
+       "id": 127,
+       "key": "Blade Mastery",
+       "maxlvl": 20,
+       "name": "Blade Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 4,
+       "id": 128,
+       "key": "Axe Mastery",
+       "maxlvl": 20,
+       "name": "Axe Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 6,
+       "id": 129,
+       "key": "Mace Mastery",
+       "maxlvl": 20,
+       "name": "Mace Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 16,
+       "id": 134,
+       "key": "Pole Arm Mastery",
+       "maxlvl": 20,
+       "name": "Polearm Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 18,
+       "id": 135,
+       "key": "Throwing Mastery",
+       "maxlvl": 20,
+       "name": "Throwing Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 20,
+       "id": 136,
+       "key": "Spear Mastery",
+       "maxlvl": 20,
+       "name": "Spear Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 141,
+       "key": "Increased Stamina",
+       "maxlvl": 20,
+       "name": "Increased Stamina",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 38,
+       "id": 145,
+       "key": "Iron Skin",
+       "maxlvl": 20,
+       "name": "Iron Skin",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 44,
+       "id": 148,
+       "key": "Increased Speed",
+       "maxlvl": 20,
+       "name": "Increased Speed",
+       "prereqKeys": [
+        "Increased Stamina"
+       ],
+       "prereqs": [
+        141
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 54,
+       "id": 153,
+       "key": "Natural Resistance",
+       "maxlvl": 20,
+       "name": "Natural Resistance",
+       "prereqKeys": [
+        "Iron Skin"
+       ],
+       "prereqs": [
+        145
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem11",
+     "name": "Combat Skills",
+     "nameKey": "SkillCategoryBa3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 126,
+       "key": "Bash",
+       "maxlvl": 20,
+       "name": "Bash",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 12,
+       "id": 132,
+       "key": "Leap",
+       "maxlvl": 20,
+       "name": "Leap",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 14,
+       "id": 133,
+       "key": "Double Swing",
+       "maxlvl": 20,
+       "name": "Double Swing",
+       "prereqKeys": [
+        "Bash"
+       ],
+       "prereqs": [
+        126
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 26,
+       "id": 139,
+       "key": "Stun",
+       "maxlvl": 20,
+       "name": "Stun",
+       "prereqKeys": [
+        "Bash"
+       ],
+       "prereqs": [
+        126
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 140,
+       "key": "Double Throw",
+       "maxlvl": 20,
+       "name": "Double Throw",
+       "prereqKeys": [
+        "Double Swing"
+       ],
+       "prereqs": [
+        133
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 34,
+       "id": 143,
+       "key": "Leap Attack",
+       "maxlvl": 20,
+       "name": "Leap Attack",
+       "prereqKeys": [
+        "Leap"
+       ],
+       "prereqs": [
+        132
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 36,
+       "id": 144,
+       "key": "Concentrate",
+       "maxlvl": 20,
+       "name": "Concentrate",
+       "prereqKeys": [
+        "Stun"
+       ],
+       "prereqs": [
+        139
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 42,
+       "id": 147,
+       "key": "Frenzy",
+       "maxlvl": 20,
+       "name": "Frenzy",
+       "prereqKeys": [
+        "Double Throw"
+       ],
+       "prereqs": [
+        140
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 50,
+       "id": 151,
+       "key": "Whirlwind",
+       "maxlvl": 20,
+       "name": "Whirlwind",
+       "prereqKeys": [
+        "Leap Attack",
+        "Concentrate"
+       ],
+       "prereqs": [
+        143,
+        144
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 52,
+       "id": 152,
+       "key": "Berserk",
+       "maxlvl": 20,
+       "name": "Berserk",
+       "prereqKeys": [
+        "Concentrate"
+       ],
+       "prereqs": [
+        144
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "dru": {
+   "iconFile": "Spells\\Druid\\DrSkillicon",
+   "id": 5,
+   "key": "Druid",
+   "name": "Druid",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem18",
+     "name": "Elemental",
+     "nameKey": "SkillCategoryDr1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 32,
+       "id": 225,
+       "key": "Firestorm",
+       "maxlvl": 20,
+       "name": "Firestorm",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 34,
+       "id": 229,
+       "key": "Molten Boulder",
+       "maxlvl": 20,
+       "name": "Molten Boulder",
+       "prereqKeys": [
+        "Firestorm"
+       ],
+       "prereqs": [
+        225
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 36,
+       "id": 230,
+       "key": "Arctic Blast",
+       "maxlvl": 20,
+       "name": "Arctic Blast",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 38,
+       "id": 234,
+       "key": "Eruption",
+       "maxlvl": 20,
+       "name": "Fissure",
+       "prereqKeys": [
+        "Molten Boulder"
+       ],
+       "prereqs": [
+        229
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 40,
+       "id": 235,
+       "key": "Cyclone Armor",
+       "maxlvl": 20,
+       "name": "Cyclone Armor",
+       "prereqKeys": [
+        "Arctic Blast"
+       ],
+       "prereqs": [
+        230
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 42,
+       "id": 240,
+       "key": "Twister",
+       "maxlvl": 20,
+       "name": "Twister",
+       "prereqKeys": [
+        "Cyclone Armor"
+       ],
+       "prereqs": [
+        235
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 44,
+       "id": 244,
+       "key": "Volcano",
+       "maxlvl": 20,
+       "name": "Volcano",
+       "prereqKeys": [
+        "Eruption"
+       ],
+       "prereqs": [
+        234
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 46,
+       "id": 245,
+       "key": "Tornado",
+       "maxlvl": 20,
+       "name": "Tornado",
+       "prereqKeys": [
+        "Twister"
+       ],
+       "prereqs": [
+        240
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 50,
+       "id": 249,
+       "key": "Armageddon",
+       "maxlvl": 20,
+       "name": "Armageddon",
+       "prereqKeys": [
+        "Volcano"
+       ],
+       "prereqs": [
+        244
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 48,
+       "id": 250,
+       "key": "Hurricane",
+       "maxlvl": 20,
+       "name": "Hurricane",
+       "prereqKeys": [
+        "Tornado"
+       ],
+       "prereqs": [
+        245
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem17",
+     "name": "Shape Shifting",
+     "nameKey": "SkillCategoryDr2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 20,
+       "id": 223,
+       "key": "Wearwolf",
+       "maxlvl": 20,
+       "name": "Werewolf",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 52,
+       "id": 224,
+       "key": "Shape Shifting",
+       "maxlvl": 20,
+       "name": "Lycanthropy",
+       "prereqKeys": [
+        "Wearwolf"
+       ],
+       "prereqs": [
+        223
+       ],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 22,
+       "id": 228,
+       "key": "Wearbear",
+       "maxlvl": 20,
+       "name": "Werebear",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 54,
+       "id": 232,
+       "key": "Feral Rage",
+       "maxlvl": 20,
+       "name": "Feral Rage",
+       "prereqKeys": [
+        "Wearwolf"
+       ],
+       "prereqs": [
+        223
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 56,
+       "id": 233,
+       "key": "Maul",
+       "maxlvl": 20,
+       "name": "Maul",
+       "prereqKeys": [
+        "Wearbear"
+       ],
+       "prereqs": [
+        228
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 24,
+       "id": 238,
+       "key": "Rabies",
+       "maxlvl": 20,
+       "name": "Rabies",
+       "prereqKeys": [
+        "Feral Rage"
+       ],
+       "prereqs": [
+        232
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 26,
+       "id": 239,
+       "key": "Fire Claws",
+       "maxlvl": 20,
+       "name": "Fire Claws",
+       "prereqKeys": [
+        "Feral Rage",
+        "Maul"
+       ],
+       "prereqs": [
+        232,
+        233
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 58,
+       "id": 242,
+       "key": "Hunger",
+       "maxlvl": 20,
+       "name": "Hunger",
+       "prereqKeys": [
+        "Fire Claws"
+       ],
+       "prereqs": [
+        239
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 243,
+       "key": "Shock Wave",
+       "maxlvl": 20,
+       "name": "Shock Wave",
+       "prereqKeys": [
+        "Maul"
+       ],
+       "prereqs": [
+        233
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 248,
+       "key": "Fury",
+       "maxlvl": 20,
+       "name": "Fury",
+       "prereqKeys": [
+        "Rabies"
+       ],
+       "prereqs": [
+        238
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem16",
+     "name": "Summoning",
+     "nameKey": "SkillCategoryDr3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 221,
+       "key": "Raven",
+       "maxlvl": 20,
+       "name": "Raven",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 2,
+       "id": 222,
+       "key": "Plague Poppy",
+       "maxlvl": 20,
+       "name": "Poison Creeper",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 16,
+       "id": 226,
+       "key": "Oak Sage",
+       "maxlvl": 20,
+       "name": "Oak Sage",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 6,
+       "id": 227,
+       "key": "Summon Spirit Wolf",
+       "maxlvl": 20,
+       "name": "Summon Spirit Wolf",
+       "prereqKeys": [
+        "Raven"
+       ],
+       "prereqs": [
+        221
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 8,
+       "id": 231,
+       "key": "Cycle of Life",
+       "maxlvl": 20,
+       "name": "Carrion Vine",
+       "prereqKeys": [
+        "Plague Poppy"
+       ],
+       "prereqs": [
+        222
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 10,
+       "id": 236,
+       "key": "Heart of Wolverine",
+       "maxlvl": 20,
+       "name": "Heart of Wolverine",
+       "prereqKeys": [
+        "Oak Sage"
+       ],
+       "prereqs": [
+        226
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 12,
+       "id": 237,
+       "key": "Summon Fenris",
+       "maxlvl": 20,
+       "name": "Summon Dire Wolf",
+       "prereqKeys": [
+        "Oak Sage",
+        "Summon Spirit Wolf"
+       ],
+       "prereqs": [
+        226,
+        227
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 14,
+       "id": 241,
+       "key": "Vines",
+       "maxlvl": 20,
+       "name": "Solar Creeper",
+       "prereqKeys": [
+        "Cycle of Life"
+       ],
+       "prereqs": [
+        231
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 4,
+       "id": 246,
+       "key": "Spirit of Barbs",
+       "maxlvl": 20,
+       "name": "Spirit of Barbs",
+       "prereqKeys": [
+        "Heart of Wolverine"
+       ],
+       "prereqs": [
+        236
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 18,
+       "id": 247,
+       "key": "Summon Grizzly",
+       "maxlvl": 20,
+       "name": "Summon Grizzly",
+       "prereqKeys": [
+        "Summon Fenris"
+       ],
+       "prereqs": [
+        237
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "nec": {
+   "iconFile": "Spells\\Necromancer\\NeSkillicon",
+   "id": 2,
+   "key": "Necromancer",
+   "name": "Necromancer",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem9",
+     "name": "Summoning",
+     "nameKey": "SkillCategoryNe1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 6,
+       "id": 69,
+       "key": "Skeleton Mastery",
+       "maxlvl": 20,
+       "name": "Skeleton Mastery",
+       "prereqKeys": [
+        "Raise Skeleton"
+       ],
+       "prereqs": [
+        70
+       ],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 8,
+       "id": 70,
+       "key": "Raise Skeleton",
+       "maxlvl": 20,
+       "name": "Raise Skeleton",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 18,
+       "id": 75,
+       "key": "Clay Golem",
+       "maxlvl": 20,
+       "name": "Clay Golem",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 26,
+       "id": 79,
+       "key": "Golem Mastery",
+       "maxlvl": 20,
+       "name": "Golem Mastery",
+       "prereqKeys": [
+        "Clay Golem"
+       ],
+       "prereqs": [
+        75
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 80,
+       "key": "Raise Skeletal Mage",
+       "maxlvl": 20,
+       "name": "Raise Skeletal Mage",
+       "prereqKeys": [
+        "Raise Skeleton"
+       ],
+       "prereqs": [
+        70
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 38,
+       "id": 85,
+       "key": "BloodGolem",
+       "maxlvl": 20,
+       "name": "Blood Golem",
+       "prereqKeys": [
+        "Clay Golem"
+       ],
+       "prereqs": [
+        75
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 46,
+       "id": 89,
+       "key": "Summon Resist",
+       "maxlvl": 20,
+       "name": "Summon Resist",
+       "prereqKeys": [
+        "Golem Mastery"
+       ],
+       "prereqs": [
+        79
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 48,
+       "id": 90,
+       "key": "IronGolem",
+       "maxlvl": 20,
+       "name": "Iron Golem",
+       "prereqKeys": [
+        "BloodGolem"
+       ],
+       "prereqs": [
+        85
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 56,
+       "id": 94,
+       "key": "FireGolem",
+       "maxlvl": 20,
+       "name": "Fire Golem",
+       "prereqKeys": [
+        "IronGolem"
+       ],
+       "prereqs": [
+        90
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 58,
+       "id": 95,
+       "key": "Revive",
+       "maxlvl": 20,
+       "name": "Revive",
+       "prereqKeys": [
+        "Raise Skeletal Mage",
+        "IronGolem"
+       ],
+       "prereqs": [
+        80,
+        90
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem7",
+     "name": "Poison and Bone",
+     "nameKey": "SkillCategoryNe2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 2,
+       "id": 67,
+       "key": "Teeth",
+       "maxlvl": 20,
+       "name": "Teeth",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 4,
+       "id": 68,
+       "key": "Bone Armor",
+       "maxlvl": 20,
+       "name": "Bone Armor",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 14,
+       "id": 73,
+       "key": "Poison Dagger",
+       "maxlvl": 20,
+       "name": "Poison Dagger",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 16,
+       "id": 74,
+       "key": "Corpse Explosion",
+       "maxlvl": 20,
+       "name": "Corpse Explosion",
+       "prereqKeys": [
+        "Teeth"
+       ],
+       "prereqs": [
+        67
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 24,
+       "id": 78,
+       "key": "Bone Wall",
+       "maxlvl": 20,
+       "name": "Bone Wall",
+       "prereqKeys": [
+        "Bone Armor"
+       ],
+       "prereqs": [
+        68
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 34,
+       "id": 83,
+       "key": "Poison Explosion",
+       "maxlvl": 20,
+       "name": "Poison Explosion",
+       "prereqKeys": [
+        "Poison Dagger",
+        "Corpse Explosion"
+       ],
+       "prereqs": [
+        73,
+        74
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 36,
+       "id": 84,
+       "key": "Bone Spear",
+       "maxlvl": 20,
+       "name": "Bone Spear",
+       "prereqKeys": [
+        "Corpse Explosion"
+       ],
+       "prereqs": [
+        74
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 44,
+       "id": 88,
+       "key": "Bone Prison",
+       "maxlvl": 20,
+       "name": "Bone Prison",
+       "prereqKeys": [
+        "Bone Wall",
+        "Bone Spear"
+       ],
+       "prereqs": [
+        78,
+        84
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 52,
+       "id": 92,
+       "key": "Poison Nova",
+       "maxlvl": 20,
+       "name": "Poison Nova",
+       "prereqKeys": [
+        "Poison Explosion"
+       ],
+       "prereqs": [
+        83
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 54,
+       "id": 93,
+       "key": "Bone Spirit",
+       "maxlvl": 20,
+       "name": "Bone Spirit",
+       "prereqKeys": [
+        "Bone Spear"
+       ],
+       "prereqs": [
+        84
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem8",
+     "name": "Curses",
+     "nameKey": "SkillCategoryNe3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 66,
+       "key": "Amplify Damage",
+       "maxlvl": 20,
+       "name": "Amplify Damage",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 10,
+       "id": 71,
+       "key": "Dim Vision",
+       "maxlvl": 20,
+       "name": "Dim Vision",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 12,
+       "id": 72,
+       "key": "Weaken",
+       "maxlvl": 20,
+       "name": "Weaken",
+       "prereqKeys": [
+        "Amplify Damage"
+       ],
+       "prereqs": [
+        66
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 20,
+       "id": 76,
+       "key": "Iron Maiden",
+       "maxlvl": 20,
+       "name": "Iron Maiden",
+       "prereqKeys": [
+        "Amplify Damage"
+       ],
+       "prereqs": [
+        66
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 22,
+       "id": 77,
+       "key": "Terror",
+       "maxlvl": 20,
+       "name": "Terror",
+       "prereqKeys": [
+        "Weaken"
+       ],
+       "prereqs": [
+        72
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 81,
+       "key": "Confuse",
+       "maxlvl": 20,
+       "name": "Confuse",
+       "prereqKeys": [
+        "Dim Vision"
+       ],
+       "prereqs": [
+        71
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 32,
+       "id": 82,
+       "key": "Life Tap",
+       "maxlvl": 20,
+       "name": "Life Tap",
+       "prereqKeys": [
+        "Iron Maiden"
+       ],
+       "prereqs": [
+        76
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 40,
+       "id": 86,
+       "key": "Attract",
+       "maxlvl": 20,
+       "name": "Attract",
+       "prereqKeys": [
+        "Confuse"
+       ],
+       "prereqs": [
+        81
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 42,
+       "id": 87,
+       "key": "Decrepify",
+       "maxlvl": 20,
+       "name": "Decrepify",
+       "prereqKeys": [
+        "Terror"
+       ],
+       "prereqs": [
+        77
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 50,
+       "id": 91,
+       "key": "Lower Resist",
+       "maxlvl": 20,
+       "name": "Lower Resist",
+       "prereqKeys": [
+        "Life Tap",
+        "Decrepify"
+       ],
+       "prereqs": [
+        82,
+        87
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "pal": {
+   "iconFile": "Spells\\paladin\\PaSkillicon",
+   "id": 3,
+   "key": "Paladin",
+   "name": "Paladin",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem4",
+     "name": "Defensive Auras",
+     "nameKey": "SkillCategoryPa1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 6,
+       "id": 99,
+       "key": "Prayer",
+       "maxlvl": 20,
+       "name": "Prayer",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 8,
+       "id": 100,
+       "key": "Resist Fire",
+       "maxlvl": 20,
+       "name": "Resist Fire",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 16,
+       "id": 104,
+       "key": "Defiance",
+       "maxlvl": 20,
+       "name": "Defiance",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 18,
+       "id": 105,
+       "key": "Resist Cold",
+       "maxlvl": 20,
+       "name": "Resist Cold",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 38,
+       "id": 109,
+       "key": "Cleansing",
+       "maxlvl": 20,
+       "name": "Cleansing",
+       "prereqKeys": [
+        "Prayer"
+       ],
+       "prereqs": [
+        99
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 110,
+       "key": "Resist Lightning",
+       "maxlvl": 20,
+       "name": "Resist Lightning",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 26,
+       "id": 115,
+       "key": "Vigor",
+       "maxlvl": 20,
+       "name": "Vigor",
+       "prereqKeys": [
+        "Cleansing",
+        "Defiance"
+       ],
+       "prereqs": [
+        109,
+        104
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 48,
+       "id": 120,
+       "key": "Meditation",
+       "maxlvl": 20,
+       "name": "Meditation",
+       "prereqKeys": [
+        "Cleansing"
+       ],
+       "prereqs": [
+        109
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 54,
+       "id": 124,
+       "key": "Redemption",
+       "maxlvl": 20,
+       "name": "Redemption",
+       "prereqKeys": [
+        "Vigor"
+       ],
+       "prereqs": [
+        115
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 58,
+       "id": 125,
+       "key": "Salvation",
+       "maxlvl": 20,
+       "name": "Salvation",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem5",
+     "name": "Offensive Auras",
+     "nameKey": "SkillCategoryPa2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 4,
+       "id": 98,
+       "key": "Might",
+       "maxlvl": 20,
+       "name": "Might",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 12,
+       "id": 102,
+       "key": "Holy Fire",
+       "maxlvl": 20,
+       "name": "Holy Fire",
+       "prereqKeys": [
+        "Might"
+       ],
+       "prereqs": [
+        98
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 14,
+       "id": 103,
+       "key": "Thorns",
+       "maxlvl": 20,
+       "name": "Thorns",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 24,
+       "id": 108,
+       "key": "Blessed Aim",
+       "maxlvl": 20,
+       "name": "Blessed Aim",
+       "prereqKeys": [
+        "Might"
+       ],
+       "prereqs": [
+        98
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 34,
+       "id": 113,
+       "key": "Concentration",
+       "maxlvl": 20,
+       "name": "Concentration",
+       "prereqKeys": [
+        "Blessed Aim"
+       ],
+       "prereqs": [
+        108
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 36,
+       "id": 114,
+       "key": "Holy Freeze",
+       "maxlvl": 20,
+       "name": "Holy Freeze",
+       "prereqKeys": [
+        "Holy Fire"
+       ],
+       "prereqs": [
+        102
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 44,
+       "id": 118,
+       "key": "Holy Shock",
+       "maxlvl": 20,
+       "name": "Holy Shock",
+       "prereqKeys": [
+        "Holy Freeze"
+       ],
+       "prereqs": [
+        114
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 46,
+       "id": 119,
+       "key": "Sanctuary",
+       "maxlvl": 20,
+       "name": "Sanctuary",
+       "prereqKeys": [
+        "Thorns",
+        "Holy Freeze"
+       ],
+       "prereqs": [
+        103,
+        114
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 52,
+       "id": 122,
+       "key": "Fanaticism",
+       "maxlvl": 20,
+       "name": "Fanaticism",
+       "prereqKeys": [
+        "Concentration"
+       ],
+       "prereqs": [
+        113
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 56,
+       "id": 123,
+       "key": "Conviction",
+       "maxlvl": 20,
+       "name": "Conviction",
+       "prereqKeys": [
+        "Sanctuary"
+       ],
+       "prereqs": [
+        119
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem6",
+     "name": "Combat Skills",
+     "nameKey": "SkillCategoryPa3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 0,
+       "id": 96,
+       "key": "Sacrifice",
+       "maxlvl": 20,
+       "name": "Sacrifice",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 2,
+       "id": 97,
+       "key": "Smite",
+       "maxlvl": 20,
+       "name": "Smite",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 10,
+       "id": 101,
+       "key": "Holy Bolt",
+       "maxlvl": 20,
+       "name": "Holy Bolt",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 20,
+       "id": 106,
+       "key": "Zeal",
+       "maxlvl": 20,
+       "name": "Zeal",
+       "prereqKeys": [
+        "Sacrifice"
+       ],
+       "prereqs": [
+        96
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 22,
+       "id": 107,
+       "key": "Charge",
+       "maxlvl": 20,
+       "name": "Charge",
+       "prereqKeys": [
+        "Smite"
+       ],
+       "prereqs": [
+        97
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 40,
+       "id": 111,
+       "key": "Vengeance",
+       "maxlvl": 20,
+       "name": "Vengeance",
+       "prereqKeys": [
+        "Zeal"
+       ],
+       "prereqs": [
+        106
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 32,
+       "id": 112,
+       "key": "Blessed Hammer",
+       "maxlvl": 20,
+       "name": "Blessed Hammer",
+       "prereqKeys": [
+        "Holy Bolt"
+       ],
+       "prereqs": [
+        101
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 116,
+       "key": "Conversion",
+       "maxlvl": 20,
+       "name": "Conversion",
+       "prereqKeys": [
+        "Vengeance"
+       ],
+       "prereqs": [
+        111
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 42,
+       "id": 117,
+       "key": "Holy Shield",
+       "maxlvl": 20,
+       "name": "Holy Shield",
+       "prereqKeys": [
+        "Charge",
+        "Blessed Hammer"
+       ],
+       "prereqs": [
+        107,
+        112
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 50,
+       "id": 121,
+       "key": "Fist of the Heavens",
+       "maxlvl": 20,
+       "name": "Fist of the Heavens",
+       "prereqKeys": [
+        "Blessed Hammer",
+        "Conversion"
+       ],
+       "prereqs": [
+        112,
+        116
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "sor": {
+   "iconFile": "Spells\\Sorceress\\SoSkillicon",
+   "id": 1,
+   "key": "Sorceress",
+   "name": "Sorceress",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem13",
+     "name": "Cold Spells",
+     "nameKey": "SkillCategorySo1",
+     "page": 3,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 6,
+       "id": 39,
+       "key": "Ice Bolt",
+       "maxlvl": 20,
+       "name": "Ice Bolt",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 8,
+       "id": 40,
+       "key": "Frozen Armor",
+       "maxlvl": 20,
+       "name": "Frozen Armor",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 16,
+       "id": 44,
+       "key": "Frost Nova",
+       "maxlvl": 20,
+       "name": "Frost Nova",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 18,
+       "id": 45,
+       "key": "Ice Blast",
+       "maxlvl": 20,
+       "name": "Ice Blast",
+       "prereqKeys": [
+        "Ice Bolt"
+       ],
+       "prereqs": [
+        39
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 28,
+       "id": 50,
+       "key": "Shiver Armor",
+       "maxlvl": 20,
+       "name": "Shiver Armor",
+       "prereqKeys": [
+        "Ice Blast",
+        "Frozen Armor"
+       ],
+       "prereqs": [
+        45,
+        40
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 38,
+       "id": 55,
+       "key": "Glacial Spike",
+       "maxlvl": 20,
+       "name": "Glacial Spike",
+       "prereqKeys": [
+        "Ice Blast"
+       ],
+       "prereqs": [
+        45
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 46,
+       "id": 59,
+       "key": "Blizzard",
+       "maxlvl": 20,
+       "name": "Blizzard",
+       "prereqKeys": [
+        "Frost Nova",
+        "Glacial Spike"
+       ],
+       "prereqs": [
+        44,
+        55
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 48,
+       "id": 60,
+       "key": "Chilling Armor",
+       "maxlvl": 20,
+       "name": "Chilling Armor",
+       "prereqKeys": [
+        "Shiver Armor"
+       ],
+       "prereqs": [
+        50
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 56,
+       "id": 64,
+       "key": "Frozen Orb",
+       "maxlvl": 20,
+       "name": "Frozen Orb",
+       "prereqKeys": [
+        "Blizzard"
+       ],
+       "prereqs": [
+        59
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 2,
+       "iconIndex": 58,
+       "id": 65,
+       "key": "Cold Mastery",
+       "maxlvl": 20,
+       "name": "Cold Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem14",
+     "name": "Lightning Spells",
+     "nameKey": "SkillCategorySo2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 4,
+       "id": 38,
+       "key": "Charged Bolt",
+       "maxlvl": 20,
+       "name": "Charged Bolt",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 12,
+       "id": 42,
+       "key": "Static Field",
+       "maxlvl": 20,
+       "name": "Static Field",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 14,
+       "id": 43,
+       "key": "Telekinesis",
+       "maxlvl": 20,
+       "name": "Telekinesis",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 24,
+       "id": 48,
+       "key": "Nova",
+       "maxlvl": 20,
+       "name": "Nova",
+       "prereqKeys": [
+        "Static Field"
+       ],
+       "prereqs": [
+        42
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 26,
+       "id": 49,
+       "key": "Lightning",
+       "maxlvl": 20,
+       "name": "Lightning",
+       "prereqKeys": [
+        "Charged Bolt"
+       ],
+       "prereqs": [
+        38
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 34,
+       "id": 53,
+       "key": "Chain Lightning",
+       "maxlvl": 20,
+       "name": "Chain Lightning",
+       "prereqKeys": [
+        "Lightning"
+       ],
+       "prereqs": [
+        49
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 36,
+       "id": 54,
+       "key": "Teleport",
+       "maxlvl": 20,
+       "name": "Teleport",
+       "prereqKeys": [
+        "Telekinesis"
+       ],
+       "prereqs": [
+        43
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 1,
+       "iconIndex": 42,
+       "id": 57,
+       "key": "Thunder Storm",
+       "maxlvl": 20,
+       "name": "Thunder Storm",
+       "prereqKeys": [
+        "Nova",
+        "Chain Lightning"
+       ],
+       "prereqs": [
+        48,
+        53
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 44,
+       "id": 58,
+       "key": "Energy Shield",
+       "maxlvl": 20,
+       "name": "Energy Shield",
+       "prereqKeys": [
+        "Teleport",
+        "Chain Lightning"
+       ],
+       "prereqs": [
+        54,
+        53
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 54,
+       "id": 63,
+       "key": "Lightning Mastery",
+       "maxlvl": 20,
+       "name": "Lightning Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem15",
+     "name": "Fire Spells",
+     "nameKey": "SkillCategorySo3",
+     "page": 1,
+     "skills": [
+      {
+       "col": 2,
+       "iconIndex": 0,
+       "id": 36,
+       "key": "Fire Bolt",
+       "maxlvl": 20,
+       "name": "Fire Bolt",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 2,
+       "id": 37,
+       "key": "Warmth",
+       "maxlvl": 20,
+       "name": "Warmth",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 10,
+       "id": 41,
+       "key": "Inferno",
+       "maxlvl": 20,
+       "name": "Inferno",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 20,
+       "id": 46,
+       "key": "Blaze",
+       "maxlvl": 20,
+       "name": "Blaze",
+       "prereqKeys": [
+        "Inferno"
+       ],
+       "prereqs": [
+        41
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 22,
+       "id": 47,
+       "key": "Fire Ball",
+       "maxlvl": 20,
+       "name": "Fire Ball",
+       "prereqKeys": [
+        "Fire Bolt"
+       ],
+       "prereqs": [
+        36
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 51,
+       "key": "Fire Wall",
+       "maxlvl": 20,
+       "name": "Fire Wall",
+       "prereqKeys": [
+        "Blaze"
+       ],
+       "prereqs": [
+        46
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 32,
+       "id": 52,
+       "key": "Enchant",
+       "maxlvl": 20,
+       "name": "Enchant",
+       "prereqKeys": [
+        "Warmth",
+        "Fire Ball"
+       ],
+       "prereqs": [
+        37,
+        47
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 40,
+       "id": 56,
+       "key": "Meteor",
+       "maxlvl": 20,
+       "name": "Meteor",
+       "prereqKeys": [
+        "Fire Ball",
+        "Fire Wall"
+       ],
+       "prereqs": [
+        47,
+        51
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 50,
+       "id": 61,
+       "key": "Fire Mastery",
+       "maxlvl": 20,
+       "name": "Fire Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 52,
+       "id": 62,
+       "key": "Hydra",
+       "maxlvl": 20,
+       "name": "Hydra",
+       "prereqKeys": [
+        "Enchant"
+       ],
+       "prereqs": [
+        52
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  },
+  "war": {
+   "iconFile": "Spells\\Warlock\\WaSkillicon",
+   "id": 7,
+   "key": "Warlock",
+   "name": "Warlock",
+   "tabs": [
+    {
+     "index": 0,
+     "itemModKey": "StrSklTabItem23",
+     "name": "Chaos",
+     "nameKey": "SkillCategoryWa3",
+     "page": 3,
+     "skills": [
+      {
+       "col": 3,
+       "iconIndex": 46,
+       "id": 395,
+       "key": "Miasma Bolt",
+       "maxlvl": 20,
+       "name": "Miasma Bolt",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 42,
+       "id": 394,
+       "key": "Ring of Fire",
+       "maxlvl": 20,
+       "name": "Ring of Fire",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 40,
+       "id": 393,
+       "key": "Sigil Lethargy",
+       "maxlvl": 20,
+       "name": "Sigil: Lethargy",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 44,
+       "id": 396,
+       "key": "Sigil Rancor",
+       "maxlvl": 20,
+       "name": "Sigil: Rancor",
+       "prereqKeys": [
+        "Sigil Lethargy"
+       ],
+       "prereqs": [
+        393
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 52,
+       "id": 399,
+       "key": "Miasma Chains",
+       "maxlvl": 20,
+       "name": "Miasma Chain",
+       "prereqKeys": [
+        "Miasma Bolt"
+       ],
+       "prereqs": [
+        395
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 50,
+       "id": 398,
+       "key": "Flame Wave",
+       "maxlvl": 20,
+       "name": "Flame Wave",
+       "prereqKeys": [
+        "Ring of Fire"
+       ],
+       "prereqs": [
+        394
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 48,
+       "id": 400,
+       "key": "Sigil Death",
+       "maxlvl": 20,
+       "name": "Sigil: Death",
+       "prereqKeys": [
+        "Sigil Rancor"
+       ],
+       "prereqs": [
+        396
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 54,
+       "id": 397,
+       "key": "Enhanced Entropy",
+       "maxlvl": 20,
+       "name": "Enhanced Entropy",
+       "prereqKeys": [
+        "Miasma Chains"
+       ],
+       "prereqs": [
+        399
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 56,
+       "id": 401,
+       "key": "Apocalypse",
+       "maxlvl": 20,
+       "name": "Apocalypse",
+       "prereqKeys": [
+        "Flame Wave",
+        "Sigil Death"
+       ],
+       "prereqs": [
+        398,
+        400
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 58,
+       "id": 402,
+       "key": "Abyss",
+       "maxlvl": 20,
+       "name": "Abyss",
+       "prereqKeys": [
+        "Enhanced Entropy"
+       ],
+       "prereqs": [
+        397
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 1,
+     "itemModKey": "StrSklTabItem22",
+     "name": "Eldritch",
+     "nameKey": "SkillCategoryWa2",
+     "page": 2,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 20,
+       "id": 383,
+       "key": "Levitate",
+       "maxlvl": 20,
+       "name": "Levitation Mastery",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 24,
+       "id": 385,
+       "key": "Hex Bane",
+       "maxlvl": 20,
+       "name": "Hex: Bane",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 2,
+       "iconIndex": 36,
+       "id": 391,
+       "key": "Cleave",
+       "maxlvl": 20,
+       "name": "Cleave",
+       "prereqKeys": [
+        "Levitate"
+       ],
+       "prereqs": [
+        383
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 1,
+       "iconIndex": 30,
+       "id": 388,
+       "key": "Echoing Strike",
+       "maxlvl": 20,
+       "name": "Echoing Strike",
+       "prereqKeys": [
+        "Levitate"
+       ],
+       "prereqs": [
+        383
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 3,
+       "iconIndex": 32,
+       "id": 389,
+       "key": "Hex Purge",
+       "maxlvl": 20,
+       "name": "Hex: Purge",
+       "prereqKeys": [
+        "Hex Bane"
+       ],
+       "prereqs": [
+        385
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 1,
+       "iconIndex": 34,
+       "id": 390,
+       "key": "Blade Warp",
+       "maxlvl": 20,
+       "name": "Blade Warp",
+       "prereqKeys": [
+        "Echoing Strike"
+       ],
+       "prereqs": [
+        388
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 22,
+       "id": 387,
+       "key": "Psychic Ward",
+       "maxlvl": 20,
+       "name": "Psychic Ward",
+       "prereqKeys": [
+        "Cleave"
+       ],
+       "prereqs": [
+        391
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 28,
+       "id": 384,
+       "key": "Eldritch Blast",
+       "maxlvl": 20,
+       "name": "Eldritch Blast",
+       "prereqKeys": [
+        "Psychic Ward"
+       ],
+       "prereqs": [
+        387
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 3,
+       "iconIndex": 26,
+       "id": 386,
+       "key": "Hex Siphon",
+       "maxlvl": 20,
+       "name": "Hex: Siphon",
+       "prereqKeys": [
+        "Hex Purge"
+       ],
+       "prereqs": [
+        389
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 2,
+       "iconIndex": 38,
+       "id": 392,
+       "key": "Mirrored Blades",
+       "maxlvl": 20,
+       "name": "Mirrored Blades",
+       "prereqKeys": [
+        "Blade Warp",
+        "Eldritch Blast"
+       ],
+       "prereqs": [
+        390,
+        384
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    },
+    {
+     "index": 2,
+     "itemModKey": "StrSklTabItem24",
+     "name": "Demon",
+     "nameKey": "SkillCategoryWa1",
+     "page": 1,
+     "skills": [
+      {
+       "col": 1,
+       "iconIndex": 0,
+       "id": 374,
+       "key": "Demonic Mastery",
+       "maxlvl": 20,
+       "name": "Demonic Mastery",
+       "prereqKeys": [
+        "Summon Goatman"
+       ],
+       "prereqs": [
+        373
+       ],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 3,
+       "iconIndex": 2,
+       "id": 373,
+       "key": "Summon Goatman",
+       "maxlvl": 20,
+       "name": "Summon Goatman",
+       "prereqKeys": [],
+       "prereqs": [],
+       "reqlevel": 1,
+       "row": 1
+      },
+      {
+       "col": 1,
+       "iconIndex": 4,
+       "id": 378,
+       "key": "Blood Oath",
+       "maxlvl": 20,
+       "name": "Blood Oath",
+       "prereqKeys": [
+        "Demonic Mastery"
+       ],
+       "prereqs": [
+        374
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 2,
+       "iconIndex": 6,
+       "id": 375,
+       "key": "Death Mark",
+       "maxlvl": 20,
+       "name": "Death Mark",
+       "prereqKeys": [
+        "Summon Goatman"
+       ],
+       "prereqs": [
+        373
+       ],
+       "reqlevel": 6,
+       "row": 2
+      },
+      {
+       "col": 3,
+       "iconIndex": 8,
+       "id": 376,
+       "key": "Summon Tainted",
+       "maxlvl": 20,
+       "name": "Summon Tainted",
+       "prereqKeys": [
+        "Summon Goatman"
+       ],
+       "prereqs": [
+        373
+       ],
+       "reqlevel": 12,
+       "row": 3
+      },
+      {
+       "col": 2,
+       "iconIndex": 14,
+       "id": 380,
+       "key": "Blood Boil",
+       "maxlvl": 20,
+       "name": "Blood Boil",
+       "prereqKeys": [
+        "Death Mark"
+       ],
+       "prereqs": [
+        375
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 3,
+       "iconIndex": 10,
+       "id": 377,
+       "key": "Summon Defiler",
+       "maxlvl": 20,
+       "name": "Summon Defiler",
+       "prereqKeys": [
+        "Summon Tainted"
+       ],
+       "prereqs": [
+        376
+       ],
+       "reqlevel": 18,
+       "row": 4
+      },
+      {
+       "col": 2,
+       "iconIndex": 12,
+       "id": 379,
+       "key": "Engorge",
+       "maxlvl": 20,
+       "name": "Engorge",
+       "prereqKeys": [
+        "Blood Boil"
+       ],
+       "prereqs": [
+        380
+       ],
+       "reqlevel": 24,
+       "row": 5
+      },
+      {
+       "col": 1,
+       "iconIndex": 16,
+       "id": 381,
+       "key": "Consume",
+       "maxlvl": 20,
+       "name": "Consume",
+       "prereqKeys": [
+        "Blood Oath"
+       ],
+       "prereqs": [
+        378
+       ],
+       "reqlevel": 30,
+       "row": 6
+      },
+      {
+       "col": 3,
+       "iconIndex": 18,
+       "id": 382,
+       "key": "Bind Demon",
+       "maxlvl": 20,
+       "name": "Bind Demon",
+       "prereqKeys": [
+        "Engorge",
+        "Summon Defiler"
+       ],
+       "prereqs": [
+        379,
+        377
+       ],
+       "reqlevel": 30,
+       "row": 6
+      }
+     ],
+     "tabWhy": null
+    }
+   ]
+  }
+ },
+ "classesWithoutSkills": [],
+ "counts": {
+  "classes": 8,
+  "skills": 240,
+  "tabs": 24,
+  "unnamedSkills": 0,
+  "unplacedSkills": 0,
+  "untitledTabs": 0
+ },
+ "grid": {
+  "colPx": [
+   253,
+   515,
+   775
+  ],
+  "cols": 3,
+  "from": "skillstreepanelhd.json skillRow / skillColumn",
+  "rowPx": [
+   296,
+   478,
+   654,
+   834,
+   1014,
+   1190
+  ],
+  "rows": 6
+ },
+ "sourceHash": "ec4a8d3c57897ee9a503d2e676a11e8162950d36758c4c126b65a7d2441a04c1",
+ "sourcesAbsent": []
+}

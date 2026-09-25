@@ -5485,6 +5485,16 @@ GATES = [
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
              "stat's bit width makes every import decode wrong while it still looks like items. Its doctor row "
              "re-derives sourceHash: fresh OK, stale MISSING, no install UNKNOWN. 4 cases, 1 red-proof"),
+    Gate("test_the_skill_trees_come_from_the_install",
+         [sys.executable, os.path.join(HERE, "test_the_skill_trees_come_from_the_install.py")], 120,
+         why="#174 - the planner's three skill trees per class come from his install's CASC (skills.txt, skilldesc, "
+             "charstats, playerclass, the HD tree layout, the string tables), never from memory: 8 classes (the "
+             "Warlock included), exactly 3 tabs each, every skill inside the layout's own 6 x 3 grid, every "
+             "prerequisite in the same class and tab, SkillRow agreeing with reqlevel. A key is not a name "
+             "(Wearwolf), a page is not a tab position (the Druid's page 3 is Elemental, leftmost; the Warlock's "
+             "leftmost key is Wa3), and a tab order the tables do not settle is UNKNOWN. A fake install runs "
+             "everywhere; the json's sourceHash and content match a fresh build when the install is present, "
+             "UNMEASURED otherwise. 23 cases, 5 red-proofs"),
     Gate("test_the_eye_reads_the_commit_read_only",
          [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
          why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "
