@@ -54,6 +54,10 @@ doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` appli
     min(726k, the room below it)).
   · The hover card of an item on the doll never covers the MULES IN THIS LOCKER band (it read "ES IN THIS LOCKER"):
     hovered with a real mouse move, its top sits at or under the EQUIPMENT header.
+    #174 v-B2 integration: that card is now the Character Builder's ONE in-game box, window.d2Tip (#cb-tip) - the
+    worn weapon, the worn ring and a stash tile are hovered with a real mouse move at 2000 and at his console's
+    1280x695, and each must open #cb-tip naming the hovered item, leave the board's #arttip SHUT (one box, never
+    two), keep off the mule bar, and sit at or under the header of the panel its item is in.
   · THE DRAG, WITH REAL INPUT (press, ten moves with the button held, release — never a synthetic event): a ring
     dropped on a cell LOCKS there, the cells it would cover tinted green in the air, and a RELOAD keeps it; a 2x4
     dropped past the grid's edge is tinted red and refused, the store untouched; the keyboard carries an item
@@ -280,30 +284,56 @@ def _equip(t, mule, want):
         got.append(("NOT CHOSEN: " + why) if why else name)
     return got
 
-#: #174 v-B2 — the hover card of the worn right-hand weapon, against the mule bar and the EQUIPMENT header
-HOVER = r"""(function(){ var t = document.getElementById('arttip'), s = document.querySelector('#vault-detail .mp-set'),
-      h = document.querySelector('#vault-detail .mp-eq .mp-h');
-  if (!t || !s || !h) return JSON.stringify({ err: 'no hover card, mule bar or EQUIPMENT header on the page' });
-  var cs = getComputedStyle(t), a = t.getBoundingClientRect(), b = s.getBoundingClientRect();
-  return JSON.stringify({ on: t.classList.contains('on') && cs.display !== 'none' && +cs.opacity > 0 && a.height > 0,
-    tip: [a.left, a.top, a.right, a.bottom], bar: [b.left, b.top, b.right, b.bottom], eqHeadBottom: h.getBoundingClientRect().bottom,
-    overBar: !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom) }); })()"""
+#: #174 v-B2 — the hover card of an item, against the mule bar and the header of the panel the item is in.
+#: #174 v-B2 integration: the card is window.d2Tip's box (#cb-tip); the board's #arttip must stay shut (one box)
+HOVER = r"""(function(sel){ var t = document.getElementById('cb-tip'), at = document.getElementById('arttip'),
+      s = document.querySelector('#vault-detail .mp-set'), a = document.querySelector(sel), p = a && a.closest('.mp-p'),
+      h = p && p.querySelector('.mp-h, .mp-ctabs'), w = a && (a.querySelector('.d2art-wrap[aria-label]') || a);
+  if (!s || !a || !h) return JSON.stringify({ err: 'no mule bar, hovered item or panel header on the page (' + sel + ')' });
+  if (!t) return JSON.stringify({ on: false, err: 'the in-game box (#cb-tip) was never created - no hover opened it' });
+  var cs = getComputedStyle(t), r = t.getBoundingClientRect(), b = s.getBoundingClientRect(), first = t.firstElementChild;
+  return JSON.stringify({ on: !t.hidden && cs.display !== 'none' && r.height > 0, name: first ? first.textContent : null,
+    want: w.getAttribute('aria-label'), arttip: !!(at && at.classList.contains('on')),
+    tip: [r.left, r.top, r.right, r.bottom], bar: [b.left, b.top, b.right, b.bottom], headBottom: h.getBoundingClientRect().bottom,
+    overBar: !(r.right <= b.left || r.left >= b.right || r.bottom <= b.top || r.top >= b.bottom) }); })(%s)"""
+#: the hovered items: the worn right-hand weapon; the worn right RING, whose short box fits ABOVE it and would cross
+#: the EQUIPMENT header and the mule bar if the floor were gone (a weapon's tall box never fits above anything near
+#: the top, so it goes below on its own and cannot tell the floor from no floor - measured: 470px at 1280x695); and
+#: a stash tile (the smallest, top-most), so a grid tile is proven to open the same box. Each named by an attribute
+#: the render gives it, found fresh.
+HOVER_AT = (("weapon", '#vault-detail .mp-slot[data-slot="rarm"]'),
+            ("ring", '#vault-detail .mp-slot[data-slot="rrin"]'),
+            ("stash", None))
+TOPLEFT = r"""(function(){ var g = document.querySelector('#vault-detail .mp-v-stash .vd-grid[data-area]'); if (!g) return 'null';
+  var n = function(e, a){ return +e.getAttribute(a); };
+  var it = [].slice.call(g.querySelectorAll('.vd-item[data-fk]')).sort(function(a, b){ return (n(a, 'data-w') * n(a, 'data-h') - n(b, 'data-w') * n(b, 'data-h')) || (n(a, 'data-y') - n(b, 'data-y')) || (n(a, 'data-x') - n(b, 'data-x')); })[0];
+  return JSON.stringify(it ? '#vault-detail .vd-item[data-fk="' + it.getAttribute('data-fk') + '"]' : null); })()"""
 
 
 def _hover_worn(t):
-    """open the window, park the pointer, then a REAL mouse move onto the worn right-hand weapon's art"""
-    _open(t)
-    t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
-    time.sleep(0.3)
-    r = json.loads(t.ev("(function(){ var e = document.querySelector('#vault-detail .mp-slot[data-slot=\"rarm\"] .d2art-wrap');"
-                        " if (!e) return 'null'; var r = e.getBoundingClientRect(); return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]); })()"))
-    if not r:
-        return {"err": "the worn right-hand weapon has no art anchor"}
-    t.send("Input.dispatchMouseEvent", type="mouseMoved", x=r[0], y=r[1], button="none")
-    time.sleep(0.7)
-    out = json.loads(t.ev(HOVER))
-    t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
-    time.sleep(0.2)
+    """open the window, park the pointer, then a REAL mouse move onto each item's art; returns {what: probe}"""
+    out = {}
+    for what, sel in HOVER_AT:
+        _open(t)
+        if sel is None:
+            sel = json.loads(t.ev(TOPLEFT))
+            if not sel:
+                out[what] = {"err": "the stash has no tile to hover"}
+                continue
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
+        time.sleep(0.3)
+        r = json.loads(t.ev("(function(){ var a = document.querySelector(%s), e = a && (a.querySelector('.d2art-wrap[aria-label]') || a);"
+                            " if (!e) return 'null'; e.scrollIntoView({ block: 'nearest', inline: 'nearest' });"
+                            " var r = e.getBoundingClientRect(); return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]); })()"
+                            % json.dumps(sel)))
+        if not r:
+            out[what] = {"err": "no art anchor for %s" % sel}
+            continue
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=r[0], y=r[1], button="none")
+        time.sleep(0.7)
+        out[what] = json.loads(t.ev(HOVER % json.dumps(sel)))
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=2, y=2, button="none")
+        time.sleep(0.2)
     return out
 
 
@@ -671,14 +701,24 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
 
     def test_the_hover_card_never_covers_the_mule_bar(self):
         """#174 v-B2 — hovered with a real mouse move, the card of a worn weapon stays under the EQUIPMENT header: on
-        v-B it rose over MULES IN THIS LOCKER and read it "ES IN THIS LOCKER"."""
+        v-B it rose over MULES IN THIS LOCKER and read it "ES IN THIS LOCKER". #174 v-B2 integration: the card is the
+        builder's in-game box (#cb-tip) naming the hovered item, the board's #arttip stays shut; the worn ring (a short
+        box that fits above it) and a stash tile are hovered too, and no box rises over its own panel's header."""
         hover = _measure()["hover"]
         self.assertEqual(len(hover), 2, "the hover card was measured at %d sizes, not 2" % len(hover))
-        for key, hv in sorted(hover.items()):
-            self.assertNotIn("err", hv, "%s: %s" % (key, hv.get("err")))
-            self.assertTrue(hv["on"], "%s: the hover card never showed for the worn weapon - UNKNOWN, not passing" % key)
-            self.assertFalse(hv["overBar"], "%s: the hover card %s covers the mule bar %s" % (key, hv["tip"], hv["bar"]))
-            self.assertGreaterEqual(hv["tip"][1], hv["eqHeadBottom"] - 0.5, "%s: the card rose over the EQUIPMENT header" % key)
+        seen = 0
+        for size, byItem in sorted(hover.items()):
+            self.assertEqual(sorted(byItem), ["ring", "stash", "weapon"], "%s: hovered %s" % (size, sorted(byItem)))
+            for what, hv in sorted(byItem.items()):
+                key = "%s %s" % (size, what)
+                self.assertNotIn("err", hv, "%s: %s" % (key, hv.get("err")))
+                self.assertTrue(hv["on"], "%s: the in-game box never showed - UNKNOWN, not passing" % key)
+                self.assertEqual(hv["name"], hv["want"], "%s: the box names %r, the hovered item is %r" % (key, hv["name"], hv["want"]))
+                self.assertFalse(hv["arttip"], "%s: the board's #arttip opened too - two boxes for one hover" % key)
+                self.assertFalse(hv["overBar"], "%s: the box %s covers the mule bar %s" % (key, hv["tip"], hv["bar"]))
+                self.assertGreaterEqual(hv["tip"][1], hv["headBottom"] - 0.5, "%s: the box rose over its panel's header" % key)
+                seen += 1
+        self.assertEqual(seen, 6, "PRINT THE DENOMINATOR: %d of 6 hovers were measured" % seen)
 
     def test_a_real_drag_locks_an_item_where_it_is_dropped_and_a_reload_keeps_it(self):
         dr = _measure()["drag"]
@@ -778,9 +818,23 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#174 v-B2 - the hover card of a worn item rises over the MULES IN THIS LOCKER band again (it read ES IN THIS LOCKER)",
+        "why": "#174 v-B2 - the hover card of an item rises over its panel's header again (it read ES IN THIS LOCKER); since the integration the card is window.d2Tip and its floor is passed here",
         "file": "bible.html",
-        "find": "          if (_mpH) y = Math.max(y, _mpH.getBoundingClientRect().bottom + 4);\n",
+        "find": "    window.d2Tip.show(entry, el, { floor: floorOf(el) });\n",
+        "replace": "    window.d2Tip.show(entry, el);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 integration - the board's #arttip opens over the mule window's in-game box again: two boxes for one hover",
+        "file": "bible.html",
+        "find": "      try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return; } catch (_e) {}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 integration - the mule window's hover opens no in-game box at all (the lane listens to nothing)",
+        "file": "bible.html",
+        "find": "    if (el !== cur) show(el);\n",
         "replace": "",
         "matches": 1,
     },

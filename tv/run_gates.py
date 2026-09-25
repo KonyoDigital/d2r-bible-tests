@@ -7086,7 +7086,10 @@ GATES = [
              "card never covers the mule bar ('ES IN THIS LOCKER'); and a REAL-INPUT drag pass: a ring dropped on a "
              "cell locks there with a green footprint in the air and survives a reload (2000 stash, 1280x695 "
              "inventory), a 2x4 past the edge is red and refused with nothing written, the keyboard carries an item, "
-             "a right-click unlocks it, a drop on the Gems tab moves it there. 16 cases, 15 red-proofs",
+             "a right-click unlocks it, a drop on the Gems tab moves it there. #174 v-B2 integration: the hover card "
+             "is the builder's in-game box (#cb-tip) - the worn weapon, the worn ring and a stash tile, hovered by a real "
+             "mouse at 2000 and 1280x695, each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar "
+             "and under their panel's header. 16 cases, 18 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -7136,6 +7139,23 @@ GATES = [
              "node its program on STDIN: as one argv string (node -e) the cut passed Linux's 131,072-byte "
              "argument cap, so the shell and equip laws were RED on CI (main 1e1f946e: errors=19 / errors=26) "
              "while green on the Mac. 14 cases, 11 red-proofs",
+         skip_ok=()),
+    Gate("test_the_character_builder_is_joined_to_the_engine_and_the_mule_window",
+         [sys.executable, os.path.join(HERE, "test_the_character_builder_is_joined_to_the_engine_and_the_mule_window.py")], 90,
+         needs_app=False,
+         why="#174 v-B2 integration - the merge order: the builder's STATS column renders D2R_CHAR_ENGINE.sheet(build, "
+             "{difficulty, quests}) with their Normal / Nightmare / Hell tabs and the Quests toggle driving it, every row "
+             "value / range + cap + source; and the mule window's hover is the builder's one in-game tooltip, window.d2Tip. "
+             "Written against two halves that each passed their own law and never met: handed its build raw, the engine "
+             "read the builder's q 'u' as 'a u item' (every row UNKNOWN), its column-keyed typed rolls (p2) as no line "
+             "(silently a range) and its `active` set as Set 1. Drives the SHIPPED builder + engine + mule-tip scripts "
+             "together in node: Sorceress, Hell, quests on, Crown of Ages + Vipermagi + Mara's + Oculus = fire 10..45 "
+             "untouched and 20..45 with the Crown typed 30 through its own roll box (worked by hand), cap 75, RANGE, "
+             "drawn '10–45%' RANGE 'cap 75%'; Normal 75 (raw 90..125), Nightmare 60..75 (raw 60..95), quests off "
+             "-20..15; a roll the engine shares no range with (Bone Break) is never guessed and STATS names it; the 8 "
+             "Rainbow Facets reach the engine by *ID; Set 2 sums Set 2; a vault name opens the builder's entry "
+             "(nicknames, runes by socket class, bases, UNKNOWN for none or many); the box honours its floor; the "
+             "board's two hover lanes ask window.D2TIP_OWNS. 8 cases, 12 red-proofs",
          skip_ok=()),
 ]
 

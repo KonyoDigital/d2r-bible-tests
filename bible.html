@@ -28638,14 +28638,6 @@ window._jewelTipHtml = _jewelTipHtml;
           tip.style.left = x + 'px'; tip.style.top = y + 'px'; return;
         }
         y = r.top + r.height/2 - h/2;                        // vertically centred on the item
-        /* #174 v-B2 — IN THE MULE WINDOW THE CARD STAYS BELOW ITS PANEL'S HEADER. Centred on the helm (the top of
-           the doll) a 360px card rose over the "MULES IN THIS LOCKER" band and read it "ES IN THIS LOCKER" (the Grok
-           seat, v-B; reproduced: the card's rect crossed the heading's). Its top is floored at the bottom of the header
-           of the panel its item sits in; the viewport clamp below still wins, so it is never cut off-screen. */
-        try {
-          var _mpP = cur && cur.closest && cur.closest('#vault-detail .mp-p'), _mpH = _mpP && _mpP.querySelector('.mp-h, .mp-ctabs');
-          if (_mpH) y = Math.max(y, _mpH.getBoundingClientRect().bottom + 4);
-        } catch (_e) {}
         y = Math.min(Math.max(8, y), vh - h - 8);            // clamped, never off-screen
       } else {
         x = e.clientX + 16; y = e.clientY + 18;
@@ -28656,6 +28648,9 @@ window._jewelTipHtml = _jewelTipHtml;
     }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-boss-tip],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
+      /* #174 v-B2 integration — an item in the mule window is window.d2Tip's (the builder's in-game box): this card
+         defers to it by the published selector, so one hover opens ONE box. [[copy-drift]] */
+      try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return; } catch (_e) {}
       // v654 — COMPACT ANCHORS ONLY (Konyo: "i dont want it opening when i hit the SECTION itself —
       // only over the specific item keyword; it feels random"): a whole card/row/section can never
       // open the floating card. Only chip/title/thumbnail-sized anchors qualify.
@@ -28925,6 +28920,8 @@ window._jewelTipHtml = _jewelTipHtml;
         if (!n || n.matches('iframe,html,body')) return null;
         // the ITEM card owns this anchor — ask the selector, never the current state
         try { if (window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL)) return null; } catch(e){}
+        // #174 v-B2 integration — and so does the mule window's in-game box (window.d2Tip): it prints the tile's title
+        try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return null; } catch(e){}
         return n;
       }
       document.addEventListener('mouseover', function(e){ var n = candidate(e); if (n) say(n); });
@@ -40541,10 +40538,10 @@ window.vaultAutoAssign = function(){
       + '<div class="mp-settabs">'+setTabs+'</div></section>';
     // ── LEFT: EQUIPMENT (doll + inventory) → PRIMARY SKILLS → MERCENARY → LOOT FILTER → STRENGTHS AND WEAKNESSES ──
     /* #174 v-B — each slot is a real BUTTON (Tab reaches it, Enter or Space opens the picker, Delete unequips),
-       on the doll's unit (--du, their rect x 1.25). An equipped slot shows the item's own HD art, and the art is
-       the board's ONE hover anchor (.d2art-wrap[aria-label] -> #arttip, the same card every other surface
-       floats) — so an equipped slot carries no native title, which would draw an OS box on top of that card
-       (v2119). An empty slot keeps its title. */
+       on the doll's unit (--du, their rect x 1.25). An equipped slot shows the item's own HD art, and hovering
+       it opens the ONE in-game box, window.d2Tip (#174 v-B2 integration: the vb2-mule-tip-js script) — so an
+       equipped slot carries no native title, which would draw an OS box on top of that box (v2119). An empty
+       slot keeps its title. */
     var D = function(n){ return 'calc(' + n + '*var(--du))'; };
     var doll = MULE_DOLL_SLOTS.map(function(s){
       var e = _eqAt(s[0]);
@@ -50959,13 +50956,16 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-st{flex:1;min-height:0;overflow:auto;padding:calc(6*var(--u)) calc(12*var(--u)) calc(12*var(--u))}
 .cb-st-src{margin:calc(6*var(--u)) 0;font-size:var(--fs-cb-micro);color:var(--text-dim);line-height:var(--lh-tight)}
 .cb-st-g{margin-top:calc(12*var(--u));font-size:var(--fs-cb-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:var(--gold)}
-.cb-st-r{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 8px;padding:2px 6px;font-size:var(--fs-cb-body)}
+.cb-st-r{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 6px;padding:2px 6px;font-size:var(--fs-cb-body)}
 .cb-st-r[hidden]{display:none}
-.cb-sv{margin-left:auto;display:inline-flex;align-items:baseline;gap:5px;font-family:var(--mono);font-size:var(--fs-cb-meta);text-align:right;cursor:help}
+.cb-sv{margin-left:auto;display:inline-flex;align-items:baseline;gap:4px;font-family:var(--mono);font-size:var(--fs-cb-meta);text-align:right;cursor:help}
 .cb-sv b{font-weight:var(--fw-medium);color:var(--gold-bright);white-space:nowrap}
 .cb-sv i{font-style:normal;font-family:var(--sans);font-size:var(--fs-cb-micro);letter-spacing:var(--ls-snug);padding:0 3px;border:1px solid currentColor;border-radius:3px;line-height:var(--lh-tight)}
 .cb-sv-EXACT i{color:var(--best)}.cb-sv-RANGE i{color:var(--acc-intel)}.cb-sv-UNKNOWN{color:var(--text-dim)}
 .cb-sv-UNKNOWN b{color:var(--text-dim);font-weight:var(--fw-normal)}
+/* #174 v-B2 integration - the cap the game holds a stat to, after its source ("≤75%") */
+.cb-sv em.cb-cap{font-style:normal;font-family:var(--sans);font-size:var(--fs-cb-micro);color:var(--text-dim);white-space:nowrap;margin-left:-1px}
+.cb-st-note{margin:2px 0;color:var(--text-dim)}
 /* THE MODAL — their Select | Edit + ✕, ~800x750, placed so the slot it serves stays in view (it glows green) */
 .cb-modal{position:fixed;z-index:99998;display:flex;flex-direction:column;background:#141210;border:1px solid var(--border-light);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.6);color:var(--text);font-family:var(--sans);overflow:hidden}
 .cb-modal[hidden]{display:none}
@@ -51464,14 +51464,19 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
     return h;
   }
   var _tipEl = null;
-  d2Tip.show = function(entry, anchor){
+  /* opt.floor (#174 v-B2 integration): the y the box never rises above - the mule window passes the bottom of the
+     header of the panel its item sits in, so the box never covers MULES IN THIS LOCKER. Above the item when it fits
+     under the floor, else below it; the viewport still wins, so the box is never cut off-screen. */
+  d2Tip.show = function(entry, anchor, opt){
     try {
       if (!_tipEl){ _tipEl = document.createElement('div'); _tipEl.className = 'd2tip'; _tipEl.id = 'cb-tip'; _tipEl.setAttribute('role', 'tooltip'); document.body.appendChild(_tipEl); }
       _tipEl.innerHTML = d2Tip(entry); _tipEl.hidden = false;
       var r = anchor.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight, t = _tipEl.getBoundingClientRect();
+      var floor = Math.max(8, (opt && +opt.floor) || 8);
       var x = r.left + r.width / 2 - t.width / 2, y = r.top - t.height - 8;
-      if (y < 8) y = r.bottom + 8;
-      if (y + t.height > vh - 8) y = Math.max(8, vh - t.height - 8);
+      if (y < floor) y = r.bottom + 8;
+      if (y + t.height > vh - 8) y = Math.max(floor, vh - t.height - 8);
+      y = Math.max(8, Math.min(y, vh - t.height - 8));
       _tipEl.style.left = clamp(x, 8, Math.max(8, vw - t.width - 8)) + 'px';
       _tipEl.style.top = y + 'px';
     } catch (e) {}
@@ -51589,15 +51594,98 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
       + '<div class="cb-inv-say' + (st.sayBad ? ' cb-bad' : '') + '" id="cb-inv-say" role="status">' + esc(st.say || '') + '</div>';
   }
 
+  /* ── THE STATS ENGINE'S VIEW OF A BUILD ─────────────────────────────────────────────────────────────────────
+     #174 v-B2 integration. window.D2R_CHAR_ENGINE sums the game's property data in the GAME'S words: a quality of
+     'unique' | 'set' | 'runeword' | 'base' ('crafted' and 'magic' read as UNKNOWN there, by its own rule), a
+     uniqueitems / setitems row by its *ID (uid) when one name has several rows (the 8 Rainbow Facets), and a typed
+     roll under the ENGINE'S key for its line (the property code, or code:par when the code repeats on the item).
+     This builder stores a typed roll under the TABLE COLUMN it came from (p2 = prop2 of Crown of Ages). Handed over
+     raw, 'u' read as "a u item" and p2 matched no line, so every row was UNKNOWN and every typed roll silently a
+     range. So each typed roll is handed over by JOINING the two views of the same table row: the same property code
+     with the same [min, max], in the same column order. A roll that joins nothing (a value this block prints in
+     other units - poison per second, a per-level line) is NEVER guessed onto another line: it is left out, the
+     engine sums that line's range, and STATS says which. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var CB_ENGINE_Q = { u: 'unique', s: 'set', r: 'runeword', c: 'crafted', b: 'base', m: 'magic', rare: 'rare' };
+  function _cbBare(n){ return String(n || '').replace(/ #\d+$/, '').replace(/ \([^()]*\)$/, ''); }
+  function _cbEngineRolls(e, it, out, eng, lost){
+    var typed = e.rolls || {}, keys = Object.keys(typed);
+    if (!keys.length) return;
+    var view = null;
+    try { if (it && typeof eng.lines === 'function') view = eng.lines(out); } catch (x) {}
+    var theirs = (view && view.lines) || [], used = {}, mine = [];
+    var col = function(k){ var m = /^p(\d+)$/.exec(k); return m ? +m[1] : null; };
+    ((it && it[6]) || []).forEach(function(l){ (l[1] || []).forEach(function(r){
+      if (r[0] !== 'L' && r[2] != null) mine.push({ key: r[2], code: l[3], lo: Math.min(r[0], r[1]), hi: Math.max(r[0], r[1]) });
+    }); });
+    keys.forEach(function(k){
+      var me = null, hit = null;
+      mine.forEach(function(x){ if (x.key === k) me = x; });
+      if (me && col(k) !== null){
+        var same = function(x){ return x.lo === me.lo && x.hi === me.hi; };
+        var peers = mine.filter(function(x){ return col(x.key) !== null && x.code === me.code && same(x); })
+                        .sort(function(a, b){ return col(a.key) - col(b.key); });
+        /* the tables write some ranges high-to-low (Bone Break: red-dmg% 20 10) - both sides are read low-to-high */
+        var fits = function(t){ return t.rolled && Math.min(t.min, t.max) === me.lo && Math.max(t.min, t.max) === me.hi; };
+        var cand = theirs.filter(function(t){ return fits(t) && t.code === me.code; });
+        if (cand.length === peers.length) hit = cand[peers.indexOf(me)] || null;
+        if (!hit){
+          /* a paired line (fire-min / fire-max) prints under its first code: then the range alone decides - only when
+             exactly one rolled line of the engine's, and one value of ours, has it */
+          var only = theirs.filter(fits);
+          if (only.length === 1 && mine.filter(same).length === 1) hit = only[0];
+        }
+      }
+      if (hit && !used[hit.k]){ used[hit.k] = 1; out.rolls[hit.k] = typed[k]; }
+      else lost.push(e.name + ' ' + (me ? me.lo + '-' + me.hi : k) + ' typed ' + typed[k]);
+    });
+  }
+  function _cbEngineEntry(e, eng, lost){
+    if (!e || !e.name) return null;
+    var d = _cbDb(), it = _cbItem(e.id), q = it ? it[2] : e.q;
+    var out = { name: it ? it[1] : e.name, base: e.base || '', sockets: e.sockets | 0, eth: !!e.eth,
+                quality: CB_ENGINE_Q[q] || q || '', rolls: {}, socketed: [] };
+    /* a plain base by its CODE: two bases may print one name (the Colossal Jewel prints "Jewel") */
+    if (it && it[2] === 'b') out.name = it[3];
+    if (it && (it[2] === 'u' || it[2] === 's')){
+      out.uid = it[0].slice(1);
+      /* this block tells the game's duplicate names apart ("Rainbow Facet (Lightning, Level-up)"); the tables do not */
+      var bare = _cbBare(it[1]);
+      if (bare !== out.name && typeof eng.resolve === 'function'){
+        try { if (!eng.resolve(out).kind){ var o2 = JSON.parse(JSON.stringify(out)); o2.name = bare; if (eng.resolve(o2).kind) out.name = bare; } } catch (x) {}
+      }
+    }
+    (e.socketed || []).forEach(function(sv){
+      if (!sv) return;
+      if (d && d.rwRunes[sv]){ out.socketed.push(sv); return; }       /* a rune or a gem by its gems.txt code - the engine's key too */
+      var si = _cbItem(sv);
+      if (!si){ out.socketed.push(sv); return; }
+      var sub = { name: si[2] === 'b' ? si[3] : si[1], quality: CB_ENGINE_Q[si[2]] || '' };
+      if (si[2] === 'u' || si[2] === 's') sub.uid = si[0].slice(1);
+      out.socketed.push(sub);
+    });
+    _cbEngineRolls(e, it, out, eng, lost);
+    return out;
+  }
+  function _cbEngineBuild(b, eng, lost){
+    var act = b.active | 0;
+    var sets = (b.sets || []).map(function(s0, i){
+      var mine = i === act ? lost : [], slots = {};
+      Object.keys(s0.slots || {}).forEach(function(k){ var x = _cbEngineEntry(s0.slots[k], eng, mine); if (x) slots[k] = x; });
+      return { name: s0.name, slots: slots, inv: (s0.inv || []).map(function(e){ return _cbEngineEntry(e, eng, mine); }).filter(Boolean) };
+    });
+    var cur = sets[act] || { slots: {}, inv: [] };
+    return { name: b.name, cls: b.cls, level: b.level, sets: sets, activeSet: act, set: act, slots: cur.slots, inv: cur.inv };
+  }
+  window._cbEngineBuild = function(b){ var lost = [], eng = window.D2R_CHAR_ENGINE || {}; return { build: _cbEngineBuild(b, eng, lost), lost: lost }; };
+
   function _cbStatsHtml(b, s){
-    var eng = window.D2R_CHAR_ENGINE, rows = null, why = '';
+    var eng = window.D2R_CHAR_ENGINE, rows = null, why = '', sh = null, lost = [];
     if (eng && typeof eng.sheet === 'function'){
       try {
-        var arg = JSON.parse(JSON.stringify(b)); arg.set = b.active | 0; arg.slots = s.slots; arg.inv = s.inv;
-        var sh = eng.sheet(arg, { difficulty: st.diff, quests: !!st.quests });
+        sh = eng.sheet(_cbEngineBuild(b, eng, lost), { difficulty: st.diff, quests: !!st.quests });
         rows = (sh && sh.rows) || null;
         if (!rows) why = 'the stats engine returned no rows';
-      } catch (e) { why = 'the stats engine failed (' + (e && e.message || e) + ')'; }
+      } catch (e) { why = 'the stats engine failed (' + (e && e.message || e) + ')'; rows = null; }
     } else why = 'the stats engine is not loaded';
     var h = '<div class="cb-p cb-stats" id="cb-stats"><div class="cb-h"><span class="cb-h-t">Stats</span><span class="cb-h-r">'
       + '<button type="button" class="cb-btn' + (st.quests ? ' cb-on' : '') + '" onclick="window._cbStatsOpt(\'quests\')" aria-pressed="' + (st.quests ? 'true' : 'false') + '">! Quests</button></span></div>'
@@ -51613,18 +51701,31 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
     } else {
       var grp = null;
       h += '<div class="cb-st-src">From the stats engine · ' + esc(st.diff) + (st.quests ? ' · quests on' : ' · quests off') + '. EXACT = a typed roll · RANGE = rolls untouched (never averaged) · UNKNOWN names its reason.</div>';
+      /* what the engine did not count, and why - said here, never dropped (a typed roll that joined no line of the
+         engine's, a slot it does not wear, an item in the inventory that is not a charm, a class skill of another class) */
+      var notes = lost.map(function(x){ return 'not handed to the engine, so its range is summed: ' + x; })
+        .concat((sh && sh.problems) || [])
+        .concat(((sh && sh.notApplied) || []).map(function(n){ return n && n.why ? n.why : String(n); }));
+      notes.slice(0, 6).forEach(function(n){ h += '<div class="cb-st-src cb-st-note">' + esc(n) + '</div>'; });
+      if (notes.length > 6) h += '<div class="cb-st-src cb-st-note">and ' + (notes.length - 6) + ' more</div>';
       rows.forEach(function(r){
         if (r.group !== grp){ grp = r.group; h += '<div class="cb-st-g">' + esc(grp || '') + '</div>'; }
-        var src = r.value ? (r.source || 'RANGE') : 'UNKNOWN', v = '';
+        var src = r.value ? (r.source || 'RANGE') : 'UNKNOWN', v = '', u = r.unit || '';
+        var span = function(a, z){ return a === z ? a + u : (a + '–' + z + u); };
+        var cp = r.cap == null ? null : (typeof r.cap === 'object' ? r.cap : { min: r.cap, max: r.cap });
         if (!r.value) v = 'UNKNOWN';
         else {
           /* a capped stat shows its raw sum beside it only when the cap moved it (their "75% (raw 91%)") */
           var rlo = r.raw && typeof r.raw === 'object' ? r.raw.min : r.raw, rhi = r.raw && typeof r.raw === 'object' ? r.raw.max : r.raw;
-          v = (r.value.min === r.value.max ? r.value.min : (r.value.min + '–' + r.value.max))
-            + (r.cap != null && rlo != null && (rlo !== r.value.min || rhi !== r.value.max) ? ' (raw ' + (rlo === rhi ? rlo : rlo + '–' + rhi) + ')' : '');
+          v = span(r.value.min, r.value.max)
+            + (cp && rlo != null && (rlo !== r.value.min || rhi !== r.value.max) ? ' (raw ' + span(rlo, rhi) + ')' : '');
         }
+        /* the value (or range), its source, and the cap the game holds it to, as "≤75%" - the word "cap" pushed the
+           longest labels (Lightning Resistance, Physical Damage Reduction) onto a second line at their 300px column;
+           the row's own title (the engine's why) says "capped at 75 (75 + max ..., never above 95)" in full */
         h += '<div class="cb-st-r" data-k="' + esc(String(r.label || r.key || '').toLowerCase()) + '"><span>' + esc(r.label || r.key) + '</span>'
-          + '<span class="cb-sv cb-sv-' + esc(src) + '" title="' + esc(r.why || src) + '"><b>' + esc(v) + '</b><i>' + esc(src) + '</i></span></div>';
+          + '<span class="cb-sv cb-sv-' + esc(src) + '" title="' + esc(r.why || src) + '"><b>' + esc(v) + '</b><i>' + esc(src) + '</i>'
+          + (cp ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
       });
     }
     return h + '</div></div>';
@@ -52225,6 +52326,140 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
   });
 })();
 /* ⟦/CHARACTER BUILDER JS⟧ */
+</script>
+<script id="vb2-mule-tip-js">
+/* ══ #174 v-B2 — THE MULE WINDOW'S HOVER IS THE GAME'S TOOLTIP: window.d2Tip, the builder's one component ═════════
+   The integration order: the mule window's hover switches to the Character Builder's in-game tooltip, and there is
+   ONE tooltip component. The mule window (openMuleCard's #vault-detail .mp) floated the board's #arttip, a
+   Maxroll-style card, while the builder drew the in-game box — two looks for one kind of thing. Now an ITEM in the
+   mule window (a worn doll slot, a stash / inventory tile, an item's art in the picker) opens window.d2Tip with the
+   entry the builder's own database gives that name: its quality colour, base, defense / damage, requirements and
+   every property line, each roll as its RANGE (a vault item's rolls are not on record, so no number is guessed).
+   A name the database does not carry, or carries more than once, says so as UNKNOWN - it never borrows a card.
+   ONE BOX: the board's two lanes (#arttip's item card and its title prose lane) DEFER to this one by asking
+   window.D2TIP_OWNS(target) (its anchors are window.D2TIP_SEL) - the same published seam as window.ARTTIP_SEL
+   (v2109), never a copy of the selector. A tile's own title (where it
+   sits, how to move it) is borrowed for the hover and printed as the box's last line, then given back.
+   THE BOX STAYS BELOW ITS PANEL'S HEADER. Centred over the helm, the card rose over "MULES IN THIS LOCKER" and read
+   it "ES IN THIS LOCKER" (the Grok seat on v-B). The floor is the bottom of the header of the panel the item sits
+   in; the viewport still wins, so it is never cut off-screen.
+   [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
+(function(){
+  'use strict';
+  var SEL = '#vault-detail .mp .vd-item[data-key],#vault-detail .mp .mp-slot.mp-has,#vault-detail .mp .d2art-wrap[aria-label]';
+  window.D2TIP_SEL = SEL;
+  /* the one question the board's lanes ask: does this lane own what the pointer (or focus) is on? The unlock badge
+     inside a tile is a control with its own title, so it stays the prose lane's */
+  window.D2TIP_OWNS = function(t){ try { return !!anchorOf(t); } catch (e) { return false; } };
+  function fold(n){ return String(n == null ? '' : n).toLowerCase().replace(/[‘’ʼ`]/g, "'").replace(/^the\s+/, '').replace(/\s+/g, ' ').trim(); }
+  function bare(n){ return String(n || '').replace(/ #\d+$/, '').replace(/\s*\([^()]*\)$/, ''); }
+  var _ix = null;
+  function index(){
+    if (_ix) return _ix;
+    var d = window._cbDb && window._cbDb(); if (!d) return null;
+    var ix = { it: {}, sk: {}, b: {} };
+    var put = function(m, k, v){ k = fold(k); if (!k) return; var a = m[k] || (m[k] = []); if (a.indexOf(v) < 0) a.push(v); };
+    d.it.forEach(function(x){ put(ix.it, x[1], x); put(ix.it, bare(x[1]), x); });
+    d.sk.forEach(function(x){ put(ix.sk, x[1], x); put(ix.sk, String(x[1]).replace(/\s+rune$/i, ''), x); });
+    Object.keys(d.b).forEach(function(c){ if (d.b[c][20]) put(ix.b, d.b[c][0], c); });
+    return (_ix = ix);
+  }
+  function unknown(name, why){ return { name: name, q: 'b', lines: [{ t: why, cls: 'd2t-unk' }] }; }
+  /* a vault name -> the d2Tip entry the builder's database gives it (the slot says which socket class a rune adds) */
+  function entryFor(name, slot){
+    var ix = index(), d = window._cbDb && window._cbDb();
+    if (!ix || !d || typeof window._cbTipEntry !== 'function') return unknown(name, 'the item database is not loaded - UNKNOWN');
+    var tries = [name, bare(name)], paren = /\(([^()]*)\)\s*$/.exec(String(name || ''));
+    for (var i = 0; i < tries.length; i++){
+      var f = fold(tries[i]), hits = ix.it[f] || [];
+      if (hits.length > 1){
+        var ex = hits.filter(function(x){ return fold(x[1]) === f; });
+        if (ex.length === 1) hits = ex;
+      }
+      if (hits.length > 1) return unknown(name, hits.length + ' items print this name - which one this is is not on record, so none is shown');
+      if (hits.length === 1){
+        var it = hits[0], e = window._cbEntryFor(it);
+        if (it[2] === 'r'){
+          /* a runeword's defense and damage are its BASE's: known only when the vault name says it ("Enigma (Mage Plate)") */
+          var bc = paren ? (ix.b[fold(paren[1])] || []) : [];
+          e.base = bc.length === 1 && window._cbBasesOf(it).indexOf(bc[0]) >= 0 ? bc[0] : '';
+        }
+        var t = window._cbTipEntry(e, it, null, slot);
+        if (it[2] === 'r' && !e.base) t.lines.push({ t: 'its base is not on record, so its defense and damage are UNKNOWN', cls: 'd2t-unk' });
+        return t;
+      }
+      var sk = ix.sk[f] || [];
+      if (sk.length === 1){
+        var s = sk[0], ln = [];
+        [['Weapons', 4], ['Armor / Helms', 5], ['Shields', 6]].forEach(function(p){
+          (s[p[1]] || []).forEach(function(l){ ln.push({ html: p[0] + ': ' + window._cbLineHtml(l, {}, null, 'text'), cls: 'd2t-p' }); });
+        });
+        return { name: s[1], q: s[2] === 'rune' ? 'c' : 'b', reqs: s[3] ? { lvl: s[3] } : {}, lines: ln };
+      }
+      var bs = ix.b[f] || [];
+      if (bs.length === 1){
+        var bi = window._cbItem('b:' + bs[0]), be = window._cbEntryFor(bi), bt = window._cbTipEntry(be, bi, null, slot);
+        if (bi[2] === 'm') bt.lines.push({ t: 'a magic item’s affixes are its own roll - not on record here', cls: 'd2t-unk' });
+        return bt;
+      }
+    }
+    return unknown(name, 'not in the item database this page carries - UNKNOWN');
+  }
+  window._mtEntryFor = entryFor;
+
+  var cur = null, heldTitle = null;
+  function nameOf(el){
+    var a = el.matches && el.matches('.d2art-wrap[aria-label]') ? el : el.querySelector && el.querySelector('.d2art-wrap[aria-label]');
+    var n = a ? a.getAttribute('aria-label') : '';
+    if (!n && el.hasAttribute && el.hasAttribute('data-key')) n = bare(el.getAttribute('data-key'));
+    return n || '';
+  }
+  function floorOf(el){
+    var p = el.closest && el.closest('#vault-detail .mp-p'), h = p && p.querySelector('.mp-h, .mp-ctabs');
+    return h ? h.getBoundingClientRect().bottom + 4 : 8;
+  }
+  function hide(){
+    if (cur && heldTitle !== null && !cur.hasAttribute('title')) cur.setAttribute('title', heldTitle);
+    if (cur) cur.removeAttribute('data-d2tip-held');
+    cur = null; heldTitle = null;
+    if (window.d2Tip) window.d2Tip.hide();
+  }
+  function show(el){
+    if (!window.d2Tip) return;
+    var n = nameOf(el); if (!n) return;
+    hide();
+    cur = el;
+    var slotEl = el.closest && el.closest('.mp-slot[data-slot]'), slot = slotEl ? slotEl.getAttribute('data-slot') : null;
+    var entry = entryFor(n, slot), t = el.getAttribute('title');
+    if (t){ heldTitle = t; el.setAttribute('data-d2tip-held', '1'); el.removeAttribute('title'); entry.lines = (entry.lines || []).concat([{ t: t, cls: 'd2t-note' }]); }
+    window.d2Tip.show(entry, el, { floor: floorOf(el) });
+  }
+  function anchorOf(target){
+    if (!target || !target.closest || target.closest('.vd-unlock')) return null;
+    var el = target.closest(SEL); if (!el) return null;
+    return el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .mp-slot.mp-has') || el;
+  }
+  /* capture phase: this lane decides before the board's bubble-phase lanes look */
+  document.addEventListener('mouseover', function(e){
+    if (e.buttons) return;                                   /* mid-drag: the ghost is the only thing under the hand */
+    var el = anchorOf(e.target);
+    if (!el){ if (cur) hide(); return; }
+    if (el !== cur) show(el);
+  }, true);
+  document.addEventListener('mouseout', function(e){
+    if (!cur) return;
+    var to = e.relatedTarget;
+    if (to && (to === cur || (cur.contains && cur.contains(to)))) return;
+    if (anchorOf(to) === cur) return;
+    hide();
+  }, true);
+  /* sighted keyboard users get the box too (the prose lane gave them the title on focus; this lane now owns it) */
+  document.addEventListener('focusin', function(e){ var el = anchorOf(e.target); if (el && el !== cur) show(el); }, true);
+  document.addEventListener('focusout', function(){ if (cur) hide(); }, true);
+  document.addEventListener('pointerdown', function(){ if (cur) hide(); }, true);   /* a press starts a drag or a click */
+  document.addEventListener('keydown', function(){ if (cur) hide(); }, true);
+  window.addEventListener('scroll', function(){ if (cur) hide(); }, true);
+})();
 </script>
 <script>
 // v635 — stamp the account cue class at boot (CSS above renders the golden ladder ribbon)
