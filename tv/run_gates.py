@@ -7097,6 +7097,24 @@ GATES = [
              "checked against tv/item_tables.json kinds in CI, the subtypes against the install where it is "
              "(UNMEASURED, never passed, elsewhere). 16 cases, 18 red-proofs",
          skip_ok=()),
+    Gate("test_the_character_sheet_sums_the_game_data",
+         [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_the_game_data.py")], 90,
+         needs_app=False,
+         why="#174 v-B2 - his order: 'add all the information and data based on the items buffs ... calculate the total "
+             "sum of it all correctly. based on HELL and its data like the resistances starting with -100%'. The stats "
+             "engine (window.D2R_CHAR_ENGINE.sheet) sums from the GAME'S property data, generated from his install into "
+             "bible.html's CHAR_PROPS block by tv/char_props.py (uniqueitems / setitems / sets / runes / gems, properties "
+             "code -> stat, itemstatcost per-level shifts, difficultylevels ResistPenalty 0/-40/-100). Drives the SHIPPED "
+             "engine in node with answers worked by hand from the tables: Hell + quests Crown 30 typed + Vipermagi + "
+             "Mara's + Oculus = 20..45 (cap 75), untouched 10..45, a typed roll narrows, penalties 0/-40/-100, quests off "
+             "30 lower, PDR 45..50 capped at 50 with the raw beside it, the 75 cap and a max-res cap of 90, defense "
+             "349..399 / 470..485 from the base table, a per-level shift, class skills to one class, an unmapped prop and "
+             "an unnamed item UNKNOWN naming the item. And the block's watchman: char_props --check on a fake install "
+             "(fresh 0 / moved 1 / hand-edited 1 / no install 77 / corrupt 77), the doctor row 'character sheet data' "
+             "OK / MISSING / UNKNOWN and registered, and the block's uniques and set items against tv/item_tables.json "
+             "(a second generator). The real install's --check runs where the install is, UNMEASURED elsewhere. "
+             "30 cases, 13 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

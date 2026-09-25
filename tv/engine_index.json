@@ -2265,5 +2265,19 @@
     "gotcha": "A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\\base\\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
     "purpose": "Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.",
     "territory": "vault"
+  },
+  "char_props.py": {
+    "entryPoints": [
+      "assemble",
+      "build",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
+    "territory": "vault"
   }
 }
