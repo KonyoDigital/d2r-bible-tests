@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3503",
+  "ver": "v3504",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3503: a brand-new board is no longer filed as a lost store and gets its seed floor on the first load; the host operating system is read once on the heap and both the ribbon and the board door read it; the seed floors a Shako the tally can count",
+  "note": "v3504: REG-1277 to REG-1285: a live witness is not an extraction, a shared-stash item survives the vault cleanse, the first theatre open after a restart no longer waits on a test-file scan, scratch consoles leave the lane traces alone, a console with capture off is not frozen",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
