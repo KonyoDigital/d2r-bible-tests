@@ -157,9 +157,103 @@ def eye_cwd_cleanup():
     global _EYE_CWD_MADE
     if not (_EYE_CWD_IS_OURS and _EYE_CWD_MADE):
         return False
+    # #169 Win 2 — the snapshot is made READ-ONLY on purpose, and a read-only directory cannot
+    # have its entries unlinked. Give write back to what WE made before removing it.
+    for _root, _dirs, _files in os.walk(EYE_CWD):
+        for _n in _dirs + _files:
+            try:
+                os.chmod(os.path.join(_root, _n), 0o700)
+            except Exception:
+                pass
+    try:
+        os.chmod(EYE_CWD, 0o700)
+    except Exception:
+        pass
     shutil.rmtree(EYE_CWD, ignore_errors=True)
     _EYE_CWD_MADE = False
     return True
+
+
+#: #169 Win 2 — a file larger than this is left out of the eye's snapshot and NAMED as left out.
+#: bible.html is ~9 MB; handing the eye a file it cannot read in its budget is how a look stalls.
+EYE_SNAPSHOT_MAX_BYTES = 2_000_000
+
+
+def eye_snapshot(sha, max_bytes=None):
+    """#169 WIN 2 — GIVE THE EYE THE FILES IT IS REVIEWING, READ-ONLY. -> dict
+
+    His ruling, 2026-09-25: "forget this use the grok cli instead". The eye was run in an EMPTY
+    folder on pasted text, so it could not read a line of context around a hunk. This fills
+    EYE_CWD with exactly the files the reviewed commit changed, AS THEY STAND AT THAT COMMIT
+    (`git archive`, never the live checkout - v3408's reason stands: an agent pointed at the tree
+    can edit it, and Grok was caught doing so mid-ship), and makes every entry read-only.
+    MEASURED the same day: with an open folder the CLI spends its whole budget exploring
+    ("I'll measure ... Next I'll crop ...", rc=142), so the prompt also NAMES the files and says
+    not to look further - the instruction bounds it, the folder only makes the reading possible.
+    ⚠ Anything left out is NAMED (too large / not in the archive), never silently absent.
+    """
+    lim = EYE_SNAPSHOT_MAX_BYTES if max_bytes is None else max_bytes
+    out = {"ok": False, "included": [], "skipped": [], "why": ""}
+    names, why = _sh(["git", "show", "--name-only", "--format=", sha], timeout=60)
+    if names is None:
+        out["why"] = "could not list the commit's files: %s" % why
+        return out
+    want = []
+    for n in [x.strip() for x in names.splitlines() if x.strip()]:
+        sz, _w = _sh(["git", "cat-file", "-s", "%s:%s" % (sha, n)], timeout=30)
+        try:
+            size = int((sz or "").strip())
+        except ValueError:
+            out["skipped"].append("%s (deleted or not a file at this commit)" % n)
+            continue
+        if size > lim:
+            out["skipped"].append("%s (%d bytes, over the %d-byte snapshot limit)" % (n, size, lim))
+            continue
+        want.append(n)
+    if not want:
+        out["why"] = "no file of this commit fits the snapshot"
+        return out
+    tar, why = _sh_bytes(["git", "archive", "--format=tar", sha, "--"] + want, timeout=120)
+    if tar is None:
+        out["why"] = "git archive failed: %s" % why
+        return out
+    import tarfile
+    _eye_cwd_ready()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(tar)) as tf:
+            for m in tf.getmembers():
+                if not (m.isfile() or m.isdir()) or m.name.startswith("/") or ".." in m.name.split("/"):
+                    continue
+                tf.extract(m, EYE_CWD)
+    except Exception as e:
+        out["why"] = "the snapshot could not be unpacked: %s" % str(e)[:120]
+        return out
+    for _root, _dirs, _files in os.walk(EYE_CWD, topdown=False):
+        for _n in _files:
+            try:
+                os.chmod(os.path.join(_root, _n), 0o444)
+            except Exception:
+                pass
+        for _n in _dirs:
+            try:
+                os.chmod(os.path.join(_root, _n), 0o555)
+            except Exception:
+                pass
+    out.update(ok=True, included=want)
+    return out
+
+
+def snapshot_note(snap):
+    """The sentence the prompt carries about the folder. Empty when there is no snapshot."""
+    if not (isinstance(snap, dict) and snap.get("ok") and snap.get("included")):
+        return ""
+    note = ("\n\nREAD-ONLY CONTEXT: your working folder holds exactly the files this commit changed, "
+            "as they stand AT this commit: %s. You may open these files to read the code around a "
+            "hunk. Do NOT open anything else, do not run code, do not crop or measure - answer from "
+            "what you read." % ", ".join(snap["included"]))
+    if snap.get("skipped"):
+        note += " Left out of the folder (judge those from the diff only): %s." % "; ".join(snap["skipped"])
+    return note
 
 
 atexit.register(eye_cwd_cleanup)
@@ -234,6 +328,12 @@ COLD_FRAMING = (
 
 
 def _sh(args, timeout=60):
+    out, why = _sh_bytes(args, timeout=timeout)
+    return (None, why) if out is None else (out.decode("utf-8", "replace"), "")
+
+
+def _sh_bytes(args, timeout=60):
+    """-> (bytes | None, why). The ONE runner: `_sh` decodes it, `eye_snapshot` keeps the tar bytes."""
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=REPO)
     try:
         out, err = p.communicate(timeout=timeout)
@@ -248,7 +348,7 @@ def _sh(args, timeout=60):
         return None, "timed out after %ss" % timeout
     if p.returncode != 0:
         return None, (err or b"").decode("utf-8", "replace")[:300]
-    return out.decode("utf-8", "replace"), ""
+    return out, ""
 
 
 # ⚠ ANCHORED AT THE START, because the repo stamps a ship as "v2853 — ..." while a follow-up
@@ -1052,8 +1152,11 @@ def _reap_after_kill(p, drain_s=10.0, reap_s=10.0):
         return False                        # unkillable; there is nothing further a caller can do
 
 
-def ask(prompt):
+def ask(prompt, sha=None):
     """-> (answer, reached, why, structured). An unreachable eye returns reached=False, NO verdict.
+
+    #169 Win 2 — given the reviewed commit, the eye's folder holds that commit's changed files,
+    read-only, and the prompt names them (eye_snapshot / snapshot_note).
 
     `structured` is the schema-constrained object when the transport produced one, else None.
     None is a THIRD STATE: it means nobody constrained this answer, not that the answer was bad.
@@ -1069,6 +1172,8 @@ def ask(prompt):
         # These three denials are the SHIPPED pattern from kai-achilles/tools/claude_vision.sh
         # (--deny Edit --deny Write --deny MultiEdit), copied rather than re-derived, and they
         # are what makes it safe to hand the eye real code in a later version. [[grok-second-eye]]
+        if sha:
+            prompt = prompt + snapshot_note(eye_snapshot(sha))
         _argv = [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
                  "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
                  "--disable-web-search"]
@@ -1683,7 +1788,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
                                  absent=absent, reach=reach, stripped=stripped)
     if dry:
         return True
-    answer, reached, awhy, structured = ask(prompt)
+    answer, reached, awhy, structured = ask(prompt, sha=sha)
     if not reached:
         SEL.record(version=version, model=EYE_MODEL, verdict="", findings=[], images=[],
                    asked=COLD_FRAMING.strip()[:200],

@@ -5480,11 +5480,11 @@ GATES = [
              "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
              "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
              "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
-    Gate("test_every_decision_file_is_ignored",
-         [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
-         why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
-             "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
-             "asked of git check-ignore, primary and scratch form. 2 cases, 1 red-proof"),
+    Gate("test_the_eye_reads_the_commit_read_only",
+         [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
+         why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "
+             "reviewed commit's changed files AS AT THAT COMMIT (git archive, never the live tree), read-only, oversized "
+             "files named not dropped, and a prompt that names them and bounds it. 5 cases, 4 red-proofs"),
     Gate("test_every_decision_file_is_ignored",
          [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
          why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "

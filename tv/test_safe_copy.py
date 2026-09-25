@@ -39,6 +39,13 @@ import safe_copy as SC  # noqa: E402
 
 RED_PROOF = [
     {
+        "why": "2026-09-25 - agent worktrees are copied again and every heart2 sandbox is refused while agents run",
+        "file": "safe_copy.py",
+        "find": '    "worktrees",\n',
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": 'the law requires this text in safe_copy.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'safe_copy.py',
         "find": 'force=a.force',
@@ -91,6 +98,8 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         io.open(os.path.join(self.src, "tv", "frames", "reel.jpg"), "w").write("J" * 200000)
         io.open(os.path.join(self.src, "tv", ".render_shots", "s.png"), "w").write("P" * 200000)
         io.open(os.path.join(self.src, ".render_shots", "chrome-profile", "c"), "w").write("C" * 200000)
+        os.makedirs(os.path.join(self.src, ".claude", "worktrees", "agent-x", "tv"))
+        io.open(os.path.join(self.src, ".claude", "worktrees", "agent-x", "tv", "w.py"), "w").write("W" * 200000)
 
     def tearDown(self):
         for p in (self.src, os.path.dirname(self.dst)):
@@ -121,6 +130,14 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
                         "directories, so `mb > MAX_MB` is measuring the wrong tree" % total)
         self.assertTrue(any(s.endswith("frames") and os.sep in s for s in skipped),
                         "no NESTED heavy directory was reported as skipped: %s" % skipped)
+
+    def test_agent_worktrees_are_excluded(self):
+        """2026-09-25 — two isolated agents' worktrees (639 MB under .claude/worktrees) pushed every heart2
+        sandbox over the 400 MB refusal: "no lane could build a sandbox" for every proof on the Mac."""
+        files, total, skipped = SC.plan(self.src)
+        self.assertIn(os.path.join(".claude", "worktrees"), skipped, "an agent's whole checkout would be copied")
+        self.assertEqual(SC.copy(self.src, self.dst, say=lambda m: None), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.dst, ".claude", "worktrees")))
 
     def test_the_render_profile_is_excluded(self):
         SC.copy(self.src, self.dst, say=lambda m: None)

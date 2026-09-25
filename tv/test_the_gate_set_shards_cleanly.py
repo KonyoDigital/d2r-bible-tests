@@ -36,6 +36,14 @@ class TheGateSetShardsCleanly(unittest.TestCase):
                              "%d-way: a gate is missing from every slice, or sits in two" % n)
             self.assertTrue(all(slices), "%d-way: an EMPTY slice — run() would run EVERY gate" % n)
 
+    def test_no_gate_name_is_registered_twice(self):
+        """2026-09-25 — test_every_decision_file_is_ignored was registered TWICE (an interrupted edit re-applied)
+        and this law stayed green: sorted(flat) == sorted(names) holds when BOTH lists carry the duplicate. A
+        second entry runs the gate twice and inflates every census that counts the registry."""
+        names = [g.name for g in RG.GATES]
+        dup = sorted(set(n for n in names if names.count(n) > 1))
+        self.assertEqual(dup, [], "gate names registered more than once: %s" % dup)
+
     def test_the_slices_are_the_same_on_every_run(self):
         self.assertEqual(RG.shard_names(1, 2), RG.shard_names(1, 2))
         self.assertEqual(RG.shard_names(1, 2, gates=list(reversed(RG.GATES))), RG.shard_names(1, 2),
@@ -46,8 +54,12 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         w = RG.cost_weights()
         a = sum(w[x] for x in RG.shard_names(1, 2))
         b = sum(w[x] for x in RG.shard_names(2, 2))
-        self.assertLess(abs(a - b), max(w.values()) + 1,
-                        "slices differ by more than one gate's MEASURED cost: %.0f vs %.0f" % (a, b))
+        # ⚠ 2026-09-25 — THE OLD BOUND WAS ABOVE THE CEILING. "within one gate's cost" = 303 s while the
+        # sabotage it guards (weigh by declared timeout) splits 572 / 794 s - 222 s apart - so heart2 read this
+        # proof BLIND. The measured split is 683 / 683. 5% of the total (min 60 s) sees the defect and leaves
+        # the greedy split room. [[feedback-threshold-above-the-ceiling]]
+        self.assertLess(abs(a - b), max(60.0, 0.05 * (a + b)),
+                        "slices differ by more than 5%% of the MEASURED total: %.0f vs %.0f" % (a, b))
 
     def test_the_cost_table_is_a_measurement_that_covers_the_registry(self):
         import gate_costs as GC
@@ -111,6 +123,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-25 - a gate registered twice (the interrupted edit that shipped in dc0cae95) goes unseen again",
+        "file": "run_gates.py",
+        "find": '    Gate("test_every_decision_file_is_ignored",\n',
+        "replace": '    Gate("test_every_decision_file_is_ignored", [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60, why="dup"),\n    Gate("test_every_decision_file_is_ignored",\n',
+        "matches": 1,
+    },
     {
         "why": "v3477 — the measured table ignored: back to declared timeout, the lopsided 8m41s / 17m25s split",
         "file": "run_gates.py",

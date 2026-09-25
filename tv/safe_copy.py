@@ -44,6 +44,11 @@ HEAVY = (
     "playwright-report",
     "backups",
     "_archive",
+    # 2026-09-25 — `.claude/worktrees` holds the isolated git worktrees of agents running IN THIS REPO
+    # (639 MB with two live). Copied, it pushed every sandbox over the 400 MB refusal, so while any
+    # isolated agent ran, EVERY heart2 --prove on this Mac returned "no lane could build a sandbox".
+    # A worktree is a whole second checkout; no sabotage test reads another agent's tree.
+    "worktrees",
 )
 
 #: Refuse outright above this. A sabotage copy that needs a gigabyte is not a sabotage copy, it is

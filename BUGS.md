@@ -7,6 +7,32 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1295 - THE SECOND EYE REVIEWED IN AN EMPTY FOLDER (#169 WIN 2)
+
+**fix - his ruling 2026-09-25 ("forget this use the grok cli instead").** The eye was run in an empty scratch
+folder on pasted diff text, so it could never read the code around a hunk. It now gets the reviewed commit's changed
+files AS AT THAT COMMIT (`git archive`, never the live checkout - v3408: Grok was once caught editing tv/ mid-ship),
+every entry read-only, oversized files NAMED as left out, and a prompt that names the files and says not to look
+further. MEASURED the same day on a real image job: with an open folder the CLI spent its whole 420 s exploring
+(rc=142); told to look, not measure, it answered in full (rc=0, 3.3 KB) - the instruction bounds it. Guard:
+`test_the_eye_reads_the_commit_read_only` (5 cases, 4 proofs), PROVEN.
+
+### REG-1294 - A GATE REGISTERED TWICE, AND THE SHARD-BALANCE LAW WAS BLIND BY ITS OWN BOUND
+
+**fix - 2026-09-25.** `test_every_decision_file_is_ignored` was registered twice in dc0cae95 (an interrupted edit that
+had already applied, re-applied) and nothing noticed: `sorted(flat) == sorted(names)` holds when BOTH lists carry the
+duplicate. Deduped, and the gate-set law now refuses a repeated name. Proving it exposed a second, older blind spot:
+the v3477 "balanced by MEASURED cost" case allowed one gate's cost (303 s) while the sabotage it guards (weigh by
+declared timeout) splits 572 / 794 s - 222 s apart - so heart2 read it BLIND. Now 5% of the total (min 60 s); the
+real split is 683 / 683. All 5 proofs PROVEN.
+
+### REG-1293 - EVERY HEART2 PROOF FAILED WHILE AN ISOLATED AGENT RAN
+
+**fix - 2026-09-25.** Agents run with worktree isolation keep their checkouts under `.claude/worktrees` INSIDE the
+repo (639 MB with two live). `safe_copy` copied them, every proof sandbox went over its 400 MB refusal, and heart2
+reported "no lane could build a sandbox" for every gate. `worktrees` joins the never-copied names (plan: 280.5 MB).
+Guard: `test_safe_copy` +1 case, +1 proof, PROVEN.
+
 ### REG-1292 - HIS ANSWERS STORE WAS ONE `git add -A` FROM A PUBLIC REPO
 
 **fix - found 2026-09-25 when he answered the shadow-gate question ("Keep it as it is").** #223 stores his answers
