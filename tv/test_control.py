@@ -26727,8 +26727,11 @@ class TestV2122TheRenameMigrationMovesEveryStoreThatKeysOnThePiece(unittest.Test
         # #145 — END AT THE FLAG WRITE, NOT THE FIRST catch(e){}. The migration has several inner
         # try/catch blocks, so the old end-marker cut the slice off long before
         # `setItem('d2r_pieceAlias_v2')` — the one-shot flag was outside the window and unpinned.
-        self.body = _between(self, board, "d2r_pieceAlias_v", "window.D2R_PROFILE==='ladder'",
-                             what="the piece-rename migration")
+        # REG-1275 — AND START AT THE MIGRATION'S OWN GUARD, NOT THE FIRST MENTION OF ITS FLAG. The
+        # boot snapshot at the top of the first <script> reads that flag too, 39,108 chars earlier,
+        # and the bare "d2r_pieceAlias_v" anchor began the slice there. That opening line is unique.
+        self.body = _between(self, board, "if (!window.localStorage.getItem('d2r_pieceAlias_v",
+                             "window.D2R_PROFILE==='ladder'", what="the piece-rename migration")
         # ⚠ AND THE SLICE MUST BE THE MIGRATION, NOT THE FILE. My first widening ended on a marker
         # that lives 5MB later, so the "window" swallowed most of bible.html and every store name
         # matched somewhere else entirely — a slice too WIDE proves as little as one too NARROW.
