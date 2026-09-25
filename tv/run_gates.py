@@ -5363,6 +5363,12 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_a_shared_stash_item_survives_the_vault_cleanse",
+         [sys.executable, os.path.join(HERE, "test_a_shared_stash_item_survives_the_vault_cleanse.py")], 60,
+         why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned on each "
+             "owner load, and a shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: "
+             "a registered Bone Break vanished on reload, Black Cleft (no seed name) stayed. The shipped cleanse statement "
+             "runs in node with the shipped _SHARED_KEEP: shared kept, floor residue still stripped. 3 cases, 1 red-proof"),
     Gate("test_a_live_witness_is_not_an_extraction",
          [sys.executable, os.path.join(HERE, "test_a_live_witness_is_not_an_extraction.py")], 90,
          why="REG-1277 (#221) - his ruling was DIG. The 18 unexplained tombstones were his console's own "

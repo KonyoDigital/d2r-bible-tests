@@ -21064,7 +21064,13 @@ window.renderHighValueFinds = renderHighValueFinds;
       try {
         var _ma = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
         Object.keys(_GRAIL_SEED).concat(Object.keys(typeof _UNI_EXTRA!=='undefined'?_UNI_EXTRA:{})).forEach(function(n){
-          if (owned.has(n) && !_ma[n]) { owned.delete(n); _gch = true; if (!_gfl[n]) { _gfl[n] = _GRAIL_SEED[n] || (window._grailStamp?window._grailStamp():''); _gflCh = true; } }
+          /* REG-1280 — A SHARED-STASH ITEM IS NEVER FILED TO A MULE, SO "UNFILED" DID NOT MEAN "FLOOR RESIDUE"
+             FOR IT. tvVaultRegister('Bone Break') answers mule:null ("unsorted") by design - the shared stash
+             has no mule - and Bone Break is a _GRAIL_SEED name, so this cleanse deleted it from owned on the
+             next load. MEASURED on a real page: registered Bone Break + Black Cleft, reloaded, Bone Break gone
+             and Black Cleft (no seed name) kept. The prune above already spares _SHARED_KEEP (v2208); this
+             cleanse is the second deleter and never learned it. [[the-unjoined-end]] */
+          if (owned.has(n) && !_ma[n] && !_SHARED_KEEP.test(n)) { owned.delete(n); _gch = true; if (!_gfl[n]) { _gfl[n] = _GRAIL_SEED[n] || (window._grailStamp?window._grailStamp():''); _gflCh = true; } }
         });
       } catch(e){}
       // v682 — SET-PIECE floor: the Sets chronicle seed rides the same guard + unfound ledger.
