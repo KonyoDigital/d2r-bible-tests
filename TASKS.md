@@ -15,26 +15,25 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-25 · 2 active · 4 his rulings · 6 parked · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-25 (morning) · 1 active · 4 his rulings · 6 parked · viewer :17955
 
 > The live surfaces are the viewer (:17955) and the session board (`~/.claude/tasks/session-27691f89`). This section
-> mirrors them. Rewritten 2026-09-25 03:10: the 2026-09-23 version still listed #157/#164/#166 as in flight.
+> mirrors them. Rewritten 2026-09-25 ~06:00 after the overnight run.
 
 ### ⚙ ACTIVE — work that can move
 
 | # | where it stands |
 |---|---|
-| **#165** | Routine I hard reds 36 -> 33 (REG-1259 verified by CI delta). Family A traced: a 2026-08-11 fixture measured against a seed the v3313 bake grew, and a baker whose one-shot scan swallowed 25,522 strings (REG-1270/1271, shipped). NEXT: read Routine I on 1f0e85bd, re-pin the remaining family-A numbers from CI's own "Received" per the baker's protocol. |
-| **#172** | theatre freeze: 4 packs show the reopen re-showing the FIRST open's paint (nb equal to the pixel). Refutable ask posted to the seat (#230 5824200634). NEXT: read its answer before touching theatre code. |
+| **#165** | Routine I by title: 33 -> 26 (b016046c) -> 20 (87379bbd; REG-1275 cleared the 19-spec empty-fresh-board family). The 13 specs REG-1275 turned red were fixtures written against the OLD empty fresh board - each moved to names a floored board really lacks, checked on a real page; chasing one found REG-1280 (a registered Bone Break vanished from his vault on reload). Left: v877 x2 - its self-hosted console loads no film on CI (red in every log since before this session). NEXT: read the Routine I delta on the pushed batch. |
 
 ### ⛔ WAITING ON HIM — each a one-line ruling
 
 | # | the question |
 |---|---|
-| **#221** | 18 reels tombstoned 2026-09-10 01:36 - forensics on what deleted them (console stdout / push log of that night), or close as "cause unproven, guard exists"? The footage is gone either way. |
-| **#192** | `test_lock_state_asked` is blind because the lock it grades counts it among its own blind instruments - exempt the grader, or retire the law? |
-| **#178** | #37's banner half: the banner and the live heap are two writers of one sentence - banner reads the heap (one writer), or another sentence? |
-| **#229 (ruling only)** | untrack `tv/.self_arming.jsonl` and `tv/.status_worst.json` from git (every gate run dirties the tree)? Every build item of #229 shipped. |
+| **#221** | DUG (his ruling) and FIXED as REG-1277: the 18 tombstones were his console's own retention lane releasing reels on one live-lane witness while the sweep had extracted 0 rows. Left: `test_end_routes`' real-shelf case is red on his Mac at 94.95% (floor 95%) because those 18 stay unexplained for ever, by his earlier ruling. Keep it red (honest), or name them as REG-1277 departures? |
+| **#172** | NOT a freeze: the seat confirmed the reopened theatre is simply still OPEN (its film stage covers the Vault; a «-back close returns the shelf). Design question: should switching views close the theatre instead of showing its film stage over the view? And is a close control visible to him on the film stage (the seat's OCR found none)? |
+| **#239** | one synced identity - DESIGN on the card: a board served in its console's own window is that console's world by construction (a per-boot window token, the claim pinned to the console id, restore-not-reseed on an emptied store); file:// and the public site stay guests. It edits `_D2R_OWNER`, the exact path of the 2026-09-08 "my profile is missing" incident, so it waits for his go and his eyes. |
+| **#173** | the bridge nobody can name - kept open, his ruling. |
 
 ### 🅿 PARKED — cannot move by code; each names the event that reopens it (his call, 2026-09-25)
 
@@ -47,9 +46,11 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 | **#53** | magic/rare rosters - a data blocker | the roster data exists |
 | **#60** | vault attributes - the pricing half needs one paid vault read | he approves the read |
 
-**Closed 2026-09-24/25:** #171 #222 #223 #227 #228 #229 (built) #238 - REG-1254..1273, shipped through v3500/v3501/v3502,
-each law seen red. Live proofs: the ALT installed Pillow at boot by itself; its eagle finishes a pass; his console bills him
-only the rows that ask.
+**Closed 2026-09-25:** #192 (exempt the grader - measured, no change needed) · #178 (the banner reads the heap, REG-1276) ·
+#229 ruling (both files stay tracked) · #221 dug + fixed (REG-1277) · #172 refuted as a defect. Shipped v3503 (REG-1274..1276)
+and REG-1277..1282: a live witness is not an extraction · a full port window refuses · contain() first · a shared-stash item
+survives the vault cleanse · importing a suite isolates his stores · a Startup entry must launch the console. Each law seen red.
+⚠ REG-1281 was an incident of mine: a per-test runner overwrote his live chron_evidence.json; restored byte-exact.
 
 ---
 
