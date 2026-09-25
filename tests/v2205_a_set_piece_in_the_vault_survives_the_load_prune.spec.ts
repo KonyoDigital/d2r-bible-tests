@@ -121,7 +121,10 @@ test('the fixture is not vacuous — the prune really does still delete a bogus 
     // prune that keeps EVERYTHING is a different defect wearing this fix's name.
     await page.goto(URL);
     await ready(page);
-    await quiesce(page, ['Waterwalk', 'Zzzz Not A Real Item At All']);
+    /* #165 — the REAL item is a set piece, the one kind that survives with no mule filing (#48, the case
+       above). Waterwalk is a seeded unique, and the vault cleanse strips an unfiled seed name by design
+       once the floor runs - which since REG-1275 it does on a fresh board too. */
+    await quiesce(page, [SET_PIECES[1], 'Zzzz Not A Real Item At All']);
 
     await page.goto(URL);
     await ready(page);
@@ -129,7 +132,7 @@ test('the fixture is not vacuous — the prune really does still delete a bogus 
 
     const own = await page.evaluate(() =>
       JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[]);
-    expect(own, 'the real item was dropped').toContain('Waterwalk');
+    expect(own, 'the real item was dropped').toContain(SET_PIECES[1]);
     expect(own, 'a name no catalogue and no resolver recognises SURVIVED the prune — the prune is '
       + 'no longer pruning, so the test above proves nothing')
       .not.toContain('Zzzz Not A Real Item At All');
