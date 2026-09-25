@@ -15,49 +15,41 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-23 · 14 open · 25 closed · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-25 · 2 active · 4 his rulings · 6 parked · viewer :17955
 
-> ⚠ **THIS FILE WAS TWO WEEKS STALE AND SAID SO NOWHERE.** Until now the only queue here was the
-> 2026-09-07 snapshot below, 8 rows against GitHub #212-#219, while the live board had moved on to
-> #150-#168 — none of which appeared anywhere in these 3,148 lines. `CLAUDE.md` names this file as
-> the authority, so an authority that had stopped tracking the work is the same defect this arc
-> keeps finding, in the list itself. The old snapshot is KEPT below, dated, because its analysis is
-> real; it is a record, not the queue.
->
-> **The live surfaces are the viewer (:17955) and the session board. This section mirrors them.**
+> The live surfaces are the viewer (:17955) and the session board (`~/.claude/tasks/session-27691f89`). This section
+> mirrors them. Rewritten 2026-09-25 03:10: the 2026-09-23 version still listed #157/#164/#166 as in flight.
 
-### ⚙ IN FLIGHT — what is moving right now
+### ⚙ ACTIVE — work that can move
 
-| # | what is moving, with the number |
+| # | where it stands |
 |---|---|
-| **#157** | a coverage floor pinned to a COUNT tracks the river, not the surface — river-strip 1440x1000 read **0 nodes, was 20** and refused the push; a full A/B on the SAME BYTES came back 🟢 clean, so the flake is proven on our own tree. Same run: shelf-cards 1440x1000 **STALE, floor 16, measured 48** — a floor I lowered 48→16 by hand tonight, swung back. Two targets, both directions. |
-| **#164** | `RESUME_HERE.md` is stale **by construction** — the bump writes the derived block before the commit containing it exists, so the fingerprint names the PARENT. Measured: the file said **1 unpushed** while git counted **2**. A design panel is running; the gate that catches this is RIGHT and is not being weakened. |
-| **#60** | the item DB. Vocabulary BUILT and green (magicPrefix 269 · magicSuffix 298 · rarePrefix 42 · rareSuffix 152 · baseType 690, from his own CASC). The gap is the pricing half: `vault_seen.json` holds **44 rows, ZERO carrying sockets/ethereal/quality**. His directive: full heart — corroborator, watchdog, eagle eye, doctor — plus a wilson pass, live reels, and fixtures the AI cross-references from. |
-| **#166** | 13 defunct children of his console, and every zombie on the Mac is one of them. Three of my own readings withdrawn (a total over uptime is not a rate; a 14-min window against a 10-70 min gap is not absence; a stale pid list against a live count is not a delta). A child-catcher is running, naming spawners while they are still alive. |
+| **#165** | Routine I hard reds 36 -> 33 (REG-1259 verified by CI delta). Family A traced: a 2026-08-11 fixture measured against a seed the v3313 bake grew, and a baker whose one-shot scan swallowed 25,522 strings (REG-1270/1271, shipped). NEXT: read Routine I on 1f0e85bd, re-pin the remaining family-A numbers from CI's own "Received" per the baker's protocol. |
+| **#172** | theatre freeze: 4 packs show the reopen re-showing the FIRST open's paint (nb equal to the pixel). Refutable ask posted to the seat (#230 5824200634). NEXT: read its answer before touching theatre code. |
 
-### ⛔ WAITING ON HIM — nothing else is
+### ⛔ WAITING ON HIM — each a one-line ruling
 
-| # | what only he can settle |
+| # | the question |
 |---|---|
-| **#60** | one vault read under `vp3368` spends an AI call and moves `item facts captured` off UNKNOWN. Cost is his. |
-| **#141** | the session-1 pixel probe runs inside HIS interactive Windows session; last attempt photographed D2R because the game was foreground. Needs a moment when the console is. |
-| **#37** | one `window.D2R_BUILD.id` read **from the board window** (`/board`), not the console — GrokBot owes it and has acknowledged the trap. |
+| **#221** | 18 reels tombstoned 2026-09-10 01:36 - forensics on what deleted them (console stdout / push log of that night), or close as "cause unproven, guard exists"? The footage is gone either way. |
+| **#192** | `test_lock_state_asked` is blind because the lock it grades counts it among its own blind instruments - exempt the grader, or retire the law? |
+| **#178** | #37's banner half: the banner and the live heap are two writers of one sentence - banner reads the heap (one writer), or another sentence? |
+| **#229 (ruling only)** | untrack `tv/.self_arming.jsonl` and `tv/.status_worst.json` from git (every gate run dirties the tree)? Every build item of #229 shipped. |
 
-### ⏸ PENDING — not in flight
+### 🅿 PARKED — cannot move by code; each names the event that reopens it (his call, 2026-09-25)
 
-| # | what |
-|---|---|
-| **#165** | Routine I red on **every** run across 6 commits; failing spec set stable at **24**, one swapped, net zero — the redness itself is the finding. |
-| **#168** | `agreement()` calls a REACH difference an unsteady eye — 39% vs 100% on the two v3413 looks. Also: `fullCap` does NOT record the effective cap; audit by `sentCode.chars` and `reach`. |
-| **#150** | the cheap doctor subset sums to **14,168 ms** against a 9,000 ms budget. |
-| **#123** | CI prints **❌ 26**, not the 15 this board carried; 26 distinct names reconcile exactly (22 `test_*` + 4 non-test). Trajectory 18 → 23 → 26. |
-| **#159** | the seed baker answers **no drift** and leaves **no artefact**, so nothing can say when it last checked. ⛔ my planned fix was REFUTED by a comment above the function. |
-| **#145** | the silence is fixed; his console runs **with `--open`**, so nothing is observably headless. Only the supervisor's revive path is open. |
-| **#53** | ⚠ its stated blocker is REFUTED — `magic_roster`/`rare_roster` appear in **zero** files; they were never the design. Re-take readiness against the lexicon. |
-| **#32** | his ruling 2026-09-19: KEEP OPEN. Both of us remember a bridge; neither remembers the two ends. |
-| **#52** | ⛔ blocked AND explicitly last. Do not start, scope or design it. |
+| # | why it cannot move | reopens when |
+|---|---|---|
+| **#174** | explicitly last, by his order | he says start |
+| **#169** | second-eye Win 2/3 blocked on the Grok CLI transport | the CLI transport works on Windows |
+| **#141** | the ALT pixel probe photographs D2R while the game holds the foreground | a moment when the console, not the game, is foreground |
+| **#145** | no machine is observably headless; the silence itself is fixed | a headless console is seen |
+| **#53** | magic/rare rosters - a data blocker | the roster data exists |
+| **#60** | vault attributes - the pricing half needs one paid vault read | he approves the read |
 
-**Closed this arc:** v3392-v3419 — see the version rows below and the viewer's COMPLETED column (25).
+**Closed 2026-09-24/25:** #171 #222 #223 #227 #228 #229 (built) #238 - REG-1254..1273, shipped through v3500/v3501/v3502,
+each law seen red. Live proofs: the ALT installed Pillow at boot by itself; its eagle finishes a pass; his console bills him
+only the rows that ask.
 
 ---
 
