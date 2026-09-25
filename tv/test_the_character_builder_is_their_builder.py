@@ -40,6 +40,23 @@ bible.html between two real boundaries and run in node over a small DOM stand-in
     tv/item_tables.json carries for the same code / id / key — checked here without an install. Whether the block
     is what the install says TODAY is tv/char_builder_db.py's --check (UNKNOWN, never green, without an install).
 
+#174 v-B2 FIX ROUND — what the review and pixel seats measured, now held here:
+  · THE PARENT LIST IS THE BUILD'S CLASS: a Sorceress's "Helmets" holds no pelt and no primal helm (theirs,
+    01_helm_clicked); the Pelts (Druid) rail still lists its own; a build with no class keeps the whole database.
+  · SOCKETS ARE WHAT THIS ITEM MAY HOLD: Crown of Ages' own line is Socketed 1-2 - the stepper is 1..2 and it IS that
+    roll (typed 2 in either place -> two sockets to fill); another unique or set item takes 0..1 (Larzuk); a base its
+    gemsockets band (Archon Plate 0..4).
+  · THEIR INVENTORY'S All Items IS CHARMS (a jewel under Miscellaneous), and the stash tree carries Jewels > Colossal
+    Jewels and the weapons in the game's own groups (itemtypes 'mele' / 'miss'), each parent folding.
+  · TWO LINES OF COPY: EXACT is "fixed by the table, or typed" (a table's fixed value is EXACT too), and breakpoints are
+    STILL OWED (the stats engine is wired; the frame tables are not built).
+  · THE PICKER'S BLOCK IS WHAT THE INSTALL SAYS, WHERE THE INSTALL IS: tv/char_builder_db.py --check re-derives it
+    (UNMEASURED, never passed, without an install) - and the shipped block itself carries the fix-round shapes a CI
+    runner can read: every per-level line ["L", lo, key, hi, shift] (Fortitude hp/lvl 8..12 shift 3, Eaglehorn att/lvl
+    12 shift 1), Hellfire Torch's class roll ["C", 0, key, 7], Guardian Angel's four maximum resistances.
+  · ITS DOCTOR ROW: 'builder item data' - OK / MISSING (stale) / UNKNOWN (no install, never OK), registered, periodic,
+    declared and explained (the picker's block had no row while its sibling 'character sheet data' had one).
+
 ⚠ WHAT THIS LAW CANNOT SEE: pixels — that is test_the_character_builder_fits_at_every_width.py, in a real browser.
 RED_PROOF below.
 """
@@ -181,9 +198,18 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           OUT.glovTabs = window._cbQTabs('glov').map(function(t){ return t[0]; });
           OUT.invRail = window._cbRailOf('inv').map(function(r){ return r[0]; });
           OUT.invTabs = window._cbQTabs('inv').map(function(t){ return t[0]; });
+          /* the ENTIRE database is what a build with no class is offered; a class's build is offered its own */
+          window._cbCommit(function(b){ b.cls = null; });
           OUT.headN = window._cbForSlot('head').length;
           OUT.headQ = {}; window._cbForSlot('head').forEach(function(x){ OUT.headQ[x[2]] = (OUT.headQ[x[2]] || 0) + 1; });
           OUT.headNames = window._cbForSlot('head').map(function(x){ return x[1]; });
+          /* #174 v-B2 fix round - a Sorceress's "Helmets" lists no pelt and no primal helm (theirs, 01_helm_clicked);
+             the class rails still list their own */
+          window._cbCommit(function(b){ b.cls = 'Sorceress'; });
+          OUT.sorcHead = window._cbForSlot('head').map(function(x){ return x[1]; });
+          OUT.sorcPelts = window._cbForSlot('head', 2).map(function(x){ return x[1]; });
+          OUT.sorcRarm = window._cbForSlot('rarm').map(function(x){ return x[1]; });
+          OUT.sorcLarm = window._cbForSlot('larm').map(function(x){ return x[1]; });
           OUT.glovNames = window._cbForSlot('glov').map(function(x){ return x[1]; });
           OUT.rwForGloves = window._cbForSlot('glov').filter(function(x){ return x[2] === 'r'; }).length;
         """)
@@ -213,6 +239,27 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
             self.assertNotIn(n, out["headNames"], "%s is offered for the helm" % n)
         self.assertGreater(out["headQ"].get("r", 0), 5, "helm runewords (Lore, Dream, ...) are missing: %s" % out["headQ"])
         self.assertIn("Magefist", out["glovNames"])
+        # #174 v-B2 fix round - THE PARENT LIST IS THE BUILD'S CLASS: every item whose every base is another class's
+        # (itemtypes.txt Class, the block's own ty table) is left out of a Sorceress's parent list, the rest stays
+        ci = [c["n"] for c in db["cls"]].index("Sorceress")
+        def locked_elsewhere(x):
+            bs = [x[3]] if x[2] in ("u", "s", "b", "m") else []
+            return bool(bs) and all(db["ty"][db["b"][c][1]][2] not in (-1, ci) for c in bs if c in db["b"])
+        other = set(x[1] for x in db["it"] if x[2] in ("u", "s") and db["b"].get(x[3], [None, None])[1] in head_types
+                    and locked_elsewhere(x))
+        other |= set(b[0] for c, b in db["b"].items() if b[20] and b[1] in head_types and db["ty"][b[1]][2] not in (-1, ci))
+        self.assertGreaterEqual(len(other), 30, "PRINT THE DENOMINATOR: the block holds too few class-locked helms: %d" % len(other))
+        self.assertEqual(sorted(other & set(out["sorcHead"])), [], "a Sorceress's Helmets lists another class's helms")
+        self.assertEqual(sorted((want - other) - set(out["sorcHead"]))[:10], [],
+                         "the class filter dropped a helm a Sorceress can wear")
+        for n in ("Arreat's Face", "Jalal's Mane"):
+            self.assertIn(n, out["headNames"], "%s left the class-less list" % n)
+            self.assertNotIn(n, out["sorcHead"], "%s is offered to a Sorceress" % n)
+        self.assertIn("Jalal's Mane", out["sorcPelts"], "the Pelts (Druid) rail no longer lists its own pelts")
+        for n in ("Bartuc's Cut-Throat", "Herald of Zakarum"):
+            self.assertNotIn(n, out["sorcRarm"] + out["sorcLarm"], "%s (another class's) is offered to a Sorceress" % n)
+        self.assertIn("Crown of Ages", out["sorcHead"])
+        self.assertIn("Eschuta's Temper", out["sorcRarm"], "a Sorceress's own orb left her weapon list")
 
     def test_a_runewords_bases_carry_its_socket_count(self):
         out = _run(r"""
@@ -422,7 +469,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           var none = stats();
           OUT.noneSays = /the stats engine is not loaded/.test(none);
           OUT.noneNumbers = (none.match(/<b>[^<]*\d[^<]*<\/b>/g) || []);
-          OUT.noneUnknown = (none.match(/<b>UNKNOWN<\/b>/g) || []).length;
+          OUT.noneUnknown = (none.match(/<i>UNKNOWN<\/i>/g) || []).length;
           var seen = null;
           window.D2R_CHAR_ENGINE = { sheet: function(b, o){ seen = { cls: b.cls, level: b.level, head: b.slots && b.slots.head && b.slots.head.name, o: o };
             return { rows: [
@@ -439,7 +486,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           OUT.range = /Fire Resistance<\/span><span class="cb-sv cb-sv-RANGE"[^>]*><b>20–45<\/b><i>RANGE<\/i>/.test(h);
           OUT.exact = /Faster Hit Recovery<\/span><span class="cb-sv cb-sv-EXACT"[^>]*><b>30<\/b><i>EXACT<\/i>/.test(h);
           OUT.capped = /Cold Resistance<\/span><span class="cb-sv cb-sv-EXACT"[^>]*><b>75 \(raw 91\)<\/b>/.test(h);
-          OUT.unknown = /Strength<\/span><span class="cb-sv cb-sv-UNKNOWN" title="no attributes until a save is imported"><b>UNKNOWN<\/b>/.test(h);
+          OUT.unknown = /Strength<\/span><span class="cb-sv cb-sv-UNKNOWN" title="no attributes until a save is imported"><i>UNKNOWN<\/i>/.test(h);
           window.D2R_CHAR_ENGINE = { sheet: function(){ throw new Error('boom'); } };
           window._cbRender();
           OUT.threw = /the stats engine failed \(boom\)/.test(stats()) && !(stats().match(/<b>[^<]*\d[^<]*<\/b>/g) || []).length;
@@ -500,12 +547,211 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         c = db["counts"]
         self.assertGreaterEqual((c["uniques"], c["sets"], c["runewords"], c["crafted"]), (400, 140, 90, 36), c)
 
+    def test_the_shipped_block_carries_the_fix_round_shapes(self):
+        db = _db()
+        T = db["T"]
+        by = dict((x[1], x) for x in db["it"])
+        lv = [r for x in db["it"] for l in x[6] for r in l[1] if r and r[0] == "L"]
+        self.assertGreater(len(lv), 60, "PRINT THE DENOMINATOR: %d per-level lines in the block" % len(lv))
+        self.assertEqual([r for r in lv if len(r) != 5], [], "a per-level line without its range and shift")
+        self.assertEqual([r for r in lv if r[1] == 0 and r[3] == 0], [], "a per-level line stores 0 (a blank par read as 0)")
+
+        def ranges(name, code):
+            return [l[1] for l in by[name][6] if l[3] == code]
+        self.assertEqual(ranges("Fortitude", "hp/lvl"), [[["L", 8, "p6", 12, 3]]])
+        self.assertEqual(ranges("Eaglehorn", "att/lvl"), [[["L", 12, "p2", 12, 1]]], "att/lvl is shift 1 (op param)")
+        self.assertEqual(ranges("Hellfire Torch", "randclassskill"), [[[3, 3, "p1"], ["C", 0, "p1", 7]]])
+        ga = sorted(T[l[0]] for l in by["Guardian Angel"][6] if l[3] == "res-all-max")
+        self.assertEqual(ga, ["{+0}% to Maximum Cold Resist", "{+0}% to Maximum Fire Resist",
+                              "{+0}% to Maximum Lightning Resist", "{+0}% to Maximum Poison Resist"])
+
+    def test_the_generator_still_writes_the_shipped_block_where_the_install_is(self):
+        import char_builder_db as CBDB
+        code, say = CBDB.check()
+        if code == CBDB.SKIP:
+            self.skipTest("UNMEASURED here, not passed: " + say)
+        self.assertEqual(code, 0, say)
+
+    def test_the_parent_list_sockets_tabs_tree_and_copy(self):
+        out = _run(r"""
+          window.openCharBuilder(); window._cbOpenNew(); window._cbNewCls('Sorceress'); window._cbNewLvl(80); window._cbNewGo();
+          var cur = function(){ return window._cbAll()[window._cbState().bid]; };
+          var sockIn = function(){ var h = MODAL._html, i = h.indexOf('id="cb-sockets"'); return i < 0 ? null : h.slice(h.lastIndexOf('<input', i), h.indexOf('>', i) + 1); };
+          var byName = function(n){ var h = null; window._cbDb().it.forEach(function(x){ if (x[1] === n) h = x; }); return h; };
+          window._cbOpenPick('slot', 'head'); window._cbChoose(byName('Crown of Ages')[0]);
+          OUT.crownIn = sockIn(); OUT.crownSays = /Socketed 1-2 - type its roll/.test(MODAL._html);
+          window._cbRollInput({ target: { value: '2', classList: { contains: function(c){ return c === 'cb-roll'; }, add: function(){}, remove: function(){}, toggle: function(){} },
+            getAttribute: function(a){ return { 'data-key': 'p8', 'data-lo': '1', 'data-hi': '2' }[a]; } } });
+          OUT.crownTyped = [cur().sets[0].slots.head.sockets, cur().sets[0].slots.head.rolls, (MODAL._html.match(/Empty Socket/g) || []).length, sockIn()];
+          window._cbEdit('sockets', '1'); OUT.crownStep = [cur().sets[0].slots.head.sockets, cur().sets[0].slots.head.rolls];
+          window._cbClosePick();
+          window._cbOpenPick('slot', 'tors'); window._cbChoose(byName("Tyrael's Might")[0]); OUT.tyrIn = sockIn(); window._cbEdit('sockets', '4');
+          OUT.tyr = cur().sets[0].slots.tors.sockets; window._cbPickTab('select'); window._cbChoose('b:utp'); OUT.archonIn = sockIn(); window._cbClosePick();
+          window._cbOpenPick('inv', null, [0, 0]);
+          OUT.invAll = window._cbPickRows().map(function(x){ return x[1]; });
+          window._cbQt('m'); OUT.invMisc = window._cbPickRows().map(function(x){ return x[1]; }); window._cbClosePick();
+          OUT.tree = window._cbStashTree();
+          window._cbOpenStash(); OUT.folds = (MODAL._html.match(/class="cb-fold"/g) || []).length;
+          var mi = -1; OUT.tree.forEach(function(n, i){ if (n[0] === 'Melee Weapons') mi = i; });
+          window._cbStashFold(mi); OUT.foldedHides = !/>Axes<\/button>/.test(MODAL._html) && />Melee Weapons<\/button>/.test(MODAL._html);
+          window._cbCloseStash();
+          window.D2R_CHAR_ENGINE = { sheet: function(){ return { rows: [] }; } }; window._cbRender();
+          var h = ELS['cb-win']._html; OUT.legend = /EXACT = fixed by the table, or typed/.test(h);
+          window._cbView('calc'); OUT.bp = /Breakpoints \(FCR \/ FHR \/ IAS\)<\/td><td class="cb-sv-UNKNOWN">still owed/.test(ELS['cb-win']._html)
+            && !/arrive with the stats engine/.test(ELS['cb-win']._html);
+        """)
+        self.assertIn('min="1" max="2"', out["crownIn"] or "", "Crown of Ages' stepper is not its own Socketed 1-2: %s" % out["crownIn"])
+        self.assertTrue(out["crownSays"], "an untouched Socketed roll does not say how its sockets appear")
+        self.assertEqual(out["crownTyped"][:3], [2, {"p8": 2}, 2], "typing Socketed 2 did not make two sockets to fill")
+        self.assertIn('value="2"', out["crownTyped"][3], "the stepper disagrees with the item's own Socketed roll")
+        self.assertEqual(out["crownStep"], [1, {"p8": 1}], "the stepper does not write the same roll the box writes")
+        self.assertIn('min="0" max="1"', out["tyrIn"] or "", "a unique with no Socketed line takes one socket (Larzuk)")
+        self.assertIn("Larzuk", out["tyrIn"] or "")
+        self.assertEqual(out["tyr"], 1, "a unique was given 4 sockets")
+        self.assertIn('max="4"', out["archonIn"] or "", "a base's own ceiling (Archon Plate 4) was lost")
+        jewels = [n for n in out["invMisc"] if "Jewel" in n or n in ("Rainbow Facet (Cold, Level-up)",)]
+        self.assertGreater(len(jewels), 1, "PRINT THE DENOMINATOR: Miscellaneous lists no jewel: %s" % out["invMisc"][:8])
+        self.assertEqual([n for n in out["invAll"] if n in ("Jewel", "Colossal Jewel")], [], "All Items lists jewels (theirs: charms)")
+        self.assertIn("Grand Charm", out["invAll"])
+        tree = [n for n, _ in out["tree"]]
+        i = tree.index("Jewels")
+        self.assertEqual(out["tree"][i + 1], ["Colossal Jewels", 1], "the Jewels node has no Colossal Jewels child")
+        m = tree.index("Melee Weapons")
+        self.assertEqual(out["tree"][m + 1], ["Axes", 1])
+        self.assertIn("Ranged Weapons", tree)
+        self.assertNotIn("Weapons", tree, "the old flat Weapons parent is back")
+        self.assertGreaterEqual(out["folds"], 6, "the tree's parents carry no fold chevron")
+        self.assertTrue(out["foldedHides"], "folding Melee Weapons does not hide its children")
+        self.assertTrue(out["legend"], "STATS still says EXACT means only a typed roll")
+        self.assertTrue(out["bp"], "Calculations still says breakpoints arrive with the stats engine")
+
+    def test_an_active_button_keeps_its_label_under_the_pointer(self):
+        css = _builder_css(_src())
+        self.assertEqual(css.count(".cb-btn:hover:not([disabled]){"), 1)
+        rule = re.search(r"\.cb-btn\.cb-on:hover:not\(\[disabled\]\)\{([^}]*)\}", css)
+        self.assertTrue(rule, "no hover rule for an ACTIVE button: the plain hover paints gold text on its gold face")
+        self.assertIn("color:#1a1208", rule.group(1))
+        self.assertIn(".cb-sheet .cb-pane{min-height:0}", css, "the stacked picker's pane is unbounded, its list cannot scroll")
+
+
+class TheDoctorWatchesThePickersBlock(unittest.TestCase):
+    """'builder item data' - the CB_DB block's own doctor row, beside 'character sheet data'"""
+
+    def _run(self, answer):
+        import console_doctor as D
+        import char_builder_db as CBDB
+        real = CBDB.check
+        CBDB.check = lambda *a, **k: answer
+        try:
+            return D._check_the_builder_database_matches_the_install()
+        finally:
+            CBDB.check = real
+
+    def test_fresh_is_ok_stale_is_missing_no_install_is_unknown(self):
+        import console_doctor as D
+        self.assertEqual(self._run((0, "matches the install"))[0], D.OK)
+        st, why = self._run((1, "the install disagrees with the block in bible.html"))
+        self.assertEqual(st, D.MISSING, "a patched install still reads as a healthy picker")
+        self.assertIn("last patch", why)
+        self.assertEqual(self._run((77, "cannot re-derive here"))[0], D.UNKNOWN)
+
+    def test_the_row_is_registered_periodic_declared_and_explained(self):
+        import console_doctor as D
+        import corroborate as C
+        for reg, name in ((dict(D.CHECKS), "CHECKS"), (D.PERIODIC, "PERIODIC"), (D.WATCHES, "WATCHES"),
+                          (D.MINE, "MINE"), (C.NO_JOINT_YET, "NO_JOINT_YET")):
+            self.assertIn("builder item data", reg, "the row is not in %s" % name)
+
 
 RED_PROOF = [
     {
+        "why": "#174 v-B2 fix round - the parent list offers another class's items again (34 pelts for a Sorceress)",
+        "file": "bible.html",
+        "find": "    var bci = (catIx == null || catIx < 0) ? _cbClsIx((_cbBuild() || {}).cls) : -1;\n",
+        "replace": "    var bci = -1;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a unique with an own Socketed line takes the base's ceiling again (Crown of Ages 3)",
+        "file": "bible.html",
+        "find": "      return { lo: lo, hi: hi, key: lo === hi ? null : r[2], why: 'its own Socketed line: ' + (lo === hi ? lo : lo + '-' + hi) };\n",
+        "replace": "      return { lo: 0, hi: base, key: null, why: '' };\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the item's own Socketed roll no longer drives its sockets (two stores disagree)",
+        "file": "bible.html",
+        "find": "      if (sr.key && sr.key === key){ sockKey = true; e.sockets = r.v == null ? 0 : r.v; e.socketed = (e.socketed || []).slice(0, e.sockets); } });",
+        "replace": "      if (false){ sockKey = true; } });",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - any unique takes the base's full socket count (no Larzuk rule)",
+        "file": "bible.html",
+        "find": "    if (it[2] === 'u' || it[2] === 's') return { lo: 0, hi: Math.min(1, base), key: null, why: 'a unique or set item takes one socket, from Larzuk' };\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the inventory's All Items lists jewels again",
+        "file": "bible.html",
+        "find": "    if (t === 'all') return !(slot === 'inv' && _cbIsJewel(x));\n",
+        "replace": "    if (t === 'all') return true;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the stash tree loses its Jewels > Colossal Jewels child",
+        "file": "bible.html",
+        "find": "    if (Object.keys(d.b).some(function(c){ return d.b[c][1] === 'cjwl' && d.b[c][20]; })) out.push(",
+        "replace": "    if (false) out.push(",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - folding a parent hides nothing",
+        "file": "bible.html",
+        "find": "      if (!n[2]) under = i; else if (fold[under]) return '';\n",
+        "replace": "      if (!n[2]) under = i;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the STATS legend says EXACT is only a typed roll again",
+        "file": "bible.html",
+        "find": "EXACT = fixed by the table, or typed · RANGE",
+        "replace": "EXACT = a typed roll · RANGE",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the active button's hover paints gold on gold again",
+        "file": "bible.html",
+        "find": ".cb-btn.cb-on:hover:not([disabled]){color:#1a1208;border-color:var(--gold-bright)}",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the per-level generator reads a blank par as 0 again (Fortitude L 0)",
+        "file": "char_builder_db.py",
+        "find": "                elif str(lo or \"\").strip():\n",
+        "replace": "                elif False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the generator prints res-all-max's first stat only again",
+        "file": "char_builder_db.py",
+        "find": "            if f1 == 1 and len(multi) > 1 and len(multi) == len([k for k in range(1, 8) if p.get(\"func%d\" % k)]):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the picker's doctor row reads a stale block as OK",
+        "file": "console_doctor.py",
+        "find": "        return MISSING, say + \" - the picker and every tooltip list last patch's items and ranges\"\n",
+        "replace": "        return OK, say\n",
+        "matches": 1,
+    },
+    {
         "why": "#174 v-B2 - with no stats engine STATS draws a number (a 0) where nothing was measured",
         "file": "bible.html",
-        "find": "+ esc(why) + '\"><b>UNKNOWN</b></span></div>'; });\n",
+        "find": "+ esc(why) + '\"><i>UNKNOWN</i></span></div>'; });\n",
         "replace": "+ esc(why) + '\"><b>0</b></span></div>'; });\n",
         "matches": 1,
     },

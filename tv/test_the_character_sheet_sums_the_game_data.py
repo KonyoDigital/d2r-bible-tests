@@ -43,11 +43,33 @@ THE HAND-WORKED ANSWERS:
   I  an unmapped prop -> UNKNOWN naming the item: Wraithstep's skilltab-war is a row of its own, value null, and the
        rest still sums (its move1 30 -> FRW 30 EXACT). An item the data does not name makes every item row UNKNOWN
        naming it — never a 0.
-  J  class skills add to ONE class: The Oculus sor 3 -> +3 on a Sorceress, 0 on a Paladin with the reason kept.
+  J  class skills add to ONE class: The Oculus sor 3 -> +3 on a Sorceress, 0 on a Paladin with the reason kept (the
+       Oculus is an orb, so on a Paladin its class LOCK now answers first); the class-skill rule on its own: Spire of
+       Lazarus (a staff anyone carries) sor 1 -> +1 on a Sorceress, 0 on a Paladin named under notApplied.
   K  defense: Crown of Ages = floor(166 x 150 / 100) + 100..150 = 349..399 (a unique carrying +%ED spawns at the base's
        max + 1 — the in-game 349-399); Stormshield at level 90 = 133..148 + floor(30 x 90 / 8) = 470..485.
   L  per level: Enigma's MF at level 88 = floor(8 x 88 / 8) = 88.
   M  a typed roll outside its range (Crown res-all 40) is REFUSED: the range stands and a problem says why.
+
+#174 v-B2 FIX ROUND (the review seat drove this engine and found each of these; the pixel seat found R):
+  N  ENHANCED MAXIMUM DAMAGE IS ITS OWN ROW. itemstatcost item_maxdamage_percent_perlevel is op 5 on maxdamage - a
+       percent of the MAXIMUM only. Hellslayer (dmg% 100, dmg%/lvl par 24) at 80: Enhanced Damage 100 (it read 340),
+       Enhanced Maximum Damage floor(24 x 80 / 8) = 240. Eaglehorn (dmg% 200, dmg%/lvl 16, att/lvl 12 at op param 1):
+       ED 200, EMD 160, attack rating floor(12 x 80 / 2) = 480.
+  O  A CLASS-LOCKED BASE ON ANOTHER CLASS COUNTS NOTHING. itemtypes.txt: an Auric Shield (Herald of Zakarum) is Paladin
+       only, a Primal Helm (Arreat's Face) Barbarian only. A Sorceress in both at Hell with quests: fire = -100 + 30 =
+       -70 (it read 10: + Herald 50 + Arreat's 30), both named under notApplied. With NO class named, whether Herald
+       counts is UNKNOWN - its stats (fire resistance) are UNKNOWN, a stat it never touches (FCR) is not.
+  P  A SET BONUS WITH NO SWITCH IN THE TABLE blanks only what it feeds. Trang-Oul's Claws has `add func` blank and one
+       aprop (extra-pois 25): all five pieces on a Necromancer at Hell with quests - fire = -100 + 30 + Wing 38..45 +
+       the full set's res-all 50 = 18..25 (it was UNKNOWN), FCR = the Claws' cast3 20 EXACT (it was UNKNOWN), and only
+       the Poison Skill Damage row is UNKNOWN, naming the add func.
+  Q  ELEMENTAL ABSORB IS CAPPED AT 40 - a game rule, stated as a rule (no table holds it, as PDR's 50): two Wisp
+       Projectors (abs-ltng% 10..20 each) and Lightsabre (abs-ltng% 25) = raw 45..65, shown 40 with the raw beside it.
+  R  A MAGIC CHARM MAKES UNKNOWN ONLY WHAT ITS AFFIXES MAY TOUCH. B's four items + an untyped magic Small Charm
+       (inventory): the charm's pool (magicprefix / magicsuffix / automagic rows whose itype is a small charm, in the
+       block) holds res-fire and mag% and no cast rate - so fire and magic find are UNKNOWN naming the charm, and FCR
+       stays Vipermagi 30 + Oculus 30 = 60 EXACT (every row read UNKNOWN before).
 
 AND THE BLOCK'S OWN FRESHNESS (python, no browser): tv/char_props.py --check on a FAKE install — fresh 0, a moved
 table 1, a hand-edited block 1, no install 77 (UNKNOWN, never green), a corrupt string table 77; the doctor row
@@ -140,6 +162,12 @@ CASES = {
                {"difficulty": "Hell", "quests": True}),
     "J-pala": ({"cls": "Paladin", "level": 88, "sets": [{"slots": {"rarm": _slot(OCULUS)}}]},
                {"difficulty": "Hell", "quests": True}),
+    # #174 v-B2 fix round: The Oculus is a Swirling Crystal - an ORB, Sorceress only (itemtypes.txt) - so on a Paladin
+    # the class LOCK answers first. The class-SKILL rule is held on a staff anyone may carry: Spire of Lazarus sor 1.
+    "J-staff-sorc": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {"rarm": _slot("Spire of Lazarus")}}]},
+                     {"difficulty": "Hell", "quests": True}),
+    "J-staff-pala": ({"cls": "Paladin", "level": 88, "sets": [{"slots": {"rarm": _slot("Spire of Lazarus")}}]},
+                     {"difficulty": "Hell", "quests": True}),
     "K-crown": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {"head": _slot(CROWN)}}]},
                 {"difficulty": "Hell", "quests": True}),
     "K-storm": ({"cls": "Paladin", "level": 90, "sets": [{"slots": {"larm": _slot("Stormshield")}}]},
@@ -148,6 +176,24 @@ CASES = {
           {"difficulty": "Hell", "quests": True}),
     "M": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {"head": _slot(CROWN, rolls={"res-all": 40})}}]},
           {"difficulty": "Hell", "quests": True}),
+    "N-hell": ({"cls": "Barbarian", "level": 80, "sets": [{"slots": {"rarm": _slot("Hellslayer")}}]},
+               {"difficulty": "Hell", "quests": True}),
+    "N-eagle": ({"cls": "Amazon", "level": 80, "sets": [{"slots": {"rarm": _slot("Eaglehorn")}}]},
+                {"difficulty": "Hell", "quests": True}),
+    "O": ({"cls": "Sorceress", "level": 90, "sets": [{"slots": {"larm": _slot("Herald of Zakarum"),
+                                                              "head": _slot("Arreat's Face")}}]},
+          {"difficulty": "Hell", "quests": True}),
+    "O-noclass": ({"level": 90, "sets": [{"slots": {"larm": _slot("Herald of Zakarum")}}]},
+                  {"difficulty": "Hell", "quests": True}),
+    "P": ({"cls": "Necromancer", "level": 80, "sets": [{"slots": {
+        "head": _slot("Trang-Oul's Guise"), "tors": _slot("Trang-Oul's Scales"), "glov": _slot("Trang-Oul's Claws"),
+        "belt": _slot("Trang-Oul's Girth"), "larm": _slot("Trang-Oul's Wing")}}]}, {"difficulty": "Hell", "quests": True}),
+    "Q": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {"rrin": _slot("Wisp Projector"),
+                                                              "lrin": _slot("Wisp Projector"), "rarm": _slot("Lightsabre")}}]},
+          {"difficulty": "Hell", "quests": True}),
+    "R": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {
+        "head": _slot(CROWN), "tors": _slot(VIPER), "neck": _slot(MARA), "rarm": _slot(OCULUS)},
+        "inv": [_slot("Small Charm", quality="magic", base="cm1")]}]}, {"difficulty": "Hell", "quests": True}),
 }
 
 DRIVER = r"""
@@ -205,6 +251,12 @@ class TheSheetSumsTheGameData(unittest.TestCase):
         self.assertIn("skilltab-war", [l[0] for l in u["Wraithstep"][6]])
         self.assertNotIn("skilltab-war", d["props"], "the premise moved: properties.txt now HAS skilltab-war")
         self.assertEqual(d["perlvl"]["item_find_magic_perlevel"], ["item_magicbonus", 3, 2])
+        # #174 v-B2 fix round: the premise of N-R
+        self.assertEqual(d["perlvl"]["item_maxdamage_percent_perlevel"], ["maxdamage", 3, 5])
+        self.assertEqual(d["perlvl"]["item_tohit_perlevel"], ["tohit", 1, 2])
+        self.assertEqual((d["bases"]["pa9"][8], d["bases"]["baa"][8], d["bases"]["urn"][8]), ("pal", "bar", ""))
+        self.assertIn(["extra-pois", "", 25, 25], [a[1:] for s in d["sets"] if s[0] == "Trang-Oul's Claws" for a in s[8]])
+        self.assertEqual([s[6] for s in d["sets"] if s[0] == "Trang-Oul's Claws"], [0])
 
     def test_the_engine_is_exposed_whole(self):
         self.assertEqual(_run()["__api"], ["classes", "dataHash", "difficulties", "lines", "resolve", "sheet"])
@@ -278,6 +330,12 @@ class TheSheetSumsTheGameData(unittest.TestCase):
         self.assertEqual(_val("J-pala", "class-skills"), (0, 0))
         na = " ".join(x["why"] for x in _run()["J-pala"]["notApplied"])
         self.assertIn("Sorceress", na, "a class skill that does not apply was dropped without a word")
+        # the class-SKILL rule itself, on an item every class may carry (a staff): +1 to Sorceress on a Paladin is 0
+        self.assertEqual(_val("J-staff-sorc", "class-skills"), (1, 1))
+        self.assertEqual(_val("J-staff-pala", "class-skills"), (0, 0))
+        na2 = [x for x in _run()["J-staff-pala"]["notApplied"] if x.get("code") == "sor"]
+        self.assertEqual(len(na2), 1, _run()["J-staff-pala"]["notApplied"])
+        self.assertIn("Sorceress Skill Levels does not apply to a Paladin", na2[0]["why"])
 
     def test_K_defense_from_the_base_table(self):
         self.assertEqual(_val("K-crown", "defense"), (349, 399))
@@ -289,6 +347,49 @@ class TheSheetSumsTheGameData(unittest.TestCase):
     def test_M_a_typed_roll_outside_its_range_is_refused(self):
         self.assertEqual(_val("M", "res-fire"), (-50, -40))
         self.assertTrue(any("refused" in p and "40" in p for p in _run()["M"]["problems"]), _run()["M"]["problems"])
+
+    def test_N_enhanced_maximum_damage_is_its_own_row(self):
+        self.assertEqual(_val("N-hell", "ed"), (100, 100), "the per-level max damage was filed under Enhanced Damage")
+        self.assertEqual(_val("N-hell", "emd"), (240, 240))
+        self.assertEqual(_val("N-eagle", "ed"), (200, 200))
+        self.assertEqual(_val("N-eagle", "emd"), (160, 160))
+        self.assertEqual(_val("N-eagle", "ar"), (480, 480), "att/lvl is op param 1: 12 x 80 / 2")
+
+    def test_O_a_class_locked_base_on_another_class_counts_nothing(self):
+        self.assertEqual(_val("O", "res-fire"), (-70, -70), _row("O", "res-fire")["why"])
+        na = [x["why"] for x in _run()["O"]["notApplied"] if x.get("code") == "class"]
+        self.assertEqual(len(na), 2, na)
+        self.assertTrue(any("Herald of Zakarum is Paladin only" in w for w in na), na)
+        self.assertTrue(any("Arreat's Face is Barbarian only" in w for w in na), na)
+        r = _row("O-noclass", "res-fire")
+        self.assertEqual(r["source"], "UNKNOWN", "with no class named, an item only one class may wear was counted")
+        self.assertIn("Paladin only", r["why"])
+        self.assertEqual(_val("O-noclass", "fcr"), (0, 0), "a stat the item never touches went UNKNOWN too")
+
+    def test_P_a_set_bonus_with_no_switch_blanks_only_what_it_feeds(self):
+        self.assertEqual(_val("P", "res-fire"), (18, 25), _row("P", "res-fire")["why"])
+        self.assertEqual(_val("P", "fcr"), (20, 20))
+        unk = [r for r in _run()["P"]["rows"] if r["source"] == "UNKNOWN" and r["group"] != "unmapped"]
+        self.assertEqual([r["key"] for r in unk], ["stat:passive_pois_mastery"], [r["key"] for r in unk])
+        self.assertIn("add func", unk[0]["why"])
+
+    def test_Q_elemental_absorb_is_capped_at_forty_with_the_raw_beside_it(self):
+        r = _row("Q", "abs-ltng%")
+        self.assertEqual((r["raw"]["min"], r["raw"]["max"]), (45, 65))
+        self.assertEqual((r["value"]["min"], r["value"]["max"]), (40, 40))
+        self.assertEqual(r["cap"], {"min": 40, "max": 40})
+        self.assertIn("game rule", r["why"])
+
+    def test_R_a_magic_charm_makes_unknown_only_what_its_affixes_may_touch(self):
+        d = CP.embedded(_src())
+        pool = d["affix"]["scha"]
+        self.assertIn("res-fire", pool)
+        self.assertNotIn("cast1", pool, "the premise moved: a small charm's affixes now carry cast rate")
+        self.assertEqual(_val("R", "fcr"), (60, 60), "a Small Charm blanked Faster Cast Rate")
+        for k in ("res-fire", "mf"):
+            r = _row("R", k)
+            self.assertEqual(r["source"], "UNKNOWN", "%s: a charm nobody typed was read as nothing" % k)
+            self.assertIn("Small Charm is magic", r["why"])
 
     def test_the_edit_tab_reads_its_roll_keys_from_the_engine(self):
         ls = dict((l["code"], l) for l in _run()["__lines"]["lines"])
@@ -353,6 +454,13 @@ def _fake(**over):
         "itemmodifiers": _strs([("ModFire", "Fire Resist %+d%%"), ("ModAll", "All Resistances %+d"),
                                 ("AmaAll", "%+d to Amazon Skill Levels"), ("SorAll", "%+d to Sorceress Skill Levels")]),
         "skillstrings": _strs([("skillname54", "Teleport")]),
+        # #174 v-B2 fix round - the affix tables: which property codes a magic affix may put on a type
+        "magicprefix": _tsv(["Name", "spawnable", "mod1code", "mod1param", "mod1min", "mod1max", "itype1", "etype1"],
+                            ["Sturdy", 1, "ac%", "", 20, 30, "armo", ""]),
+        "magicsuffix": _tsv(["Name", "spawnable", "mod1code", "mod1param", "mod1min", "mod1max", "itype1", "etype1"],
+                            ["of Fire", 1, "res-fire", "", 5, 10, "char", ""], ["of Old", 0, "mag%", "", 5, 5, "char", ""]),
+        "automagic": _tsv(["Name", "spawnable", "mod1code", "mod1param", "mod1min", "mod1max", "itype1", "etype1"],
+                          ["of Ama", 1, "ama", "", 1, 1, "swor", "helm"]),
     }
     t.update(over)
     by_path = dict((path, t[label]) for label, path in CP.SOURCES)
@@ -475,6 +583,55 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B2 fix round - +% max damage per level is filed under Enhanced Damage again (Hellslayer ED 340)",
+        "file": "bible.html",
+        "find": "    if (pl[0] === 'maxdamage') return 'item_maxdamage_percent';\n",
+        "replace": "    if (pl[0] === 'maxdamage') return 'damagepercent';\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - an item another class must wear is summed (Herald of Zakarum on a Sorceress)",
+        "file": "bible.html",
+        "find": "      var lock = (it.base && it.base[8]) ? _ceClass(it.base[8]) : null;\n",
+        "replace": "      var lock = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - an UNSURE line is summed as if it applied",
+        "file": "bible.html",
+        "find": "      if (ctx.unsure){\n        fs.forEach(function(F){\n",
+        "replace": "      if (false){\n        fs.forEach(function(F){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - one set bonus with no switch blanks the whole sheet again (Trang-Oul's Claws)",
+        "file": "bible.html",
+        "find": "          else if (n >= 2) line(a.slice(1), { src: src, slot: it.slot, host: it, via: 'set bonus',\n",
+        "replace": "          else if (n >= 2) unkAll.push(src + ': add func ' + it.addFunc); else if (false) line(a.slice(1), { src: src, slot: it.slot, host: it, via: 'set bonus',\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - elemental absorb is uncapped again (45..65% where the game allows 40)",
+        "file": "bible.html",
+        "find": "ex.cap = { min: 40, max: 40 }; ex.capWhy = 'the game caps elemental absorb at 40% - a game rule, not a table value'; }",
+        "replace": "ex.cap = { min: 999, max: 999 }; ex.capWhy = 'the game caps elemental absorb at 40% - a game rule, not a table value'; }",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a magic charm's affix pool is ignored, so its fire resistance reads as known",
+        "file": "bible.html",
+        "find": "        ((D.affix && D.affix[it.base[5]]) || []).concat(",
+        "replace": "        ([]).concat(",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the generator drops each base's class, so no class lock can ever fire",
+        "file": "char_props.py",
+        "find": "                           walk_class(r.get(\"type\") or \"\")]\n",
+        "replace": "                           \"\"]\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 - the Hell penalty dropped: a bare Hell sheet reads the items alone, 100 points too kind",
         "file": "bible.html",

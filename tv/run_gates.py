@@ -7037,7 +7037,12 @@ GATES = [
              "no vault store and calls no mule; the tooltip's colours are spec 8 and a requirement is red only when "
              "KNOWN failed; Crafted is the game's cube, witnessed by the board's CRAFTS; the block's names are "
              "tv/item_tables.json's; STATS is the stats engine's rows with their source (a capped one with its raw) "
-             "and, with no engine, every row UNKNOWN and no number drawn. 10 cases, 10 red-proofs",
+             "and, with no engine, every row UNKNOWN and no number drawn. FIX ROUND: a Sorceress's parent list holds no "
+             "other class's items; sockets are what the item may hold (Crown of Ages' own Socketed 1-2 IS the stepper, "
+             "another unique 0..1 by Larzuk); the inventory's All Items is charms; the stash tree's Jewels > Colossal "
+             "Jewels and Melee / Ranged Weapons fold; the shipped block's per-level [L, lo, key, hi, shift] and random "
+             "class [C, ...]; the generator's --check where the install is; the doctor row 'builder item data'. "
+             "16 cases, 22 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 150,
@@ -7049,7 +7054,9 @@ GATES = [
              "serves (it covered the helm at 1024 and 901 until the placement took the roomier side), 2000 = their "
              "literal 322 | 716 | 300 columns with the doll filling the centre, and under 900 the character first. "
              "The entry and the equip are REAL input (Tools tab, the card, the slot, the search box, typed keys, a "
-             "roll, a charm dropped and dragged). No browser binary = declared skip (77). 7 cases, 4 red-proofs",
+             "roll, a charm dropped and dragged). No browser binary = declared skip (77). FIX ROUND: at 375 and 2000 the "
+             "picker's list reaches its last row under a real wheel (the stacked pane was unbounded at 375), and an active "
+             "gold button under the pointer keeps its dark label. 9 cases, 6 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -7089,7 +7096,9 @@ GATES = [
              "a right-click unlocks it, a drop on the Gems tab moves it there. #174 v-B2 integration: the hover card "
              "is the builder's in-game box (#cb-tip) - the worn weapon, the worn ring and a stash tile, hovered by a real "
              "mouse at 2000 and 1280x695, each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar "
-             "and under their panel's header. 16 cases, 18 red-proofs",
+             "and under their panel's header. FIX ROUND at 375, real input: a drag held at the top edge scrolls the window to "
+             "another mule's tab and the drop moves the item there; ] carries a keyboard item to the next mule; a real tap "
+             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -7120,8 +7129,11 @@ GATES = [
              "an unnamed item UNKNOWN naming the item. And the block's watchman: char_props --check on a fake install "
              "(fresh 0 / moved 1 / hand-edited 1 / no install 77 / corrupt 77), the doctor row 'character sheet data' "
              "OK / MISSING / UNKNOWN and registered, and the block's uniques and set items against tv/item_tables.json "
-             "(a second generator). The real install's --check runs where the install is, UNMEASURED elsewhere. "
-             "30 cases, 13 red-proofs",
+             "(a second generator). The real install's --check runs where the install is, UNMEASURED elsewhere. FIX "
+             "ROUND: Enhanced MAXIMUM Damage is its own row (Hellslayer ED 100, EMD 240 at 80); a class-locked base on "
+             "another class counts nothing (Herald of Zakarum on a Sorceress); a set bonus with no switch blanks only what "
+             "it feeds; elemental absorb caps at 40; a magic charm blanks only its affix pool's stats (FCR stays 60). "
+             "35 cases, 20 red-proofs",
          skip_ok=()),
     Gate("test_the_mule_window_places_by_hand",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_places_by_hand.py")], 90,
@@ -7134,11 +7146,12 @@ GATES = [
              "written; a spot that no longer fits is REPORTED (loader, window NOTES, calc row, shelf card) and never "
              "rewritten; unlock returns it to first-fit; a drop on a Mule tab or a stash tab lands in the first free "
              "cell there; copies place one by one; the store forks per world and rides Backup & Share; the shelf "
-             "card's shipped line and the window read the same packer; SUMMARY, CALCULATIONS and the gold box count "
+             "card's shipped line and the window read the same packer AND the same names (the MAGIC & RARE locker's "
+             "magicFinds keepers, fix round); SUMMARY, CALCULATIONS and the gold box count "
              "one mule the same with gear worn (the Grok seat's v-B finding). And every mule-window harness hands "
              "node its program on STDIN: as one argv string (node -e) the cut passed Linux's 131,072-byte "
              "argument cap, so the shell and equip laws were RED on CI (main 1e1f946e: errors=19 / errors=26) "
-             "while green on the Mac. 14 cases, 11 red-proofs",
+             "while green on the Mac. 15 cases, 13 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_is_joined_to_the_engine_and_the_mule_window",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_joined_to_the_engine_and_the_mule_window.py")], 90,
@@ -7155,7 +7168,11 @@ GATES = [
              "-20..15; a roll the engine shares no range with (Bone Break) is never guessed and STATS names it; the 8 "
              "Rainbow Facets reach the engine by *ID; Set 2 sums Set 2; a vault name opens the builder's entry "
              "(nicknames, runes by socket class, bases, UNKNOWN for none or many); the box honours its floor; the "
-             "board's two hover lanes ask window.D2TIP_OWNS. 8 cases, 12 red-proofs",
+             "board's two hover lanes ask window.D2TIP_OWNS. FIX ROUND, the tooltip and the sheet agree about one item: a "
+             "runeword keeps its base (Chains of Honor 697-890, never 892), a blank-par per-level line is its roll "
+             "(Fortitude 80-120), the shift is the table's (Eaglehorn 480), Hellslayer's maximum is 602, Guardian Angel "
+             "names four maximum resistances, Hellfire Torch rolls a CLASS, a class-locked item on another class is red "
+             "and counts nothing, a magic charm leaves FCR EXACT. 16 cases, 22 red-proofs",
          skip_ok=()),
 ]
 

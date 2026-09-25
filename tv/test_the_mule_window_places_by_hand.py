@@ -23,7 +23,9 @@ Backup exporter — cut out and run, never re-typed here):
   · COPIES are placed one by one ("<name> #2").
   · THE STORE (d2r_mulePos) forks per world like d2r_muleAssign and rides Backup & Share.
   · THE SHELF CARD AND THE WINDOW AGREE: the shelf's SHIPPED line calls the same _muleLoad with the locker's id, and
-    what it computes is what the window draws.
+    what it computes is what the window draws. #174 v-B2 fix round: and the SAME NAMES - the MAGIC & RARE locker's
+    magicFinds keepers (rolled-name items outside `assign`) were packed by the card and not by the window, so with his
+    spots keyed by name the two laid out different items; now both (and the placing code) read _muleNamesFor.
   · ONE COUNT OF A MULE (the Grok seat on v-B, reproduced 2026-09-25: SUMMARY read "On Mule 1: 10 / 19 / 20" as gear
     moved on and off the doll while the line under the stash added up to 20): SUMMARY, CALCULATIONS and the gold box
     print the same total in every state.
@@ -406,7 +408,7 @@ class OnePackerOneCount(unittest.TestCase):
 
     def test_the_shelf_card_and_the_window_read_the_same_packer(self):
         s = _src()
-        shelf = (_line(s, "      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(items.concat(magicItems)")
+        shelf = (_line(s, "      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(_muleNamesFor(m.id)")
                  + _line(s, "      catch(e){ _ld = null; }"))
         out = _drive("""
           window._mpPlace('uni-armor', 'The Stone of Jordan', { tab: 'personal', page: 0, x: 9, y: 9 });
@@ -423,6 +425,28 @@ class OnePackerOneCount(unittest.TestCase):
         ring = [r for r in shelf_rows if r[0] == "The Stone of Jordan"][0]
         self.assertEqual(ring[3:5] + [ring[7]], [9, 9, True], "the shelf card's packer does not know his spot")
         self.assertEqual((str(out["shelfPct"]), str(out["shelfMules"])), (out["windowPct"], out["windowMules"]))
+
+    def test_the_magic_and_rare_locker_packs_its_keepers_on_both_surfaces(self):
+        """#174 v-B2 fix round - the card packed items + magicFinds, the window packed items only"""
+        s = _src()
+        shelf = (_line(s, "      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(_muleNamesFor(m.id)")
+                 + _line(s, "      catch(e){ _ld = null; }"))
+        out = _drive("""
+          roster.push({ id: 'magic-rare', name: 'MAGIC & RARE', icon: 'M', note: '' });
+          var magicFinds = { 'Grim Eye of the Whale': { q: 'rare', base: 'Ring' }, 'Stormeye Coronet': { q: 'magic', base: '' } };
+          assign['Nagelring'] = 'magic-rare';
+          out.placed = window._mpPlace('magic-rare', 'Grim Eye of the Whale', { tab: 'personal', page: 0, x: 5, y: 5 });
+          var _isMule = true, m = { id: 'magic-rare' }, _ld = null;
+          %s
+          out.shelf = flat(_ld).map(function(r){ return [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]; });
+          window.openMuleCard('magic-rare');
+          out.window = tiles().map(function(t){ return [t.key, t.page, t.area, t.x, t.y, t.w, t.h, t.held, t.bad]; });""" % shelf)
+        self.assertTrue(out["placed"]["ok"], "a magicFinds keeper cannot be placed by hand in its own locker: %s" % out["placed"])
+        keys = sorted(r[0] for r in out["shelf"])
+        self.assertEqual(keys, ["Grim Eye of the Whale", "Nagelring", "Stormeye Coronet"], "PRINT THE DENOMINATOR: %s" % keys)
+        self.assertEqual(sorted(out["window"]), sorted(out["shelf"]), "the window lays out different items from the shelf card")
+        grim = [r for r in out["window"] if r[0] == "Grim Eye of the Whale"][0]
+        self.assertEqual(grim[3:5] + [grim[7]], [5, 5, True], "the keeper he placed is not where he dropped it")
 
     def test_summary_calculations_and_the_gold_box_count_one_mule_the_same(self):
         """the Grok seat on v-B: SUMMARY 'On Mule 1' read 10 / 19 / 20 as gear moved while the gold box summed to 20"""
@@ -536,6 +560,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B2 fix round - the window packs the MAGIC & RARE locker without its magicFinds keepers again",
+        "file": "bible.html",
+        "find": "    var names = _muleNamesFor(muleId);   // #174 v-B2 fix round — the shelf card's list, magicFinds keepers included\n",
+        "replace": "    var names = Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a magicFinds keeper cannot be placed by hand (the placing code lists assign only)",
+        "file": "bible.html",
+        "find": "    var nm = _muleNamesFor(muleId);   // the window's list: a magicFinds keeper in MAGIC & RARE can be placed by hand too\n",
+        "replace": "    var nm = Object.keys(assign).filter(function(n){ return assign[n] === muleId; }).sort();\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 - packGrid ignores the occupied rectangles, so first-fit places items over what he placed by hand",
         "file": "bible.html",

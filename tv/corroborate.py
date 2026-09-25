@@ -2497,6 +2497,10 @@ NO_JOINT_YET = {
     # tv/item_tables.json is a second generator over the same tables, and the law compares the two in CI (every
     # unique / set name on the same base code) - that catches a transform bug, but it is one install read twice,
     # not a second witness to what the game sums.
+    # #174 v-B2 fix round - the same shape for the builder's CB_DB block: one install, one generator
+    'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
+                          'would be the game listing its own item database, which it never writes anywhere this '
+                          'console can read.',
     'character sheet data': 'the row re-derives the CHAR_PROPS block from the install and compares it; a real second '
                           'source would be the game reporting a character sheet itself (its own resistances and '
                           'totals), which it never writes anywhere this console can read.',

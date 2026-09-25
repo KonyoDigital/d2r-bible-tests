@@ -771,9 +771,10 @@ class TheWindowAroundThePicker(unittest.TestCase):
         self.assertGreater(out["renders"], 0, "equipping did not refresh the shelf, whose gauge the worn copy frees")
         # the shelf card is the other surface (v2211): its _muleLoad call carries the same worn map — the SHIPPED line
         s = _src()
-        shelf = (_line(s, "      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(items.concat(magicItems)")
+        shelf = (_line(s, "      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(_muleNamesFor(m.id)")
                  + _line(s, "      catch(e){ _ld = null; }"))
         js = ("var got = null, _isMule = true, items = ['A'], magicItems = [], m = { id: 'uni-armor' }, _ld = null;"
+              "function _muleNamesFor(id){ return ['A']; }"
               "function _muleLoad(n, w){ got = w; return {}; } function _mpWornFor(id){ return { mule: id }; }\n"
               + shelf + "\nconsole.log(JSON.stringify(got));")
         r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
@@ -968,8 +969,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B - the shelf card packs without the doll's worn map (its gauge and the window disagree)",
         "file": "bible.html",
-        "find": "_ld = _muleLoad(items.concat(magicItems), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null, m.id); }",
-        "replace": "_ld = _muleLoad(items.concat(magicItems), null, m.id); }",
+        "find": "_ld = _muleLoad(_muleNamesFor(m.id), (typeof _mpWornFor === 'function') ? _mpWornFor(m.id) : null, m.id); }",
+        "replace": "_ld = _muleLoad(_muleNamesFor(m.id), null, m.id); }",
         "matches": 1,
     },
     {

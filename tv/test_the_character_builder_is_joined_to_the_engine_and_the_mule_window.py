@@ -41,6 +41,30 @@ mule-window tooltip script, none re-typed here):
     it fits under the floor, else below it (the mule window's floor is its panel's header).
   · ONE BOX: the board's #arttip item lane and its title prose lane both ask window.D2TIP_OWNS before opening.
 
+#174 v-B2 FIX ROUND — THE TOOLTIP AND THE SHEET AGREE ABOUT ONE ITEM (the review seat drove the shipped builder and found
+the tooltip and the engine answering one item two ways, and each wrong somewhere). Worked by hand from the tables:
+  · A RUNEWORD KEEPS ITS BASE. Chains of Honor on Archon Plate (armor.txt 410-524, runes.txt ac% 70): floor(410 x 1.7)
+    .. floor(524 x 1.7) = 697..890 in the tooltip AND the engine's defense row. The tooltip gave every +%ED item the
+    base's max + 1 and read 892 - above anything the data allows. Crown of Ages (a unique) keeps 349-399.
+  · A PER-LEVEL LINE WITH A BLANK PAR IS ITS min..max ROLL. Fortitude hp/lvl par '' 8..12 at level 80:
+    floor(8 x 80 / 8)..floor(12 x 80 / 8) = 80..120 in the tooltip and the life row (it printed "+0"); typed 10 through
+    the builder's own box -> the engine is handed hp/lvl 10 -> 100.
+  · THE SHIFT IS THE TABLE'S. Eaglehorn att/lvl 12, itemstatcost item_tohit_perlevel op param 1: 12 x 80 / 2 = 480 in
+    the tooltip and the attack rating row (it printed 120 - every line was divided by 8); with no level, "6 per level".
+  · ENHANCED MAXIMUM DAMAGE is its own stat. Hellslayer (Decapitator 2H 49-137, dmg% 100, dmg%/lvl 24 op 5 on
+    maxdamage) at level 80: the tooltip's Two-Hand Damage = floor(49 x 2)..floor(137 x (100 + 100 + 240) / 100) =
+    98 to 602 (it printed 274, the +240% dropped); the engine: Enhanced Damage 100 (it read 340) and Enhanced Maximum
+    Damage 240.
+  · res-all-max FEEDS FOUR STATS: Guardian Angel prints the four maximum resistances, never "Fire" alone.
+  · A RANDOM CLASS IS A CLASS: Hellfire Torch prints "+3 to one random class's Skill Levels" (never "+0-7"), its Edit
+    tab offers the classes, and Sorceress chosen -> the engine is handed randclassskill 1 -> Class Skills 3 EXACT.
+  · A CLASS-LOCKED ITEM ON ANOTHER CLASS: a Sorceress in Herald of Zakarum (an Auric Shield) - the tooltip's
+    "(Paladin Only)" is red, the doll slot is red, Calculations lists it, and the engine counts nothing on it (fire
+    resistance read 10 EXACT from Herald's +50 before).
+  · A SET BONUS THE TABLE GIVES NO SWITCH (Trang-Oul's Claws, add func blank) prints no "(N items)" it never had.
+  · A MAGIC CHARM nobody typed: the fire row shows what is known + ? and its chip; Faster Cast Rate stays 60 EXACT
+    (Vipermagi 30 + Oculus 30) - a Small Charm's affix pool (magicprefix / magicsuffix) never holds FCR.
+
 ⚠ WHAT THIS LAW CANNOT SEE: pixels and real pointer events - tv/test_the_mule_window_fits_at_every_width.py hovers
 the worn weapon with a real mouse and requires #cb-tip open, #arttip shut, and the box under the EQUIPMENT header;
 tv/test_the_character_builder_fits_at_every_width.py measures the STATS column at every width.
@@ -103,7 +127,14 @@ function typeRoll(slot, key, lo, hi, v){
   window._cbRollInput({ target: t }); window._cbClosePick();
 }
 function statsHtml(){ var h = ELS['cb-win']._html; return h.slice(h.indexOf('id="cb-stats"'), h.indexOf('id="cb-modal"')); }
-function row(h, label){ var i = h.indexOf('<span>' + label + '</span>'); return i < 0 ? null : h.slice(i, h.indexOf('</div>', i)); }
+function row(h, label){ var i = h.indexOf('<span class="cb-sl">' + label + '</span>'); return i < 0 ? null : h.slice(i, h.indexOf('</div>', i)); }
+function cur(){ return window._cbAll()[window._cbState().bid]; }
+function mk(cls, lvl){ window.openCharBuilder(); window._cbOpenNew(); window._cbNewCls(cls); window._cbNewLvl(lvl); window._cbNewGo(); }
+function strip(h){ return String(h).replace(/<[^>]+>/g, '').replace(/&#39;/g, "'"); }
+function tipOf(slot){ var s = cur().sets[0].slots[slot], it = window._cbItem(s.id), t = window._cbTipEntry(s, it, cur().level, slot, cur().cls);
+  return { def: t.defense, dmg1: t.dmg1, dmg2: t.dmg2, lines: t.lines.map(function(l){ return strip(l.html != null ? l.html : l.t); }), set: t.set.map(function(l){ return strip(l.html); }) }; }
+function eng(){ var eb = window._cbEngineBuild(cur()); return window.D2R_CHAR_ENGINE.sheet(eb.build, { difficulty: 'hell', quests: true }); }
+function rowOf(sh, k){ var r = sh.rows.filter(function(r){ return r.key === k; })[0]; return r ? [r.value, r.source, r.why] : null; }
 function sheetRow(key){ var eb = window._cbEngineBuild(slots()), st = window._cbState();
   var sh = window.D2R_CHAR_ENGINE.sheet(eb.build, { difficulty: st.diff, quests: !!st.quests });
   return sh.rows.filter(function(r){ return r.key === key; })[0]; }
@@ -156,7 +187,7 @@ class TheBuilderSumsThroughTheEngine(unittest.TestCase):
         self.assertEqual((nm[0], nm[1]), ({"min": 60, "max": 75}, {"min": 60, "max": 95}), "Nightmare: -40 + 20 + 80..115")
         self.assertIn("<b>60–75% (raw 60–95%)</b><i>RANGE</i>", nm[2], nm[2])
         self.assertEqual((ho[0], ho[1]), ({"min": -20, "max": 15}, False), "Hell, quests off: -100 + 0 + 80..115")
-        self.assertIn("<b>-20–15%</b><i>RANGE</i>", ho[2], ho[2])
+        self.assertIn("<b>−20 to 15%</b><i>RANGE</i>", ho[2], "a range below zero says 'to' with a real minus: %s" % ho[2])
 
     def test_a_typed_roll_joins_the_engines_line_or_stats_says_it_did_not(self):
         out = _run(r"""
@@ -252,7 +283,205 @@ class TheMuleWindowTipsLikeTheBuilder(unittest.TestCase):
                       "the board's title lane still opens over the mule window's in-game box")
 
 
+@unittest.skipIf(NODE is None, "node is not on this machine")
+class TheTooltipAndTheSheetAgree(unittest.TestCase):
+    """#174 v-B2 fix round - the review seat's findings 1-8 and the pixel seat's charm finding, DRIVEN together"""
+
+    def test_a_runeword_keeps_its_base_and_a_unique_is_born_at_max_plus_one(self):
+        out = _run(r"""
+          mk('Sorceress', 90); wear([['tors', 'Chains of Honor'], ['head', 'Crown of Ages']]);
+          window._cbCommit(function(b){ b.sets[0].slots.tors.base = 'utp'; });
+          OUT.tip = tipOf('tors').def; OUT.crown = tipOf('head').def;
+          var sh = eng(); OUT.row = rowOf(sh, 'defense');
+        """)
+        self.assertEqual(out["tip"], [697, 890], "Chains of Honor on Archon Plate: floor(410 x 1.7)..floor(524 x 1.7)")
+        self.assertEqual(out["crown"], [349, 399], "Crown of Ages is a unique: max + 1 = 166 x 1.5 + 100..150")
+        self.assertIn("Chains of Honor +697..890", out["row"][2], "the engine's defense row names another range: %s" % out["row"])
+
+    def test_a_per_level_line_is_its_roll_with_the_tables_shift(self):
+        out = _run(r"""
+          mk('Paladin', 80); wear([['tors', 'Fortitude']]);
+          OUT.fort = tipOf('tors').lines.filter(function(l){ return /to Life/.test(l); });
+          OUT.fortRow = rowOf(eng(), 'life');
+          window._cbOpenPick('slot', 'tors');
+          var m = MODAL._html, i = m.indexOf('aria-label="per-level roll 8 to 12');
+          OUT.box = i >= 0 ? m.slice(m.lastIndexOf('<input', i), m.indexOf('>', i) + 1) : null;
+          window._cbClosePick();
+          typeRoll('tors', 'p6', 8, 12, 10);
+          OUT.handed = window._cbEngineBuild(cur()).build.slots.tors.rolls;
+          OUT.fortTyped = tipOf('tors').lines.filter(function(l){ return /to Life/.test(l); });
+          OUT.fortTypedRow = rowOf(eng(), 'life');
+          mk('Amazon', 80); wear([['rarm', 'Eaglehorn']]);
+          OUT.eagle = tipOf('rarm').lines.filter(function(l){ return /Attack Rating/.test(l); });
+          OUT.eagleRow = rowOf(eng(), 'ar');
+          var e0 = cur().sets[0].slots.rarm, it0 = window._cbItem(e0.id);
+          OUT.eagleNoLevel = window._cbTipEntry(e0, it0, null, 'rarm').lines.map(function(l){ return strip(l.html != null ? l.html : l.t); })
+            .filter(function(l){ return /Attack Rating/.test(l); });
+        """)
+        self.assertEqual(out["fort"], ["+80-120 to Life (Based on Character Level)"], "Fortitude hp/lvl 8..12 at 80: %s" % out["fort"])
+        self.assertEqual(out["fortRow"][0], {"min": 80, "max": 120})
+        self.assertIn('data-lo="8"', out["box"] or "", "Fortitude's per-level roll has no box in the Edit tab")
+        self.assertEqual(out["handed"], {"hp/lvl": 10}, "a typed per-level roll did not join the engine's line")
+        self.assertEqual(out["fortTyped"], ["+100 to Life (Based on Character Level)"])
+        self.assertEqual(out["fortTypedRow"][0], {"min": 100, "max": 100})
+        self.assertEqual(out["eagle"], ["+480 to Attack Rating (Based on Character Level)"], "att/lvl is shift 1: 12 x 80 / 2")
+        self.assertEqual(out["eagleRow"][0], {"min": 480, "max": 480})
+        self.assertEqual(out["eagleNoLevel"], ["(6 per level) to Attack Rating (Based on Character Level)"])
+
+    def test_enhanced_maximum_damage_is_its_own_stat_in_both(self):
+        out = _run(r"""
+          mk('Barbarian', 80); wear([['rarm', 'Hellslayer']]);
+          OUT.dmg = tipOf('rarm').dmg2; var sh = eng(); OUT.ed = rowOf(sh, 'ed'); OUT.emd = rowOf(sh, 'emd');
+          var e0 = cur().sets[0].slots.rarm; var t0 = window._cbTipEntry(e0, window._cbItem(e0.id), null, 'rarm');
+          OUT.noLevel = [t0.dmg2, t0.lines.map(function(l){ return l.t || ''; }).filter(function(x){ return /Maximum damage/.test(x); })];
+        """)
+        self.assertEqual(out["dmg"], [98, 98, 602, 602], "Hellslayer 2H: floor(49 x 2) to floor(137 x 4.4) at level 80")
+        self.assertEqual(out["ed"][0], {"min": 100, "max": 100}, "the per-level max damage was filed under Enhanced Damage")
+        self.assertEqual(out["emd"][0], {"min": 240, "max": 240}, "Enhanced Maximum Damage: 24 x 80 / 8")
+        self.assertEqual(out["noLevel"][0][2:], [None, None], "with no level the maximum is UNKNOWN, never the ED-only number")
+        self.assertEqual(len(out["noLevel"][1]), 1, "the tooltip does not say why its maximum damage is UNKNOWN")
+
+    def test_a_property_that_feeds_four_stats_names_all_four(self):
+        out = _run(r"""
+          mk('Paladin', 80); wear([['neck', 'Guardian Angel']]);
+          OUT.lines = tipOf('neck').lines.filter(function(l){ return /Maximum/.test(l); }).sort();
+        """)
+        self.assertEqual(out["lines"], ["+15% to Maximum Cold Resist", "+15% to Maximum Fire Resist",
+                                        "+15% to Maximum Lightning Resist", "+15% to Maximum Poison Resist"])
+
+    def test_a_random_class_is_a_class_chosen_never_a_number(self):
+        out = _run(r"""
+          mk('Sorceress', 80); window._cbOpenPick('inv', null, [0, 0]); window._cbChoose(byName('Hellfire Torch')[0]);
+          var m = MODAL._html, i = m.indexOf('cb-roll-cls'); OUT.select = i >= 0 ? m.slice(m.lastIndexOf('<select', i), m.indexOf('</select>', i)) : null;
+          window._cbClosePick();
+          var s0 = function(){ var e = cur().sets[0].inv[0]; return window._cbTipEntry(e, window._cbItem(e.id), 80, 'inv').lines.map(function(l){ return strip(l.html != null ? l.html : l.t); })
+            .filter(function(l){ return /Skill Levels/.test(l); }); };
+          OUT.untyped = s0(); OUT.rowUntyped = rowOf(eng(), 'class-skills');
+          window._cbCommit(function(b){ b.sets[0].inv[0].rolls = { p1: 1 }; });
+          OUT.handed = window._cbEngineBuild(cur()).build.inv[0].rolls; OUT.typed = s0(); OUT.rowTyped = rowOf(eng(), 'class-skills');
+        """)
+        self.assertEqual(out["untyped"], ["+3 to one random class's Skill Levels"], "Hellfire Torch's line: %s" % out["untyped"])
+        self.assertIn('<option value="1">Sorceress</option>', out["select"] or "", "the Edit tab offers no class to choose")
+        self.assertNotIn("0-7", str(out["untyped"]))
+        self.assertEqual(out["rowUntyped"][0], {"min": 0, "max": 3})
+        self.assertEqual(out["handed"], {"randclassskill": 1}, "the chosen class did not reach the engine's line")
+        self.assertEqual(out["typed"], ["+3 to Sorceress Skill Levels"])
+        self.assertEqual(out["rowTyped"][:2], [{"min": 3, "max": 3}, "EXACT"])
+
+    def test_a_class_locked_item_on_another_class_is_said_everywhere_and_counts_nothing(self):
+        out = _run(r"""
+          mk('Sorceress', 90); wear([['larm', 'Herald of Zakarum'], ['head', "Arreat's Face"]]);
+          var e = cur().sets[0].slots.larm; OUT.only = window._cbTipEntry(e, window._cbItem(e.id), 90, 'larm', 'Sorceress').only;
+          OUT.fire = rowOf(eng(), 'res-fire');
+          OUT.na = eng().notApplied.map(function(n){ return n.why; });
+          var h = ELS['cb-win']._html; OUT.red = /class="cb-slot cb-has cb-red"[^>]*data-slot="larm"[^>]*aria-label="[^"]*Paladin only: this Sorceress cannot wear it/.test(h);
+          OUT.statsNote = /Herald of Zakarum is Paladin only/.test(statsHtml());
+          window._cbView('calc'); h = ELS['cb-win']._html; OUT.calc = strip(h.slice(h.indexOf('Requirements the level'), h.indexOf('Sockets filled')));
+          mk('Paladin', 90); wear([['larm', 'Herald of Zakarum']]);
+          e = cur().sets[0].slots.larm; OUT.onPala = window._cbTipEntry(e, window._cbItem(e.id), 90, 'larm', 'Paladin').only;
+          OUT.palaFire = rowOf(eng(), 'res-fire')[0];
+        """)
+        self.assertEqual(out["only"], {"t": "(Paladin Only)", "cls": "Paladin", "bad": True})
+        self.assertEqual(out["fire"][0], {"min": -70, "max": -70}, "Herald's +50 / Arreat's +30 counted on a Sorceress: %s" % out["fire"])
+        self.assertEqual(len([w for w in out["na"] if "cannot wear it" in w]), 2, out["na"])
+        self.assertTrue(out["red"], "the doll does not mark the item this class cannot wear")
+        self.assertTrue(out["statsNote"], "STATS does not say why the item counts nothing")
+        self.assertIn("Herald of Zakarum is Paladin only", out["calc"])
+        self.assertEqual(out["onPala"]["bad"], False, "a Paladin's own shield reads red")
+        self.assertEqual(out["palaFire"], {"min": -20, "max": -20}, "-100 + 30 + Herald 50 on a Paladin")
+
+    def test_a_set_bonus_with_no_switch_in_the_table_prints_no_count(self):
+        out = _run(r"""
+          mk('Necromancer', 80); wear([['glov', "Trang-Oul's Claws"], ['tors', "Trang-Oul's Scales"]]);
+          OUT.claws = tipOf('glov').set; OUT.scales = tipOf('tors').set;
+        """)
+        self.assertEqual(out["claws"], ["+25% to Poison Skill Damage (when: not in the tables)"])
+        self.assertIn("Lightning Resist +50% (3 items)", out["scales"], "add func 2 lost its count: %s" % out["scales"])
+
+    def test_a_magic_charm_leaves_the_rows_its_affixes_cannot_touch(self):
+        out = _run(r"""
+          sorc(); window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm1'); window._cbClosePick();
+          var h = statsHtml(); OUT.fire = row(h, 'Fire Resistance'); OUT.fcr = row(h, 'Faster Cast Rate');
+          OUT.fcrRow = rowOf(eng(), 'fcr'); OUT.fireRow = rowOf(eng(), 'res-fire');
+        """)
+        self.assertEqual(out["fcrRow"][:2], [{"min": 60, "max": 60}, "EXACT"], "a Small Charm blanked FCR: %s" % out["fcrRow"])
+        self.assertIn("<b>60%</b><i>EXACT</i>", out["fcr"] or "")
+        self.assertEqual(out["fireRow"][1], "UNKNOWN", "a charm's fire resistance is unknown until typed")
+        self.assertIn("Small Charm is magic", out["fireRow"][2])
+        self.assertIn("<b>10–45% + ?</b><i>UNKNOWN</i>", out["fire"] or "", "an UNKNOWN row hides what is known: %s" % out["fire"])
+
+
 RED_PROOF = [
+    {
+        "why": "#174 v-B2 fix round - a runeword is born at its base's max + 1 again (Chains of Honor 892, above the data)",
+        "file": "bible.html",
+        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's')){ lo = hi = b[9] + 1; }\n",
+        "replace": "        if (hasEd){ lo = hi = b[9] + 1; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - every per-level line divided by 8 again (Eaglehorn's attack rating a quarter of itself)",
+        "file": "bible.html",
+        "find": "  function _cbLvl(r){ return { lo: r[1], hi: r[3] == null ? r[1] : r[3], sh: Math.pow(2, r[4] == null ? 3 : r[4]) }; }",
+        "replace": "  function _cbLvl(r){ return { lo: r[1], hi: r[3] == null ? r[1] : r[3], sh: 8 }; }",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the engine files +% max damage per level under Enhanced Damage again (Hellslayer ED 340)",
+        "file": "bible.html",
+        "find": "    if (pl[0] === 'maxdamage') return 'item_maxdamage_percent';\n",
+        "replace": "    if (pl[0] === 'maxdamage') return 'damagepercent';\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the tooltip drops Enhanced Maximum Damage from the weapon's maximum (Hellslayer 98-274)",
+        "file": "bible.html",
+        "find": "        var pLo = (edd ? edd[0] : 0), pHi = (edd ? edd[1] : 0), xLo = pLo + (emd ? emd[0] : 0), xHi = pHi + (emd ? emd[1] : 0);",
+        "replace": "        var pLo = (edd ? edd[0] : 0), pHi = (edd ? edd[1] : 0), xLo = pLo, xHi = pHi;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - Hellfire Torch's class roll prints as a skill number again ('+0-7')",
+        "file": "bible.html",
+        "find": "        return cc ? esc(cc.n) : 'one random class\\'s';\n",
+        "replace": "        return r[1] + '-' + r[3];\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a class-locked item worn by another class is summed again (Herald on a Sorceress)",
+        "file": "bible.html",
+        "find": "        if (cls && lock.id !== cls.id){ res.notApplied.push({",
+        "replace": "        if (false){ res.notApplied.push({",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - the tooltip stops marking another class's item red",
+        "file": "bible.html",
+        "find": "        out.only = { t: d.cls[oc].only || ('(' + d.cls[oc].n + ' Only)'), cls: d.cls[oc].n, bad: bi >= 0 && bi !== oc };",
+        "replace": "        out.only = { t: d.cls[oc].only || ('(' + d.cls[oc].n + ' Only)'), cls: d.cls[oc].n, bad: false };",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a set bonus with no switch prints a count the table never gave",
+        "file": "bible.html",
+        "find": "        + (af === 2 ? ' (' + (l[4] || 2) + ' items)' : af === 1 ? ' (with a certain other piece)' : ' (when: not in the tables)'), cls: 'd2t-set' }); });",
+        "replace": "        + ' (' + (l[4] || 2) + ' items)', cls: 'd2t-set' }); });",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - a magic charm makes every row UNKNOWN again (its affix pool ignored)",
+        "file": "bible.html",
+        "find": "        return { name: nm, kind: 'affixed', q: q, code: baseCode, base: D.bases[baseCode], own: [], lvlreq: D.bases[baseCode][7] };\n",
+        "replace": "        return { name: nm, kind: null, why: nm + ' is ' + q + ' - its own roll' };\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - an UNKNOWN row hides the part that is known again (a bare UNKNOWN beside a real sum)",
+        "file": "bible.html",
+        "find": "v = kr ? span(kr.min, kr.max) + ' + ?' : ''; }",
+        "replace": "v = ''; }",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 integration - the builder hands its one-letter quality to the engine again, so every row reads UNKNOWN",
         "file": "bible.html",
@@ -284,15 +513,15 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 integration - STATS drops the cap the game holds a stat to",
         "file": "bible.html",
-        "find": "          + (cp ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
+        "find": "          + (cp && r.value ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
         "replace": "          + '</span></div>';",
         "matches": 1,
     },
     {
         "why": "#174 v-B2 integration - STATS drops the unit, so 45 reads as a count, not a percent",
         "file": "bible.html",
-        "find": "        var span = function(a, z){ return a === z ? a + u : (a + '–' + z + u); };",
-        "replace": "        var span = function(a, z){ return a === z ? String(a) : (a + '–' + z); };",
+        "find": "        var span = function(a, z){ return a === z ? sn(a) + u : (sn(a) + (a < 0 || z < 0 ? ' to ' : '–') + sn(z) + u); };",
+        "replace": "        var span = function(a, z){ return a === z ? sn(a) : (sn(a) + (a < 0 || z < 0 ? ' to ' : '–') + sn(z)); };",
         "matches": 1,
     },
     {

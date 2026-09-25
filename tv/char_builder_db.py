@@ -418,6 +418,19 @@ class DB(object):
             if code == "res-all":
                 emit(self.S.get("strModAllResistances"), [0], [R], _int(self.I["fireresist"].get("descpriority")))
                 continue
+            # a property that feeds SEVERAL stats with no group string (res-all-max: properties.txt func1
+            # maxfireresist, func3 maxlightresist / maxcoldresist / maxpoisonresist; itemstatcost gives the four no
+            # dgrp) prints every stat in its own words - "+15% to Maximum Fire Resist" alone said a quarter of it
+            multi = [p.get("stat%d" % k) for k in range(1, 8) if _int(p.get("func%d" % k)) in (1, 3) and p.get("stat%d" % k)]
+            if f1 == 1 and len(multi) > 1 and len(multi) == len([k for k in range(1, 8) if p.get("func%d" % k)]):
+                for st in multi:
+                    ds = self.I.get(st) or {}
+                    fp = self.S.get(ds.get("descstrpos") or "", "")
+                    if not fp:
+                        out.append([self.T.id("an effect (%s) the tables do not describe" % st), [R], 0, 2, code])
+                        continue
+                    emit(fp, [0] if re.search(r"%[+]?\d*[di]", fp) else [], [R], _int(ds.get("descpriority"), 0))
+                continue
             if code == "all-stats":
                 emit(self.S.get("Moditem2allattrib"), [0], [R], _int(self.I["strength"].get("descpriority")))
                 continue
@@ -442,15 +455,34 @@ class DB(object):
                 emit("%+d to a random skill (skill ids " + str(_int(lo)) + "-" + str(_int(hi)) + ")", [0],
                      [[_int(par), _int(par), key]], prio, 2)
                 continue
-            if f1 == 36:                                  # a random class's skills
-                emit("%+d to a random class's Skill Levels", [0], [R], prio, 2)
+            if f1 == 36:
+                # +N to ONE random class's skills (Hellfire Torch): properties.txt val1 is the N (3); min..max is the
+                # range of CLASS IDS it may roll, never a skill bonus. The value is fixed; the roll is WHICH class:
+                # ["C", lo, key, hi] - the builder draws a class choice, never a 0-7 number box.
+                n = _int(p.get("val1"))
+                emit("%+d to %s Skill Levels", [0, "{1}"], [[n, n, key], ["C", min(_int(lo), _int(hi)), key, max(_int(lo), _int(hi))]], prio)
                 continue
             if f1 == 17 and code.endswith("/lvl") or (d.get("descstr2") == "increaseswithplaylevelX"):
                 txt = self.S.get(d.get("descstrpos") or "", "")
                 if not txt:
                     continue
                 tail = self.S.get(d.get("descstr2") or "", "")
-                emit(txt + (" " + tail if tail else ""), [0], [["L", _int(par), key]], prio)
+                # PER LEVEL: ["L", lo, key, hi, shift] - the table's value per level (the par when it fixes one, else
+                # the min..max roll: Fortitude hp/lvl par '' 8..12), and itemstatcost's `op param` for the stat the
+                # value is kept in: the character gets floor(value x level / 2^shift). Attack rating per level is
+                # shift 1 (Eaglehorn 12 -> 6 per level), life per level shift 3 (8 -> 1 per level). A blank par with
+                # a blank min is a value the table does not give: UNKNOWN, never a 0.
+                sh = _int(d.get("op param"), 0)
+                if str(par or "").strip():
+                    a = b = _int(par)
+                elif str(lo or "").strip():
+                    a, b = _int(lo), _int(hi if str(hi or "").strip() else lo)
+                    if b < a:
+                        a, b = b, a
+                else:
+                    out.append([self.T.id("a per-level effect (%s) the table gives no value" % code), [], prio, 2, code])
+                    continue
+                emit(txt + (" " + tail if tail else ""), [0], [["L", a, key, b, sh]], prio)
                 continue
             df = _int(d.get("descfunc"), -1)
             pos = self.S.get(d.get("descstrpos") or "", "")

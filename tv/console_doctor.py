@@ -2913,6 +2913,10 @@ MINE = {
         "#174 v-B2 — the character sheet sums the item properties generated from HIS install;\n"
         "keeping that block in step with a game patch is my job. A stale res-all range is not\n"
         "something he can act on - he would read a wrong resistance and trust it.",
+    "builder item data":
+        "#174 v-B2 fix round — the builder's picker and tooltip list the item database generated\n"
+        "from HIS install; keeping that block in step with a game patch is my job. A stale name or\n"
+        "range is not something he can act on - he would pick and read it with confidence.",
     "item vocabulary":
         "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
         "game patch is MY job. He asked for the feature; a stale affix table is not\n"
@@ -4884,6 +4888,32 @@ def _check_the_character_sheet_data_matches_the_install():
         return UNKNOWN, say
     if code != 0:
         return MISSING, say + " - every character sheet sums last patch's ranges"
+    return OK, say
+
+
+def _check_the_builder_database_matches_the_install():
+    """#174 v-B2 fix round — DOES THE CHARACTER BUILDER STILL LIST THE GAME'S OWN ITEM DATABASE?
+
+    The builder's picker, its roll boxes, its tooltip and the mule window's hover all read the CB_DB block
+    tv/char_builder_db.py writes into bible.html from his install (bases, uniques, set items, runewords, crafted
+    recipes, runes and gems, each line in the game's own words with its range). It came from the SAME install as
+    the character sheet's CHAR_PROPS block and had no row: after a patch 'character sheet data' would go MISSING
+    while the picker's names and ranges drifted with nothing watching them. This is its sibling.
+    THREE STATES: OK the block is what the install says · MISSING the install or the generator moved (STALE - run
+    tv/char_builder_db.py --write) · UNKNOWN no install to compare against (a CI runner) - never OK.
+    """
+    try:
+        import char_builder_db as CB
+    except Exception as e:
+        return UNKNOWN, "the builder-database generator will not import: %s" % str(e)[:90]
+    try:
+        code, say = CB.check()
+    except Exception as e:
+        return UNKNOWN, "the builder-database check raised: %s" % str(e)[:110]
+    if code == getattr(CB, "SKIP", 77):
+        return UNKNOWN, say
+    if code != 0:
+        return MISSING, say + " - the picker and every tooltip list last patch's items and ranges"
     return OK, say
 
 
@@ -8256,6 +8286,7 @@ CHECKS = [
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("save reader tables", _check_the_save_reader_matches_the_install),
     ("character sheet data", _check_the_character_sheet_data_matches_the_install),
+    ("builder item data", _check_the_builder_database_matches_the_install),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
     ("item facts captured", _check_the_item_facts_are_reaching_the_row),
@@ -8514,6 +8545,7 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "item vocabulary",
             "save reader tables",      # #174 — re-derives from the install, same reason as its sibling
             "character sheet data",    # #174 v-B2 — pulls 19 tables from the install (~3 s); a patch is monthly
+            "builder item data",       # #174 v-B2 fix round — its sibling: 20 tables from the same install (~3.5 s)
             "a worker read has a deadline",
             "no git child steals his screen",
             "the door and the writers agree",
@@ -8960,6 +8992,8 @@ WATCHES = {
     "save reader tables":          (),
     # #174 v-B2 — a generated block inside bible.html, read by the engine; no element of its own. DECLARED.
     "character sheet data":        (),
+    # #174 v-B2 fix round — the builder's CB_DB block, a generated block with no element of its own. DECLARED.
+    "builder item data":           (),
     # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
     # omission: it reaches him through the eagle line, not through an element of its own.
     "fault evidence":              (),

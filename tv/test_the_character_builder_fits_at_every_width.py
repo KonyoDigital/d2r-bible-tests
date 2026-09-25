@@ -18,6 +18,10 @@ the template as it opens · with Crown of Ages on the doll and Annihilus in the 
     slot's centre hit-tests to the slot (their helm glows beside their modal, 01_helm_clicked)
   · at 2000x1300 the columns are their LITERAL 322 | 716 | 300 with 6px gutters (spec §1, ±4px), the doll fills the
     716 centre, and the header type is its token (k = 1)
+#174 v-B2 FIX ROUND, by real input: at 375 and 2000 the picker's list scrolls to its LAST row under a real wheel
+(Weapons, 600+ rows; Boots) - at 375 the stacked pane was unbounded, the list grew to 8715px and only ~35 rows could
+ever be reached; and an ACTIVE gold button under the pointer keeps its dark label (Set 1, ! Quests, Filters, the
+chosen class - the hover rule painted gold text on the gold face).
 The entry is REAL INPUT: the Tools tab and the Character Builder card are pressed by CDP mouse events at their
 centres, each hit-tested first; the helm is equipped the same way (the slot, the search box, the row), a roll is
 typed with key events, and the charm is DRAGGED to another cell with a press, moves carrying buttons=1, a release.
@@ -195,6 +199,40 @@ def _row(t, name):
                 "if (o[i].textContent === n) return i; return -1; })(%s)" % json.dumps(name))
 
 
+LIST = r"""(function(){ var l = document.getElementById('cb-list'); if (!l) return 'null';
+  var o = l.querySelectorAll('.cb-opt'), last = o[o.length - 1]; if (!last) return 'null';
+  var lr = l.getBoundingClientRect(), r = last.getBoundingClientRect();
+  var cx = (Math.max(lr.left, 0) + Math.min(lr.right, innerWidth)) / 2, cy = (Math.max(lr.top, 0) + Math.min(lr.bottom, innerHeight)) / 2;
+  var hit = document.elementFromPoint(cx, cy), y = r.top + r.height / 2, at = (y > 0 && y < innerHeight) ? document.elementFromPoint(r.left + Math.min(20, r.width / 2), y) : null;
+  return JSON.stringify({ rows: o.length, scroll: [l.scrollTop, l.scrollHeight, l.clientHeight], listH: lr.height, cx: cx, cy: cy,
+    aim: !!(hit && l.contains(hit)), lastTop: r.top, lastSeen: !!(at && (at === last || last.contains(at))), name: last.textContent }); })()"""
+HOVER_READ = r"""(function(sel){ var e = document.querySelector(sel); if (!e) return 'null'; var cs = getComputedStyle(e);
+  return JSON.stringify({ color: cs.color, bg: cs.backgroundColor, hover: e.matches(':hover'), text: e.textContent.trim() }); })(%s)"""
+
+
+def _wheel_list(t):
+    """a REAL wheel over the picker's list: 40 notches, then is its last row on screen?"""
+    b = json.loads(t.ev(LIST))
+    if not b or not b["aim"]:
+        return {"err": "the list is not under the pointer: %s" % b}
+    for _ in range(40):
+        t.send("Input.dispatchMouseEvent", type="mouseWheel", x=b["cx"], y=b["cy"], deltaX=0, deltaY=400)
+        time.sleep(0.02)
+    time.sleep(0.5)
+    return {"before": b, "after": json.loads(t.ev(LIST))}
+
+
+def _hover(t, sel):
+    """the pointer comes to rest on a control (two real moves, so the hover state is the page's own)"""
+    a = json.loads(t.ev(AIM % (json.dumps(sel), 0)))
+    if not a or not a["hit"]:
+        return {"err": "cannot aim at %s: %s" % (sel, a)}
+    for dx in (0, 1):
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=a["x"] + dx, y=a["y"], button="none")
+        time.sleep(0.15)
+    return json.loads(t.ev(HOVER_READ % json.dumps(sel)))
+
+
 def _set_size(t, w, h):
     t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
     time.sleep(0.3)
@@ -264,6 +302,32 @@ def _measure():
                 t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % js)
                 time.sleep(0.35)
                 res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
+        # #174 v-B2 fix round - the picker's list, by a real wheel, at 375 and 2000
+        for (w, h) in ((375, 812), (2000, 1300)):
+            _set_size(t, w, h)
+            for slot in ("rarm", "feet"):
+                t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
+                time.sleep(0.35)
+                res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="%s"]' % slot))
+                time.sleep(0.3)
+                res["wheel %s %dx%d" % (slot, w, h)] = _wheel_list(t)
+        # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
+        _set_size(t, 2000, 1300)
+        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
+        time.sleep(0.35)
+        hv = {}
+        hv["set"] = _hover(t, "#cb-win .cb-settabs .cb-btn.cb-on")
+        hv["quests"] = _hover(t, "#cb-win .cb-stats .cb-h-r .cb-btn.cb-on")
+        res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="glov"]'))
+        res["input"].append(_press(t, "#cb-modal .cb-srow .cb-btn"))
+        hv["filters"] = _hover(t, "#cb-modal .cb-srow .cb-btn.cb-on")
+        _key(t, "Escape", 27)
+        _key(t, "Escape", 27)
+        t.ev("(function(){ window.openCharBuilder(); window._cbOpenNew(); return 1; })()")
+        time.sleep(0.3)
+        res["input"].append(_press(t, "#cb-modal .cb-new-cls .cb-btn", 1))
+        hv["class"] = _hover(t, "#cb-modal .cb-new-cls .cb-btn.cb-on")
+        res["hover"] = hv
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -298,6 +362,38 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
             self.assertGreater(r["picker %dx%d" % (w, h)]["opts"], 50, "%dx%d: the helm picker listed too little" % (w, h))
             self.assertGreaterEqual(r["edit %dx%d" % (w, h)]["rolls"], 4, "%dx%d: the Edit tab drew no roll boxes" % (w, h))
         self.assertEqual(r.get("errors"), [], "the page threw while the builder was open")
+
+    def test_the_pickers_list_scrolls_to_its_last_row_under_a_real_wheel(self):
+        r = _measure()
+        bad = []
+        for (w, h) in ((375, 812), (2000, 1300)):
+            for slot in ("rarm", "feet"):
+                x = r["wheel %s %dx%d" % (slot, w, h)]
+                if "err" in x:
+                    bad.append("%s %dx%d: %s" % (slot, w, h, x["err"]))
+                    continue
+                a = x["after"]
+                if a["rows"] < 40:
+                    bad.append("%s %dx%d: PRINT THE DENOMINATOR - only %d rows" % (slot, w, h, a["rows"]))
+                if a["listH"] > h:
+                    bad.append("%s %dx%d: the list is %dpx tall in a %dpx screen - unbounded, it cannot scroll" % (slot, w, h, a["listH"], h))
+                if not a["lastSeen"]:
+                    bad.append("%s %dx%d: after 40 wheel notches the last row (%s) is not on screen (scroll %s)"
+                               % (slot, w, h, a["name"], a["scroll"]))
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
+    def test_an_active_button_keeps_its_label_under_the_pointer(self):
+        hv = _measure()["hover"]
+        bad = []
+        for k in ("set", "quests", "filters", "class"):
+            x = hv.get(k) or {}
+            if "err" in x or not x:
+                bad.append("%s: %s" % (k, x.get("err") if x else "not measured"))
+            elif not x["hover"]:
+                bad.append("%s: the pointer did not rest on it (%s) - UNKNOWN, not passing" % (k, x))
+            elif x["color"] == x["bg"]:
+                bad.append("%s %r: its text is %s on %s - the label disappears" % (k, x["text"], x["color"], x["bg"]))
+        self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_no_word_or_control_is_cut_or_outside_its_panel(self):
         bad = []
@@ -361,6 +457,20 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B2 fix round - the stacked picker's pane is unbounded again: at 375 the list grows to its rows and never scrolls",
+        "file": "bible.html",
+        "find": ".cb-sheet .cb-pane{min-height:0}",
+        "replace": ".cb-sheet .cb-pane{min-height:auto}",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B2 fix round - an active gold button under the pointer paints its label gold on gold again",
+        "file": "bible.html",
+        "find": ".cb-btn.cb-on:hover:not([disabled]){color:#1a1208;border-color:var(--gold-bright)}",
+        "replace": ".cb-btn.cb-on:hover:not([disabled]){border-color:var(--gold-bright)}",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 - a prose panel gets a fixed height and clips its words (the class that cut the mule window)",
         "file": "bible.html",

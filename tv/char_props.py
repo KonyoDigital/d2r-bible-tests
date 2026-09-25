@@ -22,6 +22,10 @@ this machine and writes one compact block into bible.html between two markers, w
     armor / weapons / misc .txt       a base's defense range, max sockets, level requirement; itemtypes.txt says
                                       whether a rune in it counts as a weapon, a helm/armour or a shield
     skills / skilldesc / charstats    skill id -> name and class; each class's own "+N to <tab> Skills" strings
+    magicprefix / magicsuffix /       WHICH property codes a magic / rare / crafted affix may put on an item of a type
+      automagic                       (itype / etype through the Equiv chain): the engine makes only those stats
+                                      UNKNOWN for an item whose affixes nobody typed - a Small Charm can never roll
+                                      Faster Cast Rate, so it must never blank the FCR row (#174 v-B2 fix round)
     item-names / item-runes / item-modifiers / skills .json   what the game PRINTS (a table key is not a name)
 
     python3 tv/char_props.py            # --check: is the block in bible.html what the install says?
@@ -80,6 +84,9 @@ SOURCES = [
     ("skills",           r"data:data\global\excel\skills.txt"),
     ("skilldesc",        r"data:data\global\excel\skilldesc.txt"),
     ("charstats",        r"data:data\global\excel\charstats.txt"),
+    ("magicprefix",      r"data:data\global\excel\magicprefix.txt"),
+    ("magicsuffix",      r"data:data\global\excel\magicsuffix.txt"),
+    ("automagic",        r"data:data\global\excel\automagic.txt"),
     ("itemnames",        r"data:data\local\lng\strings\item-names.json"),
     ("itemrunes",        r"data:data\local\lng\strings\item-runes.json"),
     ("itemmodifiers",    r"data:data\local\lng\strings\item-modifiers.json"),
@@ -220,8 +227,23 @@ def assemble(blobs):
             anc(e, seen)
         return seen
 
+    def walk_class(code, seen=()):
+        """itemtypes.txt `Class` through the Equiv chain: the class that alone may use a type ('' = anyone)"""
+        r = types.get(code)
+        if not r or code in seen:
+            return ""
+        if r.get("Class"):
+            return r["Class"]
+        for e in (r.get("Equiv1"), r.get("Equiv2")):
+            v = walk_class(e, seen + (code,)) if e else ""
+            if v:
+                return v
+        return ""
+
     # ── bases: code -> [name, host (w weapon · h helm/armour · s shield · '' neither), minac, maxac, maxsock, type,
-    #    charm 0/1, levelreq]. The host decides which of a rune's three mods applies (gems.txt weapon/helm/shield).
+    #    charm 0/1, levelreq, class]. The host decides which of a rune's three mods applies (gems.txt weapon/helm/
+    #    shield); the class (itemtypes.txt Class: 'pal' for an Auric Shield, 'bar' for a Primal Helm, '' for anyone) is
+    #    who may wear it - a Sorceress in Herald of Zakarum sums nothing the game would let her wear.
     bases, misc_codes = {}, set()
     for label in ("armor", "weapons", "misc"):
         for r in T[label]:
@@ -234,7 +256,8 @@ def assemble(blobs):
             host = "s" if "shld" in a else ("w" if "weap" in a else ("h" if "armo" in a else ""))
             bases[code] = [shown(r.get("namestr") or code, r.get("name")), host,
                            _num(r.get("minac")) or 0, _num(r.get("maxac")) or 0, _num(r.get("gemsockets")) or 0,
-                           r.get("type") or "", 1 if "char" in a else 0, _num(r.get("levelreq")) or 0]
+                           r.get("type") or "", 1 if "char" in a else 0, _num(r.get("levelreq")) or 0,
+                           walk_class(r.get("type") or "")]
 
     # ── skills: id -> [display name, class id or -1, table key]; only the ones an item line names are kept (an item
     #    names a skill by id — "54" — or by its KEY — "Battle Command" — so both must resolve on the page)
@@ -348,8 +371,32 @@ def assemble(blobs):
     bases = dict((c, b) for c, b in bases.items()
                  if c not in misc_codes or c in named_codes or b[6] or b[5] == "jewl")
 
+    # ── the affix POOL of an item type: every property code a spawnable magicprefix / magicsuffix / automagic row may
+    #    put on it (the type or an ancestor in itype1..7, none in etype1..5). INCLUSIVE on purpose - frequency and
+    #    version are not filtered, so the pool can only over-state what an untyped affix may touch, never hide a stat.
+    pool = {}
+    btypes = set(b[5] for b in bases.values() if b[5])
+    for t in sorted(btypes):
+        a = anc(t)
+        codes = set()
+        for label in ("magicprefix", "magicsuffix", "automagic"):
+            for r in T[label]:
+                if r.get("spawnable") != "1":
+                    continue
+                it = [r.get("itype%d" % i) for i in range(1, 8) if r.get("itype%d" % i)]
+                et = [r.get("etype%d" % i) for i in range(1, 6) if r.get("etype%d" % i)]
+                if not any(x in a for x in it) or any(x in a for x in et):
+                    continue
+                for k in (1, 2, 3):
+                    c = (r.get("mod%dcode" % k) or "").strip()
+                    if c:
+                        codes.add(c)
+        if codes:
+            pool[t] = sorted(codes)
+
     return {
         "sourceHash": source_hash(blobs),
+        "affix": pool,
         "diff": diff,
         "classes": classes,
         "props": props,
@@ -379,7 +426,7 @@ def _js(v):
 
 
 #: the keys whose value is a long list or map: one entry per line, so a patch reads as a diff of the rows it moved
-_LONG = ("uniques", "sets", "runewords", "bases", "gems", "props", "setBonus", "perlvl", "fmt", "fmtGroup", "skills")
+_LONG = ("uniques", "sets", "runewords", "bases", "gems", "props", "setBonus", "perlvl", "fmt", "fmtGroup", "skills", "affix")
 
 
 def render(data):
