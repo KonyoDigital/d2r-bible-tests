@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1302 - THE DOCTOR TOLD HIM THREE PRESENT MACHINES WERE AWAY, BECAUSE IT AGED A CACHE AGAINST ITS OWN CLOCK
+
+**fix - found reading his Mac console's doctor 2026-09-25 ("GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)")
+against a fresh /api/fleet that showed the same three rows 133-226 s old.** "a present machine has a fresh last-seen"
+compares a row's online membership with its last-seen stamp - both from ONE cached roster - and aged the stamp against
+time.time(). So it measured the cache, not the machines: his roster had not been re-fetched for ~55 min. Now aged at
+the roster's own `now` (same clock as `t`), falling back to the local fetch time; no clock at all is UNKNOWN. The
+sentence says how old the roster is. No law drove this row; test_a_last_seen_is_aged_at_its_own_snapshot does
+(5 cases, 2 red-proofs). [[a-probe-licenses-only-what-it-tested]] [[stale-reading]]
+
 ### REG-1301 - THE DOCTOR CALLED AN OLD SEAL A HIDDEN COUNT, WHILE EVERY CURRENT CARD SHOWED THE NUMBER
 
 **fix - found by the #231 second eye reviewing e81d7aab (2026-09-25), reproduced on his live roster.** e81d7aab taught

@@ -5491,6 +5491,11 @@ GATES = [
              "(VisionWorker.ask, OcrWorker.read): a worker that stops draining stdin held the vision/OCR lane "
              "for ever. The doctor row named both lines on the Mac and the ALT. The shipped classes are driven "
              "against a stdin-deaf worker with a payload past the pipe buffer. 5 cases, 4 red-proofs"),
+    Gate("test_a_last_seen_is_aged_at_its_own_snapshot",
+         [sys.executable, os.path.join(HERE, "test_a_last_seen_is_aged_at_its_own_snapshot.py")], 60,
+         why="REG-1302 - the 'a present machine has a fresh last-seen' doctor row aged ONE cached roster against "
+             "the check's own clock, so it measured the cache: 'GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)' "
+             "while the same rows were 133-226 s old. Now aged at the roster's own clock. 5 cases, 2 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

@@ -5428,15 +5428,41 @@ def _check_a_present_machine_has_a_fresh_last_seen():
     # The presence key's own TTL is the bound: to be listed online at all, a machine beaconed
     # within it. A stamp older than that is two keys disagreeing about one machine.
     PRESENCE_TTL_S = 2400
-    now = time.time()
+    import calendar as _cal
+    # ⚠⚠ REG-1302 — AGED AT THE SNAPSHOT'S OWN CLOCK, NOT AT THIS CHECK'S. Both sides of this
+    # corroborator (online membership and `t`) come from ONE cached roster, so the question "was a
+    # machine listed online with a stale stamp" must be asked at the moment that roster was
+    # listed. Aged against time.time() instead, it measured THE CACHE: MEASURED 2026-09-25 on his
+    # console, "GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)" - while a fresh /api/fleet showed
+    # the same three rows 133-226 s old. His roster had simply not been re-fetched for ~55 min, and
+    # the row told him three present machines were away. The server's own `now` is preferred (same
+    # clock as `t`); the local fetch time is the fallback; neither -> UNKNOWN, never a guess.
+    snap_now, clock = None, None
+    try:
+        if last.get("now"):
+            snap_now = _cal.timegm(time.strptime(str(last.get("now"))[:19], "%Y-%m-%dT%H:%M:%S"))
+            clock = "the roster's own clock"
+    except Exception:
+        snap_now = None
+    if snap_now is None:
+        try:
+            _ct = float(cache.get("t") or 0)
+            if _ct > 0:
+                snap_now, clock = _ct, "the time this console fetched the roster"
+        except Exception:
+            snap_now = None
+    if snap_now is None:
+        return UNKNOWN, ("the cached roster carries no clock (no `now`, no fetch time), so a "
+                         "last-seen cannot be aged at the moment its machine was listed online - "
+                         "UNKNOWN, not stale")
+    held = max(0, int((time.time() - snap_now) // 60))
     stale = []
     for r in online:
         t = r.get("t")
         if not t:
             continue                       # no stamp to judge; a different row's question
         try:
-            import calendar as _cal
-            age = now - _cal.timegm(time.strptime(str(t)[:19], "%Y-%m-%dT%H:%M:%S"))
+            age = snap_now - _cal.timegm(time.strptime(str(t)[:19], "%Y-%m-%dT%H:%M:%S"))
         except Exception:
             continue                       # undatable, not stale. [[unknown-stays-unknown]]
         if age > PRESENCE_TTL_S:
@@ -5444,10 +5470,13 @@ def _check_a_present_machine_has_a_fresh_last_seen():
     if stale:
         return MISSING, ("%d of %d online machine(s) carry a last-seen older than the %dm "
                          "presence window they must have beaconed inside, so the roster is "
-                         "telling him they are away while they are here: %s"
-                         % (len(stale), len(online), PRESENCE_TTL_S // 60, "; ".join(stale[:4])))
+                         "telling him they are away while they are here: %s (aged at %s; this "
+                         "roster is %dm old)"
+                         % (len(stale), len(online), PRESENCE_TTL_S // 60, "; ".join(stale[:4]),
+                            clock, held))
     return OK, ("all %d online machine(s) carry a last-seen inside the %dm window their presence "
-                "implies" % (len(online), PRESENCE_TTL_S // 60))
+                "implies (aged at %s; this roster is %dm old)"
+                % (len(online), PRESENCE_TTL_S // 60, clock, held))
 
 
 def _check_a_tally_agrees_with_its_own_ledger_verdict():
