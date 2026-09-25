@@ -18968,6 +18968,7 @@ window._lockMark = function(isOpen, px, label){
      be ACTIVATED" was hiding a layout answer, not a scripting one. Exporting the opener alone
      fixes half a chain. [[sweep-dont-ask]] */
   window.thOpen = thOpen;
+  window.thClose = thClose;   // #172 — the header tabs close it on a view switch
   // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
   function thMore(force){
     var pop = $('th-more-pop'), btn = $('th-more'); if (!pop || !btn) return;
@@ -21379,6 +21380,14 @@ window._lockMark = function(isOpen, px, label){
     var b = e.target.closest('.ht'); if (!b) return;
     e.preventDefault();
     e.stopPropagation();
+    /* #172 — HIS RULING 2026-09-25: SWITCHING VIEWS CLOSES THE THEATRE. The theatre deliberately covers
+       every non-Sessions view while it is open, so leaving it open and going to the Vault showed its dark
+       film stage over the vault (the seat's "dark glass", confirmed on #230: what covered the vault was
+       THEATRE_FILM_STAGE). A click on the tab already showing leaves it alone. */
+    try {
+      if (window.TH && window.TH.open && b.dataset.tab !== _shellTab
+          && typeof window.thClose === 'function') window.thClose();
+    } catch (_tc) {}
     if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }   // TV·D = the cockpit home
     if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
     document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);

@@ -167,6 +167,20 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     expect(after.body).toBe(before.body);   // v859 doctrine: theatre owns Space
   });
 
+  // #172 — HIS RULING 2026-09-25: switching views closes the theatre (it covered the vault as "dark glass").
+  test('switching to another view closes the theatre; the view already showing leaves it open', async ({ page }) => {
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    await simToggle(page);
+    await expect.poll(() => page.evaluate(() => ((window as any).TH?.beats || []).length),
+      { timeout: 15000 }).toBeGreaterThan(0);
+    await page.evaluate(() => (document.querySelector('.ht[data-tab="tvd"]') as HTMLElement)?.click());
+    await page.waitForTimeout(400);
+    expect((await state(page)).theatre, 'the tab already showing closed the theatre').toBe(true);
+    await page.evaluate(() => (document.querySelector('.ht[data-tab="vault"]') as HTMLElement).click());
+    await expect.poll(async () => (await state(page)).theatre, { timeout: 5000 }).toBe(false);
+  });
+
   test('arrows single-step, Home/End clamp, ✕ closes the drawer', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);

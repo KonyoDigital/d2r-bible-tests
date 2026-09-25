@@ -5363,6 +5363,12 @@ GATES = [
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
              "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+    Gate("test_switching_views_closes_the_theatre",
+         [sys.executable, os.path.join(HERE, "test_switching_views_closes_the_theatre.py")], 60,
+         why="#172 - his ruling 2026-09-25: switching views closes the theatre. It deliberately covers every "
+             "non-Sessions view while open, and the seat's 'dark glass' over the Vault was its film stage. The "
+             "shipped header-tab guard runs in node: a different tab closes it, the same tab or a closed theatre "
+             "calls nothing; thClose is exported. The browser half is in v877. 4 cases, 2 red-proofs"),
     Gate("test_the_theatre_never_waits_on_the_fixture_scan",
          [sys.executable, os.path.join(HERE, "test_the_theatre_never_waits_on_the_fixture_scan.py")], 120,
          why="REG-1284 (#165) - the theatre ran frame_authority's test-file scan inside /api/sessions; cold (a fresh "
