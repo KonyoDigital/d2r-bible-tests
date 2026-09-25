@@ -49,6 +49,19 @@ async function seedInbox(page: any, names: string[]) {
     localStorage.removeItem('d2r_chronicleAutoRetired');
     localStorage.removeItem('d2r_chronicleKeepPending');
     localStorage.setItem('d2r_chronicleInbox', JSON.stringify(ns.map((n) => ({ name: n }))));
+    /* #165 — THE UNIQUES THESE ROWS STAND FOR MUST BE UNFOUND BEFORE BOOT, because the resolver runs AT
+       load. Since REG-1275 a fresh board floors the seed like his, where Guardian Angel (Templar Coat's
+       unique) and Toothrow are found - so Toothrow retired as "already found" and Templar Coat stopped
+       being a not-found base. His own un-tick store (the floor respects it), first load only, so a case
+       that ticks one later is not undone on reload. Measured on a real page: Templar Coat -> Guardian
+       Angel, Bone Visage -> Giant Skull, Toothrow kept. */
+    if (!sessionStorage.getItem('__v1789_unfound')) {
+      sessionStorage.setItem('__v1789_unfound', '1');
+      let gu: Record<string, number> = {};
+      try { gu = JSON.parse(localStorage.getItem('d2r_grailUnfound') || '{}') || {}; } catch (e) { gu = {}; }
+      for (const u of ['Guardian Angel', 'Toothrow']) gu[u] = 1;
+      localStorage.setItem('d2r_grailUnfound', JSON.stringify(gu));
+    }
   }, [names, BOOT_AS_LATER_LOAD]);
 }
 
