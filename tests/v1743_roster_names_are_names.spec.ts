@@ -49,6 +49,13 @@ test.describe('v1743 — the roster spells items the way they are displayed', ()
   test('★★★ Blood Crescent is one item, under its real name, on every surface', async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(2600);
+    /* #165 — the scan and the farm bridge list what is still to HUNT, and since REG-1275 a fresh board floors
+       the seed like his, where Blood Crescent is found. Un-tick it through his own path (toggleOwned ->
+       d2r_grailUnfound, respected by the floor) so both surfaces carry it again. Measured on a real page:
+       missing 1 with 65 sources, bridge 1, no squashed name, resolves. */
+    await page.evaluate(() => { const w: any = window; if (w._gFound && w._gFound('Blood Crescent')) w.toggleOwned('Blood Crescent'); });
+    await page.reload();
+    await page.waitForTimeout(2600);
     const r = await page.evaluate(() => {
       const w: any = window;
       const fu = w.funiScan();
