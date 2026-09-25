@@ -45,7 +45,12 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
      undoable, an un-tick is not, and none was touched. Independently corroborated afterwards: the
      v1758 sweep, reading the same frames through the claude+grok lanes, surfaced Baranar's Star on
      its own. His in-game panel reads 64% on those frames; the board read 61% at 246/403. */
-  expect(r.seedN).toBe(245);   // v682: 243 · v1758: +Baranar's Star +Atma's Wail, both from his own film
+  /* REG-1270/1271/1274/1275 (#165) — RE-READ PER THE BAKER'S OWN PROTOCOL ("a write moves seed-derived spec constants;
+     re-run and read what they report"), measured in a real page on 2026-09-25, never derived on paper:
+     the v3313 bake grew the seed 245 -> 312 and nobody re-read this; REG-1271 removed three names the one-shots own
+     (312 -> 309); REG-1274 seeds 'Harlequin Crest' instead of an uncountable vault spelling; and REG-1275 lets a
+     FRESH board be floored at all - before it every first load was filed as a lost store and found read 0. */
+  expect(r.seedN).toBe(309);   // v682: 243 · v1758: +2 from his film · v3313 bake: 312 · REG-1271: -3 one-shot names
   // v1695 — THESE FOUR NUMBERS MOVED BECAUSE THE LEDGER GREW, WHICH IS THE WHOLE POINT OF THE ARC.
   // Konyo's instruction was explicit: "from 236 it NEEDS TO GO UP". Three genuine finds were read
   // off his own Chronicle screenshots and applied in v1693 -- Fleshrender (08/03 01:27 Diablo),
@@ -91,8 +96,8 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
      Bone Break, Flame Rift. This line said 398 since v1720 and had been red since the ruling —
      a spec encoding the world as it was before he ruled. LAST DECLARATION WINS. */
   expect(r.total).toBe(392);            // v1720: 387 + the eleven, MINUS the 6 Latent (v2680)
-  expect(r.found).toBe(248);            // UNCHANGED by that addition — v1758 seeded +2 found
-  expect(r.flN).toBe(356);              // UNCHANGED — 246 uniques + 108 set-piece stamps · v1758: +2 seeded finds reach the ledger
+  expect(r.found).toBe(310);            // the floor's 309 names -> 298 roster items, + the 12 one-shot names a first load applies
+  expect(r.flN).toBe(430);              // the seed floor's unique + set-piece stamps plus the one-shots, measured
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
@@ -128,6 +133,9 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
 
 test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re-tick clears it', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(2000);
+  // REG-1270 — the law is relational: an un-tick costs exactly one, a re-tick gives it back. Read, never pinned.
+  const base = await page.evaluate(() => (window as any).funiScan().found);
+  expect(base, 'premise: the floor filled this board, so Wormskull starts OWNED (REG-1275)').toBeGreaterThan(0);
   await page.evaluate(() => (window as any).toggleOwned('Wormskull'));
   await page.reload(); await page.waitForTimeout(2000);
   const after = await page.evaluate(() => ({
@@ -149,8 +157,8 @@ test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re
   // would belong in bible.html, not here.
   expect(after.owned).toBe(false);
   expect(after.gu).toBe(1);
-  expect(after.found).toBe(247);        // v1695: 246 with Wormskull un-ticked · v1758: +2 seeded finds
-  expect(restored.found).toBe(248);     // v1695: 243 + three v1693 finds · v1758: +2 from his film
+  expect(after.found, 'the un-tick costs exactly one').toBe(base - 1);
+  expect(restored.found, 'the re-tick gives exactly that one back').toBe(base);
   expect(restored.gu).toBeUndefined();
 });
 
