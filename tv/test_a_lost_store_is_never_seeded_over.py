@@ -370,6 +370,10 @@ class TheRecoveredAtWriterActuallyWrites(unittest.TestCase):
               "             setItem: function(k, v){ store[k] = v; } };\n"
               "  var Date = { now: function(){ return NOW; } };\n"
               "  var _emptiedLoss = false;\n"
+              # REG-1275 - the region reads window.__d2rHadRunAtBoot, the boot snapshot. A window with no
+              # snapshot takes the region's own fallback (the one-time keys), which is what these cases
+              # drive. The page always has a window; this harness simply had not needed one before.
+              "  var window = {};\n"
               + BIBLE[a:b] +
               "\n  return store;\n}\n"
               "console.log(JSON.stringify(run(%s, %d)));" % (json.dumps(store), now))

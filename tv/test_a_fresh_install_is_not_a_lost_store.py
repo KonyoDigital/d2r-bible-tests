@@ -57,7 +57,9 @@ class AFreshInstallIsNotALostStore(unittest.TestCase):
     def test_the_detector_reads_the_snapshot(self):
         i = self.code.find("var _hadRun =")
         self.assertGreater(i, -1, "premise: the loss detector's _hadRun")
-        self.assertIn("window.__d2rHadRunAtBoot", self.code[i:i + 300],
+        # the statement, to its own end - a fixed-size slice is a guess about how far it reaches
+        stmt = self.code[i:self.code.index(";", i) + 1]
+        self.assertIn("(typeof window.__d2rHadRunAtBoot === 'boolean') ? window.__d2rHadRunAtBoot", stmt,
                       "the detector re-reads the keys this boot already wrote")
 
 
