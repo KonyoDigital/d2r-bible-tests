@@ -180,6 +180,19 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
      cannot be opened or hunted is the defect this arc removed, not a new one to add. */
   test('★ the eleven he ruled in are real roster entries, not just names', async ({ page }) => {
     await boot(page);
+    /* #165 — "CAN IT BE HUNTED" IS ASKED OF A BOARD THAT HAS NOT FOUND IT. Since REG-1275 a fresh board
+       floors the seed like his, and five of the nine chronicle-counted names are seeded found, so they
+       left the missing list and this read "not in the missing list (is it seeded found?)". Un-tick
+       them through his own path (toggleOwned -> d2r_grailUnfound, which the floor respects) and ask
+       again. Measured on a real page: 5 flipped, then all nine missing with a farm route. */
+    await page.evaluate(() => {
+      const w: any = window;
+      ['Entropy Locket', "Hellwarden's Will", 'Measured Wrath', 'Opalvein', 'Sling', "Ars Al'Diabolos",
+       "Ars Dul'Mephistos", "Ars Tor'Baalos", "Gheed's Wager"].forEach((n) => {
+        if (w._gFound && w._gFound(n)) w.toggleOwned(n);
+      });
+    });
+    await boot(page);
     const r = await page.evaluate(() => {
       const w: any = window;
       const N = ['Entropy Locket', "Hellwarden's Will", 'Latent Bone Break', 'Latent Flame Rift',
