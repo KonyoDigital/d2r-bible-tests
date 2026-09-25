@@ -2252,5 +2252,14 @@
     "gotcha": "A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\\base\\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
     "purpose": "Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.",
     "territory": "vault"
+  },
+  "win_quiet.py": {
+    "entryPoints": [
+      "install",
+      "installed"
+    ],
+    "gotcha": "pythonw.exe owns no console, so EVERY console-subsystem child (git, powershell, schtasks, tasklist, python.exe) allocates a visible window that steals focus from a full-screen game unless the spawn passes CREATE_NO_WINDOW. MEASURED 2026-09-26: 82 spawn sites in 38 tv/ modules passed no creationflags. This replaces subprocess.Popen ONCE per process (run/call/check_output build Popen from the module's globals), so it must be installed BEFORE the first spawn - control_app and tv_diablo do it at import. A deliberate CREATE_NEW_CONSOLE / DETACHED_PROCESS is kept. git_quiet.py still owns git (its wrapper respawns the real git, so the binary is called directly).",
+    "purpose": "The one door that makes every child of a Windows console/agent process windowless (REG-1307).",
+    "territory": "routines-infra"
   }
 }

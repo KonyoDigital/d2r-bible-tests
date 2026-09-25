@@ -27,6 +27,16 @@ import signal
 import socket
 import subprocess
 import sys
+# ⚠⚠ REG-1307 — NO CHILD OF THIS PROCESS MAY OPEN A WINDOW ON WINDOWS, INSTALLED BEFORE ANY SPAWN.
+# His report: a terminal window "keeps jumping up and alt tabbing me and even deans computer ... exits us from
+# the game". Replaces subprocess.Popen for this process so every child starts with CREATE_NO_WINDOW + SW_HIDE
+# (a no-op off Windows). One door instead of 82 call sites - see tv/win_quiet.py.
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import win_quiet as _win_quiet
+    _win_quiet.install()
+except Exception:
+    pass
 import base64
 import threading
 import time

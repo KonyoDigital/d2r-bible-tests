@@ -5520,6 +5520,13 @@ GATES = [
              "and kept only that first line, so an intermittent red (clean alone and in a full rerun) named what "
              "died and never where. It now keeps the first stack frame. The shipped collector is driven on a fake "
              "CDP socket. 3 cases, 2 red-proofs"),
+    Gate("test_no_child_opens_a_window_on_windows",
+         [sys.executable, os.path.join(HERE, "test_no_child_opens_a_window_on_windows.py")], 60,
+         why="REG-1307 - on Windows a terminal window kept jumping up and alt-tabbing him (and Dean) out of the game: "
+             "pythonw has no console, so each console-subsystem child gets a visible one unless it passes "
+             "CREATE_NO_WINDOW, and 82 spawn sites did not. win_quiet replaces subprocess.Popen once per process "
+             "(console + agent) so every spawn is windowless. Driven on a fake Windows subprocess module. "
+             "4 cases, 4 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

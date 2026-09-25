@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1308 - TWO MULE-WINDOW LAWS ERRORED ON EVERY CI RUN SINCE THEY SHIPPED, AND NOBODY LOOKED
+
+**fix - found 2026-09-26 while refreshing the gate cost table from CI job logs.** "📺 TV DIABLO — agent tests" was RED
+on both of 2026-09-25's pushed heads (bee20283, 1e1f946e): test_the_mule_window_is_the_planner_shell (19 errors) and
+test_the_mule_window_equips_and_says_its_source (26 errors) - green on his Mac every time. MEASURED: their harnesses hand
+node the cut page as ONE `node -e <script>` argument of 134,724 and up to 422,613 bytes; Linux caps a single argv
+string at 131,072 (MAX_ARG_STRLEN) and macOS does not, so on CI every case died before node started. The scripts now
+go to node on stdin (`node -`), which has no such bound. The deeper miss was mine: two pushes went out and the CI
+verdict was never read. 24 more `node -e` sites in 27 test files pass today only because their scripts are still under
+128 KB - tracked as follow-up. [[test-venue]] [[feedback-ci-verdict-before-seal]]
+
+### REG-1307 - ON WINDOWS A TERMINAL WINDOW KEPT JUMPING UP AND PULLING HIM (AND DEAN) OUT OF THE GAME
+
+**fix - his report 2026-09-26: "a window terminal keeps jumping up and alt tabbing me and even deans computer ...
+it has some background process that jumps all the time and exits us from the game.. no window should be opening".**
+The console runs as pythonw.exe, which has no console; every console-subsystem child it starts (git, powershell,
+schtasks, tasklist, python.exe, ...) therefore gets a NEW visible window unless the spawn passes CREATE_NO_WINDOW -
+and the window takes focus from a full-screen game. git_quiet.py had fixed the git spawns door by door; a static
+sweep the same night found 82 spawn sites in 38 tv/ modules passing no creationflags, 24 of them in control_app /
+tv_diablo / console_doctor. Fixed at the one door every spawn goes through: tv/win_quiet.py replaces subprocess.Popen
+once per Windows process (the console and the agent install it before their first spawn), so every child - present
+and future - starts with CREATE_NO_WINDOW + SW_HIDE; a deliberate CREATE_NEW_CONSOLE / DETACHED_PROCESS is kept. Law:
+4 cases on a fake Windows subprocess module (through Popen AND run()), 4 red-proofs. MEASURED on the ALT the same night
+with kernel process-start events (10 min, console pid 2172): 95 git.exe, 62 NETSTAT.EXE, 124 conhost.exe, 3
+git-remote-https, 1 schtasks.exe, 1 gh.exe (+2 tzutil), 1 pythonw helper. git (git_quiet) and netstat (_WIN_CREATE)
+already carried CREATE_NO_WINDOW; `gh api rate_limit` (console_doctor) and the sign-in `schtasks` did NOT - on Windows 11
+each opened a Windows Terminal window on every doctor pass ("a window terminal keeps jumping up"). The pythonw helper
+scripts spawn nothing, so no grandchild escapes. [[heart-first]] [[copy-drift]]
+
 ### REG-1306 - THE RENDER GATE SAID WHAT A PAGE ERROR WAS BUT NEVER WHERE IT THREW
 
 **fix (instrument) - the third push of 2026-09-25 was refused** by the render gate: "the page threw 1 uncaught

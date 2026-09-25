@@ -199,7 +199,7 @@ def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, es
         "resize": json.dumps([list(x) for x in resize]),
         "keys": json.dumps([list(k) for k in keys]),
     }
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("the shipped mule window would not run - UNKNOWN, not passing: %s" % r.stderr[:600])
     return json.loads(r.stdout.strip().splitlines()[-1])
