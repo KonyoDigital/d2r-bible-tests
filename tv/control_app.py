@@ -1825,6 +1825,47 @@ def board_tally_load():
 _NO_TALLY = object()
 
 
+#: #174 v-B2 — the game fonts his install carries, by NAME ONLY. A request can never name a CASC path:
+#: this table is the whole vocabulary, so the route cannot be turned into a reader of arbitrary game files.
+D2R_FONTS = {
+    "exocet": r"data:data\hd\ui\fonts\exocetblizzardot-medium.otf",
+}
+_D2R_FONT_CACHE = {}
+
+
+def d2r_font(key):
+    """#174 v-B2 — a game font streamed from HIS install -> (bytes, "") or (None, why).
+
+    His order: the mule window in the d2planner's style "literally". Their item text is set in Blizzard's
+    Exocet, which is not ours to publish - it may never be committed to this public repo or served by the
+    public site. His own install carries it (MEASURED 2026-09-25: exocetblizzardot-medium.otf, 68,596 bytes,
+    'OTTO'), so the console streams it from there through the same CASC extractor the item tables use, keeps
+    it in MEMORY only (never a file in the tree), and answers None + the reason when there is no install or
+    no extractor - the board then falls back to a free face. Bytes that are not a font are refused, never
+    served as one. [[unknown-stays-unknown]]
+    """
+    path = D2R_FONTS.get(str(key or ""))
+    if not path:
+        return None, "no such font here - the console serves only %s" % ", ".join(sorted(D2R_FONTS))
+    hit = _D2R_FONT_CACHE.get(key)
+    if hit:
+        return hit, ""
+    try:
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        import affix_lexicon as _al
+        blob = _al._pull(path, timeout=60)
+    except Exception as e:
+        return None, "the install could not be asked (%s)" % type(e).__name__
+    if not blob:
+        return None, ("the install did not give up %s - no D2R install or no CASC extractor on this machine, "
+                      "so the board uses its fallback face" % key)
+    if blob[:4] not in (b"OTTO", b"\x00\x01\x00\x00", b"true", b"ttcf"):
+        return None, "what the install returned for %s is not a font (%r), so it is not served as one" % (key, blob[:4])
+    _D2R_FONT_CACHE[key] = blob
+    return blob, ""
+
+
 def own_board_may_autoclaim(backup_dir=None, tally=_NO_TALLY):
     """#239 — MAY THIS CONSOLE'S OWN WINDOW CLAIM ITS BOARD WITHOUT A CLICK? -> dict
 
@@ -34396,6 +34437,21 @@ class Handler(BaseHTTPRequestHandler):
             # v2329 — the ledger reaches the function that has always taken one.
             self._json(200, fleet_compare((_q.get("machine") or [""])[0],
                                           (_q.get("ledger") or ["sets"])[0]))
+            return
+        if path == "/api/d2r_font/exocet":
+            # #174 v-B2 — the game's own item font, streamed from HIS install (d2r_font). 404 + the reason
+            # when there is none, so the board's @font-face falls through to its free face.
+            data, why = d2r_font("exocet")
+            if data is None:
+                self._json(404, {"ok": False, "why": why})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "font/otf")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "max-age=86400")
+            self._cors()
+            self.end_headers()
+            self.wfile.write(data)
             return
         if path == "/api/own_board_claim":
             # #239 — asked by bible.html from inside this console's own window. Reads only.

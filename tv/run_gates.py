@@ -5509,6 +5509,11 @@ GATES = [
              "marking the key, so the v1420 empty-page handler saw an empty page. What is open is now read at PRESS "
              "time in a window-capture listener. The shipped listeners run in node in the page's own order. "
              "7 cases, 3 red-proofs"),
+    Gate("test_the_console_serves_his_install_font",
+         [sys.executable, os.path.join(HERE, "test_the_console_serves_his_install_font.py")], 60,
+         why="#174 v-B2 - the d2planner sets item text in Blizzard's Exocet, which may never be committed to this public "
+             "repo; his install carries it (68,596 bytes, OTTO), so the console streams it from there, in memory only, "
+             "404 + the reason without an install, never a non-font, never a name outside its table. 5 cases, 3 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
