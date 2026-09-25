@@ -6987,6 +6987,33 @@ GATES = [
              "READS disagree (67.5%) while 66/165 distinct FRAMES do (40.0%). The row reads it, "
              "states both denominators, and is red only on staleness or a majority by BOTH.",
          skip_ok=()),
+    Gate("test_the_mule_window_is_the_planner_shell",
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
+         needs_app=False,
+         why="#174 v-A - the mule window is rebuilt as the d2planner builder's shell: three columns "
+             "322|716|300, their ten measured doll slots, the 10x4 inventory under the doll, the "
+             "10x10 stash as a locker's centre view, every stat UNKNOWN with a reason. And Esc: "
+             "#vault-detail matched none of the console's overlay selectors, so Esc closed the SHELL "
+             "and left the window up; it is now a role=dialog. Drives the SHIPPED openMuleCard in node. "
+             "Also pins the #174 fit fixes structurally: the four prose panels are min-height floors, every size "
+             "in the window is a --fs-mp-* token = root token x --kf floored at --fs-micro, a header title and "
+             "its control own grid columns, and a resize re-lays the window only when its layout signature "
+             "moves (a phone keyboard is a height-only resize). 20 cases, 11 red-proofs",
+         skip_ok=()),
+    Gate("test_the_mule_window_fits_at_every_width",
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 120,
+         needs_app=False,
+         why="#174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed "
+             "green: every length was N*--u and the type was fixed px, so between 900 and 1250 wide the "
+             "MERCENARY note lost its (v-C) line (his 1120), STRENGTHS AND WEAKNESSES read TRENGTHS AND "
+             "WEAKNESSE and the Stash button covered EQUIPMENT; at 375 the gold box and the mule tabs scrolled "
+             "sideways; a phone keyboard (a height-only resize) rebuilt the window under the Stats search box. "
+             "Renders bible.html in its OWN headless Chrome on a free port at 7 widths: no word cut or outside "
+             "its panel, nothing sideways, no header title under its control, type = token x min(1,k) floored "
+             "at --fs-micro, 2000 = their measured rects, the caret survives a keyboard and a background "
+             "re-render. Seen RED on the pre-fix page (7 of 9 cases). No browser binary = declared skip (77), "
+             "never a pass. 9 cases, 6 red-proofs",
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
