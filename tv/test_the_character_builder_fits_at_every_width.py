@@ -451,9 +451,11 @@ def _measure():
             time.sleep(0.2)
             real, over = json.loads(t.ev(DROP)), json.loads(t.ev(OVER))
             t.ev(FLUSH_ON)
-            time.sleep(0.05)
-            flush = json.loads(t.ev(DROP))
-            t.ev(FLUSH_OFF)
+            try:                          # the #231 eye on v3512: the injected style never outlives its measurement
+                time.sleep(0.05)
+                flush = json.loads(t.ev(DROP))
+            finally:
+                t.ev(FLUSH_OFF)
             sweep.append({"w": w, "extra": sorted(set(real) - set(flush)), "over": over, "rows": len(real) + 0})
         res["sweep"] = sweep
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
