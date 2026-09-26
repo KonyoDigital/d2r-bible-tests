@@ -37668,7 +37668,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (w.by === 'hand'){
       var wh = String(w.where == null ? '' : w.where).trim();
       if (!wh) return { ok: false, why: 'a manual declaration must say where it was made (the mule window, the vault manager ...)' };
-      return { ok: true, kind: 'hand', where: wh, at: w.at || null };
+      /* #246 review — AND WHEN. The row's `at` IS the filing's time, and this branch stored whatever it was
+         handed: {at:'not a date'} filed with at = 'not a date', and a hand with no `at` was stamped with the
+         door's own clock as though he had said so. Every caller on the board passes one; a time that does not
+         parse is refused — never stored, never invented. [[unknown-stays-unknown]] */
+      var atS = String(w.at == null ? '' : w.at).trim(), atMs = atS ? Date.parse(atS) : NaN;
+      if (!isFinite(atMs)) return { ok: false, why: 'a manual declaration must say WHEN it was made — '
+        + (atS ? ('"' + atS.slice(0, 40) + '" is not a date') : 'it carried no time') };
+      return { ok: true, kind: 'hand', where: wh, at: new Date(atMs).toISOString() };
     }
     if (w.source === 'd2s' || w.file != null || w.verify != null){
       var fl = String(w.file == null ? '' : w.file).trim(), ch = String(w.char == null ? '' : w.char).trim();
@@ -37718,6 +37725,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var m = h ? muleById(h) : null;
     return m ? m.name : (h === '__keep' ? 'your MAIN — kept in inventory' : (h === '__throwout' ? 'the throw-out review' : String(h || '')));
   }
+  /* WHY A NAME HAS NO MULE TO GO TO — one sentence, read by the door AND by the registrar's ledger row, so the two
+     can never disagree about it. `home` is the router's answer; null is suggestMule's one null, the shared stash. */
+  function _vNoHomeWhy(nm, home){
+    if (home) return 'routed to "' + home + '" but no mule with that id exists on this board';
+    return isSharedStash(nm) ? 'belongs in the shared stash — there is no mule for it'
+                             : 'nothing in the routing universe named a drawer for ' + nm;
+  }
+  window._vaultNoHomeWhy = _vNoHomeWhy;
+  /* THE MAIN A FILING IS KEPT APART FROM — his declared MAIN at the moment of filing (the spec's `main` field).
+     null is UNKNOWN: the name comes only from his declaration or a .d2s he says is his, never from a guess. */
+  function _vMainName(){
+    try { var mc = window.mainCharacter ? window.mainCharacter() : null; return (mc && mc.name) ? String(mc.name) : null; }
+    catch (e) { return null; }
+  }
   /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}
      opts.mule   a home he (or the caller) names; else suggestMule decides, as it always did
      opts.move   an EXISTING filing changing homes — not a new claim, so it carries the row it already has */
@@ -37739,6 +37760,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       assign[nm] = to; saveA();
       return { ok: true, mode: 'moved', mule: to, witnessed: !!pm[nm] };
     }
+    /* #246 review — A RESTORE IS NOT A NEW CLAIM, SO IT MINTS NO WITNESS. An undo (vaultRestoreLast) and a rename
+       (vaultFixSockets) put back a filing that already existed: with the witness row it carried, VERBATIM, or with
+       NONE when it had none. Both used to hand this door {by:'hand', where:'his undo of a removal'} for a filing
+       that never had a witness — one undo of the fresh-vault removal turned 172 found-ever filings into "placed by
+       hand", and the tile, the doctor, the W6 prune and the sorter then kept them on a hand that never happened:
+       the self-sustaining false vault behind a new label. A filing with no row comes back reading NO WITNESS,
+       which is what it was. Never over a newer filing, never into a mule for a name his MAIN carries. */
+    if (opts.restore){
+      var toR = opts.mule;
+      if (!_vHomeOk(toR)) return { ok: false, refused: 'no-home', why: 'no mule "' + toR + '" on this board to put ' + nm + ' back into' };
+      if (assign[nm] != null) return { ok: true, mode: 'already', mule: assign[nm], why: nm + ' was filed again since — that filing stands' };
+      if (lk && toR !== '__keep') return { ok: false, refused: 'locked', lock: lk,
+        why: nm + ' is locked to your MAIN (' + lk + ') — a restore never puts a MAIN item into a mule' };
+      var rowR = (opts.prov && typeof opts.prov === 'object' && !Array.isArray(opts.prov) && opts.prov.source)
+               ? JSON.parse(JSON.stringify(opts.prov)) : null;
+      if (rowR){
+        rowR.mule = toR; rowR.holder = _vHomeName(toR); rowR.restoredAt = new Date().toISOString();
+        var paR = _provAll(); paR[nm] = rowR; _provWrite(paR);
+      }
+      assign[nm] = toR; saveA();
+      return { ok: true, mode: 'restored', mule: toR, witnessed: !!rowR, prov: rowR };
+    }
     var wc = window._vaultWitnessCheck(witness);
     if (!wc.ok) return { ok: false, refused: wc.main ? 'main' : 'witness', main: !!wc.main, why: wc.why };
     if (lk) return { ok: false, refused: 'locked', lock: lk,
@@ -37748,10 +37791,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'consumable', why: nm + ' is a consumable — used or thrown out, never filed to a mule by a reader' };
     var home = opts.mule || null, sg = null;
     if (!home){ try { sg = suggestMule(nm); } catch (e) { sg = null; } home = sg ? sg.id : null; }
-    if (!home) return { ok: false, refused: 'no-home',
-      why: isSharedStash(nm) ? 'belongs in the shared stash — there is no mule for it'
-                             : 'nothing in the routing universe named a drawer for ' + nm };
-    if (!_vHomeOk(home)) return { ok: false, refused: 'no-home', why: 'routed to "' + home + '" but no mule with that id exists on this board' };
+    if (!home) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, null) };
+    if (!_vHomeOk(home)) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
     var hand = (wc.kind === 'hand');
     /* NEVER OVERRIDE A HOME HE CHOSE — only his own hand, naming the home, may re-file a filed name */
     if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule))
@@ -37766,7 +37807,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var now = new Date().toISOString();
     var g = (witness && typeof witness.gate === 'object' && witness.gate) ? witness.gate : null;
     var row = {
-      mule: home, holder: _vHomeName(home),
+      mule: home, main: _vMainName(), holder: _vHomeName(home),
       source: (wc.kind === 'lane') ? wc.lane : wc.kind,
       at: (hand && wc.at) ? String(wc.at) : now,
       reel: (wc.kind === 'lane') ? wc.reel : ((witness && (witness.reel || witness.sessionId)) || null),
@@ -37959,6 +38000,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })
                       : { ok: false, refused: 'witness', why: 'no witness was handed over — registered, not filed' };
         if (_vf && _vf.ok) muleId = _vf.mule;
+      } else if (!muleId){
+        /* #246 review — NO MULE TO GO TO IS NOT "NO WITNESS". A shared-stash name (the router's one null) came
+           back {filed:false, why:''} and the ledger row read "no witness ... waits for a second look" about an item
+           that arrived with two qualifying looks and a passing gate. A second look can never file it: the reason
+           is the route, and the door's own sentence says so. */
+        _vf = { ok: false, refused: 'no-home', why: _vNoHomeWhy(name, sg ? sg.id : null) };
       }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
@@ -37979,11 +38026,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             window.toggleCardCollapse('mule-vault-card');
         }
       } catch(e){}
-      var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId || 'unsorted — waiting for a witness';
+      var _vfR = (_vf && !_vf.ok) ? (_vf.refused || null) : null;
+      var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId
+                  || (_vfR === 'no-home' ? ('no mule — ' + _vf.why)
+                  : ((_vfR === 'locked' || _vfR === 'main') ? 'your MAIN carries it — never a mule'
+                  : 'unsorted — waiting for a witness'));
       var st2 = document.getElementById('vault-status');
       if (st2) st2.textContent = '📺 TV vaulted: ' + name + ' → ' + muleName;
       return { ok:true, mode: already ? 'already' : 'new', mule: muleId, muleName: muleName, label: name,
-               filed: !!muleId, filing: _vf, why: (_vf && !_vf.ok) ? _vf.why : '' };
+               filed: !!muleId, filing: _vf, refused: _vfR, why: (_vf && !_vf.ok) ? _vf.why : '' };
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
   // v731 — reverse a mistaken vault when player drops the item back to the floor
@@ -38104,7 +38155,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                one the ledger could not show. 'throw-suggested' is already taught to _CH_PILL_MAP. */
             status: (r && r.ok)
               ? (r.mode === 'throwout' ? 'throw-suggested'
-                 : (r.filed === false ? 'no-witness'
+                 : (r.filed === false ? (r.refused === 'no-home' ? 'no-home'
+                                         : ((r.refused === 'locked' || r.refused === 'main') ? 'lane-locked' : 'no-witness'))
                                       : (_known(nm) ? 'vault-registered' : 'vault-unknown')))
               : 'route-failed',
             /* v3000 \u2014 `store` WAS A FLAT LITERAL IN THE SAME OBJECT AS A COMPUTED `status`.
@@ -38137,8 +38189,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                   ? ('the TV saw you pick this up and it went to the \ud83d\uddd1 throw-out review, NOT a mule '
                      + '\u2014 it is still yours and still counted' + ((r && r.why) ? (': ' + r.why) : ''))
                   : (r.filed === false)
-                  ? ('owned, NOT filed to a mule — ' + (r.why || 'no witness') + '. It waits in the dock '
-                     + 'for a second look in your stash, or for your hand')
+                  ? ('owned, NOT filed to a mule — ' + (r.why || 'no witness')
+                     + ((r.refused === 'no-home' || r.refused === 'locked' || r.refused === 'main') ? ''
+                        : '. It waits in the dock for a second look in your stash, or for your hand'))
                   : (_known(nm)
                       ? (r.mode === 'already'
                           ? 'the TV saw this again \u2014 you already had it, so nothing moved'
@@ -38422,12 +38475,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       /* NEVER OVERWRITE A NEWER FILING. If the name has been assigned since the removal, that
          assignment is his, not this batch's to restore over. */
       if (f != null && assign[nm] == null) {
-        /* #246 — THE UNDO FILES THROUGH THE DOOR, on the witness the removal carried away; a filing that had
-           none is put back by his undo, which is his hand. */
-        var _pvU = last.prov && last.prov[nm];
-        var _wU = _pvU ? _provAsWitness(_pvU)
-                       : { by: 'hand', at: new Date().toISOString(), where: 'his undo of a removal' };
-        try { if (typeof muleById === 'function' && (muleById(f) || f === '__keep')) window.vaultFile(nm, _wU, { mule: f }); } catch(e){}
+        /* #246 — THE UNDO FILES THROUGH THE DOOR, as a RESTORE: the witness row the removal carried away comes back
+           verbatim, and a filing that had none comes back with none (NO WITNESS). An undo is not his hand. */
+        var _pvU = (last.prov && last.prov[nm]) || null;
+        try { if (typeof muleById === 'function' && (muleById(f) || f === '__keep'))
+                window.vaultFile(nm, null, { restore: true, mule: f, prov: _pvU }); } catch(e){}
       }
       back.push(nm);
     });
@@ -38502,9 +38554,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var wasEth = (typeof etherealItems !== 'undefined') && etherealItems.has(name);
       var oldMule = assign[name];
-      /* #246 — the renamed label inherits the old label's witness; a filing that had none is re-filed by
-         this click, which is his hand */
-      var _pvF = _provAll()[name];
+      /* #246 — the renamed label inherits the old label's witness row VERBATIM (a restore); a filing that had none
+         keeps none. The click fixes a socket COUNT — it is not a sighting, so it never mints a hand. */
+      var _pvF = _provAll()[name] || null;
       try { owned.delete(name); } catch(e){}
       delete assign[name];
       try { _provDrop(name); } catch(e){}
@@ -38512,9 +38564,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { if (typeof superiorBases !== 'undefined' && superiorBases.has(name)) { superiorBases.delete(name); superiorBases.add(newLabel); } } catch(e){}
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
       owned.add(newLabel);
-      var _wF = _pvF ? _provAsWitness(_pvF) : { by: 'hand', at: new Date().toISOString(), where: 'the socket count fix' };
-      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, _wF, { mule: oldMule });
-      else { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) window.vaultFile(newLabel, _wF, { mule: sg.id }); }
+      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
+      else if (_pvF) { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) window.vaultFile(newLabel, _provAsWitness(_pvF), { mule: sg.id }); }
       try { LS.setItem('d2r_ethereal', JSON.stringify([...etherealItems])); } catch(e){}
       try { LS.setItem('d2r_superiorBases', JSON.stringify([...superiorBases])); } catch(e){}
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
@@ -39436,6 +39487,14 @@ window.mainCharacterFromD2s = function(read, opts){
   try { window.renderLaneLocks && window.renderLaneLocks(); } catch (e) {}
   return { ok: true, main: row };
 };
+/* #246 review — THE MAIN'S NAME HAS A DOOR ON THE BOARD. mainCharacterDeclare had no caller anywhere, so the tag
+   read "MAIN (name UNKNOWN)" for ever over a store nothing could write. Where the tag is shown (the lock panel)
+   he can type it; a string that is not a D2R character name is refused in the declare door's own words. */
+window._mainDeclareFromPanel = function(v){
+  var r = window.mainCharacterDeclare({ name: v });
+  if (!r.ok){ try { var st = document.getElementById('vault-status'); if (st) st.textContent = '🔒 ' + r.why; } catch (e) {} }
+  return r;
+};
 window._mainTag = function(){
   var mc = window.mainCharacter();
   if (!mc) return 'MAIN (name UNKNOWN)';
@@ -39479,7 +39538,12 @@ window.renderLaneLocks = function(){
   var WHERE = { equipment: 'on your character', inventory: 'in your inventory' };
   var MINS = window.LANE_LOCK_MIN_SESSIONS || 3;
   var _tag = (window._mainTag && window._mainTag()) || 'MAIN (name UNKNOWN)';
-  var H = '<div class="vll-h">🔒 Locked where they are — never suggested for a mule · <span class="vll-main">' + esc(_tag) + '</span></div>'
+  var H = '<div class="vll-h">🔒 Locked where they are — never suggested for a mule · <span class="vll-main">' + esc(_tag) + '</span>'
+        + ((window.mainCharacter && window.mainCharacter()) ? ''
+           : (' <input class="vll-who vll-main-in" aria-label="your MAIN character name" type="text" maxlength="15"'
+              + ' placeholder="name your MAIN" title="Yours to type — the reels never carry a character name, so the board will not guess it."'
+              + ' onchange="window._mainDeclareFromPanel(this.value)">'))
+        + '</div>'
         + '<div class="vll-sub">You put these here. The board records it and leaves them alone. '
         + 'A lock needs ' + MINS + ' separate sessions; below that it is only WATCHING, and the item '
         + 'can still be filed.</div>';
@@ -39614,6 +39678,9 @@ window.vaultAutoAssign = function(){
         n++; _log(name, 'muled', { id: _r.mule, why: 're-filed on its witness — ' + window._vaultProvSay(name) });
       } else if (_r && _r.refused === 'locked'){
         _log(name, 'lane-locked', { id: '', why: _r.why || '' });
+      } else if (_r && _r.refused === 'no-home'){
+        /* #246 review — a WITNESSED row with no mule to go to (the shared stash) is not "no witness" */
+        _log(name, 'no-home', { id: '', why: _r.why || '' });
       } else {
         _log(name, 'no-witness', { id: '', why: (_r && _r.why) || 'the door refused it' });
       }
@@ -56753,6 +56820,8 @@ window._CH_PILL_MAP = {
       /* #246 — a register that is NOT a filing (no witness yet), and a name the door refused because his MAIN
          carries it. Both were written by the sorter before any pill knew them. */
       'no-witness':      ['👁 owned — waiting for a witness', '#9fd4ff'],
+      /* #246 review — witnessed, and no mule exists for it (the shared stash): a second look would not change it */
+      'no-home':         ['🗄 owned — no mule for it', '#9fd4ff'],
       'lane-locked':     ['🔒 your MAIN carries it', '#9fd4ff'],
       /* v1996 — THE FREE EVIDENCE FINALLY HAS A ROW. Konyo: "i want it to visually render the
          backend through the ledger visually so we can visually surgically fix anything needed
@@ -57969,7 +58038,12 @@ window._CH_PILL_MAP = {
        kaiChronicleAcceptAll and the console bridge both use it, and silently changing what
        an existing verb DOES is how a caller starts writing a ledger nobody asked it to. */
     try {
-      if (kind === 'accept')          window.kaiChronicleAccept(name);
+      /* #246 review — `accept` IS THE "📖🏦 Both" BUTTON, AND ONLY THE BUTTONS SEND IT. #246 W0e flipped
+         kaiChronicleAccept's DEFAULT to the Chronicle only (right: Accept-All and the console bridge call it bare),
+         and this line kept calling it bare — so "Both" did exactly what "Chronicle" does, under a title that still
+         promised the Vault. His click asks for both ledgers; the sighting must still be in a container he keeps
+         things in (the accept door checks), and a MAIN-locked name is still refused by vaultFile. */
+      if (kind === 'accept')          window.kaiChronicleAccept(name, { vault: true });
       else if (kind === 'chronicle')  window.kaiChronicleAccept(name, { vault: false });
       else if (kind === 'vault')      window.kaiVaultFileOnly(name);
       else                            window.kaiChronicleDismiss(name);

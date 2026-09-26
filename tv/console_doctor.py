@@ -2205,7 +2205,59 @@ def _main_locked_py(name, lane_lock=None):
     return False, ""
 
 
-def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked_fn=None, gate_fn=None):
+_SHARED_STASH_RE_LINE = re.compile(r"var SHARED_STASH_RE = /(.+?)/([a-z]*);\n")
+
+
+def _fold_piece(name):
+    """A read name and a roster piece name, folded to one key: curly apostrophes straight, the trailing
+    (slot) suffix off, lower case — the board's own _cnV fold."""
+    s = str(name or "").replace("‘", "'").replace("’", "'").replace("`", "'")
+    return re.sub(r"\s*\([^)]*\)\s*$", "", s).strip().lower()
+
+
+def _vault_route_fn():
+    """#246 review — WHERE THE WITNESSED LANE CAN FILE A NAME, from the board's own two facts. -> route(name)
+
+    route(name) -> (routable, canonical): routable is False for a shared-stash name (suggestMule's ONE null —
+    the door answers it 'no-home', so no press of register can ever file it), True otherwise, and None when the
+    rule could not be read (UNKNOWN, never "routable"). canonical is the slot-suffixed set piece the lane files
+    a bare piece under ("Tal Rasha's Horadric Crest" -> "... (helm)"), else the name itself.
+    Each fact is READ from its one source, never copied: SHARED_STASH_RE out of bible.html, and the pieces
+    out of tv/set_roster.json, which roster_sync GENERATES from bible.html's __allSets() and a law holds equal.
+    [[copy-drift]] [[unknown-stays-unknown]]
+    """
+    shared = pieces = None
+    try:
+        with open(os.path.join(ROOT, "bible.html"), encoding="utf-8", errors="replace") as fh:
+            found = _SHARED_STASH_RE_LINE.findall(fh.read())
+        if len(found) == 1:
+            body, flags = found[0]
+            shared = re.compile(body, (re.I if "i" in flags else 0) | re.A)
+    except Exception:
+        shared = None
+    try:
+        with open(os.path.join(HERE, "set_roster.json"), encoding="utf-8") as fh:
+            sets = (json.load(fh) or {}).get("sets") or {}
+        pieces = {}
+        for plist in sets.values():
+            for p in plist or []:
+                pieces[_fold_piece(p)] = p
+    except Exception:
+        pieces = None
+
+    def route(name):
+        nm = str(name or "").strip()
+        canon = (pieces or {}).get(_fold_piece(nm), nm)
+        if shared is None:
+            return None, canon
+        straight = nm.replace("‘", "'").replace("’", "'")
+        return (not (shared.search(nm) or shared.search(straight))), canon
+    route.readable = shared is not None and pieces is not None
+    return route
+
+
+def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked_fn=None, gate_fn=None,
+                             route_fn=None, main_state=None):
     """#246 W7 — THE HEART OF THE ONE DOOR: does every mule filing carry its witness? -> (status, why, counts)
 
     PURE — every input is handed in, so a law can drive each arm with a fixture and a sabotage.
@@ -2219,8 +2271,17 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
       2. MAIN-locked names sitting in a mule    — must be 0
       3. stash rows that CLEAR TODAY'S GATE and are not filed — the witnessed lane that cannot land
       4. the unattended feeder: banked vs runs  — reported beside, never the verdict alone
+      route_fn    route(name) -> (routable, canonical) — _vault_route_fn() when not handed in
+      main_state  main_character.locks_payload(), or None when the caller did not measure it
+
+    #246 review — arm 3 counts only rows the lane COULD file: a shared-stash name has no mule (the door refuses
+    it 'no-home', so "press register" was advice that could never work) and is reported beside, never as a
+    gap; a set piece filed under its slot-suffixed name IS filed. And arm 2's OK is only as wide as what locks:
+    a MAIN ledger that locks nothing (every row under 3 sightings) with no 3-session lane lock measured
+    NOTHING, so with filings in the mules the row is UNKNOWN — it never says "no MAIN item sits in a mule".
     """
     locked_fn = locked_fn or (lambda n: _main_locked_py(n, lane_lock))
+    route_fn = route_fn or _vault_route_fn()
     if gate_fn is None:
         import vault_retro as _vr
         gate_fn = lambda ev: _vr.gate(ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
@@ -2237,12 +2298,18 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         if ok:
             in_mule.append((n, h, why))
     gate_unfiled, gate_known = [], accum_rows is not None
+    gate_no_mule, gate_route_unknown = [], []
     for r in (accum_rows or []):
         if not isinstance(r, dict):
             continue
         nm = str(r.get("name") or "").strip()
         if not nm or str(r.get("lane") or "").lower() != "stash" or nm in assign:
             continue
+        if str(r.get("kind") or "item").lower() != "item":
+            continue              # the lane files grail ITEMS; a rune / gem / material row is a tally, never a filing
+        routable, canon = route_fn(nm)
+        if canon in assign:
+            continue              # filed under its slot-suffixed set-piece name — the lane's canonical form
         try:
             import inventory_law as _il2
             if not _il2.worth_registering(nm)[0]:
@@ -2252,14 +2319,35 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         if locked_fn(nm)[0]:
             continue
         gv = gate_fn(r.get("witnesses") or [])
+        if gv.get("pass") and routable is False:
+            gate_no_mule.append(nm)          # the shared stash: no mule exists for it, so it is not a gap
+            continue
+        if gv.get("pass") and routable is None:
+            gate_route_unknown.append(nm)    # the rule could not be read: UNKNOWN, never counted either way
+            continue
         if gv.get("pass"):
             gate_unfiled.append(nm)
+    # what the MAIN arm could see at all: the ledger's locks and every 3-session lane lock
+    main_locks = main_tracked = None
+    main_why = ""
+    if isinstance(main_state, dict):
+        _lk = main_state.get("locked")
+        if main_state.get("ok") and isinstance(_lk, list):
+            main_locks, main_tracked = len(_lk), main_state.get("tracked")
+            main_why = str(main_state.get("blockedWhy") or "")
+        else:
+            main_why = str(main_state.get("why") or "the MAIN ledger could not be read")
+    lane_locks = sum(1 for v in (lane_lock.values() if isinstance(lane_lock, dict) else [])
+                     if isinstance(v, dict) and len(v.get("sessions") or []) >= 3)
     runs = banked = None
     if isinstance(feeder, dict):
         runs, banked = feeder.get("runs"), feeder.get("banked")
     counts = {"filings": len(filings), "witnessed": len(filings) - len(unwitnessed),
               "unwitnessed": len(unwitnessed), "mainInMule": len(in_mule),
               "gatePassingUnfiled": (len(gate_unfiled) if gate_known else None),
+              "gatePassingNoMule": (len(gate_no_mule) if gate_known else None),
+              "gatePassingRouteUnknown": (len(gate_route_unknown) if gate_known else None),
+              "mainLedgerLocks": main_locks, "laneLocks": lane_locks,
               "feederRuns": runs, "feederBanked": banked}
     parts, bad = [], False
     if unwitnessed:
@@ -2275,6 +2363,13 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         bad = True
         parts.append("%d stash row(s) clear today's gate and are NOT filed (first: %s) — press register on "
                      "the vault card and the witnessed lane files them" % (len(gate_unfiled), ", ".join(gate_unfiled[:3])))
+    if gate_no_mule:
+        parts.append("%d gate-passing stash row(s) belong in the shared stash — no mule exists for them, so they "
+                     "are not a gap (first: %s)" % (len(gate_no_mule), ", ".join(gate_no_mule[:3])))
+    if gate_route_unknown:
+        parts.append("%d gate-passing stash row(s) are not filed and whether a mule exists for them is UNKNOWN — "
+                     "the board's shared-stash rule or its set roster could not be read (first: %s)"
+                     % (len(gate_route_unknown), ", ".join(gate_route_unknown[:3])))
     if not gate_known:
         parts.append("the stash ledger could not be read, so whether a witnessed row is waiting is UNKNOWN")
     if runs is None:
@@ -2283,8 +2378,26 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         parts.append("the unattended feeder has banked %s row(s) in %s run(s)" % (banked, runs))
     if bad:
         return MISSING, "; ".join(parts), counts
-    return OK, ("all %d mule filing(s) carry their witness and no MAIN item sits in a mule; %s"
-                % (len(filings), "; ".join(parts))), counts
+    if main_state is not None and filings and not main_locks and not lane_locks:
+        # #246 review — THE MAIN ARM MEASURED NOTHING. His real ledger tracks 7 rows and locks 0 (each under 3
+        # sightings), and this line read "no MAIN item sits in a mule" over the three filings the forensics names
+        # as MAIN gear. Zero locks is not zero MAIN items. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        src = (("the MAIN ledger locks 0 of %s tracked row(s)%s" % (main_tracked, (" — " + main_why) if main_why else ""))
+               if main_locks == 0 else main_why)
+        return UNKNOWN, ("all %d mule filing(s) carry their witness, but whether a MAIN item sits in a mule is "
+                         "UNKNOWN — %s, and no lane lock has 3 sessions, so nothing could say which filing is "
+                         "MAIN gear; %s" % (len(filings), src, "; ".join(parts))), counts
+    if main_locks:
+        main_say = ("no MAIN-locked name sits in a mule (the MAIN ledger locks %d of %s tracked row(s), %d lane "
+                    "lock(s))" % (main_locks, main_tracked, lane_locks))
+    elif lane_locks:
+        main_say = ("no LOCKED name sits in a mule (%d lane lock(s); %s)"
+                    % (lane_locks, ("the MAIN ledger locks 0 of %s" % main_tracked) if main_locks == 0
+                       else (main_why or "the MAIN ledger was not read")))
+    else:
+        main_say = "no LOCKED name sits in a mule"
+    return OK, ("all %d mule filing(s) carry their witness and %s; %s"
+                % (len(filings), main_say, "; ".join(parts))), counts
 
 
 def _check_vault_provenance():
@@ -2332,7 +2445,14 @@ def _check_vault_provenance():
         feeder = json.load(open(fp, encoding="utf-8")) if os.path.isfile(fp) else {"runs": 0, "banked": 0}
     except Exception:
         feeder = None
-    st, why, _counts = vault_provenance_verdict(assign, prov, lane, rows, feeder)
+    # #246 review — what the MAIN arm can see: the ledger's locks and their denominator, or why it could not be read
+    try:
+        import main_character as _mc
+        main_state = _mc.locks_payload()
+    except Exception as e:
+        main_state = {"ok": False, "locked": None,
+                      "why": "main_character would not answer (%s) — nothing is known about MAIN gear" % type(e).__name__}
+    st, why, _counts = vault_provenance_verdict(assign, prov, lane, rows, feeder, main_state=main_state)
     return st, why
 
 

@@ -19,13 +19,19 @@ WHAT THIS LAW HOLDS, each case DRIVEN in bible.html itself, in its own headless 
     restore through chronicleApply (the 15:28 shape, set pieces riding the uniques half); _chronAutoAdopt with
     a sweep waiting; vaultAccumApply with a one-look row; the owned_restore, rw_restore and vault_autosort
     scripts the CONSOLE really sends (captured from control_app, then run in the page); the TV registrar with
-    no witness; the inbox's auto-accept of one container sighting; the KAI judge's keep tier; Chronicle Accept
+    no witness; the console's LEDGER REPAIR "register as owned" press (/api/board_tick kind 'owned' — #246
+    review: it handed the registrar {by:'hand'} and filed under a witness claiming his hand, from a route with
+    no confirm); the inbox's auto-accept of one container sighting; the KAI judge's keep tier; Chronicle Accept
     and Accept-All. The failure names the trigger.
   · L3 (board half) — A SET PIECE RESTORED AS A "UNIQUE" GOES TO THE SET DOOR, never into d2r_owned.
   · L5 — CHRONICLE ACCEPT TICKS THE CHRONICLE ONLY by default, and with vault asked for it still needs a
     sighting in a container.
   · THE POSITIVE CONTROL — his hand (a click onto a locker) files, and leaves a provenance row saying so. A door
     that files nothing at all would pass every case above.
+  · #246 review — THE INBOX'S "📖🏦 Both" BUTTON IS HIS HAND ON BOTH LEDGERS. W0e flipped kaiChronicleAccept's
+    default to the Chronicle only, and the button kept calling it bare: "Both" did exactly what "Chronicle" does
+    under a title still promising the Vault. Clicked for real on a container sighting, it now ticks the
+    Chronicle AND files with a hand row; the "Chronicle" button beside it still files nothing.
 
 ⚠ WHAT THIS LAW DOES NOT PRESS: the TV live-pickup loop (it lives inside the live-read handler and needs a
 running reader). Its witness is one look, and the door refuses one look — that rule is driven by
@@ -213,6 +219,7 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
         owned_js = console_script("owned_restore", UNIQUES + ["Hellfire Torch"], confirm=True)
         rw_js = console_script("rw_restore", {"Enigma": "Jul 1, 2026 · 10:00"}, confirm=True)
         sort_js = console_script("vault_autosort", confirm=True)
+        tick_js = console_script("board_tick", "Stormshield", "owned", False)
         body = r"""
           var T = [];
           function snap(name){
@@ -239,6 +246,7 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
           eval(%(rw_js)s); await wait(400); snap('the console rw_restore script');
           eval(%(sort_js)s); await wait(200); snap('the console vault_autosort script');
           window.tvVaultRegister('Stormshield'); snap('the TV registrar with no witness');
+          eval(%(tick_js)s); snap('the console LEDGER REPAIR register-as-owned press (board_tick owned)');
           try { window.kaiChroniclePropose([{ name: 'Nagelring', tier: 'grail', loc: 'stash', frameId: 'f_one.jpg',
                                               sessionId: 's_one', source: 'law' }]); } catch (e) {}
           snap('the inbox auto-accept of one container sighting');
@@ -251,9 +259,10 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
           snap('Chronicle Accept-All');
           OUT.T = T;
         """ % {"uni": json.dumps(UNIQUES), "pieces": json.dumps(PIECES), "one": json.dumps(ONE_LOOK),
-               "owned_js": json.dumps(owned_js), "rw_js": json.dumps(rw_js), "sort_js": json.dumps(sort_js)}
+               "owned_js": json.dumps(owned_js), "rw_js": json.dumps(rw_js), "sort_js": json.dumps(sort_js),
+               "tick_js": json.dumps(tick_js)}
         out = b.run(body)
-        self.assertGreaterEqual(len(out["T"]), 13, "premise: not every trigger was pressed: %r" % out["T"])
+        self.assertGreaterEqual(len(out["T"]), 14, "premise: not every trigger was pressed: %r" % out["T"])
         bad = [r for r in out["T"] if r["filed"] or r["prov"]]
         self.assertEqual([], bad, "A FOUND-EVER NAME REACHED A MULE — first trigger that filed: %s -> %s"
                          % ((bad[0]["trigger"], bad[0]["filed"][:6]) if bad else ("", "")))
@@ -302,19 +311,54 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
         self.assertEqual("uni-small", row.get("mule"))
 
 
+    def test_6_the_both_button_files_as_his_hand_and_chronicle_does_not(self):
+        """#246 review — his v2349 ruling ("sometimes we find a chronicle and we also stash it to vault.. so a
+        combined") and today's ("if i do add an item there manually yes of course.. to either or"). The REAL
+        buttons are rendered and clicked; a container sighting is what each row carries."""
+        b = board()
+        now = int(time.time() * 1000)
+        rows = [{"name": n, "tier": "grail", "loc": "stash", "sessionId": "s_ib", "frameId": "f_ib.jpg",
+                 "conf": 0.95, "source": "law", "ts": now} for n in ("Arachnid Mesh", "Nagelring")]
+        b.seed({"d2r_owned": [], "d2r_foundLog": {}, "d2r_setPieces": [], "d2r_muleAssign": {},
+                "d2r_vaultProv": None, "d2r_laneLock": None, "d2r_chronicleInbox": rows})
+        out = b.run(r"""
+          try { window.renderInboxFab && window.renderInboxFab(); } catch (e) {}
+          try { window.renderInbox && window.renderInbox(); } catch (e) {}
+          var both = document.querySelector('.ibp-both[data-n="Arachnid Mesh"]');
+          var chron = document.querySelector('[data-n="Nagelring"][onclick*="\'chronicle\'"]');
+          OUT.found = [!!both, !!chron];
+          if (both) both.click();
+          if (chron) chron.click();
+          await new Promise(function(r){ setTimeout(r, 300); });
+          OUT.map = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');
+          OUT.prov = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}');
+          OUT.foundLog = Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}'));
+        """)
+        self.assertEqual([True, True], out["found"], "premise: the Both / Chronicle buttons were not rendered: %r" % out)
+        self.assertIn("Arachnid Mesh", out["foundLog"], "Both did not tick the Chronicle")
+        self.assertIn("Arachnid Mesh", out["map"], "the 'Both' button did not file to the Vault — it did what "
+                                                   "'Chronicle' does under a title promising both: %r" % out["map"])
+        row = out["prov"].get("Arachnid Mesh") or {}
+        self.assertEqual(("hand", "hand"), (row.get("source"), row.get("by")), "Both filed without his hand's row: %r" % row)
+        self.assertIn("Nagelring", out["foundLog"], "Chronicle did not tick the Chronicle")
+        self.assertNotIn("Nagelring", out["map"], "the 'Chronicle' button filed to a mule")
+
+
 RED_PROOF = [
     {
         "why": "#246 W0 - the sorter walks the found-ever pool again: every owned name is filed",
         "file": "bible.html",
         "find": "    var _pvS = _provAll();\n",
-        "replace": "    var _pvS = {}; ownedPool().forEach(function(n){ _pvS[n] = { source: 'hand', where: 'the found-ever pool' }; });\n",
+        # a hand row carries its time, as every row the door writes does — without one the door refuses the forged
+        # row for its missing `at` (#246 review), and this sabotage would prove nothing about the sorter
+        "replace": "    var _pvS = {}; ownedPool().forEach(function(n){ _pvS[n] = { source: 'hand', at: '2026-09-01T00:00:00Z', where: 'the found-ever pool' }; });\n",
         "matches": 1,
     },
     {
         "why": "#246 W1 - the TV registrar files with no witness again (the v2193 door that filed 112 Chronicle names)",
         "file": "bible.html",
         "find": "        _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })\n",
-        "replace": "        _vf = window.vaultFile(name, witness || { by: 'hand', where: 'no witness' }, { mule: sg.id });\n        if (false) _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })\n",
+        "replace": "        _vf = window.vaultFile(name, witness || { by: 'hand', at: new Date().toISOString(), where: 'no witness' }, { mule: sg.id });\n        if (false) _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })\n",
         "matches": 1,
     },
     {
@@ -329,6 +373,20 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    var _wantVault = !!(opts && opts.vault === true);\n",
         "replace": "    var _wantVault = !(opts && opts.vault === false);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the console's 'register as owned' press files under a hand witness again (no confirm on the route)",
+        "file": "control_app.py",
+        "find": "        \"  var r=window.tvVaultRegister(n);\"\n",
+        "replace": "        \"  var r=window.tvVaultRegister(n,{by:'hand',at:new Date().toISOString(),where:'the console (register as owned)'});\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the inbox's 'Both' button calls the Chronicle-only default again, so it never files",
+        "file": "bible.html",
+        "find": "      if (kind === 'accept')          window.kaiChronicleAccept(name, { vault: true });\n",
+        "replace": "      if (kind === 'accept')          window.kaiChronicleAccept(name);\n",
         "matches": 1,
     },
 ]

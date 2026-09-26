@@ -4396,7 +4396,9 @@ GATES = [
              "10 laws, every one seen RED by a sabotage that deletes the real thing. The heart "
              "organ check_vault_removals watches the JOIN, not just the door: if the one-click "
              "path ever stops routing through it, single removals go back to leaving no record "
-             "while the batch count still looks healthy."),
+             "while the batch count still looks healthy. #246 review: an undo and the socket-count "
+             "rename put a filing back as a RESTORE - the witness row it had, verbatim, or none; one "
+             "undo had minted 'placed by hand' for 172 found-ever filings. 3 red-proofs"),
     Gate("test_the_vault_receipt_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_vault_receipt_is_watched.py")], 120,
          why="HE ASKED FOR A RECEIPT ON A VAULT ITEM AND PUSHED BACK WHEN I SAID NOTHING WAS "
@@ -5486,7 +5488,9 @@ GATES = [
              "with no witness, the inbox auto-accept, the KAI judge keep tier, Chronicle Accept and Accept-All "
              "- and the map and the witness store stay empty. A set piece restored as a 'unique' goes to the "
              "set door (L3), Chronicle Accept ticks the Chronicle only (L5), and his hand still files with a "
-             "provenance row (the positive control). 5 cases, 4 red-proofs",
+             "provenance row (the positive control). #246 review: the console's 'register as owned' press "
+             "files nothing (it minted a hand witness from a route with no confirm), and the inbox's 'Both' "
+             "button, clicked for real, files as his hand while 'Chronicle' does not. 6 cases, 6 red-proofs",
          skip_ok=()),
     Gate("test_every_mule_filing_carries_its_witness",
          [sys.executable, os.path.join(HERE, "test_every_mule_filing_carries_its_witness.py")], 120,
@@ -5498,7 +5502,8 @@ GATES = [
              "refused; what the MAIN carries is refused as the MAIN's; a home he chose is never overridden and a "
              "reader never replaces his hand's row. Every key in the map has its row after every call; the tag "
              "reads the row (W5); the board's bars equal vault_retro's (his 2-look ruling). Source half: no "
-             "assign[...] = outside the door, every wholesale re-bind named. 10 cases, 4 red-proofs"),
+             "assign[...] = outside the door, every wholesale re-bind named. #246 review: a hand must say WHEN "
+             "(a time that is no date, or none, is refused) and the row carries the spec's `main`. 11 cases, 6 red-proofs"),
     Gate("test_the_witnessed_lane_files_its_own_rows",
          [sys.executable, os.path.join(HERE, "test_the_witnessed_lane_files_its_own_rows.py")], 240,
          needs_app=False,
@@ -5508,7 +5513,9 @@ GATES = [
              "payload and the REAL vaultAccumApply applies it in its own headless Chrome: a two-look stash row "
              "files with its witness row (looks, gate verdict, stamped bound) even when the grail knew the name "
              "first; Magefist's frameless conf-0.0 shape and a found-ever name do not file; a set piece seen in "
-             "the stash files through the set door; with no gate verdict travelling the board judges each look itself. 5 cases, 3 red-proofs",
+             "the stash files through the set door; with no gate verdict travelling the board judges each look itself. "
+             "#246 review: a witnessed shared-stash name is refused 'no-home' and its ledger row says so, never "
+             "'no witness ... a second look', and the sorter logs such a row 'no-home' too. 7 cases, 6 red-proofs",
          skip_ok=()),
     Gate("test_a_look_without_a_frame_is_not_a_witness",
          [sys.executable, os.path.join(HERE, "test_a_look_without_a_frame_is_not_a_witness.py")], 60,
@@ -5525,7 +5532,8 @@ GATES = [
              "joins all three (his 3-session bar kept), the door refuses every locked name even by hand and "
              "files Blackhand Key, MAIN_LOCKS stays null until the console answers, the MAIN's name comes only "
              "from his declaration or a .d2s he says is his (tag 'MAIN (name UNKNOWN)' until then), the panel "
-             "calls out a MAIN item in a mule, a reader never files a consumable, and the furniture and consumable lists equal inventory_law's. 8 cases, 4 "
+             "calls out a MAIN item in a mule, a reader never files a consumable, and the furniture and consumable lists equal inventory_law's. "
+             "#246 review: the panel carries the MAIN-name input, joined to the declare door that had no caller. 9 cases, 5 "
              "red-proofs"),
     Gate("test_every_locked_main_row_reaches_the_board",
          [sys.executable, os.path.join(HERE, "test_every_locked_main_row_reaches_the_board.py")], 120,
@@ -5552,7 +5560,8 @@ GATES = [
              "shared tick read and reports filings with no witness, MAIN-locked names in a mule, gate-passing "
              "stash rows never filed, and the feeder's banked-of-runs; UNKNOWN without a board read. Each arm "
              "driven with a fixture and seen RED; furniture and consumables are never reported as unfiled; "
-             "registered, declared and explained. 7 cases, 4 red-proofs"),
+             "registered, declared and explained. #246 review: arm 3 never counts a shared-stash row or a set "
+             "piece filed under its slot name, and arm 2's OK is UNKNOWN when nothing locks. 10 cases, 7 red-proofs"),
     Gate("test_every_operator_door_keeps_its_contract",
          [sys.executable, os.path.join(HERE, "test_every_operator_door_keeps_its_contract.py")], 60,
          why="REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design "

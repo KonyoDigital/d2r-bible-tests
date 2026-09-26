@@ -39072,13 +39072,20 @@ class TestV2349TheDualRulingDoor(unittest.TestCase):
 
     def test_both_sends_the_verb_that_writes_both_ledgers(self):
         """If `accept` ever stops writing both, this door silently becomes a second Chronicle
-        button and he would have no way to tell from the UI."""
+        button and he would have no way to tell from the UI.
+
+        ⚠ #246 review — IT DID, AND THIS GUARD STAYED GREEN. It pinned the call SHAPE
+        `kaiChronicleAccept(name)`, which meant "both" only while both was the default. #246 W0e
+        made the default the Chronicle only (right for Accept-All and the console bridge), the
+        shape never changed, and "Both" became a second Chronicle button under a title still
+        promising the Vault. The law is that `accept` ASKS for the vault; the click itself is
+        driven for real in test_found_ever_never_files_to_a_mule. [[regression-guard]]"""
         src = self._src()
         act = _between(self, src, "window._inboxAct = function(kind, name)", "};",
                        min_len=100, what="_inboxAct")
-        self.assertRegex(act, r"kind === 'accept'\s*\)?\s*window\.kaiChronicleAccept\(name\)",
-                         "`accept` no longer calls kaiChronicleAccept with both ledgers - the "
-                         "Both button now lies about what it does")
+        self.assertRegex(act, r"kind === 'accept'\s*\)?\s*window\.kaiChronicleAccept\(name,\s*\{\s*vault:\s*true\s*\}\)",
+                         "`accept` no longer asks kaiChronicleAccept for the vault - its default is "
+                         "the Chronicle only, so the Both button now lies about what it does")
         self.assertIn("{ vault: false }", act,
                       "the Chronicle-only door lost its vault:false - Chronicle and Both would "
                       "become the same button")

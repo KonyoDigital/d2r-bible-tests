@@ -23,6 +23,10 @@ WHAT THIS LAW HOLDS, driven on the SHIPPED lock block and the SHIPPED door, cut 
     until then; a .d2s is refused without his word (a planner export reads exactly like a save — the
     .d2s on his Desktop is a maxroll export); a name the game would not allow is refused.
   · THE PANEL SHOWS IT: a locked name still sitting in a mule is listed "filed in <mule>" beside the MAIN's tag.
+  · #246 review — AND THE PANEL IS WHERE HE NAMES IT. mainCharacterDeclare had no caller in the board, so the tag
+    read "MAIN (name UNKNOWN)" for ever over a store nothing wrote. While the name is unknown the panel carries an
+    input; the handler the panel RENDERED, run with a name, declares the MAIN (a name the game would not allow is
+    refused), and once declared the input is gone and the tag carries the name.
   · A READER NEVER FILES A CONSUMABLE (measured on a copy of his store: a register filed two potions to
     UNI-WEAPONS); his own hand still may.
   · THE FURNITURE LIST IS ONE LIST: the board's words equal inventory_law.LOCKED / LOCKED_WHOLE /
@@ -120,6 +124,19 @@ OUT.cons = { tome: window._consumable('Tome of Town Portal'), scroll: window._co
              gold: window._consumable('1,240 Gold'), ring: window._consumable('Nagelring') };
 OUT.consWords = window._CONSUMABLE_WORDS;
 OUT.map = JSON.parse(JSON.stringify(assign));
+window.renderLaneLocks();
+var _inM = /<input class="vll-who vll-main-in"[^>]*onchange="([^"]*)"/.exec(EL.innerHTML);
+OUT.declareInput = !!_inM;
+if (_inM){
+  var _h = new Function(_inM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+  _h.call({ value: 'no spaces allowed' });
+  OUT.panelBad = window.LSR.getItem('d2r_mainCharacter');
+  _h.call({ value: 'Panelhero' });
+  OUT.panelDeclared = JSON.parse(window.LSR.getItem('d2r_mainCharacter') || 'null');
+  window.renderLaneLocks();
+  OUT.panelAfter = { input: /vll-main-in/.test(EL.innerHTML), tag: /MAIN · Panelhero/.test(EL.innerHTML) };
+}
+window.LSR.removeItem('d2r_mainCharacter');
 OUT.tag0 = window._mainTag();
 OUT.badName = window.mainCharacterDeclare({ name: 'no spaces allowed' });
 OUT.d2sNotHis = window.mainCharacterFromD2s({ ok: true, verify: { checksumOk: true }, header: { name: 'Export', className: 'Druid', level: 85 }, path: '/x/Export.d2s' });
@@ -207,6 +224,16 @@ class MainGearNeverFilesToAMule(unittest.TestCase):
         self.assertEqual(("Savedhero", "d2s", "Savedhero.d2s"),
                          (self.o["store2"]["name"], self.o["store2"]["source"], self.o["store2"]["file"]))
 
+    def test_the_panel_is_where_he_names_his_main(self):
+        """#246 review — the declare door had no caller; the panel that shows the tag now carries it."""
+        self.assertTrue(self.o["declareInput"], "the lock panel offers no way to name the MAIN while the tag reads UNKNOWN")
+        self.assertIsNone(self.o["panelBad"], "a name the game would not allow was stored from the panel")
+        pd = self.o["panelDeclared"] or {}
+        self.assertEqual(("Panelhero", "declared"), (pd.get("name"), pd.get("source")),
+                         "the panel's own handler did not declare the MAIN: %r" % pd)
+        self.assertEqual({"input": False, "tag": True}, self.o["panelAfter"],
+                         "once named, the panel still asks — or does not carry the name")
+
     def test_the_panel_shows_a_main_item_sitting_in_a_mule(self):
         p = self.o["panel"]
         self.assertFalse(p["hidden"], "the lock panel stayed hidden with a MAIN item in a mule")
@@ -246,6 +273,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (wc.kind !== 'hand' && window._consumable && window._consumable(nm))\n",
         "replace": "    if (false && window._consumable && window._consumable(nm))\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the panel's MAIN-name input is joined to nothing again (the declare door has no caller)",
+        "file": "bible.html",
+        "find": "              + ' onchange=\"window._mainDeclareFromPanel(this.value)\">'))\n",
+        "replace": "              + ' onchange=\"void 0\">'))\n",
         "matches": 1,
     },
     {

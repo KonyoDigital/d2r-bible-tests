@@ -14729,8 +14729,13 @@ def board_tick(name, kind, want):
         "}"
         "if(kind==='owned'){"
         "  if(typeof window.tvVaultRegister!=='function') return JSON.stringify({ok:false,why:'no tvVaultRegister'});"
-        # #246 — "register as owned" is a press in his console: a manual declaration, his hand
-        "  var r=window.tvVaultRegister(n,{by:'hand',at:new Date().toISOString(),where:'the console (register as owned)'});"
+        # #246 review — "REGISTER AS OWNED" REGISTERS; IT DOES NOT FILE. The first #246 cut handed the registrar
+        # {by:'hand', where:'the console (register as owned)'}, so this LEDGER REPAIR press - a route with no
+        # confirm, reachable by any POST, the kind of door an agent's recovery loop pressed on 2026-09-16 -
+        # filed the name to a mule under a witness row claiming his hand, and the tile then read "placed by
+        # hand". A manual add counts for the section it is made in (his ruling, 2026-09-26), and this section
+        # is the ownership ledger, not a mule. No witness: owned, in the dock, unfiled - his drag files it.
+        "  var r=window.tvVaultRegister(n);"
         "  return JSON.stringify({ok:true,kind:'owned',register:r});"
         "}"
         "if(typeof window.toggleOwned!=='function') return JSON.stringify({ok:false,why:'no toggleOwned'});"

@@ -22,6 +22,12 @@ the REAL window.vaultAccumApply in bible.html in its own headless Chrome:
     verdict travelling the BOARD judges each look itself and still refuses it (W3);
   · a found-ever name the sweep never saw does NOT file;
   · a SET PIECE seen in the stash files through the set door with its witness, and ticks its set.
+  · #246 review — A WITNESSED NAME WITH NO MULE SAYS SO. A shared-stash name (suggestMule's one null) handed to the
+    registrar with two framed looks and a passing gate came back {filed:false, why:''}, and its ledger row read
+    "no witness ... waits for a second look" — a second look can never file it. The registrar now answers
+    'no-home' in the door's own sentence and the ledger row says the shared stash; a register with NO witness
+    still reads 'no-witness'. The sorter, re-filing a witness row the door answers 'no-home' (a row an imported
+    store can carry), logs 'no-home' too, never 'no-witness'.
 RED_PROOF below.
 """
 import json
@@ -121,6 +127,39 @@ class TheWitnessedLaneFilesItsOwnRows(unittest.TestCase):
                          "with no gate verdict on the row, the BOARD filed one real look plus a frameless "
                          "conf-0.0 one — it does not judge each look itself")
 
+    def test_a_witnessed_name_with_no_mule_says_so(self):
+        looks = [_look("s_e", "f_e.jpg", 0.7), _look("s_f", "f_f.jpg", 0.85)]
+        out = board().run("OUT.r = window.tvVaultRegister('Cold Rupture', { lane: 'stash', sessions: %s,"
+                          " gate: { pass: true, why: 'two looks' }, by: 'vault-sweep' });"
+                          "OUT.bare = window.tvVaultRegister('Stormshield');"
+                          "var L = JSON.parse(window.LSR.getItem('d2r_chronicleInboxLog') || '[]') || [];"
+                          "OUT.rows = L.filter(function(x){ return x && (x.name === 'Cold Rupture' || x.name === 'Stormshield'); })"
+                          ".map(function(x){ return [x.name, x.status, x.why]; });" % json.dumps(looks))
+        r = out["r"]
+        self.assertFalse(r.get("filed"), "a shared-stash name was filed to a mule: %r" % r)
+        self.assertEqual("no-home", r.get("refused"), "the registrar did not say it has no mule to go to: %r" % r)
+        self.assertIn("shared stash", r.get("why") or "", r)
+        rows = dict((n, (st, why)) for n, st, why in out["rows"])
+        st, why = rows.get("Cold Rupture") or (None, "")
+        self.assertEqual("no-home", st, "the ledger row mislabels a witnessed, unroutable register: %r" % (rows,))
+        self.assertNotIn("second look", why, "the ledger tells him a second look would file what no mule can hold")
+        self.assertEqual("no-witness", (rows.get("Stormshield") or (None,))[0],
+                         "a register with NO witness stopped reading 'no-witness': %r" % (rows,))
+
+    def test_the_sorter_says_no_mule_for_a_witnessed_row_it_cannot_home(self):
+        row = {"mule": None, "holder": "", "source": "stash", "at": "2026-09-20T10:00:00.000Z", "by": "vault-sweep",
+               "sessions": ["s_g", "s_h"], "gate": {"pass": True, "why": "two looks", "looks": 2},
+               "looks": [{"id": "s_g", "frame": "f_g.jpg", "conf": 0.9}, {"id": "s_h", "frame": "f_h.jpg", "conf": 0.8}]}
+        out = board().run("var P = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}'); P['Flame Rift'] = %s;"
+                          "window.LSR.setItem('d2r_vaultProv', JSON.stringify(P)); window.vaultAutoAssign();"
+                          "var L = JSON.parse(window.LSR.getItem('d2r_chronicleInboxLog') || '[]') || [];"
+                          "OUT.row = L.filter(function(x){ return x && x.name === 'Flame Rift'; }).map(function(x){ return [x.status, x.why]; });"
+                          "OUT.filed = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}')['Flame Rift'] || null;"
+                          % json.dumps(row))
+        self.assertIsNone(out["filed"], "a shared-stash name was filed to a mule by the sorter: %r" % out)
+        self.assertEqual(1, len(out["row"]), "premise: the sorter left no ledger row for the row it could not home")
+        self.assertEqual("no-home", out["row"][0][0], "the sorter calls a witnessed row 'no witness': %r" % out["row"])
+
     def test_a_set_piece_seen_in_the_stash_files_through_the_set_door(self):
         pieces = [k for k in self.out["map"] if k.startswith("Aldur's Advance")]
         self.assertTrue(pieces, "a set piece witnessed in the stash was not filed: %r" % self.out["applied"])
@@ -141,6 +180,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      var map = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}') || {};\n      var ks = Object.keys(map);\n",
         "replace": "      var map = {}; (JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []).forEach(function(o){ map[o] = 1; });\n      var ks = Object.keys(map);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - a witnessed register with no mule to go to comes back with no reason again (reads 'no witness')",
+        "file": "bible.html",
+        "find": "        _vf = { ok: false, refused: 'no-home', why: _vNoHomeWhy(name, sg ? sg.id : null) };\n",
+        "replace": "        _vf = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the ledger row calls an unroutable register 'no-witness' again",
+        "file": "bible.html",
+        "find": "                 : (r.filed === false ? (r.refused === 'no-home' ? 'no-home'\n",
+        "replace": "                 : (r.filed === false ? (false ? 'no-home'\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the sorter logs a witnessed row it cannot home as 'no-witness' again",
+        "file": "bible.html",
+        "find": "      } else if (_r && _r.refused === 'no-home'){\n",
+        "replace": "      } else if (false){\n",
         "matches": 1,
     },
     {

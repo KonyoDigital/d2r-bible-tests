@@ -19,7 +19,10 @@ WHAT THIS LAW HOLDS:
       equipment / inventory / belt / cube sighting is refused as the MAIN's (main:true); a MAIN-locked name is
       refused even by hand; a home he chose is never overridden except by his hand naming a home; a MOVE carries
       the row it has. After every call, EVERY key in the map has a d2r_vaultProv row, and every row carries
-      mule, holder, source, at, sessions, looks, by and ver.
+      mule, main, holder, source, at, sessions, looks, by and ver.
+  · #246 review — A HAND SAYS WHEN. {by:'hand', at:'not a date'} was filed with at = 'not a date', and a hand with
+    no `at` was stamped with the door's own clock; both are refused now, and a real time is kept. The row carries
+    the spec's `main` — the MAIN he declared at the moment of filing, null (UNKNOWN) when he has not.
   · THE TAG (W5) — window._vaultProvSay reads d2r_vaultProv in MP_SRC_SAY's words: "placed by hand (where)",
     "witnessed in your stash × 2 looks", "from a .d2s (char)", and a filing with no row says NO WITNESS, loudly.
   · THE BARS ARE HIS, ONCE — the board's VAULT_WITNESS_FLOOR / VAULT_WITNESS_MIN equal vault_retro's
@@ -110,7 +113,7 @@ function call(label, name, w, o){
   Object.keys(assign).forEach(function(k){ if (!prov[k]) OUT.bad.push(label + ': ' + k + ' is filed with NO witness row'); });
   Object.keys(prov).forEach(function(k){
     var row = prov[k];
-    ['mule', 'holder', 'source', 'at', 'sessions', 'looks', 'by', 'ver'].forEach(function(f){
+    ['mule', 'main', 'holder', 'source', 'at', 'sessions', 'looks', 'by', 'ver'].forEach(function(f){
       if (!Object.prototype.hasOwnProperty.call(row, f)) OUT.bad.push(label + ': ' + k + '\'s row has no ' + f); });
   });
   OUT.calls.push({ label: label, ok: !!(r && r.ok), mode: r && r.mode, refused: r && r.refused, main: !!(r && r.main),
@@ -120,6 +123,8 @@ function call(label, name, w, o){
 call('no witness', 'A', null);
 call('an empty object', 'A', {});
 call('hand, no where', 'A', { by: 'hand', at: '2026-09-26T00:00:00Z' });
+call('hand, a time that is no date', 'H1', { by: 'hand', at: 'not a date', where: 'the mule window' });
+call('hand, no time', 'H1', { by: 'hand', where: 'the mule window' });
 call('hand', 'B', { by: 'hand', at: '2026-09-26T00:00:00Z', where: 'the mule window' });
 call('d2s unverified', 'C', { source: 'd2s', file: 'x.d2s', char: 'Hero', verify: { ok: false } });
 call('d2s', 'C', { source: 'd2s', file: 'x.d2s', char: 'Hero', verify: { ok: true } });
@@ -145,6 +150,9 @@ call('a reader never replaces his hand at the same home', 'C2', { by: 'hand', at
 call('the reader arrives later', 'C2', { lane: 'stash', sessions: L2 });
 call('a move of a filing', 'D', null, { move: true, mule: 'shared' });
 call('a move of nothing', 'Q', null, { move: true, mule: 'shared' });
+window.mainCharacter = function(){ return { name: 'Lawhero', level: 90 }; };
+call('hand, with his MAIN declared', 'M1', { by: 'hand', at: '2026-09-26T03:00:00+03:00', where: 'the vault manager' });
+delete window.mainCharacter;
 var prov = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}');
 OUT.prov = prov;
 OUT.map = assign;
@@ -191,10 +199,24 @@ class EveryMuleFilingCarriesItsWitness(unittest.TestCase):
         self.assertEqual([], self.out["bad"], "a filing stood without its witness row: %s" % self.out["bad"][:4])
 
     def test_a_call_with_no_witness_files_nothing(self):
-        for label in ("no witness", "an empty object", "hand, no where", "d2s unverified"):
+        for label in ("no witness", "an empty object", "hand, no where", "d2s unverified",
+                      "hand, a time that is no date", "hand, no time"):
             c = self.by[label]
             self.assertFalse(c["ok"], "%s was accepted: %r" % (label, c))
             self.assertFalse(c["changed"], "%s changed the map" % label)
+        self.assertNotIn("H1", self.out["prov"], "a hand with no real time left a witness row")
+
+    def test_a_hand_says_when_and_the_row_names_the_main(self):
+        """#246 review — the row's `at` is his time (normalised, never invented), and `main` is the MAIN he declared
+        when it was filed, or null — UNKNOWN — when he had not."""
+        p = self.out["prov"]
+        self.assertIn("not a date", self.by["hand, a time that is no date"]["why"])
+        self.assertIn("no time", self.by["hand, no time"]["why"])
+        self.assertEqual("2026-09-26T02:00:00.000Z", p["C2"]["at"], "his hand's time was not the row's time: %r" % p["C2"])
+        self.assertTrue(self.by["hand, with his MAIN declared"]["ok"], self.by["hand, with his MAIN declared"])
+        self.assertEqual("2026-09-26T00:00:00.000Z", p["M1"]["at"], "a time with an offset was not read as that instant")
+        self.assertEqual("Lawhero", p["M1"]["main"], "the row does not name the MAIN it is kept apart from: %r" % p["M1"])
+        self.assertIsNone(p["C"]["main"], "an undeclared MAIN was written as something other than null (UNKNOWN)")
 
     def test_each_kind_of_witness_files_with_its_row(self):
         p = self.out["prov"]
@@ -307,6 +329,22 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    var r = _provAll()[nm];\n    var S = (typeof MP_SRC_SAY === 'object' && MP_SRC_SAY) ? MP_SRC_SAY : {};\n",
         "replace": "    var r = null;\n    var S = (typeof MP_SRC_SAY === 'object' && MP_SRC_SAY) ? MP_SRC_SAY : {};\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - a hand's time is stored unchecked again: 'not a date' becomes the filing's time",
+        "file": "bible.html",
+        "find": ("      if (!isFinite(atMs)) return { ok: false, why: 'a manual declaration must say WHEN it was made — '\n"
+                 "        + (atS ? ('\"' + atS.slice(0, 40) + '\" is not a date') : 'it carried no time') };\n"
+                 "      return { ok: true, kind: 'hand', where: wh, at: new Date(atMs).toISOString() };\n"),
+        "replace": "      return { ok: true, kind: 'hand', where: wh, at: w.at || null };\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the witness row loses the spec's `main` field (the MAIN the filing is kept apart from)",
+        "file": "bible.html",
+        "find": "      mule: home, main: _vMainName(), holder: _vHomeName(home),\n",
+        "replace": "      mule: home, holder: _vHomeName(home),\n",
         "matches": 1,
     },
     {

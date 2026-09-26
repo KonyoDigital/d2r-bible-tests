@@ -15,6 +15,15 @@ and it is UNKNOWN — never OK — when the board could not be asked.
 WHAT THIS LAW HOLDS: the verdict is a PURE function, driven arm by arm with fixtures (game item names only, never
 his store); the row reads the board through the shared read and answers UNKNOWN without it; furniture and
 consumables are never reported as "unfiled"; and the row is registered, declared and explained.
+
+#246 review — TWO ANSWERS THE ROW GAVE THAT NOTHING HAD MEASURED:
+  · arm 3 counted rows the lane can NEVER file: a shared-stash name (suggestMule's one null; the door answers
+    'no-home') and a set piece the lane had filed under its slot-suffixed name. Driven through the REAL
+    vaultAccumApply on a copy of his store, the row stayed MISSING for ever and told him to press register —
+    advice that cannot work. Those are now reported beside, never as a gap, read from the board's own
+    SHARED_STASH_RE and the generated set roster.
+  · its OK read "no MAIN item sits in a mule" while his real MAIN ledger locked 0 of 7 tracked rows. With
+    filings in the mules and nothing that locks, the row is UNKNOWN; its OK names what locked.
 RED_PROOF below.
 """
 import json
@@ -79,6 +88,50 @@ class TheVaultProvenanceRowCanGoRed(unittest.TestCase):
         for n in ("Magefist", "Horadric Cube", "Super Mana Potion", "Stormshield"):
             self.assertNotIn(n, why, "%s was reported as a stash row waiting to be filed" % n)
 
+    def test_arm_3_never_counts_a_row_no_mule_can_hold(self):
+        """#246 review — a shared-stash name has no mule (the door refuses it 'no-home'), and a set piece the lane
+        filed under its canonical name IS filed. Neither is a gap; the shared-stash one is reported beside."""
+        accum = [{"name": "Cold Rupture", "lane": "stash", "witnesses": TWO},
+                 {"name": "Black Cleft", "lane": "stash", "witnesses": TWO},
+                 {"name": "Tal Rasha's Horadric Crest", "lane": "stash", "witnesses": TWO},
+                 {"name": "Nagelring", "lane": "stash", "witnesses": TWO}]
+        filed = {"Tal Rasha's Horadric Crest (helm)": "sets-major"}
+        st, why, c = _v(filed, {"Tal Rasha's Horadric Crest (helm)": ROW}, accum=accum)
+        self.assertEqual(1, c["gatePassingUnfiled"], "only Nagelring can still be filed by the lane: %s" % why)
+        self.assertEqual(2, c["gatePassingNoMule"], "the shared-stash rows were not reported beside: %s" % why)
+        self.assertIn("(first: Nagelring)", why)
+        self.assertIn("belong in the shared stash", why)
+        st2, why2, c2 = _v(filed, {"Tal Rasha's Horadric Crest (helm)": ROW}, accum=accum[:3])
+        self.assertEqual(D.OK, st2, "a vault whose only unfiled rows can never be filed read %s: %s" % (st2, why2))
+        self.assertNotIn("press register", why2, "the row advises a press that can never file anything: %s" % why2)
+
+    def test_an_unreadable_route_is_unknown_never_a_gap(self):
+        blind = lambda n: (None, n)
+        st, why, c = D.vault_provenance_verdict({}, {}, {}, [{"name": "Nagelring", "lane": "stash", "witnesses": TWO}],
+                                                {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED, route_fn=blind)
+        self.assertEqual((0, 1), (c["gatePassingUnfiled"], c["gatePassingRouteUnknown"]), why)
+        self.assertIn("UNKNOWN", why)
+
+    def test_arm_2_ok_is_only_as_wide_as_what_locks(self):
+        """#246 review — his real MAIN ledger tracks rows and locks none (each under 3 sightings). Zero locks is not
+        zero MAIN items: with filings in the mules the row is UNKNOWN and never says "no MAIN item sits in a mule"."""
+        filed = {"Nagelring": "uni-small", "Stormshield": "uni-armor"}
+        prov = {"Nagelring": ROW, "Stormshield": ROW}
+        for label, ms in (("locks none", {"ok": True, "locked": [], "tracked": 7, "blockedWhy": ""}),
+                          ("unreadable", {"ok": False, "locked": None, "why": "the MAIN ledger is unreadable"})):
+            st, why, c = D.vault_provenance_verdict(filed, prov, {}, [], {"runs": 1, "banked": 0},
+                                                    locked_fn=NOBODY_LOCKED, main_state=ms)
+            self.assertEqual(D.UNKNOWN, st, "%s: a MAIN arm that measured nothing read %s: %s" % (label, st, why))
+            self.assertNotIn("no MAIN item sits in a mule", why)
+            self.assertIn("UNKNOWN", why)
+        st, why, c = D.vault_provenance_verdict(filed, prov, {}, [], {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED,
+                                                main_state={"ok": True, "locked": [{"name": "Gore Rider"}], "tracked": 7})
+        self.assertEqual(D.OK, st, why)
+        self.assertIn("locks 1 of 7", why, "the OK does not say what the MAIN arm could see: %s" % why)
+        st, why, c = D.vault_provenance_verdict({}, {}, {}, [], {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED,
+                                                main_state={"ok": True, "locked": [], "tracked": 7})
+        self.assertEqual(D.OK, st, "an empty vault cannot hold a MAIN item: %s" % why)
+
     def test_arm_4_unknown_is_said_never_counted_as_zero(self):
         st, why, c = _v({}, {}, accum=None, feeder=None)
         self.assertIsNone(c["gatePassingUnfiled"], "an unreadable stash ledger was counted as zero waiting")
@@ -131,6 +184,27 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "        if gv.get(\"pass\"):\n            gate_unfiled.append(nm)\n",
         "replace": "        if False:\n            gate_unfiled.append(nm)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - arm 3 counts a shared-stash row (no mule exists for it) as a gap again",
+        "file": "console_doctor.py",
+        "find": "        if gv.get(\"pass\") and routable is False:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - arm 3 misses a set piece the lane filed under its slot-suffixed name again",
+        "file": "console_doctor.py",
+        "find": "        if canon in assign:\n            continue",
+        "replace": "        if False:\n            continue",
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the OK says 'no MAIN item sits in a mule' again when nothing locks",
+        "file": "console_doctor.py",
+        "find": "    if main_state is not None and filings and not main_locks and not lane_locks:\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
     {
