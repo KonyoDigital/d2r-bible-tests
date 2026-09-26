@@ -27,6 +27,13 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 BASELINE = os.path.join(HERE, "home_paths_baseline.json")
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable       # his Windows console is cp1255: this file prints "-" and "·"
+    _enable()
+except Exception:
+    pass
 
 #: a real account's home: /Users/ then a name made of account characters, then a slash
 HOME = re.compile(r"/Users/[A-Za-z0-9._-]+/")
