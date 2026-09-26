@@ -43,9 +43,34 @@ def _name(c):
     return f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else None)
 
 
+_REMOVER = ("rmtree", "clean", "remove", "unlink", "rmdir")
+_REGISTRARS = ("addCleanup", "register")
+
+
+def _removes(fn):
+    """Is this callable a remover? A name (shutil.rmtree, _clean_scratch) or a lambda whose body calls one."""
+    if isinstance(fn, ast.Lambda):
+        return any(isinstance(c, ast.Call) and any(k in (_name(c) or "").lower() for k in _REMOVER)
+                   for c in ast.walk(fn.body))
+    n = fn.attr if isinstance(fn, ast.Attribute) else (fn.id if isinstance(fn, ast.Name) else "")
+    return any(k in (n or "").lower() for k in _REMOVER)
+
+
 def _cleans(node):
-    return any(isinstance(c, ast.Call) and (_name(c) in CLEAN or "clean" in (_name(c) or "").lower())
-               for c in ast.walk(node))
+    """Does this function remove what it made? ⚠ 2026-09-26 (the #231 eye on v3508): `addCleanup` / `atexit.register`
+    counted by NAME, so `self.addCleanup(lambda: None)` in a setUp vouched for every mkdtemp in the class. A registrar
+    counts only when what it registers REMOVES something; a direct rmtree / cleanup call counts as before."""
+    for c in ast.walk(node):
+        if not isinstance(c, ast.Call):
+            continue
+        nm = _name(c) or ""
+        if nm in _REGISTRARS:
+            if c.args and _removes(c.args[0]):
+                return True
+            continue
+        if nm in CLEAN or "clean" in nm.lower():
+            return True
+    return False
 
 
 def unpaired_sites(path):
@@ -157,13 +182,21 @@ class ATestRunLeavesNoScratchDirs(unittest.TestCase):
                "    def setUp(self):\n"
                "        self.addCleanup(lambda: None)\n"
                "    def test_c(self):\n"
-               "        f = tempfile.mkdtemp()\n")                     # line 12: paired by the fixture method
+               "        f = tempfile.mkdtemp()\n"                     # line 12: LEAKS - a no-op cleanup removes nothing
+               "class V(unittest.TestCase):\n"
+               "    def setUp(self):\n"
+               "        self.d = tempfile.mkdtemp()\n"                # line 15: paired - its fixture registers rmtree
+               "        self.addCleanup(shutil.rmtree, self.d, True)\n"
+               "    def test_d(self):\n"
+               "        g = tempfile.mkdtemp()\n"                     # line 19: paired by the same fixture
+               "        self.addCleanup(lambda: shutil.rmtree(g, True))\n")
         tmp = tempfile.mkdtemp(prefix="unpaired-")
         self.addCleanup(shutil.rmtree, tmp, True)
         p = os.path.join(tmp, "t.py")
         with io.open(p, "w", encoding="utf-8") as fh:
             fh.write(src)
-        self.assertEqual(unpaired_sites(p), [4], "a cleanup elsewhere in the class vouched for a leaking site")
+        self.assertEqual(unpaired_sites(p), [4, 12], "a cleanup elsewhere in the class, or a no-op one (the #231 eye on "
+                                                     "v3508: addCleanup(lambda: None)), vouched for a leaking site")
 
     def test_premise_the_finder_finds_the_two_big_suites(self):
         found = set(os.path.basename(p) for p in _tests() if unpaired_sites(p))
@@ -241,6 +274,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the #231 eye on v3508 - a registrar counts by NAME again: addCleanup(lambda: None) vouches for a leaking mkdtemp",
+        "file": "test_a_test_run_leaves_no_scratch_dirs.py",
+        "find": "            if c.args and _removes(c.args[0]):\n                return True\n            continue\n",
+        "replace": "            return True\n",
+        "matches": 1,
+    },
     {
         "why": "#243 - any cleanup anywhere in a class pairs every site again (test_provenance leaked 83 dirs a day behind one)",
         "file": "test_a_test_run_leaves_no_scratch_dirs.py",

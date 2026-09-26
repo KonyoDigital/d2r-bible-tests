@@ -738,8 +738,10 @@ def install_sandbox_cleanup():
 
 
 def sweep_stale_sandboxes(tmp=None, now=None):
-    """Remove every heart2.* sandbox whose owner is dead, or that has no owner and is older than a day.
-    -> [(path, why)] removed. A live owner's sandbox is kept, whatever its age."""
+    """Remove every heart2.* sandbox whose owner is dead, or that is older than a day whoever its owner file names.
+    -> [(path, why)] removed. A live owner's sandbox is kept for a day - no proof run lives that long (the gate bounds one
+    near 70 minutes), so past SANDBOX_STALE_S a "live" owner is a REUSED pid, not a prover (#231 on v3507). ⚠ This line
+    said "kept, whatever its age" after that rule shipped, and the eye on v3508 read the docstring against the code."""
     tmp = tmp or tempfile.gettempdir()
     now = time.time() if now is None else now
     gone = []

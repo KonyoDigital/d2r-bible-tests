@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1319 - THE SECOND EYE ON v3508: A NO-OP CLEANUP VOUCHED FOR A LEAK, A DOCSTRING SAID THE OPPOSITE OF ITS CODE, AND A LAW MEASURED HIS DISK
+
+**fix - the #231 eye's look at v3508 (grok-cli, 9 findings), each measured before it was acted on.**
+REAL, fixed: (5) the #171 pairing scanner counted `addCleanup` / `atexit.register` by NAME, so `self.addCleanup(lambda:
+None)` in a setUp paired every mkdtemp in the class - and the synthetic case ENCODED that as correct. A registrar now
+counts only when what it registers removes something (rmtree / a *clean* / *remove* / *unlink* callable, or a lambda
+whose body calls one); measured on the tree, 3 real sites re-classified (test_agent 1, test_control 2), both files
+already contained. (1) heart2.sweep_stale_sandboxes' docstring still said a live owner's sandbox is "kept, whatever its
+age" after v3508 made a day-old one stale whoever the owner (a reused pid); the docstring now says what the code does.
+Found in the same pass: the scratch row's law (test_a_scratch_dir_is_not_made_by_reading_the_module) asserted his REAL
+temp dir read "ok" and CREATED a test directory there; his ~18,000 pre-fix scratch dirs aging past 3 days turned it red
+in the full gate set before the v3511 push, a fact about his disk, not about the row. Two cases now drive the row on a
+private root. REJECTED with reasons: (2) the None return breaks no caller (its one caller ignores it); (3) the sweep
+never touches a profile under an hour old; (4) a reused pid errs toward KEEPING, and the ps check guards the other way;
+(6) the argv scanner cannot see a variable list's contents (a static limit, stated); (7) `d` is bound before the try and
+rmtree(ignore_errors) cannot mask. (8, 9) the eye's own reach notes - bible.html is outside its pathspec. heart2 --prove:
+both scratch laws 6/6 PROVEN. [[a-presence-law-is-not-a-reachability-law]] [[feedback-fixtures-never-touch-live-data]]
+
 ### REG-1318 - A STORE TRACKED AFTER THE PROVENANCE BASELINE READ AS NEW DEBT ON HIS MACHINE
 
 **fix - found 2026-09-26 by the full gate set before the v3508-v3511 push (local only; CI graded it green).**

@@ -168,11 +168,31 @@ class TestTheRowThatWatchesTheScratch(unittest.TestCase):
         import console_doctor as cd
         return dict(cd.CHECKS)["our scratch is collected"]
 
+    def _private_root(self):
+        """⚠ 2026-09-26 — THE ROW IS DRIVEN ON A PRIVATE ROOT, NEVER HIS TEMP DIR. These two cases asserted his REAL
+        temp dir read "ok" first, and his machine holds ~18,000 of our pre-fix scratch dirs aging past 3 days minute by
+        minute: the full gate set before the v3511 push went red on "the machine is already dirty; this case cannot
+        measure" - a statement about his disk, not about the row - and the macOS-container case CREATED a directory
+        in his real temp dir. The row's own doctor pass reports his disk; this law pins the row's LOGIC.
+        [[feedback-fixtures-never-touch-live-data]] [[a-gate-can-perturb-what-it-measures]]"""
+        import tempfile as _tf
+        root = tempfile.mkdtemp(prefix="scratch_row_root_")
+        os.mkdir(os.path.join(root, "tmp_young_and_ours"))          # ours, and young: the row can answer "ok"
+        orig = _tf.gettempdir
+        _tf.gettempdir = lambda: root
+
+        def _undo():
+            _tf.gettempdir = orig
+            shutil.rmtree(root, ignore_errors=True)
+        self.addCleanup(_undo)
+        return root
+
     def test_it_reds_on_a_real_old_directory_of_ours(self):
         import time
         fn = self._row()
-        self.assertEqual(fn()[0], "ok", "the machine is already dirty; this case cannot measure")
-        mine = tempfile.mkdtemp(prefix="tmp", dir=tempfile.gettempdir())
+        root = self._private_root()
+        self.assertEqual(fn()[0], "ok", "PREMISE: the private root (one young dir of ours) did not read ok")
+        mine = tempfile.mkdtemp(prefix="tmp", dir=root)
         old = time.time() - 9 * 86400
         try:
             os.utime(mine, (old, old))
@@ -192,8 +212,9 @@ class TestTheRowThatWatchesTheScratch(unittest.TestCase):
         never go green is one nobody reads within a week."""
         import time
         fn = self._row()
-        self.assertEqual(fn()[0], "ok", "the machine is already dirty; this case cannot measure")
-        theirs = os.path.join(tempfile.gettempdir(), "com.apple.aTestContainerThatIsNotOurs")
+        root = self._private_root()
+        self.assertEqual(fn()[0], "ok", "PREMISE: the private root (one young dir of ours) did not read ok")
+        theirs = os.path.join(root, "com.apple.aTestContainerThatIsNotOurs")
         old = time.time() - 9 * 86400
         try:
             os.makedirs(theirs, exist_ok=True)
