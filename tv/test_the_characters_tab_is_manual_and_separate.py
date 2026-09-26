@@ -60,7 +60,7 @@ THE #245 REVIEW'S FIVE ROOM DEFECTS, each reproduced in headless Chrome before i
     fix it; the pixels were measured in headless Chrome (375-1120), which this law cannot do.
 
 ⚠ WHAT THIS LAW CANNOT SEE: pixels (the room was looked at in headless Chrome at 2000x1300 and 375x812 when it was
-built), and the CONSOLE's own header strip (tv/control_ui.html #head-tabs), which has no Characters door yet — inside
+built), and the CONSOLE's own header strip (tv/control_ui.html #head-tabs) - its door is pinned by the case below (2026-09-27: an icon-only 👤 chip, Tools icon-only too, measured one row at 1120/1440/1600 with the live icons stood in; 901/1000 wrap on HEAD as well) — inside
 the console shell the board's tab row is hidden, so this room is reached on the website and in app context, not from
 the console header. That is recorded as open work, not claimed here: a ninth header tab was built and measured in a
 private console and it does NOT fit his one-row strip (v2100: "the main tabs on top should be one row") - it wrapped
@@ -307,6 +307,19 @@ def _run(body, profile="main", raw_patch=None):
 
 @unittest.skipIf(NODE is None, "node is not on this machine")
 class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
+
+    def test_the_console_header_has_a_characters_door(self):
+        """his answer 2026-09-26: 'the character build tool gets its own tab up top' - in HIS console too."""
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        i = ui.index('id="head-tabs"'); nav = ui[i:ui.index("</nav>", i)]
+        doors = re.findall(r'<button class="ht[^"]*"[^>]*data-tab="chars"[^>]*>.*?</button>', nav, flags=re.S)
+        self.assertEqual(len(doors), 1, "the console header has %d Characters door(s), not one" % len(doors))
+        self.assertIn('class="ht-lbl">Characters</span>', doors[0], "the door has no name for a screen reader")
+        self.assertIn("ht-icon", doors[0], "the door is a full-width tab: the one-row header (his v2100 rule) wraps")
+        order = re.findall(r'data-tab="([a-z]+)"', nav)
+        self.assertEqual(order.index("chars") + 1, order.index("vault"), "the Characters door does not sit right before Vault")
+
 
     def test_the_tab_is_a_room_of_its_own_right_before_the_vault(self):
         s = _src()
@@ -693,6 +706,13 @@ class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "his answer 2026-09-26 - the console header loses its Characters door",
+        "file": "control_ui.html",
+        "find": "data-tab=\"chars\" title=\"Characters - your own builds\"",
+        "replace": "data-tab=\"charsX\" title=\"Characters - your own builds\"",
+        "matches": 1,
+    },
     {
         "why": "#245 - the Characters tab leaves the top bar: the room exists and has no door",
         "file": "bible.html",

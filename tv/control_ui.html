@@ -7136,6 +7136,12 @@
     padding: 9px 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; }   /* v2100 — folded up from the retired !important layer */
   .head-tabs .ht:hover { color: var(--gold); border-color: var(--edge-hi); box-shadow: 0 0 10px rgba(240,192,96,.18); }
   .head-tabs .ht:active { transform: translateY(1px); }
+  /* #245 (his answer 2026-09-26: "the character build tool gets its own tab up top"): the header holds ONE row (his
+     v2100 rule), so 👤 Characters is an ICON-ONLY chip and Tools becomes one too - the name stays for a screen reader
+     (.ht-lbl, visually hidden) and on hover (title). Nothing else in the row changes. */
+  .head-tabs .ht.ht-icon .ht-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .head-tabs .ht.ht-icon { padding-left: 7px; padding-right: 7px; align-self: stretch; }
+  .head-tabs .ht .ht-emo { font-size: var(--fs-body); line-height: 1; }
   /* v945 CONSOLE PARITY C7 — the CURRENT tab is clearly lit (was indistinguishable), plus a keyboard ring */
   .head-tabs .ht.shell-on { color: #1a1206; background: linear-gradient(180deg, var(--gold-hi), var(--gold-antique));
     border-color: var(--gold-hi); box-shadow: 0 0 12px rgba(240,192,96,.3); opacity: 1 !important; }
@@ -7619,7 +7625,8 @@ body[data-origin="shadow"] #stage::after {
           <button class="ht" type="button" data-tab="crafts"><img class="ht-i" src="/art/logo_cube.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Crafts</span></button>
           <button class="ht" type="button" data-tab="funi"><img class="ht-i" src="/art/ui_tab_funi.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Uniques</span></button>
           <button class="ht" type="button" data-tab="fsets"><img class="ht-i" src="/art/ui_tab_fsets.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Sets</span></button>
-          <button class="ht" type="button" data-tab="tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Tools</span></button>
+          <button class="ht ht-icon" type="button" data-tab="tools" title="Tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"><span class="ht-lbl">Tools</span></button>
+          <button class="ht ht-icon" type="button" data-tab="chars" title="Characters - your own builds"><span class="ht-emo" aria-hidden="true">👤</span><span class="ht-lbl">Characters</span></button>
           <!-- v2092 — THE VAULT TAB THE CONSOLE NEVER GOT. Konyo asked for the Mule Manager to get
                "its own main tab inbetween TOOLS tab and TV-D TAB". v2085 built that tab on the
                BOARD and stopped there; this header strip — the one he is actually looking at when
