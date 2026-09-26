@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3515"   # 174 v-B4 one picker for builder and mule, the runeword Base tab, the game tooltip, the doll and inventory as one panel
+VERSION = "v3516"   # 245 a Characters top tab for his own manual builds, separate from the Vault
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

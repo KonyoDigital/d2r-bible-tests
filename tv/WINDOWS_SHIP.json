@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3515",
+  "ver": "v3516",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3515: REG-1327 his ALT saw no items in any mule slot, now the whole database; REG-1328 the tooltip joins sockets, Hel -20 percent, Ohm ED, Sol min damage. HEART: guarded by test_the_mule_picker_offers_the_whole_database, test_the_runeword_base_tab_is_theirs, test_the_tooltip_is_the_games_tooltip, test_the_rails_fold_is_a_chevron_not_a_dot and the width law, every red-proof PROVEN",
+  "note": "v3516: Open, Set as MAIN, two-step Delete with an undo that restores byte-identical, New character; it writes only his builds and the MAIN marker, never a vault or mule key. HEART: guarded by test_the_characters_tab_is_manual_and_separate, 25 red-proofs PROVEN; no new lane or engine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
