@@ -586,7 +586,9 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           window._cbEdit('sockets', '1'); OUT.crownStep = [cur().sets[0].slots.head.sockets, cur().sets[0].slots.head.rolls];
           window._cbClosePick();
           window._cbOpenPick('slot', 'tors'); window._cbChoose(byName("Tyrael's Might")[0]); OUT.tyrIn = sockIn(); window._cbEdit('sockets', '4');
-          OUT.tyr = cur().sets[0].slots.tors.sockets; window._cbPickTab('select'); window._cbChoose('b:utp'); OUT.archonIn = sockIn(); window._cbClosePick();
+          OUT.tyr = cur().sets[0].slots.tors.sockets; window._cbPickTab('select'); window._cbChoose('b:utp');
+          /* #174 v-B3: a base now waits on its Quality tab (their Select -> Quality -> Edit); Normal is the old pick */
+          window._cbQuality('b'); OUT.archonIn = sockIn(); window._cbClosePick();
           window._cbOpenPick('inv', null, [0, 0]);
           OUT.invAll = window._cbPickRows().map(function(x){ return x[1]; });
           window._cbQt('m'); OUT.invMisc = window._cbPickRows().map(function(x){ return x[1]; }); window._cbClosePick();

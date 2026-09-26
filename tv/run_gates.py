@@ -5555,6 +5555,31 @@ GATES = [
              "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
              "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
              "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 5 red-proofs"),
+    Gate("test_the_affix_tables_are_the_installs",
+         [sys.executable, os.path.join(HERE, "test_the_affix_tables_are_the_installs.py")], 90,
+         why="#174 v-B3 - the Edit tab's ADD MOD and the sheet read the CB_DB block's af / rn / qm rows, generated from "
+             "his install's magicprefix / magicsuffix / automagic / rareprefix / raresuffix / qualityitems / "
+             "lowqualityitems. Counted and shaped; a named sample hand-read from the tables (Chaotic, of Vita, Ruby, "
+             "Crimson's maxlevel, the frequency-0 classic Sturdy kept and marked); the rare words equal "
+             "tv/affix_lexicon.json's (a different generator); quality flags per type, never inherited (a Grand Charm is "
+             "magic only); where the install is, every spawnable row re-read from the raw table and --check 0. "
+             "6 cases, 5 red-proofs"),
+    Gate("test_the_item_edit_tab_builds_magic_and_rare_items",
+         [sys.executable, os.path.join(HERE, "test_the_item_edit_tab_builds_magic_and_rare_items.py")], 90,
+         why="#174 v-B3 - their Select -> Quality -> Edit over the game's affix tables, driven on the SHIPPED modal in "
+             "node: a Diadem waits on Rare / Magic / Superior / Normal / Low, a ring on Rare / Magic, a Grand Charm goes "
+             "straight to Edit as magic; ADD MOD filters by type, level, maxlevel, group, class, the rare flag, the "
+             "automod group and the quality's limits (magic 1+1, rare 3+3, a rare jewel 4); a roll outside its range is "
+             "refused; a picked mod reaches the stored entry, the tooltip, the composed name and STATS; an old build "
+             "loads unchanged; Esc closes ADD MOD first. 7 cases, 12 red-proofs"),
+    Gate("test_the_character_sheet_sums_picked_affixes",
+         [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_picked_affixes.py")], 90,
+         why="#174 v-B3 - D2R_CHAR_ENGINE sums the affixes he picked exactly like a unique's props (typed EXACT, "
+             "untouched RANGE, never averaged): a magic Grand Charm (Chaotic + of Vita) moves exactly the Chaos Skills "
+             "and Life rows; a rare Diadem's three mods sum; a typed base defense is EXACT, a superior row raises its own "
+             "item, a low-quality base's defense is UNKNOWN, an unknown affix id is an UNKNOWN row naming it, none "
+             "picked stays UNKNOWN and says so. Hand-worked from the tables; the two generators name the same affix "
+             "rows. 12 cases, 7 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
@@ -7091,7 +7116,9 @@ GATES = [
              "The entry and the equip are REAL input (Tools tab, the card, the slot, the search box, typed keys, a "
              "roll, a charm dropped and dragged). No browser binary = declared skip (77). FIX ROUND: at 375 and 2000 the "
              "picker's list reaches its last row under a real wheel (the stacked pane was unbounded at 375), and an active "
-             "gold button under the pointer keeps its dark label. 9 cases, 6 red-proofs",
+             "gold button under the pointer keeps its dark label. v-B3: the Edit tab of a base with its picked mods (a rare "
+             "Diadem with four, a magic Grand Charm with two) and its ADD MOD list open fit at 2000 / 1280 / 375. "
+             "10 cases, 8 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,

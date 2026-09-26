@@ -22,6 +22,10 @@ the template as it opens · with Crown of Ages on the doll and Annihilus in the 
 (Weapons, 600+ rows; Boots) - at 375 the stacked pane was unbounded, the list grew to 8715px and only ~35 rows could
 ever be reached; and an ACTIVE gold button under the pointer keeps its dark label (Set 1, ! Quests, Filters, the
 chosen class - the hover rule painted gold text on the gold face).
+#174 v-B3: at 2000 / 1280 / 375 the Edit tab of a BASE with its picked mods - a rare Diadem with four (Devil's, Ruby,
+of the Magus, of the Tiger), shut and with ADD MOD open; a magic Grand Charm with Chaotic + of Vita, and with Chaotic
+alone and ADD MOD open (its suffixes listed) - nothing cut, nothing outside its panel, nothing sideways, the modal on
+screen and off the glowing slot, every picked mod drawn and the open list full of options.
 The entry is REAL INPUT: the Tools tab and the Character Builder card are pressed by CDP mouse events at their
 centres, each hit-tested first; the helm is equipped the same way (the slot, the search box, the row), a roll is
 typed with key events, and the charm is DRAGGED to another cell with a press, moves carrying buttons=1, a release.
@@ -65,6 +69,16 @@ import render_check as RC  # noqa: E402
 NO_BROWSER = "no Chrome/Chromium on this machine, so the character builder was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
 STATES = ("plain", "worn", "picker", "edit", "stash")
+#: #174 v-B3 - the Edit tab of a base with its picked mods, and with ADD MOD open, at these widths
+MOD_WIDTHS = ((2000, 1300), (1280, 800), (375, 812))
+_DIADEM = ("window._cbOpenPick('slot','head'); window._cbChoose('b:ci3'); window._cbQuality('rare');"
+           " ['p712','p374','s175','s316'].forEach(function(i){ window._cbAddMod(i); });")
+_GC = "window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm3'); window._cbAddMod('p700');"
+#: a magic charm with its prefix AND suffix is full (nothing left to list), so its open ADD MOD carries the prefix only
+MOD_JS = {"mods": _DIADEM, "addmod": _DIADEM + " window._cbModOpen(true);",
+          "gcmods": _GC + " window._cbAddMod('s338');", "gcaddmod": _GC + " window._cbModOpen(true);"}
+MOD_STATES = ("mods", "addmod", "gcmods", "gcaddmod")
+MOD_ROWS = {"mods": 4, "addmod": 4, "gcmods": 2, "gcaddmod": 1}
 #: their builder at 2000 wide (spec §1): the three columns relative to the content column
 THEIR_COLS = {"left": (0, 322), "main": (328, 716), "stats": (1050, 300)}
 TOL = 4.0
@@ -83,6 +97,7 @@ MEASURE = r"""(function(){ try {
   var out = { stack: cb.classList.contains('cb-stack'), hscroll: [box.scrollWidth, box.clientWidth], cols: {}, cut: [], outside: [],
     sideways: [], collide: [], nText: 0, modal: null, covered: null, worn: box.querySelectorAll('.cb-slot.cb-has').length,
     inv: box.querySelectorAll('.cb-it').length, rolls: box.querySelectorAll('.cb-roll').length, opts: box.querySelectorAll('.cb-opt').length,
+    mods: box.querySelectorAll('.cb-mod').length, addOpts: box.querySelectorAll('.cb-add-o').length,
     doll: rel(d.getElementById('cb-doll')), invRect: rel(d.getElementById('cb-inv')),
     invInMain: !!(d.getElementById('cb-inv') && d.getElementById('cb-inv').closest('.cb-main')) };
   out.cols.left = rel(box.querySelector('.cb-left')); out.cols.main = rel(box.querySelector('.cb-main')); out.cols.stats = rel(box.querySelector('.cb-stats'));
@@ -312,6 +327,16 @@ def _measure():
                 res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="%s"]' % slot))
                 time.sleep(0.3)
                 res["wheel %s %dx%d" % (slot, w, h)] = _wheel_list(t)
+        # #174 v-B3 - the Edit tab of a BASE with picked mods (a rare Diadem with four, a magic Grand Charm with two), and
+        # its ADD MOD list open, at 2000 / 1280 / 375 - through the builder's own entry points (Choose -> Quality -> Add)
+        for (w, h) in MOD_WIDTHS:
+            _set_size(t, w, h)
+            for state in MOD_STATES:
+                t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % MOD_JS[state])
+                time.sleep(0.35)
+                res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
+                if state.startswith("gc"):
+                    t.ev("(function(){ window._cbUnequip(); window._cbClosePick(); return 1; })()")
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
         _set_size(t, 2000, 1300)
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
@@ -454,6 +479,37 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s the header type %s is not the --fs-title token %s at k=1" % (state, m["fsTitle"], m["tokTitle"]))
         self.assertEqual(bad, [], "\n  ".join(bad))
 
+    def test_the_edit_tab_with_picked_mods_and_add_mod_open_fits(self):
+        """#174 v-B3 - a rare Diadem with four picked mods (shut, and with ADD MOD open) and a magic Grand Charm with two
+        (and with its prefix alone and ADD MOD open, its suffixes listed): nothing cut, nothing outside its panel,
+        nothing sideways, the modal on screen and off the glowing slot"""
+        r, bad = _measure(), []
+        for (w, h) in MOD_WIDTHS:
+            for state in MOD_STATES:
+                label = "%s %dx%d" % (state, w, h)
+                m = r[label]
+                if "err" in m:
+                    bad.append("%s: %s" % (label, m["err"]))
+                    continue
+                want = MOD_ROWS[state]
+                if m["mods"] != want:
+                    bad.append("%s: PRINT THE DENOMINATOR - %d picked-mod rows drawn, %d picked" % (label, m["mods"], want))
+                if state.endswith("addmod") and m["addOpts"] < 20:
+                    bad.append("%s: the open ADD MOD list drew only %d options" % (label, m["addOpts"]))
+                if m["nText"] < 40:
+                    bad.append("%s: only %d text nodes measured" % (label, m["nText"]))
+                bad += ["%s %s" % (label, x) for x in m["cut"] + m["outside"] + m["sideways"] + m["collide"]]
+                if m["hscroll"][0] > m["hscroll"][1] + 1:
+                    bad.append("%s the window itself scrolls sideways %d/%d" % (label, m["hscroll"][0], m["hscroll"][1]))
+                if m["modal"] is None or not m.get("modalInside"):
+                    bad.append("%s the modal is not on screen: %s" % (label, m["modal"]))
+                if m["covered"]:
+                    bad.append("%s the modal covers the glowing slot it serves" % label)
+            dm = r["mods %dx%d" % (w, h)]
+            if "err" not in dm and dm["rolls"] < 2:
+                bad.append("mods %dx%d: Ruby 31-40 and of the Tiger 21-30 drew %d roll boxes" % (w, h, dm["rolls"]))
+        self.assertEqual(bad, [], "\n  ".join(bad[:40]))
+
     def test_under_900_the_character_comes_first(self):
         for (w, h) in WIDTHS:
             m = _measure()["worn %dx%d" % (w, h)]
@@ -466,6 +522,21 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B3 - the open ADD MOD list stops scrolling inside its box and clips its options",
+        "file": "bible.html",
+        "find": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:auto;",
+        "replace": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:hidden;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 - the Edit tab's controls row (Item level · Quality · Name · Base · Defense · Sockets · Ethereal) "
+               "stops wrapping and runs out of the modal on a phone",
+        "file": "bible.html",
+        "find": ".cb-ctls{display:flex;flex-wrap:wrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
+        "replace": ".cb-ctls{display:flex;flex-wrap:nowrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 fix round - the stacked picker's pane is unbounded again: at 375 the list grows to its rows and never scrolls",
         "file": "bible.html",

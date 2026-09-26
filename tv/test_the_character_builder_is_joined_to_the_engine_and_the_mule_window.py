@@ -485,7 +485,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 integration - the builder hands its one-letter quality to the engine again, so every row reads UNKNOWN",
         "file": "bible.html",
-        "find": "var CB_ENGINE_Q = { u: 'unique', s: 'set', r: 'runeword', c: 'crafted', b: 'base', m: 'magic', rare: 'rare' };",
+        "find": "var CB_ENGINE_Q = { u: 'unique', s: 'set', r: 'runeword', c: 'crafted', b: 'base', m: 'magic', rare: 'rare', sup: 'superior', low: 'low' };",
         "replace": "var CB_ENGINE_Q = {};",
         "matches": 1,
     },
