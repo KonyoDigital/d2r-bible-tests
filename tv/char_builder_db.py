@@ -35,6 +35,23 @@ WHAT IS IN IT, AND WHERE EACH FACT COMES FROM
           draws as a box; a fixed one is a number.
   · sk    what fits a socket: every rune and gem (gems.txt: its weapon / helm-and-armor / shield modifiers)
   · T     the line templates, stored once and referenced by index (the block is ~40% smaller for it)
+  · af    #174 v-B3 — every SPAWNABLE magicprefix / magicsuffix / automagic row: its display name
+          (item-nameaffixes.json), level / maxlevel / levelreq, the rare flag, its group, the class it is tied to
+          (`classspecific`), its item types and excluded types, its lines (roll keys m1..m3 = its mod columns) and its
+          frequency — the ADD MOD list of the Edit tab, filtered on the page by the base's types, the item level, the
+          groups already used, the rare flag and the quality's limits. A base's automagic group is its b[22]
+          (`auto prefix`), its `magic lvl` its b[23] (the page holds an affix's level against the AFFIX level
+          alvl, from the item level, qlvl b[18] and magic lvl - never the item level itself). An affix's [13] is
+          its class level requirement (`class` / `classlevelreq`: of Magic Arrows 11, an Amazon 1). A charged
+          skill whose table values are NEGATIVE (all 112 "of <Skill>" charges) is set by the item level in the
+          game's code: an UNKNOWN line ("Level ? Magic Arrow (?/? Charges)"), never "Level -10".
+  · rn    the rare name words (rareprefix / raresuffix), each with the item types it may name and whether a string
+          table names it (a key no table names would be kept, flagged 0, never offered as a name). The game asks
+          EVERY string table: six words are named only by monsters.json (GhoulRI "Ghoul", Wraithra "Wraith",
+          Fiendra "Fiend", crusher "Crusher", scarab "Scarab") and ui.json (strap "Strap") - #174 v-B3 fix round
+  · qm    a superior item's modifiers (qualityitems.txt rows and the columns they apply to), the low-quality words
+          (lowqualityitems.txt), which qualityitems column each item type reads, and which qualities each type may
+          drop in (itemtypes.txt Normal / Magic / Rare, the type's OWN flags)
 
 A ROLL'S KEY IS THE GAME'S. Each rolled value carries the column it comes from — `p3` is uniqueitems.txt
 prop3 / setitems.txt prop3 / runes.txt T1Code3 / cubemain.txt `mod 3`, `a2b` a set item's aprop2b. The builder
@@ -86,7 +103,24 @@ SOURCES = [
     ("playerclass", _X + "playerclass.txt"), ("cubemain", _X + "cubemain.txt"),
     ("itemnames", _S + "item-names.json"), ("itemrunes", _S + "item-runes.json"),
     ("itemmods", _S + "item-modifiers.json"), ("skillnames", _S + "skills.json"),
+    # #174 v-B3 — APPENDED, never inserted: the affix tables a magic / rare / superior / low item is built from, and
+    # the string table that names an affix ("Sturdy", "of Vita") and a rare word ("Havoc", "Shell")
+    ("magicprefix", _X + "magicprefix.txt"), ("magicsuffix", _X + "magicsuffix.txt"),
+    ("automagic", _X + "automagic.txt"), ("rareprefix", _X + "rareprefix.txt"), ("raresuffix", _X + "raresuffix.txt"),
+    ("qualityitems", _X + "qualityitems.txt"), ("lowqualityitems", _X + "lowqualityitems.txt"),
+    ("nameaffixes", _S + "item-nameaffixes.json"),
+    # #174 v-B3 fix round — APPENDED: the game looks a rare word up in EVERY string table, and six of them are named
+    # only outside the item tables (monsters.json GhoulRI "Ghoul", Wraithra "Wraith", Fiendra "Fiend", crusher
+    # "Crusher", scarab "Scarab"; ui.json strap "Strap") - read last, after the item strings, for a key none of those has
+    ("monsters", _S + "monsters.json"), ("ui", _S + "ui.json"),
 ]
+#: #174 v-B3 — the affix tables, their one-letter kind (the id's first letter) and the ADD MOD group they list under
+AFFIX_TABLES = (("magicprefix", "p"), ("magicsuffix", "s"), ("automagic", "a"))
+#: qualityitems.txt's columns, and the ancestor item type that puts a base under each. WHICH column a base reads is
+#: the game's own code (qualityitems.txt names the columns and never the types) - stated here as a rule, in the order
+#: it is asked: a shield is armour too, so the specific column wins. [[unknown-stays-unknown]]
+QCAT = (("shield", "shld"), ("boots", "boot"), ("gloves", "glov"), ("belt", "belt"), ("armor", "armo"),
+        ("scepter", "scep"), ("wand", "wand"), ("staff", "staf"), ("bow", "miss"), ("weapon", "weap"))
 
 #: the doll's slots (the game's BodyLoc codes, the same keys the mule window uses) and the inventory
 SLOTS = ("head", "neck", "tors", "rarm", "larm", "rrin", "lrin", "belt", "feet", "glov")
@@ -236,6 +270,11 @@ class DB(object):
         self.S = _strings(blobs.get("itemnames"), blobs.get("itemrunes"), blobs.get("itemmods"),
                           blobs.get("skillnames"))
         self.T = _Tpl()
+        # #174 v-B3: an affix's or a rare word's display string (item-nameaffixes.json), then the item strings
+        self.NA = _strings(blobs.get("nameaffixes"))
+        # #174 v-B3 fix round: the game's other string tables, asked LAST, only for a key no item table names (the six
+        # rare words "no string names it" claimed were named all along - by monsters.json and ui.json)
+        self.OS = _strings(blobs.get("monsters"), blobs.get("ui"))
         self.P = dict((r["code"], r) for r in _rows(blobs["properties"]) if r.get("code"))
         self.I = dict((r["Stat"], r) for r in _rows(blobs["itemstatcost"]) if r.get("Stat"))
         self.types = dict((r["Code"], r) for r in _rows(blobs["itemtypes"]) if r.get("Code"))
@@ -533,6 +572,14 @@ class DB(object):
                 if not sk:
                     out.append([self.T.id("a charged skill (%s) the tables do not name" % par), [], prio, 2, code])
                     continue
+                if _int(lo) < 0 or _int(hi) < 0:
+                    # #174 v-B3 fix round - a NEGATIVE level or charge count is not a roll: the affix tables' charged
+                    # skills (magicsuffix "of Magic Arrows": mod1min -30, mod1max -10 - all 112 "of <Skill>" rows)
+                    # are worked out from the item level by the game's own code, which no table holds. It printed
+                    # "Level -10 Magic Arrow (-30/-30 Charges)", a number no item ever shows. UNKNOWN, said.
+                    out.append([self.T.id("Level ? %s (?/? Charges) - set by the item level (the game's code, not a "
+                                          "table value)" % sk[0]), [], prio, 2, code])
+                    continue
                 emit(pos, [0, sk[0], 1, 1], [[_int(hi), _int(hi), key], [_int(lo), _int(lo), key]], prio)
             elif df == 12:
                 if _int(lo) == 1 and _int(hi) <= 1:
@@ -580,7 +627,14 @@ class DB(object):
                            _int(r.get("mindam")), _int(r.get("maxdam")), _int(r.get("2handmindam")),
                            _int(r.get("2handmaxdam")), hands, _int(r.get("invwidth"), 1),
                            _int(r.get("invheight"), 1), eth, _int(r.get("level")), _int(r.get("block")),
-                           1 if r.get("spawnable") == "1" else 0, label[0]]
+                           1 if r.get("spawnable") == "1" else 0, label[0],
+                           # [22] #174 v-B3: the automagic.txt group this base draws its AUTOMOD from (armor /
+                           # weapons.txt `auto prefix`: an Amazon bow's 300 is its +skill-tab automod), 0 = none
+                           _int(r.get("auto prefix")),
+                           # [23] #174 v-B3 fix round: armor / weapons / misc.txt `magic lvl` - a circlet's, wand's, staff's
+                           # or orb's bonus to the AFFIX level (Diadem 18): alvl = ilvl + magic lvl when it is > 0, the
+                           # level an affix's level / maxlevel is held against (with qlvl [18]); 0 = none
+                           _int(r.get("magic lvl"))]
                 if r.get("spawnable") == "1":
                     spawnable.add(code)
         # two bases, one printed name (RotW's Colossal Jewel prints "Jewel"): the later one keeps its TABLE name, so
@@ -750,13 +804,103 @@ class DB(object):
         rail["inv"] = inv
         for rec in items:
             rec.pop()                                     # the raw props were for naming only
+        AF, RN, QM = self.affixes()
         return {
             "v": 1, "gen": "tv/char_builder_db.py", "cls": self.classes, "ty": TY, "rail": rail, "b": B,
-            "T": self.T.list, "it": items, "sk": SK,
+            "T": self.T.list, "it": items, "sk": SK, "af": AF, "rn": RN, "qm": QM,
             "counts": {"bases": len(B), "uniques": sum(1 for x in items if x[2] == "u"),
                        "sets": sum(1 for x in items if x[2] == "s"), "runewords": sum(1 for x in items if x[2] == "r"),
-                       "crafted": sum(1 for x in items if x[2] == "c"), "socketables": len(SK)},
+                       "crafted": sum(1 for x in items if x[2] == "c"), "socketables": len(SK),
+                       "affixes": len(AF), "prefixes": sum(1 for x in AF if x[1] == "p"),
+                       "suffixes": sum(1 for x in AF if x[1] == "s"), "automods": sum(1 for x in AF if x[1] == "a"),
+                       "rareWords": [len(RN[0]), len(RN[1])], "superior": len(QM["sup"])},
         }
+
+    # ---- #174 v-B3: the affixes a magic / rare / superior item is built from -----------------------------------
+    def shown_affix(self, key):
+        """an affix's or a rare word's display string -> (text, 1) · the table's own key when no string table has
+        it -> (key, 0). The 0 is kept: "no string names it" and "named" must not read the same."""
+        k = str(key or "").strip()
+        for src in (self.NA or {}, self.S, self.OS or {}):
+            if k in src:
+                return src[k], 1
+        return k, 0
+
+    def class_req(self, r):
+        """an affix row's class level requirement: [class index, classlevelreq] when its `class` column names one of
+        the classes, else None. Separate from `classspecific` (who may ROLL it): this is only who may WEAR it sooner."""
+        c = (r.get("class") or "").strip()
+        if not c or not str(r.get("classlevelreq") or "").strip():
+            return None
+        ci = self.cls_by_code.get(c, -1)
+        return [ci, _int(r.get("classlevelreq"))] if ci >= 0 else None
+
+    def affixes(self):
+        """-> (af, rn, qm).
+        af  one row per SPAWNABLE magicprefix / magicsuffix / automagic row, the table's own order:
+            [id, kind 'p'|'s'|'a', name, level, maxlevel (None = no ceiling), levelreq, rare 0|1, group,
+             class index (classspecific; -1 = any), itypes, etypes, lines, frequency,
+             [class index, classlevelreq] | None (the level requirement for one class: `class` / `classlevelreq`)]
+            id = kind + the row's index in its table (the index tv/char_props.py keys the engine's rows by), each mod's
+            roll key m1..m3 = its column (mod1..mod3), so a typed roll joins the engine's line without any text.
+        rn  the rare name words: [[word, itypes, etypes, named 1|0] per rareprefix row], [... per raresuffix row]]
+        qm  {sup: [[id 'q'+row, lines, [qualityitems columns it applies to]]], low: [lowqualityitems words],
+             cat: {item type: the qualityitems column its bases read}, can: {item type: the qualities it may drop in,
+             from itemtypes.txt Normal / Magic / Rare}}"""
+        af = []
+        for label, kind in AFFIX_TABLES:
+            for i, r in enumerate(_rows(self.blobs[label])):
+                if r.get("spawnable") != "1" or not (r.get("Name") or "").strip():
+                    continue                              # a blank separator row the game never rolls
+                props = [("m%d" % j, r.get("mod%dcode" % j), r.get("mod%dparam" % j), r.get("mod%dmin" % j),
+                          r.get("mod%dmax" % j)) for j in (1, 2, 3) if (r.get("mod%dcode" % j) or "").strip()]
+                if not props:
+                    continue
+                mx = (r.get("maxlevel") or "").strip()
+                af.append([kind + str(i), kind, self.shown_affix(r["Name"])[0], _int(r.get("level")),
+                           _int(mx) if mx else None, _int(r.get("levelreq")), 1 if r.get("rare") == "1" else 0,
+                           _int(r.get("group")), self.cls_by_code.get((r.get("classspecific") or "").strip(), -1),
+                           [r.get("itype%d" % j) for j in range(1, 8) if r.get("itype%d" % j)],
+                           [r.get("etype%d" % j) for j in range(1, 6) if r.get("etype%d" % j)],
+                           self.lines(props), _int(r.get("frequency")),
+                           # [13] #174 v-B3 fix round: magicsuffix.txt `class` + `classlevelreq` - the level requirement
+                           # for THAT class (of Magic Arrows: levelreq 11, an Amazon 1); None = the same for every class
+                           self.class_req(r)])
+        rn = []
+        for label in ("rareprefix", "raresuffix"):
+            words = []
+            for r in _rows(self.blobs[label]):
+                if not (r.get("name") or "").strip():
+                    continue
+                w, named = self.shown_affix(r["name"])
+                words.append([w, [r.get("itype%d" % j) for j in range(1, 8) if r.get("itype%d" % j)],
+                              [r.get("etype%d" % j) for j in range(1, 5) if r.get("etype%d" % j)], named])
+            rn.append(words)
+        cols = [c for c, _ in QCAT]
+        sup = []
+        for i, r in enumerate(_rows(self.blobs["qualityitems"])):
+            props = [("m%d" % j, r.get("mod%dcode" % j), r.get("mod%dparam" % j), r.get("mod%dmin" % j),
+                      r.get("mod%dmax" % j)) for j in (1, 2) if (r.get("mod%dcode" % j) or "").strip()]
+            if props:
+                sup.append(["q%d" % i, self.lines(props), [c for c in cols if r.get(c) == "1"]])
+        low = [self.shown_affix(r.get("Name"))[0] for r in _rows(self.blobs["lowqualityitems"]) if r.get("Name")]
+        cat, can = {}, {}
+        for t in self.TY:
+            a = self.ancestors(t)
+            col = next((c for c, anc in QCAT if anc in a), None)
+            if col:
+                cat[t] = col
+            # the type's OWN flags, never inherited: a Large Charm's row leaves Rare blank while its ancestor `misc`
+            # says 1, and a charm never drops rare (walking the Equiv chain offered "Rare Grand Charm")
+            own = self.types.get(t) or {}
+            rare = ["rare"] if own.get("Rare") == "1" else []
+            if own.get("Normal") == "1":
+                can[t] = ["b"]                            # always normal (a quiver)
+            elif own.get("Magic") == "1":
+                can[t] = rare + ["m"]                     # always magic: a ring, an amulet, a charm, a jewel
+            else:
+                can[t] = rare + ["m"] + (["sup"] if col else []) + ["b"] + (["low"] if col else [])
+        return af, rn, {"sup": sup, "low": low, "cat": cat, "can": can}
 
 
 def build():
@@ -814,9 +958,9 @@ def check():
     if fresh == have:
         c = fresh["counts"]
         return 0, ("the builder's database matches the install (%d bases, %d uniques, %d set items, %d runewords, "
-                   "%d crafted recipes, %d socketables; source %s)" % (c["bases"], c["uniques"], c["sets"],
-                                                                       c["runewords"], c["crafted"], c["socketables"],
-                                                                       fresh["sourceHash"][:12]))
+                   "%d crafted recipes, %d socketables, %d affixes; source %s)" % (
+                       c["bases"], c["uniques"], c["sets"], c["runewords"], c["crafted"], c["socketables"],
+                       c["affixes"], fresh["sourceHash"][:12]))
     diff = [k for k in sorted(set(fresh) | set(have)) if fresh.get(k) != have.get(k)]
     return 1, "the install disagrees with the block in bible.html (%s differ) — run --write" % ", ".join(diff)
 
@@ -838,7 +982,7 @@ def write():
     from bump_version import atomic_write
     atomic_write(BIBLE, new)
     c = fresh["counts"]
-    return 0, "wrote the builder's database: %s" % ", ".join("%d %s" % (v, k) for k, v in sorted(c.items()))
+    return 0, "wrote the builder's database: %s" % ", ".join("%s %s" % (v, k) for k, v in sorted(c.items()))
 
 
 def main(argv):

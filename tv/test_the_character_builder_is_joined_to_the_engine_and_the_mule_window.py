@@ -415,7 +415,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 fix round - a runeword is born at its base's max + 1 again (Chains of Honor 892, above the data)",
         "file": "bible.html",
-        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's')){ lo = hi = b[9] + 1; }\n",
+        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's' || isBase)){ lo = hi = b[9] + 1; }\n",
         "replace": "        if (hasEd){ lo = hi = b[9] + 1; }\n",
         "matches": 1,
     },
@@ -485,7 +485,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 integration - the builder hands its one-letter quality to the engine again, so every row reads UNKNOWN",
         "file": "bible.html",
-        "find": "var CB_ENGINE_Q = { u: 'unique', s: 'set', r: 'runeword', c: 'crafted', b: 'base', m: 'magic', rare: 'rare' };",
+        "find": "var CB_ENGINE_Q = { u: 'unique', s: 'set', r: 'runeword', c: 'crafted', b: 'base', m: 'magic', rare: 'rare', sup: 'superior', low: 'low' };",
         "replace": "var CB_ENGINE_Q = {};",
         "matches": 1,
     },

@@ -22,6 +22,14 @@ the template as it opens · with Crown of Ages on the doll and Annihilus in the 
 (Weapons, 600+ rows; Boots) - at 375 the stacked pane was unbounded, the list grew to 8715px and only ~35 rows could
 ever be reached; and an ACTIVE gold button under the pointer keeps its dark label (Set 1, ! Quests, Filters, the
 chosen class - the hover rule painted gold text on the gold face).
+#174 v-B3: at 2000 / 1280 / 375 the Edit tab of a BASE with its picked mods - a rare Diadem with four (Devil's, Ruby,
+of the Magus, of the Tiger), shut and with ADD MOD open; a magic Grand Charm with Chaotic + of Vita, and with Chaotic
+alone and ADD MOD open (its suffixes listed) - nothing cut, nothing outside its panel, nothing sideways, the modal on
+screen and off the glowing slot, every picked mod drawn and the open list full of options.
+#174 v-B3 FIX ROUND: the open ADD MOD list lies wholly inside the Edit tab's visible box and, with more options than
+fit, runs to its bottom (a fixed calc(330 x u) ran ~137px below the modal at 1280x800 and stopped at 158px on a phone
+with ~220px empty under it); and ADD MOD is a combobox by REAL keys at 2000 - "res" typed, ArrowDown, Enter: focus stays
+in the search box, aria-activedescendant names the second option, which is the one painted, and Enter adds exactly it.
 The entry is REAL INPUT: the Tools tab and the Character Builder card are pressed by CDP mouse events at their
 centres, each hit-tested first; the helm is equipped the same way (the slot, the search box, the row), a roll is
 typed with key events, and the charm is DRAGGED to another cell with a press, moves carrying buttons=1, a release.
@@ -65,6 +73,16 @@ import render_check as RC  # noqa: E402
 NO_BROWSER = "no Chrome/Chromium on this machine, so the character builder was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
 STATES = ("plain", "worn", "picker", "edit", "stash")
+#: #174 v-B3 - the Edit tab of a base with its picked mods, and with ADD MOD open, at these widths
+MOD_WIDTHS = ((2000, 1300), (1280, 800), (375, 812))
+_DIADEM = ("window._cbOpenPick('slot','head'); window._cbChoose('b:ci3'); window._cbQuality('rare');"
+           " ['p712','p374','s175','s316'].forEach(function(i){ window._cbAddMod(i); });")
+_GC = "window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm3'); window._cbAddMod('p700');"
+#: a magic charm with its prefix AND suffix is full (nothing left to list), so its open ADD MOD carries the prefix only
+MOD_JS = {"mods": _DIADEM, "addmod": _DIADEM + " window._cbModOpen(true);",
+          "gcmods": _GC + " window._cbAddMod('s338');", "gcaddmod": _GC + " window._cbModOpen(true);"}
+MOD_STATES = ("mods", "addmod", "gcmods", "gcaddmod")
+MOD_ROWS = {"mods": 4, "addmod": 4, "gcmods": 2, "gcaddmod": 1}
 #: their builder at 2000 wide (spec §1): the three columns relative to the content column
 THEIR_COLS = {"left": (0, 322), "main": (328, 716), "stats": (1050, 300)}
 TOL = 4.0
@@ -83,6 +101,7 @@ MEASURE = r"""(function(){ try {
   var out = { stack: cb.classList.contains('cb-stack'), hscroll: [box.scrollWidth, box.clientWidth], cols: {}, cut: [], outside: [],
     sideways: [], collide: [], nText: 0, modal: null, covered: null, worn: box.querySelectorAll('.cb-slot.cb-has').length,
     inv: box.querySelectorAll('.cb-it').length, rolls: box.querySelectorAll('.cb-roll').length, opts: box.querySelectorAll('.cb-opt').length,
+    mods: box.querySelectorAll('.cb-mod').length, addOpts: box.querySelectorAll('.cb-add-o').length,
     doll: rel(d.getElementById('cb-doll')), invRect: rel(d.getElementById('cb-inv')),
     invInMain: !!(d.getElementById('cb-inv') && d.getElementById('cb-inv').closest('.cb-main')) };
   out.cols.left = rel(box.querySelector('.cb-left')); out.cols.main = rel(box.querySelector('.cb-main')); out.cols.stats = rel(box.querySelector('.cb-stats'));
@@ -211,6 +230,19 @@ LIST = r"""(function(){ var l = document.getElementById('cb-list'); if (!l) retu
   var hit = document.elementFromPoint(cx, cy), y = r.top + r.height / 2, at = (y > 0 && y < innerHeight) ? document.elementFromPoint(r.left + Math.min(20, r.width / 2), y) : null;
   return JSON.stringify({ rows: o.length, scroll: [l.scrollTop, l.scrollHeight, l.clientHeight], listH: lr.height, cx: cx, cy: cy,
     aim: !!(hit && l.contains(hit)), lastTop: r.top, lastSeen: !!(at && (at === last || last.contains(at))), name: last.textContent }); })()"""
+#: #174 v-B3 fix round - the open ADD MOD list against the room of the Edit tab it sits in (#cb-ed, the modal's scroller)
+FIT = r"""(function(){ var l = document.getElementById('cb-add-list'), ed = document.getElementById('cb-ed');
+  if (!l || !ed) return 'null';
+  var lr = l.getBoundingClientRect(), er = ed.getBoundingClientRect(), o = l.querySelectorAll('.cb-add-o'), seen = 0;
+  [].forEach.call(o, function(x){ var r = x.getBoundingClientRect(); if (r.top >= lr.top - 0.5 && r.bottom <= lr.bottom + 0.5 && r.top >= er.top - 0.5 && r.bottom <= er.bottom + 0.5) seen++; });
+  return JSON.stringify({ top: lr.top, bottom: lr.bottom, ch: l.clientHeight, sh: l.scrollHeight, edTop: er.top, edBottom: er.bottom, opts: o.length, seen: seen }); })()"""
+#: #174 v-B3 fix round - what the keyboard left: focus, the active option (aria-activedescendant), how it is painted
+COMBO = r"""(function(){ var q = document.getElementById('cb-add-q'), ae = document.activeElement, id = q && q.getAttribute('aria-activedescendant');
+  var a = id ? document.getElementById(id) : null, acts = document.querySelectorAll('#cb-add-list .cb-add-o.cb-act');
+  var e = null; try { var b = JSON.parse(window.LSR.getItem('d2r_charBuilds') || '{}'), k = Object.keys(b)[0]; e = b[k].sets[0].slots.head; } catch (x) {}
+  return JSON.stringify({ focus: ae ? ae.id : null, role: q ? q.getAttribute('role') : null, active: id, activeId: a ? a.getAttribute('data-id') : null,
+    painted: a ? getComputedStyle(a).backgroundColor : null, acts: acts.length, second: (document.querySelectorAll('#cb-add-list .cb-add-o')[1] || {}).id || null,
+    stored: e && e.affixes ? e.affixes.map(function(x){ return x.id; }) : null }); })()"""
 HOVER_READ = r"""(function(sel){ var e = document.querySelector(sel); if (!e) return 'null'; var cs = getComputedStyle(e);
   return JSON.stringify({ color: cs.color, bg: cs.backgroundColor, hover: e.matches(':hover'), text: e.textContent.trim() }); })(%s)"""
 
@@ -316,6 +348,35 @@ def _measure():
                 res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="%s"]' % slot))
                 time.sleep(0.3)
                 res["wheel %s %dx%d" % (slot, w, h)] = _wheel_list(t)
+        # #174 v-B3 - the Edit tab of a BASE with picked mods (a rare Diadem with four, a magic Grand Charm with two), and
+        # its ADD MOD list open, at 2000 / 1280 / 375 - through the builder's own entry points (Choose -> Quality -> Add)
+        for (w, h) in MOD_WIDTHS:
+            _set_size(t, w, h)
+            for state in MOD_STATES:
+                t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % MOD_JS[state])
+                time.sleep(0.35)
+                res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
+                if state.endswith("addmod"):
+                    res["fit %s %dx%d" % (state, w, h)] = json.loads(t.ev(FIT))
+                if state.startswith("gc"):
+                    t.ev("(function(){ window._cbUnequip(); window._cbClosePick(); return 1; })()")
+        # #174 v-B3 fix round - ADD MOD by the KEYBOARD, real input at 2000: a rare Diadem with two prefixes, the search box
+        # pressed, "res" typed, ArrowDown, then Enter - focus must stay in the box and the painted option be what Enter adds
+        _set_size(t, 2000, 1300)
+        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); window._cbOpenPick('slot','head'); window._cbChoose('b:ci3');"
+             " window._cbQuality('rare'); ['p712','s175'].forEach(function(i){ window._cbAddMod(i); }); window._cbModOpen(true); return 1; })()")
+        time.sleep(0.35)
+        res["input"].append(_press(t, "#cb-add-q"))
+        _type(t, "res")
+        time.sleep(0.3)
+        combo = {"typed": json.loads(t.ev(COMBO))}
+        _key(t, "ArrowDown", 40)
+        combo["down"] = json.loads(t.ev(COMBO))
+        _key(t, "Enter", 13)
+        time.sleep(0.2)
+        combo["enter"] = json.loads(t.ev(COMBO))
+        res["combo"] = combo
+        t.ev("(function(){ window._cbClosePick(); return 1; })()")
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
         _set_size(t, 2000, 1300)
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
@@ -476,6 +537,73 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s the header type %s is not the --fs-title token %s at k=1" % (state, m["fsTitle"], m["tokTitle"]))
         self.assertEqual(bad, [], "\n  ".join(bad))
 
+    def test_the_edit_tab_with_picked_mods_and_add_mod_open_fits(self):
+        """#174 v-B3 - a rare Diadem with four picked mods (shut, and with ADD MOD open) and a magic Grand Charm with two
+        (and with its prefix alone and ADD MOD open, its suffixes listed): nothing cut, nothing outside its panel,
+        nothing sideways, the modal on screen and off the glowing slot"""
+        r, bad = _measure(), []
+        for (w, h) in MOD_WIDTHS:
+            for state in MOD_STATES:
+                label = "%s %dx%d" % (state, w, h)
+                m = r[label]
+                if "err" in m:
+                    bad.append("%s: %s" % (label, m["err"]))
+                    continue
+                want = MOD_ROWS[state]
+                if m["mods"] != want:
+                    bad.append("%s: PRINT THE DENOMINATOR - %d picked-mod rows drawn, %d picked" % (label, m["mods"], want))
+                if state.endswith("addmod") and m["addOpts"] < 20:
+                    bad.append("%s: the open ADD MOD list drew only %d options" % (label, m["addOpts"]))
+                if m["nText"] < 40:
+                    bad.append("%s: only %d text nodes measured" % (label, m["nText"]))
+                bad += ["%s %s" % (label, x) for x in m["cut"] + m["outside"] + m["sideways"] + m["collide"]]
+                if m["hscroll"][0] > m["hscroll"][1] + 1:
+                    bad.append("%s the window itself scrolls sideways %d/%d" % (label, m["hscroll"][0], m["hscroll"][1]))
+                if m["modal"] is None or not m.get("modalInside"):
+                    bad.append("%s the modal is not on screen: %s" % (label, m["modal"]))
+                if m["covered"]:
+                    bad.append("%s the modal covers the glowing slot it serves" % label)
+            dm = r["mods %dx%d" % (w, h)]
+            if "err" not in dm and dm["rolls"] < 2:
+                bad.append("mods %dx%d: Ruby 31-40 and of the Tiger 21-30 drew %d roll boxes" % (w, h, dm["rolls"]))
+        self.assertEqual(bad, [], "\n  ".join(bad[:40]))
+
+    def test_the_open_add_mod_list_takes_the_room_of_its_tab(self):
+        """#174 v-B3 fix round - the open list lies wholly inside the Edit tab's visible box, and where it has more options
+        than fit it runs to that box's bottom: a fixed calc(330 x u) ran ~137px below the modal at 1280x800 (5 of 218
+        options in view) and stopped at 158px on a phone with ~220px empty under it"""
+        r, bad = _measure(), []
+        for (w, h) in MOD_WIDTHS:
+            for state in ("addmod", "gcaddmod"):
+                label = "fit %s %dx%d" % (state, w, h)
+                f = r.get(label)
+                if not f:
+                    bad.append("%s: no ADD MOD list was measured" % label)
+                    continue
+                if f["top"] < f["edTop"] - 0.5 or f["bottom"] > f["edBottom"] + 0.5:
+                    bad.append("%s: the list (%.0f..%.0f) runs outside the tab's visible box (%.0f..%.0f)" % (label, f["top"], f["bottom"], f["edTop"], f["edBottom"]))
+                if f["sh"] > f["ch"] + 1 and f["edBottom"] - f["bottom"] > 40:
+                    bad.append("%s: the list stops at %dpx with %.0fpx of the tab empty under it (%d options)" % (label, f["ch"], f["edBottom"] - f["bottom"], f["opts"]))
+                if f["seen"] < min(8, f["opts"]):
+                    bad.append("%s: PRINT THE DENOMINATOR - %d of %d options in view" % (label, f["seen"], f["opts"]))
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
+    def test_add_mod_is_a_combobox_by_real_keys(self):
+        """#174 v-B3 fix round - their ADD MOD paints the active option, so Enter's pick is seen: by REAL key input, the
+        search box keeps focus through ArrowDown, names the active option (aria-activedescendant), which is the one
+        painted, the second after one ArrowDown; Enter adds exactly that option"""
+        r = _measure()
+        self.assertEqual([x for x in r["input"] if x], [], "a real press missed")
+        c = r["combo"]
+        self.assertEqual((c["typed"]["focus"], c["typed"]["role"]), ("cb-add-q", "combobox"))
+        self.assertEqual(c["typed"]["acts"], 1, "after typing, not exactly one option is active: %s" % c["typed"])
+        self.assertEqual(c["down"]["focus"], "cb-add-q", "ArrowDown took the focus out of the search box")
+        self.assertEqual(c["down"]["active"], c["down"]["second"], "ArrowDown did not make the second option active: %s" % c["down"])
+        self.assertNotIn(c["down"]["painted"], (None, "rgba(0, 0, 0, 0)", "transparent"), "the active option is not painted: %s" % c["down"])
+        self.assertEqual(c["down"]["acts"], 1)
+        self.assertEqual(c["enter"]["stored"], ["p712", "s175", c["down"]["activeId"]],
+                         "Enter did not add the painted option %s: %s" % (c["down"]["activeId"], c["enter"]))
+
     def test_under_900_the_character_comes_first(self):
         for (w, h) in WIDTHS:
             m = _measure()["worn %dx%d" % (w, h)]
@@ -493,6 +621,42 @@ RED_PROOF = [
         "file": "bible.html",
         "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the open ADD MOD list keeps a fixed height, below the modal at 1280x800",
+        "file": "bible.html",
+        "find": "    if (st.modOpen && st.pick) _cbFitAddList();\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the active ADD MOD option is not painted (what Enter adds is invisible)",
+        "file": "bible.html",
+        "find": ".cb-add-o.cb-act{background:rgba(214,170,90,.30);box-shadow:inset 3px 0 0 var(--gold)}",
+        "replace": ".cb-add-o.cb-act{}",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the search box ignores ArrowDown and Enter (ADD MOD is no combobox)",
+        "file": "bible.html",
+        "find": " onkeydown=\"window._cbModKey(event)\">",
+        "replace": ">",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 - the open ADD MOD list stops scrolling inside its box and clips its options",
+        "file": "bible.html",
+        "find": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:auto;",
+        "replace": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:hidden;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 - the Edit tab's controls row (Item level · Quality · Name · Base · Defense · Sockets · Ethereal) "
+               "stops wrapping and runs out of the modal on a phone",
+        "file": "bible.html",
+        "find": ".cb-ctls{display:flex;flex-wrap:wrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
+        "replace": ".cb-ctls{display:flex;flex-wrap:nowrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
         "matches": 1,
     },
     {

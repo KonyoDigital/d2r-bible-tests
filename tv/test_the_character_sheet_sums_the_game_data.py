@@ -461,6 +461,10 @@ def _fake(**over):
                             ["of Fire", 1, "res-fire", "", 5, 10, "char", ""], ["of Old", 0, "mag%", "", 5, 5, "char", ""]),
         "automagic": _tsv(["Name", "spawnable", "mod1code", "mod1param", "mod1min", "mod1max", "itype1", "etype1"],
                           ["of Ama", 1, "ama", "", 1, 1, "swor", "helm"]),
+        # #174 v-B3 - a superior item's modifiers (the engine's affixRows q0)
+        "qualityitems": _tsv(["mod1code", "mod1param", "mod1min", "mod1max", "armor", "weapon"], ["ac%", "", 5, 15, 1, 0]),
+        # #174 v-B3 fix round - what the game prints for an affix (an affix row is named by it, never by its table key)
+        "nameaffixes": _strs([("Sturdy", "Sturdy"), ("of Fire", "of Fire")]),
     }
     t.update(over)
     by_path = dict((path, t[label]) for label, path in CP.SOURCES)

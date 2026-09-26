@@ -5555,6 +5555,43 @@ GATES = [
              "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
              "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
              "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 5 red-proofs"),
+    Gate("test_the_affix_tables_are_the_installs",
+         [sys.executable, os.path.join(HERE, "test_the_affix_tables_are_the_installs.py")], 90,
+         why="#174 v-B3 - the Edit tab's ADD MOD and the sheet read the CB_DB block's af / rn / qm rows, generated from "
+             "his install's magicprefix / magicsuffix / automagic / rareprefix / raresuffix / qualityitems / "
+             "lowqualityitems. Counted and shaped; a named sample hand-read from the tables (Chaotic, of Vita, Ruby, "
+             "Crimson's maxlevel, the frequency-0 classic Sturdy kept and marked); the rare words equal "
+             "tv/affix_lexicon.json's (a different generator); quality flags per type, never inherited (a Grand Charm is "
+             "magic only); where the install is, every spawnable row re-read from the raw table and --check 0. FIX "
+             "ROUND: a base's magic lvl (b[23]) beside its qlvl; an affix's class level requirement (of Magic Arrow: 11, "
+             "an Amazon 1); every one of the 112 charged skills the table gives as negative is ONE UNKNOWN line, never "
+             "\"Level -10\"; the six rare words the item strings miss are named by monsters.json / ui.json (Ghoul, "
+             "Wraith, Fiend, Crusher, Scarab, Strap). 7 cases, 10 red-proofs"),
+    Gate("test_the_item_edit_tab_builds_magic_and_rare_items",
+         [sys.executable, os.path.join(HERE, "test_the_item_edit_tab_builds_magic_and_rare_items.py")], 90,
+         why="#174 v-B3 - their Select -> Quality -> Edit over the game's affix tables, driven on the SHIPPED modal in "
+             "node: a Diadem waits on Rare / Magic / Superior / Normal / Low, a ring on Rare / Magic, a Grand Charm goes "
+             "straight to Edit as magic; ADD MOD filters by type, level, maxlevel, group, class, the rare flag, the "
+             "automod group and the quality's limits (magic 1+1, rare 3+3, a rare jewel 4); a roll outside its range is "
+             "refused; a picked mod reaches the stored entry, the tooltip, the composed name and STATS; an old build "
+             "loads unchanged; Esc closes ADD MOD first. FIX ROUND: an affix is held against the AFFIX level (alvl from "
+             "the item level, qlvl and magic lvl - of Vita on a Small Charm needs item level 61; a Diadem at 85 keeps its "
+             "level-90 prefixes); an item born with Enhanced Defense sits at its base's max + 1 (a Godly Diadem +200% is "
+             "183, its Defense box 61, fixed); a class's own level requirement; a negative charged skill is UNKNOWN; two "
+             "affixes of one stat print one line (135 mana, not 67 twice); ADD MOD is a combobox (the active option "
+             "painted, ArrowDown moves it, Enter adds it) with no AUTOMOD header over nothing; the six rare words offered. "
+             "11 cases, 19 red-proofs"),
+    Gate("test_the_character_sheet_sums_picked_affixes",
+         [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_picked_affixes.py")], 90,
+         why="#174 v-B3 - D2R_CHAR_ENGINE sums the affixes he picked exactly like a unique's props (typed EXACT, "
+             "untouched RANGE, never averaged): a magic Grand Charm (Chaotic + of Vita) moves exactly the Chaos Skills "
+             "and Life rows; a rare Diadem's three mods sum; a typed base defense is EXACT, a superior row raises its own "
+             "item, a low-quality base's defense is UNKNOWN, an unknown affix id is an UNKNOWN row naming it, none "
+             "picked stays UNKNOWN and says so. Hand-worked from the tables; the two generators name the same affix "
+             "rows. FIX ROUND: a magic / rare / superior item born with Enhanced Defense sits at its base's max + 1 "
+             "(Godly Diadem +200% = 183 EXACT; superior +15% = 70, the typed base set aside); a negative charged level "
+             "is UNKNOWN, never -10 EXACT; two affixes of one per-level stat are one stat, scaled once (135, not 134); "
+             "the sheet names the affix the item shows (Mojo, never the table key Vodoun). 16 cases, 12 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
@@ -7091,7 +7128,12 @@ GATES = [
              "The entry and the equip are REAL input (Tools tab, the card, the slot, the search box, typed keys, a "
              "roll, a charm dropped and dragged). No browser binary = declared skip (77). FIX ROUND: at 375 and 2000 the "
              "picker's list reaches its last row under a real wheel (the stacked pane was unbounded at 375), and an active "
-             "gold button under the pointer keeps its dark label. 9 cases, 6 red-proofs",
+             "gold button under the pointer keeps its dark label. v-B3: the Edit tab of a base with its picked mods (a rare "
+             "Diadem with four, a magic Grand Charm with two) and its ADD MOD list open fit at 2000 / 1280 / 375. "
+             "v-B3 FIX ROUND: the open list lies inside the Edit tab's visible box and takes its room (it ran 137px "
+             "below the modal at 1280x800 and stopped at 158px on a phone); ADD MOD by REAL keys - focus stays in the "
+             "search box, ArrowDown makes the second option the painted, aria-activedescendant one, Enter adds exactly "
+             "it. 12 cases, 11 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
