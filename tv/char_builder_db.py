@@ -63,6 +63,10 @@ WHAT IS IN IT, AND WHERE EACH FACT COMES FROM
           RuneQuote / WeaponDesc* / WeaponAttack*), each rune's short name (r26L "Vex"), every class's Attack1 frames
           and rate per weapon class (animdata.d2) and the stat ids the tooltip reads lines by. all-stats (one roll, four
           stats = itemstatcost dgrp 1) prints the group's own "+N to all Attributes", once.
+          Fix round: tip.dg - the game's stat groups (itemstatcost dgrp: the group line's template and each member's
+          stat id and templates), so the page prints a group's one line only when every member is on the item and all
+          are equal (Duress: Cold Resist +45% and three +15%, never "All Resistances +15" beside "Cold Resist +30%");
+          tip.st.poisonmindam - two poison sources are one stat, combined by the game's code (the page says UNKNOWN).
 
 A ROLL'S KEY IS THE GAME'S. Each rolled value carries the column it comes from — `p3` is uniqueitems.txt
 prop3 / setitems.txt prop3 / runes.txt T1Code3 / cubemain.txt `mod 3`, `a2b` a set item's aprop2b. The builder
@@ -973,10 +977,61 @@ class DB(object):
         # st: the itemstatcost ids of the stats the tooltip reads lines by (TK[tpl][2]) - its attack speed, its undead
         # damage (a blunt weapon's bonus), Indestructible (no Durability line) and the requirement percent
         st = {}
-        for s in ("item_fasterattackrate", "item_undeaddamage_percent", "item_indesctructible", "item_req_percent"):
+        # #174 v-B4 fix round: + poisonmindam - the stat every poison line is placed by (two sources are ONE stat in the
+        # game, combined by its own code: the page says that line UNKNOWN rather than print two)
+        for s in ("item_fasterattackrate", "item_undeaddamage_percent", "item_indesctructible", "item_req_percent",
+                  "poisonmindam"):
             if s in self.I:
                 st[s] = _int(self.I[s].get("*ID"), -1)
-        return {"ui": ui, "rs": rs, "a1": a1, "an": an, "st": st}
+        return {"ui": ui, "rs": rs, "a1": a1, "an": an, "st": st, "dg": self.stat_groups()}
+
+    def stat_groups(self):
+        """#174 v-B4 fix round - THE GAME'S STAT GROUPS (itemstatcost `dgrp`), for the tooltip's one list.
+        -> {dgrp: {"t": the group's line template (its dgrpstrpos: "{+0} to all Attributes", "All Resistances {+0}"),
+                   "m": [[stat id, template when >= 0, template when < 0], ...] - every member, in the table's order}}
+        The game prints a group's own line only when EVERY member stat is on the item and all are EQUAL; otherwise each
+        member prints in its own words. The runeword and its runes are one stat list in the game, so Duress (its own
+        All Resistances +15, a Thul's Cold Resist +30) is "Cold Resist +45%" and three "+15%", and a Monarch holding
+        Ral Ort Tal Thul is ONE "All Resistances +35". A member's template is the one lines() gives that stat (descfunc
+        1-4 / 19: descstrpos / descstrneg, one value), appended to T when no item used it yet, with its TK. A group
+        whose line or any member the strings cannot word is left out - the page then changes nothing for it."""
+        groups = {}
+        for s, r in self.I.items():
+            if (r.get("dgrp") or "").strip():
+                groups.setdefault(r["dgrp"].strip(), []).append(s)
+        out = {}
+        for g, members in sorted(groups.items()):
+            gfmt = self.S.get((self.I[members[0]].get("dgrpstrpos") or "").strip(), "")
+            if not gfmt or not re.search(r"%[+]?\d*[di]", gfmt):
+                continue
+            m, ok = [], True
+            for s in members:
+                ds = self.I[s]
+                df = _int(ds.get("descfunc"), -1)
+                pos = self.S.get(ds.get("descstrpos") or "", "")
+                neg = self.S.get(ds.get("descstrneg") or "", "") or pos
+                if df not in (1, 2, 3, 4, 19) or not pos or not re.search(r"%[+]?\d*[di]", pos) \
+                        or not re.search(r"%[+]?\d*[di]", neg):
+                    ok = False
+                    break
+                k = [_int(ds.get("descpriority"), 0), df, _int(ds.get("*ID"), -1), 0]
+                ids = []
+                for fmt in (pos, neg):
+                    t = self.T.id(_printf(fmt, [0]))
+                    if self.TK.setdefault(t, k) != k:
+                        self.TK_BAD.add(t)
+                    ids.append(t)
+                m.append([k[2]] + ids)
+            if not ok:
+                continue
+            gt = self.T.id(_printf(gfmt, [0]))
+            if gt not in self.TK:
+                # the dgrp branch of lines(): the highest member's descpriority and stat (no item carried the line yet)
+                top = max(members, key=lambda s: _int(self.I[s].get("descpriority"), 0))
+                self.TK[gt] = [_int(self.I[top].get("descpriority"), 0), _int(self.I[top].get("descfunc"), 0),
+                               _int(self.I[top].get("*ID"), -1), 1]
+            out[g] = {"t": gt, "m": m}
+        return out
 
     # ---- #174 v-B3: the affixes a magic / rare / superior item is built from -----------------------------------
     def shown_affix(self, key):

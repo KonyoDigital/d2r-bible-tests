@@ -35,9 +35,23 @@ Plus: Annihilus prints "Keep in Inventory to Gain Bonus" under its base and ONE 
 a unique (Windforce) and a set item (Tal Rasha's Guardianship) print exactly their own lines, in the table's order, plus
 only the new rows; a requirement is red only when the build is KNOWN to lack it; the speed word is UNKNOWN - never a
 guess - for frames outside the measured bands, a class not set, a Barbarian's one-or-two-hander, a wand's class word.
+FIX ROUND (the #174 v-B4 review, four defects, each reproduced before it was fixed):
+  · ONE FILLED SOCKET ON A PLAIN BASE: the joined list was used only for two sources, and a plain base has no lines of
+    its own - a Shako with one Um printed no resist line while STATS counted it (+15), a Crowbill with one Hel kept 94 / 70
+    and no "Requirements -20%", a Monarch with one Um lost "All Resistances +22". The joined list is now always the list.
+  · THE GAME'S STAT GROUPS (itemstatcost dgrp): the group's one line only when every member is on the item and all are
+    equal, else each member in its own words - Duress printed "Cold Resist +30%" beside "All Resistances +15" (the page's
+    own RUNEWORD_TIP, the game's text: Cold +45%, Lightning / Fire / Poison +15%), Rift typed 7 "+7 to all Attributes"
+    beside "+10 to Dexterity", a Monarch holding Ral Ort Tal Thul four "+35%" where the game prints one line.
+  · ONE ORDER: a lone Death's Web kept the table's order (Life after each Kill, then Mana) and flipped when a Tir was
+    socketed; the game has one stat list, so every item takes the tie rule (Grief, measured: Mana first).
+  · POISON FROM TWO SOURCES: Venom on an Axe printed "+213 ... over 7 seconds" and its Tal's "+75 ... over 5 seconds"
+    apart; the game prints ONE line, its number the game's code over per-frame values no line carries - said UNKNOWN,
+    naming both sources, never two lines and never a guessed sum.
 ⚠ WHAT THIS LAW CANNOT SEE: pixels - the tooltip was looked at on real pixels (headless Chrome, 2000x1300) when built.
 RED_PROOF below: the requirement step, the merge, the order (and its tie rule), the speed rule (its bands and EIAS), the
-range form, the rune string, the charm line, the durability rule.
+range form, the rune string, the charm line, the durability rule; and the fix round's four: the join for one socket,
+the stat groups (off, equality ignored, four equal members never collapsed), one order for every item, the poison line.
 """
 import io
 import json
@@ -56,6 +70,7 @@ except Exception:
     pass
 
 import test_the_character_builder_is_their_builder as CB  # noqa: E402  the builder's own harness
+import test_the_character_builder_is_joined_to_the_engine_and_the_mule_window as J  # noqa: E402  its picker + STATS
 
 ORACLE = os.path.join(HERE, "the_tooltip_oracle.json")
 #: base_dump's seven, the rows the brief measured first - they must be theirs with NO declared difference
@@ -306,6 +321,160 @@ class TheTooltipIsTheGamesTooltip(unittest.TestCase):
         self.assertTrue([t for c, t in out["wand"] if c == "d2t-unk" and "class word" in t],
                         "a wand's class word is in no table - it must say so: %s" % out["wand"])
 
+    # ── the fix round (the #174 v-B4 review) ────────────────────────────────────────────────────────────────────────
+    def test_one_filled_socket_on_a_plain_base_joins_the_tooltip_and_agrees_with_stats(self):
+        """A plain base has no lines of its own, so ONE rune was one source and the joined list was thrown away."""
+        out = _run(r"""
+          function rune(n){ var h = null; Object.keys(d.rwRunes).forEach(function(c){ if (!h && d.rwRunes[c][1] === n + ' Rune') h = c; }); return h; }
+          function plain(bn, socks, slot, n){ var it = window._cbItem('b:' + baseCode(bn)), e = window._cbEntryFor(it);
+            e.sockets = n || socks.length; e.socketed = socks;
+            return rows(window.d2Tip(window._cbTipEntry(e, it, 99, slot, 'Sorceress'))).filter(function(r){ return r[0] !== 'd2t-note'; }).map(function(r){ return r[1]; }); }
+          function word(code, sc){ return d.rwRunes[code][sc].map(function(l){ return window._cbLineHtml(l, {}, 99, 'tip'); }); }
+          var um = rune('Um'), hel = rune('Hel');
+          OUT.shako = plain('Shako', [um], 'head'); OUT.umHelm = word(um, 5);
+          OUT.crow = plain('Crowbill', [hel], 'rarm'); OUT.helWeapon = word(hel, 4);
+          OUT.crowReq = d.b[baseCode('Crowbill')].slice(6, 8); OUT.helPct = d.rwRunes[hel][4][0][1][0][0];
+          OUT.mon = plain('Monarch', [um], 'larm', 4); OUT.umShield = word(um, 6);
+          OUT.jewel = plain('Crowbill', ['b:' + baseCode('Jewel'), hel], 'rarm');
+        """)
+        self.assertEqual(len(out["umHelm"]), 1)
+        self.assertIn(out["umHelm"][0], out["shako"], "a Shako with ONE Um must print the Um's helm line: %s" % out["shako"])
+        self.assertIn(out["umShield"][0], out["mon"], "a Monarch with ONE Um must print the Um's shield line: %s" % out["mon"])
+        rs, rd = out["crowReq"]
+        pct = out["helPct"]
+        want = ["Required Dexterity: %d" % (rd + int(rd * pct / 100.0)), "Required Strength: %d" % (rs + int(rs * pct / 100.0))]
+        self.assertEqual(want, ["Required Dexterity: 56", "Required Strength: 76"], "the Crowbill's own requirement step")
+        for c in (out["crow"], out["jewel"]):
+            self.assertEqual([t for t in c if t.startswith("Required ") and "Level" not in t], want,
+                             "ONE Hel in a plain Crowbill must lower its requirements: %s" % c)
+            self.assertIn(out["helWeapon"][0], c, "the Hel's own line")
+        self.assertTrue([t for t in out["jewel"] if "a magic Jewel" in t], "the magic jewel is still said UNKNOWN")
+        # driven through the builder's own picker: the tooltip and the STATS sheet read the same socket
+        ui = J._run(r"""
+          mk('Sorceress', 90);
+          var d = window._cbDb(), code = null; Object.keys(d.b).forEach(function(c){ if (!code && d.b[c][0] === 'Shako' && d.b[c][20]) code = c; });
+          var um = null; Object.keys(d.rwRunes).forEach(function(c){ if (!um && d.rwRunes[c][1] === 'Um Rune') um = c; });
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:' + code); window._cbQuality('b');
+          window._cbEdit('sockets', '1'); window._cbSocket(0, um); window._cbClosePick();
+          OUT.tip = tipOf('head').lines; OUT.fire = rowOf(eng(), 'res-fire');
+          OUT.word = window._cbLineHtml(d.rwRunes[um][5][0], {}, 90, 'tip'); OUT.v = d.rwRunes[um][5][0][1][0][0];
+        """)
+        self.assertEqual(ui["tip"], [ui["word"]], "the picked Shako + Um: the tooltip must print the Um's line")
+        self.assertIn("Shako (Um Rune) +%d" % ui["v"], ui["fire"][2], "STATS counts the same Um: %s" % ui["fire"])
+
+    def test_a_stat_group_prints_as_the_game_prints_it(self):
+        """itemstatcost dgrp: the group's one line only when every member is on the item and all are equal."""
+        src = CB._src()
+        m = re.search(r"^const RUNEWORD_TIP = (\{.*\});\s*$", src, re.M)
+        self.assertIsNotNone(m, "the page's RUNEWORD_TIP is gone")
+        tipd = {}
+        for n in ("Duress", "Ancients' Pledge"):
+            k = m.group(1).find(json.dumps(n) + ":{l:")
+            self.assertGreater(k, 0, "RUNEWORD_TIP has no %s" % n)
+            a = m.group(1).index("[", k)
+            tipd[n] = json.JSONDecoder().raw_decode(m.group(1), a)[0]
+        out = _run(r"""
+          function rune(n){ var h = null; Object.keys(d.rwRunes).forEach(function(c){ if (!h && d.rwRunes[c][1] === n + ' Rune') h = c; }); return h; }
+          function plain(bn, socks, slot){ var it = window._cbItem('b:' + baseCode(bn)), e = window._cbEntryFor(it);
+            e.sockets = socks.length; e.socketed = socks;
+            return rows(window.d2Tip(window._cbTipEntry(e, it, 99, slot, 'Sorceress'))).map(function(r){ return r[1]; }); }
+          OUT.duress = tip('Duress', 'Ancient Armor', { slot: 'tors' });
+          OUT.ap = tip("Ancients' Pledge", 'Gothic Shield', { slot: 'larm' });
+          var four = ['Ral', 'Ort', 'Tal', 'Thul'].map(rune);
+          OUT.mon = plain('Monarch', four, 'larm');
+          OUT.monV = four.map(function(c){ return d.rwRunes[c][6][0][1][0][0]; });
+          var rift = d.byName['rift'], ak = null;
+          rift[6].forEach(function(l){ if (d.T[l[0]] === '{+0} to all Attributes') ak = l[1][0]; });
+          OUT.ak = ak; var ro = {}; if (ak) ro[ak[2]] = ak[0];
+          OUT.rift = tip('Rift', 'Halberd', { rolls: ro });
+          OUT.koDex = d.rwRunes[rune('Ko')][4][0][1][0][0];
+          OUT.lh = tip('Lionheart', 'Ancient Armor', { slot: 'tors' });
+          OUT.anni = tip('Annihilus', null, { slot: 'inv' });
+        """)
+        res = re.compile(r"^(Fire|Cold|Lightning|Poison) Resist ([+-]\d+)%$")
+        for key, n in (("duress", "Duress"), ("ap", "Ancients' Pledge")):
+            ours = [t for c, t in out[key] if res.match(t)]
+            self.assertFalse([t for c, t in out[key] if t.startswith("All Resistances")],
+                             "%s: a group line beside its members: %s" % (n, out[key]))
+            game = dict(res.match(t).groups() for t in tipd[n] if res.match(t))
+            self.assertEqual(len(game), 4, "RUNEWORD_TIP's %s lost its four resist lines" % n)
+            self.assertEqual(dict(res.match(t).groups() for t in ours), game, "%s: ours %s, the game %s" % (n, ours, tipd[n]))
+            self.assertEqual([res.match(t).group(1) for t in ours], ["Cold", "Lightning", "Fire", "Poison"],
+                             "%s: the members in descpriority order (40, 38, 36, 34)" % n)
+        v = out["monV"]
+        self.assertEqual(len(set(v)), 1, "Ral / Ort / Tal / Thul give one shield value each: %s" % v)
+        self.assertEqual([t for t in out["mon"] if "Resist" in t], ["All Resistances +%d" % v[0]],
+                         "four equal members are the group's ONE line: %s" % out["mon"])
+        self.assertIsNotNone(out["ak"], "Rift carries no all-Attributes line")
+        a, dx = out["ak"][0], out["koDex"]
+        self.assertEqual([t for c, t in out["rift"] if re.search(r"to (all Attributes|Strength|Dexterity|Vitality|Energy)$", t)],
+                         ["+%d to Strength" % a, "+%d to Dexterity" % (a + dx), "+%d to Vitality" % a, "+%d to Energy" % a],
+                         "Rift typed at %d with Ko's +%d Dexterity: four members apart, in descpriority order" % (a, dx))
+        self.assertFalse([t for c, t in out["lh"] if t.endswith("to all Attributes")], "Lionheart's members are unequal")
+        self.assertIn("+10-20 to all Attributes", [t for c, t in out["anni"]], "ONE roll feeding all four stays the group")
+
+    def test_one_order_for_every_item_socketed_or_not(self):
+        """The game has one stat list: a lone Death's Web and one holding a Tir put Mana after each Kill first, as the
+        measured Grief does - and every unique / set item with a descpriority tie follows the one tie rule."""
+        out = _run(r"""
+          var kill = function(r){ return /after each Kill$/.test(r[1]); };
+          OUT.dw = tip("Death's Web", null, { cls: 'Necromancer' }).filter(kill).map(function(r){ return r[1]; });
+          var x = entry("Death's Web", null, { cls: 'Necromancer' }), tir = null;
+          Object.keys(d.rwRunes).forEach(function(c){ if (!tir && d.rwRunes[c][1] === 'Tir Rune') tir = c; });
+          x.e.sockets = 1; x.e.socketed = [tir];
+          OUT.dwSock = rows(window.d2Tip(window._cbTipEntry(x.e, x.it, 99, 'rarm', 'Necromancer'))).filter(kill).map(function(r){ return r[1]; });
+          OUT.grief = tip('Grief', 'Phase Blade').filter(kill).map(function(r){ return r[1]; });
+          /* every unique / set item: its own lines (text, sort key) in the table's order, and its tooltip's rows */
+          OUT.all = [];
+          d.it.forEach(function(it){
+            if (it[2] !== 'u' && it[2] !== 's') return;
+            var ls = (it[6] || []).filter(function(l){ return !l[2]; });
+            OUT.all.push({ n: it[1], own: ls.map(function(l){ return [window._cbLineHtml(l, {}, 99, 'tip'), d.TK[l[0]]]; }),
+                           rows: rows(window.d2Tip(window._cbTipEntry(window._cbEntryFor(it), it, 99, 'inv', 'Sorceress'))).map(function(r){ return r[1]; }) });
+          });
+        """)
+        self.assertEqual(len(out["grief"]), 2)
+        self.assertIn("Mana", out["grief"][0], "the measured Grief: Mana after each Kill first")
+        self.assertEqual(len(out["dw"]), 2)
+        self.assertIn("Mana", out["dw"][0], "a lone Death's Web: Mana after each Kill first, as the game's one list: %s" % out["dw"])
+        self.assertIn("Mana", out["dwSock"][0], "Death's Web with a Tir: the same order: %s" % out["dwSock"])
+        # the tie rule over every tie the tables hold where it differs from the table's order
+        flips, bad = 0, []
+        for x in out["all"]:
+            own = x["own"]
+            for i in range(len(own)):
+                for j in range(i + 1, len(own)):
+                    (ta, ka), (tb, kb) = own[i], own[j]
+                    if ka[0] != kb[0] or (ka[1], ka[2]) >= (kb[1], kb[2]) or ta == tb:
+                        continue
+                    if ta not in x["rows"] or tb not in x["rows"]:
+                        continue
+                    flips += 1
+                    if x["rows"].index(tb) > x["rows"].index(ta):
+                        bad.append("%s: %r (descfunc %d, stat %d) must print before %r (descfunc %d, stat %d)"
+                                   % (x["n"], tb, kb[1], kb[2], ta, ka[1], ka[2]))
+        self.assertGreater(flips, 0, "no unique or set item has a tie the table orders the other way - the case measures nothing")
+        self.assertEqual(bad, [], "\n  ".join(bad[:10]))
+
+    def test_poison_from_two_sources_is_one_line_said_unknown(self):
+        out = _run(r"""
+          var tal = null; Object.keys(d.rwRunes).forEach(function(c){ if (!tal && d.rwRunes[c][1] === 'Tal Rune') tal = c; });
+          var sid = d.tip.st.poisonmindam, v = d.byName['venom'];
+          OUT.own = v[6].filter(function(l){ return d.TK[l[0]][2] === sid; }).map(function(l){ return window._cbLineHtml(l, {}, 99, 'tip'); });
+          OUT.tal = d.rwRunes[tal][4].filter(function(l){ return d.TK[l[0]][2] === sid; }).map(function(l){ return window._cbLineHtml(l, {}, 99, 'tip'); });
+          OUT.venom = tip('Venom', 'Axe');
+          OUT.insight = tip('Insight', 'Hydra Bow');
+        """)
+        self.assertEqual((len(out["own"]), len(out["tal"])), (1, 1), "Venom's and Tal's own poison lines")
+        pois = [(c, t) for c, t in out["venom"] if "poison damage" in t.lower()]
+        self.assertEqual(len(pois), 1, "Venom must print ONE poison line: %s" % pois)
+        c, t = pois[0]
+        self.assertEqual(c, "d2t-unk", "the combined number is the game's code - said UNKNOWN")
+        self.assertTrue(t.startswith("Poison damage: UNKNOWN"), t)
+        for part in out["own"] + out["tal"]:
+            self.assertIn(part, t, "the UNKNOWN line names what it combines")
+        self.assertIn(out["tal"][0], [t for c, t in out["insight"]], "ONE poison source keeps its own line")
+
 
 RED_PROOF = [
     {
@@ -318,8 +487,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B4 - the runeword's and its runes' lines are no longer merged (+125% and +75% Damage to Undead apart)",
         "file": "bible.html",
-        "find": "it[6] = _cbTipOrder(_cbTipMerge(J.lines, rolls)); }\n",
-        "replace": "it[6] = _cbTipOrder(J.lines); }\n",
+        "find": "    if (J.s > 0) L = _cbTipMerge(L, rolls);\n",
+        "replace": "",
         "matches": 1,
     },
     {
@@ -376,6 +545,48 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      if ((b[25] | 0) > 0 && !indes) out.dur = (e.eth || it[8]) ? null : [b[25], b[25]];\n",
         "replace": "      if ((b[25] | 0) > 0) out.dur = (e.eth || it[8]) ? null : [b[25], b[25]];\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the joined list is used only for two sources again (a Shako with ONE Um prints no Um)",
+        "file": "bible.html",
+        "find": "    var J = _cbTipJoin(it, e, slot), L = _cbTipGroups(_cbTipPoison(J.lines, rolls), rolls);\n",
+        "replace": "    var J = _cbTipJoin(it, e, slot), L = _cbTipGroups(_cbTipPoison(J.n > 1 ? J.lines : (it[6] || []).slice(), rolls), rolls);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the stat groups are off (Duress: 'Cold Resist +30%' beside 'All Resistances +15')",
+        "file": "bible.html",
+        "find": "      if (all.length < 2 || (!gi.length && have < ms.length)) return;\n",
+        "replace": "      return;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - a group collapses without its members being equal (Duress reads one 'All Resistances')",
+        "file": "bible.html",
+        "find": "      var eq = on.length === ms.length && on.every(function(v){ return v.sig === on[0].sig; });\n",
+        "replace": "      var eq = on.length === ms.length;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - four equal members never become the group's line (a Monarch with Ral Ort Tal Thul: four +35%)",
+        "file": "bible.html",
+        "find": "(!gi.length && have < ms.length)) return;",
+        "replace": "!gi.length) return;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - an item with no filled socket keeps the table's order (a lone Death's Web: Life before Mana)",
+        "file": "bible.html",
+        "find": "    it = it.slice(); it[6] = _cbTipOrder(L);\n",
+        "replace": "    it = it.slice(); it[6] = J.s > 0 ? _cbTipOrder(L) : L;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - poison from two sources prints two lines again (Venom + its Tal)",
+        "file": "bible.html",
+        "find": "    if (at.length < 2) return lines;\n    var c = lines[at[0]].slice();\n",
+        "replace": "    return lines;\n    var c = lines[at[0]].slice();\n",
         "matches": 1,
     },
 ]
