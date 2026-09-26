@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1325 - #174 ROUND 7: A CHARM'S EDIT TILE PRINTED ITS NAME, AND AN INVENTORY PICK COVERED STATS
+
+**fix - ping-pong round 7 (new states: a Grand Charm opened from the inventory at 1280, ADD MOD at phone width), found
+on real pixels first-hand and confirmed by the Grok seat independently.** (1) The Edit tile of a Large / Grand Charm
+printed "Grand Charm" in a box: the sprites were in the repo (art/hd_charm_medium.png 91x169 = the 1x2 Large Charm,
+hd_charm_large.png 94x285 = the 1x3 Grand Charm, measured) and only Small Charm had ever been registered by its base
+name. Both are now, exact names only (the Sunder charms keep their own art). (2) An inventory cell's picker has too
+little room either side of the centred inventory at 1120-1280, fell back to the PAGE centre at full width, and covered
+STATS' left edge by 25-28 px (labels read "re Resistance", "fense (items)"); their STATS update while you pick, so any
+pick now ends left of STATS (0 px at 1120 / 1280 / 2000; a slot's pick never overlapped). The Grok seat's other
+claims were measured and REJECTED: the ED prefix names "shifted one tier" - his install's magicprefix.txt really has
+Sturdy twice (rows 143: 10-20 and 144: 21-30), then Strong 31-40 ... Holy 81-100, Godly 101-200, and the list matches
+it row for row; "Rugged" twice is two table rows; Jagged on a Diadem is p186's `circ`; the page under the modal is
+covered by design. Found in the same pass: the new width-law case first compared the modal (VIEWPORT frame) with
+cols.stats (BUILDER-box frame) and read an 11 px overlap that did not exist - it now measures STATS in the viewport.
+Law: the width law's round-7 case (every pick state measured, the charm's art probed at 2000 / 1280 / 375); 2
+red-proofs, both seen RED in a throwaway worktree (without the clamp the modal ended at 1005; without the registration
+the art failed at every width). [[gate-blind-to-unexercised-input]] [[measured-true-read-wrong]]
+
 ### REG-1324 - A BOUNDED SECOND EYE DIED OF ITS SIGNAL AND LEFT ITS SNAPSHOT: 120 IN HIS TEMP DIR
 
 **fix - found 2026-09-26 15:45 closing #243 (the last source of our scratch).** MEASURED over the last 4 hours - three

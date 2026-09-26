@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3513"   # #174 round 5 - the Added message reads each roll by its shape: a fixed per-level mod is fixed, a superior mod names its property
+VERSION = "v3514"   # #174 round 7 - a charm shows its in-game art, and picking an inventory item never covers STATS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
