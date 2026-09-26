@@ -7219,6 +7219,34 @@ GATES = [
              "it feeds; elemental absorb caps at 40; a magic charm blanks only its affix pool's stats (FCR stays 60). "
              "35 cases, 20 red-proofs",
          skip_ok=()),
+    Gate("test_the_mule_picker_offers_the_whole_database",
+         [sys.executable, os.path.join(HERE, "test_the_mule_picker_offers_the_whole_database.py")], 90,
+         needs_app=False,
+         why="#174 v-B4 - ONE PICKER, TWO HOSTS. His ALT PC (v3514): every body-gear slot of every mule said 'Nothing in "
+             "<mule> fits' - that PC's store routes nothing (no muleAssign, no muleEquip, owned []), and the mule window's "
+             "picker listed only the locker's own rows. A slot now opens the Character Builder's picker in a MULE host. "
+             "Drives the SHIPPED vault span + builder block + CB_DB block + mule tooltip script together in node: on the "
+             "ALT's empty store the Body Armor slot opens on Select with every spawnable body armor base in CB_DB and "
+             "every unique / set on one (no ring), never 'Nothing in X fits'; with locker items the In this locker tab is "
+             "in front and is word for word the old list and footer (the same as the picker drawn without the builder's "
+             "block); Enigma -> Base -> Mage Plate writes the mule {source manual, id, base xtp, q, sockets 3, its runes}, "
+             "Edit edits it in place, the doll wears it LIVE and it frees no cell, the mule's hover is the builder's "
+             "tooltip over that entry; d2r_charBuilds and d2r_cbSel byte-identical; Esc closes Filters, then the picker, "
+             "then the window; a builder pick never writes d2r_muleEquip. 5 cases, 10 red-proofs",
+         skip_ok=()),
+    Gate("test_the_runeword_base_tab_is_theirs",
+         [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
+         needs_app=False,
+         why="#174 v-B4 - their Select | Base | Edit, measured on their planner with a real mouse. Picking a runeword opens "
+             "the Base tab (it no longer goes on its first base): every base its itypes allow that holds its runes at the "
+             "item level, another class's bases left out, grouped Elite / Exceptional / Normal <Category>, categories A-Z, "
+             "rows by qlvl high to low - Breath of the Dying's 48 rows, Grief 30, Spirit 24 (swords only on the weapon "
+             "slot), Heart of the Oak 12 exactly theirs, Insight and Call to Arms as far as their list drew; an Amazon sees "
+             "her spears and a Sorceress does not; item level 20 holds no six-socket base and says so; hover = the "
+             "runeword on that base through d2Tip; click = worn there, Edit opens, Edit's Base goes back; the search match "
+             "underlined; the weapon rail is itemtypes.txt's Equiv tree from CB_DB ty[code][4] (their parents, children "
+             "and folds). 7 cases, 12 red-proofs",
+         skip_ok=()),
     Gate("test_the_mule_window_places_by_hand",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_places_by_hand.py")], 90,
          needs_app=False,

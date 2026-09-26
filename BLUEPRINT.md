@@ -324,7 +324,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 
 ## GATES
 
-    629 registered in tv/run_gates.py — every one named below with what it guards,
+    631 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -829,6 +829,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 - **test_the_machine_banner_is_one_sentence** — v3362 (#37) - ONE BANNER, ONE SENTENCE, ONE WRITER, AND IT NEVER CLAIMS A SEPARATE ECONOMY.
 - **test_the_measured_bit_crosses_the_relay** — the doctor row 'a tally agrees with its own ledger verdict' read MISSING for every fleet row, v3499 consoles included: the tally seals measured/measur…
 - **test_the_missing_wall_shows_the_qlvl** — THE MISSING WALL PRINTS THE QLVL, AND REFUSES TO PRINT ONE IT DOES NOT HAVE.
+- **test_the_mule_picker_offers_the_whole_database** — #174 v-B4 - ONE PICKER, TWO HOSTS. His ALT PC (v3514): every body-gear slot of every mule said 'Nothing in <mule> fits' - that PC's store routes nothi…
 - **test_the_mule_window_equips_and_says_its_source** — #174 v-B - the mule window equips from its own locker and every stat says its source.
 - **test_the_mule_window_fits_at_every_width** — #174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed green: every length was N*--u and the type was fixed p…
 - **test_the_mule_window_is_the_planner_shell** — #174 v-A - the mule window is rebuilt as the d2planner builder's shell: three columns 322|716|300, their ten measured doll slots, the 10x4 inventory u…
@@ -871,6 +872,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 - **test_the_river_reads_as_four_lanes** — his 2026-09-12 rulings on a screenshot of his own shelf — 'i want it down a river lane ...
 - **test_the_river_strip_reads_as_a_river** — THE RIVER HEADING WAS A FLEX ROW OF BARE TEXT NODES.
 - **test_the_river_walk_says_it_walked** — A SUCCESSFUL WALK THAT FOUND NOTHING SAID NOTHING, so a STILL RIVER and a DEAD LOOP looked identical.
+- **test_the_runeword_base_tab_is_theirs** — #174 v-B4 - their Select | Base | Edit, measured on their planner with a real mouse.
 - **test_the_save_reader_watches_its_tables** — #174 - the .d2s reader decodes against tables generated once from his install
 - **test_the_screen_read_never_blocks_the_button** — THE START POST DID NOT RETURN, SO THE BUTTON LOOKED DEAD.
 - **test_the_seed_check_leaves_a_receipt** — #159 - bake_seed.py printed 'no drift' to stdout and left nothing behind, so nothing on his console could say WHEN the seed was last checked against h…

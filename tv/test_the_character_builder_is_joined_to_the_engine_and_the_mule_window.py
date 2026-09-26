@@ -113,7 +113,11 @@ def _run(body):
 #: helpers the cases share: a Sorceress in Hell wearing the four items, each picked through the builder's own picker
 JOIN = r"""
 function byName(n){ var h = null; window._cbDb().it.forEach(function(x){ if (x[1] === n) h = x; }); return h; }
-function wear(pairs){ pairs.forEach(function(p){ window._cbOpenPick('slot', p[0]); window._cbChoose(byName(p[1])[0]); window._cbClosePick(); }); }
+function wear(pairs){ pairs.forEach(function(p){ var id = byName(p[1])[0]; window._cbOpenPick('slot', p[0]); window._cbChoose(id);
+  /* #174 v-B4 - a RUNEWORD now waits on its Base tab (theirs: Select | Base | Edit): it is worn on the base the pick
+     used to take without asking - its first (_cbBasesOf) - so every case below reads the same item it always did */
+  if (window._cbState().pick && window._cbState().pick.tab === 'base') window._cbPickBase(window._cbBasesOf(window._cbItem(id))[0]);
+  window._cbClosePick(); }); }
 function sorc(){
   window.openCharBuilder(); window._cbOpenNew(); window._cbNewCls('Sorceress'); window._cbNewLvl(90); window._cbNewGo();
   wear([['head', 'Crown of Ages'], ['tors', 'Skin of the Vipermagi'], ['neck', "Mara's Kaleidoscope"], ['rarm', 'The Oculus']]);

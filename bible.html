@@ -35403,6 +35403,7 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-pick-f{flex:none;max-height:38%;overflow:auto;padding:calc(6*var(--u)) calc(10*var(--u));border-top:1px solid var(--border);background:rgba(0,0,0,.22);font-size:var(--fs-mp-meta);color:var(--text-dim);line-height:var(--lh-tight);overflow-wrap:anywhere}
 .mp-pick-f b{color:var(--text-muted);font-weight:var(--fw-medium)}
 .mp-pick-err{color:var(--hell)}
+.mp-slot.mp-picked{border-color:rgb(40,220,90);box-shadow:0 0 0 2px rgb(40,220,90),0 0 16px rgba(40,220,90,.5)}   /* #174 v-B4 — the slot the picker serves */
 /* the four PROSE panels are their measured height when the words fit and taller when they do not — a
    fixed height cut the MERCENARY note in half at 1120 while the law, reading innerHTML, stayed green. The
    one honest line sits in the middle of the panel, not on top of a hole. */
@@ -39829,6 +39830,13 @@ window.vaultAutoAssign = function(){
   var MP_WEAPON_SLOT = { rarm: 1, larm: 1 };     // only the hands swap (I / II); the rest of the doll is shared
   var MP_SRC_RANK = { manual: 3, 'import': 2, analyzer: 1 };
   var MP_SRC_SAY = { manual: 'placed by hand', 'import': 'imported from a .d2s', analyzer: 'routed by the analyzer' };
+  /* #174 v-B4 — ONE PICKER, TWO HOSTS. A slot of the mule window opens the Character Builder's picker over the whole item
+     database (his ALT's store routed nothing, so a picker over the locker alone said "Nothing in <mule> fits" on every
+     slot). A DATABASE pick carries the builder's entry onto the mule's store under these keys: its id in the database,
+     base, quality, typed rolls, sockets, affixes, ethereal, item level, a rare's words, a low word, a typed defense - and
+     `fill`, the builder's socket fillers (its `socketed`), kept apart from an import's `socketed` (what a save carried).
+     A LOCKER pick carries none of them: it is his item, named. [[the-unjoined-end]] */
+  var MP_CB_FIELDS = ['id', 'base', 'q', 'rolls', 'sockets', 'affixes', 'eth', 'ilvl', 'rn', 'lq', 'def', 'fill'];
   var MP_KIND_SAY = { helm: 'helm', armor: 'body armor', shield: 'shield', weapon: 'weapon', gloves: 'gloves',
                       belt: 'belt', boots: 'boots', ring: 'ring', amulet: 'amulet', quiver: 'quiver', none: 'carried, never worn' };
   /* the words a set piece's slot token ("amulet", "heavy boots") or a runeword's base text ("3-sock body armor")
@@ -39924,6 +39932,15 @@ window.vaultAutoAssign = function(){
     g.cls = MULE_BASE_RULE.cls[key] || null;
     return g;
   }
+  /* #174 v-B4 — a stored entry's gear: a database pick knows its base (the builder's base code, CB_DB's name for it), so
+     its hands and class are its base's; a locker or imported item is read by its name, as before */
+  function _mpGearOf(e){
+    if (e && e.id && e.base && typeof window._cbDb === 'function'){
+      var d = window._cbDb(), b = d && d.b && d.b[e.base];
+      if (b){ var g = _mpGear(b[0]); g.name = String(e.name == null ? '' : e.name); return g; }
+    }
+    return _mpGear(e && e.name);
+  }
   /* PURE: may the right hand hold R while the left holds L (either may be null)? -> null, or why no class can.
      The doll's left hand takes a shield, a quiver, or a weapon only as a SECOND weapon — a Barbarian holds two, an
      Assassin two claws. A two-hander is held in the right hand and leaves the left empty, or holding what it shoots. */
@@ -39980,6 +39997,8 @@ window.vaultAutoAssign = function(){
     var s = m[set] = (m[set] && typeof m[set] === 'object') ? m[set] : {};
     var e = { name: String(entry.name), source: src, at: entry.at || new Date().toISOString() };
     if (entry.props) e.props = entry.props;
+    if (typeof entry.id === 'string' && entry.id)
+      MP_CB_FIELDS.forEach(function(k){ if (entry[k] !== undefined && entry[k] !== null) e[k] = JSON.parse(JSON.stringify(entry[k])); });
     /* #174 v-B review — an import's EXACT sum needs everything its save carries: the runeword's own list and what
        sits in the sockets. This writer kept props alone, so an imported Enigma read FRW "0% EXACT". */
     if (Array.isArray(entry.runewordProps)) e.runewordProps = entry.runewordProps;
@@ -40015,8 +40034,10 @@ window.vaultAutoAssign = function(){
         if (!MP_SLOT_WEARS[slot] || (set === 'setII' && !MP_WEAPON_SLOT[slot])) return;
         var e = s[slot];
         if (!e || !e.name) return;
-        if (e.source !== 'import' && assign[e.name] !== muleId){ dead[set + '.' + slot] = 'no longer in this locker'; return; }
-        list.push({ set: set, slot: slot, e: e, g: _mpGear(e.name) });
+        /* #174 v-B4 — a DATABASE pick (it carries the builder's id) is his plan, not one of this locker's rows: it is
+           never "no longer in this locker", and its hands and class are its base's */
+        if (e.source !== 'import' && !e.id && assign[e.name] !== muleId){ dead[set + '.' + slot] = 'no longer in this locker'; return; }
+        list.push({ set: set, slot: slot, e: e, g: _mpGearOf(e) });
       });
     });
     list.sort(function(a, b){ var x = String(a.e.at || ''), y = String(b.e.at || ''); return x < y ? -1 : (x > y ? 1 : 0); });
@@ -40045,7 +40066,7 @@ window.vaultAutoAssign = function(){
     ['setI', 'setII'].forEach(function(set){
       Object.keys(lv.at[set]).forEach(function(slot){
         var e = lv.at[set][slot];
-        if (e.source !== 'import') out[e.name] = (out[e.name] || 0) + 1;
+        if (e.source !== 'import' && !e.id) out[e.name] = (out[e.name] || 0) + 1;   // #174 v-B4: nor a database pick
       });
     });
     return out;
@@ -40311,12 +40332,62 @@ window.vaultAutoAssign = function(){
     if (openMuleId) window.openMuleCard(openMuleId);
     try { if (typeof renderVault === 'function') renderVault(); } catch (e) {}   // the shelf gauge frees a worn item's cells
   }
+  /* #174 v-B4 — ONE PICKER, TWO HOSTS. His ALT (v3514) showed "Nothing in <mule> fits the Body Armor slot" on every slot of
+     every mule: that PC's store routes nothing to any locker, and this picker listed only the locker's own rows. A slot
+     now opens the Character Builder's picker modal in a MULE host (window._cbHostOpen, the builder's block): Select over
+     the ENTIRE item database for the slot (the same rail, quality tabs, search and Filters, on every PC, from the page's
+     own CB_DB block), Base / Quality / Edit exactly as the builder's, and an "In this locker" tab that is what this
+     picker listed - the same fit rules, the same footer - first and in front when the locker has anything for the slot.
+     A database pick is written HERE, through _mpEqPlace (source 'manual', his own act, the builder's entry fields); the
+     builder's store (d2r_charBuilds) is never touched by this host, and the builder never writes a mule.
+     These are what the host reads and writes, closed over the open window. [[the-unjoined-end]] */
+  function _mpCbEntry(rec){
+    if (!rec || typeof rec.id !== 'string' || !rec.id) return null;
+    var e = { id: rec.id, name: rec.name, q: rec.q, base: rec.base, sockets: rec.sockets | 0, eth: !!rec.eth,
+              rolls: JSON.parse(JSON.stringify(rec.rolls || {})), socketed: (rec.fill || []).slice(), ilvl: rec.ilvl || 99 };
+    ['rn', 'lq', 'def', 'affixes'].forEach(function(k){ if (rec[k] !== undefined && rec[k] !== null) e[k] = JSON.parse(JSON.stringify(rec[k])); });
+    return e;
+  }
+  /* the builder-shaped entry a database pick stored at a slot of the open mule (weapon set on screen), or null: a locker
+     or imported item carries only its name */
+  window._mpCbEntryAt = function(slot){ return openMuleId ? _mpCbEntry(_mpEqAt(slot)) : null; };
+  function _mpHostWrite(e){
+    if (!openMuleId || !_mpPickAt) return { ok: false, why: 'the mule window is not open on a slot' };
+    var all = _mpEqAll(), slot = _mpPickAt.slot, set = _mpPickAt.set, r;
+    if (!e) r = { ok: true, all: _mpEqRemove(all, openMuleId, set, slot) };
+    else {
+      var was = ((all[openMuleId] || {})[MP_WEAPON_SLOT[slot] ? set : 'setI'] || {})[slot] || null;
+      var rec = { name: e.name, source: 'manual', id: e.id, base: e.base, q: e.q, rolls: e.rolls, sockets: e.sockets,
+                  affixes: e.affixes, eth: e.eth, ilvl: e.ilvl, rn: e.rn, lq: e.lq, def: e.def, fill: e.socketed };
+      if (was && was.id === e.id && was.at) rec.at = was.at;     // an edit is the same placement: it keeps when he made it
+      r = _mpEqPlace(all, openMuleId, set, slot, rec);
+    }
+    if (r.ok){ try { _mpEqWrite(r.all); } catch (x){ r = { ok: false, why: 'the equipment could not be saved (' + (x && x.message || x) + ')' }; } }
+    _mpPickErr = r.ok ? '' : r.why;
+    return r;
+  }
+  function _mpHostSync(){
+    if (typeof window._cbHostOpen !== 'function') return;          // the builder's block is not on this page: the locker list alone
+    if (!_mpPickAt || !openMuleId){ window._cbHostClose(); return; }
+    var at = _mpPickAt, m = muleById(openMuleId);
+    window._cbHostOpen({
+      slot: at.slot, set: at.set, mule: m ? m.name : String(openMuleId),
+      cur: function(){ return window._mpCbEntryAt(at.slot); },
+      write: _mpHostWrite,
+      render: function(){
+        try { var ae = document.activeElement; if (ae && ae.closest && ae.closest('#cb-modal')) _mpFocusNext = _mpFocusNext || 'host'; } catch (x) {}
+        if (openMuleId) window.openMuleCard(openMuleId);
+      },
+      close: function(){ window._mpPick(null); }
+    });
+  }
   window._mpPick = function(slot){
     if (!openMuleId || openMuleId === 'shared') return;
     if (slot && !MP_SLOT_WEARS[slot]) return;
     var was = _mpPickAt;
     _mpPickErr = '';
     _mpPickAt = slot ? { slot: slot, set: _mpSetOf(slot, _mpSwap) } : null;
+    _mpHostSync();
     _mpFocusNext = slot ? 'pick' : (was ? 'slot-' + was.slot : null);
     window.openMuleCard(openMuleId);
   };
@@ -40331,6 +40402,7 @@ window.vaultAutoAssign = function(){
     if (!r.ok){ _mpPickErr = r.why; window.openMuleCard(openMuleId); return false; }
     var slot = _mpPickAt.slot;
     _mpPickAt = null; _mpPickErr = ''; _mpFocusNext = 'slot-' + slot;
+    _mpHostSync();
     _mpRefresh();
     return true;
   };
@@ -40338,7 +40410,7 @@ window.vaultAutoAssign = function(){
     if (!openMuleId || !MP_SLOT_WEARS[slot]) return false;
     try { _mpEqWrite(_mpEqRemove(_mpEqAll(), openMuleId, _mpSetOf(slot, _mpSwap), slot)); }
     catch (e){ _mpPickErr = 'the equipment could not be saved (' + (e && e.message || e) + ')'; window.openMuleCard(openMuleId); return false; }
-    if (_mpPickAt && _mpPickAt.slot === slot) _mpPickAt = null;
+    if (_mpPickAt && _mpPickAt.slot === slot){ _mpPickAt = null; _mpHostSync(); }
     _mpFocusNext = 'slot-' + slot;
     _mpRefresh();
     return true;
@@ -40519,6 +40591,7 @@ window.vaultAutoAssign = function(){
     if (!m||!box) return;
     var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mpNoteFlush(); _mpPickAt = null; _mpPickErr = ''; _mpNoteSaid = null; }   // #174 v-B — a note being typed is saved, never dropped
+    if (muleId !== openMuleId && typeof window._cbHostClose === 'function') window._cbHostClose();   // #174 v-B4 — the host goes with it
     if (muleId !== openMuleId){ _mulePage = 0; _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
     if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
     openMuleId = muleId;
@@ -40623,10 +40696,10 @@ window.vaultAutoAssign = function(){
     var doll = MULE_DOLL_SLOTS.map(function(s){
       var e = _eqAt(s[0]);
       var _dw = e ? _deadAt(s[0]) : null, gone = !!_dw;
-      var say = e ? (s[2] + ' — ' + e.name + ', ' + (MP_SRC_SAY[e.source] || e.source) + (gone ? ' — NOT WORN, NOT COUNTED: ' + _dw : '')
+      var say = e ? (s[2] + ' — ' + e.name + ', ' + (MP_SRC_SAY[e.source] || e.source) + (e.id ? ' from the item database' : '') + (gone ? ' — NOT WORN, NOT COUNTED: ' + _dw : '')
                      + '. Enter to change it, Delete to unequip')
-                  : (s[2] + ' — empty. Click (or Enter) to equip one of this locker’s items');
-      return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
+                  : (s[2] + ' — empty. Click (or Enter) to choose one: this locker’s items, or any item in the database');
+      return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+(_mpPickAt && _mpPickAt.slot === s[0] ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
         + ' data-fk="slot-'+s[0]+'" onclick="window._mpPick(\''+s[0]+'\')" oncontextmenu="return window._mpCtx(event,\''+s[0]+'\')" onkeydown="window._mpSlotKey(event,\''+s[0]+'\')"'
         + (e ? '' : ' title="'+esc(say)+'"') + ' aria-label="'+esc(say)+'">'
         + (e ? art(e.name, s[1], 'lg') : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'
@@ -40640,7 +40713,7 @@ window.vaultAutoAssign = function(){
     }).join('');
     /* #174 v-B — THE PICKER: what in THIS locker fits the slot, and — in its footer — how many were left out
        and why. An item with no slot on record is never offered; it is counted and named. */
-    var pick = '';
+    var pick = '', _hostHtml = '';
     _mpPickList = [];
     if (_mpPickAt){
       var _ps = _mpPickAt.slot, _pset = _mpPickAt.set, _pdef = null;
@@ -40651,11 +40724,11 @@ window.vaultAutoAssign = function(){
       /* #174 v-B review — what the rest of the doll allows here: the other hand of this weapon set, and the class of
          every other live piece (both sets and the shared slots; a character has one class) */
       var _oh = MP_WEAPON_SLOT[_ps] ? ((_live.at[_pset] || {})[_ps === 'rarm' ? 'larm' : 'rarm'] || null) : null;
-      var _ohG = _oh ? _mpGear(_oh.name) : null, _clsOn = [];
+      var _ohG = _oh ? _mpGearOf(_oh) : null, _clsOn = [];
       ['setI', 'setII'].forEach(function(set){
         Object.keys(_live.at[set]).forEach(function(slot){
           if (set === _pset && slot === _ps) return;
-          var g = _mpGear(_live.at[set][slot].name);
+          var g = _mpGearOf(_live.at[set][slot]);
           if (g.cls) _clsOn.push(g);
         });
       });
@@ -40664,7 +40737,7 @@ window.vaultAutoAssign = function(){
         if (!f.kind){ _unknown.push(n + ' (' + f.why + ')'); return; }
         if (f.kind === 'none'){ _carried.push(n); return; }
         if (_wears.indexOf(f.kind) < 0){ _other.push(n + ' (' + (MP_KIND_SAY[f.kind] || f.kind) + ')'); return; }
-        var here = !!(_plive && _plive.name === n && _plive.source !== 'import');
+        var here = !!(_plive && _plive.name === n && _plive.source !== 'import' && !_plive.id);
         var free = _mpCopies(n) - (_wornAll[n] || 0) + (here ? 1 : 0);
         if (free <= 0){ _busy.push(n); return; }
         var g = _mpGear(n), why = null;
@@ -40692,10 +40765,16 @@ window.vaultAutoAssign = function(){
           + _cg.map(function(w){ return esc(_cw[w].join(', ')) + ' — ' + esc(w); }).join('; '));
       }
       if (_unknown.length) _why.push(_one(_unknown, 'has no slot on record, so it is not offered', 'have no slot on record, so they are not offered'));
+      /* #174 v-B4 — this list is the host's "In this locker" tab (the modal carries the ✕); a locker that holds nothing on
+         this PC says so and points at Select, which lists the whole database - never "Nothing in <mule> fits" for an
+         empty store. Without the builder's block on the page it stands alone, as before. */
+      var _hosted = typeof window._cbHostHtml === 'function';
+      var _none = names.length ? 'Nothing in ' + esc(m.name) + ' fits the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.'
+        : esc(m.name) + ' holds no items in this PC’s store' + (_hosted ? ' — <b>Select</b> lists every item in the database for the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.' : '.');
       pick = '<div class="mp-pick" role="group" aria-label="Choose the ' + esc(_slotSay) + ' from ' + esc(m.name) + '">'
         + '<div class="mp-pick-h"><span class="mp-pick-t">' + esc(_slotSay) + '<span class="mp-pick-sub"> · ' + _mpPickList.length + ' of ' + names.length + ' fit</span></span>'
         +   (_pcur ? '<button type="button" class="mp-btn" data-fk="pick-un" onclick="window._mpUnequip(\'' + _ps + '\')">Unequip</button>' : '')
-        +   '<button type="button" class="mp-pick-x" data-fk="pick-x" onclick="window._mpPick(null)" title="close (Esc)" aria-label="close the picker (Esc)">✕</button></div>'
+        +   (_hosted ? '' : '<button type="button" class="mp-pick-x" data-fk="pick-x" onclick="window._mpPick(null)" title="close (Esc)" aria-label="close the picker (Esc)">✕</button>') + '</div>'
         + '<div class="mp-pick-l">'
         +   (_mpPickList.length ? _mpPickList.map(function(o, i){
               return '<button type="button" class="mp-opt' + (o.on ? ' on' : '') + '" data-fk="opt-' + i + '" onclick="window._mpChoose(' + i + ')"'
@@ -40703,11 +40782,16 @@ window.vaultAutoAssign = function(){
                 + '<span class="mp-opt-t"><span class="mp-opt-n">' + esc(o.name) + '</span>'
                 + '<span class="mp-opt-m">' + esc(o.base) + ' · ' + esc(MP_KIND_SAY[o.kind] || o.kind) + ' — from ' + esc(o.from) + (o.on ? ' · worn here now' : '') + '</span></span></button>';
             }).join('')
-            : '<div class="mp-pick-none">Nothing in ' + esc(m.name) + ' fits the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.</div>')
+            : '<div class="mp-pick-none">' + _none + '</div>')
         + '</div>'
         + '<div class="mp-pick-f">' + (_mpPickErr ? '<div class="mp-pick-err">⚠ ' + esc(_mpPickErr) + '</div>' : '')
         +   (_left ? '<b>Left out: ' + _left + '</b> of ' + names.length + ' — ' + _why.join(' · ') : 'Nothing in this locker was left out.')
         + '</div></div>';
+      if (_hosted){
+        if (!(typeof window._cbHostOn === 'function' && window._cbHostOn(_ps))) _mpHostSync();
+        _hostHtml = window._cbHostHtml({ html: pick, n: _mpPickList.length, total: names.length }) || '';
+        if (_hostHtml) pick = '';
+      }
     }
     /* #174 R1 — THE DOLL AND ITS INVENTORY ARE ONE PANEL, DRAWN ONCE: big in the centre when EQUIPMENT is in front (the
        default), at their 322 in the left column otherwise. The slots, the picker and the inventory grid all ride --du, so
@@ -40894,9 +40978,10 @@ window.vaultAutoAssign = function(){
     var _anim = _mpAnim; _mpAnim = false;   // #174 R1 — only the render right after a swap fades
     box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+(_anim?' mp-anim':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
       + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div></div>'
-      + right
+      + right + _hostHtml
       + '</div>';
     box.scrollTop = _keep ? _keep.top : 0;
+    if (_hostHtml && typeof window._cbHostPlaced === 'function'){ try { window._cbHostPlaced(); } catch (e) {} }   // #174 v-B4 — beside the slot, as the builder's
     if (_keep){
       var _st1 = box.querySelector('.mp-st'); if (_st1) _st1.scrollTop = _keep.st;
       var _in = _keep.q && box.querySelector('.mp-search input');
@@ -40907,7 +40992,8 @@ window.vaultAutoAssign = function(){
     var _fk = _mpFocusNext || (_keep && _keep.fk);
     _mpFocusNext = null;
     if (_fk && box.querySelector){
-      var _fe = _fk === 'pick' ? (box.querySelector('.mp-pick .mp-opt') || box.querySelector('.mp-pick .mp-pick-x'))
+      var _fe = _fk === 'pick' ? (box.querySelector('.mp-pick .mp-opt') || box.querySelector('#cb-modal .cb-tab.cb-on') || box.querySelector('.mp-pick .mp-pick-x'))
+              : _fk === 'host' ? box.querySelector('#cb-modal .cb-tab.cb-on')
                                : box.querySelector('[data-fk="' + _fk + '"]');
       if (_fe && _fe.focus){
         try {
@@ -40919,7 +41005,7 @@ window.vaultAutoAssign = function(){
   };
   window.vaultCloseCard = function(){
     try { _mpNoteFlush(); } catch (e) {}     // #174 v-B — closing never drops a note he was typing
-    _mpPickAt = null; _mpPickErr = '';
+    _mpPickAt = null; _mpPickErr = ''; _mpHostSync();
     // #174 v-B2 — a drag or a keyboard carry in flight is put back, and its message goes with the window
     try { if (_mpDrag){ _mpDragEnd(_mpDrag); _mpDrag = null; } if (_mpCarry) _mpCarryEnd(); var _ds = document.getElementById('mp-dragsay'); if (_ds) _ds.className = ''; } catch (e) {}
     var b=document.getElementById('vault-detail');
@@ -40945,6 +41031,7 @@ window.vaultAutoAssign = function(){
     if (e.key !== 'Escape' || !openMuleId || !_mpPickAt) return;
     if (e.preventDefault) e.preventDefault();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
+    if (typeof window._cbHostEsc === 'function' && window._cbHostEsc()) return;   // #174 v-B4 — the host's top layer first
     window._mpPick(null);
   }, true);
   /* ══ #174 v-B2 — MOVING AN ITEM BY HAND: the pointer (mouse and touch), the keyboard, the mule tabs, the stash tabs.
@@ -50989,11 +51076,11 @@ html{overflow-x:clip}
    his install by the console (never the repo, never the site), then Cinzel, a free OFL face the board already loads.
    Everything here is prefixed cb- and lives in this one block; the mule window's .mp-* rules are not touched. */
 @font-face{font-family:"D2 Exocet";src:local("Exocet Blizzard OT"),local("ExocetBlizzardOT-Medium"),url('/api/d2r_font/exocet') format('opentype');font-display:swap}
-.cb-win{--cb-q-unique:rgb(199,179,119);--cb-q-set:rgb(0,255,0);--cb-q-crafted:rgb(255,168,0);--cb-q-base:rgb(255,255,255);--cb-q-magic:rgb(105,105,255);--cb-q-rare:rgb(255,255,100);--cb-q-runeword:rgb(199,179,119);--cb-glow:rgb(40,220,90);--cb-d2:"D2 Exocet","Cinzel",var(--serif-display),serif;--cb-slate:#3a3b3d}
+.cb-win,.cb-host{--cb-q-unique:rgb(199,179,119);--cb-q-set:rgb(0,255,0);--cb-q-crafted:rgb(255,168,0);--cb-q-base:rgb(255,255,255);--cb-q-magic:rgb(105,105,255);--cb-q-rare:rgb(255,255,100);--cb-q-runeword:rgb(199,179,119);--cb-glow:rgb(40,220,90);--cb-d2:"D2 Exocet","Cinzel",var(--serif-display),serif;--cb-slate:#3a3b3d}
 .cb-win{position:fixed;inset:0;z-index:99996;overflow:auto;background:var(--bg);color:var(--text);font-family:var(--sans);padding:calc(14*var(--u)) 16px 30px;overscroll-behavior:contain}
 .cb-win[hidden]{display:none}
 html.cb-lock,html.cb-lock body{overflow:hidden}
-.cb-win{--fs-cb-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-cb-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-cb-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-cb-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-cb-micro:var(--fs-micro);--fs-cb-d2:max(var(--fs-body),calc(var(--fs-title)*1.28*var(--kf,1)));--fs-cb-d2h:max(var(--fs-body),calc(var(--fs-title)*1.4*var(--kf,1)));--fs-cb-tip:calc(var(--fs-title)*1.2)}
+.cb-win,.cb-host{--fs-cb-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-cb-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-cb-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-cb-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-cb-micro:var(--fs-micro);--fs-cb-d2:max(var(--fs-body),calc(var(--fs-title)*1.28*var(--kf,1)));--fs-cb-d2h:max(var(--fs-body),calc(var(--fs-title)*1.4*var(--kf,1)));--fs-cb-tip:calc(var(--fs-title)*1.2)}
 .cb{display:grid;grid-template-columns:calc(1044*var(--u)) calc(300*var(--u));grid-template-areas:"top top" "body stats";column-gap:calc(6*var(--u));row-gap:calc(6*var(--u));width:calc(1350*var(--u));margin:0 auto;align-items:start;line-height:var(--lh-snug)}
 /* their frame: LEFT + CENTRE share their 1044 (322 | 716), STATS is the 300 beside them — nested, so a tall STATS never spreads a gap into the rows beside it */
 .cb-body{grid-area:body;display:flex;flex-direction:column;gap:calc(6*var(--u));min-width:0}
@@ -51163,6 +51250,29 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-opt small{color:var(--text-dim);font-size:var(--fs-cb-meta);margin-left:6px}
 .cb-c-u,.cb-c-r{color:var(--cb-q-unique)}.cb-c-s{color:var(--cb-q-set)}.cb-c-c{color:var(--cb-q-crafted)}.cb-c-b{color:var(--cb-q-base)}.cb-c-m{color:var(--cb-q-magic)}.cb-c-rare{color:var(--cb-q-rare)}
 .cb-none{padding:calc(8*var(--u));font-size:var(--fs-cb-body);color:var(--text-dim)}
+/* #174 v-B4 — the rail as the game's type tree (their 61 / 63): a bold header, a parent with its fold chevron, each level
+   16 units in; a label wraps rather than scrolling the rail sideways */
+.cb-tree .cb-tree-h{padding-left:calc(4*var(--u));font-weight:var(--fw-bold);color:var(--text)}
+.cb-tree .cb-fold{font-size:var(--fs-cb-title);color:var(--gold-bright)}   /* their chevrons read as chevrons, not dots */
+.cb-tree .cb-tree-r .cb-rail-b{padding:calc(1*var(--u)) calc(4*var(--u)) calc(1*var(--u)) calc((4 + var(--td,0) * 16) * var(--u));white-space:normal;overflow-wrap:anywhere}
+/* the Grok seat on v-B4 (unlabelled, beside theirs): their tree fits every row to Javelins, ours needed a scrollbar - rows
+   are their ~24px pitch now, the fold as tall as its row */
+.cb-tree .cb-fold{height:calc(20*var(--u))}
+/* the Base tab's list: a group header grey (their rgb(121,121,121)), its rows 16 units in, a slim scroller; a typed match
+   underlined, in the Select list as in the Base list */
+.cb-bgrp{padding:calc(5*var(--u)) calc(2*var(--u)) calc(1*var(--u));font-size:var(--fs-cb-title);line-height:var(--lh-snug);color:rgb(121,121,121)}
+.cb-opt.cb-bopt{padding-left:calc(16*var(--u))}
+.cb-opt u{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--gold)}
+.cb-list.cb-blist{scrollbar-width:thin;scrollbar-color:#4a443c rgb(28,28,28)}
+.cb-list.cb-blist::-webkit-scrollbar{width:8px}.cb-list.cb-blist::-webkit-scrollbar-track{background:rgb(28,28,28)}.cb-list.cb-blist::-webkit-scrollbar-thumb{background:#4a443c;border-radius:4px}
+.cb-btn.cb-base-go{max-width:100%;text-align:left;overflow-wrap:anywhere}
+/* #174 v-B4 — THE MULE HOST: the same modal, over the mule window; "In this locker" is the mule's own list, in the pane */
+.cb-host .cb-mb-locker{flex-direction:column}
+.cb-host .mp-pick{position:relative;left:auto;right:auto;top:auto;bottom:auto;z-index:auto;flex:1;min-height:0;box-shadow:none;border:1px solid var(--border);border-radius:4px}
+.cb-host .cb-host-err{color:var(--hell)}
+/* on a phone the host rides the mule window's own unit (~1px at 375, not the builder's 0.48), so its tab row - one more
+   tab than the builder's - is set compact there, or In this locker | Select | Base | Edit | ✕ would run past the sheet */
+.cb-host.cb-sheet .cb-tab{padding:0 10px;font-size:var(--fs-cb-body)}
 /* EDIT — their art tile, name + base, Change Item / Unequip, the level stepper, Base / Sockets / Ethereal, and the
    property lines in the game's face with a box on every rolled value */
 .cb-ed{flex:1;min-height:0;overflow:auto;padding:calc(14*var(--u)) calc(22*var(--u))}
@@ -51423,9 +51533,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbRailOf = _cbRailOf;
   /* every item (and base) for a slot, optionally one rail category — the ENTIRE database, never a sample */
-  function _cbForSlot(slot, catIx){
+  function _cbForSlot(slot, catIx, noCls){
     var d = _cbDb(); if (!d) return [];
-    var cats = _cbCats(slot), use = (catIx == null || catIx < 0) ? cats : [cats[catIx]].filter(Boolean);
+    var cats = _cbCats(slot), use = (catIx == null || catIx < 0) ? _cbSlotCats(slot) : [cats[catIx]].filter(Boolean);   // #174 v-B4: the hand's whole list
     /* the off-hand's "everything" is shields, quivers and claws; a second WEAPON is a Barbarian's alone, so the whole
        one-handed weapon list joins it only for a Barbarian build (the category itself stays on the rail, marked) */
     if ((catIx == null || catIx < 0) && slot === 'larm'){
@@ -51438,6 +51548,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        base is locked to another class (itemtypes.txt Class, the ty table's class index) is left out. A class rail
        (Pelts (Druid) ...) still lists its own items; a build with no class keeps everything. */
     var bci = (catIx == null || catIx < 0) ? _cbClsIx((_cbBuild() || {}).cls) : -1;
+    if (noCls) bci = -1;   // #174 v-B4: a class's own tree node (Amazon Spears) lists its class's items, as its flat rail row did
     var wearable = function(codes){ return bci < 0 || codes.some(function(c){ var b = d.b[c], t = b && d.ty[b[1]]; return !t || t[2] < 0 || t[2] === bci; }); };
     var out = [];
     d.it.forEach(function(x){ var bs = _cbBasesOf(x); if (hit(bs) && wearable(bs)) out.push(x); });
@@ -51473,6 +51584,127 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     });
   }
   window._cbQTabs = _cbQTabs;
+
+  /* ── #174 v-B4 — THE RAIL IS THE GAME'S TYPE TREE (their 61_weapon_select / 63_botd_base_tab, measured) ─────────────
+     His order (2026-09-26): "see its like SELECT tab and then BASE TAB that way it continues to stay organzied". Their
+     weapon rail is itemtypes.txt's Equiv tree: Weapons and Shields > Shields (Auric Shields, Voodoo Heads, Grimoires) >
+     Melee Weapons (Axes, Swords, Daggers, Spears, Polearms, Clubs, Hammers, Maces, Scepters, Wands, Staves, Claws) >
+     Missile Weapons (Bows, Crossbows) > Orbs > Thrown Weapons (Throwing Axes, Throwing Knives, Javelins); a parent folds,
+     and a type with two parents (a Throwing Axe is an Axe AND a Thrown Weapon) sits under both.
+     THE STRUCTURE IS THE DATA'S: CB_DB ty[code][4] holds each type's ancestors. The nodes are the types of the bases this
+     hand holds, plus the four Equiv groups their tree draws as parents (CB_TREE_GROUPS; a group's own ancestors are what
+     all its members share); a node's parents are its ancestors that are nodes and are not above another of them. What is
+     typed here is PRESENTATION only - the plural words (the block names a type "Knife", their rail says "Daggers") and the
+     order siblings list in. A type whose word is its parent's (Shield under Shields, Hand to Hand 2 under Claws) folds
+     into the parent. A node lists every item with a base of its type or below it that the hand holds; a class's own node
+     (Amazon Spears) lists its class's items; the parent list stays the build's class. Other slots keep their flat rail.
+     [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var CB_HANDS = { rarm: 1, larm: 1 };
+  var CB_TREE_GROUPS = ['shld', 'mele', 'miss', 'thro'];
+  var CB_TYPE_LABEL = { shld: 'Shields', shie: 'Shields', ashd: 'Auric Shields', head: 'Voodoo Heads', grim: 'Grimoires',
+    mele: 'Melee Weapons', miss: 'Missile Weapons', thro: 'Thrown Weapons', axe: 'Axes', swor: 'Swords', knif: 'Daggers',
+    spea: 'Spears', pole: 'Polearms', club: 'Clubs', hamm: 'Hammers', mace: 'Maces', scep: 'Scepters', wand: 'Wands',
+    staf: 'Staves', h2h: 'Claws', h2h2: 'Claws', bow: 'Bows', xbow: 'Crossbows', orb: 'Orbs', taxe: 'Throwing Axes',
+    tkni: 'Throwing Knives', jave: 'Javelins', aspe: 'Amazon Spears', abow: 'Amazon Bows', ajav: 'Amazon Javelins' };
+  var CB_TREE_ORDER = ['shld', 'ashd', 'head', 'grim', 'mele', 'axe', 'swor', 'knif', 'spea', 'pole', 'club', 'hamm', 'mace',
+    'scep', 'wand', 'staf', 'h2h', 'miss', 'bow', 'xbow', 'orb', 'thro', 'taxe', 'tkni', 'aspe', 'abow', 'jave', 'ajav'];
+  function _cbTypeLabel(t){
+    if (CB_TYPE_LABEL[t]) return CB_TYPE_LABEL[t];
+    var d = _cbDb(), ty = d && d.ty[t], hit = '';
+    if (!d) return String(t);
+    d._tl = d._tl || {};
+    if (d._tl[t] != null) return d._tl[t];
+    /* the word the slot's own rail gives a category of this one type (tors: "Body Armor", helm: "Helmets"), else the
+       type's own name, plural */
+    Object.keys(d.rail || {}).forEach(function(s){ (d.rail[s] || []).forEach(function(c){ if (!hit && c[1].length === 1 && c[1][0] === t) hit = c[0]; }); });
+    return (d._tl[t] = hit || (ty ? ty[0] + 's' : String(t)));
+  }
+  window._cbTypeLabel = _cbTypeLabel;
+  /* the categories a slot's whole list reads. The weapon hand also holds a shield (their weapon rail draws Shields and
+     their list carries Aegis and Ancient Shield - 61_weapon_select); a second weapon is the off-hand's for a Barbarian */
+  function _cbSlotCats(slot){
+    var d = _cbDb(), cats = _cbCats(slot);
+    if (slot === 'rarm' && d) cats = cats.concat(_cbCats('larm').filter(function(c){ return c[1].length > 0 && c[1].every(function(t){ return !!(d.anc[t] && d.anc[t].shld); }); }));
+    if (slot === 'larm'){ var bb = _cbBuild(); if (!(bb && bb.cls === 'Barbarian')) cats = cats.filter(function(c){ return c[1][0] !== '@offhand'; }); }
+    return cats;
+  }
+  window._cbSlotCats = function(slot){ return _cbSlotCats(slot).map(function(c){ return c[0]; }); };
+  /* -> {header, list: [{t, label, cls, depth, kids, path}]} in the order drawn, every fold open */
+  function _cbTree(slot){
+    var d = _cbDb(); if (!d) return { header: '', list: [] };
+    var bb = _cbBuild(), key = slot + '|' + ((bb && bb.cls === 'Barbarian') ? 'B' : '');
+    d._tree = d._tree || {};
+    if (d._tree[key]) return d._tree[key];
+    var cats = _cbSlotCats(slot), present = {};
+    Object.keys(d.b).forEach(function(c){ var b = d.b[c]; if (b[20] && d.ty[b[1]] && cats.some(function(cat){ return _cbBaseInCat(c, cat); })) present[b[1]] = 1; });
+    var types = Object.keys(present), groups = {};
+    CB_TREE_GROUPS.forEach(function(g){ var m = types.filter(function(t){ return !!(d.anc[t] && d.anc[t][g]); }); if (m.length) groups[g] = m; });
+    var nodes = types.concat(Object.keys(groups)), anc = {};
+    nodes.forEach(function(n){
+      var a = {};
+      if (groups[n]){
+        Object.keys(d.anc[groups[n][0]]).forEach(function(k){ if (groups[n].every(function(t){ return !!d.anc[t][k]; })) a[k] = 1; });
+        types.forEach(function(t){ delete a[t]; });                     // a group sits above its members, never under one
+      } else Object.keys(d.anc[n] || {}).forEach(function(k){ a[k] = 1; });
+      delete a[n]; anc[n] = a;
+    });
+    var parents = {};
+    nodes.forEach(function(n){
+      var cand = nodes.filter(function(p){ return p !== n && anc[n][p]; });
+      parents[n] = cand.filter(function(p){ return !cand.some(function(q){ return q !== p && anc[q][p]; }); });
+    });
+    var merged = {};
+    nodes.forEach(function(n){ if (parents[n].length === 1 && _cbTypeLabel(n) === _cbTypeLabel(parents[n][0])) merged[n] = parents[n][0]; });
+    var top = function(n){ var k = 0; while (merged[n] && k++ < 9) n = merged[n]; return n; };
+    var kids = {};
+    nodes.forEach(function(n){ if (merged[n]) return; parents[n].forEach(function(p){ var P = top(p), k = kids[P] = kids[P] || []; if (k.indexOf(n) < 0) k.push(n); }); });
+    var ord = function(a, b){ var ia = CB_TREE_ORDER.indexOf(a), ib = CB_TREE_ORDER.indexOf(b); ia = ia < 0 ? 999 : ia; ib = ib < 0 ? 999 : ib;
+      var la = _cbTypeLabel(a), lb = _cbTypeLabel(b); return (ia - ib) || (la < lb ? -1 : (la > lb ? 1 : 0)); };
+    var list = [];
+    var walk = function(n, depth, path){
+      var k = (kids[n] || []).slice().sort(ord);
+      list.push({ t: n, label: _cbTypeLabel(n), cls: d.ty[n] ? d.ty[n][2] : -1, depth: depth, kids: k.length > 0, path: path });
+      if (depth < 6) k.forEach(function(c){ walk(c, depth + 1, path + '/' + c); });
+    };
+    nodes.filter(function(n){ return !merged[n] && !parents[n].length; }).sort(ord).forEach(function(n){ walk(n, 0, n); });
+    return (d._tree[key] = { header: 'Weapons and Shields', list: list });
+  }
+  window._cbTree = function(slot){ return _cbTree(slot).list.map(function(r){ return [r.t, r.label, r.depth, r.kids]; }); };
+  function _cbNodeOwn(t){ var d = _cbDb(), ty = d && d.ty[t]; return !!(ty && ty[2] >= 0); }
+  function _cbInNode(code, t){ var d = _cbDb(), b = d && d.b[code]; return !!(b && (b[1] === t || (d.anc[b[1]] && d.anc[b[1]][t]))); }
+  /* does an item sit under a tree node in this hand: one of its bases is of the node's type (or below it) AND is a base
+     the hand holds */
+  function _cbNodeHas(x, cats, t){ return _cbBasesOf(x).some(function(c){ return _cbInNode(c, t) && cats.some(function(cat){ return _cbBaseInCat(c, cat); }); }); }
+  window._cbNodeRows = function(slot, t){ var cats = _cbSlotCats(slot); return _cbForSlot(slot, -1, _cbNodeOwn(t)).filter(function(x){ return _cbNodeHas(x, cats, t); }).map(function(x){ return [x[0], x[1], x[2]]; }); };
+
+  /* ── #174 v-B4 — THE BASE TAB (their 63_botd_base_tab and 80_*_base, measured with a real mouse) ─────────────────────
+     Picking a RUNEWORD opens Select | Base | Edit on Base (it no longer goes on its first base): every base the runeword
+     can be made in (runes.txt itypes, less its etypes - _cbBasesOf) that can hold its runes at the item level
+     (_cbMaxSock), another class's bases left out when the build's class is known, grouped "Elite Axes" / "Exceptional
+     Axes" / "Normal Axes", the categories A-Z, each group's rows by the base's qlvl (armor / weapons.txt `level`, CB_DB
+     b[18]) high to low. Theirs for Breath of the Dying (a Sorceress): 48 rows, Elite Axes = Berserker Axe, Glorious Axe,
+     Champion Axe, War Spike ... Normal Swords = Great Sword, Crystal Sword.
+     ⚠ A TIE IS NOT THE TABLE'S ORDER HERE. Theirs breaks a qlvl tie by the row's place in weapons.txt (Berserker Axe before
+     Glorious Axe, both 85); CB_DB keys its bases by code, sorted, so that order is not on this page. The tie falls to the
+     base's required level (b[5]: 64 before 66), then its name - which reproduces every measured tie (6 runewords, 211
+     rows); a generated row index would make it the table's own.
+     The weapon hand lists the runeword's bases in its OWN categories (theirs: Spirit on the weapon slot is its 24 swords,
+     not one shield); only a runeword that fits no weapon (Ancients' Pledge) lists the shields the hand also holds.
+     Hover a row: the runeword ON THAT BASE through the builder's tooltip function. Click: worn on that base, Edit opens;
+     Edit's Base goes back here. */
+  function _cbRwBaseRows(it, slot, ilvl){
+    var d = _cbDb(); if (!d || !it || it[2] !== 'r' || !it[7]) return [];
+    var n = it[7].runes.length, bb = _cbBuild(), ci = _cbClsIx(bb && bb.cls), lv = ilvl == null ? 99 : ilvl;
+    var all = _cbBasesOf(it).filter(function(c){ var b = d.b[c], t = b && d.ty[b[1]]; return !!b && _cbMaxSock(c, lv) >= n && !(ci >= 0 && t && t[2] >= 0 && t[2] !== ci); });
+    var mine = _cbCats(slot), every = _cbSlotCats(slot), own = every.filter(function(c){ return mine.indexOf(c) >= 0; });
+    var inCats = function(cats){ return all.filter(function(c){ return cats.some(function(cat){ return _cbBaseInCat(c, cat); }); }); };
+    var rows = inCats(own); if (!rows.length) rows = inCats(every);
+    var T = ['Normal', 'Exceptional', 'Elite'];
+    return rows.map(function(c){ var b = d.b[c]; return { c: c, cat: _cbTypeLabel(b[1]), tier: b[2] | 0, q: b[18] | 0, rq: b[5] | 0, n: b[0] }; })
+      .sort(function(x, y){ return (x.cat < y.cat ? -1 : (x.cat > y.cat ? 1 : 0)) || (y.tier - x.tier) || (y.q - x.q) || (x.rq - y.rq) || (x.n < y.n ? -1 : (x.n > y.n ? 1 : 0)); })
+      .map(function(r){ return [r.c, (T[r.tier] || '') + ' ' + r.cat]; });
+  }
+  window._cbRwBaseRows = function(id, slot, ilvl){ return _cbRwBaseRows(_cbItem(id), slot, ilvl); };
 
   /* ── #174 v-B3 — QUALITY AND AFFIXES: THEIR Select -> Quality -> Edit, OVER THE GAME'S AFFIX TABLES ───────────────
      His order (2026-09-26): "mods and buffs ranges of them all with manual additions to add so they sync to the item".
@@ -51663,12 +51895,21 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
              pick: null, stash: null, newb: null, drag: null, held: null, say: '', sayBad: false, filtOpen: false };
   window._cbState = function(){ return st; };
   function _cbBuild(){
+    if (st.pick && st.pick.host === 'mule') return _cbMuleBuild();   // #174 v-B4: the mule host's one slot, never a build
     if (st.draft) return st.draft;
     var all = _cbAll(); return st.bid && all[st.bid] || null;
   }
   function _cbSet(){ var b = _cbBuild(); if (!b) return null; var s = b.sets[b.active | 0] || b.sets[0]; if (!s.inv) s.inv = []; if (!s.slots) s.slots = {}; if (!s.swap) s.swap = {}; return s; }
   /* every change goes through here: a template draft becomes a saved build on its first change */
   function _cbCommit(mut){
+    if (st.pick && st.pick.host === 'mule' && st.host){
+      /* #174 v-B4 — THE MULE HOST WRITES THE MULE, never d2r_charBuilds: the change is made on a build-shaped copy of that
+         one slot, and the slot goes back through the mule window's own writer (_mpEqPlace, source 'manual') */
+      var mb = _cbMuleBuild(); mut(mb);
+      var wr = st.host.write(mb.sets[0].slots[st.pick.slot] || null) || { ok: false, why: 'the mule window did not answer' };
+      st.hostErr = wr.ok ? '' : (wr.why || 'not saved');
+      return !!wr.ok;
+    }
     var all = _cbAll(), b;
     if (st.draft){ b = st.draft; st.draft = null; st.bid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
     else b = all[st.bid];
@@ -52318,6 +52559,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
 
   function _cbRender(){
+    if (st.pick && st.pick.host === 'mule'){ if (st.host) st.host.render(); return; }   // #174 v-B4: the mule window draws its doll, and the modal with it
     var box = _cbWin(), b = _cbBuild(); if (!box || !b) return;
     /* a re-render replaces the element the pointer was over, so its mouseleave never fires: the box goes first */
     window.d2Tip.hide();
@@ -52355,10 +52597,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var anchor = null, doll = document.getElementById('cb-doll');
     if (st.pick && st.pick.kind === 'slot') anchor = document.querySelector('#cb-win .cb-slot[data-slot="' + st.pick.slot + '"]');
     if (st.pick && st.pick.kind === 'inv') anchor = document.querySelector('#cb-win .cb-invp');
+    /* #174 v-B4 — in the mule host the anchor is the mule's slot and the doll its doll; the modal takes the side away from
+       the slot as it does in the builder (the mule's STATS read the worn names, so the slot, not STATS, stays in view) */
+    var mh = !!(st.pick && st.pick.host === 'mule');
+    if (mh){ anchor = document.querySelector('#vault-detail .mp-slot[data-slot="' + st.pick.slot + '"]'); doll = document.querySelector('#vault-detail .mp-dollbox'); }
     /* #174 R1 — the inventory now sits in the centre under the doll, so its picker takes the side away from it exactly as
        a slot's does (it used to open to the right of a left-column card) */
     if (anchor && doll){
-      var r = anchor.getBoundingClientRect(), dr = doll.getBoundingClientRect(), cx = dr.left + dr.width / 2;
+      var r = anchor.getBoundingClientRect(), dr = doll.getBoundingClientRect(), cx = mh ? -Infinity : dr.left + dr.width / 2;   // #174 v-B4: the mule host opens left of the slot
       var W0 = W, roomL = r.left - 12 - 8, roomR = vw - (r.right + 12) - 8;
       /* the modal sits on the side AWAY from the slot, so the slot it serves stays in view, glowing; where that side is
          too narrow it takes the roomier side (down to 360px), then the space under the slot — never over the slot */
@@ -52377,7 +52623,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        immediately"). An inventory cell's picker has too little room either side at 1120-1280, fell back to the PAGE
        centre at full width, and covered STATS' left edge by 25-28px (measured; a slot's picker never did). Any pick
        now stays left of STATS; the Stash list is not an edit and keeps its own centring */
-    if (st.pick){
+    if (st.pick && !mh){
       var _sc = document.querySelector('#cb-win .cb-stats');
       if (_sc){
         var _sl = _sc.getBoundingClientRect().left - 8;
@@ -52390,7 +52636,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     m.style.width = Math.round(W) + 'px'; m.style.height = Math.round(H) + 'px';
   }
   function _cbModal(){
-    var m = document.getElementById('cb-modal'); if (!m) return;
+    var m = document.getElementById('cb-modal');
+    if (!m){ if (st.pick && st.pick.host === 'mule' && st.host) st.host.render(); return; }   // #174 v-B4: the host re-draws it
     window.d2Tip.hide();
     if (!st.pick && !st.stash && !st.newb){ m.hidden = true; m.innerHTML = ''; return; }
     m.hidden = false;
@@ -52405,11 +52652,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 
   /* the picker's list rows: names only, in the quality colour, filtered by rail, tab, search and filter */
   function _cbPickRows(){
-    var p = st.pick, b = _cbBuild(), clvl = b ? b.level | 0 : 0;
+    var p = st.pick, b = _cbBuild(), clvl = _cbClvl(b);
     var slot = p.kind === 'inv' ? 'inv' : p.slot;
     var rows;
-    if (p.qt === 'ex') rows = _cbExisting(slot, p.rail);
+    if (p.qt === 'ex') rows = _cbExisting(slot, p.node ? -1 : p.rail);
+    else if (p.node && CB_HANDS[slot]) rows = _cbForSlot(slot, -1, _cbNodeOwn(p.node));
     else rows = _cbForSlot(slot, p.rail);
+    if (p.node && CB_HANDS[slot]){ var nc = _cbSlotCats(slot); rows = rows.filter(function(x){ return _cbNodeHas(x, nc, p.node); }); }   // #174 v-B4: the tree node
     if (p.qt !== 'ex') rows = rows.filter(function(x){ return _cbInTab(x, p.qt, slot); });
     var q = String(p.q || '').toLowerCase().trim();
     if (q) rows = rows.filter(function(x){ return x[1].toLowerCase().indexOf(q) >= 0 || ((_cbBase(x[3]) || [''])[0] || '').toLowerCase().indexOf(q) >= 0; });
@@ -52441,37 +52690,115 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var h = '';
     rows.forEach(function(x){
       h += '<button type="button" class="cb-opt cb-c-' + (x[2] === 'm' ? 'm' : x[2]) + '" data-id="' + esc(x[0]) + '" onclick="window._cbChoose(this.getAttribute(\'data-id\'))"'
-        + ' onmouseenter="window._cbTipRow(this)" onmouseleave="window.d2Tip.hide()">' + esc(x[1]) + '</button>';
+        + ' onmouseenter="window._cbTipRow(this)" onmouseleave="window.d2Tip.hide()">' + _cbUnderline(esc(x[1]), String((st.pick && st.pick.q) || '').trim()) + '</button>';
     });
     return h;
   }
   function _cbPickHtml(){
-    var p = st.pick, slot = p.kind === 'inv' ? 'inv' : p.slot, s = _cbSet();
+    var p = st.pick, slot = p.kind === 'inv' ? 'inv' : p.slot, s = _cbSet(), host = p.host === 'mule';
     var cur = p.kind === 'slot' ? (s.slots[slot] || null) : (p.i != null ? s.inv[p.i] : null);
     /* #174 v-B3: a picked BASE waits on its Quality tab (Select | Quality | Edit), Edit greyed until a quality is chosen */
     var pend = p.pending ? _cbItem(p.pending) : null;
-    var head = '<div class="cb-mh" role="tablist"><button type="button" role="tab" class="cb-tab' + (p.tab === 'select' ? ' cb-on' : '') + '" aria-selected="' + (p.tab === 'select') + '" onclick="window._cbPickTab(\'select\')">Select</button>'
-      + (pend ? '<button type="button" role="tab" class="cb-tab' + (p.tab === 'quality' ? ' cb-on' : '') + '" aria-selected="' + (p.tab === 'quality') + '" onclick="window._cbPickTab(\'quality\')">Quality</button>' : '')
-      + '<button type="button" role="tab" class="cb-tab' + (p.tab === 'edit' ? ' cb-on' : '') + '"' + (cur && !pend ? '' : ' disabled') + ' aria-selected="' + (p.tab === 'edit') + '" onclick="window._cbPickTab(\'edit\')">Edit</button>'
+    /* #174 v-B4: a picked RUNEWORD waits on its Base tab (Select | Base | Edit), Edit greyed until a base is chosen; a worn
+       one keeps the tab, so Edit's Base control goes back to it. The mule host leads with "In this locker". */
+    var curIt = cur ? _cbItem(cur.id) : null, rwIt = p.rw ? _cbItem(p.rw) : ((!pend && curIt && curIt[2] === 'r') ? curIt : null);
+    var tab = function(k, label, ok){ return '<button type="button" role="tab" class="cb-tab' + (p.tab === k ? ' cb-on' : '') + '"' + (ok === false ? ' disabled' : '') + ' aria-selected="' + (p.tab === k) + '" onclick="window._cbPickTab(\'' + k + '\')">' + label + '</button>'; };
+    var head = '<div class="cb-mh" role="tablist">' + (host ? tab('locker', 'In this locker') : '') + tab('select', 'Select')
+      + (rwIt ? tab('base', 'Base') : '') + (pend ? tab('quality', 'Quality') : '') + tab('edit', 'Edit', !!(cur && !pend && !p.rw))
       + '<button type="button" class="cb-x" onclick="window._cbClosePick()" aria-label="close (Esc)">✕</button></div>';
+    if (p.tab === 'locker' && host) return head + '<div class="cb-mb cb-mb-locker">' + ((st.host && st.host.locker && st.host.locker.html) || '') + '</div>';
+    if (p.tab === 'base' && rwIt) return head + _cbBaseTabHtml(rwIt, slot);
     if (p.tab === 'quality' && pend) return head + _cbQualityHtml(pend, slot);
     if (p.tab === 'edit' && cur && _cbIsBase(_cbItem(cur.id))) return head + _cbBaseEditHtml(cur, slot);
     if (p.tab === 'edit' && cur) return head + _cbEditHtml(cur, slot);
     var d = _cbDb();
-    var rail = '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c, i){
-      var on = (p.rail == null ? -1 : p.rail) === c[1];
-      return '<button type="button" class="cb-rail-b' + (on ? ' cb-on' : '') + (i > 0 && slot !== 'inv' && slot !== 'rarm' ? '' : '') + '" data-rail="' + c[1] + '" onclick="window._cbRail(' + c[1] + ')">' + esc(c[0]) + (c[2] >= 0 && d ? ' <small>(' + esc(d.cls[c[2]].n) + ')</small>' : '') + '</button>';
-    }).join('') + '</div>';
-    var tabs = _cbQTabs(slot).map(function(t){ return '<button type="button" class="cb-qt cb-qt-' + t[0] + (p.qt === t[0] ? ' cb-on' : '') + '" onclick="window._cbQt(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
+    var rail = CB_HANDS[slot] ? _cbTreeRailHtml(slot, p.node, '_cbRailNode')
+      : '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c){
+          var on = (p.rail == null ? -1 : p.rail) === c[1];
+          return '<button type="button" class="cb-rail-b' + (on ? ' cb-on' : '') + '" data-rail="' + c[1] + '" onclick="window._cbRail(' + c[1] + ')">' + esc(c[0]) + (c[2] >= 0 && d ? ' <small>(' + esc(d.cls[c[2]].n) + ')</small>' : '') + '</button>';
+        }).join('') + '</div>';
+    /* Existing Items is a BUILD's other items; the mule host's own list is its In this locker tab */
+    var tabs = _cbQTabs(slot).filter(function(t){ return !(host && t[0] === 'ex'); }).map(function(t){ return '<button type="button" class="cb-qt cb-qt-' + t[0] + (p.qt === t[0] ? ' cb-on' : '') + '" onclick="window._cbQt(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
     var filt = '<button type="button" class="cb-btn' + (st.filtOpen || p.filt ? ' cb-on' : '') + '" onclick="window._cbFiltToggle()" aria-expanded="' + (st.filtOpen ? 'true' : 'false') + '">⏷ Filters</button>';
-    var fsel = st.filtOpen ? '<select class="cb-filt" id="cb-filt" aria-label="filter results" onchange="window._cbFilt(this.value)">'
-      + [['', 'Filter results…'], ['n', 'Normal tier'], ['x', 'Exceptional tier'], ['e', 'Elite tier'], ['eth', 'Can be ethereal'], ['sock', 'Can hold sockets'], ['lvl', 'Wearable at this level']]
-          .map(function(o){ return '<option value="' + o[0] + '"' + (p.filt === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' : '';
-    var say = (slot === 'inv' && p.cell) ? '<div class="cb-note">for inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1) + ' — a pick lands there if its size fits</div>' : '<div class="cb-note">' + esc(CB_SLOT_SAY[slot] || '') + ' · the entire item database for this slot</div>';
-    return head + '<div class="cb-mb">' + rail + '<div class="cb-pane">' + say
+    var fsel = st.filtOpen ? '<select class="cb-filt" id="cb-filt" aria-label="filter results" onchange="window._cbFilt(this.value)">' + _cbFiltOpts(p.filt, false) + '</select>' : '';
+    var say = (slot === 'inv' && p.cell) ? '<div class="cb-note">for inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1) + ' — a pick lands there if its size fits</div>'
+      : '<div class="cb-note">' + esc(CB_SLOT_SAY[slot] || '') + ' · the entire item database for this slot' + (host ? ' · a pick goes on ' + esc((st.host && st.host.mule) || 'this mule') + '’s doll, never into a build' : '') + '</div>';
+    var err = (host && st.hostErr) ? '<div class="cb-note cb-host-err" role="alert">⚠ ' + esc(st.hostErr) + '</div>' : '';
+    return head + '<div class="cb-mb">' + rail + '<div class="cb-pane">' + err + say
       + '<div class="cb-srow"><input type="search" id="cb-pick-q" placeholder="Search..." value="' + esc(p.q || '') + '" aria-label="search items" oninput="window._cbPickSearch(this.value)">' + filt + '</div>' + fsel
       + '<div class="cb-qtabs">' + tabs + '</div>'
       + '<div class="cb-list" id="cb-list" role="listbox" aria-label="items">' + _cbListHtml(_cbPickRows()) + '</div></div></div>';
+  }
+  /* the Filters list, one source for the Select and Base tabs: a base list has no "can hold sockets" (every row does), and
+     the mule host has no "wearable at this level" (a locker has no level - UNKNOWN, never read as 0) */
+  function _cbFiltOpts(cur, bases){
+    var host = !!(st.pick && st.pick.host === 'mule');
+    return [['', 'Filter results…'], ['n', 'Normal tier'], ['x', 'Exceptional tier'], ['e', 'Elite tier'], ['eth', 'Can be ethereal'], ['sock', 'Can hold sockets'], ['lvl', 'Wearable at this level']]
+      .filter(function(o){ return !(bases && o[0] === 'sock') && !(host && o[0] === 'lvl'); })
+      .map(function(o){ return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+  }
+  /* #174 v-B4 — the hand's rail as the type tree: a bold header (everything), each node a button (its type and below) with
+     its fold chevron (▴ open, ▾ folded; the first level opens, deeper ones start folded, as theirs); `act` is the handler */
+  function _cbTreeRailHtml(slot, cur, act){
+    var T = _cbTree(slot), p = st.pick, fold = p.fold || (p.fold = {}), d = _cbDb(), hide = -1;
+    var h = '<div class="cb-rail cb-tree" role="tree" aria-label="item categories">'
+      + '<button type="button" class="cb-rail-b cb-tree-h' + (cur ? '' : ' cb-on') + '" role="treeitem" aria-level="1" data-node="" onclick="window.' + act + '(\'\')">' + esc(T.header) + '</button>';
+    T.list.forEach(function(r){
+      if (hide >= 0){ if (r.depth > hide) return; hide = -1; }
+      var open = r.kids ? (fold[r.path] != null ? !!fold[r.path] : r.depth === 0) : false;
+      var only = (r.cls >= 0 && d && d.cls[r.cls]) ? d.cls[r.cls].n + ' only' : '';
+      h += '<div class="cb-tree-r" style="--td:' + r.depth + '"><button type="button" class="cb-rail-b' + (cur === r.t ? ' cb-on' : '') + '" role="treeitem" aria-level="' + (r.depth + 2) + '"'
+        + (r.kids ? ' aria-expanded="' + open + '"' : '') + (only ? ' title="' + esc(only) + '"' : '') + ' data-node="' + esc(r.t) + '" onclick="window.' + act + '(\'' + esc(r.t) + '\')">' + esc(r.label) + '</button>'
+        + (r.kids ? '<button type="button" class="cb-fold" aria-expanded="' + open + '" aria-label="' + (open ? 'fold ' : 'open ') + esc(r.label) + '" onclick="window._cbTreeFold(\'' + esc(r.path) + '\',' + (open ? 0 : 1) + ')">' + (open ? '▴' : '▾') + '</button>' : '')
+        + '</div>';
+      if (r.kids && !open) hide = r.depth;
+    });
+    return h + '</div>';
+  }
+  /* the runeword the Base tab is for, the entry on screen and the item level its sockets are read at */
+  function _cbBaseCtx(){
+    var p = st.pick; if (!p) return null;
+    var cur = _cbCurEntry(), id = p.rw || (cur && cur.id), it = _cbItem(id);
+    if (!it || it[2] !== 'r') return null;
+    return { it: it, cur: cur, ilvl: (!p.rw && cur && cur.id === id && cur.ilvl) || 99 };
+  }
+  function _cbBaseRowsShown(c0){
+    var p = st.pick, d = _cbDb(), q = String(p.bq || '').toLowerCase().trim(), clvl = _cbClvl(_cbBuild()), slot = p.slot;
+    return _cbRwBaseRows(c0.it, slot, c0.ilvl).filter(function(r){
+      var c = r[0], b = d.b[c];
+      if (p.bnode != null){ if (CB_HANDS[slot] ? !_cbInNode(c, p.bnode) : !_cbBaseInCat(c, _cbCats(slot)[+p.bnode] || ['', []])) return false; }
+      if (q && b[0].toLowerCase().indexOf(q) < 0) return false;
+      var f = p.bfilt;
+      if (f === 'n' || f === 'x' || f === 'e') return b[2] === { n: 0, x: 1, e: 2 }[f];
+      if (f === 'eth') return !!b[17];
+      if (f === 'lvl') return clvl != null && Math.max(c0.it[5] || 0, b[5] || 0) <= clvl;
+      return true;
+    });
+  }
+  function _cbBaseListHtml(c0){
+    var p = st.pick, d = _cbDb(), rows = _cbBaseRowsShown(c0), q = String(p.bq || '').trim(), g = null, h = '';
+    if (!rows.length) return '<div class="cb-none">' + (_cbRwBaseRows(c0.it, p.slot, c0.ilvl).length ? 'No Results'
+      : 'No base this slot holds can carry ' + esc(c0.it[1]) + '’s ' + c0.it[7].runes.length + ' runes at item level ' + c0.ilvl) + '</div>';
+    rows.forEach(function(r){
+      if (r[1] !== g){ g = r[1]; h += '<div class="cb-bgrp" role="presentation">' + esc(g) + '</div>'; }
+      h += '<button type="button" class="cb-opt cb-bopt cb-c-b" role="option" data-base="' + esc(r[0]) + '" onclick="window._cbPickBase(this.getAttribute(\'data-base\'))"'
+        + ' onmouseenter="window._cbTipBase(this)" onmouseleave="window.d2Tip.hide()" onfocus="window._cbTipBase(this)" onblur="window.d2Tip.hide()">' + _cbUnderline(esc(d.b[r[0]][0]), q) + '</button>';
+    });
+    return h;
+  }
+  function _cbBaseTabHtml(it, slot){
+    var p = st.pick, d = _cbDb(), c0 = _cbBaseCtx() || { it: it, cur: null, ilvl: 99 };
+    var rail = CB_HANDS[slot] ? _cbTreeRailHtml(slot, p.bnode, '_cbBaseNode')
+      : '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c){
+          var on = (p.bnode == null ? -1 : +p.bnode) === c[1];
+          return '<button type="button" class="cb-rail-b' + (on ? ' cb-on' : '') + '" data-rail="' + c[1] + '" onclick="window._cbBaseNode(' + c[1] + ')">' + esc(c[0]) + (c[2] >= 0 && d ? ' <small>(' + esc(d.cls[c[2]].n) + ')</small>' : '') + '</button>';
+        }).join('') + '</div>';
+    var filt = '<button type="button" class="cb-btn' + (st.filtOpen || p.bfilt ? ' cb-on' : '') + '" onclick="window._cbFiltToggle()" aria-expanded="' + (st.filtOpen ? 'true' : 'false') + '">⏷ Filters</button>';
+    var fsel = st.filtOpen ? '<select class="cb-filt" id="cb-filt" aria-label="filter the bases" onchange="window._cbBaseFilt(this.value)">' + _cbFiltOpts(p.bfilt || '', true) + '</select>' : '';
+    return '<div class="cb-mb">' + rail + '<div class="cb-pane">'
+      + '<div class="cb-note">' + esc(it[1]) + ' · ' + it[7].runes.length + ' runes · the bases this slot holds that carry them at item level ' + c0.ilvl + '</div>'
+      + '<div class="cb-srow"><input type="search" id="cb-base-q" placeholder="Search..." value="' + esc(p.bq || '') + '" aria-label="search the bases" oninput="window._cbBaseSearch(this.value)">' + filt + '</div>' + fsel
+      + '<div class="cb-list cb-blist" id="cb-blist" role="listbox" aria-label="bases for ' + esc(it[1]) + '">' + _cbBaseListHtml(c0) + '</div></div></div>';
   }
   /* one dropdown per socket - "Empty Socket", every rune and gem, every jewel - for both Edit views */
   function _cbSockFillHtml(e){
@@ -52489,11 +52816,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return socks + '</div>';
   }
   function _cbEditHtml(e, slot){
-    var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = b.level | 0;
+    var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = _cbClvl(b);
     if (!it) return '<div class="cb-ed"><div class="cb-empty"><b>UNKNOWN</b> — "' + esc(e.name) + '" is not in the database this page carries.</div></div>';
     var qc = 'cb-c-' + (it[2] === 'm' ? 'm' : it[2]), base = _cbBase(e.base);
     var bases = _cbBasesOf(it), baseSel;
-    if (it[2] === 'u' || it[2] === 's' || bases.length <= 1)
+    /* #174 v-B4 — a runeword's base is chosen in the Base tab (their Select | Base | Edit): this control goes back to it */
+    if (it[2] === 'r')
+      baseSel = '<button type="button" class="cb-btn cb-base-go" id="cb-base" onclick="window._cbPickTab(\'base\')" aria-label="base: ' + esc(base ? base[0] : e.base) + ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max) — choose another in the Base tab">' + esc(base ? base[0] : e.base) + ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max) ▸</button>';
+    else if (it[2] === 'u' || it[2] === 's' || bases.length <= 1)
       baseSel = '<select disabled aria-label="base (fixed)"><option>' + esc(base ? base[0] : e.base) + '</option></select>';
     else {
       var opts = it[2] === 'b' ? (base ? base[3].filter(function(c){ return c && d.b[c]; }) : [e.base]) : bases;
@@ -52516,7 +52846,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     } else if (sr.key && !sTyped){
       socks = '<div class="cb-socks"><div class="cb-ed-q">Sockets</div><div class="cb-note">Socketed ' + sr.lo + '-' + sr.hi + ' - type its roll (in Sockets or in its own Socketed box) and the sockets appear here to fill</div></div>';
     } else socks = _cbSockFillHtml(e);
-    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
+    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (clvl != null && tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
     return '<div class="cb-ed" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div>'
       +   '<div class="cb-ed-n ' + qc + '">' + esc(it[1]) + (base && base[0] !== it[1] ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
@@ -52533,7 +52863,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* ── #174 v-B3: THE QUALITY TAB (their 32_diadem_edit) — the slot's rail beside the qualities this base can be ── */
   function _cbQualityHtml(it, slot){
     var p = st.pick, d = _cbDb(), qs = _cbCanQ(it[3]);
-    var rail = '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c){
+    var rail = CB_HANDS[slot] ? _cbTreeRailHtml(slot, p.node, '_cbRailNodeGo') : '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c){
       var on = (p.rail == null ? -1 : p.rail) === c[1];
       return '<button type="button" class="cb-rail-b' + (on ? ' cb-on' : '') + '" data-rail="' + c[1] + '" onclick="window._cbRail(' + c[1] + '); window._cbPickTab(\'select\')">' + esc(c[0]) + (c[2] >= 0 && d ? ' <small>(' + esc(d.cls[c[2]].n) + ')</small>' : '') + '</button>';
     }).join('') + '</div>';
@@ -52547,7 +52877,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* ADD MOD's options, in the order the list draws them: [[group key, affix, its text]] - the one list the drawing, the
      keyboard and Enter all read (#174 v-B3 fix round: Enter picked "the first row" while no row was marked) */
   function _cbAddRows(e){
-    var P = _cbAffixPool(e), b = _cbBuild(), clvl = b ? b.level | 0 : 0, qq = String(st.modQ || '').toLowerCase().trim(), out = [];
+    var P = _cbAffixPool(e), b = _cbBuild(), clvl = _cbClvl(b), qq = String(st.modQ || '').toLowerCase().trim(), out = [];
     CB_AX_GROUPS.forEach(function(g){
       var k = g[0]; if (!P.lim || !P.lim[k] || P.full[k]) return;
       P.rows[k].forEach(function(a){
@@ -52592,7 +52922,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   /* ── #174 v-B3: THE EDIT TAB OF A BASE (their 50_diadem_rare_edit / 40_gc_edit) ─────────────────────────────── */
   function _cbBaseEditHtml(e, slot){
-    var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = b.level | 0, base = _cbBase(e.base);
+    var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = _cbClvl(b), base = _cbBase(e.base);
     var q = _cbQ(e, it), sh = _cbShown(e, it), qs = _cbCanQ(e.base);
     var qcls = 'cb-c-' + (sh.q === 'rare' ? 'rare' : (sh.q === 'm' ? 'm' : 'b'));
     var opt = function(list, cur){ var o = '<option value=""' + (cur ? '' : ' selected') + '>—</option>'; list.forEach(function(w){ o += '<option value="' + esc(w) + '"' + (w === cur ? ' selected' : '') + '>' + esc(w) + '</option>'; }); return o; };
@@ -52652,7 +52982,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
           + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll" onmousemove="window._cbModHover(event)">' + _cbAddListHtml(e) + '</div>';
       add += '</div>';
     } else add = '<div class="cb-note">' + (q === 'low' ? 'A low-quality item carries no mods; its penalty is the game\'s own code, not a table value.' : 'A normal item carries no mods — choose Magic or Rare' + (qs.indexOf('sup') >= 0 ? ' (or Superior)' : '') + ' to add them.') + '</div>';
-    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
+    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (clvl != null && tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
     return '<div class="cb-ed cb-ed-b" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div class="cb-ed-main">'
       +   '<div class="cb-ed-n ' + qcls + '" id="cb-ed-name">' + esc(sh.name) + (sh.base ? ' <span class="' + qcls + '">' + esc(sh.base) + '</span>' : '') + '</div>'
@@ -52789,16 +53119,51 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var s = _cbSet(); if (!s) return;
     var has = kind === 'slot' ? !!s.slots[slot] : false;
     st.stash = st.newb = null; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
-    st.pick = { kind: kind, slot: slot, cell: cell || null, tab: has ? 'edit' : 'select', rail: -1, qt: 'all', q: '', filt: '', i: null, pending: null };
+    st.pick = { kind: kind, slot: slot, cell: cell || null, tab: has ? 'edit' : 'select', rail: -1, qt: 'all', q: '', filt: '', i: null, pending: null,
+                node: null, rw: null, bnode: null, bq: '', bfilt: '', fold: {} };   // #174 v-B4: the tree node, the Base tab's runeword and its own rail / search / filter
+    st.hostErr = '';
     window.d2Tip.hide();
     _cbRender();
     try { var f = document.querySelector('#cb-modal .cb-tab.cb-on'); if (f) f.focus(); } catch (e) {}
   };
   window._cbCell = function(x, y){ window._cbOpenPick('inv', null, [x, y]); };
-  window._cbClosePick = function(){ var sl = st.pick && st.pick.slot; st.pick = null; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; window.d2Tip.hide(); _cbRender();
+  window._cbClosePick = function(){ if (st.pick && st.pick.host === 'mule' && st.host){ st.host.close(); return; }   // #174 v-B4: the mule closes its picker
+    var sl = st.pick && st.pick.slot; st.pick = null; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; window.d2Tip.hide(); _cbRender();
     try { var el = sl && document.querySelector('#cb-win .cb-slot[data-slot="' + sl + '"]'); if (el) el.focus(); } catch (e) {} };
-  window._cbPickTab = function(t){ if (!st.pick) return; st.pick.tab = t; _cbModal(); };
-  window._cbRail = function(i){ if (!st.pick) return; st.pick.rail = i; _cbModal(); };
+  window._cbPickTab = function(t){ if (!st.pick) return; st.pick.tab = t; st.filtOpen = false; window.d2Tip.hide(); _cbModal(); };
+  window._cbRail = function(i){ if (!st.pick) return; st.pick.rail = i; st.pick.node = null; _cbModal(); };
+  /* #174 v-B4 — the tree: a node (a type code, '' = the header), a node that also leaves the Quality tab, a fold */
+  window._cbRailNode = function(t){ if (!st.pick) return; st.pick.node = t || null; st.pick.rail = -1; _cbModal(); };
+  window._cbRailNodeGo = function(t){ if (!st.pick) return; st.pick.node = t || null; st.pick.rail = -1; st.pick.tab = 'select'; _cbModal(); };
+  window._cbTreeFold = function(path, open){ if (!st.pick) return; st.pick.fold = st.pick.fold || {}; st.pick.fold[path] = !!open; _cbModal(); };
+  /* the Base tab: its rail node (a type code in a hand, a category index elsewhere; null = every base), filter, search */
+  window._cbBaseNode = function(v){ if (!st.pick) return; st.pick.bnode = (v === '' || v == null || v === -1) ? null : v; _cbModal(); };
+  window._cbBaseFilt = function(v){ if (!st.pick) return; st.pick.bfilt = v || ''; _cbModal(); };
+  window._cbBaseSearch = function(q){
+    if (!st.pick) return; st.pick.bq = q;
+    var l = document.getElementById('cb-blist'), c0 = _cbBaseCtx();
+    if (l && c0) l.innerHTML = _cbBaseListHtml(c0); else _cbModal();
+  };
+  /* the runeword ON a base: the entry on screen (his typed rolls) when it is that runeword, else a fresh one */
+  function _cbBaseEntry(code){
+    var c0 = _cbBaseCtx(), p = st.pick; if (!c0 || !_cbBase(code)) return null;
+    var e = (!p.rw && c0.cur && c0.cur.id === c0.it[0]) ? JSON.parse(JSON.stringify(c0.cur)) : _cbEntryFor(c0.it);
+    e.base = code; e.ilvl = c0.ilvl;
+    return e;
+  }
+  window._cbBaseEntry = _cbBaseEntry;
+  window._cbTipBase = function(el){
+    var e = _cbBaseEntry(el && el.getAttribute && el.getAttribute('data-base')); if (!e) return;
+    var b = _cbBuild(); window.d2Tip.show(_cbTipEntry(e, _cbItem(e.id), _cbClvl(b), st.pick.slot, b && b.cls), el);
+  };
+  /* a base clicked: the runeword is worn on it and Edit opens; on a worn runeword the base changes (rolls kept) */
+  window._cbPickBase = function(code){
+    var p = st.pick, c0 = _cbBaseCtx(); if (!p || !c0) return false;
+    if (!_cbRwBaseRows(c0.it, p.slot, c0.ilvl).some(function(r){ return r[0] === code; })) return false;
+    window.d2Tip.hide(); st.filtOpen = false;
+    if (p.rw){ var e = _cbEntryFor(c0.it); e.base = code; p.rw = null; return _cbEquip(c0.it, e); }
+    p.tab = 'edit'; window._cbEdit('base', code); return true;
+  };
   window._cbQt = function(t){ if (!st.pick) return; st.pick.qt = t; _cbModal(); };
   window._cbFiltToggle = function(){ st.filtOpen = !st.filtOpen; _cbModal(); };
   window._cbFilt = function(v){ if (!st.pick) return; st.pick.filt = v; _cbModal(); };
@@ -52808,6 +53173,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbChoose = function(id){
     var it = _cbItem(id), p = st.pick; if (!it || !p) return false;
     p.pending = null; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
+    p.rw = null;
+    /* #174 v-B4 — a RUNEWORD waits on its Base tab (theirs: Select | Base | Edit): it is no longer worn on its first base */
+    if (it[2] === 'r' && p.kind === 'slot'){ p.rw = id; p.tab = 'base'; p.bnode = null; p.bq = ''; p.bfilt = ''; st.filtOpen = false; window.d2Tip.hide(); _cbModal(); return true; }
     if (_cbIsBase(it)){
       var qs = _cbCanQ(it[3]);
       if (qs.length > 1){ p.pending = id; p.tab = 'quality'; _cbModal(); return true; }
@@ -53075,6 +53443,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   };
   /* re-draw what a roll moves (the doll, the stats) without replacing the box he is typing in */
   function _cbRefreshQuiet(){
+    if (st.pick && st.pick.host === 'mule') return;   // #174 v-B4: the mule's store is written; the modal (and the box he types in) stays
     var b = _cbBuild(), s = _cbSet(); if (!b) return;
     var L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900);
     var sd = document.getElementById('cb-stats'); if (sd){ var tmp = document.createElement('div'); tmp.innerHTML = _cbStatsHtml(b, s); sd.parentNode.replaceChild(tmp.firstChild, sd); if (st.sq) window._cbStatsFilter(st.sq); }
@@ -53084,7 +53453,67 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbTipInv = function(el, i){ var s = _cbSet(), e = s && s.inv[i]; if (!e || st.drag) return; window.d2Tip.show(_cbTipEntry(e, _cbItem(e.id), _cbBuild().level | 0, 'inv', _cbBuild().cls), el); };
   window._cbTipRow = function(el){
     var it = _cbItem(el.getAttribute('data-id')); if (!it) return;
-    var e = _cbEntryFor(it), p = st.pick; window.d2Tip.show(_cbTipEntry(e, it, _cbBuild().level | 0, p && p.slot || 'inv', _cbBuild().cls), el);
+    var e = _cbEntryFor(it), p = st.pick; window.d2Tip.show(_cbTipEntry(e, it, _cbClvl(_cbBuild()), p && p.slot || 'inv', _cbBuild().cls), el);
+  };
+  /* ── #174 v-B4 — ONE PICKER, TWO HOSTS ───────────────────────────────────────────────────────────────────────────────
+     His ALT PC (v3514): "i still cant see any items at all when i click on any body gear within the mules". That PC's
+     store routes nothing to any locker (no d2r_muleAssign, no d2r_muleEquip, d2r_owned = []), and the mule window's own
+     picker listed only the locker's rows - "Nothing in <mule> fits the Body Armor slot" on every slot of every mule.
+     The mule window now opens THIS picker, in a MULE host: Select over the ENTIRE database for the slot (CB_DB is on
+     every PC's page, so every PC provides it itself), Base / Quality / Edit exactly as here, and an "In this locker" tab
+     the mule window draws (its own list, fit rules and footer - first and in front when it has anything for the slot).
+     THE HOST OWNS THE WRITE. A pick in the mule host goes through the mule window's writer (ctx.write -> _mpEqPlace,
+     source 'manual', the entry's id / base / q / rolls / sockets / affixes) onto THAT mule's doll; d2r_charBuilds is
+     never read or written by it (_cbBuild / _cbCommit answer from the host). The builder host never writes a mule - no
+     line of this block names one. A locker has no class and no level: the lists keep every class, and every level-bound
+     number is UNKNOWN (null), never a level 0 that would read every requirement red.
+     ctx = {slot, set, mule, cur() -> the builder-shaped entry there or null, write(entry | null) -> {ok, why},
+            render() -> the mule window re-drawn (and this modal with it), close()} [[the-unjoined-end]] */
+  function _cbMuleBuild(){
+    var h = st.host, e = (h && h.cur) ? h.cur() : null, slots = {};
+    if (e && st.pick) slots[st.pick.slot] = e;
+    return { name: h ? h.mule : '', cls: null, level: null, sets: [{ name: 'Set 1', slots: slots, inv: [], swap: {}, ws: 1 }],
+             active: 0, notes: '', stash: [], host: 'mule' };
+  }
+  function _cbClvl(b){ if (!b) return 0; return b.level == null ? null : (b.level | 0); }
+  window._cbHostOpen = function(ctx){
+    if (!ctx || !ctx.slot || typeof ctx.write !== 'function' || typeof ctx.render !== 'function') return false;
+    _cbDb();
+    st.host = ctx; st.hostErr = ''; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
+    st.pick = { host: 'mule', kind: 'slot', slot: ctx.slot, cell: null, tab: 'auto', rail: -1, node: null, qt: 'all', q: '', filt: '',
+                i: null, pending: null, rw: null, bnode: null, bq: '', bfilt: '', fold: {} };
+    if (ctx.cur && ctx.cur()) st.pick.tab = 'edit';
+    try { window.d2Tip.hide(); } catch (e) {}
+    return true;
+  };
+  window._cbHostClose = function(){
+    if (st.pick && st.pick.host === 'mule'){ st.pick = null; st.filtOpen = false; st.modOpen = false; try { window.d2Tip.hide(); } catch (e) {} }
+    st.host = null;
+  };
+  window._cbHostOn = function(slot){ return !!(st.pick && st.pick.host === 'mule' && st.host && (!slot || st.pick.slot === slot)); };
+  /* the modal's markup, drawn inside the mule window's own render (so its unit and type scale reach it). `locker` is what
+     the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
+     here, once: the locker's list when it offers anything, the whole database when it offers nothing */
+  window._cbHostHtml = function(locker){
+    var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
+    st.host.locker = locker || { html: '', n: 0, total: 0 };
+    if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
+    return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(CB_SLOT_SAY[p.slot] || p.slot)
+      + ' for ' + esc(st.host.mule || 'this mule') + ' (Esc closes)">' + _cbPickHtml() + '</div>';
+  };
+  window._cbHostPlaced = function(){
+    if (!(st.pick && st.pick.host === 'mule' && st.host)) return;
+    var m = document.getElementById('cb-modal'); if (!m) return;
+    _cbPlace(m);
+    if (st.modOpen) _cbFitAddList();
+  };
+  /* Esc inside the host: the Filters list or ADD MOD first (true), then the mule closes its picker (false) */
+  window._cbHostEsc = function(){
+    if (!(st.pick && st.pick.host === 'mule' && st.host)) return false;
+    try { window.d2Tip.hide(); } catch (e) {}
+    if (st.filtOpen){ st.filtOpen = false; _cbModal(); return true; }
+    if (st.modOpen){ window._cbModOpen(false); return true; }
+    return false;
   };
   /* stash */
   window._cbOpenStash = function(){ st.pick = st.newb = null; st.stash = { tab: 'stash', cat: 0, q: '', filt: '', say: '' }; _cbRender(); };
@@ -53371,12 +53800,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     hide();
     cur = el;
     var slotEl = el.closest && el.closest('.mp-slot[data-slot]'), slot = slotEl ? slotEl.getAttribute('data-slot') : null;
-    var entry = entryFor(n, slot), t = el.getAttribute('title');
+    /* #174 v-B4 — a slot a DATABASE pick fills carries the builder's own entry (base, typed rolls, sockets, affixes): its
+       box is the builder's tooltip function over that entry, the same one the builder draws - never re-read from a name */
+    var _ce = (slot && el.matches && el.matches('.mp-slot.mp-has') && typeof window._mpCbEntryAt === 'function') ? window._mpCbEntryAt(slot) : null;
+    var _cit = (_ce && typeof window._cbItem === 'function') ? window._cbItem(_ce.id) : null;
+    var entry = (_ce && _cit && typeof window._cbTipEntry === 'function') ? window._cbTipEntry(_ce, _cit, null, slot) : entryFor(n, slot), t = el.getAttribute('title');
     if (t){ heldTitle = t; el.setAttribute('data-d2tip-held', '1'); el.removeAttribute('title'); entry.lines = (entry.lines || []).concat([{ t: t, cls: 'd2t-note' }]); }
     window.d2Tip.show(entry, el, { floor: floorOf(el) });
   }
   function anchorOf(target){
     if (!target || !target.closest || target.closest('.vd-unlock')) return null;
+    if (target.closest('#cb-modal') && !target.closest('#cb-modal .mp-pick')) return null;   // #174 v-B4 — the host modal's own rows have the builder's hover
     var el = target.closest(SEL); if (!el) return null;
     return el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .mp-slot.mp-has') || el;
   }

@@ -1036,7 +1036,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B review - an item reassigned to another locker stays live on the first doll (summed, and worn twice)",
         "file": "bible.html",
-        "find": "        if (e.source !== 'import' && assign[e.name] !== muleId){ dead[set + '.' + slot] = 'no longer in this locker'; return; }",
+        "find": "        if (e.source !== 'import' && !e.id && assign[e.name] !== muleId){ dead[set + '.' + slot] = 'no longer in this locker'; return; }",
         "replace": "        if (false){ dead[set + '.' + slot] = 'no longer in this locker'; return; }",
         "matches": 1,
     },
