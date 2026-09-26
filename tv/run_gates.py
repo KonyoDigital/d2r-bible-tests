@@ -959,6 +959,15 @@ GATES = [
              "the exclusion rule caught it. Pins the THIRD state — OURS -> WARN, UNATTRIBUTED -> "
              "UNKNOWN (not the rail's failure state), still REPORTED, never dismissed."),
 
+    Gate("test_a_leak_is_this_runs_not_his_consoles",
+         [sys.executable, os.path.join(HERE, "test_a_leak_is_this_runs_not_his_consoles.py")], 60,
+         why="#31 (2026-09-26) - the end-of-run orphan check printed THIS RUN LEFT 1 PROCESS RUNNING about his "
+             ":17772 console's OCR worker: new since the run began and naming this tree, but spawned by a console "
+             "that was running before the run. A leak of a run can only descend from the run (a gate is waited for, "
+             "so its leftovers re-parent to launchd). Pins leaked_by_this_run(): the parent chain reaching a "
+             "PRE-EXISTING process makes it THEIRS (named with its owner, never counted); reaching run_gates or "
+             "ppid 1 makes it a leak - a real one stays counted."),
+
     Gate("test_a_prune_records_what_it_freed",
          [sys.executable, os.path.join(HERE, "test_a_prune_records_what_it_freed.py")], 120,
          why="v2743 — 8,790 disk-history rows and NOT ONE has ever carried a freed figure (8,270 "
@@ -7291,6 +7300,43 @@ def _app_up(port=17772, timeout=1.5):
 _skip_reasons = []          # (gate, reason) for every case unittest reported as skipped
 
 
+def leaked_by_this_run(before, after, me, here):
+    """-> (leaked, theirs). `before` / `after` are {pid: (ppid, command)} tables taken at the start and the end of
+    the run; `me` the pids of this run (run_gates and the `ps` it spawned); `here` the tree path a leak names.
+
+    NEW since the run started AND naming this tree - both halves load-bearing (see the check in run()). #31, measured
+    2026-09-26: that alone BLAMED HIS CONSOLE. His :17772 console forks an OCR worker whenever it reads a frame; the
+    worker runs `tv/...` from this tree, and it is new if it started mid-run - so the gate printed "THIS RUN LEFT 1
+    PROCESS RUNNING" about a child of a process that was running before the run began, and the only advice it gives
+    ("kill by PID") would have killed his console's work. A leak of THIS run can only descend from this run: a gate is
+    waited for, so whatever it left is re-parented to launchd (ppid 1) or still hangs under run_gates itself. So the
+    parent chain decides: it reaches `me` or ppid 1 first -> ours (leaked); it reaches a process that was ALREADY
+    running before the run (and is not us) -> THEIRS, reported by name with its owner and never counted."""
+    before = before or {}
+    after = after or {}
+    me = set(me or ())
+    leaked, theirs = [], []
+    for pid in sorted(after):
+        ppid, cmd = after[pid]
+        if pid in before or pid in me or here not in str(cmd or ""):
+            continue
+        owner, cur, seen = None, pid, set()
+        while cur in after and cur not in seen:
+            seen.add(cur)
+            pp = after[cur][0]
+            if pp in me or pp <= 1:
+                break                                   # ours: under this run, or orphaned to launchd
+            if pp in before:
+                owner = pp                              # a process that predates the run spawned it
+                break
+            cur = pp                                    # a NEW parent: keep climbing - it may be a leak's child
+        if owner is None:
+            leaked.append(pid)
+        else:
+            theirs.append((pid, owner))
+    return leaked, theirs
+
+
 def run(only=None, live_watch=True, live_writer=None):
     del _skip_reasons[:]
     """`live_watch` fingerprints the live-state files BETWEEN gates, so a leak is attributed.
@@ -7356,7 +7402,7 @@ def run(only=None, live_watch=True, live_writer=None):
         import conftest as _cf                       # IMPORT the reader, never re-implement it
         _tbl, _ = _cf._live_processes()
         if _tbl:
-            _orphan_before, _orphan_ok = set(_tbl), True
+            _orphan_before, _orphan_ok = dict(_tbl), True    # the TABLE, not a set: #31 walks the parents
     except Exception:
         pass                                        # no ps, no claim — UNKNOWN, never "clean"
     for g in GATES:
@@ -7523,11 +7569,14 @@ def run(only=None, live_watch=True, live_writer=None):
                 # "new" alone catches every unrelated thing the machine started in 400 seconds;
                 # "names this tree" alone catches his own console, which was running before us.
                 _me = {os.getpid(), _ps_pid}
-                _leaked = sorted(
-                    p for p, (_pp, _cmd) in _tbl2.items()
-                    if p not in (_orphan_before or set())
-                    and p not in _me
-                    and HERE in str(_cmd or ""))
+                # #31: attributed by the parent chain - a new tree process whose chain reaches a process
+                # that was running BEFORE the run (his console's OCR worker) is THEIRS, named, never counted
+                _leaked, _theirs = leaked_by_this_run(_orphan_before or {}, _tbl2, _me, HERE)
+                if _theirs:
+                    print("\n· %d new tree process(es) belong to processes that were running before this run "
+                          "(not counted as leaks):" % len(_theirs))
+                    for _p, _o in _theirs:
+                        print("     pid %-7s spawned by pid %-7s %s" % (_p, _o, str((_tbl2.get(_p) or (None, ""))[1])[:80]))
                 if _leaked:
                     print("\n❌ THIS RUN LEFT %d PROCESS(ES) RUNNING:" % len(_leaked))
                     for _p in _leaked:

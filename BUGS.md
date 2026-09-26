@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1326 - THE GATE SET BLAMED HIS CONSOLE'S OCR WORKER FOR A LEAK OF ITS OWN RUN (#31)
+
+**SEEN:** the v3514 gate run ended with "THIS RUN LEFT 1 PROCESS RUNNING" and named one pid: the OCR worker of his
+:17772 console (its parent was the console, running for hours before the run began). **CAUSE:** run_gates' orphan
+check counted any process that was NEW since the run started AND named this tree. His console forks that worker for
+every frame it reads, so a read mid-run satisfied both halves - and the check's own advice ("kill by PID") pointed
+at his console's work. **FIX:** `leaked_by_this_run()` walks the parent chain: reaching run_gates or ppid 1 first =
+a leak of this run (a gate is waited for, so its leftovers re-parent to launchd); reaching a process that predates
+the run = THEIRS, printed with its owner and never counted. A leak's own child climbs through its new parent and is
+still counted. **LAW:** `tv/test_a_leak_is_this_runs_not_his_consoles.py` (3 red-proofs PROVEN in the heart2 sandbox).
+
 ### REG-1325 - #174 ROUND 7: A CHARM'S EDIT TILE PRINTED ITS NAME, AND AN INVENTORY PICK COVERED STATS
 
 **fix - ping-pong round 7 (new states: a Grand Charm opened from the inventory at 1280, ADD MOD at phone width), found
