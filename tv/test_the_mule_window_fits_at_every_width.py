@@ -635,6 +635,18 @@ def _measure():
         if not ready:
             raise AssertionError("bible.html never exposed openMuleCard in 40s — UNKNOWN, not passing")
         time.sleep(0.5)
+        # ⚠ 2026-09-26 — MEASURE AFTER THE FONTS. The page pulls Cinzel / Playfair / Inter from Google Fonts; on CI they
+        # arrive over the network at a variable time, and a row measured before its font lands reflows a few px later.
+        # MEASURED: the mule law read the stash-in-front EQUIPMENT panel 6 px low on one CI run of v3513 and exact on the
+        # re-run of the same commit. Bounded (15 s); the status measured under is recorded, never assumed.
+        for _ in range(60):
+            try:
+                if t.ev("document.fonts.status") == "loaded":
+                    break
+            except Exception:
+                pass
+            time.sleep(0.25)
+        res["fonts"] = t.ev("document.fonts.status")
         res["seeded"] = t.ev(SEED % (json.dumps(ITEMS), json.dumps(MULE)))
         for (w, h) in WIDTHS:
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
