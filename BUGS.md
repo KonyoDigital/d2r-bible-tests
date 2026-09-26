@@ -7,6 +7,43 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1315 - TWO OF THE LAST THREE SHIPS HAD NO ROW IN THE SHIP TABLE, AND THE LAW THAT WATCHES IT WAS GREEN
+
+**fix - found 2026-09-26 10:40 while bumping v3510: the bump bound v3508 and added v3510, and v3509 had no row.** The
+bump's writer (`_record_ship_in_tasks`) skipped a version whenever `ver in s` - the version string ANYWHERE in TASKS.md.
+The #174 task row said "R1 (v3507)" and then "v-B3 (v3509)", each written just before its own bump, so both bumps read
+"already recorded by hand" and wrote no ship row. test_the_newest_ships_appear_in_TASKS_md asked the same loose question
+(`v not in self.text`) and stayed green. MEASURED over the last 40 ships: exactly v3507 and v3509 without a row. Both
+now ask for the ROW (`| **vNNNN** |`); the rows were backfilled by hand with their commits (4fc947e1, 55e106a7). Found on
+the way: the writer's stamper call was bare (`stamp()`), so a bump aimed at a fixture tree still stamped the REAL
+TASKS.md - it is now handed the same file and repo the row went to. Law test_tasks_ships_are_recorded: the tightened
+check went RED on the real table naming v3507 before the backfill; two driven cases (a prose-only version is not a
+row; the real writer on a fixture tree adds the row and leaves the real TASKS.md byte-identical); 2 red-proofs, each
+seen RED. [[a-presence-law-is-not-a-reachability-law]] [[feedback-fixtures-never-touch-live-data]]
+
+### REG-1314 - #174 ROUND 2: ONE LIT ROW, A LABEL THAT READS AS ONE LABEL, AND A MESSAGE THAT SAYS WHAT WAS ADDED
+
+**fix - the Grok seat's cold look at v3509 (Grok CLI, grok-4.7, two single-image looks after a four-image look timed out
+at 480 s = an EMPTY seat, not a clean one).** Seven claims, each measured before it was acted on:
+1. REAL (both looks, independently): a wrapped stat label - "Fire" / "Resistance" with "-59 to -50% RANGE" on the first
+   line - read as a row "Resistance" with no value. v-B2 had ruled that the value keeps the first line, so the label now
+   takes a hanging indent: every continuation line is set in and reads as the rest of the label above it.
+2. REAL: ADD MOD painted the keyboard's active option and the row under the pointer in one gold - two lit rows, and
+   nothing said which one Enter adds. The pointer now MOVES the active option (one lit row, always the one Enter adds),
+   and `:hover` no longer paints a second row.
+3. REAL: "added of the Jackal - type its roll into its box, or leave the range" named nothing and asked for a roll on
+   affixes that have none. It now reads `Added the suffix "of the Jackal" - type your roll into its box, or leave it
+   blank to keep the range (1-5)`, and for a fixed affix `... - its value is fixed by the game`.
+4. REJECTED: the Edit sheet covers the page's hint and NOTES - it is a modal, placed (v-B2) so it never covers the
+   glowing slot it serves.
+5. REJECTED: "SKILL TREE is the selected tab" - EQUIPMENT is selected and sits under the modal; neither visible tab is.
+6. REJECTED: "Magic Damage Reduced" cut at the bottom - a mid-scroll row inside the STATS panel's own scroll.
+7. KEPT FOR R3: the empty band under the builder at 2000x1300 (already the R3 candidate).
+Laws: the width law gains test_round2_the_pointer_and_the_keys_light_one_row (a REAL pointer at rest on the 4th option,
+then a real ArrowDown - exactly one painted row, the active one) and test_round2_a_wrapped_stat_label_sets_its_second_line_in
+(every wrapped label at 1280, by the line boxes of its own text); the Edit law gains the message law over the four mods
+the width law uses. 4 red-proofs, each seen RED by its own tamper. [[grok-second-eye]] [[two-fixes-broke-each-other]]
+
 ### REG-1313 - #174 v-B3: MAGIC, RARE, SUPERIOR AND LOW ITEMS, BUILT THEIR WAY OVER HIS INSTALL'S AFFIX TABLES
 
 **feat + 11 review findings fixed before ship - his 2026-09-26 order: "more items also i see need to be added to the

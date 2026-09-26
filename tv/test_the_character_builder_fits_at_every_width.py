@@ -247,6 +247,33 @@ HOVER_READ = r"""(function(sel){ var e = document.querySelector(sel); if (!e) re
   return JSON.stringify({ color: cs.color, bg: cs.backgroundColor, hover: e.matches(':hover'), text: e.textContent.trim() }); })(%s)"""
 
 
+#: #174 round 2 (the Grok seat on v3509) - how many options are PAINTED, which one is active, which one the pointer is on
+LIT = r"""(function(){ var os = document.querySelectorAll('#cb-add-list .cb-add-o'), lit = [], q = document.getElementById('cb-add-q');
+  [].forEach.call(os, function(o, i){ var bg = getComputedStyle(o).backgroundColor; if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') lit.push(i); });
+  var under = -1; [].forEach.call(os, function(o, i){ if (o.matches(':hover')) under = i; });
+  var id = q && q.getAttribute('aria-activedescendant'), act = -1; [].forEach.call(os, function(o, i){ if (o.id === id) act = i; });
+  return JSON.stringify({ n: os.length, lit: lit, under: under, active: act }); })()"""
+#: #174 round 2 - every stat label that wraps: the left edge of its first line and of its second
+INDENT = r"""(function(){ var out = [];
+  [].forEach.call(document.querySelectorAll('#cb-win .cb-st-r:not([hidden]) .cb-sl'), function(l){
+    var rg = document.createRange(); rg.selectNodeContents(l);
+    var lines = {}; [].forEach.call(rg.getClientRects(), function(x){ if (x.width < 0.5) return; var k = Math.round(x.top); if (!(k in lines) || x.left < lines[k]) lines[k] = x.left; });
+    var ks = Object.keys(lines).map(Number).sort(function(a, b){ return a - b; });
+    if (ks.length > 1) out.push({ text: l.textContent.trim(), first: lines[ks[0]], next: lines[ks[1]] }); });
+  return JSON.stringify(out); })()"""
+
+
+def _point_at(t, sel, i):
+    """the pointer comes to rest on the i-th match (two real moves) - no click"""
+    a = json.loads(t.ev(AIM % (json.dumps(sel), i)))
+    if not a or not a["hit"]:
+        return "cannot aim at %s[%d]: %s" % (sel, i, a)
+    for dx in (0, 1):
+        t.send("Input.dispatchMouseEvent", type="mouseMoved", x=a["x"] + dx, y=a["y"], button="none")
+        time.sleep(0.15)
+    return None
+
+
 def _wheel_list(t):
     """a REAL wheel over the picker's list: 40 notches, then is its last row on screen?"""
     b = json.loads(t.ev(LIST))
@@ -376,7 +403,22 @@ def _measure():
         time.sleep(0.2)
         combo["enter"] = json.loads(t.ev(COMBO))
         res["combo"] = combo
+        # #174 round 2 (the Grok seat on v3509) - the POINTER and the keys light ONE row between them: the pointer comes to
+        # rest on the 4th option (real moves, no click), then a real ArrowDown with the pointer still there
+        t.ev("(function(){ window._cbModOpen(true); return 1; })()")
+        time.sleep(0.3)
+        res["input"].append(_point_at(t, "#cb-add-list .cb-add-o", 3))
+        lit = {"pointer": json.loads(t.ev(LIT))}
+        _key(t, "ArrowDown", 40)
+        time.sleep(0.2)
+        lit["down"] = json.loads(t.ev(LIT))
+        res["lit"] = lit
         t.ev("(function(){ window._cbClosePick(); return 1; })()")
+        # #174 round 2 - a wrapped stat label's second line is set in (a hanging indent), at 1280 where several wrap
+        _set_size(t, 1280, 800)
+        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s window._cbClosePick(); return 1; })()" % _DIADEM)
+        time.sleep(0.35)
+        res["indent"] = json.loads(t.ev(INDENT))
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
         _set_size(t, 2000, 1300)
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
@@ -604,6 +646,28 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(c["enter"]["stored"], ["p712", "s175", c["down"]["activeId"]],
                          "Enter did not add the painted option %s: %s" % (c["down"]["activeId"], c["enter"]))
 
+    def test_round2_the_pointer_and_the_keys_light_one_row(self):
+        """#174 round 2 (the Grok seat on v3509, img3): the keyboard's active option and the row under the pointer were
+        painted in one gold, so two rows lit and nothing said which one Enter adds. By REAL input: the pointer at rest on
+        the 4th option makes it the one active and the ONLY one painted; a real ArrowDown with the pointer still there
+        moves the active option on, and still exactly one row is painted"""
+        r = _measure()
+        self.assertEqual([x for x in r["input"] if x], [], "a real press or pointer move missed")
+        p, d = r["lit"]["pointer"], r["lit"]["down"]
+        self.assertGreater(p["n"], 4, "PREMISE: the open list has too few options to point at the 4th: %s" % p)
+        self.assertEqual(p["under"], 3, "PREMISE: the pointer is not on the 4th option: %s" % p)
+        self.assertEqual((p["active"], p["lit"]), (3, [3]), "the row under the pointer is not the one active and the only one lit: %s" % p)
+        self.assertEqual((d["active"], d["lit"]), (4, [4]), "after ArrowDown under a still pointer, not exactly the new active row is lit: %s" % d)
+
+    def test_round2_a_wrapped_stat_label_sets_its_second_line_in(self):
+        """#174 round 2 (the Grok seat on v3509, img2 AND img3): "Fire" / "Resistance" with the value on the first line
+        read as a row "Resistance" with no value. Every label that wraps sets its continuation line in (a hanging indent),
+        so the second line reads as the rest of the label - v-B2's rule (the value keeps the first line) stands"""
+        rows = _measure()["indent"]
+        self.assertGreater(len(rows), 0, "PREMISE: no stat label wraps at 1280, so this measured nothing")
+        flat = ["%s (first %.1f, next %.1f)" % (x["text"], x["first"], x["next"]) for x in rows if x["next"] - x["first"] < 4]
+        self.assertEqual(flat, [], "these labels wrap flush, so their second line reads as a row of its own: %s" % flat)
+
     def test_under_900_the_character_comes_first(self):
         for (w, h) in WIDTHS:
             m = _measure()["worn %dx%d" % (w, h)]
@@ -616,6 +680,27 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 round 2 - a wrapped stat label's second line sits flush again ('Resistance' reads as a row with no value)",
+        "file": "bible.html",
+        "find": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(10*var(--u));text-indent:calc(-10*var(--u))}\n",
+        "replace": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 round 2 - the pointer no longer moves the active option: the row under it is not the one Enter adds",
+        "file": "bible.html",
+        "find": " onmousemove=\"window._cbModHover(event)\">",
+        "replace": ">",
+        "matches": 1,
+    },
+    {
+        "why": "#174 round 2 - :hover paints a second gold row beside the active one again",
+        "file": "bible.html",
+        "find": ".cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}",
+        "replace": ".cb-add-o:hover,.cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}",
+        "matches": 1,
+    },
     {
         "why": "#174 R2 - the builder's STATS grows with its rows again and runs off the bottom of the window (the Grok seat: rows from Energy down sliced)",
         "file": "bible.html",

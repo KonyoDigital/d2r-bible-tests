@@ -51104,7 +51104,10 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 /* #174 v-B2 fix round - the label wraps at its WORDS inside its own box (a zero basis, never narrower than its longest
    word), so the value keeps the row's first line ("Lightning Resistance" put it on a second line at 2000); only when
    even one word cannot sit beside the value does the value take its own line, whole - never a word cut mid-letter */
-.cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal}
+.cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(10*var(--u));text-indent:calc(-10*var(--u))}
+/* #174 round 2 (the Grok seat on v3509): a wrapped label's second line ("Fire" / "Resistance") read as a ROW of its own with
+   no value. A hanging indent sets every continuation line in, so it reads as the rest of the label above it - v-B2's rule
+   (the value keeps the first line) stands */
 .cb-st-r[hidden]{display:none}
 .cb-sv{flex:none;margin-left:auto;display:inline-flex;align-items:baseline;gap:4px;font-family:var(--mono);font-size:var(--fs-cb-meta);text-align:right;cursor:help;white-space:nowrap}
 .cb-sv b{font-weight:var(--fw-medium);color:var(--gold-bright);white-space:nowrap}
@@ -51215,7 +51218,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .cb-add-g{position:sticky;top:0;z-index:1;padding:calc(6*var(--u)) calc(6*var(--u)) calc(3*var(--u));background:#171512;font-family:var(--cb-d2);font-variant:small-caps;font-size:var(--fs-cb-d2);letter-spacing:var(--ls-wide);color:var(--text)}
 .cb-add-g small{font-family:var(--sans);font-variant:normal;font-size:var(--fs-cb-meta);letter-spacing:0;color:var(--text-dim)}
 .cb-add-o{display:block;width:100%;text-align:left;padding:calc(4*var(--u)) calc(8*var(--u));background:transparent;border:0;border-radius:3px;font-family:var(--cb-d2);font-size:var(--fs-cb-body);letter-spacing:var(--ls-snug);color:rgb(232,232,232);line-height:var(--lh-snug);cursor:pointer;overflow-wrap:anywhere}
-.cb-add-o:hover,.cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}
+.cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}
 .cb-add-o.cb-act{background:rgba(214,170,90,.30);box-shadow:inset 3px 0 0 var(--gold)}
 .cb-add-o u{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--gold)}
 .cb-add-o small{font-family:var(--sans);font-size:var(--fs-cb-meta);letter-spacing:0;color:var(--text-dim);margin-left:4px}
@@ -52623,7 +52626,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         add += '<div class="cb-add-srch"><input type="search" id="cb-add-q" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="cb-add-list"'
           + (_cbAddRows(e).length ? ' aria-activedescendant="cb-add-o-' + clamp(st.modAct | 0, 0, _cbAddRows(e).length - 1) + '"' : '')
           + ' placeholder="Search..." value="' + esc(st.modQ || '') + '" aria-label="search the mods this item can roll - arrow keys choose one, Enter adds it" oninput="window._cbModSearch(this.value)" onkeydown="window._cbModKey(event)"><span aria-hidden="true">⌕</span></div>'
-          + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll">' + _cbAddListHtml(e) + '</div>';
+          + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll" onmousemove="window._cbModHover(event)">' + _cbAddListHtml(e) + '</div>';
       add += '</div>';
     } else add = '<div class="cb-note">' + (q === 'low' ? 'A low-quality item carries no mods; its penalty is the game\'s own code, not a table value.' : 'A normal item carries no mods — choose Magic or Rare' + (qs.indexOf('sup') >= 0 ? ' (or Superior)' : '') + ' to add them.') + '</div>';
     var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
@@ -52838,7 +52841,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: {} }]); });
     st.modOpen = false; st.modQ = ''; st.modBad = false;
-    st.modSay = 'added ' + a[2] + ' — type its roll into its box, or leave the range';
+    /* #174 round 2 (the Grok seat on v3509): "added of the Jackal - type its roll" did not say WHAT was added, and asked
+       for a roll on affixes that have none (+10% Faster Cast Rate is fixed) */
+    var _kind = a[1] === 'p' ? 'prefix' : a[1] === 's' ? 'suffix' : 'automod', _rng = null;
+    try { (a[11] || []).some(function(ln){ return (ln[1] || []).some(function(r){ if (r && r[0] != null && r[1] != null && r[0] !== r[1]){ _rng = r[0] + '-' + r[1]; return true; } return false; }); }); } catch (x) {}
+    st.modSay = 'Added the ' + _kind + ' "' + a[2] + '" - ' + (_rng ? 'type your roll into its box, or leave it blank to keep the range (' + _rng + ')' : 'its value is fixed by the game');
     _cbRender();
     return true;
   };
@@ -52882,6 +52889,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       });
     } catch (x) {}
   }
+  /* #174 round 2 (the Grok seat on v3509): the pointer's row and the keyboard's row were painted in one gold, so two rows
+     lit and nothing said which one Enter adds. The pointer now MOVES the active option - one lit row, always the one
+     Enter adds - and it never scrolls the list under a still mouse */
+  window._cbModHover = function(ev){
+    try {
+      var o = ev && ev.target && ev.target.closest ? ev.target.closest('.cb-add-o') : null; if (!o) return;
+      var os = document.querySelectorAll('#cb-add-list .cb-add-o'), i = [].indexOf.call(os, o);
+      if (i < 0 || i === (st.modAct | 0)) return;
+      st.modAct = i;
+      [].forEach.call(os, function(x, j){ var on = j === i; x.classList.toggle('cb-act', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      var q = document.getElementById('cb-add-q'); if (q) q.setAttribute('aria-activedescendant', o.id);
+    } catch (x) {}
+  };
   window._cbModSearch = function(q){ st.modQ = q; st.modAct = 0; var l = document.getElementById('cb-add-list'), cur = _cbCurEntry(); if (l && cur){ l.innerHTML = _cbAddListHtml(cur); _cbModMark(); } };
   /* the keys of the search box: ArrowDown / ArrowUp / Home / End move the active option (focus stays in the box, as a
      combobox's does), Enter adds it, Escape is the builder's own (it closes the list first) */
@@ -55192,7 +55212,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3509', name:'v3509 - #174 v-B3 - magic, rare, superior and low items, built their way over his install affix tables', date:'2026-09-26', note:'REG-1313: their Select -> Quality -> Edit, REGULAR MODS with typed-EXACT / blank-RANGE rolls, ADD MOD grouped PREFIXES / SUFFIXES / AUTOMOD with ranges over 1,229 affixes; 11 review findings fixed before ship; rides with v3508 R2' };
+  window.D2R_BUILD = { id:'v3510', name:'v3510 - #174 round 2 - one lit row in ADD MOD, a wrapped stat label reads as one label, the added message says what was added', date:'2026-09-26', note:'REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

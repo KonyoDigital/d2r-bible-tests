@@ -354,6 +354,30 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
         self.assertEqual(out["words"], [["Fiend", "Ghoul", "Wraith"], True, True, True],
                          "the six rare words his install names outside the item tables are not offered")
 
+    def test_round2_the_added_message_names_the_mod_and_asks_for_a_roll_only_when_there_is_one(self):
+        """#174 round 2 (the Grok seat on v3509, img2): "added of the Jackal - type its roll into its box, or leave the range"
+        did not say WHAT was added, and asked for a roll on affixes that have none (+10% Faster Cast Rate is fixed). Each
+        of the width law's four Diadem mods is added through the builder's own door; each message names the affix and
+        whether it is a prefix or a suffix, and asks for a roll - with the range - only when the affix has one"""
+        out = _run(r"""
+          mk('Warlock', 90);
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3'); window._cbQuality('rare');
+          OUT.say = ['p712', 'p374', 's175', 's316'].map(function(id){
+            var ok = window._cbAddMod(id), a = window._cbAf ? window._cbAf(id) : null;
+            return [id, ok, window._cbState().modSay]; });
+        """)
+        says = out["say"]
+        self.assertEqual([x[1] for x in says], [True] * 4, "PREMISE: the four mods were not all added: %s" % says)
+        for id_, _ok, say in says:
+            kind = "prefix" if id_.startswith("p") else "suffix"
+            self.assertRegex(say, r'^Added the %s "[^"]+" - ' % kind, "%s: the message does not name what was added: %r" % (id_, say))
+        ranged = [x[2] for x in says if "keep the range (" in x[2]]
+        fixed = [x[2] for x in says if x[2].endswith("its value is fixed by the game")]
+        self.assertEqual(len(ranged) + len(fixed), 4, "a message is neither ranged nor fixed: %s" % says)
+        self.assertTrue(ranged and fixed, "PREMISE: the four mods are not a mix of ranged and fixed: %s" % says)
+        for m in ranged:
+            self.assertRegex(m, r"keep the range \(-?\d+--?\d+\)$", "a ranged message does not show its range: %r" % m)
+
     def test_esc_closes_the_add_mod_list_before_the_picker(self):
         out = _run(r"""
           mk('Warlock', 90);
@@ -367,6 +391,13 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 round 2 - the added message goes back to 'added of the Jackal - type its roll', naming nothing and asking for a roll a fixed affix does not have",
+        "file": "bible.html",
+        "find": "    st.modSay = 'Added the ' + _kind + ' \"' + a[2] + '\" - ' + (_rng ? 'type your roll into its box, or leave it blank to keep the range (' + _rng + ')' : 'its value is fixed by the game');\n",
+        "replace": "    st.modSay = 'added ' + a[2] + ' — type its roll into its box, or leave the range';\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B3 - a base skips its Quality tab (their Select -> Quality -> Edit is gone)",
         "file": "bible.html",

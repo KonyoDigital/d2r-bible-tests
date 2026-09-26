@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3509",
+  "ver": "v3510",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3509: REG-1313: their Select -> Quality -> Edit, REGULAR MODS with typed-EXACT / blank-RANGE rolls, ADD MOD grouped PREFIXES / SUFFIXES / AUTOMOD with ranges over 1,229 affixes; 11 review findings fixed before ship; rides with v3508 R2",
+  "note": "v3510: REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

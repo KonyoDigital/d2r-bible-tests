@@ -68,6 +68,16 @@ def _shipped(limit=200):
     return rows
 
 
+def _missing_rows(text, ships):
+    """-> the (ver, sha) of each ship that has NO ROW in the ship table.
+
+    ⚠ 2026-09-26 — A VERSION NAMED IN PROSE IS NOT ITS ROW. This law asked `v not in self.text`, and so did the bump's
+    writer: the #174 row said "R1 (v3507)" and "v-B3 (v3509)", each written just before its bump, so both bumps skipped
+    the row and this law stayed green while two of the last three ships had none. [[a-presence-law-is-not-a-reachability-law]]"""
+    rows = set(re.findall(r"^\| \*\*(v[0-9]{3,5})\*\* \|", text or "", re.M))
+    return [(v, sha) for v, sha in ships if v not in rows]
+
+
 class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
     @staticmethod
@@ -115,11 +125,41 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
     def test_the_newest_ships_appear_in_TASKS_md(self):
         recent = self.ships[:RECENT]
-        missing = [(v, sha) for v, sha in recent if v not in self.text]
+        missing = _missing_rows(self.text, recent)
         self.assertEqual(
             [], missing,
-            "these versions MOVED THE STAMP but appear NOWHERE in TASKS.md, so the list no longer "
+            "these versions MOVED THE STAMP but have NO ROW in TASKS.md's ship table (a mention in prose is not a row), so the list no longer "
             "describes what the repo did:\n" + "\n".join("    %s  %s" % (v, sha) for v, sha in missing))
+
+    def test_a_version_named_in_prose_is_not_its_row(self):
+        """2026-09-26 - the check this law makes, driven on a fixture: a version that has a table row passes, a version
+        named only in a sentence does not"""
+        text = ("| version | commit | commit subject |\n|---|---|---|\n| **v9998** | `abc12345` | v9998 - a ship |\n\n"
+                "| **#174** | R1 (v9999): a task row that NAMES the next version before its bump |\n")
+        self.assertEqual(_missing_rows(text, [("v9999", "s1"), ("v9998", "s2")]), [("v9999", "s1")],
+                         "a version named only in prose was counted as recorded in the ship table")
+
+    def test_a_bump_writes_the_row_for_a_version_it_has_only_mentioned(self):
+        """2026-09-26 - DRIVEN: the bump's own writer, aimed at a fixture tree whose TASKS.md names the version in a task
+        row and has no ship row for it, must add the row - and must not touch the REAL TASKS.md (it used to stamp the
+        real one whatever tree it was aimed at)"""
+        import shutil
+        import sys
+        import tempfile
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        import bump_version as BV
+        real = io.open(TASKS, "rb").read()
+        d = tempfile.mkdtemp(prefix="shiprow-")
+        self.addCleanup(shutil.rmtree, d, True)
+        with io.open(os.path.join(d, "TASKS.md"), "w", encoding="utf-8") as fh:
+            fh.write("| **#174** | R1 (v9999): a task row naming the version before its bump |\n\n"
+                     "| version | commit | commit subject |\n|---|---|---|\n| **v9998** | `abc12345` | v9998 - a ship |\n")
+        BV._record_ship_in_tasks("v9999", "a name", "a note", repo=d)
+        got = io.open(os.path.join(d, "TASKS.md"), encoding="utf-8").read()
+        self.assertEqual(_missing_rows(got, [("v9999", "x")]), [],
+                         "the bump saw v9999 named in a task row and wrote no ship row for it:\n%s" % got)
+        self.assertEqual(io.open(TASKS, "rb").read(), real, "a bump aimed at a fixture tree changed the REAL TASKS.md")
 
     def test_the_bump_RECORDS_the_row_itself(self):
         """v2715 — the middle step failed THREE times, so it is no longer a thing to remember.
@@ -174,6 +214,20 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 #: write in the sandbox cannot reach his real history.
 PROOF_NEEDS = ["../.git"]
 RED_PROOF = [
+    {
+        "why": "2026-09-26 - the bump's writer takes any mention of the version for its row again: v3507 and v3509 got none",
+        "file": "bump_version.py",
+        "find": "        if _has_ship_row(s, ver):\n",
+        "replace": "        if ver in s:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-26 - this law counts a version named in prose as recorded again, and stays green with the rows missing",
+        "file": "test_tasks_ships_are_recorded.py",
+        "find": "    return [(v, sha) for v, sha in ships if v not in rows]\n",
+        "replace": "    return [(v, sha) for v, sha in ships if v not in (text or \"\")]\n",
+        "matches": 1,
+    },
     {
         "why": "v2888 — the tamper ORPHANS the step: it deletes the only call to "
                "_record_ship_in_tasks and leaves the definition intact, so a bump would stamp four "

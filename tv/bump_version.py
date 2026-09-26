@@ -471,6 +471,17 @@ def atomic_write(path, text, nl=""):
             pass
 
 
+def _has_ship_row(text, ver):
+    """Does the ship table carry a ROW for this version? -> bool
+
+    ⚠ 2026-09-26 — A VERSION NAMED IN PROSE IS NOT ITS ROW. This check was `ver in s`: any mention anywhere in
+    TASKS.md. The #174 task row said "R1 (v3507)" and then "v-B3 (v3509)" - each written just BEFORE its own bump - so
+    both bumps read "already recorded by hand" and wrote no ship row; v3507 and v3509 were missing from the table, and
+    test_the_newest_ships_appear_in_TASKS_md asked the same loose question and stayed green. Only a table row counts.
+    [[a-presence-law-is-not-a-reachability-law]]"""
+    return re.search(r"^\| \*\*%s\*\* \|" % re.escape(ver), text or "", re.M) is not None
+
+
 def _record_ship_in_tasks(ver, name, note, repo=None):
     """Write the ship's row into TASKS.md, because remembering to has failed THREE times.
 
@@ -498,7 +509,7 @@ def _record_ship_in_tasks(ver, name, note, repo=None):
         # successful bump on a temp root) and cheap to close. [[feedback-fixtures-never-touch-live-data]]
         p = os.path.join(repo or REPO, "TASKS.md")
         s = io.open(p, encoding="utf-8").read()
-        if ver in s:
+        if _has_ship_row(s, ver):
             return                              # already recorded by hand; do not duplicate
         # the newest row sits directly under the table header, so anchor on the header itself
         # rather than on whatever version happens to be top today.
@@ -525,7 +536,9 @@ def _record_ship_in_tasks(ver, name, note, repo=None):
         # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]
         try:
             import stamp_versions as _sv
-            _r = _sv.stamp()
+            # ⚠ 2026-09-26 — THE SAME FILE THE ROW WENT TO. A bare stamp() stamped the REAL TASKS.md even when this
+            # bump was aimed at a fixture tree (repo=): the v3104 rule, one call further down. [[feedback-fixtures-never-touch-live-data]]
+            _r = _sv.stamp(path=p, cwd=(repo or REPO))
             _c = _r["counts"]
             # ⚠⚠ v2936 — A REFUSAL IS A RETURN VALUE, NOT AN EXCEPTION, AND THE `except` BELOW
             # CANNOT SEE IT. v2931 taught stamp() to refuse when `git log` cannot be asked; main()
