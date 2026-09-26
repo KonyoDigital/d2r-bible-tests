@@ -213,7 +213,7 @@ class TestTheShippedExpressionLooksWhereTheValuesLIVE(unittest.TestCase):
         prog = ("%s\nvar out = (%s);\n"
                 "console.log(typeof out === 'string' ? out : JSON.stringify(out));\n"
                 % (window_js, seen["code"]))
-        r = sp.run(["node", "-e", prog], stdout=sp.PIPE, stderr=sp.STDOUT,
+        r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT,
                    close_fds=False, timeout=60)
         self.assertEqual(r.returncode, 0,
                          "node refused the SHIPPED expression: %s"

@@ -110,7 +110,7 @@ def _extract_render(src):
 
 
 def _node(js):
-    r = subprocess.run(["node", "-e", js], stdout=subprocess.PIPE,
+    r = subprocess.run(["node", "-"], input=js.encode("utf-8"), stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT, timeout=60)
     return r.returncode, r.stdout.decode("utf-8", "replace").strip()
 

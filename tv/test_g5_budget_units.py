@@ -207,7 +207,7 @@ class BothLanguagesShareTheContract(_TempBudget):
             self.skipTest("node not available")
         probe = ("const MS_FLOOR=1e11;const asMs=(t)=>(Number(t)<MS_FLOOR?Number(t)*1000:Number(t));"
                  "console.log(JSON.stringify([asMs(1786385809.525),asMs(1786385809525)]));")
-        out = subprocess.run([node_bin, "-e", probe], capture_output=True, text=True, timeout=30)
+        out = subprocess.run([node_bin, "-"], input=probe, capture_output=True, text=True, timeout=30)
         got = json.loads(out.stdout.strip())
         self.assertAlmostEqual(got[0], g5._as_ms(1786385809.525), places=0)
         self.assertAlmostEqual(got[1], g5._as_ms(1786385809525), places=0)

@@ -110,7 +110,7 @@ def _run(script):
     # The page's own order: the three panel listeners and the snapshot are registered before the quit
     # handler; the receipt viewer's listener only when it is first opened - AFTER the quit handler.
     js = "\n".join([DOM, s["heart"], s["verx"], s["fleet"], s["snap"], s["quit"], s["rcpt"], script])
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not run the shipped handlers - UNKNOWN, not passing: %s" % r.stderr[:600])
     return json.loads(r.stdout.strip().splitlines()[-1])

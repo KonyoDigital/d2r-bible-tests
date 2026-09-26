@@ -155,6 +155,10 @@ var document = { body: body, documentElement: mkEl({}),
 var window = { innerWidth: %(w)d, innerHeight: %(h)d, switchTab: function(t){ switched.push(t); },
   addEventListener: function(n, f){ (WLISTEN[n] = WLISTEN[n] || []).push(f); } };
 function setTimeout(f){ f(); } function clearTimeout(){}
+/* #174 R1 — the routed store the board gives every script (window.LSR), so the per-mule "what is in front" memory is
+   driven on the shipped code; %(lsr)s seeds it */
+window.LSR = (function(m){ return { getItem: function(k){ return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null; },
+  setItem: function(k, v){ m[k] = String(v); }, dump: function(){ return m; } }; })(%(lsr)s);
 var roster = [{ id: 'uni-weap', name: 'UNI-WEAPONS', icon: 'W', note: 'unique melee + caster weapons' },
               { id: 'bases', name: 'SOCKETED', icon: 'S', note: 'socketed bases' },
               { id: 'empty', name: 'EMPTY-ONE', icon: 'E', note: '' },
@@ -171,6 +175,7 @@ function _renderSharedStash(){}
 function _itemValue(n){ return ({ 'Windforce': 'high', 'Stone of Jordan': 'med', 'Shako': 'low' })[n] || ''; }
 %(span)s
 window.openMuleCard(%(mule)s);
+if (%(view)s) window._mpSet('view', %(view)s);
 var out = { html: box.innerHTML, role: box.getAttribute('role'), modal: box.getAttribute('aria-modal'),
             label: box.getAttribute('aria-label'), hidden: box.hidden, fs: box.classList.contains('vd-fs'),
             on: box.classList.contains('mp-on') };
@@ -187,13 +192,15 @@ if (%(esc)s){
   (LISTEN.keydown || []).forEach(function(f){ f({ key: 'Escape', target: null, preventDefault: function(){} }); });
   out.after = { hidden: box.hidden, fs: box.classList.contains('vd-fs'), on: box.classList.contains('mp-on'), switched: switched };
 }
+%(steps)s
 console.log(JSON.stringify(out));
 """
 
 SMALL = {"Windforce": [2, 4], "Stone of Jordan": [1, 1], "Shako": [2, 2], "Arachnid Mesh": [2, 1]}
 
 
-def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None, resize=(), keys=()):
+def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, esc=False, attrs=None, resize=(), keys=(),
+           view=None, lsr=None, steps=""):
     if assign is None:
         assign = dict((n, "uni-weap") for n in SMALL)
     js = HARNESS % {
@@ -202,6 +209,7 @@ def _drive(mule="uni-weap", w=2000, h=1300, assign=None, sizes=None, page=-1, es
         "span": _vault_span(), "mule": json.dumps(mule), "page": page, "esc": "true" if esc else "false",
         "resize": json.dumps([list(x) for x in resize]),
         "keys": json.dumps([list(k) for k in keys]),
+        "view": json.dumps(view), "lsr": json.dumps(lsr or {}), "steps": steps,
     }
     # ⚠ #174 v-B2 — THE PROGRAM GOES ON STDIN, NEVER ON ARGV. `node -e <js>` passed the whole cut as ONE argument;
     # Linux caps a single argument at 131,072 bytes (MAX_ARG_STRLEN) and macOS does not, so this law was green on his
@@ -247,13 +255,17 @@ class TheDollIsTheirs(unittest.TestCase):
                                                                     "of a unit that already fills its width")
 
     def test_the_inventory_is_ten_by_four_inside_the_equipment_panel(self):
-        html = _drive()["html"]
-        eq, prim = html.index('<section class="mp-p mp-eq">'), html.index('<section class="mp-p mp-prim">')
-        inv = html.index('<div class="mp-inv">')
-        self.assertTrue(eq < inv < prim, "the 10x4 inventory is not under the doll in the EQUIPMENT panel")
-        self.assertEqual(html[inv:prim].count('class="vd-cell"'), 40, "the inventory under the doll is not 10x4")
-        self.assertIn("onclick=\"window._mpSet('view','stash')\"", html[eq:inv], "EQUIPMENT lost its Stash button")
-        self.assertEqual(len(re.findall(r'class="mp-swap', html[eq:inv])), 4, "the I / II weapon-swap tabs are gone")
+        """#174 R1: ONE panel holds the doll and its inventory — big in the centre (EQUIPMENT in front) or small at the
+        left (anything else in front). Either way the 10x4 grid is under the doll, in the same panel, with the I / II tabs."""
+        for view, cls in ((None, 'mp-eq mp-eq-big'), ("stash", 'mp-eq mp-side'), ("calc", 'mp-eq mp-side')):
+            html = _drive(view=view)["html"]
+            self.assertEqual(html.count('<section class="mp-p mp-eq'), 1, "%s: the doll panel is missing or doubled" % view)
+            eq = html.index('<section class="mp-p %s"' % cls)
+            end = html.index('</section>', html.index('<div class="mp-inv">', eq))
+            inv = html.index('<div class="mp-inv">', eq)
+            self.assertTrue(eq < html.index('data-slot="rarm"') < inv < end, "%s: the 10x4 inventory is not under the doll in its panel" % view)
+            self.assertEqual(html[inv:end].count('class="vd-cell"'), 40, "%s: the inventory under the doll is not 10x4" % view)
+            self.assertEqual(len(re.findall(r'class="mp-swap', html[eq:inv])), 4, "%s: the I / II weapon-swap tabs are gone" % view)
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
@@ -291,17 +303,19 @@ class TheThreeColumns(unittest.TestCase):
                              "%s is a fixed height again — the sentence inside it will be cut" % sel)
 
     def test_the_panels_live_in_their_columns_in_their_order(self):
-        html = _drive()["html"]
-        order = ['<div class="mp-top">', '<section class="mp-p mp-set">', '<div class="mp-left">',
-                 '<section class="mp-p mp-eq">', '<section class="mp-p mp-prim">', '<section class="mp-p mp-merc">',
-                 '<section class="mp-p mp-loot">', '<section class="mp-p mp-sw">', '<div class="mp-centre">',
-                 '<section class="mp-p mp-cp">', '<section class="mp-p mp-notes">', '<div class="mp-right">',
-                 '<section class="mp-p mp-auth">', '<section class="mp-p mp-show">', '<section class="mp-p mp-stats">']
-        at = []
-        for o in order:
-            self.assertEqual(html.count(o), 1, "%s is missing or doubled" % o)
-            at.append(html.index(o))
-        self.assertEqual(at, sorted(at), "a panel left its column or its place in the column")
+        # #174 R1 — the left column's first card is whichever of the two is NOT in front
+        for view, side in ((None, '<section class="mp-p mp-sstash mp-side"'), ("stash", '<section class="mp-p mp-eq mp-side"')):
+            html = _drive(view=view)["html"]
+            order = ['<div class="mp-top">', '<section class="mp-p mp-set">', '<div class="mp-left">',
+                     side, '<section class="mp-p mp-prim">', '<section class="mp-p mp-merc">',
+                     '<section class="mp-p mp-loot">', '<section class="mp-p mp-sw">', '<div class="mp-centre">',
+                     '<section class="mp-p mp-cp">', '<section class="mp-p mp-notes">', '<div class="mp-right">',
+                     '<section class="mp-p mp-auth">', '<section class="mp-p mp-show">', '<section class="mp-p mp-stats">']
+            at = []
+            for o in order:
+                self.assertEqual(html.count(o), 1, "%s: %s is missing or doubled" % (view, o))
+                at.append(html.index(o))
+            self.assertEqual(at, sorted(at), "%s: a panel left its column or its place in the column" % view)
 
     def test_one_unit_their_pixels_at_2000_proportions_at_1280_stacked_under_900(self):
         self.assertEqual(_unit(_drive(w=2000, h=1300)["html"]), 1.0, "at 2000 wide the window is not their pixels")
@@ -366,11 +380,19 @@ class TheThreeColumns(unittest.TestCase):
         self.assertEqual(w[7] - w[6], 1, "under 900 k sits clamped at 1.25 but the stash cell follows the width; "
                                         "a resize that moves only the cell did not re-lay the window")
 
-    def test_the_centre_defaults_to_the_stash_with_our_five_tabs(self):
-        html = _drive()["html"]
-        self.assertIn('<div class="mp-view mp-v-stash">', html, "a locker's centre is not the stash by default")
-        st = html.index('<div class="mp-view mp-v-stash">')
-        end = html.index('<div class="mp-view mp-v-tree"', st)
+    def test_the_stash_keeps_our_five_tabs_wherever_it_sits(self):
+        for view in (None, "stash"):
+            self._five_tabs(view)
+
+    def _five_tabs(self, view):
+        html = _drive(view=view)["html"]
+        if view == "stash":
+            self.assertIn('<div class="mp-view mp-v-stash">', html, "STASH in front does not put the stash in the centre")
+            st = html.index('<div class="mp-view mp-v-stash">')
+            end = html.index('<div class="mp-view mp-v-tree"', st)
+        else:   # #174 R1 — the character in front: the stash is the left column's first card
+            st = html.index('<section class="mp-p mp-sstash mp-side"')
+            end = html.index('</section>', st)
         # #174 v-B2 — each tab is a CONTROL: a button that switches the grid, the open one marked (v-B: dim labels
         # with nothing behind them, which the Grok seat read as "barely clickable")
         for t in ("Personal", "Shared", "Gems", "Materials", "Runes"):
@@ -379,9 +401,89 @@ class TheThreeColumns(unittest.TestCase):
                           % (t.lower(), t.lower(), t), html[st:end])
             self.assertTrue(m, "the %s stash tab is not a button that switches the grid" % t)
             self.assertEqual(bool(m.group(1)), t == "Personal", "%s: the open tab is not the one marked" % t)
-        self.assertEqual(html[st:end].count('class="vd-cell vd-red"'), 100, "the centre stash is not 10x10")
-        for v in ("stash", "tree", "calc"):
+        self.assertEqual(html[st:end].count('class="vd-cell vd-red"'), 100, "the stash is not 10x10")
+        for v in ("equip", "stash", "tree", "calc"):
             self.assertEqual(html.count('data-view="%s"' % v), 1)
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheCharacterIsInFront(unittest.TestCase):
+    """#174 R1 — his order on v3506's mule window (2026-09-26): "make the equipment here in the front as main front and
+    center instead of the stash ... both inventory and character together because the charms are related", and before
+    it "enlarge that character as main ... the stash can be smaller on the side". A mule opens with EQUIPMENT in front —
+    the doll and its inventory big in the centre, the stash small at the left; STASH swaps them; each mule remembers
+    which one he had in front; only a swap animates."""
+
+    def test_a_mule_opens_with_the_doll_and_its_inventory_in_the_centre(self):
+        html = _drive()["html"]
+        tabs = re.findall(r'<button type="button" role="tab" aria-selected="(true|false)" class="mp-ctab( on)?" data-view="(\w+)"', html)
+        self.assertEqual([t[2] for t in tabs], ["equip", "stash", "tree", "calc"], "the centre's tabs are not EQUIPMENT · STASH · SKILL TREE · CALCULATIONS")
+        self.assertEqual([t[2] for t in tabs if t[0] == "true" and t[1]], ["equip"], "EQUIPMENT is not the tab in front when a mule opens")
+        c = html.index('<div class="mp-centre">')
+        v = html.index('<div class="mp-view mp-v-equip">', c)
+        self.assertLess(html.index('<section class="mp-p mp-eq mp-eq-big" style="--du:calc(1.45*var(--u))"', v), html.index('<div class="mp-view mp-v-stash"', v),
+                        "the big doll panel is not the centre's first view, on the 1.45 unit")
+        self.assertIn('<div class="mp-view mp-v-stash" hidden></div>', html,
+                      "with the character in front the centre still draws a hidden stash — a second grid a drag or a focus could land in")
+        self.assertLess(html.index('<section class="mp-p mp-sstash mp-side"'), c, "the small stash is not in the left column")
+
+    def test_stash_in_front_swaps_the_two_and_both_exist_once_in_every_view(self):
+        for view in (None, "stash", "tree", "calc"):
+            html = _drive(view=view)["html"]
+            self.assertEqual(html.count('class="mp-slot'), 10, "%s: the doll is missing or doubled" % view)
+            # the stash is in front or at the side while EQUIPMENT / STASH lead; SKILL TREE and CALCULATIONS keep the doll at
+            # the left the way theirs always does, and draw no stash at all — never a hidden one
+            st = 1 if view in (None, "stash") else 0
+            self.assertEqual(html.count('class="vd-cell'), 40 + 100 * st, "%s: stash 100 (when shown) + inventory 40, once each" % view)
+            self.assertEqual(html.count('class="vd-grid"'), 1 + st, "%s: a grid is missing or doubled" % view)
+            self.assertEqual(html.count('data-fk="stab-personal"'), st, "%s: the stash tabs are missing or doubled" % view)
+            self.assertEqual(html.count('class="mp-p mp-eq mp-eq-big"'), 1 if view is None else 0, "%s: the big doll is on the wrong view" % view)
+            enl = re.findall(r'data-fk="enl-(\w+)" onclick="window._mpSet\(\'view\',\'(\w+)\'\)"', html)
+            self.assertEqual(enl, [("stash", "stash")] if view is None else [("equip", "equip")],
+                             "%s: the side card cannot bring itself to the centre" % view)
+
+    def test_each_mule_remembers_what_he_put_in_front(self):
+        steps = r"""
+out.mem = [];
+var front = function(){ return /class="mp-ctab on" data-view="(\w+)"/.exec(box.innerHTML)[1]; };
+window._mpSet('view', 'stash'); out.mem.push(window._mpViewFor('uni-weap'));
+window.openMuleCard('bases'); out.mem.push(front());
+window.openMuleCard('uni-weap'); out.mem.push(front());
+out.store = window.LSR.dump()['d2r_mpView'] || null;
+"""
+        out = _drive(steps=steps)
+        self.assertEqual(out["mem"], ["stash", "equip", "stash"],
+                         "a mule does not come back the way he left it, or a mule he never touched does not open on EQUIPMENT")
+        self.assertEqual(json.loads(out["store"]), {"uni-weap": "stash"}, "the choice is not kept in the routed store")
+        # a store that lies (a view that does not exist) is never trusted: the mule opens on EQUIPMENT
+        html = _drive(lsr={"d2r_mpView": json.dumps({"uni-weap": "<img>"})})["html"]
+        self.assertIn('class="mp-ctab on" data-view="equip"', html, "a bad remembered view was trusted")
+
+    def test_only_a_swap_fades_and_reduced_motion_never_does(self):
+        steps = r"""
+var cls = function(){ return /<div class="mp([^"]*)" style/.exec(box.innerHTML)[1]; };
+window._mpSet('view', 'stash'); out.swap = cls();
+window._mpSet('diff', 'nightmare'); out.again = cls();
+window._mpSet('view', 'stash'); out.same = cls();
+"""
+        out = _drive(steps=steps)
+        self.assertIn("mp-anim", out["swap"], "a swap does not fade")
+        self.assertNotIn("mp-anim", out["again"], "a re-render that is not a swap fades — every drag would flicker")
+        self.assertNotIn("mp-anim", out["same"], "choosing the view already in front fades")
+        s = _src("bible.html")
+        self.assertEqual(s.count("@media (prefers-reduced-motion:reduce){.mp.mp-anim .mp-view:not([hidden]),.mp.mp-anim .mp-side{animation:none}}"), 1,
+                         "the swap ignores his reduced-motion setting")
+        m = re.search(r"\.mp\.mp-anim \.mp-view:not\(\[hidden\]\),\.mp\.mp-anim \.mp-side\{animation:mpIn \.(\d+)s", s)
+        self.assertTrue(m and int(m.group(1)) <= 20, "the swap is slower than 200ms — smooth, not sluggish")
+
+    def test_the_big_panel_fits_the_centre_under_its_tabs(self):
+        """The big panel is their 364-unit body on MP_EQ_BIG; with the count line under it, it must fit the 628 panel
+        under its 36 tab band and 8+8 padding. The browser law measures the pixels; this pins the arithmetic."""
+        s = _src("bible.html")
+        k = float(re.search(r"var MP_EQ_BIG = ([0-9.]+),", s).group(1))
+        self.assertLessEqual(364 * k + 2 + 6 + 30, 628 - 36 - 16, "the big doll + inventory + the count line overflow the centre")
+        self.assertLessEqual(322 * k, 716 - 20, "the big doll is wider than the centre")
+        self.assertGreaterEqual(k, 1.4, "the character is barely bigger than the side card — not 'front and center'")
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
@@ -506,6 +608,41 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "#174 R1 - a mule opens with the STASH in front again, the doll a small card at the left (his screenshot)",
+        "file": "bible.html",
+        "find": "  function _mpViewFor(id){ var v = _mpViewBy && _mpViewBy[id]; return MP_VIEWS[v] ? v : 'equip'; }\n",
+        "replace": "  function _mpViewFor(id){ var v = _mpViewBy && _mpViewBy[id]; return MP_VIEWS[v] ? v : 'stash'; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 R1 - the centre draws a hidden stash twin behind EQUIPMENT (two grids, two sets of tabs)",
+        "file": "bible.html",
+        "find": "      +   (_mpView === 'stash'\n",
+        "replace": "      +   (true\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 R1 - a mule forgets what he put in front",
+        "file": "bible.html",
+        "find": "    _mpViewBy[id] = v;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 R1 - every re-render fades, so a drag or a difficulty change flickers the window",
+        "file": "bible.html",
+        "find": "    var _anim = _mpAnim; _mpAnim = false;",
+        "replace": "    var _anim = true; _mpAnim = false;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 R1 - the swap ignores reduced motion",
+        "file": "bible.html",
+        "find": "@media (prefers-reduced-motion:reduce){.mp.mp-anim .mp-view:not([hidden]),.mp.mp-anim .mp-side{animation:none}}",
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": "#174 review - arrow keys typed into the Stats search turn the mule page again",
         "file": "bible.html",
         "find": "             && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || ''))){\n",
@@ -572,7 +709,7 @@ RED_PROOF = [
     {
         "why": "#174 - the 10x4 inventory leaves the EQUIPMENT panel",
         "file": "bible.html",
-        "find": "'<div class=\"mp-inv\">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell, _gOpt('inv')) + '</div>'",
+        "find": "'<div class=\"mp-inv\">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, big ? Math.max(14, Math.floor(30 * MP_DOLL_K * _eqK * k) - 2) : invCell, _gOpt('inv')) + '</div>'",
         "replace": "'<div class=\"mp-inv\"></div>'",
         "matches": 1,
     },

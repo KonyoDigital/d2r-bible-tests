@@ -35416,6 +35416,41 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-v-stash .vd-tabs{align-self:stretch;margin:0 auto 6px;max-width:100%}
 .mp-v-stash .vd-pagebar{margin-top:6px}
 .mp-v-stash .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;font-size:var(--fs-mp-body)}
+/* #174 R1 — THE CHARACTER IS THE MAIN VIEW; THE STASH SITS SMALL ON THE SIDE. His words on v3506's mule window
+   (2026-09-26 — the STASH filled the centre and the doll was a 322px card at the left): "make the equipment here in the
+   front as main front and center instead of the stash ... both inventory and character together because the charms are
+   related", and the hour before: "enlarge that character as main so the equipment and everything upfront ... the stash
+   can be smaller on the side". So the centre's FIRST tab is EQUIPMENT — the doll and its 10x4 inventory in ONE stone
+   panel on a larger unit (--du = MP_EQ_BIG x --u, set on that panel) — and the stash is the left column's first card at
+   their 322 width, every tab and drag intact. STASH swaps the two: the stash big in the centre, the doll small at the
+   left (the v3506 window). The panel is drawn ONCE, big or small, so no second doll can disagree with the first. */
+.mp-v-equip{display:flex;flex-direction:column;align-items:center}
+.mp-p.mp-eq-big{flex:none;width:calc(322*var(--du));height:calc(364*var(--du));border-color:var(--gold-dim)}
+.mp-eq-big .mp-doll{top:0}
+.mp-eq-big .mp-dollbox{top:calc(-36*var(--du))}
+.mp-eq-big .mp-inv{top:calc(230*var(--du))}
+.mp-eq-big .mp-pick{top:0}
+.mp-eq-big .mp-gl,.mp-eq-big .mp-slot.mp-slot-lg .mp-gl{font-size:var(--fs-mp-display)}
+.mp-eq-big .mp-slot.mp-has .d2art-wrap.lg{max-height:none}
+.mp-v-equip .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;font-size:var(--fs-mp-body)}
+/* the side stash is a FLOOR at their 400, never a box that cuts: at 1280 a fixed 400 cut its page bar by 6px, and at
+   1120 its five tabs could not fit one row. Its cell is chosen so the card stays their 400 wherever the tabs fit one
+   row (the script's _cellSide); where they do not, the tabs WRAP and the card grows — a word is never cut. */
+.mp-sstash{min-height:calc(36*var(--u) + 364*var(--du));display:flex;flex-direction:column}
+.mp-sstash .mp-sstash-b{flex:1 1 auto;padding:calc(6*var(--u)) calc(4*var(--u)) calc(6*var(--u))}
+.mp-sstash .vd-tabs{align-self:stretch;margin:0 0 calc(5*var(--u));flex-wrap:wrap;row-gap:calc(3*var(--u))}
+.mp-sstash .vd-tab{flex:1 1 auto;min-width:max-content;padding:calc(3*var(--u)) calc(3*var(--u));font-size:var(--fs-mp-micro)}
+.mp-sstash .vd-pagebar{margin-top:calc(4*var(--u));font-size:var(--fs-mp-micro)}
+/* the swap is SMOOTH: the view that comes to the front and the card that goes to the side fade up together in 180ms —
+   and not at all when he has asked his system for reduced motion */
+@keyframes mpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.mp.mp-anim .mp-view:not([hidden]),.mp.mp-anim .mp-side{animation:mpIn .18s ease-out both}
+@media (prefers-reduced-motion:reduce){.mp.mp-anim .mp-view:not([hidden]),.mp.mp-anim .mp-side{animation:none}}
+/* stacked on a phone, whatever is in front comes first, and the four tabs wrap rather than cut "Calculations" */
+.mp.mp-stack .mp-centre{order:-1}
+.mp.mp-stack .mp-ctabs{height:auto;flex-wrap:wrap}
+.mp.mp-stack .mp-ctab{flex:1 1 auto;min-width:max-content;min-height:calc(36*var(--u));padding:0 calc(10*var(--u))}
+.mp.mp-stack .mp-sstash{height:auto;padding-bottom:calc(6*var(--u))}
 /* #174 v-B2 — THE FIVE STASH TABS ARE CONTROLS. v-B drew them as 10.5px grey small-caps labels with nothing behind
    them; the Grok seat read them "barely clickable", and they were not clickable at all. Now each is a button in
    the window's own type, the open one solid gold like the mule tabs above it, and each is a drop target too. */
@@ -40442,9 +40477,24 @@ window.vaultAutoAssign = function(){
              sig: k.toFixed(4) + '|' + (sc.stack ? 'stack' : 'cols') + '|' + invCell + '|' + cell };
   }
   window._mpLayout = _mpLayout;
-  var _mpView = 'stash', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '', _mpStab = 'personal';
+  var _mpView = 'equip', _mpDiff = 'hell', _mpSwap = 1, _mpQ = '', _mpStab = 'personal';
+  /* #174 R1 — EQUIPMENT IS IN FRONT when a mule opens, and each mule remembers what he last put in front. The memory is a
+     UI preference (shared across worlds, like d2r_cbSel), never a record: blocked or private storage falls back to
+     EQUIPMENT. MP_EQ_BIG is the big panel's unit: their 364-tall doll + inventory in the 628 centre under its tab band,
+     with the count line under it. _mpAnim marks the ONE render after a swap, so only a swap fades — a drag or a
+     re-render does not flicker. */
+  var MP_EQ_BIG = 1.45, MP_VIEWS = { equip: 1, stash: 1, tree: 1, calc: 1 }, _mpAnim = false, _mpViewBy = {};
+  try { _mpViewBy = JSON.parse(window.LSR.getItem('d2r_mpView') || '{}') || {}; } catch (e) { _mpViewBy = {}; }
+  function _mpViewFor(id){ var v = _mpViewBy && _mpViewBy[id]; return MP_VIEWS[v] ? v : 'equip'; }
+  function _mpViewKeep(id, v){
+    if (id == null || !MP_VIEWS[v]) return;
+    _mpViewBy[id] = v;
+    try { window.LSR.setItem('d2r_mpView', JSON.stringify(_mpViewBy)); } catch (e) {}
+  }
+  window._mpViewFor = _mpViewFor;
   window._mpSet = function(kind, v){
-    if (kind === 'view') _mpView = v; else if (kind === 'diff') _mpDiff = v; else if (kind === 'swap') _mpSwap = v;
+    if (kind === 'view'){ if (!MP_VIEWS[v]) return; if (v !== _mpView) _mpAnim = true; _mpView = v; _mpViewKeep(openMuleId, v); _mpFocusNext = 'ctab-' + v; }
+    else if (kind === 'diff') _mpDiff = v; else if (kind === 'swap') _mpSwap = v;
     else if (kind === 'stab' && MULE_AREAS[v] && v !== 'inv'){ _mpStab = v; _mpFocusNext = 'stab-' + v; }   // #174 v-B2 — the five stash tabs
     var box = document.getElementById('vault-detail'), st = box ? box.scrollTop : 0;
     if (openMuleId) window.openMuleCard(openMuleId);
@@ -40461,7 +40511,7 @@ window.vaultAutoAssign = function(){
     if (!m||!box) return;
     var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mpNoteFlush(); _mpPickAt = null; _mpPickErr = ''; _mpNoteSaid = null; }   // #174 v-B — a note being typed is saved, never dropped
-    if (muleId !== openMuleId){ _mulePage = 0; _mpView = 'stash'; _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers
+    if (muleId !== openMuleId){ _mulePage = 0; _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
     if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
     openMuleId = muleId;
     // v235: remember the tab the card was opened from (the vault lives in Tools)
@@ -40651,19 +40701,28 @@ window.vaultAutoAssign = function(){
         +   (_left ? '<b>Left out: ' + _left + '</b> of ' + names.length + ' — ' + _why.join(' · ') : 'Nothing in this locker was left out.')
         + '</div></div>';
     }
-    var left = '<div class="mp-left">'
-      + '<section class="mp-p mp-eq">'+H('Equipment', '<button class="mp-btn mp-stash-btn" onclick="window._mpSet(\'view\',\'stash\')" title="show this mule’s 10×10 stash in the centre">▤ Stash</button>')
-      +   '<div class="mp-doll"></div><div class="mp-dollbox">' + doll + swap + '</div>'
-      +   '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, invCell, _gOpt('inv')) + '</div>'
-      +   pick
-      + '</section>'
-      + '<section class="mp-p mp-prim">'+H('Primary skills')+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
+    /* #174 R1 — THE DOLL AND ITS INVENTORY ARE ONE PANEL, DRAWN ONCE: big in the centre when EQUIPMENT is in front (the
+       default), at their 322 in the left column otherwise. The slots, the picker and the inventory grid all ride --du, so
+       the big panel is the same markup on a larger unit — one doll, never two copies of a slot that could disagree. Its
+       small form carries ⤢ Enlarge (and the side stash carries its own), so the swap is one click from either card. */
+    /* the big unit is MP_EQ_BIG where there is room, and smaller where the count line under it (whose type stops shrinking
+       at --fs-micro) would push the view past its 576-unit body: at 901 wide a flat 1.45 scrolled the centre by 3px */
+    var _eqBig = (_mpView === 'equip'), _eqK = sc.stack ? 1 : Math.floor(Math.min(MP_EQ_BIG, (576 * k - 40) / (364 * k)) * 1000 + 1e-6) / 1000;
+    var eqPanel = function(big){
+      return '<section class="mp-p mp-eq' + (big ? ' mp-eq-big' : ' mp-side') + '"' + (big ? ' style="--du:calc(' + _eqK + '*var(--u))"' : '')
+        + ' aria-label="equipment and inventory of Mule ' + (_mulePage + 1) + '">'
+        + (big ? '' : H('Equipment', '<button type="button" class="mp-btn mp-enl" data-fk="enl-equip" onclick="window._mpSet(\'view\',\'equip\')" title="bring the doll and its inventory to the centre — the stash moves here">⤢ Enlarge</button>'))
+        + '<div class="mp-doll"></div><div class="mp-dollbox">' + doll + swap + '</div>'
+        + '<div class="mp-inv">' + gridHtml(inv.placed, MULE_INV_W, MULE_INV_H, big ? Math.max(14, Math.floor(30 * MP_DOLL_K * _eqK * k) - 2) : invCell, _gOpt('inv')) + '</div>'
+        + pick
+        + '</section>';
+    };
+    var prose = '<section class="mp-p mp-prim">'+H('Primary skills')+soon('A locker has no skills; a .d2s import makes this mule a character with skills', 'v-C')+'</section>'
       + '<section class="mp-p mp-merc">'+H('Mercenary')+soon('A locker has no hireling; an imported character’s would show here', 'v-C')+'</section>'
       + '<section class="mp-p mp-loot">'+H('Loot filter')+soon('No loot filter is linked to this mule', 'not scheduled')+'</section>'
-      + '<section class="mp-p mp-sw">'+H('Strengths and weaknesses')+soon('Needs a character', 'v-C')+'</section>'
-      + '</div>';
-    // ── CENTRE: [STASH | SKILL TREE | CALCULATIONS] — the stash is a locker’s default view ──
-    var ctab = function(key, label){ return '<button class="mp-ctab'+(_mpView===key?' on':'')+'" data-view="'+key+'" onclick="window._mpSet(\'view\',\''+key+'\')">'+label+'</button>'; };
+      + '<section class="mp-p mp-sw">'+H('Strengths and weaknesses')+soon('Needs a character', 'v-C')+'</section>';
+    // ── CENTRE: [EQUIPMENT | STASH | SKILL TREE | CALCULATIONS] — #174 R1: the character is in front when a mule opens ──
+    var ctab = function(key, label){ return '<button type="button" role="tab" aria-selected="'+(_mpView===key)+'" class="mp-ctab'+(_mpView===key?' on':'')+'" data-view="'+key+'" data-fk="ctab-'+key+'" onclick="window._mpSet(\'view\',\''+key+'\')">'+label+'</button>'; };
     var _setN = 0, _setSeen = {};
     sized.forEach(function(it){ if (it.set && !_setSeen[it.n]){ _setSeen[it.n] = 1; _setN++; } });
     var _tiers = null;
@@ -40726,14 +40785,32 @@ window.vaultAutoAssign = function(){
         + (t === 'personal' ? ' (the packer fills this one)' : ' (only what you place here by hand — what the game lets this tab hold is not on record here)')
         + '. Drop an item on the tab to move it here">' + MULE_AREAS[t][2] + (n && t !== 'personal' ? ' <b>' + n + '</b>' : '') + '</button>';
     }).join('');
+    /* #174 R1 — THE SIDE STASH: with the character in front, the stash is the left column's first card at their 322 —
+       the same five tabs (each still a drop target), the same grid on a smaller cell, the same mule arrows, every item
+       still draggable to the inventory beside it and back. It is drawn only while EQUIPMENT is in front, so the stash
+       exists once on the page, never as a hidden twin that a drag or a focus could land in. */
+    /* the widest cell whose grid fits the card's 314 inner width AND keeps the card at their 400: 6 + 5 + 4 + 6 units of
+       padding and margins, ~22px of tab row, ~17px of page bar and the grid's 8px frame around ten 2px-gapped cells */
+    var _cellSide = sc.stack ? cell : Math.max(12, Math.min(Math.floor((314 * k - 26) / 10), Math.floor((343 * k - 67) / 10)));
+    var sideStash = '<section class="mp-p mp-sstash mp-side" aria-label="the stash of Mule ' + (_mulePage + 1) + ' — Enlarge brings it to the centre">'
+      + H('Stash', '<button type="button" class="mp-btn mp-enl" data-fk="enl-stash" onclick="window._mpSet(\'view\',\'stash\')" title="bring the stash to the centre — the doll and its inventory move here">⤢ Enlarge</button>')
+      + '<div class="mp-v-stash mp-sstash-b">'
+      +   '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '">' + _stabHtml + '</div>'
+      +   gridHtml(_stabPlaced, MULE_STASH_W, MULE_STASH_H, _cellSide, _gOpt(_mpStab)).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
+      +   '<div class="vd-pagebar">' + _muleArrows + '</div>'
+      + '</div></section>';
+    var left = '<div class="mp-left">' + (_eqBig ? sideStash : eqPanel(false)) + prose + '</div>';
     var centre = '<div class="mp-centre">'
-      + '<section class="mp-p mp-cp"><div class="mp-ctabs">'+ctab('stash','Stash')+ctab('tree','Skill tree')+ctab('calc','Calculations')+'</div>'
+      + '<section class="mp-p mp-cp"><div class="mp-ctabs" role="tablist" aria-label="what is in front">'+ctab('equip','Equipment')+ctab('stash','Stash')+ctab('tree','Skill tree')+ctab('calc','Calculations')+'</div>'
+      +   '<div class="mp-view mp-v-equip"'+(_eqBig?'':' hidden')+'>' + (_eqBig ? eqPanel(true) + _goldbox : '') + '</div>'
       +   '<div class="mp-view mp-v-stash"'+(_mpView==='stash'?'':' hidden')+'>'
       /* the tab row is the grid's own width (their in-game tabs span the stash), each tab at least its word */
-      +     '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '" style="width:' + (MULE_STASH_W * cell + (MULE_STASH_W - 1) * 2 + 10) + 'px">' + _stabHtml + '</div>'
+      +   (_mpView === 'stash'
+      ?     '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '" style="width:' + (MULE_STASH_W * cell + (MULE_STASH_W - 1) * 2 + 10) + 'px">' + _stabHtml + '</div>'
       +     gridHtml(_stabPlaced,MULE_STASH_W,MULE_STASH_H,cell,_gOpt(_mpStab)).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar">' + _muleArrows + '</div>'
       +     _goldbox
+      :     '')
       +   '</div>'
       +   '<div class="mp-view mp-v-tree"'+(_mpView==='tree'?'':' hidden')+'>'+soon('A skill tree belongs to a character with a class, and this mule is a storage locker. A .d2s import binds a class; the tree data and icons come from his install', 'v-C, v-D')+'</div>'
       +   '<div class="mp-view mp-v-calc"'+(_mpView==='calc'?'':' hidden')+'>'+calc+'</div>'
@@ -40806,7 +40883,8 @@ window.vaultAutoAssign = function(){
         try { if (typeof _ae.selectionStart === 'number') _keep.fsel = [_ae.selectionStart, _ae.selectionEnd]; } catch (e) {}
       }
     }
-    box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
+    var _anim = _mpAnim; _mpAnim = false;   // #174 R1 — only the render right after a swap fades
+    box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+(_anim?' mp-anim':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
       + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div></div>'
       + right
       + '</div>';
@@ -50946,6 +51024,10 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 /* LEFT — the small inventory under a compact Stash button, then their four panels in their order */
 .cb-left{display:flex;flex-direction:column;gap:calc(6*var(--u));min-width:0}
 .cb-invp{padding-bottom:calc(8*var(--u))}
+/* #174 R1 — the inventory is in the centre under the doll; the left keeps a Stash card with their button */
+.cb-view .cb-invp{padding-bottom:0}
+.cb-stashp{min-height:calc(84*var(--u));display:flex;flex-direction:column}
+.cb-stashp>.cb-empty{margin:auto 0}
 .cb-inv{position:relative;margin:calc(8*var(--u)) auto 0;display:grid;gap:2px;padding:2px;background:rgba(0,0,0,.6);border:1px solid #2c2d2f;border-radius:3px;width:max-content;max-width:100%;touch-action:none}
 .cb-cell{width:var(--cb-cell);height:var(--cb-cell);padding:0;background:linear-gradient(145deg,#1b1c1e,#0f1011);border:1px solid #2a2b2d;border-radius:2px;cursor:pointer}
 .cb-cell:hover{border-color:var(--gold-dim)}
@@ -51657,9 +51739,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     var grow = Math.max(1, Math.min(vw / 2000, vh / 1300));
     var u = Math.min(grow, (vw - 48) / 1350);
-    /* the doll fills the 716 column: width 700u, height what the 628 panel leaves under its tabs */
-    var dk = Math.min(700 * u / CB_DOLL_WH[0], (628 - 36 - 40) * u / CB_DOLL_WH[1]);
-    var cell = Math.max(16, Math.floor((322 * u - 44) / 10));
+    /* #174 R1 — THE DOLL AND ITS INVENTORY SHARE THE CENTRE (his order 2026-09-26: "both inventory and character together
+       because the charms are related"). The 628 panel under its 36 tab band and 8+8 padding leaves 576; the doll (250 on
+       its unit) and a 10x4 inventory as wide as the doll (4 rows of ~29.2 units + its 4px frame), plus the 8 between them
+       and the two 20-unit status lines, share it: 250dk + 116.8dk + 4 + 48u <= 576u. The inventory's cell is then the
+       doll's width over ten, so the grid lines up under the doll the way theirs does under their slate. */
+    var dk = Math.min(700 * u / CB_DOLL_WH[0], (528 * u - 4) / (CB_DOLL_WH[1] + 116.8));
+    var cell = Math.max(16, Math.floor((CB_DOLL_WH[0] * dk - 4) / 10) - 2);
     return { stack: false, u: u, kf: Math.min(1, u), dk: dk, cell: cell, sig: u.toFixed(4) + '|cols|' + cell };
   }
   window._cbLayout = _cbLayout;
@@ -51940,8 +52026,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         + (tpl.weaknesses.length ? '<div class="cb-sw-k">Weaknesses</div><ul>' + tpl.weaknesses.map(function(x){ return '<li class="cb-w">' + esc(x) + '</li>'; }).join('') + '</ul>' : '');
     } else sw = '<div class="cb-empty"><b>Nothing written for this build.</b> A build from one of your characters carries that character\'s notes.</div>';
     return '<div class="cb-left">'
-      + '<div class="cb-p cb-invp"><div class="cb-h"><span class="cb-h-t">Inventory</span><span class="cb-h-r"><button type="button" class="cb-btn" id="cb-stash-btn" onclick="window._cbOpenStash()">▤ Stash</button></span></div>'
-      +   _cbInvHtml(s, L) + '</div>'
+      /* #174 R1 — the inventory went to the centre, under the doll; the left keeps their Stash button on its own card */
+      + '<div class="cb-p cb-stashp"><div class="cb-h"><span class="cb-h-t">Stash</span><span class="cb-h-r"><button type="button" class="cb-btn" id="cb-stash-btn" onclick="window._cbOpenStash()">▤ Stash</button></span></div>'
+      +   '<div class="cb-empty">Items this build keeps but does not wear — open the list, or <b>Create</b> one there.</div></div>'
       + '<div class="cb-p cb-lp cb-prim"><div class="cb-h"><span class="cb-h-t">Primary Skills</span></div><div class="cb-empty"><b>Nothing fills this yet.</b> The skill trees arrive with v-D (the game\'s own skill tables).</div></div>'
       + '<div class="cb-p cb-lp cb-merc"><div class="cb-h"><span class="cb-h-t">Mercenary</span></div><div class="cb-empty"><b>No mercenary.</b> Hiring and his gear arrive later.</div></div>'
       + '<div class="cb-p cb-lp cb-loot"><div class="cb-h"><span class="cb-h-t">Loot Filter</span></div><div class="cb-empty"><b>No loot filter</b> is linked to this build (not scheduled).</div></div>'
@@ -51963,7 +52050,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var views = [['equip', 'Equipment'], ['skills', 'Skill Tree'], ['calc', 'Calculations']];
     var main = '<div class="cb-p cb-main"><div class="cb-ctabs" role="tablist">' + views.map(function(v){ return '<button type="button" role="tab" class="cb-ctab' + (st.view === v[0] ? ' cb-on' : '') + '" aria-selected="' + (st.view === v[0]) + '" onclick="window._cbView(\'' + v[0] + '\')">' + v[1] + '</button>'; }).join('') + '</div>'
       + '<div class="cb-view"' + (st.view === 'equip' ? '' : ' hidden') + '>' + (d ? _cbDollHtml(b, s, L) : '<div class="cb-empty"><b>UNKNOWN</b> — ' + esc(DB_ERR || 'no database') + '</div>')
-      +   '<div class="cb-doll-say">' + (Object.keys(s.slots).length ? 'Hover an item for its tooltip · click a slot to change it' : 'Click a slot to choose from the entire item database') + '</div></div>'
+      +   '<div class="cb-doll-say">' + (Object.keys(s.slots).length ? 'Hover an item for its tooltip · click a slot to change it' : 'Click a slot to choose from the entire item database') + '</div>'
+      +   '<div class="cb-invp" role="group" aria-label="inventory — click a cell to add a charm or an item, drag to move">' + _cbInvHtml(s, L) + '</div></div>'
       + '<div class="cb-view"' + (st.view === 'skills' ? '' : ' hidden') + '><div class="cb-empty"><b>The skill trees arrive with v-D</b> — from the game\'s own skill tables and icons, points from an imported save.</div></div>'
       + '<div class="cb-view"' + (st.view === 'calc' ? '' : ' hidden') + '>' + _cbCalcHtml(b) + '</div></div>';
     var notes = '<div class="cb-p cb-notes"><div class="cb-h"><span class="cb-h-t">Notes</span></div><textarea id="cb-notes" placeholder="Notes for this build — saved when you leave the box" aria-label="build notes" onblur="window._cbNotes(this.value)">' + esc(b.notes || '') + '</textarea></div>';
@@ -51986,9 +52074,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var anchor = null, doll = document.getElementById('cb-doll');
     if (st.pick && st.pick.kind === 'slot') anchor = document.querySelector('#cb-win .cb-slot[data-slot="' + st.pick.slot + '"]');
     if (st.pick && st.pick.kind === 'inv') anchor = document.querySelector('#cb-win .cb-invp');
-    if (anchor && st.pick.kind === 'inv'){
-      var ir = anchor.getBoundingClientRect(); left = ir.right + 10; W = Math.min(W, vw - left - 8); top = ir.top;
-    } else if (anchor && doll){
+    /* #174 R1 — the inventory now sits in the centre under the doll, so its picker takes the side away from it exactly as
+       a slot's does (it used to open to the right of a left-column card) */
+    if (anchor && doll){
       var r = anchor.getBoundingClientRect(), dr = doll.getBoundingClientRect(), cx = dr.left + dr.width / 2;
       var W0 = W, roomL = r.left - 12 - 8, roomR = vw - (r.right + 12) - 8;
       /* the modal sits on the side AWAY from the slot, so the slot it serves stays in view, glowing; where that side is
@@ -52637,7 +52725,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return n || '';
   }
   function floorOf(el){
-    var p = el.closest && el.closest('#vault-detail .mp-p'), h = p && p.querySelector('.mp-h, .mp-ctabs');
+    /* #174 R1 — the big EQUIPMENT panel in the centre has no header of its own (the tab above it is its title), so the
+       floor is the header of the nearest panel that HAS one — the centre's tab band — never "no floor at all" */
+    var p = el.closest && el.closest('#vault-detail .mp-p'), h = null;
+    while (p && !(h = p.querySelector('.mp-h, .mp-ctabs'))) p = p.parentElement && p.parentElement.closest('#vault-detail .mp-p');
     return h ? h.getBoundingClientRect().bottom + 4 : 8;
   }
   function hide(){
@@ -54536,7 +54627,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3506', name:'v3506 - the Character Builder and the game-data stats engine', date:'2026-09-26', note:'the Character Builder in the Tools tab clones the maxroll planner over the whole item database with the game font and an in-game tooltip, its stats come from the game data with Hell penalties and caps, mule items move by hand and stay, and no console child opens a window on Windows' };
+  window.D2R_BUILD = { id:'v3507', name:'v3507 - the character in front', date:'2026-09-26', note:'174 R1 - a mule opens with the doll and its inventory big in the centre and the stash small at the side, Stash swaps them; every law hands node its program on stdin; the console self-proofs stop leaving scratch dirs' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

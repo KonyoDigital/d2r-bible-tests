@@ -165,7 +165,7 @@ MEASURE = r"""(function(){ try {
   var ob = mp.getBoundingClientRect();
   var rel = function(el, b){ if (!el) return null; var r = el.getBoundingClientRect(); b = b || ob;
     return [r.left - b.left, r.top - b.top, r.width, r.height]; };
-  var sv = box.querySelector('.mp-v-stash'), gb = box.querySelector('.mp-v-stash .vd-goldbox'), gl = null;
+  var sv = box.querySelector('.mp-cp .mp-view:not([hidden])'), gb = sv && sv.querySelector('.vd-goldbox'), gl = null;
   if (gb && sv && !sv.hidden){ var gs = getComputedStyle(gb), gr = gb.getBoundingClientRect();
     gl = (gr.height - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - parseFloat(gs.borderTopWidth) - parseFloat(gs.borderBottomWidth)) / parseFloat(gs.lineHeight); }
   var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null, mpTop: ob.top, vh: innerHeight,
@@ -174,7 +174,8 @@ MEASURE = r"""(function(){ try {
     cut: [], outside: [], sideways: [], collide: [], nText: 0,
     worn: box.querySelectorAll('.mp-slot.mp-has').length, sv: box.querySelectorAll('.mp-sv').length,
     pick: box.querySelectorAll('.mp-pick').length, opts: box.querySelectorAll('.mp-pick .mp-opt').length };
-  ['mp-set','mp-eq','mp-prim','mp-merc','mp-loot','mp-sw','mp-cp','mp-notes','mp-auth','mp-show','mp-stats'].forEach(function(c){
+  out.front = (box.querySelector('.mp-ctab.on') || {}).getAttribute ? box.querySelector('.mp-ctab.on').getAttribute('data-view') : null;
+  ['mp-set','mp-eq','mp-sstash','mp-prim','mp-merc','mp-loot','mp-sw','mp-cp','mp-notes','mp-auth','mp-show','mp-stats'].forEach(function(c){
     out.panels[c] = rel(box.querySelector('.' + c)); });
   var eo = box.querySelector('.mp-eq').getBoundingClientRect();
   [].forEach.call(box.querySelectorAll('.mp-slot'), function(s){ out.slots[s.getAttribute('data-slot')] = rel(s, eo); });
@@ -291,8 +292,10 @@ def _equip(t, mule, want):
 #: #174 v-B2 — the hover card of an item, against the mule bar and the header of the panel the item is in.
 #: #174 v-B2 integration: the card is window.d2Tip's box (#cb-tip); the board's #arttip must stay shut (one box)
 HOVER = r"""(function(sel){ var t = document.getElementById('cb-tip'), at = document.getElementById('arttip'),
-      s = document.querySelector('#vault-detail .mp-set'), a = document.querySelector(sel), p = a && a.closest('.mp-p'),
-      h = p && p.querySelector('.mp-h, .mp-ctabs'), w = a && (a.querySelector('.d2art-wrap[aria-label]') || a);
+      s = document.querySelector('#vault-detail .mp-set'), a = document.querySelector(sel), p = a && a.closest('.mp-p'), h = null,
+      w = a && (a.querySelector('.d2art-wrap[aria-label]') || a);
+  /* #174 R1 — the big doll panel has no header; its floor is the nearest panel header above it (the centre's tabs) */
+  while (p && !(h = p.querySelector('.mp-h, .mp-ctabs'))) p = p.parentElement && p.parentElement.closest('.mp-p');
   if (!s || !a || !h) return JSON.stringify({ err: 'no mule bar, hovered item or panel header on the page (' + sel + ')' });
   if (!t) return JSON.stringify({ on: false, err: 'the in-game box (#cb-tip) was never created - no hover opened it' });
   var cs = getComputedStyle(t), r = t.getBoundingClientRect(), b = s.getBoundingClientRect(), first = t.firstElementChild;
@@ -314,11 +317,14 @@ TOPLEFT = r"""(function(){ var g = document.querySelector('#vault-detail .mp-v-s
   return JSON.stringify(it ? '#vault-detail .vd-item[data-fk="' + it.getAttribute('data-fk') + '"]' : null); })()"""
 
 
-def _hover_worn(t):
-    """open the window, park the pointer, then a REAL mouse move onto each item's art; returns {what: probe}"""
+def _hover_worn(t, view="equip"):
+    """open the window, park the pointer, then a REAL mouse move onto each item's art; returns {what: probe}.
+    #174 R1 — in BOTH arrangements: with the stash in front the doll is the small card at the top-left, right under
+    the mule bar, which is where a floorless box rises over the bar (the case this was written for); with the doll in
+    front it is big in the centre, under the tab band."""
     out = {}
     for what, sel in HOVER_AT:
-        _open(t)
+        _open(t, view)
         if sel is None:
             sel = json.loads(t.ev(TOPLEFT))
             if not sel:
@@ -358,9 +364,16 @@ MID = r"""JSON.stringify({ drop: (document.querySelector('#vault-detail .vd-drop
 POS = r"""(function(){ try { return JSON.stringify(JSON.parse(window.LSR.getItem('d2r_mulePos') || '{}')[%s] || {}); } catch (e){ return '{}'; } })()"""
 
 
-def _open(t):
-    t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); document.getElementById('vault-detail').scrollTop = 0; return 1; })()"
-         % json.dumps(MULE))
+#: #174 R1 — open a mule with a named view in front: "equip" (the doll + inventory big in the centre, the stash small at
+#: the left — what a mule opens on) or "stash" (the v3506 arrangement, their builder's geometry). A choice is remembered
+#: per mule, so every open says which one it wants rather than inheriting the last.
+OPEN_AS = r"""(function(m, v){ window.vaultCloseCard(); window.openMuleCard(m);
+  if (v && window._mpViewFor && window._mpViewFor(m) !== v) window._mpSet('view', v);
+  var b = document.getElementById('vault-detail'); if (b) b.scrollTop = 0; return 1; })(%s, %s)"""
+
+
+def _open(t, view="equip", mule=None):
+    t.ev(OPEN_AS % (json.dumps(mule or MULE), json.dumps(view)))
     time.sleep(0.35)
 
 
@@ -415,8 +428,11 @@ def _drag_pass(t, bible):
     for label, (w, h), want in (("2000", (2000, 1300), ("personal", 9, 9)), ("console", CONSOLE, ("inv", 9, 3))):
         t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
         time.sleep(0.25)
-        _open(t)
-        d = {"want": list(want), "from": _tile(t, "Jordan")}
+        # #174 R1 — at 2000 the drag runs with the doll in front (the side stash); in the console it lands in the SMALL
+        # inventory (the stash in front) - a 22px cell is where a corner lock can reach a ring's middle
+        view = "stash" if label == "console" else "equip"
+        _open(t, view)
+        d = {"want": list(want), "from": _tile(t, "Jordan"), "view": view}
         b = json.loads(t.ev(CELL_AT % (json.dumps(want[0]), want[1], want[2])))
         if d["from"] and d["from"]["hit"] and b:
             d["mid"] = _real_drag(t, (d["from"]["cx"], d["from"]["cy"]), b)
@@ -424,7 +440,7 @@ def _drag_pass(t, bible):
         d["store"] = json.loads(t.ev(POS % json.dumps(MULE))).get(d["from"]["key"] if d["from"] else "", {})
         _reload(t, bible)
         time.sleep(0.3)
-        _open(t)
+        _open(t, view)
         d["reloaded"] = _tile(t, "Jordan")
         out[label] = d
         if label != "2000":
@@ -623,9 +639,12 @@ def _measure():
         for (w, h) in WIDTHS:
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
-            t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(MULE))
-            time.sleep(0.35)
+            # #174 R1 — what a mule opens on (the doll in front), then the stash in front
+            _open(t, "equip")
             res["%dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            _open(t, "stash")
+            res["st %dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            _open(t, "equip")
         # #174 v-B — the same widths with the doll in use and the picker open on the left hand
         t.send("Emulation.setDeviceMetricsOverride", width=WIDTHS[0][0], height=WIDTHS[0][1], deviceScaleFactor=1,
                mobile=False)
@@ -635,14 +654,17 @@ def _measure():
         for (w, h) in (WIDTHS[0], CONSOLE):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
             time.sleep(0.25)
-            res["hover"]["%dx%d" % (w, h)] = _hover_worn(t)
+            for view in ("stash", "equip"):
+                res["hover"]["%dx%d %s-front" % (w, h, view)] = _hover_worn(t, view)
+            _open(t, "equip")
         for (w, h) in WIDTHS:
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
-            t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); window._mpPick('larm'); return 1; })()"
-                 % json.dumps(MULE))
-            time.sleep(0.35)
-            res["eq %dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            for view, key in (("stash", "eqs"), ("equip", "eq")):
+                _open(t, view)
+                t.ev("(function(){ window._mpPick('larm'); return 1; })()")
+                time.sleep(0.35)
+                res["%s %dx%d" % (key, w, h)] = json.loads(t.ev(MEASURE))
         t.ev("(function(){ window._mpPick(null); return 1; })()")
         # the phone: type in the Stats search, open a keyboard (height-only resize), then re-render underneath
         t.send("Emulation.setDeviceMetricsOverride", width=390, height=844, deviceScaleFactor=1, mobile=True)
@@ -681,12 +703,15 @@ def _near(a, b, tol):
 
 
 def _states():
-    """(label, measurement) for every width, plain and with the doll in use + the picker open"""
+    """(label, measurement) for every width — #174 R1: the doll in front and the stash in front, each plain and with
+    the doll in use + the picker open"""
     r = _measure()
     out = []
     for w, h in WIDTHS:
         out.append(("%dx%d" % (w, h), r["%dx%d" % (w, h)]))
+        out.append(("%dx%d stash-front" % (w, h), r["st %dx%d" % (w, h)]))
         out.append(("%dx%d equipped+picker" % (w, h), r["eq %dx%d" % (w, h)]))
+        out.append(("%dx%d stash-front equipped+picker" % (w, h), r["eqs %dx%d" % (w, h)]))
     return out
 
 
@@ -770,7 +795,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
     def test_at_2000_the_panels_and_the_doll_are_their_measured_rects(self):
         """their rects, with the one declared upgrade (_ours / _our_slot) — plain and with the doll in use"""
         bad = []
-        for key in ("2000x1300", "eq 2000x1300"):
+        for key in ("st 2000x1300", "eqs 2000x1300"):      # #174 R1 — their arrangement is the stash in front
             m = _measure()[key]
             self.assertEqual(m["k"], 1.0)
             for c in THEIR_PANELS:
@@ -784,8 +809,32 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                     bad.append("%s slot %s %s, measured %s" % (key, s, list(want), got))
         self.assertEqual(bad, [], "at 2000x1300 the window left their geometry:\n  " + "\n  ".join(bad))
 
+    def test_with_the_doll_in_front_it_is_big_in_the_centre_and_the_stash_takes_its_rect(self):
+        """#174 R1 — his order: the character front and centre, the stash smaller at the side. At 2000 the doll + inventory
+        panel is their 322x364 body on MP_EQ_BIG, centred in the centre panel under its tab band; the side stash takes
+        EQUIPMENT's own rect at the left (their 322x400); every slot is their rect on the big unit. Plain and in use."""
+        import re as _re
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as f:
+            big = float(_re.search(r"var MP_EQ_BIG = ([0-9.]+),", f.read()).group(1))
+        bad = []
+        for key in ("2000x1300", "eq 2000x1300"):
+            m = _measure()[key]
+            self.assertEqual(m["front"], "equip", "%s: the mule did not open with EQUIPMENT in front" % key)
+            ss, eq, cp = m["panels"]["mp-sstash"], m["panels"]["mp-eq"], m["panels"]["mp-cp"]
+            if not ss or not _near(ss, _ours("mp-eq"), TOL_2000):
+                bad.append("%s side stash %s, measured %s" % (key, list(_ours("mp-eq")), ss))
+            want = [cp[0] + (cp[2] - 322 * big) / 2, cp[1] + 36 + 8, 322 * big, 364 * big]
+            if not eq or not _near(eq, want, 1.0):
+                bad.append("%s big doll panel %s, measured %s" % (key, [round(v, 1) for v in want], eq))
+            for s in THEIR_SLOTS:
+                x, y, w, h = THEIR_SLOTS[s]
+                want_s, got = (x * big, (y - THEIR_EQ[0]) * big, w * big, h * big), m["slots"].get(s)
+                if not got or not _near(got, want_s, 0.75):
+                    bad.append("%s slot %s %s, measured %s" % (key, s, [round(v, 1) for v in want_s], got))
+        self.assertEqual(bad, [], "with the doll in front the window is not the big doll + the side stash:\n  " + "\n  ".join(bad))
+
     def test_at_1280_the_fixed_panels_are_their_rects_times_the_unit(self):
-        m = _measure()["1280x800"]
+        m = _measure()["st 1280x800"]
         k = m["k"]
         self.assertLess(k, 1.0)
         bad = []
@@ -796,6 +845,11 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 want[3] = min(want[3], m["vh"] - 30 - 312 * k)
             if not _near(m["panels"][c], want, 1.0):
                 bad.append("%s %s, measured %s" % (c, [round(v, 1) for v in want], [round(v, 1) for v in m["panels"][c]]))
+        # #174 R1 — with the doll in front the side stash is EQUIPMENT's rect times the unit (their 400 kept at 1280)
+        m2 = _measure()["1280x800"]
+        want = [v * k for v in _ours("mp-eq")]
+        if not m2["panels"]["mp-sstash"] or not _near(m2["panels"]["mp-sstash"], want, 1.0):
+            bad.append("side stash %s, measured %s" % ([round(v, 1) for v in want], m2["panels"]["mp-sstash"]))
         self.assertEqual(bad, [], "at 1280 the window is not their geometry times k:\n  " + "\n  ".join(bad))
 
     def test_in_his_console_at_1280_the_part_he_packs_from_fits_the_window(self):
@@ -803,10 +857,12 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         panel ran 64px and PRIMARY SKILLS 37px under the glass. Header, mule bar, doll + inventory and the stash panel
         (its page bar and gold box inside it) now end inside the window, and STATS ends at its bottom."""
         bad = []
-        for key in ("%dx%d" % CONSOLE, "eq %dx%d" % CONSOLE):
+        for key in ("%dx%d" % CONSOLE, "eq %dx%d" % CONSOLE, "st %dx%d" % CONSOLE, "eqs %dx%d" % CONSOLE):
             m = _measure()[key]
             self.assertLess(m["k"], _measure()["1280x800"]["k"], "%s: the height did not set the unit" % key)
-            for c in ("mp-set", "mp-eq", "mp-cp", "mp-prim", "mp-stats"):
+            for c in ("mp-set", "mp-eq", "mp-sstash", "mp-cp", "mp-prim", "mp-stats"):
+                if not m["panels"].get(c):
+                    continue            # the side stash exists only with the doll in front
                 bottom = m["mpTop"] + m["panels"][c][1] + m["panels"][c][3]
                 if bottom > m["vh"] + 0.5:
                     bad.append("%s %s ends %.1fpx under the window's bottom" % (key, c, bottom - m["vh"]))
@@ -818,7 +874,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         builder's in-game box (#cb-tip) naming the hovered item, the board's #arttip stays shut; the worn ring (a short
         box that fits above it) and a stash tile are hovered too, and no box rises over its own panel's header."""
         hover = _measure()["hover"]
-        self.assertEqual(len(hover), 2, "the hover card was measured at %d sizes, not 2" % len(hover))
+        self.assertEqual(len(hover), 4, "the hover card was measured at %d size x arrangement pairs, not 4" % len(hover))
         seen = 0
         for size, byItem in sorted(hover.items()):
             self.assertEqual(sorted(byItem), ["ring", "stash", "weapon"], "%s: hovered %s" % (size, sorted(byItem)))
@@ -831,7 +887,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 self.assertFalse(hv["overBar"], "%s: the box %s covers the mule bar %s" % (key, hv["tip"], hv["bar"]))
                 self.assertGreaterEqual(hv["tip"][1], hv["headBottom"] - 0.5, "%s: the box rose over its panel's header" % key)
                 seen += 1
-        self.assertEqual(seen, 6, "PRINT THE DENOMINATOR: %d of 6 hovers were measured" % seen)
+        self.assertEqual(seen, 12, "PRINT THE DENOMINATOR: %d of 12 hovers were measured" % seen)
 
     def test_a_real_drag_locks_an_item_where_it_is_dropped_and_a_reload_keeps_it(self):
         dr = _measure()["drag"]

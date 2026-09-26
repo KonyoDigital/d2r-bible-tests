@@ -42,36 +42,20 @@ CLEAN_CALLS = frozenset(("rmtree", "cleanup", "addCleanup", "register", "remove_
 #: 24 functions. ⚠ ONLY EVER SHRINKS — fixing one without removing it here fails
 #: test_the_list_only_shrinks, so the ceiling falls with the fix.
 KNOWN_UNPAIRED = {
-    ("conftest.py", "_pin_scar_ledger_away_from_his_tree"): 1,
-    ("console_doctor.py", "_check_an_attack_can_still_reach_the_door_it_scores"): 1,
-    ("disk_report_wilson.py", "_attempt_a_directory_is_not_a_history"): 1,
-    ("disk_report_wilson.py", "_attempt_a_good_row_does_not_inherit_a_refusal"): 1,
-    ("disk_report_wilson.py", "_attempt_a_refused_prune_does_not_blank_the_free_space_delta"): 1,
-    ("disk_report_wilson.py", "_attempt_delta_ignores_a_refused_figure"): 1,
-    ("disk_report_wilson.py", "_attempt_delta_sums_only_what_was_kept"): 1,
-    ("disk_report_wilson.py", "_attempt_two_refusals_keep_their_own_reasons"): 1,
-    ("disk_report_wilson.py", "_row"): 1,
-    ("reel_router_wilson.py", "_attempt_a_clockless_reel_jumps_the_queue"): 1,
-    ("robot_smoke.py", "main"): 1,
+    # REG-1310, 2026-09-26: 22 of the 24 were FIXED at their source (a finally, a registry, an atexit) after they were
+    # measured still minting daily - 1,890 diskrep_ in one day. The two left are a manual one-shot and a pytest-only dir.
     ("sabotage_extract_gap_holding.py", "main"): 1,
-    ("sweep_wilson.py", "_attempt_a_legal_call_is_not_refused"): 1,
-    ("sweep_wilson.py", "_attempt_lanes_is_a_dict"): 1,
-    ("sweep_wilson.py", "_attempt_lanes_is_a_string"): 1,
-    ("sweep_wilson.py", "_attempt_lanes_none"): 1,
-    ("sweep_wilson.py", "_attempt_lanes_raise"): 1,
-    ("sweep_wilson.py", "_attempt_lock_raises_does_not_start"): 1,
-    ("sweep_wilson.py", "_attempt_lock_shut_does_not_start"): 1,
-    ("sweep_wilson.py", "_attempt_symlink_file"): 1,
-    ("sweep_wilson.py", "_attempt_symlink_missing"): 1,
-    ("sweep_wilson.py", "_attempt_the_second_call_is_busy"): 1,
     ("tv_diablo.py", "_test_state_dir"): 1,
-    ("vault_simulate.py", "main"): 1,
 }
 
 #: A teardown this function-scoped scan cannot see, with the reason. Each is re-proven below.
 EXPLAINED = {
     ("render_check.py", "_chrome_up"): "the Chrome profile is removed with the browser — in a "
                                        "finally, AFTER the kill, keyed on _CHROME_PROFILE",
+    ("disk_report_wilson.py", "_scratch"): "REG-1310 - a registry: every throwaway history is appended to _SCRATCH "
+                                           "and prove() empties it in its finally (_clean_scratch)",
+    ("heart2.py", "make_sandbox"): "REG-1309 - a registry: _track_sandbox records the sandbox with its owner pid; "
+                                   "_drop_sandbox removes it, a fatal signal removes all, the next --prove sweeps",
 }
 
 
@@ -166,6 +150,17 @@ class ProductionScratchDirsOnlyGetFewer(unittest.TestCase):
                     and any(isinstance(c, ast.Call) and _call_name(c) == "rmtree" for c in ast.walk(f))]
         self.assertTrue(teardown, "render_check no longer removes _CHROME_PROFILE anywhere — the "
                                   "EXPLAINED reason is false and _chrome_up is a real leak")
+
+        def calls_in(fname, fn):
+            t = ast.parse(io.open(os.path.join(HERE, fname), encoding="utf-8").read())
+            fs = [f for f in ast.walk(t) if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef)) and f.name == fn]
+            return {_call_name(c) for f in fs for c in ast.walk(f) if isinstance(c, ast.Call)}
+        self.assertIn("_clean_scratch", calls_in("disk_report_wilson.py", "prove"),
+                      "disk_report_wilson.prove no longer empties its _SCRATCH registry - _scratch is a real leak")
+        self.assertIn("_track_sandbox", calls_in("heart2.py", "make_sandbox"),
+                      "heart2.make_sandbox no longer registers its sandbox - a signal can no longer find it")
+        self.assertIn("_remove_all_sandboxes", calls_in("heart2.py", "_on_fatal_signal"),
+                      "heart2's signal handler no longer removes the registered sandboxes")
 
     def test_the_scan_reads_code_not_prose(self):
         cases = {

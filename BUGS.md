@@ -7,6 +7,37 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1310 - THE CONSOLE'S OWN SELF-PROOFS MINTED THOUSANDS OF SCRATCH DIRS A DAY ON EVERY MACHINE
+
+**fix - found 2026-09-26 05:20 by sweeping for siblings of REG-1309.** #171 closed the leak in the TEST files; the
+same class was alive in PRODUCTION code, which runs on his Mac, the ALT and Dean's machine on every doctor pass.
+MEASURED in his temp dir, created in the previous day: 1,890 `diskrep_*` (disk_report_wilson's self-proof: one
+throwaway history per attempt, none ever removed; 22,466 in all), 196 `heartlane_*` (the doctor's "an attack can still
+reach the door" row), 77 `sweeplane_/sweeplock_/sweepok_/sweeplink_*` (sweep_wilson's attempts), 48 EMPTY `tvd-gates-*`
+(run_gates minted one at IMPORT, in every process that read GATES, and nothing ever used it), 26 `render_check-profile-*`
+(a killed run's Chrome profile: removed in a finally and at exit, neither of which runs under a signal), 15 `vault-sim-*`,
+5 `rrw_*`, 1 robot-smoke. Each source now removes what it made (a finally, a registry emptied by prove(), an atexit for
+the CLIs), run_gates makes its scratch on first use, and render_check sweeps an hour-old profile no running process
+names before it launches. The doctor's scratch row (v3422) could not see three of them - its prefix list is named
+positively - and now names heartlane_, sweeplink_ and scarledger. Law test_no_harness_leaves_its_scratch: the real
+harnesses run end to end in a child whose TMPDIR is a fresh dir, which must be empty afterwards (premise: each returned
+rows); run_gates' import mints nothing; the profile sweep keeps a live Chrome's; every production mkdtemp is paired or
+named in ALLOWED with its reason - 4 cases, 5 red-proofs. [[i-own-everything-i-start]] [[sweep-dont-ask]]
+
+### REG-1309 - A KILLED PROVER LEFT ITS SANDBOX BEHIND, ELEVEN TIMES
+
+**fix - found 2026-09-26 05:05 while cleaning up after a `heart2 --prove` I had bounded at 50 minutes myself.** The
+temp dir held eleven heart2.* repo copies dated Sep 23 -> Sep 26 (du read 9.5 GB; they are APFS clones, so the disk got
+back ~1 GB when they went). Each was a sandbox of a --prove run that was killed - the pre-push gate's bound, a `perl
+alarm`, a closed terminal - because heart2 removed its sandboxes only in `finally`, and a `finally` never runs when the
+process dies of a signal. heart2 now REGISTERS every sandbox the moment mkdtemp returns and stamps it with its owner's
+pid; SIGTERM / SIGALRM / SIGHUP remove the registered sandboxes before the process exits (with 128+signal, as the
+signal meant); and every --prove first sweeps a heart2.* sandbox whose owner pid is dead, or that has no owner and is a
+day old - never a live owner's, whatever its age (another prover, mid-run). Law test_a_killed_prover_leaves_no_sandbox:
+a real child prover killed by SIGTERM and by its own SIGALRM, the sweep over six shaped dirs, make_sandbox's
+registration and a refused copy, main()'s join - 5 cases, 4 red-proofs, all PROVEN. The eleven were removed by hand
+after checking each held only `repo` (bible.html + tv/) and nothing was running. [[i-own-everything-i-start]]
+
 ### REG-1308 - TWO MULE-WINDOW LAWS ERRORED ON EVERY CI RUN SINCE THEY SHIPPED, AND NOBODY LOOKED
 
 **fix - found 2026-09-26 while refreshing the gate cost table from CI job logs.** "📺 TV DIABLO — agent tests" was RED
@@ -38,6 +69,13 @@ git-remote-https, 1 schtasks.exe, 1 gh.exe (+2 tzutil), 1 pythonw helper. git (g
 already carried CREATE_NO_WINDOW; `gh api rate_limit` (console_doctor) and the sign-in `schtasks` did NOT - on Windows 11
 each opened a Windows Terminal window on every doctor pass ("a window terminal keeps jumping up"). The pythonw helper
 scripts spawn nothing, so no grandchild escapes. [[heart-first]] [[copy-drift]]
+**LIVE on the ALT, v3506 (5a0b747b), 2026-09-26 03:16-03:24 IDT.** The box pulled itself current and its console came
+back at 03:15:10. Kernel process-start events for 5 min: 56 NETSTAT, 50 git, 84 conhost, 2 gh, 1 schtasks - and
+0 WindowsTerminal.exe / OpenConsole.exe. On his own desktop (session 1) a window enumerator polled every 250 ms for
+120 s (476 polls): 0 visible ConsoleWindowClass / CASCADIA_HOSTING_WINDOW_CLASS / PseudoConsoleWindow windows. The
+same enumerator's denominator, 10 s later: 9 visible window classes on every poll (Chrome, the taskbar, a Tk window,
+Qt, WinForms), so it sees his desktop. No deliberate test window was opened on his machine to prove the positive -
+that would be the very interruption this fixes. Dean's machine: UNMEASURED until it pulls.
 
 ### REG-1306 - THE RENDER GATE SAID WHAT A PAGE ERROR WAS BUT NEVER WHERE IT THREW
 

@@ -52,8 +52,18 @@ except Exception:
 
 
 # v1868 — one scratch dir per gate RUN, for anything a gate must not write into his tree.
-_GATE_SCRATCH = tempfile.mkdtemp(prefix="tvd-gates-")
-atexit.register(shutil.rmtree, _GATE_SCRATCH, True)
+# ⚠ 2026-09-26 — IT WAS MADE AT IMPORT, BY EVERY IMPORTER, AND NOTHING USES IT. Every process that imported this module
+# (heart2, the laws that read GATES, the doctor) minted an empty tvd-gates-* dir, removed at exit only when the exit
+# was clean: MEASURED 373 of them in his temp dir, 48 in a day, every one empty. Made on first use now.
+_GATE_SCRATCH = None
+
+
+def gate_scratch():
+    global _GATE_SCRATCH
+    if _GATE_SCRATCH is None:
+        _GATE_SCRATCH = tempfile.mkdtemp(prefix="tvd-gates-")
+        atexit.register(shutil.rmtree, _GATE_SCRATCH, True)
+    return _GATE_SCRATCH
 
 
 class Gate:
@@ -5527,6 +5537,24 @@ GATES = [
              "CREATE_NO_WINDOW, and 82 spawn sites did not. win_quiet replaces subprocess.Popen once per process "
              "(console + agent) so every spawn is windowless. Driven on a fake Windows subprocess module. "
              "4 cases, 4 red-proofs"),
+    Gate("test_no_law_hands_node_its_program_on_argv",
+         [sys.executable, os.path.join(HERE, "test_no_law_hands_node_its_program_on_argv.py")], 60,
+         why="#242 - REG-1308's mule laws were green on his Mac and errored on every CI run: `node -e <program>` "
+             "handed a 134 KB / 422 KB program as ONE argument and Linux caps one at 131,072 bytes. 27 more sites in "
+             "25 law files carried the same trap and moved to stdin; this reads every tv/test_*.py (ast) and refuses "
+             "a node call that passes a non-literal program after -e. 2 cases, 2 red-proofs"),
+    Gate("test_a_killed_prover_leaves_no_sandbox",
+         [sys.executable, os.path.join(HERE, "test_a_killed_prover_leaves_no_sandbox.py")], 60,
+         why="MEASURED 2026-09-26: 11 heart2.* repo copies in the temp dir, one per interrupted --prove (the gate's "
+             "bound, a perl alarm) - a finally never runs under a signal. heart2 now registers each sandbox with its "
+             "owner's pid, removes them on SIGTERM/SIGALRM/SIGHUP, and sweeps a dead owner's (or an ownerless day-old "
+             "one) before every --prove. Driven with real signals on a real child. 5 cases, 4 red-proofs"),
+    Gate("test_no_harness_leaves_its_scratch",
+         [sys.executable, os.path.join(HERE, "test_no_harness_leaves_its_scratch.py")], 300,
+         why="#171's class in PRODUCTION code: MEASURED 2026-09-26, per day, 1,890 diskrep_* (the disk proof, every "
+             "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
+             "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
+             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 5 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

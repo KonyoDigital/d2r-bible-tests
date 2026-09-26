@@ -88,6 +88,9 @@ def _pin_scar_ledger_away_from_his_tree():
     import tempfile
     if not os.environ.get("TV_SCAR_ROOT"):
         os.environ["TV_SCAR_ROOT"] = tempfile.mkdtemp(prefix="scarledger_test_")
+        # 2026-09-26 — the throwaway root outlived every session: 469 scarledger* dirs in his temp dir
+        import atexit, shutil
+        atexit.register(shutil.rmtree, os.environ["TV_SCAR_ROOT"], True)
 
 
 _pin_scar_ledger_away_from_his_tree()

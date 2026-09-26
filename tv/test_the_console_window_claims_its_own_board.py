@@ -126,7 +126,7 @@ console.log(JSON.stringify({ store: store, reloads: reloads, fetched: fetched })
 """ % (json.dumps(store), "true" if pywebview else "false",
        json.dumps({"ok": True, "may": may, "why": "test"}), _claim_script(), "true" if fire else "false",
        "true" if click else "false")
-        r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("the shipped claim script would not run - UNKNOWN, not passing: %s" % r.stderr[:400])
         return json.loads(r.stdout.strip().splitlines()[-1])

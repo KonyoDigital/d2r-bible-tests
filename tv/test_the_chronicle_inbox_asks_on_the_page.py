@@ -97,7 +97,7 @@ class AnAnswerActsOnTheQueueItWasAskedAbout(unittest.TestCase):
         window.__yes();
         console.log(JSON.stringify({asked: asked, promoted: promoted, toasts: toasts}));
         """ % (code, "true" if grow else "false")
-        r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("node could not run the confirm - UNKNOWN, not passing: %s" % r.stderr[:500])
         return json.loads(r.stdout.strip().splitlines()[-1])

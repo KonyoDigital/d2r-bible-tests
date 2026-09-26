@@ -56,6 +56,24 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 
+# ⚠ 2026-09-26 — EVERY ATTEMPT MADE A SCRATCH DIR AND NONE WAS EVER REMOVED. This proof runs on the console's doctor
+# passes; MEASURED that morning: 22,466 `diskrep_*` dirs in his temp dir, 1,890 of them since the day before. Every
+# throwaway history now comes from _scratch(), which remembers it, and prove() removes them all in its finally.
+_SCRATCH = []
+
+
+def _scratch():
+    d = tempfile.mkdtemp(prefix="diskrep_")
+    _SCRATCH.append(d)
+    return d
+
+
+def _clean_scratch():
+    import shutil
+    while _SCRATCH:
+        shutil.rmtree(_SCRATCH.pop(), ignore_errors=True)
+
+
 def _row(**kw):
     """Append one disk-history row to a THROWAWAY path and read it back. -> dict | None
 
@@ -64,7 +82,7 @@ def _row(**kw):
     [[feedback-fixtures-never-touch-live-data]]
     """
     import control_app as ca
-    d = tempfile.mkdtemp(prefix="diskrep_")
+    d = _scratch()
     p = os.path.join(d, "h.jsonl")
     try:
         ca.disk_history_append(path=p, **kw)
@@ -194,7 +212,7 @@ def _attempt_delta_ignores_a_refused_figure(n=2):
     import control_app as ca
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         p = os.path.join(d, "h.jsonl")
         ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
                                reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
@@ -208,7 +226,7 @@ def _attempt_a_good_row_does_not_inherit_a_refusal(n=2):
     import control_app as ca
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         p = os.path.join(d, "h.jsonl")
         ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
                                reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
@@ -320,7 +338,7 @@ def _attempt_delta_sums_only_what_was_kept(n=2):
     import time as _time
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         p = os.path.join(d, "h.jsonl")
         now = int(_time.time() * 1000)
         old = now - 25 * 3600 * 1000
@@ -342,7 +360,7 @@ def _attempt_a_refused_prune_does_not_blank_the_free_space_delta(n=2):
     import control_app as ca
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         p = os.path.join(d, "h.jsonl")
         ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
                                reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
@@ -401,7 +419,7 @@ def _attempt_a_directory_is_not_a_history(n=2):
     import control_app as ca
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         got = ca.disk_history_append(free_gb=40.0, floor_gb=8, pruned_mb=-5, path=d)
         if got is None and not os.path.isfile(d):
             caught += 1
@@ -421,7 +439,7 @@ def _attempt_two_refusals_keep_their_own_reasons(n=2):
     import control_app as ca
     caught = 0
     for _ in range(n):
-        d = tempfile.mkdtemp(prefix="diskrep_")
+        d = _scratch()
         p = os.path.join(d, "h.jsonl")
         ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
                                reels=1, eligible_mb=0.0, pruned_mb=-2, path=p)
@@ -542,6 +560,7 @@ def prove():
         return _prove_pinned()
     finally:
         SA.may = _real_may
+        _clean_scratch()
 
 
 def _prove_pinned():

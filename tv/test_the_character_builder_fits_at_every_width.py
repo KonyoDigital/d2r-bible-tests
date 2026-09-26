@@ -83,7 +83,8 @@ MEASURE = r"""(function(){ try {
   var out = { stack: cb.classList.contains('cb-stack'), hscroll: [box.scrollWidth, box.clientWidth], cols: {}, cut: [], outside: [],
     sideways: [], collide: [], nText: 0, modal: null, covered: null, worn: box.querySelectorAll('.cb-slot.cb-has').length,
     inv: box.querySelectorAll('.cb-it').length, rolls: box.querySelectorAll('.cb-roll').length, opts: box.querySelectorAll('.cb-opt').length,
-    doll: rel(d.getElementById('cb-doll')) };
+    doll: rel(d.getElementById('cb-doll')), invRect: rel(d.getElementById('cb-inv')),
+    invInMain: !!(d.getElementById('cb-inv') && d.getElementById('cb-inv').closest('.cb-main')) };
   out.cols.left = rel(box.querySelector('.cb-left')); out.cols.main = rel(box.querySelector('.cb-main')); out.cols.stats = rel(box.querySelector('.cb-stats'));
   var ht = box.querySelector('.cb-h-t'); out.fsTitle = ht ? parseFloat(getComputedStyle(ht).fontSize) : null;
   out.tokTitle = parseFloat(getComputedStyle(d.documentElement).getPropertyValue('--fs-title'));
@@ -438,9 +439,17 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 got = m["cols"][c]
                 if not got or abs(got[0] - x) > TOL or abs(got[2] - wd) > TOL:
                     bad.append("%s %s: theirs x=%d w=%d, measured %s" % (state, c, x, wd, [round(v, 1) for v in got] if got else None))
-            dl = m["doll"]
-            if not dl or dl[2] < 600:
-                bad.append("%s the doll does not fill the 716 centre: %s" % (state, dl))
+            # #174 R1 — his order: "both inventory and character together because the charms are related". The doll
+            # and its 10x4 inventory SHARE the 716 centre: the doll is still big (their 292 wide x >= 1.35) and the
+            # inventory sits directly under it, as wide as the doll, inside the EQUIPMENT view
+            dl, iv = m["doll"], m.get("invRect")
+            if not dl or dl[2] < 292 * 1.35:
+                bad.append("%s the doll is not big in the centre: %s" % (state, dl))
+            if not m.get("invInMain") or not iv:
+                bad.append("%s the inventory is not in the EQUIPMENT view with the doll: %s" % (state, iv))
+            elif not (iv[1] >= dl[1] + dl[3] and abs((iv[0] + iv[2] / 2) - (dl[0] + dl[2] / 2)) <= 2
+                      and abs(iv[2] - dl[2]) <= 0.08 * dl[2]):
+                bad.append("%s the inventory %s is not under the doll %s at its width" % (state, iv, dl))
             if m["fsTitle"] is None or abs(m["fsTitle"] - m["tokTitle"]) > 0.05:
                 bad.append("%s the header type %s is not the --fs-title token %s at k=1" % (state, m["fsTitle"], m["tokTitle"]))
         self.assertEqual(bad, [], "\n  ".join(bad))

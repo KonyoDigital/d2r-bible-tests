@@ -55,7 +55,7 @@ class TheHostIsReadOnce(unittest.TestCase):
         # a function scope: Node 21+ has a global `navigator` a top-level `var` cannot replace
         js = "(function(window, navigator){\n%s\nconsole.log(JSON.stringify(window.D2R_HOST_OS));\n})({}, %s);" % (
             _host_block(_src()), json.dumps(nav))
-        r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("node could not run the shipped block - UNKNOWN: %s" % r.stderr[:300])
         return json.loads(r.stdout.strip().splitlines()[-1])

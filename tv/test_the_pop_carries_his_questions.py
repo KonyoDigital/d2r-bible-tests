@@ -46,7 +46,7 @@ def _between(src, start, end):
 
 
 def _node(js):
-    r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not evaluate the shipped code - UNKNOWN, not passing: %s"
                              % (r.stderr or "")[:600])

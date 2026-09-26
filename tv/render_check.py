@@ -2751,6 +2751,38 @@ _CHROME_PROC = None          # set ONLY when this process spawned it — see _ch
 _CHROME_PROFILE = None       # the temp profile this process made, removed with the browser
 
 
+def _sweep_dead_profiles(tmp=None, now=None, running=None):
+    """2026-09-26 — A KILLED RUN'S PROFILE OUTLIVES IT. _chrome_down removes the profile in its finally and at exit, and a
+    process killed by a signal (the gate's bound, a perl alarm) runs neither: MEASURED 36 render_check-profile-* dirs in
+    his temp dir, 26 of them from one day. So each launch first removes an OLD profile (an hour or more) that no running
+    process names in its --user-data-dir. A profile a live Chrome holds is never touched. -> [path] removed"""
+    tmp = tmp or tempfile.gettempdir()
+    now = time.time() if now is None else now
+    if running is None:
+        try:
+            running = subprocess.run(["ps", "-axo", "command"], capture_output=True, text=True, timeout=10).stdout
+        except Exception:
+            return []                    # cannot tell who holds what: remove nothing
+    gone = []
+    try:
+        names = os.listdir(tmp)
+    except OSError:
+        return gone
+    for n in names:
+        if not n.startswith("render_check-profile-"):
+            continue
+        p = os.path.join(tmp, n)
+        try:
+            if not os.path.isdir(p) or now - os.path.getmtime(p) < 3600 or p in running or n in running:
+                continue
+        except OSError:
+            continue
+        shutil.rmtree(p, ignore_errors=True)
+        if not os.path.exists(p):
+            gone.append(p)
+    return gone
+
+
 def _chrome_down():
     """Kill the scratch Chrome THIS process started. Never one it merely found.
 
@@ -2850,6 +2882,7 @@ def _chrome_up():
     # A fresh profile per run also removes a whole class of "it passed because of state left by
     # the last run" that this file has no other defence against. [[process-port-discipline]]
     global _CHROME_PROFILE
+    _sweep_dead_profiles()
     _CHROME_PROFILE = tempfile.mkdtemp(prefix="render_check-profile-")
     prof = _CHROME_PROFILE
     global _CHROME_PROC

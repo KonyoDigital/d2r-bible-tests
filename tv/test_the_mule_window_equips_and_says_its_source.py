@@ -751,7 +751,10 @@ class TheWindowAroundThePicker(unittest.TestCase):
     def test_a_worn_copy_leaves_the_stash_on_both_surfaces(self):
         out = _drive("""
           window.openMuleCard('uni-armor');
-          var cnt = function(){ var h = box.innerHTML, i = h.indexOf('<div class="mp-view mp-v-stash"'), j = h.indexOf('<div class="mp-view mp-v-tree"');
+          // #174 R1 — the stash is wherever it sits: the side card with the character in front (the default), the centre
+          // with STASH in front; its grid runs to its page bar either way
+          var cnt = function(){ var h = box.innerHTML, i = h.search(/<div class="(mp-view )?mp-v-stash[ "]/), j = h.indexOf('<div class="vd-pagebar">', i);
+                                if (i < 0 || j < 0) return -1;
                                 return (h.slice(i, j).match(/class="vd-item/g) || []).length; };
           out.before = cnt();
           window._mpPick('rarm'); choose('The Oculus');

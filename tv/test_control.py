@@ -28600,7 +28600,7 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
               " sets:{have:120,total:135}, uniques:{have:278,total:403},"
               " runewords:{have:99,total:99}});"
               "console.log(JSON.stringify(got));")
-        r = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([node, "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, "the worker's tally expression did not run: %s"
                          % (r.stderr or "")[-300:])
         got = json.loads((r.stdout or "null").strip())

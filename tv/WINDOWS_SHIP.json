@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3506",
+  "ver": "v3507",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3506: the Character Builder in the Tools tab clones the maxroll planner over the whole item database with the game font and an in-game tooltip, its stats come from the game data with Hell penalties and caps, mule items move by hand and stay, and no console child opens a window on Windows",
+  "note": "v3507: 174 R1 - a mule opens with the doll and its inventory big in the centre and the stash small at the side, Stash swaps them; every law hands node its program on stdin; the console self-proofs stop leaving scratch dirs",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

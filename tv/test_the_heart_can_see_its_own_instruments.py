@@ -367,7 +367,10 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
 
         for ln in writes:
             ctx = "\n".join(lines[max(0, ln - 8):ln + 1])
-            ok = ("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx)
+            # REG-1309 — the sandbox OWNER stamp is written inside the temp root heart2 itself just made
+            # (_track_sandbox is handed mkdtemp's path), never into his tree; test_a_killed_prover_leaves_no_sandbox
+            # drives it and checks the stamp lands in that root
+            ok = ("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))

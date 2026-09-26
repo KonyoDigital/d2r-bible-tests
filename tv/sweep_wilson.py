@@ -17,6 +17,7 @@ THE THREE STATES STAY THREE, exactly as hover_wilson keeps them: LEAKS (a wrong 
 refused) is the only failure. UNPROVEN is a measurement nobody has taken. [[unknown-stays-unknown]]
 """
 import os
+import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -254,9 +255,12 @@ def _attempt_symlink_missing(ca, n=2):
     seen = []
     for _ in range(n):
         d = tempfile.mkdtemp(prefix="sweeplink_")
-        link = os.path.join(d, "gone")
-        os.symlink("/nope/not/here", link)
-        seen.append(_refused_quiet(ca, hist_dir=link, limit=1))
+        try:
+            link = os.path.join(d, "gone")
+            os.symlink("/nope/not/here", link)
+            seen.append(_refused_quiet(ca, hist_dir=link, limit=1))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — 432 sweeplink_* were left in his temp dir
     return _tally(seen)
 
 
@@ -265,13 +269,16 @@ def _attempt_symlink_file(ca, n=2):
     seen = []
     for _ in range(n):
         d = tempfile.mkdtemp(prefix="sweeplink_")
-        target = os.path.join(d, "f")
-        io_path = open(target, "w")
-        io_path.write("x")
-        io_path.close()
-        link = os.path.join(d, "link")
-        os.symlink(target, link)
-        seen.append(_refused_quiet(ca, hist_dir=link, limit=1))
+        try:
+            target = os.path.join(d, "f")
+            io_path = open(target, "w")
+            io_path.write("x")
+            io_path.close()
+            link = os.path.join(d, "link")
+            os.symlink(target, link)
+            seen.append(_refused_quiet(ca, hist_dir=link, limit=1))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
     return _tally(seen)
 
 
@@ -319,6 +326,7 @@ def _attempt_lanes_none(ca, n=2):
         return _tally(_refused_quiet(ca, hist_dir=d, limit=1) for _ in range(n))
     finally:
         ca._chron_lanes = real
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_lanes_raise(ca, n=2):
@@ -332,6 +340,7 @@ def _attempt_lanes_raise(ca, n=2):
         return _tally(_refused_quiet(ca, hist_dir=d, limit=1) for _ in range(n))
     finally:
         ca._chron_lanes = real
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_lock_shut_does_not_start(ca, n=2):
@@ -350,6 +359,7 @@ def _attempt_lock_shut_does_not_start(ca, n=2):
         return n, caught
     finally:
         SA.may, ca._chron_lanes = real_may, real_lanes
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_lock_raises_does_not_start(ca, n=2):
@@ -371,6 +381,7 @@ def _attempt_lock_raises_does_not_start(ca, n=2):
         return n, caught
     finally:
         SA.may, ca._chron_lanes = real_may, real_lanes
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_a_legal_call_is_not_refused(ca, n=1):
@@ -388,6 +399,7 @@ def _attempt_a_legal_call_is_not_refused(ca, n=1):
         r, spawned = _guarded(ca, hist_dir=d, limit=None)
     finally:
         ca._chron_lanes, SA.may = real, real_may
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
     good = isinstance(r, dict) and r.get("ok") is True and r.get("started") is True and spawned == 1
     return 1, (1 if good else 0)
 
@@ -416,6 +428,7 @@ def _attempt_the_second_call_is_busy(ca, n=1):
         SA.may = real_may
         ca._CHRON_JOB.clear()
         ca._CHRON_JOB.update(orig)
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def _attempt_lanes_is_a_string(ca, n=2):
@@ -427,6 +440,7 @@ def _attempt_lanes_is_a_string(ca, n=2):
         return _tally(_refused_quiet(ca, hist_dir=d, limit=1) for _ in range(n))
     finally:
         ca._chron_lanes = real
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_lanes_is_a_dict(ca, n=2):
@@ -438,6 +452,7 @@ def _attempt_lanes_is_a_dict(ca, n=2):
         return _tally(_refused_quiet(ca, hist_dir=d, limit=1) for _ in range(n))
     finally:
         ca._chron_lanes = real
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — sweeplane/lock/ok dirs were left behind
 
 
 def _attempt_relative_missing(ca, n=2):

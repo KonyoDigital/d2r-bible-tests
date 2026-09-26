@@ -53,7 +53,7 @@ class SwitchingViewsClosesTheTheatre(unittest.TestCase):
         js = ("var closed = 0; var window = {TH: {open: %s}, thClose: function(){ closed++; }};\n"
               "var b = {dataset: {tab: %s}}; var _shellTab = %s;\n%s\nconsole.log(JSON.stringify(closed));"
               % (json.dumps(open_), json.dumps(tab), json.dumps(current), _guard(_ui())))
-        r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("the shipped guard would not run - UNKNOWN, not passing: %s" % r.stderr[:300])
         return json.loads(r.stdout.strip().splitlines()[-1])

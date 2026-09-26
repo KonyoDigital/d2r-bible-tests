@@ -219,6 +219,8 @@ def main(argv=None):
         import tempfile
         import vault_fixture_reels as _vf
         _tmp = tempfile.mkdtemp(prefix="vault-sim-")
+        import atexit, shutil
+        atexit.register(shutil.rmtree, _tmp, True)  # 2026-09-26 — 39 vault-sim-* were left, 15 in a day
         _hist, _why = _vf.materialise(_tmp)
         if not _hist:
             print("⚪ UNKNOWN — could not build the synthetic reels: %s" % _why)

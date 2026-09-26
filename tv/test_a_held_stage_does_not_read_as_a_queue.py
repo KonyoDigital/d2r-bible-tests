@@ -77,7 +77,7 @@ def _run(reels, stages):
     %s
     console.log(JSON.stringify({rail: rail, heldAll: _shHeldAll, railh: railh}));
     """ % (json.dumps(reels), json.dumps(stages), _rail_source())
-    r = subprocess.run([shutil.which("node"), "-e", js],
+    r = subprocess.run([shutil.which("node"), "-"], input=js,
                        capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not evaluate the rail builder — UNKNOWN, not passing: %s"

@@ -30,6 +30,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def main():
     tmp = tempfile.mkdtemp(prefix="tvd-robot-smoke-")
+    import atexit, shutil
+    atexit.register(shutil.rmtree, tmp, True)      # 2026-09-26 — each smoke run left its dir behind
     journal = os.path.join(tmp, "sessions.jsonl")
     hist = os.path.join(tmp, "hist")
     os.makedirs(hist)

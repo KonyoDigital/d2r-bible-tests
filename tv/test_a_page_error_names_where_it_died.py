@@ -108,7 +108,7 @@ class APageErrorNamesWhereItDied(unittest.TestCase):
         js = ("var L={}; var window={addEventListener:function(t,f){L[t]=f;}};\n" + ns["_ERR_HOOK"] + "\n"
               "L.error({message:'TypeError: boom', error:{message:'boom', stack:'TypeError: boom\\n    at paint (http://h/board:39808:4)'}});\n"
               "console.log(JSON.stringify(window.__rcErrors));")
-        r = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([node, "-"], input=js, capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr[:400])
         pushed = json.loads(r.stdout.strip().splitlines()[-1])
         self.assertEqual(len(pushed), 1)

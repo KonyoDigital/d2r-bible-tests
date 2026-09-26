@@ -113,7 +113,7 @@ for (const c of CASES) {
 }
 console.log(JSON.stringify(out));
 """ % (json.dumps(frag), json.dumps([[c[0], c[1], c[2], c[3], c[4], c[5]] for c in CASES]))
-    r = subprocess.run([_node(), "-e", js], capture_output=True, text=True)
+    r = subprocess.run([_node(), "-"], input=js, capture_output=True, text=True)
     if r.returncode != 0:
         raise AssertionError("node refused the fragment: %s" % (r.stderr or "")[:400])
     return json.loads(r.stdout.strip().splitlines()[-1])

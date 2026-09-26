@@ -343,7 +343,7 @@ class UnseedIsReversible(unittest.TestCase):
         node = _node()
         frag = _script_fragment()
         harness = _ROUND_TRIP_JS % json.dumps(frag)
-        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        r = subprocess.run([node, "-"], input=harness, capture_output=True, text=True)
         if r.returncode != 0:
             raise AssertionError("the round-trip harness would not run: %s" % (r.stderr or "")[:300])
         out = (r.stdout or "").strip()
@@ -362,7 +362,7 @@ class UnseedIsReversible(unittest.TestCase):
         """
         node = _node()
         harness = _TWICE_JS % json.dumps(_script_fragment())
-        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        r = subprocess.run([node, "-"], input=harness, capture_output=True, text=True)
         if r.returncode != 0:
             raise AssertionError("the twice-round-trip harness would not run: %s" % (r.stderr or "")[:300])
         out = (r.stdout or "").strip()
@@ -387,7 +387,7 @@ class UnseedIsReversible(unittest.TestCase):
         """
         node = _node()
         harness = _CLAIM_AWARE_JS % json.dumps(_script_fragment())
-        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        r = subprocess.run([node, "-"], input=harness, capture_output=True, text=True)
         if r.returncode != 0:
             raise AssertionError("the claim-aware harness would not run: %s" % (r.stderr or "")[:300])
         out = (r.stdout or "").strip()

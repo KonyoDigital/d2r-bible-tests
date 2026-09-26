@@ -195,7 +195,7 @@ def _render(res, now_ms=None):
     %s
     console.log(JSON.stringify(_chronWarnStrip(%s)));
     """ % (("Date.now = function(){ return %d; };" % now_ms) if now_ms else "", _strip_source(), json.dumps(res))
-    r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not evaluate the strip - UNKNOWN, not passing: %s" % r.stderr[:600])
     return json.loads(r.stdout.strip())

@@ -92,7 +92,7 @@ function fetch(url, opts){ QUITS.push(url); return { catch: function(){} }; }
 
 def _run(script):
     js = DOM + "\n" + _handlers() + "\n" + script
-    r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not run the shipped handlers - UNKNOWN, not passing: %s" % r.stderr[:600])
     return json.loads(r.stdout.strip().splitlines()[-1])

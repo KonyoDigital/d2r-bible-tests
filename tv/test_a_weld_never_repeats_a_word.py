@@ -142,7 +142,7 @@ class AWeldNeverRepeatsAWord(unittest.TestCase):
         }
         console.log(bad.length ? "BAD " + bad.join(" | ") : "OK 14");
         """ % body
-        r = subprocess.run([shutil.which("node"), "-e", js],
+        r = subprocess.run([shutil.which("node"), "-"], input=js,
                            capture_output=True, text=True, timeout=60)
         out = (r.stdout or "").strip()
         self.assertEqual(r.returncode, 0,

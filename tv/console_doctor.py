@@ -6863,6 +6863,9 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
                       % type(e).__name__)
     finally:
         _ca._chron_lanes = _real
+        # 2026-09-26 — the throwaway history dir was never removed: 853 heartlane_* in his temp dir, 196 in a day
+        import shutil as _sh
+        _sh.rmtree(d, ignore_errors=True)
     if verdict is None:
         return UNKNOWN, ("the sweep harness cannot currently REACH the door it scores — "
                          "vault.sweep_start answers first, so its four lane claims are UNPROVEN, "
@@ -7448,7 +7451,9 @@ def _check_nothing_we_made_is_still_on_his_disk_days_later():
     # ⚠ MEASURED PREFIXES, not guessed ones — these are what the 2026-09-23 scan actually found.
     MINE = ("tmp", "second_eye_", "veto-", "shape-", "tvd-", "board_sweep_gate.", "counterledger-",
             "statepath", "isorule-", "isolaw-", "atomicwrite-", "framelabel.", "g5_", "frameref",
-            "diskrep_", "triage_", "heart2.", "TemporaryDirectory.")
+            "diskrep_", "triage_", "heart2.", "TemporaryDirectory.",
+            # 2026-09-26 — three more of ours were still minting daily and this row could not see them
+            "heartlane_", "sweeplink_", "scarledger")
     now, total, old, oldest, capped = time.time(), 0, 0, 0.0, False
     try:
         with os.scandir(root) as it:

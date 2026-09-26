@@ -52,7 +52,7 @@ def _ask(versions):
           "%s.forEach(function(v){out[v]=window._eraName(v);});" % json.dumps(versions) +
           "console.log(JSON.stringify(out));")
     try:
-        r = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=60)
     except Exception:
         return None
     if r.returncode != 0:

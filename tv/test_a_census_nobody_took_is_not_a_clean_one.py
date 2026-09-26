@@ -71,7 +71,7 @@ def _paint(censuses):
         "INPUT.forEach(function(d){ _heartChipPaint(d); });\n"
         "console.log(JSON.stringify({ text: NM.textContent, attrs: EL.attrs, title: EL.title }));\n"
     )
-    p = subprocess.run([_node(), "-e", prog], capture_output=True, text=True, timeout=60)
+    p = subprocess.run([_node(), "-"], input=prog, capture_output=True, text=True, timeout=60)
     if p.returncode != 0:
         raise AssertionError("node could not run the shipped painter: %s" % (p.stderr or "")[:300])
     return json.loads(p.stdout.strip().split("\n")[-1])

@@ -68,7 +68,7 @@ def _run(cases):
     }
     console.log(JSON.stringify(out));
     """ % (json.dumps(cases), _denom_source())
-    r = subprocess.run([shutil.which("node"), "-e", js],
+    r = subprocess.run([shutil.which("node"), "-"], input=js,
                        capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not evaluate _iDenom — UNKNOWN, not passing: %s"

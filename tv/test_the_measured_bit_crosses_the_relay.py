@@ -44,7 +44,7 @@ def _shaper():
 
 def _shape(tally):
     js = "var shape = %s;\nconsole.log(JSON.stringify(shape(%s)));" % (_shaper(), json.dumps(tally))
-    r = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not run the relay's shaper - UNKNOWN, not passing: %s" % r.stderr[:500])
     return json.loads(r.stdout.strip().splitlines()[-1])

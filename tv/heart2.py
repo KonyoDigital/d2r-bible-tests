@@ -670,6 +670,113 @@ def proof_needs_in(filename):
     return []
 
 
+# ⚠⚠ 2026-09-26 — A KILLED PROVER LEFT ITS SANDBOX BEHIND, ELEVEN TIMES. Every sandbox is removed in a `finally`,
+# and a `finally` never runs when the process is killed by a signal: the pre-push gate's bound, a `perl alarm`, a
+# closed terminal. MEASURED that morning: 11 heart2.* repo copies in the temp dir, Sep 23 -> Sep 26, one per
+# interrupted run, the newest from a proof I bounded at 50 minutes myself. So every sandbox is REGISTERED the moment it
+# exists and carries its owner's pid; SIGTERM / SIGALRM / SIGHUP remove the registered ones before the process dies; and
+# every run first sweeps a heart2.* sandbox whose owner is dead (or, written before the owner file existed, a day old).
+# A sandbox whose owner is ALIVE is never touched - it is another prover, mid-run. [[i-own-everything-i-start]]
+_SANDBOXES = set()
+_SANDBOX_OWNER = ".heart2-owner"
+SANDBOX_STALE_S = 24 * 3600
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True                          # it exists, it is simply not ours to signal
+    except (OSError, ValueError, TypeError):
+        return False
+    return True
+
+
+def _track_sandbox(root):
+    """Register a sandbox the moment it exists, and stamp it with this process as its owner."""
+    _SANDBOXES.add(root)
+    try:
+        with open(os.path.join(root, _SANDBOX_OWNER), "w") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
+    return root
+
+
+def _drop_sandbox(root):
+    _SANDBOXES.discard(root)
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def _remove_all_sandboxes():
+    for root in list(_SANDBOXES):
+        _drop_sandbox(root)
+
+
+def _on_fatal_signal(signum, frame):
+    """A signal that would kill the prover removes its sandboxes first, then exits the way the signal meant to."""
+    _remove_all_sandboxes()
+    os._exit(128 + int(signum))
+
+
+def install_sandbox_cleanup():
+    """-> the signals now covered. Only the main thread may install a handler; anywhere else this is a no-op."""
+    import signal
+    done = []
+    for name in ("SIGTERM", "SIGALRM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, _on_fatal_signal)
+            done.append(name)
+        except (ValueError, OSError):
+            pass
+    return done
+
+
+def sweep_stale_sandboxes(tmp=None, now=None):
+    """Remove every heart2.* sandbox whose owner is dead, or that has no owner and is older than a day.
+    -> [(path, why)] removed. A live owner's sandbox is kept, whatever its age."""
+    tmp = tmp or tempfile.gettempdir()
+    now = time.time() if now is None else now
+    gone = []
+    try:
+        names = os.listdir(tmp)
+    except OSError:
+        return gone
+    for n in sorted(names):
+        if not n.startswith("heart2."):
+            continue
+        root = os.path.join(tmp, n)
+        if not os.path.isdir(root) or root in _SANDBOXES:
+            continue
+        owner = None
+        try:
+            with open(os.path.join(root, _SANDBOX_OWNER)) as f:
+                owner = f.read().strip()
+        except OSError:
+            pass
+        if owner:
+            if _pid_alive(owner):
+                continue
+            why = "its owner (pid %s) is dead" % owner
+        else:
+            try:
+                age = now - os.path.getmtime(root)
+            except OSError:
+                continue
+            if age < SANDBOX_STALE_S:
+                continue
+            why = "no owner on record and %.0f h old" % (age / 3600.0)
+        shutil.rmtree(root, ignore_errors=True)
+        if not os.path.exists(root):
+            gone.append((root, why))
+    return gone
+
+
 def make_sandbox(say=print):
     """A throwaway copy of the repo via safe_copy.py. -> (tv_path, root) | (None, None)
 
@@ -688,24 +795,24 @@ def make_sandbox(say=print):
     sandbox came out as UNPROVABLE and never as BLIND or PROVEN. A missing file could not be
     mistaken for a passing gate. That ordering is the whole reason the verdicts are trustworthy.
     """
-    root = tempfile.mkdtemp(prefix="heart2.")
+    root = _track_sandbox(tempfile.mkdtemp(prefix="heart2."))
     dest = os.path.join(root, "repo")          # must NOT exist — safe_copy refuses if it does
     try:
         import safe_copy
     except Exception as e:
         say("  safe_copy will not import (%s) — refusing to tamper anywhere else" % e)
-        shutil.rmtree(root, ignore_errors=True)
+        _drop_sandbox(root)
         return None, None
     try:
         rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: None)
     except Exception as e:
         say("  the sandbox could not be built: %s" % type(e).__name__)
-        shutil.rmtree(root, ignore_errors=True)
+        _drop_sandbox(root)
         return None, None
     if rc not in (0, None):
         say("  safe_copy REFUSED the sandbox (exit %s) — nothing was copied, so nothing can be "
             "proven. That is UNKNOWN, not clean." % rc)
-        shutil.rmtree(root, ignore_errors=True)
+        _drop_sandbox(root)
         return None, None
     # ⚠⚠ v2821 — SAFE_COPY COPIES `tv/` ONLY, AND 59 OF 259 GATES READ `bible.html`.
     # That file lives in the repo ROOT, so every law about the bible came back UNPROVABLE with
@@ -773,7 +880,7 @@ def make_sandbox(say=print):
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")
-        shutil.rmtree(root, ignore_errors=True)
+        _drop_sandbox(root)
         return None, None
     return tv, root
 
@@ -1125,7 +1232,7 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
     finally:
         say.flush()
         if root:
-            shutil.rmtree(root, ignore_errors=True)
+            _drop_sandbox(root)
 
 
 def _prove_gates(have, say=print, workers=None):
@@ -1875,6 +1982,11 @@ def main(argv):
     ap.add_argument("--triage", action="store_true",
                     help="split the no-red-proof gates into WRITABLE vs NOT PROVABLE HERE")
     a = ap.parse_args(argv)
+    if a.prove is not None:
+        # a killed prover removes its sandboxes; and the ones an EARLIER killed run left are swept first
+        install_sandbox_cleanup()
+        for _p, _why in sweep_stale_sandboxes():
+            print("  swept a sandbox an interrupted run left behind (%s): %s" % (_why, os.path.basename(_p)))
     if a.triage:
         triage()
         return 0

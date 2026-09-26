@@ -73,7 +73,7 @@ def _js_labels(roster):
     src = m.group(0)
     prog = ("%s\nconst rows = %s;\nconsole.log(JSON.stringify(rows.map(function(r){"
             "return _fleetName(r, rows);})));\n" % (src, json.dumps(roster)))
-    p = subprocess.run([_node(), "-e", prog], capture_output=True, text=True, timeout=60)
+    p = subprocess.run([_node(), "-"], input=prog, capture_output=True, text=True, timeout=60)
     if p.returncode != 0:
         raise AssertionError("node could not run the shipped rule: %s" % (p.stderr or "")[:200])
     return json.loads(p.stdout.strip())

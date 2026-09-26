@@ -105,11 +105,15 @@ def _attempt_a_clockless_reel_jumps_the_queue(n=8):
     import reel_router as RR
     caught = 0
     d = tempfile.mkdtemp(prefix="rrw_")
-    os.makedirs(os.path.join(d, "reel_nameless"), exist_ok=True)
-    for _ in range(n):
-        ms, src = RR._captured_ms("reel_nameless", d)
-        if ms is None and src is None:
-            caught += 1
+    try:
+        os.makedirs(os.path.join(d, "reel_nameless"), exist_ok=True)
+        for _ in range(n):
+            ms, src = RR._captured_ms("reel_nameless", d)
+            if ms is None and src is None:
+                caught += 1
+    finally:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)   # 2026-09-26 — rrw_* dirs were left behind
     return n, caught
 
 
