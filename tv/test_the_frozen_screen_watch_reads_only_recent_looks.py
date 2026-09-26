@@ -74,6 +74,43 @@ class TheWatchReadsOnlyRecentLooks(unittest.TestCase):
         age = F.newest_capture_age_s(self.root, now=os.path.getmtime(self.newest) + 60)
         self.assertAlmostEqual(age, 60, delta=1)
 
+    def test_a_capture_whose_bytes_are_in_icloud_is_never_read(self):
+        """2026-09-26 - his Desktop syncs to iCloud and macOS evicts it: 12,488 of 12,689 PNGs under the Desktop evidence
+        root were `dataless`, and a read of one is a download that blocks - test_health_engine hung past 200 s on a quiet
+        machine (8.4 s on CI). DRIVEN through the real stat flag: one real fixture PNG is made to carry SF_DATALESS; the
+        watch must never OPEN it, must count it, and must say so in its verdict"""
+        evicted = os.path.abspath(os.path.join(self.root, "visual-pass-19", "shelf", "f1.png"))
+        real_stat, real_open, opened = F.os.stat, F.io.open, []
+
+        class _Evicted(object):
+            def __init__(self, st):
+                self._st = st
+
+            def __getattr__(self, k):
+                return getattr(self._st, k)
+
+            @property
+            def st_flags(self):
+                return getattr(self._st, "st_flags", 0) | F.SF_DATALESS
+
+        def _stat(path, *a, **k):
+            st = real_stat(path, *a, **k)
+            return _Evicted(st) if os.path.abspath(str(path)) == evicted else st
+
+        def _open(path, *a, **k):
+            opened.append(os.path.abspath(str(path)))
+            return real_open(path, *a, **k)
+        F.os.stat, F.io.open = _stat, _open
+        try:
+            r = F.report(self.root)
+        finally:
+            F.os.stat, F.io.open = real_stat, real_open
+        self.assertGreater(len(opened), 0, "PREMISE: the watch read no capture at all, so its silence proves nothing")
+        self.assertNotIn(evicted, opened, "the watch READ a capture whose bytes are in iCloud - on his Mac that read is a "
+                                          "download, and it blocked the doctor's check past 200 s")
+        self.assertEqual(r["counts"].get("dataless"), 1, "the skipped placeholder is not counted: %s" % r["counts"])
+        self.assertIn("iCloud placeholder", r["why"], "the verdict does not say a capture was left unread: %s" % r["why"])
+
     def test_premise_without_the_bound_every_frame_is_read(self):
         self.assertEqual(len(list(F._recent_pngs(self.root, top_max=10 ** 6))), 60)
 
@@ -83,6 +120,27 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-26 - the watch reads an iCloud placeholder again: each read is a download and the doctor's check hangs (200 s+)",
+        "file": "frozen_frame_watch.py",
+        "find": "        if _dataless(p):\n            if skipped is not None:\n                skipped.append(p)\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-26 - the dataless test answers False for every file, so every placeholder is read",
+        "file": "frozen_frame_watch.py",
+        "find": "        return bool(getattr(os.stat(path), \"st_flags\", 0) & SF_DATALESS)\n",
+        "replace": "        return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-26 - the skipped placeholders are left out of the counts, so a verdict built on 1 of 100 frames looks whole",
+        "file": "frozen_frame_watch.py",
+        "find": "              \"dataless\": len(_elsewhere)}",
+        "replace": "              \"dataless\": 0}",
+        "matches": 1,
+    },
     {
         "why": "the frozen-screen watch walks the whole 3.2 GB shelf on every doctor pass again (337 s; test_control 'HUNG' at 1500 s)",
         "file": "frozen_frame_watch.py",

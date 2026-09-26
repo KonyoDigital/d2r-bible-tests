@@ -1720,7 +1720,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3510** | `(this commit)` | v3510 — REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine |
+| **v3511** | `(this commit)` | v3511 — REG-1316: 12,488 of 12,689 evidence PNGs were iCloud placeholders and every read was a download; test_health_engine 200s+ -> 12s |
+| **v3510** | `47b42512` | v3510 — REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine |
 | **v3509** | `55e106a7` | v3509 — REG-1313: their Select -> Quality -> Edit, REGULAR MODS with typed-EXACT / blank-RANGE rolls, ADD MOD grouped PREFIXES / SUFFIXES / AUTOMOD with ranges over 1,229 affixes; 11 review findings fixed before ship; rides with v3508 R2 (row added by hand in v3510: the v3509 bump wrote none) |
 | **v3508** | `bcff03dd` | v3508 — 174 R2 - the Character Builder STATS ends inside the window and scrolls its own rows. HEART: a CSS layout rule with no runtime state - its watcher is the builder fit law, which measures the STATS bottom on the glass at every column width and goes red without it |
 | **v3507** | `4fc947e1` | v3507 — #174 R1 - the character is in front; #242 laws hand node their program on stdin; REG-1309/1310 scratch leaks (row added by hand in v3510: the v3507 bump wrote none - its version was already named in the #174 row) |

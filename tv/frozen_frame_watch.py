@@ -182,6 +182,26 @@ def shelf_dir():
     return _ROOT_MEMO[0]
 
 
+#: macOS `SF_DATALESS` (sys/stat.h): the file's bytes are NOT on this disk - an iCloud Drive placeholder.
+SF_DATALESS = 0x40000000
+
+
+def _dataless(path):
+    """-> True when this file's bytes live in iCloud, not on this disk.
+
+    ⚠⚠ 2026-09-26 — A READ OF A PLACEHOLDER IS A DOWNLOAD, AND IT BLOCKS. His Desktop syncs to iCloud, and with ~10 GB
+    free macOS evicts it: MEASURED 12,488 of the 12,689 PNGs under the Desktop evidence root were `dataless`. This module
+    picks the root with the FRESHEST capture - that one - and read each PNG's header and hash, so every read waited on
+    iCloud: test_health_engine hung past 60 s in the full gate set and past 200 s alone on a quiet machine (8.4 s on CI,
+    which has no such folder), blocked in read() on `.../04b-tvd-scroll.png`. The same read runs on his console's doctor
+    pass. `stat` does not download; only a read does - so ask stat, and never read a file whose bytes are elsewhere.
+    [[a-watcher-over-a-growing-folder]] [[unknown-stays-unknown]]"""
+    try:
+        return bool(getattr(os.stat(path), "st_flags", 0) & SF_DATALESS)
+    except (IOError, OSError):
+        return False
+
+
 def png_geometry(path):
     """-> (width, height) from the IHDR chunk, or None if this is not a readable PNG.
 
@@ -212,13 +232,18 @@ def _sha(path):
         return None
 
 
-def frames(root=None):
-    """-> [{path, mtime, geom}] every readable PNG under the shelf, newest first."""
+def frames(root=None, skipped=None):
+    """-> [{path, mtime, geom}] every readable PNG under the shelf, newest first. A PNG whose bytes are in iCloud is never
+    read (the read would download it and block) - it goes into `skipped`, when the caller passes a list, so it is counted."""
     root = root or shelf_dir()
     out = []
     if not os.path.isdir(root):
         return out
     for p in _recent_pngs(root):
+        if _dataless(p):
+            if skipped is not None:
+                skipped.append(p)
+            continue
         g = png_geometry(p)
         if g is None:
             continue
@@ -238,7 +263,8 @@ def report(root=None, now=None):
     """
     root = root or shelf_dir()
     now = time.time() if now is None else now
-    fs = frames(root)
+    _elsewhere = []
+    fs = frames(root, skipped=_elsewhere)
     groups = {}
     for r in fs:
         groups.setdefault(r["geom"], []).append(r)
@@ -308,7 +334,9 @@ def report(root=None, now=None):
               "frozen": len([s for s in standing if s["state"] == FROZEN]),
               # said out loud: how much of the folder this verdict is NOT about
               "cropGeometries": len(crops),
-              "cropFrames": sum(c["frames"] for c in crops)}
+              "cropFrames": sum(c["frames"] for c in crops),
+              # said out loud: captures whose bytes are in iCloud, NOT read (a read is a download that blocks)
+              "dataless": len(_elsewhere)}
 
     # computed for every verdict, not only the stale one: a reader must be able to see the age
     # beside a MOVING or FROZEN answer and judge it, without rerunning anything.
@@ -347,6 +375,9 @@ def report(root=None, now=None):
     if crops:
         why += (" — %d frame(s) across %d sub-window geometry(ies) were excluded as crops, not "
                 "windows" % (counts["cropFrames"], counts["cropGeometries"]))
+    if _elsewhere:
+        why += (" — %d capture(s) are iCloud placeholders whose bytes are not on this disk; they were NOT read (a "
+                "read downloads each one and stalls this check), so they are not in this verdict" % len(_elsewhere))
     return {"state": state, "why": why, "series": series, "crops": crops,
             "counts": counts, "root": root,
             # ⚠ None = nothing to age (empty folder), never 0. A reader that sees 0 would read

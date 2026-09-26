@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1316 - THE FROZEN-SCREEN WATCH HUNG ON HIS iCLOUD DESKTOP: A READ OF A PLACEHOLDER IS A DOWNLOAD
+
+**fix - found 2026-09-26 11:00 by the full gate set run before the v3509-v3510 push: test_health_engine "timed out after
+60s" (8.4 s on CI).** Re-run ALONE on a quiet machine it was killed at 200 s, at 0% CPU, its main thread in read() on
+`~/Desktop/CLAUDE HERE/tv-diablo-eyes/verify-evidence/.../04b-tvd-scroll.png` - a file flagged `compressed,dataless`.
+His Desktop syncs to iCloud and, with ~10 GB free, macOS evicts it: MEASURED 12,488 of 12,689 PNGs under that root were
+placeholders. frozen_frame_watch chooses the capture root with the FRESHEST capture (#115) - GrokBot's evidence packs
+land there - and read every PNG's header and hash, so each read waited on an iCloud download. The same read runs on his
+console's doctor pass. `stat` does not download, only a read does: the watch now asks the SF_DATALESS flag first, never
+reads a placeholder, counts them (`counts.dataless`) and says so in its verdict. MEASURED after: report() in 0.1 s on
+the real folder (MOVING from the 201 PNGs on disk, 132 placeholders named and left alone); test_health_engine 38/38 in
+12 s. Law test_the_frozen_screen_watch_reads_only_recent_looks: a real fixture PNG made to carry the flag through the
+real stat call is never OPENED, is counted, and is named in the verdict; 3 red-proofs, each seen RED.
+Not this push's: verdict_provenance's red in the same local run is the LOCAL scope only (untracked stores on his machine
+against a 09-10 baseline; `known_departures.json` of REG-1287 arrives PARTIAL) - CI graded it green on v3507. Backlog.
+[[a-watcher-over-a-growing-folder]] [[unknown-stays-unknown]] [[ab-against-head-before-blaming-the-room]]
+
 ### REG-1315 - TWO OF THE LAST THREE SHIPS HAD NO ROW IN THE SHIP TABLE, AND THE LAW THAT WATCHES IT WAS GREEN
 
 **fix - found 2026-09-26 10:40 while bumping v3510: the bump bound v3508 and added v3510, and v3509 had no row.** The

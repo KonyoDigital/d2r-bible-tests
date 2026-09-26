@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3510",
+  "ver": "v3511",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3510: REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine",
+  "note": "v3511: REG-1316: 12,488 of 12,689 evidence PNGs were iCloud placeholders and every read was a download; test_health_engine 200s+ -> 12s",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
