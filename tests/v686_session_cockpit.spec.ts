@@ -19,7 +19,8 @@ test('workshop nav: ⚡ session added first, existing tabs untouched', async ({ 
   // v2094 — ⚗️ Crafts split out of the Forge and sits beside it; v2084 — 🎒 Vault got its own main
   // tab "inbetween tools and TV-D", placed after the forge cluster so those rooms stay adjacent.
   // The six originals keep their relative order, which is the law this test was written for.
-  expect(r.ws).toEqual(['session', 'tools', 'forge', 'crafts', 'funi', 'fsets', 'vault', 'tvd']);   // v710.4 — +📺 TV·D · v2084 +🎒 · v2094 +⚗️
+  // #245 — 👤 Characters (his own builds, the manual side) sits right before the Vault (the automated one).
+  expect(r.ws).toEqual(['session', 'tools', 'forge', 'crafts', 'funi', 'fsets', 'chars', 'vault', 'tvd']);   // v710.4 — +📺 TV·D · v2084 +🎒 · v2094 +⚗️ · #245 +👤
   expect(r.dataCount).toBe(11);   // the data group is untouched (v641 nav is settled)
 });
 

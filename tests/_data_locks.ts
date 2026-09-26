@@ -52,7 +52,10 @@ export const ENDGAME_RELICS_TOTAL = 15;
 // Playwright suite only runs on CI. A pin is a CLAIM about the product; moving the product
 // without moving the claim turns a real gate into noise. Measured, not assumed:
 //   document.querySelectorAll('.tabs .tab[data-tab]').length === 19
-export const NAV_TABS_TOTAL = 19;   // v710.4 +📺 TV·D · v2085 +🎒 Vault · v2094 +⚗️ Crafts
+// #245 — 19 → 20: 👤 Characters joined the workshop, right before the Vault (the manual side beside the
+//   automated one). Measured in headless Chrome: the workshop row reads session · tools · forge · crafts ·
+//   funi · fsets · chars · vault · tvd.
+export const NAV_TABS_TOTAL = 20;   // v710.4 +📺 TV·D · v2085 +🎒 Vault · v2094 +⚗️ Crafts · #245 +👤 Characters
 
 // Horadric cube recipe browser rows (v177).
 export const HORADRIC_RECIPES_TOTAL = 36;
