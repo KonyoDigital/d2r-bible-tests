@@ -44,6 +44,24 @@ within 12px of the doll's bottom with no word between them; the caption and the 
 10 columns x 4 rows of equal SQUARE cells edge to edge (gap 0), radius 0; the grid never wider than the doll's inner
 width; cells >= 26px from 1280 up; every item's rect inside the cells it occupies, with its art; and the charms MOVE
 the stats (All Skills and Strength differ from the same build before them).
+#174 v-B4 FIX ROUND (two reproduced review findings):
+  · AN ITEM'S TILE IS COLOURED BY ITS STATE, NEVER BY ITS QUALITY. Ours filled a unique tile gold with a gold border and a
+    gold halo, a magic one blue. Theirs and the game (73_anni_tip, 15_after_drag_crop, sampled) draw a unique Annihilus,
+    a unique Hellfire Torch and a magic charm on ONE indigo, (8,2,28) over the black cell, no frame, no halo; only the
+    item being edited is green, (6,26,2). With the three charms at the build's own level: every tile one fill whatever
+    its data-q (two qualities at least, printed), that fill over the cell within 6 of theirs, no visible border, no art
+    filter; a tile pressed by REAL input goes green (theirs within 6) while the others keep the indigo.
+  · A CHARM THE LEVEL CANNOT USE IS RED AND COUNTS FOR NOTHING. In the game a charm below its level requirement gives no
+    bonus and its background turns red; ours kept the tile gold and STATS summed it (Annihilus req 70 at level 50: All
+    Skills 1 EXACT). Every tile is red exactly when the Required Level its own tooltip prints is above the build's level,
+    at three levels: the input's max, Gheed's Fortune's requirement (Annihilus's is above it - read, never typed, and
+    printed), and one lower by a REAL press of the level's down arrow. At Gheed's level STATS' All Skills is the build's
+    own again (Annihilus left out) while Gold Find is what it was at the max (Gheed's still counted); one lower Gold Find
+    moves too; STATS names each left-out charm with its level, and Calculations lists it among the failed requirements.
+    The SIBLING on the doll, same rule: its slot was already red above the level and STATS summed the item anyway, so the
+    fresh build also wears Crown of Ages (its Required Level read from its tooltip, above Gheed's): red and named as left
+    out exactly when the level is below it.
+The fixture's fresh build is made at its level input's own max, so the charms it places can be used.
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT, killed by the handle it holds (render_check._chrome_up / _chrome_down).
 ⚠ NO CHROME ON THIS MACHINE = a DECLARED skip (exit 77), never a pass.
@@ -108,6 +126,12 @@ TPL_CHARMS = (("Annihilus", 0, 0, None), ("Grand Charm", 2, 0, "b:"), ("Gheed's 
 #: their grid under their doll, measured (60/61, 15_crop): flush, ~9px of stone, no caption between
 TPL_FLUSH = 12.0
 TPL_MIN_CELL = 26.0
+#: #174 v-B4 fix round - THEIR tile fills, sampled with PIL from their own screenshot at 2000 wide (73_anni_tip: the
+#: unique Annihilus and Hellfire Torch and 15_after_drag_crop's magic charm alike; the Grand Charm open in Edit is green),
+#: as the colour seen over the black cell - ours is composited over OUR cell the same way before it is compared
+THEIR_TILE = (8, 2, 28)
+THEIR_EDITED = (6, 26, 2)
+TILE_TOL = 6
 
 #: #174 v-B4 - the template: the ONE panel (#cb-eqp), its doll (#cb-doll) and its grid (#cb-inv), every cell, every item
 TEMPLATE = r"""(function(){ try {
@@ -155,10 +179,42 @@ TEMPLATE = r"""(function(){ try {
   out.stats = { allSkills: st['All Skills'] == null ? null : st['All Skills'], strength: st['Strength (items)'] == null ? null : st['Strength (items)'] };
   return JSON.stringify(out);
  } catch (e) { return JSON.stringify({ err: String(e) }); } })()"""
-#: a fresh build through the builder's own "+ New build" (the first class the database lists), so its inventory is empty
+#: a fresh build through the builder's own "+ New build" (the first class the database lists), so its inventory is empty.
+#: #174 v-B4 fix round - made at its level input's OWN max: at the old level 1 the charms it places cannot be used, and
+#: a law that saw them move STATS there was asserting the defect
 TPL_NEW = ("(function(){ window.closeCharBuilder(); window.openCharBuilder(); window._cbOpenNew();"
            " var c = document.querySelector('#cb-modal .cb-new-cls .cb-btn'); if (!c) return 'no class button'; c.click();"
+           " var lv = document.getElementById('cb-new-lvl'); if (!lv || !lv.max) return 'no level field'; window._cbNewLvl(lv.max);"
            " window._cbNewGo(); return 'ok'; })()")
+#: #174 v-B4 fix round - every inventory tile's STATE as drawn (its fill, its frame, its art's filter, red / edited) beside
+#: the Required Level its own tooltip prints, the cell it sits on, STATS' rows and the notes of what STATS left out
+TILES = r"""(function(){ try {
+  var d = document, b = window._cbAll()[window._cbState().bid];
+  if (!b) return JSON.stringify({ err: 'no saved build is selected' });
+  var s = b.sets[b.active | 0], G = d.getElementById('cb-inv'), c0 = G && G.querySelector('.cb-cell');
+  var out = { level: b.level | 0, cellBg: c0 ? getComputedStyle(c0).backgroundColor : null, tiles: [], stats: {}, notes: [] };
+  [].forEach.call(G ? G.querySelectorAll('.cb-it') : [], function(t){
+    var e = s.inv[+t.getAttribute('data-i')], it = e && window._cbItem(e.id), cs = getComputedStyle(t), img = t.querySelector('img');
+    var tip = it ? window._cbTipEntry(e, it, b.level | 0, 'inv', b.cls) : null;
+    out.tiles.push({ name: e ? e.name : null, q: t.getAttribute('data-q'), need: (tip && tip.reqs && tip.reqs.lvl) || 0,
+      red: t.classList.contains('cb-red'), sel: t.classList.contains('cb-sel'), bg: cs.backgroundColor,
+      border: [cs.borderTopWidth, cs.borderTopColor], filter: img ? getComputedStyle(img).filter : null, label: t.getAttribute('aria-label') || '' });
+  });
+  [].forEach.call(d.querySelectorAll('#cb-win .cb-st-r'), function(r){ var l = r.querySelector('.cb-sl'), v = r.querySelector('.cb-sv');
+    if (l && v) out.stats[l.textContent.trim()] = v.textContent.trim(); });
+  [].forEach.call(d.querySelectorAll('#cb-win .cb-st-note'), function(n){ out.notes.push(n.textContent.trim()); });
+  out.worn = Object.keys(s.slots || {}).map(function(k){ var e = s.slots[k], it = window._cbItem(e.id), el = d.querySelector('#cb-doll .cb-slot[data-slot="' + k + '"]');
+    var tip = it ? window._cbTipEntry(e, it, b.level | 0, k, b.cls) : null;
+    return { slot: k, name: e.name, need: (tip && tip.reqs && tip.reqs.lvl) || 0, red: !!(el && el.classList.contains('cb-red')) }; });
+  return JSON.stringify(out);
+ } catch (e) { return JSON.stringify({ err: String(e) }); } })()"""
+#: the fresh build's helm: Crown of Ages by name through the slot's own picker (the WORN half of the level rule)
+TPL_HELM = ("(function(){ window._cbOpenPick('slot', 'head'); var hit = window._cbPickRows().filter(function(r){ return r[1] === 'Crown of Ages'; });"
+            " if (hit.length !== 1){ window._cbClosePick(); return 'Crown of Ages rows: ' + hit.length; }"
+            " var ok = window._cbChoose(hit[0][0]); window._cbClosePick(); return ok ? 'ok' : 'not equipped'; })()")
+#: Calculations' "Requirements the level N character fails" row, read and the Equipment view put back
+CALC_FAILS = ("(function(){ window._cbView('calc'); var r = null; [].forEach.call(document.querySelectorAll('#cb-win .cb-calc tr'),"
+              " function(tr){ if (/Requirements the level/.test(tr.textContent)) r = tr.textContent; }); window._cbView('equip'); return r; })()")
 #: a charm placed through the inventory cell's own picker: its id is the ONE database row with that name (and prefix)
 TPL_PLACE = ("(function(n, x, y, pre){ window._cbOpenPick('inv', null, [x, y]); var rows = window._cbPickRows();"
              " var hit = rows.filter(function(r){ return r[1] === n && (!pre || r[0].indexOf(pre) === 0); });"
@@ -587,6 +643,34 @@ def _measure():
             t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
             time.sleep(0.4)
             res["tpl charms %dx%d" % (w, h)] = json.loads(t.ev(TEMPLATE))
+        # #174 v-B4 fix round - the tiles' STATE at 2000: at the build's own level; one tile pressed by REAL input (Edit
+        # opens on it); then at Gheed's Fortune's Required Level (read from its tooltip) and one lower by a REAL press of
+        # the level's down arrow
+        _set_size(t, 2000, 1300)
+        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
+        time.sleep(0.4)
+        lv = {"helm": t.ev(TPL_HELM)}
+        time.sleep(0.4)
+        lv["max"] = json.loads(t.ev(TILES))
+        names = [x.get("name") for x in lv["max"].get("tiles", [])]
+        gi = names.index("Grand Charm") if "Grand Charm" in names else -1
+        lv["press"] = _press(t, "#cb-inv .cb-it", gi) if gi >= 0 else "no Grand Charm tile: %s" % names
+        time.sleep(0.3)
+        lv["sel"] = json.loads(t.ev(TILES))
+        _key(t, "Escape", 27)
+        need = dict((x.get("name"), x.get("need")) for x in lv["max"].get("tiles", []))
+        mid = need.get("Gheed's Fortune") or 0
+        if mid > 1:
+            t.ev("(function(){ window._cbSetField('level', %d); return 1; })()" % mid)
+            time.sleep(0.4)
+            lv["mid"] = json.loads(t.ev(TILES))
+            lv["midCalc"] = t.ev(CALC_FAILS)
+            time.sleep(0.3)
+            lv["down"] = _press(t, '#cb-win .cb-step button[aria-label="level down"]')
+            time.sleep(0.4)
+            lv["low"] = json.loads(t.ev(TILES))
+            lv["lowCalc"] = t.ev(CALC_FAILS)
+        res["tiles"] = lv
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -955,8 +1039,180 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                                % (w, h, key, before["stats"][key], m["stats"][key]))
         self.assertEqual(bad, [], "the character/inventory template is not one panel with the game's grid:\n  " + "\n  ".join(bad[:40]))
 
+    def test_v_b4_fix_every_tile_is_one_indigo_whatever_its_quality_and_green_while_edited(self):
+        """#174 v-B4 fix round - theirs and the game draw every item in the grid on ONE indigo whatever its quality (a
+        unique Annihilus and Hellfire Torch and a magic charm alike, (8,2,28) over the black cell, no frame, no halo); the
+        one being edited is green. Ours filled a unique gold with a gold border and a gold bloom, a magic one blue."""
+        lv = _measure().get("tiles") or {}
+        m = lv.get("max") or {}
+        self.assertNotIn("err", m, m.get("err"))
+        tiles, bad = m.get("tiles") or [], []
+        self.assertEqual(sorted(x["name"] for x in tiles), sorted(n for (n, _, _, _) in TPL_CHARMS),
+                         "PRINT THE DENOMINATOR: the tiles drawn are not the three charms placed")
+        quals = sorted(set(x["q"] for x in tiles))
+        self.assertGreaterEqual(len(quals), 2, "PREMISE: the placed charms carry one quality only (%s), so a fill by quality "
+                                               "could not show" % quals)
+        self.assertEqual([x["name"] for x in tiles if x["red"] or x["sel"]], [],
+                         "PREMISE: at the build's own level %s no tile may be red or in Edit" % m.get("level"))
+        cell = _rgba(m.get("cellBg"))
+        fills = sorted(set(x["bg"] for x in tiles))
+        if len(fills) != 1:
+            bad.append("the tiles' fill follows the quality: %s" % [(x["name"], x["q"], x["bg"]) for x in tiles])
+        for x in tiles:
+            seen = _over(_rgba(x["bg"]), cell)
+            if cell is None or seen is None or max(abs(a - b) for a, b in zip(seen, THEIR_TILE)) > TILE_TOL:
+                bad.append("%s (%s): its tile reads %s over the cell %s - theirs %s" % (x["name"], x["q"], seen, cell, THEIR_TILE))
+            bw, bc = x["border"]
+            if bw not in ("0px",) and (_rgba(bc) or (0, 0, 0, 1))[3] > 0.01:
+                bad.append("%s (%s): its tile has a visible frame %s %s - theirs has none" % (x["name"], x["q"], bw, bc))
+            if x["filter"] != "none":
+                bad.append("%s (%s): its art carries a bloom %r - theirs is the bare art" % (x["name"], x["q"], x["filter"]))
+        s = lv.get("sel") or {}
+        self.assertIsNone(lv.get("press"), "the Grand Charm's tile could not be pressed by real input: %s" % lv.get("press"))
+        on = [x for x in s.get("tiles") or [] if x["sel"]]
+        self.assertEqual([x["name"] for x in on], ["Grand Charm"], "pressing the Grand Charm's tile did not mark it edited")
+        seen = _over(_rgba(on[0]["bg"]), cell)
+        if seen is None or max(abs(a - b) for a, b in zip(seen, THEIR_EDITED)) > TILE_TOL:
+            bad.append("the edited tile reads %s over the cell - theirs %s" % (seen, THEIR_EDITED))
+        rest = sorted(set(x["bg"] for x in s.get("tiles") or [] if not x["sel"]))
+        if rest != fills:
+            bad.append("with one tile edited the others read %s, not the indigo %s" % (rest, fills))
+        self.assertEqual(bad, [], "an inventory tile is coloured by its quality, not its state:\n  " + "\n  ".join(bad))
+
+    def test_v_b4_fix_a_charm_its_level_cannot_use_is_red_and_counts_for_nothing(self):
+        """#174 v-B4 fix round - in the game a charm below its level requirement gives no bonus and its background turns
+        red. Ours kept the tile gold and STATS summed it: Annihilus (Required Level 70) at level 50 read All Skills 1
+        EXACT. Every tile red exactly when its own tooltip's Required Level is above the build's level, at three levels;
+        STATS leaves the red ones out and names them; Calculations lists them among the failed requirements."""
+        r = _measure()
+        lv = r.get("tiles") or {}
+        mx = lv.get("max") or {}
+        need = dict((x["name"], x["need"]) for x in mx.get("tiles") or [])
+        anni, gheed = need.get("Annihilus") or 0, need.get("Gheed's Fortune") or 0
+        self.assertTrue(anni > gheed > 1, "PREMISE: the tooltips' Required Levels do not separate the two uniques "
+                                          "(Annihilus %s, Gheed's Fortune %s)" % (anni, gheed))
+        mid, low = lv.get("mid") or {}, lv.get("low") or {}
+        for nm, m in (("mid", mid), ("low", low)):
+            self.assertNotIn("err", m, "%s: %s" % (nm, m.get("err")))
+        self.assertEqual(mid.get("level"), gheed, "the build is not at Gheed's Fortune's Required Level")
+        self.assertIsNone(lv.get("down"), "the level's down arrow could not be pressed by real input: %s" % lv.get("down"))
+        self.assertEqual(low.get("level"), gheed - 1, "the down arrow did not lower the level by one")
+        self.assertEqual(lv.get("helm"), "ok", "Crown of Ages was not equipped on the fresh build: %s" % lv.get("helm"))
+        crown = dict((x["name"], x["need"]) for x in mx.get("worn") or []).get("Crown of Ages") or 0
+        self.assertTrue(crown > gheed, "PREMISE: Crown of Ages' Required Level (%s) is not above Gheed's Fortune's (%s), so the "
+                                       "worn half is never tested" % (crown, gheed))
+        bad = []
+        for nm, m in (("max", mx), ("mid", mid), ("low", low)):
+            if len(m.get("tiles") or []) != len(TPL_CHARMS) or len(m.get("worn") or []) != 1:
+                bad.append("%s: PRINT THE DENOMINATOR - %d tiles, %d worn" % (nm, len(m.get("tiles") or []), len(m.get("worn") or [])))
+            for x in m.get("tiles") or []:
+                want = x["need"] > m["level"]
+                if x["red"] != want:
+                    bad.append("level %d: %s (Required Level %d) is %s" % (m["level"], x["name"], x["need"], "red" if x["red"] else "not red"))
+                if want and ("needs level %d" % x["need"]) not in x["label"]:
+                    bad.append("level %d: %s's tile does not SAY it needs level %d: %r" % (m["level"], x["name"], x["need"], x["label"]))
+            # the WORN half of the same rule: the doll's red slot is left out of STATS too, and named
+            for x in m.get("worn") or []:
+                want = x["need"] > m["level"]
+                if x["red"] != want:
+                    bad.append("level %d: the doll's %s (%s, Required Level %d) is %s" % (m["level"], x["slot"], x["name"], x["need"], "red" if x["red"] else "not red"))
+                named = any(x["name"] in t and ("needs level %d" % x["need"]) in t for t in m.get("notes") or [])
+                if named != want:
+                    bad.append("level %d: STATS %s %s (Required Level %d) as left out: %s" % (m["level"], "does not name" if want else "names", x["name"], x["need"], m.get("notes")))
+        before = (r.get("tpl before") or {}).get("stats") or {}
+        a0, am, ax = before.get("allSkills"), mid["stats"].get("All Skills"), mx["stats"].get("All Skills")
+        if am != a0 or ax == a0:
+            bad.append("All Skills: %r with no charms, %r at the max level, %r at level %d where Annihilus (level %d) cannot be "
+                       "used - it must read as with no charms" % (a0, ax, am, gheed, anni))
+        gm, gl, gx = mid["stats"].get("Gold Find"), low["stats"].get("Gold Find"), mx["stats"].get("Gold Find")
+        if gm != gx or gl == gx:
+            bad.append("Gold Find: %r at the max level, %r at level %d (Gheed's Fortune counts), %r at level %d (it cannot)"
+                       % (gx, gm, gheed, gl, gheed - 1))
+        said = lambda m, n, lvl: any(n in t and ("needs level %d" % lvl) in t for t in m.get("notes") or [])
+        if not said(mid, "Annihilus", anni) or said(mid, "Gheed's Fortune", gheed):
+            bad.append("level %d: STATS' notes do not name exactly Annihilus as left out: %s" % (gheed, mid.get("notes")))
+        if not (said(low, "Annihilus", anni) and said(low, "Gheed's Fortune", gheed)):
+            bad.append("level %d: STATS' notes do not name both uniques as left out: %s" % (gheed - 1, low.get("notes")))
+        mc, lc = lv.get("midCalc") or "", lv.get("lowCalc") or ""
+        if "Annihilus" not in mc or "Gheed's Fortune" in mc or "Gheed's Fortune" not in lc:
+            bad.append("Calculations' failed requirements: %r at level %d, %r at level %d" % (mc, gheed, lc, gheed - 1))
+        self.assertEqual(bad, [], "a charm the level cannot use is not red, or still feeds STATS:\n  " + "\n  ".join(bad))
+
+
+def _rgba(s):
+    """'rgb(3, 3, 3)' / 'rgba(16, 4, 70, 0.4)' -> (r, g, b, a), or None"""
+    try:
+        v = [float(x) for x in str(s)[str(s).index("(") + 1:str(s).rindex(")")].split(",")]
+    except Exception:
+        return None     # an unreadable colour is UNKNOWN - the caller reports it, never a 0
+    return tuple(v + [1.0]) if len(v) == 3 else (tuple(v) if len(v) == 4 else None)
+
+
+def _over(top, under):
+    """the colour SEEN: `top` (with its alpha) composited over the opaque `under` -> (r, g, b) rounded, or None"""
+    if top is None or under is None:
+        return None
+    a = top[3]
+    return tuple(round(top[i] * a + under[i] * (1 - a)) for i in range(3))
+
 
 RED_PROOF = [
+    {
+        "why": "#174 v-B4 fix round - a unique's inventory tile is filled gold with a gold frame again (theirs: one indigo)",
+        "file": "bible.html",
+        "find": ".cb-it.cb-sel{background:rgba(6,98,8,.26)}\n",
+        "replace": ".cb-it[data-q=\"u\"]{background:rgba(199,179,119,.12);border-color:rgba(199,179,119,.45)}\n.cb-it.cb-sel{background:rgba(6,98,8,.26)}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the art component's rarity bloom is back on an inventory tile (a gold halo round a unique)",
+        "file": "bible.html",
+        "find": ".cb-it .d2art-wrap .d2art-img{filter:none !important}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the tile being edited is not green (theirs is the only non-indigo tile)",
+        "file": "bible.html",
+        "find": "      h += '<div class=\"cb-it' + (sel ? ' cb-sel' : '') +",
+        "replace": "      h += '<div class=\"cb-it' +",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - a charm above the build's level keeps its plain tile (the game turns it red)",
+        "file": "bible.html",
+        "find": " + (lvlBad || clsBad ? ' cb-red' : '') + ",
+        "replace": " + ",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the builder stops handing the engine the Required Level: a charm the level cannot use feeds STATS",
+        "file": "bible.html",
+        "find": "var req = function(e, x, k){ var n = x ? _cbNeedLvl(e, k, b) : 0; if (n) x.lvlreq = n; return x; };",
+        "replace": "var req = function(e, x, k){ return x; };",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - a WORN item above the build's level feeds STATS while its doll slot is red (the sibling)",
+        "file": "bible.html",
+        "find": "var x = req(s0.slots[k], _cbEngineEntry(s0.slots[k], eng, mine), k);",
+        "replace": "var x = _cbEngineEntry(s0.slots[k], eng, mine);",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - the engine sums an item whose Required Level is above the build's (Annihilus at 50: All Skills 1)",
+        "file": "bible.html",
+        "find": "        if (lvl !== null && needLvl > lvl){ res.notApplied.push(",
+        "replace": "        if (false){ res.notApplied.push(",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 fix round - Calculations lists a red charm's level requirement as met ('none')",
+        "file": "bible.html",
+        "find": "      if (si === (b.active | 0)) (s.inv || []).forEach(function(e){ var n = _cbNeedLvl(e, 'inv', b); if (n > clvl) fails.push(",
+        "replace": "      if (false) (s.inv || []).forEach(function(e){ var n = _cbNeedLvl(e, 'inv', b); if (n > clvl) fails.push(",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B4 - the inventory's 2px gaps come back: the cells are no longer edge to edge like the game's grid",
         "file": "bible.html",
