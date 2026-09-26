@@ -51031,27 +51031,37 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-settabs{display:flex;align-items:center;gap:calc(6*var(--u));padding:calc(8*var(--u)) calc(7*var(--u));flex-wrap:wrap}
 /* LEFT — the small inventory under a compact Stash button, then their four panels in their order */
 .cb-left{display:flex;flex-direction:column;gap:calc(6*var(--u));min-width:0}
-.cb-invp{padding-bottom:calc(8*var(--u))}
-/* #174 R1 — the inventory is in the centre under the doll; the left keeps a Stash card with their button */
-.cb-view .cb-invp{padding-bottom:0}
+/* #174 v-B4 — THE CHARACTER/INVENTORY TEMPLATE IS ONE PANEL. His words (2026-09-26 17:56): "the character template is
+   actually an inventory/character template they always open and are seen as a set together", and "the INVENTORY under
+   the equipment need to be structured like this JUST LIKE IT IS IN GAME one to one". Theirs, measured (60/61, 15_crop):
+   ONE carved-stone panel 320x362 holds the doll and, flush under it, the 10x4 grid of 30px cells - black cells rgb(3,3,3),
+   thin warm-grey lines, no gaps, no rounded corners, inset 10 from the frame. Ours is that panel on the doll's own unit
+   (--dk): 320 wide, 10 of padding, the doll box 300x222 (their slot table read from their (11, 47)), the grid as wide as
+   the doll's inner width (cells of floor((300dk - 1) / 10) px, so ten of them and their line never outgrow it), drawn in
+   CSS - never a copied image. The caption and the status line sit BELOW the panel, never between doll and grid. */
+.cb-eqp{position:relative;margin:0 auto;width:calc(320*var(--dk));padding:calc(10*var(--dk));border-radius:3px;background-color:var(--cb-slate);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>"),radial-gradient(ellipse at 50% 30%,rgba(120,120,125,.35),rgba(20,20,22,.55) 75%),linear-gradient(180deg,#48494c,#2a2b2d);box-shadow:inset 0 0 0 2px #1a1b1c,inset 0 0 0 3px #55575a,inset 0 0 40px rgba(0,0,0,.75),0 10px 30px rgba(0,0,0,.6)}
+.cb-eqp .cb-invp{padding:0}
 .cb-stashp{min-height:calc(84*var(--u));display:flex;flex-direction:column}
 .cb-stashp>.cb-empty{margin:auto 0}
-.cb-inv{position:relative;margin:calc(8*var(--u)) auto 0;display:grid;gap:2px;padding:2px;background:rgba(0,0,0,.6);border:1px solid #2c2d2f;border-radius:3px;width:max-content;max-width:100%;touch-action:none}
-.cb-cell{width:var(--cb-cell);height:var(--cb-cell);padding:0;background:linear-gradient(145deg,#1b1c1e,#0f1011);border:1px solid #2a2b2d;border-radius:2px;cursor:pointer}
-.cb-cell:hover{border-color:var(--gold-dim)}
-.cb-cell.cb-drop-ok{background:rgba(40,220,90,.28);border-color:var(--cb-glow)}
-.cb-cell.cb-drop-no{background:rgba(255,64,64,.28);border-color:var(--hell)}
+/* the game's grid: every cell is --cb-cell square INCLUDING its right and bottom line, the grid carries the top and left
+   one, so ten cells are ten equal pitches, gap 0, radius 0; an item sits at x*pitch inside the grid's lines */
+.cb-inv{--cb-inv-line:rgb(74,66,60);--cb-inv-cell:rgb(3,3,3);position:relative;margin:0 auto;display:grid;gap:0;padding:0;background:var(--cb-inv-cell);border:0;border-left:1px solid var(--cb-inv-line);border-top:1px solid var(--cb-inv-line);border-radius:0;width:max-content;max-width:100%;touch-action:none;box-shadow:0 0 0 1px rgba(0,0,0,.85),0 1px 0 1px rgba(255,255,255,.07)}
+.cb-cell{width:var(--cb-cell);height:var(--cb-cell);padding:0;margin:0;background:var(--cb-inv-cell);border:0;border-right:1px solid var(--cb-inv-line);border-bottom:1px solid var(--cb-inv-line);border-radius:0;cursor:pointer}
+.cb-cell:hover{box-shadow:inset 0 0 0 1px var(--gold-dim)}
+.cb-cell.cb-drop-ok{background:rgba(40,220,90,.28);box-shadow:inset 0 0 0 1px var(--cb-glow)}
+.cb-cell.cb-drop-no{background:rgba(255,64,64,.28);box-shadow:inset 0 0 0 1px var(--hell)}
 .cb-cell.cb-picking{box-shadow:inset 0 0 0 2px var(--cb-glow),0 0 10px rgba(40,220,90,.5)}
-.cb-it{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;background:linear-gradient(160deg,rgba(40,40,70,.85),rgba(16,16,30,.92));border:1px solid rgba(105,105,255,.6);border-radius:3px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
-.cb-it.cb-q-u,.cb-it.cb-q-r{background:linear-gradient(160deg,rgba(58,44,22,.9),rgba(30,22,10,.95));border-color:rgba(199,179,119,.75)}
-.cb-it.cb-q-s{border-color:rgba(0,255,0,.6)}
-.cb-it.cb-q-c{border-color:rgba(255,168,0,.7)}
+.cb-it{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;background:rgba(60,60,150,.16);border:1px solid rgba(105,105,255,.34);border-radius:0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.cb-it:hover{background:rgba(105,105,255,.24)}
+.cb-it.cb-q-u,.cb-it.cb-q-r{background:rgba(199,179,119,.12);border-color:rgba(199,179,119,.45)}
+.cb-it.cb-q-s{background:rgba(0,255,0,.08);border-color:rgba(0,255,0,.4)}
+.cb-it.cb-q-c{background:rgba(255,168,0,.10);border-color:rgba(255,168,0,.45)}
 .cb-it.cb-drag{cursor:grabbing;z-index:20;opacity:.9;box-shadow:0 8px 22px rgba(0,0,0,.7)}
 .cb-it.cb-held{outline:2px dashed var(--cb-glow);outline-offset:1px}
 .cb-it .d2art-wrap{width:92%;height:92%;min-width:0;min-height:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
 .cb-it .d2art-img{width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;object-fit:contain}
 .cb-it .d2art-fallback{font-family:var(--cb-d2);font-size:var(--fs-cb-meta);color:var(--text-muted)}
-.cb-inv-say{margin:calc(6*var(--u)) calc(10*var(--u)) 0;font-size:var(--fs-cb-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight);min-height:1em}
+.cb-inv-say{margin:calc(4*var(--u)) calc(10*var(--u)) 0;font-size:var(--fs-cb-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight);min-height:1em}
 .cb-inv-say.cb-bad{color:var(--hell)}
 .cb-lp{display:flex;flex-direction:column}
 .cb-prim{min-height:calc(102*var(--u))}.cb-merc{min-height:calc(80*var(--u))}.cb-loot{min-height:calc(88*var(--u))}.cb-sw{min-height:calc(57*var(--u))}
@@ -51069,7 +51079,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-view[hidden]{display:none}
 /* THE DOLL — their slate: stone grain (an inline SVG noise, nothing fetched), a bevelled frame, and ENGRAVED
    silhouettes in every empty slot (13/15_*_crop.png). Their slot table on the doll's own unit, --dk. */
-.cb-doll{position:relative;margin:0 auto;width:calc(292*var(--dk));height:calc(250*var(--dk));border-radius:4px;background-color:var(--cb-slate);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>"),radial-gradient(ellipse at 50% 38%,rgba(120,120,125,.35),rgba(20,20,22,.55) 75%),linear-gradient(180deg,#48494c,#2a2b2d);box-shadow:inset 0 0 0 2px #1a1b1c,inset 0 0 0 3px #55575a,inset 0 0 40px rgba(0,0,0,.75),0 10px 30px rgba(0,0,0,.6)}
+.cb-doll{position:relative;margin:0;width:calc(300*var(--dk));height:calc(222*var(--dk))}
 .cb-slot{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;background:linear-gradient(160deg,#232426,#131415);border:1px solid #101112;box-shadow:inset 0 2px 5px rgba(0,0,0,.85),inset 0 -1px 0 rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.06);cursor:pointer;color:#0c0c0d}
 .cb-slot:hover{border-color:var(--gold-dim)}
 .cb-slot svg{width:70%;height:70%;fill:#26272a;stroke:#0a0a0b;stroke-width:1.2;filter:drop-shadow(0 1px 0 rgba(255,255,255,.10)) drop-shadow(0 -1px 0 rgba(0,0,0,.9));pointer-events:none}
@@ -51082,7 +51092,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-swap{position:absolute;display:flex;gap:2px}
 .cb-swap button{width:calc(14*var(--dk));height:calc(10*var(--dk));min-width:14px;min-height:12px;padding:0;background:#1c1d1f;border:1px solid #0e0f10;border-radius:2px;color:#a9abae;font-family:var(--cb-d2);font-size:var(--fs-cb-micro);line-height:var(--lh-none);cursor:pointer}
 .cb-swap button.cb-on{background:#6b6d70;color:#fff}
-.cb-doll-say{margin:calc(8*var(--u)) auto 0;text-align:center;font-size:var(--fs-cb-meta);color:var(--text-dim)}
+.cb-doll-say{margin:calc(6*var(--u)) auto 0;text-align:center;font-size:var(--fs-cb-meta);color:var(--text-dim)}
 .cb-calc{width:100%;border-collapse:collapse;font-size:var(--fs-cb-body)}
 .cb-calc th{text-align:left;font-weight:var(--fw-medium);color:var(--gold);font-size:var(--fs-cb-meta);letter-spacing:var(--ls-normal);text-transform:uppercase;padding:calc(10*var(--u)) 6px 4px}
 .cb-calc td{padding:3px 6px;border-bottom:1px solid rgba(58,47,30,.55);vertical-align:top}
@@ -51293,13 +51303,15 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 (function(){
   'use strict';
   var CB_KEY = 'd2r_charBuilds', CB_SEL_KEY = 'd2r_cbSel';
-  /* their paper-doll, measured at 2000 wide (spec §1): [slot, x, y, w, h] in their 322x400 EQUIPMENT panel. The doll
-     box starts at their (15, 32); every rect is read on the doll's own unit, --dk. */
+  /* their paper-doll, measured at 2000 wide (spec §1): [slot, x, y, w, h] in their 322x400 EQUIPMENT panel. Every rect is
+     read on the doll's own unit, --dk. #174 v-B4 — their stone panel (_PlayerPaperdoll) is 320x362 at (1, 37) of that
+     panel with a 10 inset, so its inner doll box starts at their (11, 47) and is 300 wide; their 10x4 grid of 30 sits
+     flush under the lowest slot (belt / rings end at 260 = 213 in the box, the grid's top line is at 222). */
   var CB_DOLL = [['rarm', 16, 65, 60, 120], ['larm', 247, 65, 60, 120], ['head', 131, 50, 60, 60],
                  ['neck', 203, 102, 30, 30], ['tors', 131, 125, 60, 90], ['glov', 15, 199, 60, 60],
                  ['rrin', 88, 230, 30, 30], ['belt', 131, 230, 60, 30], ['lrin', 203, 230, 30, 30],
                  ['feet', 247, 199, 60, 60]];
-  var CB_DOLL_O = [15, 32], CB_DOLL_WH = [292, 250];
+  var CB_DOLL_O = [11, 47], CB_DOLL_WH = [300, 222], CB_EQP_WH = [320, 362];
   var CB_SLOT_SAY = { head: 'Helm', neck: 'Amulet', tors: 'Body Armor', rarm: 'Weapon', larm: 'Shield / Off-hand',
                       rrin: 'Right Ring', lrin: 'Left Ring', belt: 'Belt', feet: 'Boots', glov: 'Gloves' };
   var CB_Q_SAY = { u: 'Unique', s: 'Set', r: 'Runeword', c: 'Crafted', b: 'Base', m: 'Magic' };
@@ -52001,22 +52013,25 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window.d2Tip = d2Tip;
 
   /* ── LAYOUT: one unit, --u (1px at 2000 wide), and the doll's own unit, --dk ─────────────────────────────── */
+  /* #174 v-B4 — the grid's cell (its pitch, line included) on the doll's unit: ten of them plus the grid's own left line
+     never outgrow the doll's inner width (300 x dk), so the grid lines up under the doll the way theirs does */
+  function _cbCellPx(dk){ return Math.max(12, Math.floor((CB_DOLL_WH[0] * dk - 1) / 10)); }
   function _cbLayout(vw, vh){
     if (vw < 900){
       var su = clamp((vw - 32) / 716, 0.42, 1);
-      var sdk = Math.min(2.22 * su, (vw - 48) / CB_DOLL_WH[0]);
-      return { stack: true, u: su, kf: Math.min(1, su), dk: sdk, cell: clamp(Math.floor((vw - 32 - 44) / 10), 20, 44),
+      var sdk = Math.min(2.22 * su, (vw - 48) / CB_EQP_WH[0]);
+      return { stack: true, u: su, kf: Math.min(1, su), dk: sdk, cell: _cbCellPx(sdk),
                sig: su.toFixed(4) + '|stack|' + sdk.toFixed(3) };
     }
     var grow = Math.max(1, Math.min(vw / 2000, vh / 1300));
     var u = Math.min(grow, (vw - 48) / 1350);
     /* #174 R1 — THE DOLL AND ITS INVENTORY SHARE THE CENTRE (his order 2026-09-26: "both inventory and character together
-       because the charms are related"). The 628 panel under its 36 tab band and 8+8 padding leaves 576; the doll (250 on
-       its unit) and a 10x4 inventory as wide as the doll (4 rows of ~29.2 units + its 4px frame), plus the 8 between them
-       and the two 20-unit status lines, share it: 250dk + 116.8dk + 4 + 48u <= 576u. The inventory's cell is then the
-       doll's width over ten, so the grid lines up under the doll the way theirs does under their slate. */
-    var dk = Math.min(700 * u / CB_DOLL_WH[0], (528 * u - 4) / (CB_DOLL_WH[1] + 116.8));
-    var cell = Math.max(16, Math.floor((CB_DOLL_WH[0] * dk - 4) / 10) - 2);
+       because the charms are related"). #174 v-B4 — and they are ONE panel, theirs: 320 x 362 on the doll's unit (the
+       doll box 222 + the grid's 4 x 30 + its line + 10 + 10 of stone). The 628 panel under its 36 tab band and 8+8
+       padding leaves 576; the template and the two ~20-unit lines under it (the caption, the inventory's status)
+       share it: 362dk + 1 + 48u <= 576u, and the panel never outgrows the 716 column (320dk <= 700u). */
+    var dk = Math.min(700 * u / CB_EQP_WH[0], (528 * u - 1) / CB_EQP_WH[1]);
+    var cell = _cbCellPx(dk);
     return { stack: false, u: u, kf: Math.min(1, u), dk: dk, cell: cell, sig: u.toFixed(4) + '|cols|' + cell };
   }
   window._cbLayout = _cbLayout;
@@ -52100,18 +52115,30 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var h = '', held = st.held;
     for (var y = 0; y < CB_INV_H; y++) for (var x = 0; x < CB_INV_W; x++)
       h += '<button type="button" class="cb-cell' + (st.pick && st.pick.kind === 'inv' && st.pick.cell && st.pick.cell[0] === x && st.pick.cell[1] === y ? ' cb-picking' : '') + '" data-x="' + x + '" data-y="' + y + '" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '" aria-label="inventory cell ' + (x + 1) + ',' + (y + 1) + ' — empty: add an item" onclick="window._cbCell(' + x + ',' + y + ')"></button>';
-    var pitch = L.cell + 2;
+    var pitch = L.cell;   /* #174 v-B4 — gap 0: a cell's pitch IS its size (its right / bottom line included) */
     (s.inv || []).forEach(function(e, i){
       var qc = { u: 'cb-q-u', r: 'cb-q-r', s: 'cb-q-s', c: 'cb-q-c', rare: 'cb-q-rare' }[e.q] || '';
-      h += '<div class="cb-it ' + qc + (held && held.i === i ? ' cb-held' : '') + '" role="button" tabindex="0" data-i="' + i + '"'
-        + ' style="left:' + (2 + e.x * pitch) + 'px;top:' + (2 + e.y * pitch) + 'px;width:' + (e.w * pitch - 2) + 'px;height:' + (e.h * pitch - 2) + 'px"'
+      h += '<div class="cb-it ' + qc + (held && held.i === i ? ' cb-held' : '') + '" role="button" tabindex="0" data-i="' + i + '" data-at="' + e.x + ',' + e.y + ',' + e.w + ',' + e.h + '"'
+        + ' style="left:' + (e.x * pitch) + 'px;top:' + (e.y * pitch) + 'px;width:' + (e.w * pitch - 1) + 'px;height:' + (e.h * pitch - 1) + 'px"'
         + ' aria-label="' + esc(_cbShown(e, _cbItem(e.id)).name) + ' at ' + (e.x + 1) + ',' + (e.y + 1) + ' — drag, or Enter then arrow keys then Enter to move; Delete removes"'
         + ' onpointerdown="window._cbDragStart(event,' + i + ')" onkeydown="window._cbTileKey(event,' + i + ')"'
         + ' onmouseenter="window._cbTipInv(this,' + i + ')" onmouseleave="window.d2Tip.hide()" onfocus="window._cbTipInv(this,' + i + ')" onblur="window.d2Tip.hide()">'
         + _cbArtFor(e) + '</div>';
     });
-    return '<div class="cb-inv" id="cb-inv" style="--cb-cell:' + L.cell + 'px;grid-template-columns:repeat(10,' + L.cell + 'px);grid-template-rows:repeat(4,' + L.cell + 'px)">' + h + '</div>'
-      + '<div class="cb-inv-say' + (st.sayBad ? ' cb-bad' : '') + '" id="cb-inv-say" role="status">' + esc(st.say || '') + '</div>';
+    return '<div class="cb-inv" id="cb-inv" style="--cb-cell:' + L.cell + 'px;grid-template-columns:repeat(10,' + L.cell + 'px);grid-template-rows:repeat(4,' + L.cell + 'px)">' + h + '</div>';
+  }
+  /* the inventory's status line (what a drop or a pick said) - under the template panel, never inside it */
+  function _cbInvSayHtml(){
+    return '<div class="cb-inv-say' + (st.sayBad ? ' cb-bad' : '') + '" id="cb-inv-say" role="status">' + esc(st.say || '') + '</div>';
+  }
+
+  /* #174 v-B4 — THE CHARACTER/INVENTORY TEMPLATE: one carved-stone panel, the doll and flush under it the 10x4 grid, the
+     way the game opens them - together, always. Nothing is drawn between the two (the caption and the inventory's status
+     line are the view's, under the panel). No database = the doll is UNKNOWN, and the inventory still stands. */
+  function _cbEqpHtml(b, s, L, d){
+    var doll = d ? _cbDollHtml(b, s, L) : '<div class="cb-empty"><b>UNKNOWN</b> — ' + esc(DB_ERR || 'no database') + '</div>';
+    var inv = '<div class="cb-invp" role="group" aria-label="inventory — click a cell to add a charm or an item, drag to move">' + _cbInvHtml(s, L) + '</div>';
+    return '<div class="cb-eqp" id="cb-eqp">' + doll + inv + '</div>';
   }
 
   /* ── THE STATS ENGINE'S VIEW OF A BUILD ─────────────────────────────────────────────────────────────────────
@@ -52330,9 +52357,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '<button type="button" class="cb-btn" onclick="window._cbAddSet()">+ New Set</button></div></div>';
     var views = [['equip', 'Equipment'], ['skills', 'Skill Tree'], ['calc', 'Calculations']];
     var main = '<div class="cb-p cb-main"><div class="cb-ctabs" role="tablist">' + views.map(function(v){ return '<button type="button" role="tab" class="cb-ctab' + (st.view === v[0] ? ' cb-on' : '') + '" aria-selected="' + (st.view === v[0]) + '" onclick="window._cbView(\'' + v[0] + '\')">' + v[1] + '</button>'; }).join('') + '</div>'
-      + '<div class="cb-view"' + (st.view === 'equip' ? '' : ' hidden') + '>' + (d ? _cbDollHtml(b, s, L) : '<div class="cb-empty"><b>UNKNOWN</b> — ' + esc(DB_ERR || 'no database') + '</div>')
+      + '<div class="cb-view"' + (st.view === 'equip' ? '' : ' hidden') + '>' + _cbEqpHtml(b, s, L, d)
       +   '<div class="cb-doll-say">' + (Object.keys(s.slots).length ? 'Hover an item for its tooltip · click a slot to change it' : 'Click a slot to choose from the entire item database') + '</div>'
-      +   '<div class="cb-invp" role="group" aria-label="inventory — click a cell to add a charm or an item, drag to move">' + _cbInvHtml(s, L) + '</div></div>'
+      +   _cbInvSayHtml() + '</div>'
       + '<div class="cb-view"' + (st.view === 'skills' ? '' : ' hidden') + '><div class="cb-empty"><b>The skill trees arrive with v-D</b> — from the game\'s own skill tables and icons, points from an imported save.</div></div>'
       + '<div class="cb-view"' + (st.view === 'calc' ? '' : ' hidden') + '>' + _cbCalcHtml(b) + '</div></div>';
     var notes = '<div class="cb-p cb-notes"><div class="cb-h"><span class="cb-h-t">Notes</span></div><textarea id="cb-notes" placeholder="Notes for this build — saved when you leave the box" aria-label="build notes" onblur="window._cbNotes(this.value)">' + esc(b.notes || '') + '</textarea></div>';
@@ -53150,8 +53177,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbDragStart = function(ev, i){
     if (ev.button != null && ev.button !== 0) return;
     var s = _cbSet(), e = s && s.inv[i], el = ev.currentTarget, grid = document.getElementById('cb-inv'); if (!e || !el || !grid) return;
-    var L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900), pitch = L.cell + 2, gr = grid.getBoundingClientRect(), er = el.getBoundingClientRect();
-    st.drag = { i: i, el: el, sx: ev.clientX, sy: ev.clientY, ox: ev.clientX - er.left, oy: ev.clientY - er.top, moved: false, pitch: pitch, gr: gr, w: e.w, h: e.h, tx: null, ty: null, ok: false, pid: ev.pointerId };
+    var L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900), pitch = L.cell, gr = grid.getBoundingClientRect(), er = el.getBoundingClientRect();
+    st.drag = { i: i, el: el, sx: ev.clientX, sy: ev.clientY, ox: ev.clientX - er.left, oy: ev.clientY - er.top, moved: false, pitch: pitch, gr: gr, cl: grid.clientLeft, ct: grid.clientTop, w: e.w, h: e.h, tx: null, ty: null, ok: false, pid: ev.pointerId };
     try { el.setPointerCapture(ev.pointerId); } catch (x) {}
     ev.preventDefault();
   };
@@ -53162,7 +53189,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!g.moved){ g.moved = true; g.el.classList.add('cb-drag'); window.d2Tip.hide(); }
     g.el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     /* the cell under the item's top-left corner, snapped to the grid */
-    var lx = ev.clientX - g.ox - g.gr.left - 2, ly = ev.clientY - g.oy - g.gr.top - 2;
+    var lx = ev.clientX - g.ox - g.gr.left - g.cl, ly = ev.clientY - g.oy - g.gr.top - g.ct;
     var tx = Math.round(lx / g.pitch), ty = Math.round(ly / g.pitch);
     var s = _cbSet(); g.tx = tx; g.ty = ty; g.ok = _cbFits(s.inv, tx, ty, g.w, g.h, g.i);
     _cbMark(tx, ty, g.w, g.h, g.ok);

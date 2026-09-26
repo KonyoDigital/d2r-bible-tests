@@ -7140,7 +7140,11 @@ GATES = [
              "v-B3 FIX ROUND: the open list lies inside the Edit tab's visible box and takes its room (it ran 137px "
              "below the modal at 1280x800 and stopped at 158px on a phone); ADD MOD by REAL keys - focus stays in the "
              "search box, ArrowDown makes the second option the painted, aria-activedescendant one, Enter adds exactly "
-             "it. 12 cases, 11 red-proofs",
+             "it. v-B4: the doll and its 10x4 inventory are ONE carved-stone panel, the game's grid flush under the doll "
+             "(<= 12px, no word between; the caption and status line under the panel), 10 x 4 equal square cells edge to "
+             "edge, radius 0, never wider than the doll, >= 26px from 1280 up, every item inside its cells - in every "
+             "plain / worn state and with three charms (Annihilus, a Grand Charm, Gheed's Fortune) placed through the "
+             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
