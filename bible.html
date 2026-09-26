@@ -31429,12 +31429,15 @@ _v40_whenReady(() => {
 // net::ERR_FILE_NOT_FOUND, so EVERY page load logged exactly 2 console errors — which is what kept
 // Routine G at 7/8 and tripped the 76 "no console errors" specs. Invisible on the Mac because there
 // both files resolve. Only offer them when the page itself lives under /Users/<name>/.
-const _v41_ON_MAC_DISK = /^\/Users\/[^/]+\//.test(location.pathname);
+// 2026-09-26 (#27) — the page's own home, not a username: this file is published, and the literal named his account.
+// On his Mac the page lives under /Users/<him>/, so the same two files are fetched; everywhere else, none.
+const _v41_HOME = (location.pathname.match(/^\/Users\/[^/]+\//) || [])[0] || '';
+const _v41_ON_MAC_DISK = !!_v41_HOME;
 const _v41_STATUS_PATHS = [
   // live baker output + the symlink to it — Mac-only, skipped everywhere else
   ...(_v41_ON_MAC_DISK ? [
-    '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',
-    '/Users/konyo/Downloads/routine_status.js',
+    _v41_HOME + 'd2r_bible_routines/obsidian_data/routine_status.js',
+    _v41_HOME + 'Downloads/routine_status.js',
   ] : []),
   'routine_status.js',  // last: Playwright stub (may be empty — rejected below)
 ];

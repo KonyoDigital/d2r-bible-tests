@@ -740,7 +740,10 @@ def render():
             if _r["gotcha"]:
                 A("      ⚠ %s" % _r["gotcha"])
     A("")
-    return "\n".join(L) + "\n"
+    # ⚠ 2026-09-26 (#27) - THIS FILE IS PUBLISHED. A module docstring or a LIVE status line can carry a home path
+    # (/Users/<him>/..., an error naming a job dir); the map says ~/ instead. The same on every machine, so --check
+    # agrees between his Mac and CI.
+    return re.sub(r"/(?:Users|home)/[^/\s\'\"`]+/", "~/", "\n".join(L) + "\n")
 
 
 def main(argv=None):

@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1323 - THE PUBLISHED PAGE NAMED HIS ACCOUNT, AND NOTHING STOPPED A NEW HOME PATH FROM BEING PUBLISHED
+
+**fix - #27, measured 2026-09-26 13:05.** The repo is PUBLIC; 113 /Users/<name>/ literals sat in 65 tracked files. Two
+were LIVE CODE in bible.html - the page the site publishes: the v41 routine-status loader fetched its two local files by
+literal path (Mac only, the v1455 guard). It now builds them from the page's own home (`location.pathname`'s
+/Users/<x>/ prefix): the same two files on his Mac (evaluated: identical paths), none anywhere else, and no username in
+the published source. BLUEPRINT.md's generator now writes ~/ for any home path (a docstring quote, a LIVE line naming a
+job dir), identical on his Mac and CI. The rest - old handoffs, BUGS.md, docs - is history; rewriting it is his call.
+Law test_no_new_home_path_is_published (new gate, 629): a ratchet over `git ls-files` - each tracked file pinned at its
+count (home_paths_baseline.json: 121 in 63 files, the law's own two included), a rise refused; bible.html must carry
+none; the counter driven on a fixture (a real path counts; an escaped regex, a placeholder and a bare prefix do not);
+2 red-proofs, heart2 PROVEN. [[feedback-fixtures-never-touch-live-data]] [[regression-guard]]
+
 ### REG-1322 - REG-1316'S SIBLING: FROZEN_FRAMES WOULD HAVE HASHED AN iCLOUD PLACEHOLDER ON THE SAME SHELF
 
 **fix - found 2026-09-26 13:40 while triaging the #231 eye's v3511 look (sweep, not report).** frozen_frames.scan()

@@ -5537,6 +5537,13 @@ GATES = [
              "CREATE_NO_WINDOW, and 82 spawn sites did not. win_quiet replaces subprocess.Popen once per process "
              "(console + agent) so every spawn is windowless. Driven on a fake Windows subprocess module. "
              "4 cases, 4 red-proofs"),
+    Gate("test_no_new_home_path_is_published",
+         [sys.executable, os.path.join(HERE, "test_no_new_home_path_is_published.py")], 60,
+         why="#27 - the repo is PUBLIC and 113 /Users/<name>/ literals sat in 65 tracked files, two of them live code in "
+             "the published bible.html (the routine loader) and one in the generated BLUEPRINT.md. Those are gone; the rest "
+             "are history. A ratchet over `git ls-files`: every tracked file is pinned at its count and may only keep or "
+             "lower it, so a new home path is refused before it is published. The counter is driven on a fixture "
+             "(a real path counts; an escaped regex, a placeholder and a bare prefix do not)."),
     Gate("test_no_law_hands_node_its_program_on_argv",
          [sys.executable, os.path.join(HERE, "test_no_law_hands_node_its_program_on_argv.py")], 60,
          why="#242 - REG-1308's mule laws were green on his Mac and errored on every CI run: `node -e <program>` "
