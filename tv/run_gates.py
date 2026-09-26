@@ -7113,7 +7113,11 @@ GATES = [
              "localStorage key (mules, vault, owned, chronicle, ladder copies) is byte-identical across every action and no "
              "vault / mule function is called; Open calls openCharBuilder(id) and the builder's dropdown leads with "
              "'★ MAIN'; an unreadable store is UNKNOWN and refuses writes; d2r_cbMain forks per account and rides Backup. "
-             "9 cases, 15 red-proofs",
+             "#245 review: the Undo bar's countdown never replaces the Undo button (focus + slow clicks survive), a "
+             "keyboard delete keeps focus (armed -> Undo -> the restored card), one double-click is not a delete, Undo "
+             "is byte-identical in ANY order, nothing is deleted under the open planner and the planner says when its "
+             "build is gone (UNKNOWN when unreadable), and app context's row starts where a scroll reaches. "
+             "15 cases, 25 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_is_their_builder",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,

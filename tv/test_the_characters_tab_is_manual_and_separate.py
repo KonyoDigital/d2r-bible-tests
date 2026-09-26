@@ -40,10 +40,32 @@ ROOM RENDERED, so a card whose button names the wrong build, or no function, is 
   · PER ACCOUNT: d2r_cbMain is in _LP_FORKED beside d2r_charBuilds; on the ladder profile MAIN lands in L·d2r_cbMain
     and main's is untouched; Backup & Share exports it under its bare name.
 
+THE #245 REVIEW'S FIVE ROOM DEFECTS, each reproduced in headless Chrome before it was fixed, and each held here:
+  · THE UNDO BAR KEEPS HIS BUTTON: it was rebuilt with innerHTML every second, so Undo was a new element each tick -
+    keyboard focus gone within a second, a press straddling a tick lost, the aria-live sentence re-announced every
+    second. The harness now keeps the two lists as a browser does (a replaced box loses its focused element to
+    <body>), so "the same button, still focused, three ticks later" is an identity check, and the countdown still
+    counts (20 -> 17) inside a span the live region ignores.
+  · A KEYBOARD DELETE COMPLETES WHERE HE IS: Enter arms, focus stays on "Confirm delete?", Enter deletes and focus
+    moves to that build's Undo, Enter there puts it back and focus lands on its card.
+  · ONE DOUBLE-CLICK IS NOT A DELETE: a confirm 80 ms after its arm is refused (still armed, nothing written); a
+    deliberate press a second later deletes.
+  · UNDO IN ANY ORDER IS BYTE-IDENTICAL: first-delete-first, middle-first and last-first all end on the exact
+    pretty-printed seed string.
+  · NEVER UNDER THE OPEN PLANNER: with the builder open, Delete refuses (nothing armed, nothing written) and says why;
+    another window's delete paints the builder's "no longer saved" state (by the storage event, by the next commit,
+    and by the next render), a store that cannot be parsed reads UNKNOWN there, never "deleted".
+  · AND APP CONTEXT'S ROW CAN BE REACHED: the eighth tab made the centred ?app=1 row overflow past its left edge where
+    no scroll reaches (SESSIONS cut to "NS" at 375) and wrap 7+1 at 750-800. Pinned here as the two CSS rules that
+    fix it; the pixels were measured in headless Chrome (375-1120), which this law cannot do.
+
 ⚠ WHAT THIS LAW CANNOT SEE: pixels (the room was looked at in headless Chrome at 2000x1300 and 375x812 when it was
 built), and the CONSOLE's own header strip (tv/control_ui.html #head-tabs), which has no Characters door yet — inside
 the console shell the board's tab row is hidden, so this room is reached on the website and in app context, not from
-the console header. That is recorded as open work, not claimed here. RED_PROOF below.
+the console header. That is recorded as open work, not claimed here: a ninth header tab was built and measured in a
+private console and it does NOT fit his one-row strip (v2100: "the main tabs on top should be one row") - it wrapped
+to a second row at 901, 1000, 1120 (his window), 1440 and 1600, short by 99 / 6 / 106 / 55 / 25 px - so where the
+door goes is his call. RED_PROOF below.
 """
 import io
 import json
@@ -152,12 +174,35 @@ function El(id){ this.id = id || ''; this.hidden = false; this.disabled = false;
 El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); if (k === 'id') this.id = String(v); };
 El.prototype.getAttribute = function(k){ return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; };
 El.prototype.querySelector = function(){ return null; };
-El.prototype.querySelectorAll = function(){ return []; };
+/* #245 review - the room's two lists as a browser holds them. Setting innerHTML on #chars-list / #chars-undo REPLACES
+   every element in the box - one that had focus loses it to <body>, exactly as in a browser - and the new elements
+   are objects with their attributes, so "the same button" is an identity question and a keyboard press (enter())
+   acts on whatever holds focus. Only these two boxes are parsed; every other stand-in stays string-only. */
+var PARSED = { 'chars-list': 1, 'chars-undo': 1 };
+function _attrs(s){ var o = {}, re = /([\w-]+)(?:="([^"]*)")?/g, m; while ((m = re.exec(s))) o[m[1]] = m[2] == null ? '' : decode(m[2]); return o; }
+El.prototype.querySelectorAll = function(sel){
+  if (sel === 'button[data-act]' && this._kids) return this._kids.filter(function(k){ return k.tag === 'button' && k.attrs['data-act'] != null; });
+  return [];
+};
+El.prototype.contains = function(x){ return !!(this._kids && this._kids.indexOf(x) >= 0); };
 El.prototype.getBoundingClientRect = function(){ return { left: 0, top: 0, width: 100, height: 40, right: 100, bottom: 40 }; };
 El.prototype.appendChild = function(c){ this.children.push(c); if (c.id) ELS[c.id] = c; return c; };
-El.prototype.focus = function(){};
+El.prototype.focus = function(){ if (this.tag && !this.disabled) document.activeElement = this; };
 El.prototype.scrollIntoView = function(){};
-Object.defineProperty(El.prototype, 'innerHTML', { get: function(){ return this._html; }, set: function(v){ this._html = String(v); } });
+Object.defineProperty(El.prototype, 'innerHTML', { get: function(){ return this._html; }, set: function(v){
+  this._html = String(v);
+  if (!PARSED[this.id]) return;
+  this.writes = (this.writes || 0) + 1;
+  if (this._kids && this._kids.indexOf(document.activeElement) >= 0) document.activeElement = document.body;
+  var kids = [], re = /<([a-z]+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*>([^<]*)/g, m;
+  while ((m = re.exec(this._html))){
+    var e = new El(''); e.tag = m[1]; e.attrs = _attrs(m[2]); e.disabled = Object.prototype.hasOwnProperty.call(e.attrs, 'disabled');
+    e.textContent = decode(m[3]);
+    if (e.attrs.id){ e.id = e.attrs.id; ELS[e.id] = e; }
+    kids.push(e);
+  }
+  this._kids = kids;
+} });
 var ELS = {}, MODAL = new El('cb-modal'), TABBTN = {};
 ['chars-list', 'chars-undo', 'chars-say', 'chars-new', 'tab-chars', 'tab-vault'].forEach(function(id){ ELS[id] = new El(id); });
 var DBEL = new El('cb-db'); DBEL.textContent = __DB__;
@@ -214,6 +259,15 @@ function pressUndo(id){
   if (!oc) return 'no-undo';
   return (new Function('return (' + oc + ');'))();
 }
+/* the parsed lists: a button by action + build, what holds focus, a keyboard Enter on it, an undo row's seconds */
+function kids(box, pred){ return (ELS[box]._kids || []).filter(pred); }
+function btn(box, act, id){ var k = kids(box, function(e){ return e.tag === 'button' && e.attrs['data-act'] === act && e.attrs['data-for'] === id; }); return k.length === 1 ? k[0] : null; }
+function focused(){ var a = document.activeElement; if (a === document.body) return 'BODY'; if (!a || !a.tag) return null; return [a.attrs['data-act'] || null, a.attrs['data-for'] == null ? null : a.attrs['data-for'], a.textContent]; }
+function enter(){ var a = document.activeElement; if (!a || a.tag !== 'button' || a.disabled || a.attrs.onclick == null) return 'no-focused-button'; return (new Function('return (' + a.attrs.onclick + ');'))(); }
+function secs(id){ var ks = ELS['chars-undo']._kids || [], on = false; for (var i = 0; i < ks.length; i++){ if (ks[i].attrs['data-undo'] != null) on = ks[i].attrs['data-undo'] === id; else if (on && /^chars-undo-s-/.test(ks[i].id)) return ks[i].textContent; } return null; }
+function undoRows(){ return kids('chars-undo', function(e){ return e.attrs['data-undo'] != null; }).map(function(e){ return e.attrs['data-undo']; }); }
+/* a deliberate two-step delete: arm, a second later confirm (a confirm inside CONFIRM_MIN_MS is a double-click) */
+function del(id){ var a = press(id, 'del'); advance(1000); var b = press(id, 'del'); return a + '/' + b; }
 function others(){ var o = {}; Object.keys(RAW).sort().forEach(function(k){ var bare = k.replace(/^L·/, ''); if (!/^(d2r_charBuilds|d2r_cbMain|d2r_cbSel)$/.test(bare)) o[k] = RAW[k]; }); return JSON.stringify(o); }
 function b(name, cls, level, at, sets){ return { name: name, cls: cls, level: level, sets: sets, active: 0, notes: '', stash: [], from: null, at: at }; }
 function set1(slots, inv, swap){ return { name: 'Set 1', slots: slots || {}, inv: inv || [], swap: swap || {}, ws: 1 }; }
@@ -346,7 +400,7 @@ class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
           OUT.u = pressUndo('bSORC');
           OUT.byteSame = RAW['d2r_charBuilds'] === raw0; OUT.idsBack = ids(); OUT.undoGone = ELS['chars-undo'].hidden;
           /* and a delete that is NOT undone inside 20 s stays done */
-          press('bDRU', 'del'); press('bDRU', 'del');
+          del('bDRU');
           var after = RAW['d2r_charBuilds'];
           advance(20001);
           OUT.expiredBar = ELS['chars-undo'].hidden; OUT.lateUndo = pressUndo('bDRU'); OUT.lateCall = window._charsUndo('bDRU');
@@ -380,13 +434,13 @@ class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
         out = _run(r"""
           seed('bHAM'); window.renderCharsTab();
           var raw0 = RAW['d2r_charBuilds'];
-          press('bHAM', 'del'); OUT.r = press('bHAM', 'del');
+          press('bHAM', 'del'); advance(1000); OUT.r = press('bHAM', 'del');
           OUT.mainGone = !Object.prototype.hasOwnProperty.call(RAW, 'd2r_cbMain'); OUT.badges = cards().filter(function(c){ return c.badge; }).length;
           OUT.bar = /it was your MAIN/.test(ELS['chars-undo']._html);
           pressUndo('bHAM');
           OUT.main = RAW['d2r_cbMain']; OUT.byteSame = RAW['d2r_charBuilds'] === raw0; OUT.first = ids()[0];
           /* an Undo after ANOTHER build changed: the deleted one returns at its place, bytes intact, the other change kept */
-          press('bSORC', 'del'); press('bSORC', 'del');
+          del('bSORC');
           var mid = JSON.parse(RAW['d2r_charBuilds']); mid.bDRU.level = 50; mid.bDRU.at = NOW; RAW['d2r_charBuilds'] = JSON.stringify(mid);
           pressUndo('bSORC');
           var fin = JSON.parse(RAW['d2r_charBuilds']);
@@ -476,6 +530,155 @@ class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
         self.assertTrue(out["mainUntouched"], "a ladder MAIN overwrote the main account's")
         self.assertEqual(out["backup"], "bSORC", "Backup & Share must carry the active account's MAIN, bare-named")
 
+    def test_the_undo_bar_keeps_his_button_while_it_counts_down(self):
+        out = _run(r"""
+          seed(null); window.renderCharsTab();
+          OUT.d = del('bSORC');
+          var u0 = btn('chars-undo', 'undo', 'bSORC'); OUT.u0 = !!u0; u0.focus();
+          var w0 = ELS['chars-undo'].writes, s0 = secs('bSORC');
+          advance(3000);                                               /* three ticks of the countdown */
+          OUT.tick = { same: btn('chars-undo', 'undo', 'bSORC') === u0, focus: document.activeElement === u0,
+                       barWrites: ELS['chars-undo'].writes - w0, secs: [s0, secs('bSORC')] };
+          press('bHAM', 'del'); advance(5001);                         /* another card's confirm lapses: the room repaints */
+          OUT.repaint = { same: btn('chars-undo', 'undo', 'bSORC') === u0, focus: document.activeElement === u0,
+                          barWrites: ELS['chars-undo'].writes - w0 };
+          OUT.quietSecs = /<span aria-hidden="true"> for <span id="chars-undo-s-\d+">\d+<\/span> s<\/span>/.test(ELS['chars-undo']._html);
+          OUT.name = u0.attrs['aria-label'];
+          OUT.enter = enter(); OUT.back = ids().indexOf('bSORC') >= 0;
+        """)
+        self.assertEqual(out["d"], "armed/deleted")
+        self.assertTrue(out["u0"], "no Undo button for the deleted build")
+        self.assertEqual(out["tick"], {"same": True, "focus": True, "barWrites": 0, "secs": ["20", "17"]},
+                         "the countdown replaced the Undo button (or its focus) - a keyboard Enter or a slow click "
+                         "on Undo is lost within a second: %s" % out["tick"])
+        self.assertEqual(out["repaint"], {"same": True, "focus": True, "barWrites": 0},
+                         "a repaint of the room took the Undo button he is on: %s" % out["repaint"])
+        self.assertTrue(out["quietSecs"], "the seconds are not inside an aria-hidden span - the polite live region "
+                        "re-announces the bar every second for 20 s")
+        self.assertIn("20 s", out["name"], "the Undo button's own name must carry the window the hidden seconds show")
+        self.assertTrue(out["enter"]); self.assertTrue(out["back"], "Enter on the focused Undo did not put the build back")
+
+    def test_a_keyboard_delete_completes_where_he_is(self):
+        out = _run(r"""
+          seed(null); window.renderCharsTab();
+          btn('chars-list', 'del', 'bDRU').focus(); OUT.f0 = focused();
+          OUT.e1 = enter(); OUT.f1 = focused();
+          advance(1000); OUT.e2 = enter(); OUT.f2 = focused(); OUT.left = ids();
+          OUT.e3 = enter(); OUT.f3 = focused(); OUT.back = ids();
+          btn('chars-list', 'main', 'bHAM').focus(); OUT.e4 = enter(); OUT.f4 = focused(); OUT.main = RAW['d2r_cbMain'];
+        """)
+        self.assertEqual(out["f0"], ["del", "bDRU", "Delete"])
+        self.assertEqual(out["e1"], "armed")
+        self.assertEqual(out["f1"], ["del", "bDRU", "Confirm delete?"],
+                         "arming repainted the list and dropped his focus: %s" % (out["f1"],))
+        self.assertEqual(out["e2"], "deleted", "a second Enter on the armed button did not delete")
+        self.assertEqual(out["f2"], ["undo", "bDRU", "Undo"], "after the delete, focus must be on that build's Undo: %s" % (out["f2"],))
+        self.assertEqual(out["left"], ["bSORC", "bHAM"])
+        self.assertTrue(out["e3"]); self.assertIn("bDRU", out["back"])
+        self.assertEqual(out["f3"], ["open", "bDRU", "Open"], "after Undo, focus must land on the restored card: %s" % (out["f3"],))
+        self.assertTrue(out["e4"]); self.assertEqual(out["main"], "bHAM")
+        self.assertEqual(out["f4"], ["open", "bHAM", "Open"],
+                         "Set as MAIN disables itself, so focus must move to that card's Open, not to <body>: %s" % (out["f4"],))
+
+    def test_one_double_click_is_not_a_delete(self):
+        out = _run(r"""
+          seed(null); window.renderCharsTab(); var raw0 = RAW['d2r_charBuilds'];
+          OUT.c1 = press('bDRU', 'del'); advance(80); OUT.c2 = press('bDRU', 'del');
+          OUT.kept = RAW['d2r_charBuilds'] === raw0 && ids().indexOf('bDRU') >= 0; OUT.writes = WRITES.length;
+          OUT.label = card('bDRU').btns.del.label;
+          advance(1000); OUT.c3 = press('bDRU', 'del'); OUT.gone = ids().indexOf('bDRU') < 0;
+        """)
+        self.assertEqual([out["c1"], out["c2"]], ["armed", "armed"],
+                         "the second click of one double-click confirmed the delete")
+        self.assertTrue(out["kept"]); self.assertEqual(out["writes"], 0)
+        self.assertEqual(out["label"], "Confirm delete?", "the refused confirm must leave it armed, not disarm it")
+        self.assertEqual(out["c3"], "deleted"); self.assertTrue(out["gone"])
+
+    def test_undo_in_any_order_puts_back_the_exact_bytes(self):
+        out = _run(r"""
+          seed('bHAM'); window.renderCharsTab(); var raw0 = RAW['d2r_charBuilds'];
+          del('bSORC'); del('bDRU'); OUT.rows = undoRows();
+          pressUndo('bSORC'); pressUndo('bDRU');                        /* in the order the bar lists them */
+          OUT.firstFirst = RAW['d2r_charBuilds'] === raw0; OUT.order1 = Object.keys(JSON.parse(RAW['d2r_charBuilds']));
+          del('bHAM'); del('bSORC'); del('bDRU');
+          pressUndo('bSORC'); pressUndo('bHAM'); pressUndo('bDRU');     /* the middle one first */
+          OUT.middleFirst = RAW['d2r_charBuilds'] === raw0; OUT.main = RAW['d2r_cbMain'];
+          del('bSORC'); del('bDRU'); pressUndo('bDRU'); pressUndo('bSORC');
+          OUT.lastFirst = RAW['d2r_charBuilds'] === raw0; OUT.ids = ids();
+        """)
+        self.assertEqual(out["rows"], ["bSORC", "bDRU"])
+        self.assertEqual(out["order1"], ["bHAM", "bSORC", "bDRU"], "undone first-delete-first, a build came back out of place")
+        self.assertTrue(out["firstFirst"], "undone in the bar's order, the store is not the string it was")
+        self.assertTrue(out["middleFirst"], "three deletes, the middle undone first: the store is not the string it was")
+        self.assertEqual(out["main"], "bHAM")
+        self.assertTrue(out["lastFirst"])
+        self.assertEqual(out["ids"], ["bHAM", "bSORC", "bDRU"])
+
+    def test_a_build_open_in_the_planner_is_never_deleted_under_it(self):
+        out = _run(r"""
+          seed(null); window.renderCharsTab(); var raw0 = RAW['d2r_charBuilds'];
+          press('bHAM', 'open'); OUT.lock = HTML.classList.contains('cb-lock');
+          OUT.d = [press('bHAM', 'del'), (advance(1000), press('bHAM', 'del')), press('bSORC', 'del')];
+          OUT.kept = RAW['d2r_charBuilds'] === raw0; OUT.label = card('bHAM').btns.del.label;
+          OUT.say = ELS['chars-say'].hidden ? '' : ELS['chars-say'].textContent;
+          /* another window deletes the build the planner is on: its storage event is the only word of it */
+          var all = JSON.parse(RAW['d2r_charBuilds']); delete all.bHAM; RAW['d2r_charBuilds'] = JSON.stringify(all);
+          WLISTEN.forEach(function(l){ if (l[0] === 'storage') l[1]({ key: 'd2r_charBuilds' }); });
+          OUT.byEvent = /data-state="gone"/.test(ELS['cb-win']._html) && /no longer saved/.test(ELS['cb-win']._html);
+          window._cbSetField('level', 50); window._cbSwap(2);
+          OUT.stillGone = !Object.prototype.hasOwnProperty.call(JSON.parse(RAW['d2r_charBuilds']), 'bHAM');
+          window.closeCharBuilder(); OUT.sayAfter = ELS['chars-say'].hidden;
+          /* the same build vanishing with NO event (a writer this window never hears): the next commit says so ... */
+          press('bSORC', 'open'); all = JSON.parse(RAW['d2r_charBuilds']); delete all.bSORC; RAW['d2r_charBuilds'] = JSON.stringify(all);
+          window._cbNotes('a note');
+          OUT.byCommit = /data-state="gone"/.test(ELS['cb-win']._html);
+          OUT.noteKept = RAW['d2r_charBuilds'].indexOf('a note') < 0 && RAW['d2r_charBuilds'].indexOf('"bSORC"') < 0;
+          window.closeCharBuilder();
+          /* ... and so does the next render */
+          press('bDRU', 'open'); all = JSON.parse(RAW['d2r_charBuilds']); delete all.bDRU; RAW['d2r_charBuilds'] = JSON.stringify(all);
+          window._cbView('calc');
+          OUT.byRender = /data-state="gone"/.test(ELS['cb-win']._html);
+          window.closeCharBuilder();
+          /* an unreadable store is UNKNOWN in the planner, never "deleted" */
+          seed(null); window.renderCharsTab(); press('bHAM', 'open'); RAW['d2r_charBuilds'] = '{"bHAM": ';
+          WLISTEN.forEach(function(l){ if (l[0] === 'storage') l[1]({ key: 'd2r_charBuilds' }); });
+          OUT.unknown = /UNKNOWN/.test(ELS['cb-win']._html) && !/no longer saved/.test(ELS['cb-win']._html);
+          window.closeCharBuilder();
+          /* closed: the room deletes again */
+          seed(null); window.renderCharsTab(); OUT.after = del('bSORC');
+          OUT.calls = CALLS;
+        """)
+        self.assertTrue(out["lock"])
+        self.assertEqual(out["d"], ["builder-open", "builder-open", "builder-open"],
+                         "the room armed or deleted a build while the planner was open over it: %s" % out["d"])
+        self.assertTrue(out["kept"]); self.assertEqual(out["label"], "Delete")
+        self.assertIn("Character Builder is open", out["say"])
+        self.assertTrue(out["byEvent"], "another window deleted the build on screen and the planner kept showing it")
+        self.assertTrue(out["stillGone"], "an edit in the planner brought a deleted build back")
+        self.assertTrue(out["sayAfter"], "the room still says the planner is open after it closed")
+        self.assertTrue(out["byCommit"], "an edit to a build that is no longer saved was dropped in silence")
+        self.assertTrue(out["noteKept"])
+        self.assertTrue(out["byRender"], "the planner rendered nothing and left the stale build on screen")
+        self.assertTrue(out["unknown"], "an unreadable store must read UNKNOWN in the planner, never 'deleted'")
+        self.assertEqual(out["after"], "armed/deleted")
+        self.assertEqual(out["calls"], [])
+
+    def test_app_context_row_starts_where_a_scroll_can_reach(self):
+        s = _src()
+        i = s.index('body.app-ctx .tabs .tab{display:none}')
+        blk = s[i:s.index("</style>", i)]
+        code = re.sub(r"/\*.{0,6000}?\*/", " ", blk, flags=re.S)
+        self.assertGreater(len(code), 1500, "the comment strip ate the app-context block - measure the real thing")
+        self.assertEqual(code.count("body.app-ctx .tabs{justify-content:flex-start !important}"), 1,
+                         "app context's tab row is centred by justify-content again: a row wider than the bar "
+                         "overflows past its LEFT edge, where no scroll reaches (SESSIONS read 'NS' at 375)")
+        self.assertEqual(code.count("body.app-ctx .tabs .tabs-workshop{margin-left:auto !important;margin-right:auto !important}"), 1,
+                         "the row that fits is no longer centred by the workshop's own auto margins")
+        m = re.search(r"@media \(min-width:701px\) and \(max-width:(\d+)px\)\{\s*body\.app-ctx:not\(\.engine-driven\) "
+                      r"\.tabs \.tabs-workshop \.tab\{flex:1 1 calc\(25% - 5px\) !important\}", code)
+        self.assertIsNotNone(m, "between the phone strip and one full row, the eight tabs wrap 7+1 again (VAULT alone)")
+        self.assertGreaterEqual(int(m.group(1)), 820, "the four-to-a-row band must reach the width that first holds all eight")
+
     def test_the_code_names_no_vault_store_no_mule_function_and_no_dialog(self):
         js = _chars_js(_src())
         code = re.sub(r"/\*.{0,6000}?\*/", " ", js, flags=re.S)
@@ -542,8 +745,78 @@ RED_PROOF = [
     {
         "why": "#245 - Undo re-serialises the store instead of restoring it byte-identical",
         "file": "bible.html",
-        "find": "      if (r.raw === u.after) window.LSR.setItem(K_BUILDS, u.before);\n",
-        "replace": "      if (false) window.LSR.setItem(K_BUILDS, u.before);\n",
+        "find": "        window.LSR.setItem(K_BUILDS, cur);\n",
+        "replace": "        window.LSR.setItem(K_BUILDS, JSON.stringify(JSON.parse(cur)));\n",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - Undo is byte-identical only last-first: undone in the bar's order, the store comes back a different string",
+        "file": "bible.html",
+        "find": "      if (chain && r.raw === prev){\n",
+        "replace": "      if (!later.length && r.raw === prev){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - the countdown rebuilds the Undo bar every second, so the Undo button he is on is replaced and his Enter / slow click is lost",
+        "file": "bible.html",
+        "find": "    if (sig === undoSig){\n",
+        "replace": "    if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - a repaint drops keyboard focus to <body>: Enter arms Delete and the second Enter does nothing",
+        "file": "bible.html",
+        "find": "    if (back) _refocus(back);\n",
+        "replace": "    if (false) _refocus(back);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - one double-click deletes: its second click confirms the arm its first click made",
+        "file": "bible.html",
+        "find": "    if (Date.now() - (armedAt[id] || 0) < CONFIRM_MIN_MS) return 'armed';",
+        "replace": "    if (false) return 'armed';",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - the room deletes the build the open planner is showing, and every edit after it is dropped",
+        "file": "bible.html",
+        "find": "    if (document.documentElement.classList.contains('cb-lock')){ _say(SAY_BUILDER); return 'builder-open'; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - another window deletes the build on screen and the planner keeps showing it (no storage listener)",
+        "file": "bible.html",
+        "find": "      if (!Object.prototype.hasOwnProperty.call(_cbAll(), st.bid)) _cbGone();\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - an edit to a build that is no longer saved is dropped in silence (_cbCommit returns false and says nothing)",
+        "file": "bible.html",
+        "find": "    if (!b){ if (st.bid) _cbGone(); return false; }\n",
+        "replace": "    if (!b) return false;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - the planner's render returns before painting when its build is gone, leaving the stale build on screen",
+        "file": "bible.html",
+        "find": "    if (!b){ if (st.bid && !st.draft && !st.newb) _cbGone(); return; }",
+        "replace": "    if (!b) return;",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - app context's row is centred again and overflows past its left edge, where no scroll reaches",
+        "file": "bible.html",
+        "find": "body.app-ctx .tabs{justify-content:flex-start !important}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#245 review - between 701 px and one full row, app context's eight tabs wrap 7+1 again (VAULT alone on a row)",
+        "file": "bible.html",
+        "find": "  body.app-ctx:not(.engine-driven) .tabs .tabs-workshop .tab{flex:1 1 calc(25% - 5px) !important}\n",
+        "replace": "",
         "matches": 1,
     },
     {

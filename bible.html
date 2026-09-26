@@ -5828,6 +5828,20 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:var(--ls-normal)}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
+/* #245 review - THE EIGHTH TAB PUSHED SESSIONS OFF THE LEFT EDGE, WHERE NO SCROLL REACHES. `.tabs` is centred with
+   justify-content:center !important (the compact header), and a centred flex row WIDER than its box overflows BOTH
+   ways - the left overflow sits before scrollLeft 0, so no scroll reaches it. Measured top-level ?app=1: SESSIONS at
+   x -52..28 against a bar starting at 14 at 375 (read as "NS"), -33..53 at 414, 0..80 at 480. The centring now comes
+   from the workshop's own auto margins, which only ever take POSITIVE free space: a row that fits sits centred
+   exactly as before, a row that does not starts at the bar's left edge and scrolls. */
+body.app-ctx .tabs{justify-content:flex-start !important}
+body.app-ctx .tabs .tabs-workshop{margin-left:auto !important;margin-right:auto !important}
+/* ...and between the phone strip (<=700, one scrolling row) and the width that holds all eight on one line (measured:
+   820 holds them, 800 does not), the row wrapped 6+2 or 7+1 - VAULT alone and stretched across a second row at 750-800.
+   Four to a row there: two even rows. */
+@media (min-width:701px) and (max-width:840px){
+  body.app-ctx:not(.engine-driven) .tabs .tabs-workshop .tab{flex:1 1 calc(25% - 5px) !important}
+}
 /* v2471 — AN EMPTY CLUSTER FRAME IS WORSE THAN NO FRAME. Every tab the block above re-shows lives
    in `.tabs-workshop`; `.tabs-data` (main + the HUNT and LORE clusters) is therefore ALWAYS empty
    in app context — and it still painted its captions and borders, so the restored rail read as two
@@ -10098,9 +10112,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   'use strict';
   var K_BUILDS = 'd2r_charBuilds', K_MAIN = 'd2r_cbMain';
   var ARM_MS = 5000, UNDO_MS = 20000;
+  /* #245 review - ONE DOUBLE-CLICK WAS A WHOLE DELETE. The first click armed and repainted "Confirm delete?" in the very
+     place the pointer was, and the double-click's second click (80 ms later) confirmed it: two steps in one gesture,
+     measured in headless Chrome. A confirm now has to come at least this long after its arm - past a double-click
+     interval (500 ms is the common default) and far inside the 5 s window, so a deliberate second press still lands. */
+  var CONFIRM_MIN_MS = 600;
   var armed = {};          // buildId -> timer: while it runs the Delete button reads "Confirm delete?"
-  var undos = [];          // [{id, name, before, after, build, order, wasMain, mainBefore, until, timer}]
-  var tick = null, say = '';
+  var armedAt = {};        // buildId -> Date.now() when it was armed, for CONFIRM_MIN_MS
+  var undos = [];          // [{id, serial, name, before, after, build, order, wasMain, mainBefore, until, timer}]
+  var tick = null, say = '', serial = 0, undoSig = null;
+  /* the room's words while the planner is open over it; cleared when the planner closes */
+  var SAY_BUILDER = 'The Character Builder is open over this room. Close it first, then delete here - a build is never deleted while the planner is open, because it may be the one on screen there.';
   var own = Object.prototype.hasOwnProperty;
 
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -10167,7 +10189,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       ? '<span><b>' + total + '</b> item' + (total === 1 ? '' : 's') + '</span><span>' + n.worn + ' worn</span><span>'
         + n.inv + ' in inventory</span><span>' + n.sets + ' set' + (n.sets === 1 ? '' : 's') + '</span>'
       : '<span class="chx-unk">items UNKNOWN — this build\'s sets could not be counted</span>';
-    var isArmed = own.call(armed, id);
+    var isArmed = own.call(armed, id), fo = ' data-for="' + esc(id) + '"';
     return '<article class="chx-card' + (isMain ? ' chx-main' : '') + '" data-build="' + esc(id) + '">'
       + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(b.cls || '?').charAt(0)) + '</span>'
       +   '<div class="chx-id"><div class="chx-name" title="' + esc(b.name || id) + '">' + esc(b.name || 'Unnamed build') + '</div>'
@@ -10177,27 +10199,76 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       + '<div class="chx-when"' + (when ? ' title="' + esc(new Date(b.at).toString()) + '"' : '') + '>'
       +   (when ? 'changed ' + esc(when) : '<span class="chx-unk">last change UNKNOWN</span>') + '</div>'
       + '<div class="chx-acts">'
-      +   '<button type="button" class="chx-btn chx-open" data-act="open" onclick="window._charsOpen(' + arg(id) + ')">Open</button>'
-      +   (isMain ? '<button type="button" class="chx-btn chx-setmain" data-act="main" disabled title="this is your MAIN character">★ MAIN</button>'
-                  : '<button type="button" class="chx-btn chx-setmain" data-act="main" onclick="window._charsSetMain(' + arg(id) + ')">★ Set as MAIN</button>')
-      +   '<button type="button" class="chx-btn chx-del' + (isArmed ? ' chx-armed' : '') + '" data-act="del" onclick="window._charsDelete(' + arg(id) + ')"'
+      +   '<button type="button" class="chx-btn chx-open" data-act="open"' + fo + ' onclick="window._charsOpen(' + arg(id) + ')">Open</button>'
+      +   (isMain ? '<button type="button" class="chx-btn chx-setmain" data-act="main"' + fo + ' disabled title="this is your MAIN character">★ MAIN</button>'
+                  : '<button type="button" class="chx-btn chx-setmain" data-act="main"' + fo + ' onclick="window._charsSetMain(' + arg(id) + ')">★ Set as MAIN</button>')
+      +   '<button type="button" class="chx-btn chx-del' + (isArmed ? ' chx-armed' : '') + '" data-act="del"' + fo + ' onclick="window._charsDelete(' + arg(id) + ')"'
       +     (isArmed ? ' aria-label="Confirm delete of ' + esc(b.name || id) + '"' : '') + '>' + (isArmed ? 'Confirm delete?' : 'Delete') + '</button>'
       + '</div></article>';
   }
 
+  /* #245 review - A REPAINT MUST NOT TAKE HIS FOCUS WITH IT. The cards and the undo rows are drawn with innerHTML, and a
+     button that is replaced takes the keyboard focus with it: Enter on Delete armed it and dropped focus to <body>, so
+     a second Enter did nothing and Tab restarted at the FIRST card (measured, headless Chrome, CDP key events). So a
+     repaint notes which button had focus - its action and its build (data-act + data-for) - and hands focus to the
+     same button in the new markup; to the card's Open when that button is now disabled (Set as MAIN on the new MAIN);
+     and to the build's Undo when the card itself is gone (the confirm of a delete). */
+  function _focusKey(box){
+    var a = document.activeElement;
+    if (!a || !box || a === box || typeof box.contains !== 'function' || !box.contains(a) || typeof a.getAttribute !== 'function') return null;
+    var act = a.getAttribute('data-act'), id = a.getAttribute('data-for');
+    return (act && id != null) ? { act: act, id: id } : null;
+  }
+  function _focusIn(box, act, id){
+    if (!box || typeof box.querySelectorAll !== 'function') return false;
+    var bs = box.querySelectorAll('button[data-act]');
+    for (var i = 0; i < bs.length; i++){
+      if (bs[i].getAttribute('data-act') !== act || bs[i].getAttribute('data-for') !== id || bs[i].disabled) continue;
+      try { bs[i].focus({ preventScroll: true }); } catch (e) {}
+      return true;
+    }
+    return false;
+  }
+  function _refocus(k){
+    var list = $id('chars-list'), bar = $id('chars-undo');
+    return _focusIn(k.act === 'undo' ? bar : list, k.act, k.id) || _focusIn(list, 'open', k.id) || _focusIn(bar, 'undo', k.id);
+  }
+
+  /* #245 review - THE COUNTDOWN MOVES THE SECONDS, NEVER THE BUTTON. This bar used to be rebuilt with innerHTML every
+     second, so Undo was a NEW element each tick: keyboard focus on it was gone within a second (Enter then did nothing
+     and the build stayed deleted), and a mouse press that straddled a tick was released over a different node and
+     never became a click - headless Chrome lost 1 of 20 ordinary 150 ms clicks, and every 1.15 s press. As an
+     aria-live region it also re-announced the whole sentence every second for 20 s. The rows are now rebuilt only
+     when the SET of pending undos changes (a delete, an undo, an expiry - each through _render, which keeps focus);
+     a tick writes the number alone, inside a span the live region is told to ignore, and the Undo button's own name
+     carries the window. */
+  function _left(u, now){ return Math.max(0, Math.ceil((u.until - now) / 1000)); }
   function _renderUndo(){
     var box = $id('chars-undo'); if (!box) return;
-    var now = Date.now();
+    var now = Date.now(), sig = undos.map(function(u){ return u.serial; }).join(',');
+    if (sig === undoSig){
+      undos.forEach(function(u){ var s = $id('chars-undo-s-' + u.serial); if (s) s.textContent = String(_left(u, now)); });
+      return;
+    }
+    undoSig = sig;
     box.innerHTML = undos.map(function(u){
-      var left = Math.max(0, Math.ceil((u.until - now) / 1000));
-      return '<div class="chx-undo-row" data-undo="' + esc(u.id) + '"><span>Deleted <b>' + esc(u.name || u.id) + '</b>'
-        + (u.wasMain ? ' (it was your MAIN)' : '') + ' — you can put it back for ' + left + ' s.</span>'
-        + '<button type="button" class="chx-btn" data-act="undo" onclick="window._charsUndo(' + arg(u.id) + ')">Undo</button></div>';
+      var nm = esc(u.name || u.id);
+      return '<div class="chx-undo-row" data-undo="' + esc(u.id) + '"><span>Deleted <b>' + nm + '</b>'
+        + (u.wasMain ? ' (it was your MAIN)' : '') + ' — you can put it back<span aria-hidden="true"> for <span id="chars-undo-s-' + u.serial + '">'
+        + _left(u, now) + '</span> s</span>.</span>'
+        + '<button type="button" class="chx-btn" data-act="undo" data-for="' + esc(u.id) + '" aria-label="Undo - put ' + nm + ' back (possible for '
+        + Math.round(UNDO_MS / 1000) + ' s after the delete)" onclick="window._charsUndo(' + arg(u.id) + ')">Undo</button></div>';
     }).join('');
     box.hidden = !undos.length;
   }
   function _render(){
     var list = $id('chars-list'); if (!list) return false;
+    var back = _focusKey(list) || _focusKey($id('chars-undo'));
+    var ok = _paint(list);
+    if (back) _refocus(back);
+    return ok;
+  }
+  function _paint(list){
     var r = _read(), sayEl = $id('chars-say'), nw = $id('chars-new');
     if (sayEl){ sayEl.textContent = say; sayEl.hidden = !say; }
     _renderUndo();
@@ -10254,41 +10325,63 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   window._charsDelete = function(id){
     var r = _read();
     if (!r.ok || !own.call(r.all, id)){ _render(); return false; }
+    /* #245 review - NEVER UNDER THE OPEN PLANNER. With the builder open on a build, deleting that build left the builder
+       showing it and dropped every later edit in silence (_cbCommit found no build and returned false); the builder
+       is not focus-trapped, so a keyboard reaches these buttons behind it. While html.cb-lock is on, nothing is armed
+       or deleted here. (Another window's delete is the builder's own to report - see _cbGone.) */
+    if (document.documentElement.classList.contains('cb-lock')){ _say(SAY_BUILDER); return 'builder-open'; }
     if (!own.call(armed, id)){
       armed[id] = setTimeout(function(){ delete armed[id]; _render(); }, ARM_MS);
+      armedAt[id] = Date.now();
       _render();
       return 'armed';
     }
-    clearTimeout(armed[id]); delete armed[id];
+    if (Date.now() - (armedAt[id] || 0) < CONFIRM_MIN_MS) return 'armed';   // the second click of a double-click
+    clearTimeout(armed[id]); delete armed[id]; delete armedAt[id];
     var order = Object.keys(r.all), rest = {};
     order.forEach(function(k){ if (k !== id) rest[k] = r.all[k]; });
     var after = JSON.stringify(rest), mainBefore = _mainRaw(), wasMain = mainBefore === id;
     window.LSR.setItem(K_BUILDS, after);
     if (wasMain) window.LSR.removeItem(K_MAIN);
-    var u = { id: id, name: (r.all[id] || {}).name, before: r.raw, after: after, build: JSON.stringify(r.all[id]),
+    var u = { id: id, serial: ++serial, name: (r.all[id] || {}).name, before: r.raw, after: after, build: JSON.stringify(r.all[id]),
               order: order, wasMain: wasMain, mainBefore: mainBefore, until: Date.now() + UNDO_MS, timer: null };
     u.timer = setTimeout(function(){ _drop(u); _render(); }, UNDO_MS);
     undos.push(u); _tick();
     say = ''; _render();
     return 'deleted';
   };
-  /* Undo puts the build back BYTE-IDENTICAL: when nothing moved since the delete, the whole store goes back to the exact
-     string it was; when something did (he saved another build meanwhile), the build goes back at its own place in the
-     order with its own JSON unchanged, and the other change is kept. */
+  /* Undo puts the build back BYTE-IDENTICAL, whatever order the pending deletes are undone in.
+     #245 review - IT WAS BYTE-IDENTICAL ONLY LAST-FIRST. Two deletes pending, undone in the order the bar lists them (the
+     first delete first): the first Undo took the merge path and rebuilt the store from that delete's saved key order,
+     and the second delete's saved order had never seen the first build, so it went back LAST - headless Chrome read
+     ['bAAA1','bCCC3','bBBB2'] and a different string. Now, when nothing but these deletes has touched the store (each
+     later delete read exactly what the one before it wrote, and the store is what the last one wrote), an Undo REPLAYS
+     the later deletes over the store as it stood before this one and re-bases their before / after / order on that
+     replay - so in any order, the last Undo writes back the exact string that was there. When something else did
+     change the builds meanwhile (he saved a build in the planner), the build goes back right after the build it
+     followed, with its own JSON, and every other change - and every other key's place - is kept. */
   window._charsUndo = function(id){
     var u = null; undos.forEach(function(x){ if (x.id === id) u = x; });
     if (!u) return false;
     var r = _read();
     if (!r.ok){ _say('Your builds could not be read, so nothing was restored (' + r.why + ').'); return false; }
     if (!own.call(r.all, id)){
-      if (r.raw === u.after) window.LSR.setItem(K_BUILDS, u.before);
-      else {
-        var out = {}, seen = {};
-        u.order.forEach(function(k){
-          if (k === id){ out[k] = JSON.parse(u.build); seen[k] = 1; }
-          else if (own.call(r.all, k)){ out[k] = r.all[k]; seen[k] = 1; }
+      var later = undos.slice(undos.indexOf(u) + 1), prev = u.after, chain = true;
+      later.forEach(function(w){ if (w.before !== prev) chain = false; prev = w.after; });
+      if (chain && r.raw === prev){
+        var cur = u.before;
+        later.forEach(function(w){
+          var o = JSON.parse(cur), rest = {};
+          w.order = Object.keys(o);
+          w.order.forEach(function(k){ if (k !== w.id) rest[k] = o[k]; });
+          w.before = cur; cur = JSON.stringify(rest); w.after = cur;
         });
-        Object.keys(r.all).forEach(function(k){ if (!seen[k]) out[k] = r.all[k]; });
+        window.LSR.setItem(K_BUILDS, cur);
+      } else {
+        var keys = Object.keys(r.all), at = u.order.indexOf(id), pos = 0, out = {};
+        for (var i = at - 1; i >= 0; i--){ var p = keys.indexOf(u.order[i]); if (p >= 0){ pos = p + 1; break; } }
+        keys.splice(pos, 0, id);
+        keys.forEach(function(k){ out[k] = (k === id) ? JSON.parse(u.build) : r.all[k]; });
         window.LSR.setItem(K_BUILDS, JSON.stringify(out));
       }
       if (u.wasMain && _mainRaw() == null) window.LSR.setItem(K_MAIN, u.mainBefore);
@@ -10302,6 +10395,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     var wasOpen = false;
     new MutationObserver(function(){
       var open = document.documentElement.classList.contains('cb-lock');
+      if (wasOpen && !open && say === SAY_BUILDER) say = '';
       if (wasOpen && !open) _render();       // the builder just closed: a build may have been saved, renamed or added
       wasOpen = open;
     }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -51339,6 +51433,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-h-r .cb-btn{height:calc(28*var(--u));min-height:24px;font-size:var(--fs-cb-meta);text-transform:none;letter-spacing:0}
 .cb-empty{padding:calc(8*var(--u)) calc(12*var(--u));font-size:var(--fs-cb-meta);color:var(--text-dim);text-align:center;line-height:var(--lh-tight)}
 .cb-empty b{color:var(--text-muted);font-weight:var(--fw-medium)}
+.cb-empty .cb-gone-acts{margin-top:calc(8*var(--u))}   /* #245 review - the builder's "no longer saved" state: its Close sits a row below the sentence */
 /* BUILD SET — their Set 1 / + New Set, active = solid (their blue is our gold) */
 .cb-set{min-height:calc(84*var(--u));display:flex;flex-direction:column}
 .cb-settabs{display:flex;align-items:center;gap:calc(6*var(--u));padding:calc(8*var(--u)) calc(7*var(--u));flex-wrap:wrap}
@@ -51980,12 +52075,34 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var all = _cbAll(); return st.bid && all[st.bid] || null;
   }
   function _cbSet(){ var b = _cbBuild(); if (!b) return null; var s = b.sets[b.active | 0] || b.sets[0]; if (!s.inv) s.inv = []; if (!s.slots) s.slots = {}; if (!s.swap) s.swap = {}; return s; }
+  /* #245 review - THE BUILD ON SCREEN CAN BE DELETED NOW (the 👤 Characters tab - in this window it refuses while this
+     window is open, but another window's does not; a Main / Ladder switch takes it out of reach the same way), and
+     every edit to a build that is no longer saved used to be dropped in silence: _cbCommit found no build and returned
+     false, _cbRender returned before painting, and the stale build stayed on screen. So that state is painted as what
+     it is, with the way out; the delete stands and nothing is written back. A + New build flow is left to run (it is
+     how a build is made in the other account). A store that cannot be parsed is UNKNOWN, never "deleted".
+     [[unknown-stays-unknown]] */
+  function _cbGone(){
+    var box = _cbWin(); if (!box || !st.open) return false;
+    try { window.d2Tip.hide(); } catch (e) {}
+    st.pick = st.stash = null; st.held = null; st.drag = null;   // they point INTO the missing build; + New build stays his way on
+    var unk = false;
+    try { var raw = window.LSR.getItem('d2r_charBuilds'); if (raw){ var v = JSON.parse(raw); unk = !v || typeof v !== 'object' || Array.isArray(v); } }
+    catch (e) { unk = true; }
+    box.innerHTML = '<div class="cb" data-state="gone"><div class="cb-empty" role="alert">'
+      + (unk ? '<b>Your saved builds cannot be read - UNKNOWN</b> - so nothing changed here could be kept, and nothing was written over them.'
+             : '<b>This build is no longer saved here</b> - it was deleted (in the 👤 Characters tab, or in another window), or the account was switched (Main and Ladder keep their own builds), so nothing changed here could be kept.')
+      + '<div class="cb-gone-acts"><button type="button" class="cb-btn" id="cb-close" onclick="window.closeCharBuilder()" aria-label="close the character builder (Esc)">✕ Close</button></div></div></div>';
+    try { var c = document.getElementById('cb-close'); if (c) c.focus({ preventScroll: true }); } catch (e) {}
+    return true;
+  }
+  window._cbGone = _cbGone;
   /* every change goes through here: a template draft becomes a saved build on its first change */
   function _cbCommit(mut){
     var all = _cbAll(), b;
     if (st.draft){ b = st.draft; st.draft = null; st.bid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
     else b = all[st.bid];
-    if (!b) return false;
+    if (!b){ if (st.bid) _cbGone(); return false; }
     mut(b);
     b.at = Date.now();
     all[st.bid] = b;
@@ -52635,7 +52752,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
 
   function _cbRender(){
-    var box = _cbWin(), b = _cbBuild(); if (!box || !b) return;
+    var box = _cbWin(), b = _cbBuild(); if (!box) return;
+    if (!b){ if (st.bid && !st.draft && !st.newb) _cbGone(); return; }   // #245 review - the build on screen is no longer saved (a + New build flow is left to run)
     /* a re-render replaces the element the pointer was over, so its mouseleave never fires: the box goes first */
     window.d2Tip.hide();
     var s = _cbSet(), L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900);
@@ -53540,6 +53658,15 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     try { var c = document.getElementById('cb-close'); if (c) c.focus({ preventScroll: true }); } catch (e) {}
     return true;
   };
+  /* #245 review - another window can delete the build on screen here, and its storage event is the only word of it */
+  try {
+    window.addEventListener('storage', function(ev){
+      if (!st.open || st.draft || !st.bid || st.newb) return;
+      var k = String((ev && ev.key) || '');
+      if (ev && ev.key != null && k.slice(-14) !== 'd2r_charBuilds') return;
+      if (!Object.prototype.hasOwnProperty.call(_cbAll(), st.bid)) _cbGone();
+    });
+  } catch (e) {}
   window.closeCharBuilder = function(){
     var box = _cbWin();
     try { var n = document.getElementById('cb-notes'); if (n) window._cbNotes(n.value); } catch (e) {}
