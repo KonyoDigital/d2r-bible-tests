@@ -7101,6 +7101,20 @@ GATES = [
              "READS disagree (67.5%) while 66/165 distinct FRAMES do (40.0%). The row reads it, "
              "states both denominators, and is red only on staleness or a majority by BOTH.",
          skip_ok=()),
+    Gate("test_the_characters_tab_is_manual_and_separate",
+         [sys.executable, os.path.join(HERE, "test_the_characters_tab_is_manual_and_separate.py")], 90,
+         needs_app=False,
+         why="#245 - 👤 Characters is its own top tab, the MANUAL side (his: 'a separate section for the character MAIN "
+             "character and builds ... just like the mules have their designated areas', 'Its own top tab'): drives the "
+             "SHIPPED room with the Character Builder, CB_DB, switchTab, LSR, the fork sets and the Backup exporter in node "
+             "on a fake clock. The tab sits right before the Vault and app context re-shows it; the cards are exactly the "
+             "builds in d2r_charBuilds, MAIN first then newest; Set as MAIN writes only d2r_cbMain; Delete is two steps (5 s "
+             "confirm) and Undo restores the store byte-identical for 20 s, deleting MAIN clears d2r_cbMain; every OTHER "
+             "localStorage key (mules, vault, owned, chronicle, ladder copies) is byte-identical across every action and no "
+             "vault / mule function is called; Open calls openCharBuilder(id) and the builder's dropdown leads with "
+             "'★ MAIN'; an unreadable store is UNKNOWN and refuses writes; d2r_cbMain forks per account and rides Backup. "
+             "9 cases, 15 red-proofs",
+         skip_ok=()),
     Gate("test_the_character_builder_is_their_builder",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,
          needs_app=False,

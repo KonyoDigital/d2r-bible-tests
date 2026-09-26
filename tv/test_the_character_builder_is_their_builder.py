@@ -404,7 +404,10 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           OUT.anyInv = Object.keys(all).map(function(k){ return (all[k].sets[0].inv || []).map(function(e){ return [e.name, e.x, e.y]; }); });
           OUT.stash = Object.keys(all).map(function(k){ return (all[k].stash || []).map(function(e){ return e.name; }); });
         """)
-        self.assertEqual(sorted(out["reads"]), ["d2r_cbSel", "d2r_charBuilds"],
+        # #245 - the build dropdown reads d2r_cbMain (the MAIN build, set in the 👤 Characters tab) to lead with it.
+        # Still an EXACT set, one key larger: d2r_cbMain is a pointer into d2r_charBuilds, the manual side's own
+        # store, never a vault one - tv/test_the_characters_tab_is_manual_and_separate.py pins that side.
+        self.assertEqual(sorted(out["reads"]), ["d2r_cbMain", "d2r_cbSel", "d2r_charBuilds"],
                          "the builder read a store that is not its own: %s" % out["reads"])
         self.assertEqual(out["calls"], [], "the builder called the vault / the mules: %s" % out["calls"])
         self.assertEqual(out["nBuilds"], 2)

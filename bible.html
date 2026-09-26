@@ -4234,6 +4234,9 @@ window._LP_FORKED = new Set([
   /* #174 v-B2 - the character builder: a build is per-account state (Main and Ladder hold different characters),
      so it forks like d2r_muleEquip. */
   "d2r_charBuilds",
+  /* #245 - the MAIN character: a pointer INTO d2r_charBuilds, so it forks exactly as they do (a ladder MAIN names a
+     ladder build). Backup & Share carries it the same way, bare-named for the active account. */
+  "d2r_cbMain",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -4969,6 +4972,7 @@ try {
     <button class="tab" data-tab="crafts">⚗️ Crafts</button>
     <button class="tab" data-tab="funi">🏆 Uniques</button>
     <button class="tab" data-tab="fsets">🧩 Sets</button>
+    <button class="tab" data-tab="chars">👤 Characters</button><!-- #245 — Konyo: "i want a separate section for the character MAIN character and builds ... just like the mules have their designated areas", asked where: "Its own top tab". The MANUAL side, right before the Vault (the automated side) so the two sit together and stay two rooms. -->
     <button class="tab" data-tab="vault">🎒 Vault</button><!-- v2084 — Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on top". After the forge cluster so those three rooms stay adjacent. -->
     <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v914 (Konyo: 'yes I want it on the website too') — the live view is a first-class site tab again; app-ctx keeps it in the console header instead -->
    </div>
@@ -5814,6 +5818,8 @@ body.app-ctx .tabs .tab[data-tab="tools"]{opacity:.62;flex:0 1 auto !important;f
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
 body.app-ctx .tabs .tab[data-tab="vault"],
+/* #245 — the Characters room joins the re-show list, or it is built, renders and has no button in app context. */
+body.app-ctx .tabs .tab[data-tab="chars"],
 /* v2094 — crafts joins the app-context re-show list. Without this the tab is built and the
    room renders, but the CONSOLE never shows the button: app-ctx hides every tab except the
    ones named here. Exactly the half-landed move the eagle now watches for. */
@@ -10004,6 +10010,311 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   <div id="chron-shot-report-sets" class="chron-shot-report forge-note" style="display:none;margin:8px 0"></div>
   <div id="fsets-body"></div>
 </div>
+<!-- #245 — 👤 CHARACTERS: HIS OWN BUILDS, MADE BY HAND, IN A ROOM OF THEIR OWN (the manual side; the Vault is the
+     automated one). Every build the Character Builder saved is a card here; one is MAIN. Nothing the readers vault
+     ever lands here, and nothing done here touches a mule. The script block below says how that is held. -->
+<div class="tab-content" id="tab-chars">
+  <div class="chx-head">
+    <span class="tvf-emblem chx-emblem" aria-hidden="true">👤</span>
+    <div class="chx-headtxt">
+      <div class="chx-title">Characters</div>
+      <div class="chx-sub" id="chars-what">Your own builds, made by hand. The Vault's mules and auto-sort are separate — nothing the readers vault ever lands here.</div>
+      <div class="chx-meta">Kept on this device, per account (Main and Ladder hold their own) · rides 💾 Backup &amp; Share</div>
+    </div>
+    <button type="button" class="chx-btn chx-new" id="chars-new" onclick="window._charsNew()">+ New character</button>
+  </div>
+  <div class="chx-say" id="chars-say" role="status" hidden></div>
+  <div class="chx-undo" id="chars-undo" role="status" aria-live="polite" hidden></div>
+  <div class="chx-list" id="chars-list"></div>
+</div>
+<style id="chars-tab-css">
+/* #245 — the Characters room. Every size is a token (the size lock refuses a raw one on this surface). The MAIN card
+   wears the chrome gold, never an item-quality colour: MAIN is a choice he made, not a rarity. */
+#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.75);--fs-chx-name:calc(var(--fs-title)*1.2);--chx-gold:#f0c060}
+#tab-chars .chx-head{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin:2px 0 14px}
+#tab-chars .chx-emblem{margin-top:2px}
+#tab-chars .chx-headtxt{flex:1 1 220px;min-width:0}
+#tab-chars .chx-title{font-family:var(--serif-display);font-size:var(--fs-chx-title);font-weight:var(--fw-bold);letter-spacing:var(--ls-tight);line-height:var(--lh-tightest);color:var(--chx-gold)}
+#tab-chars .chx-sub{font-size:var(--fs-body);color:var(--text-muted);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
+#tab-chars .chx-meta{font-size:var(--fs-meta);color:var(--text-dim);margin-top:4px;line-height:var(--lh-snug)}
+#tab-chars .chx-btn{font-family:inherit;font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug);padding:6px 12px;border-radius:7px;border:1px solid var(--border-light);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;line-height:var(--lh-tight);white-space:nowrap}
+#tab-chars .chx-btn:hover{border-color:rgba(240,192,96,.6);background:rgba(240,192,96,.10)}
+#tab-chars .chx-btn:focus-visible{outline:2px solid rgba(240,192,96,.75);outline-offset:2px}
+#tab-chars .chx-btn[disabled]{opacity:.45;cursor:default}
+#tab-chars .chx-new{align-self:center;border-color:rgba(240,192,96,.55);color:var(--chx-gold);background:rgba(240,192,96,.08);font-size:var(--fs-body);padding:8px 16px}
+#tab-chars .chx-say{margin:0 0 10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,85,85,.45);background:rgba(255,85,85,.08);color:var(--text);font-size:var(--fs-body)}
+#tab-chars .chx-undo{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+#tab-chars .chx-undo[hidden],#tab-chars .chx-say[hidden]{display:none}
+#tab-chars .chx-undo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 12px;border-radius:8px;border:1px solid rgba(240,192,96,.45);background:var(--surface-2);font-size:var(--fs-body);color:var(--text)}
+#tab-chars .chx-undo-row b{color:var(--chx-gold)}
+#tab-chars .chx-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#tab-chars .chx-card{position:relative;display:flex;flex-direction:column;gap:9px;padding:14px 14px 12px;border-radius:12px;border:1px solid var(--border-light);background:linear-gradient(180deg,var(--surface-2),var(--surface));min-width:0}
+#tab-chars .chx-card.chx-main{border-color:rgba(240,192,96,.75);box-shadow:0 0 18px -6px rgba(240,192,96,.55),inset 0 1px 0 rgba(255,255,255,.05)}
+#tab-chars .chx-top{display:flex;align-items:center;gap:10px;min-width:0}
+#tab-chars .chx-crest{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--serif-display);font-size:var(--fs-title);font-weight:var(--fw-bold);color:var(--chx-gold);border:1px solid rgba(240,192,96,.45);background:radial-gradient(circle at 50% 30%,rgba(240,192,96,.16),rgba(10,8,5,.9) 70%)}
+#tab-chars .chx-id{flex:1 1 auto;min-width:0}
+#tab-chars .chx-name{font-family:var(--serif-display);font-size:var(--fs-chx-name);font-weight:var(--fw-semibold);color:var(--text);line-height:var(--lh-tight);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tab-chars .chx-cls{font-size:var(--fs-meta);color:var(--text-muted);margin-top:2px;letter-spacing:var(--ls-snug)}
+#tab-chars .chx-unk{color:var(--text-dim);font-style:italic}
+#tab-chars .chx-badge{flex:none;padding:3px 8px;border-radius:999px;font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:var(--ls-label);color:#1a1206;background:linear-gradient(180deg,#ffe08a,#c9a24a);border:1px solid rgba(255,224,138,.8)}
+#tab-chars .chx-facts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--fs-body);color:var(--text-muted)}
+#tab-chars .chx-facts b{color:var(--text);font-weight:var(--fw-semibold)}
+#tab-chars .chx-when{font-size:var(--fs-meta);color:var(--text-dim)}
+#tab-chars .chx-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+#tab-chars .chx-open{border-color:rgba(240,192,96,.55);color:var(--chx-gold)}
+#tab-chars .chx-del{margin-left:auto;color:var(--text-muted)}
+#tab-chars .chx-del.chx-armed{color:#fff;border-color:rgba(255,85,85,.85);background:rgba(255,85,85,.22)}
+#tab-chars .chx-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px 18px;border-radius:12px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-muted);font-size:var(--fs-body)}
+#tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
+#tab-chars .chx-empty.chx-bad{border-style:solid;border-color:rgba(255,85,85,.5)}
+/* at phone width the floating help / compass orbs sit over the right edge of the page, so a Delete pushed to the far
+   right would pass under them (a second-eye read at 375 found it covered to "Del"); the three actions sit together. */
+@media (max-width:760px){#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.42)}#tab-chars .chx-list{grid-template-columns:1fr}#tab-chars .chx-new{align-self:flex-start}#tab-chars .chx-del{margin-left:0}}
+</style>
+<script id="chars-tab-js">
+/* #245 — 👤 CHARACTERS: THE MANUAL SIDE, AND THE LINE BETWEEN IT AND THE VAULT.
+   His words (2026-09-26): "i want a separate section for the character MAIN character and builds and easily deleted
+   and saved as the main character just like the mules have their designated areas" · asked where: "Its own top tab" ·
+   "we dont want those items ending up in character builds accidentally.. we want it where it was always suppose to
+   go.. the mules and the auto-assort section" · "regardless of what i manually do in the character builds section ...
+   the vault and its logic... should still be doing it job ... so these are separted".
+   WHAT IT IS: every build in d2r_charBuilds (the Character Builder's own store) as a card - name, class, level, the
+   items across its sets + inventory, when it last changed - the MAIN one first, the rest newest first. ONE build is
+   MAIN: d2r_cbMain = buildId, forked per account exactly like the builds and carried by Backup & Share. Open is the
+   SAME planner window (window.openCharBuilder(id) - "universal for now"). Delete is two steps IN THE PAGE (never a
+   browser dialog): the button becomes "Confirm delete?" for 5 s, then the build goes and an Undo bar can put it back,
+   byte-identical, for 20 s. Deleting the MAIN clears d2r_cbMain; its Undo puts that back too.
+   THE SEPARATION IS A LAW, NOT A PROMISE: this block reads and writes d2r_charBuilds and d2r_cbMain and NOTHING ELSE -
+   no mule, vault, owned or chronicle store, and it calls no vault or mule function. The Vault's auto-sort never writes
+   here and this never writes there. tv/test_the_characters_tab_is_manual_and_separate.py drives it and snapshots every
+   other key before and after.
+   AN UNREADABLE STORE IS UNKNOWN, never "no characters yet": the room says so and refuses every write, because a
+   delete over an unparsed store would write {} over his builds. A build whose sets cannot be counted shows its items
+   as UNKNOWN, never 0; a build with no timestamp shows its last change as UNKNOWN. [[unknown-stays-unknown]]
+   The room repaints on entry (switchTab), after each of its own actions, when the builder closes (the builder holds
+   html.cb-lock while it is open), and when another window changes the builds (the storage event).
+   [[the-unjoined-end]] */
+(function(){
+  'use strict';
+  var K_BUILDS = 'd2r_charBuilds', K_MAIN = 'd2r_cbMain';
+  var ARM_MS = 5000, UNDO_MS = 20000;
+  var armed = {};          // buildId -> timer: while it runs the Delete button reads "Confirm delete?"
+  var undos = [];          // [{id, name, before, after, build, order, wasMain, mainBefore, until, timer}]
+  var tick = null, say = '';
+  var own = Object.prototype.hasOwnProperty;
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function arg(v){ return esc(JSON.stringify(String(v))); }   // a JS string literal, safe inside an onclick="" attribute
+  function $id(id){ return document.getElementById(id); }
+
+  /* -> {ok: true, all, raw} | {ok: false, why}. Nothing saved yet is an EMPTY store (measured); a store that cannot be
+     read or parsed is UNKNOWN, and every caller that writes refuses on it. */
+  function _read(){
+    var raw;
+    try { raw = window.LSR.getItem(K_BUILDS); }
+    catch (e) { return { ok: false, why: 'this browser refused the read (' + (e && e.message || e) + ')' }; }
+    if (raw == null || raw === '') return { ok: true, all: {}, raw: raw };
+    var v;
+    try { v = JSON.parse(raw); }
+    catch (e) { return { ok: false, why: 'the saved builds are not readable (' + (e && e.message || e) + ')' }; }
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return { ok: false, why: 'the saved builds are not a set of builds' };
+    return { ok: true, all: v, raw: raw };
+  }
+  /* the MAIN build's id, only when it names a saved build. A MAIN pointing at nothing marks nothing, and is not
+     rewritten here: a read never writes. */
+  function _mainRaw(){ try { return window.LSR.getItem(K_MAIN); } catch (e) { return null; } }
+  function _mainOf(all){ var m = _mainRaw(); return (m != null && own.call(all, m)) ? m : null; }
+
+  /* -> {worn, inv, sets} or null (UNKNOWN) - the same three places the builder's own Existing Items reads: every set's
+     slots, its weapon swap, its inventory */
+  function _count(b){
+    if (!b || !Array.isArray(b.sets)) return null;
+    var worn = 0, inv = 0;
+    for (var i = 0; i < b.sets.length; i++){
+      var s = b.sets[i];
+      if (!s || typeof s !== 'object') return null;
+      [s.slots, s.swap].forEach(function(o){ if (o && typeof o === 'object') Object.keys(o).forEach(function(k){ if (o[k]) worn++; }); });
+      if (Array.isArray(s.inv)) s.inv.forEach(function(e){ if (e) inv++; });
+    }
+    return { worn: worn, inv: inv, sets: b.sets.length };
+  }
+  function _ago(t){
+    if (typeof t !== 'number' || !isFinite(t) || t <= 0) return null;
+    var s = Math.round((Date.now() - t) / 1000);
+    if (s < 0) return new Date(t).toISOString().slice(0, 10);   // a stamp from the future: say its date, never "just now"
+    if (s < 60) return 'just now';
+    var m = Math.round(s / 60); if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60); if (h < 48) return h + ' h ago';
+    var d = Math.round(h / 24); if (d < 60) return d + ' days ago';
+    return new Date(t).toISOString().slice(0, 10);
+  }
+  /* MAIN first, then the rest newest first; a build with no stamp sorts last */
+  function _order(all, mainId){
+    return Object.keys(all).sort(function(a, c){
+      if (a === mainId) return -1;
+      if (c === mainId) return 1;
+      var ta = +((all[a] || {}).at) || 0, tc = +((all[c] || {}).at) || 0;
+      return tc - ta;
+    });
+  }
+
+  function _card(id, b, isMain){
+    b = (b && typeof b === 'object') ? b : {};
+    var n = _count(b), when = _ago(b.at), lvl = +b.level, total = n ? n.worn + n.inv : 0;
+    var cls = b.cls ? esc(b.cls) : '<span class="chx-unk">class UNKNOWN</span>';
+    var lv = (lvl >= 1 && lvl <= 99) ? 'level ' + (lvl | 0) : '<span class="chx-unk">level UNKNOWN</span>';
+    var facts = n
+      ? '<span><b>' + total + '</b> item' + (total === 1 ? '' : 's') + '</span><span>' + n.worn + ' worn</span><span>'
+        + n.inv + ' in inventory</span><span>' + n.sets + ' set' + (n.sets === 1 ? '' : 's') + '</span>'
+      : '<span class="chx-unk">items UNKNOWN — this build\'s sets could not be counted</span>';
+    var isArmed = own.call(armed, id);
+    return '<article class="chx-card' + (isMain ? ' chx-main' : '') + '" data-build="' + esc(id) + '">'
+      + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(b.cls || '?').charAt(0)) + '</span>'
+      +   '<div class="chx-id"><div class="chx-name" title="' + esc(b.name || id) + '">' + esc(b.name || 'Unnamed build') + '</div>'
+      +   '<div class="chx-cls">' + cls + ' · ' + lv + '</div></div>'
+      +   (isMain ? '<span class="chx-badge" data-main="1">★ MAIN</span>' : '') + '</div>'
+      + '<div class="chx-facts">' + facts + '</div>'
+      + '<div class="chx-when"' + (when ? ' title="' + esc(new Date(b.at).toString()) + '"' : '') + '>'
+      +   (when ? 'changed ' + esc(when) : '<span class="chx-unk">last change UNKNOWN</span>') + '</div>'
+      + '<div class="chx-acts">'
+      +   '<button type="button" class="chx-btn chx-open" data-act="open" onclick="window._charsOpen(' + arg(id) + ')">Open</button>'
+      +   (isMain ? '<button type="button" class="chx-btn chx-setmain" data-act="main" disabled title="this is your MAIN character">★ MAIN</button>'
+                  : '<button type="button" class="chx-btn chx-setmain" data-act="main" onclick="window._charsSetMain(' + arg(id) + ')">★ Set as MAIN</button>')
+      +   '<button type="button" class="chx-btn chx-del' + (isArmed ? ' chx-armed' : '') + '" data-act="del" onclick="window._charsDelete(' + arg(id) + ')"'
+      +     (isArmed ? ' aria-label="Confirm delete of ' + esc(b.name || id) + '"' : '') + '>' + (isArmed ? 'Confirm delete?' : 'Delete') + '</button>'
+      + '</div></article>';
+  }
+
+  function _renderUndo(){
+    var box = $id('chars-undo'); if (!box) return;
+    var now = Date.now();
+    box.innerHTML = undos.map(function(u){
+      var left = Math.max(0, Math.ceil((u.until - now) / 1000));
+      return '<div class="chx-undo-row" data-undo="' + esc(u.id) + '"><span>Deleted <b>' + esc(u.name || u.id) + '</b>'
+        + (u.wasMain ? ' (it was your MAIN)' : '') + ' — you can put it back for ' + left + ' s.</span>'
+        + '<button type="button" class="chx-btn" data-act="undo" onclick="window._charsUndo(' + arg(u.id) + ')">Undo</button></div>';
+    }).join('');
+    box.hidden = !undos.length;
+  }
+  function _render(){
+    var list = $id('chars-list'); if (!list) return false;
+    var r = _read(), sayEl = $id('chars-say'), nw = $id('chars-new');
+    if (sayEl){ sayEl.textContent = say; sayEl.hidden = !say; }
+    _renderUndo();
+    if (!r.ok){
+      if (nw) nw.disabled = true;
+      list.innerHTML = '<div class="chx-empty chx-bad" data-state="unknown"><div class="chx-empty-t">Your builds could not be read — UNKNOWN</div>'
+        + '<div>' + esc(r.why) + '. Nothing was changed, and delete and MAIN stay off until the store reads again.</div></div>';
+      return false;
+    }
+    if (nw) nw.disabled = false;
+    if (!Object.keys(r.all).length){
+      list.innerHTML = '<div class="chx-empty" data-state="empty"><div class="chx-empty-t">No characters yet</div>'
+        + '<div>Build one by hand in the planner. It is kept here, apart from the Vault\'s mules — the readers never add to it.</div>'
+        + '<button type="button" class="chx-btn chx-new" data-act="new" onclick="window._charsNew()">+ New character</button></div>';
+      return true;
+    }
+    var mainId = _mainOf(r.all);
+    list.innerHTML = _order(r.all, mainId).map(function(id){ return _card(id, r.all[id], id === mainId); }).join('');
+    return true;
+  }
+  window.renderCharsTab = _render;
+
+  function _say(s){ say = String(s || ''); _render(); }
+  function _drop(u){
+    clearTimeout(u.timer);
+    undos = undos.filter(function(x){ return x !== u; });
+    if (!undos.length && tick){ clearInterval(tick); tick = null; }
+  }
+  function _tick(){ if (!tick) tick = setInterval(function(){ _renderUndo(); if (!undos.length && tick){ clearInterval(tick); tick = null; } }, 1000); }
+  function _builder(){ return typeof window.openCharBuilder === 'function'; }
+
+  /* ── THE ACTIONS: each reads the store fresh, refuses on UNKNOWN, and writes only K_BUILDS / K_MAIN ─────────── */
+  window._charsOpen = function(id){
+    if (!_builder()){ _say('The Character Builder is not loaded on this page, so the build could not be opened.'); return false; }
+    say = '';
+    return window.openCharBuilder(id);
+  };
+  window._charsNew = function(){
+    if (!_builder()){ _say('The Character Builder is not loaded on this page.'); return false; }
+    var r = _read();
+    if (!r.ok){ _say('Your builds could not be read, so a new one was not started (' + r.why + ').'); return false; }
+    say = '';
+    window.openCharBuilder();
+    if (typeof window._cbOpenNew === 'function') window._cbOpenNew();   // the builder's own "+ New build" flow
+    return true;
+  };
+  window._charsSetMain = function(id){
+    var r = _read();
+    if (!r.ok || !own.call(r.all, id)){ _render(); return false; }
+    window.LSR.setItem(K_MAIN, String(id));
+    say = ''; _render();
+    return true;
+  };
+  window._charsDelete = function(id){
+    var r = _read();
+    if (!r.ok || !own.call(r.all, id)){ _render(); return false; }
+    if (!own.call(armed, id)){
+      armed[id] = setTimeout(function(){ delete armed[id]; _render(); }, ARM_MS);
+      _render();
+      return 'armed';
+    }
+    clearTimeout(armed[id]); delete armed[id];
+    var order = Object.keys(r.all), rest = {};
+    order.forEach(function(k){ if (k !== id) rest[k] = r.all[k]; });
+    var after = JSON.stringify(rest), mainBefore = _mainRaw(), wasMain = mainBefore === id;
+    window.LSR.setItem(K_BUILDS, after);
+    if (wasMain) window.LSR.removeItem(K_MAIN);
+    var u = { id: id, name: (r.all[id] || {}).name, before: r.raw, after: after, build: JSON.stringify(r.all[id]),
+              order: order, wasMain: wasMain, mainBefore: mainBefore, until: Date.now() + UNDO_MS, timer: null };
+    u.timer = setTimeout(function(){ _drop(u); _render(); }, UNDO_MS);
+    undos.push(u); _tick();
+    say = ''; _render();
+    return 'deleted';
+  };
+  /* Undo puts the build back BYTE-IDENTICAL: when nothing moved since the delete, the whole store goes back to the exact
+     string it was; when something did (he saved another build meanwhile), the build goes back at its own place in the
+     order with its own JSON unchanged, and the other change is kept. */
+  window._charsUndo = function(id){
+    var u = null; undos.forEach(function(x){ if (x.id === id) u = x; });
+    if (!u) return false;
+    var r = _read();
+    if (!r.ok){ _say('Your builds could not be read, so nothing was restored (' + r.why + ').'); return false; }
+    if (!own.call(r.all, id)){
+      if (r.raw === u.after) window.LSR.setItem(K_BUILDS, u.before);
+      else {
+        var out = {}, seen = {};
+        u.order.forEach(function(k){
+          if (k === id){ out[k] = JSON.parse(u.build); seen[k] = 1; }
+          else if (own.call(r.all, k)){ out[k] = r.all[k]; seen[k] = 1; }
+        });
+        Object.keys(r.all).forEach(function(k){ if (!seen[k]) out[k] = r.all[k]; });
+        window.LSR.setItem(K_BUILDS, JSON.stringify(out));
+      }
+      if (u.wasMain && _mainRaw() == null) window.LSR.setItem(K_MAIN, u.mainBefore);
+    }
+    _drop(u); say = ''; _render();
+    return true;
+  };
+
+  /* ── WHEN TO REPAINT ─────────────────────────────────────────────────────────────────────────────────────────── */
+  try {
+    var wasOpen = false;
+    new MutationObserver(function(){
+      var open = document.documentElement.classList.contains('cb-lock');
+      if (wasOpen && !open) _render();       // the builder just closed: a build may have been saved, renamed or added
+      wasOpen = open;
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  } catch (e) {}
+  try {
+    window.addEventListener('storage', function(ev){
+      var k = String((ev && ev.key) || '');
+      if (!ev || ev.key == null || k.slice(-K_BUILDS.length) === K_BUILDS || k.slice(-K_MAIN.length) === K_MAIN) _render();
+    });
+  } catch (e) {}
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _render); else _render();
+})();
+</script>
 <!-- v710.4 — 📺 TV DIABLO flagship board (Konyo: "a tab of its own, same style as TV KAI —
      literally always breathing"). Mission-control shell: a live screen bezel that breathes with
      the agent's real half-second heartbeat, meters, and the mono signal feed. The session-tab
@@ -29412,6 +29723,8 @@ function switchTab(name) {
      writes the whole surface (hero, chips, sections) into #crafts-body, so without this the tab
      opens empty on a fresh load — the exact "closed drawer" defect v2087 fixed for the vault. */
   if (name === "crafts"){ try { if (typeof window.renderCrafts === 'function') window.renderCrafts(); } catch(e){} }
+  /* #245 — the Characters room re-reads the builds on entry: a build saved in the planner since shows at once. */
+  if (name === "chars"){ try { if (typeof window.renderCharsTab === 'function') window.renderCharsTab(); } catch(e){} }
   /* v2146 (#123) — the dock yields while he is IN the vault room, and returns when he leaves.
      Toggled for every tab (not only set on entry) so leaving the room cannot strand the dock in
      its yielded position — the mirror of the v694 add/remove pair above. */
@@ -52049,8 +52362,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var d = _cbDb(), all = _cbAll(), ids = Object.keys(all), tpls = _cbTemplates();
     var sel = '<select class="cb-sel" id="cb-build" aria-label="build" onchange="window._cbPickBuild(this.value)">';
     if (st.draft) sel += '<option value="__draft" selected>' + esc(st.draft.name) + ' (not saved yet)</option>';
-    ids.sort(function(a, c){ return (all[c].at || 0) - (all[a].at || 0); }).forEach(function(id){
-      var x = all[id]; sel += '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
+    /* #245 — the MAIN build (d2r_cbMain, set in the 👤 Characters tab) leads the list, marked; the rest stay newest
+       first. A MAIN that names no saved build marks nothing. */
+    var mainId = null; try { mainId = window.LSR.getItem('d2r_cbMain'); } catch (e) {}
+    if (mainId != null && !Object.prototype.hasOwnProperty.call(all, mainId)) mainId = null;
+    ids.sort(function(a, c){ return (a === mainId ? -1 : c === mainId ? 1 : 0) || ((all[c].at || 0) - (all[a].at || 0)); }).forEach(function(id){
+      var x = all[id]; sel += '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + (id === mainId ? '★ MAIN · ' : '') + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
     });
     sel += '<optgroup label="From your characters (class + level)">';
     tpls.forEach(function(t){ sel += '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + '</option>'; });

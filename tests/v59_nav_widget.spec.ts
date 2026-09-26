@@ -61,7 +61,8 @@ test.describe('v59 nav compass widget', () => {
     // and TV·D). v2094: a 19th — "crafts", split out of the Forge so a runeword room and a
     // craft room stop sharing one door. Both land in .tabs-workshop, and the compass builds its
     // chips FROM .tabs (chipsMatchTabs above asserts that sync), so it picked both up on its own.
-    expect(r.chipNames.length).toBe(19);   // … · v710.4 + 📺 TV·D · v2085 + 🎒 Vault · v2094 + ⚗️ Crafts
+    // #245: a 20th — "chars" (👤 Characters, his own builds, the manual side right before the Vault).
+    expect(r.chipNames.length).toBe(20);   // … · v710.4 + 📺 TV·D · v2085 + 🎒 Vault · v2094 + ⚗️ Crafts · #245 + 👤 Characters
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);

@@ -24471,8 +24471,14 @@ class TestV2084TheVaultIsARoomOfItsOwn(unittest.TestCase):
             self.assertIn(t, order, "%s left the tab bar" % t)
         self.assertLess(order.index("tools"), order.index("vault"))
         self.assertLess(order.index("vault"), order.index("tvd"))
-        self.assertEqual(order.index("fsets") + 1, order.index("vault"),
+        # #245 — 👤 Characters (the MANUAL side) now sits between F·Sets and the Vault, right before the room it
+        # is separate from. So "fsets is immediately before vault" became two adjacencies, each as strict as the
+        # one it replaces: the forge cluster still ends at fsets with nothing between it and Characters, and
+        # Characters is immediately before the Vault. Nothing else may slip into that span.
+        self.assertEqual(order[order.index("forge"):order.index("fsets") + 1], ["forge", "crafts", "funi", "fsets"],
                          "the forge cluster is no longer adjacent — funi/fsets moved")
+        self.assertEqual(order[order.index("fsets"):order.index("vault") + 1], ["fsets", "chars", "vault"],
+                         "only 👤 Characters (#245) may stand between the forge cluster and the Vault")
 
     def test_the_pane_uses_the_class_its_SIBLINGS_use(self):
         """⚠ THE ONE THAT ALMOST SHIPPED. I wrote class="tab-pane" — a class that appeared exactly

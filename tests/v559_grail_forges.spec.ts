@@ -165,11 +165,12 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
     const tabs = [...document.querySelectorAll('.tabs .tab')].map((t: any) => t.dataset.tab);
     const funiIco = document.querySelector('.tabs .tab[data-tab="funi"] img.tab-hdico');
     const fsetsIco = document.querySelector('.tabs .tab[data-tab="fsets"] img.tab-hdico');
-    return { order: tabs.slice(-3), funiIco: !!funiIco, fsetsIco: !!fsetsIco, count: tabs.length };
+    return { order: tabs.slice(-4), funiIco: !!funiIco, fsetsIco: !!fsetsIco, count: tabs.length };
   });
-  expect(r.count).toBe(19);   // v710.4 +TV·D · v2085 +Vault · v2094 +Crafts — measured, not assumed
+  expect(r.count).toBe(20);   // v710.4 +TV·D · v2085 +Vault · v2094 +Crafts · #245 +Characters — measured, not assumed
   // v2099 — the workshop tail moved when the Vault got its own room: fsets · vault · tvd
-  expect(r.order).toEqual(['fsets', 'vault', 'tvd']);
+  // #245 — and again when 👤 Characters took its place right before the Vault: fsets · chars · vault · tvd
+  expect(r.order).toEqual(['fsets', 'chars', 'vault', 'tvd']);
   expect(r.funiIco).toBe(true);
   expect(r.fsetsIco).toBe(true);
 });
