@@ -373,6 +373,20 @@ class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
         self.assertEqual((out["head"] or {}).get("name"), "Peasant Crown")
         self.assertEqual((out["head"] or {}).get("source"), "manual")
 
+    def test_opening_the_builder_closes_an_open_mule_picker(self):
+        """#231 second eye on 28a82cd2: a mule picker left open + the builder opened = two #cb-modal, the builder's picks
+        drawn into the mule's. The builder closes the mule's picker first: one picker on screen."""
+        out = _drive("""
+          window.openMuleCard('uni-armor'); window._mpPick('tors');
+          out.before = /id="cb-modal"/.test(box.innerHTML) && (st().pick || {}).host;
+          window.openCharBuilder();
+          out.after = /id="cb-modal"/.test(box.innerHTML); out.host = (st().pick || {}).host || null;
+          out.hostOn = window._cbHostOn();""")
+        self.assertEqual(out["before"], "mule", "the fixture did not open the mule's picker - this case cannot bite")
+        self.assertFalse(out["after"], "the mule's #cb-modal stayed in the Vault card after the builder opened")
+        self.assertIsNone(out["host"], "the builder opened still pointed at the mule host")
+        self.assertFalse(out["hostOn"])
+
     def test_a_locked_name_from_the_locker_list_is_refused_too(self):
         out = _drive(self.LOCK + """
           window.openMuleCard('uni-armor'); window._mpPick('head'); window._cbPickTab('locker');
@@ -387,6 +401,13 @@ class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#231 on 28a82cd2 - the builder opens over an open mule picker: two #cb-modal, its picks drawn into the mule's",
+        "file": "bible.html",
+        "find": "    try { if (st.pick && st.pick.host === 'mule' && typeof window._mpPick === 'function') window._mpPick(null); } catch (e) {}\n    try { window._cbHostClose(); } catch (e) {}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B4 x #246 - a refused mule write flips to Edit anyway: the pick reads as made and Edit shows nothing placed",
         "file": "bible.html",

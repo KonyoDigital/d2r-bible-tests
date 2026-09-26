@@ -10055,7 +10055,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-title{font-family:var(--serif-display);font-size:var(--fs-chx-title);font-weight:var(--fw-bold);letter-spacing:var(--ls-tight);line-height:var(--lh-tightest);color:var(--chx-gold)}
 #tab-chars .chx-sub{font-size:var(--fs-body);color:var(--text-muted);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
 #tab-chars .chx-meta{font-size:var(--fs-meta);color:var(--text-dim);margin-top:4px;line-height:var(--lh-snug)}
-#tab-chars .chx-btn{font-family:inherit;font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug);padding:6px 12px;border-radius:7px;border:1px solid var(--border-light);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;line-height:var(--lh-tight);white-space:nowrap}
+#tab-chars .chx-btn{font-family:inherit;font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug);padding:6px 12px;border-radius:7px;border:1px solid var(--border-light);background:rgba(255,255,255,.04);cursor:pointer;line-height:var(--lh-tight);white-space:nowrap}
+#tab-chars .chx-btn:not(.chx-new):not(.chx-open):not(.chx-del){color:var(--text)}   /* v1686: New / Open / Delete colour themselves; the plain colour never matches them, so it never loses on source order */
 #tab-chars .chx-btn:hover{border-color:rgba(240,192,96,.6);background:rgba(240,192,96,.10)}
 #tab-chars .chx-btn:focus-visible{outline:2px solid rgba(240,192,96,.75);outline-offset:2px}
 #tab-chars .chx-btn[disabled]{opacity:.45;cursor:default}
@@ -10083,6 +10084,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-del{margin-left:auto;color:var(--text-muted)}
 #tab-chars .chx-del.chx-armed{color:#fff;border-color:rgba(255,85,85,.85);background:rgba(255,85,85,.22)}
 #tab-chars .chx-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px 18px;border-radius:12px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-muted);font-size:var(--fs-body)}
+#tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
+#tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
 #tab-chars .chx-empty.chx-bad{border-style:solid;border-color:rgba(255,85,85,.5)}
 /* at phone width the floating help / compass orbs sit over the right edge of the page, so a Delete pushed to the far
@@ -10286,6 +10289,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     if (!Object.keys(r.all).length){
       list.innerHTML = '<div class="chx-empty" data-state="empty"><div class="chx-empty-t">No characters yet</div>'
         + '<div>Build one by hand in the planner. It is kept here, apart from the Vault\'s mules — the readers never add to it.</div>'
+        + '<ul class="chx-how"><li><b>+ New character</b> opens the planner: pick a class and level, then click a slot on the doll to equip any item in the game, and click an inventory cell to add charms.</li>'
+        +   '<li><b>Set as MAIN</b> marks the character you play most; it is listed first here and in the planner.</li>'
+        +   '<li><b>Delete</b> asks twice, and an Undo restores the build exactly as it was for 20 seconds.</li></ul>'
         + '<button type="button" class="chx-btn chx-new" data-act="new" onclick="window._charsNew()">+ New character</button></div>';
       return true;
     }
@@ -55050,6 +55056,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 
   /* ── OPEN / CLOSE / Esc ──────────────────────────────────────────────────────────────────────────────────── */
   window.openCharBuilder = function(buildId){
+    /* #231 second eye on 28a82cd2 (reproduced by reading): a mule slot's picker left open in the Vault is the mule
+       host's #cb-modal; opening the builder over it made TWO #cb-modal elements, getElementById found the mule's, and
+       the builder's picks were drawn into it under the overlay. Close the mule's picker FIRST (the mule window's own
+       close re-renders it without the modal and releases the host) - one picker on screen, always. */
+    try { if (st.pick && st.pick.host === 'mule' && typeof window._mpPick === 'function') window._mpPick(null); } catch (e) {}
+    try { window._cbHostClose(); } catch (e) {}
     var box = _cbWin();
     if (!box){ box = document.createElement('div'); box.id = 'cb-win'; box.className = 'cb-win'; document.body.appendChild(box); }
     box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Character Builder (Esc closes)');
