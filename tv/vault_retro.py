@@ -457,11 +457,31 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
     # v1792 — the KEEP bar counts distinct LOOKS (separate recordings, or one recording re-opened
     # after REOPEN_GAP_MS); the THROW bar is called with witness_field="session" so it can only ever
     # count distinct recordings. Falls back to the session id for evidence written before v1792.
+    #
+    # ══ #246 W3 — A LOOK IS A WITNESS ONLY IF IT CARRIES ITS OWN FRAME AND ITS OWN CONF ≥ THE FLOOR ══
+    # This counted a session from EVERY row of the pile and tested the floor on the pile's BEST row. So
+    # Magefist's pile — [{conf 0.0, frame null}, {conf 0.85, frame f_…}] — passed as "corroborated
+    # across 2 looks at conf 0.85": one real look, plus a frameless look the reader was not sure of at
+    # all, counted as its second witness. Its confidence lower bound was 0.095. His rule is two looks
+    # AGREEING; a look nobody can open and the reader itself doubted is not a look that agreed.
+    # Now each look qualifies ON ITS OWN (a frame to open, conf ≥ the floor) and only qualifying looks
+    # are counted. `looksSeen` keeps the raw count BESIDE it, never instead of it. Nothing is destroyed:
+    # a refused pile is banked as `unsure` and one more real look grounds it.
+    # The raw look count rides beside the qualifying one so the SHIPPED verdict can carry a confidence
+    # bound (apply_payload stamps it); this function reads no score and decides on his 2-look ruling
+    # (2026-09-07) alone. Moving the bar to a 0.43 confidence floor (about three looks) is his call.
+    def _qualifies(e):
+        return bool(e.get("frame")) and _conf_of(e.get("conf")) >= conf_floor
+    qual = [e for e in ev if _qualifies(e)]
     sessions = sorted({str(e.get(witness_field) or e.get("session"))
-                       for e in ev if (e.get(witness_field) or e.get("session"))})
+                       for e in qual if (e.get(witness_field) or e.get("session"))})
     sessions = _fold_bare_sessions(sessions)
+    seen_all = _fold_bare_sessions({str(e.get(witness_field) or e.get("session"))
+                                    for e in ev if (e.get(witness_field) or e.get("session"))})
     best = max([_conf_of(e.get("conf")) for e in ev] or [0.0])
-    base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best}
+    base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best,
+            "looksSeen": len(seen_all), "allLooks": seen_all,
+            "floor": conf_floor, "minWitnesses": min_witnesses}
     if not ev:
         return dict(base, **{"pass": False, "why": "no evidence at all"})
     if best < conf_floor:
@@ -469,12 +489,17 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
                              "why": "the reader itself was unsure (%.2f < %.2f) — unsure twice is "
                                     "still unsure" % (best, conf_floor)})
     if len(sessions) < min_witnesses:
+        _nq = len(seen_all) - len(sessions)
         return dict(base, **{"pass": False,
                              "why": "only %d independent %s%s (%s) — needs %d; two runs of the same "
-                                    "unbroken screen are ONE witness"
+                                    "unbroken screen are ONE witness%s"
                                     % (len(sessions), witness_noun,
                                        "" if len(sessions) == 1 else "s",
-                                       ", ".join(sessions) or "none", min_witnesses)})
+                                       ", ".join(sessions) or "none", min_witnesses,
+                                       ("; %d more %s%s did not count — a %s counts only with its own "
+                                        "frame and its own conf ≥ %.2f"
+                                        % (_nq, witness_noun, "" if _nq == 1 else "s", witness_noun,
+                                           conf_floor)) if _nq > 0 else "")})
     return dict(base, **{"pass": True,
                          "why": "corroborated across %d %ss (%s) at conf %.2f"
                                 % (len(sessions), witness_noun, ", ".join(sessions), best)})
@@ -553,15 +578,17 @@ def gate_shadow(evidence, bar="keep"):
         field, noun = "witness", "look"
     live = gate(evidence, cfl, mw, witness_field=field, witness_noun=noun)
     ev = [e for e in (evidence or []) if isinstance(e, dict)]
-    sessions = live.get("sessions") or []
-    # k = witnesses whose BEST look cleared the floor; n = every distinct witness. Same denominator
-    # as the live gate, so the two are answering one question rather than two.
+    # #246 W3 — n is EVERY distinct look the pile holds (the live gate now counts only qualifying ones
+    # as `sessions`, and handing the shadow that list would make its denominator the numerator).
+    sessions = live.get("allLooks") or live.get("sessions") or []
+    # k = witnesses whose BEST look cleared the floor; n = every distinct witness. A look with no frame
+    # to open clears nothing — the same per-look rule the live gate applies.
     best_by = {}
     for e in ev:
         w = str(e.get(field) or e.get("session") or "")
         if not w:
             continue
-        best_by[w] = max(best_by.get(w, 0.0), _conf_of(e.get("conf")))
+        best_by[w] = max(best_by.get(w, 0.0), _conf_of(e.get("conf")) if e.get("frame") else 0.0)
     n = len(sessions)
     k = sum(1 for w in sessions if best_by.get(str(w), 0.0) >= cfl)
     return _cf.shadow(k, n, _vault_tags(ev, sessions), VAULT_WITNESS_TIER, wf, cff,
@@ -1814,11 +1841,33 @@ def apply_payload(proposal):
         return {"ok": False, "source": "vault-retro", "mode": "merge-max", "items": [],
                 "suggestions": [], "why": p.get("why") or "no proposal to apply",
                 "generatedTs": p.get("generatedTs")}
+    # ⚠ #246 W1/W3 — THE VERDICT TRAVELS WITH THE WITNESSES. The board's one door (vaultFile) re-checks
+    # every look itself, and its provenance row keeps the gate's own words and the Wilson bound, so
+    # "why is this in my vault" is answered by the row, not re-derived. Computed here by the SAME
+    # gate() the sweep used — never a second rule. [[copy-drift]]
+    def _gate_of(r):
+        try:
+            g = gate([w for w in (r.get("witnesses") or []) if isinstance(w, dict)],
+                     KEEP_CONF_FLOOR, KEEP_MIN_WITNESSES)
+            # the Wilson lower bound of qualifying-of-seen looks: STAMPED for the provenance row,
+            # decides nothing (the live gate reads no score — test_the_shadow_DECIDES_nothing)
+            try:
+                import confidence as _cf1
+                _w = round(float(_cf1.wilson_lower(g.get("witnesses") or 0,
+                                                   max(g.get("looksSeen") or 0, g.get("witnesses") or 0))), 3)
+            except Exception:
+                _w = None           # could not be computed — UNKNOWN, never a made-up 0
+            return {"pass": bool(g.get("pass")), "why": g.get("why"), "looks": g.get("witnesses"),
+                    "looksSeen": g.get("looksSeen"), "wilson": _w,
+                    "floor": KEEP_CONF_FLOOR, "minLooks": KEEP_MIN_WITNESSES}
+        except Exception as _ge:
+            return {"pass": None, "why": "the gate could not be asked (%s)" % type(_ge).__name__}
     items = [{"name": r["name"], "lane": r["lane"], "kind": r.get("kind") or "item",
               "count": r.get("count"), "conf": r.get("conf"),
               "witnesses": [w for w in (r.get("witnesses") or []) if isinstance(w, dict)],
               "witnessCount": len(r.get("witnesses") or []),
-              "lastSeenTs": r.get("lastSeenTs")}
+              "lastSeenTs": r.get("lastSeenTs"),
+              "gate": _gate_of(r)}
              for r in (p.get("owned") or [])]
     return {
         "ok": True,

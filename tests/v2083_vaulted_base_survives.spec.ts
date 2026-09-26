@@ -63,8 +63,13 @@ async function applyBases(page: any) {
        The same sibling was fixed in v2193, which passes `{ name, loc: 'stash' }` at all five of its
        call sites. This is the fifth door of that sweep, found by reading the CI log rather than by
        assuming the earlier fix had covered everything. [[feedback-blind-fixture-green-gate]] */
+    /* #246 — AND A LOOK BEHIND THE LOCATION. Since #246 the mule map has one door and it files only on a
+       witness: two independent looks, each with its own frame and conf. A row that only says `loc` is
+       registered (owned) and waits in the dock — the shape of the false filings in his vault. The law
+       here is unchanged: a vaulted base survives a reload and reaches a mule. */
+    const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
     const res = w.chronicleApply({
-      wouldAdd: { uniques: bases.map((n: string) => ({ name: n, loc: 'stash' })), sets: [] },
+      wouldAdd: { uniques: bases.map((n: string) => ({ name: n, loc: 'stash', witnesses: LOOKS })), sets: [] },
     });
     const P = w._D2R_PFX || '';
     return {

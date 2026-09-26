@@ -14308,10 +14308,10 @@ def rw_restore(entries, confirm=False):
           # and `rwMade` stayed stale — REG-1010 reintroduced for the runewords, where the next
           # `rwToggleMade` writes the in-memory object back over the 99 restored ones. A
           # cross-family look at v3222 named it. One door per store. [[copy-drift]]
+          # ⚠⚠⚠ #246 W0d — NO SORTER PRESS. A made-runeword record is not a stash sighting; filing from it
+          # is the found-ever refill this arc cut. The re-read stays so memory and storage agree.
           "try{var _rr=(typeof window._vaultReloadRwMade==='function')?window._vaultReloadRwMade():null;"
           "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
-          "else if(typeof window.vaultAutoAssign==='function'){"
-          "setTimeout(function(){try{window.vaultAutoAssign();}catch(_s){}},60);}"
           "}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,kept:kept.length,"
           "after:Object.keys(cur).length,sample:added.slice(0,8)});"
@@ -14465,10 +14465,13 @@ def owned_restore(names, confirm=False):
           # WITHOUT a reload; then the board's own sorter files the batch through the one door that
           # knows his lane locks. The reload stays as the fallback for a build without them, because
           # leaving memory stale is the one outcome that can still destroy the write.
+          # ⚠⚠⚠ #246 W0d — AND IT NO LONGER PRESSES THE SORTER. The v3222 post-hook here filed every restored
+          # name to a mule: `owned` is ticked-or-found-ever, and on 2026-09-16 this path turned a backup's
+          # 171-name owned list into 152 mule filings with no witness behind any of them (20:12:49). A
+          # restore puts POSSESSION RECORDS back; it is not a sighting in his stash. The re-read stays
+          # (memory and storage must agree); the names wait in the dock for a witness or his hand.
           "try{var _rr=(typeof window._vaultReloadOwned==='function')?window._vaultReloadOwned():null;"
           "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
-          "else if(typeof window.vaultAutoAssign==='function'){"
-          "setTimeout(function(){try{window.vaultAutoAssign();}catch(_s){}},60);}"
           "}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,"
           "after:cur.length,sample:added.slice(0,8)});"
@@ -14639,11 +14642,20 @@ def vault_route_probe():
           "var sg=null;try{sg=window.suggestMule(nm);}catch(e){sg=null;}"
           "var key=sg?String(sg.id||'(no id)'):'null (shared-stash guard)';"
           "hist[key]=(hist[key]||0)+1;if(!examples[key])examples[key]=nm;}"
+          # #246 — the sorter files WITNESSES now: what it would file is a witness row with no home, and a
+          # filing with no witness row is counted beside it (the doctor's 'vault provenance' reads the same)
+          "var prov={};try{prov=JSON.parse((window.LSR?window.LSR.getItem('d2r_vaultProv')"
+          ":localStorage.getItem('d2r_vaultProv'))||'{}')||{};}catch(e){}"
+          "var wouldFile=0,unwitnessed=0;Object.keys(prov).forEach(function(k){"
+          "var lk2='';try{lk2=(window._laneLocked&&window._laneLocked(k))||'';}catch(e){}"
+          "if(assign[k]==null&&!lk2&&(prov[k]||{}).mule!=='__throwout')wouldFile++;});"
+          "Object.keys(assign).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(prov,k))unwitnessed++;});"
           "var soj=null;try{var _s=window.suggestMule('The Stone of Jordan');"
           "soj=_s?{id:_s.id,why:_s.why||''}:null;}catch(e){}"
           "var sojLock='';try{sojLock=(window._laneLocked&&window._laneLocked('The Stone of Jordan'))||'';}catch(e){}"
           "return JSON.stringify({ok:true,pool:pool.length,assigned:Object.keys(assign).length,"
           "unsorted:unsorted,laneLocked:locked,hist:hist,examples:examples,"
+          "provRows:Object.keys(prov).length,wouldFile:wouldFile,unwitnessedFilings:unwitnessed,"
           "soj:soj,sojLocked:sojLock});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()")
@@ -14717,6 +14729,12 @@ def board_tick(name, kind, want):
         "}"
         "if(kind==='owned'){"
         "  if(typeof window.tvVaultRegister!=='function') return JSON.stringify({ok:false,why:'no tvVaultRegister'});"
+        # #246 review — "REGISTER AS OWNED" REGISTERS; IT DOES NOT FILE. The first #246 cut handed the registrar
+        # {by:'hand', where:'the console (register as owned)'}, so this LEDGER REPAIR press - a route with no
+        # confirm, reachable by any POST, the kind of door an agent's recovery loop pressed on 2026-09-16 -
+        # filed the name to a mule under a witness row claiming his hand, and the tile then read "placed by
+        # hand". A manual add counts for the section it is made in (his ruling, 2026-09-26), and this section
+        # is the ownership ledger, not a mule. No witness: owned, in the dock, unfiled - his drag files it.
         "  var r=window.tvVaultRegister(n);"
         "  return JSON.stringify({ok:true,kind:'owned',register:r});"
         "}"
@@ -23510,11 +23528,15 @@ def ledger_restore_apply(confirm=False):
     except Exception as _be:
         _extra_why = "the backup could not be re-read for the other stores (%s)" % type(_be).__name__
     _also = {}
+    # ⚠⚠ #246 W0d — `owned` IS NOT PUT BACK FROM HERE ANY MORE. ledger_restore.py's own contract says
+    # owned is "BACKED UP but NOT restorable here", and v3215 called owned_restore anyway, with
+    # confirm=True, from inside a restore he confirmed for the CHRONICLE. That is how a backup's owned
+    # list became 152 mule filings on 2026-09-16. owned_restore is still its own door, confirm required;
+    # a restore of the chronicle no longer reaches it.
     if _extra.get("owned"):
-        try:
-            _also["owned"] = owned_restore(_extra["owned"], confirm=True)
-        except Exception as _oe:
-            _also["owned"] = {"ok": False, "why": "owned_restore raised %s" % type(_oe).__name__}
+        _also["owned"] = {"ok": False, "applied": False, "skipped": True,
+                          "why": "not restored through the chronicle door — owned is a possession record, "
+                                 "and /api/owned_restore is its own door, confirm required"}
     if _extra.get("rwMade"):
         try:
             _also["rwMade"] = rw_restore(_extra["rwMade"], confirm=True)
@@ -27101,6 +27123,22 @@ def _inert(o, _depth=0):
     return str(o)
 
 
+def main_locks_view():
+    """#246 W4 — the MAIN ledger's locks, for the board. READ-ONLY. -> dict
+
+    The board's `_laneLocked` joins three sources: its own d2r_laneLock rows (vault_retro equipment /
+    inventory sightings, his 3-session bar), the furniture law, and THIS — main_character.is_locked,
+    which bible.html had read zero times. An unreadable ledger is ok:False with the reason, never an
+    empty lock list: "nobody could ask" must not read as "nothing is his gear". [[unknown-stays-unknown]]
+    """
+    try:
+        import main_character as _mc
+        return _mc.locks_payload()
+    except Exception as e:
+        return {"ok": False, "why": "the MAIN ledger could not be read (%s)" % type(e).__name__,
+                "locked": None}
+
+
 def vault_apply(proposal=None):
     """Ask THE BOARD to apply the vault accumulator's gated rows. The console never writes the
     vault, the grail or localStorage.
@@ -27218,6 +27256,29 @@ def vault_apply(proposal=None):
         return {"ok": False, "why": "no vault sweep result to apply — run a sweep first"}
     # ⚠ THE ROWS THAT WERE JUDGED, NOT A FRESH READ. `_gated` is set only on the caller-supplied
     # path; a sweep result was already gated when it was built and is read from here as before.
+    # ══ #246 W3 — …UNDER THE GATE OF THE DAY IT WAS BUILT. A result on disk predates today's per-look
+    # rule, so it can carry a row that no longer clears it (Magefist's frameless conf-0.0 second look).
+    # The button posts {} and takes that stored result, so the stored rows are re-judged here, row by
+    # row: a row that fails TODAY's gate is held back and NAMED, the rest go through. The caller-supplied
+    # path above still refuses a whole proposal on one bad row, because a hand-made body is an attack
+    # surface and a stored sweep is not.
+    _regated_out = []
+    if _gated is None and isinstance(prop, dict):
+        try:
+            _vr2 = _vault_retro()
+            _keep2 = []
+            for _r2 in list(prop.get("owned") or []):
+                _v2 = _vr2.gate(_r2.get("evidence") or _r2.get("witnesses") or [],
+                                _vr2.KEEP_CONF_FLOOR, _vr2.KEEP_MIN_WITNESSES)
+                if _v2.get("pass"):
+                    _keep2.append(_r2)
+                else:
+                    _regated_out.append({"name": str(_r2.get("name") or "?"),
+                                         "why": str(_v2.get("why") or "")[:200]})
+            _gated = {"owned": _keep2, "unsure": list(prop.get("unsure") or []),
+                      "throwOut": list(prop.get("throwOut") or [])}
+        except Exception as _e2:
+            return {"ok": False, "why": "could not re-gate the stored sweep: %s" % str(_e2)[:120]}
     owned = _gated["owned"] if _gated is not None else (prop.get("owned") or [])
     unsure = _gated["unsure"] if _gated is not None else (prop.get("unsure") or [])
     throw = _gated["throwOut"] if _gated is not None else (prop.get("throwOut") or [])
@@ -27301,6 +27362,10 @@ def vault_apply(proposal=None):
     # The original message was right the whole time: put the board on the MAIN window. Working
     # around a correct refusal is how a night gets spent banking a paid sweep into a world that
     # evaporates. [[the-unjoined-end]]
+    # #246 W3 — what today's gate held back from a stored sweep is NAMED beside the answer, never dropped
+    # silently: a row he expected to land and did not must say why.
+    if _regated_out and isinstance(verdict, dict):
+        verdict["regatedOut"] = _regated_out
     return verdict
 
 
@@ -34890,6 +34955,12 @@ class Handler(BaseHTTPRequestHandler):
             # seen as a side effect of paying for a sweep. Reads two files, writes nothing, calls
             # no reader.
             self._json(200, vault_ledger_view())
+            return
+        if path == "/api/main_locks":
+            # #246 W4 — READ-ONLY. What main_character.py has locked as his gear (Wilson over equip
+            # sightings, his 3-look floor), for the board's one lock predicate. It writes nothing: the
+            # board reads this and REFUSES a filing, it never moves anything because of it.
+            self._json(200, main_locks_view())
             return
         if path == "/api/vault_sweep":
             # v1578 — progress + result of the vault sweep. GET never starts one; starting spends

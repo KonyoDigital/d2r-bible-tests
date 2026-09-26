@@ -147,13 +147,36 @@ class AFarmingScenarioCannotVault(unittest.TestCase):
 
     def test_a_PANEL_scenario_with_a_vault_lane_IS_allowed(self):
         """⚠ THE POSITIVE CONTROL. Without it every law above passes on a filter that refuses
-        EVERYTHING, which is just as broken and much harder to notice."""
-        r = TS.negative([_sg("s_stash_1", "f_1.jpg")],
+        EVERYTHING, which is just as broken and much harder to notice.
+
+        #246 — TWO independent looks, each with its own frame and conf: that is his rule, and the
+        board's door (now asked, not modelled) files on nothing less."""
+        r = TS.negative([_sg("s_stash_1", "f_1.jpg"), _sg("s_stash_2", "f_7.jpg", conf=0.8)],
                         {"panel": 5, "floor": 0, "chronicle": 0}, loc="stash")
         self.assertEqual("PANEL", r["scenario"])
+        self.assertIs(True, r["boardFiles"], "the board's own door was not asked, or refused: %s" % r["boardWhy"])
         self.assertIs(True, r["allowed"],
                       "a real stash panel sighting was refused — the filter now says no to "
                       "everything, which no test above could tell from working. %s" % r["why"])
+
+    def test_a_SINGLE_glimpse_in_the_stash_is_refused_by_the_BOARD(self):
+        """#246 W7 — THE CASE THE PYTHON MODEL GOT WRONG. The routing predicates alone allow one
+        stash sighting (PANEL scenario, a vault lane). The board's one door refuses it: one look is
+        not two looks agreeing. `negative()` used to answer from the model, so it said ALLOWED for
+        exactly the kind of row that filled his vault — a name with no second witness.
+        A frameless look and an unsure one are refused by the same door."""
+        one = TS.negative([_sg("s_stash_1", "f_1.jpg")],
+                          {"panel": 5, "floor": 0, "chronicle": 0}, loc="stash")
+        self.assertIs(True, one["mayVault"], "premise: the lane half must allow it, or the board is never asked")
+        self.assertIs(True, one["holdingPossible"], "premise: the scenario half must allow it")
+        self.assertIs(False, one["boardFiles"], "the board filed ONE glimpse: %s" % one["boardWhy"])
+        self.assertIs(False, one["allowed"], "one glimpse was allowed to vault: %s" % one["why"])
+        frameless = TS.negative([_sg("s_a", None), _sg("s_b", "f_2.jpg")],
+                                {"panel": 5, "floor": 0, "chronicle": 0}, loc="stash")
+        self.assertIs(False, frameless["allowed"], "a look with no frame counted as a witness: %s" % frameless["why"])
+        unsure = TS.negative([_sg("s_a", "f_1.jpg", conf=0.0), _sg("s_b", "f_2.jpg")],
+                             {"panel": 5, "floor": 0, "chronicle": 0}, loc="stash")
+        self.assertIs(False, unsure["allowed"], "a look the reader doubted counted as a witness: %s" % unsure["why"])
 
     def test_a_PANEL_scenario_with_NO_established_location_is_still_refused(self):
         """An unestablished provenance is refused, never guessed. `_sighting_loc` returns None for
@@ -321,3 +344,21 @@ class OnHisRealStore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "#246 W7 - negative() answers from the Python MODEL again and never asks the board's door: one stash glimpse is 'allowed'",
+        "file": "trace_spine.py",
+        "find": "        allowed = board\n",
+        "replace": "        allowed = r[\"reached\"]\n",
+        "matches": 1,
+    },
+    {
+        "why": "#246 W3 - the board's door counts a look with no frame and no confidence as a witness again",
+        "file": "bible.html",
+        "find": "      if (!id || !fr || c == null || c < VAULT_WITNESS_FLOOR){ dropped++; return; }\n",
+        "replace": "      if (!id){ dropped++; return; }\n",
+        "matches": 1,
+    },
+]

@@ -50,18 +50,35 @@ test.describe('v462 fix socket count', () => {
     expect(r.ethOldStill).toBe(false);
   });
 
-  test('the corrected label lands on a mule (assignment carried/derived)', async ({ page }) => {
+  test('the corrected label keeps the mule and the witness it had, and mints none (#246)', async ({ page }) => {
+    /* #246 review — A SOCKET COUNT FIX IS NOT A SIGHTING. Before #246 an unfiled label was DERIVED onto a mule by
+       the router alone; #246's first cut kept that by minting {by:'hand', where:'the socket count fix'} for it —
+       a hand that never happened, which the tile, the doctor and the render prune then all believed. The rename
+       carries the filing it had: his hand's row travels with the new label, and a label that was never filed
+       stays unfiled (in the dock) with no witness row. */
     const r = await page.evaluate(() => {
       const w = window as any;
+      const g = (k: string) => { try { return JSON.parse(w.LSR.getItem(k) || 'null'); } catch (e) { return null; } };
       w._ensureSocketBaseEntry('Champion Axe (Larzuk base)');
       eval('owned').add('Champion Axe (Larzuk base)');
+      w.vaultAssign('Champion Axe (Larzuk base)', 'bases');         // his hand files it
       w.vaultFixSockets('Champion Axe (Larzuk base)', 5);
-      // assign isn't eval-exposed; read it from its persisted key (saveA writes d2r_muleAssign)
-      const assign = JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}');
-      return { mule: assign['Champion Axe (5os)'], oldGone: assign['Champion Axe (Larzuk base)'] === undefined };
+      w._ensureSocketBaseEntry('Thresher (Larzuk base)');
+      eval('owned').add('Thresher (Larzuk base)');                    // registered, never filed, no witness
+      w.vaultFixSockets('Thresher (Larzuk base)', 4);
+      // assign isn't eval-exposed; read it through the board's own store accessor (saveA writes d2r_muleAssign)
+      const assign = g('d2r_muleAssign') || {};
+      const prov = g('d2r_vaultProv') || {};
+      return { mule: assign['Champion Axe (5os)'], oldGone: assign['Champion Axe (Larzuk base)'] === undefined,
+               src: (prov['Champion Axe (5os)'] || {}).source, where: (prov['Champion Axe (5os)'] || {}).where,
+               unfiled: assign['Thresher (4os)'] === undefined, noRow: !prov['Thresher (4os)'] };
     });
-    expect(r.mule).toBe('bases');   // socketed bases route to the SOCKETED ('bases') mule
+    expect(r.mule).toBe('bases');   // the locker he chose is carried to the corrected label
     expect(r.oldGone).toBe(true);   // stale assignment cleared
+    expect(r.src, 'the renamed label lost the witness row it had').toBe('hand');
+    expect(r.where).toBe('the vault manager');
+    expect(r.unfiled, 'a socket-count fix filed a label that never had a witness').toBe(true);
+    expect(r.noRow, 'a socket-count fix minted a witness row').toBe(true);
   });
 
   test('the fix buttons + base tier render on the Socketed Review card', async ({ page }) => {

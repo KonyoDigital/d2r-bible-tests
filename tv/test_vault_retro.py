@@ -493,9 +493,11 @@ class TestV2208APersistedPriorIsNotASecondWitness(unittest.TestCase):
 
     def test_a_bare_prior_from_a_session_with_no_fresh_look_still_counts(self):
         """It is only unshowable as a SEPARATE look from buckets of ITS OWN session."""
+        # #246 W3 — the prior carries its FRAME: a look counts only with its own frame and conf, and
+        # this case is about the FOLD (a bare prior from ANOTHER session), not about frameless rows.
         ev = [{"session": "sA", "witness": "sA#0", "frame": "f1.png", "lane": "stash",
                "conf": 0.97, "count": 1, "kind": "item", "ts": 1},
-              {"session": "sB", "frame": None, "lane": "stash", "conf": 0.97}]
+              {"session": "sB", "frame": "f2.png", "lane": "stash", "conf": 0.97}]
         got = v.gate(ev, 0.55, 2)
         self.assertEqual(got["witnesses"], 2, "a prior from a DIFFERENT session was discarded -- "
                                               "the fold is too wide and is destroying evidence")
@@ -565,8 +567,10 @@ class TestV2236WilsonReachesTheVaultGate(unittest.TestCase):
     only irreversible act in the app and was the one gate without it."""
 
     def _ev(self, n, lanes=("deep", "liveEye"), conf=0.95, session=None):
+        # #246 W3 — each look carries its FRAME, as a real sighting does: a frameless look clears nothing
         return [{"name": "Shako", "session": session or "s%d" % i,
                  "witness": (session or "s%d" % i) + ("#%d" % i if session else ""),
+                 "frame": "f_%d.jpg" % i,
                  "lane": lanes[i % len(lanes)], "conf": conf} for i in range(n)]
 
     def test_the_floors_can_actually_be_cleared(self):

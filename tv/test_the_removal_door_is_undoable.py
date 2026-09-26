@@ -19,6 +19,12 @@ only in his memory. The window where that is recoverable is the window before he
   6. a batch cut on another ledger is REFUSED, and stays in the journal for its own board —
      v2692 is this hazard in the other direction and it reached his cousin's board;
   7. an empty removal writes NO batch (it would push a real one out of the 20-deep ring).
+  8. #246 review — AN UNDO IS NOT HIS HAND. The undo and the socket-count rename put a filing back through
+     window.vaultFile as a RESTORE: the witness row it had comes back VERBATIM, and a filing that had none comes
+     back with none. Both used to mint {by:'hand', where:'his undo of a removal' / 'the socket count fix'}, so
+     one undo of the fresh-vault removal turned 172 found-ever filings into "placed by hand" (measured on a copy
+     of his store), and every reader of d2r_vaultProv then kept them on a witness that never happened.
+RED_PROOF below.
 """
 import io
 import json
@@ -57,6 +63,8 @@ def _between(src, start, end):
 
 
 UNOWN_START = "  window.vaultUnown = function(name){"
+FIX_START = "  window.vaultFixSockets = function(name, n){"
+FIX_END = "  // v466 \u2014 \U0001f52c AI ITEM CHECKER (flagship)"
 UNOWN_END = "  /* \u2550\u2550\u2550\u2550\u2550 v3168 (#96) \u2014 THE REMOVAL DOOR"
 
 
@@ -66,7 +74,11 @@ def _door_source():
     be testing a function the board does not have."""
     with io.open(BIBLE, encoding="utf-8") as fh:
         src = fh.read()
-    return _between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
+    # #246 — AND THE ONE DOOR INTO THE MULE MAP, because the removal journal now carries each filing's
+    # witness row and the undo files through window.vaultFile on it. Cut from the same file, never re-typed.
+    from test_every_mule_filing_carries_its_witness import _door as _vault_door
+    return (_between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
+            + "\n" + _between(src, FIX_START, FIX_END) + "\n" + _vault_door(src))
 
 
 HARNESS = r"""
@@ -81,6 +93,9 @@ function renderVault(){ calls.render++; }
 function refreshOpenCard(){ calls.refresh++; }
 function status(s){ calls.status.push(String(s)); }
 function muleById(id){ return %(mules)s.indexOf(id) >= 0 ? {id:id} : null; }
+function suggestMule(n){ return null; }          // #246 — the undo names its home; the router is never asked
+function isSharedStash(n){ return false; }
+function ownedPool(){ return Array.from(owned); }
 var window = {
   LSR: { getItem: function(k){ return Object.prototype.hasOwnProperty.call(STORE,k) ? STORE[k] : null; },
          setItem: function(k,v){ STORE[k] = String(v); } },
@@ -95,6 +110,14 @@ var out = (function(){ %(script)s })();
 console.log(JSON.stringify({result: out, owned: Array.from(owned).sort(),
                             assign: assign, store: STORE, calls: calls}));
 """
+
+
+#: a stash witness row as the door writes one — game item names and invented ids only
+WITNESSED = {"mule": "mule7", "main": None, "holder": "mule7", "source": "stash", "at": "2026-09-20T10:00:00.000Z",
+             "reel": "s_a", "frame": "f_a.jpg", "sessions": ["s_a", "s_b"],
+             "looks": [{"id": "s_a", "frame": "f_a.jpg", "conf": 0.9}, {"id": "s_b", "frame": "f_b.jpg", "conf": 0.85}],
+             "conf": 0.9, "gate": {"pass": True, "why": "two looks", "looks": 2}, "wilson": 0.34,
+             "by": "vault-sweep", "ver": "vOLD"}
 
 
 class TheRemovalDoorIsUndoable(unittest.TestCase):
@@ -222,6 +245,43 @@ class TheRemovalDoorIsUndoable(unittest.TestCase):
         self.assertEqual(o["assign"].get("Shako"), "mule3",
                          "and it must give the locker back too")
 
+    # 9 — #246 review: an undo puts back the witness it took, or none — never a hand it did not see
+    def test_an_undo_never_mints_a_witness(self):
+        o = self.drive("window.vaultRemove(['Shako']); return window.vaultRestoreLast();",
+                       owned=["Shako"], assign={"Shako": "mule7"}, mules=["mule7"])
+        self.assertEqual("mule7", o["assign"].get("Shako"), "the undo lost where it lived")
+        prov = json.loads(o["store"].get("d2r_vaultProv") or "{}")
+        self.assertNotIn("Shako", prov, "an undo of a filing that had NO witness minted one: %r" % prov.get("Shako"))
+
+    def test_an_undo_puts_back_the_row_it_took(self):
+        o = self.drive("window.vaultRemove(['Shako']); return window.vaultRestoreLast();",
+                       owned=["Shako"], assign={"Shako": "mule7"}, mules=["mule7"],
+                       store={"d2r_vaultProv": json.dumps({"Shako": WITNESSED})})
+        prov = json.loads(o["store"].get("d2r_vaultProv") or "{}")
+        back = prov.get("Shako") or {}
+        for k in ("source", "at", "looks", "sessions", "by", "gate", "wilson", "ver"):
+            self.assertEqual(WITNESSED[k], back.get(k), "the undo did not put back the row it took (%s): %r" % (k, back))
+        self.assertEqual("mule7", back.get("mule"))
+
+    def test_the_socket_count_fix_carries_the_row_it_had_or_none(self):
+        o = self.drive("window.vaultFixSockets('Monarch (3os)', 4); return null;",
+                       owned=["Monarch (3os)"], assign={"Monarch (3os)": "bases"}, mules=["bases"])
+        self.assertEqual("bases", o["assign"].get("Monarch (4os)"), "the renamed base lost its locker: %r" % o["assign"])
+        self.assertNotIn("Monarch (3os)", o["assign"])
+        prov = json.loads(o["store"].get("d2r_vaultProv") or "{}")
+        self.assertNotIn("Monarch (4os)", prov, "a socket COUNT fix minted a witness for a filing that had none: %r"
+                         % prov.get("Monarch (4os)"))
+        hand = {"mule": "bases", "holder": "bases", "source": "hand", "by": "hand", "at": "2026-09-20T10:00:00.000Z",
+                "where": "the vault manager", "looks": [], "sessions": []}
+        o2 = self.drive("window.vaultFixSockets('Monarch (3os)', 4); return null;",
+                        owned=["Monarch (3os)"], assign={"Monarch (3os)": "bases"}, mules=["bases"],
+                        store={"d2r_vaultProv": json.dumps({"Monarch (3os)": hand})})
+        prov2 = json.loads(o2["store"].get("d2r_vaultProv") or "{}")
+        self.assertEqual(("hand", "the vault manager", "2026-09-20T10:00:00.000Z"),
+                         tuple((prov2.get("Monarch (4os)") or {}).get(k) for k in ("source", "where", "at")),
+                         "the renamed label did not inherit the row it had: %r" % prov2)
+        self.assertNotIn("Monarch (3os)", prov2, "the old label's row was left behind")
+
     def test_the_one_click_path_still_says_what_he_expects(self):
         o = self.drive("window.vaultUnown('Shako'); return null;", owned=["Shako"])
         lines = o["calls"]["status"]
@@ -314,3 +374,34 @@ class TheRemovalIsWatchedByTheHeart(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "#246 review - the undo mints his hand again for a filing that never had a witness",
+        "file": "bible.html",
+        "find": "                window.vaultFile(nm, null, { restore: true, mule: f, prov: _pvU }); } catch(e){}\n",
+        "replace": ("                window.vaultFile(nm, _pvU ? _provAsWitness(_pvU) : { by: 'hand', at: new Date().toISOString(),"
+                    " where: 'his undo of a removal' }, { mule: f }); } catch(e){}\n"),
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the socket-count rename mints his hand again for a filing that never had a witness",
+        "file": "bible.html",
+        "find": ("      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, null,"
+                 " { restore: true, mule: oldMule, prov: _pvF });\n"),
+        "replace": ("      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, _pvF ?"
+                    " _provAsWitness(_pvF) : { by: 'hand', at: new Date().toISOString(), where: 'the socket count fix' },"
+                    " { mule: oldMule });\n"),
+        "matches": 1,
+    },
+    {
+        "why": "#246 review - the door's restore stops carrying the row it was handed and mints one of its own",
+        "file": "bible.html",
+        "find": ("      var rowR = (opts.prov && typeof opts.prov === 'object' && !Array.isArray(opts.prov) && opts.prov.source)\n"
+                 "               ? JSON.parse(JSON.stringify(opts.prov)) : null;\n"),
+        "replace": ("      var rowR = { source: 'hand', by: 'hand', where: 'a restore', at: new Date().toISOString(),"
+                    " looks: [], sessions: [] };\n"),
+        "matches": 1,
+    },
+]

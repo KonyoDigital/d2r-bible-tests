@@ -200,15 +200,27 @@ test.describe('v203 the vault', () => {
     expect(r.assigned).toBe('sets-major');     // auto-filed to SETS-TAL-IK
   });
 
-  test('auto-assign empties the dock, persists, and survives reload', async ({ page }) => {
+  test('#246 auto-assign files WITNESSES only — the owned pool stays in the dock; a witnessed filing persists and survives reload', async ({ page }) => {
+    /* #246 W0 — REVERSED BY HIS RULING. This asserted that pressing auto-assign empties the dock: every
+       owned name filed to a mule. `owned` is ticked-or-found-ever, and that exact press filed 173 names in
+       his vault, 160 with no witness. The sorter now files only names that carry a witness. */
     await page.evaluate(() => (window as any).vaultAutoAssign());
-    const r1 = await page.evaluate(() => ({
+    const r0 = await page.evaluate(() => ({
       chips: document.querySelectorAll('.vault-dock .vault-chip').length,
       stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
     }));
-    expect(r1.chips).toBe(0);
+    expect(r0.chips, 'the sorter filed owned names that carry no witness').toBeGreaterThan(0);
+    expect(r0.stored['The Stone of Jordan'], 'an owned name was filed with no witness').toBeUndefined();
+    // a WITNESSED item goes through the one door; the router still decides its mule
+    await page.evaluate(() => (window as any).vaultFile('The Stone of Jordan', { lane: 'stash', sessions: [
+      { session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }] }));
+    const r1 = await page.evaluate(() => ({
+      stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
+      prov: JSON.parse(localStorage.getItem('d2r_vaultProv') || '{}'),
+    }));
     // v364: SoJ is high trade value → auto-routes to the SHARED cross-account stash, not uni-small.
     expect(r1.stored['The Stone of Jordan']).toBe('shared');
+    expect(r1.prov['The Stone of Jordan'] && r1.prov['The Stone of Jordan'].source, 'the filing left no witness row').toBe('stash');
     // persist owned BEFORE reloading — the vault prunes assignments of
     // un-owned items at load (eval('owned').add bypasses persistence)
     await page.evaluate(() => localStorage.setItem('d2r_owned', JSON.stringify([...eval('owned')])));

@@ -63,7 +63,11 @@ test('EXTRA_ITEMS stick to a mule — ownedPool keeps them and renderVault does 
     (window as any).eval('owned').add('Socketed 2H Weapon (4os)');
     const sm = (window as any).suggestMule('Socketed 2H Weapon (4os)');
     (window as any).renderVault();                 // item should enter the unsorted dock (ownedPool fix)
-    (window as any).vaultAutoAssign();              // route it to its mule via the module's in-memory assign
+    // #246 — filed through the ONE door with a stash witness (two independent looks); the sorter files
+    // witnesses only and would leave a bare owned name in the dock. The router still picks the mule.
+    (window as any).vaultFile('Socketed 2H Weapon (4os)', { lane: 'stash', sessions: [
+      { session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }] });
+    (window as any).vaultAutoAssign();              // and a sort pass must not disturb a witnessed filing
     (window as any).renderVault();                  // re-render: assignment must SURVIVE the prune
     const stillAssigned = JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')['Socketed 2H Weapon (4os)'];
     const tile = document.querySelector('.vm-cell[data-vault-item="Socketed 2H Weapon (4os)"]') as HTMLElement | null;

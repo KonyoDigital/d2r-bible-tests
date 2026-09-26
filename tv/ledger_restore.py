@@ -163,6 +163,12 @@ def plan(route, current, d=None):
     return {
         "ok": True, "file": os.path.basename(path), "takenAt": (blob or {}).get("takenAt"),
         "route": (blob or {}).get("route"), "stores": out, "missingTotal": missing_total,
+        # #246 W0c — the backup's own set-piece list, so proposal_from can send a set-piece key through
+        # the SETS half. A backup's d2r_foundLog carries every set piece too (toggleSetPiece writes the
+        # found ledger by design), and sent as a "unique" a piece fell into d2r_owned and was filed.
+        "setPieceNames": sorted(k for k in (led.get("setPieces") if isinstance(led.get("setPieces"), list)
+                                            else (led.get("setPieces") or {}).keys()
+                                            if isinstance(led.get("setPieces"), dict) else [])),
         # ⚠ SAID, NOT SILENTLY OMITTED. Three backed-up stores cannot travel through this door.
         "notRestorableHere": list(BACKED_UP_ONLY),
         "why": ("%s would put back %d name(s) across %d store(s); %s are backed up but cannot be "
@@ -251,6 +257,21 @@ def proposal_from(plan_out):
             # that crosses into the board, and nothing on this side of that boundary could see it.
             # [[the-unjoined-end]] [[plumbing-with-no-tap]]
             add[half].append({"name": name})
+    # ══ #246 W0c — A SET PIECE TRAVELS AS A SET. The foundLog half carries every set piece as well
+    # (toggleSetPiece writes the found ledger), so a piece rode the UNIQUES half, the board's uniques
+    # branch called toggleOwned, and toggleOwned's else-branch put the piece in d2r_owned — 19 set pieces
+    # became mule filings that way on 2026-09-16 (15:28:34). A name the backup lists as a set piece goes
+    # through `sets` only, once. [[the-unjoined-end]]
+    _pieces = set(plan_out.get("setPieceNames") or [])
+    if _pieces and add.get("uniques"):
+        _moved = [r for r in add["uniques"] if r.get("name") in _pieces]
+        add["uniques"] = [r for r in add["uniques"] if r.get("name") not in _pieces]
+        if _moved:
+            _have = {r.get("name") for r in add.get("sets") or []}
+            add.setdefault("sets", [])
+            add["sets"].extend(r for r in _moved if r.get("name") not in _have)
+        if not add["uniques"]:
+            del add["uniques"]
     if not add:
         return None
     return {"wouldAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}

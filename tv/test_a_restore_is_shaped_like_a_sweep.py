@@ -115,11 +115,15 @@ class TheOtherStoresHaveADoorAndACaller(unittest.TestCase):
                         "the extracted body is %d chars — that is not one function, so this is "
                         "reading past it" % len(self.body))
 
-    def test_the_apply_drives_the_owned_door(self):
-        self.assertIn("owned_restore(", self.body,
-                      "ledger_restore_apply no longer calls owned_restore, so a restore covers "
-                      "uniques and sets and silently leaves what he OWNS at whatever the wipe "
-                      "left behind")
+    def test_the_chronicle_restore_does_NOT_drive_the_owned_door(self):
+        """#246 W0d — REVERSED, AND ledger_restore.py's OWN CONTRACT IS WHY. `owned` is "BACKED UP but NOT
+        restorable here", and v3215 called owned_restore(confirm=True) from inside a restore he confirmed
+        for the CHRONICLE — on 2026-09-16 that turned a backup's 171-name owned list into 152 mule filings
+        with no witness behind any of them. owned_restore stays its own door, confirm required."""
+        code = "\n".join(l.split("#", 1)[0] for l in self.body.split("\n"))
+        self.assertNotIn("owned_restore(", code,
+                         "ledger_restore_apply calls owned_restore again — a chronicle restore puts a "
+                         "found-ever owned list back as possession, and the sorter files it")
 
     def test_the_apply_drives_the_runeword_door(self):
         self.assertIn("rw_restore(", self.body,
@@ -240,18 +244,17 @@ class ARestoredItemIsFiledNotDumped(unittest.TestCase):
                             "the next persist() overwrites the restore from the boot-time copy "
                             "(REG-1010)" % door)
 
-    def test_a_possession_write_then_files_what_it_wrote(self):
-        js = self._door("owned_restore")
-        # ⚠ THE GUARD, NOT JUST THE NAME. The first cut asserted `"vaultAutoAssign" in js` and a
-        # sabotage that replaced the branch condition with `else if(false)` STAYED GREEN — the
-        # dead call still contained the string. A guard satisfied by unreachable code is measuring
-        # the alphabet. [[sabotage-is-usually-the-wrong-one]] [[source-reading-guard]]
-        self.assertIn("typeof window.vaultAutoAssign==='function'", js,
-                      "the sorter call is no longer guarded by a reachable typeof test, so it is "
-                      "either absent or dead — either way a direct d2r_owned write leaves every "
-                      "restored item in the unsorted dock")
-        self.assertIn("window.vaultAutoAssign();", js,
-                      "owned_restore writes d2r_owned and never asks the sorter to file it")
+    def test_a_possession_write_never_presses_the_sorter(self):
+        """#246 W0d — REVERSED BY HIS RULING. v3222 made a restore FILE what it wrote: `owned` is
+        ticked-or-found-ever, not a sighting in his stash, and this exact post-hook is how a backup
+        became 152 mule filings on 2026-09-16 (20:12:49). A restore puts possession RECORDS back; the
+        names wait in the dock for a witness or his hand. Both possession doors, both halves."""
+        for door in ("owned_restore", "rw_restore"):
+            js = self._door(door)
+            self.assertTrue(js, "%s's board script could not be found — this law would grade nothing" % door)
+            self.assertNotIn("vaultAutoAssign", js,
+                             "%s presses the sorter again — a restored possession record becomes a "
+                             "mule filing with no witness behind it" % door)
 
     def test_the_reload_survives_as_the_fallback(self):
         """The blunt fix must stay for a build without the re-read door — stale memory DESTROYS."""

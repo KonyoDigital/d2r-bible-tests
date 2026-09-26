@@ -18,12 +18,18 @@ test.describe('v204 mule ID card', () => {
       // v364 auto-routes HIGH-value items (Harlequin, War Traveler, SoJ, Anni…) to the SHARED stash, so
       // uni-armor keeps only the lower-value armor. Seed two low-value armor uniques (Hawkmail/Greyform →
       // uni-armor, value 'none') so the locker reliably holds ≥3 for the packing/overlap assertions.
-      ['Harlequin Crest (Shako)', 'Stormshield', 'Vampire Gaze', 'War Traveler',
+      const NAMES = ['Harlequin Crest (Shako)', 'Stormshield', 'Vampire Gaze', 'War Traveler',
        'The Stone of Jordan', 'Annihilus', 'Hellfire Torch', "Gheed's Fortune",
-       'Windforce', 'Hawkmail', 'Greyform'].forEach(n => eval('owned').add(n));
+       'Windforce', 'Hawkmail', 'Greyform'];
+      NAMES.forEach(n => eval('owned').add(n));
       (window as any).switchTab('tools');
       (window as any).renderVault();
-      (window as any).vaultAutoAssign();
+      /* #246 — the sorter files WITNESSES only; an owned name is never filed on its own. So each item goes
+         in through the one door with a stash witness (two independent looks, each with a frame and a
+         conf), and the ROUTER still picks its mule — the same placement auto-assign used to make. */
+      const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
+      NAMES.forEach(n => (window as any).vaultFile(n, { lane: 'stash', sessions: LOOKS }));
+      (window as any).renderVault();
     });
   });
 
