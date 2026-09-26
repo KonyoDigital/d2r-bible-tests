@@ -28,6 +28,14 @@ own cutters (never re-typed), over a stand-in DOM:
     and Edit's Unequip takes it off; and d2r_charBuilds and d2r_cbSel are BYTE-IDENTICAL before and after.
   · Esc closes the host's top layer first (the Filters list), then the picker, then the window.
   · THE BUILDER HOST NEVER WRITES A MULE: a builder pick leaves d2r_muleEquip byte-identical.
+  · #174 v-B4 review — THE PICKER IS ON THE HAND HE SEES. Swapping I / II with a hand's picker open re-aims it: Edit shows
+    set II's Lightsabre and an item level typed there lands on set II (set I's Windforce untouched); a pick onto an empty
+    set II lands on set II and the doll on screen wears it. (It read the set on screen and wrote the set it opened on:
+    Windforce was silently replaced, and a pick onto set II vanished into set I.)
+  · A PICK HIDES THE HOVERED ROW'S TOOLTIP in the mule host, as in the builder (a unique picked there left #cb-tip standing
+    over Edit - on a phone over the whole sheet).
+  · A LOCKER HAS NO CLASS, SO ITS LEFT HAND TAKES A SECOND WEAPON: Select over the database lists Lightsabre and Stormlash
+    for it (In this locker already did), and the rail's tree carries Swords.
 
 ⚠ WHAT THIS LAW CANNOT SEE: pixels and a real pointer - the mule window's width law drives the picker with real input,
 and the builder's report carries the 2000x1300 PNGs of a mule window on an empty store.
@@ -258,6 +266,79 @@ class ADatabasePickWritesTheMuleNeverABuild(unittest.TestCase):
         self.assertTrue(out["same"], "a builder pick wrote d2r_muleEquip")
 
 
+
+#: set I's right hand holds Windforce and set II's Lightsabre - both database picks, as the mule host writes them
+def _two_sets(ids):
+    rec = lambda name, at: {"name": name, "source": "manual", "id": ids[name], "base": ids[name + " base"], "q": "u",
+                               "rolls": {}, "sockets": 0, "eth": False, "ilvl": 99, "fill": [], "at": at}
+    return json.dumps({"uni-weap": {"setI": {"rarm": rec("Windforce", "2026-09-26T10:00:00.000Z")},
+                                    "setII": {"rarm": rec("Lightsabre", "2026-09-26T10:00:01.000Z")}}})
+
+
+def _ids():
+    db = _db()
+    out = {}
+    for n in ("Windforce", "Lightsabre"):
+        hit = [x for x in db["it"] if x[1] == n and x[2] == "u"]
+        assert len(hit) == 1, "PRINT THE DENOMINATOR: the block holds %d uniques named %s" % (len(hit), n)
+        out[n], out[n + " base"] = hit[0][0], hit[0][3]
+    return out
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheHostKeepsToTheHandHeSees(unittest.TestCase):
+    """#174 v-B4 review - three defects the review reproduced with a real mouse on the shipped modal"""
+
+    def test_a_swap_with_the_picker_open_moves_it_to_the_set_on_screen(self):
+        ids = _ids()
+        out = _drive("""
+          window.openMuleCard('uni-weap'); window._mpPick('rarm');
+          out.editI = (st().host.cur() || {}).name;
+          window._mpSet('swap', 2); out.editII = (st().host.cur() || {}).name; out.tabII = st().pick && st().pick.tab;
+          window._cbEdit('ilvl', 80);
+          var e = eq()['uni-weap']; out.I = [e.setI.rarm.name, e.setI.rarm.ilvl]; out.II = [e.setII.rarm.name, e.setII.rarm.ilvl];""",
+                     assign=EQ._hands_locker(), store={"d2r_muleEquip": _two_sets(ids)})
+        self.assertEqual(out["editI"], "Windforce", "the fixture's set I is not on screen when the mule opens")
+        self.assertEqual((out["editII"], out["tabII"]), ("Lightsabre", "edit"),
+                         "after I -> II with the picker open, Edit does not show the hand on screen")
+        self.assertEqual(out["I"], ["Windforce", 99], "an edit made on set II's hand changed set I (Windforce replaced)")
+        self.assertEqual(out["II"], ["Lightsabre", 80], "the item level typed on set II's Lightsabre did not land on it")
+        # the second shape: set II empty - a pick after the swap lands on set II and the doll on screen wears it
+        out = _drive("""
+          window.openMuleCard('uni-weap'); window._mpPick('rarm'); window._cbQt('u'); window._cbChoose(itemId('Windforce', 'u'));
+          window._mpSet('swap', 2); out.tab = st().pick && st().pick.tab;
+          window._cbPickTab('select'); window._cbQt('u'); out.ok = window._cbChoose(itemId('Lightsabre', 'u'));
+          var e = eq()['uni-weap']; out.I = e.setI && e.setI.rarm && e.setI.rarm.name; out.II = e.setII && e.setII.rarm && e.setII.rarm.name;
+          out.doll = slotSay('rarm').say;""", assign=EQ._hands_locker())
+        self.assertIs(out["ok"], True)
+        self.assertEqual((out["I"], out["II"]), ("Windforce", "Lightsabre"),
+                         "a pick made after I -> II did not land on set II (the set on screen)")
+        self.assertIn("Lightsabre", out["doll"], "the doll on screen (set II) does not wear the pick: %r" % out["doll"])
+
+    def test_a_pick_hides_the_hovered_rows_tooltip(self):
+        out = _drive("""
+          window.openMuleCard('uni-armor'); window._mpPick('head'); window._cbPickTab('select'); window._cbQt('u');
+          var id = itemId('Harlequin Crest', 'u');
+          window._cbTipRow({ getAttribute: function(k){ return k === 'data-id' ? id : null; },
+                             getBoundingClientRect: function(){ return { left: 0, top: 0, width: 90, height: 18, right: 90, bottom: 18 }; } });
+          out.shown = window.d2Tip.shown(); out.ok = window._cbChoose(id); out.after = window.d2Tip.shown(); out.tab = st().pick.tab;""")
+        self.assertIs(out["shown"], True, "the hovered row drew no tooltip - this case cannot bite")
+        self.assertEqual((out["ok"], out["tab"]), (True, "edit"))
+        self.assertIs(out["after"], False, "a unique picked in the mule host left the hovered row's tooltip over Edit")
+
+    def test_a_lockers_left_hand_lists_the_second_weapons(self):
+        out = _drive("""
+          window.openMuleCard('uni-weap'); window._mpPick('larm'); out.first = st().pick.tab; out.locker = options();
+          window._cbPickTab('select'); var names = window._cbPickRows().map(function(x){ return x[1]; });
+          out.has = ['Lightsabre', 'Stormlash', 'Stormshield'].filter(function(n){ return names.indexOf(n) >= 0; });
+          out.tree = window._cbTree('larm').map(function(r){ return r[1]; });""", assign=EQ._hands_locker())
+        self.assertIn("Lightsabre", out["locker"], "the fixture's In this locker no longer offers Lightsabre for the left hand")
+        self.assertEqual(out["has"], ["Lightsabre", "Stormlash", "Stormshield"],
+                         "Select over the database lists no second weapon for a locker's left hand (a locker has no class)")
+        self.assertIn("Swords", out["tree"], "the left hand's tree has no weapon types for a locker")
+        self.assertNotIn("Second Weapons (Barbarian)", out["tree"], "a locker was given the non-Barbarian's marked row")
+
+
 RED_PROOF = [
     {
         "why": "#174 v-B4 - the mule's slot opens the locker-only picker again (his ALT: 'Nothing in <mule> fits' everywhere)",
@@ -327,6 +408,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (typeof window._cbHostEsc === 'function' && window._cbHostEsc()) return;",
         "replace": "    if (false) return;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 review - the picker keeps the set it opened on after I / II: Edit shows set II, the write goes to set I",
+        "file": "bible.html",
+        "find": "      if (MP_WEAPON_SLOT[_mpPickAt.slot] && _mpPickAt.set !== _mpSetOf(_mpPickAt.slot, _mpSwap)){\n",
+        "replace": "      if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 review - the mule host returns before the tooltip is hidden: a picked unique leaves it over Edit",
+        "file": "bible.html",
+        "find": "    try { window.d2Tip.hide(); } catch (e) {}\n    if (st.pick && st.pick.host === 'mule'){ if (st.host) st.host.render(); return; }",
+        "replace": "    if (st.pick && st.pick.host === 'mule'){ if (st.host) st.host.render(); return; }\n    try { window.d2Tip.hide(); } catch (e) {}",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 review - a locker (no class) is read as a non-Barbarian: its left hand lists no second weapon",
+        "file": "bible.html",
+        "find": "  function _cbOffOk(){ var bb = _cbBuild(); return !(bb && bb.cls) || bb.cls === 'Barbarian'; }",
+        "replace": "  function _cbOffOk(){ var bb = _cbBuild(); return !!(bb && bb.cls === 'Barbarian'); }",
         "matches": 1,
     },
 ]

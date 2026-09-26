@@ -29,6 +29,10 @@ generated ⟦CB_DB⟧ block cut from bible.html, never re-typed), and reads the 
     Axes > Throwing Axes, Daggers > Throwing Knives, Spears > Amazon Spears + Javelins, Bows > Amazon Bows, Javelins >
     Amazon Javelins; the first level open, deeper ones folded; a node lists its type and below (Axes lists a Throwing
     Axe, never a sword); and the weapon slot's list carries shields, as theirs does (Aegis, Ancient Shield).
+  · #174 v-B4 review — THE LEFT HAND KEEPS ITS SECOND WEAPONS ROW. The flat rail had "Second Weapons (Barbarian)" for every
+    class; the tree dropped it. A Sorceress's left-hand tree ends with that row (marked Barbarian), it lists exactly the
+    one-handed weapon bases the block holds with no class lock (derived here from CB_DB) and never a shield, her whole list
+    still holds none of them, and her Base tab does not draw it; a Barbarian's tree carries the weapon types instead.
 
 ⚠ WHAT THIS LAW CANNOT SEE: pixels and a real pointer - the PNGs of the shipped modal (2000x1300) are the builder's report;
 the tooltip's own LINES (merged, in the game's order) are the tooltip rewrite's law, not this one - this law asks only
@@ -313,6 +317,39 @@ class TheWeaponRailIsTheGamesTypeTree(unittest.TestCase):
             self.assertIn(n, out["list"], "the weapon slot's list does not carry %s (theirs lists shields there)" % n)
 
 
+    def test_a_non_barbarians_left_hand_keeps_the_second_weapons_row(self):
+        out = _run(r"""
+          mk('Sorceress', 99);
+          OUT.tree = window._cbTree('larm');
+          window._cbOpenPick('slot', 'larm');
+          OUT.drawn = /data-node="@offhand"[^>]*>Second Weapons \(Barbarian\)</.test(MODAL._html);
+          OUT.whole = window._cbPickRows().map(function(x){ return x[0]; });
+          window._cbRailNode('@offhand'); OUT.node = window._cbPickRows().map(function(x){ return x[0]; });
+          window._cbRailNode(''); window._cbQt('r'); window._cbChoose(rwId('Spirit'));
+          OUT.baseTab = window._cbState().pick.tab; OUT.baseDrawn = /data-node="@offhand"/.test(MODAL._html);
+          mk('Barbarian', 99); OUT.barb = window._cbTree('larm');
+          OUT.barbWhole = window._cbForSlot('larm').map(function(x){ return x[0]; });
+        """)
+        db = CB._db()
+        off = sorted("b:" + c for c, b in db["b"].items()
+                     if b[20] and b[21] == "w" and b[14] in (1, 12) and (db["ty"].get(b[1]) or [None, None, None])[2] == -1)
+        self.assertGreaterEqual(len(off), 40, "PRINT THE DENOMINATOR: the block holds only %d one-handed classless weapon bases" % len(off))
+        last = out["tree"][-1]
+        self.assertEqual((last[0], last[1], last[2]), ("@offhand", "Second Weapons (Barbarian)", 0),
+                         "a Sorceress's left-hand rail lost the Second Weapons (Barbarian) row the flat rail had")
+        self.assertTrue(out["drawn"], "the row is in the tree but not drawn on the rail")
+        self.assertEqual(sorted(i for i in out["node"] if i.startswith("b:")), off,
+                         "the Second Weapons row does not list exactly the block's one-handed classless weapon bases")
+        lsab = [x[0] for x in db["it"] if x[1] == "Lightsabre" and x[2] == "u"]
+        self.assertTrue(lsab and lsab[0] in out["node"], "the Second Weapons row does not list Lightsabre")
+        self.assertFalse(any(i.startswith("b:") and db["b"][i[2:]][1] in ("shie", "ashd") for i in out["node"]), "the row lists a shield")
+        self.assertEqual([i for i in out["whole"] if i in set(off)], [], "a Sorceress's whole left-hand list holds second weapons")
+        self.assertEqual(out["baseTab"], "base")
+        self.assertFalse(out["baseDrawn"], "the Base tab of a Sorceress's left hand draws the Second Weapons row (it holds none)")
+        self.assertNotIn("@offhand", [r[0] for r in out["barb"]], "a Barbarian got the marked row as well as the weapon types")
+        self.assertIn("Swords", [r[1] for r in out["barb"]])
+        self.assertTrue(lsab[0] in out["barbWhole"], "a Barbarian's whole left-hand list holds no Lightsabre")
+
 RED_PROOF = [
     {
         "why": "#174 v-B4 - a runeword is worn on its first base again, no Base tab (ours before: Crystal Sword)",
@@ -396,6 +433,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (slot === 'rarm' && d) cats = cats.concat(",
         "replace": "    if (false) cats = cats.concat(",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 review - the tree drops the flat rail's Second Weapons (Barbarian) row for every other class",
+        "file": "bible.html",
+        "find": "    if (oc) list.push({ t: CB_OFF_NODE,",
+        "replace": "    if (false) list.push({ t: CB_OFF_NODE,",
         "matches": 1,
     },
 ]
