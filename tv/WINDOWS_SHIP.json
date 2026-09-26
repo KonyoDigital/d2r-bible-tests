@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3516",
+  "ver": "v3517",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3516: Open, Set as MAIN, two-step Delete with an undo that restores byte-identical, New character; it writes only his builds and the MAIN marker, never a vault or mule key. HEART: guarded by test_the_characters_tab_is_manual_and_separate, 25 red-proofs PROVEN; no new lane or engine",
+  "note": "v3517: REG-1329 the sorter filed 172 found-ever names with no witness, now only a witnessed or hand filing lands, each with a provenance row; REG-1330 the mule writer honours the lock. HEART: guarded by nine new laws L1 L3 L6 L7 L8 L10 L11 L12 and the vault provenance doctor row, every red-proof PROVEN",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

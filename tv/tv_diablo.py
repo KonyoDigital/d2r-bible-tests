@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3516"   # 245 a Characters top tab for his own manual builds, separate from the Vault
+VERSION = "v3517"   # 246 Vault 2.0 wiring, one witnessed door to the mules, MAIN gear locked, the refill cut
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
