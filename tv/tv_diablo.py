@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3508"   # stats on the glass
+VERSION = "v3509"   # #174 v-B3 - magic, rare, superior and low items, built their way over his install affix tables
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

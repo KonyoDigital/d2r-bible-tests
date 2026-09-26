@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1313 - #174 v-B3: MAGIC, RARE, SUPERIOR AND LOW ITEMS, BUILT THEIR WAY OVER HIS INSTALL'S AFFIX TABLES
+
+**feat + 11 review findings fixed before ship - his 2026-09-26 order: "more items also i see need to be added to the
+itembase.. literally check and see how its structured there ... charms too.. mods and buffs ranges of them all with
+manual additions".** Measured their Edit first (SPEC_174 §10: Select -> Quality -> Edit; REGULAR MODS; ADD MOD a
+searchable combobox grouped PREFIXES / SUFFIXES with ranges; a rare's Name + dice, Base, Defense, Sockets, Ethereal),
+then built it over HIS tables: `tv/char_builder_db.py` now reads magicprefix / magicsuffix / automagic / rareprefix /
+raresuffix / qualityitems / lowqualityitems and the name strings, and the CB_DB block carries 1,229 spawnable affixes
+(603 prefixes, 582 suffixes, 44 automods) with their itypes, etypes, level, maxlevel, group, class and class level
+requirement. The pool offered for an item is filtered the game's way: type and ancestors, etypes, the AFFIX level (alvl
+from ilvl, the base's qlvl and its magic lvl - not the Item level box), group, class, the rare flag and the quality's
+limits (magic 1+1, rare 3+3, a rare jewel 4). A picked roll is a box inside its range: typed = EXACT, blank = RANGE,
+outside = refused with the range shown - the contract the uniques already follow. The engine sums picked affixes like a
+unique's props; per-level lines that write one stat are merged before scaling (op 3), as the game does.
+
+Two independent reviewers reproduced 11 findings on the first build; all 11 were fixed and re-proven before this ship:
+defense on a magic/rare/superior base with +% Enhanced Defense now starts from the base's max + 1 (it used min..max);
+charged-skill suffixes no longer print their table's negative level/charges (the level is the game's code, so it says
+UNKNOWN "?" rather than a guess); the class level requirement (of Magic Arrow: 1 for an Amazon, 11 for anyone else);
+affix level instead of item level; the six rare-name words no string table named; the sheet names an affix as the item
+does (0 of 1,229 names now disagree between the two generators); ADD MOD is a real combobox (active option painted and
+named by aria-activedescendant, arrows move it, Enter adds it); no empty AUTOMOD group on a base without one; the open
+list fills the room left in the modal (546px at 1280x800, was cut below the edge). Laws: test_the_affix_tables_are_the_installs,
+test_the_item_edit_tab_builds_magic_and_rare_items, test_the_character_sheet_sums_picked_affixes (new), and the width
+law extended to the Edit tab with ADD MOD open at 2000 / 1280 / 375 - 94 heart2 proofs, all PROVEN on the branch; 203
+red-proof anchors re-counted on the merge with v3508, 0 mismatches. NOT built (named, not hidden): their "odds of
+rolling" line, the Grand Charm icon variant, a crafted item's random affixes, and a low-quality base's defense/damage
+penalty (UNKNOWN, the game's code). [[unknown-stays-unknown]] [[the-unjoined-end]]
+
 ### REG-1312 - v3507'S CI REDS AND THE SECOND EYE'S FINDINGS, ANSWERED ONE BY ONE
 
 **fix - CI on v3507 (4fc947e1) and the #231 eye's full-diff look (120k chars through the file route, 7 findings).**

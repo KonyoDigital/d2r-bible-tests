@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3508",
+  "ver": "v3509",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3508: 174 R2 - the Character Builder STATS ends inside the window and scrolls its own rows. HEART: a CSS layout rule with no runtime state - its watcher is the builder fit law, which measures the STATS bottom on the glass at every column width and goes red without it",
+  "note": "v3509: REG-1313: their Select -> Quality -> Edit, REGULAR MODS with typed-EXACT / blank-RANGE rolls, ADD MOD grouped PREFIXES / SUFFIXES / AUTOMOD with ranges over 1,229 affixes; 11 review findings fixed before ship; rides with v3508 R2",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
