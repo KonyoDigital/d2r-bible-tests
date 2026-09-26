@@ -339,7 +339,68 @@ class TheHostKeepsToTheHandHeSees(unittest.TestCase):
         self.assertNotIn("Second Weapons (Barbarian)", out["tree"], "a locker was given the non-Barbarian's marked row")
 
 
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
+    """#174 v-B4 x #246 (integration, 2026-09-26) - the two halves JOINED. The Vault's door refuses a MAIN-locked name
+    "for everyone"; the mule window's writer called the door and IGNORED the refusal (review:chain, reproduced with Gore
+    Rider), and the new whole-database Select tab writes through that same writer. So the writer asks the lock predicate
+    first and says which source holds it. The predicate itself is pinned by test_main_gear_never_files_to_a_mule; this
+    case pins that the MULE WRITER honours it on every picker path, and that a free item still lands (with his hand)."""
+
+    LOCK = """
+      window._laneLockWhy = function(n){ return n === 'Harlequin Crest'
+        ? { lane: 'equipment', source: 'main-ledger', why: 'worn by the MAIN in 3 sessions' } : null; };"""
+
+    def test_the_shipped_page_has_the_predicate_this_join_asks(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertEqual(src.count("window._laneLockWhy = function(name){"), 1,
+                         "bible.html no longer defines the lock predicate the mule writer asks - the join is to nothing")
+
+    def test_a_locked_pick_from_the_whole_database_is_refused_and_said(self):
+        out = _drive(self.LOCK + """
+          window.openMuleCard('uni-armor'); window._mpPick('head'); window._cbPickTab('select'); window._cbQt('u');
+          out.ok = window._cbChoose(itemId('Harlequin Crest', 'u')); out.err = st().hostErr || '';
+          out.eq = STORE['d2r_muleEquip'] || null; out.alert = /cb-host-err/.test(box.innerHTML);
+          window._cbPickTab('select'); window._cbQt('u'); out.ok2 = window._cbChoose(itemId('Peasant Crown', 'u'));
+          var e = JSON.parse(STORE['d2r_muleEquip'] || '{}'); out.head = ((e['uni-armor'] || {}).setI || {}).head || null;""")
+        self.assertIs(out["ok"], False, "a MAIN-locked item was placed on a mule from the whole-database Select tab")
+        self.assertIn("is locked to your MAIN", out["err"], "the refusal does not say it is the MAIN's lock: %r" % out["err"])
+        self.assertIn("worn by the MAIN in 3 sessions", out["err"], "the refusal does not say which source holds the lock")
+        self.assertIsNone(out["eq"], "a refused pick still wrote d2r_muleEquip")
+        self.assertTrue(out["alert"], "the refusal is not shown to him in the picker")
+        self.assertIs(out["ok2"], True, "a free item was refused too - the lock blocks more than the locked name")
+        self.assertEqual((out["head"] or {}).get("name"), "Peasant Crown")
+        self.assertEqual((out["head"] or {}).get("source"), "manual")
+
+    def test_a_locked_name_from_the_locker_list_is_refused_too(self):
+        out = _drive(self.LOCK + """
+          window.openMuleCard('uni-armor'); window._mpPick('head'); window._cbPickTab('locker');
+          out.locker = options(); var i = out.locker.indexOf('Harlequin Crest');
+          out.i = i; out.ok = i >= 0 ? window._mpChoose(i) : null; out.eq = STORE['d2r_muleEquip'] || null;
+          out.say = strip(box.innerHTML);""",
+                     assign={"Harlequin Crest": "uni-armor"})
+        self.assertGreaterEqual(out["i"], 0, "the fixture's locker does not offer Harlequin Crest for the helm: %r" % out["locker"])
+        self.assertIs(out["ok"], False, "a MAIN-locked item was placed from the In this locker list")
+        self.assertIn("is locked to your MAIN", out["say"], "the locker refusal is not said on screen")
+        self.assertIsNone(out["eq"], "a refused locker pick still wrote d2r_muleEquip")
+
+
 RED_PROOF = [
+    {
+        "why": "#174 v-B4 x #246 - a refused mule write flips to Edit anyway: the pick reads as made and Edit shows nothing placed",
+        "file": "bible.html",
+        "find": "      if (!_okC && p.host === 'mule'){ _cbRender(); return false; }\n",
+        "replace": "      if (false){ _cbRender(); return false; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B4 x #246 - the mule writer stops asking the lock: the MAIN's gear lands on a mule's doll again",
+        "file": "bible.html",
+        "find": "    if (src !== 'import' && typeof window !== 'undefined' && typeof window._laneLockWhy === 'function'){\n",
+        "replace": "    if (false && src !== 'import' && typeof window !== 'undefined' && typeof window._laneLockWhy === 'function'){\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B4 - the mule's slot opens the locker-only picker again (his ALT: 'Nothing in <mule> fits' everywhere)",
         "file": "bible.html",

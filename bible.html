@@ -40928,6 +40928,16 @@ window.vaultAutoAssign = function(){
     var src = entry && entry.source, rn = MP_SRC_RANK[src] || 0;
     if (!rn) return { ok: false, all: all, why: 'a placement must say its source (manual, import or analyzer)' };
     if (!entry.name) return { ok: false, all: all, why: 'a placement must name its item' };
+    /* #174 v-B4 x #246 (integration) - A MAIN-LOCKED ITEM NEVER GOES ONTO A MULE, from any picker. The Vault's door
+       (window.vaultFile) refuses a locked name "for everyone", and this writer called it and IGNORED the refusal, so
+       his MAIN's gear sat on a mule's doll with no filing behind it (review:chain, reproduced with Gore Rider). Now the
+       mule's own writer asks the same predicate first - the locker list and the whole-database Select tab both land
+       here - and says which source holds the lock. An IMPORT is exempt: a .d2s of a mule is what that save carries. */
+    if (src !== 'import' && typeof window !== 'undefined' && typeof window._laneLockWhy === 'function'){
+      var _lk = null; try { _lk = window._laneLockWhy(entry.name); } catch (x) { _lk = null; }
+      if (_lk) return { ok: false, all: all, locked: _lk, why: entry.name + ' is locked to your MAIN - ' + (_lk.why || _lk.lane)
+        + ' - so it never goes onto a mule (the Vault 2.0 lock)' };
+    }
     var cur = ((all[muleId] || {})[set] || {})[slot] || null;
     var rc = cur ? (MP_SRC_RANK[cur.source] || 0) : 0;
     if (cur && rn < rc) return { ok: false, all: all, why: cur.name + ' was ' + MP_SRC_SAY[cur.source]
@@ -41643,7 +41653,9 @@ window.vaultAutoAssign = function(){
     var doll = MULE_DOLL_SLOTS.map(function(s){
       var e = _eqAt(s[0]);
       var _dw = e ? _deadAt(s[0]) : null, gone = !!_dw;
-      var say = e ? (s[2] + ' — ' + e.name + ', ' + (MP_SRC_SAY[e.source] || e.source) + (e.id ? ' from the item database' : '') + (gone ? ' — NOT WORN, NOT COUNTED: ' + _dw : '')
+      /* #246 W5 (integration) - the slot says where the ITEM came from AND what the Vault holds as its witness */
+      var _pvs = (e && typeof window._vaultProvSay === 'function') ? window._vaultProvSay(e.name) : '';
+      var say = e ? (s[2] + ' — ' + e.name + ', ' + (MP_SRC_SAY[e.source] || e.source) + (e.id ? ' from the item database' : '') + (_pvs ? ' · in the vault: ' + _pvs : '') + (gone ? ' — NOT WORN, NOT COUNTED: ' + _dw : '')
                      + '. Enter to change it, Delete to unequip')
                   : (s[2] + ' — empty. Click (or Enter) to choose one: this locker’s items, or any item in the database');
       return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+(_mpPickAt && _mpPickAt.slot === s[0] ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
@@ -54680,7 +54692,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbEquip(it, e){
     var p = st.pick;
     if (p.kind === 'slot'){
-      _cbCommit(function(b){ b.sets[b.active | 0].slots[p.slot] = e; });
+      /* #174 v-B4 x #246 (integration): a REFUSED write is not a pick. The mule host's writer can refuse (a MAIN-locked
+         name, a higher-ranked placement); flipping to Edit on an item that was never placed showed him an Edit of
+         nothing and returned true to every caller. Stay on the list, with the refusal on screen (st.hostErr). */
+      var _okC = _cbCommit(function(b){ b.sets[b.active | 0].slots[p.slot] = e; });
+      if (!_okC && p.host === 'mule'){ _cbRender(); return false; }
       p.tab = 'edit';
     } else {
       var bs = _cbBase(e.base) || [], w = bs[15] || 1, h = bs[16] || 1, s = _cbSet();
