@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1317 - THE SECOND EYE'S RUNNER TOOK A COMMIT THAT MENTIONED A VERSION FOR THE COMMIT THAT SHIPPED IT
+
+**fix - found 2026-09-26 12:25 while measuring the v3508-v3511 payloads before sending them.** v3511 measured a
+1-character payload: its TASKS.md row is `(this commit)` until the next bump binds it, so `commit_for` fell back to
+subjects and took the first that matched `\bv3511\b` anywhere - "ledger: the self-arming rows the v3511 gate set
+recorded", the commit AFTER the ship. Over the last 400 subjects "merge: ... onto v3508", "fix: two v3494 contract
+holes" and "re-bless ... after v3480" would each be taken the same way. `versions_in_run()` in the same file already
+answers "which versions does this commit SHIP" (the leading run, ranges expanded, a mid-subject mention ships nothing);
+the fallback now asks it, and a version only ever mentioned is UNKNOWN (None). REG-1315's class, one tool over. Law
+test_a_look_records_the_commit_it_read: a fake history with the ledger and a merge BEFORE the ship - the ship wins, a
+range keeps its last version, a mention-only version is None; 1 red-proof, seen RED. [[copy-drift]]
+
 ### REG-1316 - THE FROZEN-SCREEN WATCH HUNG ON HIS iCLOUD DESKTOP: A READ OF A PLACEHOLDER IS A DOWNLOAD
 
 **fix - found 2026-09-26 11:00 by the full gate set run before the v3509-v3510 push: test_health_engine "timed out after

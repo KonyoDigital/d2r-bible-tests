@@ -100,6 +100,31 @@ class TestALookRecordsTheCommitItRead(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    def test_an_unbound_version_resolves_to_the_commit_that_SHIPS_it_not_one_that_mentions_it(self):
+        """2026-09-26 - with v3511's TASKS.md row still `(this commit)`, commit_for fell back to subjects and took the
+        FIRST one naming v3511 anywhere: "ledger: the self-arming rows the v3511 gate set recorded" - the commit after
+        the ship - and the eye would have read a 1-character payload. DRIVEN on a fake history, newest first, with no
+        bound row: the ledger commit and a merge that mention versions come BEFORE the ship; the ship must win, a range
+        still ships its last version, and a version only ever mentioned is UNKNOWN (None), never a guess"""
+        log = "\n".join([
+            "aaaa1111 ledger: the self-arming rows the v3511 gate set recorded (8)",
+            "bbbb2222 merge: #174 v-B3 onto v3508",
+            "cccc3333 v3511: the frozen-screen watch never reads an iCloud placeholder",
+            "dddd4444 v3304-v3307 — four versions in one ship",
+            "eeee5555 fix: two v3494 contract holes the second eye found",
+        ])
+        real_sh, real_bound = R._sh, R._bound_commit
+        R._sh = lambda args, timeout=60: (log, "") if args[:2] == ["git", "log"] else real_sh(args, timeout)
+        R._bound_commit = lambda version: None
+        try:
+            got = dict((v, R.commit_for(v)[0]) for v in ("v3511", "v3307", "v3508", "v3494"))
+        finally:
+            R._sh, R._bound_commit = real_sh, real_bound
+        self.assertEqual(got["v3511"], "cccc3333", "v3511 resolved to %s, not the commit that shipped it" % got["v3511"])
+        self.assertEqual(got["v3307"], "dddd4444", "a range's last version lost its ship")
+        self.assertIsNone(got["v3508"], "a version only MENTIONED (a merge onto it) was given a commit: %s" % got["v3508"])
+        self.assertIsNone(got["v3494"], "a version only mentioned in a fix subject was given a commit: %s" % got["v3494"])
+
     def test_a_hyphen_range_in_a_commit_subject_is_a_range(self):
         """v3304-v3307 ships FOUR versions; the parser saw one. [[v2862]] with a new separator."""
         got = R.versions_in_run("v3304-v3307 — attribution, the overtaken open, and red-on-purpose")
@@ -127,6 +152,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-26 - commit_for takes any subject that MENTIONS the version again: v3511 -> the ledger commit after it",
+        "file": "second_eye_run.py",
+        "find": "        if version in versions_in_run(subject):\n",
+        "replace": "        if re.search(r\"\\b%s\\b\" % re.escape(version), subject):\n",
+        "matches": 1,
+    },
     {
         "why": "dropping the sha makes one look at a four-version commit unprovable",
         "file": "tv/second_eye_ledger.py",

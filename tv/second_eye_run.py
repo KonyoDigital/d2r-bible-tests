@@ -477,13 +477,18 @@ def commit_for(version):
     out, why = _sh(["git", "log", "--format=%H %s", "-400"])
     if out is None:
         return None, why
-    rx = re.compile(r"\b%s\b" % re.escape(version))
+    # ⚠⚠ 2026-09-26 — A SUBJECT THAT MENTIONS A VERSION DID NOT SHIP IT. This matched `\bvNNNN\b` ANYWHERE, so with
+    # v3511's row still `(this commit)` the runner took "ledger: the self-arming rows the v3511 gate set recorded" -
+    # the commit AFTER the ship - and built a 1-character payload for it. Measured over the last 400 subjects: "merge:
+    # ... onto v3508", "fix: two v3494 contract holes", "re-bless ... after v3480" would each be taken the same way.
+    # versions_in_run() already answers "which versions does this commit SHIP" (the leading run, ranges expanded, a
+    # mid-subject mention ships nothing) - one rule, not two. [[copy-drift]] [[a-presence-law-is-not-a-reachability-law]]
     for line in out.splitlines():
         sha, _, subject = line.partition(" ")
-        if rx.search(subject):
+        if version in versions_in_run(subject):
             return sha, ""
-    return None, ("no TASKS.md row binds %s to a commit, and no commit subject names it in the "
-                  "last 400" % version)
+    return None, ("no TASKS.md row binds %s to a commit, and no commit subject SHIPS it (its leading version run) in "
+                  "the last 400 - a subject that only mentions it is not its ship" % version)
 
 
 _PY_COMMENT = re.compile(r"^\s*#")
