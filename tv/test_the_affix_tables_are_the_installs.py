@@ -7,16 +7,24 @@ qualityitems / lowqualityitems .txt and item-nameaffixes.json). A picker that in
 a word is a picker that lies about the game, so this law holds the block to the tables:
 
   · THE ROWS ARE THE SPAWNABLE ONES, COUNTED: counts.affixes = every af row = prefixes + suffixes + automods; each row
-    is [id, kind, name, level, maxlevel, levelreq, rare, group, class, itypes, etypes, lines, frequency] with its id's
-    first letter its kind; the rare words and the superior rows are counted the same way.
+    is [id, kind, name, level, maxlevel, levelreq, rare, group, class, itypes, etypes, lines, frequency, class level
+    requirement] with its id's first letter its kind; the rare words and the superior rows are counted the same way.
   · A NAMED SAMPLE, HAND-READ FROM HIS TABLES (2026-09-26): Chaotic (magicprefix row 700) level 50, no maxlevel,
     levelreq 42, rare 1, group 125, the Warlock's, itypes [lcha], one line "+1 to Chaos Skills (Warlock Only)" 1..1 on
     skilltab, frequency 1 · of Vita (magicsuffix row 338) level 77, levelreq 69, rare 0, group 26, hp 36..40 · Ruby
     (magicprefix 374) res-fire 31..40 on rod / boot / amul / orb / circ · Crimson (magicprefix 665) maxlevel 4 · the
     classic duplicate Sturdy (magicprefix 1, frequency 0) is kept in the data and marked 0, never offered.
-  · THE RARE WORDS ARE THE SAME WORDS tv/affix_lexicon.json (a DIFFERENT generator over the same tables) resolved: the
-    named rareprefix / raresuffix words equal its rarePrefix / rareSuffix, and the keys no string table names
-    (GhoulRI, Wraithra, Fiendra · crusher, strap, scarab) are its unresolvedKeys — kept, flagged 0, never a name.
+  · THE RARE WORDS ARE THE SAME WORDS tv/affix_lexicon.json (a DIFFERENT generator over the same tables) resolved, AND
+    THE SIX IT LEAVES UNRESOLVED: the lexicon reads two string tables and records GhoulRI, Wraithra, Fiendra · crusher,
+    strap, scarab as unresolved; the game asks every table, and his install names all six - monsters.json GhoulRI
+    "Ghoul", Wraithra "Wraith", Fiendra "Fiend", crusher "Crusher", scarab "Scarab"; ui.json strap "Strap" (#174 v-B3
+    fix round: the builder offered 6 of the game's words never). So the builder's named words = the lexicon's + these
+    six, and none is left unnamed. Where the install is, each is re-read from monsters.json / ui.json.
+  · #174 v-B3 FIX ROUND, ALSO FROM THE TABLES: a base's `magic lvl` is its b[23] (Diadem 18, Circlet 3, Small Charm 0)
+    beside its qlvl b[18] (Diadem 85, Small Charm 28) - the page's affix level is worked from them; an affix's [13] is
+    magicsuffix.txt `class` / `classlevelreq` (of Magic Arrow: levelreq 11, [Amazon, 1]); and a charged skill the table
+    gives as NEGATIVE (all 112 "of <Skill>" suffixes: of Magic Arrows mod1min -30, mod1max -10) is ONE UNKNOWN line
+    ("Level ? Magic Arrow (?/? Charges) - set by the item level ...") - no charged line anywhere carries a negative.
   · QUALITY IS itemtypes.txt's OWN FLAG PER TYPE, NEVER INHERITED: a Circlet may be Rare · Magic · Superior · Normal ·
     Low, a Ring / a Jewel Rare · Magic, a Grand Charm Magic only (its ancestor `misc` says Rare 1 — not the charm's), a
     quiver Normal only; qualityitems row 2 (ac% 5..15) applies to armor / shield / boots / gloves / belt; the low words
@@ -74,8 +82,9 @@ class TheAffixRowsAreTheInstalls(unittest.TestCase):
                          [sum(1 for a in af if a[1] == k) for k in "psa"])
         self.assertEqual(c["rareWords"], [len(d["rn"][0]), len(d["rn"][1])])
         self.assertEqual(c["superior"], len(d["qm"]["sup"]))
-        bad = [a[0] for a in af if len(a) != 13 or a[0][0] != a[1] or a[1] not in "psa" or not a[11]
-               or not isinstance(a[3], int) or (a[4] is not None and not isinstance(a[4], int))]
+        bad = [a[0] for a in af if len(a) != 14 or a[0][0] != a[1] or a[1] not in "psa" or not a[11]
+               or not isinstance(a[3], int) or (a[4] is not None and not isinstance(a[4], int))
+               or not (a[13] is None or (isinstance(a[13], list) and len(a[13]) == 2 and all(isinstance(x, int) for x in a[13])))]
         self.assertEqual(bad, [], "af rows off their shape: %s" % bad[:10])
         self.assertEqual(len(set(a[0] for a in af)), len(af), "two af rows share an id")
 
@@ -97,6 +106,23 @@ class TheAffixRowsAreTheInstalls(unittest.TestCase):
         st = by["p1"]
         self.assertEqual((st[2], st[12], [l[1] for l in st[11]]), ("Sturdy", 0, [[[20, 30, "m1"]]]),
                          "the classic Sturdy (frequency 0) is not kept as the table has it")
+        # #174 v-B3 fix round: of Magic Arrow - its class level requirement, and its charges UNKNOWN, never -10 / -30
+        ama = [c["n"] for c in d["cls"]].index("Amazon")
+        ma = by["s458"]
+        self.assertEqual((ma[2], ma[3], ma[5], ma[13]), ("of Magic Arrow", 12, 11, [ama, 1]))
+        self.assertEqual([(T[l[0]], l[1], l[2], l[3]) for l in ma[11]],
+                         [("Level ? Magic Arrow (?/? Charges) - set by the item level (the game's code, not a table value)", [], 2, "charged")])
+        charged = [a for a in d["af"] if any(l[3] == "charged" for l in a[11])]
+        neg = [a[0] for a in charged if any(r and not isinstance(r[0], str) and (r[0] < 0 or r[1] < 0)
+                                            for l in a[11] if l[3] == "charged" for r in l[1])]
+        self.assertEqual((len(charged), neg), (112, []), "PRINT THE DENOMINATOR: %d charged affix rows, negative: %s" % (len(charged), neg[:5]))
+        self.assertEqual(sum(1 for a in d["af"] if a[13]), 112, "the 112 class level requirements of magicsuffix.txt")
+        self.assertEqual([(d["b"][c][18], d["b"][c][23]) for c in ("ci3", "ci0", "cm1", "rin")], [(85, 18), (24, 3), (28, 0), (1, 0)],
+                         "qlvl / magic lvl of Diadem, Circlet, Small Charm, Ring")
+
+    #: the six rare keys the item string tables do not name, and what his install's other tables print for them
+    SIX = {"rarePrefix": {"GhoulRI": "Ghoul", "Wraithra": "Wraith", "Fiendra": "Fiend"},
+           "rareSuffix": {"crusher": "Crusher", "scarab": "Scarab", "strap": "Strap"}}
 
     def test_the_rare_words_are_the_lexicons(self):
         d = _db()
@@ -105,8 +131,12 @@ class TheAffixRowsAreTheInstalls(unittest.TestCase):
         for i, key in ((0, "rarePrefix"), (1, "rareSuffix")):
             named = sorted(set(w[0] for w in d["rn"][i] if w[3] == 1))
             unnamed = sorted(set(w[0] for w in d["rn"][i] if w[3] == 0))
-            self.assertEqual(named, sorted(lex[key]), "%s: the named words differ from the lexicon's" % key)
-            self.assertEqual(unnamed, sorted(lex["unresolvedKeys"][key]), "%s: the unnamed keys differ" % key)
+            self.assertEqual(sorted(lex["unresolvedKeys"][key]), sorted(self.SIX[key]), "the premise moved: %s unresolved" % key)
+            self.assertEqual(named, sorted(set(lex[key]) | set(self.SIX[key].values())),
+                             "%s: the named words are not the lexicon's plus the six his other string tables name" % key)
+            self.assertEqual(unnamed, [], "%s: a word no string table names is left: %s" % (key, unnamed))
+        ghoul = [w for w in d["rn"][0] if w[0] == "Ghoul"]
+        self.assertEqual(ghoul, [["Ghoul", ["armo", "weap", "misc"], [], 1]])
         beast = [w for w in d["rn"][0] if w[0] == "Beast"]
         self.assertEqual(beast, [["Beast", ["armo", "weap", "misc"], [], 1]])
 
@@ -147,7 +177,10 @@ class TheAffixRowsAreTheInstalls(unittest.TestCase):
                         1 if r.get("rare") == "1" else 0, CBDB._int(r.get("group")),
                         [r.get("itype%d" % j) for j in range(1, 8) if r.get("itype%d" % j)],
                         [r.get("etype%d" % j) for j in range(1, 6) if r.get("etype%d" % j)], CBDB._int(r.get("frequency"))]
-                got = [a[3], a[4], a[5], a[6], a[7], a[9], a[10], a[12]]
+                cl = (r.get("class") or "").strip()
+                want.append([[c["c"] for c in _db()["cls"]].index(cl), CBDB._int(r.get("classlevelreq"))]
+                            if cl and str(r.get("classlevelreq") or "").strip() else None)
+                got = [a[3], a[4], a[5], a[6], a[7], a[9], a[10], a[12], a[13]]
                 if got != want:
                     bad.append("%s%d %s: block %s, table %s" % (kind, i, r.get("Name"), got, want))
                 codes = set(c for l in a[11] for c in str(l[3]).split("+"))
@@ -156,6 +189,19 @@ class TheAffixRowsAreTheInstalls(unittest.TestCase):
                     bad.append("%s%d %s: the table's %s drew no line" % (kind, i, r.get("Name"), missing))
         self.assertEqual(seen, len(by), "the block holds %d af rows and the tables spawn %d" % (len(by), seen))
         self.assertEqual(bad, [], "\n  ".join(bad[:20]))
+
+    def test_the_six_words_are_his_installs_where_the_install_is(self):
+        import item_tables as IT
+        got = {}
+        for lab in ("monsters", "ui"):
+            path = dict(CBDB.SOURCES).get(lab)
+            m = IT._strings(IT._pull(path)) if path else None
+            if m is None:
+                self.skipTest("no install here: %s could not be read - UNMEASURED, not passed" % lab)
+            got.update(m)
+        for key in ("rarePrefix", "rareSuffix"):
+            for k, w in self.SIX[key].items():
+                self.assertEqual(got.get(k), w, "his install's string for %s" % k)
 
     def test_the_generator_writes_the_shipped_block_where_the_install_is(self):
         code, say = CBDB.check()
@@ -173,10 +219,45 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#174 v-B3 - an unnamed rare word is flagged as named, so it could be offered as a name",
+        "why": "#174 v-B3 fix round - a rare word his install names (monsters.json GhoulRI \"Ghoul\") is back to an unnamed key",
         "file": "bible.html",
-        "find": "[\"GhoulRI\",[\"armo\",\"weap\",\"misc\"],[],0]",
-        "replace": "[\"GhoulRI\",[\"armo\",\"weap\",\"misc\"],[],1]",
+        "find": "[\"Ghoul\",[\"armo\",\"weap\",\"misc\"],[],1]",
+        "replace": "[\"GhoulRI\",[\"armo\",\"weap\",\"misc\"],[],0]",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - a hand edit puts of Magic Arrow's charges back as the table's negative numbers",
+        "file": "bible.html",
+        "find": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[510,[],2,\"charged\"]],1,[0,1]]",
+        "replace": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[510,[[-10,-10,\"m1\"],[-30,-30,\"m1\"]],0,\"charged\"]],1,[0,1]]",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the generator asks only the item string tables for a rare word (six left unnamed)",
+        "file": "char_builder_db.py",
+        "find": "        for src in (self.NA or {}, self.S, self.OS or {}):\n",
+        "replace": "        for src in (self.NA or {}, self.S):\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the generator prints a charged skill's negative table values as its level and charges",
+        "file": "char_builder_db.py",
+        "find": "                if _int(lo) < 0 or _int(hi) < 0:\n",
+        "replace": "                if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the generator drops an affix's class level requirement",
+        "file": "char_builder_db.py",
+        "find": "        return [ci, _int(r.get(\"classlevelreq\"))] if ci >= 0 else None\n",
+        "replace": "        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the generator drops a base's magic lvl (a Diadem's affix level is its item level again)",
+        "file": "char_builder_db.py",
+        "find": "                           _int(r.get(\"magic lvl\"))]\n",
+        "replace": "                           0]\n",
         "matches": 1,
     },
     {

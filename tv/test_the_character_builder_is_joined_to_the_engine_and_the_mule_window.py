@@ -415,7 +415,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 fix round - a runeword is born at its base's max + 1 again (Chains of Honor 892, above the data)",
         "file": "bible.html",
-        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's')){ lo = hi = b[9] + 1; }\n",
+        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's' || isBase)){ lo = hi = b[9] + 1; }\n",
         "replace": "        if (hasEd){ lo = hi = b[9] + 1; }\n",
         "matches": 1,
     },

@@ -18,8 +18,8 @@ own law uses (tv/test_the_character_builder_is_their_builder.py's harness, impor
     Charm (lcha: Magic 1, Rare blank — its ancestor `misc` says Rare 1, which is NOT the charm's) goes straight to Edit
     as magic; a unique never sees the tab.
   · ADD MOD IS THE GAME'S RULE, EACH CLAUSE SEEN: by TYPE (a Grand Charm lists Chaotic, lcha, and never Sturdy, armo),
-    by LEVEL (Chaotic is level 50: absent at item level 49, present at 50; Crimson p665 has maxlevel 4: present at 3,
-    absent at 99), by GROUP (on a RARE Diadem, where three prefixes are allowed so the magic one-prefix cap cannot
+    by LEVEL (Chaotic is level 50: absent at item level 49, present at 50 - a Grand Charm's qlvl is 1, so its affix level
+    is its item level; Crimson p665 has maxlevel 4: on a Ring present at 3, absent at 99), by GROUP (on a RARE Diadem, where three prefixes are allowed so the magic one-prefix cap cannot
     hide the rule: after Devil's, group 125, Arch-Devil's is gone and refused while Jagged, group 105, stays), by CLASS (an Eagle Orb is the Sorceress's: Expert's, tied to the Barbarian, is not offered; on a Crystal
     Sword it is), by the RARE flag (a rare Diadem never lists Bahamut's, rare 0; a magic one does), by the AUTOMOD group
     (an Eagle Orb's auto prefix 303 lists "of the Jackal" a9; a Diadem, auto prefix 0, lists no automod), and by the
@@ -35,6 +35,21 @@ own law uses (tv/test_the_character_builder_is_their_builder.py's harness, impor
   · OLD BUILDS LOAD UNCHANGED: a build saved before this (a Diadem with q 'b', no affixes) opens on Edit as Normal and
     hands the engine a plain base.
   · Esc closes the ADD MOD list first, then the picker.
+  #174 v-B3 FIX ROUND (the review's reproduced findings, each a case below and a RED_PROOF):
+  · THE AFFIX LEVEL, NOT THE ITEM LEVEL: alvl = max(ilvl, qlvl) + magic lvl, or ilvl - qlvl/2, or 2 x ilvl - 99, never
+    above 99. A Small Charm (qlvl 28) at item level 50 has alvl 36 and never offers of Vita s349 (level 47) - it needs
+    item level 61; a Diadem (qlvl 85, magic lvl 18) at item level 85 offers the same level-90 prefixes as at 99; a
+    Diadem never offers Crimson (maxlevel 4) at any item level, a Ring does at 3. A legal pick survives an item-level edit.
+  · AN ITEM BORN WITH ENHANCED DEFENSE SITS AT ITS BASE'S MAX + 1: a Godly Diadem (50-60) typed +200% is 183 in the
+    tooltip (floor(61 x 300 / 100)), and the Defense box shows 61, fixed; a superior Diadem +15% is 70.
+  · A CLASS WEARS IT SOONER: of Magic Arrow (magicsuffix levelreq 11, class ama, classlevelreq 1) on a Short Bow asks an
+    Amazon for level 1 and a Sorceress for 11; the level 5 Amazon is not told she cannot wear it.
+  · A CHARGED SKILL THE TABLE GIVES AS NEGATIVE is UNKNOWN: never "Level -10" in the list, the mod row or the tooltip.
+  · ONE STAT, ONE LINE: Mnemonic + of Memory on a Circlet at level 90 print "+135 to Mana" once ((6 + 6) x 90 >> 3).
+  · ADD MOD IS A COMBOBOX: the first option is ACTIVE on open (painted, aria-activedescendant); ArrowDown moves it; Enter
+    adds the ACTIVE one. No AUTOMOD header over nothing on a base with no automagic group (a Diadem); an Eagle Orb keeps it.
+  · THE SIX RARE WORDS the item tables do not name are named by his install's other string tables and offered: Ghoul,
+    Wraith, Fiend (armour), Strap (belt), Scarab (amulet), Crusher (mace).
 ⚠ WHAT THIS LAW CANNOT SEE: pixels — tv/test_the_character_builder_fits_at_every_width.py measures the Edit tab with its
 picked mods and the open ADD MOD list at 2000 / 1280 / 375 in a real browser.
 RED_PROOF below.
@@ -111,14 +126,16 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
           window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm3');
           var e = inv(); OUT.gc99 = [has(e, 'p700'), has(e, 's338'), has(e, 'p143')];
           e.ilvl = 49; OUT.gc49 = has(e, 'p700'); e.ilvl = 50; OUT.gc50 = has(e, 'p700'); e.ilvl = 76; OUT.vita76 = has(e, 's338');
-          var dm = { id: 'b:ci3', base: 'ci3', q: 'm', ilvl: 3 }; OUT.crimson3 = has(dm, 'p665'); dm.ilvl = 99; OUT.crimson99 = has(dm, 'p665');
+          var rg = { id: 'b:rin', base: 'rin', q: 'm', ilvl: 3 }; OUT.crimson3 = has(rg, 'p665'); rg.ilvl = 99; OUT.crimson99 = has(rg, 'p665');
+          var dm = { id: 'b:ci3', base: 'ci3', q: 'm', ilvl: 3 }; OUT.crimsonDiadem = has(dm, 'p665'); dm.ilvl = 99;
           OUT.diademNoChaotic = !has(dm, 'p700') && has(dm, 'p712');
           OUT.firstRow = window._cbDb().af.filter(function(a){ return a[0] === 'p700'; })[0];
         """)
         self.assertEqual(out["firstRow"][:9], ["p700", "p", "Chaotic", 50, None, 42, 1, 125, 7], "the premise moved: Chaotic")
         self.assertEqual(out["gc99"], [True, True, False], "a Grand Charm's list: Chaotic and of Vita yes (lcha), Sturdy never (armo)")
         self.assertEqual((out["gc49"], out["gc50"], out["vita76"]), (False, True, False), "the affix level vs the item level")
-        self.assertEqual((out["crimson3"], out["crimson99"]), (True, False), "maxlevel 4: Crimson p665 only at item level <= 4")
+        self.assertEqual((out["crimson3"], out["crimson99"]), (True, False), "maxlevel 4: Crimson p665 on a Ring only at item level <= 4")
+        self.assertFalse(out["crimsonDiadem"], "a Diadem (qlvl 85, magic lvl 18: alvl 99 at any item level) offered Crimson, maxlevel 4")
         self.assertTrue(out["diademNoChaotic"], "a Diadem lists its own affixes (Devil's) and never a charm's (Chaotic)")
 
     def test_add_mod_lists_by_group_class_rare_flag_and_automod(self):
@@ -243,6 +260,100 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
         self.assertEqual((out["oldEnt"]["name"], out["oldEnt"]["quality"], "affixes" in out["oldEnt"]), ("ci3", "base", False),
                          "an old build's base is not handed to the engine exactly as before")
 
+    def test_fix_round_the_affix_level_is_held_against_the_affix_not_the_item_level(self):
+        out = _run(r"""
+          var sc = function(il){ return has({ id: 'b:cm1', base: 'cm1', q: 'm', ilvl: il }, 's349'); };
+          OUT.vita = [sc(50), sc(60), sc(61), sc(99)];
+          OUT.alvl = [window._cbAlvl('cm1', 50), window._cbAlvl('cm1', 99), window._cbAlvl('ci3', 85), window._cbAlvl('ci3', 1), window._cbAlvl('cm3', 50), window._cbAlvl('ob1', 50)];
+          var P90 = ['p561', 'p565', 'p571', 'p575', 'p579', 'p585', 'p589', 'p713'];
+          OUT.diadem85 = P90.map(function(id){ return has({ id: 'b:ci3', base: 'ci3', q: 'm', ilvl: 85 }, id); });
+          OUT.diadem99 = P90.map(function(id){ return has({ id: 'b:ci3', base: 'ci3', q: 'm', ilvl: 99 }, id); });
+          mk('Amazon', 90);
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3'); window._cbQuality('m'); window._cbAddMod('p561');
+          window._cbEdit('ilvl', 85); OUT.kept = (cur().sets[0].slots.head.affixes || []).map(function(x){ return x.id; });
+        """)
+        self.assertEqual(out["alvl"], [36, 99, 99, 99, 50, 51], "the affix level: Small Charm 50 -> 36 (50 - 28/2), 99 -> 99; "
+                         "Diadem 85 / 1 -> 99 (85 + 18, capped); Grand Charm (qlvl 1) 50 -> 50; Eagle Orb (magic lvl 1) 50 -> 51")
+        self.assertEqual(out["vita"], [False, False, True, True], "of Vita (level 47) on a Small Charm needs item level 61 (alvl 47)")
+        self.assertEqual(out["diadem85"], [True] * 8, "a Diadem at item level 85 (alvl 99) lost its level-90 prefixes")
+        self.assertEqual(out["diadem85"], out["diadem99"])
+        self.assertEqual(out["kept"], ["p561"], "an item-level edit stripped a pick the game can still roll (Valkyrie's at 85)")
+
+    def test_fix_round_an_item_born_with_enhanced_defense_sits_at_max_plus_one(self):
+        out = _run(r"""
+          mk('Sorceress', 90);
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3'); window._cbQuality('m'); window._cbAddMod('p150');
+          window._cbRollInput(box(0, 'm1', 101, 200, 200));
+          var h = cur().sets[0].slots.head; OUT.godly = window._cbTipEntry(h, window._cbItem(h.id), 90, 'head', 'Sorceress').defense;
+          OUT.box = (MODAL._html.match(/<input type="number" id="cb-def"[^>]*>/) || [''])[0];
+          window._cbQuality('sup'); window._cbAddMod('q2'); window._cbRollInput(box(0, 'm1', 5, 15, 15));
+          h = cur().sets[0].slots.head; OUT.sup = window._cbTipEntry(h, window._cbItem(h.id), 90, 'head', 'Sorceress').defense;
+          window._cbDelMod(0); window._cbEdit('def', 55);
+          h = cur().sets[0].slots.head; OUT.plain = window._cbTipEntry(h, window._cbItem(h.id), 90, 'head', 'Sorceress').defense;
+        """)
+        self.assertEqual(out["godly"], [183, 183], "a Godly Diadem +200%: floor(61 x 300 / 100) = 183 (its base at max + 1)")
+        self.assertIn("disabled", out["box"], "the Defense box can still be typed while the item carries Enhanced Defense")
+        self.assertIn('value="61"', out["box"], "the Defense box does not show the max + 1 the item sits at")
+        self.assertEqual(out["sup"], [70, 70], "a superior Diadem +15%: floor(61 x 115 / 100) = 70")
+        self.assertEqual(out["plain"], [55, 55], "a superior Diadem with no mod: its typed base defense is that number")
+
+    def test_fix_round_a_class_level_requirement_a_charged_skill_and_one_stat_one_line(self):
+        out = _run(r"""
+          mk('Amazon', 5);
+          window._cbOpenPick('slot', 'rarm'); window._cbChoose('b:sbw'); window._cbQuality('m'); window._cbModOpen(true);
+          OUT.listNeg = /Magic Arrow[^<]*-\d/.test(MODAL._html); OUT.listUnk = /Level \? Magic Arrow \(\?\/\? Charges\)/.test(MODAL._html);
+          OUT.added = window._cbAddMod('s458');
+          var s = cur().sets[0].slots.rarm; OUT.ama = window._cbTipEntry(s, window._cbItem(s.id), 5, 'rarm', 'Amazon').reqs.lvl;
+          OUT.sor = window._cbTipEntry(s, window._cbItem(s.id), 5, 'rarm', 'Sorceress').reqs.lvl;
+          OUT.cannot = /cannot wear it/.test(MODAL._html); OUT.editNeg = /Level -\d/.test(MODAL._html);
+          var t = window._cbTipEntry(s, window._cbItem(s.id), 5, 'rarm', 'Amazon'); OUT.tip = t.lines.map(function(l){ return [strip(l.html != null ? l.html : l.t), l.cls]; });
+          window._cbClosePick(); OUT.fails = /needs level/.test(ELS['cb-win']._html);
+          mk('Sorceress', 90);
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci0'); window._cbQuality('m'); window._cbAddMod('p540'); window._cbAddMod('s408');
+          var c = cur().sets[0].slots.head; OUT.mana = window._cbTipEntry(c, window._cbItem(c.id), 90, 'head', 'Sorceress').lines.map(function(l){ return strip(l.html != null ? l.html : l.t); });
+        """)
+        self.assertFalse(out["listNeg"], "ADD MOD lists of Magic Arrow with a negative level or charge count")
+        self.assertTrue(out["listUnk"], "ADD MOD does not say the charged level / charges are UNKNOWN (set by the item level)")
+        self.assertTrue(out["added"])
+        self.assertEqual((out["ama"], out["sor"]), (1, 11), "of Magic Arrow asks an Amazon for classlevelreq 1, anyone else for 11")
+        self.assertFalse(out["cannot"], "the level 5 Amazon is told she cannot wear a bow the game lets her wear")
+        self.assertFalse(out["fails"], "the Calculations list a requirement the level 5 Amazon meets")
+        self.assertFalse(out["editNeg"], "the picked mod's row prints a negative skill level")
+        self.assertEqual(out["tip"], [["Level ? Magic Arrow (?/? Charges) - set by the item level (the game's code, not a table value)", "d2t-unk"]],
+                         "the tooltip's charged line is not the UNKNOWN one")
+        self.assertEqual(out["mana"], ["+135 to Mana (Based on Character Level)"],
+                         "Mnemonic + of Memory are one stat: (6 + 6) x 90 >> 3 = 135 on one line")
+
+    def test_fix_round_add_mod_is_a_combobox_and_draws_no_empty_automod(self):
+        out = _run(r"""
+          mk('Warlock', 90);
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3'); window._cbQuality('rare'); window._cbModOpen(true);
+          var act = function(){ var h = MODAL._html; return [(h.match(/id="cb-add-q"[^>]*aria-activedescendant="([^"]*)"/) || [])[1] || null,
+            (h.match(/class="cb-add-o cb-act" role="option" id="([^"]*)" aria-selected="true"[^>]*data-id="([^"]*)"/) || []).slice(1),
+            (h.match(/cb-add-o cb-act/g) || []).length]; };
+          OUT.open = act(); OUT.automod = /Automod/.test(MODAL._html);
+          window._cbModSearch('warlock'); window._cbModal(); OUT.typed = act(); OUT.u = /<u>Warlock<\/u>/i.test(MODAL._html);
+          OUT.down = window._cbModKey({ key: 'ArrowDown', preventDefault: function(){} }); window._cbModal(); OUT.moved = act();
+          window._cbModKey({ key: 'Enter', preventDefault: function(){} });
+          OUT.picked = (cur().sets[0].slots.head.affixes || []).map(function(x){ return x.id; });
+          window._cbClosePick();
+          window._cbOpenPick('slot', 'rarm'); window._cbChoose('b:ob1'); window._cbQuality('m'); window._cbModOpen(true); OUT.orb = /Automod/.test(MODAL._html);
+          OUT.words = [window._cbRareWords('uap', 0).filter(function(w){ return /^(Ghoul|Wraith|Fiend)$/.test(w); }).sort(),
+                       window._cbRareWords('zlb', 1).indexOf('Strap') >= 0, window._cbRareWords('amu', 1).indexOf('Scarab') >= 0, window._cbRareWords('mac', 1).indexOf('Crusher') >= 0];
+        """)
+        self.assertEqual(out["open"][0], "cb-add-o-0", "on open no option is active (aria-activedescendant)")
+        self.assertEqual((out["open"][1][:1], out["open"][2]), (["cb-add-o-0"], 1), "on open the first option is not the one painted")
+        self.assertFalse(out["automod"], "a Diadem (no automagic group) draws an AUTOMOD header over nothing")
+        self.assertTrue(out["orb"], "an Eagle Orb (automagic group 303) lost its AUTOMOD group")
+        self.assertEqual(out["typed"][0], "cb-add-o-0", "a new search does not make its first match the active one")
+        self.assertTrue(out["u"], "the typed match is not underlined")
+        self.assertTrue(out["down"], "ArrowDown did nothing")
+        self.assertEqual(out["moved"][0], "cb-add-o-1", "ArrowDown did not move the active option")
+        self.assertEqual(out["moved"][1][0], "cb-add-o-1")
+        self.assertEqual(out["picked"], [out["moved"][1][1]], "Enter did not add the ACTIVE option")
+        self.assertEqual(out["words"], [["Fiend", "Ghoul", "Wraith"], True, True, True],
+                         "the six rare words his install names outside the item tables are not offered")
+
     def test_esc_closes_the_add_mod_list_before_the_picker(self):
         out = _run(r"""
           mk('Warlock', 90);
@@ -273,7 +384,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B3 - ADD MOD ignores the affix level and maxlevel",
         "file": "bible.html",
-        "find": "      if (a[3] > ilvl || (a[4] != null && ilvl > a[4])) return;\n",
+        "find": "      if (a[3] > alvl || (a[4] != null && alvl > a[4])) return;\n",
         "replace": "",
         "matches": 1,
     },
@@ -315,7 +426,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B3 - the tooltip never prints the picked mods",
         "file": "bible.html",
-        "find": "    if (it && e.affixes && e.affixes.length){ var W = _cbWithAffixes(it, e); it = W[0]; rolls = W[1]; }\n",
+        "find": "    if (it && e.affixes && e.affixes.length){ var W = _cbWithAffixes(it, e); it = W[0]; rolls = W[1]; if (isBase){ it = it.slice(); it[6] = _cbMergeLines(it[6], rolls); } }\n",
         "replace": "",
         "matches": 1,
     },
@@ -338,6 +449,55 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "\"lcha\":[\"m\"]",
         "replace": "\"lcha\":[\"rare\",\"m\"]",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - ADD MOD holds an affix's level against the ITEM level again (of Vita on a Small Charm at 50)",
+        "file": "bible.html",
+        "find": "ilvl = e.ilvl || 99, alvl = _cbAlvl(b, ilvl);",
+        "replace": "ilvl = e.ilvl || 99, alvl = ilvl;",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - a magic / rare / superior item with Enhanced Defense reads its base's min..max, not max + 1",
+        "file": "bible.html",
+        "find": "        if (hasEd && (it[2] === 'u' || it[2] === 's' || isBase)){ lo = hi = b[9] + 1; }\n",
+        "replace": "        if (hasEd && (it[2] === 'u' || it[2] === 's')){ lo = hi = b[9] + 1; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - an affix's class level requirement is ignored (an Amazon told she cannot wear her bow)",
+        "file": "bible.html",
+        "find": "  function _cbAfReq(a, ci){ return (a && a[13] && ci >= 0 && a[13][0] === ci) ? (a[13][1] | 0) : ((a && a[5]) | 0); }\n",
+        "replace": "  function _cbAfReq(a, ci){ return (a && a[5]) | 0; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - two affixes of one stat print two lines, each scaled apart (67 + 67, not 135)",
+        "file": "bible.html",
+        "find": " if (isBase){ it = it.slice(); it[6] = _cbMergeLines(it[6], rolls); } }\n",
+        "replace": " }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - ArrowDown does not move ADD MOD's active option (Enter adds a row nobody marked)",
+        "file": "bible.html",
+        "find": "      st.modAct = clamp(k === 'ArrowDown' ? i + 1 : k === 'ArrowUp' ? i - 1 :",
+        "replace": "      st.modAct = clamp(k === 'ArrowDown' ? i : k === 'ArrowUp' ? i - 1 :",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - the active option is never painted, so what Enter adds is invisible",
+        "file": "bible.html",
+        "find": "        h += '<button type=\"button\" class=\"cb-add-o' + (on ? ' cb-act' : '') + '\"",
+        "replace": "        h += '<button type=\"button\" class=\"cb-add-o' + (on ? '' : '') + '\"",
+        "matches": 1,
+    },
+    {
+        "why": "#174 v-B3 fix round - ADD MOD draws an AUTOMOD header over nothing on a base with no automagic group",
+        "file": "bible.html",
+        "find": "      if (k === 'a' && !((base && base[22]) | 0) && !P.n.a) return;\n",
+        "replace": "",
         "matches": 1,
     },
 ]

@@ -31,6 +31,7 @@ this machine and writes one compact block into bible.html between two markers, w
                                       unique's props - typed EXACT, untouched RANGE, never averaged
     qualityitems                      a superior item's modifiers (affixRows q + row index)
     item-names / item-runes / item-modifiers / skills .json   what the game PRINTS (a table key is not a name)
+    item-nameaffixes .json            an affix row's printed name ("Vodoun" prints "Mojo") - #174 v-B3 fix round
 
     python3 tv/char_props.py            # --check: is the block in bible.html what the install says?
     python3 tv/char_props.py --write    # regenerate the block (atomic, honours bible.html.EDIT_LOCK)
@@ -97,8 +98,11 @@ SOURCES = [
     ("skillstrings",     r"data:data\local\lng\strings\skills.json"),
     # #174 v-B3 - APPENDED (the order is the sourceHash's): a superior item's modifiers
     ("qualityitems",     r"data:data\global\excel\qualityitems.txt"),
+    # #174 v-B3 fix round - APPENDED: what the game PRINTS for an affix (magicprefix "Vodoun" is "Mojo"), so a sheet
+    # row names the affix the item shows - the same string the builder names it by (tv/char_builder_db.py)
+    ("nameaffixes",      r"data:data\local\lng\strings\item-nameaffixes.json"),
 ]
-STRINGS = ("itemnames", "itemrunes", "itemmodifiers", "skillstrings")
+STRINGS = ("itemnames", "itemrunes", "itemmodifiers", "skillstrings", "nameaffixes")
 
 #: the three funcs whose par names a SKILL (properties.txt: 11 event skill, 19 charges, 22 single / o- / aura skill)
 SKILL_FUNCS = (11, 19, 22)
@@ -405,6 +409,9 @@ def assemble(blobs):
     #    id = p / s / a / q + the row's index in magicprefix / magicsuffix / automagic / qualityitems (the same id
     #    tv/char_builder_db.py writes into the builder's af rows); the roll key is the mod's column (m1..m3), the key
     #    the builder stores a typed roll under. Spawnable rows only - the game never rolls the rest.
+    #    #174 v-B3 fix round - the NAME is what the game prints (item-nameaffixes.json, then the item strings), never
+    #    the table's key: 116 rows read "Mojo Amulet (Vodoun)" on the sheet while the item said "Mojo Amulet".
+    naff = T["nameaffixes"]
     rows_of = {}
     for label, kind in (("magicprefix", "p"), ("magicsuffix", "s"), ("automagic", "a"), ("qualityitems", "q")):
         for i, r in enumerate(T[label]):
@@ -418,7 +425,8 @@ def assemble(blobs):
                     note_skill(ln[0], ln[1])
                     ls.append(["m%d" % k] + ln)
             if ls:
-                rows_of[kind + str(i)] = [(r.get("Name") or "").strip() or ("superior" if kind == "q" else ""), ls]
+                nk = (r.get("Name") or "").strip()
+                rows_of[kind + str(i)] = [(naff.get(nk) or names.get(nk) or nk) if nk else ("superior" if kind == "q" else ""), ls]
 
     return {
         "sourceHash": source_hash(blobs),
