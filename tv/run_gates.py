@@ -5470,13 +5470,98 @@ GATES = [
              "start was the console's own os.execv, which never runs start_tvd_win.ps1. The console now "
              "installs Pillow at boot (python.exe, hidden, user site added) and the doctor row quotes the "
              "attempt instead of promising a launcher run. 6 cases, 2 red-proofs"),
+    # ══ #246 VAULT 2.0 — ONE DOOR INTO THE MULE MAP, AND EVERY LAW IT ANSWERS TO ══════════════════════
+    # His words: "all those item inside the vault are falsely there ... make sure they dont get routed here
+    # again" and "all the items getting vaulted and vaulted by AI READERS or manually should be to the
+    # dedicated mules alone". 173 filings, 160 from found-ever data with no witness, one writer.
+    Gate("test_found_ever_never_files_to_a_mule",
+         [sys.executable, os.path.join(HERE, "test_found_ever_never_files_to_a_mule.py")], 300,
+         needs_app=False,
+         why="#246 L1/L3/L5 - vaultAutoAssign walked ownedPool() (d2r_owned = ticked or found-ever) and filed "
+             "every name with no home: 173 filings on his board, 160 with no witness, made in two runs on "
+             "2026-09-16 by a restore and the sorter. The SHIPPED board in its own headless Chrome is given a "
+             "found-ever world (owned + foundLog + setPieces, no witness) and every trigger is pressed - the "
+             "sorter, a ledger restore through chronicleApply, _chronAutoAdopt, a one-look vaultAccumApply row, "
+             "the owned_restore / rw_restore / vault_autosort scripts the console really sends, the registrar "
+             "with no witness, the inbox auto-accept, the KAI judge keep tier, Chronicle Accept and Accept-All "
+             "- and the map and the witness store stay empty. A set piece restored as a 'unique' goes to the "
+             "set door (L3), Chronicle Accept ticks the Chronicle only (L5), and his hand still files with a "
+             "provenance row (the positive control). 5 cases, 4 red-proofs",
+         skip_ok=()),
+    Gate("test_every_mule_filing_carries_its_witness",
+         [sys.executable, os.path.join(HERE, "test_every_mule_filing_carries_its_witness.py")], 120,
+         why="#246 L6/W5 - the mule map stored a bare string and had ~40 writers, none asking for a witness; "
+             "the only author record was a 400-row ledger whose source is overwritten in place. window.vaultFile "
+             "is the ONE door, cut from bible.html and driven in node: no witness files nothing; his hand, a "
+             "verified .d2s, or two stash looks each with its own frame and conf file with a d2r_vaultProv row; "
+             "one look, a frameless or unsure look, one session twice, a folded re-look and a held gate are "
+             "refused; what the MAIN carries is refused as the MAIN's; a home he chose is never overridden and a "
+             "reader never replaces his hand's row. Every key in the map has its row after every call; the tag "
+             "reads the row (W5); the board's bars equal vault_retro's (his 2-look ruling). Source half: no "
+             "assign[...] = outside the door, every wholesale re-bind named. 10 cases, 4 red-proofs"),
+    Gate("test_the_witnessed_lane_files_its_own_rows",
+         [sys.executable, os.path.join(HERE, "test_the_witnessed_lane_files_its_own_rows.py")], 240,
+         needs_app=False,
+         why="#246 L7/W2 - the system was INVERTED: vault_accum held 14 gate-passing stash rows and the "
+             "witnessed lane could land none (rows carried `lane`, the container gate reads `loc`; 'already "
+             "vaulted' was read from found-ever d2r_owned). The REAL vault_retro.apply_payload builds the "
+             "payload and the REAL vaultAccumApply applies it in its own headless Chrome: a two-look stash row "
+             "files with its witness row (looks, gate verdict, stamped bound) even when the grail knew the name "
+             "first; Magefist's frameless conf-0.0 shape and a found-ever name do not file; a set piece seen in "
+             "the stash files through the set door; with no gate verdict travelling the board judges each look itself. 5 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_a_look_without_a_frame_is_not_a_witness",
+         [sys.executable, os.path.join(HERE, "test_a_look_without_a_frame_is_not_a_witness.py")], 60,
+         why="#246 L8/W3 - vault_retro.gate counted a session from every row and tested the floor on the "
+             "pile's BEST row, so Magefist passed on one real look plus a frameless conf-0.0 look (Wilson "
+             "0.095). Each look now qualifies on its own frame and conf; looksSeen rides beside; two real looks "
+             "still pass; the payload carries the verdict and a stamped, never-decisive bound (moving the bar "
+             "to Wilson is HIS call). 5 cases, 2 red-proofs"),
+    Gate("test_main_gear_never_files_to_a_mule",
+         [sys.executable, os.path.join(HERE, "test_main_gear_never_files_to_a_mule.py")], 120,
+         why="#246 L10/W4 - three sources each knew part of the MAIN lock (d2r_laneLock, the furniture law, "
+             "main_character.py - read 0 times by the board) and none reached the writer; the furniture law "
+             "locked Blackhand Key as a 'key'. The SHIPPED lock and door, cut and run in node: one predicate "
+             "joins all three (his 3-session bar kept), the door refuses every locked name even by hand and "
+             "files Blackhand Key, MAIN_LOCKS stays null until the console answers, the MAIN's name comes only "
+             "from his declaration or a .d2s he says is his (tag 'MAIN (name UNKNOWN)' until then), the panel "
+             "calls out a MAIN item in a mule, a reader never files a consumable, and the furniture and consumable lists equal inventory_law's. 8 cases, 4 "
+             "red-proofs"),
+    Gate("test_every_locked_main_row_reaches_the_board",
+         [sys.executable, os.path.join(HERE, "test_every_locked_main_row_reaches_the_board.py")], 120,
+         why="#246 L11/W4 - main_character.is_locked had no reader on the board. GET /api/main_locks is served "
+             "by the REAL Handler over a FIXTURE ledger and publishes exactly what the ledger locks; the SHIPPED "
+             "lock block, fed that answer in node, locks every one and the door refuses it; the board fetches "
+             "the path the console serves; an unreadable ledger is ok:false/locked:null and the board keeps "
+             "MAIN_LOCKS null. 4 cases, 3 red-proofs"),
+    Gate("test_a_filing_is_kept_by_its_witness_not_by_owned",
+         [sys.executable, os.path.join(HERE, "test_a_filing_is_kept_by_its_witness_not_by_owned.py")], 60,
+         why="#246 L12/W6 - the render prune kept a filing exactly as long as its name sat in `owned` "
+             "(ticked or found-ever). The SHIPPED prune, run in node: a witnessed filing stands when its name "
+             "leaves the pool; an unwitnessed one outside the pool goes; an unwitnessed one in the pool is "
+             "left for the NO WITNESS tag and the doctor (the fresh vault is his ruling). 1 case, 1 red-proof"),
+    Gate("test_a_restored_set_piece_travels_as_a_set",
+         [sys.executable, os.path.join(HERE, "test_a_restored_set_piece_travels_as_a_set.py")], 60,
+         why="#246 L3/W0c - a ledger restore sent every foundLog key as a unique, set pieces included; on the "
+             "board toggleOwned dropped each piece into d2r_owned and the sorter filed 19 of them (2026-09-16 "
+             "15:28:34). plan() now carries the backup's set-piece list and proposal_from sends those names "
+             "through `sets` only, once. 3 cases, 1 red-proof"),
+    Gate("test_the_vault_provenance_row_can_go_red",
+         [sys.executable, os.path.join(HERE, "test_the_vault_provenance_row_can_go_red.py")], 60,
+         why="#246 W7 - the one door, watched: the doctor row 'vault provenance' reads the board through the "
+             "shared tick read and reports filings with no witness, MAIN-locked names in a mule, gate-passing "
+             "stash rows never filed, and the feeder's banked-of-runs; UNKNOWN without a board read. Each arm "
+             "driven with a fixture and seen RED; furniture and consumables are never reported as unfiled; "
+             "registered, declared and explained. 7 cases, 4 red-proofs"),
     Gate("test_every_operator_door_keeps_its_contract",
          [sys.executable, os.path.join(HERE, "test_every_operator_door_keeps_its_contract.py")], 60,
          why="REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design "
              "(owned_restore, rw_restore, vault_autosort, vault_route_probe): walked by hand after "
              "something went wrong. This law is their NAMED OWNER and drives them through the real "
              "Handler with a recording board: no write door writes without confirm, each writes with "
-             "it, the probe only reads. 3 cases, 2 red-proofs"),
+             "it, the probe only reads. #246 L4: a confirmed possession door never presses the sorter, a "
+             "chronicle restore never reaches the owned door, and the register button re-gates the stored "
+             "sweep row by row, naming what it holds back. 6 cases, 5 red-proofs"),
     Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
          [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
          why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "

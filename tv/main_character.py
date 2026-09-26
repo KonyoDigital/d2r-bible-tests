@@ -264,6 +264,33 @@ def report():
                     "'seen in the equipment lane' clears %.2f" % (_MIN_SIGHTINGS, _LOCK_FLOOR))}
 
 
+def locks_payload():
+    """#246 W4 — what the board's lock predicate reads, via the console's READ-ONLY /api/main_locks. -> dict
+
+    Every row `equipped()` returns (his 3-sighting floor, Wilson on equip-of-seen, the furniture law
+    first) with its reason, plus the ledger's own state — `canEverLock` and `blockedWhy` — so the board
+    can tell "nothing has earned a lock yet" from "nothing CAN lock". A ledger that cannot be read is
+    ok:False and `locked: None`, never an empty list. [[unknown-stays-unknown]]
+    """
+    if not os.path.exists(LEDGER):
+        return {"ok": True, "locked": [], "tracked": 0, "floor": _LOCK_FLOOR,
+                "minSightings": _MIN_SIGHTINGS, "canEverLock": None,
+                "blockedWhy": "the MAIN ledger has not been written on this machine yet",
+                "generatedTs": int(time.time() * 1000)}
+    try:
+        with io.open(LEDGER, encoding="utf-8") as fh:
+            json.load(fh)
+    except Exception as e:
+        return {"ok": False, "locked": None,
+                "why": "the MAIN ledger is unreadable (%s) — nothing is known, not nothing is locked"
+                       % type(e).__name__}
+    r = report()
+    return {"ok": True, "locked": [dict(row) for row in r["locked"]], "tracked": r["tracked"],
+            "floor": r["floor"], "minSightings": r["minSightings"],
+            "canEverLock": r["canEverLock"], "blockedWhy": r["blockedWhy"],
+            "generatedTs": int(time.time() * 1000)}
+
+
 def main(argv=None):
     try:
         from console_safe import enable

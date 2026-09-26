@@ -66,7 +66,11 @@ def _door_source():
     be testing a function the board does not have."""
     with io.open(BIBLE, encoding="utf-8") as fh:
         src = fh.read()
-    return _between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
+    # #246 — AND THE ONE DOOR INTO THE MULE MAP, because the removal journal now carries each filing's
+    # witness row and the undo files through window.vaultFile on it. Cut from the same file, never re-typed.
+    from test_every_mule_filing_carries_its_witness import _door as _vault_door
+    return (_between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
+            + "\n" + _vault_door(src))
 
 
 HARNESS = r"""
@@ -81,6 +85,9 @@ function renderVault(){ calls.render++; }
 function refreshOpenCard(){ calls.refresh++; }
 function status(s){ calls.status.push(String(s)); }
 function muleById(id){ return %(mules)s.indexOf(id) >= 0 ? {id:id} : null; }
+function suggestMule(n){ return null; }          // #246 — the undo names its home; the router is never asked
+function isSharedStash(n){ return false; }
+function ownedPool(){ return Array.from(owned); }
 var window = {
   LSR: { getItem: function(k){ return Object.prototype.hasOwnProperty.call(STORE,k) ? STORE[k] : null; },
          setItem: function(k,v){ STORE[k] = String(v); } },

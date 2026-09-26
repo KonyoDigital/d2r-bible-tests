@@ -65,7 +65,11 @@ test('the assembler and the auditor agree on the item Konyo reported', async ({ 
 
   const r = await page.evaluate(() => {
     const w = window as any;
-    const reg = w.tvVaultRegister('Shako');
+    /* #246 — the register files only on a witness now (two independent stash looks, each with its own
+       frame and conf); without one it registers and does not file. The law here — the locker the
+       assembler files to is the one the auditor accepts — needs a real filing to grade. */
+    const reg = w.tvVaultRegister('Shako', { lane: 'stash', sessions: [
+      { session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }] });
     let assign: any = {};
     try { assign = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}') || {}; } catch (e) {}
     const sg = w.suggestMule('Shako');

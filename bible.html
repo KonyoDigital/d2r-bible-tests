@@ -4234,6 +4234,10 @@ window._LP_FORKED = new Set([
   /* #174 v-B2 - the character builder: a build is per-account state (Main and Ladder hold different characters),
      so it forks like d2r_muleEquip. */
   "d2r_charBuilds",
+  /* #246 VAULT 2.0 - the witness row beside every mule filing, and WHO the MAIN is. Both are account state: Main
+     and Ladder hold different mules and different characters, so both fork like d2r_muleAssign and ride Backup
+     and Share with every other key. */
+  "d2r_vaultProv", "d2r_mainCharacter",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -37079,8 +37083,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vaultAuditApply(f){
     if (!f || !f.fixable) return false;
     try {
-      if (f.kind==='misroute'){ assign[f.item]=f.to; }
-      else if (f.kind==='rw-in-magic'){ try{ owned.add(f.item); }catch(e){} if(magicFinds) delete magicFinds[f.item]; assign[f.item]='runewords'; }
+      /* #246 — the checker's FIX is his click: a misroute is a MOVE of a filing that exists; a runeword found
+         in the magic track is filed by that click, through the door, with his hand as the witness. */
+      if (f.kind==='misroute'){ var _mv0 = window.vaultFile(f.item, null, { move: true, mule: f.to, by: 'vault audit' }); if (!_mv0.ok) return false; }
+      else if (f.kind==='rw-in-magic'){
+        var _rw0 = window.vaultFile(f.item, { by: 'hand', at: new Date().toISOString(), where: 'the vault audit (a runeword in Magic & Rare)' }, { mule: 'runewords' });
+        if (!_rw0.ok) return false;
+        if(magicFinds) delete magicFinds[f.item];
+      }
       else if (f.kind==='dupe'){
         var g=String(f.store).split('+');
         // keep the highest-priority store (keep > magic > throw); drop the item from the lower one(s)
@@ -37091,7 +37101,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try{ unknownReads.delete(f.item); }catch(e){}
         try{ owned.add(f.item); }catch(e){}
         var to=f.to; if(!to){ var sg2=null; try{ sg2=suggestMule(f.item); }catch(e){} if(sg2&&muleById(sg2.id)) to=sg2.id; }
-        if (to && muleById(to)) assign[f.item]=to;
+        if (to && muleById(to)){
+          if (assign[f.item] != null) window.vaultFile(f.item, null, { move: true, mule: to, by: 'vault audit' });
+          else window.vaultFile(f.item, { by: 'hand', at: new Date().toISOString(), where: 'the vault audit (wrongly thrown)' }, { mule: to });
+        }
       }
       else if (f.kind==='g3-vault-conflict'){ if(magicFinds) delete magicFinds[f.item]; }   // v1310 — it's tracked elsewhere (G3); drop the redundant Magic & Rare copy
       else return false;
@@ -37200,7 +37213,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         Object.keys(magicFinds).forEach(function(_mfk){
           if (window.findRuneword(_mfk)){
             try { if (typeof owned!=='undefined' && owned.add) owned.add(_mfk); } catch(e){}
-            try { var _sg=suggestMule(_mfk); if(_sg && muleById(_sg.id)) assign[_mfk]=_sg.id; } catch(e){}
+            /* #246 — a Magic & Rare keeper row is not a stash witness; the runeword lands in `owned` (the dock)
+               and is filed by his hand or by a witness, never by this migration. */
             delete magicFinds[_mfk]; _mfMig=true;
           }
         });
@@ -37223,7 +37237,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // prune assignments of items no longer owned or mules deleted (v409 — but KEEP the '__keep' sentinel:
     // Anni/Torch/Gheed's are "kept in inventory", recorded as handled so they don't nag in the dock; muleById
     // can't resolve '__keep', so without this guard the prune would wrongly delete it every render).
-    Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || (assign[n]!=='__keep' && !muleById(assign[n]))) delete assign[n]; });
+    /* #246 W6 — A FILING IS KEPT BY ITS WITNESS, NOT BY `owned`. Before, a filing stood exactly as long as its
+       name sat in the pool, and `owned` means ticked or found-ever — so a found-ever name kept a false filing
+       alive for ever. Now: a home that is not a mule (or __keep) goes, as before; a WITNESSED filing
+       (d2r_vaultProv) stands whether or not the name is still in `owned`; an UNWITNESSED filing whose name
+       left the pool goes, as before. An unwitnessed filing still in the pool is not deleted here — the fresh
+       vault is his ruling, backed up first — but it is tagged NO WITNESS on its tile and counted by the
+       doctor's 'vault provenance' row. [[unknown-stays-unknown]] */
+    var _pvW6 = _provAll();
+    Object.keys(assign).forEach(function(n){
+      if (assign[n]!=='__keep' && !muleById(assign[n])) { delete assign[n]; return; }
+      if (pool.indexOf(n) >= 0) return;
+      if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
+      delete assign[n];
+    });
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
     // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
     var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
@@ -37537,7 +37564,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ── actions ──
   function assignItem(name, muleId){
     if (!muleById(muleId)) return;
-    assign[name]=muleId; saveA(); selectedChip=null; renderVault(); refreshOpenCard();
+    /* #246 — HIS HAND IS A WITNESS, AND IT GOES THROUGH THE ONE DOOR. A drag or a click onto a locker is a
+       manual declaration for that locker (his ruling: a manual add counts for the section it is made in),
+       so it files and leaves a provenance row saying so. The door still refuses a MAIN-locked name. */
+    var _vf = window.vaultFile(name, { by: 'hand', at: new Date().toISOString(), where: 'the vault manager' }, { mule: muleId });
+    if (!_vf || !_vf.ok){ status('🔒 ' + name + ' was not filed — ' + ((_vf && _vf.why) || 'the door refused it')); return; }
+    selectedChip=null; renderVault(); refreshOpenCard();
     /* v1952 — HIS OWN HAND IS ALSO AN ANSWER. The board's placements have carried a reason since
        v1948; a manual one carried nothing, so a row he filed himself and a row from before the
        ledger existed looked identical — both blank. "you filed this" is the shortest true answer to
@@ -37566,11 +37598,236 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       window.renderVault.__suggHooked = true;
     }
   } catch(e){}
+  /* ⟦#246 VAULTFILE BEGIN⟧ ══ #246 VAULT 2.0 — ONE DOOR INTO THE MULE MAP, AND IT ASKS FOR A WITNESS ══════
+     His words, 2026-09-26: "all those item inside the vault are falsely there ... reverse engineer it all and
+     each item to see where and why and make sure they dont get routed here again", "all the items getting
+     vaulted and vaulted by AI READERS or manually should be to the dedicated mules alone", and the vault
+     "should still be doing it job.. meaning locking the items and reading it whenever it can after witnessed
+     verify it it can automatically tag it in to the mule account".
+
+     THE FORENSICS (read-only, a copy of his store): of 173 filings, 160 came from found-ever data with NO
+     witness of any kind. ONE writer made all 173 — vaultAutoAssign walked ownedPool() (d2r_owned = ticked
+     or found-ever, which is NOT possession) and filed every name without a home; six automatic triggers
+     pressed it, two with nobody watching. The map held a bare string, so "why is this here" had no answer
+     on the store itself.
+
+     So the map has ONE door, and it asks for a witness before it writes:
+       · a STASH sighting — at least VAULT_WITNESS_MIN distinct looks, each with its OWN frame and its OWN
+         conf >= VAULT_WITNESS_FLOOR (his 2-look ruling of 2026-09-07; the vault_retro KEEP bar)
+       · a .d2s read — {file, char, verify:{ok:true}}
+       · his hand — {by:'hand', at, where}. A manual add counts for the section it is made in: his ruling,
+         2026-09-26 ~18:50, "from here on if i do add an item there manually yes of course.. to either or".
+     and it refuses a name locked to his MAIN (window._laneLocked). Every filing leaves a d2r_vaultProv row
+     beside it — {mule, holder, source, at, reel, frame, sessions, looks, conf, gate, wilson, by, ver} — so
+     "from what picture is this here?" is answered by the store, not by a 400-row ledger whose source field
+     gets overwritten. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+     ⚠ AN EQUIPMENT / INVENTORY SIGHTING IS NOT A FILING WITNESS, it is the opposite: the item is on his MAIN
+     ("SHOULD NEVER BE TOLD TO BE MOVED its locked there"). The door refuses it with main:true.
+     ⚠ THE PROVENANCE LANDS BEFORE THE FILING. If the second write fails, what is left is a witnessed row
+     with no filing (vaultAutoAssign re-files it), never a filing with no witness. */
+  var PROV_KEY = 'd2r_vaultProv';
+  var VAULT_WITNESS_FLOOR = 0.55;   /* = vault_retro.KEEP_CONF_FLOOR — pinned by test_every_mule_filing_carries_its_witness */
+  var VAULT_WITNESS_MIN = 2;        /* = vault_retro.KEEP_MIN_WITNESSES — HIS ruling; pinned the same way */
+  window.VAULT_WITNESS_FLOOR = VAULT_WITNESS_FLOOR;
+  window.VAULT_WITNESS_MIN = VAULT_WITNESS_MIN;
+  /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
+  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };
+  var _WIT_MAIN = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
+  function _provAll(){
+    try {
+      var v = JSON.parse(window.LSR.getItem(PROV_KEY) || '{}');
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    } catch (e) { return {}; }
+  }
+  function _provWrite(all){ window.LSR.setItem(PROV_KEY, JSON.stringify(all)); }
+  /* a filing taken OUT takes its witness row with it — a row left behind would re-file what he removed */
+  function _provDrop(names){
+    var all = _provAll(), n = 0;
+    (Array.isArray(names) ? names : [names]).forEach(function(k){
+      k = String(k == null ? '' : k);
+      if (k && Object.prototype.hasOwnProperty.call(all, k)){ delete all[k]; n++; }
+    });
+    if (n) _provWrite(all);
+    return n;
+  }
+  window._vaultProvAll = _provAll;
+  window._vaultProvDrop = _provDrop;
+  function _lookConf(e){
+    var c = e && e.conf;
+    c = (typeof c === 'number') ? c : parseFloat(c);
+    return isFinite(c) ? c : null;
+  }
+  /* THE WITNESS, JUDGED. PURE: reads only its argument and the two constants above. -> {ok, kind, why, ...}
+     A look is an independent eye: its `witness` id (a re-look key), else its session. A bare session that is
+     the prefix of a re-look key from the same recording folds into it — the same fold vault_retro applies —
+     so one recording cannot count twice by carrying its id in two spellings. */
+  window._vaultWitnessCheck = function(w){
+    if (!w || typeof w !== 'object' || Array.isArray(w))
+      return { ok: false, why: 'no witness — a filing needs a stash sighting, a .d2s read or your own hand' };
+    if (w.by === 'hand'){
+      var wh = String(w.where == null ? '' : w.where).trim();
+      if (!wh) return { ok: false, why: 'a manual declaration must say where it was made (the mule window, the vault manager ...)' };
+      return { ok: true, kind: 'hand', where: wh, at: w.at || null };
+    }
+    if (w.source === 'd2s' || w.file != null || w.verify != null){
+      var fl = String(w.file == null ? '' : w.file).trim(), ch = String(w.char == null ? '' : w.char).trim();
+      if (!fl || !ch) return { ok: false, why: 'a .d2s witness must name its file and its character' };
+      if (!(w.verify && w.verify.ok === true))
+        return { ok: false, why: 'the .d2s read did not verify (checksum / structure), so it proves nothing' };
+      return { ok: true, kind: 'd2s', file: fl, char: ch };
+    }
+    var lane = String(w.lane == null ? (w.loc == null ? '' : w.loc) : w.lane).trim().toLowerCase();
+    if (!lane) return { ok: false, why: 'the sighting did not say where the item was seen — an unestablished place is refused, not guessed' };
+    if (_WIT_MAIN[lane]) return { ok: false, main: true, lane: lane,
+      why: 'seen in your ' + lane + ' — that is your MAIN character, and what your MAIN carries is never filed to a mule' };
+    if (!_WIT_STASH[lane]) return { ok: false, lane: lane, why: '"' + lane + '" is not a container you keep things in' };
+    var looks = w.sessions || w.witnesses || w.looks || [];
+    if (!Array.isArray(looks)) looks = [];
+    var keep = [], dropped = 0, best = null;
+    looks.forEach(function(e){
+      if (!e || typeof e !== 'object'){ dropped++; return; }
+      var id = String(e.witness || e.session || e.reel || e.sid || e.id || '').trim();
+      var c = _lookConf(e), fr = e.frame;
+      if (!id || !fr || c == null || c < VAULT_WITNESS_FLOOR){ dropped++; return; }
+      keep.push({ id: id, frame: String(fr), conf: c, reel: String(e.reel || e.session || '') || null });
+      if (best == null || c > best) best = c;
+    });
+    var ids = {};
+    keep.forEach(function(k){ ids[k.id] = 1; });
+    Object.keys(ids).forEach(function(a){
+      if (a.indexOf('#') >= 0) return;
+      if (Object.keys(ids).some(function(b){ return b !== a && b.indexOf(a + '#') === 0; })) delete ids[a];
+    });
+    var distinct = Object.keys(ids).sort();
+    if (w.gate && typeof w.gate === 'object' && w.gate.pass === false)
+      return { ok: false, lane: lane, looks: distinct.length, why: 'the gate held it: ' + String(w.gate.why || 'no reason given').slice(0, 160) };
+    if (distinct.length < VAULT_WITNESS_MIN)
+      return { ok: false, lane: lane, looks: distinct.length, dropped: dropped,
+               why: 'only ' + distinct.length + ' qualifying look' + (distinct.length === 1 ? '' : 's') + ' in your ' + lane
+                    + ' — needs ' + VAULT_WITNESS_MIN + '; a look counts only with its own frame and its own conf >= '
+                    + VAULT_WITNESS_FLOOR + (dropped ? (' (' + dropped + ' did not)') : '') };
+    var byId = {};
+    keep.forEach(function(k){ if (ids[k.id] && !byId[k.id]) byId[k.id] = k; });
+    var qual = distinct.map(function(id){ return byId[id]; });
+    return { ok: true, kind: 'lane', lane: lane, looks: qual, sessions: distinct, conf: best,
+             reel: qual[0] ? (qual[0].reel || qual[0].id) : null, frame: qual[0] ? qual[0].frame : null };
+  };
+  function _vHomeOk(h){ return !!h && (h === '__keep' || h === '__throwout' || !!muleById(h)); }
+  function _vHomeName(h){
+    var m = h ? muleById(h) : null;
+    return m ? m.name : (h === '__keep' ? 'your MAIN — kept in inventory' : (h === '__throwout' ? 'the throw-out review' : String(h || '')));
+  }
+  /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}
+     opts.mule   a home he (or the caller) names; else suggestMule decides, as it always did
+     opts.move   an EXISTING filing changing homes — not a new claim, so it carries the row it already has */
+  window.vaultFile = function(name, witness, opts){
+    opts = opts || {};
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
+    var lk = '';
+    try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch (e) { lk = ''; }
+    if (opts.move){
+      var to = opts.mule;
+      if (assign[nm] == null) return { ok: false, refused: 'not-filed', why: nm + ' is not filed, so there is nothing to move' };
+      if (!_vHomeOk(to)) return { ok: false, refused: 'no-home', why: 'no mule "' + to + '" on this board' };
+      if (lk && to !== '__keep') return { ok: false, refused: 'locked', lock: lk,
+        why: nm + ' is locked to your MAIN (' + lk + ') — a MAIN item is never moved into a mule' };
+      var pm = _provAll();
+      if (pm[nm]){ pm[nm].mule = to; pm[nm].holder = _vHomeName(to); pm[nm].movedAt = new Date().toISOString();
+                   pm[nm].movedBy = String(opts.by || 'hand'); _provWrite(pm); }
+      assign[nm] = to; saveA();
+      return { ok: true, mode: 'moved', mule: to, witnessed: !!pm[nm] };
+    }
+    var wc = window._vaultWitnessCheck(witness);
+    if (!wc.ok) return { ok: false, refused: wc.main ? 'main' : 'witness', main: !!wc.main, why: wc.why };
+    if (lk) return { ok: false, refused: 'locked', lock: lk,
+      why: nm + ' is locked to your MAIN (' + lk + ') — ' + ((window._mainTag && window._mainTag()) || 'MAIN')
+           + ' carries it, so it is never filed to a mule. Release the lock first if that is wrong.' };
+    if (wc.kind !== 'hand' && window._consumable && window._consumable(nm))
+      return { ok: false, refused: 'consumable', why: nm + ' is a consumable — used or thrown out, never filed to a mule by a reader' };
+    var home = opts.mule || null, sg = null;
+    if (!home){ try { sg = suggestMule(nm); } catch (e) { sg = null; } home = sg ? sg.id : null; }
+    if (!home) return { ok: false, refused: 'no-home',
+      why: isSharedStash(nm) ? 'belongs in the shared stash — there is no mule for it'
+                             : 'nothing in the routing universe named a drawer for ' + nm };
+    if (!_vHomeOk(home)) return { ok: false, refused: 'no-home', why: 'routed to "' + home + '" but no mule with that id exists on this board' };
+    var hand = (wc.kind === 'hand');
+    /* NEVER OVERRIDE A HOME HE CHOSE — only his own hand, naming the home, may re-file a filed name */
+    if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule))
+      return { ok: true, mode: 'already', mule: assign[nm], why: nm + ' is already filed to ' + _vHomeName(assign[nm]) };
+    var wasHere = (assign[nm] === home);
+    /* A MANUAL PLACEMENT ALWAYS WINS (MP_SRC_RANK's rule, and his): a reader's witness never replaces the row his
+       hand left at the same home — it would turn "you put it here" into "the film saw it". */
+    if (wasHere && !hand){
+      var _pw = _provAll()[nm];
+      if (_pw && _pw.source === 'hand') return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
+    }
+    var now = new Date().toISOString();
+    var g = (witness && typeof witness.gate === 'object' && witness.gate) ? witness.gate : null;
+    var row = {
+      mule: home, holder: _vHomeName(home),
+      source: (wc.kind === 'lane') ? wc.lane : wc.kind,
+      at: (hand && wc.at) ? String(wc.at) : now,
+      reel: (wc.kind === 'lane') ? wc.reel : ((witness && (witness.reel || witness.sessionId)) || null),
+      frame: (wc.kind === 'lane') ? wc.frame : ((witness && (witness.frame || witness.frameId)) || null),
+      sessions: wc.sessions || [],
+      looks: (wc.looks || []).map(function(k){ return { id: k.id, frame: k.frame, conf: k.conf }; }),
+      conf: (wc.conf == null) ? null : wc.conf,
+      gate: g ? { pass: g.pass === true, why: String(g.why || '').slice(0, 200),
+                  looks: (typeof g.looks === 'number') ? g.looks : ((typeof g.witnesses === 'number') ? g.witnesses : null) } : null,
+      wilson: (g && typeof g.wilson === 'number') ? g.wilson : ((witness && typeof witness.wilson === 'number') ? witness.wilson : null),
+      by: hand ? 'hand' : String((witness && witness.by) || (wc.kind === 'd2s' ? 'd2s' : 'reader')),
+      ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null
+    };
+    if (hand) row.where = wc.where;
+    if (wc.kind === 'd2s'){ row.file = wc.file; row.char = wc.char; }
+    var pa = _provAll(); pa[nm] = row; _provWrite(pa);
+    try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
+    assign[nm] = home; saveA();
+    return { ok: true, mode: wasHere ? 'confirmed' : 'filed', mule: home, holder: row.holder, prov: row,
+             why: (sg && sg.why) || '' };
+  };
+  /* A STORED ROW AS A WITNESS AGAIN — so a witnessed filing that lost its home (a deleted mule, a render
+     prune) is re-filed by the same door on the same evidence, never on a name alone. */
+  function _provAsWitness(row){
+    if (!row || typeof row !== 'object') return null;
+    if (row.source === 'hand') return { by: 'hand', at: row.at, where: row.where || 'an earlier filing by hand' };
+    if (row.source === 'd2s') return { source: 'd2s', file: row.file, char: row.char, verify: { ok: true } };
+    return { lane: row.source, by: row.by,
+             sessions: (row.looks || []).map(function(k){ return { witness: k.id, frame: k.frame, conf: k.conf }; }),
+             gate: row.gate ? { pass: row.gate.pass, why: row.gate.why, wilson: row.wilson } : null };
+  }
+  window._vaultProvAsWitness = _provAsWitness;
+  /* THE TAG — what the mule window and every vault tile say about WHERE a filing came from. Read from
+     d2r_vaultProv, in MP_SRC_SAY's words; a filing with no row says so, loudly, and never guesses. */
+  window._vaultProvSay = function(name){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return '';
+    var r = _provAll()[nm];
+    var S = (typeof MP_SRC_SAY === 'object' && MP_SRC_SAY) ? MP_SRC_SAY : {};
+    if (!r) return (assign[nm] != null) ? (S.none || 'NO WITNESS') : '';
+    if (r.source === 'hand') return (S.hand || 'placed by hand') + (r.where ? ' (' + r.where + ')' : '');
+    if (r.source === 'd2s') return (S.d2s || 'from a .d2s') + (r.char ? ' (' + r.char + ')' : '');
+    var n = (r.looks && r.looks.length) || (r.sessions && r.sessions.length) || 0;
+    return (S.witnessed || 'witnessed in your') + ' ' + r.source + ' × ' + n + ' look' + (n === 1 ? '' : 's')
+           + (r.wilson != null ? ' (Wilson ' + Number(r.wilson).toFixed(2) + ')' : '');
+  };
+  /* the dock: what is owned and NOT filed. Read only — the sorter never files from it. */
+  window._vaultDockNames = function(){
+    try { return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n); }); }
+    catch (e) { return []; }
+  };
+  /* ⟦#246 VAULTFILE END⟧ */
   // v723 — TV farmed wire (name-only, NO AI call, NO photo). Reuses the SAME owned + suggestMule
   // + muleAssign path vault intake uses. Called when TV sees inventory/stash after a physical pickup.
   // Does NOT touch engines (runes/gems/grail) — the TV board apply() already does that.
   // Safe: never removes items; never auto-throws; dedupes via owned.has.
-  window.tvVaultRegister = function(name){
+  /* #246 — THE REGISTRAR TAKES A WITNESS. `owned` still gains the name (the TV saw it, that is what the
+     dock is for), but the MULE MAP moves only through window.vaultFile, and only when `witness` passes. A
+     call with no witness registers and files NOTHING — this function filed 112 Chronicle names on
+     2026-08-28 with no container behind any of them, and that vault was carried forward for a month. */
+  window.tvVaultRegister = function(name, witness){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
       // v792 (R3 pick 3) — ONE identity across both engines: resolve to the same canonical
@@ -37677,12 +37934,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           }
         } catch(e){}
         owned.add(name);
-        if (!assign[name]) assign[name] = '__throwout';
+        var _vfX = (witness && !assign[name]) ? window.vaultFile(name, witness, { mule: '__throwout' }) : null;
         persistOwned(); saveA();
         try { if (typeof renderVault === 'function') renderVault(); } catch(e2){}
         var st = document.getElementById('vault-status');
         if (st) st.textContent = '📺 TV vaulted (throw-out advice): ' + name + (sg.why ? ' — ' + sg.why : '');
-        return { ok:true, mode:'throwout', mule: '__throwout', muleName: '🗑 throw-out review', label: name, why: sg.why || '' };
+        return { ok:true, mode:'throwout', mule: (_vfX && _vfX.ok) ? '__throwout' : null, muleName: '🗑 throw-out review',
+                 label: name, why: sg.why || '', filed: !!(_vfX && _vfX.ok), filing: _vfX };
       }
       var already = owned.has(name);
       if (!already) owned.add(name);
@@ -37695,8 +37953,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       } catch(e){}
       var muleId = assign[name] || null;
-      if (sg && muleById(sg.id) && !assign[name]) { assign[name] = sg.id; muleId = sg.id; }
-      else if (sg && sg.id === '__keep' && !assign[name]) { assign[name] = '__keep'; muleId = '__keep'; }
+      /* #246 — FILED ONLY THROUGH THE DOOR, ONLY ON A WITNESS. No witness -> owned, in the dock, unfiled. */
+      var _vf = null;
+      if (!muleId && sg && (sg.id === '__keep' || muleById(sg.id))){
+        _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })
+                      : { ok: false, refused: 'witness', why: 'no witness was handed over — registered, not filed' };
+        if (_vf && _vf.ok) muleId = _vf.mule;
+      }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
       // v735.1 — do not expand vault card while user is on TV·D (silent file only)
@@ -37716,10 +37979,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             window.toggleCardCollapse('mule-vault-card');
         }
       } catch(e){}
-      var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId || 'unsorted';
+      var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId || 'unsorted — waiting for a witness';
       var st2 = document.getElementById('vault-status');
       if (st2) st2.textContent = '📺 TV vaulted: ' + name + ' → ' + muleName;
-      return { ok:true, mode: already ? 'already' : 'new', mule: muleId, muleName: muleName, label: name };
+      return { ok:true, mode: already ? 'already' : 'new', mule: muleId, muleName: muleName, label: name,
+               filed: !!muleId, filing: _vf, why: (_vf && !_vf.ok) ? _vf.why : '' };
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
   // v731 — reverse a mistaken vault when player drops the item back to the floor
@@ -37840,7 +38104,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                one the ledger could not show. 'throw-suggested' is already taught to _CH_PILL_MAP. */
             status: (r && r.ok)
               ? (r.mode === 'throwout' ? 'throw-suggested'
-                                       : (_known(nm) ? 'vault-registered' : 'vault-unknown'))
+                 : (r.filed === false ? 'no-witness'
+                                      : (_known(nm) ? 'vault-registered' : 'vault-unknown')))
               : 'route-failed',
             /* v3000 \u2014 `store` WAS A FLAT LITERAL IN THE SAME OBJECT AS A COMPUTED `status`.
                Three lines up, `status` is derived from the outcome and can say 'route-failed';
@@ -37871,6 +38136,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               ? (r.mode === 'throwout'
                   ? ('the TV saw you pick this up and it went to the \ud83d\uddd1 throw-out review, NOT a mule '
                      + '\u2014 it is still yours and still counted' + ((r && r.why) ? (': ' + r.why) : ''))
+                  : (r.filed === false)
+                  ? ('owned, NOT filed to a mule — ' + (r.why || 'no witness') + '. It waits in the dock '
+                     + 'for a second look in your stash, or for your hand')
                   : (_known(nm)
                       ? (r.mode === 'already'
                           ? 'the TV saw this again \u2014 you already had it, so nothing moved'
@@ -37971,6 +38239,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       name = String(name || '').trim(); if (!name) return { ok:false };
       try { owned.delete(name); } catch(e){}
       try { delete assign[name]; } catch(e){}
+      try { _provDrop(name); } catch(e){}
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
       var st = document.getElementById('vault-status');
@@ -37983,7 +38252,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // runeword base, or the vault verdict already says vendor). The label keeps the read's quality
   // prefix (Superior/Eth) and exact socket count; _ensureSocketBaseEntry builds the tier/art/RW
   // description; the mule assignment + forge-step reset mirror the normal data.items path.
-  window._autoRegisterLowBase = function(n){
+  window._autoRegisterLowBase = function(n, witness){
     try {
       var m = /^(.+?)\s*\((\d+)\s*os\s+low base\)\s*$/i.exec(String(n||'')); if (!m) return null;
       var b = m[1].trim(), s = parseInt(m[2], 10);
@@ -37999,14 +38268,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       owned.add(lbl);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(lbl, true);
-      if (sg && muleById(sg.id) && !assign[lbl]) assign[lbl] = sg.id;
+      if (sg && muleById(sg.id) && !assign[lbl] && witness) window.vaultFile(lbl, witness, { mule: sg.id });
       try { var _st = JSON.parse(window.LSR.getItem('d2r_forgeStep')||'{}');
         if (_st['chain|'+lbl] != null){ delete _st['chain|'+lbl]; window.LSR.setItem('d2r_forgeStep', JSON.stringify(_st)); } } catch(e){}
       persistOwned(); saveA();
       return { label: lbl, mode: 'new' };
     } catch(e){ return null; }
   };
-  window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); refreshOpenCard(); };
+  window.vaultUnassign = function(name){ delete assign[name]; try { _provDrop(name); } catch(e){} saveA(); renderVault(); refreshOpenCard(); };
   // v226: erase an AI misread in one click — removes the ✓ owned mark itself
   // (not just the locker assignment). Recoverable: re-✓ on the item's card.
   window.vaultUnown = function(name){
@@ -38088,7 +38357,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.vaultRemove = function(names, opts){
     opts = opts || {};
     var req = Array.isArray(names) ? names : (names == null ? [] : [names]);
-    var removed = [], skipped = [], filed = {}, seen = {};
+    var removed = [], skipped = [], filed = {}, seen = {}, provs = {};
     req.forEach(function(raw){
       var nm = String(raw == null ? '' : raw);
       if (!nm || seen[nm]) return;      /* the same name twice is one removal, not two */
@@ -38099,6 +38368,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          what was actually there to take. [[zero-needs-a-denominator]] */
       if (!owned.has(nm)) { skipped.push(nm); return; }
       if (assign[nm] != null) filed[nm] = assign[nm];
+      /* #246 — the witness row travels with the removal, so an undo restores the filing ON ITS EVIDENCE */
+      var _pvR = _provAll()[nm]; if (_pvR) provs[nm] = _pvR;
       owned['delete'](nm);
       delete assign[nm];
       removed.push(nm);
@@ -38114,9 +38385,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 profile: (window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'),
                 names: removed,
                 filed: filed,
+                prov: provs,
                 why: String(opts.why || 'removed from owned'),
                 lane: String(opts.lane || 'manual') };
       var log = _vrRead(); log.push(batch); _vrWrite(log);
+      try { _provDrop(removed); } catch(e){}
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       window._repaintOwned();
       if (!opts.quiet) status('🗑 removed ' + removed.length + ' of ' + req.length + ' from owned'
@@ -38149,7 +38422,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       /* NEVER OVERWRITE A NEWER FILING. If the name has been assigned since the removal, that
          assignment is his, not this batch's to restore over. */
       if (f != null && assign[nm] == null) {
-        try { if (typeof muleById === 'function' && muleById(f)) assign[nm] = f; } catch(e){}
+        /* #246 — THE UNDO FILES THROUGH THE DOOR, on the witness the removal carried away; a filing that had
+           none is put back by his undo, which is his hand. */
+        var _pvU = last.prov && last.prov[nm];
+        var _wU = _pvU ? _provAsWitness(_pvU)
+                       : { by: 'hand', at: new Date().toISOString(), where: 'his undo of a removal' };
+        try { if (typeof muleById === 'function' && (muleById(f) || f === '__keep')) window.vaultFile(nm, _wU, { mule: f }); } catch(e){}
       }
       back.push(nm);
     });
@@ -38186,7 +38464,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
       owned.add(label);
-      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
+      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
+        window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'the socket fix (throw-out review)' }, { mule: sg.id });
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base');
     } catch(e){}
@@ -38202,7 +38481,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
       owned.add(label);
-      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
+      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
+        window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'keep as a Larzuk base (throw-out review)' }, { mule: sg.id });
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('⚒ ' + clean + ' kept UNSOCKETED — Larzuk / cube-gamble base, the Forge will plan around it');
     } catch(e){}
@@ -38222,14 +38502,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var wasEth = (typeof etherealItems !== 'undefined') && etherealItems.has(name);
       var oldMule = assign[name];
+      /* #246 — the renamed label inherits the old label's witness; a filing that had none is re-filed by
+         this click, which is his hand */
+      var _pvF = _provAll()[name];
       try { owned.delete(name); } catch(e){}
       delete assign[name];
+      try { _provDrop(name); } catch(e){}
       try { if (typeof etherealItems !== 'undefined') { etherealItems.delete(name); if (wasEth) etherealItems.add(newLabel); } } catch(e){}
       try { if (typeof superiorBases !== 'undefined' && superiorBases.has(name)) { superiorBases.delete(name); superiorBases.add(newLabel); } } catch(e){}
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
       owned.add(newLabel);
-      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) assign[newLabel] = oldMule;
-      else { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) assign[newLabel] = sg.id; }
+      var _wF = _pvF ? _provAsWitness(_pvF) : { by: 'hand', at: new Date().toISOString(), where: 'the socket count fix' };
+      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, _wF, { mule: oldMule });
+      else { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) window.vaultFile(newLabel, _wF, { mule: sg.id }); }
       try { LS.setItem('d2r_ethereal', JSON.stringify([...etherealItems])); } catch(e){}
       try { LS.setItem('d2r_superiorBases', JSON.stringify([...superiorBases])); } catch(e){}
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
@@ -38397,7 +38682,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       magicFinds[nm]=_rec;
     } catch(e){}
-    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm]) assign[nm]=sg.id; } catch(e){}
+    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm])
+            window.vaultFile(nm, { by: 'hand', at: new Date().toISOString(), where: 'the AI Item Checker (keep)' }, { mule: sg.id }); } catch(e){}
     try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     var mu=(assign[nm]&&muleById(assign[nm]))?(' → '+muleById(assign[nm]).name):'';
@@ -38782,7 +39068,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           } catch(e){}
           try {
             if (typeof window.tvVaultRegister === 'function'){
-              out.vault = window.tvVaultRegister(nm);
+              /* #246 — the judge's read is the witness it hands over: one look, with its frame and conf */
+              out.vault = window.tvVaultRegister(nm, { lane: _loc, by: 'aic-judge',
+                sessions: [{ session: meta.sid || meta.sessionId || '', frame: meta.frameId || '',
+                             conf: (typeof meta.conf === 'number') ? meta.conf : null }] });
               out.actions.push('vault');
             }
           } catch(e){}
@@ -38829,15 +39118,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                                at: meta.fts || meta.firstSeenTs || Date.now() };
           }
           try {
+            /* #246 — THE KEEP TIER FILES ONLY ON A WITNESS. It used to write the map with no container gate,
+               and a throw-out verdict overwrote a home he had chosen. The judge's read is one look, handed
+               over with its frame, conf and the location it reported (usually none) — the door decides. */
             var sg = (typeof suggestMule === 'function') ? suggestMule(nm) : null;
-            if (sg && sg.id === '__throwout'){
-              if (typeof assign === 'object') assign[nm] = '__throwout';
-              out.mule = '__throwout';
-            } else if (sg && typeof muleById === 'function' && muleById(sg.id)
-                       && typeof assign === 'object' && !assign[nm]){
-              assign[nm] = sg.id; out.mule = sg.id;
-            } else if (sg && sg.id === '__keep' && typeof assign === 'object' && !assign[nm]){
-              assign[nm] = '__keep'; out.mule = '__keep';
+            var _jw = { lane: meta.loc || '', by: 'aic-judge',
+                        sessions: [{ session: meta.sid || meta.sessionId || '', frame: meta.frameId || '',
+                                     conf: (typeof meta.conf === 'number') ? meta.conf : null }] };
+            if (sg && !assign[nm] && (sg.id === '__throwout' || sg.id === '__keep' || (typeof muleById === 'function' && muleById(sg.id)))){
+              var _jf = window.vaultFile(nm, _jw, { mule: sg.id });
+              if (_jf && _jf.ok) out.mule = _jf.mule;
+              else out.vaultRefused = (_jf && _jf.why) || 'the vault door refused it';
             }
           } catch(e2){}
           try { if (typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e3){}
@@ -38998,15 +39289,159 @@ window._laneLockSessions = function(name){
   var r = _laneLockAll()[String(name || '').trim()];
   return (r && r.sessions && r.sessions.length) || 0;
 };
+/* ⟦#246 MAIN LOCK⟧ ══ #246 W4 — THE LOCK IS ONE PREDICATE, JOINED FROM EVERY SOURCE THAT KNOWS HIS MAIN ══════
+   His words: the vault should keep "locking the items and reading it whenever it can ... and the character
+   name... so the MAIN character". Before this, three sources each knew part of it and none reached the one
+   writer that files: d2r_laneLock (fed only by the vault sweep, and ABSENT on his board), inventory_law
+   (furniture — the board never consulted it) and tv/main_character.py (a Wilson ledger of what he wears —
+   bible.html read it ZERO times). So Gore Rider, String of Ears and Raven Frost could sit in a mule while
+   nothing on the board could even ask whether they were his gear.
+
+   _laneLocked now answers from all three, in this order, and returns the lane ('' = not locked):
+     1. d2r_laneLock      — vault_retro equipment/inventory rows, his 3-SESSION bar (v1985, unchanged)
+     2. the furniture law — inventory_law.LOCKED / LOCKED_WHOLE, mirrored below and pinned equal by a law
+     3. the MAIN ledger   — main_character.is_locked, published READ-ONLY by the console at /api/main_locks
+   window.vaultFile refuses any name this returns non-empty for. MAIN_LOCKS is null until the console has
+   answered — "nobody asked" never reads as "nothing is locked". [[unknown-stays-unknown]] */
 window._laneLocked = function(name){
-  var r = _laneLockAll()[String(name || '').trim()];
-  if (!r) return '';
-  /* THE BAR IS THE POINT. Under three distinct sessions this returns '' — the item is watched, not
-     locked, and auto-assign may still file it. Returning the lane early would be the eager behaviour
-     he overruled. */
-  var n = (r.sessions && r.sessions.length) || 0;
-  return (n >= LANE_LOCK_MIN_SESSIONS) ? r.lane : '';
+  var why = window._laneLockWhy(name);
+  return why ? why.lane : '';
 };
+/* -> {lane, source, why} | null — the lock AND the reason, so every refusal can say which source held it */
+window._laneLockWhy = function(name){
+  var nm = String(name || '').trim();
+  if (!nm) return null;
+  var r = _laneLockAll()[nm];
+  /* THE BAR IS THE POINT. Under three distinct sessions the lane-lock row is WATCHING, not locked — returning
+     the lane early would be the eager behaviour he overruled (v1985). */
+  if (r){
+    var n = (r.sessions && r.sessions.length) || 0;
+    if (n >= LANE_LOCK_MIN_SESSIONS) return { lane: r.lane, source: 'lane-lock',
+      why: 'seen in your ' + r.lane + ' in ' + n + ' separate sessions' };
+  }
+  if (window._furnitureLocked(nm)) return { lane: 'inventory', source: 'furniture',
+    why: 'inventory furniture — locked by law, not by evidence' };
+  var ml = window._mainLockOf(nm);
+  if (ml) return { lane: 'equipment', source: 'main-ledger',
+    why: String(ml.why || 'his gear, by the MAIN ledger') };
+  return null;
+};
+/* THE FURNITURE LAW — tv/inventory_law.py LOCKED and LOCKED_WHOLE, word for word. A mirror, because the public
+   board has no console to ask; test_main_gear_never_files_to_a_mule pins the two lists EQUAL, so the copy
+   cannot drift. "key" is a WHOLE-NAME word: the game's Key is furniture, Blackhand Key (a unique wand) is not
+   — the old word-boundary match locked his Blackhand Key as a key. [[copy-drift]] */
+var _FURNITURE_WORDS = ['horadric cube', 'tome of identify', 'tome of town portal', 'tome', "wirt's leg", 'wirts leg'];
+var _FURNITURE_WHOLE = ['key', 'keys'];
+window._FURNITURE_WORDS = _FURNITURE_WORDS;
+window._FURNITURE_WHOLE = _FURNITURE_WHOLE;
+function _lockFold(n){
+  return String(n == null ? '' : n).replace(/[‘’ʼ`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim();
+}
+window._furnitureLocked = function(name){
+  var low = _lockFold(name);
+  if (!low) return false;
+  var bare = low.replace(/^[0-9][0-9,.]*\s*/, '');
+  if (_FURNITURE_WHOLE.indexOf(bare) >= 0) return true;
+  return _FURNITURE_WORDS.some(function(w){ return new RegExp('(^|[^a-z])' + w + '($|[^a-z])').test(low); });
+};
+/* THE OTHER HALF OF THE SAME LAW: CONSUMABLES — inventory_law.CONSUMABLE_WORDS and gold, word for word (pinned
+   equal by test_main_gear_never_files_to_a_mule). His words: "it will get thrown out... easy.. or used.. nothing to
+   really think about them they suck. and are worthless." MEASURED on a copy of his store, before this line: a
+   register of his real stash rows filed a Full Rejuvenation Potion and a Super Mana Potion to UNI-WEAPONS. A reader
+   never files one; his own hand still may. Furniture is asked first, as the law does (a tome is not a scroll). */
+var _CONSUMABLE_WORDS = ['potion', 'rejuvenation', 'scroll', 'antidote', 'thawing', 'stamina'];
+window._CONSUMABLE_WORDS = _CONSUMABLE_WORDS;
+window._consumable = function(name){
+  var low = _lockFold(name);
+  if (!low || window._furnitureLocked(low)) return false;
+  if (low === 'gold' || /^[0-9][0-9,.]*\s*gold$/.test(low)) return true;
+  return _CONSUMABLE_WORDS.some(function(w){ return new RegExp('(^|[^a-z])' + w + '($|[^a-z])').test(low); });
+};
+/* THE MAIN LEDGER, AS THE CONSOLE PUBLISHES IT. null = nobody has answered (the public site, or a console that
+   is down) — then this source is simply absent and the other two still hold. */
+window.MAIN_LOCKS = null;
+function _mainKey(n){ return _lockFold(n).replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+window._mainLocksApply = function(d){
+  if (!d || d.ok !== true || !Array.isArray(d.locked)) return false;
+  var rows = {};
+  d.locked.forEach(function(r){
+    if (!r || !r.name) return;
+    rows[_mainKey(r.name)] = { name: String(r.name), why: String(r.why || ''), wilson: (typeof r.wilson === 'number') ? r.wilson : null,
+                               equip: r.equip == null ? null : r.equip, seen: r.seen == null ? null : r.seen };
+  });
+  window.MAIN_LOCKS = { at: Date.now(), generatedTs: d.generatedTs || null, rows: rows, n: Object.keys(rows).length,
+                        canEverLock: (typeof d.canEverLock === 'boolean') ? d.canEverLock : null,
+                        blockedWhy: d.blockedWhy || null };
+  try { window.renderLaneLocks && window.renderLaneLocks(); } catch (e) {}
+  return true;
+};
+window._mainLockOf = function(name){
+  var m = window.MAIN_LOCKS;
+  if (!m || !m.rows) return null;
+  return m.rows[_mainKey(name)] || null;
+};
+/* READ-ONLY GET, same-origin, owner console only — the public page never pokes a laptop that is not there */
+window._mainLocksRefresh = function(){
+  try {
+    var host = String((window.location && window.location.host) || '');
+    if (!/:(17772|17771)\b/.test(host) || window._isCousinShell) return Promise.resolve(false);
+    return fetch('/api/main_locks', { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ return window._mainLocksApply(d); })
+      .catch(function(){ return false; });
+  } catch (e) { return Promise.resolve(false); }
+};
+try {
+  window.addEventListener('load', function(){
+    setTimeout(function(){ try { window._mainLocksRefresh(); } catch (e) {} }, 1500);
+    setInterval(function(){ try { if (!document.hidden) window._mainLocksRefresh(); } catch (e) {} }, 600000);
+  });
+} catch (e) {}
+/* WHO THE MAIN IS. d2r_mainCharacter = {name, class, level, source, at} — set ONLY by his declaration or by a
+   .d2s read HE says is his character. A planner export reads exactly like a save (the .d2s on
+   his Desktop is a maxroll export: every item ilvl 99, downloaded from maxroll.gg), so a .d2s is never taken
+   on its own word. With no name the lock still works and the tag says "MAIN (name UNKNOWN)". */
+var _MAIN_CHAR_KEY = 'd2r_mainCharacter';
+window.mainCharacter = function(){
+  try {
+    var v = JSON.parse(window.LSR.getItem(_MAIN_CHAR_KEY) || 'null');
+    return (v && typeof v === 'object' && !Array.isArray(v) && v.name) ? v : null;
+  } catch (e) { return null; }
+};
+window.mainCharacterDeclare = function(o){
+  o = o || {};
+  var nm = String(o.name == null ? '' : o.name).trim();
+  if (!/^[A-Za-z][A-Za-z_-]{1,14}$/.test(nm))
+    return { ok: false, why: 'a D2R character name is 2 to 15 letters (one - or _ allowed) — "' + nm + '" is not one' };
+  var lv = (o.level == null || o.level === '') ? null : parseInt(o.level, 10);
+  if (lv != null && !(lv >= 1 && lv <= 99)) return { ok: false, why: 'a level is 1 to 99' };
+  var row = { name: nm, 'class': (o['class'] || o.cls || null), level: lv, source: 'declared', at: new Date().toISOString() };
+  window.LSR.setItem(_MAIN_CHAR_KEY, JSON.stringify(row));
+  try { window.renderLaneLocks && window.renderLaneLocks(); } catch (e) {}
+  return { ok: true, main: row };
+};
+window.mainCharacterFromD2s = function(read, opts){
+  opts = opts || {};
+  if (!read || read.ok !== true) return { ok: false, why: 'the .d2s read did not succeed' + (read && read.why ? ': ' + read.why : '') };
+  if (!(read.verify && read.verify.checksumOk === true)) return { ok: false, why: 'the .d2s checksum did not verify' };
+  if (opts.his !== true)
+    return { ok: false, why: 'a .d2s is taken as your MAIN only when you say it is your character — a planner export reads exactly like a save' };
+  var h = read.header || {};
+  var nm = String(h.name || '').trim();
+  if (!nm) return { ok: false, why: 'the save carries no character name' };
+  var p = String(read.path || '');
+  var row = { name: nm, 'class': h.className || null, level: (typeof h.level === 'number') ? h.level : null,
+              source: 'd2s', at: new Date().toISOString(), file: p ? p.split('/').pop() : null };
+  window.LSR.setItem(_MAIN_CHAR_KEY, JSON.stringify(row));
+  try { window.renderLaneLocks && window.renderLaneLocks(); } catch (e) {}
+  return { ok: true, main: row };
+};
+window._mainTag = function(){
+  var mc = window.mainCharacter();
+  if (!mc) return 'MAIN (name UNKNOWN)';
+  return 'MAIN · ' + mc.name + (mc.level ? ' · L' + mc.level : '') + (mc['class'] ? ' ' + mc['class'] : '');
+};
+/* ⟦#246 MAIN LOCK END⟧ */
 /* A lock he can undo — a protection with no release is a trap, and he may re-file gear himself. */
 /* v1984 — RENDER WHERE IT LIVES. Konyo: "should render it based on the character/mule that its
    currently on. so it doesnt need to automate it it just needs to understand it that its our
@@ -39028,12 +39463,23 @@ window.renderLaneLocks = function(){
   var all = {};
   try { all = window._laneLockAll ? window._laneLockAll() : {}; } catch(e){ all = {}; }
   var names = Object.keys(all).sort(function(a,b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
-  if (!names.length){ el.hidden = true; el.innerHTML = ''; return; }
+  /* #246 W4 — the MAIN ledger's locks (from the console) join the panel, and so does any LOCKED name that is
+     still filed in a mule: a MAIN item is never in a mule, and the one that is must be seen, not hidden. */
+  var _mainRows = [];
+  try { var _ML = window.MAIN_LOCKS; if (_ML && _ML.rows) Object.keys(_ML.rows).forEach(function(k){
+          var mr = _ML.rows[k]; if (mr && mr.name && !all[mr.name]) _mainRows.push(mr); }); } catch(e){}
+  var _inMule = [];
+  try { Object.keys(assign).forEach(function(n){
+          var h = assign[n]; if (!h || h === '__keep' || h === '__throwout') return;
+          var w = window._laneLockWhy && window._laneLockWhy(n);
+          if (w) _inMule.push({ name: n, mule: h, why: w }); }); } catch(e){}
+  if (!names.length && !_mainRows.length && !_inMule.length){ el.hidden = true; el.innerHTML = ''; return; }
   var esc = function(x){ return String(x == null ? '' : x)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
   var WHERE = { equipment: 'on your character', inventory: 'in your inventory' };
   var MINS = window.LANE_LOCK_MIN_SESSIONS || 3;
-  var H = '<div class="vll-h">🔒 Locked where they are — never suggested for a mule</div>'
+  var _tag = (window._mainTag && window._mainTag()) || 'MAIN (name UNKNOWN)';
+  var H = '<div class="vll-h">🔒 Locked where they are — never suggested for a mule · <span class="vll-main">' + esc(_tag) + '</span></div>'
         + '<div class="vll-sub">You put these here. The board records it and leaves them alone. '
         + 'A lock needs ' + MINS + ' separate sessions; below that it is only WATCHING, and the item '
         + 'can still be filed.</div>';
@@ -39062,12 +39508,24 @@ window.renderLaneLocks = function(){
        + ' onchange="window._laneLockSetWhere(' + JSON.stringify(n).replace(/"/g,'&quot;') + ',this.value)">'
        + (mule ? '<span class="vll-mule">filed: ' + esc(mule) + '</span>' : '')
        + '<span class="vll-seen' + (_n >= MINS ? ' vll-locked' : ' vll-watching') + '">'
+       + (_n >= MINS ? esc(_tag) + ' · ' : '')
        + (_n >= MINS ? ('🔒 locked · ' + _n + ' sessions')
                      : ('👁 watching · ' + _n + '/' + MINS + ' sessions')) + '</span>'
        + '<button type="button" class="vll-x" title="Release this lock — it becomes mulable again"'
        + ' onclick="window._laneLockRelease(' + JSON.stringify(n).replace(/"/g,'&quot;')
        + ');window.renderLaneLocks&&window.renderLaneLocks()">release</button>'
        + '</div>';
+  });
+  _mainRows.forEach(function(mr){
+    H += '<div class="vll-row"><span class="vll-nm">' + esc(mr.name) + '</span>'
+       + '<span class="vll-where">on your character</span>'
+       + '<span class="vll-seen vll-locked">🔒 ' + esc(_tag) + ' · ' + esc(mr.why || 'the MAIN ledger') + '</span></div>';
+  });
+  _inMule.forEach(function(x){
+    var m = (typeof muleById === 'function') ? muleById(x.mule) : null;
+    H += '<div class="vll-row vll-bad"><span class="vll-nm">' + esc(x.name) + '</span>'
+       + '<span class="vll-where">⚠ filed in ' + esc((m && m.name) || x.mule) + '</span>'
+       + '<span class="vll-seen">' + esc(_tag) + ' carries it (' + esc(x.why.why) + ') — a MAIN item is never in a mule</span></div>';
   });
   H += '</div>';
   el.innerHTML = H; el.hidden = false;
@@ -39132,79 +39590,50 @@ window.vaultAutoAssign = function(){
                                       source: 'auto-assign', _bump: true });
       } catch(e){}
     }
-    ownedPool().forEach(function(name){
-      if (assign[name]) return;
-      /* v1983 — NEVER TELL HIM TO MOVE WHAT IS ON HIS CHARACTER. PROJECT_VAULT_MANAGER.md, his
-         words in capitals: "inventory and main character equiment (SHOULD NEVER BE TOLD TO BE MOVED
-         its locked there)". A name last seen in the equipment or inventory lane is skipped here
-         entirely — not routed, not suggested, not counted as unsorted. It is logged so the skip is
-         visible rather than a silent absence: a lock nobody can see is indistinguishable from a
-         rule that stopped working. */
-      var _lk = '';
-      try { _lk = (window._laneLocked && window._laneLocked(name)) || ''; } catch(e){ _lk = ''; }
-      if (_lk){ _log(name, 'lane-locked', { id:'', why:'last seen in your ' + _lk + ' — locked there, never suggested for a mule' }); return; }
-      var sg = suggestMule(name);
-      /* ⚠⚠⚠ v3222 — THIS WAS A SILENT DROP, AND 198 ITEMS WERE SITTING IN IT.
-         His words, looking at the dock: "its not even sorting them.. only some". The branch ONE
-         ABOVE logs when it skips a lane-locked item, and its comment gives the reason in full:
-         "a lock nobody can see is indistinguishable from a rule that stopped working". Then this
-         line dropped an item with no log, no count and no tile — the exact failure that comment
-         describes, one statement later.
-         ⚠ AND `null` HERE IS NOT "NO OPINION". `suggestMule` opens with
-         `if (isSharedStash(name)) return null;` and v425 wrote beside it, in the file:
-         "null route = shared, not a bug". So the producer says SHARED and the consumer hears
-         NOTHING — two halves each internally consistent, disagreeing about the contract.
-         MEASURED before writing this: only 2 of his 222 owned names match SHARED_STASH_RE
-         (Black Cleft, Rotting Fissure), so that path is real but small — which is exactly why the
-         log has to name the reason instead of a theory naming it for him.
-         [[the-unjoined-end]] [[unknown-stays-unknown]] */
-      if (!sg){
-        _log(name, isSharedStash(name) ? 'shared-stash' : 'no-suggestion',
-             { id: '', why: isSharedStash(name)
-                 ? 'belongs in the shared stash — suggestMule returns null for these by design'
-                 : 'nothing in the routing universe recognised this name, so no drawer was named' });
-        return;
-      }
-      if (sg.id === '__throwout'){ suggested++;
-        // v2342 — KEEP THE NAME, not just the tally. A count is a claim he cannot check.
-        suggestedRows.push({ name: name, why: (sg && sg.why) || '' });
-        _log(name, 'throw-suggested', sg); return; }
-      if (muleById(sg.id)){ assign[name] = sg.id; n++; _log(name, 'muled', sg); return; }
-      /* ⚠ v1955 — RESTORING v409, WHICH I DELETED IN v1948 WHILE "ONLY" ADDING LOGGING.
-         The original one-liner ended `else if (sg && sg.id === '__keep'){ assign[name]='__keep';
-         n++; }`, with its own note: "__keep items (Anni/Torch/Gheed's) are handled (kept in
-         inventory), not left nagging in the dock". Rewriting that line into a readable block, I
-         carried the __throwout case forward and dropped this one — so from v1948 his Annihilus,
-         Torch and Gheed's sat in the unsorted dock forever, which is precisely the nagging v409
-         existed to stop. Caught by tests/v203_mule_vault.spec.ts: dock expected 0 chips, got 1,
-         and the leftover was Annihilus.
+    /* ⟦#246 SORTER⟧ ══ #246 W0 — THE SORTER FILES WITNESSES. IT NEVER WALKS THE FOUND-EVER POOL. ══════════
+       This loop used to be `ownedPool().forEach(...)`: every name in d2r_owned with no home got
+       assign[name] = suggestMule(name).id. d2r_owned means ticked or found-ever, not possession, so a
+       restore, a Chronicle sweep or a set-piece tick became a mule filing — 173 on his board, 160 with no
+       witness at all, filed by this function in two runs on 2026-09-16 (the v203 walk, kept through v1948's
+       logging, v1955's __keep and v3222's silent-drop fixes — every one of them a fix to HOW it filed a
+       found-ever name, none of them asking WHETHER it should).
 
-         The lesson is not "be careful": it is that a refactor of a dense line must enumerate the
-         branches it is replacing, and a one-liner with three outcomes hides one of them by
-         construction. [[feedback-generalize-fixes]] */
-      if (sg.id === '__keep'){
-        assign[name] = '__keep'; n++;
-        _log(name, 'kept-in-inventory', sg);
-        return;
+       Now it walks d2r_vaultProv: a name that carries a witness and has lost its home (a deleted mule, a
+       prune) is re-filed by window.vaultFile ON THAT WITNESS. A name with no witness waits in the dock for a
+       second look in his stash, or for his hand. A throw-out verdict is never re-filed automatically. The
+       lane lock is the door's to enforce now (it refuses a MAIN-locked name), and every refusal is logged
+       with its reason — a skip nobody can see is indistinguishable from a rule that stopped working. */
+    var _pvS = _provAll();
+    Object.keys(_pvS).sort().forEach(function(name){
+      if (assign[name] != null) return;
+      var _row = _pvS[name] || {};
+      if (_row.mule === '__throwout') return;
+      var _home = (_row.mule && (_row.mule === '__keep' || muleById(_row.mule))) ? _row.mule : null;
+      var _r = window.vaultFile(name, _provAsWitness(_row), _home ? { mule: _home } : {});
+      if (_r && _r.ok && (_r.mode === 'filed' || _r.mode === 'confirmed')){
+        n++; _log(name, 'muled', { id: _r.mule, why: 're-filed on its witness — ' + window._vaultProvSay(name) });
+      } else if (_r && _r.refused === 'locked'){
+        _log(name, 'lane-locked', { id: '', why: _r.why || '' });
+      } else {
+        _log(name, 'no-witness', { id: '', why: (_r && _r.why) || 'the door refused it' });
       }
-      /* ⚠⚠ v3222 — THE SECOND SILENT DROP: THE LOOP FELL OFF ITS OWN END. A suggestion whose id
-         is neither `__keep`, `__throwout`, nor resolvable by `muleById()` reached here and simply
-         stopped — no assign, no log, no count, and the item stayed in the dock for ever looking
-         exactly like one nothing had an opinion about. That is the harder half to notice, because
-         `suggestMule` DID name a drawer; the drawer just does not exist on this board.
-         The v1955 note directly above is the same lesson in its own words: "a one-liner with
-         three outcomes hides one of them by construction" — this rewrite enumerates the fourth.
-         [[zero-needs-a-denominator]] [[the-unjoined-end]] */
-      _log(name, 'mule-missing', { id: (sg && sg.id) || '',
-           why: 'routed to "' + ((sg && sg.id) || '?') + '" but no mule with that id exists on '
-              + 'this board, so nothing could receive it' });
+    });
+    /* the throw-out ADVICE is still computed for the dock — a suggestion, nothing binned, nothing filed */
+    (window._vaultDockNames() || []).forEach(function(name){
+      var _sgT = null;
+      try { _sgT = suggestMule(name); } catch(e){ _sgT = null; }
+      if (_sgT && _sgT.id === '__throwout'){ suggested++; suggestedRows.push({ name: name, why: _sgT.why || '' }); }
     });
     // v2343b — a swallowed error here is how the panel would silently never appear; the first
     // cut of renderThrowSuggested called a helper that does not exist in its scope and this catch
     // would have hidden it completely.
     try { window._vaultThrowSuggestions = suggestedRows.slice(); renderThrowSuggested(); }
     catch(e){ try { console.warn('[vault] throw-out suggestions did not render:', e && e.message || e); } catch(e2){} }
-    saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s')+(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
+    var _dockN = 0; try { _dockN = (window._vaultDockNames() || []).length; } catch(e){ _dockN = 0; }
+    saveA(); renderVault(); status('⚖️ filed '+n+' witnessed item'+(n===1?'':'s')
+      +(_dockN?(' · '+_dockN+' in the dock wait for a witness or your hand'):'')
+      +(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
+    return { filed: n, dock: _dockN, suggested: suggested };
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
@@ -39213,6 +39642,7 @@ window.vaultAutoAssign = function(){
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
+    try { _provDrop(unsorted); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
@@ -39312,11 +39742,16 @@ window.vaultAutoAssign = function(){
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
+    /* #246 — the items return to the dock; their witness rows stay (with no home), so pressing the sorter
+       re-files them to wherever they route now — on the evidence they already have */
+    try { var _pvD = _provAll(), _chD = false;
+          Object.keys(_pvD).forEach(function(n){ if (_pvD[n] && _pvD[n].mule === id){ _pvD[n].mule = null; _pvD[n].holder = null; _chD = true; } });
+          if (_chD) _provWrite(_pvD); } catch(e){}
     saveR(); saveA(); renderVault();
   };
   window.vaultReset = async function(){
     if (!(await uiConfirm('Clear ALL vault assignments? (The mule roster stays; every item returns to the unsorted dock.)'))) return;
-    assign={}; saveA(); renderVault();
+    assign={}; try { _provWrite({}); } catch(e){} saveA(); renderVault();
   };
   window.vaultExport = function(){
     var byMule={};
@@ -39427,10 +39862,12 @@ window.vaultAutoAssign = function(){
     var blocks=placed.map(function(p){
       var _vr=(window._artRarity?window._artRarity(p.n):'');
       var _mv = !!(opt && p.key != null);
+      var _prov = ''; try { _prov = window._vaultProvSay ? window._vaultProvSay(p.n) : ''; } catch (e) { _prov = ''; }
       var _say = esc(p.n) + ' (' + p.w + '×' + p.h + ')'
         + (_mv ? (p.manual ? ' — placed by hand at ' + esc(_spot(p)) + '. Drag to move it; right-click (or the lock) returns it to auto-pack'
                  : p.bad ? ' — ⚠ ' + esc(p.bad) + '. Packed automatically until you place it again or unlock it'
-                 : ' — packed automatically at ' + esc(_spot(p)) + '. Drag it to any cell where it fits and it locks there') : '');
+                 : ' — packed automatically at ' + esc(_spot(p)) + '. Drag it to any cell where it fits and it locks there') : '')
+        + (_prov ? ' · ' + esc(_prov) : '');
       return '<div class="vd-item'+(_vr?' vd-r-'+_vr:'')+(_mv && p.manual ? ' vd-held' : '')+(_mv && p.bad ? ' vd-bad' : '')+'" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+_say+'"'
         + (_mv ? ' data-key="' + esc(p.key) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="it-' + opt.area + '-' + p.x + '-' + p.y + '"'
                + ' tabindex="0" role="button" aria-roledescription="movable item" aria-label="' + _say + '. Enter picks it up, arrow keys move it, Enter drops, Escape cancels'
@@ -39828,7 +40265,10 @@ window.vaultAutoAssign = function(){
                         glov: ['gloves'], belt: ['belt'], feet: ['boots'], rrin: ['ring'], lrin: ['ring'], neck: ['amulet'] };
   var MP_WEAPON_SLOT = { rarm: 1, larm: 1 };     // only the hands swap (I / II); the rest of the doll is shared
   var MP_SRC_RANK = { manual: 3, 'import': 2, analyzer: 1 };
-  var MP_SRC_SAY = { manual: 'placed by hand', 'import': 'imported from a .d2s', analyzer: 'routed by the analyzer' };
+  var MP_SRC_SAY = { manual: 'placed by hand', 'import': 'imported from a .d2s', analyzer: 'routed by the analyzer',
+    /* #246 W5 — and the words a FILING's provenance is said in (window._vaultProvSay reads d2r_vaultProv) */
+    witnessed: 'witnessed in your', hand: 'placed by hand', d2s: 'from a .d2s',
+    none: 'NO WITNESS — filed before the witness rule (#246)' };
   var MP_KIND_SAY = { helm: 'helm', armor: 'body armor', shield: 'shield', weapon: 'weapon', gloves: 'gloves',
                       belt: 'belt', boots: 'boots', ring: 'ring', amulet: 'amulet', quiver: 'quiver', none: 'carried, never worn' };
   /* the words a set piece's slot token ("amulet", "heavy boots") or a runeword's base text ("3-sock body armor")
@@ -39959,7 +40399,33 @@ window.vaultAutoAssign = function(){
       return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
     } catch (e) { return {}; }
   }
-  function _mpEqWrite(all){ window.LSR.setItem('d2r_muleEquip', JSON.stringify(all)); }
+  /* #246 — HIS HAND IN THE MULE WINDOW IS A WITNESS FOR THAT MULE. His ruling, 2026-09-26: "from here on if i
+     do add an item there manually yes of course.. to either or" — a manual add counts for the section it is
+     made in, and the mule window is the mule's section. So a NEW manual placement (one that was not in the
+     store before this write) is filed to that mule through the door with his hand as the witness. The two
+     placements made on 2026-09-25, when he thought the window was a separate character, are NOT re-read as
+     declarations: only a placement that appears in THIS write counts. The slot picker is untouched — this
+     is the one store writer it already calls. */
+  function _mpEqWrite(all){
+    var _prev = _mpEqAll();
+    window.LSR.setItem('d2r_muleEquip', JSON.stringify(all));
+    try {
+      Object.keys(all || {}).forEach(function(mid){
+        var m = all[mid] || {};
+        Object.keys(m).forEach(function(set){
+          var slots = m[set] || {};
+          Object.keys(slots).forEach(function(slot){
+            var e = slots[slot];
+            if (!e || e.source !== 'manual' || !e.name) return;
+            var p = ((_prev[mid] || {})[set] || {})[slot];
+            if (p && p.name === e.name && p.at === e.at) return;
+            window.vaultFile(e.name, { by: 'hand', at: e.at || new Date().toISOString(),
+                                       where: 'the mule window (' + ((muleById(mid) || {}).name || mid) + ')' }, { mule: mid });
+          });
+        });
+      });
+    } catch (e) {}
+  }
   function _mpSetOf(slot, swap){ return (MP_WEAPON_SLOT[slot] && swap === 2) ? 'setII' : 'setI'; }
   /* PURE: place `entry` in (muleId, set, slot) of `all` -> {ok, all, why}. A lower-ranked source never
      replaces a higher one: an analyzer route cannot move a placement his hand made. */
@@ -41471,6 +41937,7 @@ window.vaultAutoAssign = function(){
     try { copies = {}; window.LSR.removeItem('d2r_copies'); } catch(e){} // have-counts reset; multiKeep TARGETS (config) kept
     try { if (typeof setPieces !== 'undefined') setPieces.clear(); } catch(e){}
     try { Object.keys(assign).forEach(function(k){ delete assign[k]; }); } catch(e){}
+    try { _provWrite({}); } catch(e){}
     try { if (typeof persist === 'function') persist(); else persistOwned(); } catch(e){ try{ persistOwned(); }catch(e2){} }
     try { saveA(); } catch(e){}
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
@@ -41829,6 +42296,15 @@ function renderJournal(){
   }
   window.vaultIntake = async function(files, opts){
     opts = opts || {};
+    /* #246 — WHAT ONE PHOTOGRAPH WITNESSES. A screenshot HE chose to upload is his hand declaring the items
+       on it; a folder auto-watch or a TV frame is ONE automatic look with no confidence of its own, which
+       never clears the two-look bar on its own — those items land in the dock, owned and unfiled. */
+    var _intakeWitness = function(fname){
+      if (!opts.fromFolder && !opts.fromTv)
+        return { by: 'hand', at: new Date().toISOString(), where: 'his photo upload', frame: String(fname || '') || null };
+      return { lane: 'stash', by: opts.fromTv ? 'tv-photo' : 'folder-photo',
+               sessions: [{ session: 'photo:' + String(fname || ''), frame: String(fname || '') || null, conf: null }] };
+    };
     var report = document.getElementById('vault-intake-report');
     if (!files || !files.length || !report) return;
     window._vIntakeBusy = true;   // v396.3 — folder poll skips while a read is in flight
@@ -42173,8 +42649,8 @@ function renderJournal(){
               }
             } catch(e){}
             var sg = suggestMule(n);
-            if (sg && muleById(sg.id) && !assign[n]) assign[n] = sg.id;
-            else if (sg && sg.id==='__keep' && !assign[n]) assign[n] = '__keep';   // v409 — never-mule keeper (kept in inventory, shown in advisory, not muled)
+            /* #246 — filed only through the door: his own upload is his hand; a folder or TV read is one look */
+            if (sg && (muleById(sg.id) || sg.id === '__keep') && !assign[n]) window.vaultFile(n, _intakeWitness(fname), { mule: sg.id });
             // v597 — a NEWLY-registered read is a FRESH physical item: any Forge chain-step memory for this
             // label belongs to a previous copy (Konyo's post-reset Bone Visage greeted him at "step 2/2" —
             // the OLD helm's Larzuk click had survived the vault reset). Reset it so the chain starts at 1.
@@ -42231,7 +42707,7 @@ function renderJournal(){
           // ("Gothic Shield (3os low base)" → owned "Gothic Shield (3os)" → Sanctuary make-now). Only
           // genuine junk (can't host a word / verdict says vendor) still lands in the throw-out review.
           try {
-            var _arl = window._autoRegisterLowBase ? window._autoRegisterLowBase(n) : null;
+            var _arl = window._autoRegisterLowBase ? window._autoRegisterLowBase(n, _intakeWitness(fname)) : null;
             if (_arl){
               if (_arl.mode === 'new'){ logged.push(_arl.label); fRec.nw.push(_arl.label); }
               else { if (extraCopies.indexOf(_arl.label) < 0) extraCopies.push(_arl.label); (fRec.xc || (fRec.xc = [])).push(_arl.label); }
@@ -42278,14 +42754,14 @@ function renderJournal(){
             if (/small\s*charm/.test(_scb) && typeof _smallCharmKeep === 'function'){
               var _sk = _smallCharmKeep(_mods);
               if (_sk && !_sk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk → throw-out
-              if (_sk && _sk.keep && !assign[nm]) assign[nm] = 'uni-small';   // valuable → mule to UNI-SMALL
+              if (_sk && _sk.keep && !assign[nm]) window.vaultFile(nm, _intakeWitness(fname), { mule: 'uni-small' });   // valuable → mule to UNI-SMALL (#246: through the door)
             } else if (typeof _jewelryKeep === 'function'){
               // v416 — TOP-TIER gate for rolled-name rings · amulets · jewels · large/grand charms. A junk
               // rare ring (Blood Grip: +AR/+energy/sliver of res) gets THROWN OUT, not muled — only a roll
               // that rivals SoJ/Raven (dual leech · FCR · +skills · loaded res/stat cluster · skiller) is kept.
               var _jk = _jewelryKeep(_mods, f.base);
               if (_jk && !_jk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk jewelry → throw-out
-              if (_jk && _jk.keep && !assign[nm]) assign[nm] = 'magic-rare';   // top-tier → MAGIC & RARE locker
+              if (_jk && _jk.keep && !assign[nm]) window.vaultFile(nm, _intakeWitness(fname), { mule: 'magic-rare' });   // top-tier → MAGIC & RARE locker (#246: through the door)
             }
           } catch(e){}
           /* v1935 — AND THE OTHER DOOR, WHICH HAD BETTER PROVENANCE ALL ALONG.
@@ -42779,7 +43255,8 @@ function renderJournal(){
         if (!sg || !sg.id) return;
         if (sg.id !== 'uni-weap' && sg.id !== 'uni-armor') return;   // never move it out of the pair
         if (sg.id === cur) return;
-        assign[n] = sg.id;
+        var _mvR = window.vaultFile(n, null, { move: true, mule: sg.id, by: 'v1816 reroute' });
+        if (!_mvR || !_mvR.ok) return;
         moved.push({item:n, from:cur, to:sg.id, why:sg.why || ''});
       });
       /* v1817 — WRITE THE REPAIR BEFORE THE RECEIPT THAT SAYS IT HAPPENED.
@@ -48077,13 +48554,17 @@ function renderJournal(){
 
   /* v2195 — is this name already in the vault? An in-memory lookup, so the common case in a
      hundreds-long loop costs nothing and no dictionary is rewritten for a no-op. */
+  /* #246 — "ALREADY VAULTED" MEANS FILED TO A MULE, NOT OWNED. This read d2r_owned, and d2r_owned is ticked or
+     found-ever — so a name the grail already knew was never offered to the vault door even when a real stash
+     witness arrived for it. The witnessed lane could not land a name the found-ever lane had touched first. */
   function _chAlreadyVaulted(n){
     try {
-      var key = String(n || '').toLowerCase().replace(/[\u2019']/g, "'").trim();
+      var key = String(n || '').toLowerCase().replace(/[’']/g, "'").trim();
       if (!key) return false;
-      var owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || [];
-      for (var i = 0; i < owned.length; i++) {
-        if (String(owned[i] || '').toLowerCase().replace(/[\u2019']/g, "'").trim() === key) return true;
+      var map = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}') || {};
+      var ks = Object.keys(map);
+      for (var i = 0; i < ks.length; i++) {
+        if (String(ks[i] || '').toLowerCase().replace(/[’']/g, "'").trim() === key) return true;
       }
     } catch(e){}
     return false;
@@ -48121,6 +48602,22 @@ function renderJournal(){
      builder at ~:46102 dedupes through _seenN — which is precisely why this survived: a field can
      be factually wrong for a long time when every reader happens to be forgiving.
      [[two-fixes-broke-each-other]] [[plumbing-with-no-tap]] */
+  /* #246 W2 — THE ROW'S WITNESS, HANDED TO THE DOOR. A vault-sweep row carries `witness` (built by
+     vaultAccumApply from the sweep's own looks and gate verdict); any other row with a container `loc` hands
+     over the sightings it carries. The door judges it — this only stops the evidence being dropped here.
+     ⚠ THE LANE IS THE CONTAINER, SO vaultAccumApply NOW SAYS IT AS `loc`. vault_retro's lane is stash /
+     inventory / equipment — WHERE it was seen — while elsewhere in this board `lane` names which READER
+     produced a row. The sweep's rows carried `lane` and no `loc`, so the container gate below was false for
+     every row that lane ever produced: the witnessed lane could not land its own items (the unattended
+     feeder: 12,000+ runs, 0 banked) while the found-ever sorter filed everything. */
+  var _rowWitness = function(row){
+    if (!row || typeof row !== 'object') return null;
+    if (row.witness && typeof row.witness === 'object') return row.witness;
+    if (!row.loc) return null;
+    var looks = row.witnesses || row.sightings || row.seen || [];
+    return { lane: row.loc, sessions: Array.isArray(looks) ? looks : [], gate: row.gate || null,
+             by: String(row.source || 'chronicle-apply') };
+  };
   var _vaultReport = function(vr, nm){
     /* ⚠ `mode === 'new'` IS UNOBSERVABLE HERE, AND THAT IS NOT A tvVaultRegister BUG. This apply
        calls toggleOwned(n) BEFORE it reaches either vault door, so by the time the door registers
@@ -48130,6 +48627,14 @@ function renderJournal(){
        'new' therefore reports nothing at all, which is how the first cut of this fix turned a
        double-count into a silence. `ok` is the fact the report is about: the vault has it. */
     if (!vr || !vr.ok) return false;
+    /* #246 — REGISTERED IS NOT FILED. The register can land the name in `owned` and still refuse the mule
+       (no witness, a MAIN lock); that is its own bucket, never counted as vaulted. */
+    if (vr.filed === false){
+      res.vaultUnfiled = res.vaultUnfiled || [];
+      if (!res.vaultUnfiled.some(function(x){ return x.name === nm; }))
+        res.vaultUnfiled.push({ name: nm, why: String(vr.why || '').slice(0, 160) });
+      return false;
+    }
     res.vaulted = res.vaulted || [];
     if (res.vaulted.indexOf(nm) >= 0) return false;
     res.vaulted.push(nm);
@@ -48183,8 +48688,23 @@ function renderJournal(){
         }));
       }
     } catch(e){ res.queuedError = String(e && e.message || e); }
+    /* #246 W0c — A SET PIECE IN THE UNIQUES HALF GOES TO THE SET DOOR. A ledger restore sent every d2r_foundLog
+       key as a unique, set pieces included; toggleOwned does not know a set piece as a grail unique, so its
+       else-branch dropped the piece into d2r_owned — 19 set pieces became mule filings that way on
+       2026-09-16. The board's own piece universe decides (the same set the sets branch validates against).
+       ⚠ The redirected rows ride on `res` for one hop and are merged into the sets half below, so every
+       statement that decides lives inside the two loops a law slices out of this function. */
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
+      try {
+        var _pcs0 = window._chronSetPieceSet && window._chronSetPieceSet();
+        var _spn = (_pcs0 && _pcs0.has(n)) ? n : null;
+        if (!_spn && _pcs0 && typeof window.findSetPiece === 'function'){
+          var _fp0 = window.findSetPiece(n);
+          if (_fp0 && _fp0.piece && _pcs0.has(_fp0.piece)) _spn = _fp0.piece;
+        }
+        if (_spn){ (res._setsFromUniques = res._setsFromUniques || []).push((row && typeof row === 'object') ? Object.assign({}, row, { name: _spn }) : _spn); return; }
+      } catch(e){}
       /* ⚠⚠ v2690 — COMPUTED ONCE PER ROW, WHICH IS WHAT :44352's COMMENT ALREADY CLAIMED.
          It used to be assigned INSIDE the `if (_chronAlreadyUni(n))` branch below (which spans
          44214-44289, verified by brace counting, not by indentation) while the SECOND vault door
@@ -48259,7 +48779,7 @@ function renderJournal(){
         /* v2690 — `_mayVault` now computed once per row, above the branch. */
         try {
           if (_mayVault && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
-            var _vs = window.tvVaultRegister(n);
+            var _vs = window.tvVaultRegister(n, _rowWitness(row));
             if (_vs && _vs.ok) {
               _vaultReport(_vs, n);
             } else {
@@ -48347,7 +48867,7 @@ function renderJournal(){
            rather than close it. `_mayVault` is computed once for this row. */
         try {
           if (_mayVault && typeof window.tvVaultRegister === 'function') {
-            var _vr = window.tvVaultRegister(n);
+            var _vr = window.tvVaultRegister(n, _rowWitness(row));
             _vaultReport(_vr, n);   // v2265 — the vault took it; _landed is a different question
           }
         } catch(e){}
@@ -48426,8 +48946,25 @@ function renderJournal(){
         try { window._chRecordApplied(row, n, _landed ? 'foundLog' : 'owned', 'uniques'); } catch(e){}
       } catch(e){} finally { window._grailStamp = _savedStamp; }
     });
+    /* #246 W0c — the set pieces that rode the uniques half join the sets half, once each. `add` is re-bound,
+       never mutated: the caller's proposal is not ours to rewrite. */
+    if (res._setsFromUniques && res._setsFromUniques.length){
+      var _setsSeen = {};
+      (add.sets || []).forEach(function(r0){ var n0 = r0 && (r0.name || r0); if (n0) _setsSeen[n0] = 1; });
+      add = Object.assign({}, add, { sets: (add.sets || []).concat(res._setsFromUniques.filter(function(r1){
+        var n1 = r1 && (r1.name || r1);
+        if (!n1 || _setsSeen[n1]) return false;
+        _setsSeen[n1] = 1; return true; })) });
+    }
+    delete res._setsFromUniques;
     (add.sets || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
+      /* #246 W2 — a set piece SEEN IN A CONTAINER is a vault witness like any unique: same gate, same door */
+      try {
+        if (row && typeof row === 'object' && window._vaultMayClaim && window._vaultMayClaim(row.loc || '')
+            && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n))
+          _vaultReport(window.tvVaultRegister(n, _rowWitness(row)), n);
+      } catch(e){}
       if (_chronAlreadySet(n)) { res.skipped.push(n); return; }
       /* v1864 — THE SETS BRANCH HAD NO DATE AT ALL. v1693 gave the uniques branch an honest
          in-game stamp and stopped there, so every set piece was filed with the moment the sweep
@@ -48548,7 +49085,10 @@ function renderJournal(){
        chronicleApply. Removing that self-join (#45) is what turned CI red here, which is the whole
        reason a fixture must never do production's job. [[the-unjoined-end]] */
     try {
-      var _landedAny = res.uniques.length || res.sets.length || (res.vaulted && res.vaulted.length);
+      /* #246 W0b — ONLY WHEN THE VAULT GAINED SOMETHING. A grail or set tick is not a filing; this used to press
+         the sorter after ANY landing, and _chronAutoAdopt lands a sweep every 90 s on his console with nobody
+         watching. The sorter now files witnesses only, and it is pressed only when a witness landed. */
+      var _landedAny = (res.vaulted && res.vaulted.length);
       if (_landedAny && typeof window.vaultAutoAssign === 'function') {
         window.vaultAutoAssign();
       }
@@ -53809,7 +54349,7 @@ window._renderStashFresh = function(){
            "accepted from a Chronicle sweep" about an item that never came from the Chronicle. */
         if (it.kind === 'item') grailNames.push({ name: nm, lane: it.lane, conf: it.conf,
                                                   witnesses: it.witnesses, seen: it.witnesses,
-                                                  source: 'vault-sweep' });
+                                                  source: 'vault-sweep', loc: it.lane, gate: it.gate });
         else out.skipped.push(nm + ' (unknown kind)');
         return;
       }
@@ -54075,13 +54615,29 @@ window._renderStashFresh = function(){
             + ' name(s) seen in a container were NOT filed to a mule — turn AUTO vault auto-read on');
           out.laneOff = true;
         }
+        /* #246 W2 — a SET PIECE seen in a container is filed too: the sets half above takes a bare piece name
+           (the canonical suffixed one), so its witness rides here, looked up by the piece it resolves to */
+        grailNames.forEach(function(g){
+          var sp3 = null; try { sp3 = (g && g.loc && window.findSetPiece) ? window.findSetPiece(g.name) : null; } catch(e){}
+          if (sp3 && sp3.piece && window._vaultMayClaim && window._vaultMayClaim(g.loc)) _pushN(sp3.piece);
+        });
         _names.forEach(function(nm){
           if (!_laneOn) return;
           var lk = '';
           try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch(e){}
           if (lk){ _lockedOut.push({ name: nm, lane: lk }); return; }
           try {
-            var rg = (typeof window.tvVaultRegister === 'function') ? window.tvVaultRegister(nm) : null;
+            /* #246 W2 — the witness the sweep carried for this name (a set piece under its canonical piece
+               name): its container `loc`, its looks and the gate's own verdict. The door judges it. */
+            var _wS = null;
+            grailNames.some(function(g){
+              var gn = g && g.name; if (!gn) return false;
+              var sp2 = null; try { sp2 = window.findSetPiece ? window.findSetPiece(gn) : null; } catch(e){ sp2 = null; }
+              if (gn !== nm && !(sp2 && sp2.piece === nm)) return false;
+              _wS = g.loc ? { lane: g.loc, sessions: g.witnesses || [], gate: g.gate || null, by: 'vault-sweep' } : null;
+              return true;
+            });
+            var rg = (typeof window.tvVaultRegister === 'function') ? window.tvVaultRegister(nm, _wS) : null;
             if (rg && rg.ok) _stocked.push({ name: rg.label || nm, mule: rg.mule || null,
                                              muleName: rg.muleName || '', mode: rg.mode || '' });
           } catch(e){}
@@ -55883,7 +56439,11 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
                 if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
               } catch(eR){}
               try {
-                if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm);
+                /* #246 — the sighting IS the witness handed over: one look, which the door files only if it is
+                   joined by a second */
+                if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm, { lane: base.loc, by: 'inbox-auto',
+                  sessions: [{ session: base.sessionId || '', frame: base.frameId || '',
+                               conf: (typeof base.conf === 'number') ? base.conf : null }] });
               } catch(eV){}
             }
             _chLogUpsert(Object.assign({}, base, {
@@ -56190,6 +56750,10 @@ window._CH_PILL_MAP = {
       'kept-in-inventory':['🎒 kept in your inventory', 'var(--best,#66ff88)'],
       'route-failed':    ['⚠ could not route', '#f0a060'],
       'filed-by-hand':   ['✋ you filed this', '#9fd4ff'],
+      /* #246 — a register that is NOT a filing (no witness yet), and a name the door refused because his MAIN
+         carries it. Both were written by the sorter before any pill knew them. */
+      'no-witness':      ['👁 owned — waiting for a witness', '#9fd4ff'],
+      'lane-locked':     ['🔒 your MAIN carries it', '#9fd4ff'],
       /* v1996 — THE FREE EVIDENCE FINALLY HAS A ROW. Konyo: "i want it to visually render the
          backend through the ledger visually so we can visually surgically fix anything needed
          future wise."
@@ -57454,8 +58018,13 @@ window._CH_PILL_MAP = {
   };
   /* v2336 — `opts.vault:false` ticks the CHRONICLE ONLY. Default stays both, so every
      existing caller keeps the behaviour it was written against. */
+  /* #246 W0e — THE DEFAULT IS THE CHRONICLE ONLY. v2193-v2195 made "tick it" file to the vault as well, and on
+     2026-08-28 that door filed 112 Chronicle names as 'tv-vault' in one minute — the vault this whole arc is
+     unwinding. A Chronicle row is knowledge, not a stash sighting. The vault is touched only when the caller
+     asks (opts.vault === true) AND the sighting was in a container he keeps things in; his "Vault only" button
+     (kaiVaultFileOnly) is the deliberate way to file one. */
   window.kaiChronicleAccept = function(name, opts){
-    var _wantVault = !(opts && opts.vault === false);
+    var _wantVault = !!(opts && opts.vault === true);
     try {
       var nm = String(name || '').trim(); if (!nm) return { ok:false, why:'no-name' };
       /* v1794 — A TICK MUST WRITE A ROSTER NAME, and until now it wrote whatever the reader typed.
@@ -57507,11 +58076,18 @@ window._CH_PILL_MAP = {
            MEASURED by driving it: Chronicle-only ticked foundLog correctly and still said the
            Vault refused it. [[label-outlived-referent]] */
         var _v0 = 'no', _vw0 = '';
+        var _hit0 = null;
+        try { _hit0 = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return x && String(x.name) === nm; })[0] || null; } catch(e){}
         if (!_wantVault) { _v0 = 'skipped'; _vw0 = ''; }
+        else if (!(window._vaultMayClaim && window._vaultMayClaim((_hit0 && _hit0.loc) || ''))) {
+          _vw0 = 'the sighting was not in a container you keep things in';
+        }
         else try {
           if (typeof window.tvVaultRegister === 'function') {
-            var _r0 = window.tvVaultRegister(nm);
-            if (_r0 && _r0.ok) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
+            var _r0 = window.tvVaultRegister(nm, { by: 'hand', at: new Date().toISOString(),
+              where: 'the Chronicle inbox (accept and vault)', lane: (_hit0 && _hit0.loc) || '',
+              reel: (_hit0 && _hit0.sessionId) || null, frame: (_hit0 && _hit0.frameId) || null });
+            if (_r0 && _r0.ok && _r0.filed !== false) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
             else _vw0 = String((_r0 && _r0.why) || 'no reason given').slice(0, 90);
           } else { _vw0 = 'the vault door is not loaded'; }
         } catch(e){ _vw0 = 'threw: ' + String(e && e.message || e).slice(0, 70); }
@@ -57522,7 +58098,7 @@ window._CH_PILL_MAP = {
         return { ok:true, name: nm, remaining: inbox0.length, already: true,
                  store: settled.store, chronicle: 'already', vault: _v0,
                  say: (_v0 === 'skipped')
-                        ? 'your Chronicle already had it \u2014 you ruled Chronicle only, so the Vault was not touched'
+                        ? 'your Chronicle already had it \u2014 the Vault was not touched \u2014 it files only from a stash witness, or your Vault-only button'
                       : (_v0 === 'filed')
                         ? 'your Chronicle already had it \u2014 now filed in the Vault too'
                         : (_v0 === 'already'
@@ -57564,17 +58140,22 @@ window._CH_PILL_MAP = {
          than implying one thing and doing another. [[label-outlived-referent]] */
       var _vault = 'no', _vwhy = '';
       if (!_wantVault) { _vault = 'skipped'; _vwhy = ''; }
+      else if (!(window._vaultMayClaim && window._vaultMayClaim((hit && hit.loc) || ''))) {
+        _vwhy = 'the sighting was not in a container you keep things in';
+      }
       else try {
         if (typeof window.tvVaultRegister === 'function') {
-          var _vr = window.tvVaultRegister(nm);
-          if (_vr && _vr.ok) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
+          var _vr = window.tvVaultRegister(nm, { by: 'hand', at: new Date().toISOString(),
+            where: 'the Chronicle inbox (accept and vault)', lane: hit.loc,
+            reel: hit.sessionId || null, frame: hit.frameId || null });
+          if (_vr && _vr.ok && _vr.filed !== false) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
           else _vwhy = String((_vr && _vr.why) || 'no reason given').slice(0, 90);
         } else { _vwhy = 'the vault door is not loaded'; }
       } catch(e){ _vwhy = 'threw: ' + String(e && e.message || e).slice(0, 70); }
       return { ok:true, name: nm, remaining: inbox.length,
                chronicle: 'ticked', vault: _vault, vaultWhy: _vwhy || undefined,
                say: (_vault === 'skipped')
-                      ? 'counted in your Chronicle \u2014 you ruled Chronicle only, so the Vault was not touched'
+                      ? 'counted in your Chronicle \u2014 the Vault was not touched \u2014 it files only from a stash witness, or your Vault-only button'
                     : (_vault === 'filed')
                       ? 'counted in your Chronicle and filed in the Vault'
                       : (_vault === 'already'
@@ -57599,8 +58180,9 @@ window._CH_PILL_MAP = {
       var _v = 'no', _why = '';
       try {
         if (typeof window.tvVaultRegister === 'function') {
-          var _r = window.tvVaultRegister(nm);
-          if (_r && _r.ok) _v = (_r.mode === 'already') ? 'already' : 'filed';
+          /* #246 — "Vault only" is HIS ruling that the item is in his vault: his hand is the witness */
+          var _r = window.tvVaultRegister(nm, { by: 'hand', at: new Date().toISOString(), where: 'the Chronicle inbox (Vault only)' });
+          if (_r && _r.ok && _r.filed !== false) _v = (_r.mode === 'already') ? 'already' : 'filed';
           else _why = String((_r && _r.why) || 'no reason given').slice(0, 90);
         } else { _why = 'the vault door is not loaded'; }
       } catch(e){ _why = 'threw: ' + String(e && e.message || e).slice(0, 70); }
@@ -59551,6 +60133,12 @@ window.tvStashAutoIntake = async function(tab, opts){
         // exactly once (ledger-deduped); unvault decrements the same key.
         try {
           var _tMeta = { sid: rd.sessionId || '', frameId: rd.frameId || rd.frame_id || '' };
+          /* #246 — the live read is ONE look in his stash; handed to the vault door, which files it only when a
+             second independent look joins it. Until then the pickup is owned and waits in the dock. */
+          var _liveW = { lane: 'stash', by: 'tv-live',
+                         sessions: [{ session: rd.sessionId || '', frame: rd.frameId || rd.frame_id || '',
+                                      conf: (typeof rd.conf === 'number') ? rd.conf : null }] };
+          window.__tvLiveW = _liveW;
           vaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, +1, _tMeta); });
           unvaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, -1, _tMeta); });
         } catch(e){}
@@ -59574,8 +60162,8 @@ window.tvStashAutoIntake = async function(tab, opts){
               var _fOwn = (x.kind==='rune'||x.kind==='gem') && typeof window.tvToolsDelta==='function' && !!_toolsClassify(x.kind==='rune' ? (x.key+' Rune') : x.key);
               if(x.kind!=='note' && x.kind!=='item' && !x.done){ if (!_fOwn) apply(x.kind, x.key, null); x.done=true; }
               var vr = null;
-              if(vaultName && typeof window.tvVaultRegister==='function'){ vr = window.tvVaultRegister(vaultName); _regd[_nN(vaultName)] = true; _regd[_nN(x.key)] = true; }
-              x.vault = !!(vr && vr.ok && vr.mode !== 'throwout');
+              if(vaultName && typeof window.tvVaultRegister==='function'){ vr = window.tvVaultRegister(vaultName, window.__tvLiveW || null); _regd[_nN(vaultName)] = true; _regd[_nN(x.key)] = true; }
+              x.vault = !!(vr && vr.ok && vr.mode !== 'throwout' && vr.filed !== false);
               x.holding = false;
               x.lc = (rd.lifecycle_tags && (rd.lifecycle_tags[vaultName] || rd.lifecycle_tags[x.key])) || 'vault';
               x.muleName = vr && vr.muleName;
@@ -59585,7 +60173,7 @@ window.tvStashAutoIntake = async function(tab, opts){
           vaultList.forEach(function(n){
             // v792 — belt fills GAPS only: a name the routes-loop already registered must not
             // land twice under two forms ('Ist' + 'Ist Rune'). Chronicle still fires once here.
-            try { if (!_regd[_nN(n)] && typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n); } catch(e){}
+            try { if (!_regd[_nN(n)] && typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n, window.__tvLiveW || null); } catch(e){}
             try { if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(n, 'vault'); } catch(e){}
           });
           auto=true;

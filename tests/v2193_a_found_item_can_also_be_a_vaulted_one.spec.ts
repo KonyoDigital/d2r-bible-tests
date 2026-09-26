@@ -54,6 +54,12 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
    it"), not v2343 as the earlier write-up said — verified with git log -S 'var _mayVault'. */
 const ALREADY_FOUND = ['Andariel’s Visage', 'Arm of King Leoric', 'Raven Frost',
                        'Nagelring', 'Waterwalk'];
+/* #246 — A REAL STASH WITNESS: two independent looks, each with its own frame and its own conf. Since #246
+   the mule map has ONE door (window.vaultFile) and it files only on a witness — a row that says `loc`
+   and carries no look is registered (owned) and NOT filed, because that is exactly the shape of the 160
+   false filings in his vault. The law this spec guards is unchanged: THE GRAIL KNOWING A NAME NEVER
+   STOPS THE VAULT. The fixture now carries what a real vault-sweep row carries. */
+const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
 
 async function boot(page: any, seed: Record<string, any>) {
   await page.addInitScript((s: any) => {
@@ -99,7 +105,7 @@ test('an item the grail already knows still reaches the vault', async ({ page })
     + 'exists for is never reached and it proves nothing').toBe(ALREADY_FOUND.length);
   expect(before.ownedOfOurs, 'the fixture already has them vaulted').toBe(0);
 
-  const res = await page.evaluate((names: string[]) => {
+  const res = await page.evaluate(([names, looks]: any) => {
     // ⚠⚠ STALE ASSERTION, NOT A CODE REGRESSION — and the code is RIGHT. These rows carried only
     // a name. Since v2343 the vault door is gated on WHERE the item is:
     //     window._vaultMayClaim = function(loc){
@@ -116,10 +122,10 @@ test('an item the grail already knows still reaches the vault', async ({ page })
     // banked vault rows actually carry.
     // ⚠ The law under test is UNCHANGED: an item the grail already knows must still reach the
     // vault. The fixture now states where it is, which is a fact the real pipeline always has.
-    const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
+    const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash', witnesses: looks })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
     return { skipped: (r && r.skipped || []).length, vaulted: (r && r.vaulted || []).length };
-  }, ALREADY_FOUND);
+  }, [ALREADY_FOUND, LOOKS]);
 
   // the GRAIL tick is still skipped — ★ never un-find, and re-stamping a date he has is a lie
   expect(res.skipped, 'a name already in the grail was re-ticked').toBe(ALREADY_FOUND.length);
@@ -134,14 +140,32 @@ test('an item the grail already knows still reaches the vault', async ({ page })
     .toBe(before.foundTotal);
 });
 
+test('#246 a row that only SAYS stash, with no look behind it, is registered and NOT filed', async ({ page }) => {
+  /* The other half of the law, and the half his vault was missing: a location with no witness is not a
+     witness. The name lands in `owned` (the dock) and waits for a real look or his hand; the mule map
+     does not move, and the receipt says why. */
+  const found: Record<string, string> = {};
+  ALREADY_FOUND.forEach((n) => { found[n] = '2026-08-01'; });
+  await boot(page, { d2r_foundLog: found, d2r_owned: [], d2r_muleAssign: {} });
+  const res = await page.evaluate((names: string[]) => {
+    const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
+    try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
+    return { vaulted: (r && r.vaulted || []).length, unfiled: (r && r.vaultUnfiled || []).length };
+  }, ALREADY_FOUND);
+  const after = await read(page, ALREADY_FOUND);
+  expect(after.muledOfOurs, 'a row with a location and NO look was filed to a mule — the found-ever refill').toBe(0);
+  expect(res.vaulted, 'the receipt counted an unwitnessed row as vaulted').toBe(0);
+  expect(res.unfiled, 'the receipt does not say which rows were registered but not filed').toBe(ALREADY_FOUND.length);
+});
+
 test('the vault survives a reload, which is where v1991 lost it', async ({ page }) => {
   const found: Record<string, string> = {};
   ALREADY_FOUND.forEach((n) => { found[n] = '2026-08-01'; });
   await boot(page, { d2r_foundLog: found, d2r_owned: [], d2r_muleAssign: {} });
-  await page.evaluate((names: string[]) => {
-    (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
+  await page.evaluate(([names, looks]: any) => {
+    (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n: string) => ({ name: n, loc: 'stash', witnesses: looks })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
-  }, ALREADY_FOUND);
+  }, [ALREADY_FOUND, LOOKS]);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(5000);
@@ -167,23 +191,24 @@ test('the vault survives a reload, which is where v1991 lost it', async ({ page 
 // which is the most likely row for him to press — and that return came before the vault door.
 // Measured in a real page: {already:true, store:'foundLog'} and d2r_owned did not move.
 
-test('tick it records BOTH ledgers and names each one', async ({ page }) => {
+test('#246 tick it ticks the CHRONICLE only, and still names both ledgers', async ({ page }) => {
+  /* #246 W0e — REVERSED BY HIS RULING, AND THIS IS WHY. v2194 made "tick it" file to the vault as well;
+     on 2026-08-28 that door filed 112 Chronicle names as 'tv-vault' in one minute, and that vault was
+     carried forward for a month — the one this arc unwound. A Chronicle row is knowledge, not a stash
+     sighting. The vault is filed from a witness, or from his "Vault only" button (his hand). What
+     v2194 got right stays: the result names BOTH ledgers, so he always sees which one moved. */
   await boot(page, { d2r_owned: [], d2r_muleAssign: {} });
   const r = await page.evaluate(() => {
     const g = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
-    const before = (g('d2r_owned') || []).length;
+    const before = Object.keys(g('d2r_muleAssign') || {}).length;
     const res = (window as any).kaiChronicleAccept("Andariel's Visage");
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
-    return { res, before, after: (g('d2r_owned') || []).length,
-             mules: Object.keys(g('d2r_muleAssign') || {}).length };
+    return { res, before, mules: Object.keys(g('d2r_muleAssign') || {}).length };
   });
 
   expect(r.res && r.res.ok, 'the accept failed outright').toBe(true);
-  expect(r.after, `pressing "tick it" moved d2r_owned from ${r.before} to ${r.after}. It used to `
-    + `tick the Chronicle ONLY and return before the vault door — and for a name the Chronicle `
-    + `already knew it returned even earlier, which is most of his queue.`)
-    .toBeGreaterThan(r.before);
-  expect(r.mules, 'the item was vaulted but never given a locker').toBeGreaterThan(0);
+  expect(r.res.vault, 'pressing "tick it" touched the Vault — a Chronicle row filed to a mule').toBe('skipped');
+  expect(r.mules, 'a Chronicle tick became a mule filing').toBe(r.before);
 
   // ⚠ the DUAL REPORT: he must be able to tell which ledger moved, per press
   expect(r.res.chronicle, 'the result does not say what happened to the Chronicle').toBeTruthy();
@@ -227,10 +252,13 @@ test('a vault write that FAILED never reports success', async ({ page }) => {
      too". A failure wearing a success's words is the one thing a verifier must never do. */
   await boot(page, { d2r_owned: [], d2r_muleAssign: {} });
   const r = await page.evaluate(() => {
+    /* #246 — the vault half now runs only when he asks for it (vault:true) AND the sighting was in a
+       container; the container gate is opened here so the FAILURE path of the door is what is graded */
+    (window as any)._vaultMayClaim = () => true;
     (window as any).tvVaultRegister = () => ({ ok: false, why: 'the locker is full' });
-    const a = (window as any).kaiChronicleAccept("Andariel's Visage");
+    const a = (window as any).kaiChronicleAccept("Andariel's Visage", { vault: true });
     (window as any).tvVaultRegister = () => { throw new Error('door jammed'); };
-    const b = (window as any).kaiChronicleAccept('Raven Frost');
+    const b = (window as any).kaiChronicleAccept('Raven Frost', { vault: true });
     return { a, b };
   });
   for (const [label, res] of [['a refusal', r.a], ['a throw', r.b]] as any[]) {
@@ -259,8 +287,8 @@ test('the receipt names the overlap instead of leaving two ledgers to be subtrac
      The names this arc exists for are BOTH at once, so the receipt says so rather than letting a
      reader infer it from counters that measure different ledgers. */
   await boot(page, { d2r_foundLog: { 'Raven Frost': '2026-08-01' }, d2r_owned: [], d2r_muleAssign: {} });
-  const res = await page.evaluate(() =>
-    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost', loc: 'stash' }], sets: [] } }));
+  const res = await page.evaluate((looks: any) =>
+    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost', loc: 'stash', witnesses: looks }], sets: [] } }), LOOKS);
   expect(res.skipped.length, 'the grail was re-ticked for a name it already had').toBe(1);
   expect((res.vaulted || []).length, 'the vault did not gain the item').toBe(1);
   expect(res.skippedButVaulted, 'the receipt does not name the overlap, so "skipped 279" reads as '
@@ -288,7 +316,9 @@ test('a no-op registration does not rewrite the store', async ({ page }) => {
   await boot(page, {
     d2r_owned: ['Fleshrender'],
     d2r_foundLog: { Fleshrender: '2026-08-01' },
-    d2r_muleAssign: { Fleshrender: 'M1' },
+    /* #246 — a REAL mule id: "already vaulted" now means FILED (the map), and a home that is not a mule
+       is pruned on the first render, which would empty the premise this test stands on */
+    d2r_muleAssign: { Fleshrender: 'uni-weap' },
   });
   const seeded = await page.evaluate(() => {
     const g = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };

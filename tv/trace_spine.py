@@ -400,6 +400,58 @@ def spine(name, counts=None, loc=None, names_known=True, stores=None):
             "unreadable": st.get("unreadable") or []}
 
 
+#: ⟦#246⟧ the board's witness block, cut between two real boundaries of bible.html (never re-typed)
+_BOARD_CUT = ("  var VAULT_WITNESS_FLOOR = 0.55;", "  function _vHomeOk(h){")
+
+
+def board_would_file(sightings, loc):
+    """#246 W7 — ASK THE BOARD'S OWN DOOR WHETHER IT WOULD FILE THIS. -> (True|False|None, why)
+
+    negative() used to answer from a PYTHON MODEL of the routing (scenario_of + may_vault) and never
+    drove the board. That model said a single stash sighting was allowed to vault — and the board's
+    one door (window.vaultFile, #246) refuses one look: his rule is two looks, each with its own frame
+    and conf. A negative law graded by a model of the filter grades the model. So the witness block
+    is CUT from bible.html and executed in node, and its verdict is the answer.
+
+    None (never False) when node or the cut is unavailable — "nobody asked the board" is not a refusal.
+    [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        return None, "node is not on this machine, so the board's door could not be asked"
+    try:
+        src = io.open(BIBLE, encoding="utf-8").read()
+    except Exception as e:
+        return None, "bible.html could not be read (%s)" % type(e).__name__
+    a, b = _BOARD_CUT
+    if src.count(a) != 1 or src.count(b) != 1:
+        return None, "the board's witness block is not where this trace cuts it — UNKNOWN, not refused"
+    i = src.index(a)
+    j = src.index(b, i)
+    looks = []
+    for s in sightings or []:
+        if isinstance(s, dict):
+            looks.append({"session": s.get("session") or s.get("reel"), "witness": s.get("witness"),
+                          "frame": s.get("frame"), "conf": s.get("conf")})
+    wit = {"lane": loc, "sessions": looks, "by": "trace_spine"}
+    prog = ("var window = {};\n" + src[i:j] +
+            "\nprocess.stdout.write(JSON.stringify(window._vaultWitnessCheck(%s)));\n" % json.dumps(wit))
+    try:
+        r = subprocess.run([node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+    except Exception as e:
+        return None, "node could not run the board's block (%s)" % type(e).__name__
+    if r.returncode != 0:
+        return None, "the board's block would not execute: %s" % (r.stderr or "")[-200:]
+    try:
+        v = json.loads(r.stdout)
+    except Exception:
+        return None, "the board's block answered something unreadable"
+    return bool(v.get("ok")), str(v.get("why") or ("files it — %d qualifying look(s) in your %s"
+                                                   % (len(v.get("sessions") or []), v.get("lane"))))
+
+
 def negative(sightings, counts, loc=None, names_known=True):
     """THE NEGATIVE PROOF — a FARMING or CHRONICLE scenario must produce ZERO vault rows.
 
@@ -409,11 +461,25 @@ def negative(sightings, counts, loc=None, names_known=True):
     1 is chronicle-only and 0 are floor-only ... said out loud rather than left to look covered".
     So the floor road has never been driven by real data and can only be proven by driving it.
 
-    -> {allowed: bool|None, why, scenario, mayVault}
+    ⚠ #246 W7 — `allowed` IS THE BOARD'S ANSWER NOW, NOT A MODEL'S. The two Python predicates still
+    run first (a scenario that cannot hold anything is refused before the board is asked), and a
+    route they allow is then put to the board's own vaultFile witness check, cut from bible.html.
+    A single glimpse, a frameless look or an unsure one is refused THERE — which the model never knew.
+
+    -> {allowed: bool|None, why, scenario, mayVault, boardFiles, boardWhy}
     """
     r = hop_routing(None, {}, counts=counts, loc=loc, names_known=names_known)
-    return {"allowed": r["reached"], "why": r["why"], "scenario": r["scenario"],
+    board, bwhy = (None, "not asked — the route was refused before the board")
+    allowed, why = r["reached"], r["why"]
+    if r["reached"] is True:
+        board, bwhy = board_would_file(sightings, loc)
+        allowed = board
+        why = ("%s — and the board's door files it: %s" % (r["why"], bwhy)) if board is True else \
+              ("routing allowed it, and the BOARD'S DOOR REFUSED it: %s" % bwhy) if board is False else \
+              ("routing allowed it; the board could not be asked, so it is UNKNOWN: %s" % bwhy)
+    return {"allowed": allowed, "why": why, "scenario": r["scenario"],
             "holdingPossible": r["holdingPossible"], "mayVault": r["mayVault"],
+            "boardFiles": board, "boardWhy": bwhy,
             "sightings": independence(sightings or [])}
 
 

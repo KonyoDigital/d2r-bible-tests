@@ -41,8 +41,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# #246 W3 — each look carries its own FRAME: a look counts as a witness only with its own frame and conf,
+# and a corroborated row is the real shape the sweep produces
 CORROBORATED = {"name": "Decoy Rune", "lane": "stash", "kind": "rune", "count": 3,
-                "evidence": [{"session": "s%d" % i, "witness": "s%d#0" % i, "conf": 0.9}
+                "evidence": [{"session": "s%d" % i, "witness": "s%d#0" % i, "frame": "f_%d.jpg" % i,
+                              "conf": 0.9}
                              for i in range(3)]}
 DIRTY = {"name": "Uncorroborated Shako", "lane": "stash", "kind": "item",
          "count": 1, "evidence": []}

@@ -15,6 +15,10 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     owned.add('Death Cleaver');               // leave UNSORTED
     (window as any).renderVault();
     // file two, leave Death Cleaver unsorted
+    // #246 — the sorter files WITNESSES only, so the two are filed through the one door with a stash
+    // witness (two independent looks, each with its own frame and conf); the router picks their mule
+    const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
+    ['Chance Guards', 'Socketed Body Armor'].forEach((n) => (window as any).vaultFile(n, { lane: 'stash', sessions: LOOKS }));
     (window as any).vaultAutoAssign();
     const assignAfterSort = JSON.parse(localStorage.getItem('d2r_muleAssign')||'{}');
     // un-file Death Cleaver so it's unsorted again (it auto-filed too); simulate an unsorted leftover

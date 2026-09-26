@@ -11122,7 +11122,9 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
     """
 
     def _ev(self, sessions, conf=0.99):
-        return [{"session": sid, "witness": w, "conf": conf} for sid, w in sessions]
+        # #246 W3 — each look carries its own FRAME, as a real sighting does: a look counts as a witness
+        # only with its own frame and its own conf. These laws are about re-looks and recordings.
+        return [{"session": sid, "witness": w, "frame": "f_%s.jpg" % w, "conf": conf} for sid, w in sessions]
 
     def test_relooks_in_one_recording_ground_owned(self):
         """v2070 — HIS RULING: three reads, not two. The LAW is unchanged and is the point of this
@@ -11240,7 +11242,8 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         """Old rows have no `witness` field. They must fall back to the session id rather than
         collapsing to a single unnamed witness and un-grounding what he already owns."""
         import vault_retro as vr
-        ev = [{"session": "s%d" % i, "conf": 0.9} for i in range(vr.KEEP_MIN_WITNESSES)]
+        ev = [{"session": "s%d" % i, "frame": "f_%d.jpg" % i, "conf": 0.9}
+              for i in range(vr.KEEP_MIN_WITNESSES)]      # #246 W3 — a real look carries its frame
         v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
         self.assertTrue(v["pass"], v["why"])
 
@@ -18196,7 +18199,9 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
         # would have been swallowed and this guard would have graded an empty string forever.
         # It now anchors its own window, so it depends on nothing outside itself, and the 9,000
         # guess (against a function measuring 10,475) goes with it.
-        body = _sw.between(text, "window.tvVaultRegister = function(name){", "\n  };",
+        # ⚠ #246 — the INNER registrar takes a witness now (`function(name, witness)`); its wrapper keeps
+        # `function(name)`, so the old anchor silently moved onto the WRAPPER and graded that instead.
+        body = _sw.between(text, "window.tvVaultRegister = function(name, witness){", "\n  };",
                            what="the tvVaultRegister body")
         body = re.sub(r"/\*.{0,4000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
@@ -18222,7 +18227,9 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
     def test_the_throwout_branch_still_never_overwrites_a_manual_placement(self):
         """The routing change is only safe because this guard holds: he outranks the planner."""
         body = self._register_body()
-        self.assertIn("if (!assign[name]) assign[name] = '__throwout';", body,
+        # #246 — the throw-out filing goes through the one door, on a witness, and still only when the
+        # name has NO home: the !assign[name] guard is the part this law is about.
+        self.assertIn("(witness && !assign[name]) ? window.vaultFile(name, witness, { mule: '__throwout' })", body,
                       "the throw-out branch must keep its !assign[name] guard - without it the "
                       "reorder starts clobbering placements he made by hand")
 
@@ -24417,32 +24424,28 @@ class TestV2083AVaultedBaseSurvivesTheReload(unittest.TestCase):
 
     def test_the_LOCKED_LANES_rule_is_still_where_the_filing_happens(self):
         """His words in capitals: "inventory and main character equiment (SHOULD NEVER BE TOLD TO BE
-        MOVED its locked there)". Routing the apply through vaultAutoAssign is only safe while
-        vaultAutoAssign still honours that."""
-        blk = _between(self, self.s, "window.vaultAutoAssign = function()", "ownedPool().forEach",
-                       what="vaultAutoAssign's head")
-        after = _between(self, self.s, "ownedPool().forEach(function(name){",
-                         "window.vaultAutoAssign = window.vaultAutoAssign",
-                         min_len=200, what="vaultAutoAssign's body") \
-            if "window.vaultAutoAssign = window.vaultAutoAssign" in self.s else \
-            self.s[self.s.index("ownedPool().forEach(function(name){"):][:3000]
-        self.assertIn("if (assign[name]) return;", after,
+        MOVED its locked there)". Routing the apply through vaultAutoAssign is only safe while the
+        filing honours that.
+
+        #246 — THE LOCK MOVED WITH THE FILING. Every mule filing now goes through ONE door,
+        window.vaultFile, and that door refuses a locked name for every caller (the sorter, the
+        registrar, his hand). So the lock is asserted THERE, the sorter is asserted to file only
+        through it, and to fill only EMPTY homes. [[the-unjoined-end]]"""
+        blk = _between(self, self.s, "window.vaultAutoAssign = function()", "window.vaultClearUnsorted",
+                       min_len=200, what="vaultAutoAssign")
+        self.assertIn("if (assign[name] != null) return;", blk,
                       "auto-assign no longer fills only EMPTY homes — it can now override a "
                       "placement he made by hand")
-        # v2120 (#46) — ASSERT THE LOCK, NOT THE SENTENCE ABOUT IT. This quoted Konyo's own words
-        # from a COMMENT; the lock itself is `_laneLocked` + an early return (bible.html:35413-14)
-        # and neither string appeared anywhere in this file. Delete the skip, leave the quote, and
-        # the old assertion stayed green — while a locked item could be filed to a mule again.
-        # v2118 routed one more caller through this function, so it is load-bearing now.
-        # [[source-reading-guard]]
-        self.assertIn("window._laneLocked(name)", after,
-                      "vaultAutoAssign no longer ASKS which lane the item is in — the "
-                      "equipment/inventory lock is gone from the function the apply routes through")
-        self.assertIn("if (_lk)", after,
-                      "vaultAutoAssign asks _laneLocked and ignores the answer, so an item locked "
+        self.assertIn("window.vaultFile(name, _provAsWitness(_row)", blk,
+                      "the sorter files around the one door, so the MAIN lock is not asked")
+        door = _between(self, self.s, "window.vaultFile = function(name, witness, opts){",
+                        "function _provAsWitness(row){", min_len=500, what="the one door")
+        # ASSERT THE LOCK, NOT THE SENTENCE ABOUT IT (v2120) — the call and the refusal, as code
+        self.assertIn("lk = (window._laneLocked && window._laneLocked(nm)) || ''", door,
+                      "the one door no longer ASKS which lane the item is in")
+        self.assertIn("if (lk) return { ok: false, refused: 'locked'", door,
+                      "the one door asks _laneLocked and ignores the answer, so an item locked "
                       "to his equipment or inventory can be filed to a mule again")
-        self.assertIn("SHOULD NEVER BE TOLD TO BE MOVED", after,
-                      "the equipment/inventory lock left the function the apply now routes through")
 
 
 class TestV2084TheVaultIsARoomOfItsOwn(unittest.TestCase):
@@ -26837,20 +26840,20 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         )
         i = self.code.find("window.vaultAutoAssign()")
         guard = self.code[max(0, i - 240):i]
-        # v2122 (#141) — AND `res.vaulted` IS PART OF THE CONDITION NOW. v2118 gated the call on
-        # uniques-or-sets and a BASE lands in NEITHER (toggleOwned routes an unknown grail name to
-        # the physical vault, recorded in res.vaulted), so the one case that most needs filing was
-        # the one that never filed. Pinning the old spelling would have kept that green.
-        for _part in ("res.uniques.length", "res.sets.length", "res.vaulted"):
-            self.assertIn(_part, guard,
-                          "the batch-filing condition dropped %s — filing must fire for a found "
-                          "unique, a found set piece AND a vaulted base, and pinning only the "
-                          "newest of the three lets the other two be removed silently" % _part)
-        self.assertIn(
-            "res.vaulted", guard,
-            "the assembler runs even when the apply landed nothing, which churns the vault "
-            "ledger on every no-op",
-        )
+        # v2122 (#141) — `res.vaulted` IS THE CONDITION. v2118 gated the call on uniques-or-sets and
+        # a BASE lands in neither, so the one case that most needed filing never filed.
+        # ⚠⚠ #246 W0b — AND NOW IT IS THE WHOLE CONDITION. A grail or set TICK is not a filing: the
+        # uniques/sets arms pressed the found-ever sorter after every landing, and _chronAutoAdopt
+        # lands a sweep every 90 s on his console with nobody watching. The vault gained something
+        # only when res.vaulted did — a row the door filed on its witness. Pinned in BOTH directions:
+        # the witnessed arm must be there, and the tick arms must not come back.
+        self.assertIn("res.vaulted", guard,
+                      "the assembler runs even when the vault gained nothing, which churns the "
+                      "vault ledger on every no-op")
+        for _part in ("res.uniques.length", "res.sets.length"):
+            self.assertNotIn(_part, guard,
+                             "the batch-filing condition fires on %s again — a grail or set tick "
+                             "presses the sorter (the #246 found-ever refill)" % _part)
 
     def test_it_does_NOT_file_inline_again(self):
         # the v1987 failure, twice made: `assign` is a let in another closure, so this is dead

@@ -46,7 +46,15 @@ LOCKED = (
     "tome",                 # bare "Tome" — the OCR often loses the suffix
     "wirt's leg",
     "wirts leg",
+)
+
+#: #246 — furniture only as the WHOLE name (an optional leading count, "12 Keys"). "key" used to be a
+#: word in LOCKED, and a word-boundary match locked BLACKHAND KEY — a unique grim wand, filed to his
+#: UNI-WEAPONS mule — as inventory furniture. The game's Key is furniture; a unique that contains the word
+#: is not. bible.html's _FURNITURE_WHOLE mirrors this tuple and a law pins the two equal. [[copy-drift]]
+LOCKED_WHOLE = (
     "key",
+    "keys",
 )
 
 #: Comes and goes, and is never worth a register or a paid read.
@@ -68,8 +76,12 @@ def is_locked(name):
     low = _low(name)
     if not low:
         return False
+    # #246 — a whole-name word: "Key", "Keys", "12 Keys" — never "Blackhand Key"
+    bare = re.sub(r"^[0-9][0-9,.]*\s*", "", low)
+    if bare in LOCKED_WHOLE:
+        return True
     for w in LOCKED:
-        # word-boundary, so "Monarch" never matches "arch" and "Key" never matches "Monkey"
+        # word-boundary, so "Monarch" never matches "arch"
         if re.search(r"(?<![a-z])" + re.escape(w) + r"(?![a-z])", low):
             return True
     return False

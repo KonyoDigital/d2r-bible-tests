@@ -74,8 +74,10 @@ CODE = _code_only(SRC)
 
 
 def _rows(*specs):
-    """owned rows with N distinct sessions each."""
-    return [{"name": nm, "witnesses": [{"session": "s%d" % i, "conf": 0.9} for i in range(n)]}
+    """owned rows with N distinct sessions each — each look with its own FRAME, as a real sighting
+    carries (#246 W3: a look counts as a witness only with its own frame and conf)."""
+    return [{"name": nm, "witnesses": [{"session": "s%d" % i, "frame": "f_%d.jpg" % i, "conf": 0.9}
+                                       for i in range(n)]}
             for nm, n in specs]
 
 

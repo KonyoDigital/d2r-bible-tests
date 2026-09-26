@@ -145,7 +145,11 @@ test('every door into the vault opens it, not just the purpose-built one', async
   await world(page);
 
   const r = await page.evaluate(() => {
-    (window as any).chronicleApply({ wouldAdd: { uniques: ['Shako', 'Monarch', 'Phase Blade'], sets: [] } });
+    /* #246 — the vault files only on a witness now, so the three are registered WITH one (two independent
+       stash looks, each with its own frame and conf); the doors under test need filed cells to show. */
+    const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
+    (window as any).chronicleApply({ wouldAdd: { uniques: ['Shako', 'Monarch', 'Phase Blade']
+      .map((n) => ({ name: n, loc: 'stash', witnesses: LOOKS })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
 
     const enter = (how: string) => {

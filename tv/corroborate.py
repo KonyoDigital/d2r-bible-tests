@@ -2501,6 +2501,12 @@ NO_JOINT_YET = {
     'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
                           'would be the game listing its own item database, which it never writes anywhere this '
                           'console can read.',
+    # #246 W7 — the row already JOINS two sides (the board's map and witness store against the console's
+    # gated stash ledger and MAIN ledger), but no registered builder returns that pair as a joint yet.
+    'vault provenance': 'the row compares the board mule map and its d2r_vaultProv witness rows against the '
+                        'console gate verdicts on vault_accum and the MAIN ledger; a truly independent second '
+                        'source would be the game listing what each mule holds, which it never writes anywhere '
+                        'this console can read.',
     'character sheet data': 'the row re-derives the CHAR_PROPS block from the install and compares it; a real second '
                           'source would be the game reporting a character sheet itself (its own resistances and '
                           'totals), which it never writes anywhere this console can read.',
