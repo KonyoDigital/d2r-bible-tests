@@ -53,6 +53,17 @@ WHAT IS IN IT, AND WHERE EACH FACT COMES FROM
           (lowqualityitems.txt), which qualityitems column each item type reads, and which qualities each type may
           drop in (itemtypes.txt Normal / Magic / Rare, the type's OWN flags)
 
+  · #174 v-B4 — THE IN-GAME TOOLTIP, TRUE TO THE TABLES (APPENDED, nothing reordered):
+          b[24] weapons.txt `speed`, b[25] the base's durability (0 = none to print), b[26] / b[27] `wclass` /
+          `2handedwclass`; ty[t][5] the "<Class> Class - %s" string key its weapons print (WCLASS_KEY, "" = no table
+          names one); it[8] 1 when the item's own properties change its durability; cls[i].tok its plrtype.txt Token;
+          TK — aligned with T, each template's [descpriority, descfunc, stat id, several-stats] (one template is one
+          stat's words: the page merges a runeword's lines with its runes' and orders them by it); tip — the tooltip's
+          own strings by key (Durability / Required ... / Defense / One-Hand / Two-Hand Damage / Socketed / Charmdes /
+          RuneQuote / WeaponDesc* / WeaponAttack*), each rune's short name (r26L "Vex"), every class's Attack1 frames
+          and rate per weapon class (animdata.d2) and the stat ids the tooltip reads lines by. all-stats (one roll, four
+          stats = itemstatcost dgrp 1) prints the group's own "+N to all Attributes", once.
+
 A ROLL'S KEY IS THE GAME'S. Each rolled value carries the column it comes from — `p3` is uniqueitems.txt
 prop3 / setitems.txt prop3 / runes.txt T1Code3 / cubemain.txt `mod 3`, `a2b` a set item's aprop2b. The builder
 stores a typed roll under that key (d2r_charBuilds ...slots[slot].rolls = {p3: 25}), so the stats engine, which
@@ -72,6 +83,7 @@ import io
 import json
 import os
 import re
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -113,6 +125,11 @@ SOURCES = [
     # only outside the item tables (monsters.json GhoulRI "Ghoul", Wraithra "Wraith", Fiendra "Fiend", crusher
     # "Crusher", scarab "Scarab"; ui.json strap "Strap") - read last, after the item strings, for a key none of those has
     ("monsters", _S + "monsters.json"), ("ui", _S + "ui.json"),
+    # #174 v-B4 — APPENDED: what the in-game tooltip's "<Class> Class - <Speed> Attack Speed" line is worked out from. The
+    # speed word is the character's attack frames (animdata.d2: frames per direction and animation rate, by the class's
+    # plrtype.txt Token, the Attack1 mode's plrmode.txt Token and the weapon's weapons.txt wclass) against the base's
+    # speed and the item's own Increased Attack Speed - measured against every row of THEIR tooltip (the law)
+    ("plrtype", _X + "plrtype.txt"), ("plrmode", _X + "plrmode.txt"), ("animdata", "data:data\\global\\animdata.d2"),
 ]
 #: #174 v-B3 — the affix tables, their one-letter kind (the id's first letter) and the ADD MOD group they list under
 AFFIX_TABLES = (("magicprefix", "p"), ("magicsuffix", "s"), ("automagic", "a"))
@@ -152,6 +169,28 @@ INV_TYPES = ("scha", "mcha", "lcha", "csch")
 #: two display names, one item: which property tells the duplicates apart (Rainbow Facet x8)
 DUP_WORD = {"extra-fire": "Fire", "extra-cold": "Cold", "extra-ltng": "Lightning", "extra-pois": "Poison",
             "death-skill": "on Death", "levelup-skill": "on Level-up"}
+#: #174 v-B4 — WHICH "<Class> Class - %s" STRING A WEAPON PRINTS. The strings are the game's (item-modifiers.json); WHICH
+#: one a base reads is the game's code (no table names it) - stated here as a rule over the item type's Equiv chain,
+#: asked in order (a throwing knife is a knife, a staff is a rod is blunt: the specific type wins). MEASURED in their
+#: tooltip on every oracle row: axe · bow · xbow · hamm + mace ("Mace Class") · pole · spea · staf. Named by the key
+#: itself where no oracle row reaches: h2h (Claw), orb, knif (Dagger), jave, club (the game's "maces" UI category), and
+#: swor, whose key the table spells "WeaponDescSword - %s" (their planner asks for "WeaponDescSword", finds nothing and
+#: prints no class line on a sword; the game names its strings by id and prints it). A wand or a scepter: no key names
+#: it - the class word is UNKNOWN there, never borrowed from the mace. [[unknown-stays-unknown]]
+WCLASS_KEY = (("h2h", "WeaponDescH2H"), ("orb", "WeaponDescOrb"), ("swor", "WeaponDescSword - %s"),
+              ("knif", "WeaponDescDagger"), ("jave", "WeaponDescJavelin"), ("spea", "WeaponDescSpear"),
+              ("pole", "WeaponDescPoleArm"), ("axe", "WeaponDescAxe"), ("xbow", "WeaponDescCrossBow"),
+              ("bow", "WeaponDescBow"), ("staf", "WeaponDescStaff"), ("mace", "WeaponDescMace"),
+              ("hamm", "WeaponDescMace"), ("club", "WeaponDescMace"))
+#: the speed words, fastest first (item-modifiers.json); the page picks one by the attack's frames (its measured bands)
+SPEED_KEYS = ("WeaponAttackFastest", "WeaponAttackVeryFast", "WeaponAttackFast", "WeaponAttackNormal",
+              "WeaponAttackSlow", "WeaponAttackVerySlow", "WeaponAttackSlowest")
+#: every other string the in-game tooltip prints, by the game's own key: Durability / Required Strength / Required
+#: Dexterity / Defense (and its range form) / One-Hand / Two-Hand Damage / Required Level / Socketed / the charm's
+#: "Keep in Inventory to Gain Bonus" / the quote around a runeword's rune string / Ethereal / and the label of a blunt
+#: weapon's bonus against the undead (ui.json "Damage to Undead") - its NUMBER is the game's code, no table holds it
+TIP_KEYS = ("ItemStats1d", "ItemStats1e", "ItemStats1f", "ItemStats1h", "ItemStats1hRange", "ItemStats1l",
+            "ItemStats1m", "ItemStats1p", "Socketable", "Charmdes", "RuneQuote", "strethereal", "strMaceSpecialDamage")
 _PULLED = {}
 
 
@@ -163,7 +202,7 @@ def _pull_all():
     src_dir = os.environ.get("CB_DB_FROM")
     if src_dir:
         for label, path in SOURCES:
-            p = os.path.join(src_dir, label + (".json" if path.endswith(".json") else ".txt"))
+            p = os.path.join(src_dir, label + (os.path.splitext(path.replace("\\", "/"))[1] or ".txt"))
             _PULLED[label] = open(p, "rb").read() if os.path.exists(p) else None
         return _PULLED
     import item_tables as IT
@@ -300,6 +339,14 @@ class DB(object):
                 "only": self.S.get(r.get("StrClassOnly") or "", ""),
                 "attr": [_int(r.get(a)) for a in ("str", "dex", "int", "vit")]})
         self.cls_by_code = dict((c["c"], i) for i, c in enumerate(self.classes))
+        # #174 v-B4: each class's animation token (plrtype.txt Token, by the class's own name: Sorceress SO, Warlock WK) -
+        # the key its attack frames sit under in animdata.d2. A class plrtype does not name keeps "" (its speed UNKNOWN)
+        tok = dict((r.get("Name"), r.get("Token") or "") for r in _rows(blobs.get("plrtype")) if r.get("Name"))
+        for c in self.classes:
+            c["tok"] = tok.get(c["n"], "")
+        # #174 v-B4: the template table's per-template sort keys, filled by lines(): {template id: [descpriority,
+        # descfunc, stat id, group]} - and any template two different keys claimed (the page could not order it)
+        self.TK, self.TK_BAD = {}, set()
 
     # ---- item types -------------------------------------------------------------------------------------------
     def walk(self, code, col, seen=()):
@@ -357,8 +404,14 @@ class DB(object):
 
         cur = [""]                                        # the property code the next line belongs to
 
-        def emit(fmt, vals, ranges, prio, f=None):
-            out.append([self.T.id(_printf(fmt, vals)), ranges, prio, flag if f is None else f, cur[0]])
+        # st = the itemstatcost stat whose descpriority placed the line (#174 v-B4: the page merges lines from several
+        # sources - a runeword and its runes - and orders them by it); grp = 1 for ONE line standing for SEVERAL stats: a
+        # stat GROUP's own string ("+N to all Attributes", "All Resistances +N": itemstatcost dgrp) and Enhanced Damage
+        # (min% + max%) - the lines whose sign their tooltip keeps on a range
+        def emit(fmt, vals, ranges, prio, f=None, st=None, grp=0):
+            if st is None:
+                st = (self.P.get(cur[0]) or {}).get("stat1") or None
+            out.append([self.T.id(_printf(fmt, vals)), ranges, prio, flag if f is None else f, cur[0], st, grp])
 
         def stat_prio(st):
             return _int((self.I.get(st) or {}).get("descpriority"), 0)
@@ -413,7 +466,8 @@ class DB(object):
             v = got[0][1]
             k0 = have[got[0][0]][0]
             cur[0] = "+".join(x[0] for x in got)
-            emit(fmt, [0], [[v, v, k0]], max(_int(self.I[m].get("descpriority")) for m in members))
+            top = max(members, key=lambda m: _int(self.I[m].get("descpriority")))
+            emit(fmt, [0], [[v, v, k0]], max(_int(self.I[m].get("descpriority")) for m in members), st=top, grp=1)
             grouped.update(x[0] for x in got)
 
         for (key, code, par, lo, hi) in props:
@@ -452,40 +506,60 @@ class DB(object):
             if code == "dmg-elem":
                 a, b = _int(lo), _int(hi)
                 for word, st in (("Fire", "firemindam"), ("Lightning", "lightmindam"), ("Cold", "coldmindam")):
-                    emit(self.S.get("strMod%sDamageRange" % word), [0, 1], [[a, a, key], [b, b, key]], stat_prio(st))
+                    emit(self.S.get("strMod%sDamageRange" % word), [0, 1], [[a, a, key], [b, b, key]], stat_prio(st), st=st)
                 continue
             if code == "res-all":
-                emit(self.S.get("strModAllResistances"), [0], [R], _int(self.I["fireresist"].get("descpriority")))
+                emit(self.S.get("strModAllResistances"), [0], [R], _int(self.I["fireresist"].get("descpriority")),
+                     st="fireresist", grp=1)
                 continue
             # a property that feeds SEVERAL stats with no group string (res-all-max: properties.txt func1
             # maxfireresist, func3 maxlightresist / maxcoldresist / maxpoisonresist; itemstatcost gives the four no
             # dgrp) prints every stat in its own words - "+15% to Maximum Fire Resist" alone said a quarter of it
             multi = [p.get("stat%d" % k) for k in range(1, 8) if _int(p.get("func%d" % k)) in (1, 3) and p.get("stat%d" % k)]
             if f1 == 1 and len(multi) > 1 and len(multi) == len([k for k in range(1, 8) if p.get("func%d" % k)]):
+                # #174 v-B4 - ONE ROLL THAT IS A WHOLE STAT GROUP PRINTS THE GROUP'S STRING. all-stats (properties.txt
+                # func1..4: strength / energy / dexterity / vitality, one min..max) is itemstatcost dgrp 1 exactly: the
+                # four stats always equal, so the game prints "+10-20 to all Attributes" once (Annihilus, Breath of the
+                # Dying). It printed four lines here, each "+10-20 to <Attribute>", and a separate all-stats branch below
+                # was never reached. A property whose stats are NOT one whole group (res-all-max: no dgrp) still
+                # prints each stat in its own words. The roll key is the property's one key (p2) - one value.
+                dg = set((self.I.get(st) or {}).get("dgrp") or "" for st in multi)
+                g0 = dg.pop() if len(dg) == 1 else ""
+                if g0 and sorted(multi) == sorted(s for s, r in self.I.items() if r.get("dgrp") == g0):
+                    gfmt = self.S.get((self.I.get(multi[0]) or {}).get("dgrpstrpos") or "", "")
+                    if gfmt:
+                        top = max(multi, key=lambda m: _int((self.I.get(m) or {}).get("descpriority")))
+                        emit(gfmt, [0], [R], _int((self.I.get(top) or {}).get("descpriority")), st=top, grp=1)
+                        continue
                 for st in multi:
                     ds = self.I.get(st) or {}
                     fp = self.S.get(ds.get("descstrpos") or "", "")
                     if not fp:
                         out.append([self.T.id("an effect (%s) the tables do not describe" % st), [R], 0, 2, code])
                         continue
-                    emit(fp, [0] if re.search(r"%[+]?\d*[di]", fp) else [], [R], _int(ds.get("descpriority"), 0))
+                    emit(fp, [0] if re.search(r"%[+]?\d*[di]", fp) else [], [R], _int(ds.get("descpriority"), 0), st=st)
                 continue
             if code == "all-stats":
-                emit(self.S.get("Moditem2allattrib"), [0], [R], _int(self.I["strength"].get("descpriority")))
+                emit(self.S.get("Moditem2allattrib"), [0], [R], _int(self.I["strength"].get("descpriority")),
+                     st="strength", grp=1)
                 continue
             if f1 == 7:                                   # dmg%: the game prints one Enhanced Damage line
-                emit(self.S.get("strModEnhancedDamage"), [0], [R], stat_prio("item_maxdamage_percent"))
+                # grp=1: like a stat group's string, ONE line standing for SEVERAL stats (item_maxdamage_percent and
+                # item_mindamage_percent) - their tooltip keeps its sign on a range there too ("+350-400% Enhanced Damage")
+                emit(self.S.get("strModEnhancedDamage"), [0], [R], stat_prio("item_maxdamage_percent"),
+                     st="item_maxdamage_percent", grp=1)
                 continue
             if f1 in (5, 6):                              # dmg-min / dmg-max
                 st = "mindamage" if f1 == 5 else "maxdamage"
-                emit(self.S.get((self.I.get(st) or {}).get("descstrpos") or ""), [0], [R], stat_prio(st))
+                emit(self.S.get((self.I.get(st) or {}).get("descstrpos") or ""), [0], [R], stat_prio(st), st=st)
                 continue
             if f1 == 14:                                  # sockets
                 n = [_int(par), _int(par), key] if str(par or "").strip() else R
                 emit(self.S.get("Socketable", "Socketed (%i)"), [0], [n], 0)
                 continue
             if f1 == 20:
-                emit(self.S.get("ModStre9s", "Indestructible"), [], [], stat_prio("item_indesctructible"))
+                emit(self.S.get("ModStre9s", "Indestructible"), [], [], stat_prio("item_indesctructible"),
+                     st="item_indesctructible")
                 continue
             if f1 == 23:
                 emit(self.S.get("strethereal", "Ethereal (Cannot be Repaired)"), [], [], 0, 3)
@@ -599,6 +673,15 @@ class DB(object):
             else:
                 # descfunc empty: the game prints nothing for it (durability, poison length, a visual state)
                 continue
+        # #174 v-B4 - each template's sort key, for the page: [descpriority, descfunc, stat id, group]. A template is one
+        # stat's words, so it has ONE key (measured: 568 templates, 0 claimed twice); a template two keys claim is
+        # recorded as a defect the build refuses on (the page could not order it), never resolved by the first seen
+        for q in out:
+            st = q[5] if len(q) > 5 else None
+            ds = self.I.get(st) or {}
+            k = [q[2], _int(ds.get("descfunc"), 0), _int(ds.get("*ID"), -1) if st else -1, q[6] if len(q) > 6 else 0]
+            if self.TK.setdefault(q[0], k) != k:
+                self.TK_BAD.add(q[0])
         # the game orders lines by descpriority, highest first; ties keep the table's order
         idx = list(range(len(out)))
         idx.sort(key=lambda i: (-out[i][2], i))
@@ -635,6 +718,18 @@ class DB(object):
                            # or orb's bonus to the AFFIX level (Diadem 18): alvl = ilvl + magic lvl when it is > 0, the
                            # level an affix's level / maxlevel is held against (with qlvl [18]); 0 = none
                            _int(r.get("magic lvl"))]
+                # #174 v-B4 - APPENDED, never reordered:
+                B[code] += [
+                    # [24] weapons.txt `speed` - the base's weapon speed (Crowbill -10, Berserker Axe 0); 0 for armour
+                    # and misc, which print no attack speed line
+                    _int(r.get("speed")) if label == "weapons" else 0,
+                    # [25] its durability ("Durability: 26 of 26"); 0 = it has none to print (`nodurability` 1 - a
+                    # bow, a Phase Blade - or a misc item)
+                    (_int(r.get("durability")) if label != "misc" and r.get("nodurability") != "1" else 0),
+                    # [26] [27] weapons.txt `wclass` / `2handedwclass` - which of the character's attack animations
+                    # (animdata.d2) swings it one-handed / with both hands; "" off a weapon
+                    (r.get("wclass") or "") if label == "weapons" else "",
+                    (r.get("2handedwclass") or "") if label == "weapons" else ""]
                 if r.get("spawnable") == "1":
                     spawnable.add(code)
         # two bases, one printed name (RotW's Colossal Jewel prints "Jewel"): the later one keeps its TABLE name, so
@@ -665,7 +760,10 @@ class DB(object):
                      self.cls_by_code.get(cc, -1),
                      [_int(r.get("MaxSockets1")), _int(r.get("MaxSocketsLevelThreshold1")),
                       _int(r.get("MaxSockets2")), _int(r.get("MaxSocketsLevelThreshold2")), _int(r.get("MaxSockets3"))],
-                     sorted(self.ancestors(t))]
+                     sorted(self.ancestors(t)),
+                     # [5] #174 v-B4: the "<Class> Class - %s" string key a weapon of this type prints (WCLASS_KEY,
+                     # asked in order down its Equiv chain); "" = none names it (a wand, a scepter: UNKNOWN on the page)
+                     next((k for anc, k in WCLASS_KEY if anc in self.ancestors(t)), "")]
         self.TY = TY
         items = []
         names = {}
@@ -803,11 +901,19 @@ class DB(object):
             inv.append([label, [t], -1])
         rail["inv"] = inv
         for rec in items:
-            rec.pop()                                     # the raw props were for naming only
+            raw = rec.pop()                               # the raw props were for naming only
+            # [8] #174 v-B4: 1 when the item's own properties change its durability (`dur` - maxdurability, which
+            # prints no line - or `dur%`): how the game combines them with the base's is its code, so the page prints
+            # the Durability line UNKNOWN for it rather than the base's number (37 uniques, Natalya's Soul)
+            rec.append(1 if any(c in ("dur", "dur%") for (_, c, _, _, _) in raw) else 0)
         AF, RN, QM = self.affixes()
+        TIP = self.tip_data(B, TY, SK)
         return {
             "v": 1, "gen": "tv/char_builder_db.py", "cls": self.classes, "ty": TY, "rail": rail, "b": B,
-            "T": self.T.list, "it": items, "sk": SK, "af": AF, "rn": RN, "qm": QM,
+            "T": self.T.list, "it": items, "sk": SK, "af": AF, "rn": RN, "qm": QM, "tip": TIP,
+            # #174 v-B4: aligned with T - each template's [descpriority, descfunc, stat id, group] (lines() fills it),
+            # so the page can merge a runeword's lines with its runes' and order them as the game does
+            "TK": [self.TK.get(i, [0, 0, -1, 0]) for i in range(len(self.T.list))],
             "counts": {"bases": len(B), "uniques": sum(1 for x in items if x[2] == "u"),
                        "sets": sum(1 for x in items if x[2] == "s"), "runewords": sum(1 for x in items if x[2] == "r"),
                        "crafted": sum(1 for x in items if x[2] == "c"), "socketables": len(SK),
@@ -815,6 +921,62 @@ class DB(object):
                        "suffixes": sum(1 for x in AF if x[1] == "s"), "automods": sum(1 for x in AF if x[1] == "a"),
                        "rareWords": [len(RN[0]), len(RN[1])], "superior": len(QM["sup"])},
         }
+
+    # ---- #174 v-B4: what the in-game tooltip prints beyond the property lines ---------------------------------
+    def tip_data(self, B, TY, SK):
+        """-> {ui, rs, an, a1}.
+        ui  the tooltip's own strings by the game's key (TIP_KEYS, every WCLASS_KEY, the seven SPEED_KEYS) - a key no
+            string table has is left out, so the page says UNKNOWN rather than print a word nobody read
+        rs  each rune's short name (item-runes.json r01L "El"): a runeword's rune string is RuneQuote + these + RuneQuote
+        a1  the Attack1 mode's token (plrmode.txt: "A1")
+        an  {class token: {weapon class: [frames per direction, animation rate]}} - animdata.d2's Attack1 record of
+            every class (plrtype.txt Token) with every weapon class a base swings (weapons.txt wclass / 2handedwclass).
+            The page works the frames per attack out of it (the game's formula) and prints the speed word the
+            measured bands give; a record the file does not hold is absent - that speed is UNKNOWN."""
+        ui = {}
+        for k in TIP_KEYS + SPEED_KEYS + tuple(sorted(set(k for _, k in WCLASS_KEY))):
+            v = self.S.get(k)
+            if v is None:
+                v = (self.OS or {}).get(k)
+            if v is not None:
+                ui[k] = v
+        rs = {}
+        for s in SK:
+            if s[2] == "rune":
+                v = self.S.get(s[0] + "L")
+                if v:
+                    rs[s[0]] = v
+        a1 = next((r.get("Token") or "" for r in _rows(self.blobs.get("plrmode")) if r.get("Name") == "Attack1"), "")
+        want = set()
+        for b in B.values():
+            for wc in (b[26], b[27]):
+                if wc:
+                    want.add(wc.upper())
+        toks = set(c.get("tok") for c in self.classes if c.get("tok"))
+        an = {}
+        blob = self.blobs.get("animdata") or b""
+        # animdata.d2: blocks of <u32 count> + count records of 160 bytes - an 8-byte name ("SOA11HS": class token,
+        # mode token, weapon class), u32 frames per direction, u32 animation rate, then 144 bytes of frame flags
+        i = 0
+        while a1 and i + 4 <= len(blob):
+            n = struct.unpack_from("<I", blob, i)[0]
+            i += 4
+            for _ in range(n):
+                if i + 160 > len(blob):
+                    break
+                raw, frames, rate = struct.unpack_from("<8sII", blob, i)
+                nm = raw.split(b"\0")[0].decode("ascii", "replace")
+                i += 160
+                tk, mode, wc = nm[:2], nm[2:4], nm[4:]
+                if tk in toks and mode == a1 and wc in want:
+                    an.setdefault(tk, {})[wc] = [frames, rate]
+        # st: the itemstatcost ids of the stats the tooltip reads lines by (TK[tpl][2]) - its attack speed, its undead
+        # damage (a blunt weapon's bonus), Indestructible (no Durability line) and the requirement percent
+        st = {}
+        for s in ("item_fasterattackrate", "item_undeaddamage_percent", "item_indesctructible", "item_req_percent"):
+            if s in self.I:
+                st[s] = _int(self.I[s].get("*ID"), -1)
+        return {"ui": ui, "rs": rs, "a1": a1, "an": an, "st": st}
 
     # ---- #174 v-B3: the affixes a magic / rare / superior item is built from -----------------------------------
     def shown_affix(self, key):
@@ -910,7 +1072,12 @@ def build():
     if absent:
         return None, ("could not pull %s from the install — the builder's database is UNKNOWN here, not empty"
                       % ", ".join(absent))
-    db = DB(blobs).build()
+    d = DB(blobs)
+    db = d.build()
+    if d.TK_BAD:
+        # #174 v-B4: a template two sort keys claim cannot be ordered on the page - a defect, never UNKNOWN (77)
+        raise RuntimeError("templates with two sort keys (the page could not order them): %s"
+                           % ", ".join(repr(db["T"][i]) for i in sorted(d.TK_BAD)[:5]))
     db["sourceHash"] = source_hash(blobs)
     return db, None
 

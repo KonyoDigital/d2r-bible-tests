@@ -5599,6 +5599,19 @@ GATES = [
              "(Godly Diadem +200% = 183 EXACT; superior +15% = 70, the typed base set aside); a negative charged level "
              "is UNKNOWN, never -10 EXACT; two affixes of one per-level stat are one stat, scaled once (135, not 134); "
              "the sheet names the affix the item shows (Mojo, never the table key Vodoun). 16 cases, 12 red-proofs"),
+    Gate("test_the_tooltip_is_the_games_tooltip",
+         [sys.executable, os.path.join(HERE, "test_the_tooltip_is_the_games_tooltip.py")], 90,
+         why="#174 v-B4 - the SHIPPED tooltip (_cbTipEntry + d2Tip, in node) equals THEIR tooltip text, line for line, "
+             "on 203 measured rows (Breath of the Dying on 40 bases incl. the 7 of the brief, Grief, Spirit, Insight, "
+             "Call to Arms, Heart of the Oak; tv/the_tooltip_oracle.json, text only): damage with ED lo..hi floored, "
+             "Durability, requirements base + trunc(base x pct / 100) (Hel: 94 -> 76), the rune string, '<Class> Class - "
+             "<Speed> Attack Speed' from animdata frames + the game's formula + the measured bands (10-13 Very Fast, "
+             "14-15 Fast, 16-19 Normal, 20-22 Slow, UNKNOWN outside), the runeword's and its runes' lines merged (+200% "
+             "Damage to Undead, +30 to all Attributes) and ordered by descpriority / descfunc / stat id, their range "
+             "form. Three differences declared and asserted where they apply: a sword's class line (theirs none), a "
+             "blunt base's +50% undead (the game's code - ours UNKNOWN), an untyped IAS roll across two bands (ours "
+             "both words; typed at its top, theirs). Annihilus: Keep in Inventory + ONE all-Attributes roll; a unique "
+             "and a set item keep their own lines. 8 cases, 10 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
