@@ -243,7 +243,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B4 review - the fold is the small-triangle glyph again: ~4x3 px of ink, a dot (theirs 14x8)",
         "file": "bible.html",
-        "find": ".cb-fold{display:flex;align-items:center;justify-content:center;font-size:0}\n.cb-tree .cb-fold{color:var(--gold-bright)}\n",
+        "find": ".cb-fold{display:flex;align-items:center;justify-content:center}\n.cb-tree .cb-fold{color:var(--gold-bright)}\n",
         "replace": ".cb-tree .cb-fold{font-size:var(--fs-cb-title);color:var(--gold-bright)}\n.cb-fold::before{display:none}\n",
         "matches": 1,
     },

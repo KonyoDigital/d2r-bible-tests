@@ -38259,7 +38259,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (r.source === 'hand') return (S.hand || 'placed by hand') + (r.where ? ' (' + r.where + ')' : '');
     if (r.source === 'd2s') return (S.d2s || 'from a .d2s') + (r.char ? ' (' + r.char + ')' : '');
     var n = (r.looks && r.looks.length) || (r.sessions && r.sessions.length) || 0;
+    /* the gate's own count beside the looks that COUNTED: a look without a frame or under the floor is seen, not a
+       witness (W3) - so "2 looks of 3 seen, needs 2" says why one did not count, and what the rule asks */
+    var g = r.gate || {}, seenN = g.looksSeen, minN = g.minLooks;
     return (S.witnessed || 'witnessed in your') + ' ' + r.source + ' × ' + n + ' look' + (n === 1 ? '' : 's')
+           + ((seenN != null && seenN !== n) ? ' of ' + seenN + ' seen' : '') + (minN != null ? ', needs ' + minN : '')
            + (r.wilson != null ? ' (Wilson ' + Number(r.wilson).toFixed(2) + ')' : '');
   };
   /* the dock: what is owned and NOT filed. Read only — the sorter never files from it. */
@@ -52317,7 +52321,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
    ink, a dot (theirs, 63_botd_base_tab: a 14x8 chevron). The glyph stays in the markup and aria-label names the action; the
    chevron is DRAWN - two 2px strokes of a turned square, open (aria-expanded true) pointing up, folded pointing down. The
    stash's folds are the same button and get the same chevron. */
-.cb-fold{display:flex;align-items:center;justify-content:center;font-size:0}
+.cb-fold{display:flex;align-items:center;justify-content:center}
 .cb-tree .cb-fold{color:var(--gold-bright)}
 .cb-fold::before{content:'';flex:none;box-sizing:border-box;width:calc(10*var(--u));height:calc(10*var(--u));min-width:8px;min-height:8px;border:solid currentColor;border-width:2px 2px 0 0;transform:translateY(25%) rotate(-45deg)}
 .cb-fold[aria-expanded="false"]::before{transform:translateY(-25%) rotate(135deg)}
@@ -54158,7 +54162,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var only = (r.cls >= 0 && d && d.cls[r.cls]) ? d.cls[r.cls].n + ' only' : '';
       h += '<div class="cb-tree-r" style="--td:' + r.depth + '"><button type="button" class="cb-rail-b' + (cur === r.t ? ' cb-on' : '') + '" role="treeitem" aria-level="' + (r.depth + 2) + '"'
         + (r.kids ? ' aria-expanded="' + open + '"' : '') + (only ? ' title="' + esc(only) + '"' : '') + ' data-node="' + esc(r.t) + '" onclick="window.' + act + '(\'' + esc(r.t) + '\')">' + esc(r.label) + '</button>'
-        + (r.kids ? '<button type="button" class="cb-fold" aria-expanded="' + open + '" aria-label="' + (open ? 'fold ' : 'open ') + esc(r.label) + '" onclick="window._cbTreeFold(\'' + esc(r.path) + '\',' + (open ? 0 : 1) + ')">' + (open ? '▴' : '▾') + '</button>' : '')
+        + (r.kids ? '<button type="button" class="cb-fold" aria-expanded="' + open + '" aria-label="' + (open ? 'fold ' : 'open ') + esc(r.label) + '" onclick="window._cbTreeFold(\'' + esc(r.path) + '\',' + (open ? 0 : 1) + ')"></button>' : '')
         + '</div>';
       if (r.kids && !open) hide = r.depth;
     });
@@ -54469,7 +54473,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (!n[2]) under = i; else if (fold[under]) return '';
       var kids = !n[2] && tree[i + 1] && tree[i + 1][2];
       return '<div class="cb-tree-r"><button type="button" class="cb-rail-b' + (n[2] ? ' cb-sub' : '') + ((S.cat | 0) === i ? ' cb-on' : '') + '" onclick="window._cbStashCat(' + i + ')">' + esc(n[0]) + '</button>'
-        + (kids ? '<button type="button" class="cb-fold" aria-expanded="' + (!fold[i]) + '" aria-label="' + (fold[i] ? 'open ' : 'fold ') + esc(n[0]) + '" onclick="window._cbStashFold(' + i + ')">' + (fold[i] ? '▾' : '▴') + '</button>' : '') + '</div>';
+        + (kids ? '<button type="button" class="cb-fold" aria-expanded="' + (!fold[i]) + '" aria-label="' + (fold[i] ? 'open ' : 'fold ') + esc(n[0]) + '" onclick="window._cbStashFold(' + i + ')"></button>' : '') + '</div>';
     }).join('') + '</div>';
     var rows = _cbStashRows(), list;
     if (S.tab === 'create' && !tree[S.cat | 0][1]) list = '<div class="cb-none">Choose a category to create an item from the database into this build\'s stash.</div>';

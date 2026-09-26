@@ -439,7 +439,7 @@ def board_would_file(sightings, loc):
     prog = ("var window = {};\n" + src[i:j] +
             "\nprocess.stdout.write(JSON.stringify(window._vaultWitnessCheck(%s)));\n" % json.dumps(wit))
     try:
-        r = subprocess.run([node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        r = subprocess.run([node, "-"], input=prog, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     except Exception as e:
         return None, "node could not run the board's block (%s)" % type(e).__name__
     if r.returncode != 0:

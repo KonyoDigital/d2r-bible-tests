@@ -87,7 +87,10 @@ def _stub_board():
     return restore, sent
 
 
-_CLEAN_EV = [{"session": "s%d" % i, "witness": "s%d#0" % i, "conf": 0.9} for i in range(3)]
+# #246 W3 (2026-09-26): a look counts as a witness only with its OWN frame and conf over the floor, so the decoy's
+# looks carry frames. Without them the decoy row was refused, the WHOLE proposal fell, and throwout-evidence read
+# "caught 0 of 6" - the door was right, the instrument had stopped reaching the lane it probes. [[feedback-suspect-the-instrument]]
+_CLEAN_EV = [{"session": "s%d" % i, "witness": "s%d#0" % i, "frame": "s%d/f0001.png" % i, "conf": 0.9} for i in range(3)]
 _DIRTY = {"name": "SABOTAGE Shako — no evidence, must never be written", "lane": "stash",
           "kind": "item", "count": 1, "evidence": []}
 

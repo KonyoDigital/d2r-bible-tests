@@ -667,9 +667,6 @@ class TestLaw19ForThePayloadContract(unittest.TestCase):
     """
 
     ALLOWED = {
-        "generatedTs":
-            "metadata, not a signal: the moment the proposal was built. The board shows reel and "
-            "frame provenance from the witness rows instead, which is what he can actually open.",
         "readOnlyUntilApply":
             "a CONTRACT MARKER asserting vault_retro wrote nothing — it is for a reader auditing "
             "the payload's honesty, not for a pixel. Rendering it would say nothing he can act on.",
