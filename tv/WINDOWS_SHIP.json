@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3511",
+  "ver": "v3512",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3511: REG-1316: 12,488 of 12,689 evidence PNGs were iCloud placeholders and every read was a download; test_health_engine 200s+ -> 12s",
+  "note": "v3512: REG-1320: the second eye on v3510, measured 6 of 56 widths regressed; a negative margin gives the indent width back; the width law sweeps 900-1400 every 20px. HEART: guarded by the new band sweep in the width law, 2 red-proofs seen RED; no new lane or engine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -263,6 +263,30 @@ INDENT = r"""(function(){ var out = [];
   return JSON.stringify(out); })()"""
 
 
+#: #174 round 3 - rows whose value sits BELOW its label's first line, and label text running under its value
+DROP = r"""(function(){ var out = [];
+  [].forEach.call(document.querySelectorAll('#cb-win .cb-st-r:not([hidden])'), function(r){
+    var l = r.querySelector('.cb-sl'), v = r.querySelector('.cb-sv'); if (!l || !v) return;
+    var rg = document.createRange(); rg.selectNodeContents(l);
+    var rs = [].slice.call(rg.getClientRects()).filter(function(x){ return x.width > 0.5; });
+    if (rs.length && v.getBoundingClientRect().top > rs[0].bottom - 1) out.push(l.textContent.trim()); });
+  return JSON.stringify(out); })()"""
+OVER = r"""(function(){ var bad = [];
+  [].forEach.call(document.querySelectorAll('#cb-win .cb-st-r:not([hidden])'), function(r){
+    var l = r.querySelector('.cb-sl'), v = r.querySelector('.cb-sv'); if (!l || !v) return;
+    var rg = document.createRange(); rg.selectNodeContents(l); var vr = v.getBoundingClientRect();
+    [].forEach.call(rg.getClientRects(), function(x){
+      if (x.width > 0.5 && x.bottom > vr.top + 1 && x.top < vr.bottom - 1 && x.right > vr.left + 0.5) bad.push(l.textContent.trim()); }); });
+  return JSON.stringify(bad); })()"""
+#: the same page with the hanging indent taken away - what v-B2's rule gave before round 2
+FLUSH_ON = ("(function(){ var s = document.createElement('style'); s.id = 'law-flush'; s.textContent = "
+            "'.cb-st-r .cb-sl{padding-left:0 !important;text-indent:0 !important;margin-right:0 !important}';"
+            " document.head.appendChild(s); return 1; })()")
+FLUSH_OFF = "(function(){ var s = document.getElementById('law-flush'); if (s) s.remove(); return 1; })()"
+#: the band where the stats column is tight enough for a label to wrap (measured 2026-09-26: every regression was 900-1240)
+SWEEP = range(900, 1401, 20)
+
+
 def _point_at(t, sel, i):
     """the pointer comes to rest on the i-th match (two real moves) - no click"""
     a = json.loads(t.ev(AIM % (json.dumps(sel), i)))
@@ -419,6 +443,19 @@ def _measure():
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s window._cbClosePick(); return 1; })()" % _DIADEM)
         time.sleep(0.35)
         res["indent"] = json.loads(t.ev(INDENT))
+        # #174 round 3 (the Grok seat on v3510) - v-B2's rule at EVERY width of the tight band, not only at the fixed
+        # widths above: round 2's indent dropped a value at 900 / 960 / 980 / 1200-1240, all BETWEEN them
+        sweep = []
+        for w in SWEEP:
+            _set_size(t, w, 1300 if w >= 1280 else 800)
+            time.sleep(0.2)
+            real, over = json.loads(t.ev(DROP)), json.loads(t.ev(OVER))
+            t.ev(FLUSH_ON)
+            time.sleep(0.05)
+            flush = json.loads(t.ev(DROP))
+            t.ev(FLUSH_OFF)
+            sweep.append({"w": w, "extra": sorted(set(real) - set(flush)), "over": over, "rows": len(real) + 0})
+        res["sweep"] = sweep
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
         _set_size(t, 2000, 1300)
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
@@ -665,8 +702,20 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         so the second line reads as the rest of the label - v-B2's rule (the value keeps the first line) stands"""
         rows = _measure()["indent"]
         self.assertGreater(len(rows), 0, "PREMISE: no stat label wraps at 1280, so this measured nothing")
-        flat = ["%s (first %.1f, next %.1f)" % (x["text"], x["first"], x["next"]) for x in rows if x["next"] - x["first"] < 4]
+        flat = ["%s (first %.1f, next %.1f)" % (x["text"], x["first"], x["next"]) for x in rows if x["next"] - x["first"] < 2]
         self.assertEqual(flat, [], "these labels wrap flush, so their second line reads as a row of its own: %s" % flat)
+
+    def test_round3_the_indent_costs_no_row_its_first_line_at_any_width(self):
+        """#174 round 3 (the Grok seat on v3510, measured): round 2's hanging indent padded the label, the padding counted
+        toward its min-content, and at 6 of 56 widths a value dropped under its label - v-B2's rule undone by the fix
+        for the next complaint. Swept every 20px of the tight band (900-1400) against the same page with the indent
+        taken away: the indent makes NO extra value drop, and no label text runs under its value"""
+        sw = _measure()["sweep"]
+        self.assertEqual(len(sw), len(SWEEP), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(SWEEP)))
+        extra = [(x["w"], x["extra"]) for x in sw if x["extra"]]
+        over = [(x["w"], x["over"]) for x in sw if x["over"]]
+        self.assertEqual(extra, [], "the indent pushed these values under their labels (v-B2's rule): %s" % extra)
+        self.assertEqual(over, [], "label text runs under its value at these widths: %s" % over)
 
     def test_under_900_the_character_comes_first(self):
         for (w, h) in WIDTHS:
@@ -681,9 +730,16 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "#174 round 3 - the indent's width is not given back: at 960 and 1200 a value drops under its label again (v-B2)",
+        "file": "bible.html",
+        "find": "text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}\n",
+        "replace": "text-indent:calc(-6*var(--u))}\n",
+        "matches": 1,
+    },
+    {
         "why": "#174 round 2 - a wrapped stat label's second line sits flush again ('Resistance' reads as a row with no value)",
         "file": "bible.html",
-        "find": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(10*var(--u));text-indent:calc(-10*var(--u))}\n",
+        "find": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}\n",
         "replace": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal}\n",
         "matches": 1,
     },

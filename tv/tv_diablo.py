@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3511"   # the frozen-screen watch never reads an iCloud placeholder, so the doctor no longer hangs on his Desktop
+VERSION = "v3512"   # #174 round 3 - a wrapped stat label keeps its hanging indent without pushing any value under its label
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -51104,7 +51104,11 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 /* #174 v-B2 fix round - the label wraps at its WORDS inside its own box (a zero basis, never narrower than its longest
    word), so the value keeps the row's first line ("Lightning Resistance" put it on a second line at 2000); only when
    even one word cannot sit beside the value does the value take its own line, whole - never a word cut mid-letter */
-.cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(10*var(--u));text-indent:calc(-10*var(--u))}
+.cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}
+/* #174 round 3 (the Grok seat on v3510): the indent's padding counted toward the label's min-content, so at 6 of 56
+   widths (900-1240) a value dropped under its label again - v-B2's rule, undone by round 2's fix. A negative margin as
+   wide as the indent gives that width back: measured 900-2000 every 20px, 0 widths where a value drops that did not
+   without the indent, 0 where label text runs under its value (8u overlapped at 2, 10u at 10) */
 /* #174 round 2 (the Grok seat on v3509): a wrapped label's second line ("Fire" / "Resistance") read as a ROW of its own with
    no value. A hanging indent sets every continuation line in, so it reads as the rest of the label above it - v-B2's rule
    (the value keeps the first line) stands */
@@ -55212,7 +55216,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3511', name:'v3511 - the frozen-screen watch never reads an iCloud placeholder, so the doctor no longer hangs on his Desktop', date:'2026-09-26', note:'REG-1316: 12,488 of 12,689 evidence PNGs were iCloud placeholders and every read was a download; test_health_engine 200s+ -> 12s' };
+  window.D2R_BUILD = { id:'v3512', name:'v3512 - #174 round 3 - a wrapped stat label keeps its hanging indent without pushing any value under its label', date:'2026-09-26', note:'REG-1320: the second eye on v3510, measured 6 of 56 widths regressed; a negative margin gives the indent width back; the width law sweeps 900-1400 every 20px. HEART: guarded by the new band sweep in the width law, 2 red-proofs seen RED; no new lane or engine' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1320 - #174 ROUND 3: ROUND 2'S INDENT UNDID v-B2'S RULE BETWEEN THE WIDTHS THE LAW MEASURED
+
+**fix - the #231 eye's look at v3510 (grok-cli, 2 findings), the first one MEASURED before it was believed.** Round 2
+gave a wrapped stat label a hanging indent (padding-left + a negative text-indent). The eye argued the padding counts
+toward the label's min-content, so a value would fall under its label about 10u sooner - v-B2's rule ("the value keeps
+the row's first line"). Measured in a scratch Chrome, 900-2000 every 20px, against the same page with the indent taken
+away: 6 of 56 widths regressed (900, 960, 980 - Cold / Lightning / Poison Resistance, v-B2's own case - and 1200-1240,
+Fire Resistance with a RANGE value). Every one lay BETWEEN the fixed widths the law measured, which is why round 2's law
+was green. Any hanging indent costs the continuation line its indent (3u still broke 1 width); a negative margin-right
+as wide as the indent gives that width back: 6u -> 0 widths regress, 0 overlap (8u overlapped label text into the value
+at 2 widths, 10u at 10). Law: the width law gains a sweep of the tight band (900-1400, every 20px) - no extra value drop
+against the flush page, no label text under its value; 2 red-proofs, both seen RED (without the margin: 1200 Cold / Fire
+Resistance drop; flush: "Fire Resistance" first 994.7 = next 994.7). The eye's second finding was reach notes; its one
+answerable question (does stamp(path=, cwd=) work) is answered by fact: the v3511 bump bound v3510 to 47b42512.
+[[two-fixes-broke-each-other]] [[gate-blind-to-unexercised-input]]
+
 ### REG-1319 - THE SECOND EYE ON v3508: A NO-OP CLEANUP VOUCHED FOR A LEAK, A DOCSTRING SAID THE OPPOSITE OF ITS CODE, AND A LAW MEASURED HIS DISK
 
 **fix - the #231 eye's look at v3508 (grok-cli, 9 findings), each measured before it was acted on.**
