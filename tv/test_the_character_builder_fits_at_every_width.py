@@ -86,6 +86,10 @@ MEASURE = r"""(function(){ try {
     doll: rel(d.getElementById('cb-doll')), invRect: rel(d.getElementById('cb-inv')),
     invInMain: !!(d.getElementById('cb-inv') && d.getElementById('cb-inv').closest('.cb-main')) };
   out.cols.left = rel(box.querySelector('.cb-left')); out.cols.main = rel(box.querySelector('.cb-main')); out.cols.stats = rel(box.querySelector('.cb-stats'));
+  /* #174 R2 — where STATS ends on the glass (at the window's scroll 0) and whether its own list scrolls */
+  var _sp = box.querySelector('.cb-stats'), _sl = box.querySelector('.cb-st');
+  out.statsBottom = _sp ? _sp.getBoundingClientRect().bottom : null; out.vh = vh;
+  out.statsList = _sl ? [_sl.scrollHeight, _sl.clientHeight, getComputedStyle(_sl).overflowY] : null;
   var ht = box.querySelector('.cb-h-t'); out.fsTitle = ht ? parseFloat(getComputedStyle(ht).fontSize) : null;
   out.tokTitle = parseFloat(getComputedStyle(d.documentElement).getPropertyValue('--fs-title'));
   var m = d.getElementById('cb-modal');
@@ -430,6 +434,24 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertGreaterEqual(seen, 8, "the slot-cover check ran in only %d column states" % seen)
         self.assertEqual(bad, [], "\n  ".join(bad))
 
+    def test_stats_ends_inside_the_window_and_scrolls_its_own_rows(self):
+        """#174 R2 — the Grok seat on R1: "the stats column is cut off at the bottom edge ... rows from Energy down are
+        sliced". In columns STATS ends inside the window and its row list scrolls inside it; every row is reachable
+        without scrolling the whole builder."""
+        bad, seen = [], 0
+        for w, h in WIDTHS:
+            m = _measure()["plain %dx%d" % (w, h)]
+            if m.get("stack"):
+                continue
+            seen += 1
+            if m.get("statsBottom") is None or m["statsBottom"] > m["vh"] + 0.5:
+                bad.append("%dx%d: STATS ends %s px past the window's bottom (%s)" % (w, h, None if m.get("statsBottom") is None else round(m["statsBottom"] - m["vh"], 1), m.get("statsBottom")))
+            sl = m.get("statsList")
+            if not sl or sl[2] not in ("auto", "scroll"):
+                bad.append("%dx%d: the stats list does not scroll inside its panel: %s" % (w, h, sl))
+        self.assertGreaterEqual(seen, 4, "PRINT THE DENOMINATOR: only %d column layouts measured" % seen)
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
     def test_at_2000_the_columns_are_their_literal_322_716_300(self):
         bad = []
         for state in ("plain", "worn"):
@@ -466,6 +488,13 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 R2 - the builder's STATS grows with its rows again and runs off the bottom of the window (the Grok seat: rows from Energy down sliced)",
+        "file": "bible.html",
+        "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 fix round - the stacked picker's pane is unbounded again: at 375 the list grows to its rows and never scrolls",
         "file": "bible.html",

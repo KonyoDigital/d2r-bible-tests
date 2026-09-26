@@ -68,7 +68,13 @@ def unpaired_sites(path):
                 cls = p
                 break
             p = parent.get(p)
-        if (fn is not None and _cleans(fn)) or (cls is not None and _cleans(cls)):
+        # #243 - the CLASS pairs a site only through its fixture methods. Walking the whole class let ANY cleanup
+        # anywhere in it vouch for every site: test_provenance's two bare mkdtemp()s leaked 83 dirs a day while
+        # an unrelated cleanup elsewhere in their class kept this finder green.
+        _fix = [m for m in (cls.body if cls is not None else [])
+                if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and m.name in ("setUp", "tearDown", "setUpClass", "tearDownClass", "asyncSetUp", "asyncTearDown")]
+        if (fn is not None and _cleans(fn)) or any(_cleans(m) for m in _fix):
             continue
         out.append(n.lineno)
     return out
@@ -135,6 +141,29 @@ def _run_child(contained):
 
 
 class ATestRunLeavesNoScratchDirs(unittest.TestCase):
+
+    def test_an_unrelated_cleanup_in_the_class_does_not_pair_a_site(self):
+        """#243 - the finder walked the WHOLE class, so any cleanup anywhere in it paired every site: test_provenance's two
+        bare mkdtemp()s leaked 83 dirs a day behind an unrelated cleanup. Only the site's own function, or the class's
+        fixture methods (setUp / tearDown / ...Class), pair it."""
+        src = ("import tempfile, shutil, unittest\n"
+               "class T(unittest.TestCase):\n"
+               "    def test_a(self):\n"
+               "        d = tempfile.mkdtemp()\n"                      # line 4: leaks
+               "    def test_b(self):\n"
+               "        e = tempfile.mkdtemp()\n"
+               "        shutil.rmtree(e)\n"                            # its OWN cleanup, not test_a's
+               "class U(unittest.TestCase):\n"
+               "    def setUp(self):\n"
+               "        self.addCleanup(lambda: None)\n"
+               "    def test_c(self):\n"
+               "        f = tempfile.mkdtemp()\n")                     # line 12: paired by the fixture method
+        tmp = tempfile.mkdtemp(prefix="unpaired-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p = os.path.join(tmp, "t.py")
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(src)
+        self.assertEqual(unpaired_sites(p), [4], "a cleanup elsewhere in the class vouched for a leaking site")
 
     def test_premise_the_finder_finds_the_two_big_suites(self):
         found = set(os.path.basename(p) for p in _tests() if unpaired_sites(p))
@@ -212,6 +241,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#243 - any cleanup anywhere in a class pairs every site again (test_provenance leaked 83 dirs a day behind one)",
+        "file": "test_a_test_run_leaves_no_scratch_dirs.py",
+        "find": "        if (fn is not None and _cleans(fn)) or any(_cleans(m) for m in _fix):\n",
+        "replace": "        if (fn is not None and _cleans(fn)) or (cls is not None and _cleans(cls)):\n",
+        "matches": 1,
+    },
     {
         "why": "#171 - test_gate_cache makes its scratch dir before contain() again: that dir leaks on every run",
         "file": "test_gate_cache.py",

@@ -53,10 +53,21 @@ def _is_node(el):
 def argv_programs(src, where="<src>"):
     """-> [(where, line)] for every node call that hands its program over as a NON-literal argument after -e."""
     bad = []
+
+    def _elts(n):
+        # the #231 eye on v3507: a TUPLE, and a list built by concatenation ([NODE] + ["-e", js]), are the same argv
+        if isinstance(n, (ast.List, ast.Tuple)):
+            return list(n.elts)
+        if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Add):
+            a, b = _elts(n.left), _elts(n.right)
+            return None if a is None or b is None else a + b
+        return None
+    seen = set()
     for n in ast.walk(ast.parse(src)):
-        if not isinstance(n, ast.List) or not n.elts or not _is_node(n.elts[0]):
+        els = _elts(n)
+        if not els or not _is_node(els[0]) or id(els[0]) in seen:
             continue
-        els = n.elts
+        seen.add(id(els[0]))
         for i, e in enumerate(els[:-1]):
             if isinstance(e, ast.Constant) and e.value in ("-e", "--eval", "-p", "--print"):
                 nxt = els[i + 1]
@@ -77,8 +88,10 @@ class NoLawHandsNodeItsProgramOnArgv(unittest.TestCase):
             "def d(): return subprocess.run(['bash', '-e', '-c', 'true'])\n"                               # not node
             "def e(js): return subprocess.run([shutil.which('node'), '-e', js + ';'])\n"                   # 7 BAD
             "def f(p): return subprocess.run([_node(), '--eval', p])\n"                                   # 8 BAD
+            "def g(js): return subprocess.run((NODE, '-e', js))\n"                                        # 9 BAD
+            "def h(js): return subprocess.run([NODE] + ['-e', js])\n"                                     # 10 BAD
         )
-        self.assertEqual([ln for _, ln in argv_programs(src)], [3, 7, 8],
+        self.assertEqual(sorted(set(ln for _, ln in argv_programs(src))), [3, 7, 8, 9, 10],
                          "the scanner does not see exactly the node calls that pass a program on argv")
 
     def test_no_law_file_passes_node_a_program_on_argv(self):

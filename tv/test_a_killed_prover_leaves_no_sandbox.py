@@ -107,10 +107,13 @@ class AKilledProverLeavesNoSandbox(unittest.TestCase):
         legacy_new = mk("heart2.legacynew", age_h=1)
         other = mk("nothing-of-ours", age_h=72)
         gone = sorted(os.path.basename(p) for p, _ in H.sweep_stale_sandboxes(tmp=self.tmp))
-        self.assertEqual(gone, ["heart2.dead", "heart2.legacyold"], "the sweep took the wrong sandboxes: %s" % gone)
-        for d in (live, live_old, legacy_new, other):
+        # the #231 eye on v3507: a pid is REUSED, so an "alive" owner past a day is a number some other process now
+        # carries - no proof run lives a day, and keeping it would keep the copy forever
+        self.assertEqual(gone, ["heart2.dead", "heart2.legacyold", "heart2.liveold"],
+                         "the sweep took the wrong sandboxes: %s" % gone)
+        for d in (live, legacy_new, other):
             self.assertTrue(os.path.isdir(d), "the sweep removed %s - a live prover's, a fresh one, or not ours" % d)
-        for d in (dead, legacy_old):
+        for d in (dead, legacy_old, live_old):
             self.assertFalse(os.path.exists(d))
 
     def test_make_sandbox_registers_its_root_and_a_refused_copy_leaves_nothing(self):
@@ -153,6 +156,13 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "#231 on v3507 - a reused pid keeps a dead prover's sandbox forever: an 'alive' owner is never aged out",
+        "file": "heart2.py",
+        "find": "        if owner and _pid_alive(owner) and age < SANDBOX_STALE_S:\n",
+        "replace": "        if owner and _pid_alive(owner):\n",
+        "matches": 1,
+    },
+    {
         "why": "a signal kills the prover without removing its sandboxes - eleven repo copies piled up that way",
         "file": "heart2.py",
         "find": "    _remove_all_sandboxes()\n    os._exit(128 + int(signum))\n",
@@ -162,8 +172,8 @@ RED_PROOF = [
     {
         "why": "the sweep removes a sandbox whose owner is ALIVE - another prover's, mid-run",
         "file": "heart2.py",
-        "find": "            if _pid_alive(owner):\n                continue\n",
-        "replace": "            if False:\n                continue\n",
+        "find": "        if owner and _pid_alive(owner) and age < SANDBOX_STALE_S:\n            continue\n",
+        "replace": "",
         "matches": 1,
     },
     {

@@ -360,6 +360,11 @@ class TheRenderProfileIsTemporary(unittest.TestCase):
                 pass
         finally:
             _sp.Popen, _u.urlopen = real_popen, real_open
+            # #243 - the launch was stopped on purpose AFTER the profile was made, so no teardown ran: remove it here
+            _p = getattr(R, "_CHROME_PROFILE", None)
+            if _p and os.path.isdir(_p) and "render_check-profile-" in os.path.basename(_p):
+                shutil.rmtree(_p, True)
+                R._CHROME_PROFILE = None
 
         argv = seen.get("argv")
         self.assertTrue(argv, "_chrome_up never reached Popen, so nothing was measured")

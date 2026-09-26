@@ -359,6 +359,8 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
             blob = json.load(io.open(LH.PEAKS, encoding="utf-8"))
         finally:
             LH.PEAKS = was
+            import shutil
+            shutil.rmtree(d, True)       # #243 - 83 of these a day were left in his temp dir
         self.assertIn(PV.PROV_KEY, blob,
                       "the writer did not stamp what it produced: %s" % sorted(blob.keys()))
         self.assertEqual("ANSWERS", VP._verdict(blob)[0],
@@ -413,6 +415,8 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
                 _sys.modules.pop("provenance", None)
             else:
                 _sys.modules["provenance"] = mod
+            import shutil
+            shutil.rmtree(d, True)
         self.assertEqual([{"n": 9}], blob.get("rows"),
                          "the write was lost when the stamp could not be applied: %r" % blob)
         self.assertNotIn(PV.PROV_KEY, blob, "it claimed a provenance it could not compute")

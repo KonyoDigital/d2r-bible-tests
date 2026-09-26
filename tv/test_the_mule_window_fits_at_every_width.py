@@ -862,7 +862,12 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
             self.assertLess(m["k"], _measure()["1280x800"]["k"], "%s: the height did not set the unit" % key)
             for c in ("mp-set", "mp-eq", "mp-sstash", "mp-cp", "mp-prim", "mp-stats"):
                 if not m["panels"].get(c):
-                    continue            # the side stash exists only with the doll in front
+                    # the #231 eye on v3507: a missing panel was SKIPPED, so a doll or a stats panel that vanished
+                    # passed. Only the side stash may be absent, and only with the stash in front.
+                    if c == "mp-sstash" and key.startswith(("st ", "eqs ")):
+                        continue
+                    bad.append("%s %s is not on the page at all" % (key, c))
+                    continue
                 bottom = m["mpTop"] + m["panels"][c][1] + m["panels"][c][3]
                 if bottom > m["vh"] + 0.5:
                     bad.append("%s %s ends %.1fpx under the window's bottom" % (key, c, bottom - m["vh"]))

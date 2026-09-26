@@ -332,7 +332,13 @@ test.describe('v83 website synchronization audit', () => {
   });
 
   test('entity sync: the Annihilus stat line is unified to the canonical item card (no stale stat drift)', async ({ page }) => {
-    const html = fs.readFileSync(path.join(ROOT, 'bible.html'), 'utf8');
+    // #174 — the Character Builder's CB_DB block and the stats engine's CHAR_PROPS block are GENERATED from the game's
+    // own tables (tv/char_builder_db.py, tv/char_props.py): "all-stats" there is the game's PROPERTY CODE for +all
+    // attributes, not prose claiming Annihilus gives "all stats". This check polices hand-written text, so the two
+    // generated blocks are cut out before the windows are taken (each carries its own check against the install).
+    const html = fs.readFileSync(path.join(ROOT, 'bible.html'), 'utf8')
+      .replace(/<script type="application\/json" id="cb-db">[\s\S]*?<\/script>/, '')
+      .replace(/\/\* CHAR_PROPS:BEGIN \*\/[\s\S]*?\/\* CHAR_PROPS:END \*\//, '');
     // canonical loot card = ITEM_CODEX.Annihilus: +1 all skills · +10-20 all attr · +10-20 all res · +5-10% exp.
     // Scope each check to a window AROUND each "Annihilus" mention so we don't false-flag OTHER items
     // that legitimately carry "+1-2 all skills" (Arkaine's Valor, Atma's Wail).

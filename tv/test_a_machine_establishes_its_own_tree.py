@@ -17,6 +17,10 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #243 - this run's scratch dirs leave with it (the tightened #171 finder)
+_fx_tmp.contain()
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 # ⚠ unittest -v PRINTS THE FIRST DOCSTRING LINE, and these carry a warning sign. On a cp1255 console
 # that crashes WHILE REPORTING. The pre-push gate refused a file of mine for exactly this an hour ago.

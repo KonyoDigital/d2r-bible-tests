@@ -103,10 +103,41 @@ class NoHarnessLeavesItsScratch(unittest.TestCase):
         fresh = mk("render_check-profile-fresh", 0.1)
         other = mk("not-a-profile", 5)
         running = "/Applications/Google Chrome --headless=new --user-data-dir=%s about:blank\n" % held
-        gone = RC._sweep_dead_profiles(tmp=tmp, running=running)
-        self.assertEqual(gone, [dead], "the sweep removed %s, not only the dead run's old profile" % gone)
-        for p in (held, fresh, other):
+        # the #231 eye on v3507: a profile whose Chrome's own SingletonLock names a LIVE pid is kept even when the
+        # process list does not mention it; a dangling lock (a killed run) does not protect it
+        locked = mk("render_check-profile-locked", 5)
+        os.symlink("somehost-%d" % os.getpid(), os.path.join(locked, "SingletonLock"))
+        dangling = mk("render_check-profile-dangling", 5)
+        p0 = subprocess.Popen([sys.executable, "-c", "pass"]); p0.wait()
+        os.symlink("somehost-%d" % p0.pid, os.path.join(dangling, "SingletonLock"))
+        for d in (locked, dangling):
+            t = time.time() - 5 * 3600
+            os.utime(d, (t, t))
+        gone = sorted(RC._sweep_dead_profiles(tmp=tmp, running=running))
+        self.assertEqual(gone, sorted([dead, dangling]), "the sweep removed %s, not only the dead runs' old profiles" % gone)
+        for p in (held, fresh, other, locked):
             self.assertTrue(os.path.isdir(p), "the sweep removed %s - a live Chrome's, a fresh one, or not a profile" % p)
+
+    def test_an_unreadable_process_list_removes_nothing(self):
+        """the #231 eye on v3507: `ps` failing or answering nothing is UNKNOWN - read as "nobody holds anything" it would
+        delete every live profile an hour old"""
+        import render_check as RC
+        tmp = tempfile.mkdtemp(prefix="harnessleak-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p = os.path.join(tmp, "render_check-profile-live")
+        os.makedirs(p)
+        t = time.time() - 5 * 3600
+        os.utime(p, (t, t))
+        real = RC.subprocess.run
+        class _R(object):
+            returncode, stdout, stderr = 1, "", "ps: boom"
+        RC.subprocess.run = lambda *a, **k: _R()
+        try:
+            got = RC._sweep_dead_profiles(tmp=tmp)
+        finally:
+            RC.subprocess.run = real
+        self.assertIsNone(got, "an unreadable process list was answered as a list: %r" % (got,))
+        self.assertTrue(os.path.isdir(p), "an unreadable process list deleted a profile")
 
 
 if __name__ == "__main__":
@@ -114,6 +145,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#231 on v3507 - a failed or empty `ps` is read as 'nobody holds anything' and live profiles are deleted",
+        "file": "render_check.py",
+        "find": "        if _ps.returncode != 0 or not (_ps.stdout or \"\").strip():\n            return None\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#231 on v3507 - Chrome's own SingletonLock no longer protects a live profile the process list missed",
+        "file": "render_check.py",
+        "find": "        if _profile_locked_by_a_live_chrome(p):\n            continue",
+        "replace": "        if False:\n            continue",
+        "matches": 1,
+    },
     {
         "why": "disk_report_wilson's self-proof stops removing its throwaway histories: 1,890 diskrep_* a day again",
         "file": "disk_report_wilson.py",

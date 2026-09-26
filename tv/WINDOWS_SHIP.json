@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3507",
+  "ver": "v3508",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3507: 174 R1 - a mule opens with the doll and its inventory big in the centre and the stash small at the side, Stash swaps them; every law hands node its program on stdin; the console self-proofs stop leaving scratch dirs",
+  "note": "v3508: 174 R2 - the Character Builder STATS ends inside the window and scrolls its own rows. HEART: a CSS layout rule with no runtime state - its watcher is the builder fit law, which measures the STATS bottom on the glass at every column width and goes red without it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

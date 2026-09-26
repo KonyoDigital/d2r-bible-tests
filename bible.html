@@ -6067,7 +6067,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
        ledger ("the mules are mules and continue to be so"); a build starts from one of his characters (class + level)
        or from + New build, and every item comes from the game's own tables. A launcher, so a signpost: it keeps the
        room's look without the .boss-card class the collapse-parity gate counts (see v2106 above). -->
-  <div class="tools-signpost tool-premium" id="char-builder-card" style="--tc:#c7b377">
+  <div class="tools-signpost tool-premium" id="char-builder-card" style="--tc:var(--q-unique)">
     <div class="boss-header" role="button" tabindex="0" onclick="window.openCharBuilder &amp;&amp; window.openCharBuilder()"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="open the Character Builder">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/hd_crown.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(199,179,119,.5))"></span>
@@ -51086,6 +51086,12 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-notes textarea:focus{outline:none;border-color:var(--gold)}
 /* RIGHT — STATS from the stats engine, every number with its source; UNKNOWN when there is no engine */
 .cb-stats{grid-area:stats;display:flex;flex-direction:column;min-height:calc(726*var(--u))}
+/* #174 R2 — STATS ENDS AT THE WINDOW'S BOTTOM AND SCROLLS INSIDE ITSELF, as the mule window's already does. The Grok seat
+   on R1 (2000x1300): "the stats column is cut off at the bottom edge, rows from Energy down are sliced". It was a
+   726-unit floor that grew with its rows, so the builder's whole window scrolled to reach them. In columns it is now the
+   window's height less its top padding (14u), the header row (46u) and the gap under it (6u) and a 30px breath - its
+   own list scrolls; stacked on a phone it keeps its natural height. */
+.cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}
 .cb-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .cb-seg button{flex:1;height:calc(32*var(--u));min-height:26px;border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);font-weight:var(--fw-medium);cursor:pointer}
 .cb-seg button.cb-on{background:var(--gold-bright);color:#1a1208}
@@ -54627,7 +54633,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3507', name:'v3507 - the character in front', date:'2026-09-26', note:'174 R1 - a mule opens with the doll and its inventory big in the centre and the stash small at the side, Stash swaps them; every law hands node its program on stdin; the console self-proofs stop leaving scratch dirs' };
+  window.D2R_BUILD = { id:'v3508', name:'v3508 - stats on the glass', date:'2026-09-26', note:'174 R2 - the Character Builder STATS ends inside the window and scrolls its own rows. HEART: a CSS layout rule with no runtime state - its watcher is the builder fit law, which measures the STATS bottom on the glass at every column width and goes red without it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

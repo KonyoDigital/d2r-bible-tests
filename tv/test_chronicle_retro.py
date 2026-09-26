@@ -150,7 +150,8 @@ class TestReadReel(unittest.TestCase):
             self.assertEqual(p["reel"], "s_test")
 
     def test_a_missing_index_returns_evidence_of_nothing_not_a_crash(self):
-        r = cr.read_reel(tempfile.mkdtemp(), lambda p: "chronicle-uniques", lambda p, k: {})
+        with tempfile.TemporaryDirectory(prefix="chron_retro_") as _d:   # #243 - the bare mkdtemp() was left behind every run
+            r = cr.read_reel(_d, lambda p: "chronicle-uniques", lambda p, k: {})
         self.assertEqual(r["pages"], [])
         self.assertEqual(r["note"], "no-index")
 

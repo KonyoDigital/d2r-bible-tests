@@ -328,7 +328,8 @@ class TestBankingCannotOpenALockByBeingLookedAt(unittest.TestCase):
 
     def setUp(self):
         import tempfile
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = tempfile.mkdtemp(prefix="sa_ledger_")
+        self.addCleanup(shutil.rmtree, self.tmp, True)     # #243 - 18 of these a day were left behind
         self.led = os.path.join(self.tmp, "ledger.jsonl")
         os.environ["TV_SELF_ARMING_LEDGER"] = self.led
         self.addCleanup(os.environ.pop, "TV_SELF_ARMING_LEDGER", None)

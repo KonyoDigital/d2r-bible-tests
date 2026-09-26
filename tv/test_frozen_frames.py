@@ -40,6 +40,10 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #243 - this run's scratch dirs leave with it (the tightened #171 finder)
+_fx_tmp.contain()
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()

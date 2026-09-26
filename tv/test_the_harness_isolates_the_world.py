@@ -49,6 +49,10 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #243 - this run's scratch dirs leave with it (the tightened #171 finder)
+_fx_tmp.contain()
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 

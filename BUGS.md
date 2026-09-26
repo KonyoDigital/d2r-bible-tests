@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1312 - v3507'S CI REDS AND THE SECOND EYE'S FINDINGS, ANSWERED ONE BY ONE
+
+**fix - CI on v3507 (4fc947e1) and the #231 eye's full-diff look (120k chars through the file route, 7 findings).**
+CI: (1) `v1628_no_literal_quality_hex` - the builder's Tools card carried `--tc:#c7b377`, the unique gold as a literal;
+it is `var(--q-unique)` now. (2) `v83_sync_audit` - its "Annihilus" windows scanned the GENERATED CB_DB / CHAR_PROPS
+blocks, where `all-stats` is the game's property code for +all attributes, and read it as prose claiming "all stats";
+the spec cuts the two generated blocks out first (each has its own check against the install). (3) `v877_rinse` status
+latency - ONE sample a second after the previous test loaded the console + a 7.3 MB board on a 2-core runner: 715 ms
+on v3506, 1501 ms on v3507. MEASURED on the Mac, back to back: v3504 and v3508 identical (loaded: median 312 / 423 ms;
+quiet: median 6 / 5 ms, max 155 / 83), and the two new doctor rows cost 0.02 s each without an install - the runner's
+load, not the status path. The law is now the MEDIAN of seven samples, still < 500 ms (a status doing real work raises
+every sample). (4) CI's utf8 law: render_check's `ps` read in the locale encoding - it reads UTF-8 now.
+THE EYE: #1 a reused pid kept a dead prover's sandbox forever - past a day a sandbox is stale whoever its owner file
+names (no proof run lives a day). #2 a failed or empty `ps` would have been read as "nobody holds any profile" and
+deleted a LIVE one - it is UNKNOWN now (nothing removed), `ps -axww` so no command line is cut, and Chrome's own
+SingletonLock with a live pid protects a profile. #4 the console fit law SKIPPED a missing panel - only the side stash
+may be absent, and only with the stash in front. #5 the argv law missed tuples and concatenated lists - it reads both.
+#3 REFUTED: `--du` is set on the .mp root (`.mp{--du:calc(1*var(--u))}`), not only inline - the fit law measures the
+side stash at their 400. #6 covered by #1. Each fix carries a law case and a red-proof. [[review-after-ship]]
+
+### REG-1311 - THE CHARACTER BUILDER'S STATS RAN OFF THE BOTTOM OF THE WINDOW
+
+**fix - the Grok seat's cold look at R1 (v3507), 2026-09-26:** "the stats column is cut off at the bottom edge. Attribute
+rows from Energy downward are sliced". MEASURED with the fix removed: at 2000x1300 STATS ended 493.8px past the window's
+bottom - a 726-unit floor that grew with its ~60 rows, so the builder's whole window had to scroll to reach them. In
+columns STATS is now the window's height less the header row and paddings, and its own list scrolls (the mule window's
+STATS already worked this way); stacked on a phone it keeps its natural height. Law: the builder fit law measures STATS'
+bottom against the glass and its list's overflow at every column width, and goes red without the fix (hand-sabotaged).
+Also in this round: render_check's launch sweep answered `[]` when it could not read the process list - a failed read
+handed back as data, which CI's swallow ratchet (Routine M) caught on v3507; it now answers None (UNKNOWN) and removes
+nothing. [[unknown-stays-unknown]]
+
 ### REG-1310 - THE CONSOLE'S OWN SELF-PROOFS MINTED THOUSANDS OF SCRATCH DIRS A DAY ON EVERY MACHINE
 
 **fix - found 2026-09-26 05:20 by sweeping for siblings of REG-1309.** #171 closed the leak in the TEST files; the

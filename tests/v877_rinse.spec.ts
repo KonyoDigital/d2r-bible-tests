@@ -271,9 +271,21 @@ test.describe('v877 RINSE (self-hosted console)', () => {
   });
 
   test('status latency budget: cached /api/status answers <500ms', async () => {
-    const t0 = Date.now();
-    const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
-    expect(r.ok).toBe(true);
-    expect(Date.now() - t0).toBeLessThan(500);   // v872 pure-memory status — the STANDBY fix stays fixed
+    /* v872 pure-memory status — the STANDBY fix stays fixed. #174 (2026-09-26): ONE sample, taken a second after the
+       previous test loaded the whole console + a 7.3 MB board on a 2-core runner, measured the RUNNER: 715 ms on
+       v3506, 1501 ms on v3507, while the same code measured 5-6 ms median (max 83-155) on a quiet Mac and ~300-400 ms
+       median on the same Mac under load - v3504 and v3508 identical in a back-to-back A/B. A status that does real
+       work on every call raises EVERY sample, so the law is the MEDIAN of seven, still under 500 ms; one CPU spike
+       from the page next door is not a regression of the status path. [[regression-guard]] (a sample is not a verdict) */
+    const ms: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      const t0 = Date.now();
+      const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
+      expect(r.ok).toBe(true);
+      ms.push(Date.now() - t0);
+      await new Promise(res => setTimeout(res, 150));
+    }
+    ms.sort((a, b) => a - b);
+    expect(ms[3], `median of 7 /api/status calls: ${ms.join(', ')} ms`).toBeLessThan(500);
   });
 });

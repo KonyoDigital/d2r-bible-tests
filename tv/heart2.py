@@ -759,18 +759,21 @@ def sweep_stale_sandboxes(tmp=None, now=None):
                 owner = f.read().strip()
         except OSError:
             pass
-        if owner:
-            if _pid_alive(owner):
-                continue
+        try:
+            age = now - os.path.getmtime(root)
+        except OSError:
+            continue
+        # the #231 eye on v3507: a pid is REUSED - an owner that died without its signal handler (SIGKILL) leaves a
+        # number some unrelated long-lived process may carry next, and "alive" would keep the copy forever. No proof
+        # run lives a day, so past SANDBOX_STALE_S a sandbox is stale whoever its owner file names.
+        if owner and _pid_alive(owner) and age < SANDBOX_STALE_S:
+            continue
+        if owner and age < SANDBOX_STALE_S:
             why = "its owner (pid %s) is dead" % owner
+        elif age >= SANDBOX_STALE_S:
+            why = "%.0f h old - no proof run lives that long%s" % (age / 3600.0, (" (owner pid %s)" % owner) if owner else "")
         else:
-            try:
-                age = now - os.path.getmtime(root)
-            except OSError:
-                continue
-            if age < SANDBOX_STALE_S:
-                continue
-            why = "no owner on record and %.0f h old" % (age / 3600.0)
+            continue
         shutil.rmtree(root, ignore_errors=True)
         if not os.path.exists(root):
             gone.append((root, why))

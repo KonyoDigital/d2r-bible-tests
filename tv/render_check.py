@@ -2751,6 +2751,23 @@ _CHROME_PROC = None          # set ONLY when this process spawned it — see _ch
 _CHROME_PROFILE = None       # the temp profile this process made, removed with the browser
 
 
+def _profile_locked_by_a_live_chrome(p):
+    """Chrome keeps a `SingletonLock` symlink in its --user-data-dir ("<host>-<pid>") while it runs. A lock whose pid is
+    alive means a live browser holds the profile; a dangling one (a killed run) does not."""
+    try:
+        target = os.readlink(os.path.join(p, "SingletonLock"))
+    except OSError:
+        return False
+    try:
+        pid = int(str(target).rsplit("-", 1)[-1])
+        os.kill(pid, 0)
+        return True
+    except PermissionError:
+        return True
+    except (ValueError, OSError):
+        return False
+
+
 def _sweep_dead_profiles(tmp=None, now=None, running=None):
     """2026-09-26 — A KILLED RUN'S PROFILE OUTLIVES IT. _chrome_down removes the profile in its finally and at exit, and a
     process killed by a signal (the gate's bound, a perl alarm) runs neither: MEASURED 36 render_check-profile-* dirs in
@@ -2759,10 +2776,16 @@ def _sweep_dead_profiles(tmp=None, now=None, running=None):
     tmp = tmp or tempfile.gettempdir()
     now = time.time() if now is None else now
     if running is None:
+        # the #231 eye on v3507: a failed or cut `ps` read as "nobody holds any profile" would delete a LIVE one. -ww so
+        # no command line is truncated before its --user-data-dir; a non-zero exit or an empty list is UNKNOWN.
         try:
-            running = subprocess.run(["ps", "-axo", "command"], capture_output=True, text=True, timeout=10).stdout
+            _ps = subprocess.run(["ps", "-axww", "-o", "command"], capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=10)
         except Exception:
-            return []                    # cannot tell who holds what: remove nothing
+            return None                  # cannot tell who holds what: UNKNOWN, and nothing is removed
+        if _ps.returncode != 0 or not (_ps.stdout or "").strip():
+            return None
+        running = _ps.stdout
     gone = []
     try:
         names = os.listdir(tmp)
@@ -2777,6 +2800,8 @@ def _sweep_dead_profiles(tmp=None, now=None, running=None):
                 continue
         except OSError:
             continue
+        if _profile_locked_by_a_live_chrome(p):
+            continue                     # Chrome's own SingletonLock names a pid that is still running
         shutil.rmtree(p, ignore_errors=True)
         if not os.path.exists(p):
             gone.append(p)
