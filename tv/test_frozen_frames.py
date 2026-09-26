@@ -272,6 +272,43 @@ class FrozenFramesReadsThePixelsAndTheBytes(unittest.TestCase):
         self.assertEqual(rep["frozen"]["state"], FF.MOVING, rep["frozen"]["why"])
 
     # ── a zero needs a denominator ───────────────────────────────────────────────────────────────
+    def test_an_icloud_placeholder_is_counted_and_never_read(self):
+        """#30 (REG-1316's sibling, 2026-09-26): the shelf can be the iCloud-synced Desktop, where a read of a `dataless`
+        file is a download that blocks (12,488 of 12,689 PNGs there were placeholders). DRIVEN through the real stat
+        call: the newest of four real captures carries SF_DATALESS; the scan never OPENS it, counts it, and says so"""
+        paths = [self.shelf.put(self.painted, NOW - (3 - i) * 60) for i in range(4)]
+        evicted = os.path.abspath(paths[-1])
+        real_stat, opened = FF.os.stat, []
+
+        class _Evicted(object):
+            def __init__(self, st):
+                self._st = st
+
+            def __getattr__(self, k):
+                return getattr(self._st, k)
+
+            @property
+            def st_flags(self):
+                return getattr(self._st, "st_flags", 0) | 0x40000000
+
+        def _stat(path, *a, **k):
+            st = real_stat(path, *a, **k)
+            return _Evicted(st) if os.path.abspath(str(path)) == evicted else st
+
+        def _open(path, *a, **k):
+            opened.append(os.path.abspath(str(path)))
+            return open(path, *a, **k)
+        FF.os.stat, FF.open = _stat, _open
+        try:
+            rep = FF.scan(self.shelf.dir, newest=16, decode=4, now=NOW)
+        finally:
+            FF.os.stat = real_stat
+            del FF.open
+        self.assertGreater(len(opened), 0, "PREMISE: the scan read no capture at all, so its silence proves nothing")
+        self.assertNotIn(evicted, opened, "the scan READ an iCloud placeholder - on his Mac that read is a download that blocks")
+        self.assertEqual((rep.get("dataless"), rep["examined"]), (1, 3), "the placeholder is not counted apart: %s" % rep)
+        self.assertTrue(any("iCloud placeholder" in w for w in rep["why"]), "the scan does not say a capture went unread: %s" % rep["why"])
+
     def test_an_empty_directory_is_unknown_and_never_moving(self):
         rep = FF.scan(self.shelf.dir, now=NOW)
         self.assertEqual(rep["captures"], 0)
@@ -471,6 +508,20 @@ class FrozenFramesReadsThePixelsAndTheBytes(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#30 - the scan hashes an iCloud placeholder again: each read is a download and the scan stalls",
+        "file": "frozen_frames.py",
+        "find": "        e[\"sha\"] = None if e.get(\"dataless\") else sha_of(e[\"path\"])\n",
+        "replace": "        e[\"sha\"] = sha_of(e[\"path\"])\n",
+        "matches": 1,
+    },
+    {
+        "why": "#30 - captures() stops marking placeholders, so every one is read",
+        "file": "frozen_frames.py",
+        "find": "                    \"dataless\": bool(getattr(st, \"st_flags\", 0) & _dl)})",
+        "replace": "                    \"dataless\": False})",
+        "matches": 1,
+    },
     {
         'why': 'deleting the titlebar crop: his white-blank window has a light titlebar with a full-width bright border, and paint_witness only skips its own CHROME_TOP_PX (36) which these 2x captures dwarf. Measured on his real capture, uncropped: modalShare 0.9199 against a 0.98 bar, p99 255 and brightShare 0.9199 — so the one-colour test misses it AND the ink test structurally cannot fire on white. Without this line a confirmed-blank console reads PAINTED, which is the whole defect #34 exists for',
         'file': 'frozen_frames.py',

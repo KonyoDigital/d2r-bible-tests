@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1322 - REG-1316'S SIBLING: FROZEN_FRAMES WOULD HAVE HASHED AN iCLOUD PLACEHOLDER ON THE SAME SHELF
+
+**fix - found 2026-09-26 13:40 while triaging the #231 eye's v3511 look (sweep, not report).** frozen_frames.scan()
+resolves the same shelf as the frozen-screen watch (today the iCloud-synced Desktop evidence root) and hashes the
+newest captures with its own reader. Latent, measured: its listing is top-level only and that root holds 767 pack
+folders and 0 loose images, so nothing was read today - but a loose PNG there would be read, and a read of a
+placeholder is a download that blocks. captures() now marks a placeholder from the stat it already takes (the flag's
+value from frozen_frame_watch.SF_DATALESS), scan() never hashes or decodes one, counts it (`dataless`) and says so.
+Law test_frozen_frames: a real capture made a placeholder through the real stat call is never opened, is counted, and
+the scan examines the other three; 2 red-proofs; heart2 --prove all PROVEN. [[sweep-dont-ask]] [[copy-drift]]
+
 ### REG-1321 - #174 ROUND 5: THE "ADDED" MESSAGE READ EVERY ROLL AS A NUMERIC RANGE
 
 **fix - the #231 eye (grok-4.7, 37,554 chars) on v3510.** Round 2's message asked for a roll whenever `r[0] !== r[1]`,

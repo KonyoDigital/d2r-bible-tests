@@ -568,6 +568,14 @@ def captures(directory):
     except Exception as e:
         return None, "the capture directory could not be listed (%s: %s)" % (type(e).__name__, e)
     out = []
+    # ⚠ 2026-09-26 (#30, REG-1316's sibling) — A PLACEHOLDER IS MARKED, NEVER READ. The shelf can be the iCloud-synced
+    # Desktop, and a read of a `dataless` file is a download that blocks. The flag comes from the stat already taken
+    # here; its value from ONE place, frozen_frame_watch.SF_DATALESS. [[copy-drift]]
+    try:
+        import frozen_frame_watch as _ffw
+        _dl = _ffw.SF_DATALESS
+    except Exception:
+        _dl = 0x40000000                          # macOS sys/stat.h SF_DATALESS - the watch would not import
     for n in sorted(names):
         if not n.lower().endswith(CAPTURE_EXTS):
             continue
@@ -578,7 +586,8 @@ def captures(directory):
             continue                              # vanished between listdir and stat
         if not os.path.isfile(p):
             continue
-        out.append({"name": n, "path": p, "mtime": st.st_mtime, "size": st.st_size})
+        out.append({"name": n, "path": p, "mtime": st.st_mtime, "size": st.st_size,
+                    "dataless": bool(getattr(st, "st_flags", 0) & _dl)})
     out.sort(key=lambda e: (e["mtime"], e["name"]))
     return out, ""
 
@@ -664,9 +673,14 @@ def scan(directory, newest=NEWEST_HASHED, decode=NEWEST_DECODED, now=None):
 
     window = entries[-int(newest):] if newest and newest > 0 else list(entries)
     for e in window:
-        e["sha"] = sha_of(e["path"])
+        e["sha"] = None if e.get("dataless") else sha_of(e["path"])
     read = [e for e in window if e.get("sha")]
     rep["examined"] = len(read)
+    rep["dataless"] = sum(1 for e in window if e.get("dataless"))
+    if rep["dataless"]:
+        rep["why"].append("%d of the %d newest capture(s) are iCloud placeholders whose bytes are not on this disk - NOT "
+                          "read (a read downloads each one and stalls the scan), so they are not in this verdict"
+                          % (rep["dataless"], len(window)))
 
     # ⚠⚠ A ZERO NEEDS A DENOMINATOR. "0 frozen" over 0 captures examined is a broken reader, and it
     # is the single most convincing wrong answer this module could give — it looks exactly like a
