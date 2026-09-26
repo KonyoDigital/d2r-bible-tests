@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1330 - THE MULE WRITER CALLED THE VAULT'S DOOR AND IGNORED ITS REFUSAL (#174 v-B4 x #246, integration)
+
+**SEEN (review:chain, reproduced with Gore Rider):** a MAIN-locked item picked in the mule window landed on the mule's
+doll with no filing behind it - `_mpEqWrite` called `window.vaultFile`, got "locked", and dropped the answer in an empty
+catch. The new whole-database Select tab writes through the same writer, so the join widened the hole. **FIX:**
+`_mpEqPlace` asks `_laneLockWhy` first (an import is exempt: a .d2s of a mule is what that save carries) and refuses
+with the source that holds the lock; the builder's pick path now stays on the list when the host refuses (it had
+flipped to an Edit of nothing and returned true). **LAW:** `test_the_mule_picker_offers_the_whole_database` (both
+tabs refused and said, a free item still lands with his hand; 2 new red-proofs, 15/15 PROVEN).
+
+### REG-1329 - 172 MULE FILINGS, STRICTLY NONE VAULTED: THE SORTER FILED FOUND-EVER (#246)
+
+**SEEN:** his vault held 172 mule filings. Forensics (6 agents + 2 skeptics, on a copy of his store): every one was
+written by `window.vaultAutoAssign` walking `ownedPool()` (= d2r_owned, ticked or found-ever) with no witness - 21 at
+2026-09-16 15:28 (a ledger restore turned set pieces into owned) and 152 at 20:12 (owned_restore + vault_autosort),
+re-creating the 2026-08-28 v2193 false vault. The witnessed lane could not land its own rows (sweep rows carried no
+`loc`), and a frameless conf-0.0 look counted as Magefist's second witness. **FIX (Vault 2.0 wiring):** the refill is
+cut (six triggers), ONE door `window.vaultFile(name, witness)` refuses no-witness / locked / malformed and writes a
+`d2r_vaultProv` row, the witnessed lane files its own rows, a look counts only with its own frame and conf over the
+floor, the MAIN lock is one predicate (lane lock, furniture law, MAIN ledger), tags read the provenance, a doctor row
+counts unwitnessed filings. Proven on his store copy: every refill trigger fired, the map did not move. **LAWS:** nine
+new (L1 L3 L6 L7 L8 L10 L11 L12 + the doctor row), all PROVEN. The fresh-vault reset is a separate, backed-up act.
+
+### REG-1328 - THE TOOLTIP IGNORED HEL'S -20%, OHM'S +50% ED AND SOL'S +9 MIN DAMAGE (#174 v-B4)
+
+**SEEN:** Breath of the Dying on a Crowbill printed Required Strength 94 / Dexterity 70 (the game: 76 / 56); Call to
+Arms on a Berserker Axe (72-81) to (213-241) (the game: (84-93) to (248-276)); Insight on a Hydra Bow min (30-36)
+(the game: (39-45)). A socketed rune's lines were listed apart and never joined into requirements or damage. **FIX:**
+one joined line list (item + every socket by its class), merged by template, ordered by descpriority/descfunc/stat id,
+requirements `base + trunc(base*pct/100)`, the game's stat groups (dgrp), the speed band from animdata frames. **LAW:**
+`test_the_tooltip_is_the_games_tooltip` - their text on 203 measured rows, 142 identical, 61 differing only in three
+declared, asserted places.
+
+### REG-1327 - HIS ALT SAW NO ITEMS IN ANY MULE SLOT: THE PICKER LISTED THE LOCKER ALONE (#174 v-B4, #37)
+
+**SEEN (his ALT, v3514, reproduced ON the ALT's own Edge over SSH with a copy of its store):** "BODY ARMOR - 0 of 0
+fit - Nothing in UNI-ARMOR fits the body armor slot" on every slot of every mule. That PC's store had no mule filings,
+and the mule picker listed only the locker's routed items - on the Mac those were the 172 false filings. **FIX:** ONE
+picker, two hosts - a mule slot opens the Character Builder's picker over the whole database (CB_DB is on every PC's
+page), with In this locker as its first tab when the locker has something; a pick lands on that mule as his manual
+placement and never touches a build. **LAW:** `test_the_mule_picker_offers_the_whole_database`.
+
 ### REG-1326 - THE GATE SET BLAMED HIS CONSOLE'S OCR WORKER FOR A LEAK OF ITS OWN RUN (#31)
 
 **SEEN:** the v3514 gate run ended with "THIS RUN LEFT 1 PROCESS RUNNING" and named one pid: the OCR worker of his
