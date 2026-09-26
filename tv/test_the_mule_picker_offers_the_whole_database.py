@@ -387,6 +387,16 @@ class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
         self.assertIsNone(out["host"], "the builder opened still pointed at the mule host")
         self.assertFalse(out["hostOn"])
 
+    def test_a_runeword_draws_its_base_and_a_unique_its_own_art(self):
+        """#248 (his screenshot 2026-09-27): Last Wish on a Thunder Maul drew a sword - the art name was the runeword's."""
+        out = _drive("""
+          var d = window._cbDb(), tm = null; Object.keys(d.b).forEach(function(c){ if (d.b[c][0] === 'Thunder Maul') tm = c; });
+          out.tm = tm; out.rw = window._cbArtName({ id: itemId('Last Wish', 'r'), base: tm, name: 'Last Wish' });
+          out.uni = window._cbArtName({ id: itemId('Windforce', 'u'), base: 'x', name: 'Windforce' });""")
+        self.assertTrue(out["tm"], "the fixture found no Thunder Maul base in CB_DB")
+        self.assertEqual(out["rw"], "Thunder Maul", "a runeword on a Thunder Maul does not draw the Thunder Maul")
+        self.assertEqual(out["uni"], "Windforce", "a unique lost its own art")
+
     def test_a_locked_name_from_the_locker_list_is_refused_too(self):
         out = _drive(self.LOCK + """
           window.openMuleCard('uni-armor'); window._mpPick('head'); window._cbPickTab('locker');
@@ -401,6 +411,13 @@ class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#248 - a runeword draws its own name's art again (Last Wish on a Thunder Maul: a sword)",
+        "file": "bible.html",
+        "find": "    var it = e && _cbItem(e.id), own = !!(it && (it[2] === 'u' || it[2] === 's'));\n",
+        "replace": "    var it = e && _cbItem(e.id), own = !!(it && it[2] !== 'b' && it[2] !== 'm');\n",
+        "matches": 1,
+    },
     {
         "why": "#231 on 28a82cd2 - the builder opens over an open mule picker: two #cb-modal, its picks drawn into the mule's",
         "file": "bible.html",

@@ -41671,7 +41671,7 @@ window.vaultAutoAssign = function(){
       return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+(_mpPickAt && _mpPickAt.slot === s[0] ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
         + ' data-fk="slot-'+s[0]+'" onclick="window._mpPick(\''+s[0]+'\')" oncontextmenu="return window._mpCtx(event,\''+s[0]+'\')" onkeydown="window._mpSlotKey(event,\''+s[0]+'\')"'
         + (e ? '' : ' title="'+esc(say)+'"') + ' aria-label="'+esc(say)+'">'
-        + (e ? art(e.name, s[1], 'lg') : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'
+        + (e ? art((e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name, s[1], 'lg') : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'   /* #248: a database pick draws its base */
         + (e ? '<button type="button" class="mp-unq" data-fk="unq-'+s[0]+'" style="left:'+D(s[3] + s[5] - 11)+';top:'+D(s[4])+'"'
              + ' onclick="window._mpUnequip(\''+s[0]+'\')" title="unequip '+esc(e.name)+' (right-click the slot does the same)"'
              + ' aria-label="unequip the '+s[2]+'">✕</button>' : '');
@@ -53657,7 +53657,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     try { if (typeof artOr === 'function') return artOr(name, fb, size || 'lg'); } catch (e) {}
     return '<span class="d2art-wrap ' + (size || 'lg') + ' d2art-failed"><span class="d2art-fallback">' + fb + '</span></span>';
   }
-  function _cbArtFor(e){ var it = _cbItem(e.id); var nm = (it && it[2] !== 'b' && it[2] !== 'm') ? it[1] : ((_cbBase(e.base) || [e.name])[0]); return _cbArt(nm); }
+  /* #248 (his screenshot 2026-09-27: "Last Wish Thunder Maul" drew a SWORD) - the picture is the BASE's for everything the
+     game draws as its base: a runeword, a crafted, magic or rare item, a plain base. Only a unique or a set item has a
+     graphic of its own. The name picked here is the one artOr looks up; the mule doll asks the same function. */
+  function _cbArtName(e){
+    var it = e && _cbItem(e.id), own = !!(it && (it[2] === 'u' || it[2] === 's'));
+    if (own) return it[1];
+    var b = e && _cbBase(e.base);
+    return b ? b[0] : (it ? it[1] : (e && e.name) || '?');
+  }
+  window._cbArtName = _cbArtName;
+  function _cbArtFor(e){ return _cbArt(_cbArtName(e)); }
   function _cbClsIx(name){ var d = _cbDb(); if (!d || !name) return -1; var i = d.clsByName[String(name).toLowerCase()]; return i == null ? -1 : i; }
   function _cbWin(){ return document.getElementById('cb-win'); }
 
