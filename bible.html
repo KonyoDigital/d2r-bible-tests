@@ -30343,6 +30343,11 @@ try {
   var _SC = {"Small Charm of Good Luck (7% MF)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["7% Better Chance of Getting Magic Items"],"note":"Max-roll MF small charm (6-7% via 'of Good Luck'). MF builds stack these — a staple keeper, always muled."},"Shimmering Small Charm (5% All Res)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5"],"note":"Max all-res small charm (3-5% via 'Shimmering'). Caps resistances cheaply in tiny slots — high demand."},"Small Charm of Vita (20 Life)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["+20 to Life"],"note":"Max life small charm (16-20 via 'of Vita'). Flat life in 1x1 — every build wants these."},"Small Charm of Balance (5% FHR)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["+5% Faster Hit Recovery"],"note":"5% Faster Hit Recovery small charm ('of Balance') — used to hit FHR breakpoints. Niche but valuable."},"Shimmering Small Charm of Good Luck (5 res + 7 MF)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","7% Better Chance of Getting Magic Items"],"note":"OP perfect dual-roll: +5 all res AND 7% MF in one 1x1 charm. Top-tier trade value — never throw out."},"Shimmering Small Charm of Vita (5 res + 20 life)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","+20 to Life"],"note":"OP perfect dual-roll: +5 all res AND +20 life. Best survivability small charm — top trade value."},"Shimmering Small Charm of Balance (5 res + 5 FHR)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","+5% Faster Hit Recovery"],"note":"OP perfect dual-roll: +5 all res AND 5% FHR. Res + a breakpoint in one slot."},"Sapphire Small Charm (11% Cold Res)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["Cold Resist +11%"],"note":"Max single-resist small charm (10-11%). Single-element patch for a specific gap; the all-res 'Shimmering' is usually preferred."}};
   if (typeof EXTRA_ITEMS !== 'undefined') Object.assign(EXTRA_ITEMS, _SC);
   if (typeof D2IO_ART !== 'undefined'){ D2IO_ART['Small Charm'] = 'art/hd_charm_small.png';
+    /* #174 round 7 (2026-09-26): the builder's Edit tile for a Large / Grand Charm printed its NAME in a box - the
+       sprites were here (hd_charm_medium 91x169 = the 1x2 Large Charm, hd_charm_large 94x285 = the 1x3 Grand
+       Charm, measured) and only Small Charm was ever registered by its base name. Exact base names only: the
+       Sunder charms keep their own art (see the v944.8 note below) */
+    D2IO_ART['Large Charm'] = 'art/hd_charm_medium.png'; D2IO_ART['Grand Charm'] = 'art/hd_charm_large.png';
     for (var _sck in _SC){ if(Object.prototype.hasOwnProperty.call(_SC,_sck)) D2IO_ART[_sck] = 'art/hd_charm_small.png'; } }
   // register the new keys so findExtraItem / search / card render find them (the const Set was built earlier)
   try { if (typeof _EXTRA_ITEM_SET !== 'undefined' && typeof _norm === 'function')
@@ -52368,6 +52373,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         } else { W = Math.min(800 * L.u, vw - 16); left = (vw - W) / 2; }
       }
     } else { left = (vw - W) / 2; top = clamp((vh - H) / 2, 8, vh - H - 8); }
+    /* #174 round 7 (2026-09-26) — THEIR STATS STAY IN VIEW WHILE YOU PICK AND EDIT (spec: "the STATS column updates
+       immediately"). An inventory cell's picker has too little room either side at 1120-1280, fell back to the PAGE
+       centre at full width, and covered STATS' left edge by 25-28px (measured; a slot's picker never did). Any pick
+       now stays left of STATS; the Stash list is not an edit and keeps its own centring */
+    if (st.pick){
+      var _sc = document.querySelector('#cb-win .cb-stats');
+      if (_sc){
+        var _sl = _sc.getBoundingClientRect().left - 8;
+        if (left + W > _sl){ left = Math.max(8, _sl - W); if (left + W > _sl) W = Math.max(360, _sl - left); }
+      }
+    }
     top = clamp(top, 8, Math.max(8, vh - H - 8));
     H = Math.min(H, vh - top - 8);
     m.style.left = Math.round(left) + 'px'; m.style.top = Math.round(top) + 'px';

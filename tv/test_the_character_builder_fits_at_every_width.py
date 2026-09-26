@@ -105,6 +105,7 @@ MEASURE = r"""(function(){ try {
     doll: rel(d.getElementById('cb-doll')), invRect: rel(d.getElementById('cb-inv')),
     invInMain: !!(d.getElementById('cb-inv') && d.getElementById('cb-inv').closest('.cb-main')) };
   out.cols.left = rel(box.querySelector('.cb-left')); out.cols.main = rel(box.querySelector('.cb-main')); out.cols.stats = rel(box.querySelector('.cb-stats'));
+  var _sa = box.querySelector('.cb-stats'); out.statsLeftAbs = _sa ? _sa.getBoundingClientRect().left : null;  // #174 round 7: the VIEWPORT frame the modal rect is in
   /* #174 R2 — where STATS ends on the glass (at the window's scroll 0) and whether its own list scrolls */
   var _sp = box.querySelector('.cb-stats'), _sl = box.querySelector('.cb-st');
   out.statsBottom = _sp ? _sp.getBoundingClientRect().bottom : null; out.vh = vh;
@@ -422,6 +423,10 @@ def _measure():
                 if state.endswith("addmod"):
                     res["fit %s %dx%d" % (state, w, h)] = json.loads(t.ev(FIT))
                 if state.startswith("gc"):
+                    # #174 round 7 - the charm's Edit tile draws its in-game art, not its name in a box
+                    res["gcart %s %dx%d" % (state, w, h)] = json.loads(t.ev(
+                        "(function(){ var m = document.getElementById('cb-modal'); return JSON.stringify({ img: !!(m && m.querySelector('.d2art-wrap img')),"
+                        " failed: !!(m && m.querySelector('.d2art-failed')) }); })()"))
                     t.ev("(function(){ window._cbUnequip(); window._cbClosePick(); return 1; })()")
         # #174 v-B3 fix round - ADD MOD by the KEYBOARD, real input at 2000: a rare Diadem with two prefixes, the search box
         # pressed, "res" typed, ArrowDown, then Enter - focus must stay in the box and the painted option be what Enter adds
@@ -731,6 +736,33 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(extra, [], "the indent pushed these values under their labels (v-B2's rule): %s" % extra)
         self.assertEqual(over, [], "label text runs under its value at these widths: %s" % over)
 
+    def test_round7_a_pick_never_covers_stats_and_a_charm_shows_its_art(self):
+        """#174 round 7 (2026-09-26, measured): their STATS update while you pick and edit, so they stay in view - an
+        inventory cell's picker fell back to the PAGE centre at 1120-1280 and covered STATS' left edge by 25-28px (a
+        slot's never did). Every pick measured here (a slot's Select / Edit / mods / ADD MOD, a charm's mods / ADD MOD),
+        side-by-side layout: the modal ends left of STATS. And a Grand Charm's Edit tile draws its in-game sprite - it
+        printed "Grand Charm" in a box because only Small Charm was ever registered by its base name"""
+        r, bad, seen = _measure(), [], 0
+        for key, m in r.items():
+            if not isinstance(m, dict) or not m.get("modal") or not m.get("cols") or m.get("stack"):
+                continue
+            if not key.split(" ")[0] in ("picker", "edit", "mods", "addmod", "gcmods", "gcaddmod"):
+                continue
+            seen += 1
+            # the modal rect is in the VIEWPORT frame; cols.* are relative to the builder box - compare like with like
+            ml, mw, sl = m["modal"][0], m["modal"][2], m.get("statsLeftAbs")
+            if sl is None:
+                bad.append("%s: STATS' left edge was not measured" % key)
+                continue
+            if ml + mw > sl + 0.5:
+                bad.append("%s: the modal ends at %.0f, STATS starts at %.0f (%.0fpx covered)" % (key, ml + mw, sl, ml + mw - sl))
+        self.assertGreater(seen, 10, "PREMISE: only %d pick states with a modal were measured" % seen)
+        self.assertEqual(bad, [], "a pick covers STATS, which their Edit keeps in view: %s" % bad)
+        arts = dict((k, v) for k, v in r.items() if k.startswith("gcart "))
+        self.assertEqual(len(arts), len(MOD_WIDTHS) * 2, "PREMISE: the charm's art was not probed at every width: %s" % sorted(arts))
+        noart = [k for k, v in arts.items() if not v["img"] or v["failed"]]
+        self.assertEqual(noart, [], "a Grand Charm's Edit tile has no art (its name in a box): %s" % noart)
+
     def test_under_900_the_character_comes_first(self):
         for (w, h) in WIDTHS:
             m = _measure()["worn %dx%d" % (w, h)]
@@ -743,6 +775,20 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#174 round 7 - an inventory pick falls back to the page centre again and covers STATS by 25-28px",
+        "file": "bible.html",
+        "find": "        if (left + W > _sl){ left = Math.max(8, _sl - W); if (left + W > _sl) W = Math.max(360, _sl - left); }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#174 round 7 - a Grand Charm is not registered by its base name again: its Edit tile prints its name in a box",
+        "file": "bible.html",
+        "find": "D2IO_ART['Grand Charm'] = 'art/hd_charm_large.png';",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#174 round 3 - the indent's width is not given back: at 960 and 1200 a value drops under its label again (v-B2)",
         "file": "bible.html",
