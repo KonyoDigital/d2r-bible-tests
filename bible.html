@@ -51039,7 +51039,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
    (--dk): 320 wide, 10 of padding, the doll box 300x222 (their slot table read from their (11, 47)), the grid as wide as
    the doll's inner width (cells of floor((300dk - 1) / 10) px, so ten of them and their line never outgrow it), drawn in
    CSS - never a copied image. The caption and the status line sit BELOW the panel, never between doll and grid. */
-.cb-eqp{position:relative;margin:0 auto;width:calc(320*var(--dk));padding:calc(10*var(--dk));border-radius:3px;background-color:var(--cb-slate);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>"),radial-gradient(ellipse at 50% 30%,rgba(120,120,125,.35),rgba(20,20,22,.55) 75%),linear-gradient(180deg,#48494c,#2a2b2d);box-shadow:inset 0 0 0 2px #1a1b1c,inset 0 0 0 3px #55575a,inset 0 0 40px rgba(0,0,0,.75),0 10px 30px rgba(0,0,0,.6)}
+.cb-eqp{position:relative;margin:0 auto;width:calc(320*var(--dk));padding:calc(10*var(--dk));border-radius:3px;background-color:var(--cb-slate);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>"),radial-gradient(ellipse at 50% 22%,rgba(150,150,145,.22),rgba(18,18,17,.40) 80%),linear-gradient(180deg,#5f5f5b,#454543 55%,#2f2f2e);box-shadow:inset 0 0 0 2px #1a1b1c,inset 0 0 0 3px #55575a,inset 0 0 40px rgba(0,0,0,.75),0 10px 30px rgba(0,0,0,.6)}
 .cb-eqp .cb-invp{padding:0}
 .cb-stashp{min-height:calc(84*var(--u));display:flex;flex-direction:column}
 .cb-stashp>.cb-empty{margin:auto 0}
@@ -51080,7 +51080,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 /* THE DOLL — their slate: stone grain (an inline SVG noise, nothing fetched), a bevelled frame, and ENGRAVED
    silhouettes in every empty slot (13/15_*_crop.png). Their slot table on the doll's own unit, --dk. */
 .cb-doll{position:relative;margin:0;width:calc(300*var(--dk));height:calc(222*var(--dk))}
-.cb-slot{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;background:linear-gradient(160deg,#232426,#131415);border:1px solid #101112;box-shadow:inset 0 2px 5px rgba(0,0,0,.85),inset 0 -1px 0 rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.06);cursor:pointer;color:#0c0c0d}
+.cb-slot{position:absolute;display:flex;align-items:center;justify-content:center;padding:0;border-radius:0;background:linear-gradient(160deg,#1c1c1c,#0f0f0f);border:1px solid #0b0b0b;box-shadow:inset 0 2px 5px rgba(0,0,0,.85),inset 0 -1px 0 rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.06);cursor:pointer;color:#0c0c0d}
 .cb-slot:hover{border-color:var(--gold-dim)}
 .cb-slot svg{width:70%;height:70%;fill:#26272a;stroke:#0a0a0b;stroke-width:1.2;filter:drop-shadow(0 1px 0 rgba(255,255,255,.10)) drop-shadow(0 -1px 0 rgba(0,0,0,.9));pointer-events:none}
 .cb-slot.cb-has{background:radial-gradient(ellipse at 50% 45%,#34302a,#141210 80%)}
