@@ -378,6 +378,29 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
         for m in ranged:
             self.assertRegex(m, r"keep the range \(-?\d+--?\d+\)$", "a ranged message does not show its range: %r" % m)
 
+    def test_round5_the_added_message_reads_each_roll_by_its_shape(self):
+        """#174 round 5 (the #231 eye on v3510, grok-4.7): the round-2 message compared r[0] with r[1], so a per-level roll
+        ["L", 24, key, 24, 3] - Faithful's fixed ac/lvl on body armour, a REAL prefix in his tables - read 'keep the
+        range (L-24)'; and every superior row is named "Superior", so it said 'Added the automod "Superior"'. Driven
+        through the builder's own doors: a magic Chain Mail takes Faithful; a superior Diadem takes q2 (5-15% ED)"""
+        out = _run(r"""
+          mk('Warlock', 90);
+          window._cbOpenPick('slot', 'tors'); window._cbChoose('b:chn'); window._cbQuality('m');
+          OUT.faith = [window._cbAddMod('p520'), window._cbState().modSay];
+          window._cbClosePick();
+          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3'); window._cbQuality('sup');
+          OUT.sup = [window._cbAddMod('q2'), window._cbState().modSay];
+        """)
+        self.assertTrue(out["faith"][0], "PREMISE: Faithful was not added to a magic Chain Mail: %s" % out["faith"])
+        self.assertTrue(out["sup"][0], "PREMISE: the superior ED row was not added to a superior Diadem: %s" % out["sup"])
+        f, q = out["faith"][1], out["sup"][1]
+        self.assertEqual(f, 'Added the prefix "Faithful" - its value is fixed by the game',
+                         "a fixed per-level prefix is not read as fixed (the eye: 'keep the range (L-24)'): %r" % f)
+        self.assertNotIn("L-", f)
+        self.assertRegex(q, r'^Added the superior modifier "[^"]*Enhanced Defense[^"]*" - type your roll into its box, or '
+                            r'leave it blank to keep the range \(5-15\)$',
+                         "a superior row does not name its property and its range: %r" % q)
+
     def test_esc_closes_the_add_mod_list_before_the_picker(self):
         out = _run(r"""
           mk('Warlock', 90);
@@ -392,9 +415,23 @@ class TheEditTabBuildsTheirItems(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "#174 round 5 - a fixed per-level roll is offered as a range to type again (the eye: Faithful read 'keep the range (L-24)')",
+        "file": "bible.html",
+        "find": "          if (LL.lo !== LL.hi){ _ask = 'type your per-level roll",
+        "replace": "          if (true){ _ask = 'type your per-level roll",
+        "matches": 1,
+    },
+    {
+        "why": "#174 round 5 - a superior row is named by its table name again: every one reads 'Added the ... Superior'",
+        "file": "bible.html",
+        "find": "    var _what = a[1] === 'q' ? _cbAfText(a) : a[2], _ask = null;\n",
+        "replace": "    var _what = a[2], _ask = null;\n",
+        "matches": 1,
+    },
+    {
         "why": "#174 round 2 - the added message goes back to 'added of the Jackal - type its roll', naming nothing and asking for a roll a fixed affix does not have",
         "file": "bible.html",
-        "find": "    st.modSay = 'Added the ' + _kind + ' \"' + a[2] + '\" - ' + (_rng ? 'type your roll into its box, or leave it blank to keep the range (' + _rng + ')' : 'its value is fixed by the game');\n",
+        "find": "    st.modSay = 'Added the ' + _kind + ' \"' + _what + '\" - ' + (_ask || 'its value is fixed by the game');\n",
         "replace": "    st.modSay = 'added ' + a[2] + ' — type its roll into its box, or leave the range';\n",
         "matches": 1,
     },

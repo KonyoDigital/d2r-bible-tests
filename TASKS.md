@@ -1720,7 +1720,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3512** | `(this commit)` | v3512 — REG-1320: the second eye on v3510, measured 6 of 56 widths regressed; a negative margin gives the indent width back; the width law sweeps 900-1400 every 20px. HEART: guarded by the new band sweep in the width law, 2 red-proofs seen RED; no new lane or engine |
+| **v3513** | `(this commit)` | v3513 — REG-1321: the second eye on v3510 (grok-4.7); Faithful read keep the range (L-24), every superior read Superior. HEART: guarded by the round-5 case in the Edit law, heart2 22/22 PROVEN; no new lane or engine |
+| **v3512** | `71bf3cf3` | v3512 — REG-1320: the second eye on v3510, measured 6 of 56 widths regressed; a negative margin gives the indent width back; the width law sweeps 900-1400 every 20px. HEART: guarded by the new band sweep in the width law, 2 red-proofs seen RED; no new lane or engine |
 | **v3511** | `be9a1a3f` | v3511 — REG-1316: 12,488 of 12,689 evidence PNGs were iCloud placeholders and every read was a download; test_health_engine 200s+ -> 12s |
 | **v3510** | `47b42512` | v3510 — REG-1314: the Grok seat on v3509, 3 of 7 claims real and fixed, 3 rejected with reasons, 1 kept for R3. HEART: guarded by two new width-law cases driven by real pointer and keys and one Edit-law case, 4 red-proofs each seen RED; no new lane or engine |
 | **v3509** | `55e106a7` | v3509 — REG-1313: their Select -> Quality -> Edit, REGULAR MODS with typed-EXACT / blank-RANGE rolls, ADD MOD grouped PREFIXES / SUFFIXES / AUTOMOD with ranges over 1,229 affixes; 11 review findings fixed before ship; rides with v3508 R2 (row added by hand in v3510: the v3509 bump wrote none) |

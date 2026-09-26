@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1321 - #174 ROUND 5: THE "ADDED" MESSAGE READ EVERY ROLL AS A NUMERIC RANGE
+
+**fix - the #231 eye (grok-4.7, 37,554 chars) on v3510.** Round 2's message asked for a roll whenever `r[0] !== r[1]`,
+but a line's roll has three shapes in this file - ["C", first, key, last] (a class to choose), ["L", lo, key, hi, shift]
+(a per-level value) and [a, b, key] (a plain roll) - and the roll box already branches on them. MEASURED on his tables:
+Faithful (p520, body armour, ac/lvl ["L", 24, "m1", 24, 3]) - a REAL prefix - read `keep the range (L-24)` where it
+is fixed; and every superior row is synthesised with the name "Superior", so it read `Added the automod "Superior"`.
+The message now reads the roll by its shape (a class: choose it; per-level: typable only when lo != hi, shown lo-hi
+per level; plain: min..max), a superior row names its property line, and its kind reads "superior modifier". Class
+rolls, per-level ranges and reversed ranges do not occur in his spawnable prefixes / suffixes today; the rule covers
+them anyway, as the roll box does. Law: the Edit law's round-5 case drives Faithful onto a magic Chain Mail and q2
+(5-15% ED) onto a superior Diadem through the builder's doors; heart2 --prove 22/22 PROVEN.
+[[gate-blind-to-unexercised-input]] [[copy-drift]]
+
 ### REG-1320 - #174 ROUND 3: ROUND 2'S INDENT UNDID v-B2'S RULE BETWEEN THE WIDTHS THE LAW MEASURED
 
 **fix - the #231 eye's look at v3510 (grok-cli, 2 findings), the first one MEASURED before it was believed.** Round 2

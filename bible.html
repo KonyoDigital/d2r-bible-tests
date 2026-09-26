@@ -52847,9 +52847,29 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     st.modOpen = false; st.modQ = ''; st.modBad = false;
     /* #174 round 2 (the Grok seat on v3509): "added of the Jackal - type its roll" did not say WHAT was added, and asked
        for a roll on affixes that have none (+10% Faster Cast Rate is fixed) */
-    var _kind = a[1] === 'p' ? 'prefix' : a[1] === 's' ? 'suffix' : 'automod', _rng = null;
-    try { (a[11] || []).some(function(ln){ return (ln[1] || []).some(function(r){ if (r && r[0] != null && r[1] != null && r[0] !== r[1]){ _rng = r[0] + '-' + r[1]; return true; } return false; }); }); } catch (x) {}
-    st.modSay = 'Added the ' + _kind + ' "' + a[2] + '" - ' + (_rng ? 'type your roll into its box, or leave it blank to keep the range (' + _rng + ')' : 'its value is fixed by the game');
+    /* #174 round 5 (the #231 eye on v3510): the roll is read by its SHAPE, the rule the roll box already follows -
+       ["C", first, key, last] is a class to choose, ["L", lo, key, hi, shift] a per-level value (typable only when
+       lo != hi), [a, b, key] a plain roll shown min..max. The first cut compared r[0] with r[1], so a fixed per-level
+       prefix (Faithful, ac/lvl 24) read 'keep the range (L-24)'; and every superior row is named "Superior", so it now
+       names its property instead of calling itself an automod */
+    var _kind = { p: 'prefix', s: 'suffix', a: 'automod', q: 'superior modifier' }[a[1]] || 'modifier';
+    var _what = a[1] === 'q' ? _cbAfText(a) : a[2], _ask = null;
+    try {
+      (a[11] || []).some(function(ln){ return (ln[1] || []).some(function(r){
+        if (!r) return false;
+        if (r[0] === 'C'){ _ask = 'choose which class it rolled, or leave it blank for one random class'; return true; }
+        if (r[0] === 'L'){
+          var LL = _cbLvl(r);
+          if (LL.lo !== LL.hi){ _ask = 'type your per-level roll into its box, or leave it blank to keep the range (' + LL.lo + '-' + LL.hi + ', per level)'; return true; }
+          return false;
+        }
+        if (typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1]){
+          _ask = 'type your roll into its box, or leave it blank to keep the range (' + Math.min(r[0], r[1]) + '-' + Math.max(r[0], r[1]) + ')'; return true;
+        }
+        return false;
+      }); });
+    } catch (x) {}
+    st.modSay = 'Added the ' + _kind + ' "' + _what + '" - ' + (_ask || 'its value is fixed by the game');
     _cbRender();
     return true;
   };
@@ -55216,7 +55236,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3512', name:'v3512 - #174 round 3 - a wrapped stat label keeps its hanging indent without pushing any value under its label', date:'2026-09-26', note:'REG-1320: the second eye on v3510, measured 6 of 56 widths regressed; a negative margin gives the indent width back; the width law sweeps 900-1400 every 20px. HEART: guarded by the new band sweep in the width law, 2 red-proofs seen RED; no new lane or engine' };
+  window.D2R_BUILD = { id:'v3513', name:'v3513 - #174 round 5 - the Added message reads each roll by its shape: a fixed per-level mod is fixed, a superior mod names its property', date:'2026-09-26', note:'REG-1321: the second eye on v3510 (grok-4.7); Faithful read keep the range (L-24), every superior read Superior. HEART: guarded by the round-5 case in the Edit law, heart2 22/22 PROVEN; no new lane or engine' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
