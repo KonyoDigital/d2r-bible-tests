@@ -2755,14 +2755,16 @@ def _sweep_dead_profiles(tmp=None, now=None, running=None):
     """2026-09-26 — A KILLED RUN'S PROFILE OUTLIVES IT. _chrome_down removes the profile in its finally and at exit, and a
     process killed by a signal (the gate's bound, a perl alarm) runs neither: MEASURED 36 render_check-profile-* dirs in
     his temp dir, 26 of them from one day. So each launch first removes an OLD profile (an hour or more) that no running
-    process names in its --user-data-dir. A profile a live Chrome holds is never touched. -> [path] removed"""
+    process names in its --user-data-dir. A profile a live Chrome holds is never touched. -> [path] removed, or None
+    when the process table could not be read: nothing was removed AND nobody could ask which profiles were dead - an
+    empty list there would read as "looked, none were dead" (the swallow ratchet's rank 1, 69 -> 70 at v3507)."""
     tmp = tmp or tempfile.gettempdir()
     now = time.time() if now is None else now
     if running is None:
         try:
             running = subprocess.run(["ps", "-axo", "command"], capture_output=True, text=True, timeout=10).stdout
         except Exception:
-            return []                    # cannot tell who holds what: remove nothing
+            return None                  # cannot tell who holds what: remove nothing, and say it could not ask
     gone = []
     try:
         names = os.listdir(tmp)

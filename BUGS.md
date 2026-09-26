@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1311 - THE PROFILE SWEEP ANSWERED "NONE WERE DEAD" WHEN IT COULD NOT READ THE PROCESS TABLE
+
+**fix - found 2026-09-26 by the swallow census (`tv/swallow_census.py --check`), run while building #174 v-B3.** REG-1310's
+`render_check._sweep_dead_profiles` returns the profiles it removed, and when `ps` itself failed it returned `[]` - the
+same answer as "looked, and none were dead". The rank-1 ratchet caught it: baseline 69, measured 70, the one new site
+`tv/render_check.py:2764`, a file v-B3 had not touched (its last change is v3507's). It now returns None there: nothing removed, and
+said as "could not ask". Its one caller ignores the value; its law passes `running` and never reaches that branch.
+Census back to 69, held. [[unknown-stays-unknown]] [[sweep-dont-ask]]
+
 ### REG-1310 - THE CONSOLE'S OWN SELF-PROOFS MINTED THOUSANDS OF SCRATCH DIRS A DAY ON EVERY MACHINE
 
 **fix - found 2026-09-26 05:20 by sweeping for siblings of REG-1309.** #171 closed the leak in the TEST files; the
