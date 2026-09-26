@@ -85,7 +85,9 @@ import render_check as RC  # noqa: E402
 
 NO_BROWSER = "no Chrome/Chromium on this machine, so the character builder was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
-STATES = ("plain", "worn", "picker", "edit", "stash")
+#: #174 v-B4 - "invpick": an inventory cell's picker (Select) at every width - the grid moved into the template panel, so
+#: where that picker opens moved with it, and the round-7 fallback it can still reach is at 1024 and 901, not 1120-1280
+STATES = ("plain", "worn", "picker", "edit", "stash", "invpick")
 #: #174 v-B3 - the Edit tab of a base with its picked mods, and with ADD MOD open, at these widths
 MOD_WIDTHS = ((2000, 1300), (1280, 800), (375, 812))
 _DIADEM = ("window._cbOpenPick('slot','head'); window._cbChoose('b:ci3'); window._cbQuality('rare');"
@@ -125,6 +127,9 @@ TEMPLATE = r"""(function(){ try {
     var rad = [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius].join(' ');
     if (out.cellRadius.indexOf(rad) < 0) out.cellRadius.push(rad);
   });
+  var cb0 = [1e9, 1e9, -1e9, -1e9]; Object.keys(at).forEach(function(k){ var q = at[k];
+    cb0 = [Math.min(cb0[0], q[0]), Math.min(cb0[1], q[1]), Math.max(cb0[2], q[2]), Math.max(cb0[3], q[3])]; });
+  out.cellsBox = cb0;   /* the cells' OWN extent: a grid box can be clamped narrower while its cells overflow it */
   for (var x = 0; x < 10; x++) if (at[x + ',0']) out.cols.push([at[x + ',0'][0], at[x + ',0'][2]]);
   for (var y = 0; y < 4; y++) if (at['0,' + y]) out.rows.push([at['0,' + y][1], at['0,' + y][3]]);
   /* every word drawn between the doll's bottom and the grid's top, over the grid's width */
@@ -471,9 +476,10 @@ def _measure():
                             " inv: s.inv.map(function(e){ return [e.name, e.x, e.y]; }) }); })()")
         for (w, h) in WIDTHS:
             _set_size(t, w, h)
-            for state in ("worn", "picker", "edit", "stash"):
+            for state in ("worn", "picker", "edit", "stash", "invpick"):
                 js = {"worn": "", "picker": "window._cbOpenPick('slot','head'); window._cbPickTab('select');",
-                      "edit": "window._cbOpenPick('slot','head');", "stash": "window._cbOpenStash();"}[state]
+                      "edit": "window._cbOpenPick('slot','head');", "stash": "window._cbOpenStash();",
+                      "invpick": "window._cbOpenPick('inv', null, [0, 0]);"}[state]
                 t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % js)
                 time.sleep(0.35)
                 res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
@@ -829,13 +835,15 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 round 7 (2026-09-26, measured): their STATS update while you pick and edit, so they stay in view - an
         inventory cell's picker fell back to the PAGE centre at 1120-1280 and covered STATS' left edge by 25-28px (a
         slot's never did). Every pick measured here (a slot's Select / Edit / mods / ADD MOD, a charm's mods / ADD MOD),
-        side-by-side layout: the modal ends left of STATS. And a Grand Charm's Edit tile draws its in-game sprite - it
+        side-by-side layout: the modal ends left of STATS. #174 v-B4: the grid sits in the template panel now, so an
+        inventory cell's picker takes the side away from the GRID; its page-centre fallback is still reached at 1024x768
+        and 901x900, so an inventory cell's Select is measured at every width. And a Grand Charm's Edit tile draws its in-game sprite - it
         printed "Grand Charm" in a box because only Small Charm was ever registered by its base name"""
         r, bad, seen = _measure(), [], 0
         for key, m in r.items():
             if not isinstance(m, dict) or not m.get("modal") or not m.get("cols") or m.get("stack"):
                 continue
-            if not key.split(" ")[0] in ("picker", "edit", "mods", "addmod", "gcmods", "gcaddmod"):
+            if not key.split(" ")[0] in ("picker", "edit", "mods", "addmod", "gcmods", "gcaddmod", "invpick"):
                 continue
             seen += 1
             # the modal rect is in the VIEWPORT frame; cols.* are relative to the builder box - compare like with like
@@ -910,8 +918,13 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s: the cells are not edge to edge - gap %s, seams %s" % (k, m["gap"], seams))
             if m["radius"] != ["0px"] * 4 or m["cellRadius"] != ["0px 0px 0px 0px"]:
                 bad.append("%s: rounded corners - grid %s, cells %s" % (k, m["radius"], m["cellRadius"]))
-            if (g[2] - g[0]) > m["dollInner"] + 0.5:
-                bad.append("%s: the grid (%.1fpx) is wider than the doll's inner width (%dpx)" % (k, g[2] - g[0], m["dollInner"]))
+            cbx = m["cellsBox"]
+            if not (cbx[0] >= g[0] - 0.5 and cbx[1] >= g[1] - 0.5 and cbx[2] <= g[2] + 0.5 and cbx[3] <= g[3] + 0.5) or not inside(cbx):
+                bad.append("%s: the cells %s spill out of their grid %s / the panel %s"
+                           % (k, [round(v) for v in cbx], [round(v) for v in g], [round(v) for v in p]))
+            span = max(g[2], cbx[2]) - min(g[0], cbx[0])
+            if span > m["dollInner"] + 0.5:
+                bad.append("%s: the grid and its cells (%.1fpx) are wider than the doll's inner width (%dpx)" % (k, span, m["dollInner"]))
             if w >= 1280 and cw[0] < TPL_MIN_CELL:
                 bad.append("%s: a cell is %.1fpx - under %dpx from 1280 up" % (k, cw[0], TPL_MIN_CELL))
             for it in m["items"]:
