@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1318 - A STORE TRACKED AFTER THE PROVENANCE BASELINE READ AS NEW DEBT ON HIS MACHINE
+
+**fix - found 2026-09-26 by the full gate set before the v3508-v3511 push (local only; CI graded it green).**
+verdict_provenance said provenance went BACKWARDS: "local · known_departures.json: NEW store arrives PARTIAL". The
+tracked list is pinned inside the baseline when it is written (09-10, v2888's `_split(tr=)`), and known_departures.json
+became tracked on 09-25 (61e10a0a, REG-1287), so it sits in the LOCAL scope as a new store - and its `_prov` named WHO
+(`by`) and WHY but no VERSION, which grades PARTIAL, i.e. debt. It now carries `"ver": "v3505"` (the version that
+shipped it): "NEW and it ANSWERS", "provenance did not go backwards". The baseline was deliberately NOT re-written -
+that would re-pin every store at today's state and could launder a real drop. test_end_routes 30/30,
+test_a_roster_arriving_is_not_new_debt 9/9, test_provenance 28/28. [[unknown-stays-unknown]]
+
 ### REG-1317 - THE SECOND EYE'S RUNNER TOOK A COMMIT THAT MENTIONED A VERSION FOR THE COMMIT THAT SHIPPED IT
 
 **fix - found 2026-09-26 12:25 while measuring the v3508-v3511 payloads before sending them.** v3511 measured a

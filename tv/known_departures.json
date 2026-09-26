@@ -1,6 +1,7 @@
 {
  "_prov": {
   "by": "claude",
+  "ver": "v3505",
   "ruling": "Konyo 2026-09-25, #221: 'yea mark them'",
   "store": "known_departures",
   "why": "Tombstones whose departure has a named cause. Counted as explained by end_routes in their own bucket (knownDefect), never as a route that qualified."
