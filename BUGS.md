@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1324 - A BOUNDED SECOND EYE DIED OF ITS SIGNAL AND LEFT ITS SNAPSHOT: 120 IN HIS TEMP DIR
+
+**fix - found 2026-09-26 15:45 closing #243 (the last source of our scratch).** MEASURED over the last 4 hours - three
+full gate runs and two pushes - 153 temp dirs were born and NONE carried our prefixes (132 were Chrome's own, 2
+Playwright's) except one: `second_eye_42635`, a repo snapshot the second-eye runner makes for its eye, from a look my
+own 900 s bound killed. The temp dir held 120 `second_eye_<pid>` snapshots (~1.4 MB each), every owner dead. The
+runner cleaned up in a `finally` and at atexit - its docstring calls them two ropes - and a process killed by SIGALRM
+or SIGTERM runs NEITHER. REG-1309's shape, one tool over. main() now installs SIGTERM / SIGALRM / SIGHUP handlers that
+remove the snapshot and exit 128+signal, and each run first sweeps a dead owner's snapshot (or a day-old one: a reused
+pid). Found on the way: the snapshot is READ-ONLY on purpose, so a bare rmtree fails silently - the sweep's first cut
+removed 3 of 120 and reported only those; the live cleanup and the sweep now share ONE removal that gives write back
+first. (The other 115 `second_eye_gate.*` are pre-#171 test scratch from 09-24, no longer minted.) Law
+test_a_scratch_dir_is_not_made_by_reading_the_module: a real child that makes its snapshot and dies of its own SIGALRM
+(rc 142) leaves nothing; the sweep over six shaped dirs (a dead owner's and a day-old "live" pid 1's go, our own, a
+young live one, a non-pid and a stranger stay); 2 red-proofs, heart2 8/8 PROVEN. [[i-own-everything-i-start]]
+
 ### REG-1323 - THE PUBLISHED PAGE NAMED HIS ACCOUNT, AND NOTHING STOPPED A NEW HOME PATH FROM BEING PUBLISHED
 
 **fix - #27, measured 2026-09-26 13:05.** The repo is PUBLIC; 113 /Users/<name>/ literals sat in 65 tracked files. Two

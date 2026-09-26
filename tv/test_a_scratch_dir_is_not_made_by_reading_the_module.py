@@ -160,6 +160,55 @@ class TestAScratchDirIsNotMadeByReading(unittest.TestCase):
                       "EYE_CWD is not per-process: %r" % (R.EYE_CWD,))
 
 
+class TestAKilledEyeLeavesNoSnapshot(unittest.TestCase):
+    """#243, 2026-09-26: 120 second_eye_<pid> snapshots in his temp dir, every owner dead - a bounded eye dies of a
+    signal, and its `finally` and atexit never run. The runner now cleans up on SIGTERM / SIGALRM / SIGHUP, and each
+    run sweeps a dead owner's snapshot (or a day-old one, a reused pid)."""
+
+    def test_a_real_eye_killed_by_its_own_alarm_leaves_nothing(self):
+        import subprocess
+        tmp = tempfile.mkdtemp(prefix="eyekill-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        child = ("import sys, time, signal; sys.path.insert(0, %r); import second_eye_run as R; "
+                 "R.install_cleanup_on_signals(); d = R._eye_cwd_ready(); print(d, flush=True); "
+                 "signal.alarm(1); time.sleep(20)" % HERE)
+        env = dict(os.environ, TMPDIR=tmp, TEMP=tmp, TMP=tmp)
+        env.pop("THIRD_EYE_CWD", None)
+        r = subprocess.run([sys.executable, "-c", child], env=env, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60)
+        made = (r.stdout or "").strip().splitlines()[-1] if (r.stdout or "").strip() else ""
+        self.assertTrue(made.startswith(tmp), "PREMISE: the child never made its snapshot: %r / %s" % (r.stdout, r.stderr[-300:]))
+        self.assertEqual(r.returncode, 128 + 14, "the child did not die of its SIGALRM as the signal meant: rc %s" % r.returncode)
+        self.assertFalse(os.path.exists(made), "a runner killed by its alarm left its snapshot behind: %s" % made)
+
+    def test_the_sweep_takes_a_dead_owners_snapshot_and_keeps_a_live_one(self):
+        import subprocess
+        import time
+        import second_eye_run as R
+        tmp = tempfile.mkdtemp(prefix="eyesweep-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p0 = subprocess.Popen([sys.executable, "-c", "pass"])
+        p0.wait()
+        live, now = os.getppid(), time.time()
+
+        def mk(name, age_h=0.0):
+            d = os.path.join(tmp, name)
+            os.makedirs(d)
+            t = now - age_h * 3600
+            os.utime(d, (t, t))
+            return d
+        dead = mk("second_eye_%d" % p0.pid)
+        mine = mk("second_eye_%d" % os.getpid())
+        young = mk("second_eye_%d" % live)
+        old = mk("second_eye_1", 30)         # pid 1 is always alive: a day-old snapshot "owned" by it is a reused pid
+        other = mk("second_eye_notapid", 30)
+        stranger = mk("not_ours", 30)
+        gone = sorted(p for p, _ in R.sweep_stale_eye_cwds(tmp=tmp, now=now))
+        self.assertEqual(gone, sorted([dead, old]), "the sweep removed %s, not a dead owner's and a day-old one" % gone)
+        for d in (mine, young, other, stranger):
+            self.assertTrue(os.path.isdir(d), "the sweep removed %s - our own, a live owner's, or not a snapshot" % d)
+
+
 class TestTheRowThatWatchesTheScratch(unittest.TestCase):
     """The DOCTOR half. The cases above pin that this module makes no directory; these pin that
     something on his machine would NOTICE if any other one did."""
@@ -273,6 +322,20 @@ class TestTheRowThatWatchesTheScratch(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#243 - a runner killed by its perl alarm leaves its snapshot again (120 in his temp dir)",
+        "file": "second_eye_run.py",
+        "find": "    for name in (\"SIGTERM\", \"SIGALRM\", \"SIGHUP\"):\n",
+        "replace": "    for name in (\"SIGTERM\", \"SIGHUP\"):\n",
+        "matches": 1,
+    },
+    {
+        "why": "#243 - the sweep ignores a dead owner and keeps its young snapshot forever",
+        "file": "second_eye_run.py",
+        "find": "        if _pid_alive(pid) and age < EYE_CWD_STALE_S:\n",
+        "replace": "        if age < EYE_CWD_STALE_S:\n",
+        "matches": 1,
+    },
     {
         "why": "v3422 - THE DEFECT ITSELF, PUT BACK. mkdtemp at module level runs once per "
                "IMPORTER, and 31 modules import this file. Three bare imports must leave three "

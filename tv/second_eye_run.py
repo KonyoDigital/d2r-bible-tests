@@ -157,21 +157,30 @@ def eye_cwd_cleanup():
     global _EYE_CWD_MADE
     if not (_EYE_CWD_IS_OURS and _EYE_CWD_MADE):
         return False
-    # #169 Win 2 — the snapshot is made READ-ONLY on purpose, and a read-only directory cannot
-    # have its entries unlinked. Give write back to what WE made before removing it.
-    for _root, _dirs, _files in os.walk(EYE_CWD):
+    _rm_snapshot(EYE_CWD)
+    _EYE_CWD_MADE = False
+    return True
+
+
+def _rm_snapshot(path):
+    """Remove a snapshot folder. -> True when it is gone.
+
+    #169 Win 2 — the snapshot is made READ-ONLY on purpose, and a read-only directory cannot have its entries unlinked:
+    write access comes back first, or a bare rmtree fails SILENTLY (ignore_errors). ⚠ 2026-09-26 (#243) — ONE removal
+    for the live cleanup and the stale sweep: the sweep's first cut skipped the chmod and removed 3 of 120, reporting
+    only what it managed. [[copy-drift]]"""
+    for _root, _dirs, _files in os.walk(path):
         for _n in _dirs + _files:
             try:
                 os.chmod(os.path.join(_root, _n), 0o700)
             except Exception:
                 pass
     try:
-        os.chmod(EYE_CWD, 0o700)
+        os.chmod(path, 0o700)
     except Exception:
         pass
-    shutil.rmtree(EYE_CWD, ignore_errors=True)
-    _EYE_CWD_MADE = False
-    return True
+    shutil.rmtree(path, ignore_errors=True)
+    return not os.path.exists(path)
 
 
 #: #169 Win 2 — a file larger than this is left out of the eye's snapshot and NAMED as left out.
@@ -257,6 +266,76 @@ def snapshot_note(snap):
 
 
 atexit.register(eye_cwd_cleanup)
+
+#: a snapshot folder older than this is stale whoever its name says owns it - no look lives a day, so past it a
+#: "live" pid is a REUSED one (heart2's REG-1309 rule, one tool over)
+EYE_CWD_STALE_S = 24 * 3600
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except PermissionError:
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _on_fatal_signal(signum, _frame):
+    """⚠⚠ 2026-09-26 (#243) - A BOUNDED EYE IS A KILLED EYE, AND NEITHER ROPE RUNS UNDER A SIGNAL. eye_cwd_cleanup rides
+    a `finally` and atexit; a process killed by SIGALRM (a perl bound) or SIGTERM runs neither. MEASURED: 120
+    second_eye_<pid> snapshots (~1.4 MB each) in his temp dir, every owner dead, 93 of them from one day. The signal
+    now removes the snapshot, then exits as the signal meant. [[i-own-everything-i-start]]"""
+    try:
+        eye_cwd_cleanup()
+    finally:
+        os._exit(128 + int(signum))
+
+
+def install_cleanup_on_signals():
+    """-> the signals now handled. Called by main() only - an importer keeps its own handlers."""
+    import signal
+    got = []
+    for name in ("SIGTERM", "SIGALRM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, _on_fatal_signal)
+            got.append(name)
+        except (ValueError, OSError):
+            continue                       # not the main thread, or not this OS - the ropes above still hold
+    return got
+
+
+def sweep_stale_eye_cwds(tmp=None, now=None):
+    """-> [(path, why)] removed: every second_eye_<pid> snapshot whose owner is dead, or a day old whoever it names.
+    Never this process's own, never a live owner's younger one (another look, mid-run)."""
+    tmp = tmp or tempfile.gettempdir()
+    now = time.time() if now is None else now
+    gone = []
+    try:
+        names = os.listdir(tmp)
+    except OSError:
+        return gone
+    for n in sorted(names):
+        if not n.startswith("second_eye_"):
+            continue
+        pid = n[len("second_eye_"):]
+        root = os.path.join(tmp, n)
+        if not pid.isdigit() or int(pid) == os.getpid() or not os.path.isdir(root):
+            continue
+        try:
+            age = now - os.path.getmtime(root)
+        except OSError:
+            continue
+        if _pid_alive(pid) and age < EYE_CWD_STALE_S:
+            continue
+        why = ("%.0f h old - no look lives that long" % (age / 3600.0)) if age >= EYE_CWD_STALE_S else ("its owner (pid %s) is dead" % pid)
+        if _rm_snapshot(root):
+            gone.append((root, why))
+    return gone
 
 # A prompt has to fit. Truncation is allowed; SILENT truncation is not — what was dropped is
 # reported in the row, so a thin look can never read as a thorough one.
@@ -1820,6 +1899,8 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
 
 
 def main(argv):
+    install_cleanup_on_signals()
+    sweep_stale_eye_cwds()
     ap = argparse.ArgumentParser()
     ap.add_argument("version", nargs="?")
     ap.add_argument("--backlog", action="store_true",
