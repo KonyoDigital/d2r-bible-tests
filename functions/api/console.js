@@ -257,9 +257,20 @@ export async function onRequestPost(context) {
     eye: (function (e) {
       if (!e || typeof e !== 'object') return null;
       const age = Number(e.ageMs);
+      const second = (function (s) {
+        if (!s || typeof s !== 'object') return null;
+        const st = String(s.state || '');
+        if (['absent', 'unauthorised', 'off', 'on', 'failing', 'unknown'].indexOf(st) < 0) return null;
+        const prov = (typeof s.provider === 'string') ? s.provider.slice(0, 24) : null;
+        return prov ? { state: st, provider: prov } : { state: st };
+      })(e.second);
       return {
         live: e.live === true,
+        // A day is as far as this number is allowed to travel. The console must say "more than
+        // a day", not "1440m ago", because the cap is not a measurement.
         ageMs: (Number.isFinite(age) && age >= 0) ? Math.min(age, 86400000) : null,
+        ageCapped: Number.isFinite(age) && age >= 86400000,
+        second: second,
       };
     })(body.eye),
     // #229 — this machine's OWN system, counts only. A state it does not know becomes null (UNKNOWN),

@@ -25037,7 +25037,9 @@ function escC(s) {
         var prov = e.provider || 'the reader';
         var age  = (e.ageMs == null) ? null : Math.round(e.ageMs / 60000);
         var when = e.live ? 'reading now'
-                 : (age == null ? 'no frame yet this run' : 'last read ' + age + 'm ago');
+                 : (age == null ? 'no frame yet this run'
+                    : (e.ageCapped || e.ageMs >= 86400000 ? 'last read more than 24h ago'
+                       : 'last read ' + age + 'm ago'));
         var sec = e.second || {};
         /* \u26a0\u26a0 v2770 \u2014 SIX STATES, SIX RENDERINGS. Two of the four used to lie:
              \u00b7 a lane installed, ON and FAILING came through as `on` and drew the healthy \uD83D\uDC41\u00b2
