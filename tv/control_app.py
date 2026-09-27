@@ -23677,9 +23677,6 @@ def ledger_drop_accept(store, reason, confirm=False, now_ms=None, path=None):
         return {"ok": False, "applied": False,
                 "why": "the drop watcher has no record yet, so there is no drop to accept"}
     why_reason = str(reason or "").strip()
-    if not why_reason:
-        return {"ok": False, "applied": False,
-                "why": "a reason is required — closing a drop without one is the same as not recording it"}
     try:
         import ledger_restore as _LR
     except Exception as e:
