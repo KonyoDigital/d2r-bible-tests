@@ -125,9 +125,9 @@ class APruneRecordsWhatItFreed(unittest.TestCase):
         """The log is append-only. The before-row must survive as the record of what was known
         then; two rows telling one story is honest, one row rewritten is not."""
         blk = _fn("_retention_once")
-        self.assertEqual(2, blk.count("disk_history_append("),
-                         "expected exactly two history writes in a retention pass (before, and "
-                         "after with the freed figure); found %d"
+        self.assertEqual(3, blk.count("disk_history_append("),
+                         "expected three history writes in a retention pass (before, the deferral "
+                         "stamp when the pass is held, and after with the freed figure); found %d"
                          % blk.count("disk_history_append("))
 
     # ── ⚠⚠ THE WRITE MUST BE REACHABLE, NOT MERELY PRESENT ────────────────────────────────────
@@ -157,15 +157,20 @@ class APruneRecordsWhatItFreed(unittest.TestCase):
         self.assertTrue(found,
                         "no conditional guards a disk_history_append call — the freed write is "
                         "either gone or unconditional")
+        guarded = []
         for node in found:
             self.assertNotIsInstance(
                 node.test, ast.Constant,
-                "the freed write is guarded by a CONSTANT (%r), so it is unreachable while every "
+                "a history write is guarded by a CONSTANT (%r), so it is unreachable while every "
                 "text-matching law above still passes. That is exactly how a disabled write hides."
                 % getattr(node.test, "value", "?"))
             names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
-            self.assertIn("_freed", names,
-                          "the write is guarded on something other than the freed figure")
+            if "_freed" in names or "_defer" in names:
+                guarded.append(names)
+        self.assertTrue(any("_freed" in n for n in guarded),
+                        "the freed write is no longer guarded on the freed figure")
+        self.assertTrue(any("_defer" in n for n in guarded),
+                        "the deferral stamp is not guarded on the hold")
 
     def test_it_still_parses(self):
         ast.parse(SRC)

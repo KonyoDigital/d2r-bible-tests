@@ -812,8 +812,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 - the tooltip's properties are no longer the game's blue",
         "file": "bible.html",
-        "find": ".d2tip .d2t-num,.d2tip .d2t-p{color:rgb(105,105,255)}",
-        "replace": ".d2tip .d2t-num,.d2tip .d2t-p{color:rgb(232,232,232)}",
+        "find": ".d2tip .d2t-num,.d2tip .d2t-p,.cb-ed-base .d2t-num{color:rgb(105,105,255)}",
+        "replace": ".d2tip .d2t-num,.d2tip .d2t-p,.cb-ed-base .d2t-num{color:rgb(232,232,232)}",
         "matches": 1,
     },
     {

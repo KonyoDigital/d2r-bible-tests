@@ -34980,7 +34980,8 @@ class TestV2240AnOverFullGridSaysSo(unittest.TestCase):
 
     def test_it_is_SILENT_when_the_grid_is_clean(self):
         # A note that always shows is furniture; the whole value is that it appears only on a fault.
-        body = _between(self, self._bible(), "var _f = window._gridFault", "var cells=''",
+        body = _between(self, self._bible(), "var _f = window._gridFault",
+                        "var _add = opt && opt.add, cells = '';",
                         what="the fault note builder")
         self.assertIn("_f.fault", body, "the note no longer keys on the fault flag")
         self.assertIn("''", body, "there is no empty branch — the note would always render")

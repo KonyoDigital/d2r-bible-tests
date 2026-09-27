@@ -26342,12 +26342,6 @@ def _shadow_rollover_reading(w=None, now_ms=None):
                     % (int(age_s // 60), int(limit // 60))}
 
 
-def shadow_rollover_verdict(w=None, now_ms=None):
-    """-> (state, line) for the doctor row. See _shadow_rollover_reading."""
-    got = _shadow_rollover_reading(w, now_ms)
-    return got["state"], got["line"]
-
-
 def shadow_watch_contract(st=None, w=None, now_ms=None):
     """The shadow-watch lane in THE SHARED SUPERVISION VOCABULARY. -> dict
 
