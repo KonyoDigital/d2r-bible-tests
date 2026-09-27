@@ -2500,6 +2500,53 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
                 % (len(filings), main_say, "; ".join(parts))), counts
 
 
+def _evidence_ledger_path():
+    return os.environ.get("TV_VAULT_LEDGER") or os.path.join(HERE, "vault_accum.json")
+
+
+def _check_the_vault_reset(receipt=None, before=None, after=None):
+    """The last vault reset: cleared, kept, rebuilt, held.
+
+    No receipt has been handed to this console unless the caller passes one. That is UNKNOWN,
+    not a report of 0 rebuilt. A kept store whose bytes changed is named.
+    """
+    if receipt is None and before is None and after is None:
+        return UNKNOWN, ("no reset receipt has been handed to this console, so cleared, "
+                         "rebuilt and held are UNKNOWN, not 0")
+    import vault_evidence as _ve
+    got = _ve.reset_receipt(receipt, before, after)
+    if got.get("rebuilt") is None or got.get("held") is None:
+        return UNKNOWN, got.get("why") or "the reset receipt could not be read"
+    if got.get("touched") or got.get("unknown"):
+        return MISSING, got.get("why") or "a kept store changed"
+    return OK, got.get("why") or "kept stores unchanged"
+
+
+def _check_the_evidence_tiers(path=None, root=None):
+    """vault-body — how many items each evidence tier holds, and which cited pictures are gone.
+
+    The count is vault_evidence.tier, corroborated by rebuild_plan on the same ledger. An
+    unreadable ledger is UNKNOWN, never 0. A shelf that was not opened leaves the broken-link
+    count UNKNOWN, never 0.
+    """
+    import vault_evidence as _ve
+    got = _ve.tier_census(path if path is not None else _evidence_ledger_path())
+    if not got.get("ok"):
+        return UNKNOWN, got.get("why") or "the evidence tiers could not be read"
+    if got.get("disagree"):
+        return MISSING, got.get("why") or "the tier table and the witness ledger disagree"
+    pics = _ve.pictures_gone(path if path is not None else _evidence_ledger_path(), root)
+    if pics.get("n") is None:
+        pic = "evidence links whose picture is gone: UNKNOWN"
+    elif pics["n"]:
+        return MISSING, ("evidence links whose picture is gone: %s"
+                         % ", ".join(pics.get("gone") or [])[:180])
+    else:
+        pic = "evidence links whose picture is gone: 0"
+    return OK, ("WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s"
+                % (got["watched"], got["proven"], got["hardened"], got["unknown"], pic))
+
+
 def _check_vault_provenance():
     """#246 W7 — 'vault provenance': the one door, watched. Reads the board ONCE (the shared tick read),
     the stash ledger and the feeder's store; judges with vault_provenance_verdict. UNKNOWN when the board
@@ -8744,6 +8791,8 @@ CHECKS = [
     # #246 W7 — the one door into the mule map, watched: every filing carries its witness, no MAIN item in
     # a mule, no gate-passing stash row left unfiled, the feeder's banked vs runs.
     ("vault provenance", _check_vault_provenance),
+    ("vault reset receipt", _check_the_vault_reset),
+    ("evidence tiers", _check_the_evidence_tiers),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
     ("item facts captured", _check_the_item_facts_are_reaching_the_row),
@@ -9461,6 +9510,10 @@ WATCHES = {
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),
+    # 2026-09-27 — the reset receipt and the tier census. Neither owns a screen element of its
+    # own; both reach him through the eagle line. Empty tuple as a DECLARATION, not an omission.
+    "vault reset receipt":         (),
+    "evidence tiers":              (),
     # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
     # omission: it reaches him through the eagle line, not through an element of its own.
     "fault evidence":              (),

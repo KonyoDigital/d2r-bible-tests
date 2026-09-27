@@ -318,3 +318,145 @@ def cited_frames(path):
     except Exception:
         return {"ok": False, "frames": None, "why": _UNREAD}
     return {"ok": True, "frames": found, "why": ""}
+
+
+def _load_owned(path):
+    """The ledger's owned list, or None when the file cannot be read. Never writes."""
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        with io.open(path, "rb") as fh:
+            raw = fh.read()
+        doc = json.loads(raw.decode("utf-8"))
+    except Exception:
+        return None
+    if not isinstance(doc, dict) or not isinstance(doc.get("owned"), list):
+        return None
+    return doc
+
+
+def tier_census(path):
+    """How many items sit in each tier, and whether that agrees with rebuild_plan.
+
+    An unreadable ledger leaves every count None. A readable empty ledger is 0, which is
+    a measurement. The two answers are not the same.
+    """
+    unread = {"ok": False, "watched": None, "proven": None, "hardened": None,
+              "unknown": None, "disagree": None, "why": _UNREAD}
+    doc = _load_owned(path)
+    if doc is None:
+        return unread
+    floor = _conf_floor()
+    if floor is None:
+        return unread
+    plan = plan_from_ledger(path)
+    if not plan.get("ok"):
+        return unread
+    by_plan = {}
+    for row in (plan.get("rebuilt") or []) + (plan.get("held") or []):
+        if isinstance(row, dict) and row.get("name"):
+            by_plan[row["name"]] = row.get("tier")
+    counts = {WATCHED: 0, PROVEN: 0, HARDENED: 0, "unknown": 0}
+    disagree = []
+    for name, rows in _group(doc["owned"]):
+        measured = _measure(rows, floor)
+        if measured is None:
+            got_tier = None
+        else:
+            successes, trials = measured[0], measured[1]
+            got_tier = tier(successes, trials)["tier"]
+        key = got_tier if got_tier in (WATCHED, PROVEN, HARDENED) else "unknown"
+        counts[key] += 1
+        if by_plan.get(name) != got_tier:
+            disagree.append(name)
+    why = ""
+    if disagree:
+        why = ("the tier table and the witness ledger disagree on %s"
+               % ", ".join(disagree[:8]))
+    return {"ok": True, "watched": counts[WATCHED], "proven": counts[PROVEN],
+            "hardened": counts[HARDENED], "unknown": counts["unknown"],
+            "disagree": disagree, "why": why}
+
+
+def pictures_gone(path, root):
+    """Cited frames that are not on the shelf. Never writes.
+
+    `root` None means the shelf was not opened: n is None, not 0. A shelf that cannot be
+    read is the same answer. A shelf that was read and holds every cited frame is n 0.
+    """
+    cited = cited_frames(path)
+    if not cited.get("ok") or cited.get("frames") is None:
+        return {"ok": False, "gone": None, "n": None, "cited": None,
+                "why": cited.get("why") or _UNREAD}
+    if root is None:
+        return {"ok": True, "gone": None, "n": None, "cited": len(cited["frames"]),
+                "why": ("the picture shelf was not opened, so how many evidence links are "
+                        "broken is UNKNOWN, not 0")}
+    if not os.path.isdir(root):
+        return {"ok": False, "gone": None, "n": None, "cited": None,
+                "why": ("the picture shelf could not be read, so how many evidence links are "
+                        "broken is UNKNOWN")}
+    present = set()
+    try:
+        for dirpath, dirnames, files in os.walk(root):
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            for fname in files:
+                if fname.lower().endswith(".jpg"):
+                    present.add(fname)
+    except Exception:
+        return {"ok": False, "gone": None, "n": None, "cited": None,
+                "why": ("the picture shelf could not be read, so how many evidence links are "
+                        "broken is UNKNOWN")}
+    gone = [f for f in cited["frames"] if f not in present]
+    return {"ok": True, "gone": gone, "n": len(gone), "cited": len(cited["frames"]), "why": ""}
+
+
+def reset_receipt(receipt, before, after):
+    """What a reset receipt claims, beside the kept-store bytes. Never writes.
+
+    No receipt, or a receipt that does not say what it rebuilt, is UNKNOWN — rebuilt is
+    None, not 0. A kept store whose bytes differ is named.
+    """
+    blank = {"ok": False, "rebuilt": None, "held": None, "touched": None, "unknown": None,
+             "why": "the reset left no receipt, so what it cleared is UNKNOWN, not 0"}
+    if not isinstance(receipt, dict):
+        return blank
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return {"ok": False, "rebuilt": None, "held": None, "touched": None, "unknown": None,
+                "why": "the kept stores could not be read, so whether they survived is UNKNOWN"}
+
+    def _n(key):
+        if key not in receipt or receipt.get(key) is None:
+            return None
+        val = receipt.get(key)
+        if isinstance(val, bool):
+            return None
+        if isinstance(val, list):
+            return len(val)
+        if isinstance(val, int):
+            return val
+        return None
+
+    rebuilt_n, held_n = _n("rebuilt"), _n("held")
+    touched, unknown = [], []
+    for key in sorted(set(before) | set(after)):
+        if key not in before or key not in after:
+            unknown.append(key)
+            continue
+        if before[key] != after[key]:
+            touched.append(key)
+    if rebuilt_n is None or held_n is None:
+        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
+                "unknown": unknown,
+                "why": "rebuilt is UNKNOWN, not 0" if rebuilt_n is None
+                else "held is UNKNOWN, not 0"}
+    if unknown:
+        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
+                "unknown": unknown,
+                "why": "a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown)}
+    if touched:
+        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
+                "unknown": unknown,
+                "why": "a reset must never change %s — it did" % ", ".join(touched)}
+    return {"ok": True, "rebuilt": rebuilt_n, "held": held_n, "touched": [], "unknown": [],
+            "why": "rebuilt %d · held %d · kept stores unchanged" % (rebuilt_n, held_n)}

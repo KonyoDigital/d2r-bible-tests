@@ -6781,6 +6781,12 @@ GATES = [
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
              "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
+    Gate("test_the_vault_heart_says_what_the_reset_and_the_tiers_did",
+         [sys.executable, os.path.join(HERE, "test_the_vault_heart_says_what_the_reset_and_the_tiers_did.py")], 120,
+         why="2026-09-27 - the heart says what a vault reset rebuilt and how many items each "
+             "evidence tier holds. An unreadable ledger or a missing receipt is UNKNOWN, never 0. "
+             "A kept store that changed is named. A cited picture that is not on the shelf is "
+             "named. The tier count is corroborated by rebuild_plan. 5 red-proofs."),
     Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
          [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
          why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "

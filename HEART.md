@@ -14,8 +14,8 @@ may not fall without a human saying why in `heart_floor.json`.
 | | |
 |---|---|
 | surfaces the console paints | **362** |
-| of those, watched | **16** |
-| coverage | **4.4%** |
+| of those, watched | **17** |
+| coverage | **4.7%** |
 
 ## Watched
 
@@ -34,4 +34,5 @@ may not fall without a human saying why in `heart_floor.json`.
 - `th-shelf-x`
 - `th-shelfov`
 - `theatre`
+- `vault-body`
 - `win-ctl`
