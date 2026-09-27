@@ -6781,6 +6781,14 @@ GATES = [
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
              "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
+    Gate("test_a_reset_refiles_only_what_the_plan_says",
+         [sys.executable, os.path.join(HERE, "test_a_reset_refiles_only_what_the_plan_says.py")], 180,
+         why="2026-09-27 - the full vault reset clears the marks and then files back only what "
+             "vault_evidence.rebuild_plan names, through window.vaultFile, with a provenance row. "
+             "Driven on a seeded witness ledger: 12 clean looks come back proven, 21 come back locked, "
+             "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
+             "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
+             "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "

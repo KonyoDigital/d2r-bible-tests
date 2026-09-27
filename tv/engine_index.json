@@ -2064,6 +2064,16 @@
     "purpose": "Why the vault is empty, from his own film and free: no footage vs no stash panels vs panels with no readable names. Reports, never fixes.",
     "territory": "heart-organs"
   },
+  "vault_evidence.py": {
+    "entryPoints": [
+      "tier",
+      "rebuild_plan",
+      "plan_from_ledger"
+    ],
+    "gotcha": "tier() and rebuild_plan() are the only bar, and the bound is confidence.wilson_lower — a second table or a second Wilson function is the drift this file exists to prevent. plan_from_ledger reads a path the caller names and never writes it; a ledger it cannot read is ok:false, not an empty rebuilt list. It does not file. The board's full reset files the plan through window.vaultFile. Equipped rows and kept charms (sunder, annihilus, torch, gheed) come back below the bar; an unreadable count does not.",
+    "purpose": "Decides which cleared vault marks come back after a reset, from each item's own looks: watched under 10 trials, proven near 10 at the Wilson bar, hardened near 20.",
+    "territory": "vault"
+  },
   "vault_fixture_reels.py": {
     "entryPoints": [
       "materialise",

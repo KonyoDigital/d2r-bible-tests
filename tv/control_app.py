@@ -24489,6 +24489,18 @@ def vault_proven_names(min_witnesses=2):
                     % (len(proven), len(rows), int(min_witnesses)))}
 
 
+def vault_rebuild_plan(path=None):
+    """Which cleared marks a full reset files back. Reads the witness ledger. Never writes it.
+
+    The bar is vault_evidence.rebuild_plan. This function does not keep a second one. An
+    unreadable ledger comes back ok:false — not an empty rebuilt list the board could show as
+    "nothing proven".
+    """
+    import vault_evidence as VE
+    p = path if path else VAULT_LEDGER_PATH
+    return VE.plan_from_ledger(p)
+
+
 def vault_ledger_view():
     """THE LEDGER, READ-ONLY AND FREE.
 
@@ -36476,6 +36488,11 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 _pb = 2
             self._json(200, vault_proven_names(min_witnesses=_pb))
+            return
+        if path == "/api/vault_rebuild_plan":
+            # READS ONLY. The board's full reset asks which cleared marks come back, then files
+            # them itself through window.vaultFile. This does not write the witness ledger.
+            self._json(200, vault_rebuild_plan())
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason

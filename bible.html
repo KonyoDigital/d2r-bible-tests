@@ -38238,6 +38238,58 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       assign[nm] = toR; saveA();
       return { ok: true, mode: 'restored', mule: toR, witnessed: !!rowR, prov: rowR };
     }
+    /* A RESET REBUILD. The evidence plan already decided; this door only files that row, and it
+       still writes the provenance beside the filing. A watched row is refused. A kept charm or an
+       equipped item goes to __keep, never onto a mule. A proven stash item still has to pass the
+       witness check — a plan row with no pictures is not filed. */
+    if (opts.rebuild){
+      var pr = opts.plan;
+      if (!pr || typeof pr !== 'object' || Array.isArray(pr) || String(pr.name || '').trim() !== nm)
+        return { ok: false, refused: 'plan', why: nm + ' is not a row the evidence plan named' };
+      var tierN = String(pr.tier || ''), whyN = String(pr.why || '');
+      if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind')
+        return { ok: false, refused: 'plan', why: nm + ' is not proven, so a reset does not file it back' };
+      var keptHome = (pr.home === '__keep' || pr.equipped === true || whyN === 'kept kind');
+      var home = keptHome ? '__keep' : (opts.mule || null);
+      var w = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
+      if (!keptHome){
+        var wcR = window._vaultWitnessCheck(w);
+        if (!wcR.ok) return { ok: false, refused: wcR.main ? 'main' : 'witness', why: wcR.why };
+        if (!home){ var sgR = null; try { sgR = suggestMule(nm); } catch (e) { sgR = null; } home = sgR ? sgR.id : null; }
+        if (!_vHomeOk(home) || home === '__keep') return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
+      }
+      var lkR = '';
+      try { lkR = (window._laneLocked && window._laneLocked(nm)) || ''; } catch (e) { lkR = ''; }
+      if (lkR && home !== '__keep') return { ok: false, refused: 'locked', lock: lkR,
+        why: nm + ' is locked to your MAIN (' + lkR + ') — a reset does not file it onto a mule' };
+      var looksR = [], sessR = Array.isArray(pr.sessions) ? pr.sessions.slice() : [];
+      (Array.isArray(w.sessions) ? w.sessions : []).forEach(function(e){
+        if (!e || typeof e !== 'object') return;
+        var id = String(e.witness || e.session || '').trim(), fr = e.frame ? String(e.frame) : '', c = _lookConf(e);
+        if (!id || !fr || c == null) return;
+        looksR.push({ id: id, frame: fr, conf: c });
+      });
+      var nowR = new Date().toISOString();
+      var rowF = {
+        mule: home, main: _vMainName(), holder: _vHomeName(home),
+        source: keptHome ? 'kept' : 'stash',
+        at: nowR, reel: null, frame: looksR.length ? looksR[0].frame : null,
+        sessions: sessR, looks: looksR, conf: looksR.length ? looksR[0].conf : null,
+        gate: { pass: true, why: whyN, looks: (typeof pr.successes === 'number' ? pr.successes : null) },
+        wilson: (typeof pr.bound === 'number') ? pr.bound : null,
+        by: 'evidence', ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null,
+        tier: tierN || null,
+        successes: (typeof pr.successes === 'number') ? pr.successes : null,
+        trials: (typeof pr.trials === 'number') ? pr.trials : null,
+        locked: pr.locked === true,
+        cells: Array.isArray(pr.cells) ? pr.cells : [],
+        evidence: whyN
+      };
+      var paF = _provAll(); paF[nm] = rowF; _provWrite(paF);
+      try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
+      assign[nm] = home; saveA();
+      return { ok: true, mode: 'rebuilt', mule: home, holder: rowF.holder, prov: rowF, why: whyN };
+    }
     var wc = window._vaultWitnessCheck(witness);
     if (!wc.ok) return { ok: false, refused: wc.main ? 'main' : 'witness', main: !!wc.main, why: wc.why };
     if (lk) return { ok: false, refused: 'locked', lock: lk,
@@ -44333,8 +44385,65 @@ function renderJournal(){
       try { await c.clear(); R.cleared[parts[i]] = true; } catch(e){ R.failed.push(parts[i]); }
     }
     R.ok = (R.touched.length || R.failed.length) ? false : (R.unknown.length ? null : true);
+    try { await _vaultRefileFromPlan(R); } catch (e) {
+      if (R && R.door === 'vaultClearHistory') {
+        R.rebuilt = null; R.held = null;
+        R.planWhy = 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty';
+      }
+    }
     try { console.info('[vault reset] ' + JSON.stringify(R)); } catch(e){}
     return R;
+  }
+  /* The full reset asks the console for vault_evidence.rebuild_plan, then files only the rows
+     that plan named, through window.vaultFile. No plan (the public site, a console that did not
+     answer) is UNKNOWN — nothing is filed back and the status does not say the vault was empty.
+     The witness ledger is not a store this runner writes. */
+  async function _vaultAskRebuildPlan(){
+    var unread = { ok: false, rebuilt: [], held: [], why: 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty' };
+    try {
+      if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence();
+    } catch (e) { return unread; }
+    var host = '';
+    try { host = (typeof location !== 'undefined' && location) ? String(location.hostname || '') : ''; }
+    catch (e2) { host = ''; }
+    if (host !== '127.0.0.1' && host !== 'localhost') return unread;
+    if (typeof fetch !== 'function') return unread;
+    var ctl = null, timer = null;
+    try { ctl = new AbortController(); } catch (e3) { ctl = null; }
+    try {
+      timer = setTimeout(function(){ try { if (ctl) ctl.abort(); } catch (e4) {} }, 4000);
+      var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' };
+      if (ctl) opt.signal = ctl.signal;
+      var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);
+      if (!res || !res.ok) return unread;
+      var doc = await res.json();
+      return (doc && typeof doc === 'object') ? doc : unread;
+    } catch (e5) { return unread; }
+    finally { if (timer) clearTimeout(timer); }
+  }
+  async function _vaultRefileFromPlan(R){
+    if (!R || R.door !== 'vaultClearHistory') return;
+    R.rebuilt = null; R.held = null; R.planWhy = '';
+    var plan = await _vaultAskRebuildPlan();
+    if (!plan || plan.ok !== true || !Array.isArray(plan.rebuilt)) {
+      R.planWhy = (plan && plan.why) || 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty';
+      return;
+    }
+    R.held = Array.isArray(plan.held) ? plan.held.length : null;
+    var names = [], failed = [], rows = plan.rebuilt;
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || !row.name) continue;
+      var filed = null;
+      try {
+        if (typeof window.vaultFile !== 'function') throw new Error('no door');
+        filed = window.vaultFile(row.name, row.witness || null, { rebuild: true, plan: row, mule: row.home || null });
+      } catch (e6) { filed = null; }
+      if (filed && filed.ok) names.push(String(row.name));
+      else failed.push(String(row.name));
+    }
+    R.rebuilt = names;
+    R.rebuiltFailed = failed;
   }
   /* the words — the title, the confirm and the status line all read the scope, so they cannot drift from it */
   function _vaultResetWords(door, R){
@@ -44361,6 +44470,7 @@ function renderJournal(){
     return (one ? 'Reset the mule assignments?' : 'Reset the vault — the mules, what you are marked as holding, and the intake records?')
       + '\n\nClears ONLY: ' + w.clears.join(' · ') + (one ? ' — every item returns to the unsorted dock.' : '.')
       + '\n\nStays untouched: ' + w.keeps.join(' · ') + '.'
+      + (one ? '' : '\n\nAn item comes back only when the evidence plan says it is proven, or it does not vanish on its own. It is filed back through the same door as any witness. The witness ledger is not cleared.')
       + '\n\nWhat it clears cannot be undone.';
   }
   function _vaultResetSay(R){
@@ -44369,6 +44479,10 @@ function renderJournal(){
     if (R.failed.length) bits.push('⚠ could not clear: ' + R.failed.join(', '));
     if (R.touched.length) bits.push('⚠ a reset must never change ' + R.touched.join(', ') + ' — it did');
     if (R.unknown.length) bits.push('could not re-read ' + R.unknown.join(', ') + ' — UNKNOWN, not confirmed intact');
+    if (R.door === 'vaultClearHistory') {
+      if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read');
+      else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN'));
+    }
     return (R.ok === false ? '⚠ ' : '🧹 ') + 'vault reset — cleared ' + w.clears.join(' · ')
       + ' · ' + (R.touched.length ? 'meant to keep' : (R.unknown.length ? 'kept' : 'kept untouched')) + ': '
       + w.keeps.join(' · ') + (bits.length ? ' · ' + bits.join(' · ') : '');
