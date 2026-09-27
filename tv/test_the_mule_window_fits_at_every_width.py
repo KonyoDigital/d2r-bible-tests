@@ -1091,7 +1091,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 - a drag never starts: the tiles take no pointer (his_mule_locked_21 - the ring would not move)",
         "file": "bible.html",
-        "find": "    var it = e.target.closest('#vault-detail .vd-item[data-key]'), g = it && it.closest('.vd-grid[data-area]');\n",
+        "find": "    var it = e.target.closest('#vault-detail .vd-item[data-key], #vault-detail .vd-item[data-dbkey]'), g = it && it.closest('.vd-grid[data-area]');\n",
         "replace": "    var it = null, g = null;\n",
         "matches": 1,
     },
