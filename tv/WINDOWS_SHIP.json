@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3519",
+  "ver": "v3520",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3519: REG-1331 the shadow door on Windows asked the Mac-only Quartz finder and read its failure as no game, so no Windows PC could roll a shadow reel; Boosteroid own window is titled only Boosteroid (measured on the ALT) and now pins, native app only. REG-1332 a key stack is furniture again. REG-1333 the second eye can be shown a batch with --base. HEART: guarded by test_a_windows_door_sees_the_game, test_a_look_can_cover_a_batch and test_main_gear_never_files_to_a_mule, every red-proof PROVEN; a blind window walk reads UNKNOWN, never no game",
+  "note": "v3520: A generic charm keeps its own key, so two Grand Charms count as two and a second mule does not take the first. A drain refused while the console is ON AIR or a sweep is reading is DEFERRED, not STOPPED. HEART: the retention doctor stays OK on a deferral and goes missing only when owed reels were carried with no hold.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

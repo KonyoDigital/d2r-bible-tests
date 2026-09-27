@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1336 - A DRAIN DEFERRED BECAUSE THE CONSOLE IS ON AIR WAS CALLED STOPPED (v3520)
+
+**SEEN (reproduced on the branch before the merge):** three retention passes with reels owed, each refused because the console is ON AIR, read STOPPED and the doctor row went missing. The same happened while a chronicle or vault sweep was reading. The deleter was right to wait. The heart called a hold a stall. **FIX:** that pass is marked held. The drain says DEFERRED and the doctor stays OK. STOPPED is only a run of passes that owed reels, released nothing, and carried no deferral. An unreadable check ("could not tell") is not a deferral. The first pass after filming ends still drains what is owed. **LAW:** `test_the_river_drains_every_pass` (25 cases on main; heart2 --prove 12/12 PROVEN).
+
+### REG-1335 - TWO IDENTICAL CHARMS FILED BY NAME COUNTED AS ONE ITEM (v3520)
+
+**SEEN (reproduced):** placing two Grand Charms drew two tiles and Items said 1, because the name door holds one home. Placing the same charm on a second mule moved the name, and the first mule then drew both tiles while Items said 0 and the window said the locker was empty. **FIX:** a generic base (id b:, or a magic or rare whose name is still the base) is not filed by name. Each placed copy keeps its own store key. The Items count is every laid database tile. The empty-locker line stays quiet while those tiles are there. A unique still files by name. **LAW:** `test_the_mule_inventory_takes_items_like_the_doll` (19 cases on main; heart2 --prove 32/32 PROVEN).
+
 ### REG-1334 - THE TOOLS TAB WAS AN EMPTY CHIP BELOW 1100px, AND THE RENDER GATE COULD NOT SEE IT (v3518)
 
 **SEEN (push refused, then the PNGs read):** v3518 made Tools icon-only to keep the header on one row at 1120. Below

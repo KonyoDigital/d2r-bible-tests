@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3519"   # a Windows console sees the game - shadow rolls on the ALT through Boosteroid
+VERSION = "v3520"   # two charms stay two and a deferred drain is not stopped
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
