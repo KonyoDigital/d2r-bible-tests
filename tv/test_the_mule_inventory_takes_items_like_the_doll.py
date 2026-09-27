@@ -99,6 +99,7 @@ function place(x, y, id){ var ok = pickAt(x, y, id); if (ok && st().pick && st()
 function artOf(key){ var h = invHtml(), i = h.indexOf('data-dbkey="' + key + '"'); if (i < 0) return null;
   var m = /class="d2art-wrap[^"]*" role="img" aria-label="([^"]*)"/.exec(h.slice(i)); return m ? unesc(m[1]) : null; }
 function baseCodes(){ var re = /data-base="([^"]+)"/g, m, o = [], h = modalHtml() || ''; while ((m = re.exec(h))) o.push(unesc(m[1])); return o; }
+function itemsBox(){ var m = /mp-box-k">Items<\/span><span class="mp-box-v">(\d+)/.exec(box.innerHTML); return m ? +m[1] : null; }
 function allTiles(name){
   var ld = window._muleLoad(window._muleNamesFor('uni-armor'), window._mpWornFor('uni-armor', eq()), 'uni-armor'), n = 0;
   ld.mules.forEach(function(m){ m.stash.concat(m.inv).forEach(function(p){ if (p.n === name) n++; });
@@ -464,24 +465,37 @@ class TheDoorFilesItOnceAndItIsOneItem(unittest.TestCase):
         self.assertEqual(out["after"], [[80, True]], "Edit did not edit the tile in place (the placement keeps its time)")
         self.assertEqual(out["filed2"], 1, "an edit filed the item a second time")
 
-    def test_two_grand_charms_keep_their_own_cells_and_the_second_mule_does_not_take_the_first(self):
+    def test_two_identical_charms_are_two_copies_and_a_second_mule_does_not_take_the_first(self):
         out = _drive("""
           door();
-          window.openMuleCard('uni-armor'); out.a = pickAt(0, 0, 'b:cm3');
+          window.openMuleCard('uni-armor');
+          out.a = pickAt(0, 0, 'b:cm3'); out.a2 = pickAt(1, 0, 'b:cm3');
+          out.tilesA = dbTiles().length; out.itemsA = itemsBox(); out.emptyA = /empty locker/.test(box.innerHTML);
+          var invA = (eq()['uni-armor'] || {}).inv || {};
+          out.keysA = Object.keys(invA); out.copiesA = out.keysA.map(function(k){ return invA[k].copy || null; });
           window.openMuleCard('uni-weap'); out.b = pickAt(0, 0, 'b:cm3');
-          var ea = eq();
+          out.tilesB = dbTiles().length; out.itemsB = itemsBox();
+          window.openMuleCard('uni-armor');
+          out.tilesA2 = dbTiles().length; out.itemsA2 = itemsBox(); out.emptyA2 = /empty locker/.test(box.innerHTML);
           out.home = assign['Grand Charm'] || null;
-          out.nA = Object.keys((ea['uni-armor'] || {}).inv || {}).length;
-          out.nB = Object.keys((ea['uni-weap'] || {}).inv || {}).length;
-          out.filed = FILED.map(function(f){ return f.mule; });""")
+          out.filed = FILED.map(function(f){ return f.n; });""")
         self.assertIs(out["a"], True, "the first grand charm was not placed")
-        self.assertIs(out["b"], True, "the second grand charm was not placed: the two counted as one")
-        self.assertEqual(out["nA"], 1, "the first mule lost its grand charm")
-        self.assertEqual(out["nB"], 1, "the second mule has no grand charm of its own")
-        self.assertEqual(out["home"], "uni-armor",
-                         "placing the second copy moved the name off the first mule: %r" % out)
-        self.assertEqual(out["filed"], ["uni-armor"],
-                         "the second copy was filed as a move of the first: %r" % out["filed"])
+        self.assertIs(out["a2"], True, "a second identical grand charm was not placed: the two counted as one")
+        self.assertIs(out["b"], True, "the same charm was not placed on a second mule")
+        self.assertEqual((out["tilesA"], out["itemsA"]), (2, 2),
+                         "two grand charms were drawn as %s tile(s) and Items said %s" % (out["tilesA"], out["itemsA"]))
+        self.assertEqual(len(set(out["keysA"])), 2, "the two copies do not have their own store keys: %r" % out["keysA"])
+        self.assertEqual(sorted(out["copiesA"]), sorted(out["keysA"]),
+                         "a copy's identity is not its own key: %r" % out["copiesA"])
+        self.assertFalse(out["emptyA"], "two placed charms read as an empty locker")
+        self.assertEqual((out["tilesB"], out["itemsB"]), (1, 1),
+                         "the second mule did not count its own copy")
+        self.assertEqual((out["tilesA2"], out["itemsA2"]), (2, 2),
+                         "reopening the first mule lost a copy or stopped counting it")
+        self.assertFalse(out["emptyA2"], "the first mule reads empty while its charms are still there")
+        self.assertIsNone(out["home"], "a generic charm was filed by name, so the copies are one item: %r" % out["home"])
+        self.assertNotIn("Grand Charm", out["filed"],
+                         "the name door took a generic charm: %r" % out["filed"])
 
     def test_the_filed_charm_is_one_item_on_the_grid(self):
         ids = _ids(("Annihilus", "u"))
@@ -577,10 +591,31 @@ class TheLoaderNeverAsksTheBuildersDatabase(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "2026-09-27 - a second Grand Charm moves the first off its mule, so two copies count as one",
+        "why": "2026-09-27 - a generic charm is filed by name, so two Grand Charms are one item and the second mule takes the first",
         "file": "bible.html",
-        "find": "            if (set === 'inv' && assign[e.name] != null && assign[e.name] !== mid) return;\n",
+        "find": "            if (_mpIsGenericCopy(e)) return;\n",
         "replace": "            if (false) return;\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-27 - two identical charms on the grid count as the one named copy",
+        "file": "bible.html",
+        "find": "    return { sized: sized, phys: sized.length + _wornN + _db.n, worn: _wornN, cells: cells, mules: mules, rem: rem,\n",
+        "replace": "    return { sized: sized, phys: sized.length + _wornN + _dbInLocker, worn: _wornN, cells: cells, mules: mules, rem: rem,\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-27 - charms placed from the database read as an empty locker because the name was not filed",
+        "file": "bible.html",
+        "find": "      +   ((names.length || (_load.dbPlaced | 0)) ? '' : '<div class=\"vm-empty\" style=\"padding:0 0 8px\">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')\n",
+        "replace": "      +   (names.length ? '' : '<div class=\"vm-empty\" style=\"padding:0 0 8px\">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-27 - a placed charm has no copy of its own, so two identical charms are one record",
+        "file": "bible.html",
+        "find": "    e.copy = k;\n",
+        "replace": "",
         "matches": 1,
     },
     {

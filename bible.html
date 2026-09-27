@@ -40736,10 +40736,11 @@ window.vaultAutoAssign = function(){
       var _i2 = packGrid(_s2.left, MULE_INV_W, MULE_INV_H, _lo.inv);
       _roomLeft = !_i2.left.length;    /* one more still fits on THIS mule */
     } catch(e){ _roomLeft = true; }   /* cannot tell -> never claim it is full */
-    return { sized: sized, phys: sized.length + _wornN + _dbInLocker, worn: _wornN, cells: cells, mules: mules, rem: rem,
+    return { sized: sized, phys: sized.length + _wornN + _db.n, worn: _wornN, cells: cells, mules: mules, rem: rem,
              firstCount: _count(first),
-             /* #174 v-B5 — the database's items on his inventory cells: how many are laid, and how many of them are this
-                locker's own copy of a name the door filed here (counted once, in phys) */
+             /* #174 v-B5 — every laid database tile is one copy. A tile that is this locker's filed
+                copy of a name was already taken out of sized, so phys adds _db.n and a second
+                identical charm counts as its own item. dbInLocker is only the named-copy part. */
              dbPlaced: _db.n, dbInLocker: _dbInLocker,
              /* #174 v-B2 — what each mule holds (all five stash tabs + the inventory), the hand-placed count,
                 the spots that no longer fit (reported, never silently moved), and the cells in the four tabs the
@@ -40991,6 +40992,22 @@ window.vaultAutoAssign = function(){
   function _mpCopies(n){
     return Math.max(1, Math.min((typeof copyCount === 'function' ? copyCount(n) : 1) || 1, _MULE_COPY_CAP));
   }
+  /* a base, or a magic/rare whose name is still the base's own name: many copies, one name.
+     id b: is the builder's base row (a Grand Charm stays b:cm3 even after a prefix). */
+  function _mpIsGenericCopy(e){
+    if (!e) return false;
+    if (typeof e.id === 'string' && e.id.indexOf('b:') === 0) return true;
+    var q = e.q;
+    if (q !== 'm' && q !== 'rare' && q !== 'magic' && q !== 'b') return false;
+    var bn = '';
+    try {
+      if (e.base && typeof window._cbBase === 'function'){
+        var b = window._cbBase(e.base);
+        if (b && b[0]) bn = String(b[0]);
+      }
+    } catch (x) { bn = ''; }
+    return !!(bn && String(e.name || '') === bn);
+  }
   /* ── THE STORE: d2r_muleEquip = {muleId: {setI: {slot: entry}, setII: {rarm, larm}}},
         entry = {name, source: 'manual'|'import'|'analyzer', at, props?}. Account state, so it forks like
         d2r_muleAssign (_LP_FORKED) and rides Backup & Share with every other d2r_ key. ── */
@@ -41020,10 +41037,9 @@ window.vaultAutoAssign = function(){
             if (!e || e.source !== 'manual' || !e.name) return;
             var p = ((_prev[mid] || {})[set] || {})[slot];
             if (p && p.name === e.name && p.at === e.at) return;
-            /* 2026-09-27 — two Grand Charms are two items. assign is one home per NAME, and a hand
-               filing that names a mule MOVES that home. A second inventory tile of a name already
-               filed elsewhere keeps its own cell and does not take the first copy's mule. */
-            if (set === 'inv' && assign[e.name] != null && assign[e.name] !== mid) return;
+            /* a generic base is one copy of a name (two Grand Charms). The name door holds one
+               home, so filing it makes the copies one item. The copy's identity is its store key. */
+            if (_mpIsGenericCopy(e)) return;
             window.vaultFile(e.name, { by: 'hand', at: e.at || new Date().toISOString(),
                                        where: 'the mule window (' + ((muleById(mid) || {}).name || mid) + ')' }, { mule: mid });
           });
@@ -41173,6 +41189,7 @@ window.vaultAutoAssign = function(){
     var e = { name: String(entry.name), source: src, at: entry.at || new Date().toISOString(), page: pg, x: spot.x, y: spot.y, w: entry.w, h: entry.h };
     if (typeof entry.id === 'string' && entry.id)
       MP_CB_FIELDS.forEach(function(f){ if (entry[f] !== undefined && entry[f] !== null) e[f] = JSON.parse(JSON.stringify(entry[f])); });
+    e.copy = k;
     inv[k] = e;
     return { ok: true, all: next, key: k };
   }
@@ -42360,7 +42377,7 @@ window.vaultAutoAssign = function(){
               + ' — not drawn; ' + (n === 1 ? 'its record is' : 'their records are') + ' kept until you remove ' + (n === 1 ? 'it' : 'them') + ': '
               + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + ((c.w && c.h) ? c.w + '×' + c.h : 'size UNKNOWN') + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why)
                 + ' <button type="button" class="mp-btn" data-fk="dbx-' + esc(c.key) + '" onclick="window._mpInvRemoveKey(\'' + jsArg(String(c.key).replace(/^db:/, '')) + '\')">remove</button>'; }).join(' · ') + '</div>'; })((_load.conflicts || []).filter(function(c){ return c.db; })) : '')
-      +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
+      +   ((names.length || (_load.dbPlaced | 0)) ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
       /* #174 v-B — the note is an EDITOR over the locker's own field (d2r_muleRoster), saved on Enter or blur
          through the routed store; a draft he has not saved yet survives a re-render underneath him */
       +   '<textarea class="mp-note-ed" data-fk="note" rows="4" spellcheck="false"'
