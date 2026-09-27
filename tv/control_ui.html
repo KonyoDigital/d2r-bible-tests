@@ -7520,6 +7520,17 @@
     .head-tabs .ht[data-tab="tvd"] { padding: 7px 5px; }
     .head-tabs .ht .ht-i { width: 14px; height: 14px; }
   }
+  /* 2026-09-27 — NINE TABS (his 👤 Characters door, v3518) AND ONE ROW DOWN TO 900. Measured at 900: the strip is
+     543px and eight tabs plus gaps filled it exactly, so TV·D wrapped (demo J10). Step 1 again, one notch: the tab
+     type drops 14 -> 13px (--fs-2xs, the console's own fine-print token), padding 5 -> 4 and the gap to 2px, only
+     below 960. Measured after: one row at 1000/960/930/900, the strip 526 of 543. [[feedback-suspect-the-instrument]] */
+  @media (max-width: 960px) {
+    .head-tabs { gap: 2px; }
+    .head-tabs .ht,
+    .head-tabs .ht[data-tab="tools"],
+    .head-tabs .ht[data-tab="tvd"] { padding: 7px 4px; font-size: var(--fs-2xs); }
+    .head-tabs .ht.ht-icon { padding-left: 4px; padding-right: 4px; }
+  }
   /* ── and ONLY below his window does the ornament finally yield ────────────────────────────────
      Under ~1100 there is no arrangement of icon, label and padding that fits eight tabs on one
      line — measured, not assumed: the tightest legible config still needs ~729px and the strip has
@@ -7527,11 +7538,12 @@
      and the tab must survive without it." No label is ever hidden at any width. ─────────────── */
   @media (max-width: 1100px) {
     .head-tabs .ht .ht-i { display: none; }
-    /* 2026-09-27 — and so an icon-only chip whose picture yields shows its WORD here (Tools, v3518
-       made it icon-only above 1100 and left an empty chip below it). The 👤 chip is a glyph, not a
-       picture, and keeps it. render_check console-tabs: every tab shows a word, picture or glyph. */
-    .head-tabs .ht.ht-icon .ht-i ~ .ht-lbl { position: static; width: auto; height: auto;
-      overflow: visible; clip: auto; }
+    /* 2026-09-27 — EXCEPT an icon-only chip: its picture IS the tab (like the 👤 glyph), so it keeps
+       it here. v3518 made Tools icon-only and this rule left it an EMPTY chip below 1100; showing its
+       word instead wrapped the 9-tab strip to two rows at 900 (demo J10). A picture that fails to
+       load drops the icon-only class (its onerror), and the word shows. render_check console-tabs:
+       every tab shows a word, picture or glyph. */
+    .head-tabs .ht.ht-icon .ht-i { display: inline-block; }
   }
 
   /* ══ v2102 — THE FLEET BAR: the console says when it is behind ═════════════════════════════ */

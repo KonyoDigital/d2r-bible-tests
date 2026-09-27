@@ -1059,7 +1059,9 @@ async function j10_headerGeometry(page) {
     if (r.clipped) bad.push(`${w}px clips the strip`);
     if (r.silent) bad.push(`${w}px has overflow-x:${'auto'} with no scrollbar — a tab can vanish silently`);
     if (r.offscreen) bad.push(`${w}px pushes ${r.offscreen} tab(s) out of reach`);
-    if (r.tabs !== 8) bad.push(`${w}px shows ${r.tabs} tabs, not 8`);
+    // 2026-09-27 — 8 -> 9: his ruling added the 👤 Characters door (v3518, "yea do it"). A NEW tab must move
+    // this number on purpose; a tab that silently leaves the DOM still reads short here.
+    if (r.tabs !== 9) bad.push(`${w}px shows ${r.tabs} tabs, not 9`);
     // the icon yield is a DESIGN line, not an accident: they hold to 1120 and drop below 1100
     if (w >= 1120 && !r.icons) bad.push(`${w}px lost its tab art above the 1100px yield`);
   }

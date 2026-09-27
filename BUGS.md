@@ -13,11 +13,16 @@
 1100px the console hides every tab picture (v1614: "the WORD is the tab, the picture is the ornament"), so Tools showed
 neither and was an empty sliver at 375 and 901. The render gate refused `console-tabs` for a DIFFERENT reason - it probes
 each tab's LABEL, and an icon chip's label is a deliberate 1px screen-reader span, so its centre sampled the chip's own
-glyph and read "covered 2/9" - while an empty button still counted as painted. **FIX:** below 1100px an icon chip whose
-picture yields shows its word again (the 👤 glyph stays); a Tools picture that fails to load drops the icon-only class.
+glyph and read "covered 2/9" - while an empty button still counted as painted. **FIX:** below 1100px an icon chip keeps
+its picture (for an icon chip the picture IS the tab, like the 👤 glyph); showing the WORD instead was tried first and
+wrapped the 9-tab strip to two rows at 900 (demo J10, which also moved 8 -> 9 tabs for his Characters door). Below 960px
+the tabs take one more notch (13px type, padding 4, gap 2): one row at 1920..900, strip 526 of 543 at 900. A Tools
+picture that fails to load drops the icon-only class, so the word shows.
 The target measures an icon chip as the button he clicks and a text tab by its label, and requires every tab to show a
 word, picture or glyph. **PROVEN:** clean 6/6 widths green; a Tools chip with picture and word hidden -> red; an opaque
-panel over the 👤 chip -> covered. Grok CLI, cold, on the 375/901 crops: every tab readable, nothing empty or overlapped.
+panel over the 👤 chip -> covered. demo_console 16/16. Grok CLI, cold, on 375/901/1120: one row at 901 and 1120, every
+tab a word or a clear icon; it also named the glyph-only NAME pill as a wide empty pill below 1080 (by design since the
+text hides at 1080, but stretched to the clock column) - logged for the #247 visual pass, not touched here.
 
 ### REG-1333 - A BATCH SHIPPED AS BUMP-ONLY COMMITS COULD NEVER BE SHOWN TO THE SECOND EYE (v3517)
 
