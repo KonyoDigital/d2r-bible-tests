@@ -291,7 +291,15 @@ def cited_frames(path):
         doc = json.loads(blob.decode("utf-8"))
     except Exception:
         return {"ok": False, "frames": None, "why": _UNREAD}
-    if not isinstance(doc, dict) or not isinstance(doc.get("owned"), list):
+    if not isinstance(doc, dict):
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    owned = doc.get("owned")
+    # A readable ledger that simply has no owned rows cites nothing. That is the empty
+    # vault_accum.json the reel planner already writes. A present owned value that is not a
+    # list will not parse, and that stays UNKNOWN.
+    if owned is None:
+        return {"ok": True, "frames": [], "why": "this ledger names no owned rows, so no frame is cited"}
+    if not isinstance(owned, list):
         return {"ok": False, "frames": None, "why": _UNREAD}
     floor = _conf_floor()
     if floor is None:

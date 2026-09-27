@@ -135,7 +135,7 @@ class ACitedFrameStaysAndTheLineOpensIt(unittest.TestCase):
         self.assertNotIn("miss.jpg", got["frames"])
         with io.open(self.ledger, "rb") as fh:
             self.assertEqual(self.before, fh.read(), "citing frames wrote the witness ledger")
-        note = FA.keep_cited(self.reel, self._seal(), self._wit(got["frames"]))
+        note = RR.release_uncited(self.reel, self._seal(), self._wit(got["frames"]))
         self.assertTrue(note["ok"], note)
         self.assertTrue(os.path.isfile(os.path.join(self.reel, "cited.jpg")))
         self.assertFalse(os.path.isfile(os.path.join(self.reel, "other.jpg")))
@@ -164,8 +164,8 @@ class ACitedFrameStaysAndTheLineOpensIt(unittest.TestCase):
         got = VE.cited_frames(self.ledger)
         self.assertFalse(got["ok"])
         self.assertIsNone(got["frames"])
-        note = FA.keep_cited(self.reel, self._seal(),
-                             {"ok": True, "haveIndex": True, "frames": set(), "cited": None})
+        note = RR.release_uncited(self.reel, self._seal(),
+                                  {"ok": True, "haveIndex": True, "frames": set(), "cited": None})
         self.assertFalse(note["ok"])
         self.assertIsNone(note["gone"])
         for name in ("cited.jpg", "miss.jpg", "other.jpg"):

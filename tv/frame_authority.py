@@ -477,11 +477,6 @@ def keep_cited(reel_dir, sealed, wit):
             continue
         may, why = frame_verdict(path, sealed=sealed, wit=wit, recent=set())
         if may:
-            try:
-                os.remove(path)
-            except OSError:
-                return {"ok": False, "kept": kept, "gone": gone,
-                        "why": "a frame could not be released, so the rest were left where they are"}
             gone.append(name)
         else:
             kept.append({"frame": name, "why": why})

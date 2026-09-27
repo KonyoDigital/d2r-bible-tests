@@ -193,6 +193,27 @@ def _reel_ts(reel):
         return float("inf")
 
 
+def release_uncited(reel_dir, sealed, wit):
+    """Apply keep_cited. The authority names the frames. This module is the one that removes them."""
+    import frame_authority as _fa
+    note = _fa.keep_cited(reel_dir, sealed, wit)
+    if not note.get("ok"):
+        return note
+    gone = []
+    for name in list(note.get("gone") or []):
+        path = os.path.join(reel_dir, name)
+        try:
+            os.remove(path)
+        except OSError:
+            note = dict(note)
+            note["ok"] = False
+            note["gone"] = gone
+            note["why"] = "a frame could not be released, so the rest were left where they are"
+            return note
+        gone.append(name)
+    return note
+
+
 def _durable_sessions(here=None):
     """Sessions whose witnesses survive INDEPENDENTLY of the frames.
 
