@@ -6710,6 +6710,12 @@ GATES = [
              "should agree with, which neither lane can see alone — and pins that an unreadable or "
              "timestamp-less store is UNKNOWN rather than healthy. All five laws sabotage-proven "
              "RED."),
+    Gate("test_the_lane_counts_what_grokbot_owes",
+         [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
+         why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "
+             "line the seat tag, so every GrokBot ACT was filed 'pre-v2 (no lead verb)' and the LANES hook said "
+             "0 owed while 2 ACTs for Claude sat on #230 (5854814442, 5855160685). The tag or routing header is "
+             "skipped, LOOKED/STATE ticks are FYI, 'ACTUALLY' is not ACT. Driven on #230's real shapes. 5 cases, 3 red-proofs"),
     Gate("test_handoff_queue", [sys.executable, os.path.join(HERE, "test_handoff_queue.py")], 90,
          why="v2289 — THE CONSOLE-TO-BOARD HANDOFF, DRIVEN END TO END RATHER THAN GREPPED. v2274 "
              "\"fixed\" register by preferring a _BOARD_WIN handle and pinned it with a SOURCE "

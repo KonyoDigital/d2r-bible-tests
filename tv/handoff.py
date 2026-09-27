@@ -18,6 +18,7 @@ import argparse
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -124,15 +125,38 @@ def _marks():
         return None          # malformed OR unreadable: UNKNOWN
 
 
+#: ⚠⚠ 2026-09-27 — THE SEAT TAG IS THE FIRST LINE, SO THE VERB IS THE SECOND. CLAUDE.md §4: "the TAG ON THE FIRST
+#: LINE is the only thing that identifies a seat" - and this read the FIRST line for the verb. Every GrokBot comment
+#: opens "GB-L", so every ACT it ever posted was filed "pre-v2 (no lead verb)" and the LANES hook said "0 ACT/ASK owed"
+#: while two ACTs for Claude sat unread on 2026-09-27 (5854814442, 5855160685). A bare seat tag, or a routing header
+#: ("GB-L-n — GrokBot → Claude"), is skipped; the next line carries the verb. [[the-unjoined-end]]
+_SEAT_TAG_RX = re.compile(r"^GB-[A-Z0-9]+(?:-[A-Z0-9]+)*(?:\s+[—–-]\s+.*)?$", re.I)
+#: an OBSERVATION owes nothing: GrokBot's standing ticks lead LOOKED or STATE, and they are read, never answered.
+_OBSERVED = ("LOOKED", "STATE")
+
+
 def _classify(body):
-    """-> ('ACT'|'ASK'|'FYI'|'?', first_meaningful_line). Protocol v2 leads with the verb."""
+    """-> ('ACT'|'ASK'|'FYI'|'?', first_meaningful_line). Protocol v2 leads with the verb - after the seat tag."""
+    skipped = 0
     for raw in (body or "").splitlines():
         line = raw.strip().lstrip("#* ").strip()
         if not line or line.startswith("```"):
             continue
+        # a leading emoji or symbol is decoration ("👀 LOOKED ·", "📍 STATE —"), never the verb
+        while line and not line[0].isalnum():
+            line = line[1:].lstrip()
+        if not line:
+            continue
+        if skipped < 2 and _SEAT_TAG_RX.match(line):
+            skipped += 1
+            continue
+        head = line.upper()
         for verb in ("ACT", "ASK", "FYI"):
-            if line.upper().startswith(verb):
+            if head.startswith(verb) and not head[len(verb):len(verb) + 1].isalnum():
                 return verb, line[:200]
+        for obs in _OBSERVED:
+            if head.startswith(obs) and not head[len(obs):len(obs) + 1].isalnum():
+                return "FYI", line[:200]
         # pre-v2 briefs: no lead verb. Say so rather than guessing a priority.
         return "?", line[:200]
     return "?", "(empty body)"
