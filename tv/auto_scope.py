@@ -122,15 +122,21 @@ LANES = {
     },
     "tvd-shadow-watch": {
         "does": "looks for the Diablo window and ROLLS A REEL ITSELF when it finds one — the only "
-                "lane here that starts a recording without him pressing anything",
-        "touches": "starts the same capture agent /api/on starts; writes frames into a new reel",
+                "lane here that starts a recording without him pressing anything — and closes a "
+                "reel IT opened once that reel has run an hour, so an evening is processed in "
+                "hour-long pieces instead of one reel at the end",
+        "touches": "starts the same capture agent /api/on starts; writes frames into a new reel; "
+                   "ends only its OWN shadow reels, through the same stop /api/off uses",
         "forbids": ["delete"],
         "never": "a SECOND reel — it refuses while an agent is alive or a mini is counting down; "
                  "and it refuses below the 8 GB floor, because a reel the reaper cannot keep alive "
-                 "is worse than no reel",
-        "when": "every 20 s, only while the shadow switch is ON",
-        "brakes": "tv_diablo.find_d2r_window_mac() — the SAME finder ON AIR and MINI capture "
-                  "through. No window, no reel.",
+                 "is worse than no reel. It NEVER ends a reel he started himself (ON AIR or MINI), "
+                 "whatever its age, nor one whose door or start it cannot read",
+        "when": "every 20 s, only while the shadow switch is ON; one extra look ~2 s after an "
+                "hourly rollover, so the next reel follows the sealed one within seconds",
+        "brakes": "the SAME window finder ON AIR and MINI capture through (Quartz on the Mac, the "
+                  "Win32 walk on Windows). No window, no reel — so with the game gone a rolled-over "
+                  "reel is closed and not reopened.",
     },
     "tvd-vault-autoread": {
         "does": "starts a vault read on footage that is waiting for one",

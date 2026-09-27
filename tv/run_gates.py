@@ -5857,6 +5857,19 @@ GATES = [
              "name-the-game rule held that eye too. Windows finder over the proven Win32 walk, one judge for "
              "both OSes, the measured bare title native-only in Python and C#; a walk that sees no "
              "desktop is UNKNOWN, never no-game. 12 cases, 9 red-proofs"),
+    Gate("test_a_shadow_session_rolls_over_every_hour",
+         [sys.executable, os.path.join(HERE, "test_a_shadow_session_rolls_over_every_hour.py")], 60,
+         why="2026-09-27 - his order: 'each session shadow reader should automatically be hourly ... the "
+             "session closes and continue another session but instantly ... so they can be processed and "
+             "its not stacking up'. NOTHING rotated a session: shadow_watch_tick walked past a rolling reel, "
+             "so an evening was one reel nothing could process until it ended - and it noted nothing while "
+             "any reel rolled, so lookedAt aged through every ON AIR session and the heart called a working "
+             "watcher stopped. A SHADOW reel of >= _SHADOW_ROTATE_AFTER_S (1 h, TV_SHADOW_ROTATE_S for laws) "
+             "is closed through stop_agent(farewell=False) - the /api/off stop - and the next look, ~2 s "
+             "later, reopens through the shadow door only while the game is seen. ON AIR/MINI are never cut; "
+             "an orphan's door or an unreadable start is never cut and reads UNKNOWN; a stop that did not "
+             "take is not counted; the shadowWatch row fires past the hour + 5 min. Driven with stubbed "
+             "edges on a TV_HIST fixture. 14 cases, 13 red-proofs"),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
          why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "
