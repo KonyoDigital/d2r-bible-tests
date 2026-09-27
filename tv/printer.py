@@ -280,7 +280,40 @@ def _by_reel(blob, key="rows"):
     return out, dropped
 
 
-def _tombstone_census(blob):
+def _ledger_is_absent(why):
+    """A missing reel_tombstones.json is none yet. A file that will not parse is not.
+
+    The loader already says which one it was. Callers that only see a None blob used to
+    collapse both into "could not be read".
+    """
+    w = str(why or "")
+    if "could not be read" in w or "would not read" in w:
+        return False
+    return ("no record yet" in w) or ("no tombstone ledger" in w)
+
+
+def _tombstone_load_why(whys):
+    """The loader's sentence, if this snapshot has one. -> str"""
+    for w in whys or []:
+        s = str(w or "")
+        if "tombstone" in s or "reel_tombstones" in s:
+            return s
+    return ""
+
+
+def _tombstone_unknown_why(load_why):
+    """What an on-disk reel may say when the ledger is not a record. -> str
+
+    Missing stays the loader's own "no record yet". Anything else is UNKNOWN.
+    The station say stays UNKNOWN either way: none yet is not a count of zero.
+    """
+    if _ledger_is_absent(load_why):
+        return str(load_why)
+    return ("the tombstone ledger could not be read, so whether "
+            "anything was ever closed out is UNKNOWN")
+
+
+def _tombstone_census(blob, why=""):
     """The ledger's totals, as a FIELD. -> dict, and UNKNOWN is never 0.
 
     v2692 put the ledger's totals into every row's `why` sentence and nowhere else, so the only
@@ -289,9 +322,17 @@ def _tombstone_census(blob):
 
     ⚠ A LEDGER THAT WOULD NOT LOAD IS `reels: None`, NEVER `reels: 0`. "Nobody could read it" and
     "nothing was ever closed out" are opposite facts and only one of them is safe to act on.
-    [[unknown-stays-unknown]]
+    A missing file is a third fact: this console has no record yet. That sentence is the
+    loader's, quoted here, not rewritten as a broken file. [[unknown-stays-unknown]]
     """
     if not isinstance(blob, dict):
+        if _ledger_is_absent(why):
+            return {"ok": False, "reels": None, "mb": None, "why": str(why)}
+        detail = str(why or "").strip()
+        if detail and "could not be read" not in detail:
+            return {"ok": False, "reels": None, "mb": None,
+                    "why": ("the ledger could not be read (%s), so how many reels were ever "
+                            "closed out is UNKNOWN — not zero" % detail[:120])}
         return {"ok": False, "reels": None, "mb": None,
                 "why": "the ledger could not be read, so how many reels were ever closed out is "
                        "UNKNOWN — not zero"}
@@ -409,8 +450,10 @@ def stream(reel=None):
 
     src, whys = _sources()
     # ⚠ ONE reading, taken where every other owner's is taken, so the per-row station and
-    # the shelf-wide census can never disagree about the same ledger.
-    tomb_census = _tombstone_census(src.get("tombstones"))
+    # the shelf-wide census can never disagree about the same ledger. The loader's why
+    # travels with the blob: a missing file and a file that will not parse are both None.
+    _tomb_why = _tombstone_load_why(whys)
+    tomb_census = _tombstone_census(src.get("tombstones"), _tomb_why)
     river, _d1 = _by_reel(src.get("river"))
     doors, _d2 = _by_reel(src.get("door"))
     routes, _d3 = _by_reel(src.get("routes"))
@@ -583,13 +626,13 @@ def stream(reel=None):
         # tombstone answer is "not closed out — still here". The ledger's totals ride along so the
         # history is visible from the same surface rather than requiring 410 extra rows on a hot
         # path: the reels it names are, by definition, absent from this row set.
-        # ⚠ A MISSING LEDGER IS UNKNOWN, NOT "NOTHING WAS EVER PRUNED". Those are opposite facts and
-        # only one of them is safe to act on. [[unknown-stays-unknown]]
+        # ⚠ A MISSING LEDGER IS NONE YET, NOT "NOTHING WAS EVER PRUNED", AND NOT A FILE THAT
+        # WOULD NOT PARSE. All three used to share "could not be read". The say stays UNKNOWN
+        # so a console that has never retired a reel is not counted as zero. [[unknown-stays-unknown]]
         _tomb = src.get("tombstones")
         if not isinstance(_tomb, dict):
             stations["tombstone"] = {"say": "UNKNOWN", "owner": "reel_retention",
-                                     "why": "the tombstone ledger could not be read, so whether "
-                                            "anything was ever closed out is UNKNOWN"}
+                                     "why": _tombstone_unknown_why(_tomb_why)}
         else:
             _treels = _tomb.get("reels") or []
             if not isinstance(_treels, list):

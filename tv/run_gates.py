@@ -5229,6 +5229,14 @@ GATES = [
              "LEDGER failed to load rather than because nothing was pruned (opposite facts), and "
              "`certified` decaying into an alias for `sealed` when 30 seals exist and ZERO satisfy "
              "the extraction contract"),
+    Gate("test_a_missing_tombstone_is_none_yet",
+         [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
+         why="a console that has never retired a reel has no reel_tombstones.json. That is none "
+             "yet, not a file that could not be read, and not a measured zero. The loader already "
+             "said so; the census, the on-disk station and the river walk rewrote it as unreadable, "
+             "so the ALT river read UNKNOWN for a ledger that was simply absent. A file that will "
+             "not parse stays UNKNOWN. control_app's mouth and release history already kept the "
+             "two apart and this pins them. 4 red-proofs"),
     Gate("test_entry_door_stamp",
          [sys.executable, os.path.join(HERE, "test_entry_door_stamp.py")], 120,
          why="the door that opened a reel never reached the reel: 0 of 10,121 journal rows carried "

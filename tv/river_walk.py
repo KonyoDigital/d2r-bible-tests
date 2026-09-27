@@ -215,9 +215,22 @@ def _far_end(pr, router):
         return out
     out["ledger"] = cen
     if not (isinstance(cen, dict) and cen.get("ok")):
-        out["why"] = ("the tombstone ledger could not be read (%s), so the far end is UNKNOWN. "
-                      "The router's TOMBSTONE 0 counts reels ON DISK either way."
-                      % str((cen or {}).get("why") or "no reason given")[:100])
+        detail = str((cen or {}).get("why") or "no reason given")
+        # The census already quotes the loader. A missing file is "no record yet"; wrapping
+        # that as "could not be read" is how a console that never retired a reel looked broken.
+        # An import failure here is UNKNOWN, not none yet: this walk cannot ask.
+        try:
+            import printer as _pr_abs
+            _absent = _pr_abs._ledger_is_absent(detail)
+        except Exception:
+            _absent = False
+        if _absent:
+            out["why"] = ("%s The router's TOMBSTONE 0 counts reels ON DISK and can never be "
+                          "anything else." % detail)
+        else:
+            out["why"] = ("the tombstone ledger could not be read (%s), so the far end is UNKNOWN. "
+                          "The router's TOMBSTONE 0 counts reels ON DISK either way."
+                          % detail[:100])
         return out
     out["why"] = ("%d reel(s) (%s MB) DID reach the far end and are absent from this walk because "
                   "it enumerates on-disk reels. So TOMBSTONE %s means 'none on this shelf', never "
