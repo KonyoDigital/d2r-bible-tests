@@ -35892,6 +35892,14 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp .vd-item[data-key]{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
 .mp .vd-item[data-key] img{-webkit-user-drag:none}
 .mp .vd-item[data-key]:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px;z-index:4}
+/* #174 v-B5 — the inventory's empty cells and the tiles placed from the database are controls: a pointer, a gold edge on
+   hover / focus, and the cell the picker is open on (or the tile it edits) marked. Colour and outline only - no size moves. */
+.mp .vd-grid[data-add="on"] .vd-cell[data-cx]{cursor:pointer}
+.mp .vd-grid[data-add="on"] .vd-cell[data-cx]:hover{border-color:rgba(240,192,96,.55)}
+.mp .vd-grid[data-add="on"] .vd-cell[data-cx]:focus-visible{outline:2px solid var(--gold-bright);outline-offset:-2px}
+.mp .vd-grid[data-add="on"] .vd-cell[data-on]{border-color:var(--gold-bright);box-shadow:inset 0 0 0 1px var(--gold-bright)}
+.mp .vd-item[data-dbkey]{cursor:pointer}
+.mp .vd-item[data-dbkey]:focus-visible,.mp .vd-item.vd-db-on{outline:2px solid var(--gold-bright);outline-offset:1px;z-index:4}
 .mp .vd-item.vd-held{box-shadow:inset 0 0 0 1px var(--gold-bright),0 0 10px rgba(240,192,96,.35)}
 .mp .vd-item.vd-bad{border-style:dashed;border-color:var(--hell)}
 .mp .vd-item.vd-lifted{opacity:.35}
@@ -40338,7 +40346,26 @@ window.vaultAutoAssign = function(){
         + (_f.oob ? ' \u00b7 ' + _f.oob + ' outside the grid' : '')
         + (_f.over ? ' \u00b7 ' + _f.over + ' overlapping' : '') + '</div>'
       : '';
-    var cells=''; for (var i=0;i<gw*gh;i++) cells+='<div class="vd-cell"></div>';
+    /* #174 v-B5 — THE INVENTORY'S EMPTY CELLS TAKE AN ITEM, LIKE THE DOLL'S EMPTY SLOTS. GrokBot measured the mule
+       window's 10x4 grid on v3517: 40 of 40 cells dead - a click did nothing. With `opt.add.on` (the inventory, when the
+       builder's picker is on the page) every cell no tile covers is a control: click (or Enter / Space) opens the
+       Character Builder's picker in the mule host for THAT cell (window._mpInvCell). A covered cell stays a plain cell -
+       the tile on top is what a click reaches. Without the builder's block (`on` false) the grid says so on its title:
+       UNKNOWN, never a grid that looks clickable and is not. The class stays exactly "vd-cell" (the shell law counts it). */
+    var _add = opt && opt.add, cells = '';
+    if (_add && _add.on){
+      var _occ = {};
+      placed.forEach(function(p){ for (var ox = 0; ox < (p.w || 1); ox++) for (var oy = 0; oy < (p.h || 1); oy++) _occ[(p.x + ox) + ',' + (p.y + oy)] = 1; });
+      for (var ci = 0; ci < gw * gh; ci++){
+        var cx = ci % gw, cy = Math.floor(ci / gw);
+        if (_occ[cx + ',' + cy]){ cells += '<div class="vd-cell"></div>'; continue; }
+        var _on = !!(_add.at && _add.at[0] === cx && _add.at[1] === cy);
+        var _csay = (opt.label || 'Inventory') + ' · col ' + (cx + 1) + ' · row ' + (cy + 1) + ' — empty: click (or Enter) to add an item from the database';
+        cells += '<div class="vd-cell" data-cx="' + cx + '" data-cy="' + cy + '" data-fk="cell-' + opt.area + '-' + cx + '-' + cy + '" role="button" tabindex="0"'
+          + (_on ? ' data-on="1" aria-pressed="true"' : '') + ' title="' + esc(_csay) + '" aria-label="' + esc(_csay) + '"'
+          + ' onclick="window._mpInvCell(' + cx + ',' + cy + ')" onkeydown="window._mpInvCellKey(event,' + cx + ',' + cy + ')"></div>';
+      }
+    } else { for (var i=0;i<gw*gh;i++) cells+='<div class="vd-cell"></div>'; }
     /* #174 v-B2 — `opt` = {area, page, label} makes every item in the grid a tile he can MOVE: pointer drag
        (mouse and touch), or the keyboard (focus it, Enter picks it up, arrows move, Enter drops, Esc cancels).
        Each tile carries its key and its real footprint — the packer's own w x h — so the drop is judged on the
@@ -40347,6 +40374,21 @@ window.vaultAutoAssign = function(){
     var _spot = function(p){ return (opt && opt.label ? opt.label + ' · ' : '') + 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     var blocks=placed.map(function(p){
       var _vr=(window._artRarity?window._artRarity(p.n):'');
+      /* #174 v-B5 — a tile he placed from the item DATABASE (the inventory's picker): not one the packer or a drag moves
+         (no data-key, so the drag and carry code never lift it), but a control of its own - click (or Enter) opens the
+         picker on it (the game tooltip, Change Item, Remove), Delete removes it. It carries no native title: its hover is
+         the builder's one in-game box over its stored entry (the vb2-mule-tip-js lane), never an OS box on top. */
+      if (p.db){
+        var _dsay = p.n + ' (' + p.w + '×' + p.h + ') — placed by hand from the item database at ' + _spot(p)
+          + '. Click (or Enter) for its tooltip, to replace it or remove it; Delete removes it';
+        var _an = p.n;   // #248: a runeword draws its BASE - asked here, when the tile is drawn, never by the loader
+        try { if (p.id && typeof window._cbArtName === 'function') _an = window._cbArtName({ id: p.id, base: p.base, name: p.n }) || p.n; } catch (x) { _an = p.n; }
+        return '<div class="vd-item vd-db' + (_vr ? ' vd-r-' + _vr : '') + (_add && _add.sel === p.dbkey ? ' vd-db-on' : '') + '" style="left:' + (3 + p.x * (cell + 2)) + 'px;top:' + (3 + p.y * (cell + 2)) + 'px;width:' + (p.w * cell + (p.w - 1) * 2) + 'px;height:' + (p.h * cell + (p.h - 1) * 2) + 'px"'
+          + ' data-dbkey="' + esc(p.dbkey) + '" data-n="' + esc(p.n) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="db-' + esc(p.dbkey) + '"'
+          + ' tabindex="0" role="button" aria-label="' + esc(_dsay) + '"' + (_add && _add.sel === p.dbkey ? ' aria-pressed="true"' : '')
+          + ' onclick="window._mpInvTile(\'' + jsArg(p.dbkey) + '\')" onkeydown="window._mpInvTileKey(event,\'' + jsArg(p.dbkey) + '\')">'
+          + art(_an, '◆', p.w > 1 && p.h > 1 ? '' : 'sm') + '</div>';
+      }
       var _mv = !!(opt && p.key != null);
       var _prov = ''; try { _prov = window._vaultProvSay ? window._vaultProvSay(p.n) : ''; } catch (e) { _prov = ''; }
       var _say = esc(p.n) + ' (' + p.w + '×' + p.h + ')'
@@ -40364,6 +40406,7 @@ window.vaultAutoAssign = function(){
     }).join('');
     return _note + '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px"'
       + (opt ? ' data-area="' + opt.area + '" data-page="' + (opt.page | 0) + '" data-gw="' + gw + '" data-gh="' + gh + '" data-cell="' + cell + '"' : '')
+      + (_add ? (_add.on ? ' data-add="on"' : ' data-add="off" title="the item database (the Character Builder’s block) is not on this page, so an inventory cell cannot take an item — UNKNOWN, not an empty inventory"') : '')
       + '>'+cells+blocks+'</div>';
   }
   // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
@@ -40515,11 +40558,17 @@ window.vaultAutoAssign = function(){
        (_mpWornFor); those copies are counted as items of this locker (phys) and packed nowhere.
        Absent, nothing is worn — every caller that predates the doll packs exactly as before. */
     var sized = [], _wornN = 0;
+    /* #174 v-B5 — WHAT HE PLACED IN THE INVENTORY FROM THE ITEM DATABASE is read with the locker's id (the window and the
+       shelf card pass it; absent, nothing - every caller that predates it packs exactly as before). Each sits where he
+       put it, and when the door has filed its name to THIS locker it IS the locker's copy of that name (_dbHold): the
+       packer does not pack that copy a second time. [[the-unjoined-end]] */
+    var _db = _mpInvSeeds(muleId), _dbInLocker = 0;
     (names || []).forEach(function(n){
       var s = vaultSize(n); var t = tipOf(n);
       var cc = Math.max(1, Math.min(copyCount(n) || 1, _MULE_COPY_CAP));
       var _w = Math.min(cc, Math.max(0, (worn && worn[n]) | 0));
       _wornN += _w;
+      var _d = Math.min(cc - _w, (_db.hold[n] | 0)); _dbInLocker += _d; _w += _d;   // the copies on his inventory cells
       for (var _ci = 0; _ci < cc - _w; _ci++){
         sized.push({n:n, key:_muleItemKey(n, _ci), w:s[0], h:s[1], area:s[0]*s[1], set:(t&&t.setName)||'', ct:cc});
       }
@@ -40538,6 +40587,14 @@ window.vaultAutoAssign = function(){
     var _pos = (muleId != null) ? ((posAll || _mulePosAll())[muleId] || {}) : {};
     if (!_pos || typeof _pos !== 'object') _pos = {};
     var _hand = [], _auto = [], _bad = [], _handAt = {}, _maxPage = -1, _handN = 0;
+    /* #174 v-B5 — the database's items on his inventory cells are laid FIRST: a spot placed by hand later that covers one
+       is reported (it no longer fits), never drawn over it; a record that cannot be laid is a conflict with its reason */
+    Object.keys(_db.at).forEach(function(pg){
+      var A = (_handAt[pg] = _handAt[pg] || {});
+      A.inv = (A.inv || []).concat(_db.at[pg]);
+      if (+pg > _maxPage) _maxPage = +pg;
+    });
+    _db.bad.forEach(function(b){ _bad.push(b); });
     sized.forEach(function(it){ (Object.prototype.hasOwnProperty.call(_pos, it.key) && _pos[it.key] ? _hand : _auto).push(it); });
     _hand.sort(function(a, b){
       var ta = String(_pos[a.key].at || ''), tb = String(_pos[b.key].at || '');
@@ -40640,8 +40697,11 @@ window.vaultAutoAssign = function(){
       var _i2 = packGrid(_s2.left, MULE_INV_W, MULE_INV_H, _lo.inv);
       _roomLeft = !_i2.left.length;    /* one more still fits on THIS mule */
     } catch(e){ _roomLeft = true; }   /* cannot tell -> never claim it is full */
-    return { sized: sized, phys: sized.length + _wornN, worn: _wornN, cells: cells, mules: mules, rem: rem,
+    return { sized: sized, phys: sized.length + _wornN + _dbInLocker, worn: _wornN, cells: cells, mules: mules, rem: rem,
              firstCount: _count(first),
+             /* #174 v-B5 — the database's items on his inventory cells: how many are laid, and how many of them are this
+                locker's own copy of a name the door filed here (counted once, in phys) */
+             dbPlaced: _db.n, dbInLocker: _dbInLocker,
              /* #174 v-B2 — what each mule holds (all five stash tabs + the inventory), the hand-placed count,
                 the spots that no longer fit (reported, never silently moved), and the cells in the four tabs the
                 packer never fills (they are not part of a mule's 140) */
@@ -40943,12 +41003,10 @@ window.vaultAutoAssign = function(){
        (window.vaultFile) refuses a locked name "for everyone", and this writer called it and IGNORED the refusal, so
        his MAIN's gear sat on a mule's doll with no filing behind it (review:chain, reproduced with Gore Rider). Now the
        mule's own writer asks the same predicate first - the locker list and the whole-database Select tab both land
-       here - and says which source holds the lock. An IMPORT is exempt: a .d2s of a mule is what that save carries. */
-    if (src !== 'import' && typeof window !== 'undefined' && typeof window._laneLockWhy === 'function'){
-      var _lk = null; try { _lk = window._laneLockWhy(entry.name); } catch (x) { _lk = null; }
-      if (_lk) return { ok: false, all: all, locked: _lk, why: entry.name + ' is locked to your MAIN - ' + (_lk.why || _lk.lane)
-        + ' - so it never goes onto a mule (the Vault 2.0 lock)' };
-    }
+       here - and says which source holds the lock. An IMPORT is exempt: a .d2s of a mule is what that save carries.
+       #174 v-B5 — the inventory's writer (_mpInvPlace) asks the SAME function: one lock rule for the doll and the grid. */
+    var _lkr = _mpLockRefusal(entry);
+    if (_lkr) return { ok: false, all: all, locked: _lkr.locked, why: _lkr.why };
     var cur = ((all[muleId] || {})[set] || {})[slot] || null;
     var rc = cur ? (MP_SRC_RANK[cur.source] || 0) : 0;
     if (cur && rn < rc) return { ok: false, all: all, why: cur.name + ' was ' + MP_SRC_SAY[cur.source]
@@ -40978,6 +41036,110 @@ window.vaultAutoAssign = function(){
     if (next[muleId] && next[muleId][set]) delete next[muleId][set][slot];
     return next;
   }
+  /* THE VAULT 2.0 LOCK, asked by every mule writer (the doll's _mpEqPlace, the inventory's _mpInvPlace) -> null, or
+     {locked, why} naming the source that holds it. An import is exempt: a .d2s of a mule is what that save carries. */
+  function _mpLockRefusal(entry){
+    var src = entry && entry.source;
+    if (src !== 'import' && typeof window !== 'undefined' && typeof window._laneLockWhy === 'function'){
+      var _lk = null; try { _lk = window._laneLockWhy(entry.name); } catch (x) { _lk = null; }
+      if (_lk) return { locked: _lk, why: entry.name + ' is locked to your MAIN - ' + (_lk.why || _lk.lane)
+        + ' - so it never goes onto a mule (the Vault 2.0 lock)' };
+    }
+    return null;
+  }
+  /* ── #174 v-B5 — THE INVENTORY TAKES ITEMS LIKE THE DOLL DOES. GrokBot (ACT 5855160685, v3517, the mule overlay's
+     EQUIPMENT): the 10x4 grid under the doll was 40/40 cells dead. His ask: an empty cell opens the SAME picker the doll's
+     empty slots open (the Character Builder's, in the mule host), an item lands one-to-one by D2R's grid rules, a filled
+     tile shows the game tooltip and can be replaced or removed, and the vault door's rules hold.
+     THE STORE is the doll's: d2r_muleEquip[muleId].inv = {key: entry + {page, x, y, w, h}} - the same record the doll
+     writes (name, source 'manual', at, and the builder's MP_CB_FIELDS), so it forks per world and rides Backup & Share
+     with the rest, and _mpEqWrite files a NEW placement through the door exactly as it files a doll pick.
+     THE SIZE is the builder's own, ONE source (window._cbFoot: the CB_DB base's invwidth x invheight - the game's
+     armor/weapons/misc tables), measured when he places it and stored with it, so the packer never re-derives it.
+     THE RULE is D2R's: inside the 10x4, over nothing that is there (a tile the packer placed included) - a pick that
+     does not fit at the cell he clicked is REFUSED with the reason, never moved to another cell. [[copy-drift]] */
+  function _mpInvOf(all, muleId){
+    var m = all && all[muleId], v = m && m.inv;
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  }
+  function _mpWhole(v){ return typeof v === 'number' && v === Math.floor(v); }
+  /* PURE: -> null when a w x h fits with its top-left at (x, y) of the inventory over `rects` (what sits there), else why */
+  function _mpInvFitWhy(rects, x, y, w, h){
+    if (!_mpWhole(w) || !_mpWhole(h) || w < 1 || h < 1) return 'its size is not on record, so it is never placed (a guessed size could cover what is there)';
+    if (!_mpWhole(x) || !_mpWhole(y) || x < 0 || y < 0) return '(' + x + ', ' + y + ') is not a cell of the inventory';
+    if (x + w > MULE_INV_W || y + h > MULE_INV_H)
+      return 'a ' + w + '×' + h + ' at col ' + (x + 1) + ' · row ' + (y + 1) + ' runs past the edge of the ' + MULE_INV_W + '×' + MULE_INV_H + ' inventory';
+    for (var i = 0; i < (rects || []).length; i++){
+      var o = rects[i], ow = o.w || 1, oh = o.h || 1;
+      if (x < o.x + ow && o.x < x + w && y < o.y + oh && o.y < y + h)
+        return 'a ' + w + '×' + h + ' at col ' + (x + 1) + ' · row ' + (y + 1) + ' would cover ' + o.n + ' (col ' + (o.x + 1) + ' · row ' + (o.y + 1) + ')';
+    }
+    return null;
+  }
+  /* the stored placements of one locker, laid in the order he made them -> {at: {page: [rect]}, hold: {name: n}, bad, n}.
+     A record that cannot be laid (no name, a mule a locker cannot have, off the grid, over an earlier one) is a conflict
+     with its reason - reported, never drawn, never guessed onto another cell. */
+  function _mpInvSeeds(muleId){
+    var out = { at: {}, hold: {}, bad: [], n: 0 };
+    if (muleId == null) return out;
+    var inv = _mpInvOf(_mpEqAll(), muleId);
+    var keys = Object.keys(inv).sort(function(a, b){
+      var ta = String((inv[a] || {}).at || ''), tb = String((inv[b] || {}).at || '');
+      return ta < tb ? -1 : ta > tb ? 1 : (a < b ? -1 : a > b ? 1 : 0);
+    });
+    keys.forEach(function(k){
+      var e = inv[k], pg = e && e.page;
+      var why = (!e || typeof e !== 'object' || !e.name) ? 'the record names no item'
+              : (!_mpWhole(pg) || pg < 0 || pg >= 80) ? 'its mule (' + pg + ') is not one a locker can have'
+              : _mpInvFitWhy(out.at[pg] || [], e.x, e.y, e.w, e.h);
+      if (why){
+        var _sp = 'Inventory · Mule ' + ((_mpWhole(pg) ? pg : 0) + 1) + ' · col ' + (((e && _mpWhole(e.x)) ? e.x : 0) + 1) + ' · row ' + (((e && _mpWhole(e.y)) ? e.y : 0) + 1);
+        out.bad.push({ key: 'db:' + k, n: String((e && e.name) || k), w: e && e.w, h: e && e.h, db: true,
+                       want: { tab: 'inv', page: pg, x: e && e.x, y: e && e.y }, spot: _sp, why: why });
+        return;
+      }
+      /* its id and base ride along for the tile's ART - asked by gridHtml only when the window DRAWS it, never here: the
+         shelf card calls this loader for every locker, and the builder's database is parsed on first open, never at boot */
+      (out.at[pg] = out.at[pg] || []).push({ n: e.name, dbkey: k, x: e.x, y: e.y, w: e.w, h: e.h, manual: true, db: true,
+                                             id: e.id || null, base: e.base || null });
+      out.hold[e.name] = (out.hold[e.name] || 0) + 1;
+      out.n++;
+    });
+    return out;
+  }
+  /* PURE: place `entry` (with its w x h) at spot {page, x, y} of `muleId`'s inventory in `all`, over `rects` (what sits
+     on that inventory now, the tile being replaced left out) -> {ok, all, key} or {ok:false, why[, locked]}. `key` names
+     the tile an edit or a replace keeps; absent, a new tile. */
+  function _mpInvPlace(all, muleId, spot, entry, key, rects){
+    all = (all && typeof all === 'object') ? all : {};
+    var src = entry && entry.source;
+    /* only his hand places into the inventory (no reader or import writes it yet), so there is no rank to weigh here */
+    if (src !== 'manual') return { ok: false, all: all, why: 'the inventory takes only what you place by hand (source manual), not "' + src + '"' };
+    if (!entry.name) return { ok: false, all: all, why: 'a placement must name its item' };
+    var _lkr = _mpLockRefusal(entry);
+    if (_lkr) return { ok: false, all: all, locked: _lkr.locked, why: _lkr.why };
+    var pg = spot && spot.page;
+    if (!_mpWhole(pg) || pg < 0 || pg >= 80) return { ok: false, all: all, why: 'there is no Mule ' + pg + ' in a locker' };
+    var why = _mpInvFitWhy(rects, spot.x, spot.y, entry.w, entry.h);
+    if (why) return { ok: false, all: all, why: entry.name + ' does not fit there: ' + why };
+    var next = JSON.parse(JSON.stringify(all));
+    var m = next[muleId] = (next[muleId] && typeof next[muleId] === 'object') ? next[muleId] : {};
+    var inv = m.inv = (m.inv && typeof m.inv === 'object' && !Array.isArray(m.inv)) ? m.inv : {};
+    var k = key;
+    while (!k || (!key && Object.prototype.hasOwnProperty.call(inv, k))) k = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var e = { name: String(entry.name), source: src, at: entry.at || new Date().toISOString(), page: pg, x: spot.x, y: spot.y, w: entry.w, h: entry.h };
+    if (typeof entry.id === 'string' && entry.id)
+      MP_CB_FIELDS.forEach(function(f){ if (entry[f] !== undefined && entry[f] !== null) e[f] = JSON.parse(JSON.stringify(entry[f])); });
+    inv[k] = e;
+    return { ok: true, all: next, key: k };
+  }
+  function _mpInvRemove(all, muleId, key){
+    var next = JSON.parse(JSON.stringify((all && typeof all === 'object') ? all : {}));
+    if (next[muleId] && next[muleId].inv && typeof next[muleId].inv === 'object') delete next[muleId].inv[key];
+    return next;
+  }
+  window._mpInvPlace = _mpInvPlace;
+  window._mpInvFitWhy = _mpInvFitWhy;
   /* #174 v-B review — THE LIVE DOLL. A stored entry counts (in the stats, in what leaves the grid, in what the
      picker calls taken) only when it can really be worn there:
        · its item is still in THIS locker. An item reassigned elsewhere left a ghost here, still summed, and the
@@ -41028,6 +41190,10 @@ window.vaultAutoAssign = function(){
       Object.keys(lv.at[set]).forEach(function(slot){
         var e = lv.at[set][slot];
         if (e.source !== 'import' && !e.id) out[e.name] = (out[e.name] || 0) + 1;   // #174 v-B4: nor a database pick
+        /* #174 v-B5 (found building the inventory): _mpEqWrite files a database pick's NAME to this locker through the
+           door (#246), so the name becomes one of the locker's rows - and the packer packed that row in the grid while
+           the doll wore it: one Tyrael's Might, drawn twice. A database pick the door filed HERE is that row, worn. */
+        else if (e.source !== 'import' && e.id && assign[e.name] === muleId) out[e.name] = (out[e.name] || 0) + 1;
       });
     });
     return out;
@@ -41288,6 +41454,9 @@ window.vaultAutoAssign = function(){
   /* ── THE PICKER AND ITS ACTIONS. Every action re-renders the window through openMuleCard, which carries the
         caret and the focused control across the rebuild (data-fk), so a keyboard user never loses his place. */
   var _mpPickAt = null, _mpPickList = [], _mpFocusNext = null, _mpPickErr = '', _mpNoteDraft = null, _mpNoteSaid = null;
+  /* #174 v-B5 — the inventory cell the picker is open on ({page, x, y, key: the tile it edits, or null}), and what the
+     last render drew on that inventory (the picker's list asks it "does a w x h fit here?" once per size, not per row) */
+  var _mpInvAt = null, _mpInvView = null;
   function _mpEqAt(slot){ var m = _mpEqAll()[openMuleId] || {}; return (m[_mpSetOf(slot, _mpSwap)] || {})[slot] || null; }
   function _mpRefresh(){
     if (openMuleId) window.openMuleCard(openMuleId);
@@ -41335,6 +41504,7 @@ window.vaultAutoAssign = function(){
   }
   function _mpHostSync(){
     if (typeof window._cbHostOpen !== 'function') return;          // the builder's block is not on this page: the locker list alone
+    if (_mpInvAt && openMuleId){ _mpInvHostOpen(); return; }      // #174 v-B5 — an inventory cell holds the picker
     if (!_mpPickAt || !openMuleId){ window._cbHostClose(); return; }
     var at = _mpPickAt, m = muleById(openMuleId);
     window._cbHostOpen({
@@ -41349,9 +41519,126 @@ window.vaultAutoAssign = function(){
       close: function(){ window._mpPick(null); }
     });
   }
+  /* ── #174 v-B5 — THE INVENTORY'S PICKER: ONE PICKER, A THIRD PLACE IT OPENS. An empty cell (or a tile he placed from
+     the database) opens the builder's picker in the mule host with kind 'inv': Select lists what an inventory takes -
+     charms, jewels, rings and amulets always, and every other item whose size fits the free space at that cell; a pick
+     lands with its top-left on the cell he clicked, at the builder's own size, or is refused and says why; Edit shows the
+     item with Change Item and Remove. Every write goes through _mpInvPlace (the doll's lock, D2R's grid rule) and
+     _mpEqWrite (the door). [[the-unjoined-end]] */
+  /* what sits on that inventory now: the render's own drawing for the list, the packer asked afresh for a write */
+  function _mpInvRects(muleId, page, skipKey, fresh){
+    var r = null;
+    if (!fresh && _mpInvView && _mpInvView.mule === muleId && _mpInvView.page === page) r = _mpInvView.rects;
+    else { var ld = _mpLoadNow(muleId, _mulePosAll()), mm = ld.mules[page]; r = mm ? (mm.inv || []) : []; }
+    return r.filter(function(p){ return !(skipKey && p.dbkey === skipKey); });
+  }
+  /* the builder-shaped entry a stored inventory tile carries (its cell and size with it), or null */
+  window._mpInvCbEntry = function(key){
+    if (!openMuleId || !key) return null;
+    var rec = _mpInvOf(_mpEqAll(), openMuleId)[key] || null, e = _mpCbEntry(rec);
+    if (e){ e.x = rec.x; e.y = rec.y; e.w = rec.w; e.h = rec.h; }
+    return e;
+  };
+  function _mpInvHostWrite(e){
+    if (!openMuleId || !_mpInvAt) return { ok: false, why: 'the mule window is not open on an inventory cell' };
+    var all = _mpEqAll(), at = _mpInvAt, r;
+    if (!e){
+      if (!at.key) return { ok: false, why: 'nothing is placed on this cell' };
+      r = { ok: true, all: _mpInvRemove(all, openMuleId, at.key), key: null };
+    } else {
+      /* THE SIZE IS THE BUILDER'S (one source), re-measured on every write: Edit can change the base, and a stale size
+         would let a 2x3 armor sit in a 1x1 hole */
+      var ft = null;
+      try { ft = (typeof window._cbFoot === 'function') ? window._cbFoot(e) : null; } catch (x) { ft = null; }
+      var was = at.key ? (_mpInvOf(all, openMuleId)[at.key] || null) : null;
+      var rec = { name: e.name, source: 'manual', id: e.id, base: e.base, q: e.q, rolls: e.rolls, sockets: e.sockets,
+                  affixes: e.affixes, eth: e.eth, ilvl: e.ilvl, rn: e.rn, lq: e.lq, def: e.def, fill: e.socketed,
+                  w: ft ? ft[0] : null, h: ft ? ft[1] : null };
+      if (was && was.id === e.id && was.at) rec.at = was.at;     // an edit is the same placement: it keeps when he made it
+      r = _mpInvPlace(all, openMuleId, { page: at.page, x: at.x, y: at.y }, rec, at.key, _mpInvRects(openMuleId, at.page, at.key, true));
+    }
+    if (r.ok){ try { _mpEqWrite(r.all); } catch (x){ r = { ok: false, why: 'the inventory could not be saved (' + (x && x.message || x) + ')' }; } }
+    if (r.ok) at.key = r.key || null;                          // the tile on this cell now is the one Edit edits
+    _mpPickErr = r.ok ? '' : r.why;
+    return r;
+  }
+  function _mpInvHostOpen(){
+    var at = _mpInvAt, m = muleById(openMuleId);
+    window._cbHostOpen({
+      kind: 'inv', cell: [at.x, at.y], mule: m ? m.name : String(openMuleId),
+      where: 'Inventory · col ' + (at.x + 1) + ' · row ' + (at.y + 1) + (_muleTotalPages > 1 ? ' · Mule ' + (at.page + 1) : ''),
+      cur: function(){ return (_mpInvAt && _mpInvAt.key) ? window._mpInvCbEntry(_mpInvAt.key) : null; },
+      /* does a w x h fit with its top-left on this cell (the tile being edited left out)? - the Select list's rule */
+      fits: function(w, h){ return !!_mpInvAt && !_mpInvFitWhy(_mpInvRects(openMuleId, _mpInvAt.page, _mpInvAt.key), _mpInvAt.x, _mpInvAt.y, w, h); },
+      write: _mpInvHostWrite,
+      render: function(){
+        try { var ae = document.activeElement; if (ae && ae.closest && ae.closest('#cb-modal')) _mpFocusNext = _mpFocusNext || 'host'; } catch (x) {}
+        if (openMuleId) window.openMuleCard(openMuleId);
+      },
+      close: function(){ window._mpInvCell(null); }
+    });
+  }
+  /* an EMPTY cell of the inventory on screen: the picker opens for it. (null closes it, focus back on its cell.) A cell a
+     tile covers is not empty - refused, nothing opens. Without the builder's block there is no picker: false. */
+  window._mpInvCell = function(x, y){
+    if (!openMuleId || openMuleId === 'shared') return false;
+    if (x == null){
+      var had = _mpInvAt; _mpInvAt = null; _mpPickErr = ''; _mpHostSync();
+      _mpFocusNext = had ? (had.key ? 'db-' + had.key : 'cell-inv-' + had.x + '-' + had.y) : null;
+      window.openMuleCard(openMuleId);
+      return true;
+    }
+    if (typeof window._cbHostOpen !== 'function') return false;
+    x = +x; y = +y;
+    if (!_mpWhole(x) || !_mpWhole(y) || x < 0 || y < 0 || x >= MULE_INV_W || y >= MULE_INV_H) return false;
+    if (_mpInvFitWhy(_mpInvRects(openMuleId, _mulePage, null, true), x, y, 1, 1)) return false;
+    _mpPickAt = null; _mpPickErr = '';
+    _mpInvAt = { page: _mulePage, x: x, y: y, key: null };
+    _mpHostSync();
+    _mpFocusNext = 'host';
+    window.openMuleCard(openMuleId);
+    return true;
+  };
+  window._mpInvCellKey = function(e, x, y){
+    if (e && (e.key === 'Enter' || e.key === ' ')){ if (e.preventDefault) e.preventDefault(); window._mpInvCell(x, y); }
+  };
+  /* a tile he placed from the database: the picker opens on it (Edit: Change Item, Remove) and its game tooltip shows */
+  window._mpInvTile = function(key){
+    if (!openMuleId || typeof window._cbHostOpen !== 'function') return false;
+    var e = _mpInvOf(_mpEqAll(), openMuleId)[key];
+    if (!e) return false;
+    _mpPickAt = null; _mpPickErr = '';
+    _mpInvAt = { page: e.page | 0, x: e.x, y: e.y, key: key };
+    if (_mulePage !== (e.page | 0)) _mulePage = e.page | 0;
+    _mpHostSync();
+    _mpFocusNext = 'host';
+    window.openMuleCard(openMuleId);
+    try {
+      var el = document.querySelector('#vault-detail .vd-item[data-dbkey="' + String(key).replace(/["\\]/g, '') + '"]');
+      if (el && typeof window._mtShow === 'function') window._mtShow(el);
+    } catch (x) {}
+    return true;
+  };
+  /* Delete (or Backspace) on a tile takes it off the inventory: the same write as the picker's Remove */
+  window._mpInvRemoveKey = function(key){
+    if (!openMuleId) return false;
+    var all = _mpEqAll();
+    if (!_mpInvOf(all, openMuleId)[key]) return false;
+    try { _mpEqWrite(_mpInvRemove(all, openMuleId, key)); }
+    catch (x){ _mpPickErr = 'the inventory could not be saved (' + (x && x.message || x) + ')'; window.openMuleCard(openMuleId); return false; }
+    if (_mpInvAt && _mpInvAt.key === key){ _mpInvAt.key = null; _mpHostSync(); }
+    _mpRefresh();
+    return true;
+  };
+  window._mpInvTileKey = function(e, key){
+    if (!e) return;
+    if (e.key === 'Enter' || e.key === ' '){ if (e.preventDefault) e.preventDefault(); window._mpInvTile(key); }
+    else if (e.key === 'Delete' || e.key === 'Backspace'){ if (e.preventDefault) e.preventDefault(); window._mpInvRemoveKey(key); }
+  };
   window._mpPick = function(slot){
     if (!openMuleId || openMuleId === 'shared') return;
     if (slot && !MP_SLOT_WEARS[slot]) return;
+    _mpInvAt = null;          // #174 v-B5 — one picker on screen: a slot takes it from a cell, and closing (the builder opening) lets both go
     var was = _mpPickAt;
     _mpPickErr = '';
     _mpPickAt = slot ? { slot: slot, set: _mpSetOf(slot, _mpSwap) } : null;
@@ -41422,7 +41709,9 @@ window.vaultAutoAssign = function(){
   };
   function _mpNoteFlush(){ if (_mpNoteDraft && _mpNoteDraft.id === openMuleId) window._mpNoteSave(_mpNoteDraft.v); }
 
-  window._muleSetPage = function(i){ var n = _muleTotalPages || 1; _mulePage = ((i % n) + n) % n; window.openMuleCard(openMuleId); };
+  window._muleSetPage = function(i){ var n = _muleTotalPages || 1; _mulePage = ((i % n) + n) % n;
+    if (_mpInvAt && _mpInvAt.page !== _mulePage){ _mpInvAt = null; _mpPickErr = ''; _mpHostSync(); }   // #174 v-B5 — a cell of another mule's inventory is not on screen
+    window.openMuleCard(openMuleId); };
   var _muleTotalPages = 1;
   /* ══ #174 v-A — THE MULE WINDOW IS THE D2PLANNER BUILDER'S SHELL.
      His words (2026-09-25): click a mule and a fullscreen window floats over the vault, with the d2planner's
@@ -41560,6 +41849,7 @@ window.vaultAutoAssign = function(){
     var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mpNoteFlush(); _mpPickAt = null; _mpPickErr = ''; _mpNoteSaid = null; }   // #174 v-B — a note being typed is saved, never dropped
     if (muleId !== openMuleId && typeof window._cbHostClose === 'function') window._cbHostClose();   // #174 v-B4 — the host goes with it
+    if (muleId !== openMuleId) _mpInvAt = null;                                                     // #174 v-B5 — and the inventory's picker
     if (muleId !== openMuleId){ _mulePage = 0; _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
     if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
     openMuleId = muleId;
@@ -41596,6 +41886,11 @@ window.vaultAutoAssign = function(){
     if (_mulePage >= _muleTotalPages) _mulePage = _muleTotalPages - 1;
     if (_mulePage < 0) _mulePage = 0;
     var _cur = _mules[_mulePage] || { stash: [], inv: [], tabs: {} };
+    /* #174 v-B5 — what this render draws on the inventory is what the picker's list asks "does it fit here?"; a picker on
+       another mule's cell, or on a tile that is gone, is let go of (a gone tile's cell stays the picker's cell) */
+    _mpInvView = { mule: muleId, page: _mulePage, rects: (_cur.inv || []).slice() };
+    if (_mpInvAt && _mpInvAt.page !== _mulePage){ _mpInvAt = null; _mpHostSync(); }
+    if (_mpInvAt && _mpInvAt.key && !_mpInvOf(_eqAll, muleId)[_mpInvAt.key]) _mpInvAt.key = null;
     var _curTabs = _cur.tabs || {};
     var stash = { placed: _cur.stash, left: [] };
     var inv = { placed: _cur.inv, left: (_mulePage === _muleTotalPages - 1 ? _rem : []) };   // only the LAST page can carry a (capped) remainder
@@ -41609,14 +41904,19 @@ window.vaultAutoAssign = function(){
     var _onMuleN = _thisMuleN + _wornHere;
     // #174 v-B2 — what makes a grid's items movable: which area of which mule it is, and how a spot is said
     var _gOpt = function(area){ return { area: area, page: _mulePage,
-      label: MULE_AREAS[area][2] + (area === 'inv' ? '' : ' stash') + (_muleTotalPages > 1 ? ' · Mule ' + (_mulePage + 1) : '') }; };
+      label: MULE_AREAS[area][2] + (area === 'inv' ? '' : ' stash') + (_muleTotalPages > 1 ? ' · Mule ' + (_mulePage + 1) : ''),
+      /* #174 v-B5 — the inventory's empty cells take a pick when the builder's picker is on the page; `at` is the cell the
+         picker is open on, `sel` the database tile it edits */
+      add: area === 'inv' ? { on: typeof window._cbHostOpen === 'function',
+                              at: (_mpInvAt && !_mpInvAt.key && _mpInvAt.page === _mulePage) ? [_mpInvAt.x, _mpInvAt.y] : null,
+                              sel: (_mpInvAt && _mpInvAt.key) || null } : null }; };
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
     var sc = _mpLayout(vw, vh), k = sc.k;
     var U = function(n){ return 'calc(' + n + '*var(--u))'; };
     var invCell = sc.invCell, cell = sc.cell;
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
-    var _lockTag = function(p){ return p.manual ? ' <span class="vl-hand" title="placed by hand — locked there">🔒 by hand</span>' : p.bad ? ' <span class="vl-bad" title="' + esc(p.bad) + '">⚠ spot no longer fits</span>' : ''; };
+    var _lockTag = function(p){ return p.db ? ' <span class="vl-hand" title="placed by hand from the item database — it stays on that cell">🔒 from the database</span>' : p.manual ? ' <span class="vl-hand" title="placed by hand — locked there">🔒 by hand</span>' : p.bad ? ' <span class="vl-bad" title="' + esc(p.bad) + '">⚠ spot no longer fits</span>' : ''; };
     var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })
       .concat(MULE_STASH_TABS.slice(1).reduce(function(a, t){ return a.concat((_curTabs[t] || []).map(function(p){
         return '<div>'+esc(p.n)+' → <span class="vl-slot">'+MULE_AREAS[t][2].toUpperCase()+' '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })); }, []))
@@ -41715,7 +42015,7 @@ window.vaultAutoAssign = function(){
         if (!f.kind){ _unknown.push(n + ' (' + f.why + ')'); return; }
         if (f.kind === 'none'){ _carried.push(n); return; }
         if (_wears.indexOf(f.kind) < 0){ _other.push(n + ' (' + (MP_KIND_SAY[f.kind] || f.kind) + ')'); return; }
-        var here = !!(_plive && _plive.name === n && _plive.source !== 'import' && !_plive.id);
+        var here = !!(_plive && _plive.name === n && _plive.source !== 'import' && (!_plive.id || assign[n] === muleId));   // #174 v-B5: a database pick filed here is the row worn here
         var free = _mpCopies(n) - (_wornAll[n] || 0) + (here ? 1 : 0);
         if (free <= 0){ _busy.push(n); return; }
         var g = _mpGear(n), why = null;
@@ -41770,6 +42070,12 @@ window.vaultAutoAssign = function(){
         _hostHtml = window._cbHostHtml({ html: pick, n: _mpPickList.length, total: names.length }) || '';
         if (_hostHtml) pick = '';
       }
+    }
+    /* #174 v-B5 — AN INVENTORY CELL OPENS THE SAME PICKER, drawn in the same place (the window's own render carries it,
+       so its unit and type scale reach it). It has no "In this locker" tab: the locker's rows are already in the grids. */
+    if (_mpInvAt && !_mpPickAt && typeof window._cbHostHtml === 'function'){
+      if (!(typeof window._cbHostOn === 'function' && window._cbHostOn('inv'))) _mpHostSync();
+      _hostHtml = window._cbHostHtml(null) || '';
     }
     /* #174 R1 — THE DOLL AND ITS INVENTORY ARE ONE PANEL, DRAWN ONCE: big in the centre when EQUIPMENT is in front (the
        default), at their 322 in the left column otherwise. The slots, the picker and the inventory grid all ride --du, so
@@ -41890,10 +42196,18 @@ window.vaultAutoAssign = function(){
       +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
       /* #174 v-B2 — A HAND-PLACED SPOT THAT NO LONGER FITS IS SAID, NEVER SILENTLY MOVED. The packer placed the item
          for now and marked it on the grid; his spot stays in the store until he places it again or unlocks it. */
-      +   ((_load.conflicts || []).length ? (function(cf){ var n = cf.length;
+      +   ((_load.conflicts || []).filter(function(c){ return !c.db; }).length ? (function(cf){ var n = cf.length;
             return '<div class="vd-overflow mp-bad-spots" role="status">⚠ <strong>' + n + ' item' + (n === 1 ? '' : 's') + ' you placed by hand no longer fit' + (n === 1 ? 's its' : ' their') + ' spot</strong>'
               + ' — packed automatically for now (marked on the grid) until you place ' + (n === 1 ? 'it' : 'them') + ' again or unlock ' + (n === 1 ? 'it' : 'them') + ': '
-              + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + c.w + '×' + c.h + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why); }).join(' · ') + '</div>'; })(_load.conflicts) : '')
+              + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + c.w + '×' + c.h + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why); }).join(' · ') + '</div>'; })((_load.conflicts || []).filter(function(c){ return !c.db; })) : '')
+      /* #174 v-B5 — A DATABASE PLACEMENT THAT CANNOT BE LAID IS SAID: it is not one of the locker's rows, so the packer has
+         nothing to pack for it - it is NOT drawn, its record is kept, and this says which and why (a size the record does
+         not carry is UNKNOWN, never a guessed 1x1). */
+      +   ((_load.conflicts || []).filter(function(c){ return c.db; }).length ? (function(cf){ var n = cf.length;
+            return '<div class="vd-overflow mp-bad-db" role="status">⚠ <strong>' + n + ' item' + (n === 1 ? '' : 's') + ' you placed in the inventory from the database cannot be laid</strong>'
+              + ' — not drawn; ' + (n === 1 ? 'its record is' : 'their records are') + ' kept until you remove ' + (n === 1 ? 'it' : 'them') + ': '
+              + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + ((c.w && c.h) ? c.w + '×' + c.h : 'size UNKNOWN') + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why)
+                + ' <button type="button" class="mp-btn" data-fk="dbx-' + esc(c.key) + '" onclick="window._mpInvRemoveKey(\'' + jsArg(String(c.key).replace(/^db:/, '')) + '\')">remove</button>'; }).join(' · ') + '</div>'; })((_load.conflicts || []).filter(function(c){ return c.db; })) : '')
       +   (names.length ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
       /* #174 v-B — the note is an EDITOR over the locker's own field (d2r_muleRoster), saved on Enter or blur
          through the routed store; a draft he has not saved yet survives a re-render underneath him */
@@ -41983,6 +42297,7 @@ window.vaultAutoAssign = function(){
   };
   window.vaultCloseCard = function(){
     try { _mpNoteFlush(); } catch (e) {}     // #174 v-B — closing never drops a note he was typing
+    _mpInvAt = null;                                        // #174 v-B5 — the inventory's picker goes with the window
     _mpPickAt = null; _mpPickErr = ''; _mpHostSync();
     // #174 v-B2 — a drag or a keyboard carry in flight is put back, and its message goes with the window
     try { if (_mpDrag){ _mpDragEnd(_mpDrag); _mpDrag = null; } if (_mpCarry) _mpCarryEnd(); var _ds = document.getElementById('mp-dragsay'); if (_ds) _ds.className = ''; } catch (e) {}
@@ -42011,6 +42326,15 @@ window.vaultAutoAssign = function(){
     if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
     if (typeof window._cbHostEsc === 'function' && window._cbHostEsc()) return;   // #174 v-B4 — the host's top layer first
     window._mpPick(null);
+  }, true);
+  /* #174 v-B5 — and the inventory's picker the same way: the host's top layer, then the picker (back on its cell), and
+     only the next Esc closes the window */
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape' || !openMuleId || !_mpInvAt || _mpPickAt) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
+    var _top = (typeof window._cbHostEsc === 'function') ? window._cbHostEsc() : false;   // the host's Filters / ADD MOD first
+    if (!_top) window._mpInvCell(null);
   }, true);
   /* ══ #174 v-B2 — MOVING AN ITEM BY HAND: the pointer (mouse and touch), the keyboard, the mule tabs, the stash tabs.
      His order: "i can move them and unlock them to lock them in a different cube in the order i choose regardless of
@@ -42120,11 +42444,11 @@ window.vaultAutoAssign = function(){
   function _mpFitsIn(g, key, x, y, w, h){
     var gw = +g.getAttribute('data-gw'), gh = +g.getAttribute('data-gh');
     if (x < 0 || y < 0 || x + w > gw || y + h > gh) return { ok: false, why: 'a ' + w + '×' + h + ' would run past the edge of the grid there' };
-    var hs = g.querySelectorAll('.vd-item.vd-held[data-key]');
+    var hs = g.querySelectorAll('.vd-item.vd-held[data-key], .vd-item[data-dbkey]');   // #174 v-B5: and what he placed from the database
     for (var i = 0; i < hs.length; i++){
       var e = hs[i]; if (e.getAttribute('data-key') === key) continue;
       var ox = +e.getAttribute('data-x'), oy = +e.getAttribute('data-y'), ow = +e.getAttribute('data-w'), oh = +e.getAttribute('data-h');
-      if (x < ox + ow && ox < x + w && y < oy + oh && oy < y + h) return { ok: false, why: 'those cells hold ' + e.getAttribute('data-key') + ', placed there by hand' };
+      if (x < ox + ow && ox < x + w && y < oy + oh && oy < y + h) return { ok: false, why: 'those cells hold ' + (e.getAttribute('data-key') || e.getAttribute('data-n')) + ', placed there by hand' };
     }
     return { ok: true };
   }
@@ -52498,6 +52822,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   var CB_INV_QTABS = [['all', 'All Items'], ['u', 'Unique Items'], ['b', 'Base Items'], ['m', 'Miscellaneous'],
                       ['ex', 'Existing Items']];
   var CB_INV_W = 10, CB_INV_H = 4;
+  /* #174 v-B5 — the MULE's inventory as a picker "slot": what an inventory takes - charms, jewels, rings, amulets, and every
+     other item whose size fits the free space at the cell (the mule host's fits()). Its rail is every category the data
+     has, the charms first; a build's own inventory ('inv') is untouched by it. */
+  var CB_MINV = 'minv';
+  var CB_MINV_ALWAYS = { scha: 1, mcha: 1, lcha: 1, csch: 1, jewl: 1, cjwl: 1, ring: 1, amul: 1 };
   var CB_DIFFS = [['normal', 'Normal'], ['nightmare', 'Nightmare'], ['hell', 'Hell']];
   /* the rows STATS draws when no engine is loaded: every one UNKNOWN, never a number from here */
   var CB_STAT_ROWS = [
@@ -52543,6 +52872,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbDb = _cbDb;
   function _cbBase(code){ var d = _cbDb(); return d && d.b[code] || null; }
+  /* #174 v-B5 — AN ITEM'S SIZE IN AN INVENTORY, ONE SOURCE: its base's invwidth x invheight (the CB_DB block's b[15] x
+     b[16], generated from the game's armor / weapons / misc tables) -> [w, h], or null when the base is not on record
+     (UNKNOWN - never a guessed 1x1). The builder's inventory and the mule window's both ask this. [[copy-drift]] */
+  function _cbFoot(e){
+    var b = _cbBase(e && e.base);
+    return (b && b[15] >= 1 && b[16] >= 1) ? [b[15] | 0, b[16] | 0] : null;
+  }
+  window._cbFoot = _cbFoot;
   /* the game's socket ceiling for a base at an item level: min(the base's gemsockets, its type's MaxSockets band) */
   function _cbMaxSock(code, ilvl){
     var d = _cbDb(), b = d && d.b[code]; if (!b) return 0;
@@ -52601,13 +52938,26 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (cat[1][0] === '@offhand') return b[21] === 'w' && (b[14] === 1 || b[14] === 12) && (d.ty[b[1]] || [])[2] === -1;
     return cat[1].indexOf(b[1]) >= 0;
   }
-  function _cbCats(slot){ var d = _cbDb(); return (d && d.rail[slot]) || []; }
+  function _cbCats(slot){ var d = _cbDb(); if (slot === CB_MINV) return _cbMinvCats(d); return (d && d.rail[slot]) || []; }
+  /* #174 v-B5 — the mule inventory's categories, from the data's own rails: the inventory's charms, then Jewels, the ring
+     and amulet rails, and every doll slot's categories (a mule's inventory holds any item that fits) - each type list
+     once, and no "second weapon" row (a class rule, and a locker has no class) */
+  function _cbMinvCats(d){
+    if (!d) return [];
+    if (d._minv) return d._minv;
+    var out = [], seen = {};
+    var add = function(c){ if (!c || !c[1] || !c[1].length || c[1][0] === CB_OFF_NODE) return; var k = c[1].slice().sort().join('|'); if (seen[k]) return; seen[k] = 1; out.push(c); };
+    (d.rail.inv || []).forEach(add);
+    add(['Jewels', ['jewl', 'cjwl'], -1]);
+    ['rrin', 'lrin', 'neck', 'head', 'tors', 'glov', 'belt', 'feet', 'larm', 'rarm'].forEach(function(s){ (d.rail[s] || []).forEach(add); });
+    return (d._minv = out);
+  }
   /* the picker's rail: [label, category index (-1 = everything for the slot), class index]. Their first entry is the
      PARENT — "Helmets" lists circlets too (01_helm_clicked) — and the sub-categories follow it. */
   function _cbRailOf(slot){
     var cats = _cbCats(slot), kids = function(from){ return cats.slice(from).map(function(c, i){ return [c[0], i + from, c[2]]; }); };
     if (!cats.length) return [];
-    if (slot === 'inv') return [['Inventory', -1, -1]].concat(kids(0));
+    if (slot === 'inv' || slot === CB_MINV) return [['Inventory', -1, -1]].concat(kids(0));
     if (slot === 'rarm') return [['Weapons', -1, -1]].concat(kids(0));
     return [[cats[0][0], -1, cats.length === 1 ? cats[0][2] : -1]].concat(kids(1));
   }
@@ -53018,7 +53368,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       /* #174 v-B4 — THE MULE HOST WRITES THE MULE, never d2r_charBuilds: the change is made on a build-shaped copy of that
          one slot, and the slot goes back through the mule window's own writer (_mpEqPlace, source 'manual') */
       var mb = _cbMuleBuild(); mut(mb);
-      var wr = st.host.write(mb.sets[0].slots[st.pick.slot] || null) || { ok: false, why: 'the mule window did not answer' };
+      var wr = st.host.write((st.pick.kind === 'inv' ? (mb.sets[0].inv || [])[0] : mb.sets[0].slots[st.pick.slot]) || null)   // #174 v-B5: or its inventory tile
+        || { ok: false, why: 'the mule window did not answer' };
       st.hostErr = wr.ok ? '' : (wr.why || 'not saved');
       return !!wr.ok;
     }
@@ -53167,7 +53518,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbSockRange = function(e){ return _cbSockRange(e, _cbItem(e && e.id)); };
   /* the socket class of a slot: what a gem or rune gives depends on where it sits (gems.txt weapon / helm / shield) */
-  function _cbSockClass(slot, base){ if (slot === 'rarm' || _cbIsWeapon(base)) return 4; if (slot === 'larm') return 6; return 5; }
+  function _cbSockClass(slot, base){ if (slot === 'rarm' || _cbIsWeapon(base)) return 4; if (slot === 'larm' || (slot === CB_MINV && _cbIsShieldBase(base))) return 6; return 5; }
+  /* #174 v-B5 — a shield in a mule's inventory is still a shield: its sockets read the shield column, as on the off-hand */
+  function _cbIsShieldBase(code){ var d = _cbDb(), b = d && d.b[code]; return !!(b && d.anc[b[1]] && d.anc[b[1]].shld); }
   /* ── THE TOOLTIP ENTRY: everything the in-game box prints, derived from the data and the build ──────────── */
   /* does the item carry a per-level line under any of these codes (whose value needs the character's level)? */
   function _cbHasLvl(it, codes){ return (it[6] || []).some(function(l){ return codes.indexOf(l[3]) >= 0 && l[1][0] && l[1][0][0] === 'L'; }); }
@@ -54029,7 +54382,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     /* #174 v-B4 — in the mule host the anchor is the mule's slot and the doll its doll; the modal takes the side away from
        the slot as it does in the builder (the mule's STATS read the worn names, so the slot, not STATS, stays in view) */
     var mh = !!(st.pick && st.pick.host === 'mule');
-    if (mh){ anchor = document.querySelector('#vault-detail .mp-slot[data-slot="' + st.pick.slot + '"]'); doll = document.querySelector('#vault-detail .mp-dollbox'); }
+    if (mh){ anchor = document.querySelector(st.pick.kind === 'inv' ? '#vault-detail .mp-inv .vd-grid' : '#vault-detail .mp-slot[data-slot="' + st.pick.slot + '"]'); doll = document.querySelector('#vault-detail .mp-dollbox'); }   // #174 v-B5: an inventory cell's picker opens beside the inventory
     /* #174 R1 — the inventory now sits in the centre under the doll, so its picker takes the side away from it exactly as
        a slot's does (it used to open to the right of a left-column card) */
     if (anchor && doll){
@@ -54082,7 +54435,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* the picker's list rows: names only, in the quality colour, filtered by rail, tab, search and filter */
   function _cbPickRows(){
     var p = st.pick, b = _cbBuild(), clvl = _cbClvl(b);
-    var slot = p.kind === 'inv' ? 'inv' : p.slot;
+    var slot = _cbListSlot(p);
     var rows;
     if (p.qt === 'ex') rows = _cbExisting(slot, p.node ? -1 : p.rail);
     else if (p.node && CB_HANDS[slot]) rows = _cbNodeSrc(slot, p.node);
@@ -54092,9 +54445,36 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var q = String(p.q || '').toLowerCase().trim();
     if (q) rows = rows.filter(function(x){ return x[1].toLowerCase().indexOf(q) >= 0 || ((_cbBase(x[3]) || [''])[0] || '').toLowerCase().indexOf(q) >= 0; });
     if (p.filt) rows = rows.filter(function(x){ return _cbFilterOk(x, p.filt, clvl); });
+    if (slot === CB_MINV) rows = rows.filter(_cbMinvOffer());
     return rows;
   }
   window._cbPickRows = function(){ return st.pick ? _cbPickRows().map(function(x){ return [x[0], x[1], x[2]]; }) : []; };
+  /* the slot a picker's LIST reads: a doll slot, a build's inventory ('inv'), or the mule's inventory (CB_MINV) */
+  function _cbListSlot(p){ return p.kind === 'inv' ? (p.slot === CB_MINV ? CB_MINV : 'inv') : p.slot; }
+  /* #174 v-B5 — WHAT THE MULE'S INVENTORY LISTS AT A CELL: charms, jewels, rings and amulets always (what an inventory is
+     for - one that does not fit at this cell is refused when picked, and says why), and every other item only when its
+     size fits the free space there: the size of the base it would be placed on (a runeword: any base it can go on - its
+     Base tab then lists those that fit). The host answers fits(w, h); no host = UNKNOWN, so nothing is hidden. */
+  function _cbMinvAlways(x){ var d = _cbDb(), b = d && d.b[_cbBasesOf(x)[0] || x[3]]; return !!(b && CB_MINV_ALWAYS[b[1]]); }
+  function _cbMinvFits(){
+    var f = st.host && typeof st.host.fits === 'function' ? st.host.fits : null, memo = {};
+    return function(code){
+      if (!f) return true;
+      var ft = _cbFoot({ base: code }); if (!ft) return false;
+      var k = ft[0] + 'x' + ft[1];
+      if (!(k in memo)) memo[k] = !!f(ft[0], ft[1]);
+      return memo[k];
+    };
+  }
+  function _cbMinvOffer(){
+    var fits = _cbMinvFits();
+    return function(x){
+      if (_cbMinvAlways(x)) return true;
+      if (x[2] === 'r') return _cbBasesOf(x).some(fits);
+      return fits(_cbBasesOf(x)[0] || x[3]);
+    };
+  }
+  window._cbMinvOffer = function(id){ var it = _cbItem(id); return !!(it && _cbMinvOffer()(it)); };
   function _cbFilterOk(x, f, clvl){
     var bs = _cbBasesOf(x), d = _cbDb();
     if (f === 'n' || f === 'x' || f === 'e'){ var t = { n: 0, x: 1, e: 2 }[f]; return bs.some(function(c){ return d.b[c] && d.b[c][2] === t; }); }
@@ -54124,7 +54504,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return h;
   }
   function _cbPickHtml(){
-    var p = st.pick, slot = p.kind === 'inv' ? 'inv' : p.slot, s = _cbSet(), host = p.host === 'mule';
+    var p = st.pick, slot = _cbListSlot(p), s = _cbSet(), host = p.host === 'mule';
     var cur = p.kind === 'slot' ? (s.slots[slot] || null) : (p.i != null ? s.inv[p.i] : null);
     /* #174 v-B3: a picked BASE waits on its Quality tab (Select | Quality | Edit), Edit greyed until a quality is chosen */
     var pend = p.pending ? _cbItem(p.pending) : null;
@@ -54132,14 +54512,16 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        one keeps the tab, so Edit's Base control goes back to it. The mule host leads with "In this locker". */
     var curIt = cur ? _cbItem(cur.id) : null, rwIt = p.rw ? _cbItem(p.rw) : ((!pend && curIt && curIt[2] === 'r') ? curIt : null);
     var tab = function(k, label, ok){ return '<button type="button" role="tab" class="cb-tab' + (p.tab === k ? ' cb-on' : '') + '"' + (ok === false ? ' disabled' : '') + ' aria-selected="' + (p.tab === k) + '" onclick="window._cbPickTab(\'' + k + '\')">' + label + '</button>'; };
-    var head = '<div class="cb-mh" role="tablist">' + (host ? tab('locker', 'In this locker') : '') + tab('select', 'Select')
+    var head = '<div class="cb-mh" role="tablist">' + (host && p.kind === 'slot' ? tab('locker', 'In this locker') : '') + tab('select', 'Select')
       + (rwIt ? tab('base', 'Base') : '') + (pend ? tab('quality', 'Quality') : '') + tab('edit', 'Edit', !!(cur && !pend && !p.rw))
       + '<button type="button" class="cb-x" onclick="window._cbClosePick()" aria-label="close (Esc)">✕</button></div>';
+    /* the mule host's refusal (a MAIN lock, a cell the item does not fit) is said on every tab it can happen on */
+    var err = (host && st.hostErr) ? '<div class="cb-note cb-host-err" role="alert">⚠ ' + esc(st.hostErr) + '</div>' : '';
     if (p.tab === 'locker' && host) return head + '<div class="cb-mb cb-mb-locker">' + ((st.host && st.host.locker && st.host.locker.html) || '') + '</div>';
-    if (p.tab === 'base' && rwIt) return head + _cbBaseTabHtml(rwIt, slot);
-    if (p.tab === 'quality' && pend) return head + _cbQualityHtml(pend, slot);
-    if (p.tab === 'edit' && cur && _cbIsBase(_cbItem(cur.id))) return head + _cbBaseEditHtml(cur, slot);
-    if (p.tab === 'edit' && cur) return head + _cbEditHtml(cur, slot);
+    if (p.tab === 'base' && rwIt) return head + err + _cbBaseTabHtml(rwIt, slot);
+    if (p.tab === 'quality' && pend) return head + err + _cbQualityHtml(pend, slot);
+    if (p.tab === 'edit' && cur && _cbIsBase(_cbItem(cur.id))) return head + err + _cbBaseEditHtml(cur, slot);
+    if (p.tab === 'edit' && cur) return head + err + _cbEditHtml(cur, slot);
     var d = _cbDb();
     var rail = CB_HANDS[slot] ? _cbTreeRailHtml(slot, p.node, '_cbRailNode')
       : '<div class="cb-rail" role="listbox" aria-label="base categories">' + _cbRailOf(slot).map(function(c){
@@ -54152,7 +54534,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var fsel = st.filtOpen ? '<select class="cb-filt" id="cb-filt" aria-label="filter results" onchange="window._cbFilt(this.value)">' + _cbFiltOpts(p.filt, false) + '</select>' : '';
     var say = (slot === 'inv' && p.cell) ? '<div class="cb-note">for inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1) + ' — a pick lands there if its size fits</div>'
       : '<div class="cb-note">' + esc(CB_SLOT_SAY[slot] || '') + ' · the entire item database for this slot' + (host ? ' · a pick goes on ' + esc((st.host && st.host.mule) || 'this mule') + '’s doll, never into a build' : '') + '</div>';
-    var err = (host && st.hostErr) ? '<div class="cb-note cb-host-err" role="alert">⚠ ' + esc(st.hostErr) + '</div>' : '';
+    /* #174 v-B5 — the mule's inventory says which cell, what is listed there, and that a pick lands on that cell or not at all */
+    if (slot === CB_MINV && p.cell) say = '<div class="cb-note">for ' + esc((st.host && st.host.where) || ('inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1)))
+      + ' of ' + esc((st.host && st.host.mule) || 'this mule') + ' — charms, jewels, rings and amulets are always listed; every other item is listed when its size fits here.'
+      + ' A pick lands with its top-left on this cell, or is refused and says why — never moved to another cell, never into a build</div>';
     return head + '<div class="cb-mb">' + rail + '<div class="cb-pane">' + err + say
       + '<div class="cb-srow"><input type="search" id="cb-pick-q" placeholder="Search..." value="' + esc(p.q || '') + '" aria-label="search items" oninput="window._cbPickSearch(this.value)">' + filt + '</div>' + fsel
       + '<div class="cb-qtabs">' + tabs + '</div>'
@@ -54194,8 +54579,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   function _cbBaseRowsShown(c0){
     var p = st.pick, d = _cbDb(), q = String(p.bq || '').toLowerCase().trim(), clvl = _cbClvl(_cbBuild()), slot = p.slot;
+    var _fit = slot === CB_MINV ? _cbMinvFits() : null;   // #174 v-B5 — the mule's inventory: the bases that fit at its cell
     return _cbRwBaseRows(c0.it, slot, c0.ilvl).filter(function(r){
       var c = r[0], b = d.b[c];
+      if (_fit && !_fit(c)) return false;
       if (p.bnode != null){ if (CB_HANDS[slot] ? !_cbInNode(c, p.bnode) : !_cbBaseInCat(c, _cbCats(slot)[+p.bnode] || ['', []])) return false; }
       if (q && b[0].toLowerCase().indexOf(q) < 0) return false;
       var f = p.bfilt;
@@ -54605,6 +54992,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     p.pending = null; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
     p.rw = null;
     /* #174 v-B4 — a RUNEWORD waits on its Base tab (theirs: Select | Base | Edit): it is no longer worn on its first base */
+    /* #174 v-B5 — in the MULE's inventory too: a runeword's size is its base's, so the base is his to choose (its Base tab
+       lists the bases that fit at the cell), never its first base placed silently */
+    if (it[2] === 'r' && p.kind === 'inv' && p.slot === CB_MINV){ p.rw = id; p.tab = 'base'; p.bnode = null; p.bq = ''; p.bfilt = ''; st.filtOpen = false; window.d2Tip.hide(); _cbModal(); return true; }
     if (it[2] === 'r' && p.kind === 'slot'){ p.rw = id; p.tab = 'base'; p.bnode = null; p.bq = ''; p.bfilt = ''; st.filtOpen = false; window.d2Tip.hide(); _cbModal(); return true; }
     if (_cbIsBase(it)){
       var qs = _cbCanQ(it[3]);
@@ -54777,8 +55167,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var _okC = _cbCommit(function(b){ b.sets[b.active | 0].slots[p.slot] = e; });
       if (!_okC && p.host === 'mule'){ _cbRender(); return false; }
       p.tab = 'edit';
+    } else if (p.host === 'mule'){
+      /* #174 v-B5 — THE MULE'S INVENTORY: the pick goes to the cell he clicked, at the base's own size (_cbFoot, the one
+         source), through the mule window's writer - which refuses one that leaves the 10x4 or covers what is there, and a
+         MAIN-locked name, and says why (st.hostErr). Never moved to the nearest free cell, as a build's inventory is:
+         the mule window is his inventory one-to-one. A refused pick stays on the list, never flips to an Edit of nothing. */
+      var ftM = _cbFoot(e);
+      if (!ftM){ st.hostErr = it[1] + '’s size is not on record in the database, so it is never placed (a guessed size could cover what is there)'; _cbRender(); return false; }
+      e.x = p.cell ? p.cell[0] : 0; e.y = p.cell ? p.cell[1] : 0; e.w = ftM[0]; e.h = ftM[1];
+      var _okM = _cbCommit(function(b){ b.sets[0].inv = [e]; });
+      if (!_okM){ _cbRender(); return false; }
+      p.i = 0; p.tab = 'edit';
     } else {
-      var bs = _cbBase(e.base) || [], w = bs[15] || 1, h = bs[16] || 1, s = _cbSet();
+      var ft = _cbFoot(e) || [1, 1], w = ft[0], h = ft[1], s = _cbSet();   // #174 v-B5: the one size source (every CB_DB base carries one)
       var at = p.i != null ? null : _cbFreeAt(s.inv, w, h, p.cell || [0, 0], -1);
       if (p.i != null){ _cbCommit(function(b){ var inv = b.sets[b.active | 0].inv, old = inv[p.i]; e.x = old.x; e.y = old.y; e.w = w; e.h = h;
         if (!_cbFits(inv, e.x, e.y, w, h, p.i)){ var f = _cbFreeAt(inv, w, h, [old.x, old.y], p.i); if (f){ e.x = f[0]; e.y = f[1]; } }
@@ -54904,19 +55305,22 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      ctx = {slot, set, mule, cur() -> the builder-shaped entry there or null, write(entry | null) -> {ok, why},
             render() -> the mule window re-drawn (and this modal with it), close()} [[the-unjoined-end]] */
   function _cbMuleBuild(){
-    var h = st.host, e = (h && h.cur) ? h.cur() : null, slots = {};
-    if (e && st.pick) slots[st.pick.slot] = e;
-    return { name: h ? h.mule : '', cls: null, level: null, sets: [{ name: 'Set 1', slots: slots, inv: [], swap: {}, ws: 1 }],
+    var h = st.host, e = (h && h.cur) ? h.cur() : null, slots = {}, inv = [];
+    if (e && st.pick){ if (st.pick.kind === 'inv') inv.push(e); else slots[st.pick.slot] = e; }   // #174 v-B5: an inventory tile is inv[0]
+    return { name: h ? h.mule : '', cls: null, level: null, sets: [{ name: 'Set 1', slots: slots, inv: inv, swap: {}, ws: 1 }],
              active: 0, notes: '', stash: [], host: 'mule' };
   }
   function _cbClvl(b){ if (!b) return 0; return b.level == null ? null : (b.level | 0); }
   window._cbHostOpen = function(ctx){
-    if (!ctx || !ctx.slot || typeof ctx.write !== 'function' || typeof ctx.render !== 'function') return false;
+    /* #174 v-B5 — or an INVENTORY cell: ctx.kind 'inv', ctx.cell [x, y], ctx.fits(w, h) (what the list may offer there) */
+    var _inv = !!(ctx && ctx.kind === 'inv' && ctx.cell && ctx.cell.length === 2);
+    if (!ctx || !(ctx.slot || _inv) || typeof ctx.write !== 'function' || typeof ctx.render !== 'function') return false;
     _cbDb();
     st.host = ctx; st.hostErr = ''; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
-    st.pick = { host: 'mule', kind: 'slot', slot: ctx.slot, cell: null, tab: 'auto', rail: -1, node: null, qt: 'all', q: '', filt: '',
+    st.pick = { host: 'mule', kind: _inv ? 'inv' : 'slot', slot: _inv ? CB_MINV : ctx.slot, cell: _inv ? [ctx.cell[0] | 0, ctx.cell[1] | 0] : null,
+                tab: 'auto', rail: -1, node: null, qt: 'all', q: '', filt: '',
                 i: null, pending: null, rw: null, bnode: null, bq: '', bfilt: '', fold: {} };
-    if (ctx.cur && ctx.cur()) st.pick.tab = 'edit';
+    if (ctx.cur && ctx.cur()){ st.pick.tab = 'edit'; if (_inv) st.pick.i = 0; }
     try { window.d2Tip.hide(); } catch (e) {}
     return true;
   };
@@ -54924,7 +55328,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (st.pick && st.pick.host === 'mule'){ st.pick = null; st.filtOpen = false; st.modOpen = false; try { window.d2Tip.hide(); } catch (e) {} }
     st.host = null;
   };
-  window._cbHostOn = function(slot){ return !!(st.pick && st.pick.host === 'mule' && st.host && (!slot || st.pick.slot === slot)); };
+  window._cbHostOn = function(slot){ return !!(st.pick && st.pick.host === 'mule' && st.host && (!slot || (slot === 'inv' ? st.pick.kind === 'inv' : st.pick.slot === slot))); };
   /* the modal's markup, drawn inside the mule window's own render (so its unit and type scale reach it). `locker` is what
      the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
      here, once: the locker's list when it offers anything, the whole database when it offers nothing */
@@ -54932,7 +55336,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
     st.host.locker = locker || { html: '', n: 0, total: 0 };
     if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
-    return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(CB_SLOT_SAY[p.slot] || p.slot)
+    return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(p.kind === 'inv' ? 'item for ' + (st.host.where || 'this inventory cell') : (CB_SLOT_SAY[p.slot] || p.slot))
       + ' for ' + esc(st.host.mule || 'this mule') + ' (Esc closes)">' + _cbPickHtml() + '</div>';
   };
   window._cbHostPlaced = function(){
@@ -55162,7 +55566,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
    [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
 (function(){
   'use strict';
-  var SEL = '#vault-detail .mp .vd-item[data-key],#vault-detail .mp .mp-slot.mp-has,#vault-detail .mp .d2art-wrap[aria-label]';
+  /* #174 v-B5 — and a tile he placed in the inventory from the item database (data-dbkey): its box is the builder's
+     tooltip over the STORED entry (base, typed rolls, sockets, affixes), exactly as a database pick on the doll */
+  var SEL = '#vault-detail .mp .vd-item[data-key],#vault-detail .mp .vd-item[data-dbkey],#vault-detail .mp .mp-slot.mp-has,#vault-detail .mp .d2art-wrap[aria-label]';
   window.D2TIP_SEL = SEL;
   /* the one question the board's lanes ask: does this lane own what the pointer (or focus) is on? The unlock badge
      inside a tile is a control with its own title, so it stays the prose lane's */
@@ -55222,6 +55628,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return unknown(name, 'not in the item database this page carries - UNKNOWN');
   }
   window._mtEntryFor = entryFor;
+  /* #174 v-B5 — the mule window shows a database tile's box when he CLICKS it (the picker opens on it beside) */
+  window._mtShow = function(el){ try { show(el); } catch (e) {} };
 
   var cur = null, heldTitle = null;
   function nameOf(el){
@@ -55254,6 +55662,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var _ce = (slot && el.matches && el.matches('.mp-slot.mp-has') && typeof window._mpCbEntryAt === 'function') ? window._mpCbEntryAt(slot) : null;
     var _cit = (_ce && typeof window._cbItem === 'function') ? window._cbItem(_ce.id) : null;
     var entry = (_ce && _cit && typeof window._cbTipEntry === 'function') ? window._cbTipEntry(_ce, _cit, null, slot) : entryFor(n, slot), t = el.getAttribute('title');
+    /* #174 v-B5 — a database tile of the inventory: the builder's tooltip over its stored entry, never re-read from a name
+       (its art is its base's for a runeword, so the name on the art is not the item) */
+    var _dk = el.getAttribute && el.getAttribute('data-dbkey'), _ie = (_dk && typeof window._mpInvCbEntry === 'function') ? window._mpInvCbEntry(_dk) : null;
+    var _iit = (_ie && typeof window._cbItem === 'function') ? window._cbItem(_ie.id) : null;
+    if (_ie && _iit && typeof window._cbTipEntry === 'function') entry = window._cbTipEntry(_ie, _iit, null, 'inv');
+    else if (_dk) entry = unknown(n, 'this tile’s record is not in the item database this page carries - UNKNOWN');
     if (t){ heldTitle = t; el.setAttribute('data-d2tip-held', '1'); el.removeAttribute('title'); entry.lines = (entry.lines || []).concat([{ t: t, cls: 'd2t-note' }]); }
     window.d2Tip.show(entry, el, { floor: floorOf(el) });
   }
@@ -55261,7 +55675,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!target || !target.closest || target.closest('.vd-unlock')) return null;
     if (target.closest('#cb-modal') && !target.closest('#cb-modal .mp-pick')) return null;   // #174 v-B4 — the host modal's own rows have the builder's hover
     var el = target.closest(SEL); if (!el) return null;
-    return el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .mp-slot.mp-has') || el;
+    return el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .vd-item[data-dbkey], #vault-detail .mp .mp-slot.mp-has') || el;
   }
   /* capture phase: this lane decides before the board's bubble-phase lanes look */
   document.addEventListener('mouseover', function(e){

@@ -7391,6 +7391,24 @@ GATES = [
              "in set I); a pick hides the hovered row's tooltip in the mule host as in the builder; a locker (no class) "
              "lists second weapons for the left hand. 8 cases, 13 red-proofs",
          skip_ok=()),
+    Gate("test_the_mule_inventory_takes_items_like_the_doll",
+         [sys.executable, os.path.join(HERE, "test_the_mule_inventory_takes_items_like_the_doll.py")], 90,
+         needs_app=False,
+         why="#174 v-B5 - GrokBot (ACT 5855160685, v3517): the mule window's 10x4 inventory was 40/40 cells dead. Drives "
+             "the SHIPPED vault span + builder block + CB_DB block + mule tooltip script in node on a seeded mule, running "
+             "the handlers the window DREW: every empty cell opens the builder's picker in the mule host (kind inv, that "
+             "cell, no locker tab); a covered cell opens nothing; no builder block = no clickable cell and the grid says "
+             "UNKNOWN; the list is charms / jewels / rings / amulets always and every other item only where its size fits "
+             "the free space; a grand charm lands 1x3 on the clicked cell (store + drawing + grid-fault clean, builds "
+             "byte-identical); every charm's size is the builder's one source (_cbFoot = CB_DB invwidth x invheight) and "
+             "the builder's own inventory reads it; off the grid / over a database tile / over a hand-placed locker tile "
+             "is REFUSED with the reason, never moved; a filled tile's click opens Edit and the builder's box over the "
+             "STORED entry (Enigma on Mage Plate), replace keeps the cell, Remove and Delete take it off; a runeword "
+             "waits on a Base tab listing only bases that fit; a MAIN-locked charm is refused naming the lock's source; "
+             "the door files a new placement once and the filed item is ONE tile - and the doll's sibling double (a "
+             "database pick worn AND packed) is held; Esc closes Filters, the picker, then the window; a stored record "
+             "that cannot be laid is a conflict, not drawn, said (size UNKNOWN) and removable",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,
