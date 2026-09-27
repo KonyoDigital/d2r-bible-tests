@@ -8701,6 +8701,29 @@ body[data-origin="shadow"] #stage::after {
 
 <script>
 (function(){
+        /* 2026-09-27 — AN ICON-ONLY TAB IS NEVER AN EMPTY CHIP (REG-1334). MEASURED in the push gate at 13:52:
+           the Tools picture reported complete with naturalWidth 0 and its inline onerror never ran, so the chip
+           was blank - no picture, no word. Self-contained on purpose, and it lives INSIDE this block rather than as a third one
+           (test_a_dead_fill_keeps_its_content pins two real blocks; a call across them is a dead render): after load, a picture that did not arrive is tried once more with a fresh URL, and if
+           it still has no pixels the chip drops its icon-only class and shows its WORD. */
+        (function(){
+          function fallback(img){ try { var b = img.parentNode; if (b) b.classList.remove('ht-icon'); img.remove(); } catch (e) {} }
+          function dead(img){ return img.complete && !(img.naturalWidth > 0); }
+          function guard(){
+            var imgs = document.querySelectorAll('#head-tabs .ht.ht-icon .ht-i');
+            for (var i = 0; i < imgs.length; i++) {
+              var img = imgs[i];
+              if (!dead(img)) continue;
+              if (img.dataset.retried) { fallback(img); continue; }
+              img.dataset.retried = '1';
+              img.addEventListener('error', function(){ fallback(this); }, { once: true });
+              img.src = img.getAttribute('src').split('?')[0] + '?r=' + Date.now();
+              setTimeout(function(im){ return function(){ if (dead(im)) fallback(im); }; }(img), 1500);
+            }
+          }
+          if (document.readyState === 'complete') guard(); else window.addEventListener('load', guard);
+          setTimeout(guard, 2500);
+        })();
 /* ⚠⚠ v2618 — ONE DRAWN PADLOCK, USED EVERYWHERE A LOCK STATE IS SHOWN AS A MARK ALONE.
    Konyo caught the heart's badge by eye: *"how do i know what finally proved itself? the lock
    should clear itself if working"*. The cause was not logic — every layer served OPEN correctly —
