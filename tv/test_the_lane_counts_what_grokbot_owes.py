@@ -46,6 +46,17 @@ class TheLaneCountsWhatGrokBotOwes(unittest.TestCase):
         self.assertEqual(H._classify("# GB-L-n — GrokBot (Linux native) → Claude\n\nASK — which store holds sets?")[0],
                          "ASK")
 
+    def test_the_other_seats_tags_are_not_the_verb(self):
+        # Measured on #230 after the GB-L fix shipped: these two openers are the tags Claude and
+        # the Mac code seat actually write, and both were still filed pre-v2, so the ACT under
+        # them never counted.
+        self.assertEqual(H._classify("CLAUDE → GB-L\nACT — verify v3519 live")[0], "ACT")
+        self.assertEqual(H._classify("GROK → GB-L\nACT — read the live console")[0], "ACT")
+        self.assertEqual(H._classify("CLAUDE → GB-L\nFYI — received")[0], "FYI")
+        self.assertEqual(H._classify("GROK → GB-L\nFYI — looked")[0], "FYI")
+        self.assertEqual(H._classify("GROK is the model and this line is prose")[0], "?",
+                         "a sentence that merely starts with GROK was skipped as a seat tag")
+
     def test_a_standing_tick_owes_nothing(self):
         for body in (STANDING_TICK, "👀 LOOKED · NATIVE · 2026-09-18 ~22:45 IDT", "📍 STATE — GrokBot (Linux native)",
                      "FYI — Mac TV DIABLO white well cleared this tick."):

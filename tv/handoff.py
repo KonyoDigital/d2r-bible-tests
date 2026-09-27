@@ -129,8 +129,15 @@ def _marks():
 #: LINE is the only thing that identifies a seat" - and this read the FIRST line for the verb. Every GrokBot comment
 #: opens "GB-L", so every ACT it ever posted was filed "pre-v2 (no lead verb)" and the LANES hook said "0 ACT/ASK owed"
 #: while two ACTs for Claude sat unread on 2026-09-27 (5854814442, 5855160685). A bare seat tag, or a routing header
-#: ("GB-L-n — GrokBot → Claude"), is skipped; the next line carries the verb. [[the-unjoined-end]]
-_SEAT_TAG_RX = re.compile(r"^GB-[A-Z0-9]+(?:-[A-Z0-9]+)*(?:\s+[—–-]\s+.*)?$", re.I)
+#: ("GB-L-n — GrokBot → Claude"), is skipped; the next line carries the verb. The same gap remained
+#: for the other two openers on #230, "CLAUDE → GB-L" and "GROK → GB-L": the ACT under them was still
+#: pre-v2. The arrow is what makes those a tag. [[the-unjoined-end]]
+# GB-L, "GB-L-n — …", and the other seats' tags ("CLAUDE → GB-L", "GROK → GB-L"). A line that
+# merely starts with the word CLAUDE or GROK is not a tag — the arrow is what makes it one.
+_SEAT_TAG_RX = re.compile(
+    r"^(?:GB-[A-Z0-9]+(?:-[A-Z0-9]+)*(?:\s+[—–-]\s+.*)?"
+    r"|(?:CLAUDE|GROK)\s*(?:→|->)\s*\S.*)$",
+    re.I)
 #: an OBSERVATION owes nothing: GrokBot's standing ticks lead LOOKED or STATE, and they are read, never answered.
 _OBSERVED = ("LOOKED", "STATE")
 
