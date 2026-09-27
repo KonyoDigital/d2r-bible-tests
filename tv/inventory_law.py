@@ -77,7 +77,12 @@ def is_locked(name):
     if not low:
         return False
     # #246 — a whole-name word: "Key", "Keys", "12 Keys" — never "Blackhand Key"
-    bare = re.sub(r"^[0-9][0-9,.]*\s*", "", low)
+    # ⚠ the second eye on v3517 (reproduced): only a LEADING bare count was stripped, so the other ways a stack
+    # reads - "12x Key", "Key (3)", "Keys x12" - fell through to a register or a paid read. A count on either
+    # side now goes; what is left must still be the WHOLE name, so "Key of Terror" (an uber key, a real item)
+    # and Blackhand Key stay items. bible.html's _furnitureLocked strips the same two forms.
+    bare = re.sub(r"^[0-9][0-9,.]*\s*(?:x\s*)?", "", low)
+    bare = re.sub(r"\s*(?:\(\s*[0-9][0-9,.]*\s*\)|x\s*[0-9][0-9,.]*)$", "", bare)
     if bare in LOCKED_WHOLE:
         return True
     for w in LOCKED:

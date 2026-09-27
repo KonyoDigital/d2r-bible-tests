@@ -39809,7 +39809,8 @@ function _lockFold(n){
 window._furnitureLocked = function(name){
   var low = _lockFold(name);
   if (!low) return false;
-  var bare = low.replace(/^[0-9][0-9,.]*\s*/, '');
+  /* a stack count on either side, as inventory_law.is_locked strips it: "12x Key", "Key (3)", "Keys x12" */
+  var bare = low.replace(/^[0-9][0-9,.]*\s*(?:x\s*)?/, '').replace(/\s*(?:\(\s*[0-9][0-9,.]*\s*\)|x\s*[0-9][0-9,.]*)$/, '');
   if (_FURNITURE_WHOLE.indexOf(bare) >= 0) return true;
   return _FURNITURE_WORDS.some(function(w){ return new RegExp('(^|[^a-z])' + w + '($|[^a-z])').test(low); });
 };

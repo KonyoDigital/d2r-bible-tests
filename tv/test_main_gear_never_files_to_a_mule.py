@@ -100,7 +100,9 @@ var HAND = { by: 'hand', at: '2026-09-26T00:00:00Z', where: 'the vault manager' 
 function lk(n){ return window._laneLocked(n); }
 OUT.mainBefore = window.MAIN_LOCKS;
 OUT.furn = { cube: lk('Horadric Cube'), tome: lk('Tome of Town Portal'), key: lk('Key'), keys: lk('12 Keys'),
-             bhk: lk('Blackhand Key'), sword: lk('Crystal Sword') };
+             bhk: lk('Blackhand Key'), sword: lk('Crystal Sword'),
+             /* the second eye on v3517: every way a stack reads, and the uber key that is an item */
+             stackX: lk('12x Key'), stackParen: lk('Key (3)'), stackTail: lk('Keys x12'), terror: lk('Key of Terror') };
 window.LSR.setItem('d2r_laneLock', JSON.stringify({
   'War Traveler': { lane: 'equipment', sessions: ['s1', 's2', 's3'] },
   'Dwarf Star':   { lane: 'inventory', sessions: ['s1', 's2'] } }));
@@ -170,8 +172,9 @@ class MainGearNeverFilesToAMule(unittest.TestCase):
 
     def test_furniture_locks_by_law_and_blackhand_key_does_not(self):
         f = self.o["furn"]
-        for k in ("cube", "tome", "key", "keys"):
+        for k in ("cube", "tome", "key", "keys", "stackX", "stackParen", "stackTail"):
             self.assertEqual("inventory", f[k], "furniture %s is not locked: %r" % (k, f))
+        self.assertEqual("", f["terror"], "Key of Terror - an uber key, a real item - is locked as a key")
         self.assertEqual("", f["bhk"], "Blackhand Key — a unique wand — is locked as a key again")
         self.assertEqual("", f["sword"])
 
@@ -247,6 +250,10 @@ class MainGearNeverFilesToAMule(unittest.TestCase):
         self.assertEqual(list(IL.CONSUMABLE_WORDS), self.o["consWords"], "the consumable words drifted from inventory_law")
         self.assertFalse(IL.is_locked("Blackhand Key"), "inventory_law locks Blackhand Key as a key again")
         self.assertTrue(IL.is_locked("Key") and IL.is_locked("12 Keys"))
+        # the second eye on v3517 (reproduced): a stack count on either side, and the two copies agree on each
+        for n in ("12x Key", "Key (3)", "Keys x12"):
+            self.assertTrue(IL.is_locked(n), "inventory_law lets the stack %r through to a paid read" % n)
+        self.assertFalse(IL.is_locked("Key of Terror"), "inventory_law locks an uber key as furniture")
 
 
 if __name__ == "__main__":
@@ -254,6 +261,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3517 - the board strips only a leading count, so 'Key (3)' / 'Keys x12' are items again",
+        "file": "bible.html",
+        "find": "  var bare = low.replace(/^[0-9][0-9,.]*\\s*(?:x\\s*)?/, '').replace(/\\s*(?:\\(\\s*[0-9][0-9,.]*\\s*\\)|x\\s*[0-9][0-9,.]*)$/, '');\n",
+        "replace": "  var bare = low.replace(/^[0-9][0-9,.]*\\s*/, '');\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3517 - inventory_law strips only a leading count again",
+        "file": "inventory_law.py",
+        "find": "    bare = re.sub(r\"\\s*(?:\\(\\s*[0-9][0-9,.]*\\s*\\)|x\\s*[0-9][0-9,.]*)$\", \"\", bare)\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#246 W4 - the door files a name locked to his MAIN",
         "file": "bible.html",

@@ -203,7 +203,7 @@ def eye_snapshot(sha, max_bytes=None):
     """
     lim = EYE_SNAPSHOT_MAX_BYTES if max_bytes is None else max_bytes
     out = {"ok": False, "included": [], "skipped": [], "why": ""}
-    names, why = _sh(["git", "show", "--name-only", "--format=", sha], timeout=60)
+    names, why = _sh(_changes(sha, "--name-only"), timeout=60)
     if names is None:
         out["why"] = "could not list the commit's files: %s" % why
         return out
@@ -570,6 +570,21 @@ def commit_for(version):
                   "the last 400 - a subject that only mentions it is not its ship" % version)
 
 
+#: ⚠⚠ 2026-09-27 — A BATCH BUILT ON AN INTEGRATION BRANCH SHIPS ITS CODE IN COMMITS THE BUMP DOES NOT CARRY.
+#: v3515-v3517 were built in worktrees, merged, then stamped as three bump-only commits. The bound commit
+#: for v3517 (1abddaf2) is 2,692 chars of version strings, so the eye answered cannot-tell - correctly -
+#: and re-asking it could only ever answer the same. `--base REV` widens the look to every change between
+#: REV and the bound commit (`git diff REV sha`), and the row says so; without it nothing changes.
+REVIEW_BASE = None
+
+
+def _changes(sha, *tail):
+    """The git argv for "what this look covers": the bound commit alone, or REVIEW_BASE..sha."""
+    if REVIEW_BASE:
+        return ["git", "diff"] + [t for t in tail if t != "--format="] + [REVIEW_BASE, sha]
+    return ["git", "show", "--format="] + [t for t in tail if t != "--format="] + [sha]
+
+
 _PY_COMMENT = re.compile(r"^\s*#")
 _JS_COMMENT = re.compile(r"^\s*(/\*|\*|//)")
 
@@ -687,8 +702,8 @@ def absent_from(sha, body):
     fetched text would report 0 for exactly the v3333 case that prompted it.
     [[unknown-stays-unknown]] [[the-unjoined-end]]
     """
-    names, why = _sh(["git", "show", "--format=", "--name-only", sha,
-                      "--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",
+    names, why = _sh(_changes(sha, "--name-only") +
+                     ["--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",
                       ":(exclude)_archive/*"], timeout=90)
     if names is None:
         return None, (why or "the changed-file roster could not be read")
@@ -982,8 +997,8 @@ def payload_for(sha):
     # ⚠ BLAST RADIUS IS SMALL AND STATED: 1 of the last 60 versions had an unseen .js change, and
     # it is v3387. My first count said 60 of 60; that was my own broken loop, not the defect.
     # [[the-unjoined-end]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
-    out, why = _sh(["git", "show", "--format=", "--unified=3", sha,
-                    "--", "*.py", "*.js", "*.mjs", "*.sh",
+    out, why = _sh(_changes(sha, "--unified=3") +
+                   ["--", "*.py", "*.js", "*.mjs", "*.sh",
                     ":(exclude)_archive/*"], timeout=90)
     if out is None:
         return None, why
@@ -1018,7 +1033,7 @@ def payload_for(sha):
     body = _prep(out)
     _full_len_holder = [body]
     if len(body) < _cap():
-        _more, _ = _sh(["git", "show", "--format=", "--unified=3", sha, "--", "*.html"],
+        _more, _ = _sh(_changes(sha, "--unified=3") + ["--", "*.html"],
                        timeout=90)
         if _more:
             body = body + "\n" + _prep(_more)
@@ -1081,6 +1096,14 @@ def payload_for(sha):
             "unbound, undefined, undeclared or unpacked-from-nowhere unless you can see its "
             "whole scope here. Judge only what is fully shown, and say so when a judgement "
             "would need code that is not in front of you.\n")
+    if REVIEW_BASE:
+        _span, _ = _sh(["git", "rev-list", "--count", "%s..%s" % (REVIEW_BASE, sha)], timeout=30)
+        _span = (_span or "").strip() or "UNKNOWN"
+        note += ("\nTHIS DIFF SPANS %s COMMITS (%s..%s), combined: a version whose code landed in "
+                 "commits before its version stamp. Judge the combined change.\n"
+                 % (_span, REVIEW_BASE[:8], sha[:8]))
+        dropped = ((dropped + " - ") if dropped else "") + (
+            "covers %s..%s (%s commits), not the bound commit alone" % (REVIEW_BASE[:8], sha[:8], _span))
     if dropped:
         note += ("\nAND IT IS ALSO TRUNCATED — it stops part-way through, mid-file at a line "
                  "boundary. Do not report a function, statement or block as incomplete, "
@@ -1818,6 +1841,12 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     if not sha:
         print("  %s: cannot find the commit — %s" % (version, why))
         return False
+    if REVIEW_BASE:
+        _anc, _aw = _sh(["git", "merge-base", "--is-ancestor", REVIEW_BASE, sha], timeout=30)
+        if _anc is None:
+            print("  %s: --base %s is not an ancestor of %s - NOT asked (%s)"
+                  % (version, REVIEW_BASE, sha[:8], _aw))
+            return False
     prompt, dropped, absent, reach, stripped = payload_for(sha)
     if prompt is None:
         print("  %s: cannot build the payload — %s" % (version, dropped))
@@ -1845,7 +1874,8 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
               % sha[:8])
     elif _rows:
         print("     ⚠ THIS LOOK COVERS %s ONLY. %d later commit(s) ship with it and are NOT "
-              "reviewed:" % (sha[:8], len(_rows)))
+              "reviewed:" % ((("%s..%s" % (REVIEW_BASE[:8], sha[:8])) if REVIEW_BASE else sha[:8]),
+                             len(_rows)))
         for _r in _rows[:6]:
             print("        %s" % _r[:96])
         if len(_rows) > 6:
@@ -1913,7 +1943,16 @@ def main(argv):
     # which is the right way to fail: an unattributable answer is not evidence about who looked.
     ap.add_argument("--answer-model", default="",
                     help="the model that produced --answer-in, when the answer does not say")
+    ap.add_argument("--base", help="widen the look to every change from this commit to the version's "
+                                   "bound commit (a batch whose code landed before its stamp)")
     a = ap.parse_args(argv)
+    if a.base:
+        global REVIEW_BASE
+        _full, _bw = _sh(["git", "rev-parse", "--verify", "%s^{commit}" % a.base], timeout=30)
+        if not _full:
+            print("  --base %s is not a commit (%s) - NOT asked" % (a.base, _bw))
+            return 2
+        REVIEW_BASE = _full.strip()
     if a.backlog:
         # ⚠⚠ v2848 — THE BACKLOG COMMAND HAS BEEN CRASHING, SO NOTHING REPORTED THE QUEUE.
         # `SEL.audit(None)` returns a list of DICTS — {version, attempts, empty, author, looks,
