@@ -40981,6 +40981,10 @@ window.vaultAutoAssign = function(){
             if (!e || e.source !== 'manual' || !e.name) return;
             var p = ((_prev[mid] || {})[set] || {})[slot];
             if (p && p.name === e.name && p.at === e.at) return;
+            /* 2026-09-27 — two Grand Charms are two items. assign is one home per NAME, and a hand
+               filing that names a mule MOVES that home. A second inventory tile of a name already
+               filed elsewhere keeps its own cell and does not take the first copy's mule. */
+            if (set === 'inv' && assign[e.name] != null && assign[e.name] !== mid) return;
             window.vaultFile(e.name, { by: 'hand', at: e.at || new Date().toISOString(),
                                        where: 'the mule window (' + ((muleById(mid) || {}).name || mid) + ')' }, { mule: mid });
           });

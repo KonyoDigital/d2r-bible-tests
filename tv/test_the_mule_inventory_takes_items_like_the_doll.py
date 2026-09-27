@@ -464,6 +464,25 @@ class TheDoorFilesItOnceAndItIsOneItem(unittest.TestCase):
         self.assertEqual(out["after"], [[80, True]], "Edit did not edit the tile in place (the placement keeps its time)")
         self.assertEqual(out["filed2"], 1, "an edit filed the item a second time")
 
+    def test_two_grand_charms_keep_their_own_cells_and_the_second_mule_does_not_take_the_first(self):
+        out = _drive("""
+          door();
+          window.openMuleCard('uni-armor'); out.a = pickAt(0, 0, 'b:cm3');
+          window.openMuleCard('uni-weap'); out.b = pickAt(0, 0, 'b:cm3');
+          var ea = eq();
+          out.home = assign['Grand Charm'] || null;
+          out.nA = Object.keys((ea['uni-armor'] || {}).inv || {}).length;
+          out.nB = Object.keys((ea['uni-weap'] || {}).inv || {}).length;
+          out.filed = FILED.map(function(f){ return f.mule; });""")
+        self.assertIs(out["a"], True, "the first grand charm was not placed")
+        self.assertIs(out["b"], True, "the second grand charm was not placed: the two counted as one")
+        self.assertEqual(out["nA"], 1, "the first mule lost its grand charm")
+        self.assertEqual(out["nB"], 1, "the second mule has no grand charm of its own")
+        self.assertEqual(out["home"], "uni-armor",
+                         "placing the second copy moved the name off the first mule: %r" % out)
+        self.assertEqual(out["filed"], ["uni-armor"],
+                         "the second copy was filed as a move of the first: %r" % out["filed"])
+
     def test_the_filed_charm_is_one_item_on_the_grid(self):
         ids = _ids(("Annihilus", "u"))
         out = _drive("""
@@ -557,6 +576,13 @@ class TheLoaderNeverAsksTheBuildersDatabase(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-27 - a second Grand Charm moves the first off its mule, so two copies count as one",
+        "file": "bible.html",
+        "find": "            if (set === 'inv' && assign[e.name] != null && assign[e.name] !== mid) return;\n",
+        "replace": "            if (false) return;\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B5 - the loader (the shelf card's too) asks the builder's database for a tile's art: a boot-time parse",
         "file": "bible.html",
