@@ -16,6 +16,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+from console_safe import enable; enable()
 
 import console_doctor as CD
 import vault_evidence as VE
