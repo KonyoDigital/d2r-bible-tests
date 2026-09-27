@@ -898,6 +898,9 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         if owned:
             door += ("; owned is a possession record and is NOT put back by that door — "
                      "/api/owned_restore is its own, confirm required")
+        door += (". A deliberate clear is not a loss to undo: POST /api/ledger_drop_accept "
+                 "{\"store\": %r, \"reason\": \"why\", \"confirm\": true}"
+                 % open_eps[0].get("store"))
         if any(e.get("store") == "gameFound" for e in open_eps):
             door += "; gameFound has NO restore door yet — it is backed up, not restorable"
         return MISSING, ("A LEDGER STORE DROPPED and has not come back: %s. %s. Nothing is put back "

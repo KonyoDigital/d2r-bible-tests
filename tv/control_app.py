@@ -23663,6 +23663,53 @@ def chronicle_rebuild_plan():
     return out
 
 
+def ledger_drop_accept(store, reason, confirm=False, now_ms=None, path=None):
+    """Close an open drop because he cleared that store on purpose. Writes only with confirm.
+
+    The episode otherwise stays open until the count climbs back to where it fell from, so a
+    planned vault reset paints the heart red forever and pins the pre-reset backup against the
+    prune. closedBy records the reason. Nothing is restored.
+    """
+    doc, why = ledger_drops_load(path)
+    if doc is None:
+        return {"ok": False, "applied": False, "why": why}
+    if why == "absent":
+        return {"ok": False, "applied": False,
+                "why": "the drop watcher has no record yet, so there is no drop to accept"}
+    why_reason = str(reason or "").strip()
+    if not why_reason:
+        return {"ok": False, "applied": False,
+                "why": "a reason is required — closing a drop without one is the same as not recording it"}
+    try:
+        import ledger_restore as _LR
+    except Exception as e:
+        return {"ok": False, "applied": False, "why": "ledger_restore is unavailable (%s)" % str(e)[:60]}
+    route_key = None
+    try:
+        _cur, route, _w = _restore_current_from_board()
+        route_key = _LR._route_key(route) if route else None
+    except Exception:
+        route_key = None
+    pending = [e for e in doc.get("episodes") or []
+               if isinstance(e, dict) and e.get("open") and e.get("store") == store
+               and (route_key is None or e.get("routeKey") == route_key)]
+    if not pending:
+        return {"ok": False, "applied": False, "why": "no open drop for %s" % store}
+    if not confirm:
+        return {"ok": True, "applied": False, "wouldClose": len(pending),
+                "why": ("this would close %d open drop(s) of %s as deliberate. Nothing has been "
+                        "written; call again with confirm." % (len(pending), store))}
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    closed, aw = _LR.accept_episodes(doc["episodes"], store, why_reason, at_ms=now_ms,
+                                     route_key=route_key)
+    if not closed:
+        return {"ok": False, "applied": False, "why": aw or "no open drop for %s" % store}
+    _ledger_drops_save(doc, path)
+    return {"ok": True, "applied": True, "closed": len(closed),
+            "why": "accepted %d drop(s) of %s (%s)" % (len(closed), store, why_reason[:120])}
+
+
 def ledger_restore_plan(file=None):
     """What the backups FOR THIS PROFILE would put back. Reads only; writes nothing.
 
@@ -23683,7 +23730,12 @@ def ledger_restore_plan(file=None):
         return {"ok": False, "why": ("the board did not say which profile this is, and a restore "
                                      "that cannot tell one profile from another is how one "
                                      "person's ledger lands in another's")}
-    return _LR.plan(route, cur, d=_LEDGER_BACKUP_DIR, file=file)
+    episodes = None
+    if not file:
+        doc, dwhy = ledger_drops_load()
+        if doc is not None and dwhy != "absent" and _LR.record_covers_dir(_LEDGER_BACKUP_DIR, doc):
+            episodes = doc.get("episodes") or []
+    return _LR.plan(route, cur, d=_LEDGER_BACKUP_DIR, file=file, episodes=episodes)
 
 
 def ledger_restore_apply(confirm=False, file=None):
@@ -35965,6 +36017,12 @@ class Handler(BaseHTTPRequestHandler):
             # 2026-09-27 — {"file": name} names the backup outright; without it the plan is
             # drop-aware and reads a dropped store from the last backup BEFORE the drop.
             self._json(200, ledger_restore_plan(file=body.get("file") or None))
+            return
+        if path == "/api/ledger_drop_accept":
+            # A planned clear (a vault reset he asked for) must be able to close the drop the
+            # watcher opened for it. confirm and a reason are both required. Nothing is restored.
+            self._json(200, ledger_drop_accept(body.get("store"), body.get("reason"),
+                                               confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/ledger_restore_apply":
             # v2735 — and the write half, through chronicle_apply, which is the BOARD's door.

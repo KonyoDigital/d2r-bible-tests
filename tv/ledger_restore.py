@@ -187,6 +187,33 @@ def step_episodes(episodes, prev, nxt, prev_file, next_file, route_key=None, at_
     return opened, closed
 
 
+def accept_episodes(episodes, store, reason, at_ms=None, closed_count=None, route_key=None):
+    """Close OPEN episodes of `store` because the drop was deliberate. Mutates; writes nothing.
+
+    A reason is required. closedBy is 'accepted: <reason>', so a recovery and an acceptance stay
+    different facts. A ratchet that can only close when the count comes back stays red forever
+    the first time he clears a store on purpose.
+    """
+    why_reason = str(reason or "").strip()
+    if not why_reason:
+        return [], "a reason is required — closing a drop without one is the same as not recording it"
+    if not store:
+        return [], "no store was named"
+    closed = []
+    for ep in episodes or []:
+        if not (isinstance(ep, dict) and ep.get("open") and ep.get("store") == store):
+            continue
+        if route_key is not None and ep.get("routeKey") != route_key:
+            continue
+        ep.update({"open": False, "closedAt": at_ms,
+                   "closedBy": "accepted: %s" % why_reason[:300],
+                   "closedCount": closed_count})
+        closed.append(ep)
+    if not closed:
+        return [], "no open drop for %s" % store
+    return closed, ""
+
+
 def replay(chain, route_key=None):
     """Run the watcher over a chain of one route's backups, OLDEST FIRST. -> every episode.
 
@@ -300,19 +327,47 @@ def explicit_backup(route, name, d=None):
     return (real_p, blob), ""
 
 
-def _sources_after_drops(route, hits):
+def record_covers_dir(d, doc):
+    """True when this drop record is ABOUT the backups in `d`, not some other world's files.
+
+    An empty record that has never judged a file in `d` is not authority over `d`. Replaying is
+    then the bootstrap. A record that names one of these files, or whose lastJudged names one, is
+    the authority — including when it holds no open episode.
+    """
+    if not isinstance(doc, dict) or not d:
+        return False
+    try:
+        names = set(os.listdir(d))
+    except Exception:
+        return False
+    eps = doc.get("episodes") or []
+    if any(isinstance(e, dict) and (e.get("beforeFile") in names or e.get("afterFile") in names)
+           for e in eps):
+        return True
+    judged = doc.get("lastJudged") or {}
+    return any(str(v) in names for v in judged.values() if v)
+
+
+def _sources_after_drops(route, hits, episodes=None):
     """Per store, which backup a restore should read. -> ({store: (path, blob, why)}, [open drop])
 
     The newest backup is the source for every store UNLESS it sits after an unrecovered drop of that
     store; then the source is the last backup BEFORE the drop. When a store dropped more than once
     and never came back, the open drop with the HIGHEST `from` wins — it holds the most, and the
     door is add-only, so an older source can only add back what is missing.
+
+    `episodes` is the durable record when the caller has one for THESE files. None means the record
+    is absent, and the chain is replayed. A passed list, even an empty one, is not replayed: a
+    thinned keeper chain invents drops the watcher, stepping every snapshot, never opened.
     """
     rk = _route_key(route)
     newest_p, newest_b = hits[0]
     newest = os.path.basename(newest_p)
     byname = dict((os.path.basename(p), (p, b)) for p, b in hits)
-    eps = replay([(os.path.basename(p), b) for p, b in reversed(hits)], route_key=rk)
+    if episodes is None:
+        eps = replay([(os.path.basename(p), b) for p, b in reversed(hits)], route_key=rk)
+    else:
+        eps = [e for e in episodes if isinstance(e, dict)]
     sources, drops = {}, []
     for s in BACKED_UP:
         live = [e for e in eps if e.get("open") and e.get("store") == s
@@ -340,7 +395,7 @@ def _names(v):
     return []
 
 
-def plan(route, current, d=None, file=None):
+def plan(route, current, d=None, file=None, episodes=None):
     """What the backups for this profile would put back. -> dict. Reads only.
 
     `current` is the board's ledger as it stands now: {"foundLog": {...}, "setPieces": [...], ...}
@@ -365,7 +420,7 @@ def plan(route, current, d=None, file=None):
         if not hits:
             return {"ok": False, "why": why or "no matching backup"}
         path, blob = hits[0]
-        sources, drops = _sources_after_drops(route, hits)
+        sources, drops = _sources_after_drops(route, hits, episodes=episodes)
     out, missing_total = {}, 0
     for store, half in sorted(RESTORABLE.items()):
         spath, sblob, swhy = sources[store]

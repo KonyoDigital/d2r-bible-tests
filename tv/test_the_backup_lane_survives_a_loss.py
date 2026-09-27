@@ -231,6 +231,24 @@ class ThePlanReadsTheBackupBeforeTheDrop(_World):
         self.assertEqual(before, p["sources"]["owned"], "owned dropped too — its source is the same file")
         self.assertEqual(newest, p["file"])
 
+    def test_a_thinned_chain_does_not_invent_a_drop_the_record_never_opened(self):
+        # Two keepers, 223 -> 163. Replaying that pair calls it a drop. The watcher, stepping
+        # every snapshot, never opened one. The plan must believe the record.
+        old = _write(self.bdir, PINNED_NOW - 100 * DAY, _board(134, 223))
+        new = _write(self.bdir, PINNED_NOW - 600, _board(134, 163))
+        cur = {"foundLog": {}, "setPieces": list(PIECES), "owned": ["Owned %03d" % i for i in range(163)]}
+        replayed = LR.plan(ROUTE, cur, d=self.bdir)
+        self.assertEqual(old, replayed["sources"]["owned"],
+                         "premise: the thinned pair is a drop when replayed: %r" % replayed.get("sources"))
+        trusted = LR.plan(ROUTE, cur, d=self.bdir, episodes=[])
+        self.assertEqual(new, trusted["sources"]["owned"],
+                         "no open episode, but the plan still read the old keeper: %r" % trusted.get("sources"))
+        held = LR.plan(ROUTE, cur, d=self.bdir, episodes=[{
+            "store": "owned", "from": 223, "to": 163, "open": True,
+            "beforeFile": old, "afterFile": new, "routeKey": LR._route_key(ROUTE)}])
+        self.assertEqual(old, held["sources"]["owned"],
+                         "an open episode was ignored: %r" % held.get("sources"))
+
     def test_a_RECOVERED_store_reads_the_newest_again(self):
         _write(self.bdir, PINNED_NOW - 3 * DAY, _board(134, 223))
         _write(self.bdir, PINNED_NOW - 2 * DAY, _board(0, 0))
@@ -413,6 +431,31 @@ class TheEpisodeClosesOnlyWhenTheStoreIsBack(_World):
         self.assertTrue([e for e in self._record()["episodes"] if e["store"] == "owned"][0]["open"],
                         "owned is still 0 — its episode must stay open")
 
+    def test_a_deliberate_clear_closes_the_drop_and_frees_the_backup(self):
+        before, _drop, newest = self._measured(before_age=100 * DAY)
+        self.assertTrue(self._judge(newest)["ok"])
+        refused = CA.ledger_drop_accept("setPieces", "", confirm=True, path=self.rec,
+                                        now_ms=PINNED_NOW * 1000)
+        self.assertFalse(refused.get("applied"), refused)
+        self.assertTrue([e for e in self._record()["episodes"] if e["store"] == "setPieces"][0]["open"],
+                        "an empty reason closed the drop")
+        preview = CA.ledger_drop_accept("setPieces", "fresh vault", confirm=False, path=self.rec)
+        self.assertFalse(preview.get("applied"), preview)
+        self.assertTrue([e for e in self._record()["episodes"] if e["store"] == "setPieces"][0]["open"],
+                        "a preview wrote the record")
+        done = CA.ledger_drop_accept("setPieces", "fresh vault", confirm=True, path=self.rec,
+                                     now_ms=PINNED_NOW * 1000)
+        self.assertTrue(done.get("applied"), done)
+        owned = CA.ledger_drop_accept("owned", "fresh vault", confirm=True, path=self.rec,
+                                      now_ms=PINNED_NOW * 1000)
+        self.assertTrue(owned.get("applied"), owned)
+        ep = [e for e in self._record()["episodes"] if e["store"] == "setPieces"][0]
+        self.assertFalse(ep["open"])
+        self.assertTrue(str(ep.get("closedBy") or "").startswith("accepted:"), ep)
+        r = CA._ledger_backup_prune(self.bdir, now=PINNED_NOW, drops_path=self.rec)
+        self.assertNotIn(before, r.get("dropProtected") or [],
+                         "an accepted drop still pins its backup: %r" % r)
+
     def test_a_first_look_REPLAYS_a_drop_that_happened_before_the_watcher_existed(self):
         """His exact case: the drop at 03:31 predates this code, so no step ever compared it."""
         before, drop, newest = self._measured()
@@ -462,7 +505,7 @@ class TheDoctorSaysSoUntilItIsBack(_World):
         self.assertEqual(CD.MISSING, st, why)
         for must in ("setPieces fell 134 -> 0", before, "/api/ledger_restore_apply",
                      _real_time.strftime("%Y-%m-%d %H:%M", _real_time.localtime(LR.stamp_ms(drop) / 1000.0)),
-                     "/api/owned_restore"):
+                     "/api/owned_restore", "/api/ledger_drop_accept"):
             self.assertIn(must, why)
 
     def test_it_is_UNKNOWN_when_it_cannot_see(self):
@@ -591,6 +634,21 @@ RED_PROOF = [
      "file": "console_doctor.py",
      "find": "        if age_s is None or age_s > _DROP_JUDGE_GRACE_S:",
      "replace": "        if False:",
+     "matches": 1},
+    {"why": "a deliberate clear closes with no reason, so a bug and a choice look the same",
+     "file": "control_app.py",
+     "find": "    if not why_reason:\n        return {\"ok\": False, \"applied\": False,\n                \"why\": \"a reason is required",
+     "replace": "    if False:\n        return {\"ok\": False, \"applied\": False,\n                \"why\": \"a reason is required",
+     "matches": 1},
+    {"why": "the plan ignores the durable record and replays a thinned chain into a drop that never happened",
+     "file": "ledger_restore.py",
+     "find": "    if episodes is None:\n        eps = replay(",
+     "replace": "    if True:\n        eps = replay(",
+     "matches": 1},
+    {"why": "the doctor never names the door that closes a deliberate clear",
+     "file": "console_doctor.py",
+     "find": "        door += (\". A deliberate clear is not a loss to undo: POST /api/ledger_drop_accept \"\n                 \"{\\\"store\\\": %r, \\\"reason\\\": \\\"why\\\", \\\"confirm\\\": true}\"\n                 % open_eps[0].get(\"store\"))\n",
+     "replace": "        door += \"\"\n",
      "matches": 1},
 ]
 
