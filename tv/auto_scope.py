@@ -36,7 +36,10 @@ LANES = {
     },
     "tvd-ledger-backup": {
         "does": "copies your ledger aside so a bad write can be undone",
-        "touches": "its own backup files",
+        # 2026-09-27 — and the drop record its watcher keeps (.ledger_drops.json, gitignored):
+        # which store fell, from what, and which backup predates it. Said, because a lane that
+        # writes a file its declaration does not name is a lane nobody can audit.
+        "touches": "its own backup files, and its drop record (.ledger_drops.json)",
         # ⚠ v2410 — THIS DECLARATION CONTRADICTED ITSELF, AND THE AUDITOR HAD BEEN SAYING SO TO
         # NOBODY. `touches: its own backup files` and `forbids: [delete]` cannot both be true of a
         # lane that rotates its own backups — and it does: _ledger_snapshot_once keeps the newest

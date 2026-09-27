@@ -23229,6 +23229,164 @@ def _ledger_snapshot_once(force=False):
         return (None, "could not write the backup: %s" % str(e)[:90])
 
 
+# ══ THE LEDGER-DROP WATCH — the backup loop judging what it just copied ═══════════════════════════
+# MEASURED 2026-09-27 (shape only): ledger_..._024127 held setPieces 134 / owned 223, ledger_..._033127
+# held 0 / 0 (a vault reset) and every backup after it held 0. Nothing noticed. d2r_storeEmptied only
+# opens when the FOUND ledger comes up empty at load, the prune's episode guard reads only that, and
+# the restore door took the NEWEST backup — so the one file that could put the pieces back was
+# protected by luck (the prune had not reached it yet) and the door would have restored nothing.
+# This is the watchdog that was missing: after every snapshot it compares with the previous snapshot
+# of the SAME route through `ledger_restore.drops_between` (the one definition the restore plan also
+# uses), and a drop opens a DURABLE episode the prune honours until the store is back.
+# [[heart-first]] [[the-unjoined-end]] [[copy-drift]]
+#: closed episodes kept as history; every OPEN one is kept whatever its age
+_LEDGER_DROPS_CLOSED_KEEP = 50
+
+
+def _ledger_drops_path():
+    """Where the durable ledger-drop record lives. -> path. RESOLVED AT CALL TIME.
+
+    Through `_fixture_root_for_state()` like its siblings and never bound at import: a gate that
+    sets TV_HIST must neither read nor write his real record, and a path frozen at import would pin
+    whatever world the module happened to load in. Gitignored — it names his backups and his route.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+    return os.path.join(_fixture_root_for_state(), ".ledger_drops.json")
+
+
+def ledger_drops_load(path=None):
+    """The drop record. -> (doc, why). doc None = UNREADABLE, which is UNKNOWN — never "no drops".
+
+    ABSENT is a measurement — nothing on this machine has been judged yet — so it answers a fresh
+    record with why == "absent", and a reader can tell "never ran" from "ran and found nothing".
+    [[unknown-stays-unknown]]
+    """
+    p = path or _ledger_drops_path()
+    if not os.path.exists(p):
+        return {"episodes": [], "lastJudged": {}}, "absent"
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except Exception as e:
+        return None, "the ledger-drop record will not parse (%s)" % type(e).__name__
+    if not (isinstance(doc, dict) and isinstance(doc.get("episodes"), list)
+            and isinstance(doc.get("lastJudged", {}), dict)):
+        return None, "the ledger-drop record is not the shape the watcher writes"
+    doc.setdefault("lastJudged", {})
+    return doc, ""
+
+
+def _ledger_drops_save(doc, path=None):
+    """Atomically — a half-written record would read UNREADABLE and stop the prune for a pass."""
+    p = path or _ledger_drops_path()
+    tmp = p + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, indent=1, ensure_ascii=False)
+    os.replace(tmp, p)
+
+
+def _ledger_drop_watch(new_path, bdir=None, path=None, now_ms=None):
+    """Judge one new snapshot against the previous snapshot of the SAME route. -> dict. Never raises.
+
+    · a DROP (ledger_restore.drops_between) opens an episode {store, from, to, beforeFile,
+      afterFile, at} that `_ledger_backup_prune` honours: its beforeFile is kept whatever its age;
+    · an open episode CLOSES when the store is back to >= its `from`;
+    · a route never judged before is BOOTSTRAPPED by replaying every backup of it already on disk —
+      the drop that happened before this watcher existed is exactly the one that needs finding;
+    · an UNREADABLE record is set aside (never written over) and rebuilt from the backups, which are
+      the ground truth it was derived from. A watcher that stops watching because its own notes are
+      damaged is the silent failure this exists to end.
+    """
+    import ledger_restore as _LR
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    bdir = bdir or os.path.dirname(os.path.abspath(new_path))
+    p = path or _ledger_drops_path()
+    out = {"ok": False, "opened": [], "closed": [], "open": None, "mode": None, "why": ""}
+    try:
+        doc, why = ledger_drops_load(p)
+        if doc is None:
+            aside = "%s.unreadable-%d" % (p, now_ms)
+            try:
+                os.replace(p, aside)
+            except Exception as e:
+                out["why"] = ("%s, and it could not be set aside (%s) — nothing written over it"
+                              % (why, type(e).__name__))
+                return out
+            doc = {"episodes": [], "lastJudged": {}}
+            out["setAside"] = os.path.basename(aside)
+        try:
+            with io.open(new_path, encoding="utf-8") as fh:
+                new_blob = json.load(fh)
+        except Exception as e:
+            out["why"] = "the new snapshot will not parse (%s) — nothing judged" % type(e).__name__
+            return out
+        route = new_blob.get("route") if isinstance(new_blob, dict) else None
+        rk = _LR._route_key(route)
+        if rk is None:
+            out["why"] = ("the snapshot carries no route, so a drop in it cannot be attributed to a "
+                          "profile — nothing judged")
+            return out
+        new_name = os.path.basename(new_path)
+        eps = doc["episodes"]
+        last = doc["lastJudged"].get(rk)
+        opened, closed = [], []
+        if last is None:
+            hits, _hw = _LR.backups_for(route, bdir)
+            chain = [(os.path.basename(hp), hb) for hp, hb in reversed(hits)
+                     if os.path.basename(hp) <= new_name]
+            found = _LR.replay(chain, route_key=rk)
+            eps.extend(found)
+            opened = [e for e in found if e.get("open")]
+            closed = [e for e in found if not e.get("open")]
+            out["mode"] = "first look at this profile: replayed %d backup(s)" % len(chain)
+        elif last == new_name:
+            out["mode"] = "already judged"
+        else:
+            # the snapshot judged last time; if the prune took it, the newest same-route file before
+            # this one — a missed step still compares against the last thing seen, so a drop in the
+            # gap is found with the right "before"
+            cands = ([last] if last < new_name else []) + sorted(
+                (n for n in os.listdir(bdir) if n.startswith("ledger_") and n.endswith(".json")
+                 and n < new_name and n != last), reverse=True)
+            prev_name, prev_blob = None, None
+            for n in cands:
+                try:
+                    with io.open(os.path.join(bdir, n), encoding="utf-8") as fh:
+                        b = json.load(fh)
+                except Exception:
+                    continue
+                if _LR._route_key(b.get("route") if isinstance(b, dict) else None) == rk:
+                    prev_name, prev_blob = n, b
+                    break
+            if prev_blob is None:
+                out["mode"] = "no earlier snapshot of this profile to compare with"
+            else:
+                opened, closed = _LR.step_episodes(
+                    eps, prev_blob, new_blob, prev_name, new_name, route_key=rk,
+                    at_ms=_LR.stamp_ms(new_name) or now_ms)
+                out["mode"] = "compared with %s" % prev_name
+        _closed_all = [e for e in eps if not e.get("open")]
+        _drop = (set(id(e) for e in _closed_all[:-_LEDGER_DROPS_CLOSED_KEEP])
+                 if len(_closed_all) > _LEDGER_DROPS_CLOSED_KEEP else set())
+        doc["episodes"] = [e for e in eps if id(e) not in _drop]
+        doc["lastJudged"][rk] = new_name
+        doc["lastJudgedMs"] = now_ms
+        _ledger_drops_save(doc, p)
+        n_open = sum(1 for e in doc["episodes"] if e.get("open"))
+
+        def _say(e):
+            return "%s %s->%s (before: %s)" % (e.get("store"), e.get("from"), e.get("to"),
+                                               e.get("beforeFile"))
+        out.update(ok=True, open=n_open,
+                   opened=[_say(e) for e in opened], closed=[_say(e) for e in closed],
+                   why="%s: %d drop(s) opened, %d closed, %d open" % (
+                       out["mode"], len(opened), len(closed), n_open))
+        return out
+    except Exception as e:
+        out["why"] = "the drop watcher failed (%s: %s)" % (type(e).__name__, str(e)[:80])
+        return out
+
+
 def _ledger_backup_loop():
     """Snapshot his ledger while a window is alive to be asked."""
     _wait = _LEDGER_BACKUP_FIRST_S      # the FIRST one comes early, then settle into the interval
@@ -23244,6 +23402,15 @@ def _ledger_backup_loop():
             _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
             if path:
                 print("  \U0001f9fe ledger backup: %s" % os.path.basename(path), flush=True)
+                # THE DROP WATCH, BEFORE THE PRUNE — an episode opened here protects its "before"
+                # file in the same breath, so the prune below can never take it first.
+                _dw = _ledger_drop_watch(path)
+                _LEDGER_BACKUP_STATE["dropWatch"] = {"atMs": int(time.time() * 1000),
+                                                     "ok": bool(_dw.get("ok")),
+                                                     "open": _dw.get("open"),
+                                                     "why": _dw.get("why")}
+                if _dw.get("opened"):
+                    print("  ⚠ ledger DROP: %s" % "; ".join(_dw["opened"]), flush=True)
                 # v3009 — retention runs ONLY after a successful new snapshot, so the corpus can
                 # never shrink except in the same breath it grew. A prune that runs on its own
                 # clock could fire during a long window outage and eat history with nothing new
@@ -23258,8 +23425,14 @@ def _ledger_backup_loop():
             pass
 
 
-def _ledger_backup_prune(bdir=None, now=None):
-    """Retention for the ledger snapshots. -> {kept, keepers, pruned, protected, why}
+def _ledger_backup_prune(bdir=None, now=None, drops_path=None):
+    """Retention for the ledger snapshots. -> {kept, keepers, pruned, protected, dropProtected, why}
+
+    ⚠⚠ 2026-09-27 — AND THE DROP GUARD, which outranks the age rules exactly like the episode guard
+    below: every OPEN ledger-drop episode (`_ledger_drop_watch`) names the last backup BEFORE a store
+    fell, and that file is kept whatever its age until the store is back. If the drop record cannot
+    be READ, which files a loss depends on is UNKNOWN, so NOTHING is deleted that pass — deletion is
+    the one act here that cannot be taken back. [[unknown-stays-unknown]]
 
     ⚠⚠ v3009 (#81) — SIZED FROM HIS OWN LOSS, NOT FROM TASTE. The 2026-09-08 emptying was noticed
     ~3 days late, and the oldest backup then on disk was 69 HOURS TOO YOUNG to answer "which
@@ -23300,7 +23473,8 @@ def _ledger_backup_prune(bdir=None, now=None):
     protected = None
     try:
         newest = max(snaps, key=os.path.getmtime)
-        doc = _json.load(io.open(newest, encoding="utf-8"))
+        with io.open(newest, encoding="utf-8") as _nfh:     # closed, not leaked per prune pass
+            doc = _json.load(_nfh)
         # ⚠⚠ v3015 — LOOK WHERE THE WRITER PUTS IT, NOT WHERE THE FIXTURE PUT IT. v3009 read only
         # the TOP LEVEL, and `_ledger_snapshot_once` nests every store key under "allStores"
         # (it writes `"allStores": got.get("fullStores")`, the whole store dict). MEASURED on a
@@ -23331,6 +23505,17 @@ def _ledger_backup_prune(bdir=None, now=None):
     except Exception:
         pass                                # an unreadable record protects nothing extra, and says so via counts
 
+    # the DROP guard reads the watcher's durable record; unreadable = UNKNOWN = delete nothing
+    out["dropProtected"] = []
+    _ddoc, _dwhy = ledger_drops_load(drops_path)
+    if _ddoc is None:
+        out["kept"] = len(snaps)
+        out["why"] = ("%s, so which backups an open drop depends on is UNKNOWN — nothing deleted "
+                      "this pass" % _dwhy)
+        return out
+    _drop_keep = set(str(e.get("beforeFile")) for e in _ddoc.get("episodes") or []
+                     if isinstance(e, dict) and e.get("open") and e.get("beforeFile"))
+
     # ⚠ v3015 — READ FROM THE MODULE, never re-declared here. These were locals, so the count cap
     # at the snapshot site could contradict them with nothing to notice. One authority.
     ROLLING_S = _LEDGER_ROLLING_S
@@ -23345,6 +23530,10 @@ def _ledger_backup_prune(bdir=None, now=None):
         age = now - os.path.getmtime(pp)
         if pp == protected:
             out["kept"] += 1
+            continue
+        if os.path.basename(pp) in _drop_keep:
+            out["kept"] += 1
+            out["dropProtected"].append(os.path.basename(pp))
             continue
         if age <= ROLLING_S:
             out["kept"] += 1
@@ -23361,6 +23550,9 @@ def _ledger_backup_prune(bdir=None, now=None):
                   % (out["kept"], out["keepers"], out["pruned"],
                      (", 1 protected as the last backup predating an OPEN loss (%s)"
                       % out["protected"]) if out["protected"] else ""))
+    if out["dropProtected"]:
+        out["why"] += (", %d kept as the last backup BEFORE an open ledger drop (%s)"
+                       % (len(out["dropProtected"]), ", ".join(out["dropProtected"][:4])))
     return out
 
 
@@ -23471,8 +23663,61 @@ def chronicle_rebuild_plan():
     return out
 
 
-def ledger_restore_plan():
-    """What the newest backup FOR THIS PROFILE would put back. Reads only; writes nothing."""
+def ledger_drop_accept(store, reason, confirm=False, now_ms=None, path=None):
+    """Close an open drop because he cleared that store on purpose. Writes only with confirm.
+
+    The episode otherwise stays open until the count climbs back to where it fell from, so a
+    planned vault reset paints the heart red forever and pins the pre-reset backup against the
+    prune. closedBy records the reason. Nothing is restored.
+    """
+    doc, why = ledger_drops_load(path)
+    if doc is None:
+        return {"ok": False, "applied": False, "why": why}
+    if why == "absent":
+        return {"ok": False, "applied": False,
+                "why": "the drop watcher has no record yet, so there is no drop to accept"}
+    why_reason = str(reason or "").strip()
+    if not why_reason:
+        return {"ok": False, "applied": False,
+                "why": "a reason is required — closing a drop without one is the same as not recording it"}
+    try:
+        import ledger_restore as _LR
+    except Exception as e:
+        return {"ok": False, "applied": False, "why": "ledger_restore is unavailable (%s)" % str(e)[:60]}
+    route_key = None
+    try:
+        _cur, route, _w = _restore_current_from_board()
+        route_key = _LR._route_key(route) if route else None
+    except Exception:
+        route_key = None
+    pending = [e for e in doc.get("episodes") or []
+               if isinstance(e, dict) and e.get("open") and e.get("store") == store
+               and (route_key is None or e.get("routeKey") == route_key)]
+    if not pending:
+        return {"ok": False, "applied": False, "why": "no open drop for %s" % store}
+    if not confirm:
+        return {"ok": True, "applied": False, "wouldClose": len(pending),
+                "why": ("this would close %d open drop(s) of %s as deliberate. Nothing has been "
+                        "written; call again with confirm." % (len(pending), store))}
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    closed, aw = _LR.accept_episodes(doc["episodes"], store, why_reason, at_ms=now_ms,
+                                     route_key=route_key)
+    if not closed:
+        return {"ok": False, "applied": False, "why": aw or "no open drop for %s" % store}
+    _ledger_drops_save(doc, path)
+    return {"ok": True, "applied": True, "closed": len(closed),
+            "why": "accepted %d drop(s) of %s (%s)" % (len(closed), store, why_reason[:120])}
+
+
+def ledger_restore_plan(file=None):
+    """What the backups FOR THIS PROFILE would put back. Reads only; writes nothing.
+
+    `file` — a backup he NAMED (a basename in the backup dir, this profile's route) wins outright.
+    Without one the plan is DROP-AWARE: a store whose newest backup sits after an unrecovered drop
+    is read from the last backup BEFORE the drop, and the plan says so per store. The backup dir is
+    this module's `_LEDGER_BACKUP_DIR` — the one the loop writes — never a second spelling of it.
+    """
     try:
         import ledger_restore as _LR
     except Exception as e:
@@ -23485,10 +23730,15 @@ def ledger_restore_plan():
         return {"ok": False, "why": ("the board did not say which profile this is, and a restore "
                                      "that cannot tell one profile from another is how one "
                                      "person's ledger lands in another's")}
-    return _LR.plan(route, cur)
+    episodes = None
+    if not file:
+        doc, dwhy = ledger_drops_load()
+        if doc is not None and dwhy != "absent" and _LR.record_covers_dir(_LEDGER_BACKUP_DIR, doc):
+            episodes = doc.get("episodes") or []
+    return _LR.plan(route, cur, d=_LEDGER_BACKUP_DIR, file=file, episodes=episodes)
 
 
-def ledger_restore_apply(confirm=False):
+def ledger_restore_apply(confirm=False, file=None):
     """Put back what the newest backup for THIS profile holds and the board does not.
 
     ⚠ IT GOES THROUGH `chronicle_apply`, THE BOARD'S OWN DOOR — the console never writes the ledger.
@@ -23501,7 +23751,9 @@ def ledger_restore_apply(confirm=False):
     could resurrect a state he deliberately left behind, and nothing downstream could tell that from
     a repair. So the plan runs itself; the apply is asked for.
     """
-    plan = ledger_restore_plan()
+    # ⚠ the no-file call keeps its zero-argument form: a restore he did not name a file for is the
+    # drop-aware plan, and the operator-door law stands the plan in with a zero-argument stub.
+    plan = ledger_restore_plan(file=file) if file else ledger_restore_plan()
     if not plan.get("ok"):
         return {"ok": False, "planned": plan, "applied": False, "why": plan.get("why")}
     if not confirm:
@@ -23535,7 +23787,7 @@ def ledger_restore_apply(confirm=False):
     # is the single most misleading thing this function could say. [[the-unjoined-end]]
     _extra, _extra_why = {}, ""
     try:
-        _extra, _extra_why = _LR.backed_up_only_from(plan)
+        _extra, _extra_why = _LR.backed_up_only_from(plan, d=_LEDGER_BACKUP_DIR)
     except Exception as _be:
         _extra_why = "the backup could not be re-read for the other stores (%s)" % type(_be).__name__
     _also = {}
@@ -23558,7 +23810,7 @@ def ledger_restore_apply(confirm=False):
             "alsoRestored": _also or None,
             "alsoWhy": _extra_why or None,
             "why": ("asked the board to put back %d name(s) from %s%s"
-                    % (plan.get("missingTotal") or 0, plan.get("file"),
+                    % (plan.get("missingTotal") or 0, plan.get("fromSay") or plan.get("file"),
                        ("; and %s through their own doors" % ", ".join(sorted(_also)))
                        if _also else "; nothing else in that backup needed its own door"))}
 
@@ -35760,16 +36012,25 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, chronicle_rebuild_plan())
             return
         if path == "/api/ledger_restore_plan":
-            # v2735 — THE READ HALF OF THE RESTORE. Says what the newest backup for THIS profile
-            # would put back, in counts per store, and writes nothing. POST like its siblings.
-            self._json(200, ledger_restore_plan())
+            # v2735 — THE READ HALF OF THE RESTORE. Says what the backups for THIS profile would
+            # put back, in counts per store, and writes nothing. POST like its siblings.
+            # 2026-09-27 — {"file": name} names the backup outright; without it the plan is
+            # drop-aware and reads a dropped store from the last backup BEFORE the drop.
+            self._json(200, ledger_restore_plan(file=body.get("file") or None))
+            return
+        if path == "/api/ledger_drop_accept":
+            # A planned clear (a vault reset he asked for) must be able to close the drop the
+            # watcher opened for it. confirm and a reason are both required. Nothing is restored.
+            self._json(200, ledger_drop_accept(body.get("store"), body.get("reason"),
+                                               confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/ledger_restore_apply":
             # v2735 — and the write half, through chronicle_apply, which is the BOARD's door.
             # ⚠ `confirm` is required. The backup is the automatic half and never needs him; a
             # restore is a deliberate act, because an automatic one could resurrect a state he
             # meant to leave behind and nothing downstream could tell that from a repair.
-            self._json(200, ledger_restore_apply(confirm=_confirmed(body.get("confirm"))))
+            self._json(200, ledger_restore_apply(confirm=_confirmed(body.get("confirm")),
+                                                 file=body.get("file") or None))
             return
         if path == "/api/board_restore_dates":
             self._json(200, board_restore_dates(body.get("stampPrefix") or body.get("stamp") or ""))

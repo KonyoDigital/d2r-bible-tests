@@ -2681,6 +2681,11 @@ NO_JOINT_YET = {
     "footage has a reel": "the frame stamp IS the second source; the eagle already joins them",
     "progress number":   "his board is the only authority on his own progress",
     "store emptied":     "needs the board window open",
+    # 2026-09-27 — DECLARED, NOT SKIPPED. The watcher's record and the restore plan's replay run ONE
+    # function (ledger_restore.drops_between / step_episodes) over the SAME backup files, on
+    # purpose — two definitions of a drop would drift. Pairing them would be one number wearing two
+    # names; the backups are the only source, and the row reads the record the prune obeys.
+    "ledger drop":       "one definition over one source by design — the backups are the only witness",
     "locked lanes":      "a policy assertion, not a measurement pair",
     "surfaces agree":    "already a two-surface check inside the eagle",
     "the other doctors": "a roll-up of other verdicts",

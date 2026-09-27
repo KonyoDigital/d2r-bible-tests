@@ -355,3 +355,11 @@ tv/.bake_seed_receipt.json
 # #225 — the relaunch receipt is this machine's record, never a tracked file
 tv/.relaunch_receipt.json
 tv/.relaunch_receipt.json.tmp
+
+# 2026-09-27 — the backup loop's LEDGER-DROP record: which of his stores fell, from what, and the
+# name of the backup that predates it. It names his backups and his route, so like every sibling
+# runtime record above it is per-machine state and never source. The .tmp is the atomic-write
+# partner; .unreadable-* is a damaged record the watcher set aside rather than write over.
+tv/.ledger_drops.json
+tv/.ledger_drops.json.tmp
+tv/.ledger_drops.json.unreadable-*
