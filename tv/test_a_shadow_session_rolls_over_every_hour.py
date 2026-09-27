@@ -398,8 +398,8 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - the doctor calls a stuck shadow reel fine because the switch is off",
         "file": "health_engine.py",
-        "find": "            if _off.get(\"state\") in (WARN, UNKNOWN):\n",
-        "replace": "            if False:\n",
+        "find": "        if _off.get(\"state\") in (WARN, UNKNOWN):\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
     {
