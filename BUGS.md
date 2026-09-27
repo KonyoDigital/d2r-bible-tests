@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1334 - THE TOOLS TAB WAS AN EMPTY CHIP BELOW 1100px, AND THE RENDER GATE COULD NOT SEE IT (v3518)
+
+**SEEN (push refused, then the PNGs read):** v3518 made Tools icon-only to keep the header on one row at 1120. Below
+1100px the console hides every tab picture (v1614: "the WORD is the tab, the picture is the ornament"), so Tools showed
+neither and was an empty sliver at 375 and 901. The render gate refused `console-tabs` for a DIFFERENT reason - it probes
+each tab's LABEL, and an icon chip's label is a deliberate 1px screen-reader span, so its centre sampled the chip's own
+glyph and read "covered 2/9" - while an empty button still counted as painted. **FIX:** below 1100px an icon chip whose
+picture yields shows its word again (the 👤 glyph stays); a Tools picture that fails to load drops the icon-only class.
+The target measures an icon chip as the button he clicks and a text tab by its label, and requires every tab to show a
+word, picture or glyph. **PROVEN:** clean 6/6 widths green; a Tools chip with picture and word hidden -> red; an opaque
+panel over the 👤 chip -> covered. Grok CLI, cold, on the 375/901 crops: every tab readable, nothing empty or overlapped.
+
 ### REG-1333 - A BATCH SHIPPED AS BUMP-ONLY COMMITS COULD NEVER BE SHOWN TO THE SECOND EYE (v3517)
 
 **SEEN:** the v3518 push was refused at the gate: "v3517 OWES A LOOK" (cannot-tell). v3515-v3517 were built on an

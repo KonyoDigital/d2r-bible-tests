@@ -2143,7 +2143,11 @@ TARGETS = {
                 "the opposite: session (the flagship hunt hub) and TV·D (the cockpit home) "
                 "stamp themselves, leave the board where it was, and leave that room painted."),
         "seed": """(function(){ return 1; })()""",
-        "sel": "#head-tabs .ht-lbl",
+        # ⚠ 2026-09-27 — AN ICON CHIP IS MEASURED AS THE CHIP. Tools and 👤 Characters are icon-only (v3518): their
+        # label is a deliberately hidden 1px screen-reader span, so probing it sampled a point on the chip's own
+        # emoji and read "covered 2/9" at every width while nothing covered either chip. A text tab is still
+        # measured by its LABEL (so an ellipsized name stays caught); an icon tab by the button he clicks.
+        "sel": "#head-tabs .ht:not(.ht-icon) .ht-lbl, #head-tabs .ht.ht-icon",
         "activate": r"""(function(){
             /* ⚠⚠ SIX ROUTE, TWO ARE CONSOLE-NATIVE — and I had session in the wrong group,
                which the rect check exposed. control_ui.html dispatches TWO tabs to console views
@@ -2218,6 +2222,22 @@ TARGETS = {
                 if (active() !== "vault") return false;                    /* board did NOT move */
                 var after = paneRect("vault");
                 if (!after || after.width > 2) return false;               /* and it DEMOTED the pane */
+            }
+            /* ⚠⚠ 2026-09-27 — EVERY TAB SHOWS SOMETHING HE CAN READ: a word, a picture or a glyph.
+               v3518 made Tools icon-only, and below 1100px the console hides every tab picture
+               (v1614: "the WORD is the tab, the picture is the ornament"), so Tools became an EMPTY
+               chip at 375 and 901 while this target read painted 9/9 - an empty button is still a
+               painted box. A 1px screen-reader label or a display:none picture shows nothing. */
+            var _tabs = document.querySelectorAll('#head-tabs .ht');
+            if (!_tabs.length) return false;
+            for (var _i = 0; _i < _tabs.length; _i++) {
+                var _shows = false, _kids = _tabs[_i].querySelectorAll('.ht-lbl, .ht-i, .ht-emo');
+                for (var _k = 0; _k < _kids.length && !_shows; _k++) {
+                    var _cs = getComputedStyle(_kids[_k]), _kr = _kids[_k].getBoundingClientRect();
+                    _shows = _cs.display !== 'none' && _cs.visibility !== 'hidden'
+                             && _kr.width > 4 && _kr.height > 4;
+                }
+                if (!_shows) return false;
             }
             return true; })""" + """()""",
     },

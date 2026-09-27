@@ -7527,6 +7527,11 @@
      and the tab must survive without it." No label is ever hidden at any width. ─────────────── */
   @media (max-width: 1100px) {
     .head-tabs .ht .ht-i { display: none; }
+    /* 2026-09-27 — and so an icon-only chip whose picture yields shows its WORD here (Tools, v3518
+       made it icon-only above 1100 and left an empty chip below it). The 👤 chip is a glyph, not a
+       picture, and keeps it. render_check console-tabs: every tab shows a word, picture or glyph. */
+    .head-tabs .ht.ht-icon .ht-i ~ .ht-lbl { position: static; width: auto; height: auto;
+      overflow: visible; clip: auto; }
   }
 
   /* ══ v2102 — THE FLEET BAR: the console says when it is behind ═════════════════════════════ */
@@ -7625,7 +7630,7 @@ body[data-origin="shadow"] #stage::after {
           <button class="ht" type="button" data-tab="crafts"><img class="ht-i" src="/art/logo_cube.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Crafts</span></button>
           <button class="ht" type="button" data-tab="funi"><img class="ht-i" src="/art/ui_tab_funi.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Uniques</span></button>
           <button class="ht" type="button" data-tab="fsets"><img class="ht-i" src="/art/ui_tab_fsets.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Sets</span></button>
-          <button class="ht ht-icon" type="button" data-tab="tools" title="Tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"><span class="ht-lbl">Tools</span></button>
+          <button class="ht ht-icon" type="button" data-tab="tools" title="Tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.parentNode.classList.remove('ht-icon');this.remove()"><span class="ht-lbl">Tools</span></button>
           <button class="ht ht-icon" type="button" data-tab="chars" title="Characters - your own builds"><span class="ht-emo" aria-hidden="true">👤</span><span class="ht-lbl">Characters</span></button>
           <!-- v2092 — THE VAULT TAB THE CONSOLE NEVER GOT. Konyo asked for the Mule Manager to get
                "its own main tab inbetween TOOLS tab and TV-D TAB". v2085 built that tab on the
