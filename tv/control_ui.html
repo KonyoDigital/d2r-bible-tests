@@ -7578,14 +7578,9 @@
 body[data-origin="shadow"] #stage > .film,
 body[data-origin="shadow"] #stage video,
 body[data-origin="shadow"] #stage img.live { visibility: hidden !important; }
-body[data-origin="shadow"] .live-bug .dot { animation: none !important; opacity: .55; }
-body[data-origin="shadow"] #stage::after {
-  content: "SHADOW READER · filming for the readers, not for you";
-  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
-  /* the declared floor is --fs-2xs (13px); a raw 12px here failed TestV1504TypeFloor */
-  text-align: center; letter-spacing: .12em; font-size: var(--fs-2xs); opacity: .5;
-  pointer-events: none;
-}
+body[data-origin="shadow"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); }
+body[data-origin="shadow"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
+body[data-origin="shadow"] #stage-hold { display: none !important; }
 </style>
 <body data-state="off">
   <div class="shell">
@@ -10200,6 +10195,13 @@ window._lockMark = function(isOpen, px, label){
     } else if (state === 'off' && _prevState === 'stopping') {
       window.__offN = 0;   // v899 — farewell finished → drop to STANDBY immediately
     } else { window.__offN = 0; }
+    /* A shadow reel is not a session he started. The page stays on the standby board.
+       The only thing that lights is the corner chip, and it says ONLINE, not ON AIR. */
+    var _shadowRun = !!(st.isShadow || st.origin === 'shadow');
+    if (_shadowRun && !stopping) {
+      state = 'off';
+      on = false;
+    }
     document.body.setAttribute('data-state', state);
     /* ══ v2362 — WHOSE SESSION IS THIS? ═══════════════════════════════════════════════════════
        Konyo: "i dint click on air.. its a session on air.. but shadow reader is suppose to be
@@ -10208,12 +10210,11 @@ window._lockMark = function(isOpen, px, label){
        start_agent() a hand click uses, and nothing downstream could tell them apart - so a
        background lane presented as a full tour: red dot, theatre, live film.
        The server now says who asked (v2362); the console stops presenting them identically. */
-    try { document.body.setAttribute('data-origin', String(st.origin || '')); } catch(e){}
+    try { document.body.setAttribute('data-origin', _shadowRun ? 'shadow' : String(st.origin || '')); } catch(e){}
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
-    var _shadowRun = !!st.isShadow;
-    $('bug-txt').textContent = _shadowRun ? 'SHADOW' : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
+    $('bug-txt').textContent = _shadowRun ? 'ONLINE' : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
     var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));

@@ -32891,6 +32891,11 @@ def status_payload():
         "shipName": (_windows_ship() or {}).get("name") if IS_WIN else None,
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
+        # Whose reel this is. The poll is what the page paints, and start_agent's reply is not
+        # that poll. Without these two fields a shadow reel paints as his ON AIR session.
+        "origin": (None if mode in (None, "off") or _stop_inflight else _agent_origin),
+        "isShadow": bool(mode not in (None, "off") and not _stop_inflight
+                         and _agent_origin == "shadow"),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "stopping": bool(_stop_inflight),
