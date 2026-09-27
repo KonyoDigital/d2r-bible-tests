@@ -5728,10 +5728,21 @@ def capture_preflight(door, look_for_window=True):
     elif look_for_window:
         try:
             import tv_diablo as _tv
-            win = _tv.find_d2r_window_mac()
+            # ⚠⚠ 2026-09-27 — THE WINDOWS FINDER ON WINDOWS. This asked the Quartz finder on every OS, and on
+            # Windows its import fails -> None -> "Diablo is not on screen", so the shadow reader on his ALT
+            # watched a Boosteroid session for hours and never rolled. find_d2r_window_win judges with the
+            # SAME judge; only the window LIST differs. The finder's own why now reaches the note, so a
+            # held door says which window it saw and why it passed on it. [[the-unjoined-end]]
+            win = _tv.find_d2r_window_win() if IS_WIN else _tv.find_d2r_window_mac()
             facts["windowSeen"] = bool(win)
-            if not win:
-                facts["windowWhy"] = "Diablo is not on screen"
+            if not win and IS_WIN and getattr(_tv, "_PICK_UNKNOWN", False):
+                # the finder could not LOOK (no desktop, no process snapshot): UNKNOWN, never "no game"
+                facts["windowSeen"] = None
+                facts["windowWhy"] = "could not look for the game window: %s" % str(
+                    getattr(_tv, "_PICK_WHY", "") or "no reason given")[:300]
+            elif not win:
+                _pw = str(getattr(_tv, "_PICK_WHY", "") or "")
+                facts["windowWhy"] = "Diablo is not on screen" + ((" (%s)" % _pw[:300]) if _pw else "")
         except Exception as e:
             facts["windowWhy"] = "could not look for the game window: %s" % str(e)[:80]
 
@@ -25689,8 +25700,11 @@ def shadow_watch_tick():
         _shadow_watch_note(lookedAt=now, unknown=True, why=why)
         return {"ok": False, "unknown": True, "why": why, "pre": pre}
     if pre.get("windowSeen") is False:
-        _shadow_watch_note(lookedAt=now, why="Diablo is not on screen")
-        return {"ok": True, "seen": False, "why": "Diablo is not on screen", "pre": pre}
+        # the finder's own reason travels (which window it saw and passed on) - a bare "not on screen"
+        # read identically whether the game was shut or the finder could not look [[unknown-stays-unknown]]
+        _nwhy = pre.get("windowWhy") or "Diablo is not on screen"
+        _shadow_watch_note(lookedAt=now, why=_nwhy)
+        return {"ok": True, "seen": False, "why": _nwhy, "pre": pre}
     r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
     # v2687 — shadow no longer credits its own open: start_agent() now does it for every door, and

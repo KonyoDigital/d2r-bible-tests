@@ -108,10 +108,18 @@ public static class TvdCap {
     return GameRx.IsMatch(tl);
   }
 
+  // 2026-09-27 - MEASURED on his ALT (this script's own held eye, frames/cap_target.json, 2026-09-25):
+  // "a cloud window is open but its title does not name the game: Boosteroid 'Boosteroid'". Boosteroid's own
+  // app titles its window with the service's name and nothing else while a game streams, so this eye held for
+  // every session on that PC. A NATIVE app window whose whole title is exactly one of these pins; a browser
+  // tab never does (a tab titled "Boosteroid" is their website). Mirrors tv_diablo._NATIVE_BARE_TITLES.
+  static readonly string[] BoosteroidBareTitles = new string[] { "boosteroid" };
+
   // -> "geforce-now" | "boosteroid" | "" for a cloud-app or browser window; pure, testable
   public static string CloudRoute(string proc, string title, bool browser) {
     string pl = (proc ?? "").ToLowerInvariant();
     string tl = NormTitle(title);
+    if (!browser && pl.Contains("boosteroid") && Array.IndexOf(BoosteroidBareTitles, tl) >= 0) return "boosteroid";
     if (!HasGame(tl)) return "";
     if (!browser) {
       if (pl.Contains("geforce")) return "geforce-now";

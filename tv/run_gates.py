@@ -5841,6 +5841,22 @@ GATES = [
              "at load 12.6, push refused (earlier the same console filmed a Finder window). TV_CAPTURE=off "
              "now refuses every capture and calls nothing that reads a window; the harness spawns its "
              "console with it (AST-checked). 3 cases, 2 red-proofs"),
+    Gate("test_a_look_can_cover_a_batch",
+         [sys.executable, os.path.join(HERE, "test_a_look_can_cover_a_batch.py")], 60,
+         why="2026-09-27 - v3515-v3517 shipped as bump-only commits over code built on an integration "
+             "branch, so v3517's bound commit was 2,692 chars of version strings: the eye said cannot-tell, "
+             "no re-ask could say more, and the v3518 push was refused. --base REV widens the look to REV..sha, "
+             "the eye is told it spans N commits, the row says what it covered, and a base that is not an "
+             "ancestor is never asked. Driven on a throwaway repo. 4 cases, 3 red-proofs"),
+    Gate("test_a_windows_door_sees_the_game",
+         [sys.executable, os.path.join(HERE, "test_a_windows_door_sees_the_game.py")], 60,
+         why="2026-09-27 - measured on his ALT: shadow on, the game streaming through Boosteroid, and the "
+             "watcher wrote 'Diablo is not on screen' every 20s - capture_preflight asked the Quartz finder "
+             "on Windows, whose import fails, so no Windows PC could roll a shadow reel. And Boosteroid's own "
+             "app titles its window only 'Boosteroid' (measured by the ALT's capture eye 09-25), so #232's "
+             "name-the-game rule held that eye too. Windows finder over the proven Win32 walk, one judge for "
+             "both OSes, the measured bare title native-only in Python and C#; a walk that sees no "
+             "desktop is UNKNOWN, never no-game. 12 cases, 9 red-proofs"),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
          why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "

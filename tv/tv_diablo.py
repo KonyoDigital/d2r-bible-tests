@@ -1145,6 +1145,7 @@ _CAP_TARGET = {"mode": "waiting", "label": "eye arming…", "wid": None}
 
 # Owner / title tokens — game process first. Bare "wine" alone is too broad.
 _PICK_WHY = ""   # v779-pre diag — why the last pick returned None
+_PICK_UNKNOWN = False   # 2026-09-27 — True when the last Windows pick could not LOOK (never "no game")
 _CAP_WHY = ""
 _LAST_GOOD_WIN = None   # v779 — the pin survives flaky window listings
 _D2R_OWNER_HINTS = (
@@ -1208,6 +1209,14 @@ _GAME_WORDS = ("diablo ii", "diablo 2", "d2r")
 #: "Boosteroid - ranked d2races" ("d2r" inside a longer word) as the game. A game word is now a WORD:
 #: `diablo ii` / `diablo 2` / `d2r` with a boundary on both sides, and "resurrected" alone proves nothing.
 _GAME_RX = re.compile(r"\bdiablo\s*(?:ii|2)\b|\bd2r\b")
+#: ⚠⚠ 2026-09-27 — MEASURED, THE FIRST REAL BOOSTEROID SESSION TAUGHT US ITS TITLE, AS THE NOTE ABOVE SAID IT WOULD.
+#: His Windows ALT plays D2R through Boosteroid's own app. Its capture eye, 2026-09-25 (frames/cap_target.json on
+#: that PC): "a cloud window is open but its title does not name the game: Boosteroid 'Boosteroid'; Boosteroid
+#: 'QTrayIconMessageWindow'". The app's window is titled with the service's name and NOTHING else while a game
+#: streams, so the rule "the title must name the game" held that PC's eye shut for every session. A NATIVE app
+#: window whose whole title is exactly one of these pins as that route; a browser tab never does (a tab titled
+#: "Boosteroid" is their website), and any other bare title stays a named near-miss.
+_NATIVE_BARE_TITLES = {"boosteroid": ("boosteroid",)}
 
 
 def _norm_title(t):
@@ -1238,7 +1247,8 @@ def game_route(owner, title):
         native = any(o in ol for o in owners)
         tab = browser and any(m in tl for m in markers)
         if native or tab:
-            (full if has_game else near).append(route)
+            bare = native and not browser and tl in _NATIVE_BARE_TITLES.get(route, ())
+            (full if (has_game or bare) else near).append(route)
     if len(full) == 1:
         return full[0]
     if len(full) > 1:
@@ -1323,7 +1333,9 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
     is_game = _is_d2r_game_owner(ol)
     title_game = ("diablo" in tl or "resurrected" in tl or tl == "d2r"
                   or any(t in tl for t in _D2R_TITLE_HINTS))
-    if not is_game and not title_game:
+    if not is_game and not title_game and not _cloud:
+        # ⚠ `_cloud` because game_route already judged it: a routed stream IS the game even when the
+        # service's own app names only itself (Boosteroid, measured 2026-09-27)
         return None
     # ⚠⚠ #223 — A TITLE IS NOT AN OWNER. MEASURED 2026-09-24: with no game open, the eye pinned a
     # FINDER window titled "tv-diablo-mailbox" as the game (score 1602 — `"diablo" in title` was
@@ -1362,6 +1374,44 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
     return score
 
 
+def _pick_game_window(rows):
+    """ONE judge for every platform's window list. rows: [{owner, title, w, h, onscreen, wid}]
+    -> (best (score, area, wid, label) | None, near [str]). Pure; the Mac and Windows finders only
+    differ in how they LIST windows, never in which one is the game. [[copy-drift]]"""
+    best = None  # (score, area, wid, label)
+    near = []    # #232 — service windows that do not name the game: reported, never pinned
+    for r in rows:
+        try:
+            owner, title = r.get("owner") or "", r.get("title") or ""
+            ww, hh = int(r.get("w") or 0), int(r.get("h") or 0)
+            sc = score_d2r_window_candidate(owner, title, ww, hh, onscreen=bool(r.get("onscreen")))
+            if sc is None:
+                _nr = game_route(owner, title)
+                if isinstance(_nr, str) and _nr.startswith("near:"):
+                    near.append("%s %s '%s'" % (_nr[5:], owner, title[:60]))
+                elif _nr in ("geforce-now", "boosteroid"):
+                    # ⚠ a cloud window NAMING the game that the scorer refused (size, offscreen, a
+                    # blocked phrase) was dropped with the generic why - reported now, never pinned
+                    near.append("%s %s '%s' (names the game but is not pinnable: %dx%d%s)"
+                                % (_nr, owner, title[:60], ww, hh,
+                                   "" if r.get("onscreen") else ", offscreen"))
+                continue
+            wid = r.get("wid")
+            if not wid:
+                continue
+            area = ww * hh
+            label = f"{owner}" + (f" · {title}" if title else "")
+            _rt = game_route(owner, title)
+            if _rt in ("geforce-now", "boosteroid"):
+                label = ("GeForce NOW" if _rt == "geforce-now" else "Boosteroid") + " · " + label
+            cand = (sc, area, int(wid), label[:80])
+            if best is None or cand > best:
+                best = cand
+        except Exception:
+            continue
+    return best, near
+
+
 def find_d2r_window_mac():
     """Return (window_id:int, label:str) for the best on-screen D2R game window, or None.
     Uses Quartz. Read-only. NEVER returns CrossOver Home or Battle.net shell.
@@ -1392,8 +1442,7 @@ def find_d2r_window_mac():
     except Exception as e:
         _PICK_WHY = "winlist: %s" % e
         return None
-    best = None  # (score, area, wid, label)
-    near = []    # #232 — service windows that do not name the game: reported, never pinned
+    rows = []
     for w in wins:
         try:
             # ⚠ v2351 — DO NOT SKIP ON LAYER. This used to be `if layer != 0: continue` with
@@ -1401,46 +1450,17 @@ def find_d2r_window_mac():
             # Measured 2026-08-31 while D2R was on screen and he was playing:
             #     owner=D2R.exe  title=Diablo II: Resurrected  1470x956  onscreen=True
             #     kCGWindowLayer = 26        <- skipped, every time
-            # CrossOver puts the fullscreen game on layer 26; only ordinary windows sit at 0. So
-            # find_d2r_window_mac() returned None for the whole session, MINI(AUTOMATIC) reported
-            # "no D2R game window is on screen" against a window filling his display, and the
-            # capture fell through to its whole-screen lane instead of the pinned window.
-            #
-            # The LAYER was never the discriminator - the SCORER is, and it already does the job:
-            # in the same measurement it returned None for D2R.exe's 1470x33 and 500x500 helper
-            # windows and 14134 for the real one. A pre-filter that rejects what the real filter
-            # would have accepted is not a safety net, it is the bug. [[feedback-suspect-the-instrument]]
-            layer = int(w.get("kCGWindowLayer") or 0)
-            owner = (w.get("kCGWindowOwnerName") or "").strip()
-            title = (w.get("kCGWindowName") or "").strip()
+            # CrossOver puts the fullscreen game on layer 26; only ordinary windows sit at 0. The
+            # LAYER was never the discriminator - the SCORER is. [[feedback-suspect-the-instrument]]
             b = w.get("kCGWindowBounds") or {}
-            ww, hh = int(b.get("Width") or 0), int(b.get("Height") or 0)
-            sc = score_d2r_window_candidate(
-                owner, title, ww, hh, onscreen=bool(w.get("kCGWindowIsOnscreen")))
-            if sc is None:
-                _nr = game_route(owner, title)
-                if isinstance(_nr, str) and _nr.startswith("near:"):
-                    near.append("%s %s '%s'" % (_nr[5:], owner, title[:60]))
-                elif _nr in ("geforce-now", "boosteroid"):
-                    # ⚠ a cloud window NAMING the game that the scorer refused (size, offscreen, a
-                    # blocked phrase) was dropped with the generic why - reported now, never pinned
-                    near.append("%s %s '%s' (names the game but is not pinnable: %dx%d%s)"
-                                % (_nr, owner, title[:60], ww, hh,
-                                   "" if w.get("kCGWindowIsOnscreen") else ", offscreen"))
-                continue
-            wid = w.get("kCGWindowNumber")
-            if not wid:
-                continue
-            area = ww * hh
-            label = f"{owner}" + (f" · {title}" if title else "")
-            _rt = game_route(owner, title)
-            if _rt in ("geforce-now", "boosteroid"):
-                label = ("GeForce NOW" if _rt == "geforce-now" else "Boosteroid") + " · " + label
-            cand = (sc, area, int(wid), label[:80])
-            if best is None or cand > best:
-                best = cand
+            rows.append({"owner": (w.get("kCGWindowOwnerName") or "").strip(),
+                         "title": (w.get("kCGWindowName") or "").strip(),
+                         "w": int(b.get("Width") or 0), "h": int(b.get("Height") or 0),
+                         "onscreen": bool(w.get("kCGWindowIsOnscreen")),
+                         "wid": w.get("kCGWindowNumber")})
         except Exception:
             continue
+    best, near = _pick_game_window(rows)
     if not best:
         _PICK_WHY = "no D2R.exe game window (CrossOver Home / Battle.net never pin)"
         if near:
@@ -1454,6 +1474,120 @@ def find_d2r_window_mac():
     _PICK_CACHE = (hit, now)
     return hit
 
+
+
+def _win_process_names():
+    """-> {pid: exe name} from one Toolhelp32 snapshot (never tasklist.exe - it hangs under D2R, v1414),
+    or None when the snapshot could not be taken. Windows only."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                        ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                        ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                        ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                        ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260)]
+        k32 = ctypes.windll.kernel32
+        snap = k32.CreateToolhelp32Snapshot(0x00000002, 0)
+        if snap == ctypes.c_void_p(-1).value or snap == -1:
+            return None
+        out = {}
+        try:
+            pe = PROCESSENTRY32W()
+            pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            ok = k32.Process32FirstW(snap, ctypes.byref(pe))
+            while ok:
+                out[int(pe.th32ProcessID)] = pe.szExeFile or ""
+                ok = k32.Process32NextW(snap, ctypes.byref(pe))
+        finally:
+            k32.CloseHandle(snap)
+        return out
+    except Exception:
+        return None
+
+
+def _win_owner(exe):
+    """A Windows exe name as the judge reads an owner: the game binary keeps its '.exe' (that is how
+    _is_d2r_game_owner knows it), every other process drops it so 'chrome.exe' is the browser 'chrome'
+    and 'Boosteroid.exe' is the service's own app."""
+    e = (exe or "").strip()
+    if _is_d2r_game_owner(e.lower()):
+        return e
+    return e[:-4] if e.lower().endswith(".exe") else e
+
+
+def game_window_rows_win(win_rows, procs):
+    """Pure: window_visibility's Win32 rows + {pid: exe} -> the rows _pick_game_window judges.
+    A row whose pid has no process name keeps an EMPTY owner, never a guessed one."""
+    rows = []
+    for r in win_rows or []:
+        try:
+            b = r.get("kCGWindowBounds") or {}
+            title = r.get("kCGWindowOwnerName") or ""          # window_visibility puts the TITLE here
+            rows.append({"owner": _win_owner((procs or {}).get(int(r.get("kCGWindowOwnerPID", -1)), "")),
+                         "title": "" if title == "(untitled)" else title,
+                         "w": int(b.get("Width") or 0), "h": int(b.get("Height") or 0),
+                         "onscreen": not r.get("iconic"), "wid": r.get("hwnd")})
+        except Exception:
+            continue
+    return rows
+
+
+def find_d2r_window_win(win=None, procs=None):
+    """⚠⚠ 2026-09-27 — THE WINDOWS TWIN OF find_d2r_window_mac, FOR THE DOORS THAT DECIDE WHETHER TO ROLL.
+
+    MEASURED over SSH on his ALT: shadow ON and "armed", the game on screen through Boosteroid, and its watcher
+    wrote "Diablo is not on screen" every 20 s. capture_preflight asked find_d2r_window_mac(), which opens with
+    `from Quartz import ...` - on Windows that import fails, the finder returns None, and None read as "no game".
+    So the shadow reader could never roll a reel on ANY Windows PC, whatever was running. (The reel's own capture
+    half, capture_win.ps1, has always had a Windows finder; the door in front of it never did.)
+
+    Lists windows with window_visibility's Win32 walk (the one already proven on the ALT), names each owner from
+    one process snapshot, and judges them with _pick_game_window - the same judge the Mac uses.
+    -> (hwnd, label) | None, with _PICK_WHY saying why. `win` / `procs` are seams for the law.
+    """
+    global _PICK_WHY, _PICK_UNKNOWN
+    # ⚠ UNKNOWN IS NOT "NO GAME" — set on every path that could not LOOK, cleared only by a real look.
+    # MEASURED on the ALT: run from an SSH session this walk lists 0 windows (another session's desktop),
+    # and "no game window among 0 listed" read exactly like a desktop with the game shut. A real desktop
+    # always lists windows (the shell alone is several), so zero is blindness. [[unknown-stays-unknown]]
+    _PICK_UNKNOWN = True
+    if win is None:
+        if not sys.platform.startswith("win"):
+            _PICK_WHY = "find_d2r_window_win: not Windows"
+            return None
+        try:
+            import window_visibility as _wv
+            win = _wv._Win32()
+        except Exception as e:
+            _PICK_WHY = "win32-walk: %s" % e
+            return None
+    try:
+        listed = list(win.rows() or [])
+    except Exception as e:
+        _PICK_WHY = "win32-walk: %s" % str(e)[:80]
+        return None
+    if procs is None:
+        procs = _win_process_names()
+        if procs is None:
+            _PICK_WHY = "the process snapshot could not be taken, so no window has an owner"
+            return None
+    if not listed:
+        _PICK_WHY = ("the window walk listed NO windows at all - this process cannot see a desktop (a service "
+                     "or SSH session), so whether the game is on screen is UNKNOWN")
+        return None
+    _PICK_UNKNOWN = False
+    best, near = _pick_game_window(game_window_rows_win(listed, procs))
+    if not best:
+        _PICK_WHY = "no game window among %d listed (D2R.exe, GeForce NOW, Boosteroid)" % len(listed)
+        if near:
+            _PICK_WHY += ("; a cloud window is open and was NOT pinned (its title does not name the game, names "
+                          "two services, or it is not a pinnable size): %s" % "; ".join(near[:3]))
+        return None
+    _PICK_WHY = ""
+    return (best[2], best[3])
 
 def screen_recording_ok():
     """v779 — macOS TCC: when Python is the responsible process (control→agent), Terminal's

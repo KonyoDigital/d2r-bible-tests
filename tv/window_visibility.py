@@ -96,6 +96,7 @@ class _Win32(object):
                     row = _win_row(int(pid.value), buf.value, (r.left, r.top, r.right, r.bottom),
                                    ex, bool(user32.IsIconic(hwnd)), cloaked.value)
                     if row is not None:
+                        row["hwnd"] = int(hwnd)            # the id tv_diablo's finder pins
                         out.append(row)
             except Exception:
                 pass

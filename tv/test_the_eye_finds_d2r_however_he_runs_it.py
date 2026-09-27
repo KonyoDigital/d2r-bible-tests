@@ -68,7 +68,10 @@ class TheMacFindsEveryRoute(unittest.TestCase):
 
     def test_a_service_window_without_the_game_is_a_named_near_miss(self):
         self.assertEqual(tv.game_route("Google Chrome", "GeForce NOW"), "near:geforce-now")
-        self.assertEqual(tv.game_route("Boosteroid", "Boosteroid"), "near:boosteroid")
+        # 2026-09-27 — MEASURED on his ALT: Boosteroid's own app is titled "Boosteroid" and nothing else while a
+        # game streams, so that one bare title pins (test_a_windows_door_sees_the_game.py). A tab never does.
+        self.assertEqual(tv.game_route("Google Chrome", "Boosteroid"), "near:boosteroid")
+        self.assertEqual(tv.game_route("Boosteroid", "Boosteroid Launcher"), "near:boosteroid")
 
     def test_the_marks_a_store_puts_in_the_name_do_not_hide_it(self):
         self.assertEqual(tv._norm_title("Diablo®  II: Resurrected™"), "diablo ii: resurrected")

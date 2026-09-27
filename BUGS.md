@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1333 - A BATCH SHIPPED AS BUMP-ONLY COMMITS COULD NEVER BE SHOWN TO THE SECOND EYE (v3517)
+
+**SEEN:** the v3518 push was refused at the gate: "v3517 OWES A LOOK" (cannot-tell). v3515-v3517 were built on an
+integration branch and stamped as three bump-only commits, and the runner shows the eye the ONE commit a version is
+bound to - for v3517 that was 2,692 chars of version strings. The eye's cannot-tell was correct and no re-ask could
+change it. **FIX:** `second_eye_run.py vNNNN --base REV` widens the look to REV..sha (a combined diff, the file roster
+and the snapshot from the same range), the prompt says it spans N commits, the row says what it covered, and a base
+that is not an ancestor is refused before anything is built. The widened v3517 look came back with 6 findings: one real
+(REG-1332), one refuted on his real backup (the set-piece restore carries all 134 through `sets`), three narrow and
+logged. **LAW:** `test_a_look_can_cover_a_batch` (driven on a throwaway repo; 3/3 red-proofs PROVEN).
+
+### REG-1332 - A KEY STACK WAS NO LONGER FURNITURE (v3517, found by the second eye)
+
+**SEEN (reproduced):** v3517 made "key" a whole-name word so Blackhand Key (a unique wand) stops locking, but stripped
+only a LEADING bare count - "12x Key", "Key (3)" and "Keys x12" were items again, each a register or a paid read.
+**FIX:** a count on either side is stripped in `inventory_law.is_locked` and the board's `_furnitureLocked` alike; the
+rest must still be the whole name, so Blackhand Key and Key of Terror (an uber key, a real item) stay items. **LAW:**
+`test_main_gear_never_files_to_a_mule` (both copies, 2 new red-proofs PROVEN).
+
+### REG-1331 - NO WINDOWS PC COULD EVER ROLL A SHADOW REEL, AND BOOSTEROID'S OWN APP COULD NEVER PIN (his ALT)
+
+**SEEN (over SSH on his ALT, 2026-09-27):** shadow ON and "armed", the game streaming through Boosteroid, and
+`shadow_watch.json` rewritten every 20 s with "Diablo is not on screen". `capture_preflight` asked
+`find_d2r_window_mac()`, which opens with a Quartz import: on Windows it fails, returns None, and None read as "no
+game" - on every Windows PC, whatever was running. Behind it, the reel's capture half had seen the window on 09-25 and
+held its eye: "a cloud window is open but its title does not name the game: Boosteroid 'Boosteroid'". Boosteroid's own
+app titles its window with the service's name only, so #232's name-the-game rule could never pass it. **FIX:**
+`find_d2r_window_win` lists windows with window_visibility's proven Win32 walk, names owners from one Toolhelp32
+snapshot, and judges with the SAME judge as the Mac (`_pick_game_window`); the door uses it on Windows and carries its
+reason to the watcher; a walk that sees no desktop is UNKNOWN, never "no game". The measured bare title pins for the
+NATIVE app only (Python and the C# twin; compiled and exercised on the ALT) - a Chrome tab titled "Boosteroid" is their
+website and never pins. **LAW:** `test_a_windows_door_sees_the_game` (12 cases, 9/9 red-proofs PROVEN).
+
 ### REG-1330 - THE MULE WRITER CALLED THE VAULT'S DOOR AND IGNORED ITS REFUSAL (#174 v-B4 x #246, integration)
 
 **SEEN (review:chain, reproduced with Gore Rider):** a MAIN-locked item picked in the mule window landed on the mule's

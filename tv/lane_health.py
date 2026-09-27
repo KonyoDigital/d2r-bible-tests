@@ -31,6 +31,7 @@ cannot tell "quiet" from "dead" is the thing being replaced here.
 import io
 import json
 import os
+import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -481,7 +482,8 @@ def owed_counts():
             win = None
             try:
                 import tv_diablo as _tv
-                win = _tv.find_d2r_window_mac()
+                win = (_tv.find_d2r_window_win() if sys.platform.startswith("win")
+                       else _tv.find_d2r_window_mac())   # the door's own finder, per OS
             except Exception:
                 win = None                    # could not look -> leave it None below
             if win is None:
