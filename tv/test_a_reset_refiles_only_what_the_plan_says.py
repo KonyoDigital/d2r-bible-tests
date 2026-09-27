@@ -306,8 +306,8 @@ RED_PROOF = [
     {
         "why": "reading the witness ledger appends to it",
         "file": "vault_evidence.py",
-        "find": "            blob = fh.read()\n",
-        "replace": "            blob = fh.read(); io.open(path, \"ab\").write(b\"x\")\n",
+        "find": "            blob = fh.read()\n    except Exception:\n        return _unread()\n",
+        "replace": "            blob = fh.read(); io.open(path, \"ab\").write(b\"x\")\n    except Exception:\n        return _unread()\n",
         "matches": 1,
     },
     {
