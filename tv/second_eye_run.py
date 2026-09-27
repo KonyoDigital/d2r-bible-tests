@@ -205,7 +205,7 @@ def eye_snapshot(sha, max_bytes=None):
     out = {"ok": False, "included": [], "skipped": [], "why": ""}
     names, why = _sh(_changes(sha, "--name-only"), timeout=60)
     if names is None:
-        out["why"] = "could not list the commit's files: %s" % why
+        out["why"] = "could not list the %s's files: %s" % ("range" if REVIEW_BASE else "commit", why)
         return out
     want = []
     for n in [x.strip() for x in names.splitlines() if x.strip()]:

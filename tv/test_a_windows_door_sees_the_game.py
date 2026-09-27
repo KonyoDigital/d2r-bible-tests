@@ -168,6 +168,42 @@ class TheWindowsDoorAsksTheWindowsFinder(unittest.TestCase):
         self.assertEqual(self.asked, ["mac"])
 
 
+class TheLaneHealthHonoursUnknown(unittest.TestCase):
+    """The second eye on v3519 (reproduced): lane_health's shadow-watch 'owed' read a finder that could not LOOK as
+    'nothing owed'. Three states, driven through owed_counts() with the finder stubbed."""
+
+    def setUp(self):
+        import control_app as ca
+        import lane_health as LH
+        self.ca, self.LH = ca, LH
+        self._saved = (ca._shadow_state, ca._chron_owed_count, ca._vault_owed_reels, tv.find_d2r_window_win,
+                       tv._PICK_UNKNOWN, LH.sys.platform)
+        ca._shadow_state = lambda: {"on": True, "recording": False}
+        ca._chron_owed_count = lambda: 0
+        ca._vault_owed_reels = lambda: []
+        LH.sys.platform = "win32"
+
+    def tearDown(self):
+        (self.ca._shadow_state, self.ca._chron_owed_count, self.ca._vault_owed_reels, tv.find_d2r_window_win,
+         tv._PICK_UNKNOWN, self.LH.sys.platform) = self._saved
+
+    def _owed(self, finder):
+        tv.find_d2r_window_win = finder
+        return self.LH.owed_counts().get("shadow-watch")
+
+    def test_three_states(self):
+        def blind():
+            tv._PICK_UNKNOWN = True
+            return None
+
+        def looked():
+            tv._PICK_UNKNOWN = False
+            return None
+        self.assertIsNone(self._owed(blind), "a finder that could not look reported 'nothing owed'")
+        self.assertEqual(self._owed(looked), 0)
+        self.assertEqual(self._owed(lambda: (5, "Boosteroid")), 1, "the game on screen with nothing rolling owes a reel")
+
+
 class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
     def test_the_csharp_twin_pins_the_measured_title_native_only(self):
@@ -186,6 +222,13 @@ class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3519 - lane health reads a blind Windows finder as 'nothing owed' again",
+        "file": "lane_health.py",
+        "find": "            if win is None and getattr(_tv, \"_PICK_UNKNOWN\", False):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-27 - a window walk that saw no desktop (0 windows, as over SSH on the ALT) reads as 'no game'",
         "file": "tv_diablo.py",
