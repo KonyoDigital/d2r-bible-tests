@@ -162,9 +162,12 @@ class TheVaultProposalIsWatched(unittest.TestCase):
                          "the bar moved to 3 and the row still reports fine — a proposal graded by "
                          "a rule that no longer applies, which is the defect this row exists for")
         self.assertIn("no longer clear", say.lower())
-        self.assertIn("REFUSED", say,
-                      "the row does not say the register button would be refused, so he would "
-                      "press a dead end")
+        # #246 (v3517): the register button no longer refuses the whole sweep - it re-gates row by row, HOLDS BACK
+        # the rows that fail and files the rest. The row must say what the press will do (the point is unchanged:
+        # never let him press blind), so it pins the door's new words.
+        self.assertIn("HOLDS THESE BACK", say,
+                      "the row does not say what pressing register would do with the stale rows, so he would "
+                      "press blind")
 
     def test_it_reads_OK_when_they_AGREE(self):
         self._needs_store()

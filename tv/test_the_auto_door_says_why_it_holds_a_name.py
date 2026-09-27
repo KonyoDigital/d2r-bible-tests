@@ -81,11 +81,20 @@ class TheAutoDoorSaysWhyItHoldsAName(unittest.TestCase):
         if sp.get("autoHeld") is None:
             self.fail("the rosters could not be read — held/owed is UNKNOWN, not a pass")
         held_names = [h.get("name") for h in sp["autoHeld"]]
-        self.assertIn("Crescent Moon", held_names,
-                      "the one name clearing the bar has multiple referents and must be HELD")
-        cm = [h for h in sp["autoHeld"] if h.get("name") == "Crescent Moon"][0]
-        self.assertIn("RUNEWORD", cm.get("referents") or [],
-                      "the runeword referent is the one first-match swallowed")
+        # #246 W3 (2026-09-27): a look counts only with its OWN frame and conf. Crescent Moon's two stash sightings
+        # carry no frame of their own, so today it does not clear the bar at all and sits in the MANUAL lane - the
+        # law's purpose (a name with two referents is never AUTO-filed) must hold in BOTH states, so both are pinned.
+        owed = [h.get("name") for h in (sp.get("autoOwed") or [])] + [h.get("name") for h in (sp.get("autoTickable") or []) if isinstance(h, dict)]
+        self.assertNotIn("Crescent Moon", owed, "a name with a unique AND a runeword referent was offered to AUTO-file")
+        manual = dict((m.get("name"), m) for m in (sp.get("manual") or []) if isinstance(m, dict))
+        if "Crescent Moon" not in held_names:
+            self.assertIn("Crescent Moon", manual, "Crescent Moon is neither held nor in the manual lane - it vanished")
+            self.assertEqual(sorted(manual["Crescent Moon"].get("referents") or []), ["RUNEWORD", "UNIQUE"],
+                             "the manual row does not name both referents, so he cannot tell which item it is")
+        else:
+            cm = [h for h in sp["autoHeld"] if h.get("name") == "Crescent Moon"][0]
+            self.assertIn("RUNEWORD", cm.get("referents") or [],
+                          "the runeword referent is the one first-match swallowed")
         self.assertNotIn("Crescent Moon", sp.get("autoOwed") or [],
                          "held and owed are different answers; a name may not be both")
 
