@@ -237,6 +237,16 @@ def check_shadow_watch():
         return _row("shadowWatch", UNKNOWN,
                     str((w or {}).get("why") or "the watcher's record is unreadable"))
     if not st.get("on"):
+        # OFF means do not start another reel. A shadow reel already rolling is still judged:
+        # saying "nothing is watching" while a 90-minute reel stacks up is the row going blind.
+        try:
+            _off = _ca._shadow_rollover_reading(w)
+        except Exception as e:
+            return _row("shadowWatch", UNKNOWN,
+                        "the switch is off and the rolling reel could not be judged: %s" % str(e)[:60])
+        if _off.get("state") in (WARN, UNKNOWN):
+            return _row("shadowWatch", _off["state"],
+                        "the shadow reader is switched OFF, and %s" % _off["line"])
         return _row("shadowWatch", OK, "the shadow reader is switched OFF, so nothing is watching "
                                        "for the game — by his choice")
     looked = w.get("lookedAt")

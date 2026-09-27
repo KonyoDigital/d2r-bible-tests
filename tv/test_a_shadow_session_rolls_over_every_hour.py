@@ -188,6 +188,30 @@ class AShadowSessionRollsOverEveryHour(_Base):
         self.assertEqual(self.doctor().get("state"), "ok",
                          "a rollover that worked read as a fault: %r" % self.doctor())
 
+    def test_switching_shadow_off_still_closes_the_hour_and_does_not_open_another(self):
+        ca._shadow_state = lambda: {"on": False, "available": True, "recording": True}
+        self.begin("shadow", self.now - 61 * MIN)
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("rotated"), "the switch being off left an hour-old shadow reel rolling: %r" % r)
+        self.assertEqual(self.starts, [], "switching off opened a successor reel")
+        self.now += ca._SHADOW_ROTATE_RELOOK_S * 1000
+        r2 = ca.shadow_watch_tick()
+        self.assertEqual(self.starts, [], "the next look opened a reel while shadow is off: %r" % r2)
+        self.assertIn("switched off", r2.get("why") or "")
+
+    def test_switching_shadow_off_does_not_hide_a_reel_the_stop_did_not_take(self):
+        ca._shadow_state = lambda: {"on": False, "available": True, "recording": True}
+        self.stop_takes = False
+        since = self.now - 90 * MIN
+        self.begin("shadow", since)
+        r = ca.shadow_watch_tick()
+        self.assertEqual(len(self.stops), 1, "the rollover was never attempted with the switch off: %r" % r)
+        self.assertFalse(r.get("rotated"), r)
+        row = self.doctor()
+        self.assertEqual(row.get("state"), "warn",
+                         "a 90-minute shadow reel with the switch off read as his choice: %r" % row)
+        self.assertNotIn("nothing is watching", row.get("line") or "")
+
     def test_a_59_minute_shadow_reel_is_left_alone_and_the_look_is_noted(self):
         since = self.now - 59 * MIN
         self.begin("shadow", since)
@@ -364,6 +388,20 @@ class TheLaneSpeaksTheSharedVocabulary(_Base):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-27 - switching shadow off excuses a reel already rolling, so the evening stacks up",
+        "file": "control_app.py",
+        "find": "    st = _shadow_state()\n    if _agent_alive():\n",
+        "replace": "    st = _shadow_state()\n    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-27 - the doctor calls a stuck shadow reel fine because the switch is off",
+        "file": "health_engine.py",
+        "find": "            if _off.get(\"state\") in (WARN, UNKNOWN):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-27 - the rollover never fires: an evening stacks up in one unprocessed shadow reel",
         "file": "control_app.py",

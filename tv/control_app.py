@@ -25919,14 +25919,16 @@ def shadow_watch_tick():
     """
     now = _shadow_now_ms()
     st = _shadow_state()
+    if _agent_alive():
+        # 2026-09-27 — a rolling reel is LOOKED AT, not walked past: noted, and a SHADOW reel that
+        # has run its hour is closed through stop_agent. Shadow still never starts a second reel.
+        # Switching the reader OFF does not excuse a shadow reel already rolling: the switch means
+        # do not START another, and the one that is open still closes on the hour.
+        return _shadow_rollover(now)
     if not st.get("on"):
         return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
     if st.get("available") is False:
         return {"ok": False, "why": "no local OCR on this machine, so the lane cannot run"}
-    if _agent_alive():
-        # 2026-09-27 — a rolling reel is LOOKED AT, not walked past: noted, and a SHADOW reel that
-        # has run its hour is closed through stop_agent. Shadow still never starts a second reel.
-        return _shadow_rollover(now)
     try:
         if (mini_state() or {}).get("running"):
             return {"ok": True, "why": "a mini capture is counting down"}
