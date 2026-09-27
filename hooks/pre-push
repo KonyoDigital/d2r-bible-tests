@@ -628,7 +628,11 @@ if [ "$_px_touched" = "1" ]; then
     done
   fi
   if curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
-    gate_run "render" "python3 tv/render_check.py" 300 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
+    # ⚠ 2026-09-27 — 300 -> 353, MEASURED, NOT WISHED: a clean full pass costs 296-317s at his daytime load (~5,
+    # reported IDLE by the hang message), so 300 killed runs that had finished all but the last target and called
+    # them HUNG. The margins are the old ones moved with the cost (264/280/300 -> 317/333/353: a 16s read floor,
+    # 20s to print and tear down). Moves with render_check._CLEAN_RUN_COST / _RUN_REPORT_BY, never alone.
+    gate_run "render" "python3 tv/render_check.py" 353 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
     gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
   else
     echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"

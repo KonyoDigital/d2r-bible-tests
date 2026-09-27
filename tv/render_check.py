@@ -231,10 +231,15 @@ _CDP_READ_TIMEOUT = 90.0
 #: the RECORDED cost of a clean full pass. Two numbers exist for it — 248s in the note above and
 #: 264s in hooks/pre-push's own comment — and the LARGER is the honest worst case: a law written
 #: against the smaller number is slack that cannot be seen from inside it.
-_CLEAN_RUN_COST = 264.0
+#: ⚠ 2026-09-27 — MEASURED AGAIN, AND IT HAD OUTGROWN THE BUDGET: 24 targets, a timed full pass took 296s and
+#: 317s at load ~5 (his daytime apps: TradingView, the Grok Bot app, Citrix, Spotlight) against the old 264, and
+#: the hook killed a run that had finished every target but the last as "render HUNG" on an IDLE machine. The
+#: heart target alone is ~74s (a 10s warmup per width, by design). The three numbers move TOGETHER: this cost,
+#: _RUN_REPORT_BY and the hook's render bound. [[stale-reading]]
+_CLEAN_RUN_COST = 317.0
 
 #: the wall clock, from the top of main(), by which a verdict MUST have been PRINTED. Derived: the
-#: hook kills at 300s, so this leaves 20s for the verdict lines, .render_verdict.json and tearing
+#: hook kills at 353s (300 until 2026-09-27), so this leaves 20s for the verdict lines, .render_verdict.json and tearing
 #: down Chrome and any served console (_chrome_down alone waits up to 5s on its kill).
 #: ⚠ IT DOES NOT INTERRUPT THE WORK. No target is cut short when this passes and nothing raises
 #: — a hand-run on a loaded machine legitimately takes longer than a push's budget, and killing it
@@ -249,7 +254,7 @@ _CLEAN_RUN_COST = 264.0
 #: _read_floor() for the arithmetic and _budget_shortened_the_read() for what is printed.
 #: A half-true comment is how the next reader gets it wrong. [[feedback-comments-vs-code]]
 #: [[strictness-that-closes-the-lane]]
-_RUN_REPORT_BY = 280.0
+_RUN_REPORT_BY = 333.0   # 2026-09-27 — cost 317 + the same 16s floor as before; the hook kills at 353 (was 280/300)
 
 #: the default patience ONE page operation gets when a target does not declare its own. Named
 #: because it already had copies that drifted: v3126 records a sibling keeping a hardcoded 12.0
