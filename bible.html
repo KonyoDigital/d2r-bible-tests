@@ -35901,8 +35901,8 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 /* #174 v-B2 — AN ITEM HE CAN MOVE. It grabs, it never scrolls the page from under a finger, its art never starts the
    browser's own image drag; placed by hand it wears a gold ring and a lock, a spot that no longer fits is dashed
    red, and while it is in the air the cells it would cover are tinted green (fits) or red (does not) — their look. */
-.mp .vd-item[data-key]{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
-.mp .vd-item[data-key] img{-webkit-user-drag:none}
+.mp .vd-item[data-key],.mp .vd-item[data-dbkey]{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.mp .vd-item[data-key] img,.mp .vd-item[data-dbkey] img{-webkit-user-drag:none}
 .mp .vd-item[data-key]:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px;z-index:4}
 /* #174 v-B5 — the inventory's empty cells and the tiles placed from the database are controls: a pointer, a gold edge on
    hover / focus, and the cell the picker is open on (or the tile it edits) marked. Colour and outline only - no size moves. */
@@ -35910,7 +35910,7 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp .vd-grid[data-add="on"] .vd-cell[data-cx]:hover{border-color:rgba(240,192,96,.55)}
 .mp .vd-grid[data-add="on"] .vd-cell[data-cx]:focus-visible{outline:2px solid var(--gold-bright);outline-offset:-2px}
 .mp .vd-grid[data-add="on"] .vd-cell[data-on]{border-color:var(--gold-bright);box-shadow:inset 0 0 0 1px var(--gold-bright)}
-.mp .vd-item[data-dbkey]{cursor:pointer}
+.mp .vd-item[data-dbkey]{cursor:grab}
 .mp .vd-item[data-dbkey]:focus-visible,.mp .vd-item.vd-db-on{outline:2px solid var(--gold-bright);outline-offset:1px;z-index:4}
 .mp .vd-item.vd-held{box-shadow:inset 0 0 0 1px var(--gold-bright),0 0 10px rgba(240,192,96,.35)}
 .mp .vd-item.vd-bad{border-style:dashed;border-color:var(--hell)}
@@ -40523,12 +40523,15 @@ window.vaultAutoAssign = function(){
     var _spot = function(p){ return (opt && opt.label ? opt.label + ' · ' : '') + 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     var blocks=placed.map(function(p){
       var _vr=(window._artRarity?window._artRarity(p.n):'');
-      /* #174 v-B5 — a tile he placed from the item DATABASE (the inventory's picker): not one the packer or a drag moves
-         (no data-key, so the drag and carry code never lift it), but a control of its own - click (or Enter) opens the
-         picker on it (the game tooltip, Change Item, Remove), Delete removes it. It carries no native title: its hover is
-         the builder's one in-game box over its stored entry (the vb2-mule-tip-js lane), never an OS box on top. */
+      /* #174 v-B5 — a tile he placed from the item DATABASE (the inventory's picker). It is not auto-packed
+         (no data-key). Wave 2 (ACT 5855237740): the mule window's ONE drag lifts it by data-dbkey. A green
+         footprint of this tile's own w x h is the only drop, and only inside this inventory. A press that
+         does not move is still a click: Edit, the game tooltip, Change Item, Remove. Delete removes it.
+         It carries no native title: its hover is the builder's one in-game box over its stored entry
+         (the vb2-mule-tip-js lane), never an OS box on top. */
       if (p.db){
         var _dsay = p.n + ' (' + p.w + '×' + p.h + ') — placed by hand from the item database at ' + _spot(p)
+          + '. Drag it; a green footprint of its size, inside this inventory, is the only drop that moves it'
           + '. Click (or Enter) for its tooltip, to replace it or remove it; Delete removes it';
         var _an = p.n;   // #248: a runeword draws its BASE - asked here, when the tile is drawn, never by the loader
         try { if (p.id && typeof window._cbArtName === 'function') _an = window._cbArtName({ id: p.id, base: p.base, name: p.n }) || p.n; } catch (x) { _an = p.n; }
@@ -41806,6 +41809,30 @@ window.vaultAutoAssign = function(){
     if (e.key === 'Enter' || e.key === ' '){ if (e.preventDefault) e.preventDefault(); window._mpInvTile(key); }
     else if (e.key === 'Delete' || e.key === 'Backspace'){ if (e.preventDefault) e.preventDefault(); window._mpInvRemoveKey(key); }
   };
+  /* Wave 2 — drag-reorder of a database charm. The SAME writer as a pick (_mpInvPlace over _mpInvFitWhy),
+     the same key, the size already stored (a drag does not change the base). `at` stays, so the door does
+     not file the name again. A cell that does not fit is refused and the charm is not moved. */
+  window._mpInvMove = function(key, x, y){
+    if (!openMuleId || openMuleId === 'shared') return { ok: false, why: 'the mule window is not open' };
+    var all = _mpEqAll(), rec = _mpInvOf(all, openMuleId)[key];
+    if (!rec || !rec.name) return { ok: false, why: 'that charm is not in this inventory' };
+    x = +x; y = +y;
+    var page = rec.page | 0;
+    var entry = { name: rec.name, source: 'manual', at: rec.at, w: rec.w, h: rec.h };
+    if (typeof rec.id === 'string' && rec.id)
+      MP_CB_FIELDS.forEach(function(f){ if (rec[f] !== undefined && rec[f] !== null) entry[f] = rec[f]; });
+    var rects = _mpInvRects(openMuleId, page, key, true);
+    var why = _mpInvFitWhy(rects, x, y, rec.w, rec.h);
+    if (why) return { ok: false, why: rec.name + ' does not fit there: ' + why, w: rec.w, h: rec.h, drop: 'vd-drop-no' };
+    var r = _mpInvPlace(all, openMuleId, { page: page, x: x, y: y }, entry, key, rects);
+    if (!r.ok) return { ok: false, why: r.why, w: rec.w, h: rec.h, drop: 'vd-drop-no' };
+    try { _mpEqWrite(r.all); }
+    catch (err){ return { ok: false, why: 'the inventory could not be saved (' + (err && err.message || err) + ')', w: rec.w, h: rec.h, drop: 'vd-drop-ok' }; }
+    if (_mpInvAt && _mpInvAt.key === key){ _mpInvAt.x = x; _mpInvAt.y = y; _mpInvAt.page = page; }
+    _mpFocusNext = 'db-' + key;
+    _mpRefresh();
+    return { ok: true, key: r.key, x: x, y: y, w: rec.w, h: rec.h, name: rec.name, drop: 'vd-drop-ok' };
+  };
   window._mpPick = function(slot){
     if (!openMuleId || openMuleId === 'shared') return;
     if (slot && !MP_SLOT_WEARS[slot]) return;
@@ -42723,12 +42750,13 @@ window.vaultAutoAssign = function(){
     return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p), y: Math.floor((cy - r.top - g.clientTop - 3) / p) };
   }
   /* the preview's rule, read off the grid as drawn: inside the grid, and over no item placed by hand but this one */
-  function _mpFitsIn(g, key, x, y, w, h){
+  function _mpFitsIn(g, key, x, y, w, h, dbkey){
     var gw = +g.getAttribute('data-gw'), gh = +g.getAttribute('data-gh');
     if (x < 0 || y < 0 || x + w > gw || y + h > gh) return { ok: false, why: 'a ' + w + '×' + h + ' would run past the edge of the grid there' };
     var hs = g.querySelectorAll('.vd-item.vd-held[data-key], .vd-item[data-dbkey]');   // #174 v-B5: and what he placed from the database
     for (var i = 0; i < hs.length; i++){
-      var e = hs[i]; if (e.getAttribute('data-key') === key) continue;
+      var e = hs[i];
+      if ((key && e.getAttribute('data-key') === key) || (dbkey && e.getAttribute('data-dbkey') === dbkey)) continue;
       var ox = +e.getAttribute('data-x'), oy = +e.getAttribute('data-y'), ow = +e.getAttribute('data-w'), oh = +e.getAttribute('data-h');
       if (x < ox + ow && ox < x + w && y < oy + oh && oy < y + h) return { ok: false, why: 'those cells hold ' + (e.getAttribute('data-key') || e.getAttribute('data-n')) + ', placed there by hand' };
     }
@@ -42757,7 +42785,16 @@ window.vaultAutoAssign = function(){
     if (!el || !box || !box.contains(el)) return;
     var g = el.closest('.vd-grid[data-area]'), mt = el.closest('.mp-settab[data-page]'), st = el.closest('.mp-v-stash .vd-tab[data-tab]');
     if (g){
-      var c = _mpCellAt(g, cx, cy), x = c.x - d.gx, y = c.y - d.gy, f = _mpFitsIn(g, d.key, x, y, d.w, d.h);
+      var c = _mpCellAt(g, cx, cy), x = c.x - d.gx, y = c.y - d.gy, f;
+      /* a database charm uses the inventory's own fit (the writer below), and only this inventory.
+         The painter is the mule drag's: vd-drop-ok is the green footprint, at this tile's w x h. */
+      if (d.dbkey){
+        if (g.getAttribute('data-area') !== 'inv') f = { ok: false, why: 'a charm stays in this inventory' };
+        else {
+          var whyD = _mpInvFitWhy(_mpInvRects(openMuleId, +g.getAttribute('data-page'), d.dbkey, true), x, y, d.w, d.h);
+          f = whyD ? { ok: false, why: whyD } : { ok: true };
+        }
+      } else f = _mpFitsIn(g, d.key, x, y, d.w, d.h, d.dbkey);
       _mpPreview(g, x, y, d.w, d.h, f.ok);
       d.target = { tab: g.getAttribute('data-area'), page: +g.getAttribute('data-page'), x: x, y: y, ok: f.ok, why: f.why };
       /* over a grid the ghost SITS on the cells it would take, at their size, tinted under it — their look (the
@@ -42792,6 +42829,19 @@ window.vaultAutoAssign = function(){
     _mpSay('🔒 ' + r.n + ' locked at ' + _mpSpotSay(r.spot) + ' — right-click it, or its lock, to send it back to auto-pack', true);
     return true;
   }
+  /* the charm's landing: only a green footprint inside this inventory. Anywhere else, it stays. */
+  function _mpInvCommit(dbkey, t){
+    if (!openMuleId) return false;
+    if (!t || t.tab !== 'inv' || !t.ok){
+      var why = (t && t.why) ? t.why : 'drop it where the green footprint fits, inside this inventory';
+      _mpSay('Put back — the charm stays where it was — ' + why, false);
+      return false;
+    }
+    var r = window._mpInvMove(dbkey, t.x, t.y);
+    if (!r.ok){ _mpSay('⚠ stays where it was — ' + r.why, false); return false; }
+    _mpSay(r.name + ' (' + r.w + '×' + r.h + ') at col ' + (r.x + 1) + ' · row ' + (r.y + 1), true);
+    return true;
+  }
   function _mpUnlockKey(key){
     var r = window._mpUnlock(openMuleId, key);
     if (!r.ok){ _mpSay('⚠ ' + r.why, false); return false; }
@@ -42802,10 +42852,10 @@ window.vaultAutoAssign = function(){
   document.addEventListener('pointerdown', function(e){
     if (_mpCarry) _mpCarryEnd();
     if (e.button !== 0 || !openMuleId || !e.target || !e.target.closest || e.target.closest('.vd-unlock')) return;
-    var it = e.target.closest('#vault-detail .vd-item[data-key]'), g = it && it.closest('.vd-grid[data-area]');
+    var it = e.target.closest('#vault-detail .vd-item[data-key], #vault-detail .vd-item[data-dbkey]'), g = it && it.closest('.vd-grid[data-area]');
     if (!g) return;
     var r = it.getBoundingClientRect(), p = _mpPitch(g), w = +it.getAttribute('data-w') || 1, h = +it.getAttribute('data-h') || 1;
-    _mpDrag = { id: e.pointerId, key: it.getAttribute('data-key'), el: it, w: w, h: h, on: false, ghost: null, target: null,
+    _mpDrag = { id: e.pointerId, key: it.getAttribute('data-key'), dbkey: it.getAttribute('data-dbkey'), el: it, w: w, h: h, on: false, ghost: null, target: null,
                 gx: Math.max(0, Math.min(w - 1, Math.floor((e.clientX - r.left) / p))), gy: Math.max(0, Math.min(h - 1, Math.floor((e.clientY - r.top) / p))),
                 ox: e.clientX - r.left, oy: e.clientY - r.top, sx: e.clientX, sy: e.clientY };
   });
@@ -42836,7 +42886,8 @@ window.vaultAutoAssign = function(){
     _mpTrack(d, e.clientX, e.clientY);        // judged where it was let go
     var t = d.target;
     _mpDragEnd(d);
-    _mpCommit(d.key, t);
+    if (d.dbkey) _mpInvCommit(d.dbkey, t);
+    else _mpCommit(d.key, t);
   });
   document.addEventListener('pointercancel', function(e){
     var d = _mpDrag;
@@ -42846,7 +42897,7 @@ window.vaultAutoAssign = function(){
   });
   // an item's art is an <img>: the browser's own image drag would take the pointer away mid-move
   document.addEventListener('dragstart', function(e){
-    if (e.target && e.target.closest && e.target.closest('#vault-detail .vd-item[data-key]') && e.preventDefault) e.preventDefault();
+    if (e.target && e.target.closest && e.target.closest('#vault-detail .vd-item[data-key], #vault-detail .vd-item[data-dbkey]') && e.preventDefault) e.preventDefault();
   }, true);
   /* CAPTURE: the lock button unlocks without opening the item's card, and the click a drag ends in is swallowed */
   document.addEventListener('click', function(e){

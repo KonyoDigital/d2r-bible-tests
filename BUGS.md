@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1337 - A DATABASE CHARM IN THE MULE INVENTORY COULD NOT BE DRAGGED (wave 2)
+
+**SEEN:** the mule 10x4 tiles placed from the item database carry no data-key, so the window's one drag never lifted them. A charm stayed where the picker put it. **FIX:** that same drag lifts data-dbkey. The footprint is the mule drag's painter, green only when the charm's own size fits inside this inventory, red off the 10x4, over another charm, or on the stash, and those drops do not write. A press that does not move is still a click. The placement time stays, so the door does not file the name again. **LAW:** `test_an_inventory_charm_drags_onto_its_footprint` (heart2 --prove 6/6 PROVEN).
+
 ### REG-1336 - A DRAIN DEFERRED BECAUSE THE CONSOLE IS ON AIR WAS CALLED STOPPED (v3520)
 
 **SEEN (reproduced on the branch before the merge):** three retention passes with reels owed, each refused because the console is ON AIR, read STOPPED and the doctor row went missing. The same happened while a chronicle or vault sweep was reading. The deleter was right to wait. The heart called a hold a stall. **FIX:** that pass is marked held. The drain says DEFERRED and the doctor stays OK. STOPPED is only a run of passes that owed reels, released nothing, and carried no deferral. An unreadable check ("could not tell") is not a deferral. The first pass after filming ends still drains what is owed. **LAW:** `test_the_river_drains_every_pass` (25 cases on main; heart2 --prove 12/12 PROVEN).

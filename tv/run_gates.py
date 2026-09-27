@@ -7520,6 +7520,16 @@ GATES = [
              "database pick worn AND packed) is held; Esc closes Filters, the picker, then the window; a stored record "
              "that cannot be laid is a conflict, not drawn, said (size UNKNOWN) and removable",
          skip_ok=()),
+    Gate("test_an_inventory_charm_drags_onto_its_footprint",
+         [sys.executable, os.path.join(HERE, "test_an_inventory_charm_drags_onto_its_footprint.py")], 90,
+         needs_app=False,
+         why="#174 wave 2 (ACT 5855237740) - a charm placed in the mule 10x4 from the database had no data-key, so "
+             "the window's one drag never lifted it. That drag now lifts data-dbkey. The footprint is the mule "
+             "drag's own painter (vd-drop-ok green, vd-drop-no red) at the charm's stored w x h. A 1x1, 1x2 and "
+             "1x3 each land on an empty cell; off the 10x4, over another charm, or onto the stash stays; a press "
+             "that does not move does not write; the placement time stays so the door does not file the name "
+             "again. A click still opens the tile. Drives the shipped listeners in node.",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,
