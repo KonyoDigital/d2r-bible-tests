@@ -10300,6 +10300,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     return true;
   }
   window.renderCharsTab = _render;
+  /* #253 - THE ONE READER ANOTHER ROOM ASKS. The mule window's character-bind list shows these builds, and it asks HERE,
+     so the MAIN-first order, a MAIN that names no saved build marking nothing, and UNKNOWN on a store that cannot be
+     read are this room's own answers - never a second copy of them. READ-ONLY, like every read in this block.
+     -> {ok: true, rows: [{id, name, cls, level, main}]} | {ok: false, why} */
+  window._charsList = function(){
+    var r = _read(); if (!r.ok) return { ok: false, why: r.why };
+    var mainId = _mainOf(r.all);
+    return { ok: true, rows: _order(r.all, mainId).map(function(id){
+      var b = (r.all[id] && typeof r.all[id] === 'object') ? r.all[id] : {}, lvl = +b.level;
+      return { id: id, name: b.name || 'Unnamed build', cls: b.cls || null, level: (lvl >= 1 && lvl <= 99) ? (lvl | 0) : null, main: id === mainId };
+    }) };
+  };
 
   function _say(s){ say = String(s || ''); _render(); }
   function _drop(u){
@@ -35939,6 +35951,28 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .mp-kv div{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
 .mp-kv span:first-child{color:var(--text-muted)}
 .mp-kv span:last-child{color:var(--text);font-family:var(--mono);text-align:right}
+/* #253 - THE LOCKER'S CHARACTER IS A CONTROL: a button in the Locker panel (it was text that did nothing), and the list
+   of his characters opens IN FLOW under the panel - its own height, scrolling inside itself, never over STATS */
+.mp-kv .mp-bind-r{align-items:center}
+.mp-bind-b{display:inline-flex;align-items:center;gap:calc(4*var(--u));max-width:64%;min-height:calc(26*var(--u));padding:calc(2*var(--u)) calc(8*var(--u));background:rgba(0,0,0,.25);border:1px solid var(--gold-dim);border-radius:4px;color:var(--gold-bright);font-family:var(--sans);font-size:var(--fs-mp-body);line-height:var(--lh-snug);text-align:right;overflow-wrap:anywhere;cursor:pointer}
+.mp-bind-b i{font-style:normal;color:var(--gold)}
+.mp-bind-b:hover,.mp-bind-b:focus-visible{border-color:var(--gold);outline:none}
+.mp-bind-b.mp-bind-unk{color:var(--text-dim);font-style:italic}
+.mp-bind{margin:0 calc(10*var(--u)) calc(10*var(--u));max-height:calc(240*var(--u));min-height:0;overflow:auto;border:1px solid var(--gold-dim);border-radius:4px;background:rgba(0,0,0,.35)}
+.mp-bind-h{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:calc(4*var(--u)) calc(8*var(--u));background:#171512;font-size:var(--fs-mp-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);color:var(--gold);border-bottom:1px solid var(--border)}
+.mp-bind-c{min-width:22px;min-height:22px;padding:0;background:transparent;border:0;color:var(--text-muted);font-size:var(--fs-mp-body);cursor:pointer}
+.mp-bind-c:hover,.mp-bind-c:focus-visible{color:var(--gold-bright);outline:none}
+.mp-bind-o{display:block;width:100%;text-align:left;padding:calc(5*var(--u)) calc(8*var(--u));background:transparent;border:0;border-bottom:1px solid rgba(58,47,30,.6);color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);line-height:var(--lh-snug);cursor:pointer}
+.mp-bind-o:hover,.mp-bind-o:focus-visible{background:rgba(214,170,90,.18);outline:none}
+.mp-bind-o.on{box-shadow:inset 3px 0 0 var(--gold)}
+.mp-bind-o b{color:var(--gold-bright);font-weight:var(--fw-semibold)}
+.mp-bind-o small{color:var(--text-dim);font-size:var(--fs-mp-meta)}
+.mp-bind-x{color:var(--text-muted)}
+.mp-bind-none{padding:calc(8*var(--u));font-size:var(--fs-mp-meta);color:var(--text-muted);line-height:var(--lh-snug)}
+.mp-bind-none b{color:var(--text);font-weight:var(--fw-semibold)}
+.mp-bind-bad{color:var(--hell)}
+.mp-bind-say{margin:0 calc(14*var(--u)) calc(6*var(--u));font-size:var(--fs-mp-meta);color:var(--best)}
+.mp-bind-say.err{color:var(--hell)}
 .mp-stats{height:calc(726*var(--u));display:flex;flex-direction:column}
 /* #174 v-B2 — in columns, STATS ends at the bottom of the window (its list scrolls inside it) rather than running off
    the glass under it: the Grok seat at 1280 read "Stats stops at Life". 312 = their AUTHOR + SHOWCASE + gutters above
@@ -41421,6 +41455,114 @@ window.vaultAutoAssign = function(){
     }
   };
   function _mpNoteFlush(){ if (_mpNoteDraft && _mpNoteDraft.id === openMuleId) window._mpNoteSave(_mpNoteDraft.v); }
+  /* ══ #253 (GrokBot ACT 5854814442, measured on v3517) — THE LOCKER'S CHARACTER IS A CONTROL, AND IT OPENS HIS
+     CHARACTERS. "Character: none bound" was TEXT: clicking it did nothing a user could see. It is a button now, and it
+     opens a list of HIS characters, from the two places the board keeps them:
+       · every build the 👤 Characters tab holds, asked of THAT room's own reader (window._charsList - the MAIN one first
+         and marked from d2r_cbMain, the rest newest first, an unreadable store UNKNOWN: its answers, never a copy);
+       · the MAIN he named (window.mainCharacter - his declaration, or a .d2s he said is his).
+     The reader never sees a character's name (measured: charName / char_name appear zero times in its code, and the
+     name is on no frame he films - v1985), so there is no third source to list, and none is invented.
+     BINDING WRITES ONE FIELD: this locker's boundChar in d2r_muleRoster, through the roster's own writer (saveR) -
+     never a build, never the MAIN, never an item or an assignment. It is a REFERENCE (a build's id; the named MAIN's
+     name), resolved at every render: a renamed build reads its new name, a deleted one reads UNKNOWN - never "none
+     bound" over a binding that exists. No characters yet says how to add one. Esc closes the list before the window.
+     [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var _mpBindAt = null, _mpBindSaid = null;
+  /* -> {ok, why, rows: [{src: 'build'|'main', id, name, cls, level, main, declared}]} - ok false = the builds are
+     UNKNOWN (said); the MAIN he named is still listed then */
+  function _mpBindChars(){
+    var out = { ok: true, why: '', rows: [] }, r = null;
+    if (typeof window._charsList !== 'function') r = { ok: false, why: 'the 👤 Characters tab is not loaded on this page, so its builds could not be asked' };
+    else { try { r = window._charsList(); } catch (e){ r = { ok: false, why: 'the builds could not be read (' + (e && e.message || e) + ')' }; } }
+    if (!r || !r.ok || !Array.isArray(r.rows)){ out.ok = false; out.why = (r && r.why) || 'the builds could not be read'; }
+    else r.rows.forEach(function(x){ out.rows.push({ src: 'build', id: String(x.id), name: String(x.name), cls: x.cls || null, level: x.level || null, main: !!x.main, declared: false }); });
+    var mc = null;
+    try { mc = typeof window.mainCharacter === 'function' ? window.mainCharacter() : null; } catch (e){ mc = null; }
+    if (mc && mc.name){
+      var tw = out.rows.filter(function(x){ return x.name.toLowerCase() === String(mc.name).toLowerCase(); })[0];
+      if (tw) tw.declared = true;
+      else out.rows.push({ src: 'main', id: String(mc.name), name: String(mc.name), cls: mc['class'] || null, level: mc.level || null, main: false, declared: true });
+    }
+    return out;
+  }
+  /* what locker m is bound to, resolved NOW -> {state: 'none' | 'build' | 'main' | 'unknown', text, title} */
+  function _mpBoundSay(m){
+    var bc = m && m.boundChar;
+    if (bc == null) return { state: 'none', text: 'none bound', title: 'no character is bound to this locker — choose one of yours' };
+    var L = _mpBindChars(), nm = String((bc && (bc.name || bc.id)) || '?');
+    if (bc && bc.src === 'build'){
+      var x = L.rows.filter(function(r){ return r.src === 'build' && r.id === String(bc.id); })[0];
+      if (x) return { state: 'build', text: (x.main ? '★ ' : '') + x.name, title: x.name + ' — ' + (x.cls || 'class UNKNOWN') + (x.level ? ' ' + x.level : '') + (x.main ? ' · your MAIN' : '') + ' · a build in the 👤 Characters tab' };
+      return { state: 'unknown', text: 'UNKNOWN', title: 'bound to the build "' + nm + '", but ' + (L.ok ? 'it is no longer saved in the 👤 Characters tab (deleted, or saved in the other account)' : L.why) };
+    }
+    if (bc && bc.src === 'main'){
+      var mc = null; try { mc = typeof window.mainCharacter === 'function' ? window.mainCharacter() : null; } catch (e){ mc = null; }
+      var still = !!(mc && mc.name && String(mc.name).toLowerCase() === nm.toLowerCase());
+      return { state: 'main', text: nm, title: nm + (still ? ' — the MAIN you named' : ' — named as your MAIN when it was bound; the MAIN you name now is ' + (mc && mc.name ? mc.name : 'UNKNOWN')) };
+    }
+    return { state: 'unknown', text: 'UNKNOWN', title: 'the binding on record is not one this page can read' };
+  }
+  /* the Locker panel's control and, while it is open, the list under it -> {btn, list} */
+  function _mpBindHtml(m){
+    var bs = _mpBoundSay(m), open = _mpBindAt === openMuleId, said = (_mpBindSaid && _mpBindSaid.id === openMuleId) ? _mpBindSaid : null;
+    var btn = '<button type="button" class="mp-bind-b' + (bs.state === 'unknown' ? ' mp-bind-unk' : '') + '" id="mp-bind" data-fk="bind" data-state="' + bs.state + '" aria-haspopup="true" aria-expanded="' + open + '"'
+      + ' title="' + esc(bs.title) + '" aria-label="character bound to this locker: ' + esc(bs.text) + ' — ' + (open ? 'close the list' : 'choose one of your characters') + '" onclick="window._mpBindOpen()">'
+      + esc(bs.text) + ' <i aria-hidden="true">' + (open ? '▴' : '▾') + '</i></button>';
+    var say = said ? '<div class="mp-bind-say' + (said.ok ? '' : ' err') + '" role="status">' + esc(said.t) + '</div>' : '';
+    if (!open) return { btn: btn, list: say };
+    var L = _mpBindChars(), cur = m.boundChar || null, h = '';
+    if (!L.ok) h += '<div class="mp-bind-none mp-bind-bad" data-state="unknown">Your builds could not be read — UNKNOWN (' + esc(L.why) + '). None of them can be bound until they read again.</div>';
+    L.rows.forEach(function(x, i){
+      var on = !!cur && cur.src === x.src && String(cur.src === 'build' ? cur.id : cur.name) === x.id;
+      h += '<button type="button" class="mp-bind-o' + (on ? ' on' : '') + '" data-fk="bind-' + i + '" data-src="' + x.src + '" data-id="' + esc(x.id) + '" aria-pressed="' + on + '"'
+        + ' onclick="window._mpBind(this.getAttribute(\'data-src\'), this.getAttribute(\'data-id\'))">'
+        + (x.main ? '<b>★ MAIN</b> ' : '') + esc(x.name) + ' <small>' + esc((x.cls || 'class UNKNOWN') + (x.level ? ' ' + x.level : '')) + ' · '
+        + (x.src === 'build' ? 'a build' + (x.declared ? ' · the MAIN you named' : '') : 'the MAIN you named') + '</small></button>';
+    });
+    if (L.ok && !L.rows.length)
+      h += '<div class="mp-bind-none" data-state="empty"><b>No characters yet.</b> Add one in the 👤 Characters tab — <b>+ New character</b> opens the planner (a class, a level, then its gear) — or name your MAIN in the vault\'s lock panel. Then bind it here.</div>';
+    if (cur) h += '<button type="button" class="mp-bind-o mp-bind-x" data-fk="bind-x" data-src="" data-id="" onclick="window._mpBind(\'\', \'\')">✕ Unbind — this locker keeps no character</button>';
+    return { btn: btn, list: say + '<div class="mp-bind" id="mp-bind-list" role="group" aria-label="your characters — bind one to ' + esc(m.name) + '">'
+      + '<div class="mp-bind-h"><span>Your characters</span><button type="button" class="mp-bind-c" aria-label="close the list (Esc)" onclick="window._mpBindOpen(false)">✕</button></div>' + h + '</div>' };
+  }
+  window._mpBindOpen = function(on){
+    if (!openMuleId || openMuleId === 'shared' || !muleById(openMuleId)) return false;
+    _mpBindAt = (on === false || (on !== true && _mpBindAt === openMuleId)) ? null : openMuleId;
+    _mpBindSaid = null;
+    _mpFocusNext = _mpBindAt ? 'bind-0' : 'bind';
+    window.openMuleCard(openMuleId);
+    return !!_mpBindAt;
+  };
+  /* src 'build' + a build id | src 'main' + the named MAIN's name | '' = unbind. Writes ONLY this locker's boundChar. */
+  window._mpBind = function(src, id){
+    var m = openMuleId && muleById(openMuleId); if (!m) return false;
+    var x = null;
+    if (src){
+      x = _mpBindChars().rows.filter(function(r){ return r.src === src && r.id === String(id); })[0] || null;
+      if (!x){ _mpBindSaid = { id: openMuleId, ok: false, t: 'that character is no longer listed — nothing was bound' }; window.openMuleCard(openMuleId); return false; }
+    }
+    var had = Object.prototype.hasOwnProperty.call(m, 'boundChar'), old = m.boundChar;
+    if (x) m.boundChar = x.src === 'build' ? { src: 'build', id: x.id, name: x.name, at: new Date().toISOString() } : { src: 'main', name: x.name, at: new Date().toISOString() };
+    else delete m.boundChar;
+    try { saveR(); }
+    catch (e){
+      if (had) m.boundChar = old; else delete m.boundChar;
+      _mpBindSaid = { id: openMuleId, ok: false, t: 'not saved — ' + (e && e.message || e) };
+      window.openMuleCard(openMuleId); return false;
+    }
+    _mpBindSaid = { id: openMuleId, ok: true, t: x ? 'bound: ' + x.name : 'unbound — this locker keeps no character' };
+    _mpBindAt = null; _mpFocusNext = 'bind';
+    window.openMuleCard(openMuleId);
+    try { if (typeof renderVault === 'function') renderVault(); } catch (e) {}
+    return true;
+  };
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape' || !openMuleId || !_mpBindAt || _mpPickAt) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation(); else if (e.stopPropagation) e.stopPropagation();
+    window._mpBindOpen(false);
+  }, true);
 
   window._muleSetPage = function(i){ var n = _muleTotalPages || 1; _mulePage = ((i % n) + n) % n; window.openMuleCard(openMuleId); };
   var _muleTotalPages = 1;
@@ -41559,6 +41701,7 @@ window.vaultAutoAssign = function(){
     if (!m||!box) return;
     var _again = (muleId === openMuleId) && !box.hidden;   // a RE-render of the window that is up, not an open
     if (muleId !== openMuleId){ _mpNoteFlush(); _mpPickAt = null; _mpPickErr = ''; _mpNoteSaid = null; }   // #174 v-B — a note being typed is saved, never dropped
+    if (muleId !== openMuleId){ _mpBindAt = null; _mpBindSaid = null; }   // #253 — the bind list belongs to the locker it opened on
     if (muleId !== openMuleId && typeof window._cbHostClose === 'function') window._cbHostClose();   // #174 v-B4 — the host goes with it
     if (muleId !== openMuleId){ _mulePage = 0; _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
     if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
@@ -41917,12 +42060,13 @@ window.vaultAutoAssign = function(){
       + ' · <b>EXACT</b> the rolled value from a .d2s · <b>TEXT</b> the item’s own text, placed by name — a range when it rolls, never averaged'
       + ' · <b>MIXED</b> both, or a part still UNKNOWN (≥)</div>'
       + (_unworn.length ? '<div class="mp-st-src mp-st-dead"><b>Not counted</b> — on the doll but not wearable there: ' + esc(_unworn.join(' · ')) + '</div>' : '');
+    var _bind = _mpBindHtml(m), _bound = _mpBoundSay(m);   // #253 — the control, and what it is bound to, resolved now
     var right = '<div class="mp-right">'
       + '<section class="mp-p mp-auth">'+H('Locker')+'<div class="mp-kv">'
       +   '<div><span>Name</span><span>'+esc((m.icon||'📦')+' '+m.name)+'</span></div>'
       +   '<div><span>Kind</span><span>storage locker</span></div>'
-      +   '<div><span>Character</span><span>none bound</span></div>'
-      + '</div></section>'
+      +   '<div class="mp-bind-r"><span>Character</span>' + _bind.btn + '</div>'
+      + '</div>' + _bind.list + '</section>'
       + '<section class="mp-p mp-show">'+H('Summary')+'<div class="mp-kv">'
       +   '<div><span>Items</span><span>'+_physN+'</span></div>'
       +   '<div><span>Mules</span><span>'+_muleTotalPages+'</span></div>'
@@ -41931,7 +42075,7 @@ window.vaultAutoAssign = function(){
       + '</div></section>'
       + '<section class="mp-p mp-stats">'+H('Stats', '<button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button>')
       +   '<div class="mp-seg">'+diffBtn('normal','Normal')+diffBtn('nightmare','Nightmare')+diffBtn('hell','Hell')+'</div>'
-      +   '<div class="mp-cls" title="a .d2s import binds a class and level (v-C)">Character — none bound to this locker</div>'
+      +   '<div class="mp-cls" title="' + esc(_bound.title) + ' (a .d2s import binds a class and level: v-C)">Character — ' + (_bound.state === 'none' ? 'none bound to this locker' : esc(_bound.text) + ' bound to this locker') + '</div>'
       +   '<label class="mp-search">⌕&nbsp;<input type="search" placeholder="Search" value="'+esc(_mpQ)+'" oninput="window._mpFilter(this.value)" aria-label="filter the stats"></label>'
       +   '<div class="mp-st">'+_srcLine+stats+'</div>'
       + '</section>'
@@ -41984,6 +42128,7 @@ window.vaultAutoAssign = function(){
   window.vaultCloseCard = function(){
     try { _mpNoteFlush(); } catch (e) {}     // #174 v-B — closing never drops a note he was typing
     _mpPickAt = null; _mpPickErr = ''; _mpHostSync();
+    _mpBindAt = null; _mpBindSaid = null;   // #253 — the bind list goes with the window
     // #174 v-B2 — a drag or a keyboard carry in flight is put back, and its message goes with the window
     try { if (_mpDrag){ _mpDragEnd(_mpDrag); _mpDrag = null; } if (_mpCarry) _mpCarryEnd(); var _ds = document.getElementById('mp-dragsay'); if (_ds) _ds.className = ''; } catch (e) {}
     var b=document.getElementById('vault-detail');
@@ -52433,13 +52578,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .d2tip[hidden]{display:none}
 .d2tip div{white-space:normal}
 .d2tip .d2t-u,.d2tip .d2t-r{color:rgb(199,179,119)}.d2tip .d2t-s{color:rgb(0,255,0)}.d2tip .d2t-c{color:rgb(255,168,0)}.d2tip .d2t-b{color:rgb(255,255,255)}.d2tip .d2t-m{color:rgb(105,105,255)}.d2tip .d2t-rare{color:rgb(255,255,100)}
-.d2tip .d2t-w{color:rgb(255,255,255)}
+.d2tip .d2t-w,.cb-ed-base .d2t-w{color:rgb(255,255,255)}
 .d2tip .d2t-g{color:rgb(121,121,121)}
-.d2tip .d2t-num,.d2tip .d2t-p{color:rgb(105,105,255)}
-.d2tip .d2t-red{color:rgb(255,77,77)}
+.d2tip .d2t-num,.d2tip .d2t-p,.cb-ed-base .d2t-num{color:rgb(105,105,255)}
+.d2tip .d2t-red,.cb-ed-base .d2t-red{color:rgb(255,77,77)}
 .d2tip .d2t-set{color:rgb(0,255,0)}
-.d2tip .d2t-unk{color:rgb(150,150,150);font-family:var(--sans);font-size:var(--fs-body);font-style:italic}
-.d2tip .d2t-note{color:rgb(150,150,150);font-family:var(--sans);font-size:var(--fs-meta);margin-top:4px}
+.d2tip .d2t-unk,.cb-ed-base .d2t-unk{color:rgb(150,150,150);font-family:var(--sans);font-size:var(--fs-body);font-style:italic}
+.d2tip .d2t-note,.cb-ed-base .d2t-note{color:rgb(150,150,150);font-family:var(--sans);font-size:var(--fs-meta);margin-top:4px}
+/* #253 - THE EDIT PANEL SHOWS THE BASE: the tooltip's own rows (one function, _d2TipBase, and the colours above) on a
+   small dark plate under the item's name, so they read as the game's lines, left-aligned with the panel */
+.cb-ed-base{margin-top:calc(8*var(--u));padding:calc(5*var(--u)) calc(9*var(--u));background:rgba(8,8,8,.55);border:1px solid rgba(90,90,90,.35);border-radius:3px;font-family:var(--cb-d2);font-size:var(--fs-cb-body);line-height:var(--lh-snug);color:rgb(255,255,255)}
+.cb-ed-base div{white-space:normal;overflow-wrap:anywhere}
 /* STACKED (under 900 wide): the character first — the doll, then the stats, then the inventory and the rest */
 .cb.cb-stack{grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "set" "main" "stats" "left" "notes";width:100%}
 .cb.cb-stack .cb-body,.cb.cb-stack .cb-lc,.cb.cb-stack .cb-mc{display:contents}
@@ -53524,6 +53673,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         + (af === 2 ? ' (' + (l[4] || 2) + ' items)' : af === 1 ? ' (with a certain other piece)' : ' (when: not in the tables)'), cls: 'd2t-set' }); });
       out.setName = it[7].set;
     }
+    /* #253 - what the base rows could not say (a defense or damage the game's code decides): the Edit panel prints these
+       beside the base's own rows, so a row it leaves out is said, never silently missing */
+    out.baseUnk = tail.slice();
     out.lines = out.lines.concat(tail);
     return out;
   }
@@ -53542,25 +53694,27 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      character is KNOWN to fail it: the level is the build's; strength and dexterity are UNKNOWN until a character
      has attributes, so they are never red on a guess. */
   var CB_QMAP = { unique: 'u', set: 's', runeword: 'r', crafted: 'c', base: 'b', normal: 'b', magic: 'm', rare: 'rare' };
-  function d2Tip(entry){
+  /* #174 v-B4 - EVERY ROW IN THE GAME'S OWN WORDS (the block's tip.ui: item-modifiers.json ItemStats1d/e/f/h/l/m/p,
+     Socketable, Charmdes, RuneQuote, strethereal, the WeaponDesc / WeaponAttack strings), label white and its numbers
+     blue, as theirs; a value that is still a range is bracketed on a row of two, "(63-70) to (153-170)" */
+  function _d2tFill(fmt, vals){ var i = 0; return String(fmt).replace(/%[+]?[dis]/g, function(){ var v = vals[i++]; return v == null ? 'UNKNOWN' : String(v); }); }
+  function _d2tAt0(fmt){ return String(fmt).search(/%[+]?[dis]/); }
+  function _d2tRow(fmt, vals, cls){
+    var s = String(fmt), k = _d2tAt0(s);
+    return '<div class="' + (cls || 'd2t-w') + '">' + (k < 0 ? esc(s) : esc(s.slice(0, k)) + '<span class="d2t-num">' + esc(_d2tFill(s.slice(k), vals)) + '</span>') + '</div>';
+  }
+  function _d2tOne(fmt, vals, cls){ return '<div class="' + cls + '">' + esc(_d2tFill(fmt, vals)) + '</div>'; }
+  /* #253 (GrokBot ACT 5854814442, measured on v3517: the Edit panel of a white Crowbill said only "Normal · Crowbill ·
+     Required Level 25" while its hover box printed the damage, the Strength / Dexterity it needs, its durability and its
+     speed) - THE BASE'S OWN ROWS ARE ONE FUNCTION, and the hover box and the item Edit panel both print them from it,
+     over the same _cbTipEntry: Defense · One-Hand / Two-Hand Damage · Durability · (Class Only) · Required Dexterity /
+     Strength / Level · <Class> Class - <Speed>. A second derivation in the Edit panel would be a second answer the day
+     a rule moves (Hel's -20%, ethereal's -10, a quality's defense) - there is none. [[copy-drift]] */
+  function _d2TipBase(entry){
     entry = entry || {};
-    var q = CB_QMAP[entry.q] || entry.q || 'b', qc = 'd2t-' + (q === 'rare' ? 'rare' : q);
-    /* #174 v-B4 - EVERY ROW IN THE GAME'S OWN WORDS (the block's tip.ui: item-modifiers.json ItemStats1d/e/f/h/l/m/p,
-       Socketable, Charmdes, RuneQuote, strethereal, the WeaponDesc / WeaponAttack strings), label white and its numbers
-       blue, as theirs; a value that is still a range is bracketed on a row of two, "(63-70) to (153-170)" */
+    var h = '', row = _d2tRow, one = _d2tOne, at0 = _d2tAt0;
     var par = function(a, b){ return (a == null || b == null) ? 'UNKNOWN' : (a === b ? String(a) : '(' + a + '-' + b + ')'); };
-    var fill = function(fmt, vals){ var i = 0; return String(fmt).replace(/%[+]?[dis]/g, function(){ var v = vals[i++]; return v == null ? 'UNKNOWN' : String(v); }); };
-    var at0 = function(fmt){ return String(fmt).search(/%[+]?[dis]/); };
-    var row = function(fmt, vals, cls){
-      var s = String(fmt), k = at0(s);
-      return '<div class="' + (cls || 'd2t-w') + '">' + (k < 0 ? esc(s) : esc(s.slice(0, k)) + '<span class="d2t-num">' + esc(fill(s.slice(k), vals)) + '</span>') + '</div>';
-    };
-    var one = function(fmt, vals, cls){ return '<div class="' + cls + '">' + esc(fill(fmt, vals)) + '</div>'; };
     var rv = function(v){ return Array.isArray(v) ? v[0] + '-' + v[1] : v; }, lo = function(v){ return Array.isArray(v) ? v[0] : v; };
-    var h = '<div class="' + qc + '">' + esc(entry.name || '') + '</div>';
-    if (entry.base && entry.base !== entry.name) h += '<div class="' + (entry.baseGrey ? 'd2t-g' : qc) + '">' + esc(entry.base) + '</div>';
-    if (entry.charm) h += '<div class="d2t-w">' + esc(entry.charm) + '</div>';
-    if (entry.runes) h += '<div class="' + qc + '">' + esc(entry.runes) + '</div>';
     if (entry.defense) h += (entry.defense[0] === entry.defense[1] || entry.defense[0] == null || entry.defense[1] == null)
       ? row(_cbUi('ItemStats1h', 'Defense: %d'), [entry.defense[0] == null || entry.defense[1] == null ? null : entry.defense[0]])
       : row(_cbUi('ItemStats1hRange', 'Defense: (%d-%d)'), entry.defense);
@@ -53581,6 +53735,21 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     else if (sp && sp.fmt) h += '<div class="d2t-w">' + esc(sp.fmt.slice(0, Math.max(0, at0(sp.fmt)))) + '<span class="d2t-unk">attack speed UNKNOWN — ' + esc(sp.why || 'not in the tables') + '</span></div>';
     else if (sp && sp.word) h += '<div class="d2t-unk">' + esc(sp.word) + ' — no table names this weapon type\'s class word (UNKNOWN)</div>';
     else if (sp) h += '<div class="d2t-unk">attack speed UNKNOWN — ' + esc(sp.why || 'no table names this weapon type\'s class word') + '</div>';
+    return h;
+  }
+  /* the note a box ends on while strength / dexterity cannot be judged: the character has no attributes yet */
+  function _d2tAttrNote(entry){
+    var rq = (entry && entry.reqs) || {};
+    return ((rq.str || rq.dex) && !(entry && entry.attrs)) ? '<div class="d2t-note">strength / dexterity: UNKNOWN until the character has attributes — never red on a guess</div>' : '';
+  }
+  function d2Tip(entry){
+    entry = entry || {};
+    var q = CB_QMAP[entry.q] || entry.q || 'b', qc = 'd2t-' + (q === 'rare' ? 'rare' : q), one = _d2tOne;
+    var h = '<div class="' + qc + '">' + esc(entry.name || '') + '</div>';
+    if (entry.base && entry.base !== entry.name) h += '<div class="' + (entry.baseGrey ? 'd2t-g' : qc) + '">' + esc(entry.base) + '</div>';
+    if (entry.charm) h += '<div class="d2t-w">' + esc(entry.charm) + '</div>';
+    if (entry.runes) h += '<div class="' + qc + '">' + esc(entry.runes) + '</div>';
+    h += _d2TipBase(entry);
     (entry.lines || []).forEach(function(l){ h += '<div class="' + (l.cls || 'd2t-p') + '">' + (l.html != null ? l.html : esc(l.t)) + '</div>'; });
     if (entry.sockets > 0 && !(entry.lines || []).some(function(l){ return l.sock || /Socketed \(/.test(l.html || l.t || ''); }))
       h += one(_cbUi('Socketable', 'Socketed (%i)'), [entry.sockets], 'd2t-p');
@@ -53589,7 +53758,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       h += '<div class="d2t-set" style="margin-top:6px">' + esc(entry.setName || '') + '</div>';
       entry.set.forEach(function(l){ h += '<div class="' + (l.cls || 'd2t-set') + '">' + (l.html != null ? l.html : esc(l.t)) + '</div>'; });
     }
-    if ((rq.str || rq.dex) && !at) h += '<div class="d2t-note">strength / dexterity: UNKNOWN until the character has attributes — never red on a guess</div>';
+    h += _d2tAttrNote(entry);
     return h;
   }
   var _tipEl = null;
@@ -54245,6 +54414,26 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     return socks + '</div>';
   }
+  /* #253 (GrokBot ACT 5854814442) - THE EDIT PANEL SHOWS THE BASE. Maxroll's Base Items panel prints a base's damage,
+     defense, requirements, durability, speed and sockets; ours printed "Normal · Crowbill · Required Level 25". Its rows
+     are now the tooltip's own (_d2TipBase over the SAME _cbTipEntry the hover box reads - Hel's -20% and ethereal's -10
+     move them exactly as they move the box), plus the one line the box never prints: the most sockets this base takes
+     at its item level - the Sockets box's own ceiling (_cbSockRange), never a second count. What the rows cannot say
+     (a defense or damage the game's code decides) is said beside them (tr.baseUnk), and the strength / dexterity note
+     is the box's. -> '' when the item has no base rows at all (a charm, a ring). [[copy-drift]] [[unknown-stays-unknown]] */
+  function _cbEdBaseHtml(tr, e, it){
+    var rows = _d2TipBase(tr), sr = _cbSockRange(e, it);
+    /* a fixed count (a runeword's runes) is its Sockets; a choice is the most it may take */
+    if (sr.hi > 0) rows += _d2tRow(sr.lo === sr.hi ? 'Sockets: %d' : 'Max Sockets: %d', [sr.hi], 'd2t-w').replace('<div class="d2t-w">', '<div class="d2t-w" title="' + esc(sr.why || ('the base\'s own sockets, capped by its type at item level ' + (e.ilvl || 99))) + '">');
+    (tr.baseUnk || []).forEach(function(l){ rows += '<div class="' + (l.cls || 'd2t-unk') + '">' + esc(l.t) + '</div>'; });
+    if (!rows) return '';
+    return '<div class="cb-ed-base" id="cb-ed-base" role="group" aria-label="the base: its own lines, as the tooltip prints them">' + rows + _d2tAttrNote(tr) + '</div>';
+  }
+  /* the level a character must have, said in the note only when THIS character cannot wear it - the number itself is a
+     row of the base (_cbEdBaseHtml) */
+  function _cbEdCannot(tr, clvl){
+    return (tr.reqs.lvl && clvl != null && tr.reqs.lvl > clvl) ? ' · <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it: Required Level ' + tr.reqs.lvl + ')</span>' : '';
+  }
   function _cbEditHtml(e, slot){
     var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = _cbClvl(b);
     if (!it) return '<div class="cb-ed"><div class="cb-empty"><b>UNKNOWN</b> — "' + esc(e.name) + '" is not in the database this page carries.</div></div>';
@@ -54276,7 +54465,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     } else if (sr.key && !sTyped){
       socks = '<div class="cb-socks"><div class="cb-ed-q">Sockets</div><div class="cb-note">Socketed ' + sr.lo + '-' + sr.hi + ' - type its roll (in Sockets or in its own Socketed box) and the sockets appear here to fill</div></div>';
     } else socks = _cbSockFillHtml(e);
-    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (clvl != null && tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
+    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = _cbEdCannot(tr, clvl);
     return '<div class="cb-ed" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div>'
       +   '<div class="cb-ed-n ' + qc + '">' + esc(it[1]) + (base && base[0] !== it[1] ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
@@ -54284,6 +54473,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       +   '<div class="cb-ed-grid"><label class="cb-ed-f">Item level <input type="number" id="cb-ilvl" aria-label="item level, 1 to 99" min="1" max="99" value="' + (e.ilvl || 99) + '" onchange="window._cbEdit(\'ilvl\', this.value)"></label>'
       +     '<label class="cb-ed-f">Base ' + baseSel + '</label><label class="cb-ed-f">Sockets ' + sock + '</label>' + eth + '</div>'
       +   '<div class="cb-note">' + esc(CB_Q_SAY[it[2]] || '') + (it[2] === 'r' ? ' · ' + it[7].runes.map(function(r){ var k = d.rwRunes[r]; return k ? k[1].replace(/ Rune$/, '') : r; }).join(' + ') : '') + (it[2] === 's' && it[7] ? ' · ' + esc(it[7].set) : '') + rq + '</div>'
+      +   _cbEdBaseHtml(tr, e, it)
       + '</div></div>'
       + '<div class="cb-ed-q">' + esc((CB_Q_SAY[it[2]] || '').toUpperCase()) + '</div>'
       + '<ul class="cb-lines" id="cb-lines" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + (lines || '<li class="cb-l-unk">a base item: no properties of its own</li>') + '</ul>'
@@ -54412,13 +54602,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
           + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll" onmousemove="window._cbModHover(event)">' + _cbAddListHtml(e) + '</div>';
       add += '</div>';
     } else add = '<div class="cb-note">' + (q === 'low' ? 'A low-quality item carries no mods; its penalty is the game\'s own code, not a table value.' : 'A normal item carries no mods — choose Magic or Rare' + (qs.indexOf('sup') >= 0 ? ' (or Superior)' : '') + ' to add them.') + '</div>';
-    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = tr.reqs.lvl ? ' · Required Level ' + tr.reqs.lvl + (clvl != null && tr.reqs.lvl > clvl ? ' <span class="cb-bad" style="color:var(--hell)">(this level ' + clvl + ' character cannot wear it)</span>' : '') : '';
+    var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = _cbEdCannot(tr, clvl);
     return '<div class="cb-ed cb-ed-b" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div class="cb-ed-main">'
       +   '<div class="cb-ed-n ' + qcls + '" id="cb-ed-name">' + esc(sh.name) + (sh.base ? ' <span class="' + qcls + '">' + esc(sh.base) + '</span>' : '') + '</div>'
       +   '<div class="cb-ed-acts"><button type="button" class="cb-btn" onclick="window._cbPickTab(\'select\')">⟳ Change Item</button><button type="button" class="cb-btn" onclick="window._cbUnequip()">✕ ' + (st.pick.kind === 'inv' ? 'Remove' : 'Unequip') + '</button></div>'
       +   '<div class="cb-ctls">' + ctl.join('') + '</div>'
       +   '<div class="cb-note">' + esc(CB_Q_OF[q] || '') + ' · ' + esc(base ? base[0] : e.base) + rq + '</div>'
+      +   _cbEdBaseHtml(tr, e, it)
       + '</div></div>'
       + '<div class="cb-mods-h">Regular Mods</div>'
       + '<div class="cb-mods" id="cb-mods" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + mods + add + '</div>'
@@ -54804,6 +54995,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     _cbRender();
   };
   function _cbCur(b){ var p = st.pick, s = b.sets[b.active | 0]; return p.kind === 'slot' ? s.slots[p.slot] : s.inv[p.i]; }
+  /* #253 - the base rows of the item the Edit tab is on, exactly as _cbEditHtml / _cbBaseEditHtml draw them: the same
+     entry (the builder's build, or the mule host's one slot), the same _cbTipEntry, the same _cbEdBaseHtml. null = the
+     Edit tab is not up, so there is nothing to re-draw */
+  function _cbEdBaseNow(){
+    var p = st.pick, b = _cbBuild(); if (!p || p.tab !== 'edit' || !b) return null;
+    var e = _cbCur(b), it = e && _cbItem(e.id); if (!it) return null;
+    return _cbEdBaseHtml(_cbTipEntry(e, it, _cbClvl(b), p.kind === 'inv' ? 'inv' : p.slot, b.cls), e, it);
+  }
   window._cbEdit = function(k, v){
     var p = st.pick; if (!p) return;
     var said = null, bad = false;
@@ -54877,6 +55076,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   };
   /* re-draw what a roll moves (the doll, the stats) without replacing the box he is typing in */
   function _cbRefreshQuiet(){
+    /* #253 - THE EDIT TAB'S BASE ROWS MOVE WITH A SOCKET OR A ROLL. A Hel picked into a Crowbill's socket (or a typed
+       rolled requirement) left the rows at 94 / 70 until something else re-drew the tab: this refresh re-drew only the
+       doll and the stats, so the socket list he is on would stay his. The rows hold no box he types in, so they are
+       re-drawn in place - in the mule host too - and the socket list and the roll box stay where they are. */
+    var eb = document.getElementById('cb-ed-base'), nb = eb ? _cbEdBaseNow() : null;
+    if (eb && nb != null) eb.outerHTML = nb || '<div id="cb-ed-base" hidden></div>';
     if (st.pick && st.pick.host === 'mule') return;   // #174 v-B4: the mule's store is written; the modal (and the box he types in) stays
     var b = _cbBuild(), s = _cbSet(); if (!b) return;
     var L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900);

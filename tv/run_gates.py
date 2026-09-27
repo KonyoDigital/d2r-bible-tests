@@ -5715,6 +5715,18 @@ GATES = [
              "blunt base's +50% undead (the game's code - ours UNKNOWN), an untyped IAS roll across two bands (ours "
              "both words; typed at its top, theirs). Annihilus: Keep in Inventory + ONE all-Attributes roll; a unique "
              "and a set item keep their own lines. 8 cases, 10 red-proofs"),
+    Gate("test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character",
+         [sys.executable, os.path.join(HERE, "test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character.py")], 90,
+         why="#253 (GrokBot ACT 5854814442, v3517) - (a) the item Edit panel of a white Crowbill said only 'Normal · "
+             "Crowbill · Required Level 25'; its base rows are now the hover box's own (_d2TipBase over the SAME "
+             "_cbTipEntry): 14 to 34, Str 94 / Dex 70, Durability 26, Required Level once, the speed row, Max Sockets = the "
+             "Sockets box's ceiling at its item level (6 at 99, 4 at 20); a Hel moves it to 76 / 56 AT ONCE (the quiet "
+             "refresh), ethereal 84 / 60 (with Hel 68 / 48, damage x1.5, durability UNKNOWN), each equal to the box; a "
+             "runeword and a low-quality base the same (its UNKNOWN said). (b) the mule window's 'Character: none bound' "
+             "is a button whose rendered handler opens HIS characters (the Characters room's builds, MAIN first, and the "
+             "MAIN he named); a bind writes ONLY that locker's boundChar, Unbind removes it, a rename follows, a deleted "
+             "build is UNKNOWN, an empty store says how to add one, an unreadable one is UNKNOWN; Esc closes the list "
+             "first. 7 cases, 20 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
