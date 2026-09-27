@@ -4993,6 +4993,22 @@ GATES = [
              "that a TRUNCATED board read is UNKNOWN rather than a reported loss. Reproduced: a "
              "board holding 6000 against a 5000 sample cap reported 1000 names missing."),
 
+    Gate("test_the_backup_lane_survives_a_loss",
+         [sys.executable, os.path.join(HERE, "test_the_backup_lane_survives_a_loss.py")], 180,
+         why="2026-09-27 — MEASURED on his backups (shape only): setPieces 134 / owned 223 in "
+             "ledger_..._024127, 0 / 0 in 033127 (a vault reset) and in every backup after. The "
+             "restore took the NEWEST backup and would have put back nothing; no episode opened "
+             "(d2r_storeEmptied fires only on an empty FOUND ledger), so the one file that could "
+             "restore it survived by luck; `ledger entries` diffs only the two newest snapshots. "
+             "Pins, DRIVEN: ledger_restore.drops_between is the one definition of a drop; the plan "
+             "reads a dropped store from the last backup BEFORE the drop and the other doors read "
+             "the same source; a named file wins and a traversal/symlink/foreign/unrouted one is "
+             "refused, through the real routes; ONE real loop iteration opens a durable episode and "
+             "the prune keeps its before-file past every age rule; the episode closes on recovery, "
+             "a first look replays an older drop, an unreadable record is set aside and the prune "
+             "deletes nothing meanwhile; and the doctor row `ledger drop` names the drop and the "
+             "door, is UNKNOWN when blind, and flags a watcher that stopped judging."),
+
     Gate("test_board_read_js_has_no_free_variables",
          [sys.executable, os.path.join(HERE, "test_board_read_js_has_no_free_variables.py")], 120,
          why="v2735 — v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. There is "

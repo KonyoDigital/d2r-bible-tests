@@ -45,6 +45,17 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
         self.d = tempfile.mkdtemp(prefix="ledgerprune.")
         self.addCleanup(shutil.rmtree, self.d, True)
         self.now = self.PINNED_NOW
+        # ⚠ 2026-09-27 — the prune now also reads the backup loop's LEDGER-DROP record, resolved at
+        # call time through _fixture_root_for_state(). Without a fixture world this law would read
+        # HIS live record, and a damaged one (the prune then deletes nothing, by design) would turn
+        # these cases red for a reason that is his machine, not the code. Guard the fixture.
+        # [[feedback-fixtures-never-touch-live-data]]
+        _world = tempfile.mkdtemp(prefix="ledgerprune.world.")
+        self.addCleanup(shutil.rmtree, _world, True)
+        _old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = _world
+        self.addCleanup(lambda: os.environ.__setitem__("TV_HIST", _old) if _old is not None
+                        else os.environ.pop("TV_HIST", None))
 
     def _snap(self, name, age_s, emptied=None):
         p = os.path.join(self.d, name)

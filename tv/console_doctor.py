@@ -813,6 +813,103 @@ def _check_the_backup_loop_is_actually_WRITING():
                 % (why[:60], int(writes or 0)))
 
 
+#: A backup the watcher has not judged is "stopped" only past this age. The loop writes the file and
+#: judges it in the same breath, so a few seconds of lag is a race, not an outage.
+_DROP_JUDGE_GRACE_S = 300.0
+
+
+def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
+    """2026-09-27 — A STORE FELL TO ZERO AND NOTHING SAID SO.
+
+    MEASURED on his real backups (shape only): ledger_..._024127 held setPieces 134 / owned 223, the
+    033127 file held 0 / 0 — a vault reset — and every backup after it held 0. Three rows could have
+    seen it and none did: `ledger entries` compares only the TWO NEWEST snapshots, so one snapshot
+    after the drop it went clean with the pieces still gone; `store emptied` reads a flag the board
+    writes only when the FOUND ledger comes up empty at load; and the restore door took the NEWEST
+    backup, which held nothing to put back. The 02:41 file survived because the prune had not
+    reached it — luck, not policy.
+
+    This row reads the backup loop's own DURABLE drop record (`_ledger_drop_watch`), which opens an
+    episode on a drop and closes it only when the store is back to >= where it fell from. So an
+    open drop stays red across any number of later snapshots — a peak, not a pairwise diff.
+
+    ⚠ UNKNOWN, never clean: no readable backup dir, no record yet (the watcher never ran), or a
+    record that will not parse. And the watcher is watched: a newest backup it never judged means
+    it has stopped, and a drop since then would be unseen. [[heart-first]] [[unknown-stays-unknown]]
+    """
+    now = time.time() if now is None else now
+    try:
+        import control_app as _ca
+        bdir = bdir or _ca._LEDGER_BACKUP_DIR
+        drops_path = drops_path or _ca._ledger_drops_path()
+        _load = _ca.ledger_drops_load
+    except Exception as e:
+        return UNKNOWN, ("the console's drop watcher will not import (%s), so whether a ledger "
+                         "store dropped is UNKNOWN" % str(e)[:60])
+    try:
+        names = sorted(n for n in os.listdir(bdir) if n.startswith("ledger_") and n.endswith(".json"))
+    except Exception as e:
+        return UNKNOWN, ("the ledger-backup directory cannot be read (%s), so a drop would be "
+                         "invisible — UNKNOWN, not clean" % type(e).__name__)
+    if not names:
+        return UNKNOWN, "no ledger backup is on disk, so there is nothing a drop could be measured in"
+    doc, why = _load(drops_path)
+    if doc is None:
+        return UNKNOWN, ("%s, so which stores dropped is UNKNOWN. The next snapshot sets it aside "
+                         "and rebuilds it from the backups themselves" % why)
+    if why == "absent":
+        return UNKNOWN, ("the drop watcher has never written its record (%d backup(s) on disk), so "
+                         "whether a store dropped is UNMEASURED — not clean" % len(names))
+    episodes = [e for e in doc.get("episodes") or [] if isinstance(e, dict)]
+    open_eps = [e for e in episodes if e.get("open")]
+
+    # the watchdog on the watcher: the newest backup must have been judged
+    stopped = ""
+    judged = [str(v) for v in (doc.get("lastJudged") or {}).values() if v]
+    newest = names[-1]
+    if newest not in judged and newest > max(judged or [""]):
+        try:
+            age_s = now - os.path.getmtime(os.path.join(bdir, newest))
+        except Exception:
+            age_s = None
+        if age_s is None or age_s > _DROP_JUDGE_GRACE_S:
+            stopped = ("the drop watcher has NOT judged the newest backup %s (%s; last judged %s) "
+                       "— it has stopped, so a drop since then is UNSEEN"
+                       % (newest, ("%d min old" % int(age_s / 60)) if age_s is not None
+                          else "age unreadable", max(judged) if judged else "nothing"))
+
+    if open_eps:
+        def _when(e):
+            try:
+                return time.strftime("%Y-%m-%d %H:%M", time.localtime(float(e.get("at")) / 1000.0))
+            except Exception:
+                return "in %s" % e.get("afterFile")
+        open_eps.sort(key=lambda e: (str(e.get("afterFile")), str(e.get("store"))))
+        parts = ["%s fell %s -> %s at %s (last backup before it: %s)"
+                 % (e.get("store"), e.get("from"), e.get("to"), _when(e), e.get("beforeFile"))
+                 for e in open_eps]
+        via_chronicle = sorted(set(str(e.get("store")) for e in open_eps
+                                   if e.get("store") in ("foundLog", "setPieces", "rwMade")))
+        owned = any(e.get("store") == "owned" for e in open_eps)
+        door = ("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
+                "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "
+                "\"file\": \"%s\" to take every store from that one file)"
+                % (", ".join(via_chronicle) or "each dropped store", open_eps[0].get("beforeFile")))
+        if owned:
+            door += ("; owned is a possession record and is NOT put back by that door — "
+                     "/api/owned_restore is its own, confirm required")
+        if any(e.get("store") == "gameFound" for e in open_eps):
+            door += "; gameFound has NO restore door yet — it is backed up, not restorable"
+        return MISSING, ("A LEDGER STORE DROPPED and has not come back: %s. %s. Nothing is put back "
+                         "on its own; the backup it needs is kept from the prune while the drop is "
+                         "open.%s" % ("; ".join(parts), door, (" ⚠ " + stopped) if stopped else ""))
+    if stopped:
+        return MISSING, stopped
+    n_closed = len(episodes) - len(open_eps)
+    return OK, ("no ledger store has an open drop — %d drop(s) on record, all back to where they "
+                "fell from; the newest backup %s was judged" % (n_closed, newest))
+
+
 #: Stations that owe something NO automatic lane can deliver, and why each is by design rather than
 #: a gap. ⚠ Without this split the row cries wolf on 40 of 40 and gets ignored — and a distrusted
 #: instrument is a switched-off instrument, which is how the defects below survived in the first place.
@@ -8647,6 +8744,10 @@ CHECKS = [
     ("evidence ledger", _check_the_evidence_ledger_is_readable),
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
+    # 2026-09-27 — a store that FELL (setPieces 134 -> 0, owned 223 -> 0) and every row above was
+    # green: `ledger entries` diffs only the two newest snapshots. This reads the loop's durable
+    # drop record, which stays open until the store is back — and watches the watcher.
+    ("ledger drop", _check_no_ledger_store_dropped_unseen),
     ("console painted whole", _check_the_console_painted_all_of_itself),
     ("names banked", _check_read_names_are_actually_banked),
     ("read names lane", _check_read_names_lane),
@@ -9359,6 +9460,7 @@ WATCHES = {
     "evidence ledger":             (),
     "ledger backup":               ("_ledger_backup_loop",),
     "backup loop":                 ("_ledger_backup_loop",),
+    "ledger drop":                 ("_ledger_backup_loop",),
     "console painted whole":       ("console", "page"),
     "names banked":                (),
     "read names lane":             (),

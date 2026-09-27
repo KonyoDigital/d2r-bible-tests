@@ -71,6 +71,133 @@ RESTORABLE = {"foundLog": "uniques", "setPieces": "sets"}
 #: silently covered two of five stores while reporting success is the worst kind.
 BACKED_UP_ONLY = ("rwMade", "gameFound", "owned")
 
+# ══ THE DROP — ONE DEFINITION, READ BY THE RESTORE PLAN *AND* BY THE BACKUP LOOP'S WATCHER ══════
+# MEASURED 2026-09-27 on his real backup dir (shape only): ledger_2026-09-27_024127.json held
+# setPieces 134 / owned 223, the 033127 file held 0 / 0 (a vault reset), and every backup after it
+# held 0. `plan()` took hits[0] — the NEWEST — so the restore door would have put back NOTHING, and
+# nothing opened an episode (d2r_storeEmptied only opens when the FOUND ledger comes up empty at
+# load), so the 02:41 file survived only because the prune had not reached it yet. Luck is not a
+# retention policy. [[the-unjoined-end]] [[unknown-stays-unknown]]
+#
+# ⚠ ONE function decides what a drop is, and both halves call it: `plan()` replays the chain to
+# pick a per-store source, and control_app's `_ledger_drop_watch` steps it once per snapshot to open
+# and close the durable episode record the prune honours. Two definitions would drift, and the day
+# they disagree is the day the prune deletes the file the plan was about to restore from. [[copy-drift]]
+
+#: Every store the automatic backup carries, in the order a drop is reported.
+BACKED_UP = ("foundLog", "setPieces", "owned", "rwMade", "gameFound")
+#: A fall is a DROP when the store reaches 0, or falls by at least max(DROP_MIN, DROP_FRAC x before).
+#: The floor keeps a small store's ordinary churn (30 -> 21) from crying wolf; the fraction keeps a
+#: large store's real loss (445 -> 300) from hiding under a fixed count.
+DROP_MIN = 10
+DROP_FRAC = 0.25
+#: The count the board reports INDEPENDENTLY for a store a snapshot OMITS when it is empty —
+#: `_ledger_snapshot_once` folds rwMade/gameFound into the ledger only when non-empty, so an absent
+#: rwMade beside `counts.runewordsMade == 0` is a measured zero. gameFound has no independent count,
+#: so an absent gameFound is UNKNOWN and can never be read as a drop to zero.
+_COUNT_KEY = {"foundLog": "foundLog", "setPieces": "setPieces", "owned": "owned",
+              "rwMade": "runewordsMade"}
+
+
+def _ledger_of(x):
+    """A backup blob or a bare ledger -> (ledger dict, counts dict)."""
+    if isinstance(x, dict) and isinstance(x.get("ledger"), dict):
+        return x["ledger"], (x.get("counts") if isinstance(x.get("counts"), dict) else {})
+    return (x if isinstance(x, dict) else {}), {}
+
+
+def store_count(x, store):
+    """How many rows `store` held in a backup blob (or a bare ledger). -> int, or None = UNKNOWN.
+
+    A store the file does not carry is NOT zero unless the board's own independent count says so —
+    "nobody copied it" and "he had none" must never read the same. [[unknown-stays-unknown]]
+    """
+    led, counts = _ledger_of(x)
+    v = led.get(store)
+    if isinstance(v, (list, dict)):
+        return len(v)
+    ck = _COUNT_KEY.get(store)
+    c = counts.get(ck) if ck else None
+    if isinstance(c, int) and not isinstance(c, bool) and c >= 0:
+        return c
+    return None
+
+
+def drops_between(prev_ledger, next_ledger):
+    """Every backed-up store that DROPPED from one snapshot to the next. -> [{store, from, to}]
+
+    Takes a backup blob or a bare ledger on either side. A store whose count is UNKNOWN on either
+    side is never a drop — an unreadable reading is not a loss, and reporting one would send him to
+    restore rows he never lost.
+    """
+    out = []
+    for store in BACKED_UP:
+        a = store_count(prev_ledger, store)
+        b = store_count(next_ledger, store)
+        if a is None or b is None or a <= 0 or b >= a:
+            continue
+        if b == 0 or (a - b) >= max(DROP_MIN, DROP_FRAC * a):
+            out.append({"store": store, "from": a, "to": b})
+    return out
+
+
+def stamp_ms(name_or_stamp):
+    """'ledger_2026-09-27_033127.json' or '2026-09-27_033127' -> epoch ms, or None.
+
+    The writer stamps with `time.strftime` (the machine's LOCAL clock), so this reads it back with
+    the local clock too. An unparseable stamp is None, never "now". [[stale-reading]]
+    """
+    import re
+    import time
+    m = re.search(r"(\d{4}-\d{2}-\d{2}_\d{6})", str(name_or_stamp or ""))
+    if not m:
+        return None
+    try:
+        return int(time.mktime(time.strptime(m.group(1), "%Y-%m-%d_%H%M%S")) * 1000)
+    except Exception:
+        return None
+
+
+def step_episodes(episodes, prev, nxt, prev_file, next_file, route_key=None, at_ms=None):
+    """ONE step of the drop watcher. Mutates `episodes`; writes nothing. -> (opened, closed)
+
+    1. every OPEN episode for this route whose store is back to >= its `from` CLOSES — a store the
+       new snapshot cannot count stays open (UNKNOWN is not a recovery);
+    2. every drop between `prev` and `nxt` OPENS an episode naming the file BEFORE it, which is the
+       file a restore needs and the file the prune must not take while the episode is open.
+    """
+    opened, closed = [], []
+    for ep in episodes:
+        if not (isinstance(ep, dict) and ep.get("open")) or ep.get("routeKey") != route_key:
+            continue
+        n = store_count(nxt, ep.get("store"))
+        try:
+            back = n is not None and n >= int(ep.get("from") or 0)
+        except (TypeError, ValueError):
+            back = False
+        if back:
+            ep.update({"open": False, "closedAt": at_ms, "closedBy": next_file, "closedCount": n})
+            closed.append(ep)
+    for dr in drops_between(prev, nxt):
+        ep = {"store": dr["store"], "from": dr["from"], "to": dr["to"],
+              "beforeFile": prev_file, "afterFile": next_file, "at": at_ms,
+              "routeKey": route_key, "open": True}
+        episodes.append(ep)
+        opened.append(ep)
+    return opened, closed
+
+
+def replay(chain, route_key=None):
+    """Run the watcher over a chain of one route's backups, OLDEST FIRST. -> every episode.
+
+    `chain` is [(file_name, blob), ...]. The same `step_episodes` the backup loop runs once per
+    snapshot, so a plan and the durable record cannot disagree about what a drop is.
+    """
+    eps = []
+    for (pf, pb), (nf, nb) in zip(chain, chain[1:]):
+        step_episodes(eps, pb, nb, pf, nf, route_key=route_key, at_ms=stamp_ms(nf))
+    return eps
+
 
 def _route_key(route):
     """A route dict -> the key a backup file is matched on. -> str or None."""
@@ -128,53 +255,169 @@ def backups_for(route, d=None):
     return hits, why
 
 
-def plan(route, current, d=None):
-    """What the newest matching backup would put back. -> dict. Reads only.
+def explicit_backup(route, name, d=None):
+    """The backup HE NAMED, validated. -> ((path, blob), "") or (None, why). Reads only.
+
+    ⚠ A NAME, NEVER A PATH. The door takes a basename that must resolve to a `ledger_*.json` file
+    directly inside the backup directory (after symlinks), carrying THIS profile's route. Anything
+    else — `../x.json`, an absolute path, a sub-directory, a symlink that points out, an unrouted
+    file, another profile's file — is refused with the reason, because a restore door that can be
+    pointed at an arbitrary file is a door that can put anyone's ledger into his.
+    """
+    if not isinstance(name, str) or not name.strip():
+        return None, "no backup file was named"
+    name = name.strip()
+    if (os.path.basename(name) != name or "/" in name or "\\" in name or "\x00" in name
+            or name in (".", "..")):
+        return None, ("refused %r — a backup is named by its file name inside the backup "
+                      "directory, never by a path" % name[:80])
+    if not (name.startswith("ledger_") and name.endswith(".json")):
+        return None, "refused %r — not a ledger backup (ledger_*.json)" % name[:80]
+    d = d or BACKUP_DIR
+    want = _route_key(route)
+    if not want:
+        return None, "no route was given, so no backup can be matched to a profile"
+    try:
+        real_d = os.path.realpath(d)
+        real_p = os.path.realpath(os.path.join(d, name))
+    except Exception as e:
+        return None, "refused %r — its location could not be resolved (%s)" % (name[:80], type(e).__name__)
+    if os.path.dirname(real_p) != real_d:
+        return None, "refused %r — it resolves OUTSIDE the backup directory" % name[:80]
+    if not os.path.isfile(real_p):
+        return None, "there is no backup named %r in the backup directory" % name[:80]
+    try:
+        with io.open(real_p, encoding="utf-8") as fh:
+            blob = json.load(fh)
+    except Exception as e:
+        return None, "the backup %r will not parse (%s)" % (name[:80], type(e).__name__)
+    got = _route_key((blob or {}).get("route") if isinstance(blob, dict) else None)
+    if got is None:
+        return None, ("refused %r — it predates the route stamp, so whose ledger it holds cannot be "
+                      "told" % name[:80])
+    if got != want:
+        return None, "refused %r — it is ANOTHER profile's backup, not this one's" % name[:80]
+    return (real_p, blob), ""
+
+
+def _sources_after_drops(route, hits):
+    """Per store, which backup a restore should read. -> ({store: (path, blob, why)}, [open drop])
+
+    The newest backup is the source for every store UNLESS it sits after an unrecovered drop of that
+    store; then the source is the last backup BEFORE the drop. When a store dropped more than once
+    and never came back, the open drop with the HIGHEST `from` wins — it holds the most, and the
+    door is add-only, so an older source can only add back what is missing.
+    """
+    rk = _route_key(route)
+    newest_p, newest_b = hits[0]
+    newest = os.path.basename(newest_p)
+    byname = dict((os.path.basename(p), (p, b)) for p, b in hits)
+    eps = replay([(os.path.basename(p), b) for p, b in reversed(hits)], route_key=rk)
+    sources, drops = {}, []
+    for s in BACKED_UP:
+        live = [e for e in eps if e.get("open") and e.get("store") == s
+                and e.get("beforeFile") in byname]
+        if not live:
+            sources[s] = (newest_p, newest_b, "the newest backup")
+            continue
+        best = max(live, key=lambda e: (e.get("from") or 0, e.get("beforeFile") or ""))
+        bp, bb = byname[best["beforeFile"]]
+        drops.append({"store": s, "from": best["from"], "to": best["to"],
+                      "beforeFile": best["beforeFile"], "afterFile": best["afterFile"]})
+        sources[s] = (bp, bb, "the newest backup (%s) sits AFTER a drop — %s fell %d -> %d in %s — "
+                              "so %s comes from %s, the last backup BEFORE the drop"
+                      % (newest, s, best["from"], best["to"], best["afterFile"], s,
+                         best["beforeFile"]))
+    return sources, drops
+
+
+def _names(v):
+    """A store's names, list or dict alike."""
+    if isinstance(v, list):
+        return list(v)
+    if isinstance(v, dict):
+        return list(v.keys())
+    return []
+
+
+def plan(route, current, d=None, file=None):
+    """What the backups for this profile would put back. -> dict. Reads only.
 
     `current` is the board's ledger as it stands now: {"foundLog": {...}, "setPieces": [...], ...}
     A store the caller could not read must be passed as None, not {} — restoring INTO an unknown
     is how a restore invents a loss.
+
+    `file` — a backup HE NAMED wins outright (validated by `explicit_backup`): every store comes
+    from it. Without one, each store reads the newest backup unless that backup sits after an
+    unrecovered DROP of the store, in which case the store reads the last backup BEFORE the drop —
+    and says so, per store, in `source` / `sourceWhy` and in the plan's `why`.
     """
-    hits, why = backups_for(route, d)
-    if not hits:
-        return {"ok": False, "why": why or "no matching backup"}
-    path, blob = hits[0]
-    led = (blob or {}).get("ledger") or {}
+    if file is not None:
+        pick, fwhy = explicit_backup(route, file, d)
+        if pick is None:
+            return {"ok": False, "why": fwhy}
+        path, blob = pick
+        sources = dict((s, (path, blob, "you named %s, so every store comes from it"
+                            % os.path.basename(path))) for s in BACKED_UP)
+        drops = []
+    else:
+        hits, why = backups_for(route, d)
+        if not hits:
+            return {"ok": False, "why": why or "no matching backup"}
+        path, blob = hits[0]
+        sources, drops = _sources_after_drops(route, hits)
     out, missing_total = {}, 0
     for store, half in sorted(RESTORABLE.items()):
+        spath, sblob, swhy = sources[store]
+        src = {"source": os.path.basename(spath), "sourceWhy": swhy}
+        led = (sblob or {}).get("ledger") or {}
         have = current.get(store)
         if have is None:
-            out[store] = {"half": half, "missing": None,
-                          "why": "the board's %s could not be read, so what is missing from it is "
-                                 "UNKNOWN — not everything, and not nothing" % store}
+            out[store] = dict(src, half=half, missing=None,
+                              why="the board's %s could not be read, so what is missing from it is "
+                                  "UNKNOWN — not everything, and not nothing" % store)
             continue
         backed = led.get(store)
         if not isinstance(backed, (dict, list)):
-            out[store] = {"half": half, "missing": None,
-                          "why": "the backup carries no %s to restore from" % store}
+            out[store] = dict(src, half=half, missing=None,
+                              why="the backup carries no %s to restore from" % store)
             continue
         have_set = set(have if isinstance(have, list) else have.keys())
         back_keys = list(backed if isinstance(backed, list) else backed.keys())
         gap = [k for k in back_keys if k not in have_set]
         missing_total += len(gap)
-        out[store] = {"half": half, "missing": gap, "count": len(gap),
-                      "inBackup": len(back_keys), "onBoard": len(have_set),
-                      "why": "%d name(s) are in the backup and not on the board" % len(gap)}
+        out[store] = dict(src, **{"half": half, "missing": gap, "count": len(gap),
+                                  "inBackup": len(back_keys), "onBoard": len(have_set),
+                                  "why": "%d name(s) are in %s and not on the board"
+                                         % (len(gap), os.path.basename(spath))})
+    # #246 W0c — the backup's own set-piece list, so proposal_from can send a set-piece key through
+    # the SETS half. A backup's d2r_foundLog carries every set piece too (toggleSetPiece writes the
+    # found ledger by design), and sent as a "unique" a piece fell into d2r_owned and was filed.
+    # ⚠ THE UNION OVER EVERY FILE THIS PLAN READS. After a vault reset the NEWEST backup holds
+    # setPieces [] while foundLog still carries the pieces — taking the list from the newest alone
+    # would send every piece down the uniques half, the exact #246 W0c refill.
+    _pieces = set()
+    for _sp, _sb, _sw in [(path, blob, "")] + list(sources.values()):
+        _pieces.update(_names(((_sb or {}).get("ledger") or {}).get("setPieces")))
+    names_out = dict((s, os.path.basename(v[0])) for s, v in sources.items())
+    moved = sorted(s for s in names_out if names_out[s] != os.path.basename(path))
+    from_say = os.path.basename(path) + (
+        " (%s)" % "; ".join("%s from %s" % (s, names_out[s]) for s in moved) if moved else "")
+    base_why = ("%s would put back %d name(s) across %d store(s); %s are backed up but cannot be "
+                "restored through the chronicle door and need their own path"
+                % (from_say, missing_total, len(RESTORABLE), ", ".join(BACKED_UP_ONLY)))
     return {
         "ok": True, "file": os.path.basename(path), "takenAt": (blob or {}).get("takenAt"),
         "route": (blob or {}).get("route"), "stores": out, "missingTotal": missing_total,
-        # #246 W0c — the backup's own set-piece list, so proposal_from can send a set-piece key through
-        # the SETS half. A backup's d2r_foundLog carries every set piece too (toggleSetPiece writes the
-        # found ledger by design), and sent as a "unique" a piece fell into d2r_owned and was filed.
-        "setPieceNames": sorted(k for k in (led.get("setPieces") if isinstance(led.get("setPieces"), list)
-                                            else (led.get("setPieces") or {}).keys()
-                                            if isinstance(led.get("setPieces"), dict) else [])),
+        "setPieceNames": sorted(_pieces),
+        # every backed-up store's source, so the doors for the stores this one cannot carry read
+        # the SAME file the plan chose for them rather than re-deciding. [[copy-drift]]
+        "sources": names_out, "fromSay": from_say, "drops": drops,
+        "named": file is not None,
         # ⚠ SAID, NOT SILENTLY OMITTED. Three backed-up stores cannot travel through this door.
         "notRestorableHere": list(BACKED_UP_ONLY),
-        "why": ("%s would put back %d name(s) across %d store(s); %s are backed up but cannot be "
-                "restored through the chronicle door and need their own path"
-                % (os.path.basename(path), missing_total, len(RESTORABLE),
-                   ", ".join(BACKED_UP_ONLY))),
+        "why": (("DROP-AWARE: %s. " % "; ".join(sources[s][2] for s in moved) if drops and moved
+                 else "") + base_why),
     }
 
 
@@ -198,24 +441,33 @@ def backed_up_only_from(plan_out, d=None):
     if not (isinstance(plan_out, dict) and plan_out.get("ok") and plan_out.get("file")):
         return {}, "no plan to read a backup from"
     d = d or BACKUP_DIR
-    path = os.path.join(d, plan_out["file"])
+    # ⚠ EACH STORE FROM THE FILE THE PLAN CHOSE FOR IT. After a drop, owned/rwMade may come from the
+    # last backup BEFORE the drop rather than the newest; re-reading `file` here would hand the
+    # runeword door the emptied snapshot. basename() because this names a file in `d`, never a path.
+    _srcs = plan_out.get("sources") if isinstance(plan_out.get("sources"), dict) else {}
+    _cache = {}
+
+    def _led_for(store):
+        n = os.path.basename(str(_srcs.get(store) or plan_out["file"]))
+        if n not in _cache:
+            with io.open(os.path.join(d, n), encoding="utf-8") as fh:
+                _cache[n] = (json.load(fh) or {}).get("ledger") or {}
+        return _cache[n]
     try:
-        with io.open(path, encoding="utf-8") as fh:
-            blob = json.load(fh)
+        led_owned, led_rw, led_gf = _led_for("owned"), _led_for("rwMade"), _led_for("gameFound")
     except Exception as e:
         return {}, "the backup could not be re-read (%s)" % str(e)[:60]
-    led = (blob or {}).get("ledger") or {}
     out = {}
-    owned = led.get("owned")
+    owned = led_owned.get("owned")
     if isinstance(owned, list) and owned:
         out["owned"] = owned
-    rw = led.get("rwMade")
+    rw = led_rw.get("rwMade")
     if isinstance(rw, dict) and rw:
         out["rwMade"] = rw
     why = ""
-    if isinstance(led.get("gameFound"), dict) and led["gameFound"]:
+    if isinstance(led_gf.get("gameFound"), dict) and led_gf["gameFound"]:
         why = ("gameFound carries %d row(s) and still has no door — it is NOT restored here, and "
-               "saying so is the point" % len(led["gameFound"]))
+               "saying so is the point" % len(led_gf["gameFound"]))
     return out, why
 
 

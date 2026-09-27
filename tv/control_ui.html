@@ -20203,7 +20203,7 @@ window._lockMark = function(isOpen, px, label){
   window.__restorePlanned = null;
   $('btn-restore-plan').onclick = async function(){
     var out = $('restore-out'); this.disabled = true;
-    out.innerHTML = 'reading the newest backup for this profile\u2026';
+    out.innerHTML = 'reading the backups for this profile\u2026';
     try {
       var r = await fetch(API + '/api/ledger_restore_plan', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
@@ -20227,7 +20227,9 @@ window._lockMark = function(isOpen, px, label){
                + st.onBoard + ' on the board)</span></div>'));
         });
         var nr = (j.notRestorableHere || []);
-        out.innerHTML = '<div style="color:#8fd0a0">' + escC(j.file || '') + '</div>' + rows.join('')
+        /* 2026-09-27 — fromSay, not file: after a drop the newest file is the EMPTIED one and a
+           dropped store is read from the backup BEFORE the drop; the headline names both. */
+        out.innerHTML = '<div style="color:#8fd0a0">' + escC(j.fromSay || j.file || '') + '</div>' + rows.join('')
           + (nr.length ? ('<div style="margin-top:4px;color:#e9b96e">\u26a0 ' + escC(nr.join(', '))
               + ' are backed up but cannot come back through this door \u2014 they need their own path</div>') : '');
         /* ⚠ ARMED ONLY WHEN THERE IS SOMETHING TO DO. An apply that would add nothing still
