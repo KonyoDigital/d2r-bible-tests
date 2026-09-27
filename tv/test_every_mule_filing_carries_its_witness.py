@@ -58,10 +58,10 @@ END = "⟦#246 VAULTFILE END⟧"
 SAY_START = "  var MP_SRC_SAY = { manual: 'placed by hand'"
 
 #: wholesale re-binds of the map, each with its reason. Anything else that assigns the map is a second door.
+#: 2026-09-27 — vaultReset's `assign={}` left this list: both reset doors now empty the map IN PLACE through
+#: window._VAULT_RESET_SCOPE (a removal, never a filing), pinned by test_a_vault_reset_clears_only_the_mules.
 WHOLESALE_OK = {
     "var assign = load(AK, {});": "the boot read of the store itself — the map as it was saved, not a filing",
-    "assign={}; try { _provWrite({}); } catch(e){} saveA(); renderVault();":
-        "vaultReset — his confirmed click clears every filing AND every witness row; a removal, never a filing",
 }
 
 
