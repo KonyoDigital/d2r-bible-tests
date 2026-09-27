@@ -43776,14 +43776,17 @@ function renderJournal(){
       seen:    Object.freeze({ store: SEEN_KEY, say: 'the scan ledger',
                  clear: function(){ window.LSR.removeItem(SEEN_KEY); } }),
       folder:  Object.freeze({ idb: FOLDER_DB + '/' + FOLDER_KEY, say: 'the linked screenshot folder', later: true,
-                 clear: function(){ return window._vUnlinkFolder(); } })
+                 clear: function(){ return window._vUnlinkFolder(); } }),
+      // 2026-09-27 — his ruling: a full reset clears the mules AND what he is marked as holding.
+      // Reset assignments does not name this part. persistOwned writes the emptied set.
+      owned:   Object.freeze({ store: 'd2r_owned', say: '✓ owned items',
+                 clear: function(){ owned.clear(); persistOwned(); } })
     }),
     doors: Object.freeze({
       vaultReset:        Object.freeze(['assign', 'prov']),
-      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder'])
+      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])
     }),
     keeps: Object.freeze([
-      { store: 'd2r_owned',          say: '✓ owned items', n: 1 },
       { store: 'd2r_setPieces',      say: 'set pieces', n: 1 },
       { store: 'd2r_rwMade',         say: 'runewords', n: 1 },
       { store: 'd2r_foundLog',       say: 'the grail chronicle + its inbox' },
@@ -43855,11 +43858,17 @@ function renderJournal(){
       var n = (R && k.n) ? R.kept[k.store] : undefined;
       keeps.push(k.say + (typeof n === 'number' ? ' (' + n + ')' : (n === null ? ' (?)' : '')));
     });
+    // Reset assignments does not clear the owned list, and the confirm still says so.
+    // The other parts stay off that sentence: the assignments confirm must not claim the folder.
+    if ((S.doors[door] || []).indexOf('owned') < 0 && S.clears.owned && !said[S.clears.owned.say]) {
+      said[S.clears.owned.say] = 1;
+      keeps.push(S.clears.owned.say);
+    }
     return { clears: clears, keeps: keeps };
   }
   function _vaultResetConfirm(door){
     var w = _vaultResetWords(door), one = door === 'vaultReset';
-    return (one ? 'Reset the mule assignments?' : 'Reset the vault — the mules and the intake records?')
+    return (one ? 'Reset the mule assignments?' : 'Reset the vault — the mules, what you are marked as holding, and the intake records?')
       + '\n\nClears ONLY: ' + w.clears.join(' · ') + (one ? ' — every item returns to the unsorted dock.' : '.')
       + '\n\nStays untouched: ' + w.keeps.join(' · ') + '.'
       + '\n\nWhat it clears cannot be undone.';

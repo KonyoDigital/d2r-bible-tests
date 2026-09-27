@@ -67,16 +67,17 @@ PROV_TO = "  /* a filing taken OUT takes its witness row with it"
 
 #: what a reset may clear, by his ruling — pinned here, not read back from the thing under test
 SCOPE_STORES = {"assign": "d2r_muleAssign", "prov": "d2r_vaultProv",
-                "journal": "d2r_intakeLog", "seen": "d2r_intakeSeen"}
+                "journal": "d2r_intakeLog", "seen": "d2r_intakeSeen",
+                "owned": "d2r_owned"}
 FOLDER_IDB = "d2r_vault_fs/shotdir"
 DOORS = {"vaultReset": ["assign", "prov"],
-         "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder"]}
-#: what no reset may ever touch — the ledgers he named, and the brief's list
-NEVER = ("d2r_owned", "d2r_setPieces", "d2r_foundLog", "d2r_rwMade", "d2r_magicFinds", "d2r_copies",
+         "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder", "owned"]}
+#: what no reset may ever touch. d2r_owned is cleared by the FULL door only (his ruling 2026-09-27).
+NEVER = ("d2r_setPieces", "d2r_foundLog", "d2r_rwMade", "d2r_magicFinds", "d2r_copies",
          "d2r_unknownReads", "d2r_tally", "d2r_runeStash", "d2r_gemStash", "d2r_materialStash", "d2r_craftStash",
          "d2r_craftBaseStash", "d2r_statues", "d2r_chronicleInbox", "d2r_grailUnfound", "d2r_muleRoster")
 #: his own words for what stays — each must be on the confirm he reads
-HIS_WORDS = ("✓ owned", "set pieces", "runewords", "chronicle", "runes / gems / materials")
+HIS_WORDS = ("set pieces", "runewords", "chronicle", "runes / gems / materials")
 
 
 def _src():
@@ -140,6 +141,13 @@ window.renderRoutingLedger = function(){};
 window._repaintOwned = function(){};
 window._vUnlinkFolder = async function(){ UNLINKS++; delete IDB['d2r_vault_fs/shotdir']; };
 var assign = {}, owned = new Set(), setPieces = new Set(), unknownReads = new Set();
+function persistOwned(){
+  window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned)));
+  window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds));
+  window.LSR.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads)));
+  window.LSR.setItem('d2r_copies', JSON.stringify(copies));
+  window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
+}
 var magicFinds = {}, copies = {}, rwMade = {}, multiKeep = {};
 """
 
@@ -227,7 +235,7 @@ function run(label, door){
 
   /* the corroborator: a writer that reaches a kept store during the reset is NAMED, never read as clean */
   var _realSaveA = saveA;
-  saveA = function(){ _realSaveA(); STORE['d2r_owned'] = '[]'; };
+  saveA = function(){ _realSaveA(); STORE['d2r_setPieces'] = '[]'; };
   OUT.touched = await run('touched', 'vaultReset');
   saveA = _realSaveA;
 
@@ -268,7 +276,7 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         sc = self.o["scope"]
         self.assertEqual(SCOPE_STORES, dict((p, c["store"]) for p, c in sc["clears"].items() if c["store"]),
                          "the reset scope names a store his ruling does not allow: %r" % sc["clears"])
-        self.assertEqual({"assign", "prov", "journal", "seen", "folder"}, set(sc["clears"]))
+        self.assertEqual({"assign", "prov", "journal", "seen", "folder", "owned"}, set(sc["clears"]))
         self.assertEqual(FOLDER_IDB, sc["clears"]["folder"]["idb"])
         self.assertTrue(sc["clears"]["folder"]["later"], "the folder unlink is not the async step after the check")
         self.assertEqual(DOORS, sc["doors"], "a door clears a different part of the scope than declared")
@@ -301,7 +309,9 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertEqual("vaultReset", rc.get("door"), "the door did not clear through the scope's runner: %r" % rc)
         self.assertIs(True, rc.get("ok"), rc)
         self.assertEqual({"assign": 174, "prov": 174}, rc.get("cleared"))
-        self.assertEqual((223, 134), (rc["kept"]["d2r_owned"], rc["kept"]["d2r_setPieces"]))
+        self.assertEqual(134, rc["kept"]["d2r_setPieces"])
+        self.assertNotIn("d2r_owned", rc.get("cleared") or {}, "Reset assignments cleared the owned list")
+        self.assertEqual(r["before"]["store"].get("d2r_owned"), r["after"]["store"].get("d2r_owned"))
 
     def test_the_vault_reset_clears_only_the_mules_and_the_intake_records(self):
         f = self.o["full"]
@@ -314,16 +324,19 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertNotIn("d2r_intakeSeen", a, "the scan ledger survived the vault reset")
         self.assertEqual(0, f["assignLeft"])
         m0, m1 = f["before"]["mem"], f["after"]["mem"]
-        for k in ("owned", "setPieces", "magicFinds", "copies", "unknownReads", "rwMade", "multiKeep"):
+        for k in ("setPieces", "magicFinds", "copies", "unknownReads", "rwMade", "multiKeep"):
             self.assertEqual(m0[k], m1[k], "the vault reset emptied his in-memory %s" % k)
-        self.assertEqual((223, 134), (len(m1["owned"]), len(m1["setPieces"])))
+        self.assertEqual([], m1["owned"], "the full reset left him marked as holding items")
+        self.assertEqual("[]", a.get("d2r_owned"), "d2r_owned survived the full reset")
+        self.assertEqual(134, len(m1["setPieces"]))
         self.assertEqual(1, f["unlinks"], "the vault reset no longer unlinks the folder (v569)")
         self.assertNotIn(FOLDER_IDB, f["after"]["idb"])
         self.assertTrue(f["reportHidden"], "the last intake report still shows after the reset")
         rc = f["receipt"] or {}
         self.assertEqual("vaultClearHistory", rc.get("door"), rc)
         self.assertIs(True, rc.get("ok"), rc)
-        self.assertEqual({"assign": 174, "prov": 174, "journal": 12, "seen": 40, "folder": True}, rc.get("cleared"))
+        self.assertEqual({"assign": 174, "prov": 174, "journal": 12, "seen": 40, "folder": True,
+                          "owned": 223}, rc.get("cleared"))
 
     def test_the_words_he_reads_say_what_is_cleared_and_what_stays(self):
         says = self.o["scope"]["clears"]
@@ -346,16 +359,20 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         for bit in ("mule assignments (174)", "the scan ledger (40)", "kept untouched: ",
                     "✓ owned items (223)", "set pieces (134)", "runes / gems / materials"):
             self.assertIn(bit, st, "the status line after the vault reset does not say %r: %r" % (bit, st))
+        stays = st.split("kept untouched: ", 1)[-1]
+        self.assertNotIn("✓ owned", stays, "the full reset says the owned list stayed: %r" % st)
+        self.assertIn("✓ owned", (self.o["reset"]["confirm"] or "").split("Stays untouched: ", 1)[-1],
+                      "Reset assignments no longer says the owned list stays")
         self.assertIn("mule assignments (174)", self.o["reset"]["status"] or "")
 
     def test_a_kept_store_that_changes_is_named_never_read_as_clean(self):
         t = self.o["touched"]
         rc = t["receipt"] or {}
-        self.assertIn("d2r_owned", rc.get("touched") or [], "the self-check read a clobbered d2r_owned as intact: %r" % rc)
+        self.assertIn("d2r_setPieces", rc.get("touched") or [], "the self-check read a clobbered set list as intact: %r" % rc)
         self.assertIs(False, rc.get("ok"), rc)
         st = t["status"] or ""
         self.assertTrue(st.startswith("⚠"), "a reset that changed a kept store did not warn: %r" % st)
-        self.assertIn("d2r_owned", st)
+        self.assertIn("d2r_setPieces", st)
         self.assertNotIn("kept untouched", st, "the status line called a changed store untouched")
 
     def test_a_kept_store_that_cannot_be_read_is_unknown_never_intact(self):
@@ -385,11 +402,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-27 - the vault reset empties every owned item again (owned.clear() re-added)",
+        "why": "2026-09-27 - the full reset no longer clears what he is marked as holding",
         "file": "bible.html",
-        "find": "    var R = await _vaultResetRun('vaultClearHistory');\n",
-        "replace": ("    try { owned.clear(); } catch(e){}\n"
-                    "    var R = await _vaultResetRun('vaultClearHistory');\n"),
+        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])\n",
+        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder'])\n",
         "matches": 1,
     },
     {
@@ -417,8 +433,8 @@ RED_PROOF = [
     {
         "why": "v569 - the vault reset leaves the screenshot folder linked",
         "file": "bible.html",
-        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder'])\n",
-        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen'])\n",
+        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])\n",
+        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'owned'])\n",
         "matches": 1,
     },
     {
