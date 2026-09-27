@@ -341,11 +341,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#246 review - the witness row loses the spec's `main` field (the MAIN the filing is kept apart from)",
+        "why": "#246 review - the witness row loses the spec's `main` field (the MAIN the filing is kept apart from). Both filing rows carry it.",
         "file": "bible.html",
         "find": "      mule: home, main: _vMainName(), holder: _vHomeName(home),\n",
         "replace": "      mule: home, holder: _vHomeName(home),\n",
-        "matches": 1,
+        "matches": 2,
     },
     {
         "why": "#246 W3 - the board's look bar drifts from his 2-look ruling",
