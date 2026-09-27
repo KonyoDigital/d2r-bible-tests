@@ -271,3 +271,50 @@ def plan_from_ledger(path):
         return _unread("the witness ledger changed while it was read, so nothing is rebuilt "
                        "and nothing is called empty")
     return plan
+
+
+def cited_frames(path):
+    """Frame files a WATCHED, PROVEN or HARDENED item stands on. Never writes the ledger.
+
+    A missing file is a measurement of nothing cited. A file that will not parse is UNKNOWN:
+    `frames` is None, and a deleter that cannot tell must keep every picture.
+    Only a look that saw the item is cited. A miss is not.
+    """
+    if not path or not os.path.isfile(path):
+        return {"ok": True, "frames": [], "why": "there is no witness ledger at this path, so no frame is cited"}
+    try:
+        with io.open(path, "rb") as fh:
+            blob = fh.read()
+    except Exception:
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    try:
+        doc = json.loads(blob.decode("utf-8"))
+    except Exception:
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    if not isinstance(doc, dict) or not isinstance(doc.get("owned"), list):
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    floor = _conf_floor()
+    if floor is None:
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    found, seen = [], set()
+    for name, rows in _group(doc["owned"]):
+        measured = _measure(rows, floor)
+        if measured is None:
+            continue
+        successes, trials, _sessions, _cells, shots = measured
+        got = tier(successes, trials)
+        if got["tier"] not in (WATCHED, PROVEN, HARDENED):
+            continue
+        for shot in shots:
+            base = os.path.basename(str(shot.get("frame") or ""))
+            if not base or base in seen:
+                continue
+            seen.add(base)
+            found.append(base)
+    try:
+        with io.open(path, "rb") as fh:
+            if fh.read() != blob:
+                return {"ok": False, "frames": None, "why": _UNREAD}
+    except Exception:
+        return {"ok": False, "frames": None, "why": _UNREAD}
+    return {"ok": True, "frames": found, "why": ""}

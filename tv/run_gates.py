@@ -6781,6 +6781,12 @@ GATES = [
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
              "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
+    Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
+         [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
+         why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "
+             "released, and an uncited frame of that reel goes. The tombstone names what it kept. "
+             "The vault evidence line opens those frame ids in the existing lightbox, and a picture "
+             "that cannot be served says so. 4 red-proofs."),
     Gate("test_a_reset_refiles_only_what_the_plan_says",
          [sys.executable, os.path.join(HERE, "test_a_reset_refiles_only_what_the_plan_says.py")], 180,
          why="2026-09-27 - the full vault reset clears the marks and then files back only what "

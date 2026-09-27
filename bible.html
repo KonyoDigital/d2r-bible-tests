@@ -38366,6 +38366,64 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            + ((seenN != null && seenN !== n) ? ' of ' + seenN + ' seen' : '') + (minN != null ? ', needs ' + minN : '')
            + (r.wilson != null ? ' (Wilson ' + Number(r.wilson).toFixed(2) + ')' : '');
   };
+  /* ⟦VAULT EVIDENCE LINE BEGIN⟧ The standing line is clickable. It opens the existing frame
+     lightbox on this item's looks — no second viewer. A picture that cannot be served says so. */
+  window._vaultEvidenceLine = function(name){
+    var r = _provAll()[String(name == null ? '' : name).trim()];
+    if (!r || !r.tier || typeof r.successes !== 'number' || typeof r.trials !== 'number') return '';
+    var sess = Array.isArray(r.sessions) ? r.sessions.length : 0;
+    return r.tier + ' ' + r.successes + '/' + r.trials
+      + (sess ? (' · ' + sess + ' session' + (sess === 1 ? '' : 's')) : '');
+  };
+  window._vaultEvidenceLooks = function(name){
+    var r = _provAll()[String(name == null ? '' : name).trim()] || {};
+    return (Array.isArray(r.looks) ? r.looks : []).map(function(k){
+      k = k || {};
+      return { frame: k.frame || null, conf: (typeof k.conf === 'number' ? k.conf : null),
+               cell: k.cell || null, session: k.id || k.session || null, at: k.at || r.at || null,
+               released: k.released === true, crop: k.crop || null };
+    });
+  };
+  window._vaultShowEvidence = function(){
+    var p = window._vaultEvidencePage;
+    if (!p) return { ok: false, frame: null, say: 'picture missing: UNKNOWN', title: 'picture missing: UNKNOWN' };
+    var looks = p.looks || [], n = looks.length;
+    if (!n) return { ok: false, frame: null, say: 'picture missing: UNKNOWN', title: 'picture missing: UNKNOWN' };
+    if (p.i < 0) p.i = 0;
+    if (p.i >= n) p.i = n - 1;
+    var look = looks[p.i] || {}, cell = look.cell;
+    var title = (p.line || 'evidence') + ' · ' + (p.i + 1) + '/' + n
+      + (look.session ? (' · ' + look.session) : '')
+      + (look.conf != null ? (' · conf ' + look.conf) : '')
+      + (cell ? (' · ' + (cell.tab || 'cell') + ' ' + cell.x + ',' + cell.y) : '')
+      + (look.at ? (' · ' + look.at) : '');
+    if (look.released) {
+      title = 'frame released — crop kept · ' + title;
+      if (look.crop && typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.crop, { title: title, src: look.crop });
+      return { ok: !!look.crop, frame: look.crop || null, say: 'frame released — crop kept', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
+    }
+    if (!look.frame) return { ok: false, frame: null, say: 'picture missing: UNKNOWN', title: 'picture missing: UNKNOWN · ' + title, ids: looks.map(function(k){ return k.frame || null; }) };
+    if (typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.frame, { title: title });
+    return { ok: true, frame: look.frame, say: '', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
+  };
+  window._vaultOpenEvidence = function(name, index){
+    var nm = String(name == null ? '' : name).trim();
+    window._vaultEvidencePage = { name: nm, looks: window._vaultEvidenceLooks(nm), i: index || 0, line: window._vaultEvidenceLine(nm) };
+    return window._vaultShowEvidence();
+  };
+  window._vaultEvidenceStep = function(by){
+    var p = window._vaultEvidencePage;
+    if (!p) return window._vaultOpenEvidence('', 0);
+    p.i = (p.i || 0) + (by || 0);
+    return window._vaultShowEvidence();
+  };
+  window._vaultEvidenceBtn = function(name){
+    var line = window._vaultEvidenceLine(name);
+    if (!line) return '';
+    return '<button type="button" class="vd-ev" onclick="event.stopPropagation();window._vaultOpenEvidence(\''
+      + jsArg(name) + '\')">' + esc(line) + '</button>';
+  };
+  /* ⟦VAULT EVIDENCE LINE END⟧ */
   /* the dock: what is owned and NOT filed. Read only — the sorter never files from it. */
   window._vaultDockNames = function(){
     try { return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n); }); }
@@ -40492,6 +40550,7 @@ window.vaultAutoAssign = function(){
                + ' tabindex="0" role="button" aria-roledescription="movable item" aria-label="' + _say + '. Enter picks it up, arrow keys move it, Enter drops, Escape cancels'
                + (p.manual || p.bad ? ', U unlocks' : '') + '"' : '')
         + ' onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')
+        + (typeof window._vaultEvidenceBtn === 'function' ? window._vaultEvidenceBtn(p.n) : '')
         + (_mv && (p.manual || p.bad) ? '<button type="button" class="vd-unlock" tabindex="-1" data-unlock="' + esc(p.key) + '" title="unlock — back to auto-pack (right-click the item does the same)" aria-label="unlock ' + esc(p.n) + ' — back to auto-pack">' + (p.bad ? '⚠' : '🔒') + '</button>' : '')
         + '</div>';
     }).join('');

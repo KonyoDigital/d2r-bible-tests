@@ -2068,7 +2068,8 @@
     "entryPoints": [
       "tier",
       "rebuild_plan",
-      "plan_from_ledger"
+      "plan_from_ledger",
+      "cited_frames"
     ],
     "gotcha": "tier() and rebuild_plan() are the only bar, and the bound is confidence.wilson_lower — a second table or a second Wilson function is the drift this file exists to prevent. plan_from_ledger reads a path the caller names and never writes it; a ledger it cannot read is ok:false, not an empty rebuilt list. It does not file. The board's full reset files the plan through window.vaultFile. Equipped rows and kept charms (sunder, annihilus, torch, gheed) come back below the bar; an unreadable count does not.",
     "purpose": "Decides which cleared vault marks come back after a reset, from each item's own looks: watched under 10 trials, proven near 10 at the Wilson bar, hardened near 20.",

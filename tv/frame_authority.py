@@ -150,6 +150,18 @@ def witness_index(root=None):
                 if w.get("session"):
                     sessions.add(str(w["session"]))
         seen[fn] = n
+    # Frames a WATCHED / PROVEN / HARDENED item stands on. A ledger that will not parse is
+    # UNKNOWN — ok goes false and the deleter holds every frame. An absent ledger cites nothing.
+    try:
+        import vault_evidence as _ve
+        _cited = _ve.cited_frames(os.path.join(root, "vault_accum.json"))
+    except Exception:
+        _cited = None
+    if not isinstance(_cited, dict) or _cited.get("frames") is None:
+        ok = False
+        cited = None
+    else:
+        cited = set(_cited.get("frames") or [])
     # v2080 — `ok` alone is not enough for a FRAME deleter, and splitting absent from unreadable
     # exposed that. `ok` answers "is my picture complete"; a tree where NO durable store exists has
     # a complete picture of nothing, and every frame then reads as "witnessed nothing" — which for
@@ -160,7 +172,7 @@ def witness_index(root=None):
     # one, "not a witness" is unprovable rather than false, and this module's own rule is that
     # everything errs toward keeping. [[unknown-stays-unknown]]
     return {"frames": frames, "sessions": sessions, "ok": ok, "perStore": seen,
-            "haveIndex": absent < len(DURABLE_STORES)}
+            "cited": cited, "haveIndex": absent < len(DURABLE_STORES)}
 
 
 def sealed_sessions(root=None):
@@ -397,6 +409,15 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     if os.path.basename(frame_path) in (wit.get("frames") or set()):
         return False, ("this frame is a WITNESS behind a row in his vault — it is the only way to "
                        "ever show him why that row is there")
+    # A tiered item cites the looks that saw it. Those pictures stay when the rest of the reel goes.
+    # `cited is None` means the ledger could not be read — hold, do not treat that as nothing cited.
+    _cited = wit.get("cited", False)
+    if _cited is None:
+        return False, ("the vault evidence ledger could not be read, so whether this frame is "
+                       "cited is UNKNOWN")
+    if os.path.basename(frame_path) in set(_cited or ()):
+        return False, ("cited as vault evidence — a watched, proven or hardened item still stands "
+                       "on this picture, so the reel may go and this frame stays")
     # v2272 — A FIFTH HOLD, and it is his rule: extracted FIRST, then pruned. Sealing says which
     # reader ran; it has never said what was taken. Until a seal declares the contract, these pixels
     # may still be the only record of WHERE the item was.
@@ -432,6 +453,39 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
         return False, ("recording %s is sealed, but %s — his rule is that everything detail-bearing "
                        "is extracted and tallied BEFORE anything is pruned" % (sess, _why))
     return True, "recording %s is sealed and this frame witnessed nothing" % sess
+
+
+def keep_cited(reel_dir, sealed, wit):
+    """Release the frames of one reel that nothing cites. A cited frame stays on disk.
+
+    Does not write a ledger and does not remove the reel directory. An unreadable citation
+    list deletes nothing.
+    """
+    unread = {"ok": False, "kept": None, "gone": None,
+              "why": "whether a frame is cited could not be read, so nothing is released"}
+    if wit is None or wit.get("ok") is False or wit.get("cited", False) is None:
+        return unread
+    if not reel_dir or not os.path.isdir(reel_dir):
+        return {"ok": False, "kept": None, "gone": None,
+                "why": "the reel could not be read, so nothing is released and nothing is called empty"}
+    kept, gone = [], []
+    for name in sorted(os.listdir(reel_dir)):
+        if not name.endswith(".jpg"):
+            continue
+        path = os.path.join(reel_dir, name)
+        if not os.path.isfile(path):
+            continue
+        may, why = frame_verdict(path, sealed=sealed, wit=wit, recent=set())
+        if may:
+            try:
+                os.remove(path)
+            except OSError:
+                return {"ok": False, "kept": kept, "gone": gone,
+                        "why": "a frame could not be released, so the rest were left where they are"}
+            gone.append(name)
+        else:
+            kept.append({"frame": name, "why": why})
+    return {"ok": True, "kept": kept, "gone": gone, "why": ""}
 
 
 def evidence_held_reels(hist_dir=None):

@@ -1119,6 +1119,8 @@ def _tombstone(hist, cands):
         except Exception:
             rec["focus"] = None
             rec["startedTs"] = _filmed_ts(d, None) or None
+        if isinstance(c.get("kept"), list):
+            rec["kept"] = c["kept"]
         rows.append(rec)
     try:
         old = _load(_tombstone_path(hist))
