@@ -5544,6 +5544,19 @@ GATES = [
              "calls out a MAIN item in a mule, a reader never files a consumable, and the furniture and consumable lists equal inventory_law's. "
              "#246 review: the panel carries the MAIN-name input, joined to the declare door that had no caller. 9 cases, 5 "
              "red-proofs"),
+    Gate("test_a_vault_reset_clears_only_the_mules",
+         [sys.executable, os.path.join(HERE, "test_a_vault_reset_clears_only_the_mules.py")], 120,
+         why="2026-09-27 - he pressed 'Reset everything' and it cleared d2r_muleAssign 174->0 (wanted) AND d2r_owned "
+             "223->0 and d2r_setPieces 134->0 (not wanted; restored by hand). Each door carried its own wipe list. "
+             "Now ONE declared scope, window._VAULT_RESET_SCOPE, names what any vault reset may clear (mule "
+             "assignments, their witness rows, the intake log, the scan ledger, the linked folder) and both doors "
+             "clear through it. The SHIPPED scope and both doors, cut and driven in node on a seeded store: every "
+             "non-scope key is byte-identical after, the in-memory owned/set/Magic&Rare/copies are unchanged, the "
+             "mule map is empty, Reset assignments leaves the log and folder alone, the full door unlinks the "
+             "folder (v569), cancel moves nothing; the title, confirm and status say what is cleared and what "
+             "stays; the self-check names a kept store the reset changed and calls an unreadable one UNKNOWN. "
+             "7 cases, 9 red-proofs",
+         skip_ok=()),
     Gate("test_every_locked_main_row_reaches_the_board",
          [sys.executable, os.path.join(HERE, "test_every_locked_main_row_reaches_the_board.py")], 120,
          why="#246 L11/W4 - main_character.is_locked had no reader on the board. GET /api/main_locks is served "
