@@ -145,6 +145,11 @@ class TwoVocabulariesForOneItem(unittest.TestCase):
 
         # the three names measured as broken when the ruling was made, plus a control that must
         # stay unwitnessed because its evidence belongs to a DIFFERENT entity
+        if not owned:
+            # 2026-09-27: his FULL RESET (Vault -> Reset everything) emptied d2r_owned on purpose. An EMPTY owned ledger
+            # holds nothing to probe - that is UNMEASURED, never "the names vanished". A NON-empty ledger missing all four
+            # names still fails below: that is the drift this line exists for. [[unknown-stays-unknown]]
+            self.skipTest("UNMEASURED, not a pass: the newest ledger backup's owned list is EMPTY (a reset) - nothing to probe")
         probes = [n for n in owned if n in (
             "Atma's Scarab", "Saracen's Chance", "Athena's Wrath (set piece)", "Black Cleft")]
         self.assertTrue(probes, "none of the measured names are in this ledger any more")
