@@ -56,6 +56,17 @@ _console_safe_enable()
 
 class TestAnEmptyWorldSaysUnknown(unittest.TestCase):
 
+    def test_a_missing_tombstone_ledger_names_the_file_on_this_console(self):
+        """The path is this process's own tree. A missing file is 'no record yet', and the
+        sentence keeps the filename. A 60-character slice of a Windows path ends at d2r."""
+        import printer as P
+        missing = os.path.join(HERE, "reel_tombstones.json.not-here-%d" % os.getpid())
+        blob, why = P._load_tombstones(missing)
+        self.assertIsNone(blob)
+        self.assertIn("reel_tombstones.json", why)
+        self.assertIn("no record yet", why)
+        self.assertNotIn("Errno", why)
+
     def test_an_absent_capture_ledger_reads_as_UNKNOWN_not_zero(self):
         """BEHAVIOURAL: point the ledger path at a file that does not exist and read the arm."""
         import unittest.mock as mock

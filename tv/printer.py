@@ -85,6 +85,29 @@ STATION_OWNER = {
 }
 
 
+def _load_tombstones(path):
+    """The ledger on THIS console's tree. -> (record or None, why).
+
+    The path is `_tombstone_path()` — the directory this process was started from, or TV_HIST
+    when a console has said its world is somewhere else. A missing file is that console having
+    no record yet. A file that will not parse is UNKNOWN. The filename is named in full: a
+    60-character slice of a Windows path ends at `d2r` and looks like a foreign folder.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            loaded = json.load(fh)
+    except FileNotFoundError:
+        return None, ("there is no tombstone ledger at %s — this console has no record yet, "
+                      "which is not the same as no reel having finished"
+                      % os.path.basename(path))
+    except Exception as e:
+        return None, ("reel_tombstones.json would not read (%s)" % str(e)[-80:])
+    if isinstance(loaded, dict):
+        return loaded, ""
+    return None, ("the tombstone ledger is %s, not a record — UNKNOWN, not zero reels"
+                  % type(loaded).__name__)
+
+
 def _safe(fn, *a, **k):
     """Call an owner. -> (value, why). An owner that raises is UNKNOWN with its reason."""
     try:
@@ -141,20 +164,13 @@ def _sources():
         import reel_retention as _RRET
         _tp = getattr(_RRET, "_tombstone_path", None)
         _tf = _tp() if callable(_tp) else os.path.join(HERE, "reel_tombstones.json")
-        with open(_tf, "r", encoding="utf-8") as _fh:
-            _loaded = json.load(_fh)
-        # `[]` is falsy, so `or {}` turned a JSON array into an empty ledger and the
-        # station then reported "0 reel(s)". A non-record is unreadable, which is None.
-        if isinstance(_loaded, dict):
-            out["tombstones"] = _loaded
-        else:
-            out["tombstones"] = None
-            whys.append("the tombstone ledger is %s, not a record — UNKNOWN, not zero reels"
-                        % type(_loaded).__name__)
+        _loaded, _tw = _load_tombstones(_tf)
+        out["tombstones"] = _loaded
+        if _tw:
+            whys.append(_tw)
     except Exception as e:
         out["tombstones"] = None
-        whys.append("the tombstone ledger could not be read (%s) — UNKNOWN, not 'nothing was ever "
-                    "pruned'" % str(e)[:60])
+        whys.append("reel_tombstones.json would not read (%s)" % str(e)[-80:])
     try:
         import reel_templates as RTPL
         # v2692 — ONE river walk for the whole snapshot. This is the "one funnel" half of his
@@ -402,8 +418,12 @@ def stream(reel=None):
     egap, _d5 = _by_reel(src.get("gap"))
     dropped = _d1 + _d2 + _d3
     if not river and not doors:
+        _river_why = ""
+        if isinstance(src.get("river"), dict) and not src["river"].get("ok"):
+            _river_why = str(src["river"].get("why") or "")
+        _bits = [b for b in (_river_why, "; ".join(whys)) if b]
         return _unknown(tombstoned=tomb_census, why="UNKNOWN, not an empty shelf — %s"
-                        % ("; ".join(whys) if whys else
+                        % ("; ".join(_bits) if _bits else
                            "no owner answered and none said why"))
 
     reach = src.get("reach") or {}
