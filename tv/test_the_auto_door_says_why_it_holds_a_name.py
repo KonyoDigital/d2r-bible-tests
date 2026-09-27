@@ -60,6 +60,23 @@ class TheAutoDoorSaysWhyItHoldsAName(unittest.TestCase):
                 and len(r.get("referents") or []) <= 1]
         return held, owed
 
+    def test_a_two_referent_name_that_clears_the_bar_is_held_never_owed(self):
+        """DRIVEN (2026-09-27). #246 W3 means no live name clears the bar today (Crescent Moon's looks carry no frame), so the
+        live pin below cannot see the hold break. This feeds split() - the REAL gate, the REAL rosters - a Crescent Moon
+        with three framed looks over the floor: a name with a UNIQUE and a RUNEWORD referent must be HELD, never owed."""
+        ev = {"Crescent Moon": [{"session": "s%d" % i, "witness": "s%d#0" % i, "frame": "s%d/f0001.png" % i,
+                                 "conf": 0.9, "loc": "stash"} for i in range(3)]}
+        sp = RNL.split(evidence_by_name=ev)
+        if not (isinstance(sp, dict) and sp.get("ok")):
+            self.fail("the lane could not measure the driven case: %s" % str((sp or {}).get("why"))[:100])
+        if sp.get("autoHeld") is None:
+            self.skipTest("UNMEASURED, not a pass: the rosters could not be read on this venue")
+        self.assertEqual([r.get("name") for r in (sp.get("auto") or [])], ["Crescent Moon"],
+                         "the driven name did not clear the bar - the case cannot bite: %r" % sp.get("why"))
+        self.assertEqual([h.get("name") for h in sp["autoHeld"]], ["Crescent Moon"],
+                         "a name with two referents that clears the bar was not HELD")
+        self.assertNotIn("Crescent Moon", sp.get("autoOwed") or [], "a two-referent name was offered to auto-file")
+
     def test_the_live_split_holds_crescent_moon(self):
         """PINNED ON THE REAL DATA: the one live auto-lane name is held, with the runeword hit
         that first-match reading had been swallowing."""
