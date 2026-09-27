@@ -423,8 +423,9 @@ RED_PROOF = [
     {
         "why": "dropping *.html from the roster makes control_ui.html invisible again - the v3333 case",
         "file": "tv/second_eye_run.py",
-        "find": '                      "--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",',
-        "replace": '                      "--", "*.py", "*.js", "*.mjs", "*.sh",',
+        # re-anchored 2026-09-27: the roster's git call goes through _changes() now (--base), same pathspec
+        "find": '                     ["--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",',
+        "replace": '                     ["--", "*.py", "*.js", "*.mjs", "*.sh",',
         "matches": 1,
     },
     {

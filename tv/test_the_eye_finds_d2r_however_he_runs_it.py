@@ -283,7 +283,8 @@ RED_PROOF = [
         "why": "#232 - a browser tab qualifies on the service alone: the GeForce NOW library page pins as the game",
         "file": "tv_diablo.py",
         # re-anchored (second eye on v3496): the route loop collects full/near matches now
-        "find": "            (full if has_game else near).append(route)\n",
+        # re-anchored 2026-09-27: a native app's measured bare title also counts (_NATIVE_BARE_TITLES)
+        "find": "            (full if (has_game or bare) else near).append(route)\n",
         "replace": "            full.append(route)\n",
         "matches": 1,
     },

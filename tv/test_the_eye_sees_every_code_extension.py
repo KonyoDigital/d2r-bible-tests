@@ -208,18 +208,19 @@ RED_PROOF = [
         "why": "removing .js from the code fetch restores the exact blindness that let v3387 be "
                "reviewed without either of the two files it exists to change",
         "file": "tv/second_eye_run.py",
-        "find": '                    "--", "*.py", "*.js", "*.mjs", "*.sh",\n'
+        # re-anchored 2026-09-27: the fetch goes through _changes() now (--base), same pathspec
+        "find": '                   ["--", "*.py", "*.js", "*.mjs", "*.sh",\n'
                 '                    ":(exclude)_archive/*"], timeout=90)',
-        "replace": '                    "--", "*.py", "*.mjs", "*.sh"], timeout=90)',
+        "replace": '                   ["--", "*.py", "*.mjs", "*.sh"], timeout=90)',
         "matches": 1,
     },
     {
         "why": "removing .js from the ROSTER is the subtler half: the file stops being a "
                "candidate, so the omitted-file report says 0 truthfully and nobody is told",
         "file": "tv/second_eye_run.py",
-        "find": '                      "--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",\n'
+        "find": '                     ["--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",\n'
                 '                      ":(exclude)_archive/*"], timeout=90)',
-        "replace": '                      "--", "*.py", "*.mjs", "*.sh", "*.html"], timeout=90)',
+        "replace": '                     ["--", "*.py", "*.mjs", "*.sh", "*.html"], timeout=90)',
         "matches": 1,
     },
     {
