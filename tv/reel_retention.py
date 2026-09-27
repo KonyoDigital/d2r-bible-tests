@@ -1223,6 +1223,171 @@ def apply_plan(p, yes=False):
             "tombstoneWhy": tomb_why}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# THE DRAIN — does the river actually empty at its mouth, pass after pass?
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# Konyo, 2026-09-27: *"session reels in shelf registered by FIFO first in first out and getting
+# extracted and tallied and ledgered accoridngly to its won indivudal console ... and allproeprly
+# getting delted after the 8 sessions"* — and #255: *"getting pruned and extracted data wise and
+# eventually tombstones to get deleted.. that way storage is always smooth and optimized and not
+# stacking up"*.
+#
+# ⚠⚠ WHAT WAS MEASURED BEFORE A LINE OF THIS WAS WRITTEN, because the brief's root cause did not
+# survive the measurement. It said the pass only frees under disk pressure. Read against the code
+# and against his live console (GET /api/status, 2026-09-27, 11.8 GB free): above floor+headroom
+# the pass has asked for NO target since v2226, and his console reported `eligible: 0` — 19 reel
+# dirs = 8 test fixtures + the newest 8 + 3 held `panels-never-banked` (sealed barren, rows 0).
+# His drain was at its floor, CORRECTLY. The real defect was the BAND: at or below floor+headroom
+# the pass handed plan() `free_mb=need_mb`, so the moment the disk got tight it stopped after
+# `need_mb` and held every other finished reel as `target-met` — disk pressure freed LESS than no
+# pressure. That band is where his disk is heading (down 0.6 GB/day).
+#
+# ⚠ AND NOTHING WATCHED THE MOUTH. shelf_driver declares the `deleter` lane with `boundS: None`, so a
+# drain that stopped with reels owed could only ever read UNTIMED — never STALLED — and a wall-clock
+# bound would cry wolf the first pass after a quiet week. The honest unit is the PASS: a working
+# pass releases every reel it plans in that same pass, so a reel still owed through two whole
+# passes that released nothing is a drain that has stopped, not one that is slow.
+# [[heart-first]] [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]]
+
+#: How many consecutive passes may carry releasable reels forward before the drain is STOPPED.
+#: The brief's own bar — "owed > 0 for longer than two passes" — so the THIRD pass that still owes
+#: and released nothing fires. Derive from this in tests; never hardcode 3. [[regression-guard]] §4
+DRAIN_STOPPED_AFTER_PASSES = 3
+
+#: The drain's states. UNKNOWN is a first-class answer and never renders as CLEAR.
+DRAIN_CLEAR, DRAIN_OWED, DRAIN_STOPPED, DRAIN_DORMANT, DRAIN_UNKNOWN = (
+    "CLEAR", "OWED", "STOPPED", "DORMANT", "UNKNOWN")
+
+
+def drain_owed(p):
+    """How many reels this plan says the deleter OWES. -> int | None
+
+    Releasable = cleared EVERY bar and is older than the newest KEEP_RECENT: the plan's own
+    `candidates`, plus any it held back as `target-met` when a caller asked it to stop early —
+    those finished reels are owed just the same. Nothing here is a second predicate; it counts
+    two lists plan() already wrote. [[copy-drift]]
+
+    ⚠ None — never 0 — when the plan could not judge: not ok, or ANY ledger unreadable (plan()
+    then holds every reel as ledger-unreadable, so an empty candidate list is not a measurement of
+    an empty drain). [[unknown-stays-unknown]]
+    """
+    if not isinstance(p, dict) or not p.get("ok") or p.get("unreadable"):
+        return None
+    cands, kept = p.get("candidates"), p.get("kept")
+    if not isinstance(cands, list) or not isinstance(kept, list):
+        return None
+    return len(cands) + len([k for k in kept if isinstance(k, dict) and k.get("tag") == "target-met"])
+
+
+def _drain_count(v):
+    """A whole, non-negative count, or None. `True` is not 1 (REG-573's lesson)."""
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
+def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_ms=None,
+                every_s=None):
+    """THE RETENTION LANE IN THE SHARED VOCABULARY — on / worked / lastTs / owed. -> dict
+
+    `rows` is the console's own per-pass series (disk_history.jsonl, oldest first): each pass writes
+    one row carrying `owed` BEFORE it acts, and — only when the deleter actually ran — one row
+    carrying `released` after. That series is per console (it lives in that console's own tree) and
+    it SURVIVES A RELAUNCH, which is the point: his console relaunches every ~30 minutes (measured
+    by relaunch_hold) and a process-local streak across 15-minute passes would almost never reach 3.
+
+    `beat` is shelf_driver.lane_beat("deleter") — the ONE reading of what the deleter has done
+    (lifetime reels in the tombstone ledger, and when it last wrote). Quoted, never recomputed.
+
+    ⚠ ROWS WITHOUT EITHER KEY END THE WALK. They were written before this contract existed, so a
+    pass there cannot be judged; the streak counts only the contiguous new-format tail.
+    ⚠ `carried` is what a pass left owed: `owed - released`, or all of `owed` when the deleter never
+    ran (refused, locked, switched off). An unreadable count on either side is UNKNOWN and ends
+    the streak — it never extends it and never resets it to a confident zero.
+    """
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    beat = beat if isinstance(beat, dict) else {}
+    out = {"on": (None if on is None else bool(on)),
+           "worked": _drain_count(beat.get("works")),
+           "lastTs": (beat.get("lastWorkAt") if isinstance(beat.get("lastWorkAt"), int)
+                      and not isinstance(beat.get("lastWorkAt"), bool) else None),
+           "owed": None, "passesOwed": None, "state": DRAIN_UNKNOWN, "why": "",
+           "stopWhy": (str(stop_why)[:200] if stop_why else None),
+           "stoppedAfter": DRAIN_STOPPED_AFTER_PASSES, "keepRecent": KEEP_RECENT,
+           "at": now_ms, "everyS": every_s,
+           "workedWhy": ("" if _drain_count(beat.get("works")) is not None else
+                         str(beat.get("why") or "the deleter's own record could not be read"))}
+    if rows is None:
+        out["why"] = ("the per-pass series could not be read, so whether the drain is moving is "
+                      "UNKNOWN — not clear")
+        return out
+    tail = []
+    for r in reversed(list(rows)):
+        if isinstance(r, dict) and ("owed" in r or "released" in r):
+            tail.append(r)
+        else:
+            break
+    tail.reverse()
+    passes = []
+    for r in tail:
+        if "owed" in r:
+            passes.append({"owed": _drain_count(r.get("owed"))})
+        elif passes and "released" not in passes[-1]:
+            passes[-1]["released"] = _drain_count(r.get("released"))
+
+    def _carried(ps):
+        if ps["owed"] is None:
+            return None
+        if "released" not in ps:
+            return ps["owed"]                  # the deleter never ran: everything it owed stays
+        if ps["released"] is None:
+            return None
+        return max(0, ps["owed"] - ps["released"])
+
+    streak = 0
+    for ps in reversed(passes):
+        c = _carried(ps)
+        if not c:                              # None (unknown) or 0 (drained) ends the run
+            break
+        streak += 1
+    owed_now = _carried(passes[-1]) if passes else None
+    out["owed"], out["passesOwed"] = owed_now, (streak if passes else None)
+    if unknown_why:
+        out["owed"], out["passesOwed"] = None, None
+        out["why"] = "the retention plan could not run this pass — %s" % str(unknown_why)[:200]
+        return out
+    if not passes:
+        out["why"] = ("no retention pass on this console has recorded what it owes yet, so whether "
+                      "the drain is moving is UNKNOWN")
+        return out
+    if owed_now is None:
+        out["why"] = ("the last pass could not judge which reels are releasable (the plan or a "
+                      "ledger could not be read), so what the drain owes is UNKNOWN — never 0")
+        return out
+    if owed_now == 0:
+        out["state"] = DRAIN_CLEAR
+        out["why"] = ("drained — every reel that cleared every bar and is older than the newest %d "
+                      "has been released; nothing is owed" % KEEP_RECENT)
+        return out
+    if on is False:
+        out["state"] = DRAIN_DORMANT
+        out["why"] = ("%d releasable reel(s) wait and the deleter is disarmed BY DESIGN — a "
+                      "decision, not a stall" % owed_now)
+        return out
+    if streak >= DRAIN_STOPPED_AFTER_PASSES:
+        out["state"] = DRAIN_STOPPED
+        out["why"] = ("the drain has STOPPED — %d releasable reel(s) have been carried through %d "
+                      "consecutive retention passes and none of those passes released them%s"
+                      % (owed_now, streak,
+                         (" — the last refusal: %s" % str(stop_why)[:160]) if stop_why else
+                         " — the passes gave no reason"))
+        return out
+    out["state"] = DRAIN_OWED
+    out["why"] = ("%d releasable reel(s) owed, carried through %d pass(es); the drain is called "
+                  "stopped at %d%s" % (owed_now, streak, DRAIN_STOPPED_AFTER_PASSES,
+                                       (" — this pass: %s" % str(stop_why)[:160]) if stop_why else ""))
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Which reels have given up their information.")
     ap.add_argument("--hist", default=None)

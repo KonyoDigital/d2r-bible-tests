@@ -1,0 +1,589 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""THE RIVER DRAINS EVERY PASS — FIFO, KEEP THE NEWEST 8, EACH CONSOLE ITS OWN.
+
+HIS WORDS, 2026-09-27: *"session reels in shelf registered by FIFO first in first out and getting
+extracted and tallied and ledgered accoridngly to its won indivudal console. and that it can be seen
+in shelf rendering and allproeprly getting delted after the 8 sessions"* — and #255: *"getting pruned
+and extracted data wise and eventually tombstones to get deleted.. that way storage is always smooth
+and optimized and not stacking up"* / *"its already suppose to do this"* / *"as architecture"*.
+
+WHAT WAS MEASURED BEFORE ANY OF THIS WAS WRITTEN — and the brief's root cause did NOT survive it:
+
+  · The brief said the pass only frees under disk pressure (`free_mb=(need_mb or None)`). Above
+    floor+headroom that expression is None — NO target — and has been since v2226. His live console
+    (GET /api/status, 11.8 GB free) reported `eligible: 0`: 19 reel dirs = 8 test fixtures + the
+    newest 8 + 3 held `panels-never-banked`. His drain was at its floor, correctly.
+  · The REAL defect was the band at or below floor+headroom: there `need_mb` is positive, plan()
+    stopped after selecting that much, and every other finished reel was held `target-met`.
+    Driven here on 4 finished reels with 0.5 MB needed: ONE released, three held. Disk pressure freed
+    LESS than a roomy disk — the inversion of what pressure is for. His disk falls ~0.6 GB/day toward it.
+  · And nothing watched the mouth: shelf_driver's `deleter` lane declares no work period, so a drain
+    that stopped with reels owed could only ever read UNTIMED.
+
+WHAT THIS LAW DRIVES — the SHIPPED `control_app._retention_once` and `reel_retention.apply_plan`, on
+fixture worlds, with a pinned clock and a pinned disk, counting which directories survive:
+
+  1. twelve finished reels + one that is NOT sealed: with plenty of disk the four oldest finished
+     reels are released OLDEST FIRST, the unsealed one is KEPT AND NAMED (tag + why), the newest
+     KEEP_RECENT are never touched, and a second pass releases nothing more;
+  2. disk pressure — inside the headroom band AND below the floor — releases every finished reel,
+     never fewer than a roomy disk would;
+  3. every path resolves from THAT console's own tree: tombstones and the per-pass series land in
+     the fixture world, never in tv/;
+  4. THE HEART: the drain speaks on/worked/lastTs/owed; three passes that carry the same owed reels
+     and release nothing read STOPPED, and a relaunch in between cannot reset that; a busy drain
+     that releases every pass never cries wolf; the doctor row reads the wire and goes MISSING on a
+     stopped drain, UNKNOWN when the plan cannot run, UNMEASURED on a console that never filmed;
+  5. a deleter that REFUSES (its lock holds) is said as a refusal, never as "freed 0 MB".
+
+⚠ No reel id is written literally in this file: a real-looking id in test source makes retention
+hold that footage as a fixture (test_no_pinned_footage). Ids are minted from a 2017 stamp.
+⚠ Nothing here touches his tree: TV_HIST, rr.HERE and ca.HERE all point at a scratch world, and the
+import-time stores are redirected BEFORE control_app is imported.
+RED_PROOF below. [[heart-first]] [[unknown-stays-unknown]] [[regression-guard]]
+"""
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import time
+import unittest
+import unittest.mock as mock
+
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+import console_safe  # noqa: E402
+console_safe.enable()
+
+# ⚠ BEFORE control_app IS IMPORTED: its import-time stores (the vault seal store, the chronicle
+# autoread store) resolve ONCE, from TV_HIST, at import. Point them at a scratch world so no reading
+# this law makes can land on his live files. [[feedback-fixtures-never-touch-live-data]]
+_BOOT = tempfile.mkdtemp(prefix="drain_boot_")
+_SAVED_ENV = dict((k, os.environ.get(k)) for k in
+                  ("TV_HIST", "TV_VAULT_SWEPT", "TV_CHRON_AUTOREAD", "TV_AUTO_PRUNE"))
+os.makedirs(os.path.join(_BOOT, "hist"))
+os.environ["TV_HIST"] = os.path.join(_BOOT, "hist")
+os.environ["TV_VAULT_SWEPT"] = os.path.join(_BOOT, "vault_swept.json")
+os.environ["TV_CHRON_AUTOREAD"] = os.path.join(_BOOT, "chron_autoread.json")
+
+import reel_retention as RR   # noqa: E402
+import control_app as CA      # noqa: E402
+import console_doctor as CD   # noqa: E402
+import self_arming as SA      # noqa: E402
+
+#: A stamp no recording can carry (2017), per frame_authority.test_referenced_reels.
+BASE_MS = 1500000000000
+HOUR_MS = 3600 * 1000
+MB = 1024 * 1024
+_REAL_MAY = SA.may
+
+
+class _Clock(object):
+    """A pinned clock that still moves forward, so rows keep their order. -> seconds"""
+
+    def __init__(self, start_s):
+        self.t = float(start_s)
+
+    def __call__(self):
+        self.t += 0.001
+        return self.t
+
+
+def _usage(free_gb):
+    return shutil._ntuple_diskusage(int(500e9), int(500e9 - free_gb * 1e9), int(free_gb * 1e9))
+
+
+class _World(object):
+    """One console's own tree: W/ (HERE) with W/hist (TV_HIST), its ledgers and its witness index."""
+
+    def __init__(self, tc, n_finished, unsealed_at=None):
+        self.tc = tc
+        self.root = tempfile.mkdtemp(prefix="drain_world_")
+        tc.addCleanup(shutil.rmtree, self.root, True)
+        self.hist = os.path.join(self.root, "hist")
+        os.makedirs(self.hist)
+        self.names = []
+        self.chron, self.vault = {}, {}
+        n = n_finished + (1 if unsealed_at is not None else 0)
+        self.unsealed = None
+        for i in range(n):
+            self.add(sealed=(i != unsealed_at), at_ms=BASE_MS + i * HOUR_MS)
+            if i == unsealed_at:
+                self.unsealed = self.names[-1]
+        self.write_ledgers()
+        self._write(os.path.join(self.root, "vault_accum.json"), {"owned": []})
+        self._write(os.path.join(self.root, "vault_seen.json"), {"rows": []})
+
+    @staticmethod
+    def _write(p, blob):
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(blob))
+
+    def add(self, sealed=True, at_ms=None):
+        """A reel that was filmed, read (pages>0) and — unless `sealed` is False — vault-sealed."""
+        at_ms = at_ms if at_ms is not None else BASE_MS + (len(self.names) + 1000) * HOUR_MS
+        nm = "reel_s_%d_%d" % (at_ms, 100 + len(self.names))
+        d = os.path.join(self.hist, nm)
+        os.makedirs(d)
+        with open(os.path.join(d, "f_%d.jpg" % at_ms), "wb") as fh:
+            fh.truncate(MB)                       # sparse: 1 MB to _dir_mb, ~0 bytes on disk
+        self.names.append(nm)
+        self.chron[nm] = {"pages": 9}
+        if sealed:
+            self.vault[nm] = {"rows": 0}
+        return nm
+
+    def write_ledgers(self):
+        self._write(os.path.join(self.root, "chronicle_swept.json"), self.chron)
+        self._write(os.path.join(self.root, "vault_swept.json"), self.vault)
+
+    def on_disk(self):
+        return sorted(d for d in os.listdir(self.hist) if d.startswith("reel_"))
+
+    def tombstones(self):
+        p = os.path.join(self.root, "reel_tombstones.json")
+        if not os.path.exists(p):
+            return []
+        with io.open(p, encoding="utf-8") as fh:
+            return (json.load(fh) or {}).get("reels") or []
+
+    def series(self):
+        p = os.path.join(self.root, "disk_history.jsonl")
+        if not os.path.exists(p):
+            return []
+        with io.open(p, encoding="utf-8") as fh:
+            return [json.loads(l) for l in fh if l.strip()]
+
+
+class _Base(unittest.TestCase):
+
+    def setUp(self):
+        for k in ("TV_AUTO_PRUNE",):
+            self._restore_env(k)
+            os.environ.pop(k, None)
+
+    def _restore_env(self, k):
+        was = os.environ.get(k)
+        self.addCleanup(lambda: os.environ.__setitem__(k, was) if was is not None
+                        else os.environ.pop(k, None))
+
+    def _bind(self, w, floor=None, headroom=None):
+        """Make `w` THIS console's world for the rest of the test."""
+        self._restore_env("TV_HIST")
+        os.environ["TV_HIST"] = w.hist
+        pairs = [(RR, "HERE", w.root), (CA, "HERE", w.root)]
+        if floor is not None:
+            pairs.append((CA, "ON_AIR_FLOOR_GB", floor))
+        if headroom is not None:
+            pairs.append((CA, "PRUNE_HEADROOM_GB", headroom))
+        for mod, attr, val in pairs:
+            self.addCleanup(setattr, mod, attr, getattr(mod, attr))
+            setattr(mod, attr, val)
+        RR._TRIAGE_CACHE["at"] = None
+
+    def _pass(self, free_gb, world_ok=True, frame_release=True):
+        """ONE retention pass, driven through the shipped code with every precondition STATED."""
+        def _may(lock):
+            if lock == "frame.release":
+                return ((True, "fixture: the frame.release lock is open") if frame_release else
+                        (False, "fixture: frame.release is LOCKED"))
+            return _REAL_MAY(lock)
+        world = ({"state": "ok", "why": "fixture: a confirmed world"} if world_ok else
+                 {"state": "unknown", "why": "fixture: the board world was never confirmed"})
+        with mock.patch("time.time", self.clock), \
+                mock.patch("shutil.disk_usage", return_value=_usage(free_gb)), \
+                mock.patch.object(CA, "board_identity_drift", lambda: world), \
+                mock.patch.object(CA, "nothing_in_flight",
+                                  lambda *a, **k: (True, "fixture: nothing in flight")), \
+                mock.patch.object(SA, "may", _may):
+            r = CA._retention_once()
+            st = CA.retention_state()
+        return r, st
+
+    def _doctor(self, st):
+        """The doctor row, reading the wire this pass published. -> (state, why)"""
+        real = CD._get
+        CD._get = lambda path, *a, **k: ({"retention": st} if path == "/api/status" else None)
+        try:
+            with mock.patch("time.time", self.clock):
+                return CD._check_the_retention_drain_is_draining()
+        finally:
+            CD._get = real
+
+    def setUpClock(self):
+        self.clock = _Clock(BASE_MS / 1000.0 + 400 * 3600)
+
+
+class TheRiverDrainsFifoAndKeepsTheNewest(_Base):
+    """★ Claims 1 and 3 — twelve finished reels and one unsealed, plenty of disk."""
+
+    def setUp(self):
+        _Base.setUp(self)
+        self.setUpClock()
+        # the unsealed reel sits AMONG the old ones, so "oldest first" must step around a bar
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + 4, unsealed_at=2)
+        self._bind(self.w)
+        self.newest = self.w.names[-RR.KEEP_RECENT:]
+        self.old_finished = [n for n in self.w.names[:-RR.KEEP_RECENT] if n != self.w.unsealed]
+        self.assertEqual(len(self.old_finished), 4, "premise: four finished reels past the newest")
+        self.assertEqual(len(self.w.on_disk()), RR.KEEP_RECENT + 5, "premise: the whole shelf")
+
+    def test_the_four_oldest_finished_go_oldest_first_and_the_newest_are_never_touched(self):
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(sorted(r.get("removed") or []), sorted(self.old_finished),
+                         "with plenty of disk the pass did not release exactly the four finished "
+                         "reels older than the newest %d: %r" % (RR.KEEP_RECENT, r))
+        left = self.w.on_disk()
+        for nm in self.newest:
+            self.assertIn(nm, left, "one of the newest %d was deleted: %s" % (RR.KEEP_RECENT, nm))
+        self.assertIn(self.w.unsealed, left, "a reel that is NOT sealed was deleted")
+        tomb = [t.get("reel") for t in self.w.tombstones()]
+        self.assertEqual(tomb, self.old_finished,
+                         "the tombstone record is not the four released reels OLDEST FIRST: %r" % tomb)
+
+    def test_a_reel_that_is_not_sealed_is_kept_and_NAMED(self):
+        self._pass(free_gb=500.0)
+        p = RR.plan(self.w.hist)
+        row = [k for k in p.get("kept") or [] if k.get("reel") == self.w.unsealed]
+        self.assertEqual(len(row), 1, "the unsealed reel is not on the kept list at all")
+        self.assertEqual(row[0].get("tag"), "vault-owes",
+                         "the unsealed reel is held for the wrong reason: %r" % row[0])
+        self.assertIn("VAULT lane has never swept it", row[0].get("why") or "",
+                      "the kept reel does not say WHY it is held")
+        st = CA.retention_state()
+        self.assertEqual(st.get("lockedBehindASweep"), 1,
+                         "the console does not report the unsealed reel as waiting: %r"
+                         % st.get("lockedBehindASweep"))
+
+    def test_a_second_pass_releases_nothing_more(self):
+        self._pass(free_gb=500.0)
+        after_one, tomb_one = self.w.on_disk(), self.w.tombstones()
+        r2, st2 = self._pass(free_gb=500.0)
+        self.assertEqual(self.w.on_disk(), after_one, "a second pass took more reels")
+        self.assertEqual(len(self.w.tombstones()), len(tomb_one),
+                         "a second pass wrote more tombstones")
+        self.assertFalse((r2 or {}).get("removed"), "a second pass reported removing something")
+        self.assertEqual(st2["drain"]["state"], "CLEAR", st2["drain"])
+        self.assertEqual(st2["drain"]["owed"], 0)
+
+    def test_every_path_resolves_from_THIS_consoles_own_tree(self):
+        """Claim 3 — per console. The deleter's record, the per-pass series and the drain's
+        `worked` reading all resolve to the world that was drained.
+
+        ⚠ ASKED OF THE RESOLVERS, NEVER BY STAT-ING tv/. On his Mac the real tv/disk_history.jsonl
+        is appended by his live console every 15 minutes, so a before/after stat of it would go red
+        whenever his console happened to write mid-pass — the instrument, not the code. And reading
+        his files at all is a fixture touching live data. [[feedback-fixtures-never-touch-live-data]]
+        """
+        self._pass(free_gb=500.0)
+        tomb = os.path.join(self.w.root, "reel_tombstones.json")
+        self.assertEqual(RR._tombstone_path(self.w.hist), tomb,
+                         "the deleter records its tombstones outside this console's tree")
+        self.assertEqual(CA._disk_history_path(), os.path.join(self.w.root, "disk_history.jsonl"),
+                         "the per-pass series resolves outside this console's tree")
+        import shelf_driver as SD
+        beat = SD.lane_beat("deleter", allow_import=True)
+        self.assertEqual(beat.get("store"), tomb,
+                         "the drain's `worked` reads a ledger that is not this console's")
+        self.assertNotEqual(os.path.dirname(tomb), HERE, "premise: the world is not tv/")
+        self.assertEqual(len(self.w.tombstones()), 4, "the tombstones are not in this console's tree")
+        self.assertTrue(self.w.series(), "the per-pass series is not in this console's tree")
+        self.assertEqual(beat.get("works"), 4,
+                         "the deleter's record counted reels that were not released in this world")
+
+    def test_the_drain_speaks_the_shared_vocabulary_after_it_drains(self):
+        r, st = self._pass(free_gb=500.0)
+        dr = st.get("drain") or {}
+        for k in ("on", "worked", "lastTs", "owed"):
+            self.assertIn(k, dr, "the drain does not answer %r" % k)
+        self.assertEqual(dr["state"], "CLEAR", dr)
+        self.assertEqual(dr["owed"], 0, "a drained river still reports reels owed")
+        self.assertEqual(dr["worked"], 4, "worked is not the deleter's own lifetime record")
+        self.assertIsNotNone(dr["lastTs"], "a deleter that just released has no lastTs")
+        rows = self.w.series()
+        self.assertEqual([x.get("owed") for x in rows if "owed" in x], [4],
+                         "the pass did not stamp what it owed on its own row")
+        self.assertEqual([x.get("released") for x in rows if "released" in x], [4])
+
+
+class PressureNeverFreesLess(_Base):
+    """★ Claim 2 — the band where `need_mb` used to cap the pass."""
+
+    def setUp(self):
+        _Base.setUp(self)
+        self.setUpClock()
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + 4)
+        self.old = self.w.names[:4]
+
+    def _check_all_four(self, r, st, where):
+        self.assertEqual(sorted(r.get("removed") or []), sorted(self.old),
+                         "%s the pass released %d of the 4 finished reels — disk pressure freed LESS "
+                         "than a roomy disk would (the target-met cap is back)"
+                         % (where, len(r.get("removed") or [])))
+        for nm in self.w.names[-RR.KEEP_RECENT:]:
+            self.assertIn(nm, self.w.on_disk(), "pressure reached into the newest reels")
+
+    def test_inside_the_headroom_band_every_finished_reel_goes(self):
+        self._bind(self.w)
+        free = CA.ON_AIR_FLOOR_GB + CA.PRUNE_HEADROOM_GB - 0.0005      # 0.5 MB short
+        r, st = self._pass(free_gb=free)
+        self.assertGreater(st.get("needMb") or 0, 0, "premise: the disk is short of its headroom")
+        self._check_all_four(r, st, "inside the headroom band")
+
+    def test_below_the_floor_every_finished_reel_goes(self):
+        self._bind(self.w, headroom=0.0)
+        free = CA.ON_AIR_FLOOR_GB - 0.0005                             # below the floor, 0.5 MB short
+        self.assertLess(free, CA.ON_AIR_FLOOR_GB, "premise: below the floor")
+        r, st = self._pass(free_gb=free)
+        # ⚠ freeGb is published rounded to 0.1 (7.9995 -> 8.0), so the premise is asserted on the
+        # pinned number above and on needMb here, never on the rounded display figure.
+        self.assertGreater(st.get("needMb") or 0, 0, "premise: the pass measured itself short")
+        self._check_all_four(r, st, "below the floor")
+
+
+class TheHeartSeesTheDrainStop(_Base):
+    """★ Claim 4 — on/worked/lastTs/owed, STOPPED after the bar, and the doctor reads the wire."""
+
+    def setUp(self):
+        _Base.setUp(self)
+        self.setUpClock()
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + 2)
+        self._bind(self.w)
+
+    def test_a_refused_drain_is_STOPPED_after_the_bar_and_a_relaunch_cannot_reset_it(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        before = self.w.on_disk()
+        states = []
+        for i in range(bar):
+            if i == bar - 1:
+                # a RELAUNCH: the process forgets everything it held; the series does not
+                CA._RETENTION["drain"] = {"state": "UNKNOWN", "why": "fresh process"}
+            r, st = self._pass(free_gb=500.0, world_ok=False)
+            states.append((st["drain"]["state"], st["drain"]["passesOwed"]))
+        self.assertEqual(self.w.on_disk(), before, "a refused deleter deleted footage")
+        self.assertEqual([s for s, _ in states[:-1]], ["OWED"] * (bar - 1),
+                         "the drain called itself stopped before the bar: %r" % states)
+        self.assertEqual(states[-1], ("STOPPED", bar),
+                         "%d passes carried the same reels and released nothing, and the drain "
+                         "did not say STOPPED: %r" % (bar, states))
+        dr = st["drain"]
+        self.assertEqual(dr["owed"], 2)
+        self.assertIn("the board world was never confirmed", dr.get("why") or "",
+                      "the stopped drain does not carry the refusal that stopped it")
+        verdict, why = self._doctor(st)
+        self.assertEqual(verdict, "missing", "the doctor row read a stopped drain as %r: %s"
+                         % (verdict, why))
+        # and once the world confirms, the next pass drains and the row clears
+        r, st = self._pass(free_gb=500.0, world_ok=True)
+        self.assertEqual(len(r.get("removed") or []), 2)
+        self.assertEqual(st["drain"]["state"], "CLEAR")
+        self.assertEqual(self._doctor(st)[0], "ok")
+
+    def test_a_busy_drain_that_releases_every_pass_never_cries_wolf(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        seen = []
+        for i in range(bar + 2):
+            r, st = self._pass(free_gb=500.0)
+            seen.append(st["drain"]["state"])
+            self.assertEqual(self._doctor(st)[0], "ok", "a working drain went red on pass %d" % i)
+            self.w.add(sealed=True)                  # a new reel finishes; the 9th-newest is owed
+            self.w.write_ledgers()
+        owed = [x.get("owed") for x in self.w.series() if "owed" in x]
+        self.assertTrue(all(o and o > 0 for o in owed),
+                        "premise: every pass started with reels owed: %r" % owed)
+        self.assertNotIn("STOPPED", seen, "a drain releasing every pass was called STOPPED: %r" % seen)
+
+    def test_a_refusing_lock_is_said_as_a_refusal_not_as_a_prune(self):
+        r, st = self._pass(free_gb=500.0, frame_release=False)
+        self.assertFalse(r.get("removed"), "a locked deleter removed reels")
+        self.assertIn("refused", st.get("say") or "", "a refused deleter is not said as a refusal")
+        self.assertNotIn("freed", st.get("say") or "",
+                         "a deleter that never ran is described as having freed space: %r"
+                         % st.get("say"))
+        self.assertEqual(st["drain"]["state"], "OWED")
+        self.assertIn("LOCKED", st["drain"].get("stopWhy") or "")
+
+    def test_UNKNOWN_when_the_plan_cannot_run(self):
+        # a footage path that exists and cannot be listed: plan() answers ok False
+        bad = os.path.join(self.w.root, "not_a_dir")
+        with io.open(bad, "w") as fh:
+            fh.write("x")
+        os.environ["TV_HIST"] = bad
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(st["drain"]["state"], "UNKNOWN", st["drain"])
+        self.assertIsNone(st["drain"]["owed"], "an unrunnable plan published a confident owed")
+        self.assertEqual(self._doctor(st)[0], "unknown")
+
+    def test_UNKNOWN_when_a_ledger_will_not_parse(self):
+        io.open(os.path.join(self.w.root, "vault_swept.json"), "w").write("{ not json")
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(self.w.on_disk(), sorted(self.w.names), "an unreadable ledger lost footage")
+        self.assertEqual(st["drain"]["state"], "UNKNOWN",
+                         "an unreadable ledger read as a %r drain — 'cannot judge' is not "
+                         "'nothing owed'" % st["drain"]["state"])
+        self.assertIsNone(st["drain"]["owed"])
+
+    def test_a_console_that_never_filmed_is_UNMEASURED_not_stopped(self):
+        os.environ["TV_HIST"] = os.path.join(self.w.root, "never_made")
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(self._doctor(st)[0], "unmeasured", st["drain"])
+
+    def test_a_STALE_drain_is_UNKNOWN_never_healthy(self):
+        """A reading past its own cadence cannot certify the drain (stale-reading §4). It is not
+        MISSING either: after his Mac sleeps, a healthy loop's `at` is hours old until its next
+        pass, and whether the thread is alive is lane_liveness's row."""
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(st["drain"]["state"], "CLEAR", "premise: a fresh, healthy drain")
+        st = dict(st, drain=dict(st["drain"]))
+        st["drain"]["at"] = int(self.clock() * 1000) - int(
+            (RR.DRAIN_STOPPED_AFTER_PASSES + 1) * float(st["drain"]["everyS"]) * 1000)
+        self.assertEqual(self._doctor(st)[0], "unknown",
+                         "a drain whose newest reading is %d periods old was certified"
+                         % (RR.DRAIN_STOPPED_AFTER_PASSES + 1))
+
+
+class TheDrainArithmetic(unittest.TestCase):
+    """The pure half — reel_retention.drain_state over hand-built series rows."""
+
+    def _st(self, rows, **kw):
+        return RR.drain_state(rows, beat={"works": 7, "lastWorkAt": BASE_MS}, now_ms=BASE_MS, **kw)
+
+    def test_the_bar_is_exactly_the_constant(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        rows = [{"owed": 2}] * (bar - 1)
+        self.assertEqual(self._st(rows)["state"], "OWED")
+        self.assertEqual(self._st(rows + [{"owed": 2}])["state"], "STOPPED")
+
+    def test_a_pass_that_released_what_it_owed_breaks_the_streak(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        rows = []
+        for _ in range(bar + 1):
+            rows += [{"owed": 1}, {"released": 1}]
+        st = self._st(rows)
+        self.assertEqual(st["state"], "CLEAR")
+        self.assertEqual(st["owed"], 0)
+
+    def test_a_partial_release_still_carries_the_rest(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        rows = [{"owed": 3}, {"released": 2}] + [{"owed": 1}] * (bar - 1)
+        self.assertEqual(self._st(rows)["state"], "STOPPED")
+
+    def test_rows_from_before_the_contract_end_the_walk(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        rows = [{"owed": 2}] * bar + [{"freeGb": 10.0}] + [{"owed": 2}]
+        st = self._st(rows)
+        self.assertEqual((st["state"], st["passesOwed"]), ("OWED", 1))
+
+    def test_unknown_is_never_zero(self):
+        self.assertEqual(self._st([])["state"], "UNKNOWN")
+        self.assertEqual(self._st(None)["state"], "UNKNOWN")
+        st = self._st([{"owed": None}])
+        self.assertEqual(st["state"], "UNKNOWN")
+        self.assertIsNone(st["owed"])
+        self.assertEqual(self._st([{"owed": 2}, {"released": "many"}])["state"], "UNKNOWN")
+        self.assertEqual(self._st([{"owed": True}])["state"], "UNKNOWN", "True is not a count")
+
+    def test_a_disarmed_deleter_is_DORMANT_not_stopped(self):
+        rows = [{"owed": 2}] * (RR.DRAIN_STOPPED_AFTER_PASSES + 1)
+        self.assertEqual(self._st(rows, on=False)["state"], "DORMANT")
+
+    def test_worked_and_lastTs_are_quoted_from_the_deleters_record(self):
+        st = self._st([{"owed": 0}])
+        self.assertEqual((st["worked"], st["lastTs"]), (7, BASE_MS))
+        st = RR.drain_state([{"owed": 0}], beat={"why": "unreadable"}, now_ms=BASE_MS)
+        self.assertIsNone(st["worked"], "an unreadable deleter record read as a count")
+
+    def test_drain_owed_counts_what_a_target_held_back(self):
+        p = {"ok": True, "unreadable": [], "candidates": [{"reel": "a"}],
+             "kept": [{"reel": "b", "tag": "target-met"}, {"reel": "c", "tag": "recent"}]}
+        self.assertEqual(RR.drain_owed(p), 2)
+        self.assertIsNone(RR.drain_owed(dict(p, unreadable=["vault_swept.json"])))
+        self.assertIsNone(RR.drain_owed(dict(p, ok=False)))
+
+
+def tearDownModule():
+    for k, v in _SAVED_ENV.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    shutil.rmtree(_BOOT, ignore_errors=True)
+
+
+RED_PROOF = [
+    {
+        "why": "restoring the need_mb gate makes disk pressure free LESS than a roomy disk — "
+               "every finished reel past the first is held target-met",
+        "file": "tv/control_app.py",
+        "find": "    p = _rr.plan(hist, free_mb=None)\n",
+        "replace": "    p = _rr.plan(hist, free_mb=(need_mb or None))\n",
+        "matches": 1,
+    },
+    {
+        "why": "releasing newest-first puts the oldest reels in the keep window and deletes the "
+               "newest sessions",
+        "file": "tv/reel_retention.py",
+        "find": '        reels = sorted((d for d in os.listdir(hist) if d.startswith("reel_")), '
+                'key=_reel_ts)\n',
+        "replace": '        reels = sorted((d for d in os.listdir(hist) if d.startswith("reel_")), '
+                   'key=_reel_ts, reverse=True)\n',
+        "matches": 1,
+    },
+    {
+        "why": "a reel the vault lane never sealed is released as if it had given up its information",
+        "file": "tv/reel_retention.py",
+        "find": "        elif ve is None and _vault_lane_owes(path) and not _proven_empty(reel):\n",
+        "replace": "        elif False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "a drain that forgets how many passes it carried the same reels never says STOPPED",
+        "file": "tv/reel_retention.py",
+        "find": "        streak += 1\n",
+        "replace": "        streak = 1\n",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor row reads a stopped drain as anything but MISSING",
+        "file": "tv/console_doctor.py",
+        "find": '    if state == "STOPPED":\n        return MISSING, str(dr.get("why")',
+        "replace": '    if state == "NEVER":\n        return MISSING, str(dr.get("why")',
+        "matches": 1,
+    },
+    {
+        "why": "a plan that cannot judge (an unreadable ledger) is published as a clear drain",
+        "file": "tv/reel_retention.py",
+        "find": '    if not isinstance(p, dict) or not p.get("ok") or p.get("unreadable"):\n'
+                '        return None\n',
+        "replace": '    if not isinstance(p, dict) or not p.get("ok") or p.get("unreadable"):\n'
+                   '        return 0\n',
+        "matches": 1,
+    },
+    {
+        "why": "a deleter whose lock refused is described as a completed prune that freed 0 MB",
+        "file": "tv/control_app.py",
+        "find": "    _refused = (isinstance(r, dict) and not _removed_now and not r.get(\"ok\")\n"
+                "                and r.get(\"freedMb\") is None)\n",
+        "replace": "    _refused = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "a drain reading older than its own cadence certifies the shelf as draining",
+        "file": "tv/console_doctor.py",
+        "find": "        if _age_s > float(_every) * _after:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=1)

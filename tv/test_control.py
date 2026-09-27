@@ -40927,23 +40927,36 @@ class TestV2377TheUNBOUNDEDPruneAboveTheFloorIsHisRuling(unittest.TestCase):
     So this class now pins the DELIBERATE behaviour and the two things that made it look wrong,
     because the next reader will make the same mistake I did. What protects him was never the
     floor: it is eligibility (reel_retention's alone) and retention_may_act.
-    [[label-outlived-referent]] [[feedback-threshold-above-the-ceiling]]"""
+    [[label-outlived-referent]] [[feedback-threshold-above-the-ceiling]]
+
+    ⚠⚠ 2026-09-27 — AND THE BAND BELOW IT WAS THE REAL DEFECT. `need_mb or None` is None only ABOVE
+    floor+headroom; at or below it `need_mb` is positive, so plan() stopped at that many MB and held
+    every other finished reel as `target-met` — pressure freed LESS than a roomy disk (driven: 1 of 4
+    released with 0.5 MB short). The pass now asks for NO target at every level; `need_mb` is still
+    measured and published as `needMb`. The behaviour is DRIVEN in
+    test_the_river_drains_every_pass.py; these two only pin the arithmetic and the call."""
 
     def test_above_the_floor_the_plan_is_asked_for_NO_target_on_purpose(self):
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import control_app as ca
         need = max(0.0, (ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - 999.0) * 1000.0)
         self.assertEqual(need, 0.0, "a huge free disk should need nothing freed")
-        self.assertIsNone(need or None,
-                          "the loop passes `need_mb or None`; above the floor that is None, "
-                          "which means UNBOUNDED — his ruling, not an oversight")
+        import inspect
+        blk = inspect.getsource(ca._retention_once)
+        self.assertEqual(blk.count("_rr.plan(hist, free_mb=None)"), 1,
+                         "the retention pass no longer asks the plan for NO target — a disk-derived "
+                         "target makes pressure free less than a roomy disk would")
 
-    def test_below_the_floor_it_asks_for_exactly_what_is_missing(self):
+    def test_below_the_floor_it_still_MEASURES_exactly_what_is_missing(self):
+        """The measurement survives as `needMb`; it just no longer caps the pass."""
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import control_app as ca
         free = ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - 3.0        # 3 GB short
         need = max(0.0, (ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - free) * 1000.0)
         self.assertAlmostEqual(need, 3000.0, places=3)
+        import inspect
+        self.assertIn('"needMb": round(need_mb, 1)', inspect.getsource(ca._retention_once),
+                      "the pass stopped publishing how much it is short")
 
     def test_the_ROSTER_COMMENT_no_longer_claims_the_floor_gates_deletion(self):
         """The half-sentence that misled me. It said "Deletes ONLY below the ON AIR floor" for
