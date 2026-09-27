@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3518"   # second eye and CI fixes, art follows the base, the Characters door in the console header
+VERSION = "v3519"   # a Windows console sees the game - shadow rolls on the ALT through Boosteroid
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
