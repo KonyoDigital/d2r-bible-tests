@@ -16859,7 +16859,8 @@ _NOT_A_PASS = object()
 
 
 def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible_mb=None,
-                        pruned_mb=None, path=None, owed=_NOT_A_PASS, released=_NOT_A_PASS):
+                        pruned_mb=None, path=None, owed=_NOT_A_PASS, released=_NOT_A_PASS,
+                        held=None):
     """Append one free-space reading. Append-only, capped, never raises.
 
     ⚠ v2229 — HE ASKED "how come i have 15 gigabytes more today than yesterday? is the pruning
@@ -16916,6 +16917,9 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     if released is not _NOT_A_PASS:
         row["released"] = (released if (isinstance(released, int)
                                          and not isinstance(released, bool)) else None)
+    # A deferral mark, not a count. The drain reads it as "this pass was held", never as owed.
+    if isinstance(held, str) and held:
+        row["held"] = held[:200]
     # ⚠⚠ v2970 (#69) — WHAT PRODUCED THIS ROW. MEASURED by verdict_provenance 2026-09-11:
     # 44 stores, SILENT 16, and both of this console's own .jsonl series were among them. A row
     # with no producer cannot be INVALIDATED when the writer improves, so a verdict from an old
@@ -21642,6 +21646,34 @@ def _disk_history_tail(n=64, path=None):
     return rows[-int(n):]
 
 
+#: Why a retention pass is DEFERRED rather than stalled. These are nothing_in_flight's own
+#: sentences for a console that is filming or a sweep that is reading. An unreadable check
+#: ("could not tell", UNKNOWN) is not in this list: that one may still become STOPPED.
+_RETENTION_DEFERRALS = (
+    "the console is ON AIR",
+    "a chronicle sweep is reading",
+    "a vault sweep is reading",
+    "a mini is recording",
+    "frames are still landing",
+)
+
+
+def _retention_deferred(why):
+    """The refusal, when it is a by-design hold, else None.
+
+    ON AIR and a sweep that is reading must not be called a stopped drain. A refusal this
+    function does not recognise (the world was never confirmed, a lock, the switch off)
+    stays a stall.
+    """
+    s = str(why or "")
+    if "could not tell" in s or "UNKNOWN" in s:
+        return None
+    for m in _RETENTION_DEFERRALS:
+        if m in s:
+            return s[:200]
+    return None
+
+
 def _retention_drain(stop_why=None, unknown_why=None):
     """THE RETENTION LANE IN THE SHARED SUPERVISION VOCABULARY. -> dict (on/worked/lastTs/owed)
 
@@ -22022,6 +22054,19 @@ def _retention_once():
         return None
     ok, why = retention_may_act()
     if not ok:
+        # ON AIR or a sweep that is reading is a hold. The owed row is already in the series;
+        # this row marks that pass held so the drain says DEFERRED, never STOPPED.
+        _defer = _retention_deferred(why)
+        if _defer:
+            try:
+                disk_history_append(free_gb, ON_AIR_FLOOR_GB,
+                                    hist_bytes=_hist_bytes,
+                                    reels=len(p.get("kept") or []) + len(cands),
+                                    held=_defer,
+                                    eligible_mb=round(p.get("freeMb") or 0, 1),
+                                    pruned_mb=None)
+            except Exception:
+                pass
         _dr = _retention_drain(stop_why=why, unknown_why=_drain_unknown)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but %s"

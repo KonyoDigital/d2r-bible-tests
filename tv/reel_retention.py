@@ -1256,8 +1256,8 @@ def apply_plan(p, yes=False):
 DRAIN_STOPPED_AFTER_PASSES = 3
 
 #: The drain's states. UNKNOWN is a first-class answer and never renders as CLEAR.
-DRAIN_CLEAR, DRAIN_OWED, DRAIN_STOPPED, DRAIN_DORMANT, DRAIN_UNKNOWN = (
-    "CLEAR", "OWED", "STOPPED", "DORMANT", "UNKNOWN")
+DRAIN_CLEAR, DRAIN_OWED, DRAIN_STOPPED, DRAIN_DORMANT, DRAIN_DEFERRED, DRAIN_UNKNOWN = (
+    "CLEAR", "OWED", "STOPPED", "DORMANT", "DEFERRED", "UNKNOWN")
 
 
 def drain_owed(p):
@@ -1322,7 +1322,9 @@ def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_m
         return out
     tail = []
     for r in reversed(list(rows)):
-        if isinstance(r, dict) and ("owed" in r or "released" in r):
+        # `held` is a deferral mark on the pass that owed and did not run (ON AIR, a sweep
+        # reading). It is part of the contract, so it must not end the walk.
+        if isinstance(r, dict) and ("owed" in r or "released" in r or "held" in r):
             tail.append(r)
         else:
             break
@@ -1330,7 +1332,10 @@ def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_m
     passes = []
     for r in tail:
         if "owed" in r:
-            passes.append({"owed": _drain_count(r.get("owed"))})
+            passes.append({"owed": _drain_count(r.get("owed")),
+                           "held": r.get("held") if isinstance(r.get("held"), str) else None})
+        elif "held" in r and passes and "released" not in passes[-1]:
+            passes[-1]["held"] = r.get("held") if isinstance(r.get("held"), str) else None
         elif passes and "released" not in passes[-1]:
             passes[-1]["released"] = _drain_count(r.get("released"))
 
@@ -1343,8 +1348,16 @@ def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_m
             return None
         return max(0, ps["owed"] - ps["released"])
 
+    def _held(ps):
+        h = ps.get("held")
+        return h if isinstance(h, str) and h else None
+
+    # A deferred pass is a hold, not a stall. It ends the streak instead of extending it,
+    # so ON AIR or a sweep that is reading can never add up to STOPPED.
     streak = 0
     for ps in reversed(passes):
+        if _held(ps):
+            break
         c = _carried(ps)
         if not c:                              # None (unknown) or 0 (drained) ends the run
             break
@@ -1372,6 +1385,13 @@ def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_m
         out["state"] = DRAIN_DORMANT
         out["why"] = ("%d releasable reel(s) wait and the deleter is disarmed BY DESIGN — a "
                       "decision, not a stall" % owed_now)
+        return out
+    _defer = _held(passes[-1]) if passes else None
+    if _defer:
+        out["state"] = DRAIN_DEFERRED
+        out["why"] = ("%d releasable reel(s) wait and this pass was DEFERRED — %s — "
+                      "a hold while the console is filming or a sweep is reading, not a stall"
+                      % (owed_now, _defer[:160]))
         return out
     if streak >= DRAIN_STOPPED_AFTER_PASSES:
         out["state"] = DRAIN_STOPPED

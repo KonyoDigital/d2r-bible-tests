@@ -4132,7 +4132,9 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
     on /api/status.retention.drain) and goes red when releasable reels have been carried through
     `stoppedAfter` consecutive passes with nothing released — the brief's "owed > 0 for longer than
     two passes". A drain that is merely busy (new reels finishing every pass and being released)
-    does NOT go red: each of those passes released what it owed.
+    does NOT go red: each of those passes released what it owed. A pass deferred because the
+    console is ON AIR or a sweep is reading is DEFERRED, and this row stays OK. STOPPED is only
+    a run of passes that owed reels, released nothing, and carried no deferral.
 
     ⚠ IT READS THE WIRE, NEVER `import control_app` — that builds a second module whose state is
     the empty literal, the four-day twin (test_the_doctor_reads_the_console_not_a_twin).
@@ -4183,7 +4185,7 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
                                               / 3600000.0)))
     if state == "STOPPED":
         return MISSING, str(dr.get("why") or "the drain has stopped") + _tail
-    if state in ("CLEAR", "OWED", "DORMANT"):
+    if state in ("CLEAR", "OWED", "DORMANT", "DEFERRED"):
         return OK, str(dr.get("why") or state) + _tail
     return UNKNOWN, str(dr.get("why") or "the drain's state is UNKNOWN") + _tail
 

@@ -189,8 +189,13 @@ class _Base(unittest.TestCase):
             setattr(mod, attr, val)
         RR._TRIAGE_CACHE["at"] = None
 
-    def _pass(self, free_gb, world_ok=True, frame_release=True):
+    def _pass(self, free_gb, world_ok=True, frame_release=True, in_flight=None):
         """ONE retention pass, driven through the shipped code with every precondition STATED."""
+        def _flight(*_a, **_k):
+            if in_flight:
+                return False, in_flight
+            return True, "fixture: nothing in flight"
+
         def _may(lock):
             if lock == "frame.release":
                 return ((True, "fixture: the frame.release lock is open") if frame_release else
@@ -201,8 +206,7 @@ class _Base(unittest.TestCase):
         with mock.patch("time.time", self.clock), \
                 mock.patch("shutil.disk_usage", return_value=_usage(free_gb)), \
                 mock.patch.object(CA, "board_identity_drift", lambda: world), \
-                mock.patch.object(CA, "nothing_in_flight",
-                                  lambda *a, **k: (True, "fixture: nothing in flight")), \
+                mock.patch.object(CA, "nothing_in_flight", _flight), \
                 mock.patch.object(SA, "may", _may):
             r = CA._retention_once()
             st = CA.retention_state()
@@ -401,6 +405,40 @@ class TheHeartSeesTheDrainStop(_Base):
                         "premise: every pass started with reels owed: %r" % owed)
         self.assertNotIn("STOPPED", seen, "a drain releasing every pass was called STOPPED: %r" % seen)
 
+    def test_on_air_and_a_sweep_reading_are_DEFERRED_never_STOPPED(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        reasons = (
+            "the console is ON AIR (live) — you are filming",
+            "a chronicle sweep is reading",
+            "a vault sweep is reading",
+        )
+        before = self.w.on_disk()
+        states = []
+        for i in range(bar + 1):
+            r, st = self._pass(free_gb=500.0, in_flight=reasons[i % len(reasons)])
+            states.append(st["drain"]["state"])
+            self.assertNotIn("STOPPED", st["drain"].get("why") or "", st["drain"])
+            self.assertEqual(self._doctor(st)[0], "ok",
+                             "a deferred drain went red on pass %d: %s" % (i, st["drain"]))
+            self.assertFalse(r.get("removed") if isinstance(r, dict) else r,
+                             "a deferred drain deleted footage")
+        self.assertEqual(states, ["DEFERRED"] * (bar + 1), states)
+        self.assertEqual(self.w.on_disk(), before, "a deferred drain deleted footage")
+        held = [x.get("held") for x in self.w.series() if x.get("held")]
+        self.assertGreaterEqual(len(held), bar + 1, "the passes were not marked held: %r" % held)
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(len((r or {}).get("removed") or []), 2,
+                         "the first quiet pass did not drain what the hold had left owed")
+        self.assertEqual(st["drain"]["state"], "CLEAR", st["drain"])
+        self.assertEqual(self._doctor(st)[0], "ok")
+
+    def test_an_unreadable_sweep_is_not_a_deferral(self):
+        self.assertIsNone(CA._retention_deferred(
+            "could not tell whether a chronicle sweep is reading"))
+        self.assertIsNotNone(CA._retention_deferred("a chronicle sweep is reading"))
+        self.assertIsNotNone(CA._retention_deferred(
+            "the console is ON AIR (live) — you are filming"))
+
     def test_a_refusing_lock_is_said_as_a_refusal_not_as_a_prune(self):
         r, st = self._pass(free_gb=500.0, frame_release=False)
         self.assertFalse(r.get("removed"), "a locked deleter removed reels")
@@ -495,6 +533,19 @@ class TheDrainArithmetic(unittest.TestCase):
         rows = [{"owed": 2}] * (RR.DRAIN_STOPPED_AFTER_PASSES + 1)
         self.assertEqual(self._st(rows, on=False)["state"], "DORMANT")
 
+    def test_a_held_pass_is_DEFERRED_and_does_not_extend_the_streak(self):
+        bar = RR.DRAIN_STOPPED_AFTER_PASSES
+        rows = []
+        for _ in range(bar + 2):
+            rows.append({"owed": 2})
+            rows.append({"held": "the console is ON AIR (live) — you are filming"})
+        st = self._st(rows)
+        self.assertEqual(st["state"], "DEFERRED", st)
+        self.assertEqual(st["owed"], 2)
+        self.assertEqual(st["passesOwed"], 0, "a deferred pass extended the stall streak")
+        self.assertNotIn("STOPPED", st.get("why") or "")
+        self.assertEqual(self._st([{"owed": 2}] * bar)["state"], "STOPPED")
+
     def test_worked_and_lastTs_are_quoted_from_the_deleters_record(self):
         st = self._st([{"owed": 0}])
         self.assertEqual((st["worked"], st["lastTs"]), (7, BASE_MS))
@@ -580,6 +631,34 @@ RED_PROOF = [
         "file": "tv/console_doctor.py",
         "find": "        if _age_s > float(_every) * _after:\n",
         "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "a pass held because the console is ON AIR still lengthens the stall and is called STOPPED",
+        "file": "tv/reel_retention.py",
+        "find": "        if _held(ps):\n            break\n",
+        "replace": "        if False and _held(ps):\n            break\n",
+        "matches": 1,
+    },
+    {
+        "why": "an ON AIR refusal is not marked held, so the drain calls a deferred pass STOPPED",
+        "file": "tv/control_app.py",
+        "find": "                                    held=_defer,\n",
+        "replace": "                                    held=None,\n",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor reads a deferred drain as anything but OK",
+        "file": "tv/console_doctor.py",
+        "find": '    if state in ("CLEAR", "OWED", "DORMANT", "DEFERRED"):\n',
+        "replace": '    if state in ("CLEAR", "OWED", "DORMANT"):\n',
+        "matches": 1,
+    },
+    {
+        "why": "an unreadable sweep is treated as a calm deferral and can never be called stopped",
+        "file": "tv/control_app.py",
+        "find": "    if \"could not tell\" in s or \"UNKNOWN\" in s:\n        return None\n",
+        "replace": "    if False:\n        return None\n",
         "matches": 1,
     },
 ]
