@@ -24837,7 +24837,10 @@ _VAULT_AUTOREAD_MAX_TRIES = 2
 _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {},
                    # v2302 — the LAST reason an attempt on this reel gave. Retirement used
                    # to assert a cause it had never measured; now it can quote one.
-                   "lastWhy": {}}
+                   "lastWhy": {},
+                   # prompt version already given one solo pass. A barren seal is not an
+                   # extraction, and a second pass on the same reader is the 3052-resweep loop.
+                   "reextract": {}}
 
 #: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
 #: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
@@ -24963,7 +24966,7 @@ def _vault_autoread_load():
         for k in ("reads", "lastTs"):
             if isinstance(d.get(k), int):
                 _VAULT_AUTOREAD[k] = d[k]
-        for k in ("retired", "tries", "lastWhy"):
+        for k in ("retired", "tries", "lastWhy", "reextract"):
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
         # ⚠ LAST. Nothing may observe `tried` until `retired` is actually in memory.
@@ -25000,7 +25003,8 @@ def _vault_autoread_save():
                "lastTs": int(_VAULT_AUTOREAD.get("lastTs") or 0),
                "retired": _VAULT_AUTOREAD.get("retired") or {},
                "tries": _VAULT_AUTOREAD.get("tries") or {},
-               "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {}}
+               "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {},
+               "reextract": _VAULT_AUTOREAD.get("reextract") or {}}
         with io.open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh, indent=1, sort_keys=True)
         os.replace(tmp, dest)
@@ -25795,6 +25799,28 @@ def _vault_autoread_state():
         return {"on": None, "why": "could not be read: %s" % str(e)[:90]}
 
 
+def _unextracted_seal_needs_one_pass(refusal, already):
+    """A current seal with no rows and no examinedEmpty is not an extraction. -> bool
+
+    Measured on the three reels the drain cannot free: each seal says rows 0,
+    examinedEmpty unset, extractedWhy "nothing was taken", while the pass beside them
+    banked a row for someone else. The lane then skips the seal, so the solo pass that
+    can finish the answer never runs. One pass per reader. A second pass on the same
+    reader is the loop that re-swept one reel 3052 times.
+    """
+    if not isinstance(refusal, dict) or not refusal.get("alreadySealed"):
+        return False
+    rows = refusal.get("rows")
+    if isinstance(rows, bool) or not isinstance(rows, int) or rows > 0:
+        return False
+    if refusal.get("examinedEmpty") is True:
+        return False
+    prompt = str(refusal.get("sealedBy") or "")
+    if not prompt or prompt == "?":
+        return False
+    return str(already or "") != prompt
+
+
 def vault_autoreel_tick():
     """One pass. Starts at most one vault sweep, and every refusal carries a named reason."""
     # ⚠⚠⚠ v2902 — THE ACTOR LOADS, NOT JUST THE REPORTER. Raised by the cross-family eye on v2901
@@ -25987,6 +26013,30 @@ def vault_autoreel_tick():
             # [[the-unjoined-end]] [[review-after-ship]]
             if r.get("alreadySealed"):
                 _VAULT_AUTOREAD["skipped"][rid] = why[:120]
+                # A seal that took no rows did not extract. One solo pass, then the
+                # reader is recorded so the same prompt cannot buy the reel again.
+                _prior = (_VAULT_AUTOREAD.get("reextract") or {}).get(rid)
+                if _unextracted_seal_needs_one_pass(r, _prior):
+                    r2 = vault_sweep_start(limit=1, reel_dir=str(d), force=True)
+                    if isinstance(r2, dict) and r2.get("ok"):
+                        _VAULT_AUTOREAD.setdefault("reextract", {})[rid] = str(
+                            r.get("sealedBy") or "")
+                        _VAULT_AUTOREAD["tries"][rid] = tries
+                        _VAULT_AUTOREAD["reads"] = int(_VAULT_AUTOREAD.get("reads") or 0) + 1
+                        _VAULT_AUTOREAD["lastTs"] = int(time.time() * 1000)
+                        _vault_autoread_save()
+                        return {"ok": True, "started": rid, "owed": owed, "reextract": True,
+                                "why": "a seal with no rows is not an extraction — one solo pass"}
+                    why2 = str((isinstance(r2, dict) and r2.get("why")) or r2)
+                    if isinstance(r2, dict) and (r2.get("state") is not None
+                                                 or "already running" in why2):
+                        return {"ok": False, "deferred": rid, "owed": owed, "why": why2}
+                    if not (isinstance(r2, dict) and r2.get("alreadySealed")):
+                        _VAULT_AUTOREAD["tries"][rid] = tries
+                        _VAULT_AUTOREAD.setdefault("lastWhy", {})[rid] = why2[:200]
+                        _VAULT_AUTOREAD["skipped"][rid] = why2[:120]
+                        return {"ok": False, "reel": rid, "tries": tries, "owed": owed,
+                                "why": why2}
                 continue
             _VAULT_AUTOREAD["tries"][rid] = tries
             _VAULT_AUTOREAD["skipped"][rid] = why[:120]
@@ -26653,6 +26703,7 @@ def _sweep_pick_named(dirs, reel_dir, force, rec_of, still_sealed=None):
     # to it. [[label-outlived-referent]]
     _rows = int((rec or {}).get("rows") or 0)
     return [], {"ok": False, "alreadySealed": True, "reel": want, "rows": _rows,
+                "examinedEmpty": (rec or {}).get("examinedEmpty"),
                 "sealedBy": str((rec or {}).get("promptVer") or "?"),
                 "why": ("%s is already sealed by the CURRENT vault reader (%s) with %d row(s) - "
                         "%s. Pass force to overrule."
@@ -26706,6 +26757,7 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
                 _pre_rows = int((_pre_rec or {}).get("rows") or 0)
                 return {"ok": False, "alreadySealed": True, "reel": _pre_nm,
                         "sealedBy": str((_pre_rec or {}).get("promptVer") or "?"),
+                        "examinedEmpty": (_pre_rec or {}).get("examinedEmpty"),
                         "rows": _pre_rows,
                         "why": ("%s is already sealed by the CURRENT vault reader (%s) with %d "
                                 "row(s) - %s. Pass force to overrule the seal."

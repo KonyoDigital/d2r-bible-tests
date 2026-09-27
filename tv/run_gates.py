@@ -5229,6 +5229,12 @@ GATES = [
              "LEDGER failed to load rather than because nothing was pruned (opposite facts), and "
              "`certified` decaying into an alias for `sealed` when 30 seals exist and ZERO satisfy "
              "the extraction contract"),
+    Gate("test_an_unextracted_seal_gets_one_pass",
+         [sys.executable, os.path.join(HERE, "test_an_unextracted_seal_gets_one_pass.py")], 120,
+         why="the drain holds 3 panels-never-banked reels whose seals say rows 0 and never "
+             "declared examinedEmpty, so a seal was treated as an extraction and the solo pass "
+             "never started. One pass per reader, remembered across a restart. A seal that "
+             "already took rows, or that declared examinedEmpty, is not bought again. 3 red-proofs"),
     Gate("test_a_missing_tombstone_is_none_yet",
          [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
          why="a console that has never retired a reel has no reel_tombstones.json. That is none "

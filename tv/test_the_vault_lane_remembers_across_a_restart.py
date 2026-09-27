@@ -62,7 +62,7 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
     def _restart(self):
         """Everything a new process would start with, and nothing more."""
         CA._VAULT_AUTOREAD.update({"reads": 0, "lastTs": 0, "retired": {}, "tries": {},
-                                   "lastWhy": {}, "skipped": {}})
+                                   "lastWhy": {}, "skipped": {}, "reextract": {}})
         CA._VAULT_AUTOREAD_STORE.update({"tried": False, "readable": None})
 
     # ── the store must not be able to reach his live console ─────────────────────────────────
