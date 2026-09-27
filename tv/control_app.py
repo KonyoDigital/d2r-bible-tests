@@ -1384,6 +1384,10 @@ _stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is runnin
 _capture_proc = None  # type: ignore
 _agent_mode = "off"  # off | live | sim
 _agent_origin = "hand"  # hand | shadow | mini — WHO asked for the running reel (v2362)
+#: 2026-09-27 — WHEN the running reel was confirmed rolling (epoch ms), stamped beside
+#: `_agent_origin` at the one place a reel is confirmed rolling. The hourly shadow rollover reads
+#: the two together, only for an agent THIS console opened; None = nobody recorded it (UNKNOWN).
+_agent_since_ms = None
 _log_fp = None
 _EXIT_STOP_DONE = False
 _EXIT_STOP_LOCK = threading.Lock()
@@ -4080,7 +4084,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
     """mini/focus — the ⏱ MINI CAPTURE bound (seconds, already clamped) and the ONE focus name.
     They are appended to the SPAWN ARGV on BOTH platforms so the cousin's Windows box gets the
     identical agent invocation; nothing about the mini branches on platform."""
-    global _agent_proc, _agent_mode, _log_fp, _agent_origin
+    global _agent_proc, _agent_mode, _log_fp, _agent_origin, _agent_since_ms
     # v847 — never "already live" on a stranger/orphan: hard-stop anything on the bridge first
     if _stop_inflight:
         return {"ok": False, "msg": "farewell still finishing — try again in a moment",
@@ -4273,6 +4277,10 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
         _write_pid(PID_PATH, _agent_proc.pid)
         _agent_mode = "sim" if sim else "live"
         _agent_origin = str(origin or "hand")
+        # 2026-09-27 — and SINCE WHEN, under the same lock as the origin, so the hourly shadow
+        # rollover can never pair a new reel's door with an old reel's clock (or the reverse) and
+        # cut a session he has just started by hand. [[the-unjoined-end]]
+        _agent_since_ms = int(time.time() * 1000)
         # v2687 — THE OPEN IS CREDITED HERE, FOR EVERY DOOR. v2316 built a Wilson score per door
         # and only `shadow` ever passed opened=True, because ON AIR and MINI note their door at
         # PREFLIGHT time — before anything has opened — and nothing noted it again once a reel was
@@ -25909,19 +25917,267 @@ def _shadow_watch_note(**kw):
     return cur
 
 
+# ── 2026-09-27 — A SHADOW SESSION ROLLS OVER EVERY HOUR ─────────────────────────────────────────
+# Konyo: "each session shadow reader should automatically be hourly like lets say console is on
+# for two hours.. it should be 1 hour and the session closes and continue another session but
+# instantly.. like just so they can be processed and its not stacking up.."
+#
+# MEASURED before this: NOTHING rotated a session. shadow_watch_tick returned at "a reel is already
+# rolling" and never looked at that reel again, so a shadow reel ran until he pressed END SESSION
+# or the console died. The seal, the fold and the river all start at the END of a reel
+# (stop_agent -> the agent's session_end row -> after_session_ended), so a three-hour evening was
+# one reel that nothing could process until the evening was over.
+#
+# THE RULE, and every clause is a decision:
+#   · ONLY a reel the SHADOW door opened rolls over. A reel he opened himself (ON AIR, MINI) is his,
+#     whatever its age — a lane that cuts his session is the worse of the two mistakes. The door is
+#     `_agent_origin`, stamped with `_agent_since_ms` by start_agent, and it is only believed for an
+#     agent THIS console opened: an orphan's door is UNKNOWN and an unknown reel is never cut.
+#   · It closes through stop_agent(farewell=False) — the SAME call /api/off, /api/stop and the MINI
+#     sealer make — so the reel is sealed, journalled and handed to the river exactly like any
+#     other. A second way to end a session is the copy-drift this console has paid for before.
+#   · It never starts the next reel itself. The next LOOK does, through the same door and the same
+#     preflight (disk floor, grant, window), so with the game gone the reel is closed and NOT
+#     reopened. "Instantly", honestly: after a rollover the loop looks again in
+#     _SHADOW_ROTATE_RELOOK_S instead of a whole _SHADOW_WATCH_EVERY_S, so the gap between the two
+#     reels is the seal plus about two seconds. Never zero, and never claimed to be.
+#   · A reel whose start cannot be read is left rolling and reported UNKNOWN — never cut on a guess.
+# [[heart-first]] [[unknown-stays-unknown]] [[copy-drift]]
+
+#: his ruling, 2026-09-27: "it should be 1 hour". The ONE named limit. TV_SHADOW_ROTATE_S overrides
+#: it for a law, read at CALL time — an env honoured only at import is a redirect that silently does
+#: not take (v2423, the same lesson as _shadow_watch_path).
+_SHADOW_ROTATE_AFTER_S = 60 * 60
+#: the doctor's slack past the hour before a shadow reel counts as STUCK. The watcher looks every
+#: 20 s and a stop can take ~8 s, so five minutes is fifteen missed looks — not jitter.
+_SHADOW_ROTATE_MARGIN_S = 5 * 60
+#: after a rollover the next look comes this soon, so the new reel starts seconds after the old one
+#: sealed rather than up to a whole watch period later.
+_SHADOW_ROTATE_RELOOK_S = 2
+
+
+def _shadow_rotate_after_s():
+    """The rollover limit in seconds, env first (TV_SHADOW_ROTATE_S > 0), else the constant."""
+    raw = (os.environ.get("TV_SHADOW_ROTATE_S") or "").strip()
+    if raw:
+        try:
+            v = float(raw)
+            if v > 0:
+                return v
+        except ValueError:
+            pass
+    return float(_SHADOW_ROTATE_AFTER_S)
+
+
+def _shadow_now_ms():
+    """The watcher's clock — one seam, so a law can stand a reel at 61 minutes without waiting one."""
+    return int(time.time() * 1000)
+
+
+def _rolling_reel():
+    """WHOSE reel is rolling and SINCE WHEN, as the door that opened it recorded. -> dict
+
+    door   "onair" | "shadow" | "mini" — or None, UNKNOWN: the live agent was not opened by THIS
+           console (an orphan from a previous one), or the agent lock could not be read this look.
+           Never the default "hand": an unknown reel read as his would be safe, read as shadow's
+           would be cut, and both would be a door nobody recorded.
+    since  epoch ms at which start_agent confirmed it rolling; None = nobody recorded it (UNKNOWN).
+    """
+    with _lock_briefly("rolling_reel") as _got:
+        if not _got:
+            return {"door": None, "since": None,
+                    "why": "the agent lock is busy, so whose reel is rolling cannot be read this look"}
+        _p = _agent_proc
+        _owned = _p is not None and _p.poll() is None
+        _origin, _since = _agent_origin, _agent_since_ms
+    if not _owned:
+        return {"door": None, "since": None,
+                "why": "the rolling agent was not opened by this console, so whose reel it is and "
+                       "when it began cannot be read"}
+    return {"door": _door_of_origin(_origin), "since": _since, "why": ""}
+
+
+def _shadow_rollover(now):
+    """A reel is rolling. Roll a SHADOW reel over once it has run its hour. -> the tick's answer
+
+    ⚠ EVERY LOOK WHILE A REEL ROLLS IS NOW NOTED, with what is rolling and since when. Before this
+    the watcher wrote nothing while any reel rolled, so `lookedAt` aged through every ON AIR session:
+    health_engine said "it is not running" after 10 minutes and corroborate's
+    shadow-armed-is-watching disagreed after 5, about a watcher that was working. The rolling facts
+    are CURRENT only while `rollingAt == lookedAt`: a later look that finds no reel moves lookedAt
+    and leaves them behind, so a closed reel can never read as a stuck one.
+    """
+    limit = _shadow_rotate_after_s()
+    roll = _rolling_reel()
+    door, since = roll.get("door"), roll.get("since")
+    age_s = ((now - int(since)) / 1000.0) if since is not None else None
+    facts = dict(lookedAt=now, rollingAt=now, rollingDoor=door, rollingSince=since,
+                 rotateAfterS=limit)
+    if door != "shadow":
+        why = "a reel is already rolling — shadow never starts a second"
+        if door is None:
+            why += " (whose reel it is cannot be read: %s)" % roll.get("why")
+        else:
+            why += " (a %s reel he opened, so it never rolls over)" % door.upper()
+        _shadow_watch_note(why=why, **facts)
+        return {"ok": True, "why": why, "rolling": door}
+    if age_s is None:
+        why = ("a shadow reel is rolling and when it began cannot be read — the hourly rollover "
+               "cannot be judged, so it is left rolling (UNKNOWN, never cut on a guess)")
+        _shadow_watch_note(why=why, **facts)
+        return {"ok": True, "unknown": True, "why": why, "rolling": door}
+    if age_s < limit:
+        why = ("a shadow reel is already rolling (%d of %d min) — shadow never starts a second; it "
+               "rolls over at %d min" % (int(age_s // 60), int(limit // 60), int(limit // 60)))
+        _shadow_watch_note(why=why, **facts)
+        return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
+    if _stop_inflight:
+        why = ("a shadow reel has run its %d min but a stop is already in flight — the next look "
+               "checks again" % int(limit // 60))
+        _shadow_watch_note(why=why, **facts)
+        return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
+    # ── ROLL IT OVER, through the one stop every door uses ──────────────────────────────────────
+    try:
+        _sid = _mini_sid()          # the agent's own word for the reel it is writing
+    except Exception:
+        _sid = None
+    reel = ("reel_%s" % _sid) if _sid else None
+    try:
+        r = stop_agent(farewell=False)
+    except Exception as _e:
+        r = _force_kill_all_agents("shadow rollover (stop_agent raised: %s)" % str(_e)[:100])
+    # ⚠ THE STOP'S RECEIPT IS A CLAIM. Whether a reel is still rolling is MEASURED, and a rollover
+    # is counted only when the reel is actually gone. [[unknown-stays-unknown]]
+    try:
+        still = bool(_agent_alive())
+    except Exception:
+        still = None
+    _rec = _shadow_watch_stored() or {}
+    _named = reel or "the shadow reel (its id could not be read from the agent)"
+    if still is False:
+        n = int(_rec.get("rotations") or 0) + 1
+        why = ("rolled over: closed %s after %d min so it can be processed — the next look, in about "
+               "%d s, opens a new shadow reel if Diablo is still on screen"
+               % (_named, int(age_s // 60), _SHADOW_ROTATE_RELOOK_S))
+        _shadow_watch_note(lookedAt=now, rollingAt=None, rollingDoor=None, rollingSince=None,
+                           rotateAfterS=limit, rotations=n, rotatedAt=now, rotatedReel=reel,
+                           rotatedAgeS=int(age_s), why=why)
+        return {"ok": True, "rotated": True, "closed": reel, "ageS": int(age_s), "why": why}
+    why = ("tried to roll over %s after %d min and it is %s (%s) — the next look tries again"
+           % (_named, int(age_s // 60),
+              "STILL ROLLING" if still else "UNKNOWN whether it stopped",
+              str((r or {}).get("msg") if isinstance(r, dict) else r)[:80]))
+    _shadow_watch_note(why=why, rotateFailedAt=now, **facts)
+    return {"ok": False, "rotated": False, "ageS": int(age_s), "why": why}
+
+
+def _shadow_rollover_reading(w=None, now_ms=None):
+    """THE HEART'S READING OF THE HOURLY ROLLOVER, from the watcher's RECORD on disk. -> dict
+
+    {state, line, owed, ageS}. state is "ok" | "warn" | "unknown", or None when no reel was rolling
+    at the last look — there is then nothing to judge, and how fresh that look was is
+    check_shadow_watch's question, not this one.
+
+    ⚠ IT READS THE RECORD, NOT THIS PROCESS. The doctor and the eagle run in other processes where
+    `_agent_origin` is the import default, so an in-memory answer would be a confident one about
+    nothing. ⚠ `owed` is 1 while a shadow reel at the last look has run its hour, 0 when measured
+    not, and None when that cannot be told — never 0 for unknown. [[heart-first]] §3 §7
+    """
+    if w is None:
+        w = shadow_watch_state()
+    if not isinstance(w, dict) or w.get("ok") is False:
+        return {"state": "unknown", "owed": None, "ageS": None,
+                "line": "the watcher's record is unreadable, so whether shadow reels roll over on "
+                        "the hour cannot be told"}
+    now = _shadow_now_ms() if now_ms is None else int(now_ms)
+    at = w.get("rollingAt")
+    if at is None or at != w.get("lookedAt"):
+        return {"state": None, "owed": 0, "ageS": None,
+                "line": "no reel was rolling at the watcher's last look"}
+    door = w.get("rollingDoor")
+    if door is None:
+        return {"state": "unknown", "owed": None, "ageS": None,
+                "line": "a reel is rolling that this console did not open, or could not read — "
+                        "whose it is and when it began are UNKNOWN, so whether the hourly rollover "
+                        "works cannot be told"}
+    if door != "shadow":
+        return {"state": "ok", "owed": 0, "ageS": None,
+                "line": "a %s reel is rolling — he opened it, so it never rolls over" % str(door).upper()}
+    since = w.get("rollingSince")
+    if since is None:
+        return {"state": "unknown", "owed": None, "ageS": None,
+                "line": "a shadow reel is rolling and when it began cannot be read — whether it "
+                        "rolls over on the hour is UNKNOWN"}
+    try:
+        limit = float(w.get("rotateAfterS") or 0) or _shadow_rotate_after_s()
+        age_s = (now - float(since)) / 1000.0
+    except (TypeError, ValueError):
+        return {"state": "unknown", "owed": None, "ageS": None,
+                "line": "the rolling shadow reel's start is not a time (%r), so its age is UNKNOWN"
+                        % (since,)}
+    if age_s > limit + _SHADOW_ROTATE_MARGIN_S:
+        return {"state": "warn", "owed": 1, "ageS": int(age_s),
+                "line": "a shadow reel has been rolling %d min — past the %d-min rollover and %d min "
+                        "of slack, so the hourly rollover has STOPPED WORKING and the evening is "
+                        "stacking up in one reel nothing can process"
+                        % (int(age_s // 60), int(limit // 60), int(_SHADOW_ROTATE_MARGIN_S // 60))}
+    return {"state": "ok", "owed": (1 if age_s >= limit else 0), "ageS": int(age_s),
+            "line": "a shadow reel is rolling (%d of %d min) and rolls over on the hour"
+                    % (int(age_s // 60), int(limit // 60))}
+
+
+def shadow_rollover_verdict(w=None, now_ms=None):
+    """-> (state, line) for the doctor row. See _shadow_rollover_reading."""
+    got = _shadow_rollover_reading(w, now_ms)
+    return got["state"], got["line"]
+
+
+def shadow_watch_contract(st=None, w=None, now_ms=None):
+    """The shadow-watch lane in THE SHARED SUPERVISION VOCABULARY. -> dict
+
+    on      his switch; None when it cannot be read
+    worked  LIFETIME: reels this lane opened plus reels it rolled over, from the persisted record
+            (a per-process counter resets on restart and cannot answer "has this ever worked")
+    lastTs  when it last DID either — not merely looked; None = never
+    owed    1 while a shadow reel at the last look has run its hour, 0 measured none, None UNKNOWN
+    """
+    try:
+        if st is None:
+            st = _shadow_state()
+        on = st.get("on") if isinstance(st, dict) else None
+    except Exception:
+        on = None
+    if w is None:
+        w = shadow_watch_state()
+    if not isinstance(w, dict) or w.get("ok") is False:
+        return {"on": on, "worked": None, "lastTs": None, "owed": None, "starts": None,
+                "rotations": None, "say": "the watcher's record is unreadable — UNKNOWN, not idle"}
+    reading = _shadow_rollover_reading(w, now_ms)
+    starts, rots = int(w.get("starts") or 0), int(w.get("rotations") or 0)
+    done = [t for t in (w.get("startedAt"), w.get("rotatedAt")) if isinstance(t, (int, float))]
+    return {"on": on, "worked": starts + rots, "lastTs": (int(max(done)) if done else None),
+            "owed": reading["owed"], "starts": starts, "rotations": rots,
+            "say": reading["line"]}
+
+
 def shadow_watch_tick():
     """One look for the game window. -> dict, and EVERY refusal names itself.
 
-    Starts at most one reel, through the same start_agent() /api/on uses.
+    Starts at most one reel, through the same start_agent() /api/on uses — and, since 2026-09-27,
+    rolls a shadow reel over once it has run its hour (_shadow_rollover).
     """
-    now = int(time.time() * 1000)
+    now = _shadow_now_ms()
     st = _shadow_state()
+    if _agent_alive():
+        # 2026-09-27 — a rolling reel is LOOKED AT, not walked past: noted, and a SHADOW reel that
+        # has run its hour is closed through stop_agent. Shadow still never starts a second reel.
+        # Switching the reader OFF does not excuse a shadow reel already rolling: the switch means
+        # do not START another, and the one that is open still closes on the hour.
+        return _shadow_rollover(now)
     if not st.get("on"):
         return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
     if st.get("available") is False:
         return {"ok": False, "why": "no local OCR on this machine, so the lane cannot run"}
-    if _agent_alive():
-        return {"ok": True, "why": "a reel is already rolling — shadow never starts a second"}
     try:
         if (mini_state() or {}).get("running"):
             return {"ok": True, "why": "a mini capture is counting down"}
@@ -25978,18 +26234,28 @@ def shadow_watch_tick():
 
 
 def _shadow_watch_loop():
-    """Watch for the game and roll a reel, so playing is enough. Never starts a second reel."""
+    """Watch for the game and roll a reel, so playing is enough. Never starts a second reel.
+
+    2026-09-27 — after a look that ROLLED A SHADOW REEL OVER, the next look comes in
+    _SHADOW_ROTATE_RELOOK_S rather than a whole period later, so a new reel follows the sealed one
+    within seconds ("continue another session but instantly"). At most one extra look per period.
+    """
     while True:
         try:
             time.sleep(_SHADOW_WATCH_EVERY_S)
-            _lane_tick('tvd-shadow-watch', _SHADOW_WATCH_EVERY_S)
-            r = shadow_watch_tick()
-            import lane_trace as _lt          # v3076 — see _drift_loop
-            _lt.note('tvd-shadow-watch',
-                     started=bool(isinstance(r, dict) and r.get("started")),
-                     unknown=bool(isinstance(r, dict) and r.get("unknown")))
-            if isinstance(r, dict) and (r.get("started") or r.get("unknown")):
-                print("   \U0001f441 shadow watch: %s" % str(r.get("why"))[:140], flush=True)
+            for _look in (0, 1):
+                _lane_tick('tvd-shadow-watch', _SHADOW_WATCH_EVERY_S)
+                r = shadow_watch_tick()
+                import lane_trace as _lt          # v3076 — see _drift_loop
+                _lt.note('tvd-shadow-watch',
+                         started=bool(isinstance(r, dict) and r.get("started")),
+                         unknown=bool(isinstance(r, dict) and r.get("unknown")),
+                         rotated=bool(isinstance(r, dict) and r.get("rotated")))
+                if isinstance(r, dict) and (r.get("started") or r.get("unknown") or r.get("rotated")):
+                    print("   \U0001f441 shadow watch: %s" % str(r.get("why"))[:140], flush=True)
+                if not (isinstance(r, dict) and r.get("rotated")):
+                    break
+                time.sleep(_SHADOW_ROTATE_RELOOK_S)   # the sealed reel's successor, seconds later
         except Exception:
             pass
 
@@ -35457,7 +35723,15 @@ class Handler(BaseHTTPRequestHandler):
             #             decoration, and a switch that cannot do anything must say so
             #   recording whether a reel is actually rolling; the eye only fires during one
             # A single green light covering all three is the g5 scar: "mode=primary, calls=0".
-            self._json(200, _shadow_state())
+            # 2026-09-27 — plus the watcher LANE in the shared vocabulary (on/worked/lastTs/owed),
+            # owed = a shadow reel past its hourly rollover. A lane that cannot be read is UNKNOWN.
+            _sst = _shadow_state()
+            try:
+                _sst["lane"] = shadow_watch_contract(st=_sst)
+            except Exception as _le:
+                _sst["lane"] = {"on": _sst.get("on"), "worked": None, "lastTs": None, "owed": None,
+                                "say": "the watcher lane could not be read (%s)" % type(_le).__name__}
+            self._json(200, _sst)
             return
         # ══ END GROK EYES (G5) ══
         if path == "/api/autoroute-sweep":

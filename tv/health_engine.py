@@ -237,6 +237,16 @@ def check_shadow_watch():
         return _row("shadowWatch", UNKNOWN,
                     str((w or {}).get("why") or "the watcher's record is unreadable"))
     if not st.get("on"):
+        # OFF means do not start another reel. A shadow reel already rolling is still judged:
+        # saying "nothing is watching" while a 90-minute reel stacks up is the row going blind.
+        try:
+            _off = _ca._shadow_rollover_reading(w)
+        except Exception as e:
+            return _row("shadowWatch", UNKNOWN,
+                        "the switch is off and the rolling reel could not be judged: %s" % str(e)[:60])
+        if _off.get("state") in (WARN, UNKNOWN):
+            return _row("shadowWatch", _off["state"],
+                        "the shadow reader is switched OFF, and %s" % _off["line"])
         return _row("shadowWatch", OK, "the shadow reader is switched OFF, so nothing is watching "
                                        "for the game — by his choice")
     looked = w.get("lookedAt")
@@ -250,9 +260,26 @@ def check_shadow_watch():
         return _row("shadowWatch", WARN,
                     "the shadow switch is ON but the watcher last looked %.0f minutes ago — it "
                     "should look every 20 s, so it is not running" % age)
+    # ⏱ 2026-09-27 — THE HOURLY ROLLOVER, read from the SAME record. His order: a shadow session
+    # closes every hour so it can be processed and nothing stacks up. A shadow reel older than the
+    # limit plus a margin means the rollover STOPPED WORKING; a shadow reel whose start cannot be
+    # read is UNKNOWN, never a clean row. The reading lives beside the rule in control_app, so the
+    # limit, the margin and "current at the last look" have one owner. [[heart-first]]
+    try:
+        _rv = _ca._shadow_rollover_reading(w)
+        _lane = _ca.shadow_watch_contract(st=st, w=w)
+    except Exception as e:
+        return _row("shadowWatch", UNKNOWN,
+                    "could not judge the hourly rollover: %s" % str(e)[:70])
+    _ev = ["lane: on=%s worked=%s lastTs=%s owed=%s" % (_lane.get("on"), _lane.get("worked"),
+                                                        _lane.get("lastTs"), _lane.get("owed"))]
+    if _rv.get("state") in (WARN, UNKNOWN):
+        return _row("shadowWatch", _rv["state"], _rv["line"], _ev)
     return _row("shadowWatch", OK,
-                "watching for the game every 20 s (last look %.0f s ago) · %s reel(s) started · %s"
-                % (age * 60, w.get("starts") or 0, str(w.get("why") or "")[:80]))
+                "watching for the game every 20 s (last look %.0f s ago) · %s reel(s) started · "
+                "%s rolled over on the hour · %s"
+                % (age * 60, w.get("starts") or 0, w.get("rotations") or 0,
+                   str(w.get("why") or "")[:80]), _ev)
 
 
 
