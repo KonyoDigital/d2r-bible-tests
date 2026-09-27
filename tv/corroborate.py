@@ -2262,6 +2262,13 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # 2026-09-27 — the drain row.
+    'retention drain':
+        "the row reads the drain contract the serving console publishes from TWO of its own records "
+        "(the per-pass disk_history series for owed/released, the tombstone ledger for worked); a "
+        "genuinely independent second source would be the reel directories counted fresh on disk "
+        "against the pass that planned them, and every reader that could count them asks the same "
+        "reel_retention.plan() — a joint over it would be one number wearing two names.",
     # #227
     'this machine can decode a frame':
         "the row round-trips a BMP through Pillow in memory; a second source would be a real frame this machine filmed decoding in the reader, which only happens when it films.",

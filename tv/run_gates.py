@@ -6096,6 +6096,17 @@ GATES = [
              "one are the same output: they prove it can select, that a 0-page seal never qualifies "
              "(1166 MB of his film is in that state and the engine reopens it), that --apply refuses "
              "without --yes, and that it takes the right directory and leaves the rest"),
+    Gate("test_the_river_drains_every_pass",
+         [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
+         why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "
+             "sessions'. Driven through the SHIPPED _retention_once on fixture worlds with a pinned "
+             "clock and disk: the finished reels older than the newest KEEP_RECENT go oldest first "
+             "on every pass, an unsealed reel is kept and named, the newest are never touched, a "
+             "second pass takes nothing, disk pressure never frees LESS than a roomy disk (the "
+             "need_mb cap held 3 of 4 back), tombstones and the series land in that console's own "
+             "tree, and the drain's heart (on/worked/lastTs/owed) reads STOPPED after "
+             "DRAIN_STOPPED_AFTER_PASSES passes that released nothing — surviving a relaunch — "
+             "and UNKNOWN when the plan cannot run"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),

@@ -16861,8 +16861,14 @@ def credible_pruned_mb(pruned_mb, hist_bytes=None):
     return pruned_mb, None
 
 
+#: A caller that is not a retention pass passes neither `owed` nor `released`, and its row must not
+#: grow a key claiming it is one — so absence is a sentinel, distinct from an UNKNOWN None.
+_NOT_A_PASS = object()
+
+
 def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible_mb=None,
-                        pruned_mb=None, path=None):
+                        pruned_mb=None, path=None, owed=_NOT_A_PASS, released=_NOT_A_PASS,
+                        held=None):
     """Append one free-space reading. Append-only, capped, never raises.
 
     ⚠ v2229 — HE ASKED "how come i have 15 gigabytes more today than yesterday? is the pruning
@@ -16910,6 +16916,18 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
            "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
            "eligibleMb": eligible_mb, "prunedMb": _pruned, "prunedWhy": _pruned_why}
+    # 2026-09-27 — THE DRAIN'S DURABLE HALF. A retention pass stamps what it OWES the deleter on its
+    # before-row, and what it RELEASED on its after-row, so reel_retention.drain_state can tell a
+    # drain that stopped from one that is merely busy — across relaunches, per console. `owed` None
+    # is UNKNOWN (the plan could not judge) and is written as null, never as 0.
+    if owed is not _NOT_A_PASS:
+        row["owed"] = owed if (isinstance(owed, int) and not isinstance(owed, bool)) else None
+    if released is not _NOT_A_PASS:
+        row["released"] = (released if (isinstance(released, int)
+                                         and not isinstance(released, bool)) else None)
+    # A deferral mark, not a count. The drain reads it as "this pass was held", never as owed.
+    if isinstance(held, str) and held:
+        row["held"] = held[:200]
     # ⚠⚠ v2970 (#69) — WHAT PRODUCED THIS ROW. MEASURED by verdict_provenance 2026-09-11:
     # 44 stores, SILENT 16, and both of this console's own .jsonl series were among them. A row
     # with no producer cannot be INVALIDATED when the writer improves, so a verdict from an old
@@ -20694,7 +20712,12 @@ def _eagle_watch_loop():
 #: that materialises on failure means every reader has to know it might be missing, and the ones
 #: that do not will read absence as health. None = nothing has failed. [[unknown-stays-unknown]]
 _RETENTION = {"checked": None, "freeGb": None, "freedMb": 0, "removed": [], "say": "not measured yet",
-              "lockedBehindASweep": None, "lockedMb": None, "error": None}
+              "lockedBehindASweep": None, "lockedMb": None, "error": None,
+              # 2026-09-27 — the drain in the shared vocabulary (on/worked/lastTs/owed). UNKNOWN
+              # until a pass has run here, never a confident "nothing owed". [[heart-first]] §3
+              "drain": {"on": None, "worked": None, "lastTs": None, "owed": None,
+                        "passesOwed": None, "state": "UNKNOWN",
+                        "why": "no retention pass has run in this process yet"}}
 _RETENTION_EVERY_S = float(os.environ.get("TV_RETENTION_EVERY_S", "900") or 900)
 # ── v2086 — ONE FLOOR, FOUR COPIES ───────────────────────────────────────────────────────────
 # This number decides two different things: whether /api/on will RECORD, and whether the auto-prune
@@ -21595,46 +21618,176 @@ def _split_read_from_waiting(w_vault, seals, still_sealed=None):
     return {"barren": barren, "banked": banked, "waiting": waiting, "unknown": ""}
 
 
+def _disk_history_tail(n=64, path=None):
+    """The newest `n` rows of this console's per-pass series, oldest first. -> list | None
+
+    Reads only the END of the file: the series holds two weeks of passes and the drain needs the
+    last few. None when the file exists and cannot be read — UNKNOWN, never an empty history. An
+    absent file is a real empty list: this console has not recorded a pass yet.
+    """
+    p = path or _disk_history_path()
+    if not os.path.exists(p):
+        return []
+    try:
+        with open(p, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            start = max(0, size - 131072)
+            fh.seek(start)
+            blob = fh.read().decode("utf-8", "replace")
+    except Exception:
+        return None
+    lines = blob.split("\n")
+    if start > 0 and lines:
+        lines = lines[1:]                      # the first line was cut mid-row by the seek
+    rows = []
+    for ln in lines:
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            r = json.loads(ln)
+        except Exception:
+            continue
+        if isinstance(r, dict):
+            rows.append(r)
+    return rows[-int(n):]
+
+
+#: Why a retention pass is DEFERRED rather than stalled. These are nothing_in_flight's own
+#: sentences for a console that is filming or a sweep that is reading. An unreadable check
+#: ("could not tell", UNKNOWN) is not in this list: that one may still become STOPPED.
+_RETENTION_DEFERRALS = (
+    "the console is ON AIR",
+    "a chronicle sweep is reading",
+    "a vault sweep is reading",
+    "a mini is recording",
+    "frames are still landing",
+)
+
+
+def _retention_deferred(why):
+    """The refusal, when it is a by-design hold, else None.
+
+    ON AIR and a sweep that is reading must not be called a stopped drain. A refusal this
+    function does not recognise (the world was never confirmed, a lock, the switch off)
+    stays a stall.
+    """
+    s = str(why or "")
+    if "could not tell" in s or "UNKNOWN" in s:
+        return None
+    for m in _RETENTION_DEFERRALS:
+        if m in s:
+            return s[:200]
+    return None
+
+
+def _retention_drain(stop_why=None, unknown_why=None):
+    """THE RETENTION LANE IN THE SHARED SUPERVISION VOCABULARY. -> dict (on/worked/lastTs/owed)
+
+    Konyo, 2026-09-27: reels must go through the river FIFO and be "allproeprly getting delted after
+    the 8 sessions", and "the heart too dont forget". The arithmetic lives in
+    reel_retention.drain_state (pure, so its law runs on a runner); this only gathers its inputs:
+
+        owed / passes   this console's own per-pass series (disk_history), which survives a relaunch
+        worked / lastTs shelf_driver.lane_beat("deleter") — the ONE reading of the tombstone ledger
+        on              _PRUNE_SAFE_TO_RUN, the arming flag the deleter lane already declares
+
+    ⚠ EVERY PATH RESOLVES FROM THIS CONSOLE'S OWN TREE (TV_HIST / HERE), never another machine's:
+    the series via _disk_history_path(), the ledger via reel_retention._tombstone_path().
+    ⚠ It never raises, and a part it cannot read is UNKNOWN in its own field, never a zero.
+    """
+    try:
+        import reel_retention as _rr_dr
+    except Exception as e:
+        return {"on": None, "worked": None, "lastTs": None, "owed": None, "passesOwed": None,
+                "state": "UNKNOWN", "at": int(time.time() * 1000), "everyS": _RETENTION_EVERY_S,
+                "why": "reel_retention did not import (%s), so the drain is UNKNOWN"
+                       % type(e).__name__}
+    try:
+        import shelf_driver as _sd_dr
+        _beat = _sd_dr.lane_beat("deleter", allow_import=True)
+    except Exception as e:
+        _beat = {"why": "the deleter's record could not be asked (%s)" % type(e).__name__}
+    try:
+        _rows = _disk_history_tail(8 * _rr_dr.DRAIN_STOPPED_AFTER_PASSES)
+    except Exception:
+        _rows = None
+    try:
+        return _rr_dr.drain_state(_rows, beat=_beat, on=bool(_PRUNE_SAFE_TO_RUN),
+                                  stop_why=stop_why, unknown_why=unknown_why,
+                                  every_s=_RETENTION_EVERY_S)
+    except Exception as e:
+        return {"on": None, "worked": None, "lastTs": None, "owed": None, "passesOwed": None,
+                "state": "UNKNOWN", "at": int(time.time() * 1000), "everyS": _RETENTION_EVERY_S,
+                "why": "the drain could not be computed (%s) — UNKNOWN, not clear"
+                       % type(e).__name__}
+
+
 def _retention_once():
     import shutil as _shd
     try:
         import reel_retention as _rr
     except Exception as e:
+        _dr = _retention_drain(unknown_why="reel_retention did not import")
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000),
                                # ⚠ v2590 — these EARLY returns are failures and never touched
                                # `error`, so a stale reason from an earlier pass sat beside a
                                # DIFFERENT current failure. Each carries its own now.
                                "error": "import: %s" % str(e)[:80],
-                               "say": "reel_retention did not import (%s)" % str(e)[:90]})
+                               "say": "reel_retention did not import (%s)" % str(e)[:90],
+                               "drain": _dr})
         return None
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
     try:
         free_gb = _shd.disk_usage(hist).free / 1e9
     except Exception as e:
+        _dr = dict(_retention_drain(unknown_why="the disk could not be read (%s)" % str(e)[:60]),
+                   neverRecorded=not os.path.exists(hist))
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000),
                                "error": "disk: %s" % str(e)[:80],
-                               "say": "could not read the disk (%s)" % str(e)[:80]})
+                               "say": "could not read the disk (%s)" % str(e)[:80],
+                               # ⚠ v3400's rule, carried to the drain: no footage tree is a
+                               # console that has never filmed, not a drain that stopped. A FLAG,
+                               # so the doctor never has to string-match this sentence.
+                               "drain": _dr})
         return None
     need_mb = max(0.0, (ON_AIR_FLOOR_GB + PRUNE_HEADROOM_GB - free_gb) * 1000.0)
-    # ⚠ ABOVE THE FLOOR THIS IS DELIBERATELY UNBOUNDED, AND IT IS HIS RULING — DO NOT "FIX" IT.
-    # `0.0 or None` is None, and None means "no target": every eligible reel goes. That reads
-    # like the classic 0-vs-None collapse and it is not one. v2226 reversed the old floor-gated
-    # rule on his explicit words — "regardless of room memory it should still be looped and
-    # extracted and pruned eventually, no need for it to take up space" and "we want an automated
-    # system auto healing and cleaning itself" — because the floor made the loop UNFINISHABLE:
-    # 30.2 GB free, reels eligible, `removed: None`, nothing deleted for weeks.
-    # See TestV2080TheExtractPruneCycleIsClosed.test_ABOVE_the_floor_it_still_frees_what_has_
-    # GIVEN_UP_ITS_INFORMATION, which pins it. The floor stopped being a reason to SKIP; it was
-    # never the thing deciding WHAT. What protects him is eligibility and retention_may_act.
-    # I read this as a bug on 2026-09-01, wrote a guard for the "fix", and the suite caught me.
-    p = _rr.plan(hist, free_mb=(need_mb or None))
+    # ══ 2026-09-27 — THE DRAIN RELEASES EVERY FINISHED REEL ON EVERY PASS, AT EVERY DISK LEVEL ══
+    # Konyo: "session reels in shelf registered by FIFO first in first out ... and allproeprly
+    # getting delted after the 8 sessions" — and #255, "that way storage is always smooth and
+    # optimized and not stacking up".
+    #
+    # v2226 already made the pass unbounded ABOVE floor+headroom (his ruling: "regardless of room
+    # memory it should still be looped and extracted and pruned eventually"). What it left was the
+    # BAND: this line used to pass `need_mb or None`, and at or below floor+headroom `need_mb` is a
+    # positive number, so plan() stopped the moment it had selected that much and held every other
+    # finished reel as `target-met`. MEASURED on a fixture shelf of 4 finished reels with 0.5 MB
+    # needed: one released, three held — so the disk being TIGHT freed LESS than the disk being
+    # roomy, the exact inversion of what pressure is for. His disk is falling 0.6 GB/day toward it.
+    #
+    # So the plan is asked for NO target, always: every reel that cleared every bar and is older
+    # than the newest KEEP_RECENT goes, oldest first, on every pass. Disk pressure keeps its own
+    # path — the BELOW-the-floor sentence, /api/on refusing to record, and `needMb` saying how much
+    # is still short — and it can no longer free less than a roomy disk would.
+    # ⚠ NOTHING ABOUT WHAT MAY GO CHANGED. Eligibility is still reel_retention's alone (evidence
+    # banked, both lanes sealed, newest KEEP_RECENT kept, oldest first, never a held reel) and
+    # retention_may_act still has the final say. plan()'s own `free_mb` stop is untouched for the
+    # CLI's --free-mb; only this caller stopped handing it a disk-derived target.
+    # [[feedback-threshold-above-the-ceiling]] [[heart-first]]
+    p = _rr.plan(hist, free_mb=None)
     if not p.get("ok"):
+        _dr = dict(_retention_drain(unknown_why=str(p.get("why") or "no reason given")[:120]),
+                   neverRecorded=bool(p.get("neverRecorded")))
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
                                "error": "plan: %s" % str(p.get("why"))[:80],
-                               "say": "the retention plan could not run: %s" % str(p.get("why"))[:90]})
+                               "say": "the retention plan could not run: %s" % str(p.get("why"))[:90],
+                               # UNKNOWN when the plan cannot run — his brief, and the heart's rule
+                               # that "cannot ask" never reads as "nothing owed".
+                               "drain": _dr})
         return None
     # STEP 1 — what is waiting on a SWEEP. This is the honest answer to "why is nothing prunable",
     # and it is reported whether or not anything is deleted, because it is usually the real story.
@@ -21799,13 +21952,21 @@ def _retention_once():
         _corpus_mb = sum((k.get("mb") or 0) for k in _kept) \
             + sum((c.get("mb") or 0) for c in _cands)
         _hist_bytes = int(max(0.0, _corpus_mb) * 1024 * 1024)
+    # 2026-09-27 — AND WHAT THIS PASS OWES THE DELETER, on the same row, BEFORE it acts. The drain's
+    # streak is read back from this series rather than kept in memory, because his console
+    # relaunches every ~30 minutes and a process-local count would never see three passes.
+    # `_pass_row` stays None when the row did not land, and the drain then says it could not judge.
+    _pass_row = None
     try:
-        disk_history_append(free_gb, ON_AIR_FLOOR_GB,
+        _pass_row = disk_history_append(free_gb, ON_AIR_FLOOR_GB,
                             hist_bytes=_hist_bytes,
                             reels=len(p.get("kept") or []) + len(cands),
+                            owed=_rr.drain_owed(p),
                             eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=None)
     except Exception:
         pass
+    _drain_unknown = (None if _pass_row is not None else
+                      "this pass could not record what it owes in its own series")
     # ⚠ v2588 — `error` RIDES IN THE SAME WRITE AS THE NUMBERS. A cold review noted the three
     # fields were not atomic from a reader's view: the loop cleared `error` under the lock, then
     # _retention_once wrote say/checked under its own, so a thread reading between them saw a
@@ -21814,6 +21975,9 @@ def _retention_once():
     # can no longer disagree. [[stale-reading]]
     base = {"checked": int(time.time() * 1000), "error": None, "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
+            # 2026-09-27 — pressure's own measurement, published now that it no longer caps the
+            # pass: how many MB short of floor+headroom this disk is. 0.0 is a measured "not short".
+            "needMb": round(need_mb, 1),
             # ⚠⚠ v2881 — THE TOTAL CARRIED THE DEFECT THE LINE BELOW WAS WRITTEN TO REMOVE.
             # v2880 made `lockedVault` None when the tag->lane map cannot be read, with the note
             # "a zero here renders as 'nothing awaits a sweep', which is a measurement nobody
@@ -21845,10 +22009,12 @@ def _retention_once():
             "diskTrend": disk_delta(24),
             "diskTrendSay": disk_delta_say(24)}
     if p.get("unreadable"):
+        _dr = _retention_drain(unknown_why=_drain_unknown)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="HELD — %s will not parse. Nothing is deleted while "
                                              "the ledgers cannot be read."
-                                             % ", ".join(p["unreadable"])))
+                                             % ", ".join(p["unreadable"]),
+                                   drain=_dr))
         return None
     # ══ v2226 — A REEL THAT HAS GIVEN UP ITS INFORMATION GOES, WHETHER OR NOT THE DISK IS TIGHT ══
     # Konyo, twice: "regardless of room memory it should still be looped and extracted and pruned
@@ -21872,6 +22038,7 @@ def _retention_once():
     # /api/on still refuses to record. That branch is untouched.
     _above_floor = free_gb >= ON_AIR_FLOOR_GB
     if _above_floor and not cands:
+        _dr = _retention_drain(unknown_why=_drain_unknown)
         with _PRUNE_LOCK:
             _owed = _chron_owed_count()
             _extra = (_owed - len(waiting)) if isinstance(_owed, int) else 0
@@ -21881,20 +22048,38 @@ def _retention_once():
                                    say="%.1fGB free — above the %.0fGB floor. Nothing is eligible "
                                        "to free. %s%s.%s"
                                        % (free_gb, ON_AIR_FLOOR_GB, _wait_say,
-                                          _lane_say, _tail)))
+                                          _lane_say, _tail),
+                                   drain=_dr))
         return None
     if not cands:
+        _dr = _retention_drain(unknown_why=_drain_unknown)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base,
                 say="%.1fGB free, BELOW the %.0fGB floor — and nothing is eligible. %s; "
                     "every other reel is held for a reason that no amount of pressure changes."
-                    % (free_gb, ON_AIR_FLOOR_GB, _locked_say)))
+                    % (free_gb, ON_AIR_FLOOR_GB, _locked_say),
+                drain=_dr))
         return None
     ok, why = retention_may_act()
     if not ok:
+        # ON AIR or a sweep that is reading is a hold. The owed row is already in the series;
+        # this row marks that pass held so the drain says DEFERRED, never STOPPED.
+        _defer = _retention_deferred(why)
+        if _defer:
+            try:
+                disk_history_append(free_gb, ON_AIR_FLOOR_GB,
+                                    hist_bytes=_hist_bytes,
+                                    reels=len(p.get("kept") or []) + len(cands),
+                                    held=_defer,
+                                    eligible_mb=round(p.get("freeMb") or 0, 1),
+                                    pruned_mb=None)
+            except Exception:
+                pass
+        _dr = _retention_drain(stop_why=why, unknown_why=_drain_unknown)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but %s"
-                                             % (free_gb, len(cands), why)))
+                                             % (free_gb, len(cands), why),
+                                   drain=_dr))
         return None
     r = _rr.apply_plan(p, yes=True)
     # ⚠⚠ v2743 — THE JOIN t154 HAS BEEN WAITING FOR, AND ITS STATED BLOCKER WAS FALSE.
@@ -21917,13 +22102,40 @@ def _retention_once():
             disk_history_append(free_gb, ON_AIR_FLOOR_GB,
                                 hist_bytes=_hist_bytes,
                                 reels=len(r.get("removed") or []),
+                                released=len(r.get("removed") or []),
                                 eligible_mb=round(p.get("freeMb") or 0, 1),
                                 pruned_mb=round(float(_freed), 1))
     except Exception:
         pass
+
+    # ⚠ 2026-09-27 — A DELETER THAT REFUSED MUST NOT READ AS ONE THAT RAN. apply_plan returns
+    # {"ok": False, "why": "frame.release is LOCKED — ...", "removed": []} with NO freedMb when its
+    # lock holds, and the sentence below printed "freed 0 MB by removing 0 reel(s) that had already
+    # given up their information; tombstones written to None" — a completed prune, described over
+    # one that never started. The refusal is now said as a refusal, and it is the drain's stop
+    # reason. [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    _removed_now = list((r or {}).get("removed") or []) if isinstance(r, dict) else []
+    _refused = (isinstance(r, dict) and not _removed_now and not r.get("ok")
+                and r.get("freedMb") is None)
+    if _refused or not isinstance(r, dict):
+        _rwhy = (str(r.get("why") or "no reason given") if isinstance(r, dict)
+                 else "the deleter returned nothing readable")
+        _dr = _retention_drain(stop_why=_rwhy, unknown_why=_drain_unknown)
+        with _PRUNE_LOCK:
+            _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but the deleter "
+                                             "refused: %s" % (free_gb, len(cands), _rwhy[:160]),
+                                   drain=_dr))
+        return r
+    _failed_now = [f.get("reel") for f in (r.get("failed") or []) if isinstance(f, dict)]
+    _dr = _retention_drain(
+        stop_why=(("%d reel(s) could not be removed: %s"
+                   % (len(_failed_now), ", ".join(map(str, _failed_now[:3]))))
+                  if _failed_now else None),
+        unknown_why=_drain_unknown)
     with _PRUNE_LOCK:
         _RETENTION.update(dict(base, freedMb=round(r.get("freedMb") or 0, 1),
                                removed=list(r.get("removed") or []),
+                               drain=_dr,
                                say=("freed %.0f MB by removing %d reel(s) that had already given "
                                     "up their information; tombstones written to %s.%s"
                                     % (r.get("freedMb") or 0, len(r.get("removed") or []),
@@ -22027,12 +22239,16 @@ def _retention_loop():
             # is broken rather than repeating yesterday's good news.
             try:
                 _why = "%s: %s" % (type(e).__name__, str(e)[:160])
+                _dr_fail = _retention_drain(unknown_why="the pass raised %s" % type(e).__name__)
                 with _PRUNE_LOCK:
                     _RETENTION["say"] = ("retention could not run — %s. This lane is NOT reporting "
                                          "free space; the numbers beside it are from the last run "
                                          "that finished." % _why)
                     _RETENTION["checked"] = int(time.time() * 1000)
                     _RETENTION["error"] = _why
+                    # 2026-09-27 — and the drain says it could not look, rather than repeating the
+                    # last pass's CLEAR over a pass that died. [[stale-reading]]
+                    _RETENTION["drain"] = _dr_fail
                 # printed once per distinct failure, for the same reason a disk warning is
                 if _why != said:
                     print("  \U0001f5c3 retention FAILED — %s" % _why, flush=True)

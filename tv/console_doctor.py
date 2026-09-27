@@ -4217,6 +4217,79 @@ def _check_the_river_walk_is_walking(*_a, **_k):
                 % (age, st.get("reels"), st.get("moved"), st.get("walks")))
 
 
+def _check_the_retention_drain_is_draining(*_a, **_k):
+    """2026-09-27 — DOES THE RIVER EMPTY AT ITS MOUTH, PASS AFTER PASS?
+
+    Konyo: *"session reels in shelf registered by FIFO first in first out and getting extracted and
+    tallied and ledgered accoridngly to its won indivudal console ... and allproeprly getting delted
+    after the 8 sessions"* — and *"the heart too dont forget"*.
+
+    ⚠ WHAT NOTHING WATCHED. The retention pass releases every finished reel older than the newest
+    KEEP_RECENT on every pass. If the deleter stops — a lock that holds, a board world that never
+    confirms, a switch left off, an rmtree that keeps failing — reels pile up at the mouth and every
+    other row stays green: shelf_driver's `deleter` lane declares no work period, so it can only
+    ever say UNTIMED. This row reads the drain's own contract (reel_retention.drain_state, published
+    on /api/status.retention.drain) and goes red when releasable reels have been carried through
+    `stoppedAfter` consecutive passes with nothing released — the brief's "owed > 0 for longer than
+    two passes". A drain that is merely busy (new reels finishing every pass and being released)
+    does NOT go red: each of those passes released what it owed. A pass deferred because the
+    console is ON AIR or a sweep is reading is DEFERRED, and this row stays OK. STOPPED is only
+    a run of passes that owed reels, released nothing, and carried no deferral.
+
+    ⚠ IT READS THE WIRE, NEVER `import control_app` — that builds a second module whose state is
+    the empty literal, the four-day twin (test_the_doctor_reads_the_console_not_a_twin).
+    ⚠ UNKNOWN when the plan cannot run, UNMEASURED on a console that has never filmed, and UNKNOWN
+    again when the newest reading is older than `stoppedAfter` periods — a stale reading may not
+    certify the drain, and whether the LOOP is alive is lane_liveness's question, not this row's.
+    [[heart-first]] [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    """
+    _stw = _get("/api/status") or {}
+    rt = _stw.get("retention")
+    if rt is None:
+        return UNKNOWN, ("the console did not answer (or predates the retention field), so whether "
+                         "the drain is moving is UNKNOWN")
+    if not isinstance(rt, dict):
+        return UNKNOWN, "the retention state is unreadable, so the drain is UNKNOWN"
+    dr = rt.get("drain")
+    if not isinstance(dr, dict):
+        return UNKNOWN, ("the console publishes no drain contract (it predates it), so whether "
+                         "releasable reels are leaving is UNKNOWN")
+    if dr.get("neverRecorded"):
+        return UNMEASURED, ("nothing has ever been recorded on this console, so there is no shelf to "
+                            "drain yet — a console that has not filmed, not a drain that stopped")
+    state = dr.get("state")
+    _after = dr.get("stoppedAfter")
+    _every = dr.get("everyS")
+    _at = dr.get("at")
+    if (isinstance(_at, (int, float)) and isinstance(_every, (int, float)) and _every > 0
+            and isinstance(_after, int) and _after > 0):
+        _age_s = max(0.0, time.time() - float(_at) / 1000.0)
+        # ⚠ A STALE DRAIN IS UNKNOWN, NOT MISSING. Past its own cadence the reading describes a
+        # moment that is gone, so it may not certify the drain — but calling it STOPPED would be a
+        # finding about the LOOP, and whether that thread is alive is lane_liveness's question
+        # (`_lane_tick('tvd-retention')`), not this row's. It also keeps a false red off his screen
+        # after the Mac sleeps: the retention thread's sleep does not advance while the machine
+        # does, so the first eagle tick after waking sees an old `at` from a healthy loop.
+        # [[stale-reading]] §4 [[copy-drift]]
+        if _age_s > float(_every) * _after:
+            return UNKNOWN, ("the drain's newest reading is %.0f minute(s) old — older than %d "
+                             "retention periods of %.0fs — so whether the shelf is still draining "
+                             "is UNKNOWN (it last said %s); whether the loop itself is alive is "
+                             "the lane liveness row's to say"
+                             % (_age_s / 60.0, _after, float(_every), str(state)))
+    _worked = dr.get("worked")
+    _tail = (" · the deleter has released %s reel(s) on this console%s"
+             % (_worked if _worked is not None else "an UNKNOWN number of",
+                "" if dr.get("lastTs") is None else
+                ", the last %.1fh ago" % max(0.0, (time.time() * 1000.0 - float(dr["lastTs"]))
+                                              / 3600000.0)))
+    if state == "STOPPED":
+        return MISSING, str(dr.get("why") or "the drain has stopped") + _tail
+    if state in ("CLEAR", "OWED", "DORMANT", "DEFERRED"):
+        return OK, str(dr.get("why") or state) + _tail
+    return UNKNOWN, str(dr.get("why") or "the drain's state is UNKNOWN") + _tail
+
+
 #: ══ v#### — THE FOUR ROUTES GET FOUR ROWS, SO ONE CAN GO RED ALONE ════════════════════════════
 #:
 #: ⚠⚠ MEASURED 2026-09-08 over the fifty rows below: the ones that touch a reel's route are
@@ -8756,6 +8829,9 @@ CHECKS = [
     ("read names lane", _check_read_names_lane),
     ("stage shows the dom", _check_the_stage_shows_what_the_dom_claims),
     ("river walk", _check_the_river_walk_is_walking),
+    # 2026-09-27 — the MOUTH of the river: releasable reels carried through `stoppedAfter` passes
+    # with nothing released is a drain that stopped. Reads the wire, one cheap GET per tick.
+    ("retention drain", _check_the_retention_drain_is_draining),
     # v#### — ONE ROW PER REEL ROUTE. ⚠ THE NAMES ARE HARD-CODED ON PURPOSE, so they are
     # greppable and so the rail cannot silently grow a row nobody argued for; the gate asserts
     # this list covers every entry in reel_templates.ROUTES, which is where a fifth route would
@@ -9469,6 +9545,9 @@ WATCHES = {
     "read names lane":             (),
     "stage shows the dom":         (),
     "river walk":                  ("river-strip",),
+    # 2026-09-27 — the drain contract rides /api/status.retention.drain and reaches him through the
+    # eagle line; it owns no element of its own. Empty tuple as a DECLARATION, not an omission.
+    "retention drain":             (),
     "route stash":                 (),
     "route chronicle \u00b7 sets":    ("chronicle.set",),
     "route chronicle \u00b7 uniques": ("chronicle.unique",),
