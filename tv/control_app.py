@@ -13176,8 +13176,9 @@ def _river_for_wire(now_ms=None):
     elif isinstance(f, dict):
         out["why"] = str(f.get("why") or "the last river read failed")
     else:
+        # (no route path in this sentence: the worker scrubs anything path-shaped to "<path>")
         out["why"] = ("this console has not computed its river since it started - nothing has asked "
-                      "/api/river yet, and the beacon never computes it itself")
+                      "for the river yet, and the beacon never computes it itself")
     try:
         out["triage"] = _triage_for_wire()
     except Exception as e:
