@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1346 - AN UNBUMPED PUSH SKIPPED THE SECOND EYE, AND 27 COMMITS WENT LIVE UNDER THE v3520 LABEL (2026-09-28)
+
+**SEEN:** he asked "i see no versions have been shipped but it claims to have fixed". Grok (code seat, 2026-09-27/28)
+pushed 27 commits after v3520 without a version stamp; his console still read v3520. The pre-push second-eye check runs
+only when the version CHANGES, so none of it was ever looked at; CI went red on 3 laws the hook does not run. **FIX:**
+hooks/pre-push refuses an unbumped push whose range touches bible.html or tv/control_ui.html (proven both ways on a
+throwaway repo); the Grok code-seat ship protocol (~/d2r_session_carry/GROK_CODE_SEAT_SHIP_PROTOCOL.md): stamp, full
+run_gates, CI green, a different-family look.
+
+### REG-1345 - THE DRAIN WOULD HAVE DELETED THE PICTURES HIS VAULT STANDS ON (his §26 ruling; f189f767 claimed otherwise)
+
+**SEEN:** "a cited vault frame stays when its reel is released" (f189f767) was true of a helper and the tombstone's
+`kept` field; apply_plan still rmtree'd every released reel whole and nothing called the helper - with the drain now
+running every pass. **FIX:** apply_plan names each released reel's evidence pictures (witness frames + cited) before the
+tombstone, deletes everything else, keeps those at their own path (the lightbox still opens them); UNKNOWN touches
+nothing; a tombstoned-with-kept reel is a remnant, never replanned. v2056 (a banked reel may go) still holds. **LAW:**
+test_the_river_drains_every_pass (15/15 PROVEN).
+
+### REG-1344 - THE v3520 BATCH LEFT FOUR CI REDS AND THREE SECOND-EYE FINDINGS
+
+**SEEN (CI on a3f7a020 + the v3520 look):** two doctor rows in neither registry; _shadow_state untimed in
+status_payload; a guard on a bare `location`; an orphan public helper; a runeword drop sent to the chronicle door;
+a Mac Quartz failure read as "no game"; a disarmed/unread drain called STOPPED. **FIX:** each fixed with a driven case
+and a PROVEN red-proof (doctor registry, status breakdown, reachability, backup lane, drain arithmetic, Windows door).
+
 ### REG-1343 - THE V712 STAGE ASKED FOR A VAULT RING ON A ONE-LOOK FRAMELESS READ
 
 **SEEN:** Routine I on 1d5b706f failed `tests/v712_tv_board.spec.ts` at the v747 stage. The vault ring was expected on. The read is one stash look and it names no frame, which Vault 2.0 refuses. The stage paints the ring only when that filing landed. **FIX:** the spec expects the ring off and the name still on the cast. No second door. **LAW:** `test_a_one_look_frameless_read_does_not_paint_the_vault_ring` (heart2 --prove 4/4 PROVEN).
