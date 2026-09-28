@@ -1266,6 +1266,10 @@ def game_route(owner, title):
 # block prints, the same names _AREA_ACT already trusts. Fewer than a full first window, or no
 # reads at all, is UNKNOWN: a loading frame has no zone yet, and an unread window is not the launcher.
 _FIRST_HUD_READS = 3
+# A journal also carries kai / intake / skip rows. Those are not the eye's reads, and on a real
+# session they are the FIRST rows. Counting them filled the window with empty area and called a
+# live game the launcher (measured on tv/sessions.jsonl: scenes kai and intake, area empty).
+_HUD_SCENES = ("town", "stash", "inventory", "loot", "gameplay", "transition", "chronicle")
 
 
 def label_is_bare_boosteroid(label):
@@ -1275,14 +1279,15 @@ def label_is_bare_boosteroid(label):
 
 
 def _is_content_read(row):
-    """A published read, not a skip and not a blank. Strings count; skip rows do not."""
+    """A vision read of the frame, not a skip, a kai row, or an intake row.
+
+    Strings count. A dict counts only when its scene is one the HUD reader emits.
+    """
     if isinstance(row, str):
         return bool(row.strip())
     if not isinstance(row, dict) or row.get("kind") == "skip":
         return False
-    if "scene" in row or "area" in row:
-        return True
-    return bool(row.get("names") or row.get("raw_lines"))
+    return str(row.get("scene") or "") in _HUD_SCENES
 
 
 def _read_blob(row):

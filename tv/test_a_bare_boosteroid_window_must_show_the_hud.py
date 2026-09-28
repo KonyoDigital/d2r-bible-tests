@@ -79,6 +79,17 @@ class TheFirstReadsCarryTheHud(unittest.TestCase):
         self.assertTrue(tv.text_has_d2r_hud_word("the pit", {"pit"}))
         self.assertTrue(tv.text_has_d2r_hud_word("Cold Plains", _words()))
 
+    def test_a_kai_or_intake_row_is_not_one_of_the_first_reads(self):
+        # measured: those rows are written first, with an empty area, and are not the HUD
+        rows = [
+            {"lane": "kai", "scene": "kai", "names": ["Play"]},
+            {"lane": "intake", "scene": "intake", "names": ["Library"]},
+            {"lane": "kai", "scene": "kai", "names": ["Boosteroid"]},
+            {"lane": "deep", "scene": "town", "area": "Cold Plains"},
+        ]
+        self.assertIs(tv.first_reads_show_d2r_hud(rows, words=_words()), True)
+        self.assertIsNone(tv.first_reads_show_d2r_hud(rows[:3], words=_words()))
+
     def test_only_boosteroid_is_the_bare_label(self):
         self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid"))
         self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid · Boosteroid"))
@@ -314,6 +325,13 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    if hud is None and tv_label_is_bare(pre) and not _bare_relook_open(now):\n",
         "replace": "    if False and tv_label_is_bare(pre) and not _bare_relook_open(now):\n",
+        "matches": 1,
+    },
+    {
+        "why": "kai and intake rows count as the first reads, so a live game whose journal opens with them is called the launcher",
+        "file": "tv_diablo.py",
+        "find": "    return str(row.get(\"scene\") or \"\") in _HUD_SCENES\n",
+        "replace": "    return bool(row.get(\"scene\"))\n",
         "matches": 1,
     },
 ]

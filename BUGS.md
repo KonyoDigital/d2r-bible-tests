@@ -9,7 +9,7 @@
 
 ### REG-1342 - A BARE BOOSTEROID WINDOW PINNED THE LAUNCHER AS THE GAME
 
-**SEEN:** Boosteroid's own app titles the stream and the launcher with nothing but Boosteroid, so both pinned. A shadow reel would film the launcher. **FIX:** the pin stays. The shadow door calls that window the game only when the first reads show a D2R HUD word (a zone name). Three reads with none is the launcher: it does not start, and a shadow reel already rolling seals. No reads yet is UNKNOWN, not the launcher, and the next look after a refusal waits. A window that names the game is not put through the check. A reel he opened is not sealed for it. **LAW:** `test_a_bare_boosteroid_window_must_show_the_hud` (heart2 --prove 6/6 PROVEN).
+**SEEN:** Boosteroid's own app titles the stream and the launcher with nothing but Boosteroid, so both pinned. A shadow reel would film the launcher. **FIX:** the pin stays. The shadow door calls that window the game only when the first reads show a D2R HUD word (a zone name). Three reads with none is the launcher: it does not start, and a shadow reel already rolling seals. No reads yet is UNKNOWN, not the launcher, and the next look after a refusal waits. A window that names the game is not put through the check. A reel he opened is not sealed for it. **LAW:** `test_a_bare_boosteroid_window_must_show_the_hud` (heart2 --prove 7/7 PROVEN). A kai or intake row is not a read.
 
 ### REG-1341 - A RUNEWORD DID NOT COMPOSE ONTO THE BASE ALREADY IN THE CELL (wave 2)
 
