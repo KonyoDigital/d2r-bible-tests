@@ -1468,11 +1468,20 @@ def _check_his_progress_number_has_not_been_overwritten():
         # simply no longer read as his.
         _mine = [d for d in drops if isinstance(d, dict) and (not key or d.get("route") == key)]
         recent = _mine[-1] if _mine else {}
-        return MISSING, ("his published progress is BELOW its own high-water mark: %s. The last "
-                         "recorded fall was %s %s -> %s. Nothing has been auto-restored, because "
-                         "putting the number back would hide whatever took it away."
-                         % ("; ".join(below), recent.get("lane") or "?",
-                            recent.get("from"), recent.get("to")))
+        # ══ 2026-09-28 (Ledger fix, finding 2b) — NEVER "? None -> None" ══════════════════════
+        # With no episode on record for his world (a file from before episodes, or a fall the
+        # record never saw) this printed "The last recorded fall was ? None -> None": an unknown
+        # dressed as a reading. It now says plainly that none is recorded. [[unknown-stays-unknown]]
+        _from, _to = recent.get("from"), recent.get("to")
+        if isinstance(_from, int) and isinstance(_to, int) and not isinstance(_from, bool):
+            _last = "The last recorded fall was %s %d -> %d." % (
+                recent.get("lane") or "an unnamed lane", _from, _to)
+        else:
+            _last = ("No drop episode is recorded for his world, so when and how far it fell is "
+                     "UNKNOWN.")
+        return MISSING, ("his published progress is BELOW its own high-water mark: %s. %s "
+                         "Nothing has been auto-restored, because putting the number back would "
+                         "hide whatever took it away." % ("; ".join(below), _last))
     if not high:
         return UNKNOWN, ("no high-water mark banked yet — it fills on the next tally the board "
                          "posts" + ((" · " + _contested_say) if _contested_say else ""))

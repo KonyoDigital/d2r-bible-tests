@@ -9,8 +9,9 @@ retro flag, and must earn PROVEN/HARDENED with real looks.
 So vault_evidence.retro_plan() names every such item as {name, recordedTier, honestTier, why},
 and every row says keepFiled. It never writes and it has no apply half. It is exposed read-only
 as the `retro` field of the plan the console already serves (POST /api/vault_rebuild_plan, via
-control_app.vault_rebuild_plan), which the board's reset never reads — so nothing here can
-unfile an item.
+control_app.vault_rebuild_plan). ⚠ The board's reset never reads `retro` — it files `rebuilt` —
+so since 2026-09-28 (Ledger fix, finding 1) every flagged row ALSO rides in `rebuilt` at its true
+tier with the flag, and is filed back rather than held.
 
 Fixtures only, shaped like his real rows (measured read-only 2026-09-28: Radiance 103 frames
 from 2 visits, the Cube 21 frames from 2 visits).
@@ -136,13 +137,24 @@ class TheRetroPlanKeepsThemFiled(unittest.TestCase):
         self.assertIsNone(bad["n"])
 
     def test_the_console_serves_it_on_the_rebuild_plan(self):
+        # 2026-09-28 (Ledger fix, finding 1): the board's reset files `rebuilt` and never reads
+        # `retro`, so a flagged row has to BE in `rebuilt` — at its true tier, with the flag — or
+        # "keep filed" is a sentence nothing obeys. test_a_reset_keeps_the_retro_rows_filed drives
+        # the shipped door over this same shape.
         import control_app as CA
         plan = CA.vault_rebuild_plan(self.path)
         self.assertTrue(plan["ok"], plan)
         self.assertEqual({"Radiance", "Horadric Cube", "Arachnid Mesh"}, set(plan["retro"]["names"]))
-        self.assertEqual(["Shako", "Arachnid Mesh"], [r["name"] for r in plan["rebuilt"]],
-                         "a still screen came back in the rebuild")
-        self.assertEqual([VE.PROVEN, VE.PROVEN], [r["tier"] for r in plan["rebuilt"]])
+        self.assertEqual(["Radiance", "Horadric Cube", "Shako", "Arachnid Mesh"],
+                         [r["name"] for r in plan["rebuilt"]],
+                         "a retro-flagged item is not in the field the reset files from")
+        self.assertEqual([VE.WATCHED, VE.WATCHED, VE.PROVEN, VE.PROVEN],
+                         [r["tier"] for r in plan["rebuilt"]],
+                         "a retro row came back above the tier its visits earn")
+        self.assertEqual(["retro: WATCHED", "retro: WATCHED", None, "retro: PROVEN"],
+                         [r.get("flag") for r in plan["rebuilt"]])
+        self.assertEqual([False, False, False, False], [r["locked"] for r in plan["rebuilt"]])
+        self.assertEqual(["Chance Guards", "Unread Thing"], [r["name"] for r in plan["held"]])
         self._unchanged()
 
 

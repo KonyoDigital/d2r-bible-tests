@@ -38247,7 +38247,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!pr || typeof pr !== 'object' || Array.isArray(pr) || String(pr.name || '').trim() !== nm)
         return { ok: false, refused: 'plan', why: nm + ' is not a row the evidence plan named' };
       var tierN = String(pr.tier || ''), whyN = String(pr.why || '');
-      if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind')
+      /* HIS RULING 2026-09-28 (§34.2): "Keep filed, flag 'retro: WATCHED'". A row the frame math filed above what
+         its visits earn comes back at its TRUE tier with the flag and keepFiled (vault_evidence.rebuild_plan) —
+         never refused here, never unfiled by a reset. It still passes the witness check below. */
+      var retroN = (pr.keepFiled === true && /^retro: [A-Z]+$/.test(String(pr.flag || ''))) ? String(pr.flag) : '';
+      if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind' && !retroN)
         return { ok: false, refused: 'plan', why: nm + ' is not proven, so a reset does not file it back' };
       var keptHome = (pr.home === '__keep' || pr.equipped === true || whyN === 'kept kind');
       var home = keptHome ? '__keep' : (opts.mule || null);
@@ -38285,6 +38289,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         cells: Array.isArray(pr.cells) ? pr.cells : [],
         evidence: whyN
       };
+      if (retroN) { rowF.flag = retroN; rowF.keepFiled = true; }
       var paF = _provAll(); paF[nm] = rowF; _provWrite(paF);
       try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
       assign[nm] = home; saveA();

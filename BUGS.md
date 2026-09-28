@@ -7,6 +7,87 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1356 - ONE REEL SPELLED TWO WAYS COUNTED AS TWO LOOKS IN THE KEEP GATE AND THE TIER TABLE (Ledger fix #7, 2026-09-28)
+
+**SEEN (review of Ledger P0, reproduced):** vault_retro mints `sid = idx.get("sessionId") or basename(reel_dir)`, so one
+reel can arrive as "s_X" and "reel_s_X". vault_retro.gate and vault_evidence._visit_of both keyed a look on the RAW
+string, so ["reel_s1#0", "s1#0"] read 2 looks, while evidence_for already normalises through chronicle_retro._reel_key.
+Latent: 0 of 28 look ids on a read-only copy of his vault_accum.json carry the prefix. **FIX:** `vault_retro.look_id` -
+the one spelling of a look, through chronicle_retro._reel_key; gate(), gate_shadow() and vault_evidence._visit_of all
+call it (no second copy). HEART: test_a_still_screen_is_one_look
+`test_one_reel_spelled_two_ways_is_one_look_in_both_engines`, 3 red-proofs (look_id raw, gate raw, _visit_of copy).
+
+### REG-1355 - /api/evidence READ 0 WITNESSES FOR ROWS THAT CARRY NO REEL (Ledger fix #6, 2026-09-28)
+
+**SEEN:** evidence_for set `witnesses = len(reels)`, so a name whose rows exist but name no reel read 0 - an unknown shown
+as a count, and "across 0 reels" on the say line. Latent on his chron_evidence.json (0 of 450 names). **FIX:** any row
+without a reel makes `witnesses` None with witnessWhy naming how many rows are unplaced; `witnessesKnown` and `unplaced`
+ride beside it and the say line reads "N known reel(s) + M row(s) whose reel is UNKNOWN". HEART:
+test_evidence_names_its_witnesses `test_rows_with_no_reel_make_the_witness_count_unknown_never_zero`, 1 red-proof.
+
+### REG-1354 - THE TIER TABLE FOLDED ALL VISITS BEFORE COUNTING SUCCESSES; THE GATE FOLDS THEM APART (Ledger fix #5, 2026-09-28)
+
+**SEEN:** vault_evidence._measure folded every visit id first, then asked each survivor for a success. vault_retro.gate
+folds the qualifying looks SEPARATELY from all looks. On [bare "s1" with frame + conf 0.9, "s1#0" frame None conf 0.0]
+gate reads 1 witness, _measure read 0 successes. **FIX:** successes = len(fold(ids of visits that saw it)), trials =
+len(fold(all visit ids)) + misses - gate()'s two numbers; the fold of a subset never outnumbers the fold of the whole,
+so successes <= trials (no clamp, and main's tier() UNKNOWN rule is untouched). HEART: test_a_still_screen_is_one_look
+`test_a_bare_prior_that_saw_it_beside_its_own_bucket_that_did_not_is_one_success`, 1 red-proof.
+
+### REG-1353 - THE HEART JOINT COMPARED COUNTS, SO TWO WRONG ITEMS BALANCED (Ledger fix #4, 2026-09-28)
+
+**SEEN:** corroborate `a-tier-stands-on-its-looks` compared the COUNT of PROVEN+ items with the COUNT of items the gate
+sees 10+ looks for, over the whole ledger. StillScreen (1 visit x 25 frames, HARDENED under the frame math) + TenLooks
+(10 buckets, 5 unsure, WATCHED) read 1 <= 1 AGREE over the exact defect. **FIX:** per item - the right side counts only
+the tier table's own PROVEN+ names (tier_census `provenNames`) that the gate backs; relation `==`. HEART:
+test_a_still_screen_is_one_look `test_the_joint_is_per_item_so_two_wrong_items_cannot_balance`, 2 red-proofs.
+
+### REG-1352 - THE PROVEN DOOR ADMITTED ON FRAMES: ONE VISIT HELD FOR 5 FRAMES READ 5 WITNESSES (Ledger fix #3, 2026-09-28)
+
+**SEEN:** vault_proven_names (POST /api/vault_proven -> the board's admission chip) counted witness LIST ENTRIES, so one
+visit photographed five times read `witnesses 5` and was admitted at a bar of 2 (his Radiance row: 103 entries, 2
+visits). His ruling (§34.2): "a look is a distinct visit, never a frame of a still screen." **FIX:** the door counts
+`vault_retro.gate(...)["witnesses"]` - the qualifying looks the keep bar counts - against min_witnesses; `visits` (all
+folded looks) and `rows` (raw entries) ride beside it. MEASURED on a read-only copy of his ledger: 14 -> 12 admitted at
+2; Bone Break and Magefist each hold one real look plus one frameless conf-0.0 prior (the #246 W3 shape the live gate
+already refuses). Two fixtures in test_the_admission_bar pinned "an entry is a witness" ({"s": 1}) and now carry real
+looks. HEART: test_admission_bar `test_one_visit_held_for_five_frames_is_one_witness_and_is_not_admitted_at_two`,
+2 red-proofs.
+
+### REG-1351 - THE BOARD STOPPED RECORDING A 3-SET FALL OR AN UN-TICK (Ledger fix #2b, his decision, 2026-09-28)
+
+**SEEN:** the P0 build switched board_tally_merge to ledger_restore's drop line (to 0, or >= max(10, 25%)), so a small
+fall wrote no drop row, and it rewrote test_control's `test_a_real_fall_is_PUBLISHED_and_RECORDED_never_healed` to
+120 -> 60 to fit. His decision: keep what was recorded before. The doctor also printed "The last recorded fall was ? None
+-> None" when no episode existed. **FIX:** `ledger_restore.drops_between(prev, next, threshold=None)` and
+`step_episodes(..., threshold=None)` - None is ledger_restore's own line, byte-for-byte the old path; board_tally passes
+`ANY_FALL` (1). The test_control case is restored to its 9226d0d3 text (120 -> 117). The doctor says "No drop episode
+is recorded for his world ... UNKNOWN". HEART: test_a_drop_is_an_episode `test_every_fall_on_the_board_is_recorded_as_before`,
+`test_ledger_restores_own_drop_line_is_unchanged_by_the_threshold`, `test_the_doctor_says_plainly_when_no_episode_is_recorded`,
+3 red-proofs.
+
+### REG-1350 - AN OPEN DROP EPISODE BLINDED ITS LANE, SO A FALL TO ZERO BEHIND IT WAS NEVER RECORDED (Ledger fix #2, 2026-09-28)
+
+**SEEN:** board_tally_merge left a lane with an OPEN episode out of "before" entirely, so 134 -> 60 (open), 60 -> 100,
+100 -> 0 recorded one episode: the fall to zero never happened on paper. **FIX:** a store with open episodes uses the
+LOWEST `to` among them as its before-count; sitting at that low files nothing, a fall below it is its own episode; an
+open episode whose `to` cannot be read keeps its lane out (an unknown low is never guessed). HEART: test_a_drop_is_an_episode
+`test_a_fall_a_partial_recovery_and_a_fall_to_zero_are_two_episodes`, `test_sitting_at_the_open_low_files_nothing`,
+1 red-proof (+2 re-anchored).
+
+### REG-1349 - THE RETRO FLAG RODE ON A FIELD THE RESET NEVER READS, SO HIS NEXT RESET UN-FILED RADIANCE AND THE CUBE (Ledger fix #1, 2026-09-28)
+
+**SEEN:** HIS RULING §34.2, his words: "Keep filed, flag 'retro: WATCHED'". The P0 plan served the flags as `plan.retro`;
+bible.html's _vaultRefileFromPlan files `plan.rebuilt` only, and Radiance and the Horadric Cube (2/2 visits, WATCHED)
+sat in `plan.held` - un-filed on his next reset. Even in `rebuilt`, the board's door (window.vaultFile rebuild branch)
+refused any row not PROVEN/HARDENED/'kept kind'. test_a_still_screen_is_one_look:154 asserted the un-filing. **FIX:**
+every retro-flagged row rides in `rebuilt` at its TRUE tier (WATCHED), locked false, flag 'retro: WATCHED', keepFiled,
+why 'kept filed by his ruling (§34.2)', on every reset while the ledger flags it; the door admits a row carrying
+keepFiled + a 'retro: TIER' flag (it still passes the 2-look witness check) and writes the flag on the provenance row.
+The :154 assertion is flipped. MEASURED on a read-only copy of his ledger: rebuilt = Horadric Cube, Radiance (WATCHED
+2/2, 2 witness looks each). HEART: new test_a_reset_keeps_the_retro_rows_filed - the plan the real
+/api/vault_rebuild_plan handler serves, driven through the SHIPPED reset and door in node, twice; 4 red-proofs.
+
 ### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
 
 **SEEN (grok-cli on a3f7a020..69d4ebb0):** (1) apply_plan writes the tombstone `kept` row BEFORE the delete, and plan()

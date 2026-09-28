@@ -473,11 +473,10 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
     def _qualifies(e):
         return bool(e.get("frame")) and _conf_of(e.get("conf")) >= conf_floor
     qual = [e for e in ev if _qualifies(e)]
-    sessions = sorted({str(e.get(witness_field) or e.get("session"))
-                       for e in qual if (e.get(witness_field) or e.get("session"))})
-    sessions = _fold_bare_sessions(sessions)
-    seen_all = _fold_bare_sessions({str(e.get(witness_field) or e.get("session"))
-                                    for e in ev if (e.get(witness_field) or e.get("session"))})
+    # 2026-09-28 (Ledger fix, finding 7) — the id goes through look_id(), the ONE spelling of a look
+    # this module and vault_evidence both count with, so "reel_sA#0" and "sA#0" are one look.
+    sessions = _fold_bare_sessions({look_id(e, witness_field) for e in qual})
+    seen_all = _fold_bare_sessions({look_id(e, witness_field) for e in ev})
     best = max([_conf_of(e.get("conf")) for e in ev] or [0.0])
     base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best,
             "looksSeen": len(seen_all), "allLooks": seen_all,
@@ -585,7 +584,7 @@ def gate_shadow(evidence, bar="keep"):
     # to open clears nothing — the same per-look rule the live gate applies.
     best_by = {}
     for e in ev:
-        w = str(e.get(field) or e.get("session") or "")
+        w = look_id(e, field)       # the spelling live gate() keyed `sessions` with, or k misses it
         if not w:
             continue
         best_by[w] = max(best_by.get(w, 0.0), _conf_of(e.get("conf")) if e.get("frame") else 0.0)
@@ -714,6 +713,27 @@ def _crop_for(reel_dir, frame, prev_frame, out_root):
 # ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
 
 _BUCKET_RE = re.compile(r"^(.*)#\d+$")
+
+
+def look_id(e, witness_field="witness"):
+    """The look one sighting belongs to, in ONE spelling. '' when the sighting names none.
+
+    `witness` is "<sid>#<bucket>", minted at the re-look loop; a persisted prior carries only its
+    `session`. gate() keys the keep bar on it and vault_evidence._measure keys a visit on it, so
+    this is the one definition both call — a second copy would drift. [[copy-drift]]
+
+    ══ 2026-09-28 (Ledger fix, finding 7) — ONE REEL, TWO SPELLINGS, WAS TWO LOOKS ══════════════
+    The sweep mints `sid = idx.get("sessionId") or os.path.basename(reel_dir)` (the reel loop), so
+    one reel can arrive as "s_…" and as "reel_s_…". Their buckets "reel_s_X#0" and "s_X#0" are
+    different strings, and this counted them as two looks at one stash screen. evidence_for already
+    normalises the reel through chronicle_retro._reel_key; the look id now goes through the same
+    function. It can only ever REMOVE a look, never add one. MEASURED 2026-09-28 on a read-only
+    copy of his vault_accum.json: 0 of 28 look ids carry the prefix today — latent, not live.
+    """
+    if not isinstance(e, dict):
+        return ""
+    raw = e.get(witness_field) or e.get("session")
+    return _cr._reel_key(str(raw)) if raw else ""
 
 
 def _fold_bare_sessions(ids):

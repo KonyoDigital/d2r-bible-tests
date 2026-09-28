@@ -11770,23 +11770,9 @@ class TestV2214HisProgressNumberCannotBeOverwrittenByAnotherWorld(unittest.TestC
         self.assertEqual(d["sets"]["have"], 117,
                          "the drop was auto-healed back to 120 — his screen would say 120 while "
                          "his ledger said 117, and nobody would find out why")
-        self.assertEqual(d["high"][self.ca._route_key(self.OWNER)]["sets"]["have"], 120,
-                         "the mark the watchdog compares against fell with the number")
-        # ⚠ 2026-09-28 (Ledger P0) — A DROP IS ledger_restore's ONE DEFINITION, AS AN EPISODE.
-        # drops[] re-filed a row on every tally below the mark (40 slots, one event). It now runs
-        # ledger_restore.step_episodes, so a 3-set fall is below the drop line (an un-tick is his
-        # testimony, not a loss) and is carried by the held mark above, which is what the doctor
-        # reads. A REAL drop is recorded, once, with where it fell from and when.
-        import ledger_restore as _lr
-        _blob = (lambda n: {"ledger": {}, "counts": {"setPieces": n}})
-        self.assertEqual(120, _lr.store_count(_blob(120), "setPieces"),
-                         "the count is UNKNOWN to ledger_restore, so the next line proves nothing")
-        self.assertEqual([], _lr.drops_between(_blob(120), _blob(117)))
-        self._post(self.OWNER, 60, 266, 3000)
-        d = self._doc()
         drops = [x for x in d["drops"] if x["lane"] == "sets"]
-        self.assertTrue(drops, "a real drop below the high-water mark was not recorded at all")
-        self.assertEqual((drops[-1]["from"], drops[-1]["to"]), (120, 60))
+        self.assertTrue(drops, "a fall below the high-water mark was not recorded at all")
+        self.assertEqual((drops[-1]["from"], drops[-1]["to"]), (120, 117))
         self.assertTrue(drops[-1].get("at"), "the drop has no timestamp, so it cannot be explained")
 
     def test_two_worlds_with_the_SAME_numbers_is_not_a_conflict(self):

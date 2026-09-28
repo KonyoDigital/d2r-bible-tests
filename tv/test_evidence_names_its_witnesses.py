@@ -65,6 +65,30 @@ class EvidenceNamesItsWitnesses(unittest.TestCase):
         self.assertEqual([], got["witnessTags"],
                          "a measured 'no independence' is [], never None")
 
+    def test_rows_with_no_reel_make_the_witness_count_unknown_never_zero(self):
+        # 2026-09-28 (Ledger fix, finding 6): `witnesses = len(reels)` read 0 for a name whose
+        # rows exist but carry no reel. A count of known reels beside rows from unknown ones is a
+        # floor, not the count — UNKNOWN is never 0. [[unknown-stays-unknown]]
+        none = {"uniques": {"Shako": [
+            {"frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
+            {"reel": None, "frame": "f_2.jpg", "lane": "claude", "conf": 0.8}]}}
+        got = _ask(none)
+        self.assertTrue(got["ok"], got)
+        self.assertEqual(2, got["count"], "baseline: both rows were read, so this is not an empty book")
+        self.assertIsNone(got["witnesses"],
+                          "2 rows with no reel read witnesses %r — an unknown shown as a count"
+                          % got["witnesses"])
+        self.assertIn("UNKNOWN", got["witnessWhy"] or "")
+        self.assertEqual((0, 2), (got["witnessesKnown"], got["unplaced"]))
+        self.assertNotIn("across 0 reels", got["say"])
+        mixed = {"uniques": {"Shako": [
+            {"reel": "s_1787000000001_11111", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
+            {"frame": "f_2.jpg", "lane": "grok", "conf": 0.8}]}}
+        got = _ask(mixed)
+        self.assertIsNone(got["witnesses"], "one known reel plus an unplaced row read as exactly 1")
+        self.assertEqual((1, 1), (got["witnessesKnown"], got["unplaced"]))
+        self.assertIn("1 of 2 sighting row(s) carry no reel", got["witnessWhy"])
+
     def test_an_unreadable_engine_is_unknown_with_a_reason(self):
         real_import = __import__
 
@@ -83,6 +107,13 @@ class EvidenceNamesItsWitnesses(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "a row with no reel is counted as zero reels, so an unknown reads as a witness count",
+        "file": "control_app.py",
+        "find": "        if _unplaced and wit is not None:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
     {
         "why": "the route asks the wrong module again, so every name reads witnesses null",
         "file": "control_app.py",

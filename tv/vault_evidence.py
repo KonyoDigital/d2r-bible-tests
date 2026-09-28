@@ -33,6 +33,9 @@ WATCHED, PROVEN, HARDENED = "WATCHED", "PROVEN", "HARDENED"
 
 # Items that do not disappear because a stash was sorted. They are rebuilt even below the bar.
 KEPT_KINDS = frozenset(("sunder", "annihilus", "torch", "gheed"))
+# The `why` a retro-flagged WATCHED row is filed back with. The board's door (bible.html,
+# window.vaultFile's rebuild branch) admits it by its flag and keepFiled, and stores this beside it.
+RETRO_KEPT_WHY = "kept filed by his ruling (§34.2)"
 
 
 def tier(successes, trials):
@@ -64,6 +67,12 @@ def rebuild_plan(items):
     Each item is {name, successes, trials} and may say equipped=True or kind= one of KEPT_KINDS.
     A WATCHED item stays cleared. PROVEN is re-filed. HARDENED is re-filed and locked.
     An equipped item or a kept kind comes back even below the bar, and says why.
+
+    An item may also carry retro="retro: <TIER>" — the flag retro_plan / _retro_row give an item
+    filed above what its visits earn. HIS RULING 2026-09-28 (§34.2), his words: "Keep filed, flag
+    'retro: WATCHED'". So a flagged item is rebuilt at its TRUE tier, never locked above it, with
+    the flag and keepFiled beside it, even when that tier is WATCHED. It stays kept-filed on every
+    later reset for as long as the ledger still flags it; real looks lift it to PROVEN/HARDENED.
     """
     rebuilt, held = [], []
     if not isinstance(items, list):
@@ -76,15 +85,26 @@ def rebuild_plan(items):
         row = {"name": it["name"], "tier": got["tier"], "bound": got["bound"],
                "successes": got["successes"], "trials": got["trials"]}
         kept = bool(it.get("equipped")) or str(it.get("kind") or "") in KEPT_KINDS
+        retro = it.get("retro") if isinstance(it.get("retro"), str) else ""
+        if not retro.startswith("retro: "):
+            retro = ""           # only the flag _retro_row mints; any other string is not his ruling
         if got["tier"] is None:
             row["why"] = got["why"]
             held.append(row)
-        elif got["tier"] == WATCHED and not kept:
+        elif got["tier"] == WATCHED and not kept and not retro:
             row["why"] = "below the proven bar"
             held.append(row)
         else:
             row["locked"] = got["tier"] == HARDENED
-            row["why"] = ("kept kind" if kept and got["tier"] == WATCHED else got["tier"])
+            if kept and got["tier"] == WATCHED:
+                row["why"] = "kept kind"
+            elif retro and got["tier"] == WATCHED:
+                row["why"] = RETRO_KEPT_WHY
+            else:
+                row["why"] = got["tier"]
+            if retro:
+                row["flag"] = retro
+                row["keepFiled"] = True
             rebuilt.append(row)
     return {"ok": True, "rebuilt": rebuilt, "held": held, "why": ""}
 
@@ -166,11 +186,15 @@ def _visit_of(look):
     `witness` is "<session>#<bucket>". The sweep mints it (vault_retro.py, the re-look loop) and
     opens a new bucket at every REOPEN_GAP_MS gap between still runs, so one bucket is one time
     he opened the stash, however many frames that screen was held for. A row persisted before
-    the bucket existed carries only `session`, and that recording counts once. This is the exact
-    key gate() counts with its keep-bar witness field — the same law, not a second one.
+    the bucket existed carries only `session`, and that recording counts once.
+
+    2026-09-28 (Ledger fix, finding 7): this is vault_retro.look_id, called — not re-typed. The
+    copy that lived here read the raw string, so "reel_sA#0" and "sA#0" were two visits while
+    chronicle_retro._reel_key calls them one reel. Its only caller, _measure, asked _visit_fold()
+    first — the same import — and answered UNKNOWN if that module could not be read.
     """
-    key = look.get("witness") or look.get("session")
-    return str(key) if key else ""
+    import vault_retro as VR
+    return VR.look_id(look, "witness")
 
 
 def _group(rows):
@@ -255,11 +279,21 @@ def _measure(rows, floor):
             by_visit[visit].append((look, ok))
         extra_total += extra
     visits = set(fold(order))
+    # ══ 2026-09-28 (Ledger fix, finding 5) — FOLD THE SUCCESSES ON THEIR OWN, AS gate() DOES ═══
+    # This folded ALL visits first and then asked each survivor for a success. gate() folds the
+    # qualifying looks SEPARATELY (`sessions`) from every look (`looksSeen`). They part on a bare
+    # prior that saw it beside its own bucket that did not: [{"session": "s1", frame, 0.9},
+    # {"witness": "s1#0", frame None, 0.0}]. gate() reads 1 witness; the fold-first order dropped
+    # "s1" for "s1#0", found no success in "s1#0", and read 0. Now: successes = the fold of the
+    # visits that saw it, trials = the fold of every visit + misses — gate()'s two numbers. The
+    # fold of a subset can never outnumber the fold of the whole, so successes <= trials.
+    won = [v for v in order if any(ok for _look, ok in by_visit[v])]
+    success_ids = set(fold(won))
     successes = 0
     sessions, witness_sessions, seen_sessions = [], [], set()
     for visit in order:
-        if visit not in visits:
-            continue            # a bare prior folded into its own bucket: not a second look
+        if visit not in success_ids:
+            continue            # never saw it, or a bare prior folded into its own bucket
         hit = None
         for look, ok in by_visit[visit]:
             if ok:
@@ -427,10 +461,16 @@ def plan_from_ledger(path):
         else:
             successes, trials, sessions, cells, witness_sessions, _frames = measured
             flagged = _retro_row(name, measured)
-            if flagged:
-                retro.append(flagged)
             item = {"name": name, "successes": successes, "trials": trials,
                     "equipped": _equipped_of(rows), "kind": _kind_of(rows)}
+            if flagged:
+                retro.append(flagged)
+                # ══ 2026-09-28 (Ledger fix, finding 1) — THE RESET READS `rebuilt`, SO THE FLAG
+                # RIDES THERE. The board's _vaultRefileFromPlan files plan.rebuilt and never reads
+                # plan.retro, so Radiance and the Horadric Cube (WATCHED 2/2 by visits) were HELD —
+                # un-filed on his next reset, against his ruling "Keep filed, flag 'retro:
+                # WATCHED'". rebuild_plan now files a flagged row at its true tier.
+                item["retro"] = flagged["flag"]
             extra = {"equipped": item["equipped"], "kind": item["kind"],
                      "cells": cells, "sessions": sessions,
                      "witness": {"lane": "stash", "by": "evidence", "sessions": witness_sessions}}
@@ -462,8 +502,8 @@ def plan_from_ledger(path):
         return _unread("the witness ledger changed while it was read, so nothing is rebuilt "
                        "and nothing is called empty")
     # The retro flags ride on the plan the console already serves (POST /api/vault_rebuild_plan),
-    # read from these same bytes. The board files `rebuilt` and never reads this key, so nothing
-    # here can unfile an item. [[the-unjoined-end]]
+    # read from these same bytes: here as the summary, and on each flagged row of `rebuilt` — the
+    # field the board's reset actually files from. [[the-unjoined-end]]
     plan["retro"] = _retro_answer(retro, "frames")
     return plan
 
@@ -546,7 +586,7 @@ def tier_census(path):
     """
     unread = {"ok": False, "watched": None, "proven": None, "hardened": None,
               "unknown": None, "disagree": None, "retro": None, "retroNames": None,
-              "why": _UNREAD}
+              "provenNames": None, "why": _UNREAD}
     doc = _load_owned(path)
     if doc is None:
         return unread
@@ -561,7 +601,7 @@ def tier_census(path):
         if isinstance(row, dict) and row.get("name"):
             by_plan[row["name"]] = row.get("tier")
     counts = {WATCHED: 0, PROVEN: 0, HARDENED: 0, "unknown": 0}
-    disagree, retro = [], []
+    disagree, retro, proven_names = [], [], []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -573,6 +613,10 @@ def tier_census(path):
                 retro.append(name)
         key = got_tier if got_tier in (WATCHED, PROVEN, HARDENED) else "unknown"
         counts[key] += 1
+        if got_tier in (PROVEN, HARDENED):
+            # the NAMES, not only the count: corroborate's a-tier-stands-on-its-looks checks each
+            # one against the live gate, because a count can balance two wrong items (finding 4)
+            proven_names.append(name)
         if by_plan.get(name) != got_tier:
             disagree.append(name)
     why = ""
@@ -581,7 +625,8 @@ def tier_census(path):
                % ", ".join(disagree[:8]))
     return {"ok": True, "watched": counts[WATCHED], "proven": counts[PROVEN],
             "hardened": counts[HARDENED], "unknown": counts["unknown"],
-            "disagree": disagree, "retro": len(retro), "retroNames": retro, "why": why}
+            "disagree": disagree, "retro": len(retro), "retroNames": retro,
+            "provenNames": proven_names, "why": why}
 
 
 def pictures_gone(path, root):

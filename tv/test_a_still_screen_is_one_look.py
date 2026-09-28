@@ -151,11 +151,50 @@ class AStillScreenIsOneLook(unittest.TestCase):
         self.assertEqual([], census["disagree"])
         plan = VE.plan_from_ledger(path)
         self.assertTrue(plan["ok"], plan)
-        self.assertEqual([], plan["rebuilt"], "a still screen was rebuilt after a reset")
-        self.assertEqual(["Radiance", "Horadric Cube"], [r["name"] for r in plan["held"]])
-        self.assertEqual({(2, 2)}, {(r["successes"], r["trials"]) for r in plan["held"]})
+        # 2026-09-28 (Ledger fix, finding 1) — FLIPPED. This asserted both were HELD, i.e. un-filed
+        # on his next reset. His ruling (§34.2) is "Keep filed, flag 'retro: WATCHED'": they come
+        # back at their TRUE tier, WATCHED, unlocked, with the flag — never HARDENED again.
+        self.assertEqual(["Radiance", "Horadric Cube"], [r["name"] for r in plan["rebuilt"]],
+                         "a retro-flagged still screen was un-filed by the reset")
+        self.assertEqual([], plan["held"])
+        self.assertEqual({(2, 2)}, {(r["successes"], r["trials"]) for r in plan["rebuilt"]})
+        self.assertEqual({(VE.WATCHED, False, "retro: WATCHED", True)},
+                         {(r["tier"], r["locked"], r["flag"], r["keepFiled"]) for r in plan["rebuilt"]},
+                         "a still screen came back above its visits, or without his flag")
         with io.open(path, "rb") as fh:
             self.assertEqual(blob, fh.read())
+
+
+    # ══ 2026-09-28 (Ledger fix, finding 5) — successes fold on their own, as gate() does ══════
+    def test_a_bare_prior_that_saw_it_beside_its_own_bucket_that_did_not_is_one_success(self):
+        # gate() folds the qualifying looks SEPARATELY from all looks. _measure folded all first,
+        # dropped the bare "s1" for "s1#0", found no success in "s1#0" and read 0 — gate read 1.
+        looks = [{"session": "s1", "frame": "a1.jpg", "conf": 0.9, "lane": "stash"},
+                 {"session": "s1", "witness": "s1#0", "frame": None, "conf": 0.0, "lane": "stash"}]
+        live = VR.gate(looks)
+        self.assertEqual((1, 1), (live["witnesses"], live["looksSeen"]),
+                         "baseline: the live gate reads ONE qualifying look out of ONE")
+        got = VE._measure([{"name": "S", "witnesses": looks}], _floor())
+        self.assertEqual((1, 1), (got[0], got[1]),
+                         "the tier table read %d success(es) where the live gate reads 1" % got[0])
+
+    # ══ 2026-09-28 (Ledger fix, finding 7) — one reel, two spellings, is ONE look in BOTH ═════
+    def test_one_reel_spelled_two_ways_is_one_look_in_both_engines(self):
+        # vault_retro mints sid from sessionId OR basename(reel_dir), so one reel can arrive as
+        # "reel_s1" and "s1". chronicle_retro._reel_key calls them one reel; so must the look id.
+        import chronicle_retro as CR
+        self.assertEqual(CR._reel_key("reel_s1#0"), CR._reel_key("s1#0"),
+                         "baseline: the reel key already calls these one reel")
+        looks = [{"session": "reel_s1", "witness": "reel_s1#0", "frame": "a.jpg", "conf": 0.9,
+                  "lane": "stash"},
+                 {"session": "s1", "witness": "s1#0", "frame": "b.jpg", "conf": 0.9, "lane": "stash"}]
+        live = VR.gate(looks)
+        self.assertEqual((1, 1), (live["witnesses"], live["looksSeen"]),
+                         "the live gate counted one reel's two spellings as %d looks" % live["looksSeen"])
+        got = VE._measure([{"name": "R", "witnesses": looks}], _floor())
+        self.assertEqual((1, 1), (got[0], got[1]),
+                         "the tier table counted one reel's two spellings as %d visits" % got[1])
+        self.assertEqual(VE._visit_of(looks[0]), VE._visit_of(looks[1]))
 
 
 class TheHeartJointSeesAStillScreen(unittest.TestCase):
@@ -208,6 +247,43 @@ class TheHeartJointSeesAStillScreen(unittest.TestCase):
         self.assertEqual(self.C.DISAGREE, row["state"], row)
         self.assertEqual((2, 1), (row["left"]["value"], row["right"]["value"]))
 
+    def test_the_joint_is_per_item_so_two_wrong_items_cannot_balance(self):
+        # ══ 2026-09-28 (Ledger fix, finding 4) ══ StillScreen: 1 visit x 25 frames. TenLooks: 10
+        # re-look buckets, 5 of them unsure. With the frame math back, StillScreen reads HARDENED
+        # on 1 look and TenLooks stays WATCHED 5/10 with 10 gate looks — a COUNT compare read 1 vs 1.
+        import unittest.mock as mock
+        ten = []
+        for b in range(10):
+            ten += _still("s_ten", b, 1, "ten%02d" % b, conf=0.9 if b < 5 else 0.2)
+        doc = {"owned": [
+            {"name": "StillScreen", "lane": "stash", "kind": "item",
+             "witnesses": _still("s_still", 0, 25, "still")},
+            {"name": "TenLooks", "lane": "stash", "kind": "item", "witnesses": ten}]}
+        with io.open(self.path, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+        self.assertEqual(10, VR.gate(ten)["looksSeen"], "baseline: the gate sees TenLooks' 10 looks")
+        orig = VE._measure
+
+        def frame_math(rows, floor):
+            got = orig(rows, floor)
+            if got is None:
+                return None
+            return (got[5]["successes"], got[5]["trials"]) + tuple(got[2:])
+
+        with mock.patch.object(VE, "_measure", frame_math):
+            census = VE.tier_census(self.path)
+            row = self._row()
+        self.assertEqual((1, 1), (census["proven"] + census["hardened"], census["watched"]),
+                         "baseline: the frame math files exactly one item PROVEN+ and one WATCHED")
+        self.assertEqual(self.C.DISAGREE, row["state"],
+                         "a PROVEN+ item with 1 gate look was paid for by a different item's 10: %r"
+                         % (row,))
+        self.assertEqual((1, 0), (row["left"]["value"], row["right"]["value"]))
+        self.assertEqual(["StillScreen"], census["provenNames"],
+                         "the census does not name WHICH item it files PROVEN+")
+        honest = self._row()
+        self.assertEqual(self.C.AGREE, honest["state"], honest)
+
     def test_an_unreadable_ledger_is_unknown_not_agreement(self):
         os.environ["TV_VAULT_LEDGER"] = os.path.join(self.tmp, "absent.json")
         row = self._row()
@@ -230,9 +306,9 @@ RED_PROOF = [
     },
     {
         "why": "the re-look bucket is dropped: twelve visits in one recording read as one",
-        "file": "vault_evidence.py",
-        "find": "    key = look.get(\"witness\") or look.get(\"session\")\n",
-        "replace": "    key = look.get(\"session\")\n",
+        "file": "vault_retro.py",
+        "find": "    raw = e.get(witness_field) or e.get(\"session\")\n",
+        "replace": "    raw = e.get(\"session\")\n",
         "matches": 1,
     },
     {
@@ -245,8 +321,53 @@ RED_PROOF = [
     {
         "why": "the heart joint counts witness ROWS on its gate side, so a still screen clears it",
         "file": "corroborate.py",
-        "find": "                   if vr.gate(ev).get(\"looksSeen\", 0) >= ve.TRIALS_PROVEN)\n",
-        "replace": "                   if len(ev) >= ve.TRIALS_PROVEN)\n",
+        "find": "                   if vr.gate(piles.get(name, [])).get(\"looksSeen\", 0) >= ve.TRIALS_PROVEN)\n",
+        "replace": "                   if len(piles.get(name, [])) >= ve.TRIALS_PROVEN)\n",
+        "matches": 1,
+    },
+    {
+        "why": "the heart joint compares COUNTS over the whole ledger again, so a PROVEN+ item with "
+               "one look is paid for by a different item's ten (finding 4)",
+        "file": "corroborate.py",
+        "find": "        return sum(1 for name in names\n",
+        "replace": "        return sum(1 for name in piles\n",
+        "matches": 1,
+    },
+    {
+        "why": "the tier table folds every visit before asking for a success, so a bare prior that saw "
+               "it reads 0 where the live gate reads 1 (finding 5)",
+        "file": "vault_evidence.py",
+        "find": "    success_ids = set(fold(won))\n",
+        "replace": "    success_ids = visits & set(won)\n",
+        "matches": 1,
+    },
+    {
+        "why": "the look id reads the raw string, so one reel spelled two ways is two looks (finding 7)",
+        "file": "vault_retro.py",
+        "find": "    return _cr._reel_key(str(raw)) if raw else \"\"\n",
+        "replace": "    return str(raw) if raw else \"\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "the live gate stops asking look_id and keys on the raw spelling again (finding 7)",
+        "file": "vault_retro.py",
+        "find": "    seen_all = _fold_bare_sessions({look_id(e, witness_field) for e in ev})\n",
+        "replace": ("    seen_all = _fold_bare_sessions({str(e.get(witness_field) or e.get(\"session\")) "
+                    "for e in ev if (e.get(witness_field) or e.get(\"session\"))})\n"),
+        "matches": 1,
+    },
+    {
+        "why": "the tier table keeps its own copy of the look id, so the two engines drift (finding 7)",
+        "file": "vault_evidence.py",
+        "find": "    return VR.look_id(look, \"witness\")\n",
+        "replace": "    return str(look.get(\"witness\") or look.get(\"session\") or \"\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "a retro-flagged still screen is held by the plan, so his next reset un-files it (finding 1)",
+        "file": "vault_evidence.py",
+        "find": "        elif got[\"tier\"] == WATCHED and not kept and not retro:\n",
+        "replace": "        elif got[\"tier\"] == WATCHED and not kept:\n",
         "matches": 1,
     },
 ]

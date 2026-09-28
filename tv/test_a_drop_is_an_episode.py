@@ -11,6 +11,14 @@ when the count is back) — the backup watcher runs it once per snapshot. board_
 runs the same function once per tally, from the lane's high-water mark. One definition, two
 callers. [[copy-drift]] [[the-unjoined-end]]
 
+2026-09-28 (Ledger fix, findings 2 and 2b):
+  · an OPEN episode kept its lane out of "before" entirely, so a later, bigger fall — even to 0 —
+    was never recorded. Its "before" is now the lowest `to` among its open episodes.
+  · the P0 build had switched the board to ledger_restore's drop line (to 0 or >= max(10, 25%)),
+    so a 3-set fall or one un-tick stopped writing any row. His decision: keep what was recorded
+    before. drops_between takes a threshold whose default IS ledger_restore's line; the board
+    passes ANY_FALL. The doctor never prints "? None -> None" for a fall nobody recorded.
+
 Fixtures only: _board_tally_path is pointed at a temp dir; his board_tally.json is never opened.
 """
 import json
@@ -78,24 +86,79 @@ class ADropIsAnEpisode(unittest.TestCase):
         self.assertEqual(2, len(eps), "a second, separate fall was not its own episode")
         self.assertEqual([False, True], [e["open"] for e in eps])
 
-    def test_the_drop_line_is_ledger_restores(self):
-        # PIN THE LAW, NOT THE NUMBER: whatever ledger_restore calls a drop is what opens one here.
+    def test_ledger_restores_own_drop_line_is_unchanged_by_the_threshold(self):
+        # PIN THE LAW, NOT THE NUMBER: the default is ledger_restore's line, exactly as it was.
         def blob(n):
             return {"ledger": {}, "counts": {"setPieces": n}}
         # baseline first: both counts are READ (not UNKNOWN), or `small == []` would be vacuous
         self.assertEqual(134, LR.store_count(blob(134), "setPieces"))
-        small = LR.drops_between(blob(134), blob(130))
-        big = LR.drops_between(blob(134), blob(60))
-        self.assertEqual([], small)
-        self.assertEqual(1, len(big))
+        self.assertEqual([], LR.drops_between(blob(134), blob(130)),
+                         "the backup watcher's own line moved: a 4-row fall of 134 is not its drop")
+        self.assertEqual([], LR.drops_between(blob(134), blob(130), None))
+        self.assertEqual(1, len(LR.drops_between(blob(134), blob(60))))
+        self.assertEqual(1, len(LR.drops_between(blob(30), blob(0))), "a fall to 0 is always a drop")
+        self.assertEqual([{"store": "setPieces", "from": 134, "to": 133}],
+                         LR.drops_between(blob(134), blob(133), LR.ANY_FALL))
+        self.assertEqual([], LR.drops_between(blob(134), blob(134), LR.ANY_FALL))
+        for bad in (0, -1, True, 1.5, "1"):
+            with self.assertRaises(ValueError, msg="threshold %r was accepted" % (bad,)):
+                LR.drops_between(blob(134), blob(130), bad)
+
+    def test_every_fall_on_the_board_is_recorded_as_before(self):
+        # his decision (2b): keep what was recorded before — a 3-set fall and one un-tick are rows
         self._post(OWNER, 134, 280, 1000)
-        self._post(OWNER, 130, 280, 2000)
-        self.assertEqual([], self._eps("sets"), "a fall ledger_restore does not call a drop opened one")
+        self._post(OWNER, 131, 280, 2000)
+        eps = self._eps("sets")
+        self.assertEqual([(134, 131, True)], [(e["from"], e["to"], e["open"]) for e in eps],
+                         "a 3-set fall below the mark was not recorded at all")
         self.assertEqual(134, self._doc()["high"][CA._route_key(OWNER)]["sets"]["have"],
                          "the mark must still hold, so the watchdog still says the number is low")
-        self._post(OWNER, 60, 280, 3000)
+        self._post(OWNER, 131, 279, 3000)
+        uni = self._eps("uniques")
+        self.assertEqual([(280, 279)], [(e["from"], e["to"]) for e in uni],
+                         "a single un-tick wrote no drop row")
+
+    def test_a_fall_a_partial_recovery_and_a_fall_to_zero_are_two_episodes(self):
+        self._post(OWNER, 134, 280, 1000)
+        self._post(OWNER, 60, 280, 2000)          # falls: episode 1 opens (134 -> 60)
+        self._post(OWNER, 100, 280, 3000)         # comes part of the way back: still below 134
+        self._post(OWNER, 0, 280, 4000)           # falls again, to zero
         eps = self._eps("sets")
-        self.assertEqual([(big[0]["from"], big[0]["to"])], [(e["from"], e["to"]) for e in eps])
+        self.assertEqual(2, len(eps), "the fall to zero behind an open episode was never recorded: %r"
+                         % [(e["from"], e["to"]) for e in eps])
+        self.assertEqual([(134, 60, True, 2000), (60, 0, True, 4000)],
+                         [(e["from"], e["to"], e["open"], e["at"]) for e in eps])
+
+    def test_sitting_at_the_open_low_files_nothing(self):
+        self._post(OWNER, 134, 280, 1000)
+        self._post(OWNER, 60, 280, 2000)
+        for i in range(20):
+            self._post(OWNER, 60, 280, 3000 + i)
+        self.assertEqual(1, len(self._eps("sets")), "sitting at the low re-filed the fall")
+        self._post(OWNER, 90, 280, 4000)
+        self._post(OWNER, 70, 280, 5000)          # a dip that stays ABOVE the recorded low
+        self.assertEqual(1, len(self._eps("sets")))
+
+    def test_the_doctor_says_plainly_when_no_episode_is_recorded(self):
+        import console_doctor as CD
+        orig = CD.HERE
+        CD.HERE = self.d
+        self.addCleanup(setattr, CD, "HERE", orig)
+        rk = CA._route_key(OWNER)
+        doc = {"v": 2, "ownerId": OWNER["id"],
+               "byRoute": {rk: {"who": OWNER, "route": OWNER, "at": 1000,
+                                "sets": {"have": 100, "total": 135}}},
+               "sets": {"have": 100, "total": 135},
+               "high": {rk: {"sets": {"have": 134, "total": 135, "at": 500}}},
+               "drops": []}
+        with open(os.path.join(self.d, "board_tally.json"), "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+        st, why = CD._check_his_progress_number_has_not_been_overwritten()
+        self.assertEqual(CD.MISSING, st, why)
+        self.assertIn("sets 100 (best 134)", why, "baseline: the doctor saw the lane below its mark")
+        self.assertNotIn("None -> None", why, "an unrecorded fall was printed as a reading: %s" % why)
+        self.assertNotIn("? ", why)
+        self.assertIn("No drop episode is recorded", why)
 
     def test_an_open_episode_outlives_the_rolling_cap(self):
         self._post(OWNER, 134, 280, 1000)
@@ -135,15 +198,45 @@ RED_PROOF = [
     {
         "why": "a lane sitting low re-files a drop on every tally — the 40-slot defect",
         "file": "control_app.py",
-        "find": "        _before = {_ck[s]: was for s, was, _now in _seen if s not in _open_stores}\n",
-        "replace": "        _before = {_ck[s]: was for s, was, _now in _seen}\n",
+        "find": "            if s not in _open_low:\n                _before[_ck[s]] = was                 # the high-water mark\n",
+        "replace": "            if True:\n                _before[_ck[s]] = was                 # the high-water mark\n",
         "matches": 1,
     },
     {
         "why": "a recovery never reaches the episode, so it stays open forever",
         "file": "control_app.py",
         "find": "        _after = {_ck[s]: now for s, _was, now in _seen}\n",
-        "replace": "        _after = {_ck[s]: now for s, _was, now in _seen if s not in _open_stores}\n",
+        "replace": "        _after = {_ck[s]: now for s, _was, now in _seen if s not in _open_low}\n",
+        "matches": 1,
+    },
+    {
+        "why": "an open episode blinds its lane again, so a fall to zero behind it is never recorded (finding 2)",
+        "file": "control_app.py",
+        "find": "            elif _open_low[s] is not None:\n                _before[_ck[s]] = _open_low[s]        # where the open fall already sits\n",
+        "replace": "            elif False:\n                _before[_ck[s]] = _open_low[s]        # where the open fall already sits\n",
+        "matches": 1,
+    },
+    {
+        "why": "the board uses ledger_restore's drop line again, so a 3-set fall or an un-tick writes nothing (finding 2b)",
+        "file": "control_app.py",
+        "find": "            route_key=key, at_ms=t.get(\"at\"), threshold=_lr.ANY_FALL)\n",
+        "replace": "            route_key=key, at_ms=t.get(\"at\"))\n",
+        "matches": 1,
+    },
+    {
+        "why": "the threshold's default stops being ledger_restore's own line, so the backup watcher drifts",
+        "file": "ledger_restore.py",
+        "find": "        if b == 0 or (a - b) >= max(DROP_MIN, DROP_FRAC * a):\n",
+        "replace": "        if b < a:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor prints '? None -> None' for a fall nobody recorded",
+        "file": "console_doctor.py",
+        "find": ("            _last = (\"No drop episode is recorded for his world, so when and how far it fell is \"\n"
+                 "                     \"UNKNOWN.\")\n"),
+        "replace": ("            _last = \"The last recorded fall was %s %s -> %s.\" % (\n"
+                    "                recent.get(\"lane\") or \"?\", _from, _to)\n"),
         "matches": 1,
     },
     {
