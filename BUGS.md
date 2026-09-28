@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1340 - THE MULE HOVER'S COLOUR ROLES WERE UNHELD (wave 2)
+
+**SEEN:** the builder's one tooltip already paints the game's colour roles, and the mule hover already calls it. No law held that join. A hover that painted every name white, a runeword base in gold, a defense number in the label's white, or the art's name instead of the stored item, would still be green. The grey under a runeword is rgb(121, 121, 121), measured on the Chains of Honor frame; the colour map never named that role. **FIX:** no second colour map. The same hover paints Annihilus gold on gold, Fine Small Charm of Balance blue, and Enigma on Mage Plate with a grey base, a gold rune string, and a blue defense number. A mule has no character level, so a requirement stays white. **LAW:** `test_an_inventory_hover_paints_the_games_colours` (heart2 --prove 5/5 PROVEN).
+
 ### REG-1339 - A LIFTED CHARM'S PICTURE WAS NOT HELD ON THE POINTER (wave 2)
 
 **SEEN:** the mule drag already copies the tile onto vd-ghost, and no law held that copy. A cursor that showed the charm's text name, sat at the corner, drew every charm one row tall, or stayed after the drop would still be green. **FIX:** no second cursor. The same ghost is the picture: the art the tile drew, on the pointer off the grid, on the charm's own footprint over a cell. A Fine Small Charm of Balance keeps the Small Charm picture. A press that does not move paints nothing. Letting go takes the picture off. **LAW:** `test_an_inventory_charm_carries_its_picture_on_the_pointer` (heart2 --prove 4/4 PROVEN).

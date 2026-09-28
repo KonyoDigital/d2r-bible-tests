@@ -7551,6 +7551,17 @@ GATES = [
              "press that does not move paints nothing. Letting go takes the picture off the pointer and an air "
              "drop does not write. Drives the shipped listeners in node.",
          skip_ok=()),
+    Gate("test_an_inventory_hover_paints_the_games_colours",
+         [sys.executable, os.path.join(HERE, "test_an_inventory_hover_paints_the_games_colours.py")], 90,
+         needs_app=False,
+         why="#174 wave 2 (ACT 5855265931) - the mule inventory hover paints the game's tooltip colour roles "
+             "through the builder's one box, not a second map. Annihilus keeps a gold name and a gold base, a "
+             "white charm line, and blue properties; a requirement stays white because the mule has no character "
+             "level. Fine Small Charm of Balance is a blue name with blue properties and no second base line. "
+             "Enigma on Mage Plate keeps a gold name, a grey base (the measured rgb(121, 121, 121)), a gold rune "
+             "string, a white defense label with a blue number, and a white durability line. Drives the shipped "
+             "hover in node.",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,
