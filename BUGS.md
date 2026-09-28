@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1338 - A MULE CHARM'S PREFIX AND SUFFIX DID NOT NAME THE TILE (wave 2)
+
+**SEEN:** Add Mod already wrote Fine and of Balance onto a Small Charm in the mule 10x4, and the hover already said Fine Small Charm of Balance. The tile, its spoken name, and the inventory list still said Small Charm. **FIX:** those three ask the builder's own name composer. The store keeps the base name, so the charm stays a generic copy and the door does not file the composed name. The picture stays the base. A charm with no mods still says its base. A move keeps the mods. **LAW:** `test_an_inventory_charm_keeps_a_prefix_and_a_suffix` (heart2 --prove 3/3 PROVEN).
+
 ### REG-1337 - A DATABASE CHARM IN THE MULE INVENTORY COULD NOT BE DRAGGED (wave 2)
 
 **SEEN:** the mule 10x4 tiles placed from the item database carry no data-key, so the window's one drag never lifted them. A charm stayed where the picker put it. **FIX:** that same drag lifts data-dbkey. The footprint is the mule drag's painter, green only when the charm's own size fits inside this inventory, red off the 10x4, over another charm, or on the stash, and those drops do not write. A press that does not move is still a click. The placement time stays, so the door does not file the name again. **LAW:** `test_an_inventory_charm_drags_onto_its_footprint` (heart2 --prove 6/6 PROVEN).

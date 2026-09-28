@@ -7530,6 +7530,16 @@ GATES = [
              "that does not move does not write; the placement time stays so the door does not file the name "
              "again. A click still opens the tile. Drives the shipped listeners in node.",
          skip_ok=()),
+    Gate("test_an_inventory_charm_keeps_a_prefix_and_a_suffix",
+         [sys.executable, os.path.join(HERE, "test_an_inventory_charm_keeps_a_prefix_and_a_suffix.py")], 90,
+         needs_app=False,
+         why="#174 wave 2 (ACT 5855237740) - Fine Small Charm of Balance on the mule 10x4. The builder's Add Mod "
+             "is the only one: it writes the prefix and the suffix onto the mule inventory tile. The store keeps "
+             "the base name so the door does not file the composed name. The tile, its spoken name, and the "
+             "inventory list say the composed name. The hover is the mule tooltip over the stored entry: max "
+             "damage, attack rating, and 5% faster hit recovery. An armour prefix and a second prefix are refused. "
+             "A move keeps the mods. A charm with no mods still says its base.",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,

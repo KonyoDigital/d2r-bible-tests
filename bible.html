@@ -40530,13 +40530,14 @@ window.vaultAutoAssign = function(){
          It carries no native title: its hover is the builder's one in-game box over its stored entry
          (the vb2-mule-tip-js lane), never an OS box on top. */
       if (p.db){
-        var _dsay = p.n + ' (' + p.w + '×' + p.h + ') — placed by hand from the item database at ' + _spot(p)
+        var _nm = _mpInvSayName(p);   // prefix + base + suffix; the store keeps the base name
+        var _dsay = _nm + ' (' + p.w + '×' + p.h + ') — placed by hand from the item database at ' + _spot(p)
           + '. Drag it; a green footprint of its size, inside this inventory, is the only drop that moves it'
           + '. Click (or Enter) for its tooltip, to replace it or remove it; Delete removes it';
         var _an = p.n;   // #248: a runeword draws its BASE - asked here, when the tile is drawn, never by the loader
         try { if (p.id && typeof window._cbArtName === 'function') _an = window._cbArtName({ id: p.id, base: p.base, name: p.n }) || p.n; } catch (x) { _an = p.n; }
         return '<div class="vd-item vd-db' + (_vr ? ' vd-r-' + _vr : '') + (_add && _add.sel === p.dbkey ? ' vd-db-on' : '') + '" style="left:' + (3 + p.x * (cell + 2)) + 'px;top:' + (3 + p.y * (cell + 2)) + 'px;width:' + (p.w * cell + (p.w - 1) * 2) + 'px;height:' + (p.h * cell + (p.h - 1) * 2) + 'px"'
-          + ' data-dbkey="' + esc(p.dbkey) + '" data-n="' + esc(p.n) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="db-' + esc(p.dbkey) + '"'
+          + ' data-dbkey="' + esc(p.dbkey) + '" data-n="' + esc(_nm) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="db-' + esc(p.dbkey) + '"'
           + ' tabindex="0" role="button" aria-label="' + esc(_dsay) + '"' + (_add && _add.sel === p.dbkey ? ' aria-pressed="true"' : '')
           + ' onclick="window._mpInvTile(\'' + jsArg(p.dbkey) + '\')" onkeydown="window._mpInvTileKey(event,\'' + jsArg(p.dbkey) + '\')">'
           + art(_an, '◆', p.w > 1 && p.h > 1 ? '' : 'sm') + '</div>';
@@ -41231,6 +41232,18 @@ window.vaultAutoAssign = function(){
      armor/weapons/misc tables), measured when he places it and stored with it, so the packer never re-derives it.
      THE RULE is D2R's: inside the 10x4, over nothing that is there (a tile the packer placed included) - a pick that
      does not fit at the cell he clicked is REFUSED with the reason, never moved to another cell. [[copy-drift]] */
+  /* the name on the tile and in the list: the builder's own composer (_cbShown). The store keeps the base
+     name, so a magic charm stays a generic copy and the door does not file "Fine Small Charm of Balance". */
+  function _mpInvSayName(p){
+    var n = (p && p.n) || '';
+    try {
+      if (p && p.db && p.dbkey && typeof window._mpInvCbEntry === 'function' && typeof window._cbShown === 'function' && typeof window._cbItem === 'function'){
+        var e = window._mpInvCbEntry(p.dbkey), it = e && window._cbItem(e.id), sh = (e && it) ? window._cbShown(e, it) : null;
+        if (sh && sh.name) return sh.name;
+      }
+    } catch (x) {}
+    return n;
+  }
   function _mpInvOf(all, muleId){
     var m = all && all[muleId], v = m && m.inv;
     return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
@@ -42227,7 +42240,7 @@ window.vaultAutoAssign = function(){
     var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })
       .concat(MULE_STASH_TABS.slice(1).reduce(function(a, t){ return a.concat((_curTabs[t] || []).map(function(p){
         return '<div>'+esc(p.n)+' → <span class="vl-slot">'+MULE_AREAS[t][2].toUpperCase()+' '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })); }, []))
-      .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })).join('');
+      .concat(inv.placed.map(function(p){ return '<div>'+esc(_mpInvSayName(p))+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span>'+_lockTag(p)+'</div>'; })).join('');
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
     var _muleLabel = _muleTotalPages > 1 ? (' #' + (_mulePage + 1)) : '';
     var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 40-cell inventory = 140 cells). Click the arrows — or press ← → — to step through the mules.">'
