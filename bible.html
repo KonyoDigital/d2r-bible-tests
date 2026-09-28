@@ -36907,6 +36907,18 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
    the glass under it: the Grok seat at 1280 read "Stats stops at Life". 312 = their AUTHOR + SHOWCASE + gutters above
    it, 30 = the window's top padding and a bottom breath. At 2000x1300 this is 958px of room for their 726. */
 .mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}
+/* #29(d) his answer 2026-09-28, "Tighten both" (REG-1379) — THE WINDOW IS AS TALL AS WHAT IT HOLDS. At 2000x1300 their
+   literal rects end at 1052 and the window ran on to the glass's 1300: 248px of empty band under every column (228 at
+   901x900). The first fix stretched the last panel of each column into that band, which only moved the emptiness inside
+   the window - STRENGTHS AND WEAKNESSES became ~330px of empty bordered box and NOTES ~370px of empty textarea. Now every
+   panel is its own height again (their rects at 2000) and the WINDOW ends under its content, its own 30px padding below:
+   height auto, capped by the glass, scrolling inside itself only when what it holds is taller than the glass. The vault
+   under a short window is dimmed and inert (html.vd-lock::after, under the window's z-index), so it reads as a window
+   floating over the vault - never a strip of empty glass. Its edge is a shadow, not a border, so a window capped at the
+   glass draws no line at the glass's bottom. The dim is .82: at .66 the Grok CLI's cold look read the board's own dock under the
+   window as part of the window ("the floating bar covers the three bottom cards"). */
+.vault-detail.vd-fs.mp-on{bottom:auto;max-height:100vh;max-height:100dvh;box-shadow:0 1px 0 var(--gold-dim),0 18px 48px rgba(0,0,0,.72)}
+html.vd-lock::after{content:"";position:fixed;inset:0;z-index:99996;background:rgba(5,4,3,.82)}
 .mp-stats .mp-h{min-height:calc(44*var(--u))}
 .mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
@@ -39043,6 +39055,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var PROV_KEY = 'd2r_vaultProv';
   var VAULT_WITNESS_FLOOR = 0.55;   /* = vault_retro.KEEP_CONF_FLOOR — pinned by test_every_mule_filing_carries_its_witness */
   var VAULT_WITNESS_MIN = 2;        /* = vault_retro.KEEP_MIN_WITNESSES — HIS ruling; pinned the same way */
+  /* = vault_evidence.RETRO_KEEP_MIN_LOOKS. HIS RULING §34.2, "Keep filed, flag 'retro: WATCHED'": a keepFiled retro row was
+     filed before, so the reset's rebuild door keeps it on ONE qualifying look instead of two. Only the rebuild branch passes
+     it, and only for a row carrying keepFiled + a 'retro: TIER' flag (Ledger fix round 2, finding B). */
+  var VAULT_RETRO_KEEP_MIN = 1;
   window.VAULT_WITNESS_FLOOR = VAULT_WITNESS_FLOOR;
   window.VAULT_WITNESS_MIN = VAULT_WITNESS_MIN;
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
@@ -39090,7 +39106,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      A look is an independent eye: its `witness` id (a re-look key), else its session. A bare session that is
      the prefix of a re-look key from the same recording folds into it — the same fold vault_retro applies —
      so one recording cannot count twice by carrying its id in two spellings. */
-  window._vaultWitnessCheck = function(w){
+  window._vaultWitnessCheck = function(w, minLooks){
+    /* the bar: VAULT_WITNESS_MIN, unless the caller names the retro keep bar — no other number is accepted */
+    var need = (minLooks === VAULT_RETRO_KEEP_MIN) ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN;
     if (!w || typeof w !== 'object' || Array.isArray(w))
       return { ok: false, why: 'no witness — a filing needs a stash sighting, a .d2s read or your own hand' };
     if (w.by === 'hand'){
@@ -39137,7 +39155,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var distinct = Object.keys(ids).sort();
     if (w.gate && typeof w.gate === 'object' && w.gate.pass === false)
       return { ok: false, lane: lane, looks: distinct.length, why: 'the gate held it: ' + String(w.gate.why || 'no reason given').slice(0, 160) };
-    if (distinct.length < VAULT_WITNESS_MIN)
+    if (need === VAULT_RETRO_KEEP_MIN && distinct.length < need)
+      return { ok: false, lane: lane, looks: 0, dropped: dropped, retroKeep: true,
+               why: 'no qualifying look in your ' + lane + ' — a keep-filed retro row needs ' + need
+                    + ' (its own frame and its own conf >= ' + VAULT_WITNESS_FLOOR + ')'
+                    + (dropped ? (' (' + dropped + ' did not qualify)') : '') };
+    if (distinct.length < need)
       return { ok: false, lane: lane, looks: distinct.length, dropped: dropped,
                why: 'only ' + distinct.length + ' qualifying look' + (distinct.length === 1 ? '' : 's') + ' in your ' + lane
                     + ' — needs ' + VAULT_WITNESS_MIN + '; a look counts only with its own frame and its own conf >= '
@@ -39220,13 +39243,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!pr || typeof pr !== 'object' || Array.isArray(pr) || String(pr.name || '').trim() !== nm)
         return { ok: false, refused: 'plan', why: nm + ' is not a row the evidence plan named' };
       var tierN = String(pr.tier || ''), whyN = String(pr.why || '');
-      if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind')
+      /* HIS RULING 2026-09-28 (§34.2): "Keep filed, flag 'retro: WATCHED'". A row the frame math filed above what
+         its visits earn comes back at its TRUE tier with the flag and keepFiled (vault_evidence.rebuild_plan) —
+         never refused here, never unfiled by a reset. It still passes the witness check below — on ONE qualifying look
+         (VAULT_RETRO_KEEP_MIN), not two: it was filed before, and his ruling keeps it (Ledger fix round 2, finding B). A
+         flagged row NO visit saw is held by the plan and never reaches this door. */
+      var retroN = (pr.keepFiled === true && /^retro: [A-Z]+$/.test(String(pr.flag || ''))) ? String(pr.flag) : '';
+      if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind' && !retroN)
         return { ok: false, refused: 'plan', why: nm + ' is not proven, so a reset does not file it back' };
       var keptHome = (pr.home === '__keep' || pr.equipped === true || whyN === 'kept kind');
       var home = keptHome ? '__keep' : (opts.mule || null);
       var w = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
       if (!keptHome){
-        var wcR = window._vaultWitnessCheck(w);
+        var wcR = window._vaultWitnessCheck(w, retroN ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN);
         if (!wcR.ok) return { ok: false, refused: wcR.main ? 'main' : 'witness', why: wcR.why };
         if (!home){ var sgR = null; try { sgR = suggestMule(nm); } catch (e) { sgR = null; } home = sgR ? sgR.id : null; }
         if (!_vHomeOk(home) || home === '__keep') return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
@@ -39259,6 +39288,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         evidence: whyN
       };
       try { var _pr1 = _provAll()[nm]; if (_pr1 && _pr1.kind === 'owned') rowF.ownedBy = _pr1; } catch (e) {}
+      if (retroN) { rowF.flag = retroN; rowF.keepFiled = true; }
       var paF = _provAll(); paF[nm] = rowF; _provWrite(paF);
       try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
       assign[nm] = home; saveA();
@@ -45792,13 +45822,17 @@ function renderJournal(){
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       if (!row || !row.name) continue;
-      var filed = null;
+      var filed = null, threw = '';
       try {
         if (typeof window.vaultFile !== 'function') throw new Error('no door');
         filed = window.vaultFile(row.name, row.witness || null, { rebuild: true, plan: row, mule: row.home || null });
-      } catch (e6) { filed = null; }
+      } catch (e6) { filed = null; threw = String((e6 && e6.message) || e6 || 'the door threw'); }
       if (filed && filed.ok) names.push(String(row.name));
-      else failed.push(String(row.name));
+      /* Ledger fix round 2, finding B — EVERY REFUSAL IS SAID. This pushed a bare name that nothing read, so a plan row the
+         door refused fell silently between "rebuilt" and "held". It now carries the door's own code and reason; the status
+         line names it (_vaultResetSay) and the doctor's reset row reads it (vault_evidence.reset_receipt). */
+      else failed.push({ name: String(row.name), refused: (filed && filed.refused) ? String(filed.refused) : (threw ? 'error' : 'no-answer'),
+                         why: (filed && filed.why) ? String(filed.why) : (threw ? ('the door threw: ' + threw) : 'the door did not answer') });
     }
     R.rebuilt = names;
     R.rebuiltFailed = failed;
@@ -45840,6 +45874,10 @@ function renderJournal(){
     if (R.door === 'vaultClearHistory') {
       if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read');
       else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN'));
+      var rf = Array.isArray(R.rebuiltFailed) ? R.rebuiltFailed : [];
+      if (rf.length) bits.push('⚠ ' + rf.length + ' could not be re-filed: ' + rf.slice(0, 6).map(function(f){
+          return (f && f.name ? f.name : String(f)) + ' (' + ((f && (f.why || f.refused)) || 'no reason') + ')';
+        }).join('; ') + (rf.length > 6 ? (' and ' + (rf.length - 6) + ' more') : ''));
     }
     return (R.ok === false ? '⚠ ' : '🧹 ') + 'vault reset — cleared ' + w.clears.join(' · ')
       + ' · ' + (R.touched.length ? 'meant to keep' : (R.unknown.length ? 'kept' : 'kept untouched')) + ': '
@@ -54245,6 +54283,10 @@ html{overflow-x:clip}
 @font-face{font-family:"D2 Exocet";src:local("Exocet Blizzard OT"),local("ExocetBlizzardOT-Medium"),url('/api/d2r_font/exocet') format('opentype');font-display:swap}
 .cb-win,.cb-host{--cb-q-unique:rgb(199,179,119);--cb-q-set:rgb(0,255,0);--cb-q-crafted:rgb(255,168,0);--cb-q-base:rgb(255,255,255);--cb-q-magic:rgb(105,105,255);--cb-q-rare:rgb(255,255,100);--cb-q-runeword:rgb(199,179,119);--cb-glow:rgb(40,220,90);--cb-d2:"D2 Exocet","Cinzel",var(--serif-display),serif;--cb-slate:#3a3b3d}
 .cb-win{position:fixed;inset:0;z-index:99996;overflow:auto;background:var(--bg);color:var(--text);font-family:var(--sans);padding:calc(14*var(--u)) 16px 30px;overscroll-behavior:contain}
+/* #29(d) "Tighten both" (REG-1379) - the builder, like the mule window, is as tall as what it holds (capped by the glass,
+   scrolling inside itself when taller); the board under a short window is dimmed and inert. See .vault-detail.vd-fs.mp-on */
+.cb-win{bottom:auto;max-height:100vh;max-height:100dvh;box-shadow:0 1px 0 var(--gold-dim),0 18px 48px rgba(0,0,0,.72)}
+html.cb-lock::after{content:"";position:fixed;inset:0;z-index:99995;background:rgba(5,4,3,.82)}
 .cb-win[hidden]{display:none}
 html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-win,.cb-host{--fs-cb-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-cb-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-cb-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-cb-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-cb-micro:var(--fs-micro);--fs-cb-d2:max(var(--fs-body),calc(var(--fs-title)*1.28*var(--kf,1)));--fs-cb-d2h:max(var(--fs-body),calc(var(--fs-title)*1.4*var(--kf,1)));--fs-cb-tip:calc(var(--fs-title)*1.2)}
@@ -54367,12 +54409,18 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-notes textarea:focus{outline:none;border-color:var(--gold)}
 /* RIGHT — STATS from the stats engine, every number with its source; UNKNOWN when there is no engine */
 .cb-stats{grid-area:stats;display:flex;flex-direction:column;min-height:calc(726*var(--u))}
-/* #174 R2 — STATS ENDS AT THE WINDOW'S BOTTOM AND SCROLLS INSIDE ITSELF, as the mule window's already does. The Grok seat
-   on R1 (2000x1300): "the stats column is cut off at the bottom edge, rows from Energy down are sliced". It was a
-   726-unit floor that grew with its rows, so the builder's whole window scrolled to reach them. In columns it is now the
-   window's height less its top padding (14u), the header row (46u) and the gap under it (6u) and a 30px breath - its
-   own list scrolls; stacked on a phone it keeps its natural height. */
-.cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}
+/* #174 R2 — STATS ENDS INSIDE THE GLASS AND SCROLLS INSIDE ITSELF, as the mule window's already does. The Grok seat on R1
+   (2000x1300): "the stats column is cut off at the bottom edge, rows from Energy down are sliced". It was a 726-unit floor
+   that grew with its rows, so the builder's whole window scrolled to reach them. In columns it is never taller than the
+   glass less its top padding (14u), the header row (46u), the gap under it (6u) and a 30px breath - its own list scrolls;
+   stacked on a phone it keeps its natural height.
+   #29(d) "Tighten both" (REG-1379): and it is exactly as tall as the columns beside it. Its rows no longer set the
+   window's height (contain:size - the list is a scroller, so its length is not the panel's), it stretches to the row the
+   left and centre columns make, and where they are taller than the glass it stops at the glass. It used to be the
+   glass's height whatever stood beside it: at 2000x1300 the left and centre ended ~270px above it, and the first fix
+   stretched their last panels (STRENGTHS AND WEAKNESSES, NOTES) into that band - empty boxes. Every panel is its own
+   height now and the window ends under its content. */
+.cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}
 .cb-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .cb-seg button{flex:1;height:calc(32*var(--u));min-height:26px;border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);font-weight:var(--fw-medium);cursor:pointer}
 .cb-seg button.cb-on{background:var(--gold-bright);color:#1a1208}
@@ -54408,6 +54456,18 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-sv-UNKNOWN b{color:var(--text-dim);font-weight:var(--fw-normal)}
 /* #174 v-B2 integration - the cap the game holds a stat to, after its source ("≤75%") */
 .cb-sv em.cb-cap{font-style:normal;font-family:var(--sans);font-size:var(--fs-cb-micro);color:var(--text-dim);white-space:nowrap;margin-left:-1px}
+/* #29(b) round 2 (REG-1376) - HIS WORDS COST NO LINE. "cap 75%" is wider than the "≤75%" it replaced, and on the number's
+   line it widened the value's column, so the label beside it wrapped once more: Physical Damage Reduction 2 -> 3 lines at
+   1280x800, Lightning Resistance 1 -> 2 at 1280 and at 2000, Fire / Cold Resistance and the three absorbs at 900-1180. A
+   capped value is now a small block of text: the number and its source chip flow as words (the chip wraps under the
+   number only when the row is too tight for both, round 8's rule), and the cap is a line of its own under them,
+   right-aligned and never wrapped. A block's widest line is its width, so the value is as wide as its number and source,
+   never their sum with the cap: the label keeps the lines it has without the cap, and all eight capped rows read alike
+   at every width (the four resistances never differ). */
+.cb-sv:has(> em.cb-cap){display:block;white-space:normal;text-align:right}
+.cb-sv:has(> em.cb-cap) > b{white-space:nowrap}
+.cb-sv:has(> em.cb-cap) > i{display:inline-block;white-space:nowrap;margin-left:4px}
+.cb-sv:has(> em.cb-cap) > em.cb-cap{display:block;margin-left:0;line-height:var(--lh-tight)}
 .cb-st-note{margin:2px 0;color:var(--text-dim)}
 /* THE MODAL — their Select | Edit + ✕, ~800x750, placed so the slot it serves stays in view (it glows green) */
 .cb-modal{position:fixed;z-index:99998;display:flex;flex-direction:column;background:#141210;border:1px solid var(--border-light);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.6);color:var(--text);font-family:var(--sans);overflow:hidden}
@@ -54484,6 +54544,9 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-ed-acts{display:flex;flex-wrap:wrap;gap:calc(6*var(--u));margin-top:calc(8*var(--u))}
 .cb-ed-grid{display:flex;flex-wrap:wrap;gap:calc(8*var(--u)) calc(14*var(--u));margin-top:calc(10*var(--u));align-items:center}
 .cb-ed-f{display:inline-flex;align-items:center;gap:calc(6*var(--u));font-size:var(--fs-cb-body);color:var(--text-muted)}
+/* #29(d) — a number box is as wide as its range hint: Chrome sizes an input[type=number] by its max's digits, so Sockets
+   (max 2) was one digit wide and its placeholder "1-2" read "1-" beside the spin arrows (the Grok CLI's cold look, v3522) */
+.cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}
 .cb-ed-f select,.cb-ed-f input[type=number]{height:calc(30*var(--u));min-height:26px;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);padding:0 6px;max-width:calc(260*var(--u))}
 .cb-ed-q{margin-top:calc(16*var(--u));padding-bottom:calc(4*var(--u));border-bottom:1px solid var(--border);font-family:var(--cb-d2);font-size:var(--fs-cb-d2h);letter-spacing:var(--ls-snug);color:#9a9a9a}
 .cb-lines{margin:calc(6*var(--u)) 0 0;padding:0;list-style:none;font-family:var(--cb-d2);font-size:var(--fs-cb-d2);color:rgb(232,232,232);line-height:var(--lh-relaxed)}
@@ -54512,6 +54575,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .cb-ctl>span{white-space:nowrap}
 .cb-ctl input[type=number],.cb-ctl select{height:calc(28*var(--u));min-height:24px;background:transparent;border:0;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);padding:0 2px;min-width:0;max-width:calc(210*var(--u))}
 .cb-ctl input[type=number]{width:calc(64*var(--u));min-width:44px}
+/* #29(d) — a box that carries a range hint holds the widest one a base prints ("487-600", 7 characters) beside its spin
+   arrows: the rare Diadem's Defense read "50-6" at 375 wide, found by round 9's own hint law the day it was written */
+.cb-ctl input[type=number][placeholder]{min-width:calc(7ch + 22px)}
 .cb-ctl input[type=number].cb-typed{color:var(--best)}
 .cb-ctl input[type=number]::placeholder{color:var(--text-dim)}
 .cb-ctl select option{background:var(--surface);color:var(--text)}
@@ -54573,7 +54639,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .cb.cb-stack .cb-main,.cb.cb-stack .cb-stats,.cb.cb-stack .cb-notes{min-height:0}
 .cb.cb-stack .cb-st{max-height:60vh}
 .cb.cb-stack .cb-top{flex-direction:column;align-items:stretch}
-.cb-modal.cb-sheet{inset:8px !important;width:auto !important;height:auto !important}
+/* #29(d) — the sheet spans the width inset 8; its top and height are _cbPlace's (under the tabs, and an Edit sheet as tall
+   as its content) - it used to be inset:8px on every side, the whole glass whatever it held */
+.cb-modal.cb-sheet{left:8px !important;right:8px !important;width:auto !important}
 .cb-sheet .cb-mb{flex-direction:column}
 /* #174 v-B2 fix round: in the stacked sheet the pane is a flex:1 child of a column - with no min-height it grew to its
    list (8715px of weapons) and the list's own overflow:auto never engaged, so only ~35 rows could ever be reached */
@@ -56098,13 +56166,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
           var rlo = r.raw && typeof r.raw === 'object' ? r.raw.min : r.raw, rhi = r.raw && typeof r.raw === 'object' ? r.raw.max : r.raw;
           v = span(r.value.min, r.value.max)
             + (cp && rlo != null && (rlo !== r.value.min || rhi !== r.value.max) ? ' (raw ' + span(rlo, rhi) + ')' : '');
+          /* #29(b) his answer 2026-09-28: a max-resistance row is a BONUS to the cap, never a resistance of its own - it reads
+             "+0%" (and "+5%", "+5–10%"); a negative keeps its real minus */
+          if (/^res-[a-z]+-max$/.test(String(r.key || '')) && r.value.min >= 0) v = '+' + v;
         }
-        /* the value (or range), its source, and the cap the game holds it to, as "≤75%" - the word "cap" pushed the
-           longest labels (Lightning Resistance, Physical Damage Reduction) onto a second line at their 300px column;
-           the row's own title (the engine's why) says "capped at 75 (75 + max ..., never above 95)" in full */
+        /* the value (or range), its source, and the cap the game holds it to, as "cap 75%" - #29(b) his answer 2026-09-28
+           ("≤75%" read as a comparison, not a cap). Round 8 keeps the NUMBER on its label's first line; when the row is tight
+           the chip and the cap wrap under the number, inside the value. The row's own title (the engine's why) says
+           "capped at 75 (75 + max ..., never above 95)" in full */
         h += '<div class="cb-st-r" data-k="' + esc(String(r.label || r.key || '').toLowerCase()) + '"><span class="cb-sl">' + esc(r.label || r.key) + '</span>'
           + '<span class="cb-sv cb-sv-' + esc(src) + '" title="' + esc(r.why || src) + '">' + (v ? '<b>' + esc(v) + '</b>' : '') + '<i>' + esc(src) + '</i>'
-          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
+          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
       });
     }
     return h + '</div></div>';
@@ -56193,9 +56265,37 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbRender = _cbRender;
 
   /* ── THE MODAL: Select | Edit (a slot / an inventory cell), Stash | Create, + New build ─────────────────────── */
+  /* #29(d) his answer 2026-09-28 ("TIGHTEN"): an Edit window is as tall as what it holds - its fixed 750 units left the
+     lower third empty for a helm and more for a charm - and the builder's own tabs (Equipment | Skill Tree | Calculations,
+     and the set tabs above them) stay in view while it is open: at 1280x800 its top was pulled up to 108 and it covered
+     EQUIPMENT, the tab it was editing for. A list (Select, Quality, Base, Stash) keeps its full height - the list is what
+     fills it - and so does Edit while ADD MOD is open, whose list takes the room of its tab (_cbFitAddList). */
+  /* ⚠ NOT _cbFits - that name is the inventory's "does this item fit at x,y" further down, and a second function
+     declaration of one name in one scope silently loses to the later one (it did, on the first render) */
+  function _cbModalFits(){ return !!(st.newb || (st.pick && st.pick.tab === 'edit' && !st.modOpen)); }
+  /* #29(d) round 2 (REG-1375) - THE TAB ROW OF THE WINDOW THE MODAL IS IN: the builder's (Equipment | Skill Tree |
+     Calculations) in the builder host, the mule window's own (EQUIPMENT | STASH | SKILL TREE | CALCULATIONS) in the mule
+     host. The #174 Edit panel lives in the mule window, and there the Edit and Select modals were placed with no tab rule
+     at all - they covered the mule's EQUIPMENT / STASH tabs at every width, and on a phone the sheet covered all four */
+  function _cbTabsBottom(vh, mule){
+    var tb = document.querySelector(mule ? '#vault-detail .mp-ctabs' : '#cb-win .cb-ctabs'), r = tb && tb.getBoundingClientRect();
+    return (r && r.height > 0 && r.bottom > 0 && r.top < vh) ? r : null;
+  }
+  window._cbModalFits = _cbModalFits;
   function _cbPlace(m){
-    var vw = window.innerWidth, vh = window.innerHeight, L = _cbLayout(vw, vh);
-    if (L.stack){ m.classList.add('cb-sheet'); m.style.left = m.style.top = m.style.width = m.style.height = ''; return; }
+    var vw = window.innerWidth, vh = window.innerHeight, L = _cbLayout(vw, vh), fit = _cbModalFits();
+    var mh0 = !!(st.pick && st.pick.host === 'mule');
+    if (L.stack){
+      /* the phone's sheet starts under the tabs when they are on screen (it took the whole glass, inset 8), and an Edit
+         sheet ends under its content (it held ~230px of nothing on a 375x812 phone) */
+      m.classList.add('cb-sheet');
+      var tr0 = _cbTabsBottom(vh, mh0), top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;
+      m.style.left = m.style.width = '';
+      m.style.top = Math.round(top0) + 'px';
+      if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(vh - top0 - 8) + 'px'; }
+      else { m.style.height = Math.round(vh - top0 - 8) + 'px'; m.style.maxHeight = ''; }
+      return;
+    }
     m.classList.remove('cb-sheet');
     var W = Math.min(800 * L.u, vw - 16), H = clamp(750 * L.u, 420, vh - 16), left, top = 8;
     var anchor = null, doll = document.getElementById('cb-doll');
@@ -56236,8 +56336,20 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     top = clamp(top, 8, Math.max(8, vh - H - 8));
     H = Math.min(H, vh - top - 8);
+    /* #29(d) — the window's tabs stay in view: a modal that would reach up over them starts under them instead (it keeps
+       the side it was given, so the slot it serves stays uncovered) and gives up the height above - the builder's tabs in
+       the builder, the mule window's own tabs in the mule host (REG-1375) */
+    var _tr = _cbTabsBottom(vh, mh0);
+    if (_tr && left < _tr.right && left + W > _tr.left && top < _tr.bottom + 6 && vh - (_tr.bottom + 6) - 8 >= 240){
+      top = _tr.bottom + 6;
+      H = Math.min(H, vh - top - 8);
+    }
     m.style.left = Math.round(left) + 'px'; m.style.top = Math.round(top) + 'px';
-    m.style.width = Math.round(W) + 'px'; m.style.height = Math.round(H) + 'px';
+    m.style.width = Math.round(W) + 'px';
+    /* an Edit window hugs what it holds: shorter than the 750-unit frame when it holds less, and taller - down to the
+       window's bottom - when it holds more, so it scrolls inside itself only when the glass runs out */
+    if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(Math.max(H, vh - top - 8)) + 'px'; }
+    else { m.style.height = Math.round(H) + 'px'; m.style.maxHeight = ''; }
   }
   function _cbModal(){
     var m = document.getElementById('cb-modal');
@@ -59446,7 +59558,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3521', name:'v3521 - everything since v3520 gets its number - vault reset rulings, inventory wave 2, hourly shadow rollover, a drain that keeps the evidence pictures', date:'2026-09-28', note:'Stamps the 27 commits Grok pushed after v3520 plus the fixes: a vault reset clears the mules and owned only and rebuilds proven items from evidence (Wilson tiers); mule inventory takes charms (drag, footprints, prefix/suffix, floating picture, D2R tooltip colours, runeword on base); a shadow session rolls over every hour (proven live on the ALT, 10 rotations); the drain releases every finished reel past the newest 8 and keeps exactly the pictures a vault item stands on (REG-1345); an unbumped push that changes what he sees is refused (REG-1346); CI and second-eye findings fixed (REG-1344). HEART: guarded by test_the_river_drains_every_pass, test_a_vault_reset_clears_only_the_mules, test_a_shadow_session_rolls_over_every_hour, test_the_backup_lane_survives_a_loss, test_a_windows_door_sees_the_game, every red-proof PROVEN' };
+  window.D2R_BUILD = { id:'v3522', name:'v3522 - ALT and ledger', date:'2026-09-28', note:'Updates land beside the always-on shadow reader and relaunch quietly beside his game. W leaves fullscreen with the whole window on his screen. The ALT river answers fast (one folder listing, not 34,000 file stats). Triage stands aside for a native D2R on every PC and walks beside a shadow reel. The fleet card says how each PC films, drains and triages, and a renamed host is no longer a ghost PC. Ledger 3.0 P0: a look is a visit, never a frame; Radiance and the Horadric Cube stay filed through a reset; every fall is recorded; his hand ticks are witnesses. The disk floor spares pinned footage. The heart names lost evidence pictures. Cap 75 percent, plus 0 percent, windows tight to their content. HEART: test_an_update_lands_beside_a_shadow_reel, test_triage_runs_beside_a_shadow_reel, test_the_beacon_says_how_each_pc_films_and_drains, test_the_fleet_card_says_how_each_pc_films_and_drains, test_a_frame_index_lists_each_folder_once, test_reel_reaper, test_a_still_screen_is_one_look, test_a_reset_keeps_the_retro_rows_filed, test_a_drop_is_an_episode, test_his_window_is_his_on_every_platform' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -67556,10 +67668,12 @@ window.tvStashAutoIntake = async function(tab, opts){
     ['res-cold', 'Cold Resistance', 'resistances', '%', 'coldresist'],
     ['res-ltng', 'Lightning Resistance', 'resistances', '%', 'lightresist'],
     ['res-pois', 'Poison Resistance', 'resistances', '%', 'poisonresist'],
-    ['res-fire-max', 'Maximum Fire Resistance', 'resistances', '%', 'maxfireresist'],
-    ['res-cold-max', 'Maximum Cold Resistance', 'resistances', '%', 'maxcoldresist'],
-    ['res-ltng-max', 'Maximum Lightning Resistance', 'resistances', '%', 'maxlightresist'],
-    ['res-pois-max', 'Maximum Poison Resistance', 'resistances', '%', 'maxpoisonresist'],
+    /* #29(b) his answer 2026-09-28: "Max Fire Resistance +0%" - these rows are a BONUS to the 75 cap, so STATS signs the
+       value and the label says Max (the builder's STATS reads this label; the tooltip keeps the game's own string) */
+    ['res-fire-max', 'Max Fire Resistance', 'resistances', '%', 'maxfireresist'],
+    ['res-cold-max', 'Max Cold Resistance', 'resistances', '%', 'maxcoldresist'],
+    ['res-ltng-max', 'Max Lightning Resistance', 'resistances', '%', 'maxlightresist'],
+    ['res-pois-max', 'Max Poison Resistance', 'resistances', '%', 'maxpoisonresist'],
     ['res-mag', 'Magic Resistance', 'resistances', '%', 'magicresist'],
     ['abs-fire%', 'Fire Absorb', 'absorb', '%', 'item_absorbfire_percent'],
     ['abs-fire', 'Fire Absorb (flat)', 'absorb', '', 'item_absorbfire'],

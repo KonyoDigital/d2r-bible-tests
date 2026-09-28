@@ -2072,10 +2072,11 @@
       "cited_frames",
       "tier_census",
       "pictures_gone",
-      "reset_receipt"
+      "reset_receipt",
+      "retro_plan ← POST /api/vault_rebuild_plan (the plan's `retro` field)"
     ],
-    "gotcha": "tier() and rebuild_plan() are the only bar, and the bound is confidence.wilson_lower — a second table or a second Wilson function is the drift this file exists to prevent. plan_from_ledger reads a path the caller names and never writes it; a ledger it cannot read is ok:false, not an empty rebuilt list. It does not file. The board's full reset files the plan through window.vaultFile. Equipped rows and kept charms (sunder, annihilus, torch, gheed) come back below the bar; an unreadable count does not.",
-    "purpose": "Decides which cleared vault marks come back after a reset, from each item's own looks: watched under 10 trials, proven near 10 at the Wilson bar, hardened near 20.",
+    "gotcha": "A trial is a distinct VISIT, never a frame (his ruling 2026-09-28, §34.2): _measure counts vault_retro.gate's own look id (witness = session#REOPEN_GAP_MS bucket, else the bare session) folded by vault_retro._fold_bare_sessions, borrowed, never copied. Counting witness ROWS scored Radiance HARDENED 103/103 on 2 visits; corroborate's a-tier-stands-on-its-looks now compares the tier table with the gate. The frame count rides beside as `frames` and no tier reads it. tier() and rebuild_plan() are the only bar, and the bound is confidence.wilson_lower — a second table or a second Wilson function is the drift this file exists to prevent. plan_from_ledger reads a path the caller names and never writes it; a ledger it cannot read is ok:false, not an empty rebuilt list. It does not file. The board's full reset files the plan through window.vaultFile and never reads `retro`. retro_plan names items filed above their visits and keeps them filed — it has no unfile half. Equipped rows and kept charms (sunder, annihilus, torch, gheed) come back below the bar; an unreadable count does not.",
+    "purpose": "Decides which cleared vault marks come back after a reset, from each item's own looks, where a trial is a distinct visit (never a frame of a still screen): watched under 10 visits, proven near 10 at the Wilson bar, hardened near 20. Names items filed above what their visits earn (retro: WATCHED), and keeps them filed.",
     "territory": "vault"
   },
   "vault_fixture_reels.py": {

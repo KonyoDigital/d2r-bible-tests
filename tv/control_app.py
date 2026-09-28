@@ -2030,6 +2030,12 @@ def _route_key(who):
     return "%s|%s" % (str(who.get("id") or "")[:40], str(who.get("p") or "")[:16])
 
 
+# The board tally's lanes in ledger_restore's store vocabulary, so a drop here is the SAME drop the
+# backup watcher records. ledger_restore.RESTORABLE already pairs foundLog/uniques and
+# setPieces/sets; rwMade is its runeword store.
+_TALLY_DROP_STORE = {"sets": "setPieces", "uniques": "foundLog", "runewords": "rwMade"}
+
+
 def board_tally_merge(t):
     """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
 
@@ -2095,10 +2101,55 @@ def board_tally_merge(t):
     doc.setdefault("high", {})
     doc.setdefault("drops", [])
 
+    # this world's PREVIOUS reading, taken before this tally replaces it — what a fall is measured
+    # from (Ledger fix round 2, finding C, below)
+    _last = doc["byRoute"].get(key) if isinstance(doc["byRoute"].get(key), dict) else {}
     doc["byRoute"][key] = {k: t.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
 
     # the high-water mark, per world, per ledger — and a DROP is an event, not a silent overwrite
+    #
+    # ══ 2026-09-28 (Ledger P0) — A DROP IS ONE EPISODE, NOT ONE ROW PER TALLY ═══════════════════
+    # This appended a drop on EVERY tally while a lane sat below its high-water mark, and the mark
+    # only rises. The board posts about once a minute, so one fall filled the 40-slot record in
+    # 40 minutes. MEASURED on his board_tally.json: all 40 rows were ONE event, sets 134 -> 0, and
+    # every earlier drop had been evicted by it.
+    #
+    # ledger_restore already owns the definition of a drop AND its lifecycle — step_episodes
+    # opens an episode once and closes it when the count is back — and the backup watcher runs it
+    # once per snapshot. Here it runs once per tally, from the lane's high-water mark. The "after"
+    # side always carries every lane, so a recovery closes its episode. One definition, two
+    # callers — two would drift. [[copy-drift]]
+    #
+    # ══ 2026-09-28 (Ledger fix, finding 2) — AN OPEN EPISODE WAS A BLINDFOLD ═══════════════════
+    # A lane with an OPEN episode was left out of "before" altogether, so while 134 -> 60 stayed
+    # open, a later fall to 0 was never written down.
+    #
+    # ══ 2026-09-28 (Ledger fix round 2, finding C) — A FALL IS MEASURED FROM THE LAST READING ══════
+    # Round 1 measured from the LOWEST open `to`, so 134 -> 60 (open), back up to 100, down to 70
+    # was never written: 70 sits above the open low of 60. HIS RULE: "EVERY fall is recorded, as
+    # before" — 9226d0d3 wrote a row for every tally below the mark. So "before" is now this
+    # world's PREVIOUS reading of the lane — its last tally: fall, partial recovery, fall again is a
+    # recorded fall each time; sitting at the same value files nothing (step_episodes opens nothing
+    # when nothing fell), and a fall to 0 from any count is always a fall. A lane whose previous
+    # reading cannot be read falls back to the high-water mark — the comparator 9226d0d3 used — so
+    # nothing below the mark goes unrecorded for want of a reading. Episodes still OPEN once per
+    # fall and CLOSE when the count is back to that fall's `from` (ledger_restore.step_episodes,
+    # unchanged — its own drop line is untouched; the board passes ANY_FALL).
+    #
+    # ══ 2026-09-28 (Ledger fix, finding 2b) — EVERY FALL IS RECORDED, AS BEFORE ═══════════════
+    # The P0 build borrowed ledger_restore's drop line (to 0, or >= max(10, 25%)), so a 3-set fall
+    # or a single un-tick stopped writing any drop row — his data, recorded before, lost silently.
+    # His decision: keep what was recorded before. So this passes ledger_restore.ANY_FALL; the
+    # backup watcher and the restore plan keep their own line, because the threshold's default IS
+    # that line. An un-tick is his testimony, and a record of it is not an accusation.
     hi = doc["high"].setdefault(key, {})
+    try:
+        import ledger_restore as _lr
+    except Exception as _e:
+        _lr = None
+        doc["dropsUnknown"] = ("ledger_restore could not be read (%s), so whether this tally "
+                               "opened or closed a drop is UNKNOWN" % str(_e)[:60])
+    _seen, _lane_of, _kind = [], {}, {}
     for lane in ("sets", "uniques", "runewords"):
         pair = t.get(lane)
         if not isinstance(pair, dict) or not isinstance(pair.get("have"), int):
@@ -2108,12 +2159,53 @@ def board_tally_merge(t):
         if not isinstance(prev, dict) or not isinstance(prev.get("have"), int):
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
             continue
+        store = _TALLY_DROP_STORE[lane]
+        _lane_of[store] = (lane, prev.get("at"))
+        # the fall is measured from THIS world's last reading of the lane (finding C); a last
+        # reading that cannot be read falls back to the high-water mark, never to a guess
+        _lp = _last.get(lane) if isinstance(_last.get(lane), dict) else {}
+        _was = _lp.get("have")
+        _kind[store] = "last reading"
+        if isinstance(_was, bool) or not isinstance(_was, int):
+            # ⚠ 2026-09-28 review (round 2): falling back to the high-water mark EVERY time re-opened the same
+            # fall on every tally while the lane sat below the mark - open episodes are never evicted, so the
+            # copies grew without a bound. A fall still OPEN for this lane already records where it went: its
+            # lowest `to` is the comparator, so sitting there files nothing. Only with no open fall is the
+            # high-water mark the comparator (the first fall, recorded once).
+            _open_to = [d.get("to") for d in doc["drops"]
+                        if isinstance(d, dict) and d.get("open") and d.get("routeKey") == key
+                        and d.get("store") == store and isinstance(d.get("to"), int)
+                        and not isinstance(d.get("to"), bool)]
+            if _open_to:
+                _was, _kind[store] = min(_open_to), "the open fall's low"
+            else:
+                _was, _kind[store] = prev["have"], "high-water mark"
+        _seen.append((store, _was, have))
         if have > prev["have"]:
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
-        elif have < prev["have"]:
-            doc["drops"].append({"route": key, "lane": lane, "from": prev["have"], "to": have,
-                                 "at": t.get("at"), "highAt": prev.get("at")})
-            doc["drops"] = doc["drops"][-40:]      # a rolling record, not a growing file
+    if _lr is not None and _seen:
+        doc.pop("dropsUnknown", None)
+        # the count key ledger_restore.store_count reads for a blob that carries counts, not rows
+        _ck = _lr._COUNT_KEY
+        _before = {_ck[s]: was for s, was, _now in _seen}     # the last reading
+        _after = {_ck[s]: now for s, _was, now in _seen}
+        _opened, _closed = _lr.step_episodes(
+            doc["drops"], {"ledger": {}, "counts": _before}, {"ledger": {}, "counts": _after},
+            "high-water mark", "board tally at %s" % t.get("at"),
+            route_key=key, at_ms=t.get("at"), threshold=_lr.ANY_FALL)
+        for _ep in _opened:
+            # the fields the doctor's "last recorded fall" sentence reads, beside the episode's own
+            _lane, _hi_at = _lane_of.get(_ep.get("store"), (None, None))
+            # the comparator this fall was measured FROM, named per store (review round 2: every episode was
+            # labelled "high-water mark" while `from` was the lane's last reading)
+            _ep.update({"route": key, "lane": _lane, "highAt": _hi_at,
+                        "beforeFile": _kind.get(_ep.get("store")) or "last reading"})
+    # a rolling record, not a growing file — and an OPEN episode is never the one evicted
+    _keep_closed = [d for d in doc["drops"]
+                    if not (isinstance(d, dict) and d.get("open"))][-40:]
+    _keep_ids = {id(d) for d in _keep_closed}
+    doc["drops"] = [d for d in doc["drops"]
+                    if id(d) in _keep_ids or (isinstance(d, dict) and d.get("open"))]
 
     # what the rest of the console reads: the OWNER world's numbers, with the older single-slot
     # shape kept at the top level so every existing reader keeps working unchanged
@@ -3291,10 +3383,17 @@ def _relaunch_report():
     try:
         may, why = drift_may_relaunch()
     except Exception:
-        return {"armed": armed, "may": None,
+        return {"armed": armed, "may": None, "waiting": None,
                 "why": "could not ask whether a restart is safe right now"}
-    return {"armed": armed, "may": bool(may),
-            "why": (str(why or "") or str(st.get("why") or ""))[:160]}
+    # 2026-09-28 — `waiting` names the class ("waiting for the shadow reel to close" / "blocked by
+    # his session"). drift_may_relaunch LEADS its sentence with exactly those constants, and the
+    # worker keeps only armed/may/why (160 chars) — so the sentence is what reaches the fleet, and
+    # this field only saves a raw-payload reader from parsing it.
+    _w = str(why or "")
+    _waiting = next((c for c in (_WAITING_FOR_SHADOW, _BLOCKED_BY_HIM) if _w.startswith(c)), None)
+    return {"armed": armed, "may": bool(may), "waiting": _waiting,
+            "held": bool(_RELAUNCH_HOLD.get("held")),
+            "why": (_w or str(st.get("why") or ""))[:160]}
 
 
 def _console_beacon(event="hb"):
@@ -3558,7 +3657,7 @@ def _disk_eye_age_ms():
 def _disk_cap_target():
     """v1426 — Windows pin truth from capture_win even when /state is slow."""
     try:
-        p = os.path.join(HERE, "frames", "cap_target.json")
+        p = _CAP_TARGET_FILE          # one definition of where the capture half's pin lives
         if not os.path.isfile(p):
             return {}
         with open(p, encoding="utf-8-sig") as f:
@@ -4696,6 +4795,26 @@ def window_action(what):
         out["ok"] = False
         out["why"] = ("the window reported the same size %sx%s before and after, so it ignored "
                       "the fullscreen toggle on this platform" % (before[0], before[1]))
+    # ⚠ 2026-09-28 — LEAVING FULLSCREEN ON WINDOWS PUTS THE WINDOW WHERE HE CAN REACH ALL OF IT. MEASURED on
+    # his ALT (1280x720 logical, ~672 of work area): W took the console from 1280x720 to 1120x660, but WinForms
+    # restored it at about (238,230), so ~80 px ran off the right edge and ~170 px under the bottom - the
+    # bottom of the console was unreachable. v1464 removed a work-area clamp because SPI_GETWORKAREA answers in
+    # logical OR physical px depending on how the process was launched; this asks for nothing: pywebview's
+    # move(x, y) takes LOGICAL px and scales them itself, and (0, 0) is (0, 0) at any scale. The shipped
+    # 1120x660 window fits every common laptop from the top-left (v1464's own measurement). Mac keeps its
+    # own placement (its traffic lights and Space already restore it sensibly).
+    out["moved"] = None
+    if (_fn == "toggle_fullscreen" and IS_WIN and out["changed"]
+            and after[0] <= before[0] and after[1] <= before[1]):
+        _mv = getattr(win, "move", None)
+        if callable(_mv):
+            try:
+                _mv(0, 0)
+                out["moved"] = [0, 0]
+            except Exception as e:
+                out["moved"] = False
+                out["why"] = ("left fullscreen, but Window.move raised %s - the window stays where Windows "
+                              "put it" % type(e).__name__)
     return out
 
 
@@ -6824,6 +6943,49 @@ def start_background_watchers(why):
             "roster": [n for n, _ in roster]}
 
 
+def _control_window_kwargs(url):
+    """The native window's options, and nothing else. -> dict
+
+    ⚠ 2026-09-28 — LIFTED OUT OF open_control_window so a law can check them. That function also arms the
+    console's background watchers, engine threads and hard-exit deadlines; a law that drove it ran the REAL
+    retention, prune, ledger-backup and drift loops in the test process, and the drift loop os.execv'd the
+    test and wrote .tvd_window.pid and .relaunch_receipt.json in his tree (both restored). A pure function
+    starts nothing. Reads TV_WINDOWED and consumes TV_QUIET_RELAUNCH (once)."""
+    _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
+    kwargs = dict(
+        title="TV DIABLO",
+        url=url,
+        width=1120,
+        height=660,   # v1464 — fits a 672-logical work area; see the note above
+        min_size=(880, 600),
+        background_color="#070605",
+        text_select=False,
+        confirm_close=False,
+        easy_drag=False,
+    )
+    # ⚠ 2026-09-28 — A QUIET RELAUNCH (see _fire_green_light_now): an update that landed beside a shadow
+    # reel while he plays opens minimized and unfocused, never fullscreen over his game. Read ONCE and
+    # removed, so a later relaunch he asks for opens as always. The installed pywebview's signature filter
+    # below drops `focus`/`minimized` on a build without them (and says so).
+    _quiet = os.environ.pop("TV_QUIET_RELAUNCH", None)
+    globals()["_QUIET_BOOT"] = _quiet
+    if _quiet:
+        kwargs.update(minimized=True, focus=False)
+        print("   quiet relaunch - %s: the console opens minimized and does not take focus" % _quiet,
+              flush=True)
+    if not _windowed and not _quiet:
+        kwargs["fullscreen"] = True
+        # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
+        # the macOS title bar he reported ("this TV diablo banner on top is now here when it
+        # wasnt"). It cost him the window controls — "now i cant minimize or window mode the
+        # console" — AND THE WHITE STRIP WAS STILL THERE, so it paid a real price for nothing.
+        # A cosmetic strip is never worth the buttons that move and minimise his console.
+        # The strip is NOT the pywebview frame; it survives framelessness, so it is something
+        # else and will be found by looking rather than by guessing at window flags again.
+        # [[design-is-fine-until-he-says]]
+    return kwargs
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
     # v1251 — cache-bust the WKWebView URL with the ship stamp so a relaunch never
@@ -6932,28 +7094,7 @@ def open_control_window():
             AppKit.NSWindow.setAllowsAutomaticWindowTabbing_(False)
         except Exception:
             pass
-    _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
-    kwargs = dict(
-        title="TV DIABLO",
-        url=url,
-        width=1120,
-        height=660,   # v1464 — fits a 672-logical work area; see the note above
-        min_size=(880, 600),
-        background_color="#070605",
-        text_select=False,
-        confirm_close=False,
-        easy_drag=False,
-    )
-    if not _windowed:
-        kwargs["fullscreen"] = True
-        # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
-        # the macOS title bar he reported ("this TV diablo banner on top is now here when it
-        # wasnt"). It cost him the window controls — "now i cant minimize or window mode the
-        # console" — AND THE WHITE STRIP WAS STILL THERE, so it paid a real price for nothing.
-        # A cosmetic strip is never worth the buttons that move and minimise his console.
-        # The strip is NOT the pywebview frame; it survives framelessness, so it is something
-        # else and will be found by looking rather than by guessing at window flags again.
-        # [[design-is-fine-until-he-says]]
+    kwargs = _control_window_kwargs(url)
 
     # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
     # The old code passed icon= to create_window and caught TypeError into a hardcoded
@@ -13037,10 +13178,14 @@ def _redact_for_wire(s, cap=160):
     box. `g5_grok_eyes` stores `str(e)[:160]` in `last_error`, and an exception routinely names an
     absolute path — a home directory does not belong on a wire, and it tells him nothing he can act
     on. Home paths collapse to `~`, and the whole thing is capped.
+    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\s]+`,
+    which stops at the first space: "/Users/Dean Smith/x.json" crossed as "~ Smith/x.json", and
+    "C:\\Users\\Dean\\x.json" was not folded at all. The user-folder segment is now the ONE pattern
+    _wire_text scrubs with (_WIRE_USER_PAT: the name runs to the next separator or quote), with an
+    optional drive and either separator in front. [[copy-drift]]
     """
-    import re as _re
     txt = " ".join(str(s or "").split())
-    txt = _re.sub(r"/(?:Users|home)/[^/\s]+", "~", txt)
+    txt = _WIRE_HOME_FOLD_RX.sub("~", txt)
     return txt[:cap]
 
 
@@ -13167,7 +13312,9 @@ def _second_eye_lane_state():
 _CAPTURE_WIRE_ROUTES = ("native", "boosteroid", "geforce-now", "unknown")
 #: the capture half's own pin, on Windows (capture_win.ps1 writes it every loop). A seam, so a law
 #: can point it at a fixture instead of this machine's frames/.
-_CAP_TARGET_FILE = os.path.join(HERE, "frames", "cap_target.json")
+#: ⚠ 2026-09-28 — the world's frames dir (TV_FRAMES_DIR), not always this checkout's: test_the_harness_isolates_the_world
+#: found this constant resolving to the LIVE frames/ inside a fixture world.
+_CAP_TARGET_FILE = os.path.join(os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames"), "cap_target.json")
 #: the last pinned route this console READ from that file — the pin the capture last made, kept with
 #: the capture half's own stamp, for the stretches it is waiting between sessions. None = none seen.
 _CAPTURE_ROUTE_SEEN = {"route": None, "ts": None}
@@ -13177,6 +13324,27 @@ _CAPTURE_ROUTE_SEEN = {"route": None, "ts": None}
 _RIVER_LAST = {"good": None, "fail": None}
 _RIVER_SEQ = itertools.count(1)
 _WIRE_URL_RX = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
+#: ⚠ 2026-09-28 — THE USER-FOLDER SEGMENT, SCRUBBED BEFORE ANY GENERIC PATH PATTERN. Every path
+#: pattern below stops at whitespace, and a Windows user name routinely HOLDS one: an adversarial
+#: review sent "C:\\Users\\Dean Smith\\tv\\x.json" and "Smith\\tv\\x.json" crossed to the fleet — the
+#: drive pattern ate "C:\\Users\\Dean" and nothing matched a backslash path with no drive. So the
+#: segment `Users|home` + a separator + the NAME, running to the NEXT SEPARATOR OR QUOTE (spaces
+#: included), goes first. ⚠ A name with no separator after it runs to the end of the sentence and
+#: takes the rest with it — over-scrubbing is the safe direction on a PUBLIC repo's wire.
+#: functions/api/console.js txt() carries the same pattern (the worker scrubs a second time), and
+#: _redact_for_wire folds home with it — one pattern, three readers. [[copy-drift]]
+#: ⚠⚠ 2026-09-28, the SECOND review round: the name segment above still leaked the COMMONEST real shape. An
+#: exception quotes its filename with repr(), which DOUBLES every backslash ('C:\\\\Users\\\\Dean Smith\\\\...'), so
+#: "one separator then a non-separator" never matched and "Smith" crossed; and an apostrophe name (O'Brien), a
+#: file:// URL (scrubbed first, stopping at the space) and a "OneDrive - Acme Corp" folder each leaked a piece.
+#: So: one OR MORE separators; the name runs over an apostrophe that a letter follows; and EVERYTHING after the
+#: user folder, up to the closing quote, goes with it (a path with spaces has no other visible end - over-scrubbing
+#: is the safe direction on a PUBLIC repo's wire). It runs BEFORE the URL scrub, and any backslash token left over
+#: is a path. functions/api/console.js txt() carries the same rule. [[copy-drift]]
+_WIRE_USER_PAT = r"\b(?:Users|home)[\\/]+(?:[^'\"]|'(?=\w))*"
+_WIRE_USER_RX = re.compile(_WIRE_USER_PAT, re.I)
+_WIRE_HOME_FOLD_RX = re.compile(r"(?:\b[A-Za-z]:)?[\\/]+" + _WIRE_USER_PAT, re.I)
+_WIRE_BACKSLASH_TOKEN_RX = re.compile(r"\S*\\\S*")
 _WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/][^\s'\"]*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
                            r"|(?<![\w.])/(?:[^\s/'\"]+/)+[^\s'\"]*")
 _WIRE_IP_RX = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
@@ -13189,13 +13357,17 @@ _WIRE_KEY_RX = re.compile(r"^[a-z][a-z-]{0,31}$")
 def _wire_text(s, cap=200):
     """A sentence on its way to ANOTHER MACHINE, through a PUBLIC repo's worker. -> str
 
-    Stricter than _redact_for_wire, which only folds /Users|/home: a Windows path (C:\\Users\\<him>),
+    Stricter than _redact_for_wire, which only folds a home folder: a Windows path (C:\\Users\\<him>),
     a UNC share, a URL, an IP, a hostname — this machine's own, or a domain — and a reel/session id
     each collapse to a placeholder. The sentences the triage lane writes are ours; an exception's
-    text is not, and it is exactly where a path or a host rides along."""
+    text is not, and it is exactly where a path or a host rides along.
+    ⚠ The user-folder segment goes BEFORE the generic path pattern (see _WIRE_USER_PAT): a user
+    name with a space is where the generic pattern stops and the rest of the name leaks."""
     txt = " ".join(str(s or "").split())
+    txt = _WIRE_USER_RX.sub("<user>", txt)           # FIRST: a user folder with spaces, quoted or not
     txt = _WIRE_URL_RX.sub("<url>", txt)
     txt = _WIRE_PATH_RX.sub("<path>", txt)
+    txt = _WIRE_BACKSLASH_TOKEN_RX.sub("<path>", txt)  # a Windows path with no drive the patterns missed
     txt = _WIRE_IP_RX.sub("<ip>", txt)
     try:
         for h in {socket.gethostname(), socket.gethostname().split(".")[0]}:
@@ -13329,7 +13501,12 @@ def _river_remember_once(lanes, error):
 
 
 def _triage_for_wire():
-    """The triage lane's record, trimmed for the wire. -> dict (in-memory; triage_lane_state)"""
+    """The triage lane's record, trimmed for the wire. -> dict (in-memory; triage_lane_state)
+
+    ⚠ 2026-09-28 — EVERY AGE HERE (sinceLastS, owedForS, waitS, playingForS) IS AS OF THE BEACON, and
+    the fleet reads it later: the worker rewrites the stored record only on a material change or every
+    900 s and /api/fleet caches 60 s. The worker stamps the record time as `system.asOf`; a reader adds
+    (now - asOf) before calling any of these current. See _system_for_wire. [[stale-reading]]"""
     s = triage_lane_state()
     if not isinstance(s, dict) or s.get("ok") is False:
         return {"ok": False, "why": _wire_text((s or {}).get("why") if isinstance(s, dict) else
@@ -13342,6 +13519,8 @@ def _triage_for_wire():
             "lastTs": s.get("lastSurveyTs"), "sinceLastS": s.get("sinceSurveyS"),
             "backlog": s.get("backlog"), "owedSince": s.get("owedSince"),
             "owedForS": s.get("owedForS"), "waitS": s.get("waitS"), "ticks": s.get("ticks"),
+            # 2026-09-28 — an UNBROKEN run of 'playing' refusals: how long it has stood aside for his game
+            "playingForS": s.get("playingForS"),
             "skips": {str(k): int(v) for k, v in (s.get("skips") or {}).items()
                       if _WIRE_KEY_RX.match(str(k)) and isinstance(v, int)}}
 
@@ -13385,7 +13564,13 @@ def _system_for_wire():
     shelf must not reach the fleet as "an empty machine". No path and no name crosses the wire.
     ⚠ 2026-09-28 — `capture` (which way this PC films D2R) and `river` (its lanes and its triage lane)
     ride here too, both read from memory — see _capture_route_for_wire / _river_for_wire.
-    [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+    ⚠ 2026-09-28 — THEIR AGES ARE AS OF THIS BEACON, NOT AS OF THE READ. capture.ageS, river.ageS and
+    river.triage.{sinceLastS, owedForS, waitS, playingForS} are measured here, at the post. The worker
+    (functions/api/console.js) rewrites the stored record only on a MATERIAL change (capture.route is
+    one) or every 900 s, and /api/fleet caches the roster 60 s — so a reader can hold an age up to
+    ~16 min younger than the thing it describes. The worker stamps `system.asOf` = the record time: the
+    true age is ageS + (now - asOf), `now` from the same /api/console payload, plus the fleet's
+    staleAgeS. [[stale-reading]] [[unknown-stays-unknown]] [[the-unjoined-end]]"""
     out = {"tree": None, "reels": None}
     try:
         with _PRUNE_LOCK:
@@ -15236,6 +15421,17 @@ def board_tick(name, kind, want):
     return out
 
 
+#: The lane his own hand tick is banked under — the one spelling the writer below and every reader
+#: of the evidence ledger share (chronicle_retro.witnesses tags it `hand`; evidence_for counts it as
+#: its own kind of row, never as an unplaced one).
+MANUAL_LANE = "manual"
+
+
+def _is_hand_row(row):
+    """A sighting HE wrote by ticking the board — lane 'manual', no reel, no frame, by design."""
+    return isinstance(row, dict) and row.get("lane") == MANUAL_LANE
+
+
 def _bank_manual_sighting(name, kind):
     """Record that HE ticked this by hand, in the same store every other sighting uses.
 
@@ -15258,9 +15454,9 @@ def _bank_manual_sighting(name, kind):
     if not isinstance(ev, dict):
         return False
     rows = ev.setdefault(ledger, {}).setdefault(str(name), [])
-    if any((r or {}).get("lane") == "manual" for r in rows):
+    if any(_is_hand_row(r) for r in rows):
         return False                      # he has already said so; saying it twice is not two witnesses
-    rows.append({"lane": "manual", "witness": "hand", "at": int(time.time() * 1000),
+    rows.append({"lane": MANUAL_LANE, "witness": "hand", "at": int(time.time() * 1000),
                  "why": "he ticked it by hand on the board"})
     _chron_evidence_save(ev)
     return True
@@ -16309,33 +16505,75 @@ def relaunch_hold_state():
                 "say": "the interlock register could not be read (%s)" % type(e).__name__}
 
 
+def _green_light_question():
+    """THE ONE QUESTION a held relaunch is released on. -> (ok, why, blocker)
+
+    ok is True / False / None (None = could not tell — UNKNOWN never fires); blocker is
+    _relaunch_blocker's class ("clear", "shadow", "his-session", "work", "unknown", ...).
+
+    2026-09-28 — WHO ASKED DECIDES WHAT IS ASKED. A hold the DRIFT lane made is released on the
+    drift lane's own gate, drift_may_relaunch — the board world, the sweep lock, a tree mid-edit,
+    the switch, then what is in flight — because an update that only got as far as a hold THROUGH
+    those interlocks must not be fired past them later (a tree that went mid-edit meanwhile would
+    put a half-written build on his screen: v2323). A hold the button or the rescue made is
+    released on nothing_in_flight, exactly as since v3301.
+
+    ⚠ THREE ASKERS, ONE QUESTION. The green light, the shadow rollover (close the reel early?) and
+    the shadow watcher (open a new one?) all ask THIS. If the rollover asked something else, it
+    could close a reel for a relaunch that then cannot fire, the watcher would reopen, and the next
+    look would close again — a churn of empty reels. [[copy-drift]] [[the-unjoined-end]]
+    """
+    try:
+        if _RELAUNCH_HOLD.get("asked") == "drift":
+            _dd = {}
+            ok, why = drift_may_relaunch(detail=_dd)
+            return bool(ok), why, (_dd.get("blocker") or ("clear" if ok else "unknown"))
+        _parts = []
+        ok, why = nothing_in_flight("relaunch the console", parts=_parts)
+        return bool(ok), why, _relaunch_blocker(ok, _parts)
+    except Exception as e:
+        # ⚠ THREE STATES. An unreadable world is None, and None does not open the door.
+        return None, "could not tell what is in flight (%s)" % type(e).__name__, "unknown"
+
+
+#: 2026-09-28 — the green light now has THREE callers on three threads (the rescue tick, the shadow
+#: rollover, the shadow watcher). Two of them reading `held` in the same instant could both be told
+#: to fire and start two execs — on Windows two consoles racing for one mutex. Non-blocking: a
+#: second asker simply stands down; the first one's answer is the answer.
+_GREEN_LIGHT_LOCK = threading.Lock()
+
+
 def relaunch_green_light_tick():
     """THE GREEN LIGHT. Called on the rescue tick; fires a held relaunch once the work ends.
 
     ⚠ This is the half that did not exist. Before v3301 a relaunch refused mid-sweep was
     ABANDONED — the request was dropped and nothing ever re-fired it. -> (fired, say).
+
+    2026-09-28 — also fired by the shadow rollover in the same breath as it closes a shadow reel
+    for a waiting update, so the watcher cannot reopen a reel first.
     """
     if not _RELAUNCH_HOLD.get("held"):
         return False, "nothing is held"
+    if not _GREEN_LIGHT_LOCK.acquire(False):
+        return False, "the green light is already being asked on another thread"
     try:
-        _ok, _why = nothing_in_flight("relaunch the console")
-    except Exception as e:
-        # ⚠ THREE STATES. An unreadable world is None, and None does not open the door.
-        _ok, _why = None, "could not tell what is in flight (%s)" % type(e).__name__
-    try:
-        _rh.note_clear(_RELAUNCH_HOLD, _ok)
-    except Exception:
-        pass
-    fire, say = _rh.release(_RELAUNCH_HOLD, _ok, _why)
-    if not fire:
-        return False, say
-    print("   %s" % say, flush=True)
-    try:
-        ui_fault_record("relaunch-green-light", why=say, where="relaunch_green_light_tick")
-    except Exception:
-        pass
-    _exec_relaunch_now()
-    return True, say
+        _ok, _why, _blk = _green_light_question()
+        try:
+            _rh.note_clear(_RELAUNCH_HOLD, _ok)
+        except Exception:
+            pass
+        fire, say = _rh.release(_RELAUNCH_HOLD, _ok, _why)
+        if not fire:
+            return False, say
+        print("   %s" % say, flush=True)
+        try:
+            ui_fault_record("relaunch-green-light", why=say, where="relaunch_green_light_tick")
+        except Exception:
+            pass
+        _exec_relaunch_now()
+        return True, say
+    finally:
+        _GREEN_LIGHT_LOCK.release()
 
 
 def _reap_inherited_at_boot(posix=None):
@@ -19639,7 +19877,13 @@ def prune_stats():
 # So the loop MEASURES and PUBLISHES. Acting is opt-in via TV_AUTO_RELAUNCH=1, and even then it
 # refuses unless the agent is dead as well as the three job flags being clear — `_agent_alive()` is
 # the check the busy list does not include and is the one that means "he is filming".
-_DRIFT = {"checked": None, "running": None, "disk": None, "drift": None, "say": "not measured yet"}
+_DRIFT = {"checked": None, "running": None, "disk": None, "drift": None, "say": "not measured yet",
+          "since": None, "relaunch": None}
+# 2026-09-28 — `since`: epoch ms of the FIRST look that found this process behind the disk (None
+# while in sync or never measured). The running stamp is fixed for the life of a process, so the
+# first sighting dates the whole wait — the doctor's "behind the disk for more than 2 h" reads it.
+# `relaunch`: what the drift lane last decided about that wait — {may, waiting, why, held, at} —
+# so "waiting for the shadow reel to close" and "blocked by his session" reach /api/status.drift.
 _DRIFT_EVERY_S = float(os.environ.get("TV_DRIFT_EVERY_S", "300") or 300)
 
 # ══ v3288 — THE ONLY VERSION QUESTION A RUNNING MODULE CAN ANSWER FIRST-HAND ══════════════════
@@ -20013,13 +20257,23 @@ def _drift_once():
         say = ("this window is running %s while %s is on disk — relaunch to pick it up "
                "(⚙ ADVANCED -> \u27f2 relaunch)" % (running, disk))
         drift = True
+    _now_ms = int(time.time() * 1000)
     with _PRUNE_LOCK:
-        _DRIFT.update({"checked": int(time.time() * 1000), "running": running,
-                       "disk": disk, "drift": drift, "say": say})
+        # ⚠ UNMEASURED KEEPS WHAT WAS MEASURED. A look that could not read a stamp neither starts
+        # nor ends the wait; only an in-sync reading clears it. [[unknown-stays-unknown]]
+        _since = _DRIFT.get("since")
+        if drift is True:
+            _since = _since or _now_ms
+        elif drift is False:
+            _since = None
+        _DRIFT.update({"checked": _now_ms, "running": running,
+                       "disk": disk, "drift": drift, "say": say, "since": _since})
+        if drift is False:
+            _DRIFT["relaunch"] = None
     return drift
 
 
-def drift_may_relaunch():
+def drift_may_relaunch(detail=None):
     """MAY this process replace itself right now? -> (bool, why). Decides; never acts.
 
     Pulled out of the loop so it can be TESTED. A decision buried in a `while True` is a decision
@@ -20031,6 +20285,10 @@ def drift_may_relaunch():
     that means HE IS FILMING. Restarting then both interrupts the session and ORPHANS the frames of
     the session it kills, because the reel fold runs at seal (v2071). Automating a restart without
     this check would manufacture work for the module that cleans up after crashes.
+
+    2026-09-28 — `detail`: hand in a dict and it is filled with {"blocker", "parts"} — WHAT said
+    no, as a class (_relaunch_blocker), so the drift lane can HOLD for a shadow reel and REFUSE for
+    his session without parsing a sentence. The verdict and the refusal order are unchanged.
     """
     # ⚠ v2180 — THE ARMING MUST NOT DEPEND ON WHO LAUNCHED THE PROCESS.
     # This read `os.environ["TV_AUTO_RELAUNCH"] != "1"`, and the ONLY thing that exports that
@@ -20071,9 +20329,11 @@ def drift_may_relaunch():
     # they answer "not right NOW" (a film is rolling, the board came back a different world), which
     # is a different question from "never". An always-on action with no brakes is how a fix becomes
     # the next incident.
+    _detail = detail if isinstance(detail, dict) else {}
     _env = _env_tristate("TV_AUTO_RELAUNCH")
     _on = True if _env is None else _env
     if not _on:
+        _detail["blocker"] = "off"
         return False, ("auto-relaunch is switched off (TV_AUTO_RELAUNCH on this machine); "
                        "announcing only")
     # v2147 — AND IT ASKS THE WORLD GUARD. The whole reason auto-relaunch was allowed to be armed is
@@ -20084,6 +20344,7 @@ def drift_may_relaunch():
     try:
         _d = board_identity_drift()
         if isinstance(_d, dict) and _d.get("state") == "drift":
+            _detail["blocker"] = "world"
             return False, ("the board's world has drifted — %s. Not relaunching automatically "
                            "while that is true." % str(_d.get("why"))[:160])
     except Exception:
@@ -20145,6 +20406,7 @@ def drift_may_relaunch():
                     _lane = "vault"
             except Exception:
                 _lane = ""
+            _detail["blocker"] = "work"
             return False, ("a %ssweep is reading footage (the lock was touched %ds ago) — "
                            "relaunching now would throw away paid reads that have not been "
                            "banked yet" % (_lane + " " if _lane else "", int(_age)))
@@ -20157,8 +20419,86 @@ def drift_may_relaunch():
     # got "the working tree is mid-edit". [[label-outlived-referent]]
     dirty, why_dirty = _tree_is_mid_edit()
     if dirty:
+        _detail["blocker"] = "mid-edit"
         return False, why_dirty
-    return nothing_in_flight()
+    # 2026-09-28 — THE SAME ONE DEFINITION OF IN-FLIGHT, now asked WHAT is in flight as well as
+    # whether. A shadow reel alone is not a refusal: it is a HOLD, and the shadow rollover closes it
+    # at its next clean point (_an_update_waits_on_the_shadow_reel). Everything else refuses
+    # exactly as before. [[copy-drift]]
+    _parts = []
+    ok, why = nothing_in_flight(parts=_parts)
+    _detail["blocker"] = _relaunch_blocker(ok, _parts)
+    _detail["parts"] = _parts
+    if ok:
+        return True, why
+    return False, _relaunch_waiting_why(_detail["blocker"], why, _parts)
+
+
+#: 2026-09-28 — the two sentences the heart and the fleet beacon must be able to tell apart. The
+#: beacon's worker keeps only armed/may/why (160 chars) — so the CLASS leads the sentence, where a
+#: truncation cannot reach it. [[the-unjoined-end]]
+_WAITING_FOR_SHADOW = "waiting for the shadow reel to close"
+_BLOCKED_BY_HIM = "blocked by his session"
+
+
+def _relaunch_blocker(ok, parts):
+    """WHAT stands between a waiting build and a relaunch, as ONE class. -> str
+
+        "clear"        nothing is in flight
+        "shadow"       ONLY a shadow-reader reel is rolling — HELD, closed at its next clean point
+        "his-session"  a reel HE opened (ON AIR, MINI), or one whose door cannot be read — never
+                       cut, never guessed to be shadow's
+        "unknown"      something could not be read — refused, never a green light
+        "work"         a sweep is reading or frames are landing — refused, as always
+
+    ⚠ ANY non-shadow part makes it NOT "shadow". A shadow reel beside a sweep is held by the sweep,
+    and closing the shadow reel early would cost footage for nothing. [[unknown-stays-unknown]]
+    """
+    if ok:
+        return "clear"
+    kinds = set()
+    for p in parts or ():
+        kinds.add(p.get("kind") if isinstance(p, dict) else None)
+    if not kinds:
+        return "unknown"            # refused, and nothing said why: never read that as shadow
+    if kinds == {"shadow"}:
+        return "shadow"
+    if kinds & {"session", "door-unknown"}:
+        return "his-session"
+    if kinds - {"work", "shadow"}:
+        return "unknown"
+    return "work"
+
+
+def _relaunch_waiting_why(blocker, why, parts=None):
+    """The refusal sentence, led by its class for the two classes the heart must tell apart."""
+    if blocker == "shadow":
+        if _DRIFT.get("drift") is True:
+            return ("%s: an update is waiting — the shadow reel closes at its next clean point, "
+                    "then the relaunch fires" % _WAITING_FOR_SHADOW)
+        return ("only the shadow reader's reel is rolling — an update would be held, not refused, "
+                "and land when that reel closes at its next clean point")
+    if blocker == "his-session":
+        _unread = any(isinstance(p, dict) and p.get("kind") == "door-unknown" for p in parts or ())
+        return "%s%s: %s" % (_BLOCKED_BY_HIM,
+                             " (whose reel it is cannot be read, so it is never taken for the "
+                             "shadow reader's)" if _unread else "", why)
+    return why
+
+
+#: 2026-09-28 — after a green light fires and this process is STILL here, the exec did not take.
+#: For this long the drift lane closes no further shadow reel for it (see _drift_loop).
+_RELAUNCH_RETRY_AFTER_S = 30 * 60
+
+
+def _drift_publish_relaunch(may, why, blocker):
+    """Put the drift lane's relaunch decision where /api/status (and so the doctor) can read it."""
+    _waiting = {"shadow": _WAITING_FOR_SHADOW, "his-session": _BLOCKED_BY_HIM}.get(blocker)
+    with _PRUNE_LOCK:
+        _DRIFT["relaunch"] = {"may": bool(may), "blocker": blocker, "waiting": _waiting,
+                              "why": str(why or "")[:240],
+                              "held": bool(_RELAUNCH_HOLD.get("held")),
+                              "at": int(time.time() * 1000)}
 
 
 def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.py")):
@@ -20386,7 +20726,7 @@ def sweep_past_its_ceiling(job=None, say=True):
     return True, el
 
 
-def nothing_in_flight(consequence=None):
+def nothing_in_flight(consequence=None, parts=None):
     """Is anything reading or writing footage right now? -> (ok, why). NO on/off switch.
 
     v2128 (#33) — SPLIT OUT OF retention_may_act, which the orphan FOLD was borrowing whole.
@@ -20398,12 +20738,24 @@ def nothing_in_flight(consequence=None):
 
     The prune switch itself is untouched, and so is his ruling that the prune stays automatic.
     [[copy-drift]]
+
+    2026-09-28 — `parts`: hand in a list and every refusal is ALSO appended to it as
+    {"kind", "say"}, so a caller can ask WHAT is in flight without parsing the sentence. kind is
+    one of: "work" (a sweep reading, frames landing), "session" (a reel HE opened — ON AIR or MINI),
+    "shadow" (a reel the SHADOW reader opened), "door-unknown" (a reel is rolling and whose it is
+    cannot be read), "unknown" (a state that could not be read). The sentences and the verdict are
+    exactly what they were; only the relaunch reads the kinds (_relaunch_blocker).
     """
     # v2129 (#155) — NO DEFAULT CONSEQUENCE. The first cut defaulted to "a relaunch now would throw
     # that away", so the orphan FOLD — which does not relaunch anything — refused with a sentence
     # naming a feature it is not. A shared check must not guess what its caller was about to do:
     # with no consequence supplied it states the fact and stops. [[label-outlived-referent]]
     busy = []
+    _kinds = parts if isinstance(parts, list) else []
+
+    def _add(kind, say):
+        busy.append(say)
+        _kinds.append({"kind": kind, "say": say})
     try:
         # ⚠⚠ v3302 — FAIL CLOSED *PER CLAUSE*, NOT ONLY AT THE OUTER except.
         # v3301 collapsed /api/relaunch's duplicate busy list into this function. The copy was
@@ -20418,7 +20770,7 @@ def nothing_in_flight(consequence=None):
         except Exception:
             _chron_running = None          # UNKNOWN. Never idle.
         if _chron_running is None:
-            busy.append("could not tell whether a chronicle sweep is reading")
+            _add("unknown", "could not tell whether a chronicle sweep is reading")
         elif _chron_running:
             # v2156 — AND SAY HOW LONG. Konyo, looking at this exact banner: "when does the read
             # finish? do we have a time estimate ... so i know." A refusal that names a condition
@@ -20433,27 +20785,27 @@ def nothing_in_flight(consequence=None):
             if _past:
                 pass                       # the helper already said so, with the elapsed time
             elif _e and _e.get("ok"):
-                busy.append("a chronicle sweep is reading (%s)" % _e["say"])
+                _add("work", "a chronicle sweep is reading (%s)" % _e["say"])
             elif _e and _e.get("say"):
-                busy.append("a chronicle sweep is reading — %s" % _e["say"])
+                _add("work", "a chronicle sweep is reading — %s" % _e["say"])
             else:
-                busy.append("a chronicle sweep is reading")
+                _add("work", "a chronicle sweep is reading")
         try:
             _vault_running = bool(_VAULT_JOB.get("running"))
         except Exception:
             _vault_running = None
         if _vault_running is None:
-            busy.append("could not tell whether a vault sweep is reading")
+            _add("unknown", "could not tell whether a vault sweep is reading")
         elif _vault_running:
-            busy.append("a vault sweep is reading")
+            _add("work", "a vault sweep is reading")
         try:
             _mini_running = bool((mini_state() or {}).get("running"))
         except Exception:
             _mini_running = None
         if _mini_running is None:
-            busy.append("could not tell whether a mini is recording")
+            _add("unknown", "could not tell whether a mini is recording")
         elif _mini_running:
-            busy.append("a mini is recording")
+            _add("session", "a mini is recording")
         # ── v2155 — ASK WHETHER FOOTAGE IS BEING WRITTEN, NOT WHETHER A PROCESS EXISTS. ──────
         # `_agent_alive()` is true whenever the TVD agent process is up, and v1823 already wrote
         # down what that costs, about the sweeper: "He plays with the console capturing, so a
@@ -20490,10 +20842,33 @@ def nothing_in_flight(consequence=None):
         try:
             _alive = bool(_agent_alive())
         except Exception:
-            busy.append("could not tell whether the agent is alive")
+            _add("unknown", "could not tell whether the agent is alive")
             _alive = True                      # unmeasurable is never a green light
         if _mode_live and _alive:
-            busy.append("the console is ON AIR (%s) — you are filming" % _agent_mode)
+            # ── 2026-09-28 — ASK WHOSE REEL IT IS BEFORE SAYING "YOU ARE FILMING". ──────────────
+            # MEASURED on his ALT (Windows + Boosteroid, shadow reader always on): the fleet row
+            # read ver v3520 / diskVer v3521 for over two hours, relaunch {armed: true, may: false,
+            # why: 'the console is ON AIR (live) — you are filming'}. Nobody was filming. The
+            # SHADOW reader was, and it rolls a reel every hour of play with a ~2 s gap, so on any
+            # PC where the game stays open a new build NEVER lands — the ALT today, Dean whenever
+            # he plays long. The door is readable (_rolling_reel), so read it.
+            #   · shadow        -> kind "shadow": still IN FLIGHT for every caller (frames are
+            #                      landing), but the relaunch can close it at a clean point.
+            #   · onair / mini  -> his session, exactly the sentence it always was.
+            #   · None          -> UNKNOWN whose reel it is: refused as his, never guessed shadow.
+            # ⚠ The sentences still carry "the console is ON AIR" because _retention_deferred
+            # classifies a refusal by that phrase — a shadow reel defers the drain exactly as
+            # before. [[unknown-stays-unknown]] [[the-unjoined-end]]
+            try:
+                _door = _rolling_reel().get("door")
+            except Exception:
+                _door = None
+            if _door == "shadow":
+                _add("shadow", "the console is ON AIR (%s) through the SHADOW reader — its reel, "
+                               "not a session you opened" % _agent_mode)
+            else:
+                _add("session" if _door in ("onair", "mini") else "door-unknown",
+                     "the console is ON AIR (%s) — you are filming" % _agent_mode)
         elif _mode_live and not _alive:
             # the label outlived the process. Deliberately adds NOTHING to `busy`: a mode with no
             # process behind it is not a session to protect, and treating it as one is what
@@ -20519,12 +20894,13 @@ def nothing_in_flight(consequence=None):
             except Exception:
                 _grow = None                   # it is there and we cannot read it
             if _grow is None:
-                busy.append("the footage directory is there but could not be read, so whether "
-                            "frames are still landing is UNKNOWN")
+                _add("unknown", "the footage directory is there but could not be read, so whether "
+                                "frames are still landing is UNKNOWN")
             elif _grow:
-                busy.append("frames are still landing — a session is mid-film")
+                _add("work", "frames are still landing — a session is mid-film")
     except Exception as e:
         # could not tell -> do not act. An unmeasurable state is never a green light.
+        _kinds.append({"kind": "unknown", "say": "could not tell what is running"})
         return False, "could not tell what is running (%s)" % str(e)[:80]
     if busy:
         return False, " and ".join(busy) + (" — " + consequence if consequence else "")
@@ -20571,8 +20947,54 @@ def _drift_loop():
             if announced != st.get("disk"):          # say it once per new disk version, not forever
                 print("  \u27f2 %s" % st["say"], flush=True)
                 announced = st.get("disk")
-            ok, why = drift_may_relaunch()
+            _dd = {}
+            ok, why = drift_may_relaunch(detail=_dd)
+            _drift_publish_relaunch(ok, why, _dd.get("blocker"))
             if not ok:
+                # ══ 2026-09-28 — A SHADOW REEL IS A HOLD, NOT A REFUSAL ══════════════════════════
+                # Measured on his ALT: v3520 running, v3521 on disk, for over two hours — the
+                # shadow reader rolls a reel every hour of play with a ~2 s gap, and this lane
+                # asked every 300 s, so it could only ever land by luck. Now a waiting build with
+                # ONLY a shadow reel in flight is HELD in the interlock register; the shadow
+                # rollover (_an_update_waits_on_the_shadow_reel) closes that reel at its next
+                # clean point through the stop it already uses, and fires the green light in the
+                # same breath. His ON AIR / MINI sessions and an unreadable door still just
+                # refuse, exactly as before — never mid-film, never a guess.
+                if _dd.get("blocker") == "shadow":
+                    # ⚠ A GREEN LIGHT THAT FIRED AND LEFT US RUNNING IS AN EXEC THAT DID NOT TAKE.
+                    # Holding again would close another shadow reel for a relaunch that fails the
+                    # same way — a churn of cut reels every few minutes. Wait it out, and SAY so:
+                    # the doctor names it "the relaunch did not take". [[unknown-stays-unknown]]
+                    _fired = float(_RELAUNCH_HOLD.get("firedTs") or 0.0)
+                    if _fired and (time.time() - _fired) < _RELAUNCH_RETRY_AFTER_S:
+                        _drift_publish_relaunch(
+                            False, ("the relaunch fired %dm ago and this process is still running "
+                                    "- the exec did not take, so no further shadow reel is closed "
+                                    "for it until %dm have passed"
+                                    % (int((time.time() - _fired) // 60),
+                                       int(_RELAUNCH_RETRY_AFTER_S // 60))), "exec-failed")
+                        continue
+                    _was_held = bool(_RELAUNCH_HOLD.get("held"))
+                    _hsay = _rh.hold(_RELAUNCH_HOLD, why, "drift")
+                    _drift_publish_relaunch(ok, why, "shadow")     # `held` is true from here
+                    if not _was_held:                 # say it once per hold, not every 300 s
+                        print("  \u27f2 %s" % str(_hsay)[:200], flush=True)
+                continue
+            # ⚠ 2026-09-28 (the review of the shadow-close change): the green light's exec thread and this
+            # direct exec are two roads to os.execv. _GREEN_LIGHT_LOCK kept two green lights apart but not
+            # this one - and on Windows os.execv SPAWNS, so both could start a console. Take the same lock
+            # without waiting, and stand down if a green light fired under 90 s ago; the next look decides.
+            if not _GREEN_LIGHT_LOCK.acquire(blocking=False):
+                print("  \u27f2 auto-relaunch stands down - a green light is relaunching right now", flush=True)
+                continue
+            try:
+                _fired = float(_RELAUNCH_HOLD.get("firedTs") or 0.0)
+            except Exception:
+                _fired = 0.0
+            if _fired and (time.time() - _fired) < 90:
+                _GREEN_LIGHT_LOCK.release()
+                print("  \u27f2 auto-relaunch stands down - a green light fired %ds ago"
+                      % int(time.time() - _fired), flush=True)
                 continue
             print("  \u27f2 auto-relaunch: nothing in flight, replacing this process with %s"
                   % st.get("disk"), flush=True)
@@ -20589,6 +21011,11 @@ def _drift_loop():
             except Exception as e:
                 print("  \u26a0 auto-relaunch failed, staying on the old version: %s"
                       % str(e)[:120], flush=True)
+            finally:
+                try:
+                    _GREEN_LIGHT_LOCK.release()          # only reached when the exec did not happen
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -24892,6 +25319,8 @@ def vault_proven_names(min_witnesses=2):
     ⚠ `min_witnesses` is the bar, stated once here. Measured on his tree: of 14 rows, 10 carry 2
     witnesses, two carry 3, one carries 21 and one carries 103 — so the whole ledger clears a bar
     of 2, and a higher bar would need his ruling, not mine.
+    ⚠ Those were LIST ENTRIES (frames), and that was the defect: the 21 and the 103 are 2 visits
+    each. Counted as visits (2026-09-28), 12 of the 14 clear a bar of 2 — see the block below.
     """
     try:
         led = vault_ledger_load()
@@ -24907,6 +25336,30 @@ def vault_proven_names(min_witnesses=2):
     if not isinstance(rows, list):
         return {"ok": False, "proven": None,
                 "why": "the vault ledger carries no `owned` list, so proof is UNKNOWN - not none"}
+    # ══ 2026-09-28 (Ledger fix, finding 3) — A WITNESS IS A VISIT, NEVER A FRAME ═══════════════
+    # This admitted a row on len(witnesses) — LIST ENTRIES, which are frames. One visit held still
+    # for five frames read `witnesses 5` and was admitted at a bar of 2; his Radiance row carries
+    # 103 entries from 2 visits. His ruling (§34.2): "a look is a distinct visit, never a frame of
+    # a still screen." The count is now vault_retro.gate's own `witnesses`: the looks that saw it,
+    # folded. gate() IS the keep bar, so this door and the keep bar are one call. What is shared
+    # further is narrower, and this says only that (round 2, finding D): whether ONE look saw it is
+    # vault_retro.look_saw_it, which gate() and the tier table's vault_evidence._is_success both
+    # call; a look's id is vault_retro.look_id and the fold _fold_bare_sessions, which gate() and
+    # vault_evidence._measure both call. _measure does NOT call gate() — it counts visits in its own
+    # loop from those shared pieces. The heart joint (corroborate a-tier-stands-on-its-looks) asks
+    # gate() for `looksSeen`. No second copy of any of those pieces lives here.
+    # `rows` keeps the raw entry count BESIDE it, never instead of it; `visits` is every folded
+    # look, qualifying or not. MEASURED 2026-09-28 on a read-only copy of his vault_accum.json:
+    # 12 of 14 rows are admitted at 2; Bone Break and Magefist each hold one real look plus one
+    # frameless conf-0.0 prior (#246 W3), which the live gate has refused since W3. Re-measured
+    # after finding D on a scratch copy (hash unchanged): still 12 of 14.
+    # [[copy-drift]] [[unknown-stays-unknown]]
+    try:
+        import vault_retro as _vr
+    except Exception as e:
+        return {"ok": False, "proven": None,
+                "why": "the look counter (vault_retro) could not be read (%s), so WHICH names are "
+                       "proven is UNKNOWN - not none" % type(e).__name__}
     proven, short = [], 0
     for r in rows:
         if not isinstance(r, dict):
@@ -24914,23 +25367,28 @@ def vault_proven_names(min_witnesses=2):
         n = str(r.get("name") or "").strip()
         if not n:
             continue
-        # ⚠ A ROW MAY BE MALFORMED. `{"name": "Shako", "witnesses": 2}` makes `len(2)` a
-        # TypeError, and this door is read by the heart and by his board — a crash here is a
-        # blank chip with no reason. A row whose witnesses are not a list has NOT been shown to
-        # carry any, so it counts as zero and falls short rather than taking the door down.
+        # ⚠ A ROW MAY BE MALFORMED. `{"name": "Shako", "witnesses": 2}` is not a list, and this
+        # door is read by the heart and by his board — a crash here is a blank chip with no reason.
+        # A row whose witnesses are not a list has NOT been shown to carry any, so it counts as
+        # zero and falls short rather than taking the door down.
         _w = r.get("witnesses")
-        w = len(_w) if isinstance(_w, (list, tuple)) else 0
+        if isinstance(_w, (list, tuple)):
+            _g = _vr.gate(list(_w), min_witnesses=int(min_witnesses))
+            w, visits, raw = int(_g.get("witnesses") or 0), int(_g.get("looksSeen") or 0), len(_w)
+        else:
+            w, visits, raw = 0, 0, 0
         if w >= int(min_witnesses):
-            proven.append({"name": n, "witnesses": w, "conf": r.get("conf"),
-                           "lane": r.get("lane")})
+            proven.append({"name": n, "witnesses": w, "visits": visits, "rows": raw,
+                           "conf": r.get("conf"), "lane": r.get("lane")})
         else:
             short += 1
     return {"ok": True, "proven": sorted(proven, key=lambda x: x["name"]),
             "provenN": len(proven), "shortOfBar": short, "bar": int(min_witnesses),
-            "ledgerRows": len(rows),
-            "why": ("%d of %d ledger row(s) carry %d+ witnesses. The lockers render d2r_owned, "
-                    "which is a different and much larger population - this is the set that has "
-                    "actually earned admission."
+            "ledgerRows": len(rows), "countedBy": "vault_retro.gate (a look is a visit)",
+            "why": ("%d of %d ledger row(s) carry %d+ witnesses, counted as distinct looks by the "
+                    "live gate, never as frames. The lockers render d2r_owned, which is a "
+                    "different and much larger population - this is the set that has actually "
+                    "earned admission."
                     % (len(proven), len(rows), int(min_witnesses)))}
 
 
@@ -25905,6 +26363,37 @@ def _d2r_running_here():
         return None, "the process probe raised %s" % type(e).__name__
 
 
+#: ⚠ 2026-09-28 — THE PLAY PROBE, ASKED DURING THE WALK TOO. The tick asks _d2r_running_here() once,
+#: at its start, and one walk may then run its whole 120 s budget (a 2,385-frame reel at ~0.03 s a
+#: frame) beside a game he started a second later. survey() asks _triage_walk_should_stop at each
+#: reel and every this-many frames; a pgrep or a Toolhelp32 snapshot costs a few ms, so ~every 3 s is
+#: nothing next to the OCR it interrupts. Read at CALL time, so a law can shorten it.
+_TRIAGE_ABORT_EVERY_FRAMES = 100
+
+
+def _triage_walk_should_stop():
+    """Asked by survey() mid-walk: has he started playing? -> None (walk on) | {"key", "why"}
+
+    'playing' when D2R.exe now runs on this machine; 'playing-unknown' when the probe can no longer
+    answer — the tick's own rule ("cannot tell -> do not act") applied mid-walk. Either way the walk
+    stops, the reel is NOT remembered (a half-walked reel is not a walked one) and stays owed, and the
+    tick records the refusal it is. [[unknown-stays-unknown]]"""
+    try:
+        playing, how = _d2r_running_here()
+    except Exception as e:
+        playing, how = None, "the process probe raised %s" % type(e).__name__
+    if playing is True:
+        return {"key": "playing",
+                "why": "he started playing mid-walk - D2R.exe is now running on this machine (%s); "
+                       "the walk stopped, the reel stays owed, and triage catches up when he stops"
+                       % how}
+    if playing is None:
+        return {"key": "playing-unknown",
+                "why": "whether he is playing became UNKNOWN mid-walk - %s could not answer - so "
+                       "the walk stopped rather than guess; the reel stays owed" % how}
+    return None
+
+
 def _system_times():
     """Windows kernel32.GetSystemTimes -> (idle, kernel, user) in 100 ns ticks, or None.
 
@@ -25980,7 +26469,12 @@ _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "s
                 # walk or a done (cleared when it counts 0). caughtUpTs: the last tick that counted
                 # 0 — any reel waiting now became owed after it, even when every tick since has
                 # refused before it could count. [[stale-reading]]
-                "owedSince": None, "caughtUpTs": None}
+                "owedSince": None, "caughtUpTs": None,
+                # ⚠ 2026-09-28 — HOW LONG IT HAS STOOD ASIDE FOR HIS GAME, WITHOUT A BREAK. The first
+                # tick of an unbroken run of 'playing' refusals; ANY other outcome clears it. Dean plays
+                # natively for hours, and standing aside is by design — the doctor judges a 'playing'
+                # lane by this against its own bar (TRIAGE_PLAYING_BAR_S), not by the 3 h starve bar.
+                "playingSince": None}
 _TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
 _TRIAGE_ON = (os.environ.get("TV_TRIAGE") or "1") != "0"
 #: the survey store's newest FULL row, read once per process — so a relaunch (every ship re-execs
@@ -26002,6 +26496,16 @@ def _triage_record(r):
     L = _TRIAGE_LANE
     L["ticks"] = int(L.get("ticks") or 0) + 1
     L["lastKey"], L["lastWhy"], L["lastAt"] = key, why, now
+    # an UNBROKEN run of 'playing': the first such tick starts it; an outcome that SHOWS he is not playing
+    # ends it (a walk, a caught-up tick, a CPU or camera refusal, an unworkable reel). ⚠ review round 2:
+    # 'playing-unknown' (a probe that could not answer - pgrep's 2 s timeout on a loaded Mac, a refused
+    # Toolhelp snapshot) is NEITHER: one flake used to reset the 12 h clock, so a D2R.exe left open for days
+    # never reached the bar and the row flapped OK -> MISSING -> OK. It leaves the run exactly as it was.
+    if key == "playing":
+        if not L.get("playingSince"):
+            L["playingSince"] = now
+    elif key != "playing-unknown":
+        L["playingSince"] = None
     if r.get("backlog") is not None:
         _b = int(r["backlog"])
         L["backlog"], L["backlogAt"] = _b, now
@@ -26059,6 +26563,10 @@ def triage_lane_state():
                   ago. The process start is in it on purpose: a lane is starved over the time it
                   RAN, and a console closed overnight did not starve anything. `waitFrom` names
                   which stamp won, so a reader can see what the number is the age of.
+    playingForS   ⚠ 2026-09-28 — seconds since the first tick of the CURRENT unbroken run of 'playing'
+                  refusals (playingSince); None when the last outcome was anything else. Computed
+                  HERE, like sinceSurveyS. The doctor reads a 'playing' lane by this, up to its own
+                  12 h bar — standing aside for his game is by design, a D2R.exe open for days is not.
     """
     try:
         d = dict(_TRIAGE_LANE)
@@ -26092,6 +26600,14 @@ def triage_lane_state():
             d.update({"waitS": None, "waitFrom": None, "waitSinceTs": None})
         d["owedForS"] = (None if not isinstance(d.get("owedSince"), (int, float))
                          else round(max(0.0, (now - int(d["owedSince"])) / 1000.0), 1))
+        d["everyS"] = _TRIAGE_EVERY_S          # the cadence the doctor judges a stale tick against
+        _la = d.get("lastAt")
+        d["lastAgoS"] = (round(max(0.0, (now - int(_la)) / 1000.0), 1)
+                         if isinstance(_la, (int, float)) and not isinstance(_la, bool) else None)
+        _ps = d.get("playingSince")
+        d["playingForS"] = (round(max(0.0, (now - int(_ps)) / 1000.0), 1)
+                            if (d.get("lastKey") == "playing" and isinstance(_ps, (int, float))
+                                and not isinstance(_ps, bool)) else None)
         return d
     except Exception as e:
         return {"ok": False, "why": "the triage lane state could not be read: %s" % str(e)[:120]}
@@ -26264,8 +26780,23 @@ def _retro_triage_tick_once():
                        % (len(owed), len(settling), _TRIAGE_SETTLE_S, len(frameless))}
     todo.sort(key=_n_frames)
     d = todo[0]
+    # ⚠ 2026-09-28 — THE PLAY PROBE RIDES THE WALK. It ran only at this tick's start, and one walk may
+    # then run its whole 120 s budget beside a game he started a second later. survey() asks
+    # _triage_walk_should_stop at each reel and every _TRIAGE_ABORT_EVERY_FRAMES frames; a stop leaves
+    # the reel UNREMEMBERED (still owed) and is recorded as the refusal it is. [[heart-first]]
     out = _rt.survey([d], stash_screen_open_cached, every_frame=True,
-                     nice_delay_s=0.01, budget_s=120)
+                     nice_delay_s=0.01, budget_s=120,
+                     abort=_triage_walk_should_stop, abort_every=_TRIAGE_ABORT_EVERY_FRAMES)
+    _stop = out.get("aborted")
+    if _stop:
+        _sk = _stop.get("key") if isinstance(_stop, dict) else None
+        # a stop the hook did not name (survey's own "the check raised") is UNKNOWN, never "not playing"
+        _sk = _sk if _sk in ("playing", "playing-unknown") else "playing-unknown"
+        return {"ok": False, "key": _sk, "midWalk": True, "reel": os.path.basename(d),
+                "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
+                "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+                "why": str((_stop.get("why") if isinstance(_stop, dict) else _stop)
+                           or "the walk was stopped")[:240]}
     looked = int(out.get("reels") or 0)
     # ⚠⚠ 2026-09-28 — A WALK COUNTS ONLY WHEN THE REEL LEFT THE OWED SET. survey() counts a reel it
     # looked at whether or not remember() kept the verdict, and remember() returns False WITHOUT
@@ -27123,6 +27654,104 @@ def _rolling_reel():
     return {"door": _door_of_origin(_origin), "since": _since, "why": ""}
 
 
+# ── 2026-09-28 — AN UPDATE LANDS BESIDE A SHADOW READER ─────────────────────────────────────────
+# Konyo: "the windows needs proper care and attention.. it needs to work perfectly and smoothly
+# there thats the way we know it will work for dean too. so it needs to work on its own logic" and
+# "the logic needs to be individually placed and working for each console".
+#
+# MEASURED 2026-09-28 on his ALT (Windows + Boosteroid, shadow reader always on): its fleet row read
+# ver v3520 / diskVer v3521 for over two hours, relaunch {armed: true, may: false, why: 'the console
+# is ON AIR (live) — you are filming'}. The shadow reel rolls every hour with a ~2 s gap and the
+# drift lane asks every 300 s, so on any PC where the game stays open a new build NEVER lands.
+#
+# THE RULE, per console, and every clause is a decision:
+#   · the drift lane HOLDS (not refuses) a waiting build when a shadow reel is the ONLY thing in
+#     flight (_drift_loop, blocker "shadow");
+#   · the rollover then closes that reel at its next look — EARLY, reason "an update is waiting" —
+#     through the same stop_agent(farewell=False) and the same measured-gone check the hourly
+#     rollover uses, and fires relaunch_green_light_tick() in the same breath;
+#   · while an update is held and nothing but a shadow reel stands in its way, the watcher opens no
+#     new reel and says so; the next reel opens on the new build;
+#   · his ON AIR and MINI sessions keep "never mid-film" exactly as before, and a reel whose door
+#     cannot be read is refused as his — never guessed to be shadow's;
+#   · a hold that something ELSE is holding (a sweep, his session, a tree mid-edit) never closes
+#     or blocks a shadow reel: that would cost footage for a relaunch that still cannot fire.
+# All three askers ask ONE question — _green_light_question(). [[heart-first]] [[copy-drift]]
+
+#: after the green light fires, the watcher opens nothing for this long. execv replaces the process
+#: within seconds; if it did not, the watcher resumes rather than hold his footage hostage to an
+#: exec that failed.
+_RELAUNCH_UNDERWAY_S = 90
+
+
+def _hold_expired():
+    """Has the held relaunch passed its deadline? -> bool. The review (reproduced): both helpers read only
+    `held`, so a look landing after the 2 h deadline and before the rescue tick's release closed a reel
+    early, the release then DROPPED the expired hold, nothing fired, and a new reel opened on the old
+    build - two early cuts for one update. No deadline recorded = not expired."""
+    try:
+        exp = _RELAUNCH_HOLD.get("expiresTs")
+        return bool(exp) and time.time() >= float(exp)
+    except Exception:
+        return False
+
+
+def _an_update_waits_on_the_shadow_reel():
+    """Is a HELD relaunch waiting on the rolling shadow reel ALONE? -> (bool, why)
+
+    True only when the register holds a relaunch AND the green light's own question names the
+    shadow reel as the only thing in its way. Anything else — nothing held, a sweep, his session, an
+    unreadable world — is False, and the reel is left to its hour. [[unknown-stays-unknown]]
+    """
+    if not _RELAUNCH_HOLD.get("held"):
+        return False, "no update is held"
+    if _hold_expired():
+        return False, "the held update has EXPIRED - the reel is left to its hour"
+    ok, why, blocker = _green_light_question()
+    if blocker == "shadow":
+        return True, "an update is waiting"
+    return False, ("an update is held, but not by this reel alone (%s) — it is left to its hour"
+                   % (str(why or blocker)[:120]))
+
+
+def _shadow_door_held_for_update():
+    """Must the watcher open NO new reel because an update is about to land? -> (why|None, blocker)
+
+    · a green light fired under _RELAUNCH_UNDERWAY_S ago -> the relaunch is under way
+    · a relaunch is held and nothing but a shadow reel (or nothing at all) is in its way -> held
+    · anything else -> None: a sweep or his session holding the update must not cost him footage
+    """
+    fired = float(_RELAUNCH_HOLD.get("firedTs") or 0.0)
+    if fired and (time.time() - fired) < _RELAUNCH_UNDERWAY_S:
+        return ("a relaunch onto the new build is under way — no new shadow reel opens on this "
+                "build; the next one opens on the new build"), "fired"
+    if not _RELAUNCH_HOLD.get("held") or _hold_expired():
+        return None, None
+    ok, why, blocker = _green_light_question()
+    if blocker in ("clear", "shadow"):
+        return ("an update is waiting — the shadow reader opens no new reel until it lands; the "
+                "next reel opens on the new build"), blocker
+    return None, blocker
+
+
+def _fire_green_light_now():
+    """Ask the green light from the shadow side, now. -> (fired, say). Never raises into the watcher.
+
+    ⚠ 2026-09-28 (the review of this change, medium): a relaunch from HERE lands while he is PLAYING - the
+    shadow reel was rolling because the game is on screen. The new console used to open FULLSCREEN and
+    ACTIVATE itself (pywebview activates on macOS and Windows), which pulls focus off D2R / Boosteroid in
+    the middle of a fight. TV_QUIET_RELAUNCH crosses os.execv in the environment; the new image reads it
+    ONCE at window creation and opens minimized, unfocused and windowed - he brings it forward himself."""
+    os.environ["TV_QUIET_RELAUNCH"] = "an update landed beside a shadow reel while the game was on screen"
+    try:
+        fired, say = relaunch_green_light_tick()
+    except Exception as e:
+        fired, say = False, "the green light could not be asked (%s)" % type(e).__name__
+    if not fired:
+        os.environ.pop("TV_QUIET_RELAUNCH", None)     # nothing relaunched - the next one decides afresh
+    return fired, say
+
+
 def _shadow_rollover(now):
     """A reel is rolling. Roll a SHADOW reel over once it has run its hour. -> the tick's answer
 
@@ -27152,14 +27781,20 @@ def _shadow_rollover(now):
                "cannot be judged, so it is left rolling (UNKNOWN, never cut on a guess)")
         _shadow_watch_note(why=why, **facts)
         return {"ok": True, "unknown": True, "why": why, "rolling": door}
+    # 2026-09-28 — AN UPDATE WAITING ON THIS REEL ALONE CLOSES IT AT THIS LOOK, not on the hour.
+    # The same stop and the same measured-gone check as the hourly rollover below; only the
+    # moment changes. See the block above _an_update_waits_on_the_shadow_reel.
+    _upd, _upd_why = _an_update_waits_on_the_shadow_reel()
     if age_s < limit:
-        why = ("a shadow reel is already rolling (%d of %d min) — shadow never starts a second; it "
-               "rolls over at %d min" % (int(age_s // 60), int(limit // 60), int(limit // 60)))
-        _shadow_watch_note(why=why, **facts)
-        return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
+        if not _upd:
+            why = ("a shadow reel is already rolling (%d of %d min) — shadow never starts a second; "
+                   "it rolls over at %d min" % (int(age_s // 60), int(limit // 60), int(limit // 60)))
+            _shadow_watch_note(why=why, **facts)
+            return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
     if _stop_inflight:
-        why = ("a shadow reel has run its %d min but a stop is already in flight — the next look "
-               "checks again" % int(limit // 60))
+        why = ("a shadow reel %s but a stop is already in flight — the next look checks again"
+               % ("is due to close for a waiting update" if _upd
+                  else "has run its %d min" % int(limit // 60)))
         _shadow_watch_note(why=why, **facts)
         return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
     # ── ROLL IT OVER, through the one stop every door uses ──────────────────────────────────────
@@ -27182,6 +27817,20 @@ def _shadow_rollover(now):
     _named = reel or "the shadow reel (its id could not be read from the agent)"
     if still is False:
         n = int(_rec.get("rotations") or 0) + 1
+        if _upd:
+            # ── CLOSED FOR AN UPDATE: fire the green light IN THE SAME BREATH, so the watcher's
+            # relook ~2 s from now finds a relaunch already under way and cannot open a reel on
+            # the old build first. ──────────────────────────────────────────────────────────────
+            why = ("closed %s after %d min — an update is waiting, so the shadow reel closed at "
+                   "this clean point instead of on the hour; the relaunch fires now and the next "
+                   "shadow reel opens on the new build" % (_named, int(age_s // 60)))
+            _shadow_watch_note(lookedAt=now, rollingAt=None, rollingDoor=None, rollingSince=None,
+                               rotateAfterS=limit, rotations=n, rotatedAt=now, rotatedReel=reel,
+                               rotatedAgeS=int(age_s), updateClosedAt=now, updateClosedReel=reel,
+                               updateCloses=int(_rec.get("updateCloses") or 0) + 1, why=why)
+            fired, fsay = _fire_green_light_now()
+            return {"ok": True, "rotated": True, "closed": reel, "ageS": int(age_s), "why": why,
+                    "reason": _upd_why, "fired": bool(fired), "fireSay": fsay}
         why = ("rolled over: closed %s after %d min so it can be processed — the next look, in about "
                "%d s, opens a new shadow reel if Diablo is still on screen"
                % (_named, int(age_s // 60), _SHADOW_ROTATE_RELOOK_S))
@@ -27189,11 +27838,16 @@ def _shadow_rollover(now):
                            rotateAfterS=limit, rotations=n, rotatedAt=now, rotatedReel=reel,
                            rotatedAgeS=int(age_s), why=why)
         return {"ok": True, "rotated": True, "closed": reel, "ageS": int(age_s), "why": why}
-    why = ("tried to roll over %s after %d min and it is %s (%s) — the next look tries again"
-           % (_named, int(age_s // 60),
+    why = ("tried to %s %s after %d min and it is %s (%s) — the next look tries again"
+           % ("close for a waiting update" if _upd else "roll over", _named, int(age_s // 60),
               "STILL ROLLING" if still else "UNKNOWN whether it stopped",
               str((r or {}).get("msg") if isinstance(r, dict) else r)[:80]))
-    _shadow_watch_note(why=why, rotateFailedAt=now, **facts)
+    if _upd:
+        # the doctor's "shadow close failed" reads THIS, beside the drift lane's `since`
+        _shadow_watch_note(why=why, rotateFailedAt=now, updateCloseFailedAt=now,
+                           updateCloseWhy=why, **facts)
+    else:
+        _shadow_watch_note(why=why, rotateFailedAt=now, **facts)
     return {"ok": False, "rotated": False, "ageS": int(age_s), "why": why}
 
 
@@ -27436,6 +28090,17 @@ def shadow_watch_tick():
             return {"ok": True, "why": "a mini capture is counting down"}
     except Exception:
         pass
+    # 2026-09-28 — NO NEW REEL ON THE OLD BUILD WHILE AN UPDATE IS ABOUT TO LAND, and it SAYS so.
+    # When nothing at all is in the way it fires the green light itself rather than wait up to
+    # 10 s for the rescue tick. A hold that a sweep or his session is holding returns None here, so
+    # the reel opens as always — footage is never the price of a relaunch that cannot fire yet.
+    _uwhy, _ublk = _shadow_door_held_for_update()
+    if _uwhy:
+        if _ublk == "clear":
+            _gfired, _gsay = _fire_green_light_now()
+            _uwhy += " (green light: %s)" % str(_gsay)[:120]
+        _shadow_watch_note(lookedAt=now, updateHeldAt=now, why=_uwhy)
+        return {"ok": True, "held": True, "started": False, "why": _uwhy}
     # the SAME floor /api/on refuses on: below it the reaper cannot keep a reel alive, and a
     # doomed session is worse than no session.
     # v2316 — ONE preflight, shared with /api/on and MINI. Shadow used to check disk and window
@@ -30329,13 +30994,42 @@ def evidence_for(name, ledger=None):
                 sightings = None
             if not isinstance(sightings, list) or not sightings:
                 continue
-        reels, lanes, frames = [], [], []
-        found_at = dropped_by = None
-        for sg in sightings:
-            if not isinstance(sg, dict):
+        # ══ 2026-09-28 (Ledger P0) — ONE REEL IS ONE WITNESS, WHICHEVER WAY IT WAS SPELLED ══════
+        # Two defects lived here, both MEASURED on his chron_evidence.json:
+        #   1. `witnesses` was None for EVERY name. It asked counter_ledger for .witnesses behind a
+        #      hasattr, and counter_ledger has no such function — the real one is
+        #      chronicle_retro.witnesses. The hasattr turned a wrong module into a silent None.
+        #   2. `reels` and `count` read raw strings. One reel lands as both "s_…" and "reel_s_…"
+        #      (read_reel's sessionId fallback), and trace_spine measured 3,914 of 8,517 sightings
+        #      as the same row under both spellings, so "seen N times across R reels" ran ~2x.
+        # Now a row is deduped on trace_spine.independence's key through chronicle_retro._reel_key,
+        # `count` is the deduped rows (`rows` keeps the raw figure BESIDE it, never instead),
+        # `witnesses` is the number of INDEPENDENT reels, and `witnessTags` is chronicle_retro's
+        # own independence verdict. When chronicle_retro cannot be read, witnesses is None WITH a
+        # reason — UNKNOWN is said, never a silent null. [[the-unjoined-end]] [[unknown-stays-unknown]]
+        try:
+            import chronicle_retro as _cr
+            _rk = _cr._reel_key
+        except Exception as _e:
+            _cr, _rk, _cr_why = None, (lambda r: str(r or "")), (
+                "chronicle_retro could not be read (%s), so which reels are independent is "
+                "UNKNOWN" % str(_e)[:60])
+        raw_rows = [sg for sg in sightings if isinstance(sg, dict)]
+        uniq, _seen_rows = [], set()
+        for sg in raw_rows:
+            _k = (_rk(sg.get("reel")), sg.get("frame"), sg.get("lane"), sg.get("conf"))
+            if _k in _seen_rows:
                 continue
+            _seen_rows.add(_k)
+            uniq.append(sg)
+        # `reels` keeps the FIRST spelling seen for each reel (a path a surface can open), and
+        # dedupes on the normalised key, so the same reel is never listed or counted twice.
+        reels, lanes, frames, _reel_keys = [], [], [], set()
+        found_at = dropped_by = None
+        for sg in uniq:
             r = sg.get("reel")
-            if r and r not in reels:
+            if r and _rk(r) not in _reel_keys:
+                _reel_keys.add(_rk(r))
                 reels.append(r)
             l = sg.get("lane")
             if l and l not in lanes:
@@ -30344,11 +31038,39 @@ def evidence_for(name, ledger=None):
                 frames.append(sg.get("frame"))
             found_at = found_at or sg.get("foundAt")
             dropped_by = dropped_by or sg.get("droppedBy")
-        try:
-            import counter_ledger as _clg
-            wit = _clg.witnesses(sightings) if hasattr(_clg, "witnesses") else None
-        except Exception:
+        wit, wit_tags, wit_why = None, None, None
+        # ══ 2026-09-28 (Ledger fix, finding 6) — A ROW WITH NO REEL IS NOT ZERO REELS ══════════
+        # `witnesses = len(reels)` read 0 for a name whose rows exist but carry no reel, and a
+        # count of known reels beside rows from an unknown one is a floor, not the count. So when
+        # ANY row lacks a reel, witnesses is None and witnessWhy says which rows those are;
+        # witnessesKnown and unplaced carry what IS known. UNKNOWN is never 0. [[unknown-stays-unknown]]
+        #
+        # ══ 2026-09-28 (Ledger fix round 2, finding A) — HIS HAND IS A KNOWN KIND, NEVER UNPLACED ═══
+        # _bank_manual_sighting writes his tick as lane 'manual', witness 'hand', with NO reel — by
+        # design: "No reel, no frame — because there was none." Counting that row as unplaced turned
+        # every hand-ticked item's witness count into None and showed his own testimony as "a row
+        # whose reel is UNKNOWN". HIS RULING: a manual tally is witness enough. So a hand row is
+        # its own kind: it is counted in `hand` beside the reels, it never makes the count unknown,
+        # and chronicle_retro.witnesses already tags it `hand`. Only a NON-manual row with no reel
+        # leaves which reel it came from unknown. [[manual-tally-is-witness]] [[unknown-stays-unknown]]
+        _hand = sum(1 for sg in uniq if _is_hand_row(sg))
+        _unplaced = sum(1 for sg in uniq if not sg.get("reel") and not _is_hand_row(sg))
+        if _cr is None:
+            wit_why = _cr_why
+        else:
+            try:
+                wit_tags = list(_cr.witnesses(uniq))
+                wit = len(reels)
+            except Exception as _e:
+                wit, wit_tags = None, None
+                wit_why = ("chronicle_retro.witnesses failed (%s), so which reels are independent "
+                           "is UNKNOWN" % str(_e)[:60])
+        if _unplaced and wit is not None:
             wit = None
+            wit_why = ("%d of %d sighting row(s) carry no reel, so which reels those came from is "
+                       "UNKNOWN; %d reel(s) are known, and the true count is at least that — not "
+                       "a count" % (_unplaced, len(uniq), len(reels)))
+        sightings = uniq
         # v2164 — BOUND THE PAYLOAD, KEEP THE COUNT HONEST. `sightings` went back whole while
         # `frames` was already capped at 24 — an inconsistency I introduced and then found by
         # measuring my own worst case: "Bloodmoon" carries 104 sightings, an 18.5 KB response, and
@@ -30357,16 +31079,31 @@ def evidence_for(name, ledger=None):
         # capped list presented as the whole is the quiet half of this defect: he would read 24
         # and believe that is all the evidence there is. [[unknown-stays-unknown]]
         _CAP = 24
+        # where the sightings came from, in words: the reels (known, or with unplaced rows beside
+        # them), then his own hand ticks — which have no reel to be across, so a hand-only name
+        # reads "1 sighting: his own hand tick", never "across 0 reels" or "reel is UNKNOWN"
+        if _unplaced:
+            _across = (" across %d known reel%s + %d row%s whose reel is UNKNOWN"
+                       % (len(reels), "" if len(reels) == 1 else "s",
+                          _unplaced, "" if _unplaced == 1 else "s"))
+        elif reels or not _hand:
+            _across = " across %d reel%s" % (len(reels), "" if len(reels) == 1 else "s")
+        else:
+            _across = ""
+        if _hand:
+            _hand_say = ("his own hand tick" if _hand == 1 else "%d hand ticks of his" % _hand)
+            _across = (_across + " + " + _hand_say) if _across else (": " + _hand_say)
         return {"ok": True, "name": n, "ledger": led,
                 "sightings": sightings[:_CAP], "count": len(sightings),
+                "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
                 "truncated": len(sightings) > _CAP,
                 "reels": reels, "lanes": lanes, "frames": frames[:24],
                 "foundAt": found_at, "droppedBy": dropped_by,
-                "witnesses": wit,
+                "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
+                "witnessesKnown": len(reels), "unplaced": _unplaced, "hand": _hand,
                 # the one-line answer, so a surface does not have to compose it and drift
-                "say": ("%d sighting%s across %d reel%s, read by %s%s"
-                        % (len(sightings), "" if len(sightings) == 1 else "s",
-                           len(reels), "" if len(reels) == 1 else "s",
+                "say": ("%d sighting%s%s, read by %s%s"
+                        % (len(sightings), "" if len(sightings) == 1 else "s", _across,
                            " and ".join(lanes) or "an unnamed lane",
                            (" — the game dates it %s" % found_at) if found_at else ""))}
     return {"ok": False, "name": n,
@@ -33804,7 +34541,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3521",
+        "ver": "v3522",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34426,15 +35163,36 @@ def farmgate_payload():
         checks.append(_chk("disk", True, "warn", "disk usage unreadable"))
 
     # 5) D2R process — warn only (he may press the gate before launching the game)
-    try:
-        pr = subprocess.run(["pgrep", "-if", r"D2R\.exe"], capture_output=True, timeout=5)
-        running = pr.returncode == 0 and (pr.stdout or b"").strip()
-        checks.append(_chk("d2r_window", bool(running), "warn",
-                           "D2R.exe is running" if running else "D2R.exe not running yet",
-                           "launch D2R, then press the gate again for a clean GO"))
-    except Exception:
-        checks.append(_chk("d2r_window", False, "warn", "process check unavailable",
+    # ⚠ 2026-09-28 — ONE PROBE FOR "IS D2R.exe RUNNING HERE", ON EVERY OS. This ran its own `pgrep`,
+    # which Windows does not have: FileNotFoundError, caught, and every Windows PC — Dean's native
+    # laptop included — answered "process check unavailable" whether the game ran or not. It now asks
+    # _d2r_running_here(), the triage lane's probe (Toolhelp32 on Windows, pgrep elsewhere), and
+    # keeps its three answers apart: running, not running, and the probe could not run.
+    # [[copy-drift]] [[unknown-stays-unknown]]
+    _running, _how = _d2r_running_here()
+    # ⚠ review round 2: _d2r_running_here looks at LOCAL processes only (right for triage politeness). On a
+    # cloud-route PC (the Boosteroid ALT, GeForce NOW) the game streams and no D2R.exe ever runs here, so
+    # "launch D2R" would be a false instruction - the capture route says whether the game is streamed.
+    _cloud = None
+    if _running is not True:
+        try:
+            _cr = (_capture_route_for_wire() or {}).get("route")
+            _cloud = _cr if _cr in ("boosteroid", "geforce-now") else None
+        except Exception:
+            _cloud = None
+    if _cloud:
+        checks.append(_chk("d2r_window", True, "warn",
+                           "the game streams through %s - no local D2R.exe is expected on this PC" % _cloud,
+                           ""))
+    elif _running is None:
+        checks.append(_chk("d2r_window", False, "warn",
+                           "process check unavailable (%s could not answer)" % _how,
                            "launch D2R before ON AIR"))
+    else:
+        checks.append(_chk("d2r_window", bool(_running), "warn",
+                           ("D2R.exe is running (%s)" % _how) if _running
+                           else ("D2R.exe not running yet (%s)" % _how),
+                           "launch D2R, then press the gate again for a clean GO"))
 
     # 6) handshake — only meaningful when the agent is live
     ap = _sock_open(AGENT_PORT)

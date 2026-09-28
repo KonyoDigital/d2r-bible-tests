@@ -147,7 +147,10 @@ class TestRoundtrip(unittest.TestCase):
             sid_fb = api("/api/status").get("sessionId") or ""
             if not sid_fb:
                 try:
-                    with urllib.request.urlopen("http://127.0.0.1:17955/state", timeout=5) as rr:
+                    # 2026-09-28: ITS OWN agent (TV_PORT = PORT + 1, set in setUpClass). This asked :17955 -
+                    # his task viewer since the port moved (the comment at setUpClass says so) - so the
+                    # fallback never learned the live session and checked a phantom.
+                    with urllib.request.urlopen("http://127.0.0.1:%d/state" % (PORT + 1), timeout=5) as rr:
                         sid_fb = json.loads(rr.read().decode()).get("sessionId") or ""
                 except Exception:
                     sid_fb = ""

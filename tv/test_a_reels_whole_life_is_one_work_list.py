@@ -328,7 +328,12 @@ def _render(payload):
     import json as _json
     import subprocess
     ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-    i = ui.find("  function _shLanesRender(d){")
+    # ⚠ 2026-09-28 — THE CUT STARTS AT THE TRIAGE LANE'S HELPERS, which sit directly above the renderer: it now draws
+    # the lane's one line (_shTriageLine, _triageSay, _shAgo, _TRIAGE_WORDS) on every path, and a cut that starts at
+    # `function _shLanesRender` hands node a renderer whose helpers are not defined (ReferenceError on every case).
+    i = ui.find("  var _TRIAGE_WORDS = {")
+    if i < 0 or i > ui.find("  function _shLanesRender(d){"):
+        i = ui.find("  function _shLanesRender(d){")
     j = ui.find("  window._shLanesRender = _shLanesRender;", i)
     if i < 0 or j < 0:
         raise AssertionError("_shLanesRender is no longer findable in control_ui.html — this "
@@ -348,6 +353,7 @@ def _render(payload):
     # than it claims. `localStorage` is stubbed for the same reason: the callback writes to it.
     # [[feedback-blind-fixture-green-gate]]
     js = ("var out = '';\n"
+          "var window = {};\n"
           "var _fold = { open: false, addEventListener: function(){} };\n"
           "var localStorage = { setItem: function(){}, getItem: function(){ return null; } };\n"
           "var document = { getElementById: function(){ return { set innerHTML(v){ out = v; },"

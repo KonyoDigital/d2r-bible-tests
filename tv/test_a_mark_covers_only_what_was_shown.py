@@ -97,6 +97,16 @@ class AMarkCoversOnlyWhatWasShown(unittest.TestCase):
         said = self._quiet(H.mark, "230", through="999")
         self.assertIn("REFUSED", said, "a --through naming no comment moved the mark")
 
+    def test_comments_that_share_the_marks_second_are_not_new_again(self):
+        """2026-09-28: three posts at 13:22:17; the mark named the last and the hook said '2 NEW' for ever."""
+        same = "2026-09-24T07:05:00Z"
+        self.rows = [{"id": i, "created_at": same, "updated_at": same, "body": "SECOND-EYE"} for i in (7, 8, 9)]
+        self._quiet(H.drain, "231")
+        self._quiet(H.mark, "231")
+        self.assertIn("nothing new", H.summary("231"), "comments from the mark's own second read as new again")
+        self.rows[0]["updated_at"] = "2026-09-24T07:30:00Z"      # an EDIT after the mark is new information
+        self.assertIn("1 NEW", H.summary("231"), "an edited older comment was hidden by the same-second rule")
+
     def test_the_summary_counts_what_is_new_and_what_is_owed(self):
         self.rows.append(_c(3, 5, body="ASK: is the shelf blank on your seat?"))
         line = H.summary("230")
@@ -120,6 +130,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 - older comments from the mark's own second read as new on every prompt again",
+        "file": "handoff.py",
+        "find": "        if isinstance(_seen_id, int) and since:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
     {
         "why": "#171 - the drain records the newest comment overall as shown again, so --mark files the unlisted tail as read (second eye on 4a222c64)",
         "file": "handoff.py",

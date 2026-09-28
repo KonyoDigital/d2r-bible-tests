@@ -44,6 +44,17 @@ import control_app as CA
 import live_store as LS
 
 
+def _look(visit, frame=None, conf=0.9):
+    """One REAL look: its own re-look id, its own frame, its own conf above the keep floor.
+
+    2026-09-28 (Ledger fix, finding 3): the door now counts looks the way vault_retro.gate does,
+    so a fixture entry with no frame and no conf (`{"s": 1}`, `{"session": "s"}`) is not a look at
+    all. These fixtures pinned "an entry is a witness" — the defect — and now carry real looks.
+    """
+    return {"session": visit.split("#")[0], "witness": visit,
+            "frame": frame or "f_%s.jpg" % visit.replace("#", "_"), "conf": conf}
+
+
 class TestTheAdmissionBarKnowsWhatItWouldAdmit(unittest.TestCase):
 
     # ⚠⚠ THE SKIP BELONGS TO ONE LAW, NOT THE WHOLE CLASS. It was in setUp, so on any clone
@@ -98,7 +109,7 @@ class TestTheAdmissionBarKnowsWhatItWouldAdmit(unittest.TestCase):
         CA.vault_ledger_load = lambda *a, **k: {"owned": [
             {"name": "int-witnesses", "witnesses": 2},
             {"name": "none-witnesses", "witnesses": None},
-            {"name": "real", "witnesses": [{"s": 1}, {"s": 2}]},
+            {"name": "real", "witnesses": [_look("sA#0"), _look("sB#0")]},
         ]}
         self.addCleanup(setattr, CA, "vault_ledger_load", real)
         r = CA.vault_proven_names(min_witnesses=2)
@@ -160,9 +171,9 @@ class TestTheAdmissionBarKnowsWhatItWouldAdmit(unittest.TestCase):
         everything through" is measuring nothing. [[sabotage-is-usually-the-wrong-one]]"""
         real = CA.vault_ledger_load
         CA.vault_ledger_load = lambda *a, **k: {"owned": [
-            {"name": "one-witness", "witnesses": [{"session": "s"}], "conf": 0.5},
-            {"name": "two-witness", "witnesses": [{"session": "s"}, {"session": "t"}], "conf": 0.6},
-            {"name": "five-witness", "witnesses": [{"session": str(i)} for i in range(5)],
+            {"name": "one-witness", "witnesses": [_look("s#0")], "conf": 0.5},
+            {"name": "two-witness", "witnesses": [_look("s#0"), _look("t#0")], "conf": 0.6},
+            {"name": "five-witness", "witnesses": [_look("%d#0" % i) for i in range(5)],
              "conf": 0.9},
         ]}
         self.addCleanup(setattr, CA, "vault_ledger_load", real)
@@ -187,6 +198,35 @@ class TestTheAdmissionBarKnowsWhatItWouldAdmit(unittest.TestCase):
         self.assertEqual(at99.get("shortOfBar"), 3,
                          "all three fell short and the door did not say so")
 
+    # ── A WITNESS IS A VISIT, NEVER A FRAME (Ledger fix, finding 3) ──────────────────────────
+    def test_one_visit_held_for_five_frames_is_one_witness_and_is_not_admitted_at_two(self):
+        """★ His ruling (§34.2): "a look is a distinct visit, never a frame of a still screen."
+        This door admitted on len(witnesses) — LIST ENTRIES — so one stash screen photographed
+        five times read `witnesses 5` and was admitted at a bar of 2. His Radiance row carries
+        103 entries from 2 visits."""
+        real = CA.vault_ledger_load
+        still = [_look("s_still#0", frame="f_still_%d.jpg" % i) for i in range(5)]
+        CA.vault_ledger_load = lambda *a, **k: {"owned": [
+            {"name": "StillScreen", "witnesses": still, "lane": "stash"},
+            {"name": "TwoVisits", "witnesses": [_look("sA#0"), _look("sA#1")], "lane": "stash"},
+        ]}
+        self.addCleanup(setattr, CA, "vault_ledger_load", real)
+        import vault_retro as VR
+        self.assertEqual(1, VR.gate(still)["witnesses"],
+                         "baseline: the live gate reads five frames of one visit as ONE look")
+        r = CA.vault_proven_names(min_witnesses=2)
+        self.assertTrue(r.get("ok"), r)
+        self.assertEqual(["TwoVisits"], [x["name"] for x in r["proven"]],
+                         "one visit held for five frames was admitted at a bar of 2: %r" % r)
+        self.assertEqual(1, r["shortOfBar"])
+        two = r["proven"][0]
+        self.assertEqual((2, 2, 2), (two["witnesses"], two["visits"], two["rows"]),
+                         "the admitted row does not carry its visit count beside its raw rows")
+        at1 = CA.vault_proven_names(min_witnesses=1)
+        by = dict((x["name"], x) for x in at1["proven"])
+        self.assertEqual((1, 5), (by["StillScreen"]["witnesses"], by["StillScreen"]["rows"]),
+                         "the raw row count must ride BESIDE the visit count, never instead of it")
+
     # ── THE FINDING THE COUNT HID ────────────────────────────────────────────────────────────
     def test_the_finding_is_recorded_beside_the_door(self):
         """⚠ The names are the finding. If this docstring's measurement is ever deleted, the next
@@ -203,6 +243,25 @@ class TestTheAdmissionBarKnowsWhatItWouldAdmit(unittest.TestCase):
                       "which is the reason the bar gates nothing")
         self.assertIn("UNKNOWN", doc,
                       "the door does not record that an unreadable ledger must not read as none")
+
+
+RED_PROOF = [
+    {
+        "why": "the door counts witness LIST ENTRIES again, so one visit held for five frames is "
+               "admitted at a bar of 2 (Ledger fix, finding 3)",
+        "file": "control_app.py",
+        "find": "            w, visits, raw = int(_g.get(\"witnesses\") or 0), int(_g.get(\"looksSeen\") or 0), len(_w)\n",
+        "replace": "            w, visits, raw = len(_w), int(_g.get(\"looksSeen\") or 0), len(_w)\n",
+        "matches": 1,
+    },
+    {
+        "why": "the raw row count replaces the visit count on the admitted row instead of riding beside it",
+        "file": "control_app.py",
+        "find": "            proven.append({\"name\": n, \"witnesses\": w, \"visits\": visits, \"rows\": raw,\n",
+        "replace": "            proven.append({\"name\": n, \"witnesses\": raw, \"visits\": visits, \"rows\": raw,\n",
+        "matches": 1,
+    },
+]
 
 
 if __name__ == "__main__":

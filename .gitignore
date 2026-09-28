@@ -208,6 +208,8 @@ tv/disk_history.jsonl
 # the free triage tick, same class as disk_history.jsonl above. Code belongs in the repo; a
 # journey store does not, and committing one would make every walk a diff.
 tv/river_stamp.jsonl
+# the recorder's own emergency disk-floor reaper log (tv_diablo.py, "reel_reaps.jsonl") - his runtime record, never code
+tv/reel_reaps.jsonl
 .coldread.tmp.html
 
 # v2394 — the eagle's durable pass. A RUNTIME DECISION RECORD, like .second_eye.jsonl and

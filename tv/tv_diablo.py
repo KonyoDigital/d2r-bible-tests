@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3521"   # everything since v3520 gets its number - vault reset rulings, inventory wave 2, hourly shadow rollover, a drain that keeps the evidence pictures
+VERSION = "v3522"   # ALT and ledger
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -3197,6 +3197,18 @@ def _dbg(msg):
         pass
 
 
+def _test_pinned_reels():
+    """Reel ids the test suite pins as real footage (test_reel_refs.json 'accepted'). -> set | None
+
+    None means the list could not be read - the reaper then only knows what the vault cites."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_reel_refs.json"),
+                  encoding="utf-8") as fh:
+            return set(json.load(fh).get("accepted") or [])
+    except Exception:
+        return None
+
+
 def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=None, kept=None, spared=None):
     """A durable line for every emergency reel deletion. -> None
 
@@ -3360,15 +3372,21 @@ def _reel_evidence(hist_dir=None):
     return {"sessions": sessions, "frames": frames, "reels": reels, "reads": reads, "readReels": read_reels}
 
 
-def _reel_reap_pick(hist_dir, candidates, ev):
+def _reel_reap_pick(hist_dir, candidates, ev, pinned=None):
     """2026-09-28 — (c) the disk-floor reel reaper's choice, oldest first. -> dict | None
 
     A reel holding a CITED picture keeps those files and releases the rest (reel_retention.release_uncited's
     shape — the reel directory stays with its evidence in it). A reel whose session or reel id is cited but
     whose cited picture is not one of its files is kept WHOLE: which picture matters cannot be told, so none
     goes. A reel nothing cites may go whole. A reel that already holds nothing but evidence is skipped. An
-    unreadable reel is never taken. `candidates` must already exclude the two newest."""
-    for cand in candidates:
+    unreadable reel is never taken. `candidates` must already exclude the two newest.
+
+    REG-1361 (merged from main, 2026-09-28) — a reel a law pins (`pinned`, test_reel_refs.json 'accepted') is asked
+    only after every unpinned one, oldest first within each; a pinned reel still goes when nothing else may, because a
+    full disk stops recording. None = the pin list could not be read = plain oldest-first. The answer says "pinned"."""
+    pinned = pinned or set()
+    order = [c for c in candidates if c not in pinned] + [c for c in candidates if c in pinned]
+    for cand in order:
         sid = cand[5:] if cand.startswith("reel_") else cand
         path = os.path.join(hist_dir, cand)
         try:
@@ -3386,14 +3404,15 @@ def _reel_reap_pick(hist_dir, candidates, ev):
             gone = [f for f in jpgs if f not in _keep]
             if not gone:
                 continue
-            return {"reel": cand, "mode": "partial", "gone": gone, "kept": sorted(keep), "frames": len(jpgs)}
+            return {"reel": cand, "mode": "partial", "gone": gone, "kept": sorted(keep), "frames": len(jpgs),
+                    "pinned": cand in pinned}
         if sid in ev["sessions"] or cand in ev["reels"]:
             continue
         # M1 — NAMED BUT ABSENT: the journal names a picture of THIS reel that is not among its files, so which
         # picture matters cannot be told — the reel is kept whole, exactly like a reel cited by its session.
         if named_here or cand in (ev.get("readReels") or set()):
             continue
-        return {"reel": cand, "mode": "whole", "gone": jpgs, "kept": [], "frames": len(jpgs)}
+        return {"reel": cand, "mode": "whole", "gone": jpgs, "kept": [], "frames": len(jpgs), "pinned": cand in pinned}
     return None
 
 
@@ -3658,7 +3677,12 @@ def archive_read_frame(src_path, n, ts_ms=None):
                                  "index and chron_evidence) would not answer, so whether any reel holds "
                                  "evidence is UNKNOWN")
                         else:
-                            _pick = _reel_reap_pick(HIST_DIR, _all[:-2], _ev)     # never the two newest
+                            # never the two newest; never a cited picture; a reel a law pins (test_reel_refs.json)
+                            # only when nothing else may go (REG-1361) - one chooser, the evidence-aware pick
+                            _pick = _reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())
+                            if _pick is not None and _pick.get("pinned"):
+                                _dbg("reel-reap: every reel it may take is pinned by a law - taking the oldest "
+                                     "pinned one, because a full disk stops recording")
                             if _pick is None:
                                 _dbg("reel-reap found NOTHING it may take: %d reel(s), every "
                                      "candidate holds only cited pictures, is cited whole, or is one of "

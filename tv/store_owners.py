@@ -63,6 +63,9 @@ STORES = {
                                  "that can be exercised at all. Declared so the mention is accounted for "
                                  "rather than reading as a second writer",
             "control_app":   "serves it to the console surfaces",
+            "corroborate":   "NOT a toucher — the 'triage starved' NO_JOINT_YET sentence (2026-09-28) NAMES this\n"
+                             "                              store while explaining why that row has no independent witness yet.\n"
+                             "                              Prose in a string, never a read. Declared so the mention is accounted for",
             "printer_reach": "the printer-zone acceptance test reads panels to find the A4 case",
             "declared_vs_content": "A15 — asks whether a reel's route is derived from its CONTENT "
                                    "or guessed from a declared stamp, so it needs what the "
@@ -127,6 +130,10 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "corroborate":   "2026-09-28 (Ledger P0) — the per-item tier joint ('a tier stands on the looks the gate\n"
+                             "                              counts') opens the witness ledger (TV_VAULT_LEDGER or this file)\n"
+                             "                              READ-ONLY and hands it to vault_evidence.tier_census and\n"
+                             "                              vault_retro.gate, comparing the two per item. It writes nothing",
             "vault_bank":    "v3171 — the ONE reader for the stash-side bank. It reads this store and\n"
                              "                              vault_swept.json together and reports what the sweep took,\n"
                              "                              folding two different wordings of 'empty' and SAYING that it\n"

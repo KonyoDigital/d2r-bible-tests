@@ -109,6 +109,273 @@ test_sets_base_index TestEveryLedgerStatusHasAPill (1 red-proof).
 track is min(270px, 100%). Verified on real pixels at 375x812, 1280x800 and 2000x1300 (evid_r3_*.png). HEART:
 test_carried_loot_keeps_its_order L4 (2 cases, 1 red-proof).
 
+### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
+
+**SEEN:** the first cut of the quiet-relaunch law drove open_control_window(). That call runs start_background_watchers(),
+which started the REAL drift loop inside the test, and the drift loop's direct os.execv replaced the test process and
+rewrote his .tvd_window.pid and .relaunch_receipt.json - twice, because a failed edit script was chained to a test run.
+Both files were restored by hand. **FIX:** the window's options come from the pure _control_window_kwargs(); every case
+in the update law makes os.execv FAIL instead of exec; a guard law (NoLawOpensTheRealConsole) reads every law with
+tokenize and fails any CALL of open_control_window or start_background_watchers. Same batch: a relaunch beside his game
+opens minimized, unfocused and never fullscreen (TV_QUIET_RELAUNCH); an EXPIRED hold neither cuts the shadow reel nor
+keeps the shadow door shut; the drift loop's own exec takes the green-light lock. **LAW:** test_an_update_lands_beside_a_shadow_reel.
+
+### REG-1364 - TEST REEL IDS SAT IN THE REAL-FOOTAGE RANGE (2026-09-28)
+
+**SEEN:** test_a_gate_may_not_pin_his_footage went red: the triage and beacon laws named reel_s_1789000000000_* - a 2026
+epoch, the range his recordings use, so each id would pin footage. **FIX:** moved to the synthetic 15xxxxxxxxxxx range
+(2017), order kept. **LAW:** test_a_gate_may_not_pin_his_footage (unchanged, green again).
+
+### REG-1363 - MORE SIGHTINGS THAN LOOKS SCORED AS A PERFECT RECORD (2026-09-28)
+
+**SEEN (second eye on v3520, 4877464e):** vault_evidence.tier() clamped successes to trials, so 15 sightings over 10 looks
+became 10 of 10 and could clear the PROVEN bar. More successes than trials means the counts were taken in different
+units (frames against visits). **FIX:** that count is UNKNOWN and nothing is re-filed from it. The shared
+confidence.wilson_lower keeps its clamp: every other caller counts k as a subset of n (swept). **LAW:**
+test_the_evidence_rebuilds_what_is_proven.
+
+### REG-1362 - THE HEART'S EVIDENCE ROW NEVER OPENED THE SHELF (2026-09-28)
+
+**SEEN (second eye on v3520, 7fcb836c):** console_doctor registers _check_the_evidence_tiers with no arguments, so its
+shelf root stayed None and the row read "picture gone: UNKNOWN" for ever. MEASURED on his Mac after the fix: 20 of the
+27 pictures his witness ledger cites are not on the shelf. **FIX:** the live call (no arguments) opens the console's own
+shelf (TV_HIST or frames/hist); a law that passes its own paths is unchanged. 0.02 s on his shelf. **LAW:**
+test_the_vault_heart_says_what_the_reset_and_the_tiers_did.
+
+### REG-1361 - THE DISK FLOOR TOOK FOOTAGE A LAW PINS (2026-09-28)
+
+**SEEN:** reel_reaps.jsonl on his Mac: at 02:43 the recorder's disk-floor reaper removed reel_s_1785708285647_38665 (98
+frames) and reel_s_1786385768689_67392 (217), the two oldest of 20 - both on the blessed list in test_reel_refs.json that
+the retention planner never touches; a gate proving itself on one of them now reads UNPROVABLE there. **FIX:** the pure
+_reap_victim(): a cited reel is never taken (unchanged), the oldest UNPINNED reel goes first, a pinned one only when
+nothing else may (a full disk stops recording). reel_reaps.jsonl is now gitignored - his runtime record. **LAW:**
+test_reel_reaper (TheReaperSparesPinnedFootage).
+
+### REG-1360 - THE FRAME INDEX STAT'D EVERY FILE: 33 s FOR THE RIVER ON HIS ALT (2026-09-28)
+
+**SEEN:** GET /api/river took 32.8 s on the ALT (Windows + Boosteroid, 14 reels) and 4.1 s for 66 reels on his Mac. A
+read-only profile on the ALT put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in
+frame_ref.Index and 1.7 s in 21,349 relpath calls; reel_retention._dir_mb summed sizes the same way. **FIX:** one
+os.scandir listing per folder (on Windows the listing carries the size), paths from the folder prefix, same walk order,
+a symlinked folder not entered. On the ALT's real 21,383 frames: identical index, 1.0-1.4 s -> 0.25-0.32 s. **LAW:**
+test_a_frame_index_lists_each_folder_once.
+### REG-1374 - THE RETRO FLAG IS RECOMPUTED ON EVERY RESET AND STORED NOWHERE (Ledger fix round 2, note E, 2026-09-28)
+
+**SEEN (review of round 1, note only):** plan_from_ledger flags a row retro by comparing the frame math against the
+visit math on the SAME rows, every reset. Nothing persists the flag. **NO CODE CHANGE, BY THE BRIEF:** the hazard is
+written where the next editor will be standing - vault_evidence.plan_from_ledger's docstring: if the ledger is ever
+compacted to one frame per visit, the flag vanishes; persist it before any compaction.
+
+### REG-1373 - "A LOOK THAT SAW IT" WAS DEFINED TWICE, AND THE KEEP GATE AND THE TIER TABLE COULD DISAGREE (Ledger fix round 2, finding D, 2026-09-28)
+
+**SEEN (reproduced):** vault_retro.gate()._qualifies = own frame + `_conf_of(conf) >= floor` (a bool or string conf is
+0.0; `saw`/`hit` ignored). vault_evidence._is_success = stripped frame + `float(conf) >= floor` (True -> 1.0 and "0.9"
+accepted) and refuses saw in (empty, other, miss) or hit False. [good look, look with conf True] read 1 at the gate and 2
+in the tier table; [good, saw "miss"] read 2 at the gate and 1 in the table. gate_shadow carried a third copy. **FIX:**
+`vault_retro.look_saw_it` - the stricter half of each (dict; saw not a miss word, hit not False; non-blank frame; a real
+number conf, never bool/str/NaN/inf, clamped, >= floor). gate(), gate_shadow() and vault_evidence._is_success all call it.
+**MEASURED on a scratch copy of his vault_accum.json (sha256 ea7d48f7... before and after, his file untouched):** 150
+looks, all float conf, 0 carry saw/hit, the 2 frameless looks (Bone Break, Magefist priors) refused by both copies; the
+two old definitions disagreed on 0 of 150 looks; NO item's successes, trials, tier, retro flag or plan row changed
+(rebuilt = Horadric Cube, Radiance; held = the other 12); vault_proven_names still 12 of 14. The vault_proven_names
+comment claimed the tier table used "the same function"; it now says only what is true (the table shares look_saw_it,
+look_id and the fold, and does NOT call gate()). HEART: test_a_still_screen_is_one_look
+`test_a_look_that_saw_it_is_one_definition_in_both_engines` (7 odd looks), `test_every_counter_calls_the_one_definition`
+(co_names, nested comprehensions walked), 4 red-proofs; test_a_look_without_a_frame_is_not_a_witness's W3 proof re-aimed
+at gate()'s call of look_saw_it. NOT CHANGED: bible.html's _vaultWitnessCheck still parses a string conf (parseFloat) -
+the board door is JS and was not in this finding's scope.
+
+### REG-1372 - A FALL AFTER A PARTIAL RECOVERY WAS NEVER RECORDED (Ledger fix round 2, finding C, 2026-09-28)
+
+**SEEN (reproduced):** round 1 measured each fall from the LOWEST open `to`, so 134 -> 60 (open), up to 90, down to 70
+wrote nothing (70 is above the open low of 60) - and test_sitting_at_the_open_low_files_nothing pinned it. HIS RULE:
+"EVERY fall is recorded, as before" (9226d0d3 wrote a row for every tally below the mark). **FIX:** board_tally_merge
+measures each fall from this world's PREVIOUS reading of the lane (its last tally, read before the tally overwrites it);
+a lane whose last reading cannot be read falls back to the high-water mark. Fall, partial recovery, fall again = a
+recorded episode each time; sitting still files nothing; 3 -> 0, 0 -> 1, 1 -> 0 is two falls to 0. ledger_restore.py is
+untouched (its own line byte-identical). HEART: test_a_drop_is_an_episode - flipped to
+`test_sitting_at_the_same_value_files_nothing`, new `test_a_fall_after_a_partial_recovery_is_recorded`,
+`test_a_fall_to_zero_is_always_recorded`; the two-episode case now reads (100, 0) (from the last reading). 8 red-proofs.
+
+### REG-1371 - THE PLAN PROMISED KEEP-FILED, THE DOOR ASKED TWO LOOKS, AND THE REFUSAL WAS SILENT (Ledger fix round 2, finding B, 2026-09-28)
+
+**SEEN (reproduced):** rebuild_plan put every retro-flagged row in `rebuilt` with keepFiled, but window.vaultFile's rebuild
+branch still ran the 2-look witness check - so a retro item with ONE qualifying visit was refused and UN-FILED, and
+_vaultRefileFromPlan wrote R.rebuiltFailed (bare names) that nothing read. A flagged row with ZERO qualifying looks was
+also promised keepFiled. HIS RULING §34.2: "Keep filed, flag 'retro: WATCHED'". **FIX:** vault_evidence
+RETRO_KEEP_MIN_LOOKS = 1 = bible.html VAULT_RETRO_KEEP_MIN: the door keeps a keepFiled retro row on ONE qualifying look
+(_vaultWitnessCheck takes that bar and no other; an unflagged or forged-flag row still needs 2). A flagged WATCHED row no
+visit saw is HELD with RETRO_NO_LOOK_WHY and keepFiled False (plan, retro summary `heldNames`, census `retroHeldNames`,
+doctor tiers row "N of them held - no visit saw it"). Every door refusal is SAID: rebuiltFailed carries {name, refused,
+why}; _vaultResetSay names "N could not be re-filed: X (why)"; vault_evidence.reset_receipt reads rebuiltFailed and the
+doctor's reset row goes MISSING naming each (UNKNOWN when a receipt does not say). Live (scratch copy): unchanged - both
+retro rows (Radiance, Horadric Cube) have 2 visits. HEART: test_a_reset_keeps_the_retro_rows_filed (plan: one-visit row
+kept, zero-visit row held with its why; node: the SHIPPED door files the one-visit row, an unflagged PROVEN one-look row
+is still refused, a MAIN-locked Shako is named in the status line and the receipt, and that receipt read by
+console_doctor's own reset row is MISSING naming it), 7 new red-proofs (11); test_the_vault_heart... 4 new (11).
+
+### REG-1370 - HIS HAND TICK READ AS "A ROW WHOSE REEL IS UNKNOWN" (Ledger fix round 2, finding A, 2026-09-28)
+
+**SEEN (reproduced):** round 1's evidence_for counted every reel-less row as unplaced. _bank_manual_sighting writes his
+tick as lane 'manual' / witness 'hand' with NO reel by design ("No reel, no frame - because there was none"), so every
+hand-ticked item's `witnesses` became None and the say line called his testimony unknown. HIS RULING: a manual tally is
+witness enough. The fixture had only claude/grok rows and could not see it. **FIX:** control_app.MANUAL_LANE +
+_is_hand_row - one spelling shared by the writer and evidence_for. A hand row is its own kind: `hand: n` beside the
+reels, never unplaced; `witnesses` stays a number (0 reels for a hand-only name, with witnessTags ['hand']); the say line
+reads "... + his own hand tick" / "1 sighting: his own hand tick". Only a NON-manual row with no reel makes the count
+UNKNOWN. Latent on his data: a scratch copy of chron_evidence.json (sha256 268307b1... unchanged) holds 0 manual rows
+today. HEART: test_evidence_names_its_witnesses `test_his_hand_tick_is_a_known_witness_never_an_unplaced_row`,
+`test_the_writer_and_the_reader_share_one_spelling_of_his_hand` (the row the tick really writes), 3 new red-proofs (6).
+
+### REG-1356 - ONE REEL SPELLED TWO WAYS COUNTED AS TWO LOOKS IN THE KEEP GATE AND THE TIER TABLE (Ledger fix #7, 2026-09-28)
+
+**SEEN (review of Ledger P0, reproduced):** vault_retro mints `sid = idx.get("sessionId") or basename(reel_dir)`, so one
+reel can arrive as "s_X" and "reel_s_X". vault_retro.gate and vault_evidence._visit_of both keyed a look on the RAW
+string, so ["reel_s1#0", "s1#0"] read 2 looks, while evidence_for already normalises through chronicle_retro._reel_key.
+Latent: 0 of 28 look ids on a read-only copy of his vault_accum.json carry the prefix. **FIX:** `vault_retro.look_id` -
+the one spelling of a look, through chronicle_retro._reel_key; gate(), gate_shadow() and vault_evidence._visit_of all
+call it (no second copy). HEART: test_a_still_screen_is_one_look
+`test_one_reel_spelled_two_ways_is_one_look_in_both_engines`, 3 red-proofs (look_id raw, gate raw, _visit_of copy).
+
+### REG-1355 - /api/evidence READ 0 WITNESSES FOR ROWS THAT CARRY NO REEL (Ledger fix #6, 2026-09-28)
+
+**SEEN:** evidence_for set `witnesses = len(reels)`, so a name whose rows exist but name no reel read 0 - an unknown shown
+as a count, and "across 0 reels" on the say line. Latent on his chron_evidence.json (0 of 450 names). **FIX:** any row
+without a reel makes `witnesses` None with witnessWhy naming how many rows are unplaced; `witnessesKnown` and `unplaced`
+ride beside it and the say line reads "N known reel(s) + M row(s) whose reel is UNKNOWN". HEART:
+test_evidence_names_its_witnesses `test_rows_with_no_reel_make_the_witness_count_unknown_never_zero`, 1 red-proof.
+
+### REG-1354 - THE TIER TABLE FOLDED ALL VISITS BEFORE COUNTING SUCCESSES; THE GATE FOLDS THEM APART (Ledger fix #5, 2026-09-28)
+
+**SEEN:** vault_evidence._measure folded every visit id first, then asked each survivor for a success. vault_retro.gate
+folds the qualifying looks SEPARATELY from all looks. On [bare "s1" with frame + conf 0.9, "s1#0" frame None conf 0.0]
+gate reads 1 witness, _measure read 0 successes. **FIX:** successes = len(fold(ids of visits that saw it)), trials =
+len(fold(all visit ids)) + misses - gate()'s two numbers; the fold of a subset never outnumbers the fold of the whole,
+so successes <= trials (no clamp, and main's tier() UNKNOWN rule is untouched). HEART: test_a_still_screen_is_one_look
+`test_a_bare_prior_that_saw_it_beside_its_own_bucket_that_did_not_is_one_success`, 1 red-proof.
+
+### REG-1353 - THE HEART JOINT COMPARED COUNTS, SO TWO WRONG ITEMS BALANCED (Ledger fix #4, 2026-09-28)
+
+**SEEN:** corroborate `a-tier-stands-on-its-looks` compared the COUNT of PROVEN+ items with the COUNT of items the gate
+sees 10+ looks for, over the whole ledger. StillScreen (1 visit x 25 frames, HARDENED under the frame math) + TenLooks
+(10 buckets, 5 unsure, WATCHED) read 1 <= 1 AGREE over the exact defect. **FIX:** per item - the right side counts only
+the tier table's own PROVEN+ names (tier_census `provenNames`) that the gate backs; relation `==`. HEART:
+test_a_still_screen_is_one_look `test_the_joint_is_per_item_so_two_wrong_items_cannot_balance`, 2 red-proofs.
+
+### REG-1352 - THE PROVEN DOOR ADMITTED ON FRAMES: ONE VISIT HELD FOR 5 FRAMES READ 5 WITNESSES (Ledger fix #3, 2026-09-28)
+
+**SEEN:** vault_proven_names (POST /api/vault_proven -> the board's admission chip) counted witness LIST ENTRIES, so one
+visit photographed five times read `witnesses 5` and was admitted at a bar of 2 (his Radiance row: 103 entries, 2
+visits). His ruling (§34.2): "a look is a distinct visit, never a frame of a still screen." **FIX:** the door counts
+`vault_retro.gate(...)["witnesses"]` - the qualifying looks the keep bar counts - against min_witnesses; `visits` (all
+folded looks) and `rows` (raw entries) ride beside it. MEASURED on a read-only copy of his ledger: 14 -> 12 admitted at
+2; Bone Break and Magefist each hold one real look plus one frameless conf-0.0 prior (the #246 W3 shape the live gate
+already refuses). Two fixtures in test_the_admission_bar pinned "an entry is a witness" ({"s": 1}) and now carry real
+looks. HEART: test_admission_bar `test_one_visit_held_for_five_frames_is_one_witness_and_is_not_admitted_at_two`,
+2 red-proofs.
+
+### REG-1351 - THE BOARD STOPPED RECORDING A 3-SET FALL OR AN UN-TICK (Ledger fix #2b, his decision, 2026-09-28)
+
+**SEEN:** the P0 build switched board_tally_merge to ledger_restore's drop line (to 0, or >= max(10, 25%)), so a small
+fall wrote no drop row, and it rewrote test_control's `test_a_real_fall_is_PUBLISHED_and_RECORDED_never_healed` to
+120 -> 60 to fit. His decision: keep what was recorded before. The doctor also printed "The last recorded fall was ? None
+-> None" when no episode existed. **FIX:** `ledger_restore.drops_between(prev, next, threshold=None)` and
+`step_episodes(..., threshold=None)` - None is ledger_restore's own line, byte-for-byte the old path; board_tally passes
+`ANY_FALL` (1). The test_control case is restored to its 9226d0d3 text (120 -> 117). The doctor says "No drop episode
+is recorded for his world ... UNKNOWN". HEART: test_a_drop_is_an_episode `test_every_fall_on_the_board_is_recorded_as_before`,
+`test_ledger_restores_own_drop_line_is_unchanged_by_the_threshold`, `test_the_doctor_says_plainly_when_no_episode_is_recorded`,
+3 red-proofs.
+
+### REG-1350 - AN OPEN DROP EPISODE BLINDED ITS LANE, SO A FALL TO ZERO BEHIND IT WAS NEVER RECORDED (Ledger fix #2, 2026-09-28)
+
+**SEEN:** board_tally_merge left a lane with an OPEN episode out of "before" entirely, so 134 -> 60 (open), 60 -> 100,
+100 -> 0 recorded one episode: the fall to zero never happened on paper. **FIX:** a store with open episodes uses the
+LOWEST `to` among them as its before-count; sitting at that low files nothing, a fall below it is its own episode; an
+open episode whose `to` cannot be read keeps its lane out (an unknown low is never guessed). HEART: test_a_drop_is_an_episode
+`test_a_fall_a_partial_recovery_and_a_fall_to_zero_are_two_episodes`, `test_sitting_at_the_open_low_files_nothing`,
+1 red-proof (+2 re-anchored).
+
+### REG-1349 - THE RETRO FLAG RODE ON A FIELD THE RESET NEVER READS, SO HIS NEXT RESET UN-FILED RADIANCE AND THE CUBE (Ledger fix #1, 2026-09-28)
+
+**SEEN:** HIS RULING §34.2, his words: "Keep filed, flag 'retro: WATCHED'". The P0 plan served the flags as `plan.retro`;
+bible.html's _vaultRefileFromPlan files `plan.rebuilt` only, and Radiance and the Horadric Cube (2/2 visits, WATCHED)
+sat in `plan.held` - un-filed on his next reset. Even in `rebuilt`, the board's door (window.vaultFile rebuild branch)
+refused any row not PROVEN/HARDENED/'kept kind'. test_a_still_screen_is_one_look:154 asserted the un-filing. **FIX:**
+every retro-flagged row rides in `rebuilt` at its TRUE tier (WATCHED), locked false, flag 'retro: WATCHED', keepFiled,
+why 'kept filed by his ruling (§34.2)', on every reset while the ledger flags it; the door admits a row carrying
+keepFiled + a 'retro: TIER' flag (it still passes the 2-look witness check) and writes the flag on the provenance row.
+The :154 assertion is flipped. MEASURED on a read-only copy of his ledger: rebuilt = Horadric Cube, Radiance (WATCHED
+2/2, 2 witness looks each). HEART: new test_a_reset_keeps_the_retro_rows_filed - the plan the real
+/api/vault_rebuild_plan handler serves, driven through the SHIPPED reset and door in node, twice; 4 red-proofs.
+### REG-1379 - "TIGHTEN BOTH" WAS MET BY STRETCHING PANELS INTO EMPTY BOXES; NOW THE WINDOWS ARE AS TALL AS WHAT THEY HOLD (#29d round 2, 2026-09-28)
+
+**SEEN (adversarial review of round 1, fe817ab7, reproduced):** his words for the mule window and the builder were
+"Tighten both". Round 1 removed the band under each window by stretching the last panel of each column into it, so the
+emptiness only moved inside: at 2000x1300 the mule window's STRENGTHS AND WEAKNESSES measured 374px (their 57), NOTES 434
+(their 206) and STATS 944 (their 726); the builder's STRENGTHS AND WEAKNESSES 337px holding 150 at 1024x768. The builder's
+STATS had been the glass's height whatever stood beside it since #174 R2. **FIX:** every panel is its own height again
+(their rects at 2000) and each WINDOW is as tall as its content: `.vault-detail.vd-fs.mp-on` and `.cb-win` take
+`bottom:auto; max-height:100vh/100dvh` - they end under their content by their own 30px padding, are capped by the glass
+and scroll inside themselves only when taller; the page under a short window is dimmed and inert (`html.vd-lock::after` /
+`html.cb-lock::after`, under each window's z-index); the edge is a shadow, so a capped window draws no line at the glass's
+bottom. The builder's STATS is `contain:size` + `align-self:stretch` + the old glass cap: exactly the columns' height,
+its rows scroll. Measured: mule 2000x1300 window 0..1082 (content 1052), builder 0..1030 (content 1000), 901x900 mule
+702 / builder 676 of 900; 1280x800 and 375x812 capped at the glass and scrolling. PNGs v3522r2_mule_* / builder_*.
+**HEART:** test_the_mule_window_fits_at_every_width (test_r2_the_window_is_as_tall_as_what_it_holds,
+test_r2_no_panel_is_stretched_past_what_it_holds, and the 2000 rects with heights again) and
+test_the_character_builder_fits_at_every_width (test_r2_the_builder_is_as_tall_as_what_it_holds,
+test_r2_no_builder_panel_is_stretched_past_what_it_holds); 5 new red-proofs + the moved #174 R2 STATS proof, all PROVEN.
+
+### REG-1378 - AN AGE THE FLEET CARD COULD NOT ESTABLISH READ "just now", AND A LANE THAT TICKED READ "no tick yet" (2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** a renamed host's "formerly" line aged lastSeen with `_fleetSince`,
+which answers "just now" for a time it cannot parse and for one after now ("formerly a · v1 · last seen just now" for
+"sometime tuesday"); `_fleetSince` itself said "just now" for any unreadable time. The worker nulls a lastKey it cannot
+read, so a triage lane with 9 ticks read "no tick yet" - a confident zero. **FIX:** `_fleetFormerParts(m, now)` ages
+lastSeen against the card's own now; absent, unparseable or future is "last seen age UNKNOWN". `_fleetSince`: unreadable
+is "age UNKNOWN" (a stamp slightly ahead stays "just now" - skew). No readable key: ticks 0 -> "no tick yet", ticks > 0 ->
+"last outcome unreadable", ticks not sent -> "last outcome UNKNOWN", on the fleet row AND the river's own triage line
+(the sibling). **HEART:** test_the_fleet_card_says_how_each_pc_films_and_drains
+(test_r2_an_age_the_card_cannot_establish_is_unknown_never_just_now,
+test_r2_a_lane_that_ticked_without_a_readable_outcome_is_never_no_tick_yet), 4 red-proofs PROVEN.
+
+### REG-1377 - A WRAPPED FLEET FACT LINE STRANDED A MIDDOT (2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** inside a films / river / triage line the facts were one string
+joined by " · ", so a wrap left a middot alone: at 375 a river line read "TRIAGE 2 · PRINTER 3 ·", at 1280 a triage line
+ended "walking (53s ago) ·". **FIX:** exactly the river's own `.shr-tri` fix - each fact its own flex item, the gap is
+the separator (a separator that wraps is orphaned at one end or the other; choosing which end is not a fix); the key hangs
+in the indent; the "formerly" line too. `t` (the joined text) is unchanged for readers. **HEART:**
+test_the_fleet_card_says_how_each_pc_films_and_drains (test_r2_each_fact_is_its_own_item_with_no_glyph_between_them;
+test_r2_no_line_of_a_fact_row_starts_or_ends_with_a_middot - Chrome at 375 and 1280, line by line from each character's
+rect, with the premise that a row really wraps at 375), 1 red-proof PROVEN.
+
+### REG-1376 - HIS "cap 75%" COST A STATS LABEL A LINE (#29b round 2, 2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** his ruling is the words "cap 75%" (kept). On the number's line they
+are wider than the "≤75%" they replaced and widened the value's column, so the label beside it wrapped once more:
+Physical Damage Reduction 2 -> 3 lines at 1280x800 (the reviewer's state), Lightning Resistance 1 -> 2 at 1280 and 2000,
+Fire / Cold Resistance and the absorbs at 900-1180. **FIX (CSS only, the markup the join laws pin is unchanged):** a capped
+value (`.cb-sv:has(> em.cb-cap)`) is a block of text - the number and its source chip flow as words (the chip wraps under
+the number only when the row is too tight for both, round 8's rule) and the cap is its own line under them, right-aligned
+and never wrapped; a block's widest line is its width, so the cap never adds to the number and source. Swept 900-1400
+every 40px + 375/800/901/1024/1120/1280/2000, plain and with the helm worn, Fire widened: 0 labels changed by the cap, 0
+drops, 0 chips outside their row, nothing sideways. (A first cut as a 2-column grid overflowed the worn build's RANGE rows
+at 900-1000; the law's own sweep caught it.) **HEART:** test_the_character_builder_fits_at_every_width
+(test_r2_his_cap_words_cost_no_label_a_line), 1 red-proof PROVEN.
+
+### REG-1375 - THE #174 EDIT PANEL COVERED THE MULE WINDOW'S OWN TABS (#29d round 2, 2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** `_cbPlace`'s tabs-stay-visible rule (#29 d, his words: the Edit
+window hides the active tab) was skipped for the mule host (`mh0 ? null : _cbTabsBottom(vh)` in both branches). The
+#174 Edit panel lives in the mule window, so its Select and Edit modals covered EQUIPMENT / STASH at every width
+(1024x768 Edit: modal top 146, tabs 151..177) and the phone sheet covered all four. **FIX:** `_cbTabsBottom(vh, mule)`
+reads the tab row of the window the modal is in (`#vault-detail .mp-ctabs` in the mule host) and both branches apply the
+rule to it. Measured: every width 375-2000, both arrangements, Select and Edit - the modal starts under the tabs, all
+four hit-test. **HEART:** test_the_mule_window_fits_at_every_width
+(test_r2_the_mule_windows_tabs_stay_in_view_while_its_picker_is_open, a database helm placed through the host's own
+Select so Edit really opens), 2 red-proofs PROVEN.
+
 ### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
 
 **SEEN (grok-cli on a3f7a020..69d4ebb0):** (1) apply_plan writes the tombstone `kept` row BEFORE the delete, and plan()

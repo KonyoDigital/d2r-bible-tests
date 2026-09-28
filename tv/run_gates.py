@@ -345,6 +345,14 @@ GATES = [
                           os.path.join(HERE, "test_one_install_is_one_machine.py")], 60,
          why="2026-09-28 - ONE INSTALL IS ONE MACHINE. His fleet panel showed a second GrokBot: the same install id (1bba07477e40) under machine 'cursor' (last seen 09-20, v3377) beside the live 'grok-bot-vm' row, because the worker keys records by machine name and a renamed host keeps its own row. /api/fleet now folds rows sharing an install into the newest, keeps the old name as formerMachines and states it in mergedInstalls; the stale lastGood roster is merged the same way. Driven through Handler.do_GET, 3 red-proofs"
          ),
+    Gate("test_the_background_lane_never_shows_the_pin", [sys.executable,
+                          os.path.join(HERE, "test_the_background_lane_never_shows_the_pin.py")], 60,
+         why="2026-09-28 - his v2362 words: 'shadow reader is suppose to be behind the scenes'. Second eye on v3520 (ca60116a), confirmed on main: the capture pin was hidden only for an ARMED reader, so turning the shadow switch off while a shadow reel still rolled showed the pin on the standby board until the reel stopped. The background lane, armed or still rolling, never shows the pin. 1 red-proof"
+         ),
+    Gate("test_a_frame_index_lists_each_folder_once", [sys.executable,
+                          os.path.join(HERE, "test_a_frame_index_lists_each_folder_once.py")], 60,
+         why="2026-09-28 - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there thats the way we know it will work for dean too'. MEASURED on his ALT (Windows + Boosteroid, 14 reels): GET /api/river took 32.8 s there against 4.1 s for 66 reels on his Mac; a read-only profile put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in frame_ref.Index, and 1.7 s in 21,349 relpath calls. The index now lists each folder once (os.scandir - on Windows the listing carries the size) and builds each path from the folder prefix. Driven on a fixture tree: equals the old os.walk walk exactly (paths, stem lists, order, counts, bytes, symlinked folder not entered) and calls no getsize, no relpath and no per-file os.stat. 3 red-proofs"
+         ),
     Gate("test_payload_names_what_it_left_out", [sys.executable,
                           os.path.join(HERE, "test_a_payload_names_what_it_left_out.py")], 60,
          why="v3341 (#97) - A PAYLOAD NAMES THE FILES IT LEFT OUT, NOT JUST HOW MANY CHARS IT CUT. payload_for declared its truncation as a CHARACTER COUNT - 'truncated to 8142 of 16736 diff chars' - which is true and unusable: a count cannot say WHICH FILES are missing, so the eye answers 'the diff is correct as shown' in good faith about a payload containing none of the change under review. MEASURED by rebuilding payload_for for every version v3300-v3340 and diffing what it would send against what each commit changed (version stamps excluded): 36 versions had code changes and 22 of them - 61% - had at least one changed code file never reach the eye. In several the dropped file is the version's whole subject: v3330 lost tree_busy.py, v3315 lost second_eye_run.py, v3333 lost control_ui.html AND its own 151-line law, v3339 lost its law. The mechanism, measured on v3333: run_gates.py took 44.9% of the payload and 84% of that hunk is one why= ship-note string, so ~38% of a code review was spent on prose the comment stripper cannot touch because it is a string LITERAL, not a comment - the exact failure payload_for's own docstring warns about for control_ui.html, arriving through a .py file instead. THE ROSTER COMES FROM GIT, NEVER FROM THE FETCHED TEXT: when the python diff alone exceeds the cap the *.html show is never run, so a dropped .html is missing from the QUESTION rather than from any buffer, and deriving the set from the payload would report a confident 0 for exactly the v3333 case. THREE STATES and collapsing any two is the defect: a LIST names what never arrived, [] means MEASURED-AND-NONE, None means the roster was unreadable and is UNKNOWN never nothing-was-missed. Pins the helper, the BASELINE that a complete payload stays silent (a warning that fires when nothing is wrong is an off switch), and the JOIN - a correct helper whose names never reach the prompt or the row fixes nothing. Does NOT widen the payload: v3299 ruled that cost HIS call and pinned that the runner STATES ITS OWN REACH; this is the same move one level down. 4 red-proofs"
@@ -486,7 +494,11 @@ GATES = [
          why="REG-1051 — #105's bar was measured as '14 earn it' and never told to the lockers, "
              "which render d2r_owned (222). And the 14 turn out to be potions, charms and the "
              "Horadric Cube — so enforcing the bar literally would empty his vault of every real "
-             "keeper. The count sounded like progress; the NAMES were the finding"),
+             "keeper. The count sounded like progress; the NAMES were the finding. Ledger fix "
+             "2026-09-28: the door counted witness LIST ENTRIES (frames), so one visit held for 5 "
+             "frames was admitted at 2; it now counts looks the way vault_retro.gate does, with the "
+             "raw rows beside it (his ruling: 'a look is a distinct visit, never a frame'). "
+             "2 red-proofs."),
     Gate("test_live_store_skip", [sys.executable,
                                   os.path.join(HERE, "test_a_live_store_skip_is_counted.py")], 60,
          why="REG-1050 — eleven gates read stores that exist only on his Mac (chron_evidence.json "
@@ -5947,6 +5959,21 @@ GATES = [
              "an orphan's door or an unreadable start is never cut and reads UNKNOWN; a stop that did not "
              "take is not counted; the shadowWatch row fires past the hour + 5 min. Driven with stubbed "
              "edges on a TV_HIST fixture. 14 cases, 13 red-proofs"),
+    Gate("test_an_update_lands_beside_a_shadow_reel",
+         [sys.executable, os.path.join(HERE, "test_an_update_lands_beside_a_shadow_reel.py")], 60,
+         why="2026-09-28 - his words: 'the logic needs to be individually placed and working for each "
+             "console'. MEASURED on his ALT (Windows + Boosteroid, shadow always on): ver v3520 / diskVer "
+             "v3521 for 2+ h, relaunch {armed: true, may: false, why: 'the console is ON AIR (live) - you "
+             "are filming'} - nothing_in_flight read a SHADOW reel as his session, and the reel rolls every "
+             "hour with a ~2 s gap, so a new build never landed on any PC where the game stays open. Now a "
+             "waiting build beside a shadow reel ALONE is HELD (not refused), the rollover closes that reel "
+             "early ('an update is waiting') through stop_agent(farewell=False) + the measured-gone check "
+             "and fires the green light in the same breath, and the watcher opens no reel on the old build "
+             "while it is held. ON AIR / MINI / an unreadable door still refuse; a drift hold is released "
+             "on the drift lane's own gate (one question, three askers). Doctor row 'the running build is "
+             "behind the disk': MISSING past 2 h naming his session / shadow close failed / relaunch "
+             "refused or did not take, UNKNOWN on an unreadable version. Driven on Windows- AND Mac-shaped "
+             "stubs. 28 cases, 14 red-proofs"),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
          why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "
@@ -6148,7 +6175,14 @@ GATES = [
              "the capture label - and an unanswerable probe refuses; a walk the store did not keep "
              "is 'not-remembered'; starvation is judged by how long the reels WAITED; a lane that "
              "has not ticked since boot is UNKNOWN; the Windows load bar sits below 100; "
-             "GetSystemTimes' high word is combined; the Mac camera refusal keys on the agent"),
+             "GetSystemTimes' high word is combined; the Mac camera refusal keys on the agent. "
+             "Review of the merged build (792dd6d9): a 'playing' lane is judged by its UNBROKEN run "
+             "of play (playingSince, cleared by any other outcome) against TRIAGE_PLAYING_BAR_S - "
+             "3.5 h of Dean's native game reads OK 'standing aside for his game', 13 h reads "
+             "MISSING; a lane whose refusals are mostly 'playing-unknown' says the play probe "
+             "cannot run on this machine; the REAL survey() stops mid-walk when he starts D2R "
+             "(abort hook every N frames and at each reel), remembers nothing of the half-walked "
+             "reel and gives back its claims; the farm gate asks _d2r_running_here, not pgrep"),
     Gate("test_the_beacon_says_how_each_pc_films_and_drains",
          [sys.executable, os.path.join(HERE, "test_the_beacon_says_how_each_pc_films_and_drains.py")], 120,
          why="2026-09-28 — his order 'yea add those beacon fields': the fleet beacon's system block "
@@ -6159,7 +6193,31 @@ GATES = [
              "cached where /api/river computes it and the beacon never computes it (<0.5 s with "
              "every river computation patched to count); paths, URLs, IPs, this host's name and "
              "reel ids never cross; the worker's shaper (node) keeps both fields; /api/fleet "
-             "relays them for every peer"),
+             "relays them for every peer. Review of the merged build (792dd6d9): the MAC finder is "
+             "driven through a fake Quartz (D2R.exe / wine64-preloader -> native, GeForceNOW, "
+             "Boosteroid); a user name WITH A SPACE never crosses, on the console and in the worker; "
+             "the real onRequestPost writes a capture-route change at once, not an age that moved, "
+             "and stamps system.asOf so a reader adds (now - asOf)"),
+    Gate("test_the_fleet_card_says_how_each_pc_films_and_drains",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_card_says_how_each_pc_films_and_drains.py")], 120,
+         needs_app=False,
+         why="2026-09-28 — his 'make sure its all properly rendering everywhere': the beacon's capture / river / "
+             "formerMachines reached /api/fleet and /api/river's triage reached the page, and the fleet card and the "
+             "river panel drew none of it. RUNS the shipped control_ui.html helpers in node over fixture rows: a route "
+             "(native / Boosteroid / GeForce NOW) aged ageS + (now - the row's record time), a row with no record time "
+             "'age UNKNOWN' never 'just now'; the river's stations in that console's order with the river's age; the "
+             "triage lane in words (walking / caught up / standing aside for his game / last refusal: ...) with its "
+             "backlog and last walk; UNKNOWN never 0 (no lane map, an unreadable lane, a null backlog, a console older "
+             "than the fields); a renamed host as a quiet 'formerly' line; the river panel's one triage line on every "
+             "path of _shLanesRender. And the JOIN in a real headless Chrome (fetch stubbed at document start, its own "
+             "port): _fleetRefresh draws every row's films / river / triage line and nothing goes sideways at 901 and "
+             "1280. 15 cases, 8 red-proofs. ROUND 2 ('make sure its all properly rendering everywhere'): REG-1377 no "
+             "line of a fact row starts or ends with a middot at 375 or 1280 (each fact its own item, as the river's "
+             "own line; it read '\u00b7 CAPTURE 4 \u00b7' at 375 and 'walking (53s ago) \u00b7' at 1280); REG-1378 "
+             "an age the card cannot establish is 'age UNKNOWN' (a renamed host's unreadable or future lastSeen said "
+             "'just now', and so did _fleetSince for any unreadable time), and a lane that has ticked with no readable "
+             "outcome is 'last outcome unreadable', never 'no tick yet' - on the fleet row and the river's line. "
+             "19 cases, 13 red-proofs"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "
@@ -6850,7 +6908,13 @@ GATES = [
          why="2026-09-27 - the heart says what a vault reset rebuilt and how many items each "
              "evidence tier holds. An unreadable ledger or a missing receipt is UNKNOWN, never 0. "
              "A kept store that changed is named. A cited picture that is not on the shelf is "
-             "named. The tier count is corroborated by rebuild_plan. 5 red-proofs."),
+             "named. The tier count is corroborated by rebuild_plan. 2026-09-28: its fixture gave "
+             "every look its own session, so frames and visits were one number and it never saw "
+             "Radiance's shape; it now carries a 21-frame still screen that must read WATCHED, and "
+             "the row names the retro flags. Round 2 (finding B): his reset wrote rebuiltFailed and "
+             "nothing read it - the reset row now names every row the door refused, with the door's "
+             "own why, and a receipt that does not say is UNKNOWN; a flagged row no visit saw is "
+             "named held, never 'kept filed'. 11 red-proofs."),
     Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
          [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
          why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "
@@ -6910,6 +6974,80 @@ GATES = [
              "register agrees with the board on every pair. M2 the backfill reads the same order (one function). M3 one "
              "fold for removals and owned names. M4 an unattributed strip is ONE row saying character UNKNOWN (#54). L2 no "
              "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole. 27 cases, 17 red-proofs."),
+    Gate("test_a_still_screen_is_one_look",
+         [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
+         why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "
+             "§34.2). vault_evidence._measure counted witness rows, so Radiance - 102 frames of one "
+             "held stash screen plus one look from a second recording - scored HARDENED 103/103 on "
+             "his real ledger, and the Horadric Cube HARDENED 21/21; honest is WATCHED 2/2. It now "
+             "counts vault_retro.gate's own look id (the REOPEN_GAP_MS re-look bucket, else the "
+             "session) folded by _fold_bare_sessions, and the visit count must equal the gate's. "
+             "The heart joint a-tier-stands-on-its-looks is driven here: AGREE on visits, DISAGREE "
+             "on the frame math, UNKNOWN unread. Ledger fix: the joint is PER ITEM (a still screen "
+             "can no longer be paid for by a different item's ten looks), successes fold on their "
+             "own as gate() does, one reel spelled reel_s_X and s_X is one look in both engines "
+             "(vault_retro.look_id, one definition), and a retro still screen is kept filed. "
+             "Round 2 (finding D): 'a look that saw it' was two definitions - the gate refused a "
+             "True or '0.9' conf the tier table took, and the tier table refused a miss the gate "
+             "took; vault_retro.look_saw_it is now the one both call (0 of 150 looks on his ledger "
+             "moved). 14 red-proofs."),
+    Gate("test_the_retro_plan_keeps_them_filed",
+         [sys.executable, os.path.join(HERE, "test_the_retro_plan_keeps_them_filed.py")], 60,
+         why="2026-09-28 (Ledger P0) - his ruling §34.2, \"Keep filed, flag 'retro: WATCHED'\": "
+             "vault_evidence.retro_plan names every item filed on a tier higher than its visits "
+             "earn as {name, recordedTier, honestTier, why}, every row keepFiled, with no unfile "
+             "half. Served read-only as the `retro` field of POST /api/vault_rebuild_plan, which the "
+             "board's reset never reads. The board's own record is compared when handed in; a "
+             "filing with no readable evidence is UNJUDGED, never honest. Ledger fix: every "
+             "flagged row also rides in `rebuilt` at its true tier, the field the reset files. "
+             "Round 2: a flagged row NO visit saw is keepFiled False and held with its why. "
+             "3 red-proofs."),
+    Gate("test_evidence_names_its_witnesses",
+         [sys.executable, os.path.join(HERE, "test_evidence_names_its_witnesses.py")], 60,
+         why="2026-09-28 (Ledger P0) - /api/evidence answered witnesses null for EVERY name: "
+             "evidence_for asked counter_ledger for .witnesses behind a hasattr, and the real one is "
+             "chronicle_retro.witnesses. A name with 3 sightings in 2 reels now reads witnesses 2 "
+             "(independent reels) with chronicle_retro's own tags; an unreadable engine is None "
+             "WITH a reason. Ledger fix: rows that carry no reel make witnesses None with the "
+             "known count and an unplaced figure beside it - UNKNOWN is never 0. Round 2 (finding "
+             "A): his hand tick has no reel BY DESIGN and his ruling is 'a manual tally is witness "
+             "enough' - it is counted as `hand` beside the reels and never makes the count "
+             "unknown; only a non-manual row with no reel does. 6 red-proofs."),
+    Gate("test_evidence_counts_a_reel_once",
+         [sys.executable, os.path.join(HERE, "test_evidence_counts_a_reel_once.py")], 60,
+         why="2026-09-28 (Ledger P0) - one reel is spelled s_... and reel_s_..., and trace_spine "
+             "measured 3,914 of his 8,517 sightings as the same row twice, so /api/evidence ran about "
+             "2x. Rows now dedupe on trace_spine.independence's key through chronicle_retro._reel_key; "
+             "count is the deduped rows, rows keeps the raw figure beside it, and the route agrees "
+             "with the spine. 2 red-proofs."),
+    Gate("test_a_drop_is_an_episode",
+         [sys.executable, os.path.join(HERE, "test_a_drop_is_an_episode.py")], 60,
+         why="2026-09-28 (Ledger P0) - board_tally_merge filed a drop on EVERY tally below the "
+             "high-water mark, and on his board_tally.json all 40 rolling slots were ONE event, sets "
+             "134 -> 0. It now runs ledger_restore.step_episodes, the one drop definition the backup "
+             "watcher runs: an hour at 0 is one episode, a recovery closes it, another world cannot "
+             "close it, an open episode outlives the cap, and the doctor reads it as his last fall. "
+             "Ledger fix: an open episode no longer blinds its lane (fall, partial recovery, fall to "
+             "zero is two episodes), every fall is recorded again by his decision 'keep what was "
+             "recorded before' (drops_between threshold; ledger_restore's own line unchanged), and "
+             "the doctor never prints '? None -> None'. Round 2 (finding C): his rule 'EVERY fall is "
+             "recorded, as before' - a fall is measured from the lane's LAST reading, so fall, "
+             "partial recovery, fall again is a recorded fall each time; sitting still files "
+             "nothing. 8 red-proofs."),
+    Gate("test_a_reset_keeps_the_retro_rows_filed",
+         [sys.executable, os.path.join(HERE, "test_a_reset_keeps_the_retro_rows_filed.py")], 180,
+         why="2026-09-28 (Ledger fix, finding 1) - his ruling §34.2, \"Keep filed, flag 'retro: "
+             "WATCHED'\". The P0 plan served the flags as `retro`, a field the board's reset never "
+             "reads, and held Radiance and the Horadric Cube (2 visits each) - so his next reset "
+             "would have UN-FILED both. Driven end to end with no browser: the plan the real "
+             "/api/vault_rebuild_plan handler serves, run through the SHIPPED reset and door cut "
+             "from bible.html, twice. Both come back filed at WATCHED, unlocked, with the flag, on "
+             "both resets; an unflagged WATCHED item does not. Round 2 (finding B): the plan "
+             "promised keepFiled but the door still asked 2 looks, so a retro item with ONE visit "
+             "was refused and un-filed with no message. The door now keeps a keepFiled retro row on "
+             "1 look (nothing else gets the lower bar), a row no visit saw is held with its why, "
+             "and every refusal is said - in the status line, in the receipt, and on the doctor's "
+             "reset row that reads it. 11 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "
@@ -7480,7 +7618,7 @@ GATES = [
              "16 cases, 22 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_fits_at_every_width",
-         [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 150,
+         [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 300,
          needs_app=False,
          why="#174 v-B2 - the Character Builder measured in a REAL browser (its own headless Chrome on a free port) at "
              "7 widths in 5 states - as it opens, with Crown of Ages worn and Annihilus in the inventory, the helm's "
@@ -7500,7 +7638,14 @@ GATES = [
              "(<= 12px, no word between; the caption and status line under the panel), 10 x 4 equal square cells edge to "
              "edge, radius 0, never wider than the doll, >= 26px from 1280 up, every item inside its cells - in every "
              "plain / worn state and with three charms (Annihilus, a Grand Charm, Gheed's Fortune) placed through the "
-             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs",
+             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs. "
+             "#29 ROUND 2 (his words kept - 'cap 75%' - and his 'Tighten both'): REG-1376 his cap words cost no "
+             "label a line - at every width, plain and worn, every capped STATS row's label has the lines it has with "
+             "the chip taken away (Physical Damage Reduction went 2 -> 3 lines at 1280x800, Lightning Resistance 1 -> 2), "
+             "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
+             "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
+             "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
+             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block)",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -7519,7 +7664,7 @@ GATES = [
              "window exactly when it moves the unit). 25 cases, 17 red-proofs",
          skip_ok=()),
     Gate("test_the_mule_window_fits_at_every_width",
-         [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 120,
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 300,
          needs_app=False,
          why="#174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed "
              "green: every length was N*--u and the type was fixed px, so between 900 and 1250 wide the "
@@ -7542,7 +7687,16 @@ GATES = [
              "mouse at 2000 and 1280x695, each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar "
              "and under their panel's header. FIX ROUND at 375, real input: a drag held at the top edge scrolls the window to "
              "another mule's tab and the drop moves the item there; ] carries a keyboard item to the next mule; a real tap "
-             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs",
+             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs. #29 ROUND 2, his "
+             "'Tighten both': REG-1379 the window is as tall as what it holds - where it does not scroll it ends under "
+             "its content by its own padding (at 2000x1300 it ran 248px past their rects to the glass), where it "
+             "scrolls it is the glass's height, and no panel is stretched past what it holds (round 1 made STRENGTHS "
+             "AND WEAKNESSES ~330px of empty box and NOTES ~370px of empty textarea; at 2000 every panel is their rect "
+             "again, heights included); REG-1375 the mule window's own EQUIPMENT / STASH / SKILL TREE / CALCULATIONS "
+             "tabs stay in view while its Select or Edit modal is open, at every width in both arrangements (the "
+             "builder's tab rule skipped the mule host - the #174 Edit panel covered them everywhere). Timeout 120 -> "
+             "300: a full run measured 108-120s. TV_LAW_PORT pins its port as the builder's law does. Now 23 cases, "
+             "25 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,

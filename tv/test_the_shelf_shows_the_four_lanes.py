@@ -69,13 +69,24 @@ KNOWN_DUPES = {"close", "ensure"}
 
 def _render(payload):
     """Run the SHIPPED _shLanesRender in node. -> str|None"""
-    i = UI.find("  function _shLanesRender(d){")
+    # ⚠ 2026-09-28 — THE CUT STARTS AT THE TRIAGE LANE'S HELPERS (they sit directly above the renderer, which now draws
+    # the lane's one line on every path), and the fake element answers `querySelector` + `localStorage` as the renderer
+    # asks since v2987's fold. Without both, node died on the first line and _render returned None — so 7 of this law's
+    # 15 cases SKIPPED on every venue, reading as a pass (the same harness gap test_a_reels_whole_life_is_one_work_list
+    # already named and fixed for itself). A skip is not a pass. [[regression-guard]]
+    i = UI.find("  var _TRIAGE_WORDS = {")
+    if i < 0 or i > UI.find("  function _shLanesRender(d){"):
+        i = UI.find("  function _shLanesRender(d){")
     j = UI.find("  window._shLanesRender = _shLanesRender;", i)
     if i < 0 or j < 0:
         return None
     js = ("var out = '';\n"
+          "var _fold = { open: false, addEventListener: function(){} };\n"
+          "var localStorage = { setItem: function(){}, getItem: function(){ return null; } };\n"
+          "var window = {};\n"
           "var document = { getElementById: function(){ return { set innerHTML(v){ out = v; },"
-          " get innerHTML(){ return out; } }; } };\n"
+          " get innerHTML(){ return out; },"
+          " querySelector: function(sel){ return sel === '.shr-fold' ? _fold : null; } }; } };\n"
           "var esc = function(s){ return String(s === undefined ? '' : s)"
           ".replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\"/g,'&quot;'); };\n"
           + UI[i:j] + "\n"
@@ -234,8 +245,13 @@ class TheShelfShowsTheFourLanes(unittest.TestCase):
                          "the lanes do not read as a waterfall — %d connectors for 4 lanes"
                          % got.count("shr-arrow"))
         self.assertIn("FIFO", got, "nothing says the order is oldest-first")
-        self.assertLess(got.index("INTAKE"), got.index("TOMBSTONE"),
-                        "the lanes are not in river order")
+        # ⚠ 2026-09-28 — BY THE LANE HEADERS, NOT THE FIRST OCCURRENCE OF A WORD. This case SKIPPED on every venue since
+        # v2987's fold (the harness could not satisfy `el.querySelector`); un-skipped, `got.index("TOMBSTONE")` found the
+        # word in the fold's own title ("why TOMBSTONE reads zero") at 123, before any lane was drawn. The order that
+        # matters is the lanes' own numbered headers. [[source-reading-guard]] §2
+        heads = [got.find('class="shr-n"><u>%d</u> %s</div>' % (k + 1, n)) for k, (n, _s, _w) in enumerate(RL.LANES)]
+        self.assertTrue(all(x >= 0 for x in heads), "a lane header is not drawn in its place: %s" % heads)
+        self.assertEqual(heads, sorted(heads), "the lanes are not in river order: %s" % heads)
 
     def test_a_REFUSAL_does_not_render_as_four_zeroes(self):
         got = _render({"lanes": {"ok": False, "why": "the lane map is broken"}})

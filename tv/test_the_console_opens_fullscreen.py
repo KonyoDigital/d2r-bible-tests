@@ -72,7 +72,9 @@ class TestTheConsoleOpensFullscreen(unittest.TestCase):
         # fragment of a function, so ast.parse refuses it — assert the ordering textually instead
         # of parsing something that was never a module.
         i_env = code.find("_windowed")
-        i_guard = code.find("if not _windowed:")
+        # 2026-09-28: the guard also stands aside for a QUIET relaunch beside his game
+        # (`if not _windowed and not _quiet:`), so match the guard's head, not the whole line.
+        i_guard = code.find("if not _windowed")
         i_full = code.find('kwargs["fullscreen"] = True')
         self.assertGreater(i_env, -1, "TV_WINDOWED is never read into a variable")
         self.assertGreater(i_guard, -1,
@@ -109,7 +111,7 @@ RED_PROOF = [
                "losing focus and every visual pass photographs a black stage on a console that is "
                "perfectly healthy over HTTP",
         "file": "control_app.py",
-        "find": '    if not _windowed:\n        kwargs["fullscreen"] = True',
+        "find": '    if not _windowed and not _quiet:\n        kwargs["fullscreen"] = True',
         "replace": '    if False:\n        kwargs["fullscreen"] = True',
         "matches": 1,
     },

@@ -60,6 +60,15 @@ class TheTierTableIsTheOnlyBar(unittest.TestCase):
         self.assertEqual([], plan["rebuilt"])
         self.assertIn("UNKNOWN", plan["held"][0]["why"])
 
+    def test_more_sightings_than_looks_is_unknown_not_a_perfect_record(self):
+        # 2026-09-28 second eye on v3520: 15 of 10 was clamped to 10 of 10 and could be re-filed as PROVEN.
+        got = VE.tier(15, 10)
+        self.assertIsNone(got["tier"], "an impossible count was scored as %r" % (got,))
+        self.assertIn("UNKNOWN", got["why"])
+        plan = VE.rebuild_plan([_item("Shako", 15, 10)])
+        self.assertEqual([], plan["rebuilt"], "an impossible count re-filed an item")
+        self.assertEqual(VE.PROVEN, VE.tier(10, 10)["tier"], "PREMISE: ten clean looks no longer prove anything")
+
     def test_the_bound_rises_with_successes_and_falls_when_a_look_misses(self):
         clean = VE.tier(12, 12)["bound"]
         missed = VE.tier(7, 12)["bound"]
@@ -86,6 +95,13 @@ RED_PROOF = [
         "file": "vault_evidence.py",
         "find": "WILSON_BAR = 0.722\n",
         "replace": "WILSON_BAR = 0.0\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - more sightings than looks is clamped into a perfect record again (15 of 10 -> 10 of 10)",
+        "file": "vault_evidence.py",
+        "find": "    if k > n:\n        # 2026-09-28 second eye",
+        "replace": "    if k > n and False:\n        # 2026-09-28 second eye",
         "matches": 1,
     },
 ]

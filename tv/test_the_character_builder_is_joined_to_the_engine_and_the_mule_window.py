@@ -25,7 +25,8 @@ mule-window tooltip script, none re-typed here):
         Hell -100 (difficultylevels ResistPenalty) + Anya's scrolls +30 (10 per difficulty, quests on)
         + Crown res-all 20..30 + Vipermagi res-all 20..35 + Mara's res-all 20..30 + Oculus res-all 20
         untouched  = -70 + 80..115 = 10..45        Crown typed 30 = -70 + 90..115 = 20..45
-    capped at 75 (75 + no max-resistance item). STATS draws "10–45%" RANGE "≤75%", then "20–45%" when the Crown's
+    capped at 75 (75 + no max-resistance item). STATS draws "10–45%" RANGE "cap 75%" (#29(b), his answer 2026-09-28 -
+    it read "≤75%"), then "20–45%" when the Crown's
     All Resistances box is typed 30 through the builder's own roll box - the engine received 'res-all': 30.
   · THEIR TABS AND THE QUESTS TOGGLE DRIVE IT: Normal = 0 + 10 + 80..115 = 90..125, capped to 75 with the raw
     beside it; Nightmare = -40 + 20 + 80..115 = 60..95 -> 60–75% (raw 60–95%); Hell with quests off = -20..15.
@@ -166,13 +167,13 @@ class TheBuilderSumsThroughTheEngine(unittest.TestCase):
         self.assertEqual(out["worn"], ["head", "neck", "rarm", "tors"], "PRINT THE DENOMINATOR: the four items were not worn")
         self.assertEqual(out["untouched"], [{"min": 10, "max": 45}, {"min": 75, "max": 75}, "RANGE"],
                          "untouched: -100 + 30 + 20..30 + 20..35 + 20..30 + 20 = 10..45, cap 75: %s" % out["untouched"])
-        self.assertIn('<b>10–45%</b><i>RANGE</i><em class="cb-cap" aria-label="capped at 75%">≤75%</em>', out["rowUntouched"] or "",
+        self.assertIn('<b>10–45%</b><i>RANGE</i><em class="cb-cap" aria-label="capped at 75%">cap 75%</em>', out["rowUntouched"] or "",
                       "STATS does not draw the fire row as its range, its source and its cap: %s" % out["rowUntouched"])
         self.assertEqual(out["stored"], {"p2": 30}, "the builder stores the typed roll under its column (p2 = prop2)")
         self.assertEqual(out["handed"], {"res-all": 30}, "the typed roll did not reach the engine under the engine's key")
         self.assertEqual(out["typed"], [{"min": 20, "max": 45}, {"min": 75, "max": 75}, "RANGE"],
                          "Crown typed 30: -70 + 30 + 20..35 + 20..30 + 20 = 20..45: %s" % out["typed"])
-        self.assertIn('<b>20–45%</b><i>RANGE</i><em class="cb-cap" aria-label="capped at 75%">≤75%</em>', out["rowTyped"] or "", out["rowTyped"])
+        self.assertIn('<b>20–45%</b><i>RANGE</i><em class="cb-cap" aria-label="capped at 75%">cap 75%</em>', out["rowTyped"] or "", out["rowTyped"])
         # the witness that the join is needed at all: handed over raw, the same build reads UNKNOWN
         self.assertEqual(out["raw"], "UNKNOWN", "the builder's raw build no longer needs the join - revisit this law")
 
@@ -353,6 +354,27 @@ class TheTooltipAndTheSheetAgree(unittest.TestCase):
         self.assertEqual(out["lines"], ["+15% to Maximum Cold Resist", "+15% to Maximum Fire Resist",
                                         "+15% to Maximum Lightning Resist", "+15% to Maximum Poison Resist"])
 
+    def test_29b_a_max_resistance_row_is_a_signed_bonus_under_its_own_label(self):
+        """#29(b) his answer 2026-09-28: the max-resistance rows read "Max Fire Resistance +0%" - a BONUS to the 75 cap, signed,
+        under the label Max - and the cap chip reads "cap 75%". Driven on the shipped builder + engine: a bare Paladin reads +0%
+        on all four; Guardian Angel (res-all-max 15, the four stats) reads +15% on all four and lifts the fire row's cap to 90"""
+        out = _run(r"""
+          mk('Paladin', 80);
+          var h0 = statsHtml(); OUT.bare = ['Max Fire Resistance', 'Max Cold Resistance', 'Max Lightning Resistance', 'Max Poison Resistance'].map(function(l){ return row(h0, l); });
+          OUT.oldLabel = h0.indexOf('Maximum Fire Resistance') >= 0;
+          wear([['neck', 'Guardian Angel']]);
+          var h1 = statsHtml(); OUT.ga = ['Max Fire Resistance', 'Max Cold Resistance', 'Max Lightning Resistance', 'Max Poison Resistance'].map(function(l){ return row(h1, l); });
+          OUT.fire = row(h1, 'Fire Resistance');
+        """)
+        self.assertFalse(out["oldLabel"], "STATS still labels the row 'Maximum Fire Resistance'")
+        for r in out["bare"]:
+            self.assertIsNotNone(r, "a Max ... Resistance row is not drawn at all: %s" % out["bare"])
+            self.assertIn("<b>+0%</b><i>EXACT</i>", r, "a bare max-resistance row is not the signed bonus +0%%: %s" % r)
+        for r in out["ga"]:
+            self.assertIn("<b>+15%</b>", r or "", "Guardian Angel's +15 max resistance is not drawn signed: " + str(r))
+        self.assertIn('aria-label="capped at 90%">cap 90%</em>', out["fire"] or "",
+                      "the fire row's cap is 75 + the max bonus 15, said as 'cap 90%%': %s" % out["fire"])
+
     def test_a_random_class_is_a_class_chosen_never_a_number(self):
         out = _run(r"""
           mk('Sorceress', 80); window._cbOpenPick('inv', null, [0, 0]); window._cbChoose(byName('Hellfire Torch')[0]);
@@ -416,6 +438,27 @@ class TheTooltipAndTheSheetAgree(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#29(b) 2026-09-28 - the cap chip reads as a comparison again ('≤75%'), not the cap he asked for ('cap 75%')",
+        "file": "bible.html",
+        "find": "'\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
+        "replace": "'\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
+        "matches": 1,
+    },
+    {
+        "why": "#29(b) 2026-09-28 - a max-resistance row loses its sign and reads as a resistance of its own ('0%')",
+        "file": "bible.html",
+        "find": "          if (/^res-[a-z]+-max$/.test(String(r.key || '')) && r.value.min >= 0) v = '+' + v;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#29(b) 2026-09-28 - the max-resistance row is labelled 'Maximum Fire Resistance' again",
+        "file": "bible.html",
+        "find": "    ['res-fire-max', 'Max Fire Resistance', 'resistances', '%', 'maxfireresist'],\n",
+        "replace": "    ['res-fire-max', 'Maximum Fire Resistance', 'resistances', '%', 'maxfireresist'],\n",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 fix round - a runeword is born at its base's max + 1 again (Chains of Honor 892, above the data)",
         "file": "bible.html",
@@ -517,7 +560,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 integration - STATS drops the cap the game holds a stat to",
         "file": "bible.html",
-        "find": "          + (cp && r.value ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
+        "find": "          + (cp && r.value ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
         "replace": "          + '</span></div>';",
         "matches": 1,
     },

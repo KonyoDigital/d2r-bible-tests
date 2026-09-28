@@ -96,17 +96,44 @@ class Index(object):
         self.bytes = 0
         if not root or not os.path.isdir(root):
             return
-        for dirpath, _dirs, files in os.walk(root):
-            for f in files:
-                full = os.path.join(dirpath, f)
-                rel = os.path.relpath(full, root).replace("\\", "/")
+        # ⚠ 2026-09-28 — ONE LISTING PER FOLDER, NEVER ONE STAT PER FILE. MEASURED on his ALT (Windows +
+        # Boosteroid, 14 reels): /api/river took 32.8 s there against 4.1 s for 66 reels on the Mac, and a
+        # profile put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize here, plus 1.7 s
+        # in 21,349 relpath calls. On Windows the directory listing already carries each file's size, so
+        # DirEntry.stat() costs nothing; the relative path is the folder's prefix plus the name. Same walk
+        # order as os.walk(topdown) - a folder's files, then its subfolders in listing order - and a symlinked
+        # folder is not entered, as os.walk does not.
+        todo = [(root, "")]
+        while todo:
+            here, prefix = todo.pop()
+            try:
+                with os.scandir(here) as it:
+                    entries = list(it)
+            except OSError:
+                continue
+            sub = []
+            for e in entries:
+                try:
+                    is_dir = e.is_dir()
+                except OSError:
+                    is_dir = False
+                if is_dir:
+                    try:
+                        if not e.is_symlink():
+                            sub.append((os.path.join(here, e.name), prefix + e.name + "/"))
+                    except OSError:
+                        pass
+                    continue
+                full = os.path.join(here, e.name)
+                rel = (prefix + e.name).replace("\\", "/")
                 self.by_path[rel] = full
                 self.by_stem.setdefault(stem_of(rel), []).append(rel)
                 self.files += 1
                 try:
-                    self.bytes += os.path.getsize(full)
+                    self.bytes += e.stat().st_size
                 except OSError:
                     pass
+            todo.extend(reversed(sub))
 
     def resolve(self, frame_ref):
         """-> the relative path on disk, or None. Exact path wins; stem is the fallback."""

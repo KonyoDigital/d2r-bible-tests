@@ -164,11 +164,32 @@ def lookup_either_way(store, reel):
 
 
 def _dir_mb(path):
+    """A reel's size in MB. One listing per folder, never one stat per file: on Windows the listing already
+    carries each size, and a per-file getsize here and in frame_ref.Index was most of the 33 s his ALT took
+    to answer /api/river (2026-09-28). A symlinked folder is not entered, as os.walk does not."""
     total = 0
-    for root, _dirs, files in os.walk(path):
-        for f in files:
+    todo = [path]
+    while todo:
+        here = todo.pop()
+        try:
+            with os.scandir(here) as it:
+                entries = list(it)
+        except OSError:
+            continue
+        for e in entries:
             try:
-                total += os.path.getsize(os.path.join(root, f))
+                is_dir = e.is_dir()
+            except OSError:
+                is_dir = False
+            if is_dir:
+                try:
+                    if not e.is_symlink():
+                        todo.append(os.path.join(here, e.name))
+                except OSError:
+                    pass
+                continue
+            try:
+                total += e.stat().st_size
             except OSError:
                 pass
     return total / (1024.0 * 1024.0)
@@ -195,7 +216,11 @@ def _reel_ts(reel):
 
 
 def release_uncited(reel_dir, sealed, wit):
-    """Apply keep_cited. The authority names the frames. This module is the one that removes them."""
+    """Apply keep_cited. The authority names the frames. This module is the one that removes them.
+
+    ⚠ No production code calls this today (second eye on v3520, 87c35d69): apply_plan trims a reel through its
+    own tombstone-noted path (see the NOT keep_cited() note there), and only its law calls this. It is kept as the
+    one place that would remove what keep_cited names - not as a lane that runs."""
     import frame_authority as _fa
     note = _fa.keep_cited(reel_dir, sealed, wit)
     if not note.get("ok"):

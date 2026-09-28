@@ -36950,7 +36950,13 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
         self.assertIn("_tree_is_mid_edit", src,
                       "drift_may_relaunch never asks whether the tree is being edited")
         i_ask = src.index("_tree_is_mid_edit")
-        i_ok = src.index("return nothing_in_flight()")
+        # 2026-09-28 — the decision now asks nothing_in_flight WITH `parts`, to tell a shadow reel
+        # from his session, so it is no longer a bare `return nothing_in_flight()`. Anchor on the
+        # CALL, which exists exactly once — the bare name also sits in this function's comments,
+        # above the mid-edit check. [[source-reading-guard]] §2
+        call = "nothing_in_flight(parts=_parts)"
+        self.assertEqual(src.count(call), 1, "the in-flight decision is not asked exactly once")
+        i_ok = src.index(call)
         self.assertLess(i_ask, i_ok, "it is asked after the decision has already been made")
 
 
