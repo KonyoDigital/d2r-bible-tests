@@ -418,6 +418,21 @@ FLUSH_ON = ("(function(){ var s = document.createElement('style'); s.id = 'law-f
             "'.cb-st-r .cb-sl{padding-left:0 !important;text-indent:0 !important;margin-right:0 !important}';"
             " document.head.appendChild(s); return 1; })()")
 FLUSH_OFF = "(function(){ var s = document.getElementById('law-flush'); if (s) s.remove(); return 1; })()"
+#: #29(a) 2026-09-28 - ONE row wider than the rows beside it: Fire carries a rolled range that crosses zero (the widest shape a
+#: resistance prints) while Cold / Lightning / Poison keep what the build gives them. Measured on v3521: that row alone put its
+#: value on a line of its own at 960-1180. Returns the value text it set, or null when the Fire row is not drawn
+WIDEN = r"""(function(){ var v = document.querySelector('#cb-win .cb-st-r[data-k="fire resistance"] .cb-sv'); if (!v) return null;
+  var b = v.querySelector('b'); if (!b) { b = document.createElement('b'); v.insertBefore(b, v.firstChild); }
+  v.className = 'cb-sv cb-sv-RANGE'; b.textContent = '−50 to −40%'; var i = v.querySelector('i'); if (i) i.textContent = 'RANGE';
+  return v.textContent; })()"""
+#: #29(a) - a part of a value (the number, its RANGE chip, its cap) that lies outside its own row, or past STATS' right edge
+SPILL = r"""(function(){ var out = [], st = document.querySelector('#cb-win .cb-st'), sr = st && st.getBoundingClientRect();
+  [].forEach.call(document.querySelectorAll('#cb-win .cb-st-r:not([hidden])'), function(r){
+    var l = r.querySelector('.cb-sl'), v = r.querySelector('.cb-sv'); if (!l || !v) return; var rr = r.getBoundingClientRect();
+    [].forEach.call(v.children, function(c){ var cr = c.getBoundingClientRect(); if (cr.width < 0.5) return;
+      if (cr.right > rr.right + 0.5 || cr.left < rr.left - 0.5 || cr.bottom > rr.bottom + 0.5 || cr.top < rr.top - 0.5 || (sr && cr.right > sr.right + 0.5))
+        out.push(l.textContent.trim() + ': ' + c.textContent); }); });
+  return JSON.stringify(out); })()"""
 #: the band where the stats column is tight enough for a label to wrap (measured 2026-09-26: every regression was 900-1240)
 SWEEP = range(900, 1401, 20)
 
@@ -611,7 +626,18 @@ def _measure():
                 flush = json.loads(t.ev(DROP))
             finally:
                 t.ev(FLUSH_OFF)
-            sweep.append({"w": w, "extra": sorted(set(real) - set(flush)), "over": over, "rows": len(real) + 0})
+            spill = json.loads(t.ev(SPILL))
+            # #29(a) - the same width with ONE row widened; the page is drawn again afterwards, so the widening never
+            # reaches the next width's measurement
+            widened = t.ev(WIDEN)
+            try:
+                time.sleep(0.05)
+                wide, wspill, wover = json.loads(t.ev(DROP)), json.loads(t.ev(SPILL)), json.loads(t.ev(OVER))
+            finally:
+                t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); window._cbClosePick(); return 1; })()")
+                time.sleep(0.3)
+            sweep.append({"w": w, "extra": sorted(set(real) - set(flush)), "over": over, "rows": len(real) + 0,
+                          "real": real, "spill": spill, "widened": widened, "wide": wide, "wspill": wspill, "wover": wover})
         res["sweep"] = sweep
         # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
         _set_size(t, 2000, 1300)
@@ -914,6 +940,26 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         over = [(x["w"], x["over"]) for x in sw if x["over"]]
         self.assertEqual(extra, [], "the indent pushed these values under their labels (v-B2's rule): %s" % extra)
         self.assertEqual(over, [], "label text runs under its value at these widths: %s" % over)
+
+    def test_round8_a_number_never_leaves_its_labels_first_line(self):
+        """#29(a) 2026-09-28, measured on v3521: round 3 held only that the INDENT adds no drop - a value could still drop
+        for its own width. One resistance carrying a rolled range ("-50 to -40% RANGE <=75%") put its value on a line of
+        its own ALONE at 960-1180 while the three beside it kept theirs, and at 900-940 all four dropped. Every 20px of
+        900-1400, as the build stands AND with Fire alone widened: no value's number sits below its label's first line,
+        no part of a value (number, chip, cap) lies outside its row or past STATS' edge, no label text runs under a value.
+        This holds round 3's rule at every width, so round 3's own sabotage (the indent's margin) is retired with it"""
+        sw = _measure()["sweep"]
+        self.assertEqual(len(sw), len(SWEEP), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(SWEEP)))
+        unwidened = [x["w"] for x in sw if not (x.get("widened") or "").startswith("\u221250 to \u221240%")]
+        self.assertEqual(unwidened, [], "PREMISE: the Fire row was not widened at these widths, so the one-wide-row case measured nothing")
+        for key, what in (("real", "as the build stands"), ("wide", "with Fire alone widened")):
+            drop = [(x["w"], x[key]) for x in sw if x[key]]
+            self.assertEqual(drop, [], "a value left its label's first line %s: %s" % (what, drop))
+        for key, what in (("spill", "as the build stands"), ("wspill", "with Fire alone widened")):
+            out = [(x["w"], x[key]) for x in sw if x[key]]
+            self.assertEqual(out, [], "a part of a value lies outside its row %s: %s" % (what, out))
+        over = [(x["w"], x["wover"]) for x in sw if x["wover"]]
+        self.assertEqual(over, [], "label text runs under a widened value: %s" % over)
 
     def test_round7_a_pick_never_covers_stats_and_a_charm_shows_its_art(self):
         """#174 round 7 (2026-09-26, measured): their STATS update while you pick and edit, so they stay in view - an
@@ -1262,18 +1308,28 @@ RED_PROOF = [
         "replace": "",
         "matches": 1,
     },
+    # #29(a) 2026-09-28 - round 3's sabotage (take the indent's negative margin away) is RETIRED: in the grid row a value has
+    # its own column and cannot drop, so that margin carries nothing - measured clean at 375-2000 without it, and it was
+    # removed. A sabotage that cannot go red would read as a proof; round 8's two below hold the rule it guarded.
     {
-        "why": "#174 round 3 - the indent's width is not given back: at 960 and 1200 a value drops under its label again (v-B2)",
+        "why": "#29(a) - the stat row is a wrapping flex line again: a row whose value is wider than the rest drops it ALONE (Fire at 960-1180)",
         "file": "bible.html",
-        "find": "text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}\n",
-        "replace": "text-indent:calc(-6*var(--u))}\n",
+        "find": ".cb-st-r{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:0 6px;",
+        "replace": ".cb-st-r{display:flex;justify-content:space-between;flex-wrap:wrap;align-items:baseline;gap:0 6px;",
+        "matches": 1,
+    },
+    {
+        "why": "#29(a) - a value's RANGE chip and cap may not wrap under its number: a tight row pushes them out past its edge",
+        "file": "bible.html",
+        "find": ".cb-sv{justify-self:end;display:inline-flex;flex-wrap:wrap;",
+        "replace": ".cb-sv{justify-self:end;display:inline-flex;flex-wrap:nowrap;",
         "matches": 1,
     },
     {
         "why": "#174 round 2 - a wrapped stat label's second line sits flush again ('Resistance' reads as a row with no value)",
         "file": "bible.html",
-        "find": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}\n",
-        "replace": ".cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal}\n",
+        "find": ".cb-st-r .cb-sl{min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u))}\n",
+        "replace": ".cb-st-r .cb-sl{min-width:auto;overflow-wrap:normal}\n",
         "matches": 1,
     },
     {

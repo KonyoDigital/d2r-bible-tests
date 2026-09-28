@@ -53136,20 +53136,27 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-st{flex:1;min-height:0;overflow:auto;padding:calc(6*var(--u)) calc(12*var(--u)) calc(12*var(--u))}
 .cb-st-src{margin:calc(6*var(--u)) 0;font-size:var(--fs-cb-micro);color:var(--text-dim);line-height:var(--lh-tight)}
 .cb-st-g{margin-top:calc(12*var(--u));font-size:var(--fs-cb-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);text-transform:uppercase;color:var(--gold)}
-.cb-st-r{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 6px;padding:2px 6px;font-size:var(--fs-cb-body)}
+.cb-st-r{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:0 6px;padding:2px 6px;font-size:var(--fs-cb-body)}
+/* #29(a) 2026-09-28, measured: a row whose value is wider than the others (Fire carrying a rolled range, "-50 to -40% RANGE
+   <=75%") put its whole value on a line of its own ALONE at 960-1180 while Cold / Lightning / Poison kept theirs - one
+   resistance looked different from the three beside it. In a two-column grid the value's column takes the room it needs
+   and the label wraps at its words; when even that is too tight the RANGE chip and the cap wrap UNDER the number, inside
+   the value - the number never leaves its label's first line (v-B2's rule, now at every width, not only where it fits) */
 /* #174 v-B2 fix round - the label wraps at its WORDS inside its own box (a zero basis, never narrower than its longest
    word), so the value keeps the row's first line ("Lightning Resistance" put it on a second line at 2000); only when
    even one word cannot sit beside the value does the value take its own line, whole - never a word cut mid-letter */
-.cb-st-r .cb-sl{flex:1 1 0;min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u));margin-right:calc(-6*var(--u))}
+.cb-st-r .cb-sl{min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u))}
 /* #174 round 3 (the Grok seat on v3510): the indent's padding counted toward the label's min-content, so at 6 of 56
    widths (900-1240) a value dropped under its label again - v-B2's rule, undone by round 2's fix. A negative margin as
    wide as the indent gives that width back: measured 900-2000 every 20px, 0 widths where a value drops that did not
-   without the indent, 0 where label text runs under its value (8u overlapped at 2, 10u at 10) */
+   without the indent, 0 where label text runs under its value (8u overlapped at 2, 10u at 10).
+   #29(a) 2026-09-28: RETIRED with the grid row - a value has its own column and cannot drop, and with the margin taken
+   away every width 375-2000 measured clean (no label under a value, no chip outside its row); the flex basis went too */
 /* #174 round 2 (the Grok seat on v3509): a wrapped label's second line ("Fire" / "Resistance") read as a ROW of its own with
    no value. A hanging indent sets every continuation line in, so it reads as the rest of the label above it - v-B2's rule
    (the value keeps the first line) stands */
 .cb-st-r[hidden]{display:none}
-.cb-sv{flex:none;margin-left:auto;display:inline-flex;align-items:baseline;gap:4px;font-family:var(--mono);font-size:var(--fs-cb-meta);text-align:right;cursor:help;white-space:nowrap}
+.cb-sv{justify-self:end;display:inline-flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:0 4px;font-family:var(--mono);font-size:var(--fs-cb-meta);text-align:right;cursor:help;white-space:nowrap}
 .cb-sv b{font-weight:var(--fw-medium);color:var(--gold-bright);white-space:nowrap}
 .cb-sv i{font-style:normal;font-family:var(--sans);font-size:var(--fs-cb-micro);letter-spacing:var(--ls-snug);padding:0 3px;border:1px solid currentColor;border-radius:3px;line-height:var(--lh-tight)}
 .cb-sv-EXACT i{color:var(--best)}.cb-sv-RANGE i{color:var(--acc-intel)}.cb-sv-UNKNOWN{color:var(--text-dim)}
