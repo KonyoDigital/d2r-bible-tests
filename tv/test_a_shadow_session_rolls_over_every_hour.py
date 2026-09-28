@@ -212,6 +212,26 @@ class AShadowSessionRollsOverEveryHour(_Base):
                          "a 90-minute shadow reel with the switch off read as his choice: %r" % row)
         self.assertNotIn("nothing is watching", row.get("line") or "")
 
+    def test_a_shadow_hour_seals_once_the_game_has_been_gone(self):
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        first = ca.shadow_watch_tick()
+        self.assertEqual(self.stops, [], "one missed look sealed the hour: %r" % first)
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        second = ca.shadow_watch_tick()
+        self.assertEqual(len(self.stops), 1, "the game stayed gone and the hour kept rolling: %r" % second)
+        self.assertIs(self.stops[0].get("farewell"), False)
+
+    def test_his_own_session_is_not_sealed_when_the_window_is_gone(self):
+        self.begin("hand", self.now - 10 * MIN)
+        self.window = None
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        # the first look only arms the clock; step far enough that a shadow hour would have sealed
+        ca.shadow_watch_tick()
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        ca.shadow_watch_tick()
+        self.assertEqual(self.stops, [], "a session he opened was sealed because the window blipped")
+
     def test_a_59_minute_shadow_reel_is_left_alone_and_the_look_is_noted(self):
         since = self.now - 59 * MIN
         self.begin("shadow", since)

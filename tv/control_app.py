@@ -26071,6 +26071,7 @@ def vault_autoreel_tick():
 # read it from other processes; in-memory state is invisible across the board-window boundary and
 # that has already cost a whole feature here. [[d2r-board-window-kill-loses-writes]]
 _SHADOW_WATCH_EVERY_S = 20
+_SHADOW_AWAY_GRACE_S = 60   # looked, and the game window stayed gone this long, before a shadow hour seals
 def _shadow_watch_path():
     """v2423 — the same defect as shadow_ledger and capture_doors, found the same way.
 
@@ -26445,6 +26446,33 @@ def shadow_watch_tick():
         # has run its hour is closed through stop_agent. Shadow still never starts a second reel.
         # Switching the reader OFF does not excuse a shadow reel already rolling: the switch means
         # do not START another, and the one that is open still closes on the hour.
+        # A shadow hour also ends when the game window is gone. A session he opened does not:
+        # leaving the finder for a minute must not seal an ON AIR recording.
+        roll = _rolling_reel()
+        if roll.get("door") == "shadow":
+            pre = capture_preflight("shadow", look_for_window=True)
+            if pre.get("windowSeen") is False:
+                cur = _shadow_watch_stored() or {}
+                gone = cur.get("gameGoneSince")
+                if not isinstance(gone, (int, float)):
+                    why = ("Diablo is not on screen — this shadow hour seals if it is still gone "
+                           "in %d s" % _SHADOW_AWAY_GRACE_S)
+                    _shadow_watch_note(lookedAt=now, gameGoneSince=now, why=why)
+                    return {"ok": True, "away": True, "why": why}
+                if (now - float(gone)) / 1000.0 >= _SHADOW_AWAY_GRACE_S:
+                    try:
+                        stop_agent(farewell=False)
+                    except Exception as _e:
+                        return {"ok": False, "why": "the shadow hour would not seal: %s" % str(_e)[:80]}
+                    why = "sealed the shadow hour — Diablo was not on screen"
+                    _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
+                                       rollingDoor=None, rollingSince=None, why=why)
+                    return {"ok": True, "cut": True, "why": why}
+                return {"ok": True, "away": True, "why": "Diablo is still not on screen"}
+            if pre.get("windowSeen") is True:
+                cur = _shadow_watch_stored() or {}
+                if cur.get("gameGoneSince") is not None:
+                    _shadow_watch_note(gameGoneSince=None)
         return _shadow_rollover(now)
     if not st.get("on"):
         return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
