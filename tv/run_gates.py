@@ -5903,6 +5903,15 @@ GATES = [
              "no re-ask could say more, and the v3518 push was refused. --base REV widens the look to REV..sha, "
              "the eye is told it spans N commits, the row says what it covered, and a base that is not an "
              "ancestor is never asked. Driven on a throwaway repo. 4 cases, 3 red-proofs"),
+    Gate("test_a_bare_boosteroid_window_must_show_the_hud",
+         [sys.executable, os.path.join(HERE, "test_a_bare_boosteroid_window_must_show_the_hud.py")], 90,
+         why="2026-09-28 - Boosteroid's own window is titled only Boosteroid, and so is the launcher "
+             "when the game is not running, so both pinned. The pin stays (the stream needs it). A "
+             "shadow reel calls that window the game only when the first reads show a D2R HUD word, "
+             "a zone name. Three reads with none is the launcher and does not start, and a reel "
+             "already rolling seals. No reads yet is UNKNOWN, not the launcher. A window that names "
+             "the game is not put through the check, and a reel he opened is not sealed for it. "
+             "17 cases, 6 red-proofs"),
     Gate("test_a_windows_door_sees_the_game",
          [sys.executable, os.path.join(HERE, "test_a_windows_door_sees_the_game.py")], 60,
          why="2026-09-27 - measured on his ALT: shadow on, the game streaming through Boosteroid, and the "

@@ -1260,6 +1260,86 @@ def game_route(owner, title):
     return None
 
 
+# ⚠ The pin above is not a content check. Boosteroid's own app titles the stream AND the launcher
+# with nothing but "Boosteroid" (measured 2026-09-27), so both pin. A shadow reel may treat that
+# window as the game only when the FIRST reads show a D2R HUD word — a zone name the top-right
+# block prints, the same names _AREA_ACT already trusts. Fewer than a full first window, or no
+# reads at all, is UNKNOWN: a loading frame has no zone yet, and an unread window is not the launcher.
+_FIRST_HUD_READS = 3
+
+
+def label_is_bare_boosteroid(label):
+    """True when a pinned label names only Boosteroid. A title that also names the game is not bare."""
+    parts = [p for p in _norm_title(label).replace("·", " ").replace(":", " ").split() if p]
+    return bool(parts) and all(p == "boosteroid" for p in parts)
+
+
+def _is_content_read(row):
+    """A published read, not a skip and not a blank. Strings count; skip rows do not."""
+    if isinstance(row, str):
+        return bool(row.strip())
+    if not isinstance(row, dict) or row.get("kind") == "skip":
+        return False
+    if "scene" in row or "area" in row:
+        return True
+    return bool(row.get("names") or row.get("raw_lines"))
+
+
+def _read_blob(row):
+    if isinstance(row, str):
+        return row
+    if not isinstance(row, dict):
+        return ""
+    parts = [str(row.get("area") or "")]
+    for key in ("names", "raw_lines", "tz"):
+        val = row.get(key) or []
+        if isinstance(val, str):
+            parts.append(val)
+        else:
+            parts.extend(str(x) for x in val)
+    return " ".join(parts)
+
+
+def text_has_d2r_hud_word(text, words):
+    """A HUD word is a known zone, whole, on both sides. 'pit' is not inside 'capital'."""
+    hay = " " + _norm_title(text) + " "
+    if not hay.strip():
+        return False
+    for w in words or ():
+        needle = _norm_title(w)
+        if needle and (" " + needle + " ") in hay:
+            return True
+    return False
+
+
+def first_reads_show_d2r_hud(reads, words=None):
+    """-> True | False | None for the first _FIRST_HUD_READS content rows.
+
+    True  — one of them shows a D2R HUD word.
+    False — that window is full and none do (the launcher).
+    None  — no reads, not a list, no words to judge with, or the window is not full yet.
+    """
+    if not isinstance(reads, (list, tuple)):
+        return None
+    if not words:
+        return None
+    taken = []
+    for row in reads:
+        if not _is_content_read(row):
+            continue
+        taken.append(row)
+        if len(taken) >= _FIRST_HUD_READS:
+            break
+    if not taken:
+        return None
+    for row in taken:
+        if text_has_d2r_hud_word(_read_blob(row), words):
+            return True
+    if len(taken) >= _FIRST_HUD_READS:
+        return False
+    return None
+
+
 def _match_tokens():
     extra = [t.strip().lower() for t in (os.environ.get("TV_WINDOW_MATCH") or "").split(",") if t.strip()]
     return list(_D2R_TITLE_HINTS) + list(_D2R_OWNER_HINTS) + extra

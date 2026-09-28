@@ -1,0 +1,323 @@
+# -*- coding: utf-8 -*-
+"""A window titled only Boosteroid must show D2R HUD words in the first reads.
+
+Boosteroid's own app titles the stream and the launcher with nothing but "Boosteroid"
+(measured 2026-09-27). Both still pin — that pin is the windows-door law, and this one
+does not build a second. The shadow door may call the window the game only when the
+first reads show a zone name the HUD prints. Three reads with none is the launcher.
+Fewer than that, or no reads at all, is UNKNOWN: a loading frame has no zone yet, and
+an unread window is not called the launcher. A reel he opened is never sealed for this.
+
+RED_PROOF below.
+"""
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
+_WORLD = tempfile.mkdtemp(prefix="bare_hud_")
+os.environ["TV_HIST"] = _WORLD
+os.environ["TV_SESSIONS"] = os.path.join(_WORLD, "sessions.jsonl")
+
+import control_app as ca  # noqa: E402
+import tv_diablo as tv  # noqa: E402
+import window_visibility as WV  # noqa: E402
+
+BARE = (2002, "Boosteroid · Boosteroid")
+GAME = (4004, "Diablo II: Resurrected")
+ZONE = [{"area": "Cold Plains", "scene": "gameplay", "names": []}]
+LAUNCH = [
+    {"area": "", "scene": "gameplay", "names": ["Play"]},
+    {"area": "", "scene": "gameplay", "names": ["Library"]},
+    {"area": "", "scene": "gameplay", "names": ["Boosteroid"]},
+]
+
+
+def _words():
+    return set(ca._AREA_ACT)
+
+
+class TheFirstReadsCarryTheHud(unittest.TestCase):
+
+    def test_a_zone_name_in_the_first_read_is_the_game(self):
+        self.assertIs(tv.first_reads_show_d2r_hud(ZONE, words=_words()), True)
+        self.assertIs(tv.first_reads_show_d2r_hud(
+            [{"area": "Rogue Encampment", "scene": "town"}], words=_words()), True)
+
+    def test_three_launcher_reads_are_not_the_game(self):
+        self.assertIs(tv.first_reads_show_d2r_hud(LAUNCH, words=_words()), False)
+
+    def test_one_launcher_read_is_still_unknown(self):
+        self.assertIsNone(tv.first_reads_show_d2r_hud(LAUNCH[:1], words=_words()))
+
+    def test_no_reads_is_unknown(self):
+        self.assertIsNone(tv.first_reads_show_d2r_hud(None, words=_words()))
+        self.assertIsNone(tv.first_reads_show_d2r_hud([], words=_words()))
+        self.assertIsNone(tv.first_reads_show_d2r_hud(LAUNCH, words=set()))
+
+    def test_the_fourth_read_cannot_rescue_three_without_a_hud_word(self):
+        rows = list(LAUNCH) + [{"area": "Cold Plains", "scene": "gameplay"}]
+        self.assertIs(tv.first_reads_show_d2r_hud(rows, words=_words()), False)
+
+    def test_a_zone_word_inside_another_word_is_not_the_zone(self):
+        self.assertFalse(tv.text_has_d2r_hud_word("the capital pitfall", {"pit"}))
+        self.assertTrue(tv.text_has_d2r_hud_word("the pit", {"pit"}))
+        self.assertTrue(tv.text_has_d2r_hud_word("Cold Plains", _words()))
+
+    def test_only_boosteroid_is_the_bare_label(self):
+        self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid"))
+        self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid · Boosteroid"))
+        self.assertFalse(tv.label_is_bare_boosteroid("Diablo II: Resurrected"))
+        self.assertFalse(tv.label_is_bare_boosteroid("Boosteroid · Diablo II: Resurrected"))
+        self.assertFalse(tv.label_is_bare_boosteroid(""))
+
+
+class TheMeasuredWindowIsTheBareOne(unittest.TestCase):
+
+    def test_the_finder_label_is_bare_boosteroid(self):
+        row = WV._win_row(20, "Boosteroid", (0, 0, 1920, 1040), 0, False, 0)
+        row["hwnd"] = 2002
+
+        class _Walk(object):
+            def rows(self):
+                return [row]
+
+        hit = tv.find_d2r_window_win(win=_Walk(), procs={20: "Boosteroid.exe"})
+        self.assertIsNotNone(hit, tv._PICK_WHY)
+        self.assertTrue(tv.label_is_bare_boosteroid(hit[1]), hit)
+
+
+class _Proc(object):
+    pid = 4242
+
+    def poll(self):
+        return None
+
+
+class TheDoorAsksTheFirstReads(unittest.TestCase):
+
+    STUBS = ("_shadow_state", "_agent_alive", "mini_state", "start_agent", "stop_agent",
+             "_force_kill_all_agents", "_mini_sid", "_shadow_now_ms", "_screen_recording_ok_quick",
+             "ON_AIR_FLOOR_GB", "_agent_proc", "_agent_origin", "_agent_since_ms", "_stop_inflight",
+             "bare_content_reads")
+
+    def setUp(self):
+        self.world = tempfile.mkdtemp(prefix="bare_hud_case_")
+        self.addCleanup(shutil.rmtree, self.world, True)
+        self.journal = os.path.join(self.world, "sessions.jsonl")
+        self._env = {k: os.environ.get(k) for k in ("TV_HIST", "TV_SESSIONS", "TV_CAPTURE")}
+        os.environ["TV_HIST"] = self.world
+        os.environ["TV_SESSIONS"] = self.journal
+        os.environ["TV_CAPTURE"] = "auto"
+        self._saved = {k: getattr(ca, k) for k in self.STUBS}
+        self._finders = (tv.find_d2r_window_mac, tv.find_d2r_window_win)
+        self._real_reads = ca.bare_content_reads
+        self.addCleanup(self._restore)
+        self.now = int(time.time() * 1000)
+        self.alive = False
+        self.window = BARE
+        self.reads = None
+        self.starts, self.stops = [], []
+        ca._shadow_state = lambda: {"on": True, "available": True, "recording": self.alive}
+        ca._agent_alive = lambda: self.alive
+        ca.mini_state = lambda: {"running": False}
+        ca._shadow_now_ms = lambda: self.now
+        ca._screen_recording_ok_quick = lambda: True
+        ca.ON_AIR_FLOOR_GB = 0
+        ca._mini_sid = lambda: "s_hud"
+        ca._stop_inflight = False
+        ca._agent_proc, ca._agent_origin, ca._agent_since_ms = None, "hand", None
+        ca.start_agent = self._start
+        ca.stop_agent = self._stop
+        ca._force_kill_all_agents = lambda *a, **k: {"ok": True}
+        ca.bare_content_reads = lambda: self.reads
+        tv.find_d2r_window_mac = lambda *a, **k: self.window
+        tv.find_d2r_window_win = lambda *a, **k: self.window
+        self.path = ca._shadow_watch_path()
+        self.assertTrue(os.path.realpath(self.path).startswith(os.path.realpath(self.world) + os.sep),
+                        "TV_HIST was not honoured (%s)" % self.path)
+        self.assertEqual(os.path.realpath(ca._journal_path()), os.path.realpath(self.journal))
+
+    def _restore(self):
+        for k, v in self._saved.items():
+            setattr(ca, k, v)
+        tv.find_d2r_window_mac, tv.find_d2r_window_win = self._finders
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def _start(self, *a, **k):
+        self.starts.append(dict(k))
+        ca._agent_proc = _Proc()
+        ca._agent_origin = k.get("origin", "hand")
+        ca._agent_since_ms = self.now
+        self.alive = True
+        return {"ok": True, "msg": "started", "origin": k.get("origin", "hand")}
+
+    def _stop(self, *a, **k):
+        self.stops.append(dict(k))
+        self.alive = False
+        return {"ok": True, "msg": "session saved · off"}
+
+    def begin(self, origin):
+        ca._agent_proc = _Proc()
+        ca._agent_origin = origin
+        ca._agent_since_ms = self.now
+        self.alive = True
+
+    def test_the_door_does_not_start_on_launcher_reads(self):
+        self.reads = LAUNCH
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertEqual(self.starts, [])
+        self.assertIn("launcher", (r.get("why") or "").lower())
+        self.assertIn("HUD", r.get("why") or "")
+
+    def test_the_door_starts_when_the_first_reads_name_a_zone(self):
+        self.reads = ZONE
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertEqual(self.starts, [{"sim": False, "origin": "shadow"}])
+        self.assertIn("D2R HUD word", r.get("why") or "")
+
+    def test_no_reads_yet_still_starts_and_does_not_say_launcher(self):
+        self.reads = None
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertIn("not in yet", r.get("why") or "")
+        self.assertNotIn("launcher", (r.get("why") or "").lower())
+
+    def test_a_refused_launcher_waits_and_a_hud_read_opens_it(self):
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.reads = None
+        self.now += 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertEqual(self.starts, [])
+        self.reads = ZONE
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertIn("D2R HUD word", r.get("why") or "")
+
+    def test_the_wait_ends_and_a_fresh_look_may_start(self):
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.reads = None
+        self.starts = []
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertIn("not in yet", r.get("why") or "")
+        self.assertNotIn("launcher", (r.get("why") or "").lower())
+
+    def test_a_rolling_shadow_reel_seals_when_the_first_reads_lack_the_hud(self):
+        self.begin("shadow")
+        self.reads = LAUNCH
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("cut"), r)
+        self.assertEqual(self.stops, [{"farewell": False}])
+        self.assertIn("HUD", r.get("why") or "")
+        self.assertFalse(self.alive)
+
+    def test_his_own_session_is_not_sealed_for_this(self):
+        self.begin("hand")
+        self.reads = LAUNCH
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("cut"), r)
+        self.assertEqual(self.stops, [])
+        self.assertTrue(self.alive)
+
+    def test_a_window_that_names_the_game_does_not_need_the_check(self):
+        self.window = GAME
+        self.reads = LAUNCH
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertIn("Diablo is on screen", r.get("why") or "")
+
+    def test_the_journal_reader_keeps_this_sessions_first_reads(self):
+        self.alive = True
+        ca.bare_content_reads = self._real_reads
+        rows = [
+            {"sessionId": "s_other", "area": "Cold Plains", "scene": "town"},
+            {"sessionId": "s_hud", "kind": "skip", "why": "boot"},
+            {"sessionId": "s_hud", "area": "", "scene": "gameplay", "names": ["Play"]},
+            {"sessionId": "s_hud", "area": "", "scene": "gameplay", "names": ["Library"]},
+            {"sessionId": "s_hud", "area": "", "scene": "gameplay", "names": ["Boosteroid"]},
+            {"sessionId": "s_hud", "area": "Cold Plains", "scene": "gameplay"},
+        ]
+        with io.open(self.journal, "w", encoding="utf-8") as fh:
+            for row in rows:
+                fh.write(json.dumps(row) + "\n")
+        got = ca.bare_content_reads()
+        self.assertEqual([r.get("names") for r in got], [["Play"], ["Library"], ["Boosteroid"]])
+        self.assertIs(tv.first_reads_show_d2r_hud(got, words=_words()), False)
+        self.alive = False
+        self.assertIsNone(ca.bare_content_reads())
+
+
+RED_PROOF = [
+    {
+        "why": "a bare Boosteroid window starts a shadow reel when the first reads show no D2R HUD word",
+        "file": "control_app.py",
+        "find": "    if hud is False:   # bare Boosteroid, first reads have no D2R HUD word\n",
+        "replace": "    if False:   # bare Boosteroid, first reads have no D2R HUD word\n",
+        "matches": 1,
+    },
+    {
+        "why": "a rolling shadow reel on the launcher is left filming",
+        "file": "control_app.py",
+        "find": "                if hud is False:   # a rolling shadow reel on the launcher\n",
+        "replace": "                if False:   # a rolling shadow reel on the launcher\n",
+        "matches": 1,
+    },
+    {
+        "why": "the door judges the bare window with no zone names, so launcher reads read as unknown and it starts",
+        "file": "control_app.py",
+        "find": "    return _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT))\n",
+        "replace": "    return _tv.first_reads_show_d2r_hud(reads, words=set())\n",
+        "matches": 1,
+    },
+    {
+        "why": "a zone name in the first read is no longer a HUD word, so the door never confirms the game",
+        "file": "tv_diablo.py",
+        "find": "        if needle and (\" \" + needle + \" \") in hay:\n",
+        "replace": "        if False and (\" \" + needle + \" \") in hay:\n",
+        "matches": 1,
+    },
+    {
+        "why": "every window is put through the Boosteroid content check, so a titled game with launcher reads does not start",
+        "file": "control_app.py",
+        "find": "    if not _tv.label_is_bare_boosteroid(pre.get(\"windowLabel\") or \"\"):\n",
+        "replace": "    if False and _tv.label_is_bare_boosteroid(pre.get(\"windowLabel\") or \"\"):\n",
+        "matches": 1,
+    },
+    {
+        "why": "a refused launcher opens another reel on the next look instead of waiting",
+        "file": "control_app.py",
+        "find": "    if hud is None and tv_label_is_bare(pre) and not _bare_relook_open(now):\n",
+        "replace": "    if False and tv_label_is_bare(pre) and not _bare_relook_open(now):\n",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

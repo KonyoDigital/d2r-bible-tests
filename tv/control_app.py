@@ -5685,6 +5685,7 @@ def capture_preflight(door, look_for_window=True):
         "diskOk": None,
         "windowSeen": None,
         "windowWhy": "",
+        "windowLabel": "",
         "reelRolling": None,
         "miniRunning": None,
     }
@@ -5743,7 +5744,9 @@ def capture_preflight(door, look_for_window=True):
             # held door says which window it saw and why it passed on it. [[the-unjoined-end]]
             win = _tv.find_d2r_window_win() if IS_WIN else _tv.find_d2r_window_mac()
             facts["windowSeen"] = bool(win)
+            facts["windowLabel"] = (str(win[1]) if win and len(win) > 1 and win[1] else "")
             if not win and IS_WIN and getattr(_tv, "_PICK_UNKNOWN", False):
+                facts["windowLabel"] = ""
                 # the finder could not LOOK (no desktop, no process snapshot): UNKNOWN, never "no game"
                 facts["windowSeen"] = None
                 facts["windowWhy"] = "could not look for the game window: %s" % str(
@@ -26433,6 +26436,102 @@ def shadow_watch_contract(st=None, w=None, now_ms=None):
             "say": reading["line"]}
 
 
+# A bare Boosteroid window pins for both the stream and the launcher. Shadow may call it the game
+# only after the first reads show a D2R HUD word. A refused look waits this long before another reel,
+# so the launcher does not open and seal a reel every watch period.
+_BARE_HUD_RELOOK_S = 120
+
+
+def bare_content_reads():
+    """The first content reads of the reel rolling NOW, or None when there is no reel to read.
+
+    None is 'no reads yet', not an empty look. A test replaces this. This body only reads the journal.
+    """
+    if not _agent_alive():
+        return None
+    try:
+        sid = _mini_sid()
+    except Exception:
+        return None
+    if not sid:
+        return None
+    return _first_content_reads(sid, tv_first_hud_reads())
+
+
+def tv_first_hud_reads():
+    import tv_diablo as _tv
+    return _tv._FIRST_HUD_READS
+
+
+def _first_content_reads(sid, n):
+    import tv_diablo as _tv
+    path = _journal_path()
+    out = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    row = json.loads(ln)
+                except Exception:
+                    continue
+                if not isinstance(row, dict) or str(row.get("sessionId") or "") != str(sid):
+                    continue
+                if not _tv._is_content_read(row):
+                    continue
+                out.append(row)
+                if len(out) >= n:
+                    break
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+    return out or None
+
+
+def _bare_hud_verdict(pre):
+    """True, False, or None. None means not a bare Boosteroid window, or the reads are not in."""
+    import tv_diablo as _tv
+    if not isinstance(pre, dict):
+        return None
+    if not _tv.label_is_bare_boosteroid(pre.get("windowLabel") or ""):
+        return None
+    try:
+        reads = bare_content_reads()
+    except Exception:
+        return None
+    return _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT))
+
+
+def tv_label_is_bare(pre):
+    import tv_diablo as _tv
+    return bool(isinstance(pre, dict) and _tv.label_is_bare_boosteroid(pre.get("windowLabel") or ""))
+
+
+def _bare_relook_open(now):
+    cur = _shadow_watch_stored() or {}
+    until = cur.get("launcherUntil")
+    if not isinstance(until, (int, float)):
+        return True
+    return now >= float(until)
+
+
+def _seal_bare_launcher(now):
+    """Close a shadow reel whose first reads are the launcher. -> the tick dict."""
+    try:
+        stop_agent(farewell=False)
+    except Exception as _e:
+        return {"ok": False, "why": "the bare Boosteroid window would not seal: %s" % str(_e)[:80]}
+    why = ("sealed the shadow hour — Boosteroid's first reads show no D2R HUD word, "
+           "so this is the launcher, not the game")
+    _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
+                       rollingDoor=None, rollingSince=None,
+                       launcherUntil=now + _BARE_HUD_RELOOK_S * 1000, why=why)
+    return {"ok": True, "cut": True, "why": why}
+
+
 def shadow_watch_tick():
     """One look for the game window. -> dict, and EVERY refusal names itself.
 
@@ -26475,9 +26574,14 @@ def shadow_watch_tick():
                     return {"ok": True, "cut": True, "why": why}
                 return {"ok": True, "away": True, "why": "Diablo is still not on screen"}
             if pre.get("windowSeen") is True:
+                hud = _bare_hud_verdict(pre)
+                if hud is False:   # a rolling shadow reel on the launcher
+                    return _seal_bare_launcher(now)
                 cur = _shadow_watch_stored() or {}
                 if cur.get("gameGoneSince") is not None:
                     _shadow_watch_note(gameGoneSince=None)
+                if hud is True:
+                    _shadow_watch_note(launcherUntil=None)
         return _shadow_rollover(now)
     if not st.get("on"):
         return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
@@ -26515,6 +26619,17 @@ def shadow_watch_tick():
         _nwhy = pre.get("windowWhy") or "Diablo is not on screen"
         _shadow_watch_note(lookedAt=now, why=_nwhy)
         return {"ok": True, "seen": False, "why": _nwhy, "pre": pre}
+    hud = _bare_hud_verdict(pre)
+    if hud is False:   # bare Boosteroid, first reads have no D2R HUD word
+        why = ("Boosteroid is open, and the first reads show no D2R HUD word — "
+               "the launcher, not the game")
+        _shadow_watch_note(lookedAt=now, why=why, launcherUntil=now + _BARE_HUD_RELOOK_S * 1000)
+        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+    if hud is None and tv_label_is_bare(pre) and not _bare_relook_open(now):
+        why = ("Boosteroid is open and the last reads showed no D2R HUD word — "
+               "looking again after the wait")
+        _shadow_watch_note(lookedAt=now, why=why)
+        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
     r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
     # v2687 — shadow no longer credits its own open: start_agent() now does it for every door, and
@@ -26527,15 +26642,21 @@ def shadow_watch_tick():
     except Exception:
         pass
     cur = shadow_watch_state()
+    if ok and hud is True:
+        _why_ok = "started a reel — the first reads show a D2R HUD word"
+    elif ok and tv_label_is_bare(pre):
+        _why_ok = "started a reel — Boosteroid is open and the first reads are not in yet"
+    elif ok:
+        _why_ok = "started a reel — Diablo is on screen"
+    else:
+        _why_ok = ("saw Diablo but the reel would not start: %s"
+                   % str(isinstance(r, dict) and r.get("msg") or r)[:90])
     _shadow_watch_note(lookedAt=now, sawAt=now,
                        startedAt=(now if ok else cur.get("startedAt")),
                        starts=(int(cur.get("starts") or 0) + (1 if ok else 0)),
-                       why=("started a reel — Diablo is on screen" if ok
-                            else "saw Diablo but the reel would not start: %s"
-                                 % str(isinstance(r, dict) and r.get("msg") or r)[:90]))
-    return {"ok": ok, "seen": True, "started": ok,
-            "why": ("started a reel — Diablo is on screen" if ok
-                    else "saw Diablo but the reel would not start")}
+                       launcherUntil=(None if hud is True else cur.get("launcherUntil")),
+                       why=_why_ok)
+    return {"ok": ok, "seen": True, "started": ok, "why": _why_ok}
 
 
 def _shadow_watch_loop():

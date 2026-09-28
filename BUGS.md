@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1342 - A BARE BOOSTEROID WINDOW PINNED THE LAUNCHER AS THE GAME
+
+**SEEN:** Boosteroid's own app titles the stream and the launcher with nothing but Boosteroid, so both pinned. A shadow reel would film the launcher. **FIX:** the pin stays. The shadow door calls that window the game only when the first reads show a D2R HUD word (a zone name). Three reads with none is the launcher: it does not start, and a shadow reel already rolling seals. No reads yet is UNKNOWN, not the launcher, and the next look after a refusal waits. A window that names the game is not put through the check. A reel he opened is not sealed for it. **LAW:** `test_a_bare_boosteroid_window_must_show_the_hud` (heart2 --prove 6/6 PROVEN).
+
 ### REG-1341 - A RUNEWORD DID NOT COMPOSE ONTO THE BASE ALREADY IN THE CELL (wave 2)
 
 **SEEN:** a normal Sacred Armor in the mule 10x4 already drew Sacred Armor and said its own defense, durability and requirements. Choosing Chains of Honor opened the Base tab and left the armor as it was. The word's first base is Ancient Armor, so placing it there would have swapped the picture. **FIX:** a white or superior base that can hold the runes takes the runeword onto itself. The picture stays the base. The name, the rune string and the mods are the runeword's, through the one tooltip. An empty cell still waits on the Base tab. A weapon word, and a magic base, are not replaced. The door files the runeword once. **LAW:** `test_a_runeword_composes_onto_its_base` (heart2 --prove 2/2 PROVEN).
