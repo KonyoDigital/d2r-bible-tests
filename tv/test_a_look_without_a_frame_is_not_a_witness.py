@@ -95,8 +95,11 @@ RED_PROOF = [
     {
         "why": "#246 W3 - a look counts again whatever its own frame and confidence (Magefist passes on a frameless conf-0.0 look)",
         "file": "vault_retro.py",
-        "find": "        return bool(e.get(\"frame\")) and _conf_of(e.get(\"conf\")) >= conf_floor\n",
-        "replace": "        return True\n",
+        # 2026-09-28 (Ledger fix round 2, finding D): the per-look test is vault_retro.look_saw_it now,
+        # the ONE definition gate() and vault_evidence both call — so the sabotage moves to gate()'s
+        # call of it. Same defect: every look counts, whatever its own frame and confidence.
+        "find": "    qual = [e for e in ev if look_saw_it(e, conf_floor)]\n",
+        "replace": "    qual = list(ev)\n",
         "matches": 1,
     },
     {

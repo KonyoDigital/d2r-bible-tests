@@ -1468,11 +1468,20 @@ def _check_his_progress_number_has_not_been_overwritten():
         # simply no longer read as his.
         _mine = [d for d in drops if isinstance(d, dict) and (not key or d.get("route") == key)]
         recent = _mine[-1] if _mine else {}
-        return MISSING, ("his published progress is BELOW its own high-water mark: %s. The last "
-                         "recorded fall was %s %s -> %s. Nothing has been auto-restored, because "
-                         "putting the number back would hide whatever took it away."
-                         % ("; ".join(below), recent.get("lane") or "?",
-                            recent.get("from"), recent.get("to")))
+        # ══ 2026-09-28 (Ledger fix, finding 2b) — NEVER "? None -> None" ══════════════════════
+        # With no episode on record for his world (a file from before episodes, or a fall the
+        # record never saw) this printed "The last recorded fall was ? None -> None": an unknown
+        # dressed as a reading. It now says plainly that none is recorded. [[unknown-stays-unknown]]
+        _from, _to = recent.get("from"), recent.get("to")
+        if isinstance(_from, int) and isinstance(_to, int) and not isinstance(_from, bool):
+            _last = "The last recorded fall was %s %d -> %d." % (
+                recent.get("lane") or "an unnamed lane", _from, _to)
+        else:
+            _last = ("No drop episode is recorded for his world, so when and how far it fell is "
+                     "UNKNOWN.")
+        return MISSING, ("his published progress is BELOW its own high-water mark: %s. %s "
+                         "Nothing has been auto-restored, because putting the number back would "
+                         "hide whatever took it away." % ("; ".join(below), _last))
     if not high:
         return UNKNOWN, ("no high-water mark banked yet — it fills on the next tally the board "
                          "posts" + ((" · " + _contested_say) if _contested_say else ""))
@@ -2535,6 +2544,12 @@ def _check_the_vault_reset(receipt=None, before=None, after=None):
         return UNKNOWN, got.get("why") or "the reset receipt could not be read"
     if got.get("touched") or got.get("unknown"):
         return MISSING, got.get("why") or "a kept store changed"
+    # 2026-09-28 (Ledger fix round 2, finding B): the receipt's rebuiltFailed — a plan row the
+    # board's door refused is named here, never a silent gap between rebuilt and held
+    if got.get("refused") is None:
+        return UNKNOWN, got.get("why") or "whether the door refused a plan row is UNKNOWN"
+    if got.get("refused"):
+        return MISSING, got.get("why") or "the door refused a plan row"
     return OK, got.get("why") or "kept stores unchanged"
 
 
@@ -2544,6 +2559,10 @@ def _check_the_evidence_tiers(path=None, root=None):
     The count is vault_evidence.tier, corroborated by rebuild_plan on the same ledger. An
     unreadable ledger is UNKNOWN, never 0. A shelf that was not opened leaves the broken-link
     count UNKNOWN, never 0.
+
+    2026-09-28 (Ledger P0) — the tiers are counted in VISITS, never frames (his §34.2 ruling),
+    and the row says how many items the frame math filed above that — the retro flags. Those
+    stay filed by his ruling, so a flag is reported, not a failure. [[unknown-stays-unknown]]
     """
     import vault_evidence as _ve
     if path is None and root is None:
@@ -2564,8 +2583,21 @@ def _check_the_evidence_tiers(path=None, root=None):
                          % ", ".join(pics.get("gone") or [])[:180])
     else:
         pic = "evidence links whose picture is gone: 0"
-    return OK, ("WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s"
-                % (got["watched"], got["proven"], got["hardened"], got["unknown"], pic))
+    if got.get("retro") is None:
+        retro = "retro flags: UNKNOWN"
+    elif got["retro"]:
+        _rheld = got.get("retroHeldNames") or []
+        _kept = [n for n in (got.get("retroNames") or []) if n not in _rheld]
+        retro = ("retro flags %d (%s) — filed above what their visits earn, kept filed by his "
+                 "ruling" % (got["retro"], ", ".join(_kept[:4]) or "none kept"))
+        if _rheld:
+            # finding B (round 2): a flagged row no visit saw is HELD, never claimed as kept
+            retro += ("; %d of them held — no visit saw it (%s)" % (len(_rheld), ", ".join(_rheld[:4])))
+    else:
+        retro = "retro flags 0"
+    return OK, ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · "
+                "unreadable %d · %s · %s"
+                % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
 
 
 def _check_vault_provenance():

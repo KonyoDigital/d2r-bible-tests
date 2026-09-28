@@ -2030,6 +2030,12 @@ def _route_key(who):
     return "%s|%s" % (str(who.get("id") or "")[:40], str(who.get("p") or "")[:16])
 
 
+# The board tally's lanes in ledger_restore's store vocabulary, so a drop here is the SAME drop the
+# backup watcher records. ledger_restore.RESTORABLE already pairs foundLog/uniques and
+# setPieces/sets; rwMade is its runeword store.
+_TALLY_DROP_STORE = {"sets": "setPieces", "uniques": "foundLog", "runewords": "rwMade"}
+
+
 def board_tally_merge(t):
     """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
 
@@ -2095,10 +2101,55 @@ def board_tally_merge(t):
     doc.setdefault("high", {})
     doc.setdefault("drops", [])
 
+    # this world's PREVIOUS reading, taken before this tally replaces it — what a fall is measured
+    # from (Ledger fix round 2, finding C, below)
+    _last = doc["byRoute"].get(key) if isinstance(doc["byRoute"].get(key), dict) else {}
     doc["byRoute"][key] = {k: t.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
 
     # the high-water mark, per world, per ledger — and a DROP is an event, not a silent overwrite
+    #
+    # ══ 2026-09-28 (Ledger P0) — A DROP IS ONE EPISODE, NOT ONE ROW PER TALLY ═══════════════════
+    # This appended a drop on EVERY tally while a lane sat below its high-water mark, and the mark
+    # only rises. The board posts about once a minute, so one fall filled the 40-slot record in
+    # 40 minutes. MEASURED on his board_tally.json: all 40 rows were ONE event, sets 134 -> 0, and
+    # every earlier drop had been evicted by it.
+    #
+    # ledger_restore already owns the definition of a drop AND its lifecycle — step_episodes
+    # opens an episode once and closes it when the count is back — and the backup watcher runs it
+    # once per snapshot. Here it runs once per tally, from the lane's high-water mark. The "after"
+    # side always carries every lane, so a recovery closes its episode. One definition, two
+    # callers — two would drift. [[copy-drift]]
+    #
+    # ══ 2026-09-28 (Ledger fix, finding 2) — AN OPEN EPISODE WAS A BLINDFOLD ═══════════════════
+    # A lane with an OPEN episode was left out of "before" altogether, so while 134 -> 60 stayed
+    # open, a later fall to 0 was never written down.
+    #
+    # ══ 2026-09-28 (Ledger fix round 2, finding C) — A FALL IS MEASURED FROM THE LAST READING ══════
+    # Round 1 measured from the LOWEST open `to`, so 134 -> 60 (open), back up to 100, down to 70
+    # was never written: 70 sits above the open low of 60. HIS RULE: "EVERY fall is recorded, as
+    # before" — 9226d0d3 wrote a row for every tally below the mark. So "before" is now this
+    # world's PREVIOUS reading of the lane — its last tally: fall, partial recovery, fall again is a
+    # recorded fall each time; sitting at the same value files nothing (step_episodes opens nothing
+    # when nothing fell), and a fall to 0 from any count is always a fall. A lane whose previous
+    # reading cannot be read falls back to the high-water mark — the comparator 9226d0d3 used — so
+    # nothing below the mark goes unrecorded for want of a reading. Episodes still OPEN once per
+    # fall and CLOSE when the count is back to that fall's `from` (ledger_restore.step_episodes,
+    # unchanged — its own drop line is untouched; the board passes ANY_FALL).
+    #
+    # ══ 2026-09-28 (Ledger fix, finding 2b) — EVERY FALL IS RECORDED, AS BEFORE ═══════════════
+    # The P0 build borrowed ledger_restore's drop line (to 0, or >= max(10, 25%)), so a 3-set fall
+    # or a single un-tick stopped writing any drop row — his data, recorded before, lost silently.
+    # His decision: keep what was recorded before. So this passes ledger_restore.ANY_FALL; the
+    # backup watcher and the restore plan keep their own line, because the threshold's default IS
+    # that line. An un-tick is his testimony, and a record of it is not an accusation.
     hi = doc["high"].setdefault(key, {})
+    try:
+        import ledger_restore as _lr
+    except Exception as _e:
+        _lr = None
+        doc["dropsUnknown"] = ("ledger_restore could not be read (%s), so whether this tally "
+                               "opened or closed a drop is UNKNOWN" % str(_e)[:60])
+    _seen, _lane_of, _kind = [], {}, {}
     for lane in ("sets", "uniques", "runewords"):
         pair = t.get(lane)
         if not isinstance(pair, dict) or not isinstance(pair.get("have"), int):
@@ -2108,12 +2159,53 @@ def board_tally_merge(t):
         if not isinstance(prev, dict) or not isinstance(prev.get("have"), int):
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
             continue
+        store = _TALLY_DROP_STORE[lane]
+        _lane_of[store] = (lane, prev.get("at"))
+        # the fall is measured from THIS world's last reading of the lane (finding C); a last
+        # reading that cannot be read falls back to the high-water mark, never to a guess
+        _lp = _last.get(lane) if isinstance(_last.get(lane), dict) else {}
+        _was = _lp.get("have")
+        _kind[store] = "last reading"
+        if isinstance(_was, bool) or not isinstance(_was, int):
+            # ⚠ 2026-09-28 review (round 2): falling back to the high-water mark EVERY time re-opened the same
+            # fall on every tally while the lane sat below the mark - open episodes are never evicted, so the
+            # copies grew without a bound. A fall still OPEN for this lane already records where it went: its
+            # lowest `to` is the comparator, so sitting there files nothing. Only with no open fall is the
+            # high-water mark the comparator (the first fall, recorded once).
+            _open_to = [d.get("to") for d in doc["drops"]
+                        if isinstance(d, dict) and d.get("open") and d.get("routeKey") == key
+                        and d.get("store") == store and isinstance(d.get("to"), int)
+                        and not isinstance(d.get("to"), bool)]
+            if _open_to:
+                _was, _kind[store] = min(_open_to), "the open fall's low"
+            else:
+                _was, _kind[store] = prev["have"], "high-water mark"
+        _seen.append((store, _was, have))
         if have > prev["have"]:
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
-        elif have < prev["have"]:
-            doc["drops"].append({"route": key, "lane": lane, "from": prev["have"], "to": have,
-                                 "at": t.get("at"), "highAt": prev.get("at")})
-            doc["drops"] = doc["drops"][-40:]      # a rolling record, not a growing file
+    if _lr is not None and _seen:
+        doc.pop("dropsUnknown", None)
+        # the count key ledger_restore.store_count reads for a blob that carries counts, not rows
+        _ck = _lr._COUNT_KEY
+        _before = {_ck[s]: was for s, was, _now in _seen}     # the last reading
+        _after = {_ck[s]: now for s, _was, now in _seen}
+        _opened, _closed = _lr.step_episodes(
+            doc["drops"], {"ledger": {}, "counts": _before}, {"ledger": {}, "counts": _after},
+            "high-water mark", "board tally at %s" % t.get("at"),
+            route_key=key, at_ms=t.get("at"), threshold=_lr.ANY_FALL)
+        for _ep in _opened:
+            # the fields the doctor's "last recorded fall" sentence reads, beside the episode's own
+            _lane, _hi_at = _lane_of.get(_ep.get("store"), (None, None))
+            # the comparator this fall was measured FROM, named per store (review round 2: every episode was
+            # labelled "high-water mark" while `from` was the lane's last reading)
+            _ep.update({"route": key, "lane": _lane, "highAt": _hi_at,
+                        "beforeFile": _kind.get(_ep.get("store")) or "last reading"})
+    # a rolling record, not a growing file — and an OPEN episode is never the one evicted
+    _keep_closed = [d for d in doc["drops"]
+                    if not (isinstance(d, dict) and d.get("open"))][-40:]
+    _keep_ids = {id(d) for d in _keep_closed}
+    doc["drops"] = [d for d in doc["drops"]
+                    if id(d) in _keep_ids or (isinstance(d, dict) and d.get("open"))]
 
     # what the rest of the console reads: the OWNER world's numbers, with the older single-slot
     # shape kept at the top level so every existing reader keeps working unchanged
@@ -15179,6 +15271,17 @@ def board_tick(name, kind, want):
     return out
 
 
+#: The lane his own hand tick is banked under — the one spelling the writer below and every reader
+#: of the evidence ledger share (chronicle_retro.witnesses tags it `hand`; evidence_for counts it as
+#: its own kind of row, never as an unplaced one).
+MANUAL_LANE = "manual"
+
+
+def _is_hand_row(row):
+    """A sighting HE wrote by ticking the board — lane 'manual', no reel, no frame, by design."""
+    return isinstance(row, dict) and row.get("lane") == MANUAL_LANE
+
+
 def _bank_manual_sighting(name, kind):
     """Record that HE ticked this by hand, in the same store every other sighting uses.
 
@@ -15201,9 +15304,9 @@ def _bank_manual_sighting(name, kind):
     if not isinstance(ev, dict):
         return False
     rows = ev.setdefault(ledger, {}).setdefault(str(name), [])
-    if any((r or {}).get("lane") == "manual" for r in rows):
+    if any(_is_hand_row(r) for r in rows):
         return False                      # he has already said so; saying it twice is not two witnesses
-    rows.append({"lane": "manual", "witness": "hand", "at": int(time.time() * 1000),
+    rows.append({"lane": MANUAL_LANE, "witness": "hand", "at": int(time.time() * 1000),
                  "why": "he ticked it by hand on the board"})
     _chron_evidence_save(ev)
     return True
@@ -25066,6 +25169,8 @@ def vault_proven_names(min_witnesses=2):
     ⚠ `min_witnesses` is the bar, stated once here. Measured on his tree: of 14 rows, 10 carry 2
     witnesses, two carry 3, one carries 21 and one carries 103 — so the whole ledger clears a bar
     of 2, and a higher bar would need his ruling, not mine.
+    ⚠ Those were LIST ENTRIES (frames), and that was the defect: the 21 and the 103 are 2 visits
+    each. Counted as visits (2026-09-28), 12 of the 14 clear a bar of 2 — see the block below.
     """
     try:
         led = vault_ledger_load()
@@ -25081,6 +25186,30 @@ def vault_proven_names(min_witnesses=2):
     if not isinstance(rows, list):
         return {"ok": False, "proven": None,
                 "why": "the vault ledger carries no `owned` list, so proof is UNKNOWN - not none"}
+    # ══ 2026-09-28 (Ledger fix, finding 3) — A WITNESS IS A VISIT, NEVER A FRAME ═══════════════
+    # This admitted a row on len(witnesses) — LIST ENTRIES, which are frames. One visit held still
+    # for five frames read `witnesses 5` and was admitted at a bar of 2; his Radiance row carries
+    # 103 entries from 2 visits. His ruling (§34.2): "a look is a distinct visit, never a frame of
+    # a still screen." The count is now vault_retro.gate's own `witnesses`: the looks that saw it,
+    # folded. gate() IS the keep bar, so this door and the keep bar are one call. What is shared
+    # further is narrower, and this says only that (round 2, finding D): whether ONE look saw it is
+    # vault_retro.look_saw_it, which gate() and the tier table's vault_evidence._is_success both
+    # call; a look's id is vault_retro.look_id and the fold _fold_bare_sessions, which gate() and
+    # vault_evidence._measure both call. _measure does NOT call gate() — it counts visits in its own
+    # loop from those shared pieces. The heart joint (corroborate a-tier-stands-on-its-looks) asks
+    # gate() for `looksSeen`. No second copy of any of those pieces lives here.
+    # `rows` keeps the raw entry count BESIDE it, never instead of it; `visits` is every folded
+    # look, qualifying or not. MEASURED 2026-09-28 on a read-only copy of his vault_accum.json:
+    # 12 of 14 rows are admitted at 2; Bone Break and Magefist each hold one real look plus one
+    # frameless conf-0.0 prior (#246 W3), which the live gate has refused since W3. Re-measured
+    # after finding D on a scratch copy (hash unchanged): still 12 of 14.
+    # [[copy-drift]] [[unknown-stays-unknown]]
+    try:
+        import vault_retro as _vr
+    except Exception as e:
+        return {"ok": False, "proven": None,
+                "why": "the look counter (vault_retro) could not be read (%s), so WHICH names are "
+                       "proven is UNKNOWN - not none" % type(e).__name__}
     proven, short = [], 0
     for r in rows:
         if not isinstance(r, dict):
@@ -25088,23 +25217,28 @@ def vault_proven_names(min_witnesses=2):
         n = str(r.get("name") or "").strip()
         if not n:
             continue
-        # ⚠ A ROW MAY BE MALFORMED. `{"name": "Shako", "witnesses": 2}` makes `len(2)` a
-        # TypeError, and this door is read by the heart and by his board — a crash here is a
-        # blank chip with no reason. A row whose witnesses are not a list has NOT been shown to
-        # carry any, so it counts as zero and falls short rather than taking the door down.
+        # ⚠ A ROW MAY BE MALFORMED. `{"name": "Shako", "witnesses": 2}` is not a list, and this
+        # door is read by the heart and by his board — a crash here is a blank chip with no reason.
+        # A row whose witnesses are not a list has NOT been shown to carry any, so it counts as
+        # zero and falls short rather than taking the door down.
         _w = r.get("witnesses")
-        w = len(_w) if isinstance(_w, (list, tuple)) else 0
+        if isinstance(_w, (list, tuple)):
+            _g = _vr.gate(list(_w), min_witnesses=int(min_witnesses))
+            w, visits, raw = int(_g.get("witnesses") or 0), int(_g.get("looksSeen") or 0), len(_w)
+        else:
+            w, visits, raw = 0, 0, 0
         if w >= int(min_witnesses):
-            proven.append({"name": n, "witnesses": w, "conf": r.get("conf"),
-                           "lane": r.get("lane")})
+            proven.append({"name": n, "witnesses": w, "visits": visits, "rows": raw,
+                           "conf": r.get("conf"), "lane": r.get("lane")})
         else:
             short += 1
     return {"ok": True, "proven": sorted(proven, key=lambda x: x["name"]),
             "provenN": len(proven), "shortOfBar": short, "bar": int(min_witnesses),
-            "ledgerRows": len(rows),
-            "why": ("%d of %d ledger row(s) carry %d+ witnesses. The lockers render d2r_owned, "
-                    "which is a different and much larger population - this is the set that has "
-                    "actually earned admission."
+            "ledgerRows": len(rows), "countedBy": "vault_retro.gate (a look is a visit)",
+            "why": ("%d of %d ledger row(s) carry %d+ witnesses, counted as distinct looks by the "
+                    "live gate, never as frames. The lockers render d2r_owned, which is a "
+                    "different and much larger population - this is the set that has actually "
+                    "earned admission."
                     % (len(proven), len(rows), int(min_witnesses)))}
 
 
@@ -30710,13 +30844,42 @@ def evidence_for(name, ledger=None):
                 sightings = None
             if not isinstance(sightings, list) or not sightings:
                 continue
-        reels, lanes, frames = [], [], []
-        found_at = dropped_by = None
-        for sg in sightings:
-            if not isinstance(sg, dict):
+        # ══ 2026-09-28 (Ledger P0) — ONE REEL IS ONE WITNESS, WHICHEVER WAY IT WAS SPELLED ══════
+        # Two defects lived here, both MEASURED on his chron_evidence.json:
+        #   1. `witnesses` was None for EVERY name. It asked counter_ledger for .witnesses behind a
+        #      hasattr, and counter_ledger has no such function — the real one is
+        #      chronicle_retro.witnesses. The hasattr turned a wrong module into a silent None.
+        #   2. `reels` and `count` read raw strings. One reel lands as both "s_…" and "reel_s_…"
+        #      (read_reel's sessionId fallback), and trace_spine measured 3,914 of 8,517 sightings
+        #      as the same row under both spellings, so "seen N times across R reels" ran ~2x.
+        # Now a row is deduped on trace_spine.independence's key through chronicle_retro._reel_key,
+        # `count` is the deduped rows (`rows` keeps the raw figure BESIDE it, never instead),
+        # `witnesses` is the number of INDEPENDENT reels, and `witnessTags` is chronicle_retro's
+        # own independence verdict. When chronicle_retro cannot be read, witnesses is None WITH a
+        # reason — UNKNOWN is said, never a silent null. [[the-unjoined-end]] [[unknown-stays-unknown]]
+        try:
+            import chronicle_retro as _cr
+            _rk = _cr._reel_key
+        except Exception as _e:
+            _cr, _rk, _cr_why = None, (lambda r: str(r or "")), (
+                "chronicle_retro could not be read (%s), so which reels are independent is "
+                "UNKNOWN" % str(_e)[:60])
+        raw_rows = [sg for sg in sightings if isinstance(sg, dict)]
+        uniq, _seen_rows = [], set()
+        for sg in raw_rows:
+            _k = (_rk(sg.get("reel")), sg.get("frame"), sg.get("lane"), sg.get("conf"))
+            if _k in _seen_rows:
                 continue
+            _seen_rows.add(_k)
+            uniq.append(sg)
+        # `reels` keeps the FIRST spelling seen for each reel (a path a surface can open), and
+        # dedupes on the normalised key, so the same reel is never listed or counted twice.
+        reels, lanes, frames, _reel_keys = [], [], [], set()
+        found_at = dropped_by = None
+        for sg in uniq:
             r = sg.get("reel")
-            if r and r not in reels:
+            if r and _rk(r) not in _reel_keys:
+                _reel_keys.add(_rk(r))
                 reels.append(r)
             l = sg.get("lane")
             if l and l not in lanes:
@@ -30725,11 +30888,39 @@ def evidence_for(name, ledger=None):
                 frames.append(sg.get("frame"))
             found_at = found_at or sg.get("foundAt")
             dropped_by = dropped_by or sg.get("droppedBy")
-        try:
-            import counter_ledger as _clg
-            wit = _clg.witnesses(sightings) if hasattr(_clg, "witnesses") else None
-        except Exception:
+        wit, wit_tags, wit_why = None, None, None
+        # ══ 2026-09-28 (Ledger fix, finding 6) — A ROW WITH NO REEL IS NOT ZERO REELS ══════════
+        # `witnesses = len(reels)` read 0 for a name whose rows exist but carry no reel, and a
+        # count of known reels beside rows from an unknown one is a floor, not the count. So when
+        # ANY row lacks a reel, witnesses is None and witnessWhy says which rows those are;
+        # witnessesKnown and unplaced carry what IS known. UNKNOWN is never 0. [[unknown-stays-unknown]]
+        #
+        # ══ 2026-09-28 (Ledger fix round 2, finding A) — HIS HAND IS A KNOWN KIND, NEVER UNPLACED ═══
+        # _bank_manual_sighting writes his tick as lane 'manual', witness 'hand', with NO reel — by
+        # design: "No reel, no frame — because there was none." Counting that row as unplaced turned
+        # every hand-ticked item's witness count into None and showed his own testimony as "a row
+        # whose reel is UNKNOWN". HIS RULING: a manual tally is witness enough. So a hand row is
+        # its own kind: it is counted in `hand` beside the reels, it never makes the count unknown,
+        # and chronicle_retro.witnesses already tags it `hand`. Only a NON-manual row with no reel
+        # leaves which reel it came from unknown. [[manual-tally-is-witness]] [[unknown-stays-unknown]]
+        _hand = sum(1 for sg in uniq if _is_hand_row(sg))
+        _unplaced = sum(1 for sg in uniq if not sg.get("reel") and not _is_hand_row(sg))
+        if _cr is None:
+            wit_why = _cr_why
+        else:
+            try:
+                wit_tags = list(_cr.witnesses(uniq))
+                wit = len(reels)
+            except Exception as _e:
+                wit, wit_tags = None, None
+                wit_why = ("chronicle_retro.witnesses failed (%s), so which reels are independent "
+                           "is UNKNOWN" % str(_e)[:60])
+        if _unplaced and wit is not None:
             wit = None
+            wit_why = ("%d of %d sighting row(s) carry no reel, so which reels those came from is "
+                       "UNKNOWN; %d reel(s) are known, and the true count is at least that — not "
+                       "a count" % (_unplaced, len(uniq), len(reels)))
+        sightings = uniq
         # v2164 — BOUND THE PAYLOAD, KEEP THE COUNT HONEST. `sightings` went back whole while
         # `frames` was already capped at 24 — an inconsistency I introduced and then found by
         # measuring my own worst case: "Bloodmoon" carries 104 sightings, an 18.5 KB response, and
@@ -30738,16 +30929,31 @@ def evidence_for(name, ledger=None):
         # capped list presented as the whole is the quiet half of this defect: he would read 24
         # and believe that is all the evidence there is. [[unknown-stays-unknown]]
         _CAP = 24
+        # where the sightings came from, in words: the reels (known, or with unplaced rows beside
+        # them), then his own hand ticks — which have no reel to be across, so a hand-only name
+        # reads "1 sighting: his own hand tick", never "across 0 reels" or "reel is UNKNOWN"
+        if _unplaced:
+            _across = (" across %d known reel%s + %d row%s whose reel is UNKNOWN"
+                       % (len(reels), "" if len(reels) == 1 else "s",
+                          _unplaced, "" if _unplaced == 1 else "s"))
+        elif reels or not _hand:
+            _across = " across %d reel%s" % (len(reels), "" if len(reels) == 1 else "s")
+        else:
+            _across = ""
+        if _hand:
+            _hand_say = ("his own hand tick" if _hand == 1 else "%d hand ticks of his" % _hand)
+            _across = (_across + " + " + _hand_say) if _across else (": " + _hand_say)
         return {"ok": True, "name": n, "ledger": led,
                 "sightings": sightings[:_CAP], "count": len(sightings),
+                "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
                 "truncated": len(sightings) > _CAP,
                 "reels": reels, "lanes": lanes, "frames": frames[:24],
                 "foundAt": found_at, "droppedBy": dropped_by,
-                "witnesses": wit,
+                "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
+                "witnessesKnown": len(reels), "unplaced": _unplaced, "hand": _hand,
                 # the one-line answer, so a surface does not have to compose it and drift
-                "say": ("%d sighting%s across %d reel%s, read by %s%s"
-                        % (len(sightings), "" if len(sightings) == 1 else "s",
-                           len(reels), "" if len(reels) == 1 else "s",
+                "say": ("%d sighting%s%s, read by %s%s"
+                        % (len(sightings), "" if len(sightings) == 1 else "s", _across,
                            " and ".join(lanes) or "an unnamed lane",
                            (" — the game dates it %s" % found_at) if found_at else ""))}
     return {"ok": False, "name": n,

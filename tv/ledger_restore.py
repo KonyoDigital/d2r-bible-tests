@@ -91,6 +91,11 @@ BACKED_UP = ("foundLog", "setPieces", "owned", "rwMade", "gameFound")
 #: large store's real loss (445 -> 300) from hiding under a fixed count.
 DROP_MIN = 10
 DROP_FRAC = 0.25
+#: A threshold for drops_between / step_episodes meaning EVERY fall, however small. board_tally
+#: passes it (his ruling 2026-09-28, "keep what was recorded before"): a single un-tick or a 3-set
+#: fall on the board is still written down as an episode. The backup watcher and plan() never pass
+#: one, so their drop line above is unchanged.
+ANY_FALL = 1
 #: The count the board reports INDEPENDENTLY for a store a snapshot OMITS when it is empty —
 #: `_ledger_snapshot_once` folds rwMade/gameFound into the ledger only when non-empty, so an absent
 #: rwMade beside `counts.runewordsMade == 0` is a measured zero. gameFound has no independent count,
@@ -123,18 +128,30 @@ def store_count(x, store):
     return None
 
 
-def drops_between(prev_ledger, next_ledger):
+def drops_between(prev_ledger, next_ledger, threshold=None):
     """Every backed-up store that DROPPED from one snapshot to the next. -> [{store, from, to}]
 
     Takes a backup blob or a bare ledger on either side. A store whose count is UNKNOWN on either
     side is never a drop — an unreadable reading is not a loss, and reporting one would send him to
     restore rows he never lost.
+
+    `threshold` None is THIS module's drop line: to 0, or by >= max(DROP_MIN, DROP_FRAC x before).
+    An int n >= 1 is "a fall of at least n rows" instead (ANY_FALL = every fall). It exists for
+    board_tally, which records every fall of his published progress; the default path is the exact
+    code it always was, so the backup watcher and plan() cannot drift with it. [[copy-drift]]
     """
+    if threshold is not None and (isinstance(threshold, bool) or not isinstance(threshold, int)
+                                  or threshold < 1):
+        raise ValueError("a drop threshold is None or an int >= 1, not %r" % (threshold,))
     out = []
     for store in BACKED_UP:
         a = store_count(prev_ledger, store)
         b = store_count(next_ledger, store)
         if a is None or b is None or a <= 0 or b >= a:
+            continue
+        if threshold is not None:
+            if (a - b) >= threshold:
+                out.append({"store": store, "from": a, "to": b})
             continue
         if b == 0 or (a - b) >= max(DROP_MIN, DROP_FRAC * a):
             out.append({"store": store, "from": a, "to": b})
@@ -158,13 +175,16 @@ def stamp_ms(name_or_stamp):
         return None
 
 
-def step_episodes(episodes, prev, nxt, prev_file, next_file, route_key=None, at_ms=None):
+def step_episodes(episodes, prev, nxt, prev_file, next_file, route_key=None, at_ms=None,
+                  threshold=None):
     """ONE step of the drop watcher. Mutates `episodes`; writes nothing. -> (opened, closed)
 
     1. every OPEN episode for this route whose store is back to >= its `from` CLOSES — a store the
        new snapshot cannot count stays open (UNKNOWN is not a recovery);
     2. every drop between `prev` and `nxt` OPENS an episode naming the file BEFORE it, which is the
        file a restore needs and the file the prune must not take while the episode is open.
+
+    `threshold` is handed to drops_between unchanged; None keeps this module's own drop line.
     """
     opened, closed = [], []
     for ep in episodes:
@@ -178,7 +198,7 @@ def step_episodes(episodes, prev, nxt, prev_file, next_file, route_key=None, at_
         if back:
             ep.update({"open": False, "closedAt": at_ms, "closedBy": next_file, "closedCount": n})
             closed.append(ep)
-    for dr in drops_between(prev, nxt):
+    for dr in drops_between(prev, nxt, threshold):
         ep = {"store": dr["store"], "from": dr["from"], "to": dr["to"],
               "beforeFile": prev_file, "afterFile": next_file, "at": at_ms,
               "routeKey": route_key, "open": True}

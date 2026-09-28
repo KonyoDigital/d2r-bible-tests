@@ -2186,7 +2186,95 @@ def _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE():
             "ledgers that publish a mask", right, "==")
 
 
-BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
+def _inv_a_tier_stands_on_the_looks_the_gate_counts():
+    """2026-09-28 (Ledger P0) — AN ITEM'S TIER MUST STAND ON LOOKS THE LIVE GATE WOULD COUNT.
+
+    His ruling (§34.2): "a look is a distinct visit, never a frame of a still screen."
+    MEASURED on his vault_accum.json, read-only: Radiance scored HARDENED 103/103 and the Horadric
+    Cube HARDENED 21/21, because vault_evidence._measure counted witness ROWS — 102 of Radiance's
+    were one stash screen held still. The live gate, vault_retro.gate, counted TWO looks for each.
+    Two engines disagreed about the same item for a day and nothing compared them: the doctor row
+    'evidence tiers' counted the tiers through the one Wilson function that assigned them.
+
+    THE TWO SIDES:
+      LEFT   items the tier table places at PROVEN or above (vault_evidence.tier_census)
+      RIGHT  of THOSE SAME items, the ones the LIVE GATE sees at least TRIALS_PROVEN distinct
+             looks for (vault_retro.gate's own `looksSeen`, over the same witness rows)
+    Independent by ENGINE: the left is the Wilson tier table, the right is the keep-bar gate's own
+    witness counting, which owns the independence law (vault_retro.py: "Wilson runs on the FOLDED
+    WITNESS LIST, never on raw sightings").
+
+    ⚠ THE RELATION IS `==`, PER ITEM. PROVEN needs a Wilson bound of WILSON_BAR (0.722), which no
+    record under ten successful visits reaches (a perfect 9/9 is 0.701), and every successful visit
+    is a look the gate counts. So a PROVEN+ item the gate does not back means the tier counted
+    something that is not a look.
+
+    ══ 2026-09-28 (Ledger fix, finding 4) — IT COMPARED COUNTS, AND TWO WRONG ITEMS BALANCE ═════
+    The first cut was `PROVEN+ count <= count of items with TRIALS_PROVEN+ gate looks`, over the
+    WHOLE ledger. Reproduced with two items: StillScreen (1 visit x 25 frames) and TenLooks (10
+    buckets, 5 of them unsure). With the frame math back in _measure, StillScreen reads HARDENED
+    and TenLooks stays WATCHED 5/10 — left 1 — while TenLooks alone gives the gate side 1. 1 <= 1:
+    AGREE, over the exact defect this joint exists for. The right side now counts only the
+    tier table's own PROVEN+ names, so a PROVEN+ item without its looks can never be paid for by
+    a different item that has them. [[the-unjoined-end]]
+
+    ⚠ WHY NOT trace_spine.independence, which the Ledger design named: it hangs every vault look
+    with `witness: None`, so it can count REELS and never re-look visits. A re-look-proven item
+    (ten visits in four recordings) would read as a false alarm, and the frame-counting defect
+    passes it cleanly. It answers a different question. [[the-unjoined-end]]
+
+    UNKNOWN when the witness ledger cannot be read, never 0. [[unknown-stays-unknown]]
+    """
+    def _ledger():
+        return os.environ.get("TV_VAULT_LEDGER") or os.path.join(HERE, "vault_accum.json")
+
+    def left():
+        import vault_evidence as ve
+        got = ve.tier_census(_ledger())
+        if not got.get("ok"):
+            return None
+        return int(got.get("proven") or 0) + int(got.get("hardened") or 0)
+
+    def right():
+        import vault_retro as vr
+        import vault_evidence as ve
+        got = ve.tier_census(_ledger())
+        names = got.get("provenNames") if got.get("ok") else None
+        if not isinstance(names, list):
+            return None
+        try:
+            with io.open(_ledger(), encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except Exception:
+            return None
+        rows = doc.get("owned") if isinstance(doc, dict) else None
+        if not isinstance(rows, list):
+            return None
+        piles = {}
+        for row in rows:
+            if not isinstance(row, dict) or not str(row.get("name") or "").strip():
+                continue
+            looks = row.get("witnesses") if "witnesses" in row else row.get("looks")
+            if not isinstance(looks, list):
+                continue
+            piles.setdefault(str(row["name"]).strip(), []).extend(
+                x for x in looks if isinstance(x, dict))
+        # per item: each of the tier table's PROVEN+ names, asked of the gate by name
+        return sum(1 for name in names
+                   if vr.gate(piles.get(name, [])).get("looksSeen", 0) >= ve.TRIALS_PROVEN)
+
+    return ("a-tier-stands-on-its-looks",
+            "every item the tier table files PROVEN or HARDENED has at least TRIALS_PROVEN looks "
+            "the live gate counts",
+            "count witness ROWS as trials in vault_evidence._measure — one stash screen held still "
+            "for 103 frames reads HARDENED while vault_retro.gate counts 2 looks (Radiance, "
+            "2026-09-28)",
+            "tier table: PROVEN+ items", left,
+            "of those, items the live gate sees TRIALS_PROVEN+ looks for", right, "==")
+
+
+BUILDERS = (_inv_a_tier_stands_on_the_looks_the_gate_counts,
+            _inv_the_router_and_the_shelf_count_the_SAME_reels,
             _inv_a_tombstone_is_never_ahead_of_extraction,
             _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it,
             _inv_a_posted_COUNT_and_its_own_MASK_agree,
@@ -2259,20 +2347,22 @@ COVERED_BY = {
     # [[label-outlived-referent]] [[the-unjoined-end]]
     # v2730 — his "so its all not in the dark". 310 names of testimony had NO joint of any kind.
     "evidence ledger":   ("evidence-survived-its-sweep",),
+    # 2026-09-28 (Ledger P0) — moved out of NO_JOINT_YET. The row's tiers are now checked against
+    # the live gate's own look count, the engine that owns the independence law. What it does NOT
+    # cover, said so the claim cannot over-reach: the broken-picture half of the row (cited frames
+    # gone from the shelf) has no second source yet.
+    "evidence tiers":    ("a-tier-stands-on-its-looks",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
     # 2026-09-28 — Grok's #246 heart rows (§27) shipped without a registry line; test_every_doctor_check_is_explained
-    # went red on CI. Both are one source today, said so rather than claimed covered.
+    # went red on CI. Both were one source, said so rather than claimed covered. 'evidence tiers'
+    # got its joint on 2026-09-28 (a-tier-stands-on-its-looks) and moved to COVERED_BY.
     'vault reset receipt':
         "the row reads the receipt the reset runner writes (window._vaultLastReset: cleared / kept / touched / unknown), and "
         "the runner is also what compared the kept stores before and after — one writer describing its own act. An "
         "independent second source would be a ledger backup taken just before the reset diffed against the store after it; "
         "the backup lane holds those snapshots but no joint reads them against a receipt yet.",
-    'evidence tiers':
-        "the row counts WATCHED / PROVEN / HARDENED from the witness ledger through the one Wilson function that assigns "
-        "them, so the counts and the tiers share a source. An independent check would recount looks straight from the "
-        "session frames on disk and compare the tier each earns; nothing does that walk yet.",
     # 2026-09-28 — the triage starvation row.
     'triage starved':
         "the row pairs two things the serving console publishes on /api/river — reel_router's TRIAGE "
@@ -2973,6 +3063,20 @@ def selftest():
         # knowledge. MEASURED 2026-09-01 by driving its own prove line: drop one entry from
         # inventory_law.LOCKED and the sides part 4 vs 3. A real invariant with a shared call in it.
         "_inv_the_console_and_the_law_agree_about_furniture",
+        # 2026-09-28 (Ledger fix, finding 4) — BOTH SIDES REACH vault_evidence.tier_census, AND ON
+        # THE RIGHT IT IS THE SUBJECT LIST, NOT THE VERDICT. The review asked for this joint PER
+        # ITEM ("the PROVEN+ names must be a subset of the names the gate sees 10+ looks for"),
+        # because a count compare let two wrong items balance. A per-item check has to ask the gate
+        # about the tier table's OWN names, so the right side reads those names from tier_census —
+        # and the number it returns is vault_retro.gate's verdict on each, computed by the gate's
+        # own look counting, which never calls vault_evidence. PROVEN INDEPENDENT 2026-09-28 by
+        # driving its own prove line (the frame math back in _measure):
+        #     Radiance(1+102 frames, 2 visits) + Shako(12 visits)   baseline 1 == 1 AGREE
+        #                                                          sabotage 2 vs 1 DISAGREE
+        #     StillScreen(1 visit x 25) + TenLooks(10 looks, 5 unsure) baseline 0 == 0 AGREE
+        #                                                          sabotage 1 vs 0 DISAGREE
+        # (the old count compare read 1 vs 1 AGREE on that second sabotage). The sides part.
+        "_inv_a_tier_stands_on_the_looks_the_gate_counts",
     }
     try:
         import inspect as _insp
