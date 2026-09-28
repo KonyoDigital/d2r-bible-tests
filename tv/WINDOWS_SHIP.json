@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3520",
+  "ver": "v3521",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3520: A generic charm keeps its own key, so two Grand Charms count as two and a second mule does not take the first. A drain refused while the console is ON AIR or a sweep is reading is DEFERRED, not STOPPED. HEART: the retention doctor stays OK on a deferral and goes missing only when owed reels were carried with no hold.",
+  "note": "v3521: Stamps the 27 commits Grok pushed after v3520 plus the fixes: a vault reset clears the mules and owned only and rebuilds proven items from evidence (Wilson tiers); mule inventory takes charms (drag, footprints, prefix/suffix, floating picture, D2R tooltip colours, runeword on base); a shadow session rolls over every hour (proven live on the ALT, 10 rotations); the drain releases every finished reel past the newest 8 and keeps exactly the pictures a vault item stands on (REG-1345); an unbumped push that changes what he sees is refused (REG-1346); CI and second-eye findings fixed (REG-1344). HEART: guarded by test_the_river_drains_every_pass, test_a_vault_reset_clears_only_the_mules, test_a_shadow_session_rolls_over_every_hour, test_the_backup_lane_survives_a_loss, test_a_windows_door_sees_the_game, every red-proof PROVEN",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

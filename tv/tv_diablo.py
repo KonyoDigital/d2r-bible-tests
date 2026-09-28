@@ -59,7 +59,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3520"   # two charms stay two and a deferred drain is not stopped
+VERSION = "v3521"   # everything since v3520 gets its number - vault reset rulings, inventory wave 2, hourly shadow rollover, a drain that keeps the evidence pictures
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
