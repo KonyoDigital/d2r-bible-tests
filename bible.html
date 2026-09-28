@@ -4241,6 +4241,10 @@ window._LP_FORKED = new Set([
      and Ladder hold different mules and different characters, so both fork like d2r_muleAssign and ride Backup
      and Share with every other key. */
   "d2r_vaultProv", "d2r_mainCharacter",
+  /* M3 (review of 77d8d8b5) - the provenance backfill stamp records WHETHER A WRITE HAPPENED to d2r_owned and
+     d2r_vaultProv, both in this set, so it forks exactly as they do (the v2224 rule below). Bare, the stamp one
+     world wrote silenced the backfill in every other world on the machine. */
+  "d2r_ownedProvBackfill",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -10502,6 +10506,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
+      <!-- §31.2 (his ruling, 2026-09-28) — loot in a character's inventory is OWNED right away and carried here, per
+           character, never locked and never filed; it lands when next seen in a stash tab or on a mule. It sits ABOVE the
+           unsorted dock's bar, so that bar heads only the items it sorts. -->
+      <div id="vault-carried" class="vault-carried" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
@@ -11029,7 +11037,27 @@ window._d2rUnseedRestore = function(){
         if (!Object.prototype.hasOwnProperty.call(bk, k)) return;
         try {
           if (bk[k] == null) { LSx.removeItem(k); done.push(k + ': cleared'); }
-          else { LSx.setItem(k, bk[k]); done.push(k + ': restored'); }
+          else {
+            /* M4 (review of 77d8d8b5) — THE OWNED LIST GROWS HERE, SO ITS NEW NAMES SAY WHO PUT THEM BACK. The
+               snapshot is written whole (it is the state before the un-seed); every name it ADDS goes through the
+               one door with a ledger-restore receipt stamped with the SNAPSHOT's time. A name already owned keeps
+               its own receipt. [[the-unjoined-end]] */
+            var _grow = null;
+            if (k === 'd2r_owned'){
+              try { var _was = JSON.parse(LSx.getItem(k) || '[]') || [], _now = JSON.parse(bk[k]) || [];
+                    _grow = Array.isArray(_now) ? _now.filter(function(n){ return _was.indexOf(n) < 0; }) : null; }
+              catch(eG){ _grow = null; }
+            }
+            LSx.setItem(k, bk[k]); done.push(k + ': restored');
+            if (_grow && _grow.length){
+              var _pn = 0;
+              if (typeof window._ownedAdd === 'function') _grow.forEach(function(nm){
+                try { var _pr = window._ownedAdd(nm, { source: 'ledger-restore', by: 'the un-seed undo', ts: bk.at || null,
+                                                        where: 'the un-seed snapshot' });
+                      if (_pr && _pr.prov && _pr.prov.ok) _pn++; } catch(eP){} });
+              done.push('d2r_owned: ' + _pn + ' of ' + _grow.length + ' name(s) it put back carry a ledger-restore receipt');
+            }
+          }
         } catch(e){}
       });
       /* the ledger name is the half that re-arms the floors, so it is restored on the RAW store
@@ -18890,12 +18918,23 @@ try {
                 sessionId: sid, frameId: fr, frame: fr, loc: _str(rec.loc), scene: _str(rec.scene),
                 conf: _num(rec.conf), readTier: _str(rec.readTier), where: _str(rec.where), via: _str(rec.via),
                 tier: _str(rec.tier), successes: _num(rec.successes), trials: _num(rec.trials),
+                /* §31.2 — loot seen in the inventory's free space is OWNED and CARRIED (not locked) by the character
+                   the read was taken on; null = not carried / not said. The character is the read's own, never guessed. */
+                carried: (rec.carried === true) ? true : null, character: _str(rec.character),
                 looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: _iso(ts), loc: _str(rec.loc), scene: _str(rec.scene) }] : [],
                 ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null };
     out.seen = out.looks.length;
     return out;
   }
-  var _FILL = ['by', 'sessionId', 'frameId', 'frame', 'loc', 'scene', 'conf', 'readTier', 'where', 'via', 'tier', 'successes', 'trials'];
+  var _FILL = ['by', 'sessionId', 'frameId', 'frame', 'loc', 'scene', 'conf', 'readTier', 'where', 'via', 'tier', 'successes', 'trials',
+               'carried', 'character'];
+  /* §31.2 — does this look LAND carried loot? A place he keeps things (a stash tab, a mule, worn ...), asked of the ONE
+     route — never of the predicate directly, so there is one answer to "is this a holding place". */
+  function _landsCarried(loc){
+    var l = _str(loc);
+    if (!l || typeof window._vaultHoldingRoute !== 'function') return false;
+    try { return window._vaultHoldingRoute(l, null).route === 'vault'; } catch (e) { return false; }
+  }
   window._ownedProvWrite = function(name, rec){
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return { ok: false, why: 'no name' };
@@ -18919,6 +18958,14 @@ try {
         return { ok: true, mode: 'kept-filing', row: cur };
       }
       var ch = false;
+      /* §31.2 — CARRIED LOOT LANDS. A carried receipt next seen in a stash tab / on a mule / worn is carried no more:
+         the landing is recorded with its look (where, when, which frame), and the strip lets it go. */
+      if (cur.carried === true && fresh.carried !== true && _landsCarried(fresh.loc)){
+        cur.carried = false;
+        cur.landed = { at: fresh.at, ts: fresh.ts, loc: fresh.loc, scene: fresh.scene, frame: fresh.frameId, session: fresh.sessionId };
+        cur.loc = fresh.loc; if (fresh.scene) cur.scene = fresh.scene;
+        ch = true;
+      }
       _FILL.forEach(function(k){ if (cur[k] == null && fresh[k] != null){ cur[k] = fresh[k]; ch = true; } });
       if (!cur.source && fresh.source){ cur.source = fresh.source; ch = true; }
       var lk = fresh.looks[0], looks = Array.isArray(cur.looks) ? cur.looks : [];
@@ -18963,40 +19010,159 @@ try {
   window._ownedProvWords = function(r){
     if (!r || typeof r !== 'object') return '';
     var n = Array.isArray(r.looks) ? r.looks.length : 0;
-    var where = r.loc ? (r.loc === 'equipped' ? 'worn' : 'seen in your ' + r.loc) : '';
+    var where = (r.carried === true) ? ('carried' + (r.character ? ' by ' + r.character : ''))
+              : (r.loc ? (r.loc === 'equipped' ? 'worn' : 'seen in your ' + r.loc) : '');
     return 'owned via ' + window._ownedProvSourceSay(r.source) + (where ? ' · ' + where : '')
          + (n ? ' · ' + n + ' look' + (n === 1 ? '' : 's') : ' · no picture recorded');
   };
 
-  /* ══ THE ROUTE — his 2026-09-28 ruling (§28): the Vault holds what he HAS now ═══════════════════════
+  /* ══ THE ROUTE — his 2026-09-28 rulings (§28, §31.2): the Vault holds what he HAS now ═══════════════
      A live read files into the vault dock only when its location is a place he keeps things, asked of
      window._vaultMayClaim — the ONE predicate (equipped, stash, cube, belt, mule, locker, tomb). A read off
-     the game's Chronicle page is found-ever and never the vault; floor loot never files; `inventory` alone
-     is holding, not owning (his v2346 ruling, REG-426); a read whose place is UNKNOWN waits, and says so.
-     -> {route: 'vault'|'found-only'|'not-held'|'held'|'wait', why} */
-  window._vaultHoldingRoute = function(loc, scene){
+     the game's Chronicle page is found-ever and never the vault; floor loot never files; a read whose place
+     is UNKNOWN waits, and says so.
+     ⚠ §31.2 (his ruling, "Owned right away" + "maybe needs a logic between them both") SUPERSEDES v2346 /
+     REG-426 for inventory LOOT: an item the READER placed in his inventory's free space is his RIGHT AWAY —
+     route 'carried': owned, shown on that character's CARRIED strip, never locked and never filed to a mule.
+     It LANDS when next seen in a stash tab or on a mule (the receipt records the landing) and LEAVES only on a
+     real signal — seen on the floor again, or in a vendor / trade window, with the frame as proof (`leave`).
+     Absence never un-owns it. STANDING KIT (charms, Annihilus, Torch, Gheed's, the Cube, tomes) and worn gear
+     stay as §29 says: pinned to the character (the lane lock / MAIN ledger), never carried loot ('kit').
+     A consumable is never owned by a read. An open inventory PANEL with no per-name place is not a place:
+     the ground is visible beside it, so it waits.
+     -> {route: 'vault'|'carried'|'kit'|'found-only'|'not-held'|'wait', why, leave?} */
+  function _foldNm(n){ return String(n == null ? '' : n).replace(/[‘’ʼ`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim(); }
+  var _KIT_NAMES = /^(annihilus|hellfire torch|gheed's fortune)$/;
+  var _KIT_WORDS = /(^|[^a-z])(charm|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)($|[^a-z])/;
+  /* -> true | false | null (null = the furniture law is not on this page, so whether it is kit is UNKNOWN) */
+  window._standingKit = function(name){
+    var f = _foldNm(name);
+    if (!f) return false;
+    if (_KIT_NAMES.test(f) || _KIT_WORDS.test(f)) return true;
+    if (typeof window._furnitureLocked !== 'function') return null;
+    try { return !!window._furnitureLocked(f); } catch (e) { return null; }
+  };
+  window._vaultHoldingRoute = function(loc, scene, name){
     var l = String(loc == null ? '' : loc).trim().toLowerCase();
     var s = String(scene == null ? '' : scene).trim().toLowerCase();
     if (s === 'chronicle' || l === 'chronicle')
       return { route: 'found-only', why: 'read off the game’s Chronicle page — that proves you found it once; it stays in the found list and never files to the vault' };
     if (l === 'floor' || l === 'ground' || s === 'loot')
-      return { route: 'not-held', why: 'seen on the ground — floor loot never files to the vault' };
+      return { route: 'not-held', leave: true, why: 'seen on the ground — floor loot never files to the vault' };
+    if (l === 'vendor' || l === 'trade' || s === 'vendor' || s === 'trade')
+      return { route: 'not-held', leave: true, why: 'seen in a vendor or trade window — that is an item leaving, never one held' };
     if (l){
       if (typeof window._vaultMayClaim !== 'function')
         return { route: 'wait', why: 'the vault predicate is not on this page, so whether "' + l + '" is a place you keep things is UNKNOWN — it waits' };
       var may = false;
       try { may = !!window._vaultMayClaim(l); } catch (e) { may = false; }
       if (may) return { route: 'vault', why: (l === 'equipped') ? 'seen worn (equipped)' : ('seen in your ' + l) };
-      if (l === 'inventory')
-        return { route: 'held', why: 'seen only in your inventory — holding is not owning; a stash or worn look files it' };
+      if (l === 'inventory'){
+        var nm = String(name == null ? '' : name).trim();
+        if (nm){
+          var kit = window._standingKit(nm);
+          if (kit === null)
+            return { route: 'wait', why: 'seen in your inventory, but whether it is standing kit (charms, the Cube, tomes) is UNKNOWN on this page — it waits' };
+          if (kit)
+            return { route: 'kit', why: 'standing kit in your inventory — §29: pinned to the character who carries it, never carried loot and never a mule' };
+          var cons = false;
+          try { cons = (typeof window._consumable === 'function') && !!window._consumable(nm); } catch (e) { cons = false; }
+          if (cons) return { route: 'not-held', why: 'a consumable — potions, scrolls and gold come and go; a read never owns one' };
+        }
+        return { route: 'carried', why: 'seen in your inventory — §31.2: loot in the inventory’s free space is yours right away, CARRIED (not locked); it lands when next seen in a stash tab or on a mule' };
+      }
       return { route: 'not-held', why: '"' + l + '" is not a place you keep things' };
     }
     if (!s) return { route: 'wait', why: 'where it was seen is UNKNOWN — the read carried no place and no scene, so it waits for a look that says' };
     if (s === 'inventory')
-      return { route: 'held', why: 'read while only your inventory was open — holding is not owning; a stash or worn look files it' };
+      return { route: 'wait', why: 'read while your inventory was open, but the reader did not say where this name sat — your inventory, your doll, or the ground beside you — so it waits for a look that says (§31.2 needs its place)' };
     if (s === 'stash')
       return { route: 'wait', why: 'read while the stash was open, but the reader did not say whether it sat in the stash or the inventory — it waits' };
     return { route: 'not-held', why: 'read during ' + s + ', which does not show that you hold it' };
+  };
+  /* ⚠ H1 (review of 77d8d8b5) — ONE SIGHTING, ONE TUPLE. A row carries its FIRST sighting (loc, scene, frameId from one
+     frame) and, when the register found one, its best HOLDING sighting (heldLoc / heldScene / heldFrame / heldTs from
+     another). The route is asked of the held sighting and cites ITS frame; without one, of the first. Never a place from
+     one frame and a scene from another. -> {loc, scene, frame, ts, held} */
+  window._readHolding = function(row){
+    row = (row && typeof row === 'object') ? row : {};
+    if (row.heldLoc) return { loc: row.heldLoc, scene: row.heldScene || null, frame: row.heldFrame || null,
+                              ts: row.heldTs || null, held: true };
+    return { loc: row.loc || null, scene: row.scene || null, frame: row.frameId || null,
+             ts: row.firstSeenTs || row.ts || null, held: false };
+  };
+  /* §31.2 — THE CARRIED STRIP. -> [{name, character, row}] | null (null = d2r_vaultProv would not read — UNKNOWN):
+     owned names whose receipt says CARRIED and that no filing has taken (`filed(name)` answers that). */
+  window._carriedNames = function(filed){
+    var all = _read();
+    if (!all) return null;
+    var out = [];
+    Object.keys(all).forEach(function(nm){
+      var r = all[nm];
+      if (!r || r.kind !== 'owned' || r.carried !== true || !owned.has(nm)) return;
+      try { if (filed && filed(nm)) return; } catch (e) {}
+      out.push({ name: nm, character: r.character || null, row: r });
+    });
+    return out.sort(function(a, b){ return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
+  };
+  /* "after a few game sessions unseen" — his words. A session counts when the reader read something in it AFTER this
+     item's last look, in this world, and it is not a session that saw the item. */
+  var CARRIED_STALE_SESSIONS = 3;
+  window.CARRIED_STALE_SESSIONS = CARRIED_STALE_SESSIONS;
+  function _hereWorld(){ return (window.D2R_PROFILE === 'ladder') ? 'ladder' : 'main'; }
+  /* a ledger row read in another world never speaks here: on ladder only a row stamped ladder; elsewhere any row not
+     stamped ladder (the rows before this stamp were all read on the owner's main world) */
+  function _rowInWorld(r){ var p = (r && r.profile) ? String(r.profile) : null; return (_hereWorld() === 'ladder') ? (p === 'ladder') : (p !== 'ladder'); }
+  window._carriedStale = function(name, row){
+    var nm = String(name == null ? '' : name).trim();
+    if (!row){ var all0 = _read(); row = (all0 && all0[nm]) || null; }
+    if (!row) return { lastMs: null, sessionsSince: null, stale: false, short: 'UNKNOWN', say: 'no receipt — when it was last seen is UNKNOWN' };
+    var last = _ms(row.lastAt) || _ms(row.ts) || _ms(row.at), mine = {};
+    if (row.sessionId) mine[row.sessionId] = 1;
+    (Array.isArray(row.looks) ? row.looks : []).forEach(function(k){
+      if (!k) return; if (k.id) mine[k.id] = 1; var t = _ms(k.at); if (t && (!last || t > last)) last = t; });
+    /* his clock, the same one the evidence card's When speaks — never UTC beside a local time */
+    var _M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var _lt = function(ms, yr){ try { var d = new Date(ms), p = function(n){ return (n < 10 ? '0' : '') + n; };
+      return d.getDate() + ' ' + _M[d.getMonth()] + (yr ? ' ' + d.getFullYear() : '') + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+      catch (e) { return 'an unknown time'; } };
+    var when = last ? _lt(last, true) : 'an unknown time', whenShort = last ? _lt(last, false) : 'UNKNOWN';
+    var log = null;
+    try { log = JSON.parse(window.LSR.getItem('d2r_chronicleInboxLog') || '[]'); } catch (e) { log = null; }
+    if (!Array.isArray(log) || !last)
+      return { lastMs: last, sessionsSince: null, stale: false, short: 'seen ' + whenShort,
+               say: 'carried · last seen ' + when + ' · how many sessions ran since is UNKNOWN' };
+    var since = {};
+    log.forEach(function(r){
+      if (!r || !r.sessionId || mine[r.sessionId] || !_rowInWorld(r)) return;
+      var t = _ms(r.firstSeenTs) || _ms(r.firstTs);
+      if (t && t > last) since[r.sessionId] = 1;
+    });
+    var n = Object.keys(since).length, stale = n >= CARRIED_STALE_SESSIONS;
+    return { lastMs: last, sessionsSince: n, stale: stale, short: stale ? 'still have it?' : ('seen ' + whenShort),
+             say: stale ? ('carried, last seen ' + when + ' - still have it? (' + n + ' sessions since, none saw it)')
+                        : ('carried · last seen ' + when + ' · ' + n + ' session' + (n === 1 ? '' : 's') + ' since') };
+  };
+  /* §31.2 — CARRIED LOOT LEAVES ONLY ON A REAL SIGNAL: seen on the floor again, or in a vendor / trade window, with the
+     frame as proof. Through the removal door (dated, listed, undoable), the frame on the batch. Anything else — a name
+     that is not carried, a signal with no frame — changes nothing and says why. -> null | {left, why, frame} */
+  window._carriedLeave = function(name, h, row){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm || !owned.has(nm)) return null;
+    var all = _read(), r = all ? all[nm] : null;
+    if (!r || r.kind !== 'owned' || r.carried !== true) return null;
+    h = h || {}; row = row || {};
+    var fr = _str(h.frame);
+    var where = (String(h.loc || h.scene || '').toLowerCase().match(/vendor|trade/)) ? 'in a vendor or trade window' : 'dropped on the floor again';
+    if (!fr) return { left: false, frame: null, why: 'carried loot seen ' + where + ', but the read carried no frame — no proof, so it stays yours' };
+    if (typeof window.vaultRemove !== 'function') return { left: false, frame: fr, why: 'the removal door is not on this page — UNKNOWN, it stays yours' };
+    var vr = null;
+    try { vr = window.vaultRemove([nm], { lane: 'carried-left', quiet: true,
+            why: 'carried loot seen ' + where + ' — frame ' + fr,
+            proof: { frame: fr, session: _str(row.sessionId), at: _iso(_ms(h.ts) || Date.now()), loc: _str(h.loc), scene: _str(h.scene) } }); } catch (e) { vr = null; }
+    var ok = !!(vr && vr.removed && vr.removed.length);
+    return { left: ok, frame: fr, why: ok ? ('left — carried loot seen ' + where + ' (frame ' + fr + '); undo with vaultRestoreLast()')
+                                             : 'the removal door refused it — it stays yours' };
   };
   /* A LIVE READ, ROUTED. The row is the reader's own (name, loc, scene, sessionId, frameId, conf, source,
      tier). A holding place goes through window.tvVaultRegister with the read as its one look — the same
@@ -19006,16 +19172,24 @@ try {
     row = (row && typeof row === 'object') ? row : {};
     var nm = String(row.name || '').trim();
     if (!nm) return { route: 'none', why: 'no name' };
-    var v = window._vaultHoldingRoute(row.loc, row.scene);
-    var out = { name: nm, route: v.route, why: v.why };
-    if (v.route !== 'vault') return out;
+    var h = window._readHolding(row);
+    var v = window._vaultHoldingRoute(h.loc, h.scene, nm);
+    var out = { name: nm, route: v.route, why: v.why, frame: h.frame || null, held: h.held };
+    if (v.leave){
+      var lv = null;
+      try { lv = window._carriedLeave(nm, h, row); } catch (e) { lv = null; }
+      if (lv){ out.left = lv; if (lv.left){ out.route = 'left'; out.why = lv.why; } else out.why = v.why + ' — ' + lv.why; }
+      return out;
+    }
+    if (v.route !== 'vault' && v.route !== 'carried') return out;
     if (typeof window.tvVaultRegister !== 'function'){
       out.route = 'wait'; out.why = 'the vault register is not on this page — UNKNOWN, nothing filed'; return out;
     }
-    var wit = { lane: String(row.loc).trim().toLowerCase(), by: String(row.source || 'kai-register'),
-                door: row.door || null, scene: row.scene || null, tier: row.tier || null,
-                at: row.firstSeenTs || row.ts || null,
-                sessions: [{ session: String(row.sessionId || ''), frame: String(row.frameId || '') || null,
+    var wit = { lane: String(h.loc).trim().toLowerCase(), by: String(row.source || 'kai-register'),
+                door: row.door || null, scene: h.scene || null, tier: row.tier || null,
+                at: h.ts || row.firstSeenTs || row.ts || null,
+                carried: v.route === 'carried', character: row.character || null,
+                sessions: [{ session: String(row.sessionId || ''), frame: String(h.frame || '') || null,
                              conf: (typeof row.conf === 'number') ? row.conf : null }] };
     var r = null;
     try { r = window.tvVaultRegister(nm, wit); } catch (e) { r = { ok: false, why: String(e && e.message || e) }; }
@@ -19023,6 +19197,9 @@ try {
     if (!r || !r.ok){ out.route = 'refused'; out.why = 'the vault register refused it: ' + ((r && r.why) || 'no reason given'); }
     return out;
   };
+  /* the row's world stamp — the ledger is one store shared by every world on this machine, so a read says where it was
+     taken, and a replay never lands in a world the read was not in (M3) */
+  window._readWorld = _hereWorld;
 
   /* ══ THE BACKFILL — one-time, idempotent, journaled, undoable; run by the board at load ══════════
      For the rows already in d2r_chronicleInboxLog: a name that is OWNED and has no provenance gets its
@@ -19032,9 +19209,50 @@ try {
      undid, or that still waits for his ruling. The receipt is the journal (d2r_ownedProvBackfill): it
      says what was written, what was filed and why the rest was not; _ownedProvBackfillUndo reverses
      exactly that, through the removal door. */
+  /* ⚠ M3 (review of 77d8d8b5, reproduced) — THE STAMP IS PER WORLD, AND A READ REPLAYS ONLY INTO ITS OWN WORLD.
+     The stamp was BARE while d2r_owned and d2r_vaultProv fork per profile, so the run one world recorded silenced every
+     other world's — and the ledger it replays (d2r_chronicleInboxLog) is ONE store for every world on the machine, so a
+     ladder run filed main's reads into ladder's vault. The stamp now forks with the stores it describes (it is in
+     _LP_FORKED), and a row replays only where it was read: on ladder only a row stamped ladder; elsewhere nothing
+     stamped ladder. And a name HE REMOVED never comes back through a replay: any name in the removal journal is left
+     alone, and an owned name un-owned after its row was read gets no receipt from that row. [[ladder-doctrine]]
+     ⚠ L2 — AND WHAT IT WRITES BESIDE THE VAULT IS JOURNALED AND UNDONE. Filing a held read through the register also
+     wrote a TV extra-item stub (d2r_tvExtraItems + EXTRA_ITEMS) for an unknown name, a filing (d2r_muleAssign) when
+     the door filed it, and the register's own row patch over the ledger row. The register's patch is now suppressed
+     during the replay; the verdict lands in separate fields only (vaultRoute / vaultWhy / vaultBackfillTs), their
+     previous values journaled; the stub and the filing are journaled; the undo puts every one of them back. */
   var _BF_KEY = 'd2r_ownedProvBackfill', _BF_VER = 1;
   var _BF_RULED = { 'dismissed': 1, 'blocked-unfound': 1, 'undone': 1, 'pending': 1 };
+  var _BF_FIELDS = ['vaultRoute', 'vaultWhy', 'vaultBackfillTs'];
   function _bfRead(){ try { var v = JSON.parse(window.LSR.getItem(_BF_KEY) || 'null'); return (v && typeof v === 'object') ? v : null; } catch (e) { return null; } }
+  function _bfJson(k, dflt){ var raw = null; try { raw = window.LSR.getItem(k); } catch (e) { return undefined; }
+    if (raw == null || raw === '') return dflt; try { return JSON.parse(raw); } catch (e) { return undefined; } }
+  function _bfTvxHas(nm){ var t = _bfJson('d2r_tvExtraItems', {}); return !!(t && typeof t === 'object' && t[nm]); }
+  function _bfAssignOf(nm){ var a = _bfJson('d2r_muleAssign', {}); return (a && typeof a === 'object' && a[nm] != null) ? a[nm] : null; }
+  function _bfLogPatch(nm, patch){
+    /* patch the ledger row's own fields, nothing else — `undefined` deletes a field (the undo) -> the previous values */
+    var log = _bfJson('d2r_chronicleInboxLog', []);
+    if (!Array.isArray(log)) return null;
+    var low = String(nm).toLowerCase(), prev = null;
+    for (var i = log.length - 1; i >= 0; i--){
+      var r = log[i];
+      if (!r || String(r.name || '').toLowerCase() !== low) continue;
+      prev = {};
+      Object.keys(patch).forEach(function(k){
+        prev[k] = Object.prototype.hasOwnProperty.call(r, k) ? r[k] : null;
+        if (patch[k] === undefined) delete r[k]; else r[k] = patch[k];
+      });
+      break;
+    }
+    if (prev) window.LSR.setItem('d2r_chronicleInboxLog', JSON.stringify(log));
+    return prev;
+  }
+  function _bfTvxForget(nm){
+    var t = _bfJson('d2r_tvExtraItems', {});
+    if (t && typeof t === 'object' && t[nm]){ delete t[nm]; window.LSR.setItem('d2r_tvExtraItems', JSON.stringify(t)); }
+    try { if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm] && EXTRA_ITEMS[nm].val === 'tv') delete EXTRA_ITEMS[nm]; } catch (e) {}
+    try { if (typeof _EXTRA_ITEM_SET !== 'undefined' && typeof _norm === 'function') _EXTRA_ITEM_SET['delete'](_norm(nm)); } catch (e) {}
+  }
   window._ownedProvBackfill = function(opts){
     opts = opts || {};
     var done = _bfRead();
@@ -19046,37 +19264,54 @@ try {
     if (!prov) return { ran: false, why: 'd2r_vaultProv would not parse — nothing was backfilled over it' };
     if (typeof window.tvVaultRegister !== 'function' || typeof window._vaultMayClaim !== 'function')
       return { ran: false, why: 'the vault register is not on this page yet — nothing was backfilled; it asks again next load' };
-    var rc = { ver: _BF_VER, ts: Date.now(), at: _iso(Date.now()), rows: log.length, wrote: [], filed: [], routes: {}, skipped: {} };
+    /* M3 — HIS REMOVALS, read raw: a journal that will not parse is UNKNOWN, and nothing is replayed over it */
+    var _rmLog = _bfJson('d2r_vaultRemoved', []);
+    if (!Array.isArray(_rmLog)) return { ran: false, why: 'the removal journal would not read — whether he removed any of these is UNKNOWN, so nothing was backfilled; it asks again next load' };
+    var _rmAt = {};
+    _rmLog.forEach(function(b){ (b && Array.isArray(b.names) ? b.names : []).forEach(function(n){
+      var t = +((b && b.ts) || 0); _rmAt[n] = Math.max(_rmAt[n] || 0, t || 1); }); });
+    var here = _hereWorld();
+    var rc = { ver: _BF_VER, ts: Date.now(), at: _iso(Date.now()), world: here, rows: log.length, wrote: [], filed: [], routes: {}, skipped: {} };
+    var _skip = function(k){ rc.skipped[k] = (rc.skipped[k] || 0) + 1; };
     log.forEach(function(r){
       if (!r || typeof r !== 'object' || !r.name) return;
       var nm = String(r.name).trim();
       if (!nm) return;
+      if (!_rowInWorld(r)){ _skip('another-world'); return; }
+      var rowT = _ms(r.lastTs) || _ms(r.firstSeenTs) || _ms(r.firstTs);
+      var h = window._readHolding(r);
       var rec = { source: r.source || 'kai-register', by: 'backfill', ts: r.firstSeenTs || r.firstTs || r.lastTs || null,
                   sessionId: r.sessionId, frameId: r.frameId, loc: r.loc, scene: r.scene, conf: r.conf, readTier: r.tier };
       if (owned.has(nm)){
         if (prov[nm]) return;
+        /* un-owned by his hand AFTER this row was read, and owned again since: this row does not describe the ownership
+           that stands now, so it writes nothing (an undatable row against a removal is the same UNKNOWN) */
+        if (_rmAt[nm] && (!rowT || _rmAt[nm] > rowT)){ _skip('owned-again-since-a-removal'); return; }
         var w = window._ownedProvWrite(nm, rec);
         if (w && w.ok && w.mode === 'written'){ rc.wrote.push(nm); prov[nm] = w.row; }
         return;
       }
       var st = String(r.status || '');
-      if (_BF_RULED[st]){ rc.skipped[st] = (rc.skipped[st] || 0) + 1; return; }
-      var v = window._vaultHoldingRoute(r.loc, r.scene);
+      if (_BF_RULED[st]){ _skip(st); return; }
+      if (_rmAt[nm]){ _skip('removed-by-him'); return; }
+      var v = window._vaultHoldingRoute(h.loc, h.scene, nm);
       rc.routes[v.route] = (rc.routes[v.route] || 0) + 1;
-      if (v.route !== 'vault') return;
-      var rr = window._liveReadRoute(Object.assign({}, r, { source: r.source || 'kai-register', door: 'backfill' }));
-      if (rr.route === 'vault' && rr.register && rr.register.ok){
-        rc.filed.push({ name: nm, label: String(rr.register.label || nm), why: v.why });
-        /* the register's ledger row speaks for the VAULT; the read's own source and status are put back */
-        try {
-          if (typeof window.kaiChronicleRecord === 'function'){
-            var back = { name: nm, vaultRoute: 'vault', vaultWhy: v.why + ' — filed by the 2026-09-28 backfill' };
-            ['status', 'source', 'store', 'why'].forEach(function(k){ if (r[k] != null) back[k] = r[k]; });
-            window.kaiChronicleRecord(back);
-          }
-        } catch (e) {}
+      if (v.route !== 'vault' && v.route !== 'carried') return;
+      /* a filing that stands for a name he does not own is not ours to write over — it waits for his eye */
+      if (_bfAssignOf(nm) != null){ _skip('stale-filing'); return; }
+      var side = { tvxBefore: _bfTvxHas(nm), assignBefore: null };
+      var _kcr = window.kaiChronicleRecord, rr = null;
+      window.kaiChronicleRecord = function(){ return null; };      /* L2 — the register's own row patch lands nowhere */
+      try { rr = window._liveReadRoute(Object.assign({}, r, { source: r.source || 'kai-register', door: 'backfill' })); }
+      finally { window.kaiChronicleRecord = _kcr; }
+      if (rr && (rr.route === 'vault' || rr.route === 'carried') && rr.register && rr.register.ok){
+        var label = String(rr.register.label || nm);
+        side.tvxMinted = !side.tvxBefore && _bfTvxHas(label);
+        side.assignAfter = _bfAssignOf(label);
+        side.logPrev = _bfLogPatch(nm, { vaultRoute: rr.route, vaultWhy: v.why + ' — by the 2026-09-28 backfill', vaultBackfillTs: rc.ts });
+        rc.filed.push({ name: nm, label: label, route: rr.route, why: v.why, frame: h.frame || null, side: side });
       } else {
-        rc.skipped['register-refused'] = (rc.skipped['register-refused'] || 0) + 1;
+        _skip('register-refused');
       }
     });
     try { window.LSR.setItem(_BF_KEY, JSON.stringify(rc)); } catch (e) {}
@@ -19093,15 +19328,30 @@ try {
     var back = [];
     (rc.filed || []).forEach(function(f){
       var nm = String((f && (f.label || f.name)) || '');
-      var p = all[nm];
-      /* only what the backfill put there and nobody has filed since */
-      if (nm && owned.has(nm) && p && p.kind === 'owned' && p.by === 'backfill') back.push(nm);
+      var p = all[nm], sd = (f && f.side) || {};
+      /* only what the backfill put there and nobody has filed since: its own receipt, or the filing it minted still
+         standing exactly as it minted it */
+      var mine = p && p.kind === 'owned' && p.by === 'backfill';
+      var minted = sd.assignBefore == null && sd.assignAfter != null && _bfAssignOf(nm) === sd.assignAfter;
+      if (nm && owned.has(nm) && (mine || minted)) back.push(nm);
     });
     var removed = [];
     if (back.length && typeof window.vaultRemove === 'function'){
       var vr = window.vaultRemove(back, { lane: 'backfill-undo', why: 'undo of the 2026-09-28 provenance backfill', quiet: true });
       removed = (vr && vr.removed) || [];
     }
+    /* L2 — the side writes, put back: the stub it minted, the ledger row's fields it patched */
+    var restoredSide = [];
+    (rc.filed || []).forEach(function(f){
+      var nm = String((f && (f.label || f.name)) || ''), sd = (f && f.side) || null;
+      if (!nm || !sd || removed.indexOf(nm) < 0) return;
+      if (sd.tvxMinted){ _bfTvxForget(nm); restoredSide.push(nm + ': TV extra-item stub removed'); }
+      if (sd.logPrev){
+        var undo = {};
+        _BF_FIELDS.forEach(function(k){ undo[k] = (sd.logPrev[k] == null) ? undefined : sd.logPrev[k]; });
+        if (_bfLogPatch(f.name || nm, undo)) restoredSide.push(nm + ': ledger row fields restored');
+      }
+    });
     all = _read() || {};
     var dropped = [];
     (rc.wrote || []).forEach(function(nm){
@@ -19109,9 +19359,9 @@ try {
       if (p && p.kind === 'owned' && p.by === 'backfill'){ delete all[nm]; dropped.push(nm); }
     });
     if (dropped.length) _write(all);
-    rc.undone = { at: _iso(Date.now()), removed: removed, dropped: dropped };
+    rc.undone = { at: _iso(Date.now()), removed: removed, dropped: dropped, side: restoredSide };
     try { window.LSR.setItem(_BF_KEY, JSON.stringify(rc)); } catch (e) {}
-    return { ok: true, removed: removed, dropped: dropped };
+    return { ok: true, removed: removed, dropped: dropped, side: restoredSide };
   };
   /* at load, once — never in a harness without a page */
   try {
@@ -35401,6 +35651,26 @@ body{
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#8c7a68);font-size:12px;font-style:italic;margin:0 auto}
 /* v2328 — nothing owned is not the same fact as nothing left to file; see renderVault */
 .vault-dock[data-owned="0"]:empty::after{content:"nothing is recorded yet — there is nothing to place ✦"}
+/* §31.2 — THE CARRIED STRIP: loot in a character's inventory, owned and not filed. A quieter frame than the dock (it is
+   not waiting to be sorted) and the same chip, so an item reads the same wherever it sits. A stale chip (a few game
+   sessions unseen) takes the amber of a question, never the red of a loss. */
+.vault-carried{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+.vault-carried[hidden]{display:none}
+.vcar-row{border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.035);padding:7px 10px}
+.vcar-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 6px;min-width:0}
+.vcar-title{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);text-transform:uppercase;color:#bfe4ff;font-size:var(--fs-meta)}
+.vcar-who{color:var(--text,#e8dcc4);font-weight:var(--fw-medium);font-size:var(--fs-meta)}
+.vcar-n{color:var(--text-muted,#b5a48a);font-size:var(--fs-meta)}
+.vcar-rule{color:var(--text-dim,#8c7a68);font-size:var(--fs-meta);font-style:italic;flex:1 1 220px;min-width:0}
+.vcar-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:6px}
+.vcar-items > .vault-chip{display:flex;box-sizing:border-box;width:100%;min-width:0;justify-content:space-between;cursor:default}
+.vcar-items > .vault-chip > span:not(.d2art-wrap){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* the NAME is what the chip is for: it keeps its room and the last-seen label gives way first (measured: a 190px track
+   with a long label collapsed the name to nothing) */
+.vcar-items > .vault-chip > span.vault-chip-name{flex:1 1 auto;min-width:5.5em}
+.vcar-seen{color:var(--text-dim,#8c7a68);font-size:var(--fs-micro);flex:0 1 auto;margin-left:6px}
+.vcar-stale{border-color:rgba(240,192,96,.7);border-style:dashed}
+.vcar-stale .vcar-seen{color:var(--gold-bright,#f0c060)}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
 /* v3250 — the sorter's own verdict for what is left in the dock. A class nobody styles is a flag
@@ -38029,7 +38299,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
     // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
-    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
+    /* §31.2 — CARRIED LOOT IS OWNED AND NOT LOOSE. Loot the reader saw in his inventory's free space is his right away
+       and sits on that character's CARRIED strip, not in the unsorted dock: it is not waiting to be sorted, it is in
+       his hands. null = the provenance store would not read — then nothing is taken out of the dock (UNKNOWN never
+       hides an item). */
+    var _carried = null;
+    try { _carried = (typeof window._carriedNames === 'function') ? window._carriedNames(function(n){ return assign[n] != null; }) : null; }
+    catch(e){ _carried = null; }
+    _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });
+    var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });
+    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]; });
     /* ══ v3286 — THE VAULT SAYS ITS OWN POPULATION ═══════════════════════════════════════════
        Every figure below is DERIVED BY SUBTRACTION from the two pools this function already
        built, never counted independently. That is the whole point: an independent tally can
@@ -38042,7 +38321,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _pEl = document.getElementById('vault-pop');
       if (_pEl){
         var _shared = poolAll.length - pool.length;
-        var _filed  = pool.length - unsorted.length;
+        var _filed  = pool.length - unsorted.length - _carried.length;
         var _sp = 0;
         try {
           unsorted.forEach(function(nm){
@@ -38052,6 +38331,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _bits = ['<b>' + poolAll.length + '</b> owned'];
         if (_shared) _bits.push('<b>' + _shared + '</b> in the shared stash <i>(never muled)</i>');
         _bits.push('<b>' + _filed + '</b> filed to mules');
+        if (_carried.length) _bits.push('<b>' + _carried.length + '</b> carried');
         _bits.push('<b>' + unsorted.length + '</b> still loose'
           + (unsorted.length ? ' <i>(' + _sp + ' set piece' + (_sp === 1 ? '' : 's')
              + ' \u00b7 ' + (unsorted.length - _sp) + ' other)</i>' : ''));
@@ -38148,6 +38428,40 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } else { dbar.hidden=true; dbar.innerHTML=''; }
     }
     renderVaultKeep();
+    /* §31.2 — THE CARRIED STRIP, one row per character. Each item says when it was last seen; after a few game sessions
+       unseen it asks "still have it?" (his words) — absence never un-owns it, only a floor / vendor / trade look does. */
+    try {
+      var _cEl = document.getElementById('vault-carried');
+      if (_cEl){
+        if (!_carried.length){ _cEl.hidden = true; _cEl.innerHTML = ''; }
+        else {
+          var _byCh = {};
+          _carried.forEach(function(c){ var k = c.character || ''; (_byCh[k] = _byCh[k] || []).push(c); });
+          _cEl.hidden = false;
+          /* named characters first; a read that did not say who carried it is its own row, last */
+          _cEl.innerHTML = Object.keys(_byCh).sort(function(a, b){
+              if (!a) return 1; if (!b) return -1; return a < b ? -1 : (a > b ? 1 : 0); }).map(function(ch){
+            var rows = _byCh[ch];
+            return '<div class="vcar-row" data-carried-char="' + esc(ch || '') + '">'
+              + '<div class="vcar-head"><span class="vcar-title">🎒 Carried</span>'
+              + '<span class="vcar-who">' + (ch ? esc(ch) : 'character UNKNOWN') + '</span>'
+              + '<span class="vcar-n">' + rows.length + '</span>'
+              + '<span class="vcar-rule">yours right away · lands when seen in a stash tab or on a mule</span></div>'
+              + '<div class="vcar-items">' + rows.map(function(c){
+                  var st = { stale: false, short: '', say: '' };
+                  try { st = window._carriedStale(c.name, c.row) || st; } catch(e){}
+                  var _vr = (typeof _artRarity === 'function') ? _artRarity(c.name) : '';
+                  return '<span class="vault-chip vcar-chip' + (_vr ? ' vc-r-' + _vr : '') + (st.stale ? ' vcar-stale' : '') + '"'
+                    + ' data-carried-item="' + esc(c.name) + '" title="' + esc(c.name + ' — ' + (st.say || 'carried')) + '">'
+                    + art(c.name) + '<span class="vault-chip-name"' + (typeof _qStyle === 'function' ? _qStyle(c.name, 'unique') : '') + '>' + esc(c.name) + '</span>'
+                    + '<span class="vcar-seen">' + esc(st.short || '') + '</span>'
+                    + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(c.name, 'vc-ev') : '')
+                    + '</span>';
+                }).join('') + '</div></div>';
+          }).join('');
+        }
+      }
+    } catch(e){}
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
@@ -38787,6 +39101,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       m.frame = r.frameId || r.frame || (first && first.frame) || null;
       m.note = r.where || null;
       if (r.ownedBy && r.ownedBy.source) m.note = (m.note ? m.note + ' · ' : '') + 'first owned via ' + say(r.ownedBy.source);
+      /* §31.2 — carried loot says so, and who carries it; a landing says where it landed and when */
+      if (r.carried === true){
+        m.seen = 'CARRIED in ' + (r.character ? (r.character + '’s') : 'a character’s') + ' inventory — yours (§31.2), lands when seen in a stash tab or on a mule'
+               + (r.character ? '' : ' · character UNKNOWN');
+        try { var _cs = (typeof window._carriedStale === 'function') ? window._carriedStale(nm, r) : null;
+              if (_cs) m.note = (m.note ? m.note + ' · ' : '') + _cs.say; } catch (e) {}
+      } else if (r.landed && typeof r.landed === 'object'){
+        m.note = (m.note ? m.note + ' · ' : '') + 'carried, then LANDED ' + (r.landed.loc === 'equipped' ? 'worn' : 'in your ' + (r.landed.loc || '?'))
+               + (r.landed.at ? ' ' + (_evWhen(r.landed.at) || '') : '') + (r.landed.frame ? ' (frame ' + r.landed.frame + ')' : '');
+      }
       if (r.tier) m.tierSay = r.tier + ((typeof r.successes === 'number' && typeof r.trials === 'number') ? ' ' + r.successes + '/' + r.trials : '')
                             + (typeof r.wilson === 'number' ? ' (Wilson ' + r.wilson.toFixed(2) + ')' : '');
       try { if (typeof assign === 'object' && assign && assign[nm] != null)
@@ -38995,7 +39319,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _rec = { source: String(_w0.by || 'tv-register'), by: String(_w0.door || 'tvVaultRegister'),
                    loc: _w0.lane || _w0.loc || null, scene: _w0.scene || null, readTier: _w0.tier || null, ts: _w0.at || null,
                    sessionId: _l0.session || _l0.witness || null, frameId: _l0.frame || null, conf: _l0.conf,
-                   where: (_w0.by === 'hand') ? (_w0.where || null) : null };
+                   where: (_w0.by === 'hand') ? (_w0.where || null) : null,
+                   /* §31.2 — a read the route called CARRIED: owned, on that character's strip, never filed */
+                   carried: _w0.carried === true, character: _w0.character || null };
       /* v2018 — REG-349: ASK THE PLANNER ABOUT THE ITEM, NOT ABOUT A STUB I WROTE THREE LINES AGO.
          The UNIVERSE GUARANTEE below writes EXTRA_ITEMS[name] = {rarity:'basic', base:name} so the
          mirror can DRAW an unknown name. That write used to happen FIRST, and suggestMule's very
@@ -39066,7 +39392,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           }
         } catch(e){}
         window._ownedAdd(name, _rec);
-        var _vfX = (witness && !assign[name]) ? window.vaultFile(name, witness, { mule: '__throwout' }) : null;
+        /* §31.2 — carried loot is never filed, not even to the throw-out review; his manual placement still outranks */
+        var _vfX = (_w0.carried === true) ? null
+                 : ((witness && !assign[name]) ? window.vaultFile(name, witness, { mule: '__throwout' }) : null);
         persistOwned(); saveA();
         try { if (typeof renderVault === 'function') renderVault(); } catch(e2){}
         var st = document.getElementById('vault-status');
@@ -39087,7 +39415,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var muleId = assign[name] || null;
       /* #246 — FILED ONLY THROUGH THE DOOR, ONLY ON A WITNESS. No witness -> owned, in the dock, unfiled. */
       var _vf = null;
-      if (!muleId && sg && (sg.id === '__keep' || muleById(sg.id))){
+      if (!muleId && _w0.carried === true){
+        /* §31.2 — CARRIED LOOT IS OWNED RIGHT AWAY AND NEVER FILED FROM HIS INVENTORY: it sits on that character's
+           CARRIED strip until a stash-tab or mule look lands it (that look files it through the door, on its own bar) */
+        _vf = { ok: false, refused: 'carried',
+                why: 'carried in ' + (_w0.character ? (_w0.character + '’s') : 'your') + ' inventory — yours (§31.2), not filed; it lands when next seen in a stash tab or on a mule' };
+      } else if (!muleId && sg && (sg.id === '__keep' || muleById(sg.id))){
         _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })
                       : { ok: false, refused: 'witness', why: 'no witness was handed over — registered, not filed' };
         if (_vf && _vf.ok) muleId = _vf.mule;
@@ -39119,7 +39452,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch(e){}
       var _vfR = (_vf && !_vf.ok) ? (_vf.refused || null) : null;
       var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId
-                  || (_vfR === 'no-home' ? ('no mule — ' + _vf.why)
+                  || (_vfR === 'carried' ? ('carried — ' + _vf.why)
+                  : _vfR === 'no-home' ? ('no mule — ' + _vf.why)
                   : ((_vfR === 'locked' || _vfR === 'main') ? 'your MAIN carries it — never a mule'
                   : 'unsorted — waiting for a witness'));
       var st2 = document.getElementById('vault-status');
@@ -39246,7 +39580,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                one the ledger could not show. 'throw-suggested' is already taught to _CH_PILL_MAP. */
             status: (r && r.ok)
               ? (r.mode === 'throwout' ? 'throw-suggested'
-                 : (r.filed === false ? (r.refused === 'no-home' ? 'no-home'
+                 : (r.filed === false ? (r.refused === 'carried' ? 'carried' : r.refused === 'no-home' ? 'no-home'
                                          : ((r.refused === 'locked' || r.refused === 'main') ? 'lane-locked' : 'no-witness'))
                                       : (_known(nm) ? 'vault-registered' : 'vault-unknown')))
               : 'route-failed',
@@ -39281,7 +39615,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                      + '\u2014 it is still yours and still counted' + ((r && r.why) ? (': ' + r.why) : ''))
                   : (r.filed === false)
                   ? ('owned, NOT filed to a mule — ' + (r.why || 'no witness')
-                     + ((r.refused === 'no-home' || r.refused === 'locked' || r.refused === 'main') ? ''
+                     + ((r.refused === 'no-home' || r.refused === 'locked' || r.refused === 'main' || r.refused === 'carried') ? ''
                         : '. It waits in the dock for a second look in your stash, or for your hand'))
                   : (_known(nm)
                       ? (r.mode === 'already'
@@ -39532,7 +39866,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 filed: filed,
                 prov: provs,
                 why: String(opts.why || 'removed from owned'),
-                lane: String(opts.lane || 'manual') };
+                lane: String(opts.lane || 'manual'),
+                /* §31.2 — a carried item leaves on a real signal, and the batch keeps the frame that proves it */
+                proof: (opts.proof && typeof opts.proof === 'object') ? opts.proof : null };
       var log = _vrRead(); log.push(batch); _vrWrite(log);
       try { _provDrop(removed); } catch(e){}
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
@@ -39946,6 +40282,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
      `equipped` stays: gear on his character is registered and synced, and the lane lock (v1983,
      _laneLocked) is what stops it ever being told to move. */
+  /* ⚠ §31.2 (his ruling, 2026-09-28) SUPERSEDES the v2346 note above for inventory LOOT: an item the reader placed in
+     his inventory's free space is owned right away — CARRIED, not filed — and that is window._vaultHoldingRoute's
+     'carried' verdict, not a lane here. This list stays the places an item may be FILED from, so inventory stays off
+     it; the tomes, the Cube and his charms stay standing kit (§29). */
   window._VAULT_LANES = ['equipped','stash','cube','belt','mule','locker','tomb','tombs'];
   window._vaultMayClaim = function(loc){
     var t = String(loc == null ? '' : loc).toLowerCase().trim();
@@ -40184,7 +40524,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         name: nm, tier: tier || null, source: 'aic-judge',
         firstSeenTs: meta.fts || meta.firstSeenTs || Date.now(),
         frameId: meta.frameId || '', sessionId: meta.sid || meta.sessionId || '',
-        loc: meta.loc || null, scene: meta.scene || null,
+        loc: meta.loc || null, scene: meta.scene || null, character: meta.character || null,
         /* 2026-09-28 — this door routes the vault ITSELF (below); the inbox must not route it a second time */
         vaultRouted: true
       };
@@ -40211,12 +40551,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            thing entirely. [[label-outlived-referent]] */
         var _loc = (meta && meta.loc) || '';
         /* 2026-09-28 — the ONE route: the same place rule plus the scene (a Chronicle page never files, §28) */
-        var _gRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(_loc, meta && meta.scene)
-                    : { route: window._vaultMayClaim(_loc) ? 'vault' : 'wait', why: '' };
+        /* L1 — the route only; no route on this page is UNKNOWN (never the bare predicate). §31.2 — carried is owned too */
+        var _gRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(_loc, meta && meta.scene, nm)
+                    : { route: 'wait', why: 'the vault route is not on this page — UNKNOWN, it counts in your Chronicle only' };
         out.vaultRoute = _gRoute.route;
-        if (_gRoute.route === 'vault'){
+        if (_gRoute.route === 'vault' || _gRoute.route === 'carried'){
           try {
-            if (typeof window.tvChronicleRoute === 'function'){
+            if (_gRoute.route === 'vault' && typeof window.tvChronicleRoute === 'function'){
               out.grail = window.tvChronicleRoute(nm, 'vault');
               out.actions.push('chronicle-route');
             }
@@ -40226,6 +40567,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               /* #246 — the judge's read is the witness it hands over: one look, with its frame and conf */
               out.vault = window.tvVaultRegister(nm, { lane: _loc, by: 'aic-judge', scene: (meta && meta.scene) || null, tier: tier,
                 at: meta.fts || meta.firstSeenTs || null,
+                carried: _gRoute.route === 'carried', character: (meta && meta.character) || null,
                 sessions: [{ session: meta.sid || meta.sessionId || '', frame: meta.frameId || '',
                              conf: (typeof meta.conf === 'number') ? meta.conf : null }] });
               out.actions.push('vault');
@@ -40252,14 +40594,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             /* 2026-09-28 — A JUDGED RUNEWORD STILL LANDS (it is gear he made — Grief, Plague) AND NOW SAYS SO: its receipt
                carries the judge, the session, the frame and where it was read. A Chronicle-page or ground read never
                files (§28); a place the reader did not know is written as UNKNOWN on the receipt, never guessed. */
-            var _kwRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(meta.loc, meta.scene) : { route: 'wait', why: '' };
+            var _kwRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(meta.loc, meta.scene, nm) : { route: 'wait', why: '' };
             out.vaultRoute = _kwRoute.route;
             if (_kwRoute.route === 'found-only' || _kwRoute.route === 'not-held'){
               out.vaultRefused = _kwRoute.why; out.actions.push('vault-refused');
             } else {
               try { window._ownedAdd(nm, { source: 'aic-judge', by: 'aicJudgeApply (keep)', sessionId: meta.sid || meta.sessionId || null,
                                            frameId: meta.frameId || null, ts: meta.fts || meta.firstSeenTs || null, loc: meta.loc || null,
-                                           scene: meta.scene || null, conf: meta.conf, readTier: 'keep' }); } catch(e0){}
+                                           scene: meta.scene || null, conf: meta.conf, readTier: 'keep',
+                                           carried: _kwRoute.route === 'carried', character: meta.character || null }); } catch(e0){}
             }
           } else if (typeof magicFinds === 'object' && magicFinds){
             /* ── v1934 — A KEEPER MUST BE ABLE TO NAME THE PHOTOGRAPH IT CAME FROM ─────────────
@@ -50640,7 +50983,7 @@ function renderJournal(){
     if (row.witness && typeof row.witness === 'object') return row.witness;
     if (!row.loc) return null;
     var looks = row.witnesses || row.sightings || row.seen || [];
-    return { lane: row.loc, sessions: Array.isArray(looks) ? looks : [], gate: row.gate || null,
+    return { lane: row.loc, scene: row.scene || null, sessions: Array.isArray(looks) ? looks : [], gate: row.gate || null,
              by: String(row.source || 'chronicle-apply') };
   };
   var _vaultReport = function(vr, nm){
@@ -50750,8 +51093,10 @@ function renderJournal(){
          ⚠ AND THE COMMENT WAS THE HALF PEOPLE READ: ":44352 — `_mayVault` is computed once for
          this row" was true of the declaration and false of the assignment.
          [[feedback-comments-vs-code]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
-      var _mayVault = (typeof window._vaultMayClaim === 'function')
-        && window._vaultMayClaim((row && row.loc) || '');
+      /* L1 (review of 77d8d8b5) — THE ONE ROUTE (place + scene), never the bare predicate: a Chronicle-page row with a
+         place on it must not file here while the live route refuses it (§28). */
+      var _mayVault = (typeof window._vaultHoldingRoute === 'function')
+        && window._vaultHoldingRoute((row && row.loc) || null, (row && row.scene) || null, n).route === 'vault';
       if (_chronAlreadyUni(n)) {
         /* ⚠ v2193 — "ALREADY IN THE GRAIL" IS NOT A REASON TO NOT KNOW WHERE IT PHYSICALLY IS.
            This returned early, so an item he had already ticked never reached the vault door at
@@ -50992,7 +51337,8 @@ function renderJournal(){
       var n = row && (row.name || row); if (!n) return;
       /* #246 W2 — a set piece SEEN IN A CONTAINER is a vault witness like any unique: same gate, same door */
       try {
-        if (row && typeof row === 'object' && window._vaultMayClaim && window._vaultMayClaim(row.loc || '')
+        if (row && typeof row === 'object' && window._vaultHoldingRoute
+            && window._vaultHoldingRoute(row.loc || null, row.scene || null, n).route === 'vault'
             && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n))
           _vaultReport(window.tvVaultRegister(n, _rowWitness(row)), n);
       } catch(e){}
@@ -51351,16 +51697,17 @@ function renderJournal(){
         _hoNames.forEach(function (row) {
           var nm = (row && row.name) ? row.name : row;
           if (!nm || _have[String(nm)]) return;      /* already waiting on him — do not duplicate */
-          var _loc = (row && row.loc) || null;
+          var _loc = (row && row.loc) || null, _scn = (row && row.scene) || null;
           var _vaultOk = null, _why = (row && row.why) || 'read from your reels';
-          if (_loc && typeof window._vaultMayClaim === 'function') {
-            _vaultOk = !!window._vaultMayClaim(_loc);
+          /* L1 — the ONE route, with the scene the row carries */
+          if (_loc && typeof window._vaultHoldingRoute === 'function') {
+            _vaultOk = window._vaultHoldingRoute(_loc, _scn, nm).route === 'vault';
             if (!_vaultOk) {
               _why = 'seen in ' + String(_loc) + ' — that is not somewhere you keep things, so '
                    + 'it is a sighting and not a vault item';
             }
           }
-          _inb.push({ name: String(nm), why: _why, loc: _loc, vaultOk: _vaultOk,
+          _inb.push({ name: String(nm), why: _why, loc: _loc, scene: _scn, vaultOk: _vaultOk,
                       src: 'console-handoff', at: (_ho.at || Date.now()) });
           _have[String(nm)] = 1; _added++;
         });
@@ -57300,7 +57647,7 @@ window._renderStashFresh = function(){
            "accepted from a Chronicle sweep" about an item that never came from the Chronicle. */
         if (it.kind === 'item') grailNames.push({ name: nm, lane: it.lane, conf: it.conf,
                                                   witnesses: it.witnesses, seen: it.witnesses,
-                                                  source: 'vault-sweep', loc: it.lane, gate: it.gate });
+                                                  source: 'vault-sweep', loc: it.lane, scene: it.scene || null, gate: it.gate });
         else out.skipped.push(nm + ' (unknown kind)');
         return;
       }
@@ -57570,7 +57917,8 @@ window._renderStashFresh = function(){
            (the canonical suffixed one), so its witness rides here, looked up by the piece it resolves to */
         grailNames.forEach(function(g){
           var sp3 = null; try { sp3 = (g && g.loc && window.findSetPiece) ? window.findSetPiece(g.name) : null; } catch(e){}
-          if (sp3 && sp3.piece && window._vaultMayClaim && window._vaultMayClaim(g.loc)) _pushN(sp3.piece);
+          if (sp3 && sp3.piece && window._vaultHoldingRoute
+              && window._vaultHoldingRoute(g.loc, g.scene || null, g.name).route === 'vault') _pushN(sp3.piece);   /* L1 — the one route */
         });
         _names.forEach(function(nm){
           if (!_laneOn) return;
@@ -59266,6 +59614,11 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
              and its confidence. The row's `loc` alone was null for 397 of 400 rows on his board. */
           scene: it.scene || null, conf: (typeof it.conf === 'number') ? it.conf : null,
           source: it.source || 'kai-register', proposedAt: Date.now(),
+          /* H1 — the best HOLDING sighting, whole, beside the first one (the route asks it and cites its frame);
+             M3 — the world this read was taken in, so a replay never lands it in another; §31.2 — who carried it */
+          heldLoc: it.heldLoc || null, heldScene: it.heldScene || null, heldFrame: it.heldFrame || null,
+          heldTs: it.heldTs || null, character: it.character || null,
+          profile: (typeof window._readWorld === 'function') ? window._readWorld() : null,
           /* v1759 — this literal is a WHITELIST, so anything not named here is dropped before
              triage ever sees it. gateHeld was added upstream to stop a name the sweep's gate had
              refused from being auto-ticked here on the strength of its spelling — and it was
@@ -59395,19 +59748,23 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
                predicate -> no vault claim, and the grail tick still happens. This repo has shipped
                a cross-block call three times (v1516, v2248, v2279). */
             /* 2026-09-28 — the ONE route (place + scene): a Chronicle-page read never files, even with a place on it */
-            var _acRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(base.loc, base.scene) : null;
-            var _seenInAContainerHeOwns = _acRoute ? (_acRoute.route === 'vault')
-              : ((typeof window._vaultMayClaim === 'function') && window._vaultMayClaim(base.loc));
+            /* H1 — asked of the HELD sighting (a place and a scene from ONE frame), citing its frame; no route on this
+               page = UNKNOWN, and UNKNOWN files nothing (the bare predicate is never asked beside the route — L1) */
+            var _acHold = (typeof window._readHolding === 'function') ? window._readHolding(base)
+                        : { loc: base.loc, scene: base.scene, frame: base.frameId, ts: base.firstSeenTs };
+            var _acRoute = (typeof window._vaultHoldingRoute === 'function') ? window._vaultHoldingRoute(_acHold.loc, _acHold.scene, nm) : null;
+            var _seenInAContainerHeOwns = !!_acRoute && (_acRoute.route === 'vault' || _acRoute.route === 'carried');
             if (_seenInAContainerHeOwns){
               try {
-                if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
+                if (_acRoute.route === 'vault' && typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
               } catch(eR){}
               try {
                 /* #246 — the sighting IS the witness handed over: one look, which the door files only if it is
-                   joined by a second */
-                if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm, { lane: base.loc, by: 'inbox-auto',
-                  scene: base.scene || null, tier: base.tier || null, at: base.firstSeenTs || null,
-                  sessions: [{ session: base.sessionId || '', frame: base.frameId || '',
+                   joined by a second (§31.2 — a carried one is owned and never filed) */
+                if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm, { lane: _acHold.loc, by: 'inbox-auto',
+                  scene: _acHold.scene || null, tier: base.tier || null, at: _acHold.ts || base.firstSeenTs || null,
+                  carried: _acRoute.route === 'carried', character: base.character || null,
+                  sessions: [{ session: base.sessionId || '', frame: _acHold.frame || '',
                                conf: (typeof base.conf === 'number') ? base.conf : null }] });
               } catch(eV){}
             }
@@ -59433,6 +59790,8 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
         inbox.push({
           name: nm, firstSeenTs: it.firstSeenTs || 0, frameId: it.frameId || '',
           tier: it.tier || null, sessionId: it.sessionId || '', loc: it.loc || null, scene: it.scene || null,
+          heldLoc: base.heldLoc, heldScene: base.heldScene, heldFrame: base.heldFrame, heldTs: base.heldTs,
+          character: base.character, profile: base.profile,
           source: it.source || 'kai-register', proposedAt: Date.now(),
           triageWhy: triage.why || null
         });
@@ -61050,15 +61409,18 @@ window._CH_PILL_MAP = {
         var _v0 = 'no', _vw0 = '';
         var _hit0 = null;
         try { _hit0 = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return x && String(x.name) === nm; })[0] || null; } catch(e){}
+        /* L1 + H1 — the ONE route, asked of the row's HELD sighting (place + scene from one frame), citing its frame */
+        var _h0 = (typeof window._readHolding === 'function') ? window._readHolding(_hit0 || {})
+                : { loc: (_hit0 && _hit0.loc) || null, scene: (_hit0 && _hit0.scene) || null, frame: (_hit0 && _hit0.frameId) || null };
         if (!_wantVault) { _v0 = 'skipped'; _vw0 = ''; }
-        else if (!(window._vaultMayClaim && window._vaultMayClaim((_hit0 && _hit0.loc) || ''))) {
+        else if (!(window._vaultHoldingRoute && window._vaultHoldingRoute(_h0.loc, _h0.scene, nm).route === 'vault')) {
           _vw0 = 'the sighting was not in a container you keep things in';
         }
         else try {
           if (typeof window.tvVaultRegister === 'function') {
             var _r0 = window.tvVaultRegister(nm, { by: 'hand', at: new Date().toISOString(),
-              where: 'the Chronicle inbox (accept and vault)', lane: (_hit0 && _hit0.loc) || '',
-              reel: (_hit0 && _hit0.sessionId) || null, frame: (_hit0 && _hit0.frameId) || null });
+              where: 'the Chronicle inbox (accept and vault)', lane: _h0.loc || '', scene: _h0.scene || null,
+              reel: (_hit0 && _hit0.sessionId) || null, frame: _h0.frame || null });
             if (_r0 && _r0.ok && _r0.filed !== false) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
             else _vw0 = String((_r0 && _r0.why) || 'no reason given').slice(0, 90);
           } else { _vw0 = 'the vault door is not loaded'; }
@@ -61111,15 +61473,18 @@ window._CH_PILL_MAP = {
          The RESULT now names each ledger separately, so the surface can say what happened rather
          than implying one thing and doing another. [[label-outlived-referent]] */
       var _vault = 'no', _vwhy = '';
+      /* L1 + H1 — the ONE route, asked of the row's HELD sighting, citing its frame */
+      var _hH = (typeof window._readHolding === 'function') ? window._readHolding(hit || {})
+              : { loc: (hit && hit.loc) || null, scene: (hit && hit.scene) || null, frame: (hit && hit.frameId) || null };
       if (!_wantVault) { _vault = 'skipped'; _vwhy = ''; }
-      else if (!(window._vaultMayClaim && window._vaultMayClaim((hit && hit.loc) || ''))) {
+      else if (!(window._vaultHoldingRoute && window._vaultHoldingRoute(_hH.loc, _hH.scene, nm).route === 'vault')) {
         _vwhy = 'the sighting was not in a container you keep things in';
       }
       else try {
         if (typeof window.tvVaultRegister === 'function') {
           var _vr = window.tvVaultRegister(nm, { by: 'hand', at: new Date().toISOString(),
-            where: 'the Chronicle inbox (accept and vault)', lane: hit.loc,
-            reel: hit.sessionId || null, frame: hit.frameId || null });
+            where: 'the Chronicle inbox (accept and vault)', lane: _hH.loc, scene: _hH.scene || null,
+            reel: hit.sessionId || null, frame: _hH.frame || null });
           if (_vr && _vr.ok && _vr.filed !== false) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
           else _vwhy = String((_vr && _vr.why) || 'no reason given').slice(0, 90);
         } else { _vwhy = 'the vault door is not loaded'; }

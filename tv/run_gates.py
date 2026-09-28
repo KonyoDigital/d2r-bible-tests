@@ -211,7 +211,7 @@ GATES = [
          why="v3287 - Konyo: 'even top corner chronicles set uniques and runewords should color match the tabs in main console'. The Sessions header drew 99/99 CHRONICLE (runewords) and 309/403 CHRONICLE (uniques) - two different quantities under one word, four inches apart, both numbers right and the noun wrong. Pins that the chips name what they count, declare their room class, and take the SHARED tokens (--rune / --q-unique / --q-set) rather than a forked hex; and that the FULL BIBLE door spans the row and glows instead of hugging the end in --gold-dim. Runewords wears --rune not gold by v1631s ruling that a TAB labels a ROOM. 4 red-proofs"),
     Gate("test_vault_population", [sys.executable,
                                    os.path.join(HERE, "test_the_vault_says_its_own_population.py")], 60,
-         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 3 red-proofs"),
+         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 2026-09-28 (§31.2): CARRIED joins as a part cut from the same pool, so filed+carried+loose==pool. 4 red-proofs"),
     Gate("test_guest_intake_door", [sys.executable,
                                     os.path.join(HERE, "test_a_guest_may_not_walk_through_his_door.py")], 60,
          why="v3296 - Konyo authorised this while scoping the parallel-test console: 'yea do it obivously'. The intake endpoint expression was written out BY HAND AT TEN SITES in bible.html (24312, 26090, 26722, 26960, 27672, 37972, 39894, 46859, 47559, 52952), each carrying the production URL as its file:// fallback, and the copies had ALREADY DRIFTED - nine read localStorage, one read window.LSR. Over file:// that default was the production endpoint FOR EVERY BOARD, so a GUEST board (no ownerClaim - exactly what the Linux test console is) posted its intake into HIS REAL INTAKE, silently; running the two consoles in parallel is the precise activity that fires it. Pins both halves: the public door is named EXACTLY ONCE in executable source inside _d2rIntakeEndpoint, and the guest branch cannot reach it because the production return sits behind a _D2R_OWNER test with a relative fallback after it. Also pins that HIS OWN board still reaches his own live door, because breaking that is worse than the defect. 2 red-proofs. NOTE its call-site count is taken on RAW source on purpose - _executable_only drops bible.html L38004 (raw 10, stripped 9), tracked separately. CORRECTED v3299: the cause is NOT the regex literals above that line as first recorded, it is accept=image/* at bible.html:37910 whose /* opens a comment for the context-free scanner 94 lines upstream. 2 red-proofs"),
@@ -6872,7 +6872,13 @@ GATES = [
              "filing row; the live route files a held place into the dock and never a Chronicle page, the floor "
              "or an UNKNOWN place; the one-time backfill writes Grief/Plague's receipts and files String of Ears, "
              "runs once and undoes exactly what it did; a receipt is never a witness; the evidence panel says "
-             "who/when/frame and never draws a picture that is not there. Driven in node. 9 red-proofs."),
+             "who/when/frame and never draws a picture that is not there. Driven in node. + the review of 77d8d8b5: "
+             "one sighting one tuple, the held sighting routes and is cited (H1, the shipped register end to end); "
+             "the backfill stamp forks per world, a read replays only in its own world, his removals never come back "
+             "(M3); owned_restore and the un-seed Undo write receipts and every d2r_owned write is censused (M4); no "
+             "claim on the bare predicate (L1); the backfill's side writes are journaled and undone (L2); and his "
+             "§31.2 ruling - inventory loot is CARRIED, owned right away, never filed, lands on a stash look, leaves "
+             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. 29 red-proofs."),
     Gate("test_an_evidence_picture_is_never_reaped",
          [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
          why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
@@ -6880,13 +6886,16 @@ GATES = [
              "reaper asks the ONE authority (witness index + chron_evidence), keeps cited pictures and releases "
              "the rest; a read keeps a small picture under the floor, none below the hard floor, and every "
              "refusal and every reap is recorded by name. Driven through archive_read_frame on a temp shelf. "
-             "7 red-proofs."),
+             "+ the review of 77d8d8b5: the read EVICTION asks the same shield and records what it takes (H2); the "
+             "reel pick keeps the journal's read frames and a reel with no index is COULD NOT ASK (M1); a refused "
+             "picture no longer stops the shelf shedding (M2); an unreadable budget refuses (L2). 15 red-proofs."),
     Gate("test_a_vault_item_and_a_read_say_where_they_came_from",
          [sys.executable, os.path.join(HERE, "test_a_vault_item_and_a_read_say_where_they_came_from.py")], 60,
          why="2026-09-28 - the heart rows for the owned door: 'a vault item with no provenance' names every "
              "owned name nobody can account for, and 'a read left no picture' names who took each missing "
              "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
-             "be read. Registered, declared, explained. 7 red-proofs."),
+             "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
+             "disk (the locator probes the stem, as frame_ref.Index.resolve does). 8 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "

@@ -200,7 +200,15 @@ def locator(hist_dir):
     ⚠ PROBES, NEVER WALKS. frame_ref.Index stats every file on the shelf (tens of thousands of his frames) and the
     doctor asks this every tick — "a watcher over a growing folder hangs a gate with a clean diff" is a scar in
     this tree. Only the frames actually asked about are looked for: the exact relative path (flat `<n>_<ms>` read
-    frames, `reel_<sid>/f_<ms>` paths), then a bare `f_<ms>` stem inside each reel directory."""
+    frames, `reel_<sid>/f_<ms>` paths), then the bare STEM — at the top level and inside every reel directory.
+
+    ⚠ M5 (review of 77d8d8b5, reproduced) — A REEL-RELATIVE REF WHOSE FILE IS STILL LOOSE READ AS MISSING. The journal
+    names a frame `reel_<sid>/f_<ms>` the moment it is read, but the file may still sit loose at the top level (it is
+    moved into its reel when the reel is sealed), and this returned False right after the exact miss for any ref with a
+    '/' in it — so the doctor said 'a read left no picture' about a picture that was on disk. frame_ref.Index.resolve
+    has always answered this: exact path first, the stem as the fallback. The probe now does the same, without the
+    walk: the stem at the top level, then in every reel. A stem found in more than one place is still ON DISK (the same
+    capture ms) — presence is the question here, not which path. [[feedback-suspect-the-instrument]]"""
     try:
         reels = sorted(d for d in os.listdir(hist_dir) if d.startswith("reel_"))
     except OSError:
@@ -214,9 +222,11 @@ def locator(hist_dir):
         try:
             if os.path.isfile(os.path.join(hist_dir, rel)):
                 return True
-            if "/" in s:
-                return False
-            return any(os.path.isfile(os.path.join(hist_dir, r, rel)) for r in reels)
+            # the exact path missed: the bare stem, top level first, then every reel (frame_ref.Index.resolve's order)
+            base = rel.rsplit("/", 1)[-1]
+            if "/" in rel and os.path.isfile(os.path.join(hist_dir, base)):
+                return True
+            return any(os.path.isfile(os.path.join(hist_dir, r, base)) for r in reels)
         except OSError:
             return None
     return present

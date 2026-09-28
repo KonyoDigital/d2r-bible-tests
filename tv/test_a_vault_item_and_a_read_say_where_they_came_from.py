@@ -19,6 +19,8 @@ through the doctor's ONE shared board read, stubbed here; the shelf is a temp di
     whose frame is gone names the recorder's reap record, or says "never written" from the refusal record, or says
     UNKNOWN; reads older than 24 h and reads with no names are not judged; an unreadable journal or shelf is UNKNOWN.
   · read_pictures.status_for — the console's /api/picture_status answer, per frame: present, or gone with the reason.
+  · M5 (review of 77d8d8b5) — a reel-relative ref whose file is still loose at the top level is ON DISK: the locator
+    probes the bare stem after the exact miss, top level then every reel, as frame_ref.Index.resolve does.
   · both rows are in CHECKS, WATCHES and corroborate's registry; the route is served.
 RED_PROOF below.
 """
@@ -167,6 +169,23 @@ class AReadLeftNoPicture(unittest.TestCase):
         self.assertEqual("reaped", p["17_%d" % (NOW - 9000)]["code"])
         self.assertEqual("unknown", p["99_1"]["code"])
 
+    def test_a_reel_relative_ref_still_loose_at_the_top_level_is_on_disk(self):
+        """⚠ M5 (review of 77d8d8b5, reproduced) — the journal names a frame `reel_<sid>/f_<ms>` the moment it is read,
+        and the file may still sit LOOSE at the top level until its reel is sealed. The locator returned False right
+        after the exact miss for any ref with a '/', so the doctor reported 'a read left no picture' about a picture on
+        disk. It now probes the bare stem, top level then every reel — frame_ref.Index.resolve's order."""
+        loose = "f_%d" % (NOW - 20000)
+        with open(os.path.join(self.hist, loose + ".jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff")
+        present = RP.locator(self.hist)
+        self.assertTrue(present("reel_s_1/" + loose), "a reel-relative ref whose file is still loose read as MISSING")
+        self.assertTrue(present("reel_s_9/f_%d" % (NOW - 7000)), "a stem on disk in another reel read as missing")
+        self.assertFalse(present("reel_s_1/f_1"), "BASELINE: a stem on disk nowhere must still read missing")
+        st, why = D._check_a_read_left_no_picture(
+            rows=[{"lane": "deep", "frameId": "reel_s_1/" + loose, "names": ["Grief"], "ts": NOW - 20000}],
+            hist=self.hist, now_ms=NOW)
+        self.assertEqual(D.OK, st, why)
+
     def test_a_released_reel_is_named_with_its_date(self):
         tomb = {"reels": [{"reel": "reel_s_7", "session": "s_7", "deletedTs": NOW - 3600 * 1000, "why": "released",
                            "kept": [{"frame": "f_keep.jpg"}]}]}
@@ -242,6 +261,13 @@ RED_PROOF = [
         "file": "read_pictures.py",
         "find": "        if same:\n            return (\"never-written\",",
         "replace": "        if False:\n            return (\"never-written\",",
+        "matches": 1,
+    },
+    {
+        "why": "M5: a reel-relative ref whose file is still loose at the top level reads as missing again",
+        "file": "read_pictures.py",
+        "find": "            if \"/\" in rel and os.path.isfile(os.path.join(hist_dir, base)):\n                return True\n",
+        "replace": "            if \"/\" in rel:\n                return False\n",
         "matches": 1,
     },
     {

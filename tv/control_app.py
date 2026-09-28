@@ -8775,6 +8775,31 @@ def _name_loc(sightings):
     return None
 
 
+_VAULT_LANES_CACHE = {"mtime": None, "lanes": None}
+
+
+def _vault_claim_lanes():
+    """bible.html's window._VAULT_LANES — the ONE predicate's whitelist — PARSED, never re-typed. -> tuple | None
+
+    The register below picks WHICH sighting of a name is handed to the board's route; the board decides. A second
+    list here would drift silently in exactly the direction that matters, so this reads the board's own list through
+    trace_spine._vault_lanes (anchored at both ends) and caches it by the file's mtime. None = UNKNOWN (the board is
+    not on disk, or no longer declares the list) — then no sighting is promoted as a holding one, and the register
+    hands over the first sighting as it always did. [[copy-drift]] [[unknown-stays-unknown]]"""
+    try:
+        import trace_spine as _ts
+        mt = os.path.getmtime(_ts.BIBLE)
+    except Exception:
+        return None
+    if _VAULT_LANES_CACHE["mtime"] != mt:
+        try:
+            lanes, _why = _ts._vault_lanes()
+        except Exception:
+            lanes = None
+        _VAULT_LANES_CACHE.update({"mtime": mt, "lanes": tuple(lanes) if lanes else None})
+    return _VAULT_LANES_CACHE["lanes"]
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
@@ -8782,6 +8807,23 @@ def _kai_compile_register(sess_rows):
     Record: {name, firstSeenTs, frameId, loc, tier}. Pure — no side effects."""
     fulln = _kai_fullnames()
     reg = {}   # name.lower() -> record
+    # H1 — the board's holding lanes, asked once per compile (None = UNKNOWN: nothing is promoted as held)
+    _hold_lanes = _vault_claim_lanes()
+
+    def _held_rank(loc, scene):
+        """How strongly THIS sighting says he holds the item. -> 2 (a vault lane: worn, stash, cube, mule ...),
+        1 (his inventory's free space — carried, §31.2), 0 (nothing: a Chronicle page, the floor, UNKNOWN)."""
+        l = str(loc or "").strip().lower()
+        s = str(scene or "").strip().lower()
+        if not l or s == "chronicle" or l == "chronicle":
+            return 0
+        if _hold_lanes is None:
+            return 0
+        if l in _hold_lanes:
+            return 2
+        if l == "inventory":
+            return 1
+        return 0
 
     def _consider(name, ts, frame_id, loc, tier, scene=None):
         nm = str(name or "").strip()
@@ -8805,12 +8847,16 @@ def _kai_compile_register(sess_rows):
             return
         ts = int(ts or 0)
         cur = reg.get(low)
+        _hr = _held_rank(loc, scene)
         if cur is None:
             # 2026-09-28 — AND THE SCENE THE READER SAW (inventory / stash / chronicle / loot ...). It knew it for
             # every frame and it was dropped here, so the board row's `loc` was null for 397 of 400 rows and the
             # vault route could not tell a Chronicle page from a worn item. [[heart-first]] rule 6.
             reg[low] = {"name": nm, "firstSeenTs": ts, "frameId": frame_id or "",
                         "loc": loc, "tier": (tier or None), "scene": (scene or None)}
+            if _hr:
+                reg[low].update({"heldLoc": str(loc).strip().lower(), "heldScene": (scene or None),
+                                 "heldFrame": frame_id or "", "heldTs": ts, "_heldRank": _hr})
             return
         # earliest sighting wins the frame/ts/loc (a factual "when was it first seen" —
         # first really is best there). TIER is a QUALITY verdict, not a timestamp — sess_rows
@@ -8822,17 +8868,25 @@ def _kai_compile_register(sess_rows):
         # law already applied to counts, now applied to tier): a later, better verdict can
         # upgrade a stale one, but a proven grail can never be silently buried back under a
         # weaker border/keep guess that happens to land afterward.
+        # ⚠⚠ H1 (review of 77d8d8b5, reproduced) — ONE SIGHTING, ONE TUPLE. This used to take the frame and the ts
+        # from the earliest sighting and then FILL a missing loc or scene from any other one, so a Chronicle-page read
+        # (loc None, scene chronicle) followed by a WORN read (loc equipped) compiled to {loc: equipped, scene:
+        # chronicle, frameId: the chronicle frame} — three facts from two frames. The board's route saw "chronicle"
+        # and answered found-only, and the worn item never filed. Now (firstSeenTs, frameId, loc, scene) move
+        # TOGETHER from the earliest sighting, and the best HOLDING sighting is kept beside it, whole: heldLoc /
+        # heldScene / heldFrame / heldTs from a frame whose place passes the board's own lanes (or, ranked below them,
+        # his inventory — carried, §31.2) and whose scene is not a Chronicle page. The board routes on the held
+        # sighting and cites ITS frame. [[unknown-stays-unknown]] [[the-unjoined-end]]
         if ts and (not cur["firstSeenTs"] or ts < cur["firstSeenTs"]):
             cur["firstSeenTs"] = ts
-            cur["frameId"] = frame_id or cur["frameId"]
-            if loc is not None:
-                cur["loc"] = loc
-            if scene:
-                cur["scene"] = scene
-        if loc is not None and cur.get("loc") is None:
+            cur["frameId"] = frame_id or ""
             cur["loc"] = loc
-        if scene and not cur.get("scene"):
-            cur["scene"] = scene
+            cur["scene"] = scene or None
+        if _hr and (_hr > cur.get("_heldRank", 0)
+                    or (_hr == cur.get("_heldRank", 0) and ts >= int(cur.get("heldTs") or 0))):
+            # the stronger place wins; within one strength the LATER look wins — where he holds it now
+            cur.update({"heldLoc": str(loc).strip().lower(), "heldScene": (scene or None),
+                        "heldFrame": frame_id or "", "heldTs": ts, "_heldRank": _hr})
         if tier and _KAI_TIER_RANK.get(tier, 0) > _KAI_TIER_RANK.get(cur.get("tier") or "", 0):
             cur["tier"] = tier
 
@@ -9043,6 +9097,8 @@ def _kai_compile_register(sess_rows):
         for _r in reg.values():
             _r.setdefault("locWhy", "the session could not be corroborated: %s"
                                     % type(_ce).__name__)
+    for _r in reg.values():
+        _r.pop("_heldRank", None)       # a compile-time ranking, not a fact about the item
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
@@ -11942,9 +11998,14 @@ def _kai_closer_loop():
                     _g3live = os.environ.get("TV_G3_LIVE", "0") == "1"
                     try:
                         if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
+                            # H1 — the HELD sighting rides beside the first one (the board routes on it and cites
+                            # its frame; the found list keeps the first sighting's own frame)
                             _items = [dict({"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"),
                                             "frameId": x.get("frameId"), "tier": x.get("tier"),
                                             "sessionId": sid, "loc": x.get("loc"), "scene": x.get("scene")},
+                                           **({"heldLoc": x.get("heldLoc"), "heldScene": x.get("heldScene"),
+                                               "heldFrame": x.get("heldFrame"), "heldTs": x.get("heldTs")}
+                                              if x.get("heldLoc") else {}),
                                            **({"g4": x.get("g4")} if (_g3live and x.get("g4")) else {}))
                                       for x in (_register or [])[:40]]
                             _cjs = ("(function(){try{var F=document.getElementById('tvd-eng');"
@@ -14694,8 +14755,15 @@ def _confirmed(v):
     return False
 
 
-def owned_restore(names, confirm=False):
+def owned_restore(names, confirm=False, snapshot_ts=None):
     """Put `d2r_owned` back from a snapshot. Union-only, through the board's own LSR. -> dict.
+
+    ⚠ M4 (review of 77d8d8b5, reproduced) — IT WROTE `d2r_owned` AND NO PROVENANCE. Every name it added stood in the
+    vault with no receipt, so the doctor's 'a vault item with no provenance' row named them and the evidence panel said
+    UNKNOWN about items a restore had deliberately put back. Each ADDED name now goes through the board's one door,
+    window._ownedAdd(name, {source: 'ledger-restore', by: 'owned_restore', ts: <the snapshot's time>}) — when the page
+    has the door; a name that was already owned is not touched (its own receipt stands). `snapshot_ts` is the time the
+    snapshot was taken, when the caller knows it; unknown, the receipt says the restore's own moment.
 
     ══ v3214 — THE SECOND OF THE THREE DOORS `BACKED_UP_ONLY` NAMES ═════════════════════════════
     `ledger_restore.BACKED_UP_ONLY = ("rwMade", "gameFound", "owned")` — three stores that are
@@ -14756,6 +14824,15 @@ def owned_restore(names, confirm=False):
         return {"ok": True, "applied": False, "wouldRestore": len(clean),
                 "why": "%d name(s) would be added to what he owns. Nothing has been written; call "
                        "again with confirm." % len(clean)}
+    # M4 — the snapshot's own time for the receipts (ms or ISO); unreadable = null, and the door stamps its own moment
+    _ts_ms = None
+    try:
+        if isinstance(snapshot_ts, (int, float)) and snapshot_ts > 0:
+            _ts_ms = int(snapshot_ts if snapshot_ts > 1e11 else snapshot_ts * 1000)
+        elif isinstance(snapshot_ts, str) and snapshot_ts.strip():
+            _ts_ms = snapshot_ts.strip()
+    except Exception:
+        _ts_ms = None
     js = ("(function(){try{"
           "var N=%s;"
           "var _ctx=window;"
@@ -14776,6 +14853,13 @@ def owned_restore(names, confirm=False):
           "var before=cur.length,added=[];"
           "for(var j=0;j<N.length;j++){var nm=N[j];if(have[nm])continue;have[nm]=1;cur.push(nm);added.push(nm);}"
           "window.LSR.setItem('d2r_owned',JSON.stringify(cur));"
+          # M4 — each ADDED name's receipt, through the one door (it also joins the live Set, which the re-read
+          # below makes agree with storage anyway)
+          "var provN=0,provWhy=null;"
+          "if(typeof window._ownedAdd==='function'){for(var k=0;k<added.length;k++){"
+          "try{var _pr=window._ownedAdd(added[k],{source:'ledger-restore',by:'owned_restore',ts:TS,"
+          "where:'a restore from a ledger snapshot'});if(_pr&&_pr.prov&&_pr.prov.ok)provN++;}catch(_pe){}}}"
+          "else{provWhy='this page has no window._ownedAdd, so the restored names carry no receipt';}"
           # the same fan-out toggleOwned performs, each guarded — a renderer that is not exposed
           # is not an error, it just means the screen catches up on the next paint.
           "try{if(typeof window.renderHero==='function')window.renderHero();}catch(e){}"
@@ -14812,10 +14896,10 @@ def owned_restore(names, confirm=False):
           "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
           "}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,"
-          "after:cur.length,sample:added.slice(0,8)});"
+          "after:cur.length,sample:added.slice(0,8),receipts:provN,receiptsWhy:provWhy});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
-          % json.dumps(clean))
+          % json.dumps(clean)).replace("var N=", "var TS=%s;var N=" % json.dumps(_ts_ms), 1)
     try:
         raw = _ejs(w, js, timeout=15.0)
     except Exception as e:
@@ -37426,7 +37510,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/owned_restore":
             # v3214 — the possession half of a restore. `confirm` required, same as its siblings.
-            self._json(200, owned_restore(body.get("names"), confirm=_confirmed(body.get("confirm"))))
+            self._json(200, owned_restore(body.get("names"), confirm=_confirmed(body.get("confirm")), snapshot_ts=body.get("snapshotTs")))
             return
         if path == "/api/vault_autosort":
             # v3222 — presses the board's own Auto-Sort. `confirm` required, like every door that

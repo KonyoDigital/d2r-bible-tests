@@ -24,6 +24,16 @@ JOURNAL are repointed, and every ledger is written beside the temp shelf, never 
       an unreadable ledger refuses the reap;
   (a) the same call keeps the read's picture SMALL under the floor, refuses it below the hard floor and when the
       hour's budget is spent — and records each refusal, so "never written" is an answer the doctor can give.
+
+THE REVIEW OF 77d8d8b5 (2026-09-28), each reproduced, each driven here:
+  H2  the read EVICTION one screen below (b) and (c) still shed loose f_*.jpg under the floor on age alone — its belt
+      exempted f_ names from the journal check — and recorded nothing. It now asks the same shield (the journal's read
+      frames | the authority's cited frames), refuses on None, and records by='recorder-read-eviction' with the names.
+  M1  the reel pick keeps the journal's read frames too (a partial release keeps them; a reel the journal names whose
+      picture is absent is kept whole), and _reel_evidence answers None when frame_authority has no index at all.
+  M2  a REFUSED picture returned before the whole eviction/reap block, so under the hard floor nothing was ever shed
+      again. Only the picture write is refused now; the shelf still sheds. (This law used to assert the opposite.)
+  L2  a floor budget whose record will not read is 'budget-unknown' — refused, never "nothing spent".
 RED_PROOF below.
 """
 import io
@@ -230,15 +240,21 @@ class TheReelReaperKeepsTheEvidence(_Shelf):
         spent = [r for r in self.refusals() if r.get("why") == "saved-small"]
         self.assertEqual([fid], [r["frameId"] for r in spent], "the budget's own ledger did not record the picture")
 
-    def test_below_the_hard_floor_it_is_refused_and_recorded(self):
+    def test_below_the_hard_floor_the_picture_is_refused_and_the_shelf_still_sheds(self):
+        """⚠ M2 (review of 77d8d8b5, reproduced) — this case used to assert "a refused read still ran the eviction" as a
+        FAILURE. That was the defect: under the hard floor every read was refused and nothing was ever shed again, so
+        the one state that most needs space never freed any. Only the picture is refused; the reaper still runs,
+        under the same evidence shield."""
         self._reels()
         fid = self._press(free_gb=0.5, n=8)
         self.assertEqual("", fid)
         ref = [r for r in self.refusals() if r.get("why") == "hard-floor"]
         self.assertEqual(1, len(ref), "a refused picture left no record")
         self.assertTrue(ref[0]["frameId"].startswith("8_"))
-        for r in self.R:
-            self.assertEqual(3, len(self._files(r) or []), "a refused read still ran the eviction")
+        self.assertFalse(os.path.isfile(os.path.join(self.hist, ref[0]["frameId"] + ".jpg")), "a refused picture was written")
+        self.assertEqual(["f_1784000001000.jpg"], self._files(self.R[0]),
+                         "under the hard floor the reel reaper did not run (or took the cited picture)")
+        self.assertEqual([self.R[0]], [r["reel"] for r in self.reaps() if r.get("by") == "recorder-disk-floor"])
 
     def test_a_spent_budget_refuses_and_says_so(self):
         self._reels()
@@ -248,6 +264,17 @@ class TheReelReaperKeepsTheEvidence(_Shelf):
         fid = self._press(free_gb=5.0, n=9)
         self.assertEqual("", fid)
         self.assertTrue(any(r.get("why") == "floor-budget-spent" for r in self.refusals()))
+        self.assertEqual(["f_1784000001000.jpg"], self._files(self.R[0]), "a spent budget stopped the shelf shedding (M2)")
+
+    def test_an_unreadable_budget_is_unknown_and_refuses(self):
+        """L2 — the budget record is a DIRECTORY here, so it cannot be read: that is 'budget UNKNOWN', never 0 MB spent."""
+        os.makedirs(os.path.join(self.root, RP.REFUSALS))
+        with mock.patch("shutil.disk_usage", return_value=_Usage(5.0 * GB)):
+            mode, why, _free = T._read_picture_floor(self.hist)
+        self.assertEqual(("refuse", "budget-unknown"), (mode, why))
+        self.src = os.path.join(self.root, "live.jpg")
+        _jpg(self.src)
+        self.assertEqual("", self._press(free_gb=5.0, n=11), "a picture was written against a budget nobody could read")
 
     def test_a_healthy_disk_keeps_the_full_picture(self):
         self._reels()
@@ -255,6 +282,97 @@ class TheReelReaperKeepsTheEvidence(_Shelf):
         self.assertTrue(fid)
         self.assertFalse(any(r.get("why") == "saved-small" for r in self.refusals()),
                          "a healthy disk was charged against the floor budget")
+
+
+class TheReadEvictionAsksFirst(_Shelf):
+    """⚠ H2 (review of 77d8d8b5, reproduced) — the shed under the floor, driven through the SHIPPED archive_read_frame
+    with loose film on the shelf (so the reel reaper stands aside and the eviction is what runs)."""
+
+    def _loose(self):
+        old_s = NOW_MS / 1000.0 - 3 * 3600
+        names = {"cited": "f_%d.jpg" % (OLD + 1), "read": "f_%d.jpg" % (OLD + 2), "free": "f_%d.jpg" % (OLD + 3),
+                 "young": "f_%d.jpg" % (NOW_MS - 60 * 1000), "chron": "7_%d.jpg" % OLD, "freeRead": "8_%d.jpg" % OLD}
+        for k, n in names.items():
+            p = os.path.join(self.hist, n)
+            _jpg(p, 40, 30)
+            if k != "young":
+                os.utime(p, (old_s, old_s))
+        self.src = os.path.join(self.root, "live.jpg")
+        _jpg(self.src)
+        return names
+
+    def _ledgers_ok(self, n):
+        self.ledgers(accum={"owned": [{"name": "Nagelring", "lane": "stash", "kind": "item",
+                                       "witnesses": [{"session": "s_1", "frame": n["cited"], "conf": 0.9}]}]},
+                     chron={"uniques": {"Stormshield": [{"reel": "reel_s_x", "frame": n["chron"], "conf": 0.9}]}, "sets": {}})
+        self.journal_rows([{"lane": "deep", "frameId": "reel_s_9/" + n["read"][:-4], "names": ["Shako"], "ts": OLD + 2}])
+
+    def _press(self, free_gb=5.0, n=21):
+        with mock.patch("shutil.disk_usage", return_value=_Usage(free_gb * GB)):
+            T._ORPHAN_DUE = 0.0
+            return T.archive_read_frame(self.src, n, NOW_MS + n)
+
+    def test_it_spares_what_a_read_or_the_authority_names_and_records_what_it_takes(self):
+        n = self._loose()
+        self._ledgers_ok(n)
+        self._press()
+        left = set(os.listdir(self.hist))
+        self.assertIn(n["cited"], left, "the eviction took a loose frame the vault ledger cites (the f_ belt exemption)")
+        self.assertIn(n["read"], left, "the eviction took a frame a read was taken from")
+        self.assertIn(n["chron"], left, "the eviction took a read frame chron_evidence cites")
+        self.assertIn(n["young"], left, "the youth shield was broken")
+        self.assertNotIn(n["free"], left, "BASELINE: an old uncited loose frame must go, or this case proves nothing")
+        self.assertNotIn(n["freeRead"], left, "BASELINE: an old uncited read frame must go, or this case proves nothing")
+        rows = [r for r in self.reaps() if r.get("by") == "recorder-read-eviction"]
+        self.assertEqual(1, len(rows), "the eviction left no record of what it took")
+        self.assertEqual(sorted([n["free"], n["freeRead"]]), sorted(rows[0].get("names") or []))
+        self.assertGreaterEqual(rows[0].get("spared") or 0, 2)
+
+    def test_an_authority_that_cannot_answer_sheds_nothing(self):
+        n = self._loose()
+        self.ledgers(accum="{")
+        self._press()
+        left = set(os.listdir(self.hist))
+        for k in ("cited", "read", "free", "chron", "freeRead"):
+            self.assertIn(n[k], left, "the eviction shed %s while whether it was cited was UNKNOWN" % k)
+        self.assertEqual([], [r for r in self.reaps() if r.get("by") == "recorder-read-eviction"])
+
+
+class TheReelPickKeepsWhatAReadNamed(_Shelf):
+    """⚠ M1 (review of 77d8d8b5, reproduced)."""
+
+    def _reel(self, name, files):
+        d = os.path.join(self.hist, name)
+        os.makedirs(d)
+        for f in files:
+            _jpg(os.path.join(d, f), 40, 30)
+
+    def test_a_read_frame_is_kept_and_a_named_but_absent_reel_is_kept_whole(self):
+        self.ledgers(accum={"owned": []}, chron={"uniques": {}, "sets": {}})
+        self._reel("reel_s_1784000000001_1", ["f_1784000001000.jpg", "f_1784000001001.jpg", "f_1784000001002.jpg"])
+        self._reel("reel_s_1784000000002_2", ["f_1784000002000.jpg", "f_1784000002001.jpg"])
+        self._reel("reel_s_1784000000003_3", ["f_1784000003000.jpg"])
+        self.journal_rows([{"lane": "deep", "frameId": "reel_s_1784000000001_1/f_1784000001001", "names": ["Shako"],
+                            "ts": 1784000001001},
+                           {"lane": "deep", "frameId": "reel_s_1784000000002_2/f_1784000002999", "names": ["Nagelring"],
+                            "ts": 1784000002999}])
+        ev = T._reel_evidence(self.hist)
+        self.assertIsNotNone(ev)
+        c = ["reel_s_1784000000001_1", "reel_s_1784000000002_2", "reel_s_1784000000003_3"]
+        p1 = T._reel_reap_pick(self.hist, c, ev)
+        self.assertEqual(("reel_s_1784000000001_1", "partial", ["f_1784000001001.jpg"]),
+                         (p1["reel"], p1["mode"], p1["kept"]), "a partial release took the frame a read was taken from")
+        p2 = T._reel_reap_pick(self.hist, c[1:], ev)
+        self.assertEqual(("reel_s_1784000000003_3", "whole"), (p2["reel"], p2["mode"]),
+                         "a reel the journal names (its named picture absent) was not kept whole — or BASELINE: the "
+                         "uncited reel beside it must still go")
+
+    def test_no_index_at_all_is_could_not_ask(self):
+        """frame_authority says ok over a shelf with NO vault ledger (absent = a measurement of nothing), and its own
+        haveIndex says there is nothing that could name a witness: a deleter must hear None, never 'nothing cited'."""
+        self.assertIsNone(T._reel_evidence(self.hist), "no index read as 'nothing is cited' — a licence to delete")
+        self.ledgers(accum={"owned": []})
+        self.assertIsNotNone(T._reel_evidence(self.hist), "BASELINE: with a ledger present the authority must answer")
 
 
 if __name__ == "__main__":
@@ -307,8 +425,64 @@ RED_PROOF = [
     {
         "why": "(a) under the floor the read's picture is written at full size (no budget, no downscale)",
         "file": "tv_diablo.py",
-        "find": "        if _pmode == \"small\":\n            try:\n                import read_pictures as _rps\n",
-        "replace": "        if False:\n            try:\n                import read_pictures as _rps\n",
+        "find": "            if _pmode == \"small\":\n                try:\n                    import read_pictures as _rps\n",
+        "replace": "            if False:\n                try:\n                    import read_pictures as _rps\n",
+        "matches": 1,
+    },
+    {
+        "why": "H2: the read eviction sheds a cited or read-bearing loose picture again (no shield)",
+        "file": "tv_diablo.py",
+        "find": "                        if os.path.basename(f) in _shield:\n                            _ev_spared += 1\n                            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "H2: an authority that cannot answer reads as 'nothing is cited' and the eviction sheds",
+        "file": "tv_diablo.py",
+        "find": "                    _ev = _reel_evidence()\n",
+        "replace": "                    _ev = _reel_evidence() or {\"frames\": set(), \"sessions\": set(), \"reels\": set()}\n",
+        "matches": 1,
+    },
+    {
+        "why": "H2: the eviction takes pictures and records nothing",
+        "file": "tv_diablo.py",
+        "find": "                _reap_record(\"loose\", len(_ev_took), bool(_ev_took), -1, by=\"recorder-read-eviction\",\n",
+        "replace": "                (lambda *a, **k: None)(\"loose\", len(_ev_took), bool(_ev_took), -1, by=\"recorder-read-eviction\",\n",
+        "matches": 1,
+    },
+    {
+        "why": "M2: a refused picture returns before the eviction — under the hard floor nothing is ever shed again",
+        "file": "tv_diablo.py",
+        "find": "            _out = \"\"\n        if _out:\n",
+        "replace": "            return \"\"\n        if _out:\n",
+        "matches": 1,
+    },
+    {
+        "why": "M1: a partial release takes the frame a read was taken from",
+        "file": "tv_diablo.py",
+        "find": "        read_kept = [f for f in jpgs if (f in named_here or f in reads) and f not in cited]\n",
+        "replace": "        read_kept = []\n",
+        "matches": 1,
+    },
+    {
+        "why": "M1: a reel the journal names (its picture absent) is taken whole",
+        "file": "tv_diablo.py",
+        "find": "        if named_here or cand in (ev.get(\"readReels\") or set()):\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "M1: no index at all reads as 'nothing is cited'",
+        "file": "tv_diablo.py",
+        "find": "    if not wi.get(\"haveIndex\"):\n        return None\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "L2: an unreadable floor budget reads as 'nothing spent' and a picture is written",
+        "file": "tv_diablo.py",
+        "find": "    if spent is None:\n        return (\"refuse\", \"budget-unknown\", free)\n",
+        "replace": "",
         "matches": 1,
     },
 ]

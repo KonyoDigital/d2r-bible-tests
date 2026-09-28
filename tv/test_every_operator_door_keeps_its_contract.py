@@ -211,8 +211,8 @@ RED_PROOF = [
     {
         "why": "owned_restore writes without confirm again - a hand-typed restore lands in his world unasked",
         "file": "control_app.py",
-        "find": "            self._json(200, owned_restore(body.get(\"names\"), confirm=_confirmed(body.get(\"confirm\"))))\n",
-        "replace": "            self._json(200, owned_restore(body.get(\"names\"), confirm=True))\n",
+        "find": "            self._json(200, owned_restore(body.get(\"names\"), confirm=_confirmed(body.get(\"confirm\")), snapshot_ts=body.get(\"snapshotTs\")))\n",
+        "replace": "            self._json(200, owned_restore(body.get(\"names\"), confirm=True, snapshot_ts=body.get(\"snapshotTs\")))\n",
         "matches": 1,
     },
     {
