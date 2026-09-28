@@ -2566,6 +2566,18 @@ NO_JOINT_YET = {
     'relaunch green light': 'it IS the corroboration - the register against nothing_in_flight, '
                             'two engines that know nothing of each other; and execv leaves no '
                             'witness this process survives to read',
+    # 2026-09-28 — the build that never landed on his ALT (v3520 beside v3521 for 2+ h). Like the
+    # green light above, the row IS a corroboration: the RUNNING process's compiled stamp, read over
+    # the wire, against the literal in the file on DISK — neither derivable from the other. A joint
+    # over the fleet beacon's ver/diskVer would be the same two readings relayed by the same
+    # process: one engine wearing two names, which this file's self-audit refuses. The cause it
+    # names (his session / shadow close failed / relaunch refused) is the drift lane's own record,
+    # a self-report, and is said to be one. [[heart-first]]
+    'the running build is behind the disk':
+        'it IS the corroboration - the running process own compiled stamp over /api/status against '
+        'the disk file literal, two sources neither can derive; the fleet beacon ver/diskVer is the '
+        'same pair relayed by the same process, so a joint over it would be one engine counted '
+        'twice. The cause it names is the drift lane self-report, and is labelled as one.',
     # v3232 — `the shelf tabs are his stations` (v3204's station chips). It is NOT jointed, and
     # its own docstring is why: it "asks the RIVER, which is the same source the chips are built
     # from". Comparing a render against the data that built it is one engine checked against its
