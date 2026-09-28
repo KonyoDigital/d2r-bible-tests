@@ -43,7 +43,12 @@ def tier(successes, trials):
         return {"tier": None, "bound": None, "successes": None, "trials": None,
                 "why": "a negative look count is not a measurement"}
     if k > n:
-        k = n
+        # 2026-09-28 second eye (v3520, 4877464e): this clamped k to n, so 15 sightings over 10 looks scored as a
+        # PERFECT 10/10 and could clear the bar. More successes than trials means the two counts were taken in
+        # different units (frames against visits) - that is not a measurement of this item, so it is UNKNOWN.
+        return {"tier": None, "bound": None, "successes": None, "trials": None,
+                "why": "more sightings (%d) than looks (%d) - the two counts are not in the same unit, so the "
+                       "tier is UNKNOWN" % (k, n)}
     bound = _confidence.wilson_lower(k, n)
     if n < TRIALS_PROVEN or bound < WILSON_BAR:
         name = WATCHED

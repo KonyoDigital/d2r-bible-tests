@@ -70,6 +70,24 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertIn(("evidence tiers", CD._check_the_evidence_tiers), CD.CHECKS)
         self.assertIn("evidence tiers", CD.WATCHES)
 
+    def test_the_row_the_heart_runs_opens_the_real_shelf(self):
+        """The registered call has no arguments. It must read the ledger AND the shelf this console uses, and name
+        a cited picture that is gone - not say UNKNOWN because nobody handed it a root (second eye, v3520)."""
+        os.remove(os.path.join(self.shelf, "cited.jpg"))
+        env = {k: os.environ.get(k) for k in ("TV_VAULT_LEDGER", "TV_HIST")}
+        os.environ["TV_VAULT_LEDGER"], os.environ["TV_HIST"] = self.ledger, self.shelf
+        try:
+            fn = dict(CD.CHECKS)["evidence tiers"]
+            st, why = fn()
+        finally:
+            for k, v in env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        self.assertEqual(CD.MISSING, st, "the live row did not open the shelf: %r" % why)
+        self.assertIn("cited.jpg", why)
+
     def test_an_unreadable_ledger_is_unknown_not_zero(self):
         missing = os.path.join(self.tmp, "nope.json")
         got = VE.tier_census(missing)
@@ -131,6 +149,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 - the heart's evidence row never opens the shelf again, so a lost picture reads UNKNOWN for ever",
+        "file": "console_doctor.py",
+        "find": "    if path is None and root is None:\n        # 2026-09-28 second eye (v3520, 7fcb836c)",
+        "replace": "    if False:\n        # 2026-09-28 second eye (v3520, 7fcb836c)",
+        "matches": 1,
+    },
     {
         "why": "the census stops asking the tier table, so a watched item is called proven",
         "file": "vault_evidence.py",

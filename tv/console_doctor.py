@@ -2546,6 +2546,11 @@ def _check_the_evidence_tiers(path=None, root=None):
     count UNKNOWN, never 0.
     """
     import vault_evidence as _ve
+    if path is None and root is None:
+        # 2026-09-28 second eye (v3520, 7fcb836c): the heart registers this row with NO arguments, so root
+        # stayed None, the shelf was never opened, and the row said UNKNOWN for ever while 20 of the 27
+        # pictures his ledger cites were gone from the Mac's shelf. The live call opens the real shelf.
+        root = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
     got = _ve.tier_census(path if path is not None else _evidence_ledger_path())
     if not got.get("ok"):
         return UNKNOWN, got.get("why") or "the evidence tiers could not be read"
