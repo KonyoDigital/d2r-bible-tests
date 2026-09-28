@@ -6974,6 +6974,20 @@ GATES = [
              "register agrees with the board on every pair. M2 the backfill reads the same order (one function). M3 one "
              "fold for removals and owned names. M4 an unattributed strip is ONE row saying character UNKNOWN (#54). L2 no "
              "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole. 27 cases, 17 red-proofs."),
+    Gate("test_carried_loot_holds_its_time_and_its_name",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_holds_its_time_and_its_name.py")], 120,
+         why="2026-09-29 - the review of 20c0df1e (vault evidence route, round 4), his §31 / §29 rulings. H-1 an OLDER "
+             "session's pick-up-look-drop, replayed by the closer loop's recloses, un-owned carried loot a NEWER session "
+             "owns: a drop now leaves only what it postdates (weighed against the latest look on the receipt), an older one "
+             "is recorded once as history, a timeless one is UNKNOWN; and a replayed older pick-up never brings back an item "
+             "that left on a newer drop or that he removed (the cleanse's own batch is not his word). M-2 the vault's one "
+             "fold drops a trailing (...) only when the stem names ONE known item (ITEMS, RUNEWORDS, ITEM_SETS, the shard "
+             "kinds): Spirit (shield)/(sword), Crescent Moon/(amulet), Aldur's/Griswold's (any)/(class), the shard kinds and "
+             "Hellmouth stay apart, Harlequin Crest still joins (Shako); the register no longer files the runeword as the "
+             "amulet. M-3 carried is decided once, by the read that made the item owned: no door's item (all 19 the board "
+             "names) and no pre-receipt name becomes droppable loot. L-4 an unreadable d2r_muleAssign is UNKNOWN on the "
+             "strip and the population line, never '0 carried' / 'still loose'. L-5 the carried grid and the dock reserve "
+             "the corner tray's band (pixels at 375/901/1280). 24 cases, 15 red-proofs."),
     Gate("test_a_still_screen_is_one_look",
          [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
          why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "

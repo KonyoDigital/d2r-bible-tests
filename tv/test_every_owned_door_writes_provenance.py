@@ -408,15 +408,19 @@ OUT.carried = { r: car, row: carRow, names: carNames.map(function(c){ return c.n
                 owned: Array.from(owned), reg: REG.map(function(x){ return { name: x.name, carried: !!(x.witness && x.witness.carried) }; }),
                 landedEv: window._vaultEvidenceOf('Shako').note };
 // ── §31.2 — LEAVES only on a real signal, with its frame; absence and a stash-held floor look never un-own ──
+// (review of 20c0df1e, H-1: a drop leaves only what it POSTDATES, so every read here carries its own time — a drop with no
+//  time cannot be put in order and changes nothing; test_carried_loot_holds_its_time_and_its_name drives that case)
 reset({}, []);
-window._liveReadRoute({ name: 'Shako', loc: 'inventory', frameId: '30_1', sessionId: 's_3', source: 'kai-register', character: 'KonyoSorc' });
-var noProof = window._liveReadRoute({ name: 'Shako', loc: 'floor', frameId: '', sessionId: 's_3', source: 'kai-register' });
+window._liveReadRoute({ name: 'Shako', loc: 'inventory', frameId: '30_1', sessionId: 's_3', source: 'kai-register', character: 'KonyoSorc',
+                        firstSeenTs: 1790600000000 });
+var noProof = window._liveReadRoute({ name: 'Shako', loc: 'floor', frameId: '', sessionId: 's_3', source: 'kai-register', firstSeenTs: 1790600100000 });
 var stillOwned = owned.has('Shako');
-var left = window._liveReadRoute({ name: 'Shako', loc: 'floor', frameId: '32_1', sessionId: 's_3', source: 'kai-register' });
-window._ownedAdd('Nagelring', { source: 'kai-register', loc: 'stash', frameId: '33_1' });
-var notCarried = window._liveReadRoute({ name: 'Nagelring', loc: 'floor', frameId: '34_1', source: 'kai-register' });
-window._liveReadRoute({ name: 'Magefist', loc: 'inventory', frameId: '35_1', sessionId: 's_3', source: 'kai-register' });
-var vendor = window._liveReadRoute({ name: 'Magefist', loc: null, scene: 'vendor', frameId: '36_1', sessionId: 's_3', source: 'kai-register' });
+var left = window._liveReadRoute({ name: 'Shako', loc: 'floor', frameId: '32_1', sessionId: 's_3', source: 'kai-register', firstSeenTs: 1790600200000 });
+window._ownedAdd('Nagelring', { source: 'kai-register', loc: 'stash', frameId: '33_1', ts: 1790600300000 });
+var notCarried = window._liveReadRoute({ name: 'Nagelring', loc: 'floor', frameId: '34_1', source: 'kai-register', firstSeenTs: 1790600400000 });
+window._liveReadRoute({ name: 'Magefist', loc: 'inventory', frameId: '35_1', sessionId: 's_3', source: 'kai-register', firstSeenTs: 1790600500000 });
+var vendor = window._liveReadRoute({ name: 'Magefist', loc: null, scene: 'vendor', frameId: '36_1', sessionId: 's_3', source: 'kai-register',
+                                     firstSeenTs: 1790600600000 });
 OUT.leave = { noProof: noProof, stillOwned: stillOwned, left: left, owned: Array.from(owned).sort(), removed: REMOVED,
               notCarried: notCarried, vendor: vendor };
 // ── §31.2 — "carried, last seen <when> - still have it?" after a few game sessions unseen ──

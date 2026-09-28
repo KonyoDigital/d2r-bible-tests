@@ -18987,9 +18987,56 @@ try {
   };
   /* M3 (review of bd976210) — THE VAULT'S ONE CANONICAL FOLD. It was tvVaultRegister's private _cnV: the curly apostrophe
      folded to a straight one BEFORE lower-casing, a trailing (slot) suffix stripped. The register now asks this very
-     function, so the door that files and the replay that decides what he removed agree on what one item is. */
-  var _cnV = function(x){ return String(x||'').replace(/[‘’`]/g, "'").toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+     function, so the door that files and the replay that decides what he removed agree on what one item is.
+     ⚠ M-2 (review of 20c0df1e, reproduced) — THE SUFFIX IS PART OF THE NAME WHEN IT SEPARATES TWO ITEMS. The fold dropped a
+     trailing "(...)" unconditionally, and in the board's own name lists that suffix is what tells DISTINCT items apart:
+     Spirit (shield) / Spirit (sword) (RUNEWORDS), Crescent Moon (the runeword) / Crescent Moon (amulet) (ITEMS),
+     Aldur's Watchtower (any) / (Druid), Griswold's Legacy (any) / (Pala) (ITEMS / ITEM_SETS), the five Worldstone Shard
+     kinds beside "(any)" (WS_SHARDS_HUB), Hellmouth / Hellmouth (gloves). So a removal of one blocked the other, an owned
+     one took the other's receipt, and the backfill decided both from one group of rows.
+     The rule is the register's own (an exact name keeps itself; anything else resolves to the one item it can only
+     mean — d2rItemLookup's "AMBIGUITY IS NOT A MATCH"): a suffix is folded away only when the stem it leaves names ONE
+     known item. Measured, and why this is not "keep the suffix when the exact name is in ITEMS": Spirit (shield) and
+     Spirit (sword) are NOT in ITEMS (it is built from the boss drop tables), and Harlequin Crest (Shako) IS — so that
+     reading keeps the Spirit pair merged and splits Harlequin Crest from its own (Shako) spelling, reopening M3.
+     No name list on the page (a harness, an early call) = the old fold, never a guess. [[copy-drift]]
+     (Members of one object, not named functions: test_control's V2286 census counts every named normaliser that
+     lower-cases and strips a parenthetical, and _cnV stays the one that does — the fold is still its own first line.) */
+  var _CN = {
+    list: null, n: -1,
+    whole: function(x){ return String(x == null ? '' : x).replace(/[‘’`]/g, "'").toLowerCase().trim(); },
+    stem: function(f){ return String(f).replace(/\s*\([^)]*\)\s*$/, '').trim(); },
+    /* the board's own name lists: the calculator's ITEMS, the runeword roster, the set names and their pieces, the shard
+       kinds. -> {full: {folded name: 1}, stems: {stem: {folded name: 1}}} | null (no list on this page) */
+    known: function(){
+      var src = [];
+      try { if (typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)) ITEMS.forEach(function(i){ if (i && i.n) src.push(i.n); }); } catch (e) {}
+      try { if (typeof RUNEWORDS !== 'undefined' && Array.isArray(RUNEWORDS)) RUNEWORDS.forEach(function(r){ if (r && r.n) src.push(r.n); }); } catch (e) {}
+      try { if (typeof ITEM_SETS !== 'undefined' && Array.isArray(ITEM_SETS)) ITEM_SETS.forEach(function(s){
+        if (!s) return; if (s.name) src.push(s.name); (Array.isArray(s.pieces) ? s.pieces : []).forEach(function(p){ if (p) src.push(p); }); }); } catch (e) {}
+      try { if (typeof WS_SHARDS_HUB !== 'undefined' && Array.isArray(WS_SHARDS_HUB)) WS_SHARDS_HUB.forEach(function(w){ if (w && w.n) src.push(w.n); }); } catch (e) {}
+      if (!src.length) return null;
+      if (_CN.list && src.length === _CN.n) return _CN.list;
+      var full = {}, stems = {};
+      src.forEach(function(nm){ var f = _CN.whole(nm); if (!f) return; full[f] = 1; var st = _CN.stem(f); (stems[st] = stems[st] || {})[f] = 1; });
+      _CN.list = { full: full, stems: stems }; _CN.n = src.length;
+      return _CN.list;
+    },
+    /* does this stem name more than one known item? -> true | false (no list = false: the old fold) */
+    ambiguous: function(stem){
+      var K = _CN.known(), sib = K ? K.stems[stem] : null;
+      return !!sib && Object.keys(sib).length > 1;
+    }
+  };
+  var _cnV = function(x){ var f = String(x||'').replace(/[‘’`]/g, "'").toLowerCase().trim(), st = f.replace(/\s*\([^)]*\)\s*$/,'').trim();
+    return (f !== st && _CN.ambiguous(st)) ? f : st; };
   window._vaultCanonName = _cnV;
+  /* a name that is itself one of several known items sharing its stem (Crescent Moon beside Crescent Moon (amulet),
+     Spirit (shield) beside Spirit (sword)): the register keeps it as it is and never resolves it by stem to another */
+  window._vaultDistinctName = function(x){
+    var f = _CN.whole(x), K = _CN.known();
+    return !!(K && K.full[f] && _CN.ambiguous(_CN.stem(f)));
+  };
   window._ownedProvWrite = function(name, rec){
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return { ok: false, why: 'no name' };
@@ -19006,6 +19053,16 @@ try {
     if (!_str(rec.source)) return { ok: false, why: 'a provenance row must say who or what filed it — none was given, so none was invented' };
     var ts = _ms(rec.ts) || _ms(rec.at) || Date.now();
     var fresh = _receipt(rec, ts);
+    /* ⚠ M-3 (review of 20c0df1e, reproduced) — CARRIED IS DECIDED ONCE, BY THE READ THAT MADE THE ITEM OWNED. H2 still let a
+       later inventory read turn a receipt with no place (state null, "nothing on it says where it is") into carried loot —
+       and that is exactly what every door that is not a live read writes: the AI checker's keep, a ledger restore, a photo
+       or folder read, a Chronicle apply, a .d2s read, the backfill (18 of the 19 doors the board names, driven). An item
+       one of those doors owns was re-marked carried by the next inventory read, and a same-named label on the ground then
+       un-owned it; a name owned before receipts existed (no receipt at all) went the same way. So a read is CARRIED only
+       when it is the one that makes the item his: nothing stands for the name yet and it was not already owned (the door
+       below writes the receipt BEFORE it adds the name, so `owned` here is the set as it stood). A standing receipt,
+       whoever wrote it, is never re-marked: the later read joins it as a look (below), which is all it proves. */
+    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;
     if (cur && typeof cur === 'object' && !Array.isArray(cur)){
       if (cur.kind !== 'owned'){
         if (cur.ownedBy || rec.onFiling === 'keep') return { ok: true, mode: 'kept', row: cur };
@@ -19021,9 +19078,9 @@ try {
         cur.loc = fresh.loc; if (fresh.scene) cur.scene = fresh.scene;
         ch = true;
       }
-      /* ⚠ H2 — an inventory read marks a standing receipt CARRIED only when nothing on it says where the item is: never
-         a landed, worn, filed, locked or hand-ticked one (a read cannot prove it left the stash — it stays landed) */
-      if (fresh.carried === true && cur.carried !== true && _stateOf(nm, cur).state === null){ cur.carried = true; ch = true; }
+      /* ⚠ H2 — an inventory read never marks a landed, worn, filed, locked or hand-ticked receipt CARRIED (a read cannot
+         prove it left the stash — it stays landed); since M-3 it never re-marks a standing receipt at all — the one line
+         above the merge decides carried once, for every door. */
       _FILL.forEach(function(k){ if (cur[k] == null && fresh[k] != null){ cur[k] = fresh[k]; ch = true; } });
       if (!cur.source && fresh.source){ cur.source = fresh.source; ch = true; }
       var lk = fresh.looks[0], looks = Array.isArray(cur.looks) ? cur.looks : [];
@@ -19044,9 +19101,12 @@ try {
     var nm = String(name == null ? '' : name);
     if (!nm) return { added: false, prov: { ok: false, why: 'no name' } };
     var had = owned.has(nm);
-    owned.add(nm);
+    /* ⚠ M-3 (review of 20c0df1e) — the receipt is written BEFORE the name is added, so the write sees `owned` as it stood:
+       an item that was already his is never made carried loot by this read (the one line in _ownedProvWrite). The add
+       still always happens — a refused provenance never costs him the item. */
     var p = null;
     try { p = window._ownedProvWrite(nm, rec); } catch (e) { p = { ok: false, why: String(e && e.message || e) }; }
+    owned.add(nm);
     return { added: !had, prov: p };
   };
   /* un-owned by his hand: the RECEIPT goes with it (a filing row is the vault door's to drop, never this) */
@@ -19231,10 +19291,47 @@ try {
     if (first) return pick(first);
     return Object.assign({}, window._vaultHoldingRoute(null, null, name), { sighting: { loc: null, scene: null, frame: null, ts: null, held: false } });
   };
-  /* a row, decided: its sightings through the one function */
+  /* ⚠ H-1 (review of 20c0df1e, reproduced) — HIS LAST WORD ABOUT AN ITEM OUTRANKS EVERY OLDER READ OF IT. The closer loop
+     recloses old reels on every kaiVer bump, every incomplete seal and every POST /api/kai_reclose, and each reclose hands
+     the board that old session's sightings again. So an item that LEFT on a newer drop (or that he removed by hand) came
+     straight back the next time an older session's pick-up was replayed — "leaves on a drop" held until the next reclose.
+     The removal journal is his last word: a holding read OLDER than a removal of the same item (the carried-left batch's
+     own drop frame time, or the moment he removed it) never brings it back; a read LATER than it is a new pick-up and does.
+     The cleanse's and the backfill undo's own batches are not his word about the item and never block a read.
+     -> null (no removal after it) | {at, lane, frame, why} | {unknown: why} (the journal would not read, or the read
+     carries no time beside a removal — which came first is UNKNOWN) */
+  var _RM_NOT_HIS_WORD = { 'seed-cleanse': 1, 'backfill-undo': 1 };
+  window._removedAfter = function(name, ts){
+    var key = _cnV(name);
+    if (!key) return null;
+    var log = _bfJson('d2r_vaultRemoved', []);
+    if (!Array.isArray(log)) return { unknown: 'the removal journal would not read — whether you removed it after this read is UNKNOWN' };
+    var t = _ms(ts), last = null;
+    log.forEach(function(b){
+      if (!b || typeof b !== 'object' || _RM_NOT_HIS_WORD[String(b.lane || '')]) return;
+      if (!(Array.isArray(b.names) ? b.names : []).some(function(n){ return _cnV(n) === key; })) return;
+      var at = _ms(b.proof && b.proof.at) || _ms(b.ts);
+      if (at == null) return;
+      if (!last || at > last.at) last = { at: at, lane: String(b.lane || 'manual'), frame: (b.proof && b.proof.frame) || null };
+    });
+    if (!last) return null;
+    if (t == null) return { unknown: 'removed ' + _iso(last.at) + ', and this read carries no time — whether it is newer is UNKNOWN' };
+    if (t > last.at) return null;
+    last.why = (last.lane === 'carried-left' ? 'it left on a drop' + (last.frame ? ' (frame ' + last.frame + ')' : '') : 'you removed it')
+             + ' at ' + _iso(last.at) + ', and this read (' + _iso(t) + ') is OLDER — a replayed older session never brings it back';
+    return last;
+  };
+  /* a row, decided: its sightings through the one function — and a holding read is weighed against his last word */
   window._readRoute = function(row){
     row = (row && typeof row === 'object') ? row : {};
-    return window._sightingsRoute(window._readSightings(row), String(row.name == null ? '' : row.name).trim());
+    var nm = String(row.name == null ? '' : row.name).trim();
+    var v = window._sightingsRoute(window._readSightings(row), nm);
+    if (v.route === 'vault' || v.route === 'carried'){
+      var rm = window._removedAfter(nm, v.sighting && v.sighting.ts);
+      if (rm && rm.unknown) return Object.assign({}, v, { route: 'wait', held: v.sighting, why: v.why + ' — but ' + rm.unknown + ', so it waits' });
+      if (rm) return Object.assign({}, v, { route: 'not-held', removedAfter: rm, held: v.sighting, why: rm.why });
+    }
+    return v;
   };
   /* §31.2 — THE CARRIED STRIP. -> [{name, character, row}] | null (null = d2r_vaultProv would not read — UNKNOWN):
      owned names whose receipt says CARRIED and that no filing has taken (`filed(name)` answers that). */
@@ -19242,6 +19339,11 @@ try {
     var all = _read();
     if (!all) return null;
     var amap = _assignMap();
+    /* ⚠ L-4 (review of 20c0df1e, reproduced) — UNKNOWN IS SAID, NEVER []. With d2r_muleAssign unreadable every receipt's
+       state is 'unknown', so the strip came back EMPTY — and the dock then counted that loot "still loose" beside "0
+       carried". Whether anything is carried cannot be told without the filings, so the answer is null (UNKNOWN), exactly
+       as for an unreadable d2r_vaultProv, and the strip and the population line say so. [[unknown-stays-unknown]] */
+    if (amap === undefined) return null;
     var out = [];
     Object.keys(all).forEach(function(nm){
       var r = all[nm];
@@ -19295,6 +19397,24 @@ try {
      reader cannot make yet, so nothing on screen promises it), with the frame as proof. Through the removal door (dated,
      listed, undoable), the frame on the batch. Anything else — a name that is not carried, a signal with no frame —
      changes nothing and says why. -> null | {left, why, frame, state?} */
+  /* H-1 — the time of the LATEST look that holds this receipt's item: the read that made it owned and every holding look
+     since. -> ms | null (nothing on the receipt carries a time) */
+  function _ownedSinceMs(r){
+    var t = null;
+    var take = function(v){ var m = _ms(v); if (m != null && (t == null || m > t)) t = m; };
+    if (!r || typeof r !== 'object') return null;
+    take(r.ts); take(r.at); take(r.lastAt);
+    (Array.isArray(r.looks) ? r.looks : []).forEach(function(k){ if (k) take(k.at); });
+    return t;
+  }
+  /* H-1 — an older drop is HISTORY on the receipt, once per frame. -> true (written) | false (already there / not written) */
+  function _recordPastDrop(nm, all, r, h, fr, row){
+    var list = Array.isArray(r.pastDrops) ? r.pastDrops : [];
+    if (list.some(function(d){ return d && d.frame === fr; })) return false;
+    r.pastDrops = list.concat([{ frame: fr, ts: _ms(h.ts), at: _iso(_ms(h.ts)), loc: _str(h.loc), scene: _str(h.scene),
+                                 session: _str(row && row.sessionId), why: 'older than the look that owns it — never a leave' }]).slice(-LOOKS_CAP);
+    try { all[nm] = r; _write(all); return true; } catch (e) { return false; }
+  }
   window._carriedLeave = function(name, h, row){
     var nm = String(name == null ? '' : name).trim();
     if (!nm || !owned.has(nm)) return null;
@@ -19314,6 +19434,24 @@ try {
                why: 'a same-named item was seen ' + where + ', but yours is ' + st.state + ' — ' + st.why + '; only carried loot leaves on a drop, so it stays yours' };
     }
     if (!fr) return { left: false, frame: null, why: 'carried loot seen ' + where + ', but the read carried no frame — no proof, so it stays yours' };
+    /* ⚠⚠ H-1 (review of 20c0df1e, reproduced) — A DROP LEAVES ONLY WHAT IT POSTDATES. A pick-up-look-drop row from an OLDER
+       session un-owned carried loot a NEWER session owns: nothing compared the drop's time with the look that owns the item,
+       and the closer loop recloses old reels on every kaiVer bump / incomplete seal / POST /api/kai_reclose, so every
+       reclose replayed that old drop. The drop's own time is weighed against the LATEST look on the receipt (the read that
+       made it owned, and every holding look since): a drop LATER than it leaves; an OLDER one is recorded on the receipt
+       as history (pastDrops — which frame, when, where) and is never a leave; a drop or a receipt with no time cannot be put
+       in order and changes nothing (UNKNOWN). §31.2: absence never un-owns, and neither does an old drop. */
+    var dropT = _ms(h.ts), ownT = _ownedSinceMs(r);
+    if (dropT == null || ownT == null)
+      return { left: false, frame: fr, state: 'carried',
+               why: 'carried loot seen ' + where + ' (frame ' + fr + '), but ' + (dropT == null ? 'the drop' : 'the look that owns it')
+                  + ' carries no time, so which came first is UNKNOWN — it stays yours' };
+    if (dropT <= ownT){
+      var hist = _recordPastDrop(nm, all, r, h, fr, row);
+      return { left: false, frame: fr, state: 'carried', history: true, recorded: hist,
+               why: 'an OLDER drop (' + where + ', frame ' + fr + ' at ' + _iso(dropT) + ') than the look that owns it ('
+                  + _iso(ownT) + ') — recorded as history, never a leave; it stays yours' };
+    }
     if (typeof window.vaultRemove !== 'function') return { left: false, frame: fr, why: 'the removal door is not on this page — UNKNOWN, it stays yours' };
     var vr = null;
     try { vr = window.vaultRemove([nm], { lane: 'carried-left', quiet: true,
@@ -19337,6 +19475,7 @@ try {
     var h = v.sighting || { loc: null, scene: null, frame: null, ts: null, held: false };
     var out = { name: nm, route: v.route, why: v.why, frame: h.frame || null, held: !!h.held };
     if (v.dropped) out.dropped = { held: (v.held && v.held.frame) || null, drop: h.frame || null };
+    if (v.removedAfter) out.removedAfter = v.removedAfter;
     if (v.leave){
       var lv = null;
       try { lv = window._carriedLeave(nm, h, row); } catch (e) { lv = null; }
@@ -19664,9 +19803,15 @@ try {
   var CARRIED_RULE = 'yours right away · lands when seen in a stash tab or on a mule · leaves on a drop (vendor/trade reads are not supported yet)';
   window.CARRIED_WHO_UNKNOWN = CARRIED_WHO_UNKNOWN;
   window.CARRIED_RULE = CARRIED_RULE;
+  /* L-4 — what the strip says when it cannot tell (the stores it reads would not parse) */
+  var CARRIED_UNKNOWN = 'what you carry is UNKNOWN — the vault’s records (d2r_vaultProv / d2r_muleAssign) would not read, so which of your items are in your hands cannot be told; nothing is hidden from the dock';
+  window.CARRIED_UNKNOWN = CARRIED_UNKNOWN;
   window._carriedStripHtml = function(carried, fx){
     fx = fx || {};
     var E = fx.esc || function(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    if (carried === null)
+      return '<div class="vcar-row vcar-row-unknown" data-carried-char="?"><div class="vcar-head"><span class="vcar-title">🎒 Carried</span>'
+           + '<span class="vcar-who vcar-who-unknown">' + E(CARRIED_UNKNOWN) + '</span></div></div>';
     var art = fx.art || function(){ return ''; }, rar = fx.rarity || function(){ return ''; };
     var qst = fx.qStyle || function(){ return ''; }, evc = fx.evChip || function(){ return ''; };
     var byCh = {};
@@ -19691,6 +19836,25 @@ try {
               + '</span>';
           }).join('') + '</div></div>';
     }).join('');
+  };
+  /* ══ L-4 — THE VAULT'S POPULATION LINE, one builder a law can drive. Every figure is still derived by subtraction in
+     renderVault (filed + carried + loose == pool); this only says them. carried null = UNKNOWN (the strip could not tell):
+     then nothing is claimed about it — no "0 carried" and no "still loose" for items that may be in his hands. */
+  window._vaultPopHtml = function(p){
+    p = p || {};
+    var n = function(v){ return '<b>' + (+v || 0) + '</b>'; }, sep = ' <span class="vp-sep">\u00b7</span> ';
+    var bits = [n(p.owned) + ' owned'];
+    if (p.shared) bits.push(n(p.shared) + ' in the shared stash <i>(never muled)</i>');
+    bits.push(n(p.filed) + ' filed to mules');
+    if (p.carried === null){
+      bits.push('carried <b>UNKNOWN</b>');
+      bits.push(n(p.loose) + ' not filed <i>(how many of them are in your hands is UNKNOWN — the vault’s records would not read)</i>');
+      return bits.join(sep);
+    }
+    if (p.carried) bits.push(n(p.carried) + ' carried');
+    var sp = +p.sp || 0, lo = +p.loose || 0;
+    bits.push(n(lo) + ' still loose' + (lo ? ' <i>(' + sp + ' set piece' + (sp === 1 ? '' : 's') + ' \u00b7 ' + (lo - sp) + ' other)</i>' : ''));
+    return bits.join(sep);
   };
   /* at load, once — never in a harness without a page */
   try {
@@ -35998,6 +36162,16 @@ body{
    packs 270px tracks. They stack in one column now (.vcar-text) and wrap; nothing in a carried chip ellipsises. The chip
    keeps its rarity border and art; its corners soften because a two-line pill reads as a lozenge. */
 .vcar-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(270px,100%),1fr));gap:6px}
+/* ⚠ L-5 (review of 20c0df1e, reproduced on pixels) — THE CORNER TRAY OWNS THE RIGHT-HAND COLUMN AT EVERY WIDTH. The v704
+   tray parks the compass and the "?" at right:12px, 44px wide, glow and ring beyond that — they own the band 12..64px from
+   the edge (the page's own 64px, v1798 / v2221). The carried grid ended 44px from the edge at 375 (48px at 901 and 1280),
+   so every chip's right end — its evidence magnifier — slid UNDER the compass and the "?" as the strip scrolled past
+   them: measured at 375, the magnifier spanned x 303..321 with the tray at 319..363. The grid (and, swept, the unsorted
+   dock, whose ✕ sat under the tray at 375 the same way) reserves the rest of that band: 24px on top of where it already
+   ends puts every magnifier and ✕ at least 64px from the edge. Not a width breakpoint: the tray is there at every width,
+   and whether it lands on a chip depends on the scroll, not the screen. [[visual-regression-detector]] */
+.vcar-items{padding-right:24px}
+.vault-dock{padding-right:34px}
 .vcar-items > .vault-chip{display:flex;align-items:center;box-sizing:border-box;width:100%;min-width:0;border-radius:12px;cursor:default}
 .vcar-items > .vault-chip > span.vcar-text{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;white-space:normal}
 .vcar-text > .vault-chip-name{white-space:normal;overflow-wrap:anywhere;line-height:var(--lh-tight)}
@@ -38653,6 +38827,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _carried = null;
     try { _carried = (typeof window._carriedNames === 'function') ? window._carriedNames(function(n){ return assign[n] != null; }) : null; }
     catch(e){ _carried = null; }
+    /* L-4 (review of 20c0df1e) — null is UNKNOWN, and it stays UNKNOWN on screen: the strip and the population line say it
+       cannot tell, never "0 carried" and never "still loose" for loot that may be in his hands */
+    var _carUnknown = (_carried === null);
     _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });
     var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });
     var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]; });
@@ -38675,14 +38852,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (typeof setPieces !== 'undefined' && setPieces && setPieces.has && setPieces.has(nm)) _sp++;
           });
         } catch(e){}
-        var _bits = ['<b>' + poolAll.length + '</b> owned'];
-        if (_shared) _bits.push('<b>' + _shared + '</b> in the shared stash <i>(never muled)</i>');
-        _bits.push('<b>' + _filed + '</b> filed to mules');
-        if (_carried.length) _bits.push('<b>' + _carried.length + '</b> carried');
-        _bits.push('<b>' + unsorted.length + '</b> still loose'
-          + (unsorted.length ? ' <i>(' + _sp + ' set piece' + (_sp === 1 ? '' : 's')
-             + ' \u00b7 ' + (unsorted.length - _sp) + ' other)</i>' : ''));
-        _pEl.innerHTML = _bits.join(' <span class="vp-sep">\u00b7</span> ');
+        /* a cross-block call: the builder lives in the ⟦OWNED PROV⟧ door, and its absence is said, never a blank line */
+        _pEl.innerHTML = (typeof window._vaultPopHtml === 'function')
+          ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: _filed,
+                                   carried: _carUnknown ? null : _carried.length, loose: unsorted.length, sp: _sp })
+          : 'the population line is UNKNOWN — its builder (window._vaultPopHtml) is not on this page';
       }
     } catch(e){}
     /* v2359 — is this dock a menu page? Computed here because this is where the batch exists. */
@@ -38781,7 +38955,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       var _cEl = document.getElementById('vault-carried');
       if (_cEl){
-        if (!_carried.length){ _cEl.hidden = true; _cEl.innerHTML = ''; }
+        if (_carUnknown){ _cEl.hidden = false; _cEl.innerHTML = window._carriedStripHtml(null, { esc: esc }); }
+        else if (!_carried.length){ _cEl.hidden = true; _cEl.innerHTML = ''; }
         else {
           _cEl.hidden = false;
           /* M4 + L4 (review of bd976210) — one builder in the ⟦OWNED PROV⟧ door (a law renders it without a page): a named
@@ -39659,7 +39834,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var _hitV = ITEMS.find(function(i){ return _cnV(i.n) === _qnV; });
           /* v2198 — and the other 227. Falling through here is what wrote a `rarity:'basic'`
              placeholder for a real unique and then asked the planner about the placeholder. */
-          if (!_hitV && typeof d2rItemLookup === 'function'){
+          /* M-2 (review of 20c0df1e) — a name that is one of several known items sharing its stem (the runeword Crescent
+             Moon beside Crescent Moon (amulet), Spirit (shield) beside Spirit (sword)) is never handed to the stem lookup,
+             whose own fold filed the runeword as the amulet; a case variant still resolves above, key to key */
+          var _distinctV = (typeof window._vaultDistinctName === 'function') && window._vaultDistinctName(name);
+          if (!_hitV && !_distinctV && typeof d2rItemLookup === 'function'){
             var _regV = d2rItemLookup(name);
             if (_regV && _regV.n) _hitV = _regV;
           }

@@ -7,6 +7,88 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1390 - A RECLOSE REPLAYED AN OLDER SESSION'S DROP AND UN-OWNED LOOT A NEWER SESSION CARRIES (H-1, review of 20c0df1e, 2026-09-29)
+
+**SEEN (reproduced on 20c0df1e, driven on 090ace9a):** window._sightingsRoute's drop branch and window._carriedLeave never
+compared the drop's time with the look that owns the item. The closer loop recloses old reels on every kaiVer bump, every
+incomplete seal and every POST /api/kai_reclose, and kaiChroniclePropose routes every settled name through
+window._liveReadRoute again - so an OLDER session's pick-up-look-drop (the SHIPPED register's heldTs/latestTs pair) was
+replayed as a leave against a Harlequin Crest a NEWER session had picked up: gone from owned, gone from the strip, a
+carried-left batch in the journal. A plain older floor label did the same, and so did a drop that carried no time at all.
+**FIX:** a drop leaves only what it POSTDATES. _carriedLeave weighs the drop's own time against the LATEST look on the
+receipt (_ownedSinceMs: ts, at, lastAt, every look); a later drop leaves with its frame as before; an older one is
+recorded once per frame on the receipt as history (pastDrops: frame, time, place, session) and is never a leave; a drop or
+a receipt with no time cannot be put in order and changes nothing (UNKNOWN, said). HEART:
+test_carried_loot_holds_its_time_and_its_name H1 (6 of its 8 cases, incl. the register premise and the newer-drop
+baseline; 3 red-proofs); test_every_owned_door_writes_provenance's §31.2 leave fixture now dates its reads (it had none - a timeless
+drop is exactly the case that may no longer leave).
+
+### REG-1391 - A REPLAYED OLDER PICK-UP BROUGHT BACK AN ITEM THAT LEFT ON A NEWER DROP, OR THAT HE REMOVED (H-1 swept, 2026-09-29)
+
+**SEEN (the mirror of REG-1390, found while fixing it, driven on 090ace9a):** after a NEWER drop took Magefist out, the
+next reclose replayed the older session's plain pick-up and the live route owned it again as carried - "leaves on a drop"
+held only until the next reclose. The same for a stash read older than his own removal (card-click). The backfill already
+kept his removals out; the live route and the auto-accept door did not. **FIX:** window._readRoute - the one decision the
+live route, the backfill and the auto-accept door all ask - weighs a holding read against his last word
+(window._removedAfter): a read OLDER than a removal of the same item (the carried-left batch's own drop time, else the
+moment he removed it; keyed through the vault's one fold) routes not-held and says why; a read LATER than it is a new
+pick-up and owns it again; an unreadable journal or an undated read beside a removal waits (UNKNOWN). The seed cleanse's
+and the backfill undo's own batches are not his word about the item and never block a read. **LIMIT, said:** the removal
+journal is a 20-deep ring (_VR_RING); a removal pushed out of it no longer outranks an older replay. HEART: H1 of the same
+law (2 cases, 2 red-proofs).
+
+### REG-1392 - THE VAULT'S ONE FOLD MERGED ITEMS THAT ONLY THEIR SUFFIX TELLS APART (M-2, 2026-09-29)
+
+**SEEN (reproduced, driven over the board's own name lists on 090ace9a):** window._vaultCanonName dropped a trailing
+"(...)" unconditionally, so Spirit (shield) / Spirit (sword), Crescent Moon / Crescent Moon (amulet), Aldur's Watchtower
+(any) / (Druid), Griswold's Legacy (any) / (Pala), the five Worldstone Shard kinds and Hellmouth / Hellmouth (gloves)
+each became ONE key: the backfill blocked Crescent Moon (amulet) on a removal of the runeword, wrote the sword's row as the
+shield's receipt, skipped the Northern shard on a removal of the Eastern one, and decided Aldur's (any) and (Druid) as one
+group. Swept: tvVaultRegister filed the runeword Crescent Moon as Crescent Moon (amulet) (d2rItemLookup's own stem fold).
+**FIX:** the fold drops the suffix only when the stem it leaves names ONE known item (ITEMS, RUNEWORDS, ITEM_SETS names and
+pieces, WS_SHARDS_HUB) - d2rItemLookup's "ambiguity is not a match". MEASURED why not the brief's literal "keep the suffix
+when the exact name is in ITEMS": ITEMS is built from the boss drop tables, so Spirit (shield)/(sword) are not in it and
+Harlequin Crest (Shako) is - that reading keeps the Spirit pair merged and splits Harlequin Crest from its own (Shako)
+spelling, reopening REG-1385. The register never hands a name that is one of several known items sharing its stem to the
+stem lookup (window._vaultDistinctName); a case variant still resolves key to key. No name list on the page = the old
+fold. HEART: test_carried_loot_holds_its_time_and_its_name M2 (5 cases incl. the premise that every pair is the board's
+own and a joins baseline, 2 red-proofs); test_control V2286 unchanged (the fold is still _cnV's own first line).
+
+### REG-1393 - AN ITEM A DOOR OWNS WAS MADE DROPPABLE LOOT BY THE NEXT INVENTORY READ (M-3, 2026-09-29)
+
+**SEEN (reproduced, driven on 090ace9a for every door the board names):** REG-1381 let an inventory read mark a receipt
+carried when "nothing on it says where it is" - and that null state is exactly what every door that is not a live read
+writes. Driven on 090ace9a with a plain receipt from each of the 19 _SRC_SAY doors, 18 were re-marked carried and
+un-owned (every door but his own tick, which REG-1381 already held). So an item those doors own became carried on the next inventory read and a same-named floor
+label un-owned it. A name owned before receipts existed (no receipt at all) went the same way. **FIX:** carried is decided
+ONCE, by the read that made the item owned - one line in _ownedProvWrite: a read is carried only when nothing stands for
+the name yet and it was not already owned (_ownedAdd now writes the receipt BEFORE it adds the name, so the write sees
+`owned` as it stood). A standing receipt, whoever wrote it, is never re-marked - the later read joins it as a look, which
+is all it proves. A fresh pick-up is still carried and still leaves on a later drop. HEART: M3 of the same law (5 cases: all
+19 doors, a pre-receipt name, a standing receipt merged directly, the fresh baseline; 2 red-proofs);
+test_carried_loot_keeps_its_order's H2 red-proof re-anchored (the line it tampered is gone; it now puts the fill back).
+
+### REG-1394 - AN UNREADABLE FILING STORE READ AS "0 CARRIED" AND COUNTED CARRIED LOOT "STILL LOOSE" (L-4, 2026-09-29)
+
+**SEEN:** with d2r_muleAssign unparseable every receipt's state is 'unknown', so _carriedNames returned [] - the strip went
+away, the population line dropped the carried figure and counted that loot among "N still loose". **FIX:** _carriedNames
+answers null (UNKNOWN) when the filings will not read, as it already did for d2r_vaultProv; the strip renders one row that
+says it cannot tell (window.CARRIED_UNKNOWN); the population line is one builder (window._vaultPopHtml) that says
+"carried UNKNOWN · N not filed (how many of them are in your hands is UNKNOWN ...)"; renderVault hands the UNKNOWN to both.
+Rendered on real pixels at 375/901/1280 (evid_r4_after_unknown_*.png). HEART: L4 of the same law (4 cases, 4 red-proofs).
+
+### REG-1395 - THE CORNER TRAY PAINTED OVER THE CARRIED CHIPS' MAGNIFIER, AND THE DOCK'S ✕ (L-5, 2026-09-29)
+
+**SEEN (real pixels, one headless Chrome):** the v704 tray parks the compass and the "?" at right:12px, 44px wide, with a
+ring and a glow beyond. The carried grid ended 44px from the edge at 375 (48 at 901 and 1280), so as the strip scrolled
+past them every chip's magnifier slid under them: at 375 the magnifier spanned x 303..321 with the tray at 319..363
+(evid_r4_before_carried_underfab_375x812.png: the compass over Bul-Kathos', the "?" over Crown of Ages); 2px short of it at
+901 and 1280, inside its glow. Swept: the unsorted dock's ✕ sat under the tray at 375 the same way. **FIX:** the carried
+grid reserves 24px and the dock 24px more on their right - every magnifier and ✕ at least 64px from the edge, the page's
+own tray band (v1798 / v2221). Measured after, every carried chip scrolled beside BOTH tray buttons at 375/901/1280: 16/16
+hit-test to their own magnifier, gap 22 / 26 / 26 px; dock ✕ gap 22 / 26 / 219 px (evid_r4_after_carried_*.png). HEART:
+L5 of the same law (2 cases pinning the cascade's last padding-right, 2 red-proofs); the pixels are the proof.
+
 ### REG-1380 - THE "ONE-TIME" SEED CLEANSE RAN ON EVERY LOAD AND TOOK HIS CARRIED FINDS, UNJOURNALED (H1, review of bd976210, 2026-09-28)
 
 **SEEN (reproduced on bd976210):** the grail floor's v677 "one-time vault cleanse" had no stamp - its only guard was the
