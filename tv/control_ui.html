@@ -10198,6 +10198,7 @@ window._lockMark = function(isOpen, px, label){
     /* A shadow reel is not a session he started. The page stays on the standby board.
        The only thing that lights is the corner chip, and it says ONLINE, not ON AIR. */
     var _shadowRun = !!(st.isShadow || st.origin === 'shadow');
+    var _shadowArmed = st.shadowOn !== false && (_shadowRun || st.shadowOn === true);
     if (_shadowRun && !stopping) {
       state = 'off';
       on = false;
@@ -10214,7 +10215,8 @@ window._lockMark = function(isOpen, px, label){
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
-    $('bug-txt').textContent = _shadowRun ? 'ONLINE' : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
+    $('bug-txt').textContent = (_shadowRun || (_shadowArmed && !on && !stopping)) ? 'ONLINE'
+      : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
     var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));
@@ -10251,7 +10253,9 @@ window._lockMark = function(isOpen, px, label){
     $('marquee-t').textContent = stopping ? 'Signing Off' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Theatre' : (on ? 'On Air · Recording' : 'Standby'));
     $('kicker').textContent = stopping ? 'Farewell' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Eyes on history' : (on ? 'Signal Live' : 'Signal Idle'));
 
-    var cap = 'Press <b>ON</b> — wake the hidden scanner, go live.';   /* v1290 B1 — one line keeps the off-air stage height-neutral (~259px); the flex-column overlap fix only grows the stage for genuinely 2-line transient captions */
+    var cap = (_shadowArmed && !on)
+      ? 'Shadow reader is on. It stays hidden, starts when the game window is pinned, and seals when that window is gone.'
+      : 'Press <b>ON</b> — wake the hidden scanner, go live.';
     var H0 = st.health || {};
     var ct0 = st.captureTarget || {};
     var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
@@ -10656,6 +10660,13 @@ window._lockMark = function(isOpen, px, label){
     // the eye's target is VISIBLE truth now: window pin vs full screen
     var capEl = $('sig-capture');
     if (capEl){
+      if (_shadowArmed && !on) {
+        capEl.textContent = '';
+        capEl.className = 'val cap-pill cap-idle';
+        capEl.style.color = '';
+        capEl.style.display = 'none';
+      } else {
+      capEl.style.display = '';
       var ct = st.captureTarget || {};
       // v1247 (CONSOLE UPGRADE r1 · #4 CAPTURE LOCK-ON) — Konyo asks "is it targeting the D2R window?" REPEATEDLY;
       // give a permanent, glanceable answer: a GREEN lock pill on the game window vs AMBER whole-screen vs grey idle.
@@ -10682,6 +10693,7 @@ window._lockMark = function(isOpen, px, label){
       capEl.className = 'val cap-pill ' + capCls;
       capEl.style.color = '';
       if (capCls === 'cap-wait') capEl.style.color = '#e9b96e';
+      }
     }
     if (rc > readMax) readMax = rc;
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
