@@ -7581,6 +7581,10 @@ body[data-origin="shadow"] #stage img.live { visibility: hidden !important; }
 body[data-origin="shadow"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); }
 body[data-origin="shadow"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
 body[data-origin="shadow"] #stage-hold { display: none !important; }
+/* The reader is on and no hand session is up. Same steady green as a shadow reel.
+   The pulsing dot stays the hand session's. */
+body[data-shadow="armed"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); animation: none; }
+body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
 </style>
 <body data-state="off">
   <div class="shell">
@@ -8322,11 +8326,11 @@ body[data-origin="shadow"] #stage-hold { display: none !important; }
                  THEY EXIST. v2085 mirrored them here and left the originals in Tools — a COPY, not a
                  move — so Tools kept rendering them and the job read as done. Konyo: "why is it still
                  located in the tools tab?" Both rows, their 27 CSS rules and their four board painters
-                 are gone from bible.html; only tooltipPassState() stays, because it is localStorage-
-                 backed and this drawer asks it for the tooltip lane. These buttons POST to /api/shadow
+                 are gone from bible.html. The tooltip row is not a second store: it paints and
+                 writes the same /api/shadow switch as the shadow row, because the text eye is
+                 what reads hover text. These buttons POST to /api/shadow
                  and repaint from it, so they never depended on the board. The eagle's "surfaces agree"
                  check now goes RED if either reappears there. [[copy-drift]] [[the-unjoined-end]]
-               makes one switch say OFF while the lane is running.
 
                AND IT REPORTS THREE FACTS, NEVER AVERAGED. The route's own comment says why: `on`
                is what he chose, `available` is whether the lane can run at all, `recording` is
@@ -8340,7 +8344,7 @@ body[data-origin="shadow"] #stage-hold { display: none !important; }
               <span class="shadow-adv-t"><b>Shadow reader</b><small id="sadv-sha-say">checking…</small></span>
             </button>
             <button type="button" class="shadow-adv-sw" id="sadv-tip" aria-pressed="false"
-                    title="hover an item while a reel rolls — the reader fires on the tooltip text">
+                    title="same switch as the shadow reader — it reads hover text while that reader is on">
               <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">🔎</span>
               <span class="shadow-adv-t"><b>Tooltip pass</b><small id="sadv-tip-say">checking…</small></span>
             </button>
@@ -10212,6 +10216,9 @@ window._lockMark = function(isOpen, px, label){
        background lane presented as a full tour: red dot, theatre, live film.
        The server now says who asked (v2362); the console stops presenting them identically. */
     try { document.body.setAttribute('data-origin', _shadowRun ? 'shadow' : String(st.origin || '')); } catch(e){}
+    /* Armed reader, no hand session: the corner is the steady green ONLINE light.
+       A session he started keeps the ON AIR chip and is not marked armed. */
+    try { document.body.setAttribute('data-shadow', (_shadowArmed && !on && !stopping) ? 'armed' : ''); } catch(e){}
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
@@ -20508,28 +20515,9 @@ window._lockMark = function(isOpen, px, label){
         say.textContent = 'UNKNOWN — the console did not answer';
         return;
       }
-      /* ⚠ /api/shadow CARRIES NO TOOLTIP STATE. Measured on his live console: the payload is
-         {ok,on,why,available,recording,say} and nothing else, so `j.tooltip` is undefined and the
-         first cut of this painter showed the tooltip switch confidently OFF having measured
-         nothing. That state lives in the BOARD's localStorage under an LSR key whose prefix is the
-         2×2 profile fork — so the board is asked for it, never re-derived here. Unreachable board
-         → UNKNOWN, never off. */
-      var st;
-      if (p[1] === 'sha') st = j;
-      else {
-        st = null;
-        try {
-          var _fr = document.getElementById('tvd-eng');
-          var _w = _fr && _fr.contentWindow;
-          if (_w && typeof _w.tooltipPassState === 'function') st = _w.tooltipPassState();
-        } catch (e) { st = null; }
-        if (!st) {
-          btn.setAttribute('aria-pressed', 'false');
-          btn.disabled = true;
-          say.textContent = 'UNKNOWN — the board is not open, so its switch cannot be read';
-          return;
-        }
-      }
+      /* Both rows are the shadow switch. A second read (the board's old tooltip flag)
+         is how this drawer showed the shadow row ON and the tooltip row OFF. */
+      var st = j;
       var on = !!st.on, avail = st.available !== false;
       btn.disabled = !avail;
       btn.setAttribute('aria-pressed', on && avail ? 'true' : 'false');
@@ -20541,13 +20529,18 @@ window._lockMark = function(isOpen, px, label){
          lamp that cannot distinguish them is decoration with a colour.
          `_shadowFloorSay` carries the refusal reason from /api/status when there is one. */
       var _blocked = (typeof window._shadowFloorSay === 'string') ? window._shadowFloorSay : '';
+      var _tip = (p[1] === 'tip');
       say.textContent = !avail ? 'this machine cannot run it — the switch is decoration'
-        : on ? (j.recording ? 'ON · a reel is rolling, it is reading'
+        : on ? (j.recording ? ('ON · a reel is rolling, ' + (_tip ? 'it is reading the hover text' : 'it is reading'))
                             : (_blocked
                                  ? ('ON, but nothing can record — ' + _blocked
                                     + '. It only fires while a reel rolls, and none can start.')
-                                 : 'ON · waiting for a reel — it only fires while one rolls'))
-             : 'OFF — nothing is reading the live frame';
+                                 : (_tip
+                                     ? 'ON · with the shadow reader — it reads tooltips while a reel rolls'
+                                     : 'ON · waiting for a reel — it only fires while one rolls')))
+             : (_tip
+                  ? 'OFF — it follows the shadow reader, which is off'
+                  : 'OFF — nothing is reading the live frame');
     });
   }
 
@@ -20589,17 +20582,10 @@ window._lockMark = function(isOpen, px, label){
       .catch(function (e) { _shadowLastJ = null; _shadowAdvPaint(null, e); return null; });
   };
 
-  /* v2095 — THE TOOLTIP BUTTON HAS TO DO THE TOOLTIP PASS.
-     Both buttons POSTed /api/shadow {lane, on} — and the server NEVER READS `lane`:
-         want = body.get("on");  self._json(200, _shadow_set(bool(want)))
-     So both drawer switches wrote ONE shadow flag and "Tooltip pass" performed no pass.
-     The board's toggleTooltipPass does three things this could not: it arms the vault mini-lane,
-     POSTs /api/shadow, and POSTs /api/on — which STARTS A RECORDING — then tracks `startedReel`
-     so switching OFF seals the reel IT started and never one HE started. That is a scar: a pass
-     once recorded ~9GB/hour he never asked for.
-     This is why v2093 refused to delete the board rows. The tooltip lane now drives the REAL
-     orchestration through the same iframe seam the painter already uses to READ its state, so no
-     logic is copied and the safety cannot drift out of step. [[the-unjoined-end]] [[copy-drift]] */
+  /* Both rows write the one shadow switch. The tooltip row used to call the board
+     and that call started a hand session. The text eye reads hover text whenever
+     this switch is on; the shadow watcher opens the reel when a game window is
+     pinned. Neither row starts a recording by itself. */
   [['sadv-sha', 'shadow'], ['sadv-tip', 'tooltip']].forEach(function (p) {
     var el = document.getElementById(p[0]);
     if (!el) return;
@@ -20608,26 +20594,8 @@ window._lockMark = function(isOpen, px, label){
       var want = el.getAttribute('aria-pressed') !== 'true';
       var say = document.getElementById(p[0] + '-say');
       if (say) say.textContent = want ? 'switching on…' : 'switching off…';
-      if (p[1] === 'tooltip') {
-        var _fr = document.getElementById('tvd-eng');
-        var _w = _fr && _fr.contentWindow;
-        var _fn = null;
-        try { _fn = (_w && typeof _w.toggleTooltipPass === 'function') ? _w.toggleTooltipPass : null; } catch (e) { _fn = null; }
-        if (!_fn) {
-          /* The pass exists only on the board. Say so rather than falling back to a POST that
-             would flip the shadow flag and LOOK like it worked. [[unknown-stays-unknown]] */
-          if (say) say.textContent = 'UNKNOWN — open the board once so the pass can run';
-          el.disabled = true;
-          return;
-        }
-        try {
-          Promise.resolve(_fn()).then(function () { return window._shadowAdvRefresh(); })
-            .catch(function () { if (say) say.textContent = 'UNKNOWN — the pass did not answer'; });
-        } catch (e) { if (say) say.textContent = 'could not run the pass: ' + String(e && e.message || e); }
-        return;
-      }
       fetch(API + '/api/shadow', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                   body: JSON.stringify({ lane: p[1], on: want }) })
+                                   body: JSON.stringify({ on: want }) })
         .then(function () { return window._shadowAdvRefresh(); })
         .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
     });

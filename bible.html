@@ -60945,43 +60945,23 @@ window._laneSay = function(msg){
    panels and ZERO readable names. D2R prints no names in a grid — a name exists only in the HOVER
    TOOLTIP — so the entire chain is starving on one thing, and it is a thing only he can do.
 
-   WHY A BUTTON. Every piece already existed and had to be put in the right state SEPARATELY: arm
-   the vault lane, switch the shadow reader on, start a reel. Three controls in two places, and
-   getting any one wrong makes the pass silently worthless — which is the exact shape this board
-   keeps auditing out. One action does all three, then says what to do.
-
-   IT COUNTS WHAT IT ACTUALLY CHANGED. The badge is `d2r_owned` now minus `d2r_owned` when the pass
-   started — a delta, not a total, because a total tells him nothing about whether hovering worked.
-   Zero after five minutes of hovering is a REAL answer and must stay visible. [[the-unjoined-end]] */
-var _TP_KEY = 'd2r_tooltipPass';
-
-function _tpState(){
-  try { return JSON.parse((window.LSR && window.LSR.getItem(_TP_KEY)) || 'null') || null; }
-  catch(e){ return null; }
-}
-/* v2085 — THE BOARD ANSWERS FOR ITS OWN STATE. The console's ADVANCED drawer mirrors this switch,
-   and the state lives in localStorage under an LSR key whose prefix is the 2×2 profile/install
-   fork. A console that re-derived that prefix would be carrying a second copy of the routing rule
-   — the v1478 defect exactly: "It used to carry its OWN second copy of the rule ... the board wrote
-   W·, the console read BARE, and a machine that is supposed to start at zero greeted its owner with
-   someone else's chronicle." So the board is asked instead. Three facts, never averaged, matching
-   /api/shadow's shape so one painter can render either lane. [[copy-drift]] */
+   THE BUTTON IS THE SHADOW SWITCH. Hover text is read by the text eye, which already
+   follows shadow_ai. A second flag, and a button that also started a reel, made this row
+   disagree with the shadow row and put ON AIR on the console. [[the-unjoined-end]] */
+/* 2026-09-28 — THE PASS IS THE SHADOW READER. Konyo, with the shadow row ON and this
+   row OFF in the same drawer: "for TOOLTIPS pass under shadow it needs to be with it
+   synced together too.. not a separate logic."
+   A private tooltip flag was that second logic: the drawer painted it on its
+   own, so the two rows could disagree, and turning the pass on also POSTed /api/on,
+   which starts a recording. The text eye already reads hover text while shadow_ai is
+   on. This answer no longer keeps a flag. on is null, not false: "I do not store a
+   second switch" must not paint as OFF. [[unknown-stays-unknown]] [[copy-drift]] */
 window.tooltipPassState = function(){
-  var st = _tpState();
-  return { ok: true, on: !!(st && st.on), available: (typeof window._shadowOnConsole === 'function')
-             ? !!window._shadowOnConsole() : false,
-           recording: !!(st && st.on),
-           named: (st && typeof st.baseline === 'number')
-             ? Math.max(0, _tpOwnedCount() - st.baseline) : null };
+  return { ok: true, follows: 'shadow', on: null,
+           available: (typeof window._shadowOnConsole === 'function')
+             ? !!window._shadowOnConsole() : null,
+           recording: null, named: null };
 };
-function _tpSet(v){
-  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_TP_KEY, JSON.stringify(v)); }
-  catch(e){}
-}
-function _tpOwnedCount(){
-  try { return (JSON.parse((window.LSR && window.LSR.getItem('d2r_owned')) || '[]') || []).length; }
-  catch(e){ return 0; }
-}
 
 
 /* v2097 — THE PASS REPORTS TO WHOEVER INVOKED IT.
@@ -61001,118 +60981,37 @@ function _tpSay(){
   } catch(e){ return null; }
 }
 window.toggleTooltipPass = function(){
+  /* Same switch as the shadow row. Flipping this used to arm a lane, wake the reader
+     and POST /api/on, which starts a hand session (~9GB/hour when nobody is playing).
+     The shadow watcher already opens a hidden reel when a game window is pinned and
+     seals it when that window is gone. This only writes shadow_ai.json. */
   if (!window._shadowOnConsole || !window._shadowOnConsole()) return Promise.resolve(null);
-  var st = _tpState(), say = _tpSay();
-  if (st && st.on){
-    /* ── v2019 — OFF MUST UNDO WHAT ON DID, OR IT IS NOT A TOGGLE ──────────────────────────────
-       Konyo, watching both switches sit OFF while the header still said ON AIR: "and its not just
-       recording non stop is it..? it says end session.. but i never started a session."
-
-       He was right, and it was measured while he watched: +16 frames and +37MB in 15 seconds —
-       ~150MB/min, ~9GB/hour, on top of the 3.1GB already in tv/frames.
-
-       ON took THREE server-side actions: armed the vault mini-lane, POST /api/shadow {on:true},
-       and POST /api/on — which STARTS A RECORDING. OFF took none of them. It wrote a local flag
-       and returned. So the pass started a session he never asked for and never gave it back.
-
-       The old comment defended this: "sealing a recording is his ON AIR control and must not be a
-       side effect of a toggle." That rule is right, and it is exactly why the OLD code was wrong —
-       it applied the rule to only ONE end of the switch. If OFF may not seal, then ON may not
-       start. Undoing something this toggle did is not overriding his control; it is returning it.
-       A reel HE started is still untouchable, and `startedReel` is how the two are told apart.
-
-       ⚠ AND THE WORST HALF WAS THE MESSAGE. There were two OFF texts. The one for a pass that
-       named something said "The reel is still rolling; seal it from ON AIR." The one for a pass
-       that named NOTHING — the overwhelmingly likely first run, and the case he actually hit —
-       never mentioned the reel at all and said "the reader may be off or the reel NOT RECORDING",
-       actively pointing away from a reel that was recording at 9GB/hour. The branch that fires
-       when the news is worst was the branch that told him least. [[the-unjoined-end]] */
-    var got  = Math.max(0, _tpOwnedCount() - (st.baseline || 0));
-    var mine = !!(st && st.startedReel);       // did THIS pass start the reel, or did he?
-    var woke = !!(st && st.wokeReader);        // did THIS pass wake the reader, or was it already on?
-    var head = got ? ('pass ended — ' + got + ' item(s) named. ')
-                   : ('pass ended and nothing was named. ');
-    _tpSet({ on:false, baseline:0, endedTs:Date.now(), last:got, startedReel:false, wokeReader:false });
-    if (say) say.textContent = head + (mine ? 'sealing the reel it started…' : 'putting the reader back…');
-    var chain = Promise.resolve(null);
-    if (woke) chain = chain.then(function(){
-      return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
-                                    body: JSON.stringify({ on:false }) }).catch(function(){ return null; });
-    });
-    if (!mine){
-      return chain.then(function(){
-        /* NOT ours — say so plainly in BOTH branches, which is the half that was missing. */
-        if (say) say.textContent = head + 'The reel is STILL ROLLING — you started it, so seal it '
-          + 'from ON AIR when you are done.';
-        return { ok:true, named:got, sealed:false, reelWasMine:false };
-      });
-    }
-    return chain
-      .then(function(){ return fetch('/api/off', { method:'POST',
-                          headers:{'Content-Type':'application/json'}, body:'{}' }); })
-      .then(function(r){ return r.json(); })
-      .then(function(jj){
-        var ok = !!(jj && jj.ok !== false);
-        if (say) say.textContent = head + (ok
-          ? 'The reel this pass started is sealed — nothing is recording.'
-          : ('\u26a0 COULD NOT SEAL THE REEL, it is still recording — press OFF AIR now: '
-             + String((jj && (jj.why || jj.error || jj.msg)) || 'the console refused')));
-        return { ok:true, named:got, sealed:ok, reelWasMine:true };
-      })
-      .catch(function(e){
-        /* the console's silence must never read as "stopped" */
-        if (say) say.textContent = head + '\u26a0 the console did not answer, so the reel may STILL '
-          + 'BE RECORDING — press OFF AIR: ' + String(e && e.message || e);
-        return { ok:true, named:got, sealed:false, reelWasMine:true };
-      });
-  }
-  _tpSet({ on:true, baseline:_tpOwnedCount(), startedTs:Date.now() });
-  if (say) say.textContent = 'arming…';
-  /* the three states, in the order that matters: the lane must be armed and the reader awake
-     BEFORE the reel starts, or the first seconds of film are recorded with nothing listening. */
-  try { if (window._miniOnAirOn && !window._miniOnAirOn('vault') && window._miniOnAirToggle)
-          window._miniOnAirToggle('vault'); } catch(e){}
-  /* v2019 — READ THE READER'S STATE BEFORE CHANGING IT, and remember what we actually changed.
-     Without this, OFF cannot tell "I woke it" from "it was already awake" and would switch off a
-     reader he turned on himself. The same question decides the reel: /api/on answers
-     {ok:false, mode:'mini', why:'already recording'} when one is already rolling, so `j.ok` IS
-     the answer to "did this pass start it" — no extra probe needed. */
-  var _wasReaderOn = false;
-  return fetch('/api/shadow').then(function(r){ return r.json(); })
-    .then(function(pre){ _wasReaderOn = !!(pre && pre.on); })
-    .catch(function(){ /* unknown -> assume it was already on, so OFF leaves it alone */
-                       _wasReaderOn = true; })
-    .then(function(){
-      return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
-                                    body: JSON.stringify({ on:true }) });
-    })
-    .then(function(){ return fetch('/api/on', { method:'POST',
-                        headers:{'Content-Type':'application/json'}, body:'{}' }); })
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      try {
-        var _s = _tpState() || {};
-        _s.startedReel = !!(j && j.ok);     // false when /api/on refused: he was already recording
-        _s.wokeReader  = !_wasReaderOn;
-        _tpSet(_s);
-      } catch(e){}
-      if (j && j.ok){
-        if (say) say.textContent = '🔴 rolling — HOVER each item you want named. The reader fires '
-          + 'on the tooltip text.';
-      } else {
-        /* the console's refusal is the useful half and must not be swallowed */
-        if (say) say.textContent = '⚠ lane armed and reader on, but the reel did not start: '
-          + String((j && (j.why || j.error || j.msg)) || 'the console refused')
-          + ((j && j.secondsLeft) ? (' (' + j.secondsLeft + 's left)') : '');
-      }
-      return j;
-    })
-    .catch(function(e){
-      if (say) say.textContent = '⚠ the console did not answer: ' + String(e && e.message || e);
+  var say = _tpSay();
+  if (say) say.textContent = 'switching with the shadow reader…';
+  return fetch('/api/shadow').then(function(r){ return r.json(); }).then(function(pre){
+    if (!pre || pre.ok === false || typeof pre.on !== 'boolean'){
+      if (say) say.textContent = 'UNKNOWN — the console did not answer';
       return null;
-    });
+    }
+    var want = !pre.on;
+    return fetch('/api/shadow', { method:'POST', headers:{'Content-Type':'application/json'},
+                                  body: JSON.stringify({ on: want }) })
+      .then(function(r2){ return r2.json(); })
+      .then(function(j){
+        if (!j || j.ok === false || typeof j.on !== 'boolean'){
+          if (say) say.textContent = 'UNKNOWN — the console did not answer';
+          return null;
+        }
+        if (say) say.textContent = j.on
+          ? 'ON · with the shadow reader — it reads tooltips while a reel rolls'
+          : 'OFF — it follows the shadow reader, which is off';
+        return j;
+      });
+  }).catch(function(){
+    if (say) say.textContent = 'UNKNOWN — the console did not answer';
+    return null;
+  });
 };
-
 /* ── v2022 — THE SUBSCRIPTION METER ────────────────────────────────────────────────────────────
    Renders /api/meter. Three states, never collapsed into one:
      known:false  → "not measured", greyed, NOT a comfortable empty tank. "Nobody measured" and

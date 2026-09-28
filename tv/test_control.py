@@ -18241,28 +18241,18 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
 
 
 class TestV2019TheTooltipPassGivesBackWhatItTook(unittest.TestCase):
-    """v2019 — a toggle whose OFF is not the inverse of its ON.
+    """The tooltip pass is the shadow switch, not a second session.
 
-    Konyo, with both switches sitting OFF and the header still reading ON AIR: "and its not just
-    recording non stop is it..? it says end session.. but i never started a session." Measured while
-    he watched: +16 frames / +37MB in 15 seconds — ~150MB/min, ~9GB/hour, on top of 3.1GB already
-    on disk, with 17GB free.
+    v2019: toggleTooltipPass ON started a recording and OFF did not seal it, so a press he
+    thought was a reader switch left a reel running at about 9GB/hour. The repair made OFF
+    seal only the reel that pass had started.
 
-    toggleTooltipPass ON took three server-side actions (arm the mini lane, POST /api/shadow
-    {on:true}, POST /api/on -> STARTS A RECORDING). OFF took none. It wrote a local flag and
-    returned, so the pass started a session he never asked for and never gave it back.
-
-    The old code defended this in a comment: sealing is his ON AIR control and must not be a side
-    effect of a toggle. That rule is RIGHT, and it is exactly why the code was wrong - it applied
-    the rule to one end of the switch only. If OFF may not seal, ON may not start. Undoing what
-    this toggle did is not overriding his control, it is returning it; a reel HE started stays
-    untouchable, and `startedReel` is what tells the two apart.
-
-    AND THE MESSAGE WAS THE WORSE HALF. Two OFF texts existed. The one for a pass that named
-    something warned that the reel was still rolling. The one for a pass that named NOTHING - the
-    likely first run, and the case he hit - never mentioned the reel and said the reel may be "not
-    recording", pointing away from a reel recording at 9GB/hour. The branch that fires when the
-    news is worst told him least. That asymmetry is what the message tests below pin.
+    2026-09-28, Konyo, with the shadow row ON and the tooltip row OFF in the same drawer:
+    "for TOOLTIPS pass under shadow it needs to be with it synced together too.. not a
+    separate logic." The private flag is what let the two rows disagree, and the pass's
+    POST /api/on is what put a hand session on a console whose shadow reader stays hidden
+    until a game window is pinned. The pass now writes /api/shadow and does not start or
+    seal a reel. The shadow watcher still opens the hidden reel when the game is pinned.
     """
 
     @staticmethod
@@ -18281,47 +18271,29 @@ class TestV2019TheTooltipPassGivesBackWhatItTook(unittest.TestCase):
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
         return body
 
-    def test_on_records_whether_it_started_the_reel(self):
-        """Without this, OFF cannot tell a reel it started from one he started."""
+    def test_it_writes_the_shadow_switch_and_does_not_start_a_reel(self):
+        """A tooltip press that POSTs /api/on starts the hand session the shadow row is not."""
         body = self._toggle_body()
-        self.assertIn("startedReel", body,
-                      "ON must record whether IT started the reel - /api/on answers ok:false when "
-                      "one is already rolling, so j.ok is that answer")
-        self.assertIn("wokeReader", body,
-                      "ON must record whether IT woke the reader, or OFF will switch off a reader "
-                      "he turned on himself")
+        self.assertIn("'/api/shadow'", body,
+                      "the pass must write the same switch the shadow row writes")
+        self.assertNotIn("'/api/on'", body,
+                         "the pass must not start a recording")
+        self.assertNotIn("'/api/off'", body,
+                         "the pass must not seal a reel; it does not start one")
+        self.assertNotIn("startedReel", body,
+                         "tracking a reel this pass started is the separate session logic")
+        self.assertNotIn("wokeReader", body)
+        self.assertNotIn("_tpSet", body,
+                         "a private tooltip flag is how the two rows disagreed")
 
-    def test_off_seals_the_reel_it_started(self):
+    def test_an_unanswered_console_stays_unknown(self):
+        """Silence must not become OFF, and must not become 'the reel stopped'."""
         body = self._toggle_body()
-        i_off = body.find("'/api/off'")
-        self.assertNotEqual(i_off, -1,
-                            "OFF never calls /api/off, so a reel this pass started runs forever - "
-                            "measured at ~9GB/hour on his machine")
-        i_mine = body.find("st.startedReel")
-        self.assertNotEqual(i_mine, -1, "the seal must be conditional on having started it")
-        self.assertLess(i_mine, i_off,
-                        "the /api/off call must be GATED on startedReel - sealing a reel HE "
-                        "started is the one thing this toggle may never do")
-
-    def test_both_off_messages_state_the_reel_state(self):
-        """The zero-named branch is the one that fires on a first run and the one that used to
-        say nothing. Neither branch may leave the reel unexplained."""
-        body = self._toggle_body()
-        self.assertNotIn("not recording \u2014 check the shadow reader", body,
-                         "the old zero-named text pointed AWAY from a reel that was recording")
-        self.assertIn("STILL ROLLING", body,
-                      "when the reel is HIS, OFF must say plainly that it is still rolling")
-        self.assertIn("sealed", body,
-                      "when the reel was this pass's, OFF must say it was sealed")
-
-    def test_a_failed_seal_is_never_reported_as_stopped(self):
-        """Silence from the console must not read as 'nothing is recording'."""
-        body = self._toggle_body()
-        self.assertIn("COULD NOT SEAL THE REEL", body,
-                      "a refused /api/off must say so, loudly, and name the OFF AIR button")
-        self.assertIn("may STILL", body,
-                      "a thrown fetch must report the reel as possibly-still-recording, never as "
-                      "stopped [[feedback-silence-is-not-evidence]]")
+        self.assertIn("UNKNOWN", body,
+                      "a console that does not answer must say so")
+        self.assertNotIn("STILL ROLLING", body)
+        self.assertNotIn("COULD NOT SEAL", body)
+        self.assertNotIn("nothing is recording", body)
 
 
 
@@ -24598,46 +24570,51 @@ class TestV2085TheSwitchesReachTheConsoleDrawer(unittest.TestCase):
         self.assertIn("/api/shadow", self._bible(),
                       "the board stopped reading the same route, so the two can now disagree")
 
-    def test_the_tooltip_lane_ASKS_THE_BOARD_rather_than_re_deriving_its_key(self):
-        """⚠ /api/shadow CARRIES NO TOOLTIP STATE. Measured on his live console: the payload is
-        {ok,on,why,available,recording,say} and nothing else, so `j.tooltip` is undefined and the
-        first cut of this painter showed the switch confidently OFF having measured nothing.
-
-        That state lives in the BOARD's localStorage under an LSR key whose prefix is the 2×2
-        profile/install fork. A console that re-derived that prefix would carry a second copy of the
-        routing rule — the v1478 defect exactly: "the board wrote W·, the console read BARE, and a
-        machine that is supposed to start at zero greeted its owner with someone else's chronicle."
+    def test_the_tooltip_row_reads_the_same_shadow_switch(self):
+        """Konyo, 2026-09-28: the tooltip row under shadow was OFF while the shadow row was ON.
+        That was a second store. Both rows paint from /api/shadow and both write it. The board
+        still answers tooltipPassState, and that answer refuses a private on/off (on is null).
         """
         ui = self._ui()
-        self.assertIn("_w.tooltipPassState()", ui,
-                      "the drawer does not ask the board for the tooltip lane")
-        self.assertNotIn("_D2R_PFX", ui,
-                         "the console is deriving the board's storage prefix itself — that is the "
-                         "second copy of the routing rule v1478 was written about")
-        self.assertIn("window.tooltipPassState = function()", self._bible(),
-                      "the board no longer answers for its own switch")
+        self.assertNotIn("tooltipPassState", ui,
+                         "the drawer still asks the board for a second tooltip flag")
+        self.assertNotIn("toggleTooltipPass", ui,
+                         "the drawer still runs the pass that can start its own reel")
+        paint = _between(self, ui, "function _shadowAdvPaint(j, err)",
+                         "window._shadowAdvRefresh = function", what="the drawer painter")
+        self.assertIn("var st = j;", paint,
+                      "the tooltip row must paint the shadow payload, not a flag of its own")
+        self.assertNotIn("p[1] === 'sha'", paint,
+                         "branching the two rows onto different stores is the split he saw")
+        click = _between(self, ui, "[['sadv-sha', 'shadow'], ['sadv-tip', 'tooltip']]",
+                         "window._autoRelaunchRefresh", what="the two switch clicks")
+        self.assertNotIn("/api/on", click, "a tooltip click must not start a recording")
+        self.assertNotIn("/api/off", click, "a tooltip click must not seal a recording")
+        self.assertEqual(click.count("JSON.stringify({ on: want })"), 1,
+                         "both rows must post the one shadow switch, once, from the shared handler")
+        state = _js_fn_from(self._bible(), "window.tooltipPassState = function(){")
+        self.assertIn("follows: 'shadow'", state)
+        self.assertIn("on: null", state,
+                      "a missing private flag must not come back as OFF")
+        self.assertNotIn("_TP_KEY", state)
+        self.assertNotIn("d2r_tooltipPass", self._bible(),
+                         "the private tooltip store is back")
 
-    def test_an_unreachable_route_or_board_reads_UNKNOWN_not_OFF(self):
-        """"I could not ask" and "he turned it off" are opposite facts, and only one of them means
-        nothing is watching. Measured with neither reachable: both switches read UNKNOWN and
-        disable themselves. [[unknown-stays-unknown]]"""
+    def test_an_unreachable_route_reads_UNKNOWN_not_OFF(self):
+        """"I could not ask" and "he turned it off" are opposite facts. Both rows share the one
+        shadow route, so one unanswered route covers both. There is no second board path.
+        [[unknown-stays-unknown]]"""
         ui = self._ui()
         blk = _between(self, ui, "function _shadowAdvPaint(j, err)",
                        "window._shadowAdvRefresh = function", what="the drawer painter")
-        # ⚠ THERE ARE TWO UNKNOWN PATHS — the route did not answer, and the board is not open —
-        # so `assertIn("UNKNOWN")` is satisfied by whichever one the sabotage did not touch. Both
-        # sabotages passed on the first cut for exactly that reason. COUNT them.
-        # [[source-reading-guard]] §2 — an anchor that is not unique is a guess.
-        # Strip the prose: my own comment above the branch uses the word UNKNOWN to explain the
-        # rule, so a raw count is 3 where the CODE has 2. [[source-reading-guard]] §4
+        # Strip the prose. A comment that says the word would inflate the count.
         code = re.sub(r"/\*.{0,4000}?\*/", " ", blk, flags=re.S)
-        self.assertEqual(code.count("UNKNOWN"), 2,
-                         "expected both unreachable paths (route, board) to read UNKNOWN; the code "
-                         "has %d" % code.count("UNKNOWN"))
-        self.assertEqual(code.count("btn.disabled = true"), 2,
-                         "a switch it could not read stays pressable on %d of the two unreachable "
-                         "paths, so he can act on a state nobody measured"
-                         % (2 - code.count("btn.disabled = true")))
+        self.assertEqual(code.count("UNKNOWN"), 1,
+                         "the only unreachable path is the shadow route; a second path is a second "
+                         "logic. the code has %d" % code.count("UNKNOWN"))
+        self.assertEqual(code.count("btn.disabled = true"), 1,
+                         "a switch it could not read stays pressable. disabled-true count is %d"
+                         % code.count("btn.disabled = true"))
         self.assertNotIn("say.textContent = 'OFF'", code,
                          "an unreachable lane is being reported as OFF — 'I could not ask' and 'he "
                          "turned it off' are opposite facts")
@@ -40080,6 +40057,23 @@ class TestV2362TheRingAndWhoStartedTheReel(unittest.TestCase):
         self.assertRegex(decls, r"(visibility|display)\s*:\s*(hidden|none)",
                          "the shadow rule targets the stage but does not suppress it: %r" % decls)
         self.assertIn("st.isShadow", ui, "the console never reads the server's isShadow flag")
+
+    def test_an_armed_reader_is_the_green_corner_and_a_hand_session_is_not(self):
+        """Konyo: the tooltip pass is on with the shadow reader, hidden the same way, and the
+        only light is the green corner. A session he starts himself still reads ON AIR."""
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("(_shadowArmed && !on && !stopping) ? 'armed'", ui,
+                      "the corner is not tied to the armed reader")
+        self.assertIn('body[data-shadow="armed"] .live-bug', ui)
+        import re as _re
+        dot = _re.search(r'body\[data-shadow="armed"\] \.live-bug \.dot \{([^}]*)\}', ui)
+        self.assertIsNotNone(dot, "the armed reader does not colour the corner dot")
+        self.assertIn("var(--mint)", dot.group(1))
+        self.assertIn("animation: none", dot.group(1),
+                      "the armed corner pulses like a hand session")
+        # The chip text already chooses ONLINE for an armed reader with no hand session.
+        self.assertIn("(_shadowArmed && !on && !stopping)) ? 'ONLINE'", ui)
 
 
 

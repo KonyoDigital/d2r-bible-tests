@@ -85,9 +85,9 @@ KNOWN_UNISOLATED = {
                           # for, Main and Ladder do not share characters, and a guest's lock would
                           # suppress muling on his board. Recommend forking into _LP_FORKED; it is
                           # one day old, re-earned after 3 sessions, so almost nothing is orphaned.
-    "d2r_tooltipPass",    # v2013 — pass on/off plus a baseline COUNTED FROM the forked d2r_owned.
-                          # An unforked state beside a forked baseline gives a wrong delta the
-                          # moment he switches profile mid-pass. Harmless but incoherent.
+    # d2r_tooltipPass left this list when the pass stopped keeping its own store. The tooltip
+    # row writes /api/shadow, the same switch as the shadow reader. A new write of that key
+    # is a new unisolated store and this gate will name it.
 }
 
 # v2014 — `lane|lock|tooltip|pass|auto` joined the pattern. The three stores that slipped through
