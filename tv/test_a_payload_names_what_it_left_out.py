@@ -97,6 +97,77 @@ def _fixture_repo():
     return root
 
 
+def _merge_repo():
+    """A scratch history whose HEAD is a CLEAN MERGE bringing two files onto main. -> path | None"""
+    import shutil
+    import subprocess
+    import tempfile
+    root = tempfile.mkdtemp(prefix="payload_merge.")
+    git = ["git", "-c", "user.name=law", "-c", "user.email=law@example.invalid",
+           "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", "-c", "core.hooksPath=/dev/null"]
+
+    def _w(rel, text):
+        with io.open(os.path.join(root, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    try:
+        subprocess.check_call(git + ["init", "-q", root], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        _w("a.py", "one = 1\n")
+        subprocess.check_call(git + ["-C", root, "add", "-A"])
+        subprocess.check_call(git + ["-C", root, "commit", "-q", "-m", "base"])
+        subprocess.check_call(git + ["-C", root, "checkout", "-q", "-b", "side"])
+        _w("b.py", "two = 2\n")
+        _w("c.html", "<p>three</p>\n")
+        subprocess.check_call(git + ["-C", root, "add", "-A"])
+        subprocess.check_call(git + ["-C", root, "commit", "-q", "-m", "side work"])
+        subprocess.check_call(git + ["-C", root, "checkout", "-q", "main"])
+        _w("a.py", "one = 1\nfour = 4\n")
+        subprocess.check_call(git + ["-C", root, "commit", "-q", "-am", "main moves on"])
+        subprocess.check_call(git + ["-C", root, "merge", "-q", "--no-ff", "--no-edit", "side"])
+    except (OSError, subprocess.CalledProcessError):
+        shutil.rmtree(root, ignore_errors=True)
+        return None
+    return root
+
+
+class TestAMergeIsLookedAtByWhatItBrought(unittest.TestCase):
+    """2026-09-28 - two #231 rows on merge commits (e81dde8f, 44f6b389) read "cannot-tell, chars 0, git show combined
+    diff is empty": a clean merge's COMBINED diff is empty, so the eye was handed nothing while the merge carried
+    bible.html and eight more files onto main. Driven on a scratch history whose HEAD is a clean merge."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.repo = _merge_repo()
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        if cls.repo:
+            shutil.rmtree(cls.repo, ignore_errors=True)
+
+    def setUp(self):
+        if not self.repo:
+            self.skipTest("git could not build the merge fixture here - UNMEASURED, not clean")
+        _real, _base = R.REPO, R.REVIEW_BASE
+        R.REPO, R.REVIEW_BASE = self.repo, None
+        self.addCleanup(setattr, R, "REPO", _real)
+        self.addCleanup(setattr, R, "REVIEW_BASE", _base)
+
+    def test_the_premise_git_show_of_a_clean_merge_is_empty(self):
+        out, why = R._sh(["git", "show", "--format=", "--name-only", "HEAD"])
+        self.assertIsNotNone(out, why)
+        self.assertEqual(out.split(), [], "PREMISE: git show printed files for this merge, so the fixture tests nothing")
+
+    def test_a_merge_is_looked_at_by_the_files_it_brought(self):
+        out, why = R._sh(R._changes("HEAD", "--name-only"))
+        self.assertIsNotNone(out, why)
+        self.assertEqual(sorted(out.split()), ["b.py", "c.html"],
+                         "a clean merge's look named %r - the eye would be handed nothing again" % out.split())
+
+    def test_an_ordinary_commit_is_still_its_own_diff(self):
+        out, _ = R._sh(R._changes("HEAD^1", "--name-only"))
+        self.assertEqual(out.split(), ["a.py"], "a non-merge commit's look changed shape")
+
+
 class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
 
     @classmethod
@@ -275,8 +346,13 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
         calls = {"n": 0}
 
         def _fake_sh(argv, timeout=None):
+            # answer by WHAT is asked, not by call order: 2026-09-28 a merge check (git rev-list) now runs
+            # before the diff call, and an order-keyed stub handed it the diff and the diff call nothing
             calls["n"] += 1
-            return (diff, "") if calls["n"] == 1 else ("", "")
+            if any(str(a).startswith("--unified") for a in argv) and not calls.get("served"):
+                calls["served"] = True
+                return diff, ""
+            return "", ""
 
         R._sh = _fake_sh
         R.absent_from = lambda sha, body: ([], "")
@@ -406,6 +482,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 - a clean merge is looked at through git show's combined diff again: the eye is handed nothing",
+        "file": "tv/second_eye_run.py",
+        "find": "    _fp = _first_parent_of_merge(sha)\n",
+        "replace": "    _fp = None\n",
+        "matches": 1,
+    },
     {
         "why": "hardcoding an empty absent set puts every dropped file back out of sight",
         "file": "tv/second_eye_run.py",

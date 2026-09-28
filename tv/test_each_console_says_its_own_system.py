@@ -57,23 +57,39 @@ class TheBeaconBuildsIt(unittest.TestCase):
         self.d = tempfile.mkdtemp(prefix="sys-wire-")
         self._hist, self._rows = ca.HIST_DIR, list(ca._EAGLE.get("rows") or [])
         ca.HIST_DIR = self.d
+        # 2026-09-28 — the system block now carries the triage lane, whose last walk is seeded from
+        # the survey store: point that store at the fixture too, never at his tv/retro_triage.json
+        self._env_hist, self._seed = os.environ.get("TV_HIST"), ca._TRIAGE_STORE_SEED
+        os.environ["TV_HIST"] = self.d
+        ca._TRIAGE_STORE_SEED = {"read": False, "ts": None, "why": ""}
 
     def tearDown(self):
         ca.HIST_DIR = self._hist
         ca._EAGLE["rows"] = self._rows
+        ca._TRIAGE_STORE_SEED = self._seed
+        if self._env_hist is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._env_hist
         shutil.rmtree(self.d, ignore_errors=True)
+
+    @staticmethod
+    def _counts(got):
+        """The #229 half of the block. capture/river ride beside it since 2026-09-28 and have their
+        own law (test_the_beacon_says_how_each_pc_films_and_drains)."""
+        return {k: got[k] for k in ("tree", "reels")}
 
     def test_it_reads_the_doctor_and_counts_reels(self):
         for n in ("reel_a", "reel_b", "not_a_reel"):
             os.mkdir(os.path.join(self.d, n))
         open(os.path.join(self.d, "reel_file_not_dir"), "w").close()
         ca._EAGLE["rows"] = [{"check": "this console tree is established", "state": "ok"}]
-        self.assertEqual(ca._system_for_wire(), {"tree": "ok", "reels": 2})
+        self.assertEqual(self._counts(ca._system_for_wire()), {"tree": "ok", "reels": 2})
 
     def test_no_verdict_and_no_shelf_are_unknown_not_zero(self):
         ca._EAGLE["rows"] = []
         ca.HIST_DIR = os.path.join(self.d, "no-such-shelf")
-        self.assertEqual(ca._system_for_wire(), {"tree": None, "reels": None})
+        self.assertEqual(self._counts(ca._system_for_wire()), {"tree": None, "reels": None})
 
     def test_the_beacon_sends_it(self):
         self.assertIn("_system_for_wire", ca._console_beacon.__code__.co_names,

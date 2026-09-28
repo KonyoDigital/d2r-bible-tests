@@ -1146,6 +1146,10 @@ _CAP_TARGET = {"mode": "waiting", "label": "eye arming…", "wid": None}
 # Owner / title tokens — game process first. Bare "wine" alone is too broad.
 _PICK_WHY = ""   # v779-pre diag — why the last pick returned None
 _PICK_UNKNOWN = False   # 2026-09-27 — True when the last Windows pick could not LOOK (never "no game")
+#: 2026-09-28 — WHICH WAY the last successful pick was the game, written by the finder at the moment it knew:
+#: {"route": "native"|"geforce-now"|"boosteroid"|"unknown", "ts": epoch ms} | None (no pick in this process).
+#: The console's fleet beacon reads it (system.capture) and never calls a finder to get it. [[heart-first]] §6
+_PICK_ROUTE = None
 _CAP_WHY = ""
 _LAST_GOOD_WIN = None   # v779 — the pin survives flaky window listings
 _D2R_OWNER_HINTS = (
@@ -1497,6 +1501,26 @@ def _pick_game_window(rows):
     return best, near
 
 
+def _note_pick_route(rows, best):
+    """Record WHICH WAY the picked window is the game, from the row the judge chose. -> None
+
+    ⚠ 2026-09-28 — PERSIST WHAT THE FINDER KNEW. game_route() already answers local / crossover /
+    geforce-now / boosteroid for every row, and the pick kept only a display label, so no reader could
+    ask "how does this machine film D2R" without re-parsing a label (a second decoder that would drift).
+    local and crossover are both NATIVE play (D2R.exe on this machine); a row game_route() cannot
+    place is "unknown", never a guess. [[heart-first]] §6 [[copy-drift]] [[unknown-stays-unknown]]"""
+    global _PICK_ROUTE
+    try:
+        wid = best[2]
+        row = next((r for r in rows or [] if r.get("wid") is not None and int(r.get("wid")) == int(wid)), None)
+        rt = game_route(row.get("owner"), row.get("title")) if row else None
+    except Exception:
+        rt = None
+    _PICK_ROUTE = {"route": {"local": "native", "crossover": "native", "geforce-now": "geforce-now",
+                             "boosteroid": "boosteroid"}.get(rt, "unknown"),
+                   "ts": int(time.time() * 1000)}
+
+
 def find_d2r_window_mac():
     """Return (window_id:int, label:str) for the best on-screen D2R game window, or None.
     Uses Quartz. Read-only. NEVER returns CrossOver Home or Battle.net shell.
@@ -1556,6 +1580,8 @@ def find_d2r_window_mac():
         except Exception:
             continue
     best, near = _pick_game_window(rows)
+    if best:
+        _note_pick_route(rows, best)
     if not best:
         _PICK_WHY = "no D2R.exe game window (CrossOver Home / Battle.net never pin)"
         if near:
@@ -1674,7 +1700,10 @@ def find_d2r_window_win(win=None, procs=None):
                      "or SSH session), so whether the game is on screen is UNKNOWN")
         return None
     _PICK_UNKNOWN = False
-    best, near = _pick_game_window(game_window_rows_win(listed, procs))
+    _rows = game_window_rows_win(listed, procs)
+    best, near = _pick_game_window(_rows)
+    if best:
+        _note_pick_route(_rows, best)
     if not best:
         _PICK_WHY = "no game window among %d listed (D2R.exe, GeForce NOW, Boosteroid)" % len(listed)
         if near:
@@ -2463,13 +2492,31 @@ def start_film_thread():
     _FILM_THREAD.start()
 
 
-def _d2r_process_alive():
-    """v1251 — cheap pgrep for the real game binary (CrossOver-hosted D2R.exe)."""
+def _pgrep_d2r_state():
+    """Is D2R.exe running ON THIS MACHINE, asked with pgrep (Mac/Linux). -> True | False | None
+
+    ⚠ 2026-09-28 — THREE ANSWERS, NOT TWO. pgrep exits 0 (a match) or 1 (no match); anything else —
+    a timeout, a missing binary (Windows has NO pgrep, and FileNotFoundError is exactly how it says
+    so), an unexpected exit code — is None: the probe could not RUN, which is UNKNOWN and never "the
+    game is shut". _d2r_process_alive() below keeps its two-valued answer for its callers.
+    [[unknown-stays-unknown]]"""
     try:
         out = subprocess.run(["pgrep", "-f", "D2R.exe"], capture_output=True, timeout=2)
-        return out.returncode == 0
     except Exception:
+        return None
+    if out.returncode == 0:
+        return True
+    if out.returncode == 1:
         return False
+    return None
+
+
+def _d2r_process_alive():
+    """v1251 — cheap pgrep for the real game binary (CrossOver-hosted D2R.exe).
+
+    Two-valued on purpose for its callers (the Mac full-screen fallback): a probe that cannot run
+    reads False here. A caller that must tell UNKNOWN from "not running" asks _pgrep_d2r_state()."""
+    return _pgrep_d2r_state() is True
 
 
 def _screen_recording_preflight():
@@ -4497,7 +4544,23 @@ def _win_d2r_process_alive():
                 return True
     except Exception:
         pass
-    # 2) Toolhelp32 snapshot (no tasklist.exe)
+    # 2) Toolhelp32 snapshot (no tasklist.exe) — the LOCAL process half, shared with the triage lane
+    return _toolhelp_d2r_state() is True
+
+
+def _toolhelp_d2r_state():
+    """Windows: is D2R.exe running ON THIS MACHINE? One Toolhelp32 snapshot. -> True | False | None
+
+    ⚠ 2026-09-28 — THE PROCESS HALF OF _win_d2r_process_alive, ON ITS OWN, AND THREE-VALUED. The
+    triage lane stands aside while he plays D2R natively (Dean, a Windows laptop — "usually" how he
+    plays), and it asked tv_diablo._d2r_process_alive(), i.e. `pgrep`, which does not exist on
+    Windows: FileNotFoundError, swallowed, False on every Windows PC — so triage walked reels beside
+    his LOCAL game. This asks the process table itself.
+    ⚠ It deliberately does NOT read cap_target.json's label the way _win_d2r_process_alive does
+    first: on his ALT the capture half pins a BOOSTEROID window titled "Diablo...", and a label step
+    would call that local play and starve triage there again. A cloud stream runs no D2R.exe here.
+    None = the snapshot could not be taken or walked (no ctypes.windll, a refused snapshot): UNKNOWN,
+    which a caller must never read as "not running". [[unknown-stays-unknown]] [[copy-drift]]"""
     try:
         import ctypes
         from ctypes import wintypes
@@ -4518,12 +4581,12 @@ def _win_d2r_process_alive():
         k32 = ctypes.windll.kernel32
         snap = k32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
         if snap == ctypes.c_void_p(-1).value or snap == -1:
-            return False
+            return None
         try:
             pe = PROCESSENTRY32W()
             pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
             if not k32.Process32FirstW(snap, ctypes.byref(pe)):
-                return False
+                return None           # a snapshot with no first process was not a look
             while True:
                 n = (pe.szExeFile or "").lower()
                 if n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""):
@@ -4533,7 +4596,7 @@ def _win_d2r_process_alive():
         finally:
             k32.CloseHandle(snap)
     except Exception:
-        pass
+        return None
     return False
 
 

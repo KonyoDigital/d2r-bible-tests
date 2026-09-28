@@ -578,10 +578,32 @@ def commit_for(version):
 REVIEW_BASE = None
 
 
+def _first_parent_of_merge(sha):
+    """The first parent when `sha` is a MERGE, else None (and None when git cannot say).
+
+    2026-09-28 - two #231 rows on merge commits (e81dde8f, 44f6b389) read "cannot-tell, chars 0, git show
+    combined diff is empty". `git show` prints a COMBINED diff for a merge, which is empty whenever the merge
+    was clean - so the eye was handed nothing and could only answer cannot-tell, while the merge carried
+    bible.html, control_app.py and six more files onto main. What a merge brings onto its line is its
+    first-parent diff."""
+    out, _why = _sh(["git", "rev-list", "--parents", "-n", "1", sha], timeout=20)
+    parts = (out or "").split()
+    # only a real answer counts: every token a full commit id. Anything else (an error, a stub, a
+    # diff) says nothing about parents, and the plain `git show` path stands.
+    if len(parts) > 2 and all(re.match(r"^[0-9a-f]{40}$", x) for x in parts):
+        return parts[1]
+    return None
+
+
 def _changes(sha, *tail):
-    """The git argv for "what this look covers": the bound commit alone, or REVIEW_BASE..sha."""
+    """The git argv for "what this look covers": the bound commit alone, or REVIEW_BASE..sha.
+    A merge commit alone is its first-parent diff (what it brought onto main), never git show's
+    combined diff, which is empty for a clean merge."""
     if REVIEW_BASE:
         return ["git", "diff"] + [t for t in tail if t != "--format="] + [REVIEW_BASE, sha]
+    _fp = _first_parent_of_merge(sha)
+    if _fp:
+        return ["git", "diff"] + [t for t in tail if t != "--format="] + [_fp, sha]
     return ["git", "show", "--format="] + [t for t in tail if t != "--format="] + [sha]
 
 
