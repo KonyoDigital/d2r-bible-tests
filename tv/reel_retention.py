@@ -216,7 +216,11 @@ def _reel_ts(reel):
 
 
 def release_uncited(reel_dir, sealed, wit):
-    """Apply keep_cited. The authority names the frames. This module is the one that removes them."""
+    """Apply keep_cited. The authority names the frames. This module is the one that removes them.
+
+    ⚠ No production code calls this today (second eye on v3520, 87c35d69): apply_plan trims a reel through its
+    own tombstone-noted path (see the NOT keep_cited() note there), and only its law calls this. It is kept as the
+    one place that would remove what keep_cited names - not as a lane that runs."""
     import frame_authority as _fa
     note = _fa.keep_cited(reel_dir, sealed, wit)
     if not note.get("ok"):

@@ -456,10 +456,12 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
 
 
 def keep_cited(reel_dir, sealed, wit):
-    """Release the frames of one reel that nothing cites. A cited frame stays on disk.
+    """NAME the frames of one reel that nothing cites; a cited frame is kept. Deletes nothing itself.
 
-    Does not write a ledger and does not remove the reel directory. An unreadable citation
-    list deletes nothing.
+    -> {ok, kept, gone, why}: `gone` is a list of NAMES that may go. Removing them is
+    reel_retention.release_uncited's job (second eye on v3520, 87c35d69: this docstring still said it
+    released them after os.remove left). It writes no ledger and never touches the reel directory.
+    An unreadable citation list names nothing.
     """
     unread = {"ok": False, "kept": None, "gone": None,
               "why": "whether a frame is cited could not be read, so nothing is released"}
