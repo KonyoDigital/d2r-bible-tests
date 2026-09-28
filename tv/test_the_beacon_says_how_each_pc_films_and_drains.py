@@ -403,6 +403,55 @@ class NothingIdentifyingCrosses(_World):
         self.assertNotIn("Smith", json.dumps(ca._system_for_wire()), "the beacon carried the name")
 
 
+#: ⚠ 2026-09-28, the SECOND review round - the shapes the first fixture could not see. It was a hand-typed literal
+#: with single backslashes; the lane's real text comes from str(exception), which quotes the filename with repr()
+#: and DOUBLES every backslash, so "one separator then a name" never matched and "Smith" crossed. Built here the
+#: way the lane builds it, plus a file:// URL (scrubbed first, it stopped at the space), an apostrophe name and a
+#: OneDrive-for-business folder (the employer's name and the path tail).
+REAL_SHAPES = {
+    "repr": "the tick raised %s: %s" % ("PermissionError", PermissionError(
+        13, "Permission denied", "C:\\Users\\Dean Smith\\tv\\retro_triage.json")),
+    "url": "open file:///Users/Dean Smith/d2r/x.json failed",
+    "apostrophe": "C:\\Users\\Dean O'Brien\\tv\\x.json failed",
+    "onedrive": "C:\\Users\\Dean\\OneDrive - Acme Corp\\Desktop\\x.json",
+}
+REAL_LEAKS = ("Dean", "Smith", "Brien", "Acme", "Corp", "Desktop")
+
+
+class TheRealShapesNeverCross(_World):
+    """Each shape through _wire_text (the triage lane's scrub) and _redact_for_wire (the home fold)."""
+
+    def test_the_premise_the_repr_shape_doubles_its_backslashes(self):
+        self.assertIn("\\\\Users\\\\Dean Smith", REAL_SHAPES["repr"],
+                      "PREMISE: str(PermissionError) did not double the backslashes - the case tests nothing")
+
+    def test_no_real_shape_leaks_a_name_on_the_wire(self):
+        for k, v in REAL_SHAPES.items():
+            out = ca._wire_text(v, 400)
+            for leak in REAL_LEAKS:
+                self.assertNotIn(leak, out, "%s: %r crossed the wire as %r" % (k, leak, out))
+
+    def test_no_real_shape_leaks_through_the_home_fold(self):
+        for k in ("repr", "url", "apostrophe"):
+            out = ca._redact_for_wire(REAL_SHAPES[k], 400)
+            for leak in ("Dean", "Smith", "Brien"):
+                self.assertNotIn(leak, out, "%s: %r crossed the home fold as %r" % (k, leak, out))
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheWorkerScrubsTheRealShapes(_World):
+    """The same shapes through functions/api/console.js's txt(), in node - the PUBLIC boundary's second scrub."""
+
+    def test_the_worker_leaks_no_real_shape(self):
+        for k, v in REAL_SHAPES.items():
+            kept = _shape({"tree": "ok", "reels": 1,
+                           "river": {"lanes": None, "ageS": None, "why": v,
+                                     "triage": {"lastKey": "raised", "lastWhy": v}}})
+            for field in (kept["river"]["why"], kept["river"]["triage"]["lastWhy"]):
+                for leak in REAL_LEAKS:
+                    self.assertNotIn(leak, field or "", "%s: %r crossed the worker as %r" % (k, leak, field))
+
+
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class TheWorkerScrubsASpacedUserName(_World):
     """The same name through functions/api/console.js's txt(), run in node — the second scrub on the
@@ -544,6 +593,27 @@ class TheFleetRelaysThemForEveryPeer(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 round 2 - one separator only again: a repr()-quoted path (doubled backslashes) leaks the name",
+        "file": "control_app.py",
+        "find": "_WIRE_USER_PAT = r\"\\b(?:Users|home)[\\\\/]+(?:[^'\\\"]|'(?=\\w))*\"\n",
+        "replace": "_WIRE_USER_PAT = r\"\\b(?:Users|home)[\\\\/][^\\\\/'\\\"]+\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - the URL scrub runs first again and stops at the space: a file:// path leaks the surname",
+        "file": "control_app.py",
+        "find": "    txt = _WIRE_USER_RX.sub(\"<user>\", txt)           # FIRST: a user folder with spaces, quoted or not\n    txt = _WIRE_URL_RX.sub(\"<url>\", txt)\n",
+        "replace": "    txt = _WIRE_URL_RX.sub(\"<url>\", txt)\n    txt = _WIRE_USER_RX.sub(\"<user>\", txt)\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - the worker's user scrub takes one separator only again: the PUBLIC boundary leaks the name",
+        "file": "functions/api/console.js",
+        "find": "          .replace(/\\b(?:Users|home)[\\\\/]+(?:[^'\"]|'(?=\\w))*/gi, '<user>')\n",
+        "replace": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/'\"]+/gi, '<user>')\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 - /api/river stops leaving its lanes for the beacon: the fleet can never see a river",
         "file": "control_app.py",

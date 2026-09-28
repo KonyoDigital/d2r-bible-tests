@@ -4363,6 +4363,8 @@ TRIAGE_STARVED_AFTER_S = 3 * 3600
 #: (the console's playingForS) against this bar instead: OK up to it, MISSING past it — a D2R.exe left
 #: open for days still starves the river, and still goes red. An adversarial review reproduced both.
 TRIAGE_PLAYING_BAR_S = 12 * 3600
+#: the triage loop's cadence (control_app._TRIAGE_EVERY_S) - the doctor never imports control_app
+TRIAGE_EVERY_S_FOR_DOCTOR = 90
 
 
 def _skips_dominated_by(skips, key):
@@ -4492,8 +4494,14 @@ def _check_triage_is_not_starved(*_a, **_k):
     # days starves the river as surely as a dead loop. A console that predates playingForS falls
     # through to the old judgement below. [[unknown-stays-unknown]]
     _pf = tri.get("playingForS")
+    # ⚠ review round 2: the 'playing' sentence is true only while the lane is still ticking. A dead loop or a
+    # hung walk after a 'playing' tick read OK "standing aside for his game" for up to 12 h (the game long shut);
+    # a tick older than 2 x the cadence falls through to the wait judgement, which names the stale tick.
+    _la = tri.get("lastAgoS")
+    _fresh = (isinstance(_la, (int, float)) and not isinstance(_la, bool)
+              and _la <= 2 * float(tri.get("everyS") or TRIAGE_EVERY_S_FOR_DOCTOR))
     if (tri.get("lastKey") == "playing" and isinstance(_pf, (int, float))
-            and not isinstance(_pf, bool)):
+            and not isinstance(_pf, bool) and _fresh):
         _pf = float(_pf)
         detail.append("an unbroken run of 'playing' for %.1f h (bar %.0f h)"
                       % (_pf / 3600.0, TRIAGE_PLAYING_BAR_S / 3600.0))

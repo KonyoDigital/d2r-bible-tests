@@ -13063,9 +13063,18 @@ _WIRE_URL_RX = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
 #: takes the rest with it — over-scrubbing is the safe direction on a PUBLIC repo's wire.
 #: functions/api/console.js txt() carries the same pattern (the worker scrubs a second time), and
 #: _redact_for_wire folds home with it — one pattern, three readers. [[copy-drift]]
-_WIRE_USER_PAT = r"\b(?:Users|home)[\\/][^\\/'\"]+"
+#: ⚠⚠ 2026-09-28, the SECOND review round: the name segment above still leaked the COMMONEST real shape. An
+#: exception quotes its filename with repr(), which DOUBLES every backslash ('C:\\\\Users\\\\Dean Smith\\\\...'), so
+#: "one separator then a non-separator" never matched and "Smith" crossed; and an apostrophe name (O'Brien), a
+#: file:// URL (scrubbed first, stopping at the space) and a "OneDrive - Acme Corp" folder each leaked a piece.
+#: So: one OR MORE separators; the name runs over an apostrophe that a letter follows; and EVERYTHING after the
+#: user folder, up to the closing quote, goes with it (a path with spaces has no other visible end - over-scrubbing
+#: is the safe direction on a PUBLIC repo's wire). It runs BEFORE the URL scrub, and any backslash token left over
+#: is a path. functions/api/console.js txt() carries the same rule. [[copy-drift]]
+_WIRE_USER_PAT = r"\b(?:Users|home)[\\/]+(?:[^'\"]|'(?=\w))*"
 _WIRE_USER_RX = re.compile(_WIRE_USER_PAT, re.I)
-_WIRE_HOME_FOLD_RX = re.compile(r"(?:[A-Za-z]:)?[\\/]" + _WIRE_USER_PAT, re.I)
+_WIRE_HOME_FOLD_RX = re.compile(r"(?:\b[A-Za-z]:)?[\\/]+" + _WIRE_USER_PAT, re.I)
+_WIRE_BACKSLASH_TOKEN_RX = re.compile(r"\S*\\\S*")
 _WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/][^\s'\"]*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
                            r"|(?<![\w.])/(?:[^\s/'\"]+/)+[^\s'\"]*")
 _WIRE_IP_RX = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
@@ -13085,9 +13094,10 @@ def _wire_text(s, cap=200):
     ⚠ The user-folder segment goes BEFORE the generic path pattern (see _WIRE_USER_PAT): a user
     name with a space is where the generic pattern stops and the rest of the name leaks."""
     txt = " ".join(str(s or "").split())
+    txt = _WIRE_USER_RX.sub("<user>", txt)           # FIRST: a user folder with spaces, quoted or not
     txt = _WIRE_URL_RX.sub("<url>", txt)
-    txt = _WIRE_USER_RX.sub("<user>", txt)
     txt = _WIRE_PATH_RX.sub("<path>", txt)
+    txt = _WIRE_BACKSLASH_TOKEN_RX.sub("<path>", txt)  # a Windows path with no drive the patterns missed
     txt = _WIRE_IP_RX.sub("<ip>", txt)
     try:
         for h in {socket.gethostname(), socket.gethostname().split(".")[0]}:
@@ -25920,12 +25930,15 @@ def _triage_record(r):
     L = _TRIAGE_LANE
     L["ticks"] = int(L.get("ticks") or 0) + 1
     L["lastKey"], L["lastWhy"], L["lastAt"] = key, why, now
-    # an UNBROKEN run of 'playing': the first such tick starts it, any other outcome ends it — a
-    # walk, a caught-up tick, a CPU refusal, even 'playing-unknown' (that is not "he is playing")
+    # an UNBROKEN run of 'playing': the first such tick starts it; an outcome that SHOWS he is not playing
+    # ends it (a walk, a caught-up tick, a CPU or camera refusal, an unworkable reel). ⚠ review round 2:
+    # 'playing-unknown' (a probe that could not answer - pgrep's 2 s timeout on a loaded Mac, a refused
+    # Toolhelp snapshot) is NEITHER: one flake used to reset the 12 h clock, so a D2R.exe left open for days
+    # never reached the bar and the row flapped OK -> MISSING -> OK. It leaves the run exactly as it was.
     if key == "playing":
         if not L.get("playingSince"):
             L["playingSince"] = now
-    else:
+    elif key != "playing-unknown":
         L["playingSince"] = None
     if r.get("backlog") is not None:
         _b = int(r["backlog"])
@@ -26021,6 +26034,10 @@ def triage_lane_state():
             d.update({"waitS": None, "waitFrom": None, "waitSinceTs": None})
         d["owedForS"] = (None if not isinstance(d.get("owedSince"), (int, float))
                          else round(max(0.0, (now - int(d["owedSince"])) / 1000.0), 1))
+        d["everyS"] = _TRIAGE_EVERY_S          # the cadence the doctor judges a stale tick against
+        _la = d.get("lastAt")
+        d["lastAgoS"] = (round(max(0.0, (now - int(_la)) / 1000.0), 1)
+                         if isinstance(_la, (int, float)) and not isinstance(_la, bool) else None)
         _ps = d.get("playingSince")
         d["playingForS"] = (round(max(0.0, (now - int(_ps)) / 1000.0), 1)
                             if (d.get("lastKey") == "playing" and isinstance(_ps, (int, float))
@@ -34381,7 +34398,21 @@ def farmgate_payload():
     # keeps its three answers apart: running, not running, and the probe could not run.
     # [[copy-drift]] [[unknown-stays-unknown]]
     _running, _how = _d2r_running_here()
-    if _running is None:
+    # ⚠ review round 2: _d2r_running_here looks at LOCAL processes only (right for triage politeness). On a
+    # cloud-route PC (the Boosteroid ALT, GeForce NOW) the game streams and no D2R.exe ever runs here, so
+    # "launch D2R" would be a false instruction - the capture route says whether the game is streamed.
+    _cloud = None
+    if _running is not True:
+        try:
+            _cr = (_capture_route_for_wire() or {}).get("route")
+            _cloud = _cr if _cr in ("boosteroid", "geforce-now") else None
+        except Exception:
+            _cloud = None
+    if _cloud:
+        checks.append(_chk("d2r_window", True, "warn",
+                           "the game streams through %s - no local D2R.exe is expected on this PC" % _cloud,
+                           ""))
+    elif _running is None:
         checks.append(_chk("d2r_window", False, "warn",
                            "process check unavailable (%s could not answer)" % _how,
                            "launch D2R before ON AIR"))

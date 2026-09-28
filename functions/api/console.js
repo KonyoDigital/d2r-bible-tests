@@ -297,13 +297,17 @@ export async function onRequestPost(context) {
          BEFORE the generic patterns run — the same pattern as control_app._WIRE_USER_PAT. */
       const txt = function (v, cap) {
         if (typeof v !== 'string') return null;
+        /* ⚠ second review round: one OR MORE separators (a repr()-quoted path doubles them), the name runs over
+           an apostrophe a letter follows, everything after the user folder up to the closing quote goes with
+           it, it runs BEFORE the URL scrub, and a leftover backslash token is a path - control_app._WIRE_USER_PAT. */
         const x = v.replace(/\s+/g, ' ').trim()
+          .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '<user>')
           .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, '<url>')
-          .replace(/\b(?:Users|home)[\\/][^\\/'"]+/gi, '<user>')
           .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '<path>')
           .replace(/\\\\[^\s'"]+/g, '<path>')
           .replace(/~[\\/][^\s'"]*/g, '<path>')
           .replace(/(^|[^\w.])\/(?:[^\s\/'"]+\/)+[^\s'"]*/g, '$1<path>')
+          .replace(/\S*\\\S*/g, '<path>')
           .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '<ip>');
         return x ? x.slice(0, cap) : null;
       };

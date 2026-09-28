@@ -275,6 +275,8 @@ def unread_reels(hist_dir, sealed):
 
 #: how often a walk asks its `abort` hook, in frames, besides once at the start of every reel
 ABORT_EVERY_FRAMES = 100
+#: and never longer than this between asks, whatever the frame rate (a probe costs milliseconds)
+ABORT_EVERY_S = 3.0
 
 
 def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
@@ -310,6 +312,8 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
         every = max(1, int(abort_every or ABORT_EVERY_FRAMES))
     except (TypeError, ValueError):
         every = ABORT_EVERY_FRAMES
+
+    _last_ask = [time.monotonic()]
 
     def _stop_asked():
         """The hook's answer: None to walk on, else the reason to stop."""
@@ -350,7 +354,11 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
         reel_kinds = {}
         reel_panel_frames = {}          # v2393 — basename -> surface, for the frames that CARRY
         for f in fs:
-            if walked_here and walked_here % every == 0:
+            # every N frames OR every ABORT_EVERY_S seconds, whichever comes first (review round 2: at the
+            # slow 0.5-1.3 s/frame rates recorded in this module, 100 frames was 49-130 s between asks)
+            if walked_here and (walked_here % every == 0
+                                or (time.monotonic() - _last_ask[0]) >= ABORT_EVERY_S):
+                _last_ask[0] = time.monotonic()
                 stop = _stop_asked()
                 if stop:
                     break

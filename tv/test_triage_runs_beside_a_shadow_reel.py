@@ -1082,15 +1082,96 @@ class ALongNativeSessionIsNotAStarvedLane(_Base):
         self.assertEqual(self.tick().get("key"), "playing")
         self.assertLess(ca.triage_lane_state()["playingForS"], 60.0,
                         "a broken run resumed its old start - two sessions read as one unbroken one")
-        self.playing = None                                # the probe cannot answer: not "he plays"
+        self.playing = None                                # the probe cannot answer: not "he plays" -
+        _run = ca._TRIAGE_LANE["playingSince"]             # and not "he stopped" either (review round 2)
         self.assertEqual(self.tick().get("key"), "playing-unknown")
-        self.assertIsNone(ca._TRIAGE_LANE["playingSince"])
+        self.assertEqual(ca._TRIAGE_LANE["playingSince"], _run,
+                         "one probe flake ended the run of play - the 12 h clock restarts on every flake")
         ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
         self.cpu, self.playing = 100.0, False
         self.assertEqual(self.tick().get("key"), "cpu-loaded")
         st, why = self.doctor_over(1)
         self.assertEqual(st, CD.MISSING, why)
         self.assertIn("[cpu-loaded]", why, "the old judgement did not come back when he stopped")
+
+
+class ReviewRoundTwo(_Base):
+    """2026-09-28 — the second review of the play bar: a flake never resets the run, a stale 'playing' tick
+    never reads 'standing aside', a cloud-route PC is never told to launch D2R, and the walk asks on TIME too."""
+
+    def test_a_flaky_probe_neither_starts_nor_ends_a_run_of_play(self):
+        self.reel()
+        self.playing = True
+        self.tick()
+        ca._TRIAGE_LANE["playingSince"] -= int(5 * HOUR * 1000)
+        _run = ca._TRIAGE_LANE["playingSince"]
+        self.playing = None
+        self.assertEqual(self.tick().get("key"), "playing-unknown")
+        self.playing = True
+        self.tick()
+        self.assertEqual(ca._TRIAGE_LANE["playingSince"], _run,
+                         "a flake between two 'playing' ticks restarted the run - 5 h of play read as 0")
+        self.assertGreater(ca.triage_lane_state()["playingForS"], 4.9 * HOUR)
+        ca._TRIAGE_LANE["playingSince"] = None
+        self.playing = None
+        self.tick()
+        self.assertIsNone(ca._TRIAGE_LANE["playingSince"], "a flake STARTED a run of play")
+
+    def test_a_stale_playing_tick_never_reads_standing_aside(self):
+        self.reel()
+        self.playing = True
+        self.tick()
+        L = ca._TRIAGE_LANE
+        for k in ("playingSince", "lastAt", "lastSkipTs"):
+            if isinstance(L.get(k), (int, float)):
+                L[k] -= int(5 * HOUR * 1000)
+        L["upSince"] -= int(6 * HOUR * 1000)
+        s = ca.triage_lane_state()
+        self.assertGreater(s["lastAgoS"], 2 * s["everyS"], "PREMISE: the last tick is not stale")
+        st, why = self.doctor_over(1)
+        self.assertNotIn("standing aside for his game", why,
+                         "a loop that stopped ticking 5 h ago still reads 'standing aside for his game'")
+        self.assertEqual(st, CD.MISSING, why)
+
+    def test_a_fresh_playing_tick_still_reads_standing_aside(self):
+        self.reel()
+        self.playing = True
+        self.tick()
+        ca._TRIAGE_LANE["playingSince"] -= int(2 * HOUR * 1000)
+        ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, why)
+        self.assertIn("standing aside for his game", why)
+
+    def test_a_cloud_route_pc_is_never_told_to_launch_d2r(self):
+        with mock.patch.object(ca, "_d2r_running_here", lambda: (False, "a Toolhelp32 process snapshot")), \
+                mock.patch.object(ca, "_capture_route_for_wire",
+                                  lambda now_ms=None: {"route": "boosteroid", "ageS": 5.0, "why": "", "source": "capture-half"}):
+            checks = (ca.farmgate_payload() or {}).get("checks") or []
+        row = [c for c in checks if c.get("id") == "d2r_window" or c.get("name") == "d2r_window"]
+        self.assertTrue(row, "PREMISE: the gate has no d2r_window row: %r" % checks)
+        text = json.dumps(row[0])
+        self.assertNotIn("launch D2R", text, "a Boosteroid PC was told to launch a local D2R.exe: %s" % text)
+        self.assertIn("boosteroid", text)
+
+    def test_the_walk_asks_on_time_as_well_as_frames(self):
+        import retro_triage as RT
+        asks = []
+        clock = [1000.0]
+        def _mono():
+            clock[0] += 2.0          # every frame costs 2 s: 100 frames would be 200 s between asks
+            return clock[0]
+        d = os.path.join(self.world, "reel_s_1789000000000_9")
+        os.makedirs(d, exist_ok=True)
+        for i in range(12):
+            with open(os.path.join(d, "f_17890000%05d.jpg" % i), "wb") as fh:
+                fh.write(b"x")
+        real_survey = self._edges[2]          # the base stubs RT.survey; this case drives the REAL walk
+        with mock.patch.object(RT.time, "monotonic", _mono):
+            real_survey([d], lambda f: None, abort=lambda: asks.append(1) or None, abort_every=100,
+                        remember_to=False, every_frame=True)
+        self.assertGreaterEqual(len(asks), 3, "at 2 s a frame the walk asked only %d time(s) in 12 frames "
+                                              "- the 3 s time bar is not honoured" % len(asks))
 
 
 class ThePlayProbeThatCannotRunSaysSo(_Base):
@@ -1304,6 +1385,34 @@ class TheFarmGateAsksTheSameProbe(_Base):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 round 2 - a single 'playing-unknown' flake ends the run of play again (the 12 h clock restarts)",
+        "file": "control_app.py",
+        "find": "    elif key != \"playing-unknown\":\n        L[\"playingSince\"] = None\n",
+        "replace": "    else:\n        L[\"playingSince\"] = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - a stale 'playing' tick reads 'standing aside for his game' again (the freshness guard is gone)",
+        "file": "console_doctor.py",
+        "find": "            and not isinstance(_pf, bool) and _fresh):\n",
+        "replace": "            and not isinstance(_pf, bool)):\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - a Boosteroid PC is told to launch a local D2R.exe again",
+        "file": "control_app.py",
+        "find": "            _cloud = _cr if _cr in (\"boosteroid\", \"geforce-now\") else None\n",
+        "replace": "            _cloud = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - the walk asks only every N frames again (49-130 s between asks at the slow rates)",
+        "file": "retro_triage.py",
+        "find": "                                or (time.monotonic() - _last_ask[0]) >= ABORT_EVERY_S):\n",
+        "replace": "                                or False):\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 - the old behaviour: any live capture refuses, so a continuously rolling shadow "
                "reel starves triage and reels stack up in TRIAGE",
