@@ -439,6 +439,46 @@ def normalize_item(raw, surface, lane_default, page_conf):
 
 # ── THE GATE (laws 2 and 3) ─────────────────────────────────────────────────────
 
+#: What a look says when it was taken and did NOT see the item. A look carrying one of these (or
+#: hit False) is a real look that missed — never a success, however confident or framed it is.
+MISS_SAWS = frozenset(("empty", "other", "miss"))
+
+
+def look_saw_it(e, conf_floor=None):
+    """Did this ONE look see the item? -> bool. The one definition — every counter calls it.
+
+    ══ 2026-09-28 (Ledger fix round 2, finding D) — "A LOOK THAT SAW IT" WAS DEFINED TWICE ════════
+    gate()._qualifies read `bool(frame) and _conf_of(conf) >= floor`: it refused a bool or string
+    conf but ignored `saw`/`hit`. vault_evidence._is_success read `float(conf)`: it ACCEPTED True
+    (1.0) and "0.9", refused saw in (empty, other, miss) or hit False, and stripped the frame. The
+    keep bar and the tier table could therefore disagree about the same look. Now both call this,
+    with the STRICTER half of each where they differed:
+      · a dict, whose `saw` is not a miss word and whose `hit` is not False (from _is_success);
+      · its OWN frame — a non-blank one (from _is_success: "  " is not a frame to open);
+      · its OWN conf, a real number — never a bool, a string, NaN or inf (from gate: a flag or a
+        numeric string is not a measured confidence) — at or above the floor, clamped to [0, 1].
+    MEASURED before changing it, on a scratch copy of his vault_accum.json (hash unchanged): all
+    150 looks carry a float conf, none carries saw/hit, and the 2 frameless looks (the Bone Break
+    and Magefist priors) were refused by both copies alike. The two old definitions disagreed on 0
+    of 150 looks, and no item's count, tier, retro flag or plan row moved.
+    `conf_floor` None is KEEP_CONF_FLOOR, read at call time. [[copy-drift]]
+    """
+    if conf_floor is None:
+        conf_floor = KEEP_CONF_FLOOR
+    if not isinstance(e, dict):
+        return False
+    if str(e.get("saw") or "").strip().lower() in MISS_SAWS or e.get("hit") is False:
+        return False
+    if not str(e.get("frame") or "").strip():
+        return False
+    c = e.get("conf")
+    if isinstance(c, bool) or not isinstance(c, (int, float)):
+        return False
+    if c != c or abs(c) == float("inf"):
+        return False
+    return max(0.0, min(1.0, float(c))) >= conf_floor
+
+
 def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
          witness_field="witness", witness_noun="look"):
     """Does this pile of sightings ground? Returns a verdict that EXPLAINS itself either way.
@@ -470,9 +510,9 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
     # The raw look count rides beside the qualifying one so the SHIPPED verdict can carry a confidence
     # bound (apply_payload stamps it); this function reads no score and decides on his 2-look ruling
     # (2026-09-07) alone. Moving the bar to a 0.43 confidence floor (about three looks) is his call.
-    def _qualifies(e):
-        return bool(e.get("frame")) and _conf_of(e.get("conf")) >= conf_floor
-    qual = [e for e in ev if _qualifies(e)]
+    # 2026-09-28 (Ledger fix round 2, finding D): the per-look test is look_saw_it — the ONE
+    # definition vault_evidence._is_success and the shadow scorer below call too. Never re-typed.
+    qual = [e for e in ev if look_saw_it(e, conf_floor)]
     # 2026-09-28 (Ledger fix, finding 7) — the id goes through look_id(), the ONE spelling of a look
     # this module and vault_evidence both count with, so "reel_sA#0" and "sA#0" are one look.
     sessions = _fold_bare_sessions({look_id(e, witness_field) for e in qual})
@@ -580,16 +620,16 @@ def gate_shadow(evidence, bar="keep"):
     # #246 W3 — n is EVERY distinct look the pile holds (the live gate now counts only qualifying ones
     # as `sessions`, and handing the shadow that list would make its denominator the numerator).
     sessions = live.get("allLooks") or live.get("sessions") or []
-    # k = witnesses whose BEST look cleared the floor; n = every distinct witness. A look with no frame
-    # to open clears nothing — the same per-look rule the live gate applies.
-    best_by = {}
+    # k = witnesses with a look that SAW it; n = every distinct witness. A look with no frame to open
+    # clears nothing — the same per-look rule the live gate applies, because it is the same
+    # function: look_saw_it (Ledger fix round 2, finding D — this was a third copy of that rule).
+    saw_by = set()
     for e in ev:
         w = look_id(e, field)       # the spelling live gate() keyed `sessions` with, or k misses it
-        if not w:
-            continue
-        best_by[w] = max(best_by.get(w, 0.0), _conf_of(e.get("conf")) if e.get("frame") else 0.0)
+        if w and look_saw_it(e, cfl):
+            saw_by.add(w)
     n = len(sessions)
-    k = sum(1 for w in sessions if best_by.get(str(w), 0.0) >= cfl)
+    k = sum(1 for w in sessions if str(w) in saw_by)
     return _cf.shadow(k, n, _vault_tags(ev, sessions), VAULT_WITNESS_TIER, wf, cff,
                       bool(live.get("pass")), lane="vault:%s" % bar,
                       subject=str(ev[0].get("name") or "") if ev else "")

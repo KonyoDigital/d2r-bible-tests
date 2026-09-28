@@ -96,6 +96,23 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         with io.open(self.ledger, "rb") as fh:
             self.assertEqual(self.before, fh.read(), "the doctor row wrote the witness ledger")
 
+    def test_a_flagged_row_no_visit_saw_is_named_held_not_kept(self):
+        # 2026-09-28 (Ledger fix round 2, finding B): a retro-flagged row with ZERO qualifying looks
+        # is held by the plan. The heart row must not fold it into "kept filed by his ruling".
+        self.doc["owned"].append({"name": "Ghost Charm", "lane": "stash", "kind": "item",
+                                  "witnesses": [{"frame": "ghost_%02d.jpg" % i, "conf": 0.92,
+                                                 "lane": "stash"} for i in range(15)]})
+        with io.open(self.ledger, "wb") as fh:
+            fh.write(json.dumps(self.doc).encode("utf-8"))
+        got = VE.tier_census(self.ledger)
+        self.assertEqual(["Radiance", "Ghost Charm"], got["retroNames"], "baseline: both are flagged")
+        self.assertEqual(["Ghost Charm"], got["retroHeldNames"])
+        st, why = CD._check_the_evidence_tiers(path=self.ledger, root=None)
+        self.assertEqual(CD.OK, st, why)
+        self.assertIn("retro flags 2 (Radiance) — filed above what their visits earn, kept filed", why,
+                      "a row no visit saw was claimed as kept filed: %s" % why)
+        self.assertIn("1 of them held — no visit saw it (Ghost Charm)", why)
+
     def test_an_unreadable_ledger_is_unknown_not_zero(self):
         missing = os.path.join(self.tmp, "nope.json")
         got = VE.tier_census(missing)
@@ -132,11 +149,13 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertIn("not 0", why)
         self.assertNotIn("rebuilt 0", why)
         same = {"d2r_setPieces": b"[1]", "d2r_foundLog": b"{}"}
-        clean = VE.reset_receipt({"rebuilt": ["Shako"], "held": ["War Traveler"], "touched": []},
+        clean = VE.reset_receipt({"rebuilt": ["Shako"], "held": ["War Traveler"], "touched": [],
+                                  "rebuiltFailed": []},
                                  same, dict(same))
         self.assertTrue(clean["ok"], clean)
         self.assertEqual(1, clean["rebuilt"])
         self.assertEqual(1, clean["held"])
+        self.assertEqual(0, clean["refused"])
         dirty_after = dict(same)
         dirty_after["d2r_setPieces"] = b"[]"
         dirty = VE.reset_receipt({"rebuilt": ["Shako"], "held": [], "touched": []}, same, dirty_after)
@@ -150,6 +169,37 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertIsNone(none["rebuilt"])
         self.assertIn("UNKNOWN", none["why"])
         self.assertIn(("vault reset receipt", CD._check_the_vault_reset), CD.CHECKS)
+
+    def test_a_refused_rebuild_is_named_on_the_heart(self):
+        # 2026-09-28 (Ledger fix round 2, finding B): the board's reset wrote R.rebuiltFailed and
+        # NOTHING read it, so a plan row the door refused fell silently between "rebuilt" and
+        # "held". The doctor's reset row now reads it: each refusal named with the door's why, and
+        # a receipt that does not say is UNKNOWN — never a clean OK.
+        same = {"d2r_setPieces": b"[1]"}
+        refused = {"rebuilt": ["Shako"], "held": [],
+                   "rebuiltFailed": [{"name": "Arkaine's Valor", "refused": "witness",
+                                      "why": "only 1 qualifying look in your stash — needs 2"}]}
+        got = VE.reset_receipt(refused, same, dict(same))
+        self.assertFalse(got["ok"], got)
+        self.assertEqual(1, got["refused"])
+        self.assertEqual("Arkaine's Valor", got["refusedRows"][0]["name"])
+        st, why = CD._check_the_vault_reset(refused, same, dict(same))
+        self.assertEqual(CD.MISSING, st, "a refused rebuild read %s: %s" % (st, why))
+        self.assertIn("Arkaine's Valor", why)
+        self.assertIn("only 1 qualifying look", why, "the door's own reason was dropped")
+        self.assertIn("REFUSED", why)
+        # an older receipt of bare names still names them
+        old = VE.reset_receipt({"rebuilt": [], "held": [], "rebuiltFailed": ["Shako"]},
+                               same, dict(same))
+        self.assertEqual(("Shako", 1), (old["refusedRows"][0]["name"], old["refused"]))
+        # a receipt that never says is UNKNOWN on the heart, never OK
+        st2, why2 = CD._check_the_vault_reset({"rebuilt": ["Shako"], "held": []}, same, dict(same))
+        self.assertEqual(CD.UNKNOWN, st2, why2)
+        self.assertIn("UNKNOWN", why2)
+        st3, why3 = CD._check_the_vault_reset({"rebuilt": ["Shako"], "held": [], "rebuiltFailed": []},
+                                              same, dict(same))
+        self.assertEqual(CD.OK, st3, why3)
+        self.assertIn("refused 0", why3)
 
 
 if __name__ == "__main__":
@@ -197,6 +247,34 @@ RED_PROOF = [
         "file": "vault_evidence.py",
         "find": "            successes, trials = measured[0], measured[1]\n",
         "replace": "            successes, trials = measured[5][\"successes\"], measured[5][\"trials\"]\n",
+        "matches": 1,
+    },
+    {
+        "why": "the receipt's rebuiltFailed is read by nothing again, so a refused rebuild is a silent gap (finding B)",
+        "file": "vault_evidence.py",
+        "find": "    refused_n, refused_rows = _refusals(receipt)\n",
+        "replace": "    refused_n, refused_rows = 0, []\n",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor reads a refused rebuild as a clean reset (finding B)",
+        "file": "console_doctor.py",
+        "find": "    if got.get(\"refused\"):\n        return MISSING, got.get(\"why\") or \"the door refused a plan row\"\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the heart row folds a flagged row no visit saw into 'kept filed' again (finding B)",
+        "file": "console_doctor.py",
+        "find": "        _kept = [n for n in (got.get(\"retroNames\") or []) if n not in _rheld]\n",
+        "replace": "        _kept = list(got.get(\"retroNames\") or [])\n",
+        "matches": 1,
+    },
+    {
+        "why": "the census stops naming the retro rows the plan holds (finding B)",
+        "file": "vault_evidence.py",
+        "find": "                if _flag.get(\"keepFiled\") is not True:\n",
+        "replace": "                if False:\n",
         "matches": 1,
     },
     {

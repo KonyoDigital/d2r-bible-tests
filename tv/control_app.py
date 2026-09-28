@@ -2101,6 +2101,9 @@ def board_tally_merge(t):
     doc.setdefault("high", {})
     doc.setdefault("drops", [])
 
+    # this world's PREVIOUS reading, taken before this tally replaces it — what a fall is measured
+    # from (Ledger fix round 2, finding C, below)
+    _last = doc["byRoute"].get(key) if isinstance(doc["byRoute"].get(key), dict) else {}
     doc["byRoute"][key] = {k: t.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
 
     # the high-water mark, per world, per ledger — and a DROP is an event, not a silent overwrite
@@ -2119,10 +2122,19 @@ def board_tally_merge(t):
     #
     # ══ 2026-09-28 (Ledger fix, finding 2) — AN OPEN EPISODE WAS A BLINDFOLD ═══════════════════
     # A lane with an OPEN episode was left out of "before" altogether, so while 134 -> 60 stayed
-    # open, a later fall to 0 was never written down. Now its "before" is the LOWEST `to` among its
-    # open episodes: sitting at that low value files nothing, and a new fall below it is its own
-    # episode. Fall, partial recovery, fall to zero -> two episodes. An open episode whose `to`
-    # cannot be read keeps its lane out of "before" — an unknown low is never a guessed one.
+    # open, a later fall to 0 was never written down.
+    #
+    # ══ 2026-09-28 (Ledger fix round 2, finding C) — A FALL IS MEASURED FROM THE LAST READING ══════
+    # Round 1 measured from the LOWEST open `to`, so 134 -> 60 (open), back up to 100, down to 70
+    # was never written: 70 sits above the open low of 60. HIS RULE: "EVERY fall is recorded, as
+    # before" — 9226d0d3 wrote a row for every tally below the mark. So "before" is now this
+    # world's PREVIOUS reading of the lane — its last tally: fall, partial recovery, fall again is a
+    # recorded fall each time; sitting at the same value files nothing (step_episodes opens nothing
+    # when nothing fell), and a fall to 0 from any count is always a fall. A lane whose previous
+    # reading cannot be read falls back to the high-water mark — the comparator 9226d0d3 used — so
+    # nothing below the mark goes unrecorded for want of a reading. Episodes still OPEN once per
+    # fall and CLOSE when the count is back to that fall's `from` (ledger_restore.step_episodes,
+    # unchanged — its own drop line is untouched; the board passes ANY_FALL).
     #
     # ══ 2026-09-28 (Ledger fix, finding 2b) — EVERY FALL IS RECORDED, AS BEFORE ═══════════════
     # The P0 build borrowed ledger_restore's drop line (to 0, or >= max(10, 25%)), so a 3-set fall
@@ -2137,19 +2149,6 @@ def board_tally_merge(t):
         _lr = None
         doc["dropsUnknown"] = ("ledger_restore could not be read (%s), so whether this tally "
                                "opened or closed a drop is UNKNOWN" % str(_e)[:60])
-    # store -> the lowest `to` among THIS world's open episodes; None = an open episode whose low
-    # cannot be read, which keeps that store out of "before" rather than guessing where it sits
-    _open_low = {}
-    for d in doc["drops"]:
-        if not (isinstance(d, dict) and d.get("open") and d.get("routeKey") == key):
-            continue
-        _s, _to = d.get("store"), d.get("to")
-        if _s in _open_low and _open_low[_s] is None:
-            continue
-        if isinstance(_to, bool) or not isinstance(_to, int):
-            _open_low[_s] = None
-        else:
-            _open_low[_s] = _to if _s not in _open_low else min(_open_low[_s], _to)
     _seen, _lane_of = [], {}
     for lane in ("sets", "uniques", "runewords"):
         pair = t.get(lane)
@@ -2162,19 +2161,20 @@ def board_tally_merge(t):
             continue
         store = _TALLY_DROP_STORE[lane]
         _lane_of[store] = (lane, prev.get("at"))
-        _seen.append((store, prev["have"], have))
+        # the fall is measured from THIS world's last reading of the lane (finding C); a last
+        # reading that cannot be read falls back to the high-water mark, never to a guess
+        _lp = _last.get(lane) if isinstance(_last.get(lane), dict) else {}
+        _was = _lp.get("have")
+        if isinstance(_was, bool) or not isinstance(_was, int):
+            _was = prev["have"]
+        _seen.append((store, _was, have))
         if have > prev["have"]:
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
     if _lr is not None and _seen:
         doc.pop("dropsUnknown", None)
         # the count key ledger_restore.store_count reads for a blob that carries counts, not rows
         _ck = _lr._COUNT_KEY
-        _before = {}
-        for s, was, _now in _seen:
-            if s not in _open_low:
-                _before[_ck[s]] = was                 # the high-water mark
-            elif _open_low[s] is not None:
-                _before[_ck[s]] = _open_low[s]        # where the open fall already sits
+        _before = {_ck[s]: was for s, was, _now in _seen}     # the last reading
         _after = {_ck[s]: now for s, _was, now in _seen}
         _opened, _closed = _lr.step_episodes(
             doc["drops"], {"ledger": {}, "counts": _before}, {"ledger": {}, "counts": _after},
@@ -15211,6 +15211,17 @@ def board_tick(name, kind, want):
     return out
 
 
+#: The lane his own hand tick is banked under — the one spelling the writer below and every reader
+#: of the evidence ledger share (chronicle_retro.witnesses tags it `hand`; evidence_for counts it as
+#: its own kind of row, never as an unplaced one).
+MANUAL_LANE = "manual"
+
+
+def _is_hand_row(row):
+    """A sighting HE wrote by ticking the board — lane 'manual', no reel, no frame, by design."""
+    return isinstance(row, dict) and row.get("lane") == MANUAL_LANE
+
+
 def _bank_manual_sighting(name, kind):
     """Record that HE ticked this by hand, in the same store every other sighting uses.
 
@@ -15233,9 +15244,9 @@ def _bank_manual_sighting(name, kind):
     if not isinstance(ev, dict):
         return False
     rows = ev.setdefault(ledger, {}).setdefault(str(name), [])
-    if any((r or {}).get("lane") == "manual" for r in rows):
+    if any(_is_hand_row(r) for r in rows):
         return False                      # he has already said so; saying it twice is not two witnesses
-    rows.append({"lane": "manual", "witness": "hand", "at": int(time.time() * 1000),
+    rows.append({"lane": MANUAL_LANE, "witness": "hand", "at": int(time.time() * 1000),
                  "why": "he ticked it by hand on the board"})
     _chron_evidence_save(ev)
     return True
@@ -25098,13 +25109,19 @@ def vault_proven_names(min_witnesses=2):
     # This admitted a row on len(witnesses) — LIST ENTRIES, which are frames. One visit held still
     # for five frames read `witnesses 5` and was admitted at a bar of 2; his Radiance row carries
     # 103 entries from 2 visits. His ruling (§34.2): "a look is a distinct visit, never a frame of
-    # a still screen." The count is now vault_retro.gate's own `witnesses` — the qualifying looks
-    # (own frame, own conf >= the floor), folded — the same function the keep bar, the tier table
-    # (vault_evidence._measure) and the heart joint all count with. No second copy here.
+    # a still screen." The count is now vault_retro.gate's own `witnesses`: the looks that saw it,
+    # folded. gate() IS the keep bar, so this door and the keep bar are one call. What is shared
+    # further is narrower, and this says only that (round 2, finding D): whether ONE look saw it is
+    # vault_retro.look_saw_it, which gate() and the tier table's vault_evidence._is_success both
+    # call; a look's id is vault_retro.look_id and the fold _fold_bare_sessions, which gate() and
+    # vault_evidence._measure both call. _measure does NOT call gate() — it counts visits in its own
+    # loop from those shared pieces. The heart joint (corroborate a-tier-stands-on-its-looks) asks
+    # gate() for `looksSeen`. No second copy of any of those pieces lives here.
     # `rows` keeps the raw entry count BESIDE it, never instead of it; `visits` is every folded
     # look, qualifying or not. MEASURED 2026-09-28 on a read-only copy of his vault_accum.json:
     # 12 of 14 rows are admitted at 2; Bone Break and Magefist each hold one real look plus one
-    # frameless conf-0.0 prior (#246 W3), which the live gate has refused since W3.
+    # frameless conf-0.0 prior (#246 W3), which the live gate has refused since W3. Re-measured
+    # after finding D on a scratch copy (hash unchanged): still 12 of 14.
     # [[copy-drift]] [[unknown-stays-unknown]]
     try:
         import vault_retro as _vr
@@ -30772,7 +30789,17 @@ def evidence_for(name, ledger=None):
         # count of known reels beside rows from an unknown one is a floor, not the count. So when
         # ANY row lacks a reel, witnesses is None and witnessWhy says which rows those are;
         # witnessesKnown and unplaced carry what IS known. UNKNOWN is never 0. [[unknown-stays-unknown]]
-        _unplaced = sum(1 for sg in uniq if not sg.get("reel"))
+        #
+        # ══ 2026-09-28 (Ledger fix round 2, finding A) — HIS HAND IS A KNOWN KIND, NEVER UNPLACED ═══
+        # _bank_manual_sighting writes his tick as lane 'manual', witness 'hand', with NO reel — by
+        # design: "No reel, no frame — because there was none." Counting that row as unplaced turned
+        # every hand-ticked item's witness count into None and showed his own testimony as "a row
+        # whose reel is UNKNOWN". HIS RULING: a manual tally is witness enough. So a hand row is
+        # its own kind: it is counted in `hand` beside the reels, it never makes the count unknown,
+        # and chronicle_retro.witnesses already tags it `hand`. Only a NON-manual row with no reel
+        # leaves which reel it came from unknown. [[manual-tally-is-witness]] [[unknown-stays-unknown]]
+        _hand = sum(1 for sg in uniq if _is_hand_row(sg))
+        _unplaced = sum(1 for sg in uniq if not sg.get("reel") and not _is_hand_row(sg))
         if _cr is None:
             wit_why = _cr_why
         else:
@@ -30797,6 +30824,20 @@ def evidence_for(name, ledger=None):
         # capped list presented as the whole is the quiet half of this defect: he would read 24
         # and believe that is all the evidence there is. [[unknown-stays-unknown]]
         _CAP = 24
+        # where the sightings came from, in words: the reels (known, or with unplaced rows beside
+        # them), then his own hand ticks — which have no reel to be across, so a hand-only name
+        # reads "1 sighting: his own hand tick", never "across 0 reels" or "reel is UNKNOWN"
+        if _unplaced:
+            _across = (" across %d known reel%s + %d row%s whose reel is UNKNOWN"
+                       % (len(reels), "" if len(reels) == 1 else "s",
+                          _unplaced, "" if _unplaced == 1 else "s"))
+        elif reels or not _hand:
+            _across = " across %d reel%s" % (len(reels), "" if len(reels) == 1 else "s")
+        else:
+            _across = ""
+        if _hand:
+            _hand_say = ("his own hand tick" if _hand == 1 else "%d hand ticks of his" % _hand)
+            _across = (_across + " + " + _hand_say) if _across else (": " + _hand_say)
         return {"ok": True, "name": n, "ledger": led,
                 "sightings": sightings[:_CAP], "count": len(sightings),
                 "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
@@ -30804,15 +30845,10 @@ def evidence_for(name, ledger=None):
                 "reels": reels, "lanes": lanes, "frames": frames[:24],
                 "foundAt": found_at, "droppedBy": dropped_by,
                 "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
-                "witnessesKnown": len(reels), "unplaced": _unplaced,
+                "witnessesKnown": len(reels), "unplaced": _unplaced, "hand": _hand,
                 # the one-line answer, so a surface does not have to compose it and drift
-                "say": ("%d sighting%s across %s, read by %s%s"
-                        % (len(sightings), "" if len(sightings) == 1 else "s",
-                           ("%d reel%s" % (len(reels), "" if len(reels) == 1 else "s"))
-                           if not _unplaced else
-                           ("%d known reel%s + %d row%s whose reel is UNKNOWN"
-                            % (len(reels), "" if len(reels) == 1 else "s",
-                               _unplaced, "" if _unplaced == 1 else "s")),
+                "say": ("%d sighting%s%s, read by %s%s"
+                        % (len(sightings), "" if len(sightings) == 1 else "s", _across,
                            " and ".join(lanes) or "an unnamed lane",
                            (" — the game dates it %s" % found_at) if found_at else ""))}
     return {"ok": False, "name": n,

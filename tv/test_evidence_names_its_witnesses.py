@@ -12,6 +12,11 @@ THE LAW: a name with 3 sightings in 2 reels reads witnesses 2 — the INDEPENDEN
 witnessTags are chronicle_retro's own tags. When the independence engine cannot be read, the
 answer is None WITH a reason, never a bare null.
 
+2026-09-28 (Ledger fix round 2, finding A): his own hand tick — lane 'manual', witness 'hand', no
+reel BY DESIGN — is its own known kind. It is reported as `hand` beside the reels and never makes
+the witness count UNKNOWN; only a NON-manual row with no reel does. HIS RULING: a manual tally is
+witness enough. The fixture now carries the row the tick really writes.
+
 Fixtures only: _chron_evidence_load is patched; his chron_evidence.json is never opened.
 """
 import os
@@ -89,6 +94,59 @@ class EvidenceNamesItsWitnesses(unittest.TestCase):
         self.assertEqual((1, 1), (got["witnessesKnown"], got["unplaced"]))
         self.assertIn("1 of 2 sighting row(s) carry no reel", got["witnessWhy"])
 
+    def test_his_hand_tick_is_a_known_witness_never_an_unplaced_row(self):
+        # 2026-09-28 (Ledger fix round 2, finding A): _bank_manual_sighting writes his tick as
+        # lane 'manual' / witness 'hand' with NO reel, by design. The round-1 fixture carried only
+        # claude/grok rows, so it could not see that counting that row "unplaced" turned every
+        # hand-ticked item's witnesses into None and read his testimony as "reel is UNKNOWN".
+        # HIS RULING: a manual tally is witness enough. [[manual-tally-is-witness]]
+        hand = {"lane": "manual", "witness": "hand", "at": 1787000000000,
+                "why": "he ticked it by hand on the board"}
+        both = {"uniques": {"Shako": THREE_IN_TWO["uniques"]["Shako"] + [dict(hand)]}}
+        got = _ask(both)
+        self.assertTrue(got["ok"], got)
+        self.assertEqual(4, got["count"], "baseline: the hand row was read beside the three reel rows")
+        self.assertEqual(2, got["witnesses"],
+                         "his hand tick made the witness count %r — his testimony read as a row "
+                         "whose reel is UNKNOWN" % got["witnesses"])
+        self.assertIsNone(got["witnessWhy"], got["witnessWhy"])
+        self.assertEqual((2, 0, 1), (got["witnessesKnown"], got["unplaced"], got["hand"]))
+        self.assertIn("hand", got["witnessTags"], "chronicle_retro's own `hand` tag was lost")
+        self.assertNotIn("UNKNOWN", got["say"])
+        self.assertIn("across 2 reels + his own hand tick", got["say"])
+
+        alone = {"uniques": {"Shako": [dict(hand)]}}
+        got = _ask(alone)
+        self.assertTrue(got["ok"], got)
+        self.assertEqual(0, got["witnesses"],
+                         "a hand-only name is 0 reels MEASURED, not an unknown: %r" % got["witnesses"])
+        self.assertEqual((0, 0, 1), (got["witnessesKnown"], got["unplaced"], got["hand"]))
+        self.assertEqual(["hand"], got["witnessTags"])
+        self.assertIsNone(got["witnessWhy"])
+        self.assertTrue(got["say"].startswith("1 sighting: his own hand tick"), got["say"])
+        self.assertNotIn("UNKNOWN", got["say"])
+
+        # only a NON-manual row with no reel makes the count UNKNOWN — the hand beside it does not
+        mixed = {"uniques": {"Shako": [dict(hand),
+                                       {"frame": "f_2.jpg", "lane": "grok", "conf": 0.8}]}}
+        got = _ask(mixed)
+        self.assertIsNone(got["witnesses"], "a grok row with no reel read as a count")
+        self.assertEqual((0, 1, 1), (got["witnessesKnown"], got["unplaced"], got["hand"]))
+        self.assertIn("1 of 2 sighting row(s) carry no reel", got["witnessWhy"])
+
+    def test_the_writer_and_the_reader_share_one_spelling_of_his_hand(self):
+        # the joint: the row _bank_manual_sighting actually WRITES is the row evidence_for counts
+        banked = {}
+        with mock.patch.object(CA, "_chron_evidence_load", lambda: banked), \
+                mock.patch.object(CA, "_chron_evidence_save", lambda ev: None):
+            self.assertTrue(CA._bank_manual_sighting("Shako", "unique"))
+            self.assertFalse(CA._bank_manual_sighting("Shako", "unique"),
+                             "saying it twice banked a second witness")
+        self.assertEqual(1, len(banked["uniques"]["Shako"]))
+        got = _ask(banked)
+        self.assertEqual((0, 0, 1), (got["witnesses"], got["unplaced"], got["hand"]),
+                         "the row the tick writes is not the row the evidence route counts as his hand")
+
     def test_an_unreadable_engine_is_unknown_with_a_reason(self):
         real_import = __import__
 
@@ -119,6 +177,27 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "                wit_tags = list(_cr.witnesses(uniq))\n                wit = len(reels)\n",
         "replace": "                wit_tags = None\n                wit = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "his hand tick is counted unplaced again, so every hand-ticked item reads witnesses None (finding A)",
+        "file": "control_app.py",
+        "find": "        _unplaced = sum(1 for sg in uniq if not sg.get(\"reel\") and not _is_hand_row(sg))\n",
+        "replace": "        _unplaced = sum(1 for sg in uniq if not sg.get(\"reel\"))\n",
+        "matches": 1,
+    },
+    {
+        "why": "the hand ticks are not reported beside the reels, so his testimony has no number (finding A)",
+        "file": "control_app.py",
+        "find": "        _hand = sum(1 for sg in uniq if _is_hand_row(sg))\n",
+        "replace": "        _hand = 0\n",
+        "matches": 1,
+    },
+    {
+        "why": "the writer and the reader spell his hand differently, so a banked tick is never counted as one",
+        "file": "control_app.py",
+        "find": "    rows.append({\"lane\": MANUAL_LANE, \"witness\": \"hand\",",
+        "replace": "    rows.append({\"lane\": \"hand\", \"witness\": \"hand\",",
         "matches": 1,
     },
     {

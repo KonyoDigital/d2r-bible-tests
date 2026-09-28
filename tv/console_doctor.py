@@ -2544,6 +2544,12 @@ def _check_the_vault_reset(receipt=None, before=None, after=None):
         return UNKNOWN, got.get("why") or "the reset receipt could not be read"
     if got.get("touched") or got.get("unknown"):
         return MISSING, got.get("why") or "a kept store changed"
+    # 2026-09-28 (Ledger fix round 2, finding B): the receipt's rebuiltFailed — a plan row the
+    # board's door refused is named here, never a silent gap between rebuilt and held
+    if got.get("refused") is None:
+        return UNKNOWN, got.get("why") or "whether the door refused a plan row is UNKNOWN"
+    if got.get("refused"):
+        return MISSING, got.get("why") or "the door refused a plan row"
     return OK, got.get("why") or "kept stores unchanged"
 
 
@@ -2575,8 +2581,13 @@ def _check_the_evidence_tiers(path=None, root=None):
     if got.get("retro") is None:
         retro = "retro flags: UNKNOWN"
     elif got["retro"]:
+        _rheld = got.get("retroHeldNames") or []
+        _kept = [n for n in (got.get("retroNames") or []) if n not in _rheld]
         retro = ("retro flags %d (%s) — filed above what their visits earn, kept filed by his "
-                 "ruling" % (got["retro"], ", ".join((got.get("retroNames") or [])[:4])))
+                 "ruling" % (got["retro"], ", ".join(_kept[:4]) or "none kept"))
+        if _rheld:
+            # finding B (round 2): a flagged row no visit saw is HELD, never claimed as kept
+            retro += ("; %d of them held — no visit saw it (%s)" % (len(_rheld), ", ".join(_rheld[:4])))
     else:
         retro = "retro flags 0"
     return OK, ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · "

@@ -7,7 +7,8 @@ screen counted as 21 to 103 looks. They stay filed, show their TRUE tier WATCHED
 retro flag, and must earn PROVEN/HARDENED with real looks.
 
 So vault_evidence.retro_plan() names every such item as {name, recordedTier, honestTier, why},
-and every row says keepFiled. It never writes and it has no apply half. It is exposed read-only
+and every row one visit saw says keepFiled (a flagged row NO visit saw says keepFiled False and is
+held with its why — Ledger fix round 2, finding B). It never writes and it has no apply half. It is exposed read-only
 as the `retro` field of the plan the console already serves (POST /api/vault_rebuild_plan, via
 control_app.vault_rebuild_plan). ⚠ The board's reset never reads `retro` — it files `rebuilt` —
 so since 2026-09-28 (Ledger fix, finding 1) every flagged row ALSO rides in `rebuilt` at its true
@@ -169,7 +170,7 @@ RED_PROOF = [
     {
         "why": "a flagged item is planned for an unfile, against his ruling",
         "file": "vault_evidence.py",
-        "find": "            \"flag\": \"retro: %s\" % honest[\"tier\"], \"keepFiled\": True, \"recordedBy\": by,\n",
+        "find": "            \"flag\": \"retro: %s\" % honest[\"tier\"], \"keepFiled\": keep, \"recordedBy\": by,\n",
         "replace": "            \"flag\": \"retro: %s\" % honest[\"tier\"], \"keepFiled\": False, \"recordedBy\": by,\n",
         "matches": 1,
     },

@@ -19,6 +19,12 @@ callers. [[copy-drift]] [[the-unjoined-end]]
     before. drops_between takes a threshold whose default IS ledger_restore's line; the board
     passes ANY_FALL. The doctor never prints "? None -> None" for a fall nobody recorded.
 
+2026-09-28 (Ledger fix round 2, finding C): HIS RULE, "EVERY fall is recorded, as before". Round 1
+measured from the lowest open `to`, so a fall after a partial recovery that stayed above the open
+low (134 -> 60, up to 90, down to 70) was never written, and a law here pinned it. A fall is now
+measured from the lane's PREVIOUS reading: each fall is its own episode, sitting still files
+nothing, a fall to 0 is always a fall. ledger_restore's own line is untouched.
+
 Fixtures only: _board_tally_path is pointed at a temp dir; his board_tally.json is never opened.
 """
 import json
@@ -122,22 +128,57 @@ class ADropIsAnEpisode(unittest.TestCase):
         self._post(OWNER, 134, 280, 1000)
         self._post(OWNER, 60, 280, 2000)          # falls: episode 1 opens (134 -> 60)
         self._post(OWNER, 100, 280, 3000)         # comes part of the way back: still below 134
-        self._post(OWNER, 0, 280, 4000)           # falls again, to zero
+        self._post(OWNER, 0, 280, 4000)           # falls again, to zero — from its last reading
         eps = self._eps("sets")
         self.assertEqual(2, len(eps), "the fall to zero behind an open episode was never recorded: %r"
                          % [(e["from"], e["to"]) for e in eps])
-        self.assertEqual([(134, 60, True, 2000), (60, 0, True, 4000)],
+        self.assertEqual([(134, 60, True, 2000), (100, 0, True, 4000)],
                          [(e["from"], e["to"], e["open"], e["at"]) for e in eps])
 
-    def test_sitting_at_the_open_low_files_nothing(self):
+    def test_sitting_at_the_same_value_files_nothing(self):
         self._post(OWNER, 134, 280, 1000)
         self._post(OWNER, 60, 280, 2000)
         for i in range(20):
             self._post(OWNER, 60, 280, 3000 + i)
-        self.assertEqual(1, len(self._eps("sets")), "sitting at the low re-filed the fall")
+        self.assertEqual(1, len(self._eps("sets")), "sitting at the same value re-filed the fall")
         self._post(OWNER, 90, 280, 4000)
-        self._post(OWNER, 70, 280, 5000)          # a dip that stays ABOVE the recorded low
-        self.assertEqual(1, len(self._eps("sets")))
+        for i in range(20):
+            self._post(OWNER, 90, 280, 4001 + i)  # a partial recovery, held: still nothing new
+        self.assertEqual(1, len(self._eps("sets")), "sitting after a partial recovery filed a fall")
+
+    def test_a_fall_after_a_partial_recovery_is_recorded(self):
+        # 2026-09-28 (Ledger fix round 2, finding C). HIS RULE: "EVERY fall is recorded, as before".
+        # Round 1 measured from the LOWEST open `to`, so 90 -> 70 — a real fall, above the open low
+        # of 60 — was never written, and a law pinned that. Each fall is measured from the lane's
+        # PREVIOUS reading instead.
+        self._post(OWNER, 134, 280, 1000)
+        self._post(OWNER, 60, 280, 2000)          # falls (134 -> 60)
+        self._post(OWNER, 90, 280, 3000)          # partial recovery, still below 134
+        self._post(OWNER, 70, 280, 4000)          # falls again — ABOVE the open low of 60
+        self._post(OWNER, 70, 280, 4500)          # sits: nothing
+        self._post(OWNER, 80, 280, 5000)
+        self._post(OWNER, 75, 280, 6000)          # and again
+        eps = self._eps("sets")
+        self.assertEqual([(134, 60, 2000), (90, 70, 4000), (80, 75, 6000)],
+                         [(e["from"], e["to"], e["at"]) for e in eps],
+                         "a fall after a partial recovery was not recorded: %r"
+                         % [(e["from"], e["to"]) for e in eps])
+        self.assertEqual([True, True, True], [e["open"] for e in eps])
+        self.assertEqual(134, self._doc()["high"][CA._route_key(OWNER)]["sets"]["have"],
+                         "the mark must still hold while the lane is below it")
+        self._post(OWNER, 90, 280, 7000)          # back to 90: closes the two falls that started <= 90
+        self.assertEqual([True, False, False], [e["open"] for e in self._eps("sets")])
+        self._post(OWNER, 134, 280, 8000)         # back to the mark: every episode is closed
+        self.assertEqual([False, False, False], [e["open"] for e in self._eps("sets")])
+
+    def test_a_fall_to_zero_is_always_recorded(self):
+        self._post(OWNER, 3, 280, 1000)
+        self._post(OWNER, 0, 280, 2000)
+        self.assertEqual([(3, 0)], [(e["from"], e["to"]) for e in self._eps("sets")])
+        self._post(OWNER, 1, 280, 3000)
+        self._post(OWNER, 0, 280, 4000)           # from 1, below every earlier low but equal to it
+        self.assertEqual([(3, 0), (1, 0)], [(e["from"], e["to"]) for e in self._eps("sets")],
+                         "a second fall to 0 after a one-set recovery was not recorded")
 
     def test_the_doctor_says_plainly_when_no_episode_is_recorded(self):
         import console_doctor as CD
@@ -198,22 +239,30 @@ RED_PROOF = [
     {
         "why": "a lane sitting low re-files a drop on every tally — the 40-slot defect",
         "file": "control_app.py",
-        "find": "            if s not in _open_low:\n                _before[_ck[s]] = was                 # the high-water mark\n",
-        "replace": "            if True:\n                _before[_ck[s]] = was                 # the high-water mark\n",
+        "find": "        _before = {_ck[s]: was for s, was, _now in _seen}     # the last reading\n",
+        "replace": "        _before = {_ck[s]: hi[_lane_of[s][0]][\"have\"] for s, was, _now in _seen}\n",
         "matches": 1,
     },
     {
         "why": "a recovery never reaches the episode, so it stays open forever",
         "file": "control_app.py",
         "find": "        _after = {_ck[s]: now for s, _was, now in _seen}\n",
-        "replace": "        _after = {_ck[s]: now for s, _was, now in _seen if s not in _open_low}\n",
+        "replace": "        _after = {_ck[s]: min(now, _was) for s, _was, now in _seen}\n",
         "matches": 1,
     },
     {
-        "why": "an open episode blinds its lane again, so a fall to zero behind it is never recorded (finding 2)",
+        "why": "a fall is measured from the lowest open low again, so a fall after a partial recovery is never recorded (finding C)",
         "file": "control_app.py",
-        "find": "            elif _open_low[s] is not None:\n                _before[_ck[s]] = _open_low[s]        # where the open fall already sits\n",
-        "replace": "            elif False:\n                _before[_ck[s]] = _open_low[s]        # where the open fall already sits\n",
+        "find": "        _was = _lp.get(\"have\")\n",
+        "replace": ("        _was = min([prev[\"have\"]] + [d.get(\"to\") for d in doc[\"drops\"] if isinstance(d, dict)"
+                    " and d.get(\"open\") and d.get(\"routeKey\") == key and d.get(\"store\") == store])\n"),
+        "matches": 1,
+    },
+    {
+        "why": "the last reading is overwritten before it is read, so every fall is measured from the tally itself and none is recorded (finding C)",
+        "file": "control_app.py",
+        "find": "    _last = doc[\"byRoute\"].get(key) if isinstance(doc[\"byRoute\"].get(key), dict) else {}\n    doc[\"byRoute\"][key] = ",
+        "replace": "    doc[\"byRoute\"][key] = _last = ",
         "matches": 1,
     },
     {

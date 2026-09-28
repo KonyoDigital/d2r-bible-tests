@@ -6882,7 +6882,10 @@ GATES = [
              "named. The tier count is corroborated by rebuild_plan. 2026-09-28: its fixture gave "
              "every look its own session, so frames and visits were one number and it never saw "
              "Radiance's shape; it now carries a 21-frame still screen that must read WATCHED, and "
-             "the row names the retro flags. 7 red-proofs."),
+             "the row names the retro flags. Round 2 (finding B): his reset wrote rebuiltFailed and "
+             "nothing read it - the reset row now names every row the door refused, with the door's "
+             "own why, and a receipt that does not say is UNKNOWN; a flagged row no visit saw is "
+             "named held, never 'kept filed'. 11 red-proofs."),
     Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
          [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
          why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "
@@ -6910,7 +6913,10 @@ GATES = [
              "can no longer be paid for by a different item's ten looks), successes fold on their "
              "own as gate() does, one reel spelled reel_s_X and s_X is one look in both engines "
              "(vault_retro.look_id, one definition), and a retro still screen is kept filed. "
-             "10 red-proofs."),
+             "Round 2 (finding D): 'a look that saw it' was two definitions - the gate refused a "
+             "True or '0.9' conf the tier table took, and the tier table refused a miss the gate "
+             "took; vault_retro.look_saw_it is now the one both call (0 of 150 looks on his ledger "
+             "moved). 14 red-proofs."),
     Gate("test_the_retro_plan_keeps_them_filed",
          [sys.executable, os.path.join(HERE, "test_the_retro_plan_keeps_them_filed.py")], 60,
          why="2026-09-28 (Ledger P0) - his ruling §34.2, \"Keep filed, flag 'retro: WATCHED'\": "
@@ -6920,6 +6926,7 @@ GATES = [
              "board's reset never reads. The board's own record is compared when handed in; a "
              "filing with no readable evidence is UNJUDGED, never honest. Ledger fix: every "
              "flagged row also rides in `rebuilt` at its true tier, the field the reset files. "
+             "Round 2: a flagged row NO visit saw is keepFiled False and held with its why. "
              "3 red-proofs."),
     Gate("test_evidence_names_its_witnesses",
          [sys.executable, os.path.join(HERE, "test_evidence_names_its_witnesses.py")], 60,
@@ -6928,7 +6935,10 @@ GATES = [
              "chronicle_retro.witnesses. A name with 3 sightings in 2 reels now reads witnesses 2 "
              "(independent reels) with chronicle_retro's own tags; an unreadable engine is None "
              "WITH a reason. Ledger fix: rows that carry no reel make witnesses None with the "
-             "known count and an unplaced figure beside it - UNKNOWN is never 0. 3 red-proofs."),
+             "known count and an unplaced figure beside it - UNKNOWN is never 0. Round 2 (finding "
+             "A): his hand tick has no reel BY DESIGN and his ruling is 'a manual tally is witness "
+             "enough' - it is counted as `hand` beside the reels and never makes the count "
+             "unknown; only a non-manual row with no reel does. 6 red-proofs."),
     Gate("test_evidence_counts_a_reel_once",
          [sys.executable, os.path.join(HERE, "test_evidence_counts_a_reel_once.py")], 60,
          why="2026-09-28 (Ledger P0) - one reel is spelled s_... and reel_s_..., and trace_spine "
@@ -6946,7 +6956,10 @@ GATES = [
              "Ledger fix: an open episode no longer blinds its lane (fall, partial recovery, fall to "
              "zero is two episodes), every fall is recorded again by his decision 'keep what was "
              "recorded before' (drops_between threshold; ledger_restore's own line unchanged), and "
-             "the doctor never prints '? None -> None'. 7 red-proofs."),
+             "the doctor never prints '? None -> None'. Round 2 (finding C): his rule 'EVERY fall is "
+             "recorded, as before' - a fall is measured from the lane's LAST reading, so fall, "
+             "partial recovery, fall again is a recorded fall each time; sitting still files "
+             "nothing. 8 red-proofs."),
     Gate("test_a_reset_keeps_the_retro_rows_filed",
          [sys.executable, os.path.join(HERE, "test_a_reset_keeps_the_retro_rows_filed.py")], 180,
          why="2026-09-28 (Ledger fix, finding 1) - his ruling §34.2, \"Keep filed, flag 'retro: "
@@ -6955,7 +6968,12 @@ GATES = [
              "would have UN-FILED both. Driven end to end with no browser: the plan the real "
              "/api/vault_rebuild_plan handler serves, run through the SHIPPED reset and door cut "
              "from bible.html, twice. Both come back filed at WATCHED, unlocked, with the flag, on "
-             "both resets; an unflagged WATCHED item does not. 4 red-proofs."),
+             "both resets; an unflagged WATCHED item does not. Round 2 (finding B): the plan "
+             "promised keepFiled but the door still asked 2 looks, so a retro item with ONE visit "
+             "was refused and un-filed with no message. The door now keeps a keepFiled retro row on "
+             "1 look (nothing else gets the lower bar), a row no visit saw is held with its why, "
+             "and every refusal is said - in the status line, in the receipt, and on the doctor's "
+             "reset row that reads it. 11 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "

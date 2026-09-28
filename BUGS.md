@@ -7,6 +7,74 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1374 - THE RETRO FLAG IS RECOMPUTED ON EVERY RESET AND STORED NOWHERE (Ledger fix round 2, note E, 2026-09-28)
+
+**SEEN (review of round 1, note only):** plan_from_ledger flags a row retro by comparing the frame math against the
+visit math on the SAME rows, every reset. Nothing persists the flag. **NO CODE CHANGE, BY THE BRIEF:** the hazard is
+written where the next editor will be standing - vault_evidence.plan_from_ledger's docstring: if the ledger is ever
+compacted to one frame per visit, the flag vanishes; persist it before any compaction.
+
+### REG-1373 - "A LOOK THAT SAW IT" WAS DEFINED TWICE, AND THE KEEP GATE AND THE TIER TABLE COULD DISAGREE (Ledger fix round 2, finding D, 2026-09-28)
+
+**SEEN (reproduced):** vault_retro.gate()._qualifies = own frame + `_conf_of(conf) >= floor` (a bool or string conf is
+0.0; `saw`/`hit` ignored). vault_evidence._is_success = stripped frame + `float(conf) >= floor` (True -> 1.0 and "0.9"
+accepted) and refuses saw in (empty, other, miss) or hit False. [good look, look with conf True] read 1 at the gate and 2
+in the tier table; [good, saw "miss"] read 2 at the gate and 1 in the table. gate_shadow carried a third copy. **FIX:**
+`vault_retro.look_saw_it` - the stricter half of each (dict; saw not a miss word, hit not False; non-blank frame; a real
+number conf, never bool/str/NaN/inf, clamped, >= floor). gate(), gate_shadow() and vault_evidence._is_success all call it.
+**MEASURED on a scratch copy of his vault_accum.json (sha256 ea7d48f7... before and after, his file untouched):** 150
+looks, all float conf, 0 carry saw/hit, the 2 frameless looks (Bone Break, Magefist priors) refused by both copies; the
+two old definitions disagreed on 0 of 150 looks; NO item's successes, trials, tier, retro flag or plan row changed
+(rebuilt = Horadric Cube, Radiance; held = the other 12); vault_proven_names still 12 of 14. The vault_proven_names
+comment claimed the tier table used "the same function"; it now says only what is true (the table shares look_saw_it,
+look_id and the fold, and does NOT call gate()). HEART: test_a_still_screen_is_one_look
+`test_a_look_that_saw_it_is_one_definition_in_both_engines` (7 odd looks), `test_every_counter_calls_the_one_definition`
+(co_names, nested comprehensions walked), 4 red-proofs; test_a_look_without_a_frame_is_not_a_witness's W3 proof re-aimed
+at gate()'s call of look_saw_it. NOT CHANGED: bible.html's _vaultWitnessCheck still parses a string conf (parseFloat) -
+the board door is JS and was not in this finding's scope.
+
+### REG-1372 - A FALL AFTER A PARTIAL RECOVERY WAS NEVER RECORDED (Ledger fix round 2, finding C, 2026-09-28)
+
+**SEEN (reproduced):** round 1 measured each fall from the LOWEST open `to`, so 134 -> 60 (open), up to 90, down to 70
+wrote nothing (70 is above the open low of 60) - and test_sitting_at_the_open_low_files_nothing pinned it. HIS RULE:
+"EVERY fall is recorded, as before" (9226d0d3 wrote a row for every tally below the mark). **FIX:** board_tally_merge
+measures each fall from this world's PREVIOUS reading of the lane (its last tally, read before the tally overwrites it);
+a lane whose last reading cannot be read falls back to the high-water mark. Fall, partial recovery, fall again = a
+recorded episode each time; sitting still files nothing; 3 -> 0, 0 -> 1, 1 -> 0 is two falls to 0. ledger_restore.py is
+untouched (its own line byte-identical). HEART: test_a_drop_is_an_episode - flipped to
+`test_sitting_at_the_same_value_files_nothing`, new `test_a_fall_after_a_partial_recovery_is_recorded`,
+`test_a_fall_to_zero_is_always_recorded`; the two-episode case now reads (100, 0) (from the last reading). 8 red-proofs.
+
+### REG-1371 - THE PLAN PROMISED KEEP-FILED, THE DOOR ASKED TWO LOOKS, AND THE REFUSAL WAS SILENT (Ledger fix round 2, finding B, 2026-09-28)
+
+**SEEN (reproduced):** rebuild_plan put every retro-flagged row in `rebuilt` with keepFiled, but window.vaultFile's rebuild
+branch still ran the 2-look witness check - so a retro item with ONE qualifying visit was refused and UN-FILED, and
+_vaultRefileFromPlan wrote R.rebuiltFailed (bare names) that nothing read. A flagged row with ZERO qualifying looks was
+also promised keepFiled. HIS RULING §34.2: "Keep filed, flag 'retro: WATCHED'". **FIX:** vault_evidence
+RETRO_KEEP_MIN_LOOKS = 1 = bible.html VAULT_RETRO_KEEP_MIN: the door keeps a keepFiled retro row on ONE qualifying look
+(_vaultWitnessCheck takes that bar and no other; an unflagged or forged-flag row still needs 2). A flagged WATCHED row no
+visit saw is HELD with RETRO_NO_LOOK_WHY and keepFiled False (plan, retro summary `heldNames`, census `retroHeldNames`,
+doctor tiers row "N of them held - no visit saw it"). Every door refusal is SAID: rebuiltFailed carries {name, refused,
+why}; _vaultResetSay names "N could not be re-filed: X (why)"; vault_evidence.reset_receipt reads rebuiltFailed and the
+doctor's reset row goes MISSING naming each (UNKNOWN when a receipt does not say). Live (scratch copy): unchanged - both
+retro rows (Radiance, Horadric Cube) have 2 visits. HEART: test_a_reset_keeps_the_retro_rows_filed (plan: one-visit row
+kept, zero-visit row held with its why; node: the SHIPPED door files the one-visit row, an unflagged PROVEN one-look row
+is still refused, a MAIN-locked Shako is named in the status line and the receipt, and that receipt read by
+console_doctor's own reset row is MISSING naming it), 7 new red-proofs (11); test_the_vault_heart... 4 new (11).
+
+### REG-1370 - HIS HAND TICK READ AS "A ROW WHOSE REEL IS UNKNOWN" (Ledger fix round 2, finding A, 2026-09-28)
+
+**SEEN (reproduced):** round 1's evidence_for counted every reel-less row as unplaced. _bank_manual_sighting writes his
+tick as lane 'manual' / witness 'hand' with NO reel by design ("No reel, no frame - because there was none"), so every
+hand-ticked item's `witnesses` became None and the say line called his testimony unknown. HIS RULING: a manual tally is
+witness enough. The fixture had only claude/grok rows and could not see it. **FIX:** control_app.MANUAL_LANE +
+_is_hand_row - one spelling shared by the writer and evidence_for. A hand row is its own kind: `hand: n` beside the
+reels, never unplaced; `witnesses` stays a number (0 reels for a hand-only name, with witnessTags ['hand']); the say line
+reads "... + his own hand tick" / "1 sighting: his own hand tick". Only a NON-manual row with no reel makes the count
+UNKNOWN. Latent on his data: a scratch copy of chron_evidence.json (sha256 268307b1... unchanged) holds 0 manual rows
+today. HEART: test_evidence_names_its_witnesses `test_his_hand_tick_is_a_known_witness_never_an_unplaced_row`,
+`test_the_writer_and_the_reader_share_one_spelling_of_his_hand` (the row the tick really writes), 3 new red-proofs (6).
+
 ### REG-1356 - ONE REEL SPELLED TWO WAYS COUNTED AS TWO LOOKS IN THE KEEP GATE AND THE TIER TABLE (Ledger fix #7, 2026-09-28)
 
 **SEEN (review of Ledger P0, reproduced):** vault_retro mints `sid = idx.get("sessionId") or basename(reel_dir)`, so one

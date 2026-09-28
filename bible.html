@@ -38085,6 +38085,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var PROV_KEY = 'd2r_vaultProv';
   var VAULT_WITNESS_FLOOR = 0.55;   /* = vault_retro.KEEP_CONF_FLOOR — pinned by test_every_mule_filing_carries_its_witness */
   var VAULT_WITNESS_MIN = 2;        /* = vault_retro.KEEP_MIN_WITNESSES — HIS ruling; pinned the same way */
+  /* = vault_evidence.RETRO_KEEP_MIN_LOOKS. HIS RULING §34.2, "Keep filed, flag 'retro: WATCHED'": a keepFiled retro row was
+     filed before, so the reset's rebuild door keeps it on ONE qualifying look instead of two. Only the rebuild branch passes
+     it, and only for a row carrying keepFiled + a 'retro: TIER' flag (Ledger fix round 2, finding B). */
+  var VAULT_RETRO_KEEP_MIN = 1;
   window.VAULT_WITNESS_FLOOR = VAULT_WITNESS_FLOOR;
   window.VAULT_WITNESS_MIN = VAULT_WITNESS_MIN;
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
@@ -38118,7 +38122,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      A look is an independent eye: its `witness` id (a re-look key), else its session. A bare session that is
      the prefix of a re-look key from the same recording folds into it — the same fold vault_retro applies —
      so one recording cannot count twice by carrying its id in two spellings. */
-  window._vaultWitnessCheck = function(w){
+  window._vaultWitnessCheck = function(w, minLooks){
+    /* the bar: VAULT_WITNESS_MIN, unless the caller names the retro keep bar — no other number is accepted */
+    var need = (minLooks === VAULT_RETRO_KEEP_MIN) ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN;
     if (!w || typeof w !== 'object' || Array.isArray(w))
       return { ok: false, why: 'no witness — a filing needs a stash sighting, a .d2s read or your own hand' };
     if (w.by === 'hand'){
@@ -38165,7 +38171,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var distinct = Object.keys(ids).sort();
     if (w.gate && typeof w.gate === 'object' && w.gate.pass === false)
       return { ok: false, lane: lane, looks: distinct.length, why: 'the gate held it: ' + String(w.gate.why || 'no reason given').slice(0, 160) };
-    if (distinct.length < VAULT_WITNESS_MIN)
+    if (need === VAULT_RETRO_KEEP_MIN && distinct.length < need)
+      return { ok: false, lane: lane, looks: 0, dropped: dropped, retroKeep: true,
+               why: 'no qualifying look in your ' + lane + ' — a keep-filed retro row needs ' + need
+                    + ' (its own frame and its own conf >= ' + VAULT_WITNESS_FLOOR + ')'
+                    + (dropped ? (' (' + dropped + ' did not qualify)') : '') };
+    if (distinct.length < need)
       return { ok: false, lane: lane, looks: distinct.length, dropped: dropped,
                why: 'only ' + distinct.length + ' qualifying look' + (distinct.length === 1 ? '' : 's') + ' in your ' + lane
                     + ' — needs ' + VAULT_WITNESS_MIN + '; a look counts only with its own frame and its own conf >= '
@@ -38249,7 +38260,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var tierN = String(pr.tier || ''), whyN = String(pr.why || '');
       /* HIS RULING 2026-09-28 (§34.2): "Keep filed, flag 'retro: WATCHED'". A row the frame math filed above what
          its visits earn comes back at its TRUE tier with the flag and keepFiled (vault_evidence.rebuild_plan) —
-         never refused here, never unfiled by a reset. It still passes the witness check below. */
+         never refused here, never unfiled by a reset. It still passes the witness check below — on ONE qualifying look
+         (VAULT_RETRO_KEEP_MIN), not two: it was filed before, and his ruling keeps it (Ledger fix round 2, finding B). A
+         flagged row NO visit saw is held by the plan and never reaches this door. */
       var retroN = (pr.keepFiled === true && /^retro: [A-Z]+$/.test(String(pr.flag || ''))) ? String(pr.flag) : '';
       if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind' && !retroN)
         return { ok: false, refused: 'plan', why: nm + ' is not proven, so a reset does not file it back' };
@@ -38257,7 +38270,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var home = keptHome ? '__keep' : (opts.mule || null);
       var w = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
       if (!keptHome){
-        var wcR = window._vaultWitnessCheck(w);
+        var wcR = window._vaultWitnessCheck(w, retroN ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN);
         if (!wcR.ok) return { ok: false, refused: wcR.main ? 'main' : 'witness', why: wcR.why };
         if (!home){ var sgR = null; try { sgR = suggestMule(nm); } catch (e) { sgR = null; } home = sgR ? sgR.id : null; }
         if (!_vHomeOk(home) || home === '__keep') return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
@@ -44565,13 +44578,17 @@ function renderJournal(){
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       if (!row || !row.name) continue;
-      var filed = null;
+      var filed = null, threw = '';
       try {
         if (typeof window.vaultFile !== 'function') throw new Error('no door');
         filed = window.vaultFile(row.name, row.witness || null, { rebuild: true, plan: row, mule: row.home || null });
-      } catch (e6) { filed = null; }
+      } catch (e6) { filed = null; threw = String((e6 && e6.message) || e6 || 'the door threw'); }
       if (filed && filed.ok) names.push(String(row.name));
-      else failed.push(String(row.name));
+      /* Ledger fix round 2, finding B — EVERY REFUSAL IS SAID. This pushed a bare name that nothing read, so a plan row the
+         door refused fell silently between "rebuilt" and "held". It now carries the door's own code and reason; the status
+         line names it (_vaultResetSay) and the doctor's reset row reads it (vault_evidence.reset_receipt). */
+      else failed.push({ name: String(row.name), refused: (filed && filed.refused) ? String(filed.refused) : (threw ? 'error' : 'no-answer'),
+                         why: (filed && filed.why) ? String(filed.why) : (threw ? ('the door threw: ' + threw) : 'the door did not answer') });
     }
     R.rebuilt = names;
     R.rebuiltFailed = failed;
@@ -44613,6 +44630,10 @@ function renderJournal(){
     if (R.door === 'vaultClearHistory') {
       if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read');
       else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN'));
+      var rf = Array.isArray(R.rebuiltFailed) ? R.rebuiltFailed : [];
+      if (rf.length) bits.push('⚠ ' + rf.length + ' could not be re-filed: ' + rf.slice(0, 6).map(function(f){
+          return (f && f.name ? f.name : String(f)) + ' (' + ((f && (f.why || f.refused)) || 'no reason') + ')';
+        }).join('; ') + (rf.length > 6 ? (' and ' + (rf.length - 6) + ' more') : ''));
     }
     return (R.ok === false ? '⚠ ' : '🧹 ') + 'vault reset — cleared ' + w.clears.join(' · ')
       + ' · ' + (R.touched.length ? 'meant to keep' : (R.unknown.length ? 'kept' : 'kept untouched')) + ': '

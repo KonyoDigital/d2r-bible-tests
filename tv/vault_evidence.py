@@ -36,6 +36,15 @@ KEPT_KINDS = frozenset(("sunder", "annihilus", "torch", "gheed"))
 # The `why` a retro-flagged WATCHED row is filed back with. The board's door (bible.html,
 # window.vaultFile's rebuild branch) admits it by its flag and keepFiled, and stores this beside it.
 RETRO_KEPT_WHY = "kept filed by his ruling (§34.2)"
+# How many qualifying looks (distinct visits that saw it) a retro-flagged row needs to be KEPT
+# filed. His ruling §34.2 keeps a row that was filed before; one real look is something to keep it
+# filed ON. Zero is not: the plan holds that row, with RETRO_NO_LOOK_WHY, and never promises
+# keepFiled. The board's door reads the same number (bible.html VAULT_RETRO_KEEP_MIN) and admits a
+# keepFiled retro row on it instead of the 2-look bar (Ledger fix round 2, finding B).
+RETRO_KEEP_MIN_LOOKS = 1
+RETRO_NO_LOOK_WHY = ("flagged retro, but no visit saw it (0 qualifying looks: a look needs its own "
+                     "frame and its own conf at the floor) — there is nothing to keep it filed on, "
+                     "so it is held until one real look lands")
 
 
 def tier(successes, trials):
@@ -73,6 +82,11 @@ def rebuild_plan(items):
     'retro: WATCHED'". So a flagged item is rebuilt at its TRUE tier, never locked above it, with
     the flag and keepFiled beside it, even when that tier is WATCHED. It stays kept-filed on every
     later reset for as long as the ledger still flags it; real looks lift it to PROVEN/HARDENED.
+
+    2026-09-28 (Ledger fix round 2, finding B): keepFiled is a promise the board's door must be
+    able to keep. The door admits a keepFiled retro row on RETRO_KEEP_MIN_LOOKS (one) qualifying
+    look. A flagged WATCHED row with ZERO qualifying looks has nothing to be filed on, so it is
+    HELD with RETRO_NO_LOOK_WHY and its flag — never promised keepFiled.
     """
     rebuilt, held = [], []
     if not isinstance(items, list):
@@ -93,6 +107,11 @@ def rebuild_plan(items):
             held.append(row)
         elif got["tier"] == WATCHED and not kept and not retro:
             row["why"] = "below the proven bar"
+            held.append(row)
+        elif got["tier"] == WATCHED and not kept and got["successes"] < RETRO_KEEP_MIN_LOOKS:
+            row["why"] = RETRO_NO_LOOK_WHY
+            row["flag"] = retro
+            row["keepFiled"] = False
             held.append(row)
         else:
             row["locked"] = got["tier"] == HARDENED
@@ -150,20 +169,14 @@ def _equipped_of(rows):
 
 
 def _is_success(look, floor):
-    """A look that saw this item: its own frame, its own conf at the vault floor, and not a miss."""
-    if not isinstance(look, dict):
-        return False
-    saw = str(look.get("saw") or "").strip().lower()
-    if saw in ("empty", "other", "miss") or look.get("hit") is False:
-        return False
-    frame = str(look.get("frame") or "").strip()
-    if not frame:
-        return False
-    try:
-        conf = float(look.get("conf"))
-    except (TypeError, ValueError):
-        return False
-    return conf >= floor
+    """A look that saw this item: its own frame, its own conf at the vault floor, and not a miss.
+
+    2026-09-28 (Ledger fix round 2, finding D): vault_retro.look_saw_it, CALLED — the one
+    definition the keep gate counts with. The copy that lived here took float(conf), so a bool
+    True or the string "0.9" was a success here and not at the gate. [[copy-drift]]
+    """
+    import vault_retro as VR
+    return VR.look_saw_it(look, floor)
 
 
 def _visit_fold():
@@ -350,22 +363,32 @@ def _retro_row(name, measured, recorded=None):
                 % (rec, frames.get("successes") or 0, frames.get("trials") or 0, honest["trials"]))
     else:
         what = "filed %s on the board, but its looks are %d visit(s)" % (rec, honest["trials"])
+    # finding B (round 2): keepFiled only where the door can keep it — one look that saw it
+    keep = honest["successes"] >= RETRO_KEEP_MIN_LOOKS
     return {"name": name, "recordedTier": rec, "honestTier": honest["tier"],
-            "flag": "retro: %s" % honest["tier"], "keepFiled": True, "recordedBy": by,
+            "flag": "retro: %s" % honest["tier"], "keepFiled": keep, "recordedBy": by,
             "visits": {"successes": honest["successes"], "trials": honest["trials"],
                        "bound": honest["bound"]},
             "frames": ({"successes": frames.get("successes"), "trials": frames.get("trials")}
                        if isinstance(frames, dict) else None),
             "sessions": list(measured[2]),
-            "why": "%s — its true tier is %s %s. %s." % (what, honest["tier"], visits, _RETRO_RULING)}
+            "why": ("%s — its true tier is %s %s. %s." % (what, honest["tier"], visits, _RETRO_RULING))
+                   if keep else
+                   ("%s — its true tier is %s %s. It is %s." % (what, honest["tier"], visits,
+                                                                RETRO_NO_LOOK_WHY))}
 
 
 def _retro_answer(rows, by, unjudged=None):
     names = [r["name"] for r in rows]
+    # finding B (round 2): a flagged row no visit saw is NOT kept filed — named apart, never
+    # folded into the kept list the ruling sentence describes
+    held = [r["name"] for r in rows if r.get("keepFiled") is not True]
     return {"ok": True, "n": len(rows), "rows": rows, "names": names, "recordedBy": by,
-            "unjudged": list(unjudged or []),
-            "why": ("%d item(s) filed above what their visits earn: %s. %s."
-                    % (len(rows), ", ".join(names[:8]), _RETRO_RULING)) if rows
+            "unjudged": list(unjudged or []), "heldNames": held,
+            "why": ("%d item(s) filed above what their visits earn: %s. %s.%s"
+                    % (len(rows), ", ".join(names[:8]), _RETRO_RULING,
+                       (" %d of them held — no visit saw it: %s." % (len(held), ", ".join(held[:8])))
+                       if held else "")) if rows
                    else "no item is filed above what its visits earn"}
 
 
@@ -395,7 +418,9 @@ def retro_plan(path, recorded=None):
     comparison is against what was really filed. Without it, the recorded tier is the frame
     math's (recordedBy "frames"). A name the board filed with no readable ledger row is listed
     in `unjudged`, never called honest. An unreadable ledger is UNKNOWN: rows and n are None.
-    Every row says keepFiled — this plan has no unfile, by his ruling.
+    This plan has no unfile, by his ruling: a row one visit saw says keepFiled True. A row NO visit
+    saw says keepFiled False with RETRO_NO_LOOK_WHY — there is nothing to keep it filed on, and a
+    promise the door cannot keep is not made (Ledger fix round 2, finding B). `heldNames` lists them.
     """
     unread = {"ok": False, "n": None, "rows": None, "names": None, "recordedBy": None,
               "unjudged": None, "why": _UNREAD}
@@ -434,6 +459,13 @@ def plan_from_ledger(path):
 
     `path` is the caller's file. This does not know where his ledger lives, and a path that
     cannot be read is UNKNOWN — rebuilt stays empty and ok is false, which is not "nothing proven".
+
+    ⚠ THE RETRO FLAG IS NOT STORED ANYWHERE — it is RECOMPUTED on every reset from the frame
+    surplus: _retro_row compares what the frame math would file (one success per witness ROW)
+    against the visit math, and flags the difference. So the flag lives only as long as the extra
+    frames do. If the ledger is ever compacted to one frame per visit, the flag vanishes — persist
+    it before any compaction, or his §34.2 "keep filed" rows lose their reason (and a WATCHED one
+    its way back onto the board) with no error. (Ledger fix round 2, note E.)
     """
     if not path or not os.path.isfile(path):
         return _unread()
@@ -586,7 +618,7 @@ def tier_census(path):
     """
     unread = {"ok": False, "watched": None, "proven": None, "hardened": None,
               "unknown": None, "disagree": None, "retro": None, "retroNames": None,
-              "provenNames": None, "why": _UNREAD}
+              "retroHeldNames": None, "provenNames": None, "why": _UNREAD}
     doc = _load_owned(path)
     if doc is None:
         return unread
@@ -601,7 +633,7 @@ def tier_census(path):
         if isinstance(row, dict) and row.get("name"):
             by_plan[row["name"]] = row.get("tier")
     counts = {WATCHED: 0, PROVEN: 0, HARDENED: 0, "unknown": 0}
-    disagree, retro, proven_names = [], [], []
+    disagree, retro, retro_held, proven_names = [], [], [], []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -609,8 +641,11 @@ def tier_census(path):
         else:
             successes, trials = measured[0], measured[1]
             got_tier = tier(successes, trials)["tier"]
-            if _retro_row(name, measured):
+            _flag = _retro_row(name, measured)
+            if _flag:
                 retro.append(name)
+                if _flag.get("keepFiled") is not True:
+                    retro_held.append(name)     # finding B: no visit saw it — held, not kept
         key = got_tier if got_tier in (WATCHED, PROVEN, HARDENED) else "unknown"
         counts[key] += 1
         if got_tier in (PROVEN, HARDENED):
@@ -626,6 +661,7 @@ def tier_census(path):
     return {"ok": True, "watched": counts[WATCHED], "proven": counts[PROVEN],
             "hardened": counts[HARDENED], "unknown": counts["unknown"],
             "disagree": disagree, "retro": len(retro), "retroNames": retro,
+            "retroHeldNames": retro_held,
             "provenNames": proven_names, "why": why}
 
 
@@ -662,19 +698,53 @@ def pictures_gone(path, root):
     return {"ok": True, "gone": gone, "n": len(gone), "cited": len(cited["frames"]), "why": ""}
 
 
+def _refusals(receipt):
+    """The plan rows the board's door refused, as the reset receipt carries them.
+
+    -> (n, [{name, refused, why}]) — or (None, None) when the receipt does not say, which is
+    UNKNOWN, never 0. An older receipt carried bare names; those keep the name and a None reason.
+    """
+    raw = receipt.get("rebuiltFailed")
+    if not isinstance(raw, list):
+        return None, None
+    rows = []
+    for r in raw:
+        if isinstance(r, dict):
+            rows.append({"name": (str(r.get("name")) if r.get("name") else None),
+                         "refused": (str(r.get("refused")) if r.get("refused") else None),
+                         "why": (str(r.get("why")) if r.get("why") else None)})
+        else:
+            rows.append({"name": (str(r) if r else None), "refused": None, "why": None})
+    return len(rows), rows
+
+
+def _refusals_say(rows):
+    bits = []
+    for r in rows[:6]:
+        bits.append("%s (%s)" % (r.get("name") or "an unnamed row",
+                                 r.get("why") or r.get("refused") or "no reason recorded"))
+    more = len(rows) - len(bits)
+    return "; ".join(bits) + ((" and %d more" % more) if more > 0 else "")
+
+
 def reset_receipt(receipt, before, after):
     """What a reset receipt claims, beside the kept-store bytes. Never writes.
 
     No receipt, or a receipt that does not say what it rebuilt, is UNKNOWN — rebuilt is
     None, not 0. A kept store whose bytes differ is named.
+
+    2026-09-28 (Ledger fix round 2, finding B): a plan row the board's door REFUSED is named.
+    _vaultRefileFromPlan writes them to the receipt as `rebuiltFailed` ({name, refused, why});
+    this reads them, so a row the plan said comes back and did not is never a silent gap between
+    `rebuilt` and `held`. A receipt that carries no rebuiltFailed leaves `refused` UNKNOWN.
     """
     blank = {"ok": False, "rebuilt": None, "held": None, "touched": None, "unknown": None,
+             "refused": None, "refusedRows": None,
              "why": "the reset left no receipt, so what it cleared is UNKNOWN, not 0"}
     if not isinstance(receipt, dict):
         return blank
     if not isinstance(before, dict) or not isinstance(after, dict):
-        return {"ok": False, "rebuilt": None, "held": None, "touched": None, "unknown": None,
-                "why": "the kept stores could not be read, so whether they survived is UNKNOWN"}
+        return dict(blank, why="the kept stores could not be read, so whether they survived is UNKNOWN")
 
     def _n(key):
         if key not in receipt or receipt.get(key) is None:
@@ -689,6 +759,7 @@ def reset_receipt(receipt, before, after):
         return None
 
     rebuilt_n, held_n = _n("rebuilt"), _n("held")
+    refused_n, refused_rows = _refusals(receipt)
     touched, unknown = [], []
     for key in sorted(set(before) | set(after)):
         if key not in before or key not in after:
@@ -696,18 +767,23 @@ def reset_receipt(receipt, before, after):
             continue
         if before[key] != after[key]:
             touched.append(key)
+    base = {"rebuilt": rebuilt_n, "held": held_n, "touched": touched, "unknown": unknown,
+            "refused": refused_n, "refusedRows": refused_rows}
     if rebuilt_n is None or held_n is None:
-        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
-                "unknown": unknown,
-                "why": "rebuilt is UNKNOWN, not 0" if rebuilt_n is None
-                else "held is UNKNOWN, not 0"}
+        return dict(base, ok=False, why="rebuilt is UNKNOWN, not 0" if rebuilt_n is None
+                    else "held is UNKNOWN, not 0")
     if unknown:
-        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
-                "unknown": unknown,
-                "why": "a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown)}
+        return dict(base, ok=False,
+                    why="a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown))
     if touched:
-        return {"ok": False, "rebuilt": rebuilt_n, "held": held_n, "touched": touched,
-                "unknown": unknown,
-                "why": "a reset must never change %s — it did" % ", ".join(touched)}
-    return {"ok": True, "rebuilt": rebuilt_n, "held": held_n, "touched": [], "unknown": [],
-            "why": "rebuilt %d · held %d · kept stores unchanged" % (rebuilt_n, held_n)}
+        return dict(base, ok=False, why="a reset must never change %s — it did" % ", ".join(touched))
+    if refused_n is None:
+        return dict(base, ok=False,
+                    why=("rebuilt %d · held %d · the receipt does not say whether the door refused "
+                         "any plan row, so that is UNKNOWN, not 0" % (rebuilt_n, held_n)))
+    if refused_n:
+        return dict(base, ok=False,
+                    why=("rebuilt %d · held %d · %d plan row(s) the door REFUSED to re-file: %s"
+                         % (rebuilt_n, held_n, refused_n, _refusals_say(refused_rows))))
+    return dict(base, ok=True,
+                why="rebuilt %d · held %d · refused 0 · kept stores unchanged" % (rebuilt_n, held_n))

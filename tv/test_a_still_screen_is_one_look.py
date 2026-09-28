@@ -196,6 +196,57 @@ class AStillScreenIsOneLook(unittest.TestCase):
                          "the tier table counted one reel's two spellings as %d visits" % got[1])
         self.assertEqual(VE._visit_of(looks[0]), VE._visit_of(looks[1]))
 
+    # ══ 2026-09-28 (Ledger fix round 2, finding D) — "a look that saw it" is ONE definition ═════
+    # gate()._qualifies rejected a bool/string conf and ignored `saw`/`hit`; vault_evidence's
+    # _is_success accepted True / "0.9" through float() and rejected a miss. So the keep bar and the
+    # tier table disagreed about the SAME look. Each odd look below sits beside one plain good look
+    # in a different visit: both engines must count the good one and refuse the odd one alike.
+    ODD_LOOKS = (
+        ("a bool conf", {"conf": True}),
+        ("a numeric-string conf", {"conf": "0.9"}),
+        ("a NaN conf", {"conf": float("nan")}),
+        ("a blank frame", {"frame": "   "}),
+        ("a look that says it saw a miss", {"saw": "miss"}),
+        ("a look that says it saw an empty cell", {"saw": "empty"}),
+        ("a look marked hit False", {"hit": False}),
+    )
+
+    def test_a_look_that_saw_it_is_one_definition_in_both_engines(self):
+        good = {"session": "sG", "witness": "sG#0", "frame": "good.jpg", "conf": 0.9, "lane": "stash"}
+        self.assertEqual((1, 1), (VR.gate([good])["witnesses"],
+                                  VE._measure([{"name": "G", "witnesses": [good]}], _floor())[0]),
+                         "baseline: both engines count the plain good look")
+        for label, patch in self.ODD_LOOKS:
+            odd = {"session": "sO", "witness": "sO#0", "frame": "odd.jpg", "conf": 0.9, "lane": "stash"}
+            odd.update(patch)
+            live = VR.gate([good, odd])["witnesses"]
+            tier = VE._measure([{"name": "O", "witnesses": [good, odd]}], _floor())[0]
+            self.assertEqual(live, tier,
+                             "%s: the keep gate counts %d look(s) that saw it and the tier table %d — "
+                             "two definitions of one look" % (label, live, tier))
+            self.assertEqual(1, live, "%s counted as a look that saw it" % label)
+
+    @staticmethod
+    def _names(fn):
+        """Every global/attribute name a function's code references, nested comprehensions included
+        (a comprehension is its own code object before Python 3.12)."""
+        out, todo = set(), [fn.__code__]
+        while todo:
+            co = todo.pop()
+            out.update(co.co_names)
+            todo.extend(c for c in co.co_consts if hasattr(c, "co_names"))
+        return out
+
+    def test_every_counter_calls_the_one_definition(self):
+        # the compiler, not the text: each counter REFERENCES look_saw_it (source-reading-guard §1)
+        self.assertTrue(callable(getattr(VR, "look_saw_it", None)), "there is no one definition to call")
+        self.assertIn("look_saw_it", self._names(VR.gate), "gate() keeps its own copy")
+        self.assertIn("look_saw_it", self._names(VR.gate_shadow), "gate_shadow keeps its own copy")
+        self.assertIn("look_saw_it", self._names(VE._is_success), "_is_success keeps its own copy")
+        self.assertIs(True, VR.look_saw_it({"frame": "f.jpg", "conf": 0.55}),
+                      "baseline: a framed look AT the floor saw it")
+        self.assertIs(False, VR.look_saw_it({"frame": "f.jpg", "conf": 0.54}))
+
 
 class TheHeartJointSeesAStillScreen(unittest.TestCase):
     """corroborate's `a-tier-stands-on-its-looks`: the tier table against the live gate's looks."""
@@ -361,6 +412,36 @@ RED_PROOF = [
         "file": "vault_evidence.py",
         "find": "    return VR.look_id(look, \"witness\")\n",
         "replace": "    return str(look.get(\"witness\") or look.get(\"session\") or \"\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "the tier table keeps its own float() copy of 'a look that saw it', so a bool conf is a success there and not at the gate (finding D)",
+        "file": "vault_evidence.py",
+        "find": "    return VR.look_saw_it(look, floor)\n",
+        "replace": ("    try:\n        return float(look.get(\"conf\")) >= floor and bool(str(look.get(\"frame\") or \"\").strip())"
+                    " and str(look.get(\"saw\") or \"\").strip().lower() not in VR.MISS_SAWS and look.get(\"hit\") is not False\n"
+                    "    except (TypeError, ValueError):\n        return False\n"),
+        "matches": 1,
+    },
+    {
+        "why": "the one definition drops the miss check, so a look that says it saw an empty cell counts (finding D)",
+        "file": "vault_retro.py",
+        "find": "    if str(e.get(\"saw\") or \"\").strip().lower() in MISS_SAWS or e.get(\"hit\") is False:\n        return False\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the one definition takes a string or bool conf through float() again (finding D)",
+        "file": "vault_retro.py",
+        "find": "    if isinstance(c, bool) or not isinstance(c, (int, float)):\n        return False\n    if c != c",
+        "replace": "    try:\n        c = float(c)\n    except (TypeError, ValueError):\n        return False\n    if c != c",
+        "matches": 1,
+    },
+    {
+        "why": "the one definition accepts a blank frame, a picture nobody can open (finding D)",
+        "file": "vault_retro.py",
+        "find": "    if not str(e.get(\"frame\") or \"\").strip():\n        return False\n",
+        "replace": "    if not e.get(\"frame\"):\n        return False\n",
         "matches": 1,
     },
     {
