@@ -192,7 +192,11 @@ class TheCaptureRouteOnWindows(_World):
 
 
 class TheCaptureRouteOnTheMac(_World):
-    """The Mac: the finder's last pick in THIS process, recorded by the finder when it picked."""
+    """The Mac: the finder's last pick in THIS process, recorded by the finder when it picked.
+
+    ⚠ 2026-09-28 (review item 2) — this class used to drive only find_d2r_window_WIN, so no law ever
+    ran the Mac finder's own route recording. The Windows pick keeps its case (relabelled); the Mac
+    finder is now driven for real through a fake Quartz in sys.modules."""
 
     def _row(self, pid, title, hwnd, w=1920, h=1080):
         return {"kCGWindowOwnerName": title, "kCGWindowOwnerPID": pid, "hwnd": hwnd, "iconic": False,
@@ -204,7 +208,44 @@ class TheCaptureRouteOnTheMac(_World):
                 return rows
         return TVD.find_d2r_window_win(win=_W(), procs=procs)
 
-    def test_the_finder_records_the_route_at_the_pick_and_the_wire_reads_it(self):
+    @staticmethod
+    def _quartz(windows):
+        """Quartz as far as find_d2r_window_mac uses it: one call and two constants."""
+        q = types.ModuleType("Quartz")
+        q.kCGWindowListOptionAll, q.kCGNullWindowID = 0, 0
+        q.CGWindowListCopyWindowInfo = lambda option, relative_to: [dict(w) for w in windows]
+        return q
+
+    def _mac_pick(self, owner, title, wid, w=1920, h=1080):
+        """The SHIPPED Mac finder over a window list holding the menu bar and one candidate. The
+        platform is pinned to darwin (CI is Linux, where the finder answers before Quartz)."""
+        bar = {"kCGWindowOwnerName": "Window Server", "kCGWindowName": "Menubar", "kCGWindowNumber": 3,
+               "kCGWindowIsOnscreen": True, "kCGWindowBounds": {"X": 0, "Y": 0, "Width": 1920, "Height": 24}}
+        win = {"kCGWindowOwnerName": owner, "kCGWindowName": title, "kCGWindowNumber": wid,
+               "kCGWindowIsOnscreen": True, "kCGWindowBounds": {"X": 0, "Y": 0, "Width": w, "Height": h}}
+        saved = TVD._PICK_CACHE
+        self.addCleanup(setattr, TVD, "_PICK_CACHE", saved)
+        TVD._PICK_CACHE = None                              # the finder's own 0.55 s cache
+        with mock.patch.dict(sys.modules, {"Quartz": self._quartz([bar, win])}), \
+                mock.patch.object(TVD.sys, "platform", "darwin"):
+            return TVD.find_d2r_window_mac()
+
+    def test_the_mac_finder_records_each_route_at_the_pick(self):
+        for owner, title, want in (("D2R.exe", "Diablo II: Resurrected", "native"),
+                                   ("wine64-preloader", "Diablo II: Resurrected", "native"),
+                                   ("GeForceNOW", "Diablo II: Resurrected on GeForce NOW", "geforce-now"),
+                                   ("Boosteroid", "Boosteroid", "boosteroid")):
+            TVD._PICK_ROUTE = None
+            hit = self._mac_pick(owner, title, 700)
+            self.assertEqual(hit and hit[0], 700,
+                             "premise: the shipped Mac judge pins %s %r (%s)" % (owner, title, TVD._PICK_WHY))
+            self.assertEqual((TVD._PICK_ROUTE or {}).get("route"), want,
+                             "the Mac finder pinned %s %r and recorded %r" % (owner, title, TVD._PICK_ROUTE))
+            got = ca._capture_route_for_wire()
+            self.assertEqual((got["route"], got["source"]), (want, "finder"), got)
+            self.assertLess(got["ageS"], 60.0)
+
+    def test_the_windows_finder_records_the_route_at_the_pick_and_the_wire_reads_it(self):
         self.assertIsNotNone(self._pick_window([self._row(11, "Boosteroid", 501)], {11: "Boosteroid.exe"}),
                              "premise: the shipped judge pins a bare Boosteroid app window")
         self.assertEqual(TVD._PICK_ROUTE["route"], "boosteroid")
@@ -344,6 +385,89 @@ class NothingIdentifyingCrosses(_World):
         self.assertEqual(tri["lastKey"], "raised")
         self.assertEqual(tri["skips"], {"raised": 3}, "a key outside the lane's vocabulary crossed")
 
+    #: ⚠ 2026-09-28 (review item 3) — a user name WITH A SPACE. Every generic path pattern stops at
+    #: whitespace, so "C:\\Users\\Dean Smith\\..." crossed as "<path> Smith\\tv\\...".
+    SPACED = ("the tick raised OSError: [Errno 13] C:\\Users\\Dean Smith\\tv\\retro_triage.json, then "
+              "/Users/Dean Smith/d2r/tv/x.json, then 'C:/Users/Dean Smith/y.json' and /home/dean smith")
+
+    def test_a_user_name_with_a_space_never_crosses(self):
+        self.assertIn("Smith", self.SPACED, "premise: the fixture carries the name")
+        for out in (ca._wire_text(self.SPACED, 400), ca._redact_for_wire(self.SPACED, 400)):
+            for leak in ("Dean", "Smith", "smith", "dean"):
+                self.assertNotIn(leak, out, "%r crossed: %r" % (leak, out))
+        self.assertIn("<path>", ca._wire_text(self.SPACED, 400))
+        self.assertIn("~", ca._redact_for_wire(self.SPACED, 400),
+                      "the home fold dropped the path instead of folding it")
+        ca._TRIAGE_LANE.update({"ticks": 1, "lastKey": "raised", "skips": {"raised": 1},
+                                "lastWhy": self.SPACED})
+        self.assertNotIn("Smith", json.dumps(ca._system_for_wire()), "the beacon carried the name")
+
+
+#: ⚠ 2026-09-28, the SECOND review round - the shapes the first fixture could not see. It was a hand-typed literal
+#: with single backslashes; the lane's real text comes from str(exception), which quotes the filename with repr()
+#: and DOUBLES every backslash, so "one separator then a name" never matched and "Smith" crossed. Built here the
+#: way the lane builds it, plus a file:// URL (scrubbed first, it stopped at the space), an apostrophe name and a
+#: OneDrive-for-business folder (the employer's name and the path tail).
+REAL_SHAPES = {
+    "repr": "the tick raised %s: %s" % ("PermissionError", PermissionError(
+        13, "Permission denied", "C:\\Users\\Dean Smith\\tv\\retro_triage.json")),
+    "url": "open file:///Users/Dean Smith/d2r/x.json failed",
+    "apostrophe": "C:\\Users\\Dean O'Brien\\tv\\x.json failed",
+    "onedrive": "C:\\Users\\Dean\\OneDrive - Acme Corp\\Desktop\\x.json",
+}
+REAL_LEAKS = ("Dean", "Smith", "Brien", "Acme", "Corp", "Desktop")
+
+
+class TheRealShapesNeverCross(_World):
+    """Each shape through _wire_text (the triage lane's scrub) and _redact_for_wire (the home fold)."""
+
+    def test_the_premise_the_repr_shape_doubles_its_backslashes(self):
+        self.assertIn("\\\\Users\\\\Dean Smith", REAL_SHAPES["repr"],
+                      "PREMISE: str(PermissionError) did not double the backslashes - the case tests nothing")
+
+    def test_no_real_shape_leaks_a_name_on_the_wire(self):
+        for k, v in REAL_SHAPES.items():
+            out = ca._wire_text(v, 400)
+            for leak in REAL_LEAKS:
+                self.assertNotIn(leak, out, "%s: %r crossed the wire as %r" % (k, leak, out))
+
+    def test_no_real_shape_leaks_through_the_home_fold(self):
+        for k in ("repr", "url", "apostrophe"):
+            out = ca._redact_for_wire(REAL_SHAPES[k], 400)
+            for leak in ("Dean", "Smith", "Brien"):
+                self.assertNotIn(leak, out, "%s: %r crossed the home fold as %r" % (k, leak, out))
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheWorkerScrubsTheRealShapes(_World):
+    """The same shapes through functions/api/console.js's txt(), in node - the PUBLIC boundary's second scrub."""
+
+    def test_the_worker_leaks_no_real_shape(self):
+        for k, v in REAL_SHAPES.items():
+            kept = _shape({"tree": "ok", "reels": 1,
+                           "river": {"lanes": None, "ageS": None, "why": v,
+                                     "triage": {"lastKey": "raised", "lastWhy": v}}})
+            for field in (kept["river"]["why"], kept["river"]["triage"]["lastWhy"]):
+                for leak in REAL_LEAKS:
+                    self.assertNotIn(leak, field or "", "%s: %r crossed the worker as %r" % (k, leak, field))
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheWorkerScrubsASpacedUserName(_World):
+    """The same name through functions/api/console.js's txt(), run in node — the second scrub on the
+    PUBLIC boundary must not leak what the first one stops."""
+
+    def test_the_worker_scrubs_the_whole_user_folder(self):
+        spaced = NothingIdentifyingCrosses.SPACED
+        kept = _shape({"tree": "ok", "reels": 1,
+                       "capture": {"route": "native", "ageS": 1, "why": spaced, "source": "finder"},
+                       "river": {"lanes": None, "ageS": None, "why": spaced,
+                                 "triage": {"lastKey": "raised", "lastWhy": spaced}}})
+        for field in (kept["capture"]["why"], kept["river"]["why"], kept["river"]["triage"]["lastWhy"]):
+            for leak in ("Dean", "Smith", "smith", "dean"):
+                self.assertNotIn(leak, field or "", "%r crossed the worker: %r" % (leak, field))
+            self.assertIn("<path>", field or "")
+
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class TheWorkerKeepsThem(_World):
@@ -355,13 +479,16 @@ class TheWorkerKeepsThem(_World):
         self.pin({"mode": "window", "label": "D2R.exe [local] - Diablo II via PrintWindow", "ts": NOW()})
         ca._RIVER_LAST = {"good": {"ts": NOW(), "stations": {"TRIAGE": 2, "PRINTER": 1}}, "fail": None}
         ca._TRIAGE_LANE.update({"ticks": 4, "lastKey": "playing", "backlog": 2, "owedSince": NOW() - 60000,
-                                "skips": {"playing": 4}, "lastWhy": "he is playing"})
+                                "skips": {"playing": 4}, "lastWhy": "he is playing",
+                                "playingSince": NOW() - 7200000})
         sent = json.loads(json.dumps(ca._system_for_wire()))
+        self.assertGreater(sent["river"]["triage"]["playingForS"], 7000.0,
+                           "premise: the lane's unbroken run of play reached the wire")
         kept = _shape(sent)
         self.assertEqual(kept["capture"]["route"], "native")
         self.assertEqual(kept["capture"]["source"], "capture-half")
         self.assertEqual(kept["river"]["lanes"], {"TRIAGE": 2, "PRINTER": 1})
-        for k in ("lastKey", "backlog", "owedSince", "skips", "lastWhy", "waitS"):
+        for k in ("lastKey", "backlog", "owedSince", "skips", "lastWhy", "waitS", "playingForS"):
             self.assertEqual(kept["river"]["triage"][k], sent["river"]["triage"][k],
                              "the worker dropped or changed triage.%s" % k)
 
@@ -379,6 +506,56 @@ class TheWorkerKeepsThem(_World):
         self.assertIsNone(kept["river"]["triage"]["backlog"])
         self.assertNotIn("konyo", kept["river"]["triage"]["lastWhy"])
         self.assertEqual(_shape({"tree": "ok", "reels": 1}), {"tree": "ok", "reels": 1},
+                         "an older console's record changed shape")
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheRouteIsNewsAndTheAgesSayWhen(_World):
+    """Review item 4 — capture.ageS / river.ageS / triage.waitS could be ~16 min older than stated:
+    the worker rewrites the stored record only on a MATERIAL change or every 900 s, and /api/fleet
+    caches 60 s. Driven through the REAL onRequestPost (node, an in-memory KV; the harness of
+    test_a_beacon_records_the_check_in, which ages the STORED record between beacons): a capture
+    route change is material, an age that merely moved is not, and the record carries `system.asOf`
+    (its own time) so a reader can add (now - asOf)."""
+
+    @staticmethod
+    def _body(route, age=12.0):
+        return {"machine": "dean-pc", "nickname": "Dean", "install": "i-dean", "ver": "v3342",
+                "mode": "idle", "event": "hb",
+                "system": {"tree": "ok", "reels": 3,
+                           "capture": {"route": route, "ageS": age, "why": "", "source": "capture-half"},
+                           "river": {"lanes": {"TRIAGE": 2}, "ageS": age, "why": "",
+                                     "triage": {"ok": True, "lastKey": "playing", "waitS": age,
+                                                "playingForS": age, "skips": {"playing": 2}}}}}
+
+    @staticmethod
+    def _run(bodies, age_between=60):
+        from test_a_beacon_records_the_check_in import _beacons
+        return _beacons(bodies, age_between=age_between)
+
+    def test_an_age_that_moved_inside_the_window_is_not_rewritten(self):
+        """The BASELINE: the ages move every beacon and are not news on their own."""
+        v = self._run([self._body("native", 12.0), self._body("native", 95.0)])
+        self.assertIn("console", v["replies"][0]["stored"], "premise: the first beacon seeded the store")
+        self.assertNotIn("console", v["replies"][1]["stored"],
+                         "an unchanged route with a moved age spent a KV write")
+
+    def test_a_route_change_is_written_at_once(self):
+        v = self._run([self._body("native"), self._body("boosteroid")])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "the PC switched from its native game to a Boosteroid stream and the fleet kept "
+                      "the old route for up to 15 min: %r" % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["capture"]["route"], "boosteroid")
+
+    def test_the_record_says_when_its_ages_were_stated(self):
+        v = self._run([self._body("native")])
+        ls = v["lastseen"]
+        self.assertEqual(ls["system"].get("asOf"), ls["t"],
+                         "the stored ages carry no time they were stated at, so a reader cannot add "
+                         "(now - asOf) and reads a record up to ~16 min old as current")
+        older = self._run([{"machine": "dean-pc", "install": "i-dean", "ver": "v3300", "event": "hb",
+                            "system": {"tree": "ok", "reels": 3}}])
+        self.assertEqual(older["lastseen"]["system"], {"tree": "ok", "reels": 3},
                          "an older console's record changed shape")
 
 
@@ -416,6 +593,27 @@ class TheFleetRelaysThemForEveryPeer(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 round 2 - one separator only again: a repr()-quoted path (doubled backslashes) leaks the name",
+        "file": "control_app.py",
+        "find": "_WIRE_USER_PAT = r\"\\b(?:Users|home)[\\\\/]+(?:[^'\\\"]|'(?=\\w))*\"\n",
+        "replace": "_WIRE_USER_PAT = r\"\\b(?:Users|home)[\\\\/][^\\\\/'\\\"]+\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - the URL scrub runs first again and stops at the space: a file:// path leaks the surname",
+        "file": "control_app.py",
+        "find": "    txt = _WIRE_USER_RX.sub(\"<user>\", txt)           # FIRST: a user folder with spaces, quoted or not\n    txt = _WIRE_URL_RX.sub(\"<url>\", txt)\n",
+        "replace": "    txt = _WIRE_URL_RX.sub(\"<url>\", txt)\n    txt = _WIRE_USER_RX.sub(\"<user>\", txt)\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 round 2 - the worker's user scrub takes one separator only again: the PUBLIC boundary leaks the name",
+        "file": "functions/api/console.js",
+        "find": "          .replace(/\\b(?:Users|home)[\\\\/]+(?:[^'\"]|'(?=\\w))*/gi, '<user>')\n",
+        "replace": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/'\"]+/gi, '<user>')\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 - /api/river stops leaving its lanes for the beacon: the fleet can never see a river",
         "file": "control_app.py",
@@ -460,9 +658,70 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-28 - the finder picks a window and records no route, so the Mac's wire is always UNKNOWN",
+        # ⚠ relabelled 2026-09-28 (review item 2): this tampers the WINDOWS finder (`_rows`); it was
+        # labelled as the Mac's, and no proof touched the Mac finder's own call at all
+        "why": "2026-09-28 - the WINDOWS finder picks a window and records no route, so the finder's "
+               "wire is always UNKNOWN",
         "file": "tv_diablo.py",
         "find": "    if best:\n        _note_pick_route(_rows, best)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 2 - the MAC finder (Quartz) picks a window and records no route, so a Mac PC's "
+               "capture route is always UNKNOWN on the fleet",
+        "file": "tv_diablo.py",
+        "find": "    if best:\n        _note_pick_route(rows, best)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 3 - the user-folder scrub is dropped: 'C:\\\\Users\\\\Dean Smith\\\\...' leaks 'Smith' "
+               "to the fleet",
+        "file": "control_app.py",
+        "find": "    txt = _WIRE_USER_RX.sub(\"<user>\", txt)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 3 (sibling) - the home fold stops at a space again and misses a Windows home",
+        "file": "control_app.py",
+        "find": "    txt = _WIRE_HOME_FOLD_RX.sub(\"~\", txt)\n",
+        "replace": "    txt = re.sub(r\"/(?:Users|home)/[^/\\s]+\", \"~\", txt)\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 3 - the worker's second scrub stops at a space: a spaced user name crosses the PUBLIC boundary",
+        "file": "functions/api/console.js",
+        "find": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/'\"]+/gi, '<user>')\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 4 - a capture route change is not material: the fleet keeps the old route up to 15 min",
+        "file": "functions/api/console.js",
+        "find": "    || capRoute(prev) !== capRoute(rec)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 4 - the stored ages carry no record time, so a reader reads a ~16 min old age as current",
+        "file": "functions/api/console.js",
+        "find": "  if (rec.system && (rec.system.capture || rec.system.river)) rec.system.asOf = rec.t;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 1 - the lane's unbroken run of play never reaches the wire",
+        "file": "control_app.py",
+        "find": "            \"playingForS\": s.get(\"playingForS\"),\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 1 - the worker drops the lane's unbroken run of play on arrival",
+        "file": "functions/api/console.js",
+        "find": "              playingForS: num(x.playingForS, DAY400),\n",
         "replace": "",
         "matches": 1,
     },

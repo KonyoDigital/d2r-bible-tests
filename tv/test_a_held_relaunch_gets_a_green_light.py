@@ -244,6 +244,27 @@ class TestAHeldRelaunchGetsAGreenLight(unittest.TestCase):
             "definition excluded). A hold with no release path is strictly WORSE than the abandon "
             "it replaced: the request is kept, looks pending, and expires unfired. "
             "[[the-unjoined-end]]" % calls)
+        # ⚠⚠ 2026-09-28 — "CALLED SOMEWHERE" STOPPED BEING THE PROPERTY THE DAY IT GAINED A SECOND
+        # CALLER. The shadow side now fires the green light too (the rollover's early close, the
+        # watcher's held door), and with that call in the tree, deleting the RESCUE LOOP's tick
+        # left the count above at 1 — heart2 proved red-proof [3] BLIND on the first run. The
+        # shadow callers only ever fire a hold a SHADOW reel was in the way of; a hold a sweep
+        # made is released by the periodic tick alone. So pin THAT call, by the AST of the loop
+        # that owns it. [[a-widened-guard-admits-what-it-bans]] [[source-reading-guard]] §1
+        import ast
+        with io.open(APP, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        loop = next((n for n in tree.body
+                     if isinstance(n, ast.FunctionDef) and n.name == "_console_rescue_loop"), None)
+        self.assertIsNotNone(loop, "the rescue loop that carries the periodic green light is gone")
+        ticks = [n for n in ast.walk(loop) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Name) and n.func.id == "relaunch_green_light_tick"]
+        self.assertEqual(
+            len(ticks), 1,
+            "the rescue loop no longer ticks the green light (%d call(s) in _console_rescue_loop). "
+            "The shadow side fires it only for a hold a shadow reel was in the way of — a hold a "
+            "SWEEP made would sit until it expired, unfired, which is the pre-v3301 abandon "
+            "coming back through the watchdog's door." % len(ticks))
 
 
 if __name__ == "__main__":

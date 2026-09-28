@@ -290,14 +290,24 @@ export async function onRequestPost(context) {
          numbers clamped, sentences collapsed, capped and scrubbed of paths/URLs/IPs a second time
          (the console scrubs first; this boundary is PUBLIC). Absent stays ABSENT, so a console
          older than the fields stores exactly what it stored before. [[the-unjoined-end]] */
+      /* ⚠ 2026-09-28 — THE USER-FOLDER SEGMENT FIRST. Every path pattern here stops at whitespace and a
+         Windows user name routinely holds one: "C:\Users\Dean Smith\tv\x.json" crossed as
+         "<path> Smith\tv\x.json" (an adversarial review, reproduced on both sides). `Users|home`, a
+         separator, and the NAME up to the next separator or quote (spaces included) become <user>
+         BEFORE the generic patterns run — the same pattern as control_app._WIRE_USER_PAT. */
       const txt = function (v, cap) {
         if (typeof v !== 'string') return null;
+        /* ⚠ second review round: one OR MORE separators (a repr()-quoted path doubles them), the name runs over
+           an apostrophe a letter follows, everything after the user folder up to the closing quote goes with
+           it, it runs BEFORE the URL scrub, and a leftover backslash token is a path - control_app._WIRE_USER_PAT. */
         const x = v.replace(/\s+/g, ' ').trim()
+          .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '<user>')
           .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, '<url>')
           .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '<path>')
           .replace(/\\\\[^\s'"]+/g, '<path>')
           .replace(/~[\\/][^\s'"]*/g, '<path>')
           .replace(/(^|[^\w.])\/(?:[^\s\/'"]+\/)+[^\s'"]*/g, '$1<path>')
+          .replace(/\S*\\\S*/g, '<path>')
           .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '<ip>');
         return x ? x.slice(0, cap) : null;
       };
@@ -355,6 +365,8 @@ export async function onRequestPost(context) {
               owedSince: whole(x.owedSince, 1e14),
               owedForS: num(x.owedForS, DAY400),
               waitS: num(x.waitS, DAY400),
+              // 2026-09-28 — how long the lane has stood aside for an UNBROKEN run of his game
+              playingForS: num(x.playingForS, DAY400),
               ticks: whole(x.ticks, 1e9),
               skips: sk,
             };
@@ -426,6 +438,18 @@ export async function onRequestPost(context) {
   const lastBeacon = coerceLastBeacon(body.lastBeacon);
   if (lastBeacon) rec.lastBeacon = lastBeacon;
 
+  /* ⚠ 2026-09-28 — THE AGES IN `system` ARE AS OF THIS RECORD, AND THE RECORD SAYS WHEN THAT WAS.
+     capture.ageS, river.ageS, river.triage.waitS / owedForS / sinceLastS / playingForS are measured
+     by the console at the moment it posts. This worker rewrites the stored record only on a
+     material change or every REFRESH_S (900 s), and the console's /api/fleet caches the roster 60 s
+     (staleAgeS), so a reader can see an age up to ~16 minutes younger than the thing it describes.
+     `system.asOf` is the record time (= rec.t, THIS worker's clock): the true age of any of those
+     fields is  ageS + (now - asOf)  — with `now` taken from GET /api/console's own `now` (the same
+     clock, no skew between machines) plus the console's staleAgeS. Stamped only when the block
+     carries an age, so an older console's record keeps exactly the shape it always had.
+     [[stale-reading]] */
+  if (rec.system && (rec.system.capture || rec.system.river)) rec.system.asOf = rec.t;
+
   const stored = [];
   const skipped = [];
 
@@ -472,12 +496,19 @@ export async function onRequestPost(context) {
   const ageS = (prev && prev.t) ? ((Date.now() - Date.parse(prev.t)) / 1000) : 1e9;
   // ⚠ MATERIAL means "a thing he reads on the panel". Two heartbeats that differ only in their
   // timestamp are the same news, and news is what a write is for.
+  // ⚠ 2026-09-28 — WHICH WAY A PC FILMS D2R IS NEWS. Without it a PC that switched from its native
+  // game to a Boosteroid stream kept the OLD route on the fleet for up to REFRESH_S (15 min), with an
+  // ageS that described the old pin. The route is a word from a fixed vocabulary, so it changes only
+  // when the capture really moved — a write per switch, not per heartbeat. The ages (ageS, waitS)
+  // are NOT material: they move every beacon, and a reader adds (now - system.asOf) instead.
+  const capRoute = (r) => (r && r.system && r.system.capture && r.system.capture.route) || null;
   const material = !prev
     || prev.ver !== rec.ver || prev.mode !== rec.mode || prev.event !== rec.event
     || prev.diskVer !== rec.diskVer
     || JSON.stringify(prev.tally || null) !== JSON.stringify(rec.tally || null)
     || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
     || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
+    || capRoute(prev) !== capRoute(rec)
     || !!(prev.eye && prev.eye.live) !== !!(rec.eye && rec.eye.live);
 
   try {

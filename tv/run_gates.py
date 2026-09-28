@@ -5946,6 +5946,21 @@ GATES = [
              "an orphan's door or an unreadable start is never cut and reads UNKNOWN; a stop that did not "
              "take is not counted; the shadowWatch row fires past the hour + 5 min. Driven with stubbed "
              "edges on a TV_HIST fixture. 14 cases, 13 red-proofs"),
+    Gate("test_an_update_lands_beside_a_shadow_reel",
+         [sys.executable, os.path.join(HERE, "test_an_update_lands_beside_a_shadow_reel.py")], 60,
+         why="2026-09-28 - his words: 'the logic needs to be individually placed and working for each "
+             "console'. MEASURED on his ALT (Windows + Boosteroid, shadow always on): ver v3520 / diskVer "
+             "v3521 for 2+ h, relaunch {armed: true, may: false, why: 'the console is ON AIR (live) - you "
+             "are filming'} - nothing_in_flight read a SHADOW reel as his session, and the reel rolls every "
+             "hour with a ~2 s gap, so a new build never landed on any PC where the game stays open. Now a "
+             "waiting build beside a shadow reel ALONE is HELD (not refused), the rollover closes that reel "
+             "early ('an update is waiting') through stop_agent(farewell=False) + the measured-gone check "
+             "and fires the green light in the same breath, and the watcher opens no reel on the old build "
+             "while it is held. ON AIR / MINI / an unreadable door still refuse; a drift hold is released "
+             "on the drift lane's own gate (one question, three askers). Doctor row 'the running build is "
+             "behind the disk': MISSING past 2 h naming his session / shadow close failed / relaunch "
+             "refused or did not take, UNKNOWN on an unreadable version. Driven on Windows- AND Mac-shaped "
+             "stubs. 28 cases, 14 red-proofs"),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
          why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "
@@ -6147,7 +6162,14 @@ GATES = [
              "the capture label - and an unanswerable probe refuses; a walk the store did not keep "
              "is 'not-remembered'; starvation is judged by how long the reels WAITED; a lane that "
              "has not ticked since boot is UNKNOWN; the Windows load bar sits below 100; "
-             "GetSystemTimes' high word is combined; the Mac camera refusal keys on the agent"),
+             "GetSystemTimes' high word is combined; the Mac camera refusal keys on the agent. "
+             "Review of the merged build (792dd6d9): a 'playing' lane is judged by its UNBROKEN run "
+             "of play (playingSince, cleared by any other outcome) against TRIAGE_PLAYING_BAR_S - "
+             "3.5 h of Dean's native game reads OK 'standing aside for his game', 13 h reads "
+             "MISSING; a lane whose refusals are mostly 'playing-unknown' says the play probe "
+             "cannot run on this machine; the REAL survey() stops mid-walk when he starts D2R "
+             "(abort hook every N frames and at each reel), remembers nothing of the half-walked "
+             "reel and gives back its claims; the farm gate asks _d2r_running_here, not pgrep"),
     Gate("test_the_beacon_says_how_each_pc_films_and_drains",
          [sys.executable, os.path.join(HERE, "test_the_beacon_says_how_each_pc_films_and_drains.py")], 120,
          why="2026-09-28 — his order 'yea add those beacon fields': the fleet beacon's system block "
@@ -6158,7 +6180,11 @@ GATES = [
              "cached where /api/river computes it and the beacon never computes it (<0.5 s with "
              "every river computation patched to count); paths, URLs, IPs, this host's name and "
              "reel ids never cross; the worker's shaper (node) keeps both fields; /api/fleet "
-             "relays them for every peer"),
+             "relays them for every peer. Review of the merged build (792dd6d9): the MAC finder is "
+             "driven through a fake Quartz (D2R.exe / wine64-preloader -> native, GeForceNOW, "
+             "Boosteroid); a user name WITH A SPACE never crosses, on the console and in the worker; "
+             "the real onRequestPost writes a capture-route change at once, not an age that moved, "
+             "and stamps system.asOf so a reader adds (now - asOf)"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "
