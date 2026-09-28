@@ -6138,7 +6138,23 @@ GATES = [
              "it; every refusal is counted in _TRIAGE_LANE and published on /api/river; a folding or "
              "frameless reel never parks the lane; _cpu_busy_pct measures Windows via GetSystemTimes "
              "(kernel includes idle); and the doctor row 'triage starved' reads MISSING / UNKNOWN / "
-             "OK, including off the exact state the console publishes"),
+             "OK, including off the exact state the console publishes. 2026-09-28 review fixes: "
+             "Windows asks the process table (Toolhelp32) for a LOCAL D2R.exe - never pgrep, never "
+             "the capture label - and an unanswerable probe refuses; a walk the store did not keep "
+             "is 'not-remembered'; starvation is judged by how long the reels WAITED; a lane that "
+             "has not ticked since boot is UNKNOWN; the Windows load bar sits below 100; "
+             "GetSystemTimes' high word is combined; the Mac camera refusal keys on the agent"),
+    Gate("test_the_beacon_says_how_each_pc_films_and_drains",
+         [sys.executable, os.path.join(HERE, "test_the_beacon_says_how_each_pc_films_and_drains.py")], 120,
+         why="2026-09-28 — his order 'yea add those beacon fields': the fleet beacon's system block "
+             "carries capture {route native|boosteroid|geforce-now|unknown, ageS, why} and river "
+             "{lanes, ageS, why, triage}, so his Mac console can see how Dean's PC films D2R and "
+             "whether its river drains. Driven: the Windows capture half's pin and the Mac finder's "
+             "pick each cross as a route with the PIN's age, unknown never guessed; the river is "
+             "cached where /api/river computes it and the beacon never computes it (<0.5 s with "
+             "every river computation patched to count); paths, URLs, IPs, this host's name and "
+             "reel ids never cross; the worker's shaper (node) keeps both fields; /api/fleet "
+             "relays them for every peer"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "

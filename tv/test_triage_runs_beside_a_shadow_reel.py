@@ -40,6 +40,7 @@ in the fixture before anything is read, and no console, bridge or agent is conta
 [[heart-first]] [[unknown-stays-unknown]] [[the-unjoined-end]] [[regression-guard]]
 """
 import ast
+import ctypes
 import io
 import json
 import os
@@ -93,18 +94,20 @@ def _fresh_lane():
 
 class _Base(unittest.TestCase):
 
-    STUBS = ("_capture_is_live", "_agent_origin", "_agent_proc", "_cpu_busy_pct",
+    STUBS = ("_capture_is_live", "_agent_origin", "_agent_proc", "_agent_alive", "_cpu_busy_pct",
              "vault_sweep_state", "_CHRON_JOB", "HIST_DIR", "_TRIAGE_ON", "_TRIAGE_LANE",
-             "_TRIAGE_STORE_SEED")
+             "_TRIAGE_STORE_SEED", "IS_WIN", "stash_screen_open_cached")
+    ENV = ("TV_HIST", "TV_TRIAGE_SHADOW_MAX_CPU", "TV_TRIAGE_WIN_MAX_CPU")
 
     def setUp(self):
         self.world = tempfile.mkdtemp(prefix="triage_shadow_case_")
         self.addCleanup(shutil.rmtree, self.world, True)
-        self._env = {k: os.environ.get(k) for k in ("TV_HIST", "TV_TRIAGE_SHADOW_MAX_CPU")}
+        self._env = {k: os.environ.get(k) for k in self.ENV}
         os.environ["TV_HIST"] = self.world
         os.environ.pop("TV_TRIAGE_SHADOW_MAX_CPU", None)
+        os.environ.pop("TV_TRIAGE_WIN_MAX_CPU", None)
         self._saved = {k: getattr(ca, k) for k in self.STUBS}
-        self._edges = (TVD._d2r_process_alive, RT.survey, FA.sealed_sessions)
+        self._edges = (TVD._pgrep_d2r_state, TVD._toolhelp_d2r_state, RT.survey, FA.sealed_sessions)
         self.addCleanup(self._restore)
         self.assertTrue(os.path.realpath(RT._store_path()).startswith(os.path.realpath(self.world)),
                         "TV_HIST was not honoured by the survey store (%s) - REFUSING to run against "
@@ -114,23 +117,33 @@ class _Base(unittest.TestCase):
         self.cpu_asks = 0
         self.surveyed = []
         self.walks = 1
+        self.playing = False
+        self.agent_live = False
+        self.pgrep_asks = 0
         ca.HIST_DIR = self.world
         ca._TRIAGE_ON = True
         ca._TRIAGE_LANE = _fresh_lane()
         ca._TRIAGE_STORE_SEED = {"read": False, "ts": None, "why": ""}
+        # Mac-shaped by default (CI is Linux, his Mac is darwin): the Windows cases say so themselves
+        ca.IS_WIN = False
         ca._capture_is_live = lambda: False
         ca._agent_proc, ca._agent_origin = None, "hand"
+        # ⚠ _agent_alive falls back to the REAL control_agent.pid — his console's agent. Stubbed.
+        ca._agent_alive = lambda: self.agent_live
         ca._cpu_busy_pct = self._cpu
         ca.vault_sweep_state = lambda: {"running": False}
         ca._CHRON_JOB = {}
-        TVD._d2r_process_alive = lambda *a, **k: False
+        ca.stash_screen_open_cached = lambda f: None
+        # ⚠ the real probes would ask HIS machine whether D2R.exe runs (pgrep on this Mac)
+        TVD._pgrep_d2r_state = self._pgrep
+        TVD._toolhelp_d2r_state = lambda: self.playing
         RT.survey = self._survey
         FA.sealed_sessions = lambda *a, **k: ({}, True)
 
     def _restore(self):
         for k, v in self._saved.items():
             setattr(ca, k, v)
-        TVD._d2r_process_alive, RT.survey, FA.sealed_sessions = self._edges
+        TVD._pgrep_d2r_state, TVD._toolhelp_d2r_state, RT.survey, FA.sealed_sessions = self._edges
         for k, v in self._env.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -142,8 +155,16 @@ class _Base(unittest.TestCase):
         self.cpu_asks += 1
         return self.cpu
 
+    def _pgrep(self):
+        self.pgrep_asks += 1
+        return self.playing
+
     def _survey(self, reels, gate, **k):
+        """A walk the store KEEPS: the reel leaves the owed set, as the real survey()+remember() do."""
         self.surveyed.append([os.path.basename(r) for r in reels])
+        if self.walks:
+            for r in reels:
+                RT.remember(r, 0, 3)
         return {"reels": self.walks, "frames": 3 if self.walks else 0, "panels": 0,
                 "stoppedEarly": False, "say": "stub survey"}
 
@@ -159,13 +180,72 @@ class _Base(unittest.TestCase):
         return d
 
     def rolling(self, origin):
-        """A capture is live, opened by THIS console through `origin`'s door."""
+        """A capture is live, opened by THIS console through `origin`'s door (Windows-shaped: the
+        capture half's pid is alive AND the agent is)."""
         ca._capture_is_live = lambda: True
+        self.agent_live = True
         ca._agent_proc = _Proc()
         ca._agent_origin = origin
 
     def tick(self):
         return ca.retro_triage_tick()
+
+    def doctor_over(self, n_triage):
+        """The doctor row over the state the console PUBLISHES right now, with n reels at TRIAGE."""
+        p = _river(n_triage)
+        p["triage"] = ca.triage_lane_state()
+        real = CD._get
+        CD._get = lambda path, *a, **k: (p if path == "/api/river" else None)
+        try:
+            st, why = CD._check_triage_is_not_starved()
+        finally:
+            CD._get = real
+        return st, (why[0] if isinstance(why, tuple) else why)
+
+
+class _FakeK32(object):
+    """kernel32, as far as the two Windows probes use it: a Toolhelp32 process list and
+    GetSystemTimes. Each call fills the ctypes structure the SHIPPED code allocated (byref()._obj)."""
+
+    def __init__(self, procs=None, times=None, snap_raises=None):
+        self.procs, self.times, self.snap_raises = list(procs or []), list(times or []), snap_raises
+        self.closed, self._i = [], 0
+
+    def CreateToolhelp32Snapshot(self, flags, pid):
+        if self.snap_raises is not None:
+            raise self.snap_raises
+        self._i = 0
+        return 77
+
+    def _fill(self, ref):
+        if self._i >= len(self.procs):
+            return 0
+        ref._obj.szExeFile = self.procs[self._i]
+        self._i += 1
+        return 1
+
+    def Process32FirstW(self, snap, ref):
+        self._i = 0
+        return self._fill(ref)
+
+    def Process32NextW(self, snap, ref):
+        return self._fill(ref)
+
+    def CloseHandle(self, h):
+        self.closed.append(h)
+        return 1
+
+    def GetSystemTimes(self, idle, kern, user):
+        if not self.times:
+            return 0
+        for ref, (hi, lo) in zip((idle, kern, user), self.times.pop(0)):
+            ref._obj.dwHighDateTime, ref._obj.dwLowDateTime = hi, lo
+        return 1
+
+
+class _FakeWindll(object):
+    def __init__(self, k32):
+        self.kernel32 = k32
 
 
 class TriageRunsBesideAShadowReel(_Base):
@@ -267,10 +347,12 @@ class TriageRunsBesideAShadowReel(_Base):
 
     def test_he_is_playing_still_refuses_first(self):
         self.reel()
-        TVD._d2r_process_alive = lambda *a, **k: True
+        self.playing = True
         r = self.tick()
         self.assertEqual(r.get("key"), "playing", r)
         self.assertEqual(self.cpu_asks, 0)
+        self.assertEqual(self.pgrep_asks, 1, "on the Mac the game is asked of pgrep (D2R.exe under "
+                                             "CrossOver)")
 
 
 class EveryOutcomeIsRecorded(_Base):
@@ -566,6 +648,371 @@ class TheCpuHelper(unittest.TestCase):
             self.assertIsNone(ca._cpu_busy_pct(), "an unknown core count must not be guessed as 4")
 
 
+class TheGameOnThisMachine(_Base):
+    """H1 — HIS LAPTOP PLAYS NATIVELY. Dean plays D2R.exe on a Windows laptop, "usually", and triage
+    must stand aside while the game runs and catch up after. The tick asked pgrep, which Windows does
+    not have: FileNotFoundError, swallowed, False on every Windows PC — so with the shadow allowance
+    triage walked reels beside his LOCAL game. Driven through the SHIPPED process probe with a fake
+    kernel32 (the Toolhelp32 walk runs for real over the structures the code allocates)."""
+
+    def _windows(self, procs, **kw):
+        ca.IS_WIN = True
+        TVD._toolhelp_d2r_state = self._edges[1]          # the REAL process half
+        self.playing = None                               # pgrep on Windows: absent, cannot answer
+        k32 = _FakeK32(procs=procs, **kw)
+        p = mock.patch.object(ctypes, "windll", _FakeWindll(k32), create=True)
+        p.start()
+        self.addCleanup(p.stop)
+        return k32
+
+    def test_windows_native_d2r_refuses_playing_beside_a_quiet_shadow_reel(self):
+        self.reel()
+        k32 = self._windows(["System", "explorer.exe", "Battle.net.exe", "D2R.exe"])
+        self.rolling("shadow")
+        self.cpu = 20.0
+        r = self.tick()
+        self.assertEqual(r.get("key"), "playing",
+                         "Windows + D2R.exe up + a shadow reel + a 20%%-busy CPU walked a reel beside "
+                         "his NATIVE game: %r" % r)
+        self.assertIn("Toolhelp32", r.get("why") or "", "the refusal does not say how it looked")
+        self.assertEqual(self.surveyed, [])
+        self.assertEqual(self.pgrep_asks, 0, "pgrep was asked on Windows, where it does not exist")
+        self.assertEqual(self.cpu_asks, 0, "the CPU was sampled after the game was already found")
+        self.assertEqual(k32.closed, [77], "the process snapshot handle was not closed")
+
+    def test_windows_boosteroid_with_a_diablo_titled_window_walks_beside_the_shadow_reel(self):
+        """His ALT: the capture half pinned a Boosteroid window titled for the game, and no D2R.exe
+        runs there. A probe that read cap_target.json's label would call that local play."""
+        self.reel()
+        frames = tempfile.mkdtemp(prefix="triage_capframes_")
+        self.addCleanup(shutil.rmtree, frames, True)
+        with io.open(os.path.join(frames, "cap_target.json"), "w", encoding="utf-8") as fh:
+            json.dump({"mode": "window", "d2rProcess": False, "ts": int(time.time() * 1000),
+                       "label": "Boosteroid [boosteroid] - Diablo II: Resurrected via PrintWindow"}, fh)
+        for p in (mock.patch.object(TVD, "FRAMES", frames), mock.patch.object(sys, "platform", "win32")):
+            p.start()
+            self.addCleanup(p.stop)
+        self._windows(["System", "explorer.exe", "Boosteroid.exe", "chrome.exe"])
+        self.assertTrue(TVD._win_d2r_process_alive(),
+                        "premise: the label step of _win_d2r_process_alive DOES call this window the "
+                        "game - which is why the triage probe must never use it")
+        self.rolling("shadow")
+        r = self.tick()
+        self.assertEqual(r.get("key"), "surveyed",
+                         "a Boosteroid session with no local D2R.exe starved triage again: %r" % r)
+        self.assertEqual(self.surveyed, [["reel_s_1789000000000_1"]])
+
+    def test_a_windows_probe_that_cannot_run_refuses_and_says_unknown(self):
+        self.reel()
+        self._windows([], snap_raises=OSError("the snapshot was refused"))
+        self.rolling("shadow")
+        r = self.tick()
+        self.assertEqual(r.get("key"), "playing-unknown", "a probe that could not run was read as "
+                                                          "'not playing': %r" % r)
+        self.assertIn("UNKNOWN", r.get("why") or "")
+        self.assertEqual(self.surveyed, [])
+        self.assertEqual(self.cpu_asks, 0)
+
+    def test_a_probe_that_raises_refuses_and_says_unknown(self):
+        self.reel()
+        ca.IS_WIN = True
+
+        def _boom():
+            raise RuntimeError("the snapshot exploded")
+        TVD._toolhelp_d2r_state = _boom
+        self.rolling("shadow")
+        r = self.tick()
+        self.assertEqual(r.get("key"), "playing-unknown", r)
+        self.assertIn("raised RuntimeError", r.get("why") or "")
+        self.assertIn("UNKNOWN", r.get("why") or "")
+        self.assertEqual(self.surveyed, [])
+
+    def test_the_mac_probe_reads_pgreps_exit_codes_and_a_missing_pgrep_is_unknown(self):
+        """The Mac keeps pgrep (D2R.exe under CrossOver). Exit 0 = playing, 1 = not; a missing binary
+        or any other code is UNKNOWN — exactly the answer Windows' missing pgrep used to swallow."""
+        self.reel()
+        TVD._pgrep_d2r_state = self._edges[0]             # the REAL pgrep half
+        real_run = TVD.subprocess.run
+        outcome = {}
+
+        def _run(args, *a, **k):
+            if list(args)[:1] != ["pgrep"]:
+                return real_run(args, *a, **k)
+            if "raise" in outcome:
+                raise outcome["raise"]
+            return TVD.subprocess.CompletedProcess(args, outcome["rc"], b"", b"")
+        with mock.patch.object(TVD.subprocess, "run", _run):
+            outcome.clear(); outcome["raise"] = FileNotFoundError("pgrep")
+            self.assertEqual(self.tick().get("key"), "playing-unknown")
+            self.assertFalse(TVD._d2r_process_alive(),
+                             "the two-valued _d2r_process_alive must still read False for its callers")
+            outcome.clear(); outcome["rc"] = 2
+            self.assertEqual(self.tick().get("key"), "playing-unknown", "pgrep exit 2 is not 'no match'")
+            outcome.clear(); outcome["rc"] = 0
+            self.assertEqual(self.tick().get("key"), "playing")
+            self.assertTrue(TVD._d2r_process_alive())
+            outcome.clear(); outcome["rc"] = 1
+            self.assertEqual(self.tick().get("key"), "surveyed")
+        self.assertEqual(self.surveyed, [["reel_s_1789000000000_1"]])
+
+
+class TheStoreMustKeepTheWalk(_Base):
+    """M1 — survey() counts a reel it looked at whether or not remember() kept the verdict, and
+    remember() returns False without raising on an unwritable or corrupt store. So the lane walked
+    the SAME reel every 90 s for ever, answered key=surveyed, stamped lastTs — and the doctor read OK.
+    Driven through the REAL survey() and remember() on the fixture store; only the frame gate is stubbed."""
+
+    def _real_survey(self):
+        RT.survey = self._edges[2]
+        self.gate_calls = 0
+
+        def _gate(f):
+            self.gate_calls += 1
+            return None
+        ca.stash_screen_open_cached = _gate
+
+    def _unwritable(self):
+        os.chmod(self.world, 0o555)
+        self.addCleanup(os.chmod, self.world, 0o755)
+        probe = os.path.join(self.world, ".probe")
+        try:
+            open(probe, "w").close()
+        except (IOError, OSError):
+            return                                       # chmod holds: the store cannot be written
+        # running as root, where chmod does not bind: block the store's own atomic write instead
+        os.remove(probe)
+        os.makedirs(RT._store_path() + ".tmp")
+
+    def _four_hours_on(self):
+        L = ca._TRIAGE_LANE
+        L["upSince"] -= int(4 * HOUR * 1000)
+        if L.get("owedSince"):
+            L["owedSince"] -= int(4 * HOUR * 1000)
+
+    def _assert_not_remembered(self, how):
+        r = self.tick()
+        self.assertEqual(self.gate_calls, 3, "premise: the survey really looked at the reel's 3 frames")
+        self.assertFalse(r.get("ok"), r)
+        self.assertEqual(r.get("key"), "not-remembered",
+                         "a walk the store did not keep was counted as a walk: %r" % r)
+        self.assertIn(how, r.get("why") or "")
+        L = ca._TRIAGE_LANE
+        self.assertIsNone(L["lastTs"], "a walk the store did not keep stamped lastTs")
+        self.assertEqual(L["surveyed"], 0)
+        self.assertEqual(L["backlog"], 1, "the reel is still owed")
+        self.assertEqual(self.tick().get("key"), "not-remembered")
+        self.assertEqual(ca._TRIAGE_LANE["skips"].get("not-remembered"), 2,
+                         "the second tick paid for the same reel and was not recorded as a refusal")
+        self._four_hours_on()
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, "a lane re-walking one reel for ever read healthy: %s" % why)
+        self.assertIn("not-remembered", why)
+
+    def test_an_unwritable_store_records_not_remembered_and_reads_missing_after_the_bar(self):
+        self.reel()
+        self._real_survey()
+        self._unwritable()
+        self._assert_not_remembered("would not take the write")
+
+    def test_a_corrupt_store_records_not_remembered_and_reads_missing_after_the_bar(self):
+        self.reel()
+        self._real_survey()
+        with io.open(RT._store_path(), "w", encoding="utf-8") as fh:
+            fh.write("{not json at all")
+        self._assert_not_remembered("does not read back cleanly")
+
+    def test_a_writable_store_counts_the_walk(self):
+        """The baseline: the same real survey on a healthy store IS a walk."""
+        d = self.reel()
+        self._real_survey()
+        r = self.tick()
+        self.assertEqual(r.get("key"), "surveyed", r)
+        self.assertIs(RT.worth_reading(d), False, "the verdict (looked, no panel) was not stored")
+        self.assertIsNotNone(ca._TRIAGE_LANE["lastTs"])
+
+
+class TheWaitIsHowLongAReelWaited(_Base):
+    """M2 — the row measured time since the LAST WALK, not how long a reel had WAITED. After an idle
+    day the last walk is a day old, so a reel folded 30 s ago (still settling) or held ten minutes
+    behind 'playing' read MISSING '24.0 h' — on his Mac, every evening he plays."""
+
+    def _an_idle_day(self):
+        ts = int((time.time() - 24 * HOUR) * 1000)
+        with io.open(RT._store_path(), "w", encoding="utf-8") as fh:
+            json.dump({"reel_s_1788000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
+        ca._TRIAGE_LANE["upSince"] -= int(48 * HOUR * 1000)
+
+    def test_a_day_old_store_row_and_a_reel_folded_moments_ago_reads_ok(self):
+        self._an_idle_day()
+        self.reel(age_s=5)
+        self.assertEqual(self.tick().get("key"), "unworkable", "premise: the reel is still settling")
+        s = ca.triage_lane_state()
+        self.assertGreater(s["sinceSurveyS"], 23.9 * HOUR, "premise: the last walk is a day old")
+        self.assertEqual(s["waitFrom"], "the first tick that found this backlog")
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "a reel folded seconds ago read as starved for a day: %s" % why)
+
+    def test_the_same_reel_still_unwalked_four_hours_later_reads_missing(self):
+        self._an_idle_day()
+        self.reel(age_s=5)
+        self.tick()
+        ca._TRIAGE_LANE["owedSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("4.0 h", why)
+        self.assertIn("the first tick that found this backlog", why)
+
+    def test_after_an_idle_day_a_reel_held_behind_playing_reads_ok_then_missing(self):
+        """Every tick since the reel folded refused before it could count the backlog - the lane was
+        caught up just before, and that is the moment the wait can have begun."""
+        self._an_idle_day()
+        self.assertEqual(self.tick().get("key"), "done", "premise: nothing owed - the lane is caught up")
+        self.reel(age_s=HOUR)
+        self.playing = True
+        self.assertEqual(self.tick().get("key"), "playing")
+        s = ca.triage_lane_state()
+        self.assertEqual(s["waitFrom"], "the last tick that found nothing owed")
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "ten minutes behind 'playing' after an idle day read starved: %s" % why)
+        ca._TRIAGE_LANE["caughtUpTs"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("[playing]", why, "the row does not say the lane is standing aside for his game")
+
+
+class ABootIsNotAStarvedLane(_Base):
+    """L1 — at boot the first periodic look lands before the loop's first tick, and the row read
+    'NONE RECORDED ... the loop may not be running' after every relaunch."""
+
+    def _five_hour_old_walk(self):
+        ts = int((time.time() - 5 * HOUR) * 1000)
+        with io.open(RT._store_path(), "w", encoding="utf-8") as fh:
+            json.dump({"reel_s_1788000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
+
+    def test_a_lane_that_has_not_ticked_yet_is_unknown_not_missing(self):
+        self._five_hour_old_walk()
+        self.assertEqual(ca._TRIAGE_LANE["ticks"], 0, "premise: no tick yet in this process")
+        st, why = self.doctor_over(2)
+        self.assertEqual(st, CD.UNKNOWN, "a console seconds after boot read as starved or clean: %s" % why)
+        self.assertIn("has not ticked yet in this process", why)
+
+    def test_a_lane_that_never_ticked_for_hours_is_missing(self):
+        self._five_hour_old_walk()
+        ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(2)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("NONE RECORDED", why)
+
+
+class TheLoadBarCanTrip(_Base):
+    """L2 — Windows' no-capture bar was 100 on a 0.5 s utilisation sample, which never reads 100.
+    Pinned with LITERAL numbers, so a constant pushed to the ceiling goes red."""
+
+    def test_windows_95_percent_busy_refuses_and_89_walks(self):
+        ca.IS_WIN = True
+        self.reel()
+        self.cpu = 95.0
+        r = self.tick()
+        self.assertEqual(r.get("key"), "cpu-loaded", "a 95%%-busy Windows machine ran triage: %r" % r)
+        self.assertIn("95%", r.get("why") or "")
+        self.cpu = 89.0
+        self.assertEqual(self.tick().get("key"), "surveyed")
+
+    def test_a_windows_override_at_the_ceiling_is_refused_and_one_below_it_takes(self):
+        ca.IS_WIN = True
+        self.reel()
+        self.cpu = 95.0
+        os.environ["TV_TRIAGE_WIN_MAX_CPU"] = "100"
+        self.assertEqual(self.tick().get("key"), "cpu-loaded", "an override AT the ceiling was taken - "
+                                                               "the bar can never trip again")
+        os.environ["TV_TRIAGE_WIN_MAX_CPU"] = "97"
+        self.assertEqual(self.tick().get("key"), "surveyed", "the override was not read at call time")
+
+    def test_the_mac_load_bar_refuses_at_1_2_times_the_cores(self):
+        ca.IS_WIN = False
+        ca._cpu_busy_pct = self._saved["_cpu_busy_pct"]   # the REAL helper over a faked load
+        self.reel()
+        with mock.patch.object(ca.os, "getloadavg", create=True, return_value=(12.0, 1, 1)), \
+                mock.patch.object(ca.os, "cpu_count", return_value=10):
+            self.assertEqual(self.tick().get("key"), "cpu-loaded",
+                             "load 12 on 10 cores (1.2 x) did not trip the Mac bar")
+        with mock.patch.object(ca.os, "getloadavg", create=True, return_value=(5.0, 1, 1)), \
+                mock.patch.object(ca.os, "cpu_count", return_value=10):
+            self.assertEqual(self.tick().get("key"), "surveyed")
+
+
+class GetSystemTimesIsRead(unittest.TestCase):
+    """L3 — _system_times (ctypes GetSystemTimes + the FILETIME high/low combine) never ran in the law.
+    The fake fills FILETIMEs whose low words CARRY into the high word between samples, so a combine
+    that drops the high DWORD reads garbage."""
+
+    #: idle, kernel, user as (high, low) — deltas 5 / 50 / 50, every one crossing a 2^32 boundary
+    SAMPLES = [((3, 0xFFFFFFFE), (9, 0xFFFFFFE0), (1, 0xFFFFFFFF)),
+               ((4, 3), (10, 0x12), (2, 49))]
+
+    def setUp(self):
+        self._win = ca.IS_WIN
+        self.addCleanup(setattr, ca, "IS_WIN", self._win)
+
+    def _windll(self, samples):
+        return mock.patch.object(ctypes, "windll", _FakeWindll(_FakeK32(times=samples)), create=True)
+
+    def test_the_high_and_low_words_are_combined(self):
+        with self._windll(list(self.SAMPLES)):
+            got = ca._system_times()
+        self.assertEqual(got, ((3 << 32) | 0xFFFFFFFE, (9 << 32) | 0xFFFFFFE0, (1 << 32) | 0xFFFFFFFF))
+
+    def test_the_windows_busy_reading_crosses_a_high_word_carry(self):
+        ca.IS_WIN = True
+        with self._windll(list(self.SAMPLES)):
+            self.assertEqual(ca._cpu_busy_pct(sample_s=0), 95.0,
+                             "the Windows CPU reading is wrong across a FILETIME high-word carry")
+
+    def test_a_refused_call_is_unmeasured(self):
+        ca.IS_WIN = True
+        with self._windll([]):
+            self.assertIsNone(ca._system_times())
+            self.assertIsNone(ca._cpu_busy_pct(sample_s=0))
+
+
+class TheMacCameraIsTheAgent(_Base):
+    """L4 — on the Mac control_capture.pid is never written (only capture_win.ps1 writes it), so
+    _capture_is_live() is never True there and the ON AIR / MINI refusal was unreachable: triage ran
+    beside HIS session with only the load bar in the way. The camera on a Mac is the console's agent."""
+
+    def _mac_agent(self, origin):
+        ca._capture_is_live = lambda: False
+        self.agent_live = True
+        ca._agent_proc, ca._agent_origin = _Proc(), origin
+
+    def test_a_mac_on_air_session_refuses_the_camera(self):
+        self.reel()
+        self._mac_agent("hand")
+        self.assertFalse(ca._capture_is_live(), "premise: no Windows capture pid on a Mac")
+        r = self.tick()
+        self.assertEqual(r.get("key"), "capture-onair", "triage walked a reel beside his Mac ON AIR: %r" % r)
+        self.assertEqual(self.surveyed, [])
+        self.assertEqual(self.cpu_asks, 0)
+
+    def test_a_mac_mini_session_refuses_too(self):
+        self.reel()
+        self._mac_agent("mini")
+        self.assertEqual(self.tick().get("key"), "capture-mini")
+
+    def test_a_mac_shadow_reel_is_shared_when_the_cpu_is_quiet(self):
+        self.reel()
+        self._mac_agent("shadow")
+        r = self.tick()
+        self.assertEqual(r.get("key"), "surveyed", r)
+        self.assertTrue(r.get("shadow"))
+
+    def test_an_agent_this_console_did_not_open_is_his(self):
+        self.reel()
+        self.agent_live = True
+        ca._agent_proc, ca._agent_origin = None, "shadow"
+        self.assertEqual(self.tick().get("key"), "capture-unowned")
+
+
 RED_PROOF = [
     {
         "why": "2026-09-28 - the old behaviour: any live capture refuses, so a continuously rolling shadow "
@@ -707,6 +1154,132 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    return n if seen else None\n",
         "replace": "    return n if seen else 0\n",
+        "matches": 1,
+    },
+    # ── the adversarial review of 3a495c26, every item reproduced, each fix driven and sabotaged ──
+    {
+        "why": "H1 - Windows asks pgrep (absent there) instead of the process table, so Dean's native "
+               "D2R.exe is never seen",
+        "file": "control_app.py",
+        "find": "        if IS_WIN:\n            return _tvd._toolhelp_d2r_state(), \"a Toolhelp32 process snapshot\"\n",
+        "replace": "        if False:\n            return _tvd._toolhelp_d2r_state(), \"a Toolhelp32 process snapshot\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "H1 - the probe reads cap_target.json's label: a Boosteroid window titled 'Diablo' starves "
+               "the ALT again",
+        "file": "control_app.py",
+        "find": "            return _tvd._toolhelp_d2r_state(), \"a Toolhelp32 process snapshot\"\n",
+        "replace": "            return _tvd._win_d2r_process_alive(), \"a Toolhelp32 process snapshot\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "H1 - the shipped defect itself: the tick asks the two-valued pgrep probe, which swallows "
+               "Windows' missing pgrep as 'not playing'",
+        "file": "control_app.py",
+        "find": "    _playing, _how = _d2r_running_here()\n",
+        "replace": "    import tv_diablo as _tvd0\n    _playing, _how = _tvd0._d2r_process_alive(), \"pgrep\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "H1 - a probe that cannot run is read as 'he is not playing'",
+        "file": "control_app.py",
+        "find": "    if _playing is None:\n        return {\"ok\": False, \"key\": \"playing-unknown\",\n",
+        "replace": "    if False:\n        return {\"ok\": False, \"key\": \"playing-unknown\",\n",
+        "matches": 1,
+    },
+    {
+        "why": "H1 - a refused process snapshot answers False (not running) instead of UNKNOWN",
+        "file": "tv_diablo.py",
+        "find": "    except Exception:\n        return None\n    return False\n",
+        "replace": "    except Exception:\n        return False\n    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "H1 - a missing pgrep answers False (not running) instead of UNKNOWN",
+        "file": "tv_diablo.py",
+        "find": "    except Exception:\n        return None\n    if out.returncode == 0:\n",
+        "replace": "    except Exception:\n        return False\n    if out.returncode == 0:\n",
+        "matches": 1,
+    },
+    {
+        "why": "M1 - a walk the store did not keep counts as a walk: the same reel every 90 s for ever, "
+               "lastTs stamped, doctor OK",
+        "file": "control_app.py",
+        "find": "    walked = 1 if (looked and _rt.worth_reading(d) is not None) else 0\n",
+        "replace": "    walked = looked\n",
+        "matches": 1,
+    },
+    {
+        "why": "M2 - the wait ignores the first tick that found the backlog: a reel folded moments ago "
+               "after an idle day reads starved for a day",
+        "file": "control_app.py",
+        "find": "                  (\"the first tick that found this backlog\", d.get(\"owedSince\")),\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "M2 - the wait ignores the last caught-up tick: ten minutes behind 'playing' after an idle "
+               "day reads starved for a day",
+        "file": "control_app.py",
+        "find": "                  (\"the last tick that found nothing owed\", d.get(\"caughtUpTs\")),\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "M2 - a tick that finds nothing owed never stamps caughtUpTs",
+        "file": "control_app.py",
+        "find": "            L[\"owedSince\"], L[\"caughtUpTs\"] = None, now\n",
+        "replace": "            L[\"owedSince\"], L[\"caughtUpTs\"] = None, None\n",
+        "matches": 1,
+    },
+    {
+        "why": "M2 - the doctor judges by the last walk, not by how long the reels waited",
+        "file": "console_doctor.py",
+        "find": "    wait = tri.get(\"waitS\")\n",
+        "replace": "    wait = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "L1 - a console seconds after boot reads as a starved (or clean) lane before its first tick",
+        "file": "console_doctor.py",
+        "find": "    if (tri.get(\"ticks\") == 0 and isinstance(up, (int, float))\n",
+        "replace": "    if (False and isinstance(up, (int, float))\n",
+        "matches": 1,
+    },
+    {
+        "why": "L2 - the Windows utilisation bar sits AT the ceiling, where a 0.5 s sample never reaches it",
+        "file": "control_app.py",
+        "find": "_TRIAGE_WIN_MAX_CPU = 90.0\n",
+        "replace": "_TRIAGE_WIN_MAX_CPU = 100.0\n",
+        "matches": 1,
+    },
+    {
+        "why": "L2 - the Mac load bar is pushed past its own cap and can never trip",
+        "file": "control_app.py",
+        "find": "\n_TRIAGE_MAX_CPU = 100.0\n",
+        "replace": "\n_TRIAGE_MAX_CPU = 101.0\n",
+        "matches": 1,
+    },
+    {
+        "why": "L2 - an override AT the ceiling is taken, restoring a bar that cannot trip",
+        "file": "control_app.py",
+        "find": "                if 0 < v < 100:\n                    return v\n",
+        "replace": "                if 0 < v <= 100:\n                    return v\n",
+        "matches": 1,
+    },
+    {
+        "why": "L3 - the FILETIME high DWORD is dropped: every reading across a 2^32 carry is garbage",
+        "file": "control_app.py",
+        "find": "        return tuple((ft.dwHighDateTime << 32) | ft.dwLowDateTime for ft in (idle, kern, user))\n",
+        "replace": "        return tuple(ft.dwLowDateTime for ft in (idle, kern, user))\n",
+        "matches": 1,
+    },
+    {
+        "why": "L4 - on the Mac the camera refusal keys on the Windows-only capture pid and never fires",
+        "file": "control_app.py",
+        "find": "    if _capture_is_live() or _agent_alive():\n",
+        "replace": "    if _capture_is_live():\n",
         "matches": 1,
     },
 ]

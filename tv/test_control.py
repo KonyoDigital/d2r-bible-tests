@@ -40472,13 +40472,16 @@ class TestV2367TheFreePassActuallyRuns(unittest.TestCase):
         # on Windows too (getloadavg does not exist there, and the swallowed AttributeError left
         # his ALT with no load guard at all). Same law, the mechanism moved into the helper; the
         # DRIVEN law is test_triage_runs_beside_a_shadow_reel.py.
-        for probe, what in (("_d2r_process_alive", "he is playing"),
+        # 2026-09-28 — "he is playing" is asked through _d2r_running_here(): a LOCAL process probe on
+        # every OS (Toolhelp32 on Windows, where pgrep - and so _d2r_process_alive - always read False).
+        # The disk floor this class's docstring lists was never implemented and is no longer promised.
+        for probe, what in (("_d2r_running_here()", "he is playing"),
                             ("_cpu_busy_pct()", "machine load"),
                             ("_capture_is_live", "a live capture"),
                             ("vault_sweep_state", "a paid sweep running")):
             self.assertIn(probe, b, "the lane no longer backs off for %s" % what)
         i_survey = b.index("_rt.survey(")
-        for probe in ("_d2r_process_alive", "_cpu_busy_pct()", "_capture_is_live"):
+        for probe in ("_d2r_running_here()", "_cpu_busy_pct()", "_capture_is_live"):
             self.assertLess(b.index(probe), i_survey,
                             "%s is checked AFTER the survey - the cost is already paid by then"
                             % probe)

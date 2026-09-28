@@ -4391,13 +4391,16 @@ def _check_triage_is_not_starved(*_a, **_k):
     success, and published nothing: a lane refusing for ever read exactly like a lane with nothing
     to do. His words: "this needs to be automated flow", "not stacking up".
 
-    MISSING when the river holds reels at TRIAGE and no reel has been walked for more than
-    TRIAGE_STARVED_AFTER_S — naming the lane's last refusal, how often each reason fired, and the
-    backlog it counted. A lane that has never walked a reel is judged by how long its process has
-    been up, and the console seeds its last walk from the survey store, so a relaunch does not
-    reset the clock to "never".
+    MISSING when the river holds reels at TRIAGE and they have waited more than
+    TRIAGE_STARVED_AFTER_S with no reel walked — naming the lane's last refusal, how often each
+    reason fired, and the backlog it counted. ⚠ 2026-09-28: the wait is the console's `waitS`,
+    counted from the LATEST of the last walk, the last tick that found nothing owed, the first tick
+    that found this backlog and the process starting — not from the last walk alone, which after an
+    idle day read a reel folded a minute ago as starved for a day. A console that predates waitS is
+    judged the old way (last walk, else process uptime).
     UNKNOWN when the lane's state cannot be read (no answer, a console that predates the field, an
-    unreadable state) or the river cannot say how many reels sit at TRIAGE.
+    unreadable state), the river cannot say how many reels sit at TRIAGE, or the lane has not had
+    two intervals to tick since its process started (the first periodic look at boot).
     UNMEASURED when the lane is stood down in this world BY DESIGN (a TV_STUB harness).
     OK otherwise — nothing waits in TRIAGE, or a reel was walked inside the bar.
 
@@ -4439,9 +4442,35 @@ def _check_triage_is_not_starved(*_a, **_k):
               "last walk: %s" % ("never" if tri.get("lastSurveyTs") is None else
                                  "%s via %s" % (tri.get("lastReel") or "a reel",
                                                 tri.get("lastSurveySource") or "?"))]
+    if isinstance(tri.get("waitS"), (int, float)):
+        detail.append("the wait is counted from %s (%.1f h ago)"
+                      % (tri.get("waitFrom") or "?", float(tri["waitS"]) / 3600.0))
     if not n:
         return OK, ("no reel waits in TRIAGE — nothing is stacking up behind the triage lane", detail)
-    if since is not None:
+    # ⚠ 2026-09-28 (L1) — AT BOOT THE FIRST PERIODIC LOOK LANDS BEFORE THE LOOP'S FIRST TICK (it sleeps
+    # _TRIAGE_EVERY_S before ticking), and the row read "NONE RECORDED — the loop may not be running"
+    # after every relaunch. A lane that has not had two intervals to tick is not yet a lane that
+    # failed to. `ticks` is absent on a console that predates it, so only an explicit 0 counts.
+    _every = tri.get("everyS")
+    if (tri.get("ticks") == 0 and isinstance(up, (int, float))
+            and isinstance(_every, (int, float)) and float(up) < 2.0 * float(_every)):
+        return UNKNOWN, ("%d reel(s) wait in TRIAGE and the triage lane has not ticked yet in this "
+                         "process (up %.0f s; it first ticks after %.0f s) — whether it is walking "
+                         "them is UNKNOWN, not starved" % (n, float(up), float(_every)), detail)
+    wait = tri.get("waitS")
+    if isinstance(wait, (int, float)) and not isinstance(wait, bool):
+        # ⚠ 2026-09-28 (M2) — HOW LONG THE REELS HAVE WAITED, NOT HOW LONG SINCE THE LAST WALK. After an
+        # idle day the last walk is a day old, so a reel folded 30 s ago (still settling) or held ten
+        # minutes behind 'playing' read MISSING "24.0 h" — every evening he plays. waitS counts from
+        # the LATEST of the last walk, the last tick that found nothing owed, the first tick that
+        # found this backlog and the process starting (see triage_lane_state). [[stale-reading]]
+        age_s = float(wait)
+        _from = str(tri.get("waitFrom") or "an unnamed mark")
+        if tri.get("lastSurveyTs") is None:
+            span = "has NEVER walked a reel, and %.1f h have passed since %s" % (age_s / 3600.0, _from)
+        else:
+            span = "has walked no reel in the %.1f h since %s" % (age_s / 3600.0, _from)
+    elif since is not None:
         age_s = float(since)
         span = "has not walked a reel for %.1f h" % (age_s / 3600.0)
     elif up is not None:
