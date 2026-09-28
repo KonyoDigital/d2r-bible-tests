@@ -4356,6 +4356,27 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
 #: a reel may wait in TRIAGE this long with no reel walked before the lane counts as STARVED. At
 #: the measured ~0.02 s/frame one tick walks a whole reel, so 3 h is ~120 ticks of 90 s — not jitter.
 TRIAGE_STARVED_AFTER_S = 3 * 3600
+#: ⚠ 2026-09-28 — STANDING ASIDE FOR HIS GAME HAS ITS OWN BAR. Dean plays D2R natively for hours
+#: ("usually" how he plays) and the lane refuses 'playing' on every tick BY DESIGN, catching up when
+#: he stops — so a 3.5 h evening session read MISSING against the 3 h starve bar. While the lane's
+#: LAST outcome is 'playing', the row is judged by how long the UNBROKEN run of 'playing' has lasted
+#: (the console's playingForS) against this bar instead: OK up to it, MISSING past it — a D2R.exe left
+#: open for days still starves the river, and still goes red. An adversarial review reproduced both.
+TRIAGE_PLAYING_BAR_S = 12 * 3600
+
+
+def _skips_dominated_by(skips, key):
+    """Is `key` MORE THAN HALF of the lane's refusals in this process? -> (bool, n_key, n_all)"""
+    n_key, n_all = 0, 0
+    for k, v in (skips or {}).items():
+        try:
+            c = int(v or 0)
+        except (TypeError, ValueError):
+            continue
+        n_all += c
+        if k == key:
+            n_key = c
+    return (n_key > 0 and 2 * n_key > n_all), n_key, n_all
 
 
 def _river_triage_count(riv):
@@ -4403,6 +4424,11 @@ def _check_triage_is_not_starved(*_a, **_k):
     two intervals to tick since its process started (the first periodic look at boot).
     UNMEASURED when the lane is stood down in this world BY DESIGN (a TV_STUB harness).
     OK otherwise — nothing waits in TRIAGE, or a reel was walked inside the bar.
+    ⚠ 2026-09-28 — A LANE WHOSE LAST OUTCOME IS 'playing' is judged by its UNBROKEN run of play
+    (playingForS) against TRIAGE_PLAYING_BAR_S (12 h): OK "standing aside for his game" up to it,
+    MISSING past it. Standing aside while D2R.exe runs is by design; a game left open for days is not.
+    And when 'playing-unknown' is MORE THAN HALF the refusals, the row says the play probe cannot run
+    on this machine — a distinct sentence, since that lane is blind rather than busy.
 
     ⚠ IT READS THE WIRE, NEVER `import control_app` — that builds a second module whose
     _TRIAGE_LANE is the empty literal (test_the_doctor_reads_the_console_not_a_twin).
@@ -4457,6 +4483,41 @@ def _check_triage_is_not_starved(*_a, **_k):
         return UNKNOWN, ("%d reel(s) wait in TRIAGE and the triage lane has not ticked yet in this "
                          "process (up %.0f s; it first ticks after %.0f s) — whether it is walking "
                          "them is UNKNOWN, not starved" % (n, float(up), float(_every)), detail)
+    # ⚠ 2026-09-28 — STANDING ASIDE FOR HIS GAME IS BY DESIGN, UP TO A BAR OF ITS OWN. While the lane's
+    # LAST outcome is 'playing' (D2R.exe runs on that machine), the reels wait because he is playing,
+    # not because the lane is broken: judged by the 3 h starve bar, Dean's 3.5 h evening session read
+    # MISSING. So a 'playing' lane is judged by how long the UNBROKEN run of 'playing' has lasted
+    # (playingForS, counted by the console: the first tick of the run, cleared by any other outcome)
+    # against TRIAGE_PLAYING_BAR_S — OK up to it, MISSING past it, because a D2R.exe left open for
+    # days starves the river as surely as a dead loop. A console that predates playingForS falls
+    # through to the old judgement below. [[unknown-stays-unknown]]
+    _pf = tri.get("playingForS")
+    if (tri.get("lastKey") == "playing" and isinstance(_pf, (int, float))
+            and not isinstance(_pf, bool)):
+        _pf = float(_pf)
+        detail.append("an unbroken run of 'playing' for %.1f h (bar %.0f h)"
+                      % (_pf / 3600.0, TRIAGE_PLAYING_BAR_S / 3600.0))
+        if _pf <= TRIAGE_PLAYING_BAR_S:
+            return OK, ("standing aside for his game - %d reel(s) wait, %.1f h of unbroken play "
+                        "(D2R.exe runs on this machine; bar %.0f h) - triage catches up when he stops"
+                        % (n, _pf / 3600.0, TRIAGE_PLAYING_BAR_S / 3600.0), detail)
+        return MISSING, ("%d reel(s) wait in TRIAGE and the lane has stood aside for his game for %.1f h "
+                         "without a break (bar %.0f h) - a D2R.exe left open that long starves the "
+                         "river. Its last refusal: %s [playing]. Backlog: %s reel(s) owed a survey."
+                         % (n, _pf / 3600.0, TRIAGE_PLAYING_BAR_S / 3600.0,
+                            str(tri.get("lastWhy") or "he is playing")[:140],
+                            "UNKNOWN" if backlog is None else backlog), detail)
+    # ⚠ 2026-09-28 — A PLAY PROBE THAT CANNOT RUN IS ITS OWN SENTENCE. 'playing-unknown' refuses every
+    # tick on purpose (it will not guess whether he is playing), so a lane whose refusals are mostly
+    # that is not "starved by load" or "starved by a camera" — it is blind on this machine, and will
+    # stay blind until the probe can answer. Still refusing; the row says WHICH kind of stuck.
+    _blind, _n_pu, _n_all = _skips_dominated_by(skips, "playing-unknown")
+    probe_blind = ("the play probe cannot run on this machine - %d of %d refusals were "
+                   "'playing-unknown', so every tick refuses rather than guess whether he is "
+                   "playing, and it will keep refusing until the probe can answer (%s)"
+                   % (_n_pu, _n_all, str((tri.get("lastSkipWhy") if tri.get("lastSkipKey") ==
+                                          "playing-unknown" else "") or "no reason recorded")[:120])
+                   if _blind else "")
     wait = tri.get("waitS")
     if isinstance(wait, (int, float)) and not isinstance(wait, bool):
         # ⚠ 2026-09-28 (M2) — HOW LONG THE REELS HAVE WAITED, NOT HOW LONG SINCE THE LAST WALK. After an
@@ -4481,6 +4542,11 @@ def _check_triage_is_not_starved(*_a, **_k):
                          "how long it has been up, so how long they have waited is UNKNOWN" % n)
     bar_h = TRIAGE_STARVED_AFTER_S / 3600.0
     if age_s > TRIAGE_STARVED_AFTER_S:
+        if probe_blind:
+            return MISSING, ("%d reel(s) wait in TRIAGE and the triage lane %s (bar %.0f h): %s. "
+                             "Backlog: %s reel(s) owed a survey."
+                             % (n, span, bar_h, probe_blind,
+                                "UNKNOWN" if backlog is None else backlog), detail)
         last = tri.get("lastSkipWhy") or tri.get("lastWhy")
         said = ("%s [%s]" % (str(last)[:140], tri.get("lastSkipKey") or tri.get("lastKey"))
                 if last else "NONE RECORDED — no tick has reported at all, so the loop itself may "
@@ -4488,8 +4554,8 @@ def _check_triage_is_not_starved(*_a, **_k):
         return MISSING, ("%d reel(s) wait in TRIAGE and the triage lane %s (bar %.0f h). Its last "
                          "refusal: %s. Backlog: %s reel(s) owed a survey."
                          % (n, span, bar_h, said, "UNKNOWN" if backlog is None else backlog), detail)
-    return OK, ("%d reel(s) wait in TRIAGE and the lane %s — inside the %.0f h bar"
-                % (n, span, bar_h), detail)
+    return OK, ("%d reel(s) wait in TRIAGE and the lane %s — inside the %.0f h bar%s"
+                % (n, span, bar_h, ("; but " + probe_blind) if probe_blind else ""), detail)
 
 
 #: ══ v#### — THE FOUR ROUTES GET FOUR ROWS, SO ONE CAN GO RED ALONE ════════════════════════════

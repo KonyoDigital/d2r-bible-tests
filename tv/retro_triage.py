@@ -273,8 +273,12 @@ def unread_reels(hist_dir, sealed):
     return out
 
 
+#: how often a walk asks its `abort` hook, in frames, besides once at the start of every reel
+ABORT_EVERY_FRAMES = 100
+
+
 def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
-           on_reel=None, nice_delay_s=0.0, remember_to=None):
+           on_reel=None, nice_delay_s=0.0, remember_to=None, abort=None, abort_every=None):
     """Classify frames structurally. -> dict. READS NOTHING PAID AND DELETES NOTHING.
 
     `gate(path)` is control_app.stash_screen_open_cached - a crop plus an OCR of the panel chrome,
@@ -282,6 +286,15 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
 
     `every_frame=False` samples, and the result then carries `sampled: True` so no caller can
     mistake an estimate for a decision. A disposal list is only ever produced from a full pass.
+
+    ⚠ 2026-09-28 — `abort`: a no-argument callable asked at the START of every reel and every
+    `abort_every` frames (default ABORT_EVERY_FRAMES) inside one. Falsy = walk on; anything else is
+    the REASON, and the walk stops at once: `stoppedEarly` True, `aborted` = that reason (a raise in
+    the hook stops it too — cannot tell whether to go on, so it does not), `abortedAt` = {reel,
+    frames}. The reel in progress is NOT remembered — a half-walked reel is not a walked one, and
+    `full: True` would be a lie — and its keep/dispose claims and counts are withdrawn, so no
+    caller can dispose of frames from a reel nobody finished. The triage lane passes the play probe:
+    budget_s alone let a walk run two minutes beside a game he had just started. [[heart-first]]
     """
     # ⚠ `remember_to` IS A ROOT PATH, NOT A CALLBACK — its name reads like one, and passing
     # `remember_to=remember` (the obvious guess) sent a FUNCTION into os.path.join and lost a
@@ -293,9 +306,31 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
     t0 = time.time()
     out = {"reels": 0, "frames": 0, "panels": 0, "byKind": {}, "keep": [], "dispose": [],
            "perReel": {}, "sampled": (not every_frame), "errors": 0, "stoppedEarly": False}
+    try:
+        every = max(1, int(abort_every or ABORT_EVERY_FRAMES))
+    except (TypeError, ValueError):
+        every = ABORT_EVERY_FRAMES
+
+    def _stop_asked():
+        """The hook's answer: None to walk on, else the reason to stop."""
+        if abort is None:
+            return None
+        try:
+            v = abort()
+        except Exception as e:
+            # cannot tell whether to go on -> do not (the hook exists to stop a walk that must not run)
+            return ("the abort check raised %s - whether the walk may go on is UNKNOWN, so it stopped"
+                    % type(e).__name__)
+        return v or None
+
     for d in (reels or []):
         if budget_s and (time.time() - t0) > budget_s:
             out["stoppedEarly"] = True
+            break
+        stop = _stop_asked()
+        if stop:
+            out.update(stoppedEarly=True, aborted=stop,
+                       abortedAt={"reel": os.path.basename(d), "frames": 0})
             break
         fs = sorted(glob.glob(os.path.join(d, "*.jpg")))
         if not fs:
@@ -304,6 +339,9 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
             step = max(1, len(fs) // per_reel_sample)
             fs = fs[::step][:per_reel_sample]
         out["reels"] += 1
+        # what this reel may have to give back if the walk is stopped inside it
+        _undo = (len(out["keep"]), len(out["dispose"]), out["panels"], dict(out["byKind"]))
+        stop, walked_here = None, 0
         hits = 0
         # v2385 — PER-REEL kinds. `out["byKind"]` has always carried the real tab names, but only
         # across the WHOLE pass; what got written per reel was rebuilt below with the literal
@@ -312,6 +350,11 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
         reel_kinds = {}
         reel_panel_frames = {}          # v2393 — basename -> surface, for the frames that CARRY
         for f in fs:
+            if walked_here and walked_here % every == 0:
+                stop = _stop_asked()
+                if stop:
+                    break
+            walked_here += 1
             out["frames"] += 1
             try:
                 v = gate(f)
@@ -335,6 +378,19 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
             elif every_frame:
                 # only a FULL pass may call a frame disposable; a sample has not looked at enough
                 out["dispose"].append(f)
+        if stop:
+            # ⚠ STOPPED INSIDE THIS REEL: it was not walked. Nothing is remembered for it (a `full`
+            # row would claim frames nobody looked at), and what it added to keep/dispose/panels is
+            # given back — a caller disposing of `dispose` must never get a half-read reel's frames.
+            # `frames` keeps the work actually done. [[unknown-stays-unknown]]
+            _k, _dp, _pn, _bk = _undo
+            del out["keep"][_k:]
+            del out["dispose"][_dp:]
+            out["panels"], out["byKind"] = _pn, _bk
+            out["reels"] -= 1
+            out.update(stoppedEarly=True, aborted=stop,
+                       abortedAt={"reel": os.path.basename(d), "frames": walked_here})
+            break
         out["perReel"][os.path.basename(d)] = hits
         # ⚠ ONLY A FULL PASS MAY BE REMEMBERED. A strided sample cannot prove a reel holds no
         # panel, so recording its verdict would let a later lookup skip a reel nobody actually

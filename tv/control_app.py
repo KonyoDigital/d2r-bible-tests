@@ -12910,10 +12910,14 @@ def _redact_for_wire(s, cap=160):
     box. `g5_grok_eyes` stores `str(e)[:160]` in `last_error`, and an exception routinely names an
     absolute path — a home directory does not belong on a wire, and it tells him nothing he can act
     on. Home paths collapse to `~`, and the whole thing is capped.
+    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\s]+`,
+    which stops at the first space: "/Users/Dean Smith/x.json" crossed as "~ Smith/x.json", and
+    "C:\\Users\\Dean\\x.json" was not folded at all. The user-folder segment is now the ONE pattern
+    _wire_text scrubs with (_WIRE_USER_PAT: the name runs to the next separator or quote), with an
+    optional drive and either separator in front. [[copy-drift]]
     """
-    import re as _re
     txt = " ".join(str(s or "").split())
-    txt = _re.sub(r"/(?:Users|home)/[^/\s]+", "~", txt)
+    txt = _WIRE_HOME_FOLD_RX.sub("~", txt)
     return txt[:cap]
 
 
@@ -13050,6 +13054,18 @@ _CAPTURE_ROUTE_SEEN = {"route": None, "ts": None}
 _RIVER_LAST = {"good": None, "fail": None}
 _RIVER_SEQ = itertools.count(1)
 _WIRE_URL_RX = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
+#: ⚠ 2026-09-28 — THE USER-FOLDER SEGMENT, SCRUBBED BEFORE ANY GENERIC PATH PATTERN. Every path
+#: pattern below stops at whitespace, and a Windows user name routinely HOLDS one: an adversarial
+#: review sent "C:\\Users\\Dean Smith\\tv\\x.json" and "Smith\\tv\\x.json" crossed to the fleet — the
+#: drive pattern ate "C:\\Users\\Dean" and nothing matched a backslash path with no drive. So the
+#: segment `Users|home` + a separator + the NAME, running to the NEXT SEPARATOR OR QUOTE (spaces
+#: included), goes first. ⚠ A name with no separator after it runs to the end of the sentence and
+#: takes the rest with it — over-scrubbing is the safe direction on a PUBLIC repo's wire.
+#: functions/api/console.js txt() carries the same pattern (the worker scrubs a second time), and
+#: _redact_for_wire folds home with it — one pattern, three readers. [[copy-drift]]
+_WIRE_USER_PAT = r"\b(?:Users|home)[\\/][^\\/'\"]+"
+_WIRE_USER_RX = re.compile(_WIRE_USER_PAT, re.I)
+_WIRE_HOME_FOLD_RX = re.compile(r"(?:[A-Za-z]:)?[\\/]" + _WIRE_USER_PAT, re.I)
 _WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/][^\s'\"]*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
                            r"|(?<![\w.])/(?:[^\s/'\"]+/)+[^\s'\"]*")
 _WIRE_IP_RX = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
@@ -13062,12 +13078,15 @@ _WIRE_KEY_RX = re.compile(r"^[a-z][a-z-]{0,31}$")
 def _wire_text(s, cap=200):
     """A sentence on its way to ANOTHER MACHINE, through a PUBLIC repo's worker. -> str
 
-    Stricter than _redact_for_wire, which only folds /Users|/home: a Windows path (C:\\Users\\<him>),
+    Stricter than _redact_for_wire, which only folds a home folder: a Windows path (C:\\Users\\<him>),
     a UNC share, a URL, an IP, a hostname — this machine's own, or a domain — and a reel/session id
     each collapse to a placeholder. The sentences the triage lane writes are ours; an exception's
-    text is not, and it is exactly where a path or a host rides along."""
+    text is not, and it is exactly where a path or a host rides along.
+    ⚠ The user-folder segment goes BEFORE the generic path pattern (see _WIRE_USER_PAT): a user
+    name with a space is where the generic pattern stops and the rest of the name leaks."""
     txt = " ".join(str(s or "").split())
     txt = _WIRE_URL_RX.sub("<url>", txt)
+    txt = _WIRE_USER_RX.sub("<user>", txt)
     txt = _WIRE_PATH_RX.sub("<path>", txt)
     txt = _WIRE_IP_RX.sub("<ip>", txt)
     try:
@@ -13202,7 +13221,12 @@ def _river_remember_once(lanes, error):
 
 
 def _triage_for_wire():
-    """The triage lane's record, trimmed for the wire. -> dict (in-memory; triage_lane_state)"""
+    """The triage lane's record, trimmed for the wire. -> dict (in-memory; triage_lane_state)
+
+    ⚠ 2026-09-28 — EVERY AGE HERE (sinceLastS, owedForS, waitS, playingForS) IS AS OF THE BEACON, and
+    the fleet reads it later: the worker rewrites the stored record only on a material change or every
+    900 s and /api/fleet caches 60 s. The worker stamps the record time as `system.asOf`; a reader adds
+    (now - asOf) before calling any of these current. See _system_for_wire. [[stale-reading]]"""
     s = triage_lane_state()
     if not isinstance(s, dict) or s.get("ok") is False:
         return {"ok": False, "why": _wire_text((s or {}).get("why") if isinstance(s, dict) else
@@ -13215,6 +13239,8 @@ def _triage_for_wire():
             "lastTs": s.get("lastSurveyTs"), "sinceLastS": s.get("sinceSurveyS"),
             "backlog": s.get("backlog"), "owedSince": s.get("owedSince"),
             "owedForS": s.get("owedForS"), "waitS": s.get("waitS"), "ticks": s.get("ticks"),
+            # 2026-09-28 — an UNBROKEN run of 'playing' refusals: how long it has stood aside for his game
+            "playingForS": s.get("playingForS"),
             "skips": {str(k): int(v) for k, v in (s.get("skips") or {}).items()
                       if _WIRE_KEY_RX.match(str(k)) and isinstance(v, int)}}
 
@@ -13258,7 +13284,13 @@ def _system_for_wire():
     shelf must not reach the fleet as "an empty machine". No path and no name crosses the wire.
     ⚠ 2026-09-28 — `capture` (which way this PC films D2R) and `river` (its lanes and its triage lane)
     ride here too, both read from memory — see _capture_route_for_wire / _river_for_wire.
-    [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+    ⚠ 2026-09-28 — THEIR AGES ARE AS OF THIS BEACON, NOT AS OF THE READ. capture.ageS, river.ageS and
+    river.triage.{sinceLastS, owedForS, waitS, playingForS} are measured here, at the post. The worker
+    (functions/api/console.js) rewrites the stored record only on a MATERIAL change (capture.route is
+    one) or every 900 s, and /api/fleet caches the roster 60 s — so a reader can hold an age up to
+    ~16 min younger than the thing it describes. The worker stamps `system.asOf` = the record time: the
+    true age is ageS + (now - asOf), `now` from the same /api/console payload, plus the fleet's
+    staleAgeS. [[stale-reading]] [[unknown-stays-unknown]] [[the-unjoined-end]]"""
     out = {"tree": None, "reels": None}
     try:
         with _PRUNE_LOCK:
@@ -25755,6 +25787,37 @@ def _d2r_running_here():
         return None, "the process probe raised %s" % type(e).__name__
 
 
+#: ⚠ 2026-09-28 — THE PLAY PROBE, ASKED DURING THE WALK TOO. The tick asks _d2r_running_here() once,
+#: at its start, and one walk may then run its whole 120 s budget (a 2,385-frame reel at ~0.03 s a
+#: frame) beside a game he started a second later. survey() asks _triage_walk_should_stop at each
+#: reel and every this-many frames; a pgrep or a Toolhelp32 snapshot costs a few ms, so ~every 3 s is
+#: nothing next to the OCR it interrupts. Read at CALL time, so a law can shorten it.
+_TRIAGE_ABORT_EVERY_FRAMES = 100
+
+
+def _triage_walk_should_stop():
+    """Asked by survey() mid-walk: has he started playing? -> None (walk on) | {"key", "why"}
+
+    'playing' when D2R.exe now runs on this machine; 'playing-unknown' when the probe can no longer
+    answer — the tick's own rule ("cannot tell -> do not act") applied mid-walk. Either way the walk
+    stops, the reel is NOT remembered (a half-walked reel is not a walked one) and stays owed, and the
+    tick records the refusal it is. [[unknown-stays-unknown]]"""
+    try:
+        playing, how = _d2r_running_here()
+    except Exception as e:
+        playing, how = None, "the process probe raised %s" % type(e).__name__
+    if playing is True:
+        return {"key": "playing",
+                "why": "he started playing mid-walk - D2R.exe is now running on this machine (%s); "
+                       "the walk stopped, the reel stays owed, and triage catches up when he stops"
+                       % how}
+    if playing is None:
+        return {"key": "playing-unknown",
+                "why": "whether he is playing became UNKNOWN mid-walk - %s could not answer - so "
+                       "the walk stopped rather than guess; the reel stays owed" % how}
+    return None
+
+
 def _system_times():
     """Windows kernel32.GetSystemTimes -> (idle, kernel, user) in 100 ns ticks, or None.
 
@@ -25830,7 +25893,12 @@ _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "s
                 # walk or a done (cleared when it counts 0). caughtUpTs: the last tick that counted
                 # 0 — any reel waiting now became owed after it, even when every tick since has
                 # refused before it could count. [[stale-reading]]
-                "owedSince": None, "caughtUpTs": None}
+                "owedSince": None, "caughtUpTs": None,
+                # ⚠ 2026-09-28 — HOW LONG IT HAS STOOD ASIDE FOR HIS GAME, WITHOUT A BREAK. The first
+                # tick of an unbroken run of 'playing' refusals; ANY other outcome clears it. Dean plays
+                # natively for hours, and standing aside is by design — the doctor judges a 'playing'
+                # lane by this against its own bar (TRIAGE_PLAYING_BAR_S), not by the 3 h starve bar.
+                "playingSince": None}
 _TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
 _TRIAGE_ON = (os.environ.get("TV_TRIAGE") or "1") != "0"
 #: the survey store's newest FULL row, read once per process — so a relaunch (every ship re-execs
@@ -25852,6 +25920,13 @@ def _triage_record(r):
     L = _TRIAGE_LANE
     L["ticks"] = int(L.get("ticks") or 0) + 1
     L["lastKey"], L["lastWhy"], L["lastAt"] = key, why, now
+    # an UNBROKEN run of 'playing': the first such tick starts it, any other outcome ends it — a
+    # walk, a caught-up tick, a CPU refusal, even 'playing-unknown' (that is not "he is playing")
+    if key == "playing":
+        if not L.get("playingSince"):
+            L["playingSince"] = now
+    else:
+        L["playingSince"] = None
     if r.get("backlog") is not None:
         _b = int(r["backlog"])
         L["backlog"], L["backlogAt"] = _b, now
@@ -25909,6 +25984,10 @@ def triage_lane_state():
                   ago. The process start is in it on purpose: a lane is starved over the time it
                   RAN, and a console closed overnight did not starve anything. `waitFrom` names
                   which stamp won, so a reader can see what the number is the age of.
+    playingForS   ⚠ 2026-09-28 — seconds since the first tick of the CURRENT unbroken run of 'playing'
+                  refusals (playingSince); None when the last outcome was anything else. Computed
+                  HERE, like sinceSurveyS. The doctor reads a 'playing' lane by this, up to its own
+                  12 h bar — standing aside for his game is by design, a D2R.exe open for days is not.
     """
     try:
         d = dict(_TRIAGE_LANE)
@@ -25942,6 +26021,10 @@ def triage_lane_state():
             d.update({"waitS": None, "waitFrom": None, "waitSinceTs": None})
         d["owedForS"] = (None if not isinstance(d.get("owedSince"), (int, float))
                          else round(max(0.0, (now - int(d["owedSince"])) / 1000.0), 1))
+        _ps = d.get("playingSince")
+        d["playingForS"] = (round(max(0.0, (now - int(_ps)) / 1000.0), 1)
+                            if (d.get("lastKey") == "playing" and isinstance(_ps, (int, float))
+                                and not isinstance(_ps, bool)) else None)
         return d
     except Exception as e:
         return {"ok": False, "why": "the triage lane state could not be read: %s" % str(e)[:120]}
@@ -26114,8 +26197,23 @@ def _retro_triage_tick_once():
                        % (len(owed), len(settling), _TRIAGE_SETTLE_S, len(frameless))}
     todo.sort(key=_n_frames)
     d = todo[0]
+    # ⚠ 2026-09-28 — THE PLAY PROBE RIDES THE WALK. It ran only at this tick's start, and one walk may
+    # then run its whole 120 s budget beside a game he started a second later. survey() asks
+    # _triage_walk_should_stop at each reel and every _TRIAGE_ABORT_EVERY_FRAMES frames; a stop leaves
+    # the reel UNREMEMBERED (still owed) and is recorded as the refusal it is. [[heart-first]]
     out = _rt.survey([d], stash_screen_open_cached, every_frame=True,
-                     nice_delay_s=0.01, budget_s=120)
+                     nice_delay_s=0.01, budget_s=120,
+                     abort=_triage_walk_should_stop, abort_every=_TRIAGE_ABORT_EVERY_FRAMES)
+    _stop = out.get("aborted")
+    if _stop:
+        _sk = _stop.get("key") if isinstance(_stop, dict) else None
+        # a stop the hook did not name (survey's own "the check raised") is UNKNOWN, never "not playing"
+        _sk = _sk if _sk in ("playing", "playing-unknown") else "playing-unknown"
+        return {"ok": False, "key": _sk, "midWalk": True, "reel": os.path.basename(d),
+                "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
+                "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+                "why": str((_stop.get("why") if isinstance(_stop, dict) else _stop)
+                           or "the walk was stopped")[:240]}
     looked = int(out.get("reels") or 0)
     # ⚠⚠ 2026-09-28 — A WALK COUNTS ONLY WHEN THE REEL LEFT THE OWED SET. survey() counts a reel it
     # looked at whether or not remember() kept the verdict, and remember() returns False WITHOUT
@@ -34276,15 +34374,22 @@ def farmgate_payload():
         checks.append(_chk("disk", True, "warn", "disk usage unreadable"))
 
     # 5) D2R process — warn only (he may press the gate before launching the game)
-    try:
-        pr = subprocess.run(["pgrep", "-if", r"D2R\.exe"], capture_output=True, timeout=5)
-        running = pr.returncode == 0 and (pr.stdout or b"").strip()
-        checks.append(_chk("d2r_window", bool(running), "warn",
-                           "D2R.exe is running" if running else "D2R.exe not running yet",
-                           "launch D2R, then press the gate again for a clean GO"))
-    except Exception:
-        checks.append(_chk("d2r_window", False, "warn", "process check unavailable",
+    # ⚠ 2026-09-28 — ONE PROBE FOR "IS D2R.exe RUNNING HERE", ON EVERY OS. This ran its own `pgrep`,
+    # which Windows does not have: FileNotFoundError, caught, and every Windows PC — Dean's native
+    # laptop included — answered "process check unavailable" whether the game ran or not. It now asks
+    # _d2r_running_here(), the triage lane's probe (Toolhelp32 on Windows, pgrep elsewhere), and
+    # keeps its three answers apart: running, not running, and the probe could not run.
+    # [[copy-drift]] [[unknown-stays-unknown]]
+    _running, _how = _d2r_running_here()
+    if _running is None:
+        checks.append(_chk("d2r_window", False, "warn",
+                           "process check unavailable (%s could not answer)" % _how,
                            "launch D2R before ON AIR"))
+    else:
+        checks.append(_chk("d2r_window", bool(_running), "warn",
+                           ("D2R.exe is running (%s)" % _how) if _running
+                           else ("D2R.exe not running yet (%s)" % _how),
+                           "launch D2R, then press the gate again for a clean GO"))
 
     # 6) handshake — only meaningful when the agent is live
     ap = _sock_open(AGENT_PORT)
