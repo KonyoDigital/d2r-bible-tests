@@ -62,44 +62,52 @@ test('off-console it stays hidden — never a button that cannot do anything', a
    ⚠ COVERAGE MOVED AND IS NOT YET REPLACED: the drawer shows the pass's status in #sadv-tip-say
    and no spec asserts that number yet. Recorded, not papered over. */
 
-test('ending a pass reports what it yielded and does NOT stop the reel', async ({ page }) => {
-  /* Sealing a recording is his ON AIR control. A toggle that silently stopped it would take a
-     decision that is his, and lose the tail of a session he was still filming. */
-  await page.goto(URL);
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+/* 2026-09-28 — THE PASS IS THE SHADOW SWITCH NOW (a93638d0, "the tooltip pass follows the shadow reader"). The
+   tooltip row kept its own flag, so it could read OFF while the shadow reader was on, and turning it ON started a
+   hand session (~9GB/hour when nobody plays). Both rows now read and write the ONE shadow switch, and the shadow
+   watcher opens and seals its own hidden reels. The old test drove the retired pass (d2r_tooltipPass, a yield, a
+   sealed flag) and went red on v3521's CI for a contract that no longer exists. What must hold now, and what this
+   drives with the console's two routes stubbed (the scar the old test guarded is the same one):
+     · it flips the switch it READ: shadow on -> POST {on:false}, and says OFF;
+     · it NEVER POSTs /api/on or /api/off - it cannot start a hand session and cannot stop HIS reel;
+     · a console that does not answer is UNKNOWN (null), never a flip. */
+test('the pass flips the ONE shadow switch - it never starts a hand session and never stops his reel', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);
-
-  const say = await page.evaluate(async () => {
+  const run = async (pre: any) => page.evaluate(async (pre) => {
     const w: any = window;
-    w.LSR.setItem('d2r_owned', JSON.stringify(['a', 'b', 'c', 'd']));
-    // no startedReel: this pass did NOT start the reel, so the reel is HIS and must survive
-    w.LSR.setItem('d2r_tooltipPass', JSON.stringify({ on: true, baseline: 1, startedTs: 1 }));
-    // force the console check true for this call only
-    const real = w._shadowOnConsole;
+    const calls: any[] = [];
+    const realFetch = w.fetch, realOn = w._shadowOnConsole;
     w._shadowOnConsole = () => true;
-    const verdict = await w.toggleTooltipPass();
-    w._shadowOnConsole = real;
-    const st = JSON.parse(w.LSR.getItem('d2r_tooltipPass') || '{}');
-    return { verdict, st };
-  });
-  expect(say.st.on, 'the pass did not end').toBe(false);
-  expect(say.st.last, 'the yield was not recorded').toBe(3);
-  /* v2101 — READ THE VERDICT THE CALLER GETS, not #tp-say. v2097 deleted that element with the
-     board row and rerouted every one of the pass's nine status lines to #sadv-tip-say on the
-     PARENT document (bible.html:46833 _tpSay), because the button that runs the pass now lives in
-     the console's ⚙ ADVANCED drawer. On a standalone file:// board window.parent === window, so
-     _tpSay() returns null BY DESIGN and the old assertion was reading an element that cannot exist
-     here — the same lookup-of-nothing the board's own guard forbids.
-     The returned object is what the drawer actually consumes: v2095 wires the button as
-     `Promise.resolve(toggleTooltipPass()).then(_shadowAdvRefresh)` (tv/control_ui.html:11313).
-     Both halves of this test's law are in it — `named` is the yield, and `sealed:false` with
-     `reelWasMine:false` IS "the reel is still rolling and it is yours". */
-  expect(say.verdict, 'toggleTooltipPass returned nothing — the drawer has no verdict to paint').toBeTruthy();
-  expect(say.verdict.named, 'the yield the caller is told about must match the store').toBe(3);
-  expect(say.verdict.reelWasMine, 'a reel this pass did not start must be reported as HIS').toBe(false);
-  expect(say.verdict.sealed, 'ending the pass must not seal a reel it did not start').toBe(false);
+    w.fetch = (url: string, opts?: any) => {
+      calls.push([String(url), (opts && opts.method) || 'GET', opts && opts.body ? JSON.parse(opts.body) : null]);
+      const body = String(url) === '/api/shadow'
+        ? ((opts && opts.method) === 'POST' ? { ok: true, on: JSON.parse(opts.body).on } : pre)
+        : { ok: true };
+      return Promise.resolve({ json: () => Promise.resolve(body) });
+    };
+    try {
+      const verdict = await w.toggleTooltipPass();
+      return { verdict, calls };
+    } finally {
+      w.fetch = realFetch; w._shadowOnConsole = realOn;
+    }
+  }, pre);
+
+  const off = await run({ ok: true, on: true });
+  expect(off.verdict, 'the switch did not answer with its new state').toBeTruthy();
+  expect(off.verdict.on, 'shadow was ON and the pass did not turn it off').toBe(false);
+  expect(off.calls.filter((c: any) => c[1] === 'POST').map((c: any) => [c[0], c[2]]),
+         'it POSTed something other than the one shadow switch').toEqual([['/api/shadow', { on: false }]]);
+  const on = await run({ ok: true, on: false });
+  expect(on.verdict.on, 'shadow was OFF and the pass did not turn it on').toBe(true);
+  for (const r of [off, on]) {
+    const hand = r.calls.filter((c: any) => /\/api\/(on|off)$/.test(c[0]));
+    expect(hand, 'the pass touched a HAND session (/api/on or /api/off) - ~9GB/hour, or his reel sealed').toEqual([]);
+  }
+  const blind = await run({ ok: false });
+  expect(blind.verdict, 'a console that did not answer was read as a flip').toBeNull();
+  expect(blind.calls.filter((c: any) => c[1] === 'POST'), 'it flipped a switch it could not read').toEqual([]);
 });
 
 /* ⚠ COVERAGE GAP, RECORDED NOT PAPERED OVER — the WORDING of those nine lines is now painted into

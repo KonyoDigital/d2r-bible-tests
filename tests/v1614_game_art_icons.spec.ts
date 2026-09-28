@@ -48,6 +48,13 @@ async function console_(page: any) {
   await page.waitForTimeout(2000);
 }
 
+/* 2026-09-28 — ONE NAMED EXCEPTION, and it is HIS: #245 (2026-09-26, "the character build tool gets its own tab up top")
+   and v3518's "yea do it" made Characters an ICON-ONLY chip wearing the 👤 glyph, because the header holds ONE row (his
+   v2100 rule) and there is no game art for "your characters" yet. That is newer than v1614's "game art, not emoji", so
+   the two rulings disagree for this one door - recorded, not averaged. A glyph door must still carry its WORD for a
+   screen reader and must still be the only glyph in the strip. Game art for it would retire this entry (#248 art audit). */
+const GLYPH_DOORS: Record<string, string> = { chars: '👤' };
+
 test.describe('v1614 — game art, not emoji', () => {
   test('★★★ every header tab icon actually LOADS — not merely present in the markup', async ({ page }) => {
     await console_(page);
@@ -62,11 +69,18 @@ test.describe('v1614 — game art, not emoji', () => {
           loaded: !!img && img.complete && img.naturalWidth > 0,
         };
       }));
-    // v2092 gave the Vault its own door on this strip and v2094 gave Crafts one, so the six-tab
-    // strip is eight: session · forge · crafts · funi · fsets · tools · vault · tvd. The count is
-    // pinned on purpose — a NEW tab must arrive with art that decodes, not with a silent onerror.
-    expect(tabs.length, 'the eight-tab strip').toBe(8);
+    // v2092 gave the Vault its own door on this strip and v2094 gave Crafts one, and v3518 his 👤 Characters
+    // door, so the strip is nine: session · forge · crafts · funi · fsets · tools · chars · vault · tvd. The count
+    // is pinned on purpose — a NEW tab must arrive with art that decodes, not with a silent onerror.
+    expect(tabs.length, 'the nine-tab strip').toBe(9);
     for (const t of tabs) {
+      if (t.tab in GLYPH_DOORS) {
+        // his glyph door: no picture to decode, but never a blank chip - its glyph and its word are both there
+        expect(t.src, `${t.tab} is a glyph door by his ruling; a picture appeared - retire GLYPH_DOORS`).toBeNull();
+        expect(t.label.includes(GLYPH_DOORS[t.tab]), `${t.tab} lost its ${GLYPH_DOORS[t.tab]}`).toBe(true);
+        expect(t.label.replace(GLYPH_DOORS[t.tab], '').trim(), `${t.tab} lost its word`).not.toBe('');
+        continue;
+      }
       expect(t.src, `the ${t.tab} tab lost its icon element — onerror removed it, so the file at ` +
         'its src did not load').not.toBeNull();
       expect(t.loaded, `${t.tab}: <img src="${t.src}"> did not decode`).toBe(true);
@@ -85,7 +99,13 @@ test.describe('v1614 — game art, not emoji', () => {
       });
       return out;
     });
-    expect(strays, 'these still carry a system emoji instead of game art').toEqual([]);
+    // his one glyph door, exactly as named above: it may carry ITS glyph and no other emoji
+    const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+    const left = strays.filter((s: string) => {
+      const tab = s.split(': ')[0], txt = s.slice(tab.length + 2);
+      return !(tab in GLYPH_DOORS) || emoji.test(txt.split(GLYPH_DOORS[tab]).join(''));
+    });
+    expect(left, 'these still carry a system emoji instead of game art').toEqual([]);
   });
 
   test('★★★ every MINI focus the ENGINE offers has art that loads', async ({ page }) => {

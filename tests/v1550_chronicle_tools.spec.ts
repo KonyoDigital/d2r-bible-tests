@@ -212,6 +212,13 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
         owner: 'tv/test_every_operator_door_keeps_its_contract.py',
         why: 'v3213 - puts made runewords back WITH their dates; confirm required.',
       },
+      /* 2026-09-28 — red on v3521's CI: 75000c68 added the door with no owner entry. It is named by the doctor's
+       * ledger-drop row as the way to say "that clear was deliberate", and its law drives the function behind it. */
+      '/api/ledger_drop_accept': {
+        owner: 'tv/test_the_backup_lane_survives_a_loss.py',
+        why: '2026-09-27 - records a DELIBERATE ledger clear so the drop watch stops calling it a loss; '
+           + 'walked by hand from the doctor row, confirm required. Its law drives accept/refuse/preview.',
+      },
       '/api/vault_autosort': {
         owner: 'tv/test_every_operator_door_keeps_its_contract.py',
         why: 'v3222 - presses the board Auto-Sort from outside; confirm required.',

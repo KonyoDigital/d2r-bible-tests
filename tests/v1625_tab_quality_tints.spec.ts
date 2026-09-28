@@ -31,8 +31,11 @@ const BOARD = 'file://' + path.join(REPO, 'bible.html');
 
 /* v2092 added 🎒 vault to this strip and v2094 added ⚗️ crafts, in the source order below
    (tv/control_ui.html #head-tabs). The strip is eight; the two maps under it are still the same
-   three tinted + the plain rest, and which bucket each newcomer belongs in is argued there. */
-const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'vault', 'tvd'];
+   three tinted + the plain rest, and which bucket each newcomer belongs in is argued there.
+   2026-09-28 — NINE: v3518 added his 👤 Characters door ('chars', #245: "the character build tool gets its own tab up
+   top"), between tools and vault. It is PLAIN, like tools - the game has no quality for it - so the tint maps below do
+   not change; it is measured for legibility with every other tab. v3521's CI went red on this list for that reason. */
+const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'chars', 'vault', 'tvd'];
 // the three tabs the GAME has a quality for -> the board token that owns that quality
 // v1628 CORRECTS THIS MAP, NOT THE APP. It said forge: '--rune' because until v1627 the console's
 // --rar-runeword WAS #ff7d3c. v1627 pulled the palette from Konyo's own _profilehd.json and a
@@ -192,7 +195,7 @@ async function measureTabs(page: any, lit: boolean) {
 }
 
 test.describe('v1625 — the six main tabs wear the game\'s quality palette', () => {
-  test('★★ the strip is exactly the eight known tabs', async ({ page }) => {
+  test('★★ the strip is exactly the nine known tabs', async ({ page }) => {
     await console_(page);
     const got = await page.evaluate(() =>
       Array.from(document.querySelectorAll('#head-tabs .ht')).map((b: any) => b.getAttribute('data-tab')));
@@ -305,7 +308,7 @@ test.describe('v1625 — the six main tabs wear the game\'s quality palette', ()
     await console_(page);
     const unlit = await measureTabs(page, false);
     const lit = await measureTabs(page, true);
-    expect(unlit.length).toBe(TABS.length);   // v2092/v2094 — eight tabs × two states = sixteen chances
+    expect(unlit.length).toBe(TABS.length);   // v2092/v2094/v3518 — nine tabs × two states = eighteen chances
     for (const [state, rows] of [['unlit', unlit], ['lit', lit]] as [string, any[]][]) {
       for (const t of rows) {
         expect(t.ratio,
