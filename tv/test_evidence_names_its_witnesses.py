@@ -32,9 +32,9 @@ import control_app as CA
 import chronicle_retro as CR
 
 THREE_IN_TWO = {"uniques": {"Shako": [
-    {"reel": "s_1787000000001_11111", "frame": "f_1.jpg", "lane": "claude", "conf": 0.91},
-    {"reel": "s_1787000000001_11111", "frame": "f_2.jpg", "lane": "claude", "conf": 0.88},
-    {"reel": "reel_s_1787000000002_22222", "frame": "f_9.jpg", "lane": "grok", "conf": 0.80},
+    {"reel": "s_1500000000001_11111", "frame": "f_1.jpg", "lane": "claude", "conf": 0.91},
+    {"reel": "s_1500000000001_11111", "frame": "f_2.jpg", "lane": "claude", "conf": 0.88},
+    {"reel": "reel_s_1500000000002_22222", "frame": "f_9.jpg", "lane": "grok", "conf": 0.80},
 ]}, "sets": {}}
 
 
@@ -87,7 +87,7 @@ class EvidenceNamesItsWitnesses(unittest.TestCase):
         self.assertEqual((0, 2), (got["witnessesKnown"], got["unplaced"]))
         self.assertNotIn("across 0 reels", got["say"])
         mixed = {"uniques": {"Shako": [
-            {"reel": "s_1787000000001_11111", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
+            {"reel": "s_1500000000001_11111", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
             {"frame": "f_2.jpg", "lane": "grok", "conf": 0.8}]}}
         got = _ask(mixed)
         self.assertIsNone(got["witnesses"], "one known reel plus an unplaced row read as exactly 1")

@@ -27,9 +27,9 @@ import trace_spine as TS
 
 # One reel, spelled both ways. Two frames of it — one of them recorded under BOTH spellings.
 TWICE = {"uniques": {"Bloodmoon": [
-    {"reel": "s_1787000000009_99999", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
-    {"reel": "reel_s_1787000000009_99999", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
-    {"reel": "reel_s_1787000000009_99999", "frame": "f_2.jpg", "lane": "claude", "conf": 0.7},
+    {"reel": "s_1500000000009_99999", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
+    {"reel": "reel_s_1500000000009_99999", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9},
+    {"reel": "reel_s_1500000000009_99999", "frame": "f_2.jpg", "lane": "claude", "conf": 0.7},
 ]}, "sets": {}}
 
 

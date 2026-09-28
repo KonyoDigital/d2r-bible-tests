@@ -44,6 +44,16 @@ if HERE not in sys.path:
 #                         test genuinely works. These are the 26 false positives a static rule hit.
 # Every entry's kind was measured behaviourally; the number in each note is that measurement.
 REGISTRY = {
+    # ---- control_app: the capture half's pin (2026-09-28). test_the_harness_isolates_the_world found it resolving to
+    # the LIVE frames/ inside a fixture world, so it now follows TV_FRAMES_DIR - read ONCE, at import.
+    "control_app.py:_CAP_TARGET_FILE": (
+        "TV_FRAMES_DIR", "import-bound",
+        "Where capture_win.ps1's own pin (cap_target.json) is read from: the world's frames dir when TV_FRAMES_DIR is "
+        "set at import, else this checkout's frames/. Read-only - the console never writes it. A harness must set "
+        "TV_FRAMES_DIR BEFORE importing control_app, or patch the module attribute (test_the_beacon_says_how_each_pc_"
+        "films_and_drains does exactly that); setting os.environ afterwards is a silent no-op. _disk_cap_target reads "
+        "this one constant, so there is a single place to redirect."),
+
     # ---- board_sync: WHICH REPO the board sync reads ships and TASKS.md from. Registered
     # v2597 after this gate caught it unregistered — and the measurement found a HALF-redirect,
     # which is worse than an import-bound constant that stays put.
