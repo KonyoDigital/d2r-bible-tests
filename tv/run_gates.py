@@ -7599,7 +7599,7 @@ GATES = [
              "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
              "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
              "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
-             "150 -> 300: a full run measured 100-119s. Now 27 cases, 42 red-proofs",
+             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block)",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,

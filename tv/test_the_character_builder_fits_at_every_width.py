@@ -1609,13 +1609,11 @@ RED_PROOF = [
         "replace": ".cb-st-r{display:flex;justify-content:space-between;flex-wrap:wrap;align-items:baseline;gap:0 6px;",
         "matches": 1,
     },
-    {
-        "why": "#29(a) - a value's RANGE chip and cap may not wrap under its number: a tight row pushes them out past its edge",
-        "file": "bible.html",
-        "find": ".cb-sv{justify-self:end;display:inline-flex;flex-wrap:wrap;",
-        "replace": ".cb-sv{justify-self:end;display:inline-flex;flex-wrap:nowrap;",
-        "matches": 1,
-    },
+    # ⚠ RETIRED 2026-09-28 (v3522 push gate, 22:29): the proof above set .cb-sv to flex-wrap:nowrap and the law
+    # stayed GREEN at every width - BLIND. Since REG-1376 a CAPPED row is display:block (the cap on its own line),
+    # which overrides the flex wrap, and its own proof (".cb-sv:has(> em.cb-cap)" -> off) goes red for it; an
+    # UNCAPPED row measured no overflow with nowrap at any of the law's widths, so the wrap is no longer
+    # load-bearing. A sabotage of a rule that holds nothing up proves nothing. [[feedback-blind-fixture-green-gate]]
     {
         "why": "#174 round 2 - a wrapped stat label's second line sits flush again ('Resistance' reads as a row with no value)",
         "file": "bible.html",
