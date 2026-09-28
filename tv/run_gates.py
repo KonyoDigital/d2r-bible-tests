@@ -5543,6 +5543,14 @@ GATES = [
              "reads the row (W5); the board's bars equal vault_retro's (his 2-look ruling). Source half: no "
              "assign[...] = outside the door, every wholesale re-bind named. #246 review: a hand must say WHEN "
              "(a time that is no date, or none, is refused) and the row carries the spec's `main`. 11 cases, 6 red-proofs"),
+    Gate("test_a_one_look_frameless_read_does_not_paint_the_vault_ring",
+         [sys.executable, os.path.join(HERE, "test_a_one_look_frameless_read_does_not_paint_the_vault_ring.py")], 90,
+         needs_app=False,
+         why="CI Routine I, v712 - the board spec expected the vault ring on a stash read that is one look "
+             "with no frame. Vault 2.0 refuses that witness, and the stage paints the ring only when the "
+             "registrar filed. The ring stays off, the cast still shows the name, two framed looks still "
+             "file and light it, and a throw-out does not. The spec expects the ring off. 4 cases, 4 red-proofs",
+         skip_ok=()),
     Gate("test_the_witnessed_lane_files_its_own_rows",
          [sys.executable, os.path.join(HERE, "test_the_witnessed_lane_files_its_own_rows.py")], 240,
          needs_app=False,

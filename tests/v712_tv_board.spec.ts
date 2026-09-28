@@ -651,11 +651,17 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
                 names: ['Harlequin Crest'], vault_names: ['Harlequin Crest'] }],
     }));
     await readIs(8);
+    // Vault 2.0 files a stash name only on two looks, each with its own frame and its own
+    // confidence. This read is one look and it names no frame, so the door refuses it and the
+    // vault ring stays off. The cast still shows the name, and the read number still advances.
     const vault = await page.evaluate(() => ({
       ring: !!document.querySelector('#tvn-stage .tvn-cast-tile.tvn-lc-vault'),
+      name: [...document.querySelectorAll('#tvn-stage .tvn-cast-tile .tvn-cast-name')]
+        .some((n) => (n.textContent || '').trim() === 'Harlequin Crest'),
       readN: document.querySelector('#tvn-stage .tvn-read-n')?.textContent || '',
     }));
-    expect(vault.ring).toBe(true);
+    expect(vault.name).toBe(true);
+    expect(vault.ring).toBe(false);
     expect(vault.readN).toContain('8');
 
     // v749 (Grok R10 #2) — CHAPTER CAST MEMORY: an empty gameplay read in the SAME area must NOT

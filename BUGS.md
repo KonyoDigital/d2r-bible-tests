@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1343 - THE V712 STAGE ASKED FOR A VAULT RING ON A ONE-LOOK FRAMELESS READ
+
+**SEEN:** Routine I on 1d5b706f failed `tests/v712_tv_board.spec.ts` at the v747 stage. The vault ring was expected on. The read is one stash look and it names no frame, which Vault 2.0 refuses. The stage paints the ring only when that filing landed. **FIX:** the spec expects the ring off and the name still on the cast. No second door. **LAW:** `test_a_one_look_frameless_read_does_not_paint_the_vault_ring` (heart2 --prove 4/4 PROVEN).
+
 ### REG-1342 - A BARE BOOSTEROID WINDOW PINNED THE LAUNCHER AS THE GAME
 
 **SEEN:** Boosteroid's own app titles the stream and the launcher with nothing but Boosteroid, so both pinned. A shadow reel would film the launcher. **FIX:** the pin stays. The shadow door calls that window the game only when the first reads show a D2R HUD word (a zone name). Three reads with none is the launcher: it does not start, and a shadow reel already rolling seals. No reads yet is UNKNOWN, not the launcher, and the next look after a refusal waits. A window that names the game is not put through the check. A reel he opened is not sealed for it. **LAW:** `test_a_bare_boosteroid_window_must_show_the_hud` (heart2 --prove 7/7 PROVEN). A kai or intake row is not a read.
