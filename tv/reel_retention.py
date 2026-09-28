@@ -194,43 +194,6 @@ def _reel_ts(reel):
         return float("inf")
 
 
-def vault_evidence_reels(hist_dir, root=None):
-    """Reel dir names holding a frame a vault item stands on. -> (set | None, why)
-
-    ⚠⚠ 2026-09-28 — HIS §26 RULING, AND THE HALF GROK'S f189f767 DID NOT JOIN. "a cited vault frame stays when
-    its reel is released" was true of the release_uncited helper and of the tombstone's `kept` field, and false of the ONE
-    deleter: apply_plan() still rmtree's the whole reel, and nothing called release_uncited. With the drain now
-    running on every pass (REG-1335/fifo), a released reel would have taken the pictures behind his vault rows with
-    it. Until cited frames are moved somewhere the frame server can still serve them, a reel that holds one is HELD
-    (holds-proof) - the same granularity frame_authority.frame_verdict judges a frame by (its basename against the
-    witness index's `frames` and `cited`), one rule, not a second one. None (UNKNOWN) holds every reel.
-    [[the-unjoined-end]] [[unknown-stays-unknown]]
-    """
-    try:
-        import frame_authority as _fa
-        wit = _fa.witness_index(root or HERE)
-    except Exception as e:
-        return None, "the witness index could not be read (%s)" % type(e).__name__
-    cited = wit.get("cited", False)
-    if cited is None:
-        return None, "the vault evidence ledger could not be read, so which pictures are cited is UNKNOWN"
-    names = set(wit.get("frames") or ()) | set(cited or ())
-    if not names:
-        return set(), "no vault row or evidence tier cites a picture"
-    held = set()
-    for d in glob.glob(os.path.join(hist_dir, "reel_*")):
-        if not os.path.isdir(d):
-            continue
-        try:
-            files = set(os.listdir(d))
-        except OSError:
-            return None, "reel %s could not be listed, so whether it holds a cited picture is UNKNOWN" % \
-                os.path.basename(d)
-        if names & files:
-            held.add(os.path.basename(d))
-    return held, "%d reel(s) hold a picture a vault item stands on" % len(held)
-
-
 def release_uncited(reel_dir, sealed, wit):
     """Apply keep_cited. The authority names the frames. This module is the one that removes them."""
     import frame_authority as _fa
@@ -697,6 +660,16 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
 
     try:
         reels = sorted((d for d in os.listdir(hist) if d.startswith("reel_")), key=_reel_ts)
+        # 2026-09-28 — an EVIDENCE REMNANT is a reel already released whose cited pictures stayed (apply_plan, his
+        # §26): tombstoned WITH a `kept` list. It is not a new candidate and not owed - replanning it would release
+        # it again every pass and read as a stalled drain. It is listed in `remnants`, never silently dropped.
+        try:
+            _tomb_rows = (_load(_tombstone_path(hist)) or {}).get("reels") or []
+            _remnants = set(r.get("reel") for r in _tomb_rows if isinstance(r, dict) and r.get("kept"))
+        except Exception:
+            _remnants = set()
+        _remnant_list = sorted(r for r in reels if r in _remnants)
+        reels = [r for r in reels if r not in _remnants]
     except OSError as e:
         # ⚠⚠ v3393 — THE SAME DEFECT AS end_routes.report, AT ITS SOURCE. The footage tree
         # is created inside tv_diablo._film_loop, so a console that has never filmed has no
@@ -771,17 +744,6 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         _proof_hold, _proof_why = proof_reels(hist)
     except Exception as _e:
         _proof_hold, _proof_why = None, "the proof scan itself failed (%s)" % type(_e).__name__
-    # 2026-09-28 — and the pictures behind his VAULT (§26): a reel holding one is proof too. See vault_evidence_reels.
-    try:
-        _ve_hold, _ve_why = vault_evidence_reels(hist)
-    except Exception as _e:
-        _ve_hold, _ve_why = None, "the vault evidence scan itself failed (%s)" % type(_e).__name__
-    if _proof_hold is not None:
-        if _ve_hold is None:
-            _proof_hold, _proof_why = None, _ve_why
-        elif _ve_hold:
-            _proof_hold = set(_proof_hold) | set(_ve_hold)
-            _proof_why = "%s; %s" % (_proof_why, _ve_why)
     candidates, kept, freed = [], [], 0.0
 
     # ── v2068 — A RULE THAT NEVER RUNS MUST SAY SO ─────────────────────────────────────────────
@@ -955,9 +917,6 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             # reported first (a fixture is a fixture, recent is recent), and this only catches the
             # reels that would otherwise have been deleted. [[regression-guard]]
             why = _rule("holds-proof",
-                        ("HELD — a picture in this reel is what a vault item stands on (his evidence line "
-                         "opens it). It stays until cited pictures can be kept apart from their reel.")
-                        if (_ve_hold and reel in _ve_hold) else
                         "HELD — a frame in this reel is the receipt for a NAMED claim in the "
                         "chronicle. Deleting it would leave the claim standing with its proof "
                         "destroyed, which is the one loss this repo cannot undo.")
@@ -1019,7 +978,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             # `freeMb` stays only so older readers keep working.
             # [[label-outlived-referent]] [[d2r-g5-budget-unit-collision]]
             "eligibleMb": round(freed, 1),
-            "freeMb": round(freed, 1), "onDisk": len(reels),
+            "freeMb": round(freed, 1), "onDisk": len(reels), "remnants": _remnant_list,
             "vaultLedger": bool(vault),
             # Published so a caller cannot repeat the mistake this fix corrects: an empty
             # `candidates` because everything is held reads identically to an empty one because
@@ -1257,38 +1216,70 @@ def apply_plan(p, yes=False):
                 "removed": [], "failed": [], "tombstone": None}
     # v2069 — THE RECORD GOES DOWN FIRST. Written before a single rmtree, so a crash halfway leaves
     # a tombstone for more reels than were actually removed rather than for fewer.
-    tomb, tomb_why = None, None
+    # ⚠⚠ 2026-09-28 — HIS §26 AND HIS v2056, BOTH. v2056: a reel whose sightings are banked may go - the record
+    # outlives the frames. §26: "the evidence linked and attached with the picture being able to be clicked" - so the
+    # PICTURES a vault item stands on must outlive their reel. This loop used to rmtree every candidate whole (Grok's
+    # f189f767 recorded a `kept` list and deleted it anyway). Now, BEFORE the tombstone, each released reel names its
+    # evidence pictures - a frame behind a vault row (witness_index `frames`) or one a WATCHED/PROVEN/HARDENED item
+    # stands on (`cited`) - and only those stay, at their own path, so /frame and the lightbox still open them.
+    # ⚠ NOT keep_cited(): that applies EVERY frame_authority keep-reason (its own seal store, a missing index), which
+    # kept whole reels the plan had already cleared and freed nothing. The plan decides the reel; this only spares
+    # its evidence. UNKNOWN (the evidence ledger will not parse) touches nothing in any reel.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _evid, _ewhy = None, ""
     try:
-        tomb = _tombstone(p["hist"], p.get("candidates") or [])
-    except Exception as e:
-        tomb_why = str(e)[:160]
-    removed, failed = [], []
+        import frame_authority as _fak
+        _wit = _fak.witness_index(HERE)
+        _cit = _wit.get("cited", False)
+        if _cit is None:
+            _ewhy = "the vault evidence ledger could not be read"
+        else:
+            _evid = set(_wit.get("frames") or ()) | set(_cit or ())
+    except Exception as _ke:
+        _ewhy = "the witness index could not be read (%s)" % type(_ke).__name__
+    removed, failed, go, notes = [], [], [], {}
     for c in p.get("candidates") or []:
         path = os.path.join(p["hist"], c["reel"])
+        if _evid is None:
+            failed.append({"reel": c["reel"], "why": "HELD, nothing deleted - which pictures in it are evidence is "
+                                                     "UNKNOWN: %s" % _ewhy})
+            continue
         try:
-            shutil.rmtree(path)
+            kept = sorted(f for f in os.listdir(path) if f in _evid)
+        except OSError as e:
+            failed.append({"reel": c["reel"], "why": "the reel could not be listed (%s)" % str(e)[:80]})
+            continue
+        if kept:
+            c = dict(c)
+            c["kept"] = kept
+        notes[c["reel"]] = kept
+        go.append(c)
+    tomb, tomb_why = None, None
+    try:
+        tomb = _tombstone(p["hist"], go)
+    except Exception as e:
+        tomb_why = str(e)[:160]
+    for c in go:
+        path = os.path.join(p["hist"], c["reel"])
+        keep = set(notes.get(c["reel"]) or ())
+        try:
+            if keep:
+                for f in os.listdir(path):
+                    if f in keep:
+                        continue
+                    fp = os.path.join(path, f)
+                    if os.path.isdir(fp):
+                        shutil.rmtree(fp)
+                    else:
+                        os.remove(fp)
+            else:
+                shutil.rmtree(path)
             removed.append(c["reel"])
         except Exception as e:
             failed.append({"reel": c["reel"], "why": str(e)[:120]})
-    # ⚠⚠ v2642 — `freedMb` WAS THE PLAN'S HOPE, NOT A MEASUREMENT, AND IT REACHED HIS SCREEN.
-    # It read `p.get("freeMb", 0)` — the figure the PLAN offered — in this same dict literal as
-    # its own `removed` and `failed` lists, without ever consulting them. REPRODUCED 2026-09-05
-    # against a plan whose candidate did not exist, so every rmtree raised:
-    #     ok=False  removed=[]  failed=1  freedMb=512.0
-    # and the sentence at control_app.py:16348 (which copies this with NO read of r["ok"]) would
-    # have printed: "freed 512 MB by removing 0 reel(s)". The megabytes came from the plan and the
-    # reel count from the measurement — two sources, one of them fiction.
-    #
-    # This is task 154's actual subject, one module upstream of the history row. 154 said the
-    # prune field "can never report anything"; the truth was worse — it could report, and what it
-    # reported was a hope.
-    #
-    # Now it sums the `mb` of the reels ACTUALLY in `removed`. A candidate carrying no `mb` adds
-    # nothing rather than defaulting, and an empty `removed` yields 0 — which is honest HERE, and
-    # only here, because unlike the history row the outcome is known: the loop finished and took
-    # nothing. [[unknown-stays-unknown]]
     _removed_set = set(removed)
     return {"ok": not failed, "removed": removed, "failed": failed,
+            "keptPictures": dict((r, k) for r, k in notes.items() if k and r in _removed_set),
             "freedMb": sum(float(c.get("mb") or 0)
                            for c in (p.get("candidates") or [])
                            if c.get("reel") in _removed_set),
@@ -1456,12 +1447,18 @@ def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_m
         out["why"] = ("drained — every reel that cleared every bar and is older than the newest %d "
                       "has been released; nothing is owed" % KEEP_RECENT)
         return out
-    if on is False:
+    if on is not None and not on:           # the second eye on v3520: 0 is disarmed too, not only False
         out["state"] = DRAIN_DORMANT
         out["why"] = ("%d releasable reel(s) wait and the deleter is disarmed BY DESIGN — a "
                       "decision, not a stall" % owed_now)
         return out
     _defer = _held(passes[-1]) if passes else None
+    if on is None and not _defer:
+        # the second eye on v3520: whether the deleter is ARMED could not be read - a remainder then is UNKNOWN, never
+        # "the drain has stopped" (a disarmed drain and an unread one are not a stall) [[unknown-stays-unknown]]
+        out["why"] = ("%d releasable reel(s) wait and whether the deleter is armed could not be read, so this is "
+                      "UNKNOWN - never called a stall" % owed_now)
+        return out
     if _defer:
         out["state"] = DRAIN_DEFERRED
         out["why"] = ("%d releasable reel(s) wait and this pass was DEFERRED — %s — "

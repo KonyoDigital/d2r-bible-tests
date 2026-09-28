@@ -345,15 +345,30 @@ class AVaultPictureHoldsItsReel(_Base):
             return out
         self.FA.witness_index = _wi
 
-    def test_the_reel_under_a_vault_picture_stays_and_the_rest_drain(self):
+    def test_the_reel_releases_and_only_its_vault_picture_stays(self):
+        d = os.path.join(self.w.hist, self.cited_reel)
+        with open(os.path.join(d, "uncited_extra.jpg"), "wb") as fh:
+            fh.write(b"x")
         self._cite({self.cited_frame})
         r, _st = self._pass(free_gb=500.0)
-        self.assertEqual(sorted(r.get("removed") or []), sorted(n for n in self.old if n != self.cited_reel),
-                         "the drain did not release exactly the three old reels no vault item stands on: %r" % r)
-        self.assertIn(self.cited_reel, self.w.on_disk(), "a reel holding a picture a vault item stands on was deleted")
-        row = [k for k in RR.plan(self.w.hist).get("kept") or [] if k.get("reel") == self.cited_reel]
-        self.assertEqual(len(row), 1, "the held reel is not on the kept list")
-        self.assertIn("vault item stands on", row[0].get("why") or "", "the hold does not say it is vault evidence")
+        self.assertEqual(sorted(r.get("removed") or []), sorted(self.old),
+                         "the four old finished reels were not all released: %r" % r)
+        self.assertEqual(sorted(os.listdir(d)), [self.cited_frame],
+                         "the released reel did not keep EXACTLY its vault picture: %r" % sorted(os.listdir(d)))
+        for nm in self.old:
+            if nm != self.cited_reel:
+                self.assertNotIn(nm, self.w.on_disk(), "an uncited old reel was not released: %s" % nm)
+        rows = dict((t.get("reel"), t) for t in self.w.tombstones())
+        self.assertEqual(rows.get(self.cited_reel, {}).get("kept"), [self.cited_frame],
+                         "the tombstone does not name the picture it kept")
+
+    def test_a_remnant_is_not_released_again(self):
+        self._cite({self.cited_frame})
+        self._pass(free_gb=500.0)
+        p = RR.plan(self.w.hist)
+        self.assertIn(self.cited_reel, p.get("remnants") or [], "the evidence remnant is not listed as one")
+        self.assertNotIn(self.cited_reel, [c.get("reel") for c in p.get("candidates") or []],
+                         "the evidence remnant is planned for release again - the drain would never read as done")
 
     def test_an_unreadable_evidence_ledger_releases_nothing(self):
         self._cite(None)
@@ -546,6 +561,14 @@ class TheDrainArithmetic(unittest.TestCase):
         self.assertEqual(self._st(rows)["state"], "OWED")
         self.assertEqual(self._st(rows + [{"owed": 2}])["state"], "STOPPED")
 
+    def test_a_disarmed_or_unread_deleter_is_never_a_stall(self):
+        """The second eye on v3520: on=0 is disarmed (DORMANT), on=None is unread (UNKNOWN) - never STOPPED."""
+        rows = [{"owed": 2}] * (RR.DRAIN_STOPPED_AFTER_PASSES + 2)
+        self.assertEqual(self._st(rows, on=0)["state"], "DORMANT")
+        st = self._st(rows, on=None)
+        self.assertNotEqual(st["state"], "STOPPED", "an unread armed state was reported as a stalled drain")
+        self.assertIn("could not be read", st["why"])
+
     def test_a_pass_that_released_what_it_owed_breaks_the_streak(self):
         bar = RR.DRAIN_STOPPED_AFTER_PASSES
         rows = []
@@ -617,17 +640,31 @@ def tearDownModule():
 
 RED_PROOF = [
     {
-        "why": "2026-09-28 §26 - the drain deletes a reel holding a picture a vault item stands on again",
+        "why": "the second eye on v3520 - an unread armed state reads as a stalled drain again",
         "file": "reel_retention.py",
-        "find": "        elif _ve_hold:\n            _proof_hold = set(_proof_hold) | set(_ve_hold)\n",
-        "replace": "        elif False:\n            _proof_hold = set(_proof_hold) | set(_ve_hold)\n",
+        "find": "    if on is None and not _defer:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 §26 - a released reel takes the picture a vault item stands on again (rmtree whole)",
+        "file": "reel_retention.py",
+        "find": "            kept = sorted(f for f in os.listdir(path) if f in _evid)\n",
+        "replace": "            kept = []\n",
         "matches": 1,
     },
     {
         "why": "2026-09-28 §26 - an unreadable vault evidence ledger no longer stops the drain",
         "file": "reel_retention.py",
-        "find": "        if _ve_hold is None:\n            _proof_hold, _proof_why = None, _ve_why\n",
-        "replace": "        if False:\n            _proof_hold, _proof_why = None, _ve_why\n",
+        "find": "        if _evid is None:\n            failed.append(",
+        "replace": "        if False:\n            failed.append(",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - an evidence remnant is planned again every pass, so the drain never reads as done",
+        "file": "reel_retention.py",
+        "find": "        reels = [r for r in reels if r not in _remnants]\n",
+        "replace": "        reels = list(reels)\n",
         "matches": 1,
     },
     {
