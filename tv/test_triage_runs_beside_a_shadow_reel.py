@@ -89,7 +89,8 @@ def _fresh_lane():
     return {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {},
             "ticks": 0, "idle": 0, "lastKey": None, "lastWhy": None, "lastAt": None,
             "lastSkipKey": None, "lastSkipWhy": None, "lastSkipTs": None,
-            "backlog": None, "backlogAt": None, "upSince": int(time.time() * 1000)}
+            "backlog": None, "backlogAt": None, "upSince": int(time.time() * 1000),
+            "playingSince": None}
 
 
 class _Base(unittest.TestCase):
@@ -862,9 +863,12 @@ class TheWaitIsHowLongAReelWaited(_Base):
         self.assertIn("4.0 h", why)
         self.assertIn("the first tick that found this backlog", why)
 
-    def test_after_an_idle_day_a_reel_held_behind_playing_reads_ok_then_missing(self):
+    def test_after_an_idle_day_a_reel_held_behind_playing_reads_ok_until_the_play_bar(self):
         """Every tick since the reel folded refused before it could count the backlog - the lane was
-        caught up just before, and that is the moment the wait can have begun."""
+        caught up just before, and that is the moment the wait can have begun.
+        ⚠ 2026-09-28 — this case used to pin MISSING at four hours of 'playing': the defect itself
+        (standing aside for his game is by design). A 'playing' lane is judged by its UNBROKEN run of
+        play against TRIAGE_PLAYING_BAR_S, so four hours is OK and past the play bar is MISSING."""
         self._an_idle_day()
         self.assertEqual(self.tick().get("key"), "done", "premise: nothing owed - the lane is caught up")
         self.reel(age_s=HOUR)
@@ -875,6 +879,11 @@ class TheWaitIsHowLongAReelWaited(_Base):
         st, why = self.doctor_over(1)
         self.assertEqual(st, CD.OK, "ten minutes behind 'playing' after an idle day read starved: %s" % why)
         ca._TRIAGE_LANE["caughtUpTs"] -= int(4 * HOUR * 1000)
+        ca._TRIAGE_LANE["playingSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "four hours of his game read as a starved lane: %s" % why)
+        self.assertIn("standing aside for his game", why)
+        ca._TRIAGE_LANE["playingSince"] -= int((CD.TRIAGE_PLAYING_BAR_S / HOUR) * HOUR * 1000)
         st, why = self.doctor_over(1)
         self.assertEqual(st, CD.MISSING, why)
         self.assertIn("[playing]", why, "the row does not say the lane is standing aside for his game")
@@ -1011,6 +1020,287 @@ class TheMacCameraIsTheAgent(_Base):
         self.agent_live = True
         ca._agent_proc, ca._agent_origin = None, "shadow"
         self.assertEqual(self.tick().get("key"), "capture-unowned")
+
+
+# ══ 2026-09-28 — the adversarial review of the merged triage+beacon build (792dd6d9), each item
+# reproduced before it was fixed, each fix driven through the SHIPPED code and sabotaged below ══
+
+class ALongNativeSessionIsNotAStarvedLane(_Base):
+    """Review item 1 (MEDIUM) — Dean plays D2R NATIVELY for hours ("usually" how he plays). Every tick
+    refuses 'playing' BY DESIGN and triage catches up when he stops, yet a 3.5 h session turned
+    'triage starved' MISSING against the 3 h bar. Driven through the SHIPPED tick, the SHIPPED
+    triage_lane_state and the SHIPPED doctor row: playingSince marks the first tick of an UNBROKEN run
+    of 'playing', any other outcome ends the run, and a 'playing' lane is judged against its own bar,
+    TRIAGE_PLAYING_BAR_S. Pinned with LITERAL hours (3.5 and 13), so a bar moved to either side of
+    them goes red."""
+
+    def _hours_of_play(self, hours):
+        """He sat down `hours` ago with a reel owed, and every tick since has refused 'playing'."""
+        self.reel()
+        self.playing = True
+        self.assertEqual(self.tick().get("key"), "playing")
+        L = ca._TRIAGE_LANE
+        self.assertIsNotNone(L.get("playingSince"), "the first 'playing' tick did not start the run")
+        L["playingSince"] -= int(HOUR * 1000)
+        first = L["playingSince"]
+        self.assertEqual(self.tick().get("key"), "playing")
+        self.assertEqual(L["playingSince"], first,
+                         "a second tick of the SAME unbroken run restarted it - no session could "
+                         "ever be measured past one tick")
+        L["playingSince"] = first - int((hours - 1.0) * HOUR * 1000)
+        L["upSince"] -= int((hours + 1.0) * HOUR * 1000)    # the console was up before he sat down
+        s = ca.triage_lane_state()
+        self.assertGreater(s["waitS"], CD.TRIAGE_STARVED_AFTER_S,
+                           "premise: the reels have waited past the 3 h starve bar")
+        self.assertAlmostEqual(s["playingForS"] / HOUR, hours, delta=0.05)
+        return s
+
+    def test_three_and_a_half_hours_of_his_game_reads_ok_standing_aside(self):
+        self._hours_of_play(3.5)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "a 3.5 h native session read as a starved lane: %s" % why)
+        self.assertIn("standing aside for his game - 1 reel(s) wait, 3.5 h", why)
+
+    def test_thirteen_hours_of_unbroken_play_reads_missing(self):
+        self._hours_of_play(13.0)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, "a D2R.exe open for 13 h read healthy: %s" % why)
+        self.assertIn("13.0 h", why)
+        self.assertIn("[playing]", why)
+
+    def test_any_other_outcome_ends_the_run_and_the_old_bar_judges_again(self):
+        self.reel()
+        self.playing = True
+        self.assertEqual(self.tick().get("key"), "playing")
+        ca._TRIAGE_LANE["playingSince"] -= int(10 * HOUR * 1000)
+        self.playing = False
+        self.cpu = 100.0                                   # the Mac bar: load at or above the cores
+        self.assertEqual(self.tick().get("key"), "cpu-loaded")
+        self.assertIsNone(ca._TRIAGE_LANE["playingSince"], "a CPU refusal did not end the run of play")
+        self.assertIsNone(ca.triage_lane_state()["playingForS"])
+        self.playing = True
+        self.assertEqual(self.tick().get("key"), "playing")
+        self.assertLess(ca.triage_lane_state()["playingForS"], 60.0,
+                        "a broken run resumed its old start - two sessions read as one unbroken one")
+        self.playing = None                                # the probe cannot answer: not "he plays"
+        self.assertEqual(self.tick().get("key"), "playing-unknown")
+        self.assertIsNone(ca._TRIAGE_LANE["playingSince"])
+        ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
+        self.cpu, self.playing = 100.0, False
+        self.assertEqual(self.tick().get("key"), "cpu-loaded")
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("[cpu-loaded]", why, "the old judgement did not come back when he stopped")
+
+
+class ThePlayProbeThatCannotRunSaysSo(_Base):
+    """Review item 5 — a lane whose refusals are mostly 'playing-unknown' is BLIND on this machine
+    (it will not guess whether he plays), not busy: the row says so in its own sentence, and it still
+    refuses. Driven on a Windows-shaped world whose REAL Toolhelp32 probe has its snapshot refused."""
+
+    SENTENCE = "the play probe cannot run on this machine"
+
+    def _blind_windows(self):
+        ca.IS_WIN = True
+        TVD._toolhelp_d2r_state = self._edges[1]          # the REAL process half
+        p = mock.patch.object(ctypes, "windll",
+                              _FakeWindll(_FakeK32(snap_raises=OSError("the snapshot was refused"))),
+                              create=True)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_windows_pc_whose_probe_is_refused_says_the_probe_cannot_run(self):
+        self.reel()
+        self._blind_windows()
+        for _ in range(3):
+            self.assertEqual(self.tick().get("key"), "playing-unknown")
+        self.assertEqual(self.surveyed, [], "a blind probe walked a reel")
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "inside the bar: %s" % why)
+        self.assertIn(self.SENTENCE, why)
+        ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, "a lane blind to his game for four hours read healthy: %s" % why)
+        self.assertIn(self.SENTENCE, why)
+        self.assertIn("3 of 3 refusals", why)
+
+    def test_a_lane_refusing_mostly_for_load_does_not_say_it(self):
+        """The BASELINE: the sentence is about a blind probe, not about any refusal."""
+        self.reel()
+        self.cpu = 100.0
+        for _ in range(2):
+            self.assertEqual(self.tick().get("key"), "cpu-loaded")
+        self.playing = None
+        self.assertEqual(self.tick().get("key"), "playing-unknown")
+        ca._TRIAGE_LANE["upSince"] -= int(4 * HOUR * 1000)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertNotIn(self.SENTENCE, why, "one blind tick in three was called a blind machine")
+
+
+class TheWalkStopsWhenHeStartsPlaying(_Base):
+    """Review item 6 — the play probe ran only at a tick's START, and one walk may run its whole 120 s
+    budget beside a game he started a second later. Driven through the SHIPPED tick and the REAL
+    survey(): he starts D2R after the walk has looked at 3 frames, and the walk must stop, leave the
+    reel owed and record 'playing'."""
+
+    FRAMES = 12
+
+    def setUp(self):
+        super(TheWalkStopsWhenHeStartsPlaying, self).setUp()
+        RT.survey = self._edges[2]                          # the REAL survey
+        every = ca._TRIAGE_ABORT_EVERY_FRAMES
+        self.addCleanup(setattr, ca, "_TRIAGE_ABORT_EVERY_FRAMES", every)
+        ca._TRIAGE_ABORT_EVERY_FRAMES = 2
+        self.gate_calls, self.start_after, self.then = 0, None, True
+        ca.stash_screen_open_cached = self._gate
+
+    def _gate(self, f):
+        self.gate_calls += 1
+        if self.start_after is not None and self.gate_calls >= self.start_after:
+            self.playing = self.then                        # he launches the game mid-walk
+        return None
+
+    def test_a_walk_beside_no_game_runs_to_the_end(self):
+        """The BASELINE: the same walk with no game is a full walk."""
+        d = self.reel(frames=self.FRAMES)
+        r = self.tick()
+        self.assertEqual(r.get("key"), "surveyed", r)
+        self.assertEqual(self.gate_calls, self.FRAMES)
+        self.assertIs(RT.worth_reading(d), False)
+
+    def test_he_starts_playing_mid_walk_and_the_walk_stops(self):
+        d = self.reel(frames=self.FRAMES)
+        self.start_after = 3
+        r = self.tick()
+        self.assertEqual(r.get("key"), "playing", "the walk ran on beside his game: %r" % r)
+        self.assertTrue(r.get("midWalk"))
+        self.assertGreaterEqual(self.gate_calls, 3, "premise: the walk had started")
+        self.assertLess(self.gate_calls, self.FRAMES, "every frame was walked beside his game")
+        self.assertIsNone(RT.worth_reading(d), "a half-walked reel was remembered as walked")
+        L = ca._TRIAGE_LANE
+        self.assertIsNone(L["lastTs"], "a stopped walk stamped a walk")
+        self.assertEqual((L["surveyed"], L["backlog"]), (0, 1), "the reel is still owed")
+        self.assertEqual(L["skips"], {"playing": 1})
+        self.assertIsNotNone(L["playingSince"], "the mid-walk stop did not start the run of play")
+        self.assertGreaterEqual(self.pgrep_asks, 2, "the probe was asked only at the tick's start")
+        self.start_after, self.playing = None, False       # he stops: the lane catches up
+        calls = self.gate_calls
+        self.assertEqual(self.tick().get("key"), "surveyed")
+        self.assertEqual(self.gate_calls - calls, self.FRAMES, "the catch-up walk was not a full walk")
+        self.assertIs(RT.worth_reading(d), False)
+
+    def test_a_probe_that_goes_blind_mid_walk_stops_it_as_unknown(self):
+        d = self.reel(frames=self.FRAMES)
+        self.start_after, self.then = 3, None
+        r = self.tick()
+        self.assertEqual(r.get("key"), "playing-unknown", r)
+        self.assertIn("UNKNOWN", r.get("why") or "")
+        self.assertLess(self.gate_calls, self.FRAMES)
+        self.assertIsNone(RT.worth_reading(d))
+
+
+class TheSurveyStopsWhenAsked(unittest.TestCase):
+    """retro_triage.survey's `abort` hook on its own, over a scratch store (remember_to=<root>)."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="triage_abort_")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.a, self.b = self._reel("reel_s_1789000000000_1"), self._reel("reel_s_1789000000000_2")
+        self.calls = 0
+
+    def _reel(self, name, frames=5):
+        d = os.path.join(self.root, name)
+        os.makedirs(d)
+        for i in range(frames):
+            with io.open(os.path.join(d, "f_%d.jpg" % (1789000000000 + i)), "wb") as fh:
+                fh.write(b"\xff\xd8\xff")
+        return d
+
+    def gate(self, f):
+        self.calls += 1
+        return "stash" if self.calls == 1 else None         # the first frame carries a panel
+
+    def run_survey(self, abort, every=2):
+        return RT.survey([self.a, self.b], self.gate, every_frame=True, remember_to=self.root,
+                         abort=abort, abort_every=every)
+
+    def test_no_stop_walks_both_reels(self):
+        out = self.run_survey(lambda: None)
+        self.assertEqual((out["reels"], out["frames"], out["stoppedEarly"]), (2, 10, False))
+        self.assertNotIn("aborted", out)
+        self.assertIs(RT.worth_reading(self.b, root=self.root), False)
+
+    def test_a_stop_before_the_first_frame_walks_nothing(self):
+        out = self.run_survey(lambda: "he is playing")
+        self.assertEqual((out["reels"], out["frames"], self.calls), (0, 0, 0))
+        self.assertEqual(out["aborted"], "he is playing")
+        self.assertTrue(out["stoppedEarly"])
+        self.assertEqual(out["abortedAt"], {"reel": os.path.basename(self.a), "frames": 0})
+
+    def test_a_stop_inside_a_reel_gives_back_its_claims_and_remembers_nothing(self):
+        out = self.run_survey(lambda: ("he is playing" if self.calls >= 3 else None))
+        self.assertLess(out["frames"], 5, "the reel was walked to its end")
+        self.assertEqual(out["aborted"], "he is playing")
+        self.assertEqual((out["keep"], out["dispose"], out["panels"], out["byKind"], out["reels"]),
+                         ([], [], 0, {}, 0),
+                         "a half-walked reel left keep/dispose claims a caller could act on")
+        self.assertIsNone(RT.worth_reading(self.a, root=self.root), "a half-walked reel was remembered")
+        self.assertEqual(out["abortedAt"]["reel"], os.path.basename(self.a))
+
+    def test_a_stop_between_reels_keeps_the_finished_one(self):
+        out = self.run_survey(lambda: ("he is playing" if self.calls >= 5 else None), every=100)
+        self.assertEqual(out["reels"], 1)
+        self.assertEqual(len(out["dispose"]), 4, "the finished reel's claims were lost")
+        self.assertIs(RT.worth_reading(self.a, root=self.root), True, "the finished reel was not kept")
+        self.assertIsNone(RT.worth_reading(self.b, root=self.root))
+        self.assertEqual(out["abortedAt"], {"reel": os.path.basename(self.b), "frames": 0})
+
+    def test_a_hook_that_raises_stops_the_walk(self):
+        def _boom():
+            raise RuntimeError("probe exploded")
+        out = self.run_survey(_boom)
+        self.assertIn("raised RuntimeError", str(out.get("aborted")))
+        self.assertEqual(out["frames"], 0)
+
+
+class TheFarmGateAsksTheSameProbe(_Base):
+    """Review item 7 (sibling) — farmgate_payload's d2r_window check ran its own `pgrep`, absent on
+    Windows: every Windows PC read 'process check unavailable' whether D2R ran or not. It asks
+    _d2r_running_here() now. Driven on a Windows-shaped world where pgrep RAISES, as it does there;
+    everything that would reach his machine (the Claude CLI ping, the agent socket, the fleet fetch)
+    is stubbed."""
+
+    def _gate(self):
+        def _no_pgrep(args, *a, **k):
+            if list(args)[:1] == ["pgrep"]:
+                raise FileNotFoundError("pgrep")            # Windows has none
+            raise AssertionError("the farm gate ran %r in a law" % (args,))
+        with mock.patch.object(ca, "status_payload", lambda *a, **k: {"ver": None}), \
+                mock.patch.object(ca, "fleet_origin_status", lambda *a, **k: {"behind": 0}), \
+                mock.patch.object(ca, "_find_claude_bin", lambda *a, **k: None), \
+                mock.patch.object(ca, "_G5", None), \
+                mock.patch.object(ca, "_sock_open", lambda *a, **k: False), \
+                mock.patch.object(ca.subprocess, "run", _no_pgrep), \
+                mock.patch.dict(os.environ, {"TV_CLAUDE_BIN": ""}):
+            j = ca.farmgate_payload()
+        return next(c for c in j["checks"] if c["id"] == "d2r_window")
+
+    def test_windows_native_d2r_reads_running_not_unavailable(self):
+        ca.IS_WIN = True
+        TVD._toolhelp_d2r_state = lambda: True
+        c = self._gate()
+        self.assertTrue(c["ok"], "Dean's native D2R.exe read as %r" % c)
+        self.assertIn("D2R.exe is running", c["detail"])
+        TVD._toolhelp_d2r_state = lambda: False
+        c = self._gate()
+        self.assertFalse(c["ok"])
+        self.assertIn("not running yet", json.dumps(c))
+        TVD._toolhelp_d2r_state = lambda: None
+        c = self._gate()
+        self.assertFalse(c["ok"])
+        self.assertIn("process check unavailable", json.dumps(c))
+        self.assertEqual(c["severity"], "warn")
 
 
 RED_PROOF = [
@@ -1280,6 +1570,102 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    if _capture_is_live() or _agent_alive():\n",
         "replace": "    if _capture_is_live():\n",
+        "matches": 1,
+    },
+    # ── the adversarial review of the merged build 792dd6d9, each item reproduced, fixed and sabotaged ──
+    {
+        "why": "review 1 - the doctor's playing branch is dropped: Dean's 3.5 h native session reads "
+               "'triage starved' MISSING against the 3 h bar",
+        "file": "console_doctor.py",
+        "find": "    if (tri.get(\"lastKey\") == \"playing\" and isinstance(_pf, (int, float))\n",
+        "replace": "    if (False and isinstance(_pf, (int, float))\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 1 - any other outcome no longer ends the run of play: two sessions read as one",
+        "file": "control_app.py",
+        "find": "    else:\n        L[\"playingSince\"] = None\n",
+        "replace": "    else:\n        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 1 - every 'playing' tick restarts the run, so no session is ever measured past one tick",
+        "file": "control_app.py",
+        "find": "        if not L.get(\"playingSince\"):\n            L[\"playingSince\"] = now\n",
+        "replace": "        if True:\n            L[\"playingSince\"] = now\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 1 - the console never publishes how long it has stood aside, so the doctor cannot judge it",
+        "file": "control_app.py",
+        "find": "        d[\"playingForS\"] = (round(",
+        "replace": "        d[\"playingForS\"] = None and (round(",
+        "matches": 1,
+    },
+    {
+        "why": "review 5 - a lane blind to his game (the play probe cannot run) reads like any starved lane",
+        "file": "console_doctor.py",
+        "find": "        if probe_blind:\n            return MISSING,",
+        "replace": "        if False:\n            return MISSING,",
+        "matches": 1,
+    },
+    {
+        "why": "review 5 - one blind tick in three is called a blind machine (dominance is not a majority)",
+        "file": "console_doctor.py",
+        "find": "    return (n_key > 0 and 2 * n_key > n_all), n_key, n_all\n",
+        "replace": "    return (n_key > 0), n_key, n_all\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - the tick passes survey no abort hook: a walk runs 120 s beside a game he just started",
+        "file": "control_app.py",
+        "find": "                     abort=_triage_walk_should_stop, abort_every=_TRIAGE_ABORT_EVERY_FRAMES)\n",
+        "replace": "                     )\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - survey asks the hook only between reels, so one long reel walks on beside his game",
+        "file": "retro_triage.py",
+        "find": "            if walked_here and walked_here % every == 0:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - a walk stopped inside a reel keeps its dispose claims: a caller could drop frames "
+               "nobody finished",
+        "file": "retro_triage.py",
+        "find": "            del out[\"dispose\"][_dp:]\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - a walk stopped inside a reel walks on and remembers the reel as walked in full",
+        "file": "retro_triage.py",
+        "find": "                       abortedAt={\"reel\": os.path.basename(d), \"frames\": walked_here})\n"
+                "            break\n",
+        "replace": "                       abortedAt={\"reel\": os.path.basename(d), \"frames\": walked_here})\n",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - the tick ignores a stopped walk and records it as a walk that walked nothing",
+        "file": "control_app.py",
+        "find": "    if _stop:\n        _sk = ",
+        "replace": "    if False:\n        _sk = ",
+        "matches": 1,
+    },
+    {
+        "why": "review 6 - a probe that goes blind mid-walk is read as 'not playing' and the walk goes on",
+        "file": "control_app.py",
+        "find": "    if playing is None:\n        return {\"key\": \"playing-unknown\",",
+        "replace": "    if False:\n        return {\"key\": \"playing-unknown\",",
+        "matches": 1,
+    },
+    {
+        "why": "review 7 - the farm gate runs its own pgrep again: every Windows PC reads 'process check "
+               "unavailable' whether D2R runs or not",
+        "file": "control_app.py",
+        "find": "    _running, _how = _d2r_running_here()\n",
+        "replace": "    import tv_diablo as _tvd9\n    _running, _how = _tvd9._pgrep_d2r_state(), \"pgrep\"\n",
         "matches": 1,
     },
 ]
