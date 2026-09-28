@@ -225,6 +225,62 @@ class TheMacFinderSaysWhenItCannotLook(unittest.TestCase):
                 sys.modules.pop("Quartz", None)
             tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN = cache, plat, unk
 
+    def _with_quartz(self, wins):
+        """find_d2r_window_mac against a Quartz that answers `wins` -> (hit, _PICK_UNKNOWN, _PICK_WHY)"""
+        import types
+        q = types.ModuleType("Quartz")
+        q.CGWindowListCopyWindowInfo = lambda *_a: wins
+        q.kCGWindowListOptionAll, q.kCGNullWindowID = 0, 0
+        saved = ("Quartz" in sys.modules, sys.modules.get("Quartz"), tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN,
+                 tv._PICK_WHY)
+        try:
+            sys.modules["Quartz"] = q
+            tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN = None, "darwin", False
+            return tv.find_d2r_window_mac(), tv._PICK_UNKNOWN, tv._PICK_WHY
+        finally:
+            had, qq, cache, plat, unk, why = saved
+            if had:
+                sys.modules["Quartz"] = qq
+            else:
+                sys.modules.pop("Quartz", None)
+            tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN, tv._PICK_WHY = cache, plat, unk, why
+
+    def test_an_empty_window_list_is_unknown_and_a_real_list_is_a_look(self):
+        """The second eye on v3521: Quartz answering [] (no desktop behind the process) set the flag False, so
+        'could not look' read as a measured 'no game' - while the Windows twin reads 0 windows as blind."""
+        hit, unk, why = self._with_quartz([])
+        self.assertIsNone(hit)
+        self.assertTrue(unk, "an EMPTY window list read as a measured 'no game'")
+        self.assertIn("EMPTY", why)
+        dock = [{"kCGWindowOwnerName": "Dock", "kCGWindowName": "Dock", "kCGWindowNumber": 7, "kCGWindowLayer": 20,
+                 "kCGWindowBounds": {"X": 0, "Y": 0, "Width": 1440, "Height": 900}, "kCGWindowOwnerPID": 1}]
+        hit, unk, _why = self._with_quartz(dock)
+        self.assertIsNone(hit, "the Dock was pinned as the game")
+        self.assertFalse(unk, "a real list without the game is a MEASURED no-game, and it read as blind")
+
+    def test_the_film_loop_says_could_not_look_when_it_could_not(self):
+        """The film loop held reads with "D2R.exe window not found" while preflight said UNKNOWN for the same finder."""
+        saved = (tv._PICK_UNKNOWN, tv._PICK_WHY, tv.WATCH_MODE)
+        try:
+            tv.WATCH_MODE = False
+            tv._PICK_UNKNOWN, tv._PICK_WHY = True, "quartz-import: No module named Quartz"
+            banner, kind, line = tv._no_game_words()
+            self.assertEqual(kind, "no-game-unknown")
+            self.assertNotIn("not found", line, "a blind finder is journaled as 'window not found'")
+            self.assertIn("quartz-import", banner)
+            tv._PICK_UNKNOWN = False
+            banner, kind, line = tv._no_game_words()
+            self.assertEqual((kind, line), ("no-game", "D2R.exe window not found — AI paused"),
+                             "a real look that found no game lost its own words")
+            self.assertIn("D2R window missing", banner)
+        finally:
+            tv._PICK_UNKNOWN, tv._PICK_WHY, tv.WATCH_MODE = saved
+        # and the loop speaks through it - one sentence, never a second copy that can drift
+        with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertEqual(src.count("_msg, _skind, _sline = _no_game_words()"), 1, "the film loop no longer asks it")
+        self.assertIn("journal_skip(_skind, _sline)", src)
+
 
 class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
@@ -244,6 +300,20 @@ class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3521 - an EMPTY Mac window list reads as a measured 'no game' again",
+        "file": "tv_diablo.py",
+        "find": "    if not wins:\n        # the second eye on v3521",
+        "replace": "    if False:\n        # the second eye on v3521",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3521 - the film loop journals a blind finder as 'D2R.exe window not found'",
+        "file": "tv_diablo.py",
+        "find": "    if _PICK_UNKNOWN and not WATCH_MODE:\n        why = _PICK_WHY or",
+        "replace": "    if False:\n        why = _PICK_WHY or",
+        "matches": 1,
+    },
     {
         "why": "the second eye on v3520 - a Quartz failure on the Mac reads as 'no game' again",
         "file": "tv_diablo.py",

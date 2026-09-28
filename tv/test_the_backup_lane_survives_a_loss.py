@@ -520,6 +520,10 @@ class TheDoctorSaysSoUntilItIsBack(_World):
         self.assertIn("rwMade fell 99 -> 0", why)
         self.assertIn("/api/rw_restore", why, "a runeword drop is not sent to the runeword door")
         self.assertNotIn("the plan reads rwMade", why, "the chronicle plan is said to read rwMade - it does not")
+        # the second eye on v3521: with ONLY rwMade open, the chronicle door restores nothing that fell - it must not
+        # be the first thing he is told to POST, and "take every store from that one file" must not be offered
+        self.assertNotIn("/api/ledger_restore_plan", why, "an rwMade-only drop still sends him to the chronicle plan first")
+        self.assertTrue(why.index("/api/rw_restore") < why.index("ledger_drop_accept"), why)
 
     def test_it_is_UNKNOWN_when_it_cannot_see(self):
         self.assertEqual(CD.UNKNOWN, self._row(bdir=os.path.join(self.bdir, "gone"))[0],
@@ -558,6 +562,13 @@ class TheDoctorSaysSoUntilItIsBack(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3521 - an rwMade-only drop LEADS with the chronicle plan, which puts back nothing that fell",
+        "file": "console_doctor.py",
+        "find": "        _own_doors = (\"owned\", \"rwMade\", \"gameFound\")\n",
+        "replace": "        _own_doors = (\"owned\", \"gameFound\")\n",
+        "matches": 1,
+    },
     {
         "why": "the second eye on v3520 - a runeword drop is sent to the chronicle door that never restores it",
         "file": "console_doctor.py",

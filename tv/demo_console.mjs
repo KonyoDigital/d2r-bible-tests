@@ -1062,7 +1062,8 @@ async function j10_headerGeometry(page) {
     // 2026-09-27 — 8 -> 9: his ruling added the 👤 Characters door (v3518, "yea do it"). A NEW tab must move
     // this number on purpose; a tab that silently leaves the DOM still reads short here.
     if (r.tabs !== 9) bad.push(`${w}px shows ${r.tabs} tabs, not 9`);
-    // the icon yield is a DESIGN line, not an accident: they hold to 1120 and drop below 1100
+    // the icon yield is a DESIGN line, not an accident: they hold to 1120; below 1100 the LABELLED tabs drop
+    // their art, while an icon-only chip (Tools) keeps its picture, because its picture is the tab (v3519)
     if (w >= 1120 && !r.icons) bad.push(`${w}px lost its tab art above the 1100px yield`);
   }
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -338,8 +338,8 @@ def _read_floor():
     constant it replaces hid that. `_CDP_READ_FLOOR = 16.0` was documented as "~7x a whole
     target-width ... the closing seconds of a run", which reads like a chosen safety margin. It
     was not one. 16.0 is exactly _RUN_REPORT_BY - _CLEAN_RUN_COST, so the clamp reaches it at
-    t = _CLEAN_RUN_COST — ON THE LAST TARGET OF A NORMAL CLEAN PASS. Driven: 90s until t=190,
-    40s at t=240, the floor from t=264 onward. From there one CDP read slower than the remainder
+    t = _CLEAN_RUN_COST — ON THE LAST TARGET OF A NORMAL CLEAN PASS. Driven (317 / 333, 2026-09-27): 90s until
+    t=243, 40s at t=293, the floor from t=317 onward. From there one CDP read slower than the remainder
     on a merely LOADED machine raises, marks the tab dead, and (v3438) ABORTS THE WHOLE RUN with
     exit 2 instead of costing one UNKNOWN target. Before v3438 that read had 90s and would not
     have raised. Found by the independent verifier of v3444 AFTER it shipped; the push that
@@ -353,7 +353,7 @@ def _read_floor():
     ⚠ IT IS BELOW _declared_page_patience() AND THAT SHORTFALL IS REAL: 16s against the 30s this
     same file grants one page operation. It CANNOT be closed by raising this number. A stall
     arriving at t = _CLEAN_RUN_COST classifies at _CLEAN_RUN_COST + floor, so any floor above this
-    remainder pushes the verdict past _RUN_REPORT_BY and on into the hook's 300s kill — the
+    remainder pushes the verdict past _RUN_REPORT_BY and on into the hook's 353s kill — the
     unnamed `render HUNG` this whole mechanism exists to replace. Raising it until the clamp never
     fires would delete the adaptive bound rather than fix it. What the shortfall gets instead is
     an HONEST SENTENCE: see _budget_shortened_the_read(). [[the-cure-that-kills-the-patient]]

@@ -665,7 +665,21 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         # it again every pass and read as a stalled drain. It is listed in `remnants`, never silently dropped.
         try:
             _tomb_rows = (_load(_tombstone_path(hist)) or {}).get("reels") or []
-            _remnants = set(r.get("reel") for r in _tomb_rows if isinstance(r, dict) and r.get("kept"))
+            _kept_of = {}
+            for _t in _tomb_rows:
+                if isinstance(_t, dict) and _t.get("kept"):
+                    _kept_of.setdefault(_t.get("reel"), set()).update(str(x) for x in _t.get("kept") or ())
+            # the second eye on v3521: the tombstone is written BEFORE the delete, so a trim that failed halfway (a
+            # file in use, a crash) left a `kept` row over a reel still holding its other frames - and this filter
+            # exempted it forever. A remnant is DONE only when nothing but its kept pictures is left; anything more
+            # and it is planned again like any reel.
+            _remnants = set()
+            for _r, _k in _kept_of.items():
+                try:
+                    if set(os.listdir(os.path.join(hist, _r))) <= _k:
+                        _remnants.add(_r)
+                except OSError:
+                    pass
         except Exception:
             _remnants = set()
         _remnant_list = sorted(r for r in reels if r in _remnants)
@@ -1231,10 +1245,16 @@ def apply_plan(p, yes=False):
         import frame_authority as _fak
         _wit = _fak.witness_index(HERE)
         _cit = _wit.get("cited", False)
+        # the second eye on v3521: `ok` False means a witness STORE would not parse, so `frames` is a PARTIAL index -
+        # a picture named only in that store would read as "not evidence" and go. A partial index holds, like cited.
+        _bad = sorted(k for k, v in (_wit.get("perStore") or {}).items() if v is None)
         if _cit is None:
             _ewhy = "the vault evidence ledger could not be read"
+        elif not _wit.get("ok", False) or _wit.get("frames") is None:
+            _ewhy = ("a witness store would not parse (%s), so which pictures are evidence is only PARTLY known"
+                     % (", ".join(_bad) or "the index said it is partial"))
         else:
-            _evid = set(_wit.get("frames") or ()) | set(_cit or ())
+            _evid = set(_wit.get("frames")) | set(_cit or ())
     except Exception as _ke:
         _ewhy = "the witness index could not be read (%s)" % type(_ke).__name__
     removed, failed, go, notes = [], [], [], {}
@@ -1259,9 +1279,18 @@ def apply_plan(p, yes=False):
         tomb = _tombstone(p["hist"], go)
     except Exception as e:
         tomb_why = str(e)[:160]
+    freed_by = {}
     for c in go:
         path = os.path.join(p["hist"], c["reel"])
         keep = set(notes.get(c["reel"]) or ())
+        # the second eye on v3521: a trimmed reel freed its size MINUS the pictures it kept, never its planned size
+        _kept_mb = 0.0
+        for f in keep:
+            try:
+                _kept_mb += os.path.getsize(os.path.join(path, f)) / (1024.0 * 1024.0)
+            except OSError:
+                pass
+        freed_by[c["reel"]] = max(0.0, float(c.get("mb") or 0) - _kept_mb)
         try:
             if keep:
                 for f in os.listdir(path):
@@ -1280,9 +1309,8 @@ def apply_plan(p, yes=False):
     _removed_set = set(removed)
     return {"ok": not failed, "removed": removed, "failed": failed,
             "keptPictures": dict((r, k) for r, k in notes.items() if k and r in _removed_set),
-            "freedMb": sum(float(c.get("mb") or 0)
-                           for c in (p.get("candidates") or [])
-                           if c.get("reel") in _removed_set),
+            "freedMb": round(sum(freed_by.get(r, 0.0) for r in removed), 1),
+            "trimmed": sum(1 for r in removed if notes.get(r)),
             "freedMbPlanned": p.get("freeMb", 0),
             "tombstoned": (len(tomb) if tomb is not None else None),
             "tombstonePath": _tombstone_path(p.get("hist")),
@@ -1493,7 +1521,9 @@ def main(argv=None):
     if not p["ok"]:
         print("refusing: %s" % p["why"])
         return 1
-    print("%d reel(s) on disk in %s" % (p["onDisk"], p["hist"]))
+    print("%d reel(s) on disk in %s%s" % (p["onDisk"], p["hist"],
+          (" (+ %d released reel(s) holding only their evidence pictures)" % len(p.get("remnants") or []))
+          if p.get("remnants") else ""))
     print(p["say"])
     if p["candidates"]:
         print("\nMAY GO (oldest first):")
@@ -1512,7 +1542,8 @@ def main(argv=None):
     print("   %s" % p["coverageSay"])
     if a.apply:
         r = apply_plan(p, a.yes)
-        print("\n%s" % ("removed %d reel(s), freed %d MB" % (len(r["removed"]), round(r["freedMb"]))
+        print("\n%s" % ("removed %d reel(s) (%d of them kept only their evidence pictures), freed %d MB"
+                        % (len(r["removed"]), r.get("trimmed") or 0, round(r["freedMb"]))
                         if r["ok"] else r.get("why") or "some deletions failed"))
         for f in r.get("failed") or []:
             print("   FAILED %s — %s" % (f["reel"], f["why"]))

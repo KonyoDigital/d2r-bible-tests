@@ -7541,7 +7541,9 @@
     /* 2026-09-27 — EXCEPT an icon-only chip: its picture IS the tab (like the 👤 glyph), so it keeps
        it here. v3518 made Tools icon-only and this rule left it an EMPTY chip below 1100; showing its
        word instead wrapped the 9-tab strip to two rows at 900 (demo J10). A picture that fails to
-       load drops the icon-only class (its onerror), and the word shows. render_check console-tabs:
+       load drops the icon-only class and the word shows - by its onerror, AND by the icon guard for a
+       picture that is 'complete' with no pixels, which fires no onerror (one cache-busting retry, then
+       a 1500ms check; the #231 eye on v3519). render_check console-tabs:
        every tab shows a word, picture or glyph. */
     .head-tabs .ht.ht-icon .ht-i { display: inline-block; }
   }

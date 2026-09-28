@@ -891,18 +891,29 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         via_chronicle = sorted(set(str(e.get("store")) for e in open_eps
                                    if e.get("store") in ("foundLog", "setPieces")))
         owned = any(e.get("store") == "owned" for e in open_eps)
-        door = ("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
-                "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "
-                "\"file\": \"%s\" to take every store from that one file)"
-                % (", ".join(via_chronicle) or "each dropped store", open_eps[0].get("beforeFile")))
+        # the second eye on v3521: an rwMade-only (or owned-only) drop still LED with the chronicle door and its
+        # "take every store from that one file" - a door that puts back none of what fell. The chronicle plan is
+        # named only when a dropped store actually goes through it; a store with its own door leads with that door.
+        _own_doors = ("owned", "rwMade", "gameFound")
+        _via_plan = [e for e in open_eps if e.get("store") not in _own_doors]
+        doors = []
+        if _via_plan:
+            doors.append("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
+                         "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "
+                         "\"file\": \"%s\" to take every store from that one file)"
+                         % (", ".join(via_chronicle) or ", ".join(sorted(set(str(e.get("store")) for e in _via_plan))),
+                            _via_plan[0].get("beforeFile")))
         if owned:
-            door += ("; owned is a possession record and is NOT put back by that door — "
-                     "/api/owned_restore is its own, confirm required")
+            doors.append(("owned is a possession record and is NOT put back by that door — "
+                          if _via_plan else "RESTORE owned (a possession record): ")
+                         + "/api/owned_restore is its own, confirm required")
         # the second eye on v3520 (read against ledger_restore.RESTORABLE): runewords are BACKED_UP_ONLY - the
         # chronicle door never carries them, so sending him there for an rwMade drop restores nothing
         if any(e.get("store") == "rwMade" for e in open_eps):
-            door += ("; rwMade (runewords made) is NOT put back by that door either — /api/rw_restore is its own, "
-                     "confirm required")
+            doors.append(("rwMade (runewords made) is NOT put back by that door either — "
+                          if _via_plan else "RESTORE rwMade (runewords made): ")
+                         + "/api/rw_restore is its own, confirm required")
+        door = "; ".join(doors) if doors else "no restore door carries the store(s) that fell"
         door += (". A deliberate clear is not a loss to undo: POST /api/ledger_drop_accept "
                  "{\"store\": %r, \"reason\": \"why\", \"confirm\": true}"
                  % open_eps[0].get("store"))

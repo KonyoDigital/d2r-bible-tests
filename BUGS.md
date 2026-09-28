@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
+
+**SEEN (grok-cli on a3f7a020..69d4ebb0):** (1) apply_plan writes the tombstone `kept` row BEFORE the delete, and plan()
+exempted every reel with a `kept` row - a trim that failed halfway left its other frames on disk forever while the drain
+read CLEAR; (2) apply_plan read `frames` from a PARTIAL witness index (`ok` False: a store would not parse) as complete,
+so a picture named only in that store read as "not evidence"; (3) freedMb credited a trimmed reel with its whole planned
+size; (4) an EMPTY Mac window list set _PICK_UNKNOWN False - "could not look" read as a measured "no game" (the Windows
+twin already reads 0 windows as blind); (5) the film loop still journaled "D2R.exe window not found" for a blind finder
+while preflight said UNKNOWN; (6) an rwMade-only drop LED with the chronicle plan and "take every store from that one
+file", a door that puts back nothing that fell. Its "unseen" worry (frames as paths, not basenames) was REFUTED: both
+witness_index and cited_frames store basenames. Also fixed from the v3519 looks: render_check's _read_floor docstring
+still gave the 280/300 schedule; control_ui and demo_console comments lagged the icon guard. **FIX:** a remnant is done
+only when nothing but its kept pictures is left; a partial index holds every reel ("PARTLY known"); freed = size minus
+kept pictures, `trimmed` counted, the CLI names remnants; an empty list is UNKNOWN; `_no_game_words()` says "could not
+look" (reads still held); a store with its own door leads with it. HEART: test_the_river_drains_every_pass (3 cases),
+test_a_windows_door_sees_the_game (2), test_the_backup_lane_survives_a_loss (1), each with its red-proof.
+
+### REG-1347 - ONE RESISTANCE PUT ITS VALUE ON A LINE OF ITS OWN WHILE THE OTHER THREE KEPT THEIRS (#29a, 2026-09-28)
+
+**SEEN:** his #29(a), from a Grok look: at ~1000px "Fire Resistance" dropped its number while Cold / Lightning / Poison
+kept theirs. MEASURED on v3521 (plain template): no drop at 960-1400, all four together at 900-940 - so the plain case was
+consistent; but with ONE row wider than the rest (Fire carrying a rolled range, "-50 to -40% RANGE <=75%") that row alone
+dropped at every width from 960 to 1180. Round 3's law only held that the INDENT adds no drop, never that a value keeps
+its line. **FIX:** the stat row is a two-column grid - the label wraps at its words, the value's column takes the room it
+needs, and when even that is tight the RANGE chip and the cap wrap UNDER the number inside the value. Swept 900-1400 in
+both states: 0 drops, 0 chips outside their row, 0 label text under a value; 375 and 2000 clean. The indent's negative
+margin carried nothing any more (clean without it) and went, with round 3's now-blind sabotage. HEART:
+test_the_character_builder_fits_at_every_width round 8, two red-proofs PROVEN (flex row back; chips not allowed to wrap).
+
 ### REG-1346 - AN UNBUMPED PUSH SKIPPED THE SECOND EYE, AND 27 COMMITS WENT LIVE UNDER THE v3520 LABEL (2026-09-28)
 
 **SEEN:** he asked "i see no versions have been shipped but it claims to have fixed". Grok (code seat, 2026-09-27/28)

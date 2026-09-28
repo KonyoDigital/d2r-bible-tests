@@ -378,6 +378,69 @@ class AVaultPictureHoldsItsReel(_Base):
         for nm in self.old:
             self.assertIn(nm, self.w.on_disk())
 
+    # ── the second eye on v3521, three findings, each reproduced before it was fixed ──
+
+    def _apply(self, p):
+        """apply_plan on a plan already made, the frame.release lock open exactly as _pass opens it"""
+        def _may(lock):
+            return (True, "fixture: the frame.release lock is open") if lock == "frame.release" else _REAL_MAY(lock)
+        with mock.patch("time.time", self.clock), mock.patch.object(SA, "may", _may):
+            return RR.apply_plan(p, True)
+
+    def test_a_partial_witness_index_releases_nothing(self):
+        """`ok` False = a witness STORE would not parse, so `frames` is partial: a picture named only in that store
+        read as "not evidence" and went. A partial index holds every reel, exactly as an unreadable cited set does."""
+        def _wi(root=None, _real=self.real):
+            out = dict(_real(root))
+            out["cited"] = set()
+            out["ok"] = False
+            out["perStore"] = dict(out.get("perStore") or {}, **{"vault_accum_rows.json": None})
+            return out
+        # planned on a WHOLE index (so the plan releases), applied after a store stopped parsing - the plan
+        # already holds a partial index itself, so this is the deleter's own guard, at the moment it deletes
+        self._cite(set())
+        with mock.patch("time.time", self.clock):
+            p = RR.plan(self.w.hist)
+        self.assertTrue(p.get("candidates"), "PREMISE: the whole index released nothing to hold")
+        self.FA.witness_index = _wi
+        pre = dict((nm, sorted(os.listdir(os.path.join(self.w.hist, nm)))) for nm in self.old)
+        r = self._apply(p)
+        self.assertEqual(r.get("removed") or [], [], "reels were deleted on a PARTIAL evidence index: %r" % r)
+        for nm in self.old:
+            self.assertEqual(sorted(os.listdir(os.path.join(self.w.hist, nm))), pre[nm], "a frame left %s" % nm)
+        self.assertTrue(any("PARTLY known" in (f.get("why") or "") for f in r.get("failed") or []),
+                        "the hold does not say why: %r" % r.get("failed"))
+
+    def test_a_half_trimmed_remnant_is_planned_again(self):
+        """The tombstone goes down BEFORE the delete. A trim that failed halfway left a `kept` row over a reel still
+        holding its other frames, and plan() exempted it forever. Only a reel holding nothing but its kept pictures
+        is a finished remnant."""
+        self._cite({self.cited_frame})
+        self._pass(free_gb=500.0)
+        d = os.path.join(self.w.hist, self.cited_reel)
+        self.assertIn(self.cited_reel, RR.plan(self.w.hist).get("remnants") or [], "PREMISE: no remnant was made")
+        with open(os.path.join(d, "left_behind.jpg"), "wb") as fh:     # what a failed trim leaves
+            fh.write(b"x" * 2048)
+        p = RR.plan(self.w.hist)
+        self.assertNotIn(self.cited_reel, p.get("remnants") or [],
+                         "a half-trimmed reel still reads as a finished remnant - its leftover frames stay forever")
+
+    def test_freed_is_what_left_the_disk(self):
+        """A trimmed reel was credited with its whole planned size. Freed = its size minus the pictures it kept."""
+        d = os.path.join(self.w.hist, self.cited_reel)
+        with open(os.path.join(d, self.cited_frame), "wb") as fh:          # a big kept picture, so the gap shows
+            fh.write(b"x" * (3 * 1024 * 1024))
+        self._cite({self.cited_frame})
+        with mock.patch("time.time", self.clock):
+            p = RR.plan(self.w.hist)
+        planned = dict((c["reel"], float(c.get("mb") or 0)) for c in p.get("candidates") or [])
+        self.assertIn(self.cited_reel, planned, "PREMISE: the cited reel is not a candidate")
+        r = self._apply(p)
+        want = sum(planned[nm] for nm in r.get("removed") or []) - 3.0
+        self.assertEqual(r.get("trimmed"), 1, "the trimmed reel is not counted as trimmed: %r" % r)
+        self.assertAlmostEqual(r.get("freedMb"), round(max(0.0, want), 1), delta=0.11,
+                               msg="freed counts the kept picture as freed: %r vs %.1f" % (r.get("freedMb"), want))
+
 
 class PressureNeverFreesLess(_Base):
     """★ Claim 2 — the band where `need_mb` used to cap the pass."""
@@ -639,6 +702,27 @@ def tearDownModule():
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3521 - apply_plan deletes on a PARTIAL witness index (a store would not parse)",
+        "file": "reel_retention.py",
+        "find": "        elif not _wit.get(\"ok\", False) or _wit.get(\"frames\") is None:\n",
+        "replace": "        elif _wit.get(\"frames\") is None:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3521 - a half-trimmed reel with a `kept` row is a finished remnant forever",
+        "file": "reel_retention.py",
+        "find": "                    if set(os.listdir(os.path.join(hist, _r))) <= _k:\n",
+        "replace": "                    if True:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the second eye on v3521 - a trimmed reel is credited with its whole planned size as freed",
+        "file": "reel_retention.py",
+        "find": "        freed_by[c[\"reel\"]] = max(0.0, float(c.get(\"mb\") or 0) - _kept_mb)\n",
+        "replace": "        freed_by[c[\"reel\"]] = float(c.get(\"mb\") or 0)\n",
+        "matches": 1,
+    },
     {
         "why": "the second eye on v3520 - an unread armed state reads as a stalled drain again",
         "file": "reel_retention.py",

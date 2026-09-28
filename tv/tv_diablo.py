@@ -1529,6 +1529,13 @@ def find_d2r_window_mac():
         _PICK_WHY = "winlist: %s" % e
         _PICK_UNKNOWN = True
         return None
+    if not wins:
+        # the second eye on v3521: an EMPTY list is not a look either. A process with no window server behind it (an
+        # agent context, no desktop session) answers [] - his GUI session always lists the menu bar and the dock - and
+        # the Windows twin already reads 0 windows as "could not see". Not cached, so the next call looks again.
+        _PICK_WHY = "the window list came back EMPTY - no desktop was visible to this process, so it says nothing about the game"
+        _PICK_UNKNOWN = True
+        return None
     _PICK_UNKNOWN = False                       # a real look: whatever it finds is a measurement
     rows = []
     for w in wins:
@@ -4397,6 +4404,21 @@ def _game_window_present():
         alive = False
     globals()["_D2R_PROC_CACHE"] = (alive, _pn)
     return alive
+
+
+def _no_game_words():
+    """What the film loop says when it holds live reads for want of a game window. -> (banner, skip kind, skip line)
+
+    The second eye on v3521: capture_preflight and lane_health already read _PICK_UNKNOWN as "could not look", while
+    this loop still announced "D2R.exe window not found" for the same blind finder - two surfaces, one fact, opposite
+    words. Reads are still HELD (a blind finder is no licence to read an unknown screen); only the claim changes.
+    Windows fails open before it gets here, so this is the Mac's sentence. [[unknown-stays-unknown]]"""
+    if _PICK_UNKNOWN and not WATCH_MODE:
+        why = _PICK_WHY or "the window finder could not look"
+        return ("Could not look for the D2R window (%s) — live reads are held until it can; this is not 'no game'" % why,
+                "no-game-unknown", "could not look for the D2R window (%s) — AI paused, UNKNOWN" % why)
+    return ("D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads",
+            "no-game", "D2R.exe window not found — AI paused")
 
 
 def _set_game_gate(ok, msg=""):
@@ -7663,7 +7685,7 @@ def main():
                 if not _ms:
                     globals()["_GAME_MISS_SINCE"] = _now_g
                 elif (_now_g - _ms) >= 6.0:
-                    _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
+                    _msg, _skind, _sline = _no_game_words()
                     if not globals().get("_AI_PAUSED"):
                         ev("cap", "⏸ " + _msg)
                         print("  ⏸ " + _msg)
@@ -7672,7 +7694,7 @@ def main():
                     if _now_g >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
                         globals()["_NOGAME_SKIP_DUE"] = _now_g + 30.0
                         try:
-                            journal_skip("no-game", "D2R.exe window not found — AI paused")
+                            journal_skip(_skind, _sline)
                         except Exception:
                             pass
         if globals().get("_AI_PAUSED"):
