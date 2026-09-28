@@ -6127,6 +6127,18 @@ GATES = [
              "one are the same output: they prove it can select, that a 0-page seal never qualifies "
              "(1166 MB of his film is in that state and the engine reopens it), that --apply refuses "
              "without --yes, and that it takes the right directory and leaves the rest"),
+    Gate("test_triage_runs_beside_a_shadow_reel",
+         [sys.executable, os.path.join(HERE, "test_triage_runs_beside_a_shadow_reel.py")], 120,
+         why="2026-09-28 — his Windows ALT held 7 of 10 reels in TRIAGE: retro_triage_tick refused "
+             "every 90 s tick beside a continuously rolling shadow reel, its load guard was "
+             "os.getloadavg (absent on Windows, swallowed), and it recorded and published nothing. "
+             "Driven through the SHIPPED tick with only the edges stubbed: a shadow capture at 20% "
+             "CPU reaches the survey; ON AIR / MINI / an unreadable door refuse 'never compete with "
+             "the camera' before the CPU is asked; shadow + unmeasurable or 90% CPU refuse and name "
+             "it; every refusal is counted in _TRIAGE_LANE and published on /api/river; a folding or "
+             "frameless reel never parks the lane; _cpu_busy_pct measures Windows via GetSystemTimes "
+             "(kernel includes idle); and the doctor row 'triage starved' reads MISSING / UNKNOWN / "
+             "OK, including off the exact state the console publishes"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "

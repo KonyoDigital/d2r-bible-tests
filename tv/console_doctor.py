@@ -4353,6 +4353,116 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
     return UNKNOWN, str(dr.get("why") or "the drain's state is UNKNOWN") + _tail
 
 
+#: a reel may wait in TRIAGE this long with no reel walked before the lane counts as STARVED. At
+#: the measured ~0.02 s/frame one tick walks a whole reel, so 3 h is ~120 ticks of 90 s — not jitter.
+TRIAGE_STARVED_AFTER_S = 3 * 3600
+
+
+def _river_triage_count(riv):
+    """Reels the river holds at TRIAGE right now. -> int | None (the river could not say)
+
+    Summed from the four lanes' byStation — reel_router's live answer with the fixture reels already
+    subtracted, the same population the shelf draws. None, never 0, when no lane answered."""
+    lanes = riv.get("lanes") if isinstance(riv, dict) else None
+    if not isinstance(lanes, dict) or not lanes.get("ok"):
+        return None
+    rows = lanes.get("lanes")
+    if not isinstance(rows, list) or not rows:
+        return None
+    n, seen = 0, False
+    for l in rows:
+        by = (l or {}).get("byStation")
+        if isinstance(by, dict) and "TRIAGE" in by:
+            seen = True
+            try:
+                n += int(by.get("TRIAGE") or 0)
+            except (TypeError, ValueError):
+                return None
+    return n if seen else None
+
+
+def _check_triage_is_not_starved(*_a, **_k):
+    """2026-09-28 — ARE REELS WAITING IN TRIAGE WHILE THE LANE THAT MOVES THEM IS NOT MOVING ANY?
+
+    MEASURED over SSH on his Windows ALT (Boosteroid, shadow reader on, the hourly rollover live):
+    7 of its 10 reels sat in TRIAGE — "the template is known and retro_triage has not walked its
+    frames" — and nothing reached TOMBSTONE, so the FIFO drain correctly released nothing. The lane
+    refused every 90 s tick beside a shadow reel that never stopped rolling, and printed only on
+    success, and published nothing: a lane refusing for ever read exactly like a lane with nothing
+    to do. His words: "this needs to be automated flow", "not stacking up".
+
+    MISSING when the river holds reels at TRIAGE and no reel has been walked for more than
+    TRIAGE_STARVED_AFTER_S — naming the lane's last refusal, how often each reason fired, and the
+    backlog it counted. A lane that has never walked a reel is judged by how long its process has
+    been up, and the console seeds its last walk from the survey store, so a relaunch does not
+    reset the clock to "never".
+    UNKNOWN when the lane's state cannot be read (no answer, a console that predates the field, an
+    unreadable state) or the river cannot say how many reels sit at TRIAGE.
+    UNMEASURED when the lane is stood down in this world BY DESIGN (a TV_STUB harness).
+    OK otherwise — nothing waits in TRIAGE, or a reel was walked inside the bar.
+
+    ⚠ IT READS THE WIRE, NEVER `import control_app` — that builds a second module whose
+    _TRIAGE_LANE is the empty literal (test_the_doctor_reads_the_console_not_a_twin).
+    ⚠ PERIODIC: /api/river recomputes reel_router over every reel on every call (REG-1305), and an
+    hourly look loses nothing against a three-hour bar. [[heart-first]] [[unknown-stays-unknown]]
+    [[feedback-silence-is-not-evidence]] [[the-unjoined-end]]
+    """
+    riv = _get("/api/river", timeout=8)
+    if not isinstance(riv, dict):
+        return UNKNOWN, ("the console did not answer /api/river, so whether reels are stacking up "
+                         "in TRIAGE behind a starved lane is UNKNOWN")
+    tri = riv.get("triage")
+    if not isinstance(tri, dict):
+        return UNKNOWN, ("the console publishes no triage lane state on /api/river (it predates "
+                         "it), so whether the lane is walking reels is UNKNOWN")
+    if tri.get("ok") is False:
+        return UNKNOWN, ("the triage lane's state could not be read (%s), so whether it is starved "
+                         "is UNKNOWN" % str(tri.get("why") or "no reason given")[:110])
+    if tri.get("stoodDown"):
+        return UNMEASURED, ("the triage lane is stood down in this world BY DESIGN (a TV_STUB "
+                            "harness) — it will never walk a reel here, which is not a starved lane")
+    n = _river_triage_count(riv)
+    if n is None:
+        return UNKNOWN, ("the river could not say how many reels sit in TRIAGE (%s), so whether "
+                         "the lane is starved is UNKNOWN"
+                         % str(((riv.get("lanes") or {}).get("why")) or riv.get("why")
+                               or "no lanes answered")[:110])
+    skips = tri.get("skips") if isinstance(tri.get("skips"), dict) else {}
+    top = ", ".join("%s ×%s" % (k, v) for k, v in
+                    sorted(skips.items(), key=lambda kv: -int(kv[1] or 0))[:5])
+    backlog = tri.get("backlog")
+    since = tri.get("sinceSurveyS")
+    up = tri.get("upS")
+    detail = ["refusals in this process: " + (top or "none recorded"),
+              "backlog the lane counted: %s" % ("UNKNOWN (no tick has counted it yet)"
+                                                if backlog is None else backlog),
+              "last walk: %s" % ("never" if tri.get("lastSurveyTs") is None else
+                                 "%s via %s" % (tri.get("lastReel") or "a reel",
+                                                tri.get("lastSurveySource") or "?"))]
+    if not n:
+        return OK, ("no reel waits in TRIAGE — nothing is stacking up behind the triage lane", detail)
+    if since is not None:
+        age_s = float(since)
+        span = "has not walked a reel for %.1f h" % (age_s / 3600.0)
+    elif up is not None:
+        age_s = float(up)
+        span = "has NEVER walked a reel, in the %.1f h this process has run" % (age_s / 3600.0)
+    else:
+        return UNKNOWN, ("%d reel(s) wait in TRIAGE and the lane reports neither its last walk nor "
+                         "how long it has been up, so how long they have waited is UNKNOWN" % n)
+    bar_h = TRIAGE_STARVED_AFTER_S / 3600.0
+    if age_s > TRIAGE_STARVED_AFTER_S:
+        last = tri.get("lastSkipWhy") or tri.get("lastWhy")
+        said = ("%s [%s]" % (str(last)[:140], tri.get("lastSkipKey") or tri.get("lastKey"))
+                if last else "NONE RECORDED — no tick has reported at all, so the loop itself may "
+                             "not be running")
+        return MISSING, ("%d reel(s) wait in TRIAGE and the triage lane %s (bar %.0f h). Its last "
+                         "refusal: %s. Backlog: %s reel(s) owed a survey."
+                         % (n, span, bar_h, said, "UNKNOWN" if backlog is None else backlog), detail)
+    return OK, ("%d reel(s) wait in TRIAGE and the lane %s — inside the %.0f h bar"
+                % (n, span, bar_h), detail)
+
+
 #: ══ v#### — THE FOUR ROUTES GET FOUR ROWS, SO ONE CAN GO RED ALONE ════════════════════════════
 #:
 #: ⚠⚠ MEASURED 2026-09-08 over the fifty rows below: the ones that touch a reel's route are
@@ -8897,6 +9007,9 @@ CHECKS = [
     # 2026-09-27 — the MOUTH of the river: releasable reels carried through `stoppedAfter` passes
     # with nothing released is a drain that stopped. Reads the wire, one cheap GET per tick.
     ("retention drain", _check_the_retention_drain_is_draining),
+    # 2026-09-28 — the river's SOURCE end: reels waiting in TRIAGE while the lane that walks them
+    # has walked none for three hours. His ALT held 7 of 10 there, silently. PERIODIC (see below).
+    ("triage starved", _check_triage_is_not_starved),
     # v#### — ONE ROW PER REEL ROUTE. ⚠ THE NAMES ARE HARD-CODED ON PURPOSE, so they are
     # greppable and so the rail cannot silently grow a row nobody argued for; the gate asserts
     # this list covers every entry in reel_templates.ROUTES, which is where a fifth route would
@@ -9032,6 +9145,9 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # only when the station keys or the label map change, and both are CODE; a code change
             # re-execs the console and re-runs every row anyway. Hourly loses nothing.
             "the shelf tabs are his stations",
+            # 2026-09-28 — the same /api/river GET, for the same reason. Its bar is THREE HOURS, so
+            # an hourly look loses nothing, and the every-tick subset pays no 2-4 s river read.
+            "triage starved",
             # ⚠⚠ v3462 — THIS ROW SHELLS OUT TO `gh` AND WAS ON THE EVERY-TICK ROSTER.
             # A stalled gh would stall the whole doctor tick — which runs at every console
             # BOOT and on the ten-minute watchdog — so a GitHub hiccup could hold up his
@@ -9617,6 +9733,8 @@ WATCHES = {
     # 2026-09-27 — the drain contract rides /api/status.retention.drain and reaches him through the
     # eagle line; it owns no element of its own. Empty tuple as a DECLARATION, not an omission.
     "retention drain":             (),
+    # 2026-09-28 — it watches the LOOP that walks TRIAGE reels (its refusals, its last walk).
+    "triage starved":              ("_retro_triage_loop",),
     "route stash":                 (),
     "route chronicle \u00b7 sets":    ("chronicle.set",),
     "route chronicle \u00b7 uniques": ("chronicle.unique",),
