@@ -38,6 +38,7 @@ that removed the only copy of a Ber drop. [[unknown-stays-unknown]]
 import argparse
 import json
 import errno as _errno
+import glob
 import os
 import shutil
 import sys
@@ -191,6 +192,43 @@ def _reel_ts(reel):
         return int(reel.split("_")[2])
     except Exception:
         return float("inf")
+
+
+def vault_evidence_reels(hist_dir, root=None):
+    """Reel dir names holding a frame a vault item stands on. -> (set | None, why)
+
+    ⚠⚠ 2026-09-28 — HIS §26 RULING, AND THE HALF GROK'S f189f767 DID NOT JOIN. "a cited vault frame stays when
+    its reel is released" was true of the release_uncited helper and of the tombstone's `kept` field, and false of the ONE
+    deleter: apply_plan() still rmtree's the whole reel, and nothing called release_uncited. With the drain now
+    running on every pass (REG-1335/fifo), a released reel would have taken the pictures behind his vault rows with
+    it. Until cited frames are moved somewhere the frame server can still serve them, a reel that holds one is HELD
+    (holds-proof) - the same granularity frame_authority.frame_verdict judges a frame by (its basename against the
+    witness index's `frames` and `cited`), one rule, not a second one. None (UNKNOWN) holds every reel.
+    [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    try:
+        import frame_authority as _fa
+        wit = _fa.witness_index(root or HERE)
+    except Exception as e:
+        return None, "the witness index could not be read (%s)" % type(e).__name__
+    cited = wit.get("cited", False)
+    if cited is None:
+        return None, "the vault evidence ledger could not be read, so which pictures are cited is UNKNOWN"
+    names = set(wit.get("frames") or ()) | set(cited or ())
+    if not names:
+        return set(), "no vault row or evidence tier cites a picture"
+    held = set()
+    for d in glob.glob(os.path.join(hist_dir, "reel_*")):
+        if not os.path.isdir(d):
+            continue
+        try:
+            files = set(os.listdir(d))
+        except OSError:
+            return None, "reel %s could not be listed, so whether it holds a cited picture is UNKNOWN" % \
+                os.path.basename(d)
+        if names & files:
+            held.add(os.path.basename(d))
+    return held, "%d reel(s) hold a picture a vault item stands on" % len(held)
 
 
 def release_uncited(reel_dir, sealed, wit):
@@ -733,6 +771,17 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         _proof_hold, _proof_why = proof_reels(hist)
     except Exception as _e:
         _proof_hold, _proof_why = None, "the proof scan itself failed (%s)" % type(_e).__name__
+    # 2026-09-28 — and the pictures behind his VAULT (§26): a reel holding one is proof too. See vault_evidence_reels.
+    try:
+        _ve_hold, _ve_why = vault_evidence_reels(hist)
+    except Exception as _e:
+        _ve_hold, _ve_why = None, "the vault evidence scan itself failed (%s)" % type(_e).__name__
+    if _proof_hold is not None:
+        if _ve_hold is None:
+            _proof_hold, _proof_why = None, _ve_why
+        elif _ve_hold:
+            _proof_hold = set(_proof_hold) | set(_ve_hold)
+            _proof_why = "%s; %s" % (_proof_why, _ve_why)
     candidates, kept, freed = [], [], 0.0
 
     # ── v2068 — A RULE THAT NEVER RUNS MUST SAY SO ─────────────────────────────────────────────
@@ -906,6 +955,9 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             # reported first (a fixture is a fixture, recent is recent), and this only catches the
             # reels that would otherwise have been deleted. [[regression-guard]]
             why = _rule("holds-proof",
+                        ("HELD — a picture in this reel is what a vault item stands on (his evidence line "
+                         "opens it). It stays until cited pictures can be kept apart from their reel.")
+                        if (_ve_hold and reel in _ve_hold) else
                         "HELD — a frame in this reel is the receipt for a NAMED claim in the "
                         "chronicle. Deleting it would leave the claim standing with its proof "
                         "destroyed, which is the one loss this repo cannot undo.")

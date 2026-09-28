@@ -318,6 +318,52 @@ class TheRiverDrainsFifoAndKeepsTheNewest(_Base):
         self.assertEqual([x.get("released") for x in rows if "released" in x], [4])
 
 
+class AVaultPictureHoldsItsReel(_Base):
+    """2026-09-28 — HIS §26: "the evidence linked and attached with the picture being able to be clicked". Grok's
+    f189f767 recorded a `kept` list on the tombstone, but apply_plan still rmtree's the WHOLE reel and nothing called
+    release_uncited, so a drained reel took the picture a vault item stands on. Driven: the real pass on a scratch
+    world, only the witness index stubbed to cite one frame of one old reel."""
+
+    def setUp(self):
+        _Base.setUp(self)
+        self.setUpClock()
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + 4)
+        self._bind(self.w)
+        self.old = self.w.names[:4]
+        self.cited_reel = self.old[1]
+        d = os.path.join(self.w.hist, self.cited_reel)
+        self.cited_frame = [f for f in os.listdir(d) if f.endswith(".jpg")][0]
+        import frame_authority as FA
+        real = FA.witness_index
+        self.addCleanup(setattr, FA, "witness_index", real)
+        self.FA, self.real = FA, real
+
+    def _cite(self, cited):
+        def _wi(root=None, _real=self.real):
+            out = dict(_real(root))
+            out["cited"] = cited
+            return out
+        self.FA.witness_index = _wi
+
+    def test_the_reel_under_a_vault_picture_stays_and_the_rest_drain(self):
+        self._cite({self.cited_frame})
+        r, _st = self._pass(free_gb=500.0)
+        self.assertEqual(sorted(r.get("removed") or []), sorted(n for n in self.old if n != self.cited_reel),
+                         "the drain did not release exactly the three old reels no vault item stands on: %r" % r)
+        self.assertIn(self.cited_reel, self.w.on_disk(), "a reel holding a picture a vault item stands on was deleted")
+        row = [k for k in RR.plan(self.w.hist).get("kept") or [] if k.get("reel") == self.cited_reel]
+        self.assertEqual(len(row), 1, "the held reel is not on the kept list")
+        self.assertIn("vault item stands on", row[0].get("why") or "", "the hold does not say it is vault evidence")
+
+    def test_an_unreadable_evidence_ledger_releases_nothing(self):
+        self._cite(None)
+        r, _st = self._pass(free_gb=500.0)
+        # None = the pass refused outright, which is also a release of nothing; the disk is the verdict
+        self.assertEqual((r or {}).get("removed") or [], [], "reels were deleted while which pictures are cited was UNKNOWN")
+        for nm in self.old:
+            self.assertIn(nm, self.w.on_disk())
+
+
 class PressureNeverFreesLess(_Base):
     """★ Claim 2 — the band where `need_mb` used to cap the pass."""
 
@@ -570,6 +616,20 @@ def tearDownModule():
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 §26 - the drain deletes a reel holding a picture a vault item stands on again",
+        "file": "reel_retention.py",
+        "find": "        elif _ve_hold:\n            _proof_hold = set(_proof_hold) | set(_ve_hold)\n",
+        "replace": "        elif False:\n            _proof_hold = set(_proof_hold) | set(_ve_hold)\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 §26 - an unreadable vault evidence ledger no longer stops the drain",
+        "file": "reel_retention.py",
+        "find": "        if _ve_hold is None:\n            _proof_hold, _proof_why = None, _ve_why\n",
+        "replace": "        if False:\n            _proof_hold, _proof_why = None, _ve_why\n",
+        "matches": 1,
+    },
     {
         "why": "restoring the need_mb gate makes disk pressure free LESS than a roomy disk — "
                "every finished reel past the first is held target-met",
