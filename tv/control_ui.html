@@ -6596,9 +6596,17 @@
      no child is nowrap (test_the_fleet_row_can_shrink_below_its_own_text). */
   .fleet-row > .fleet-sys  { grid-column: 1 / -1; margin-left: 14px; justify-self: stretch;
                              text-align: left; font-weight: var(--fw-normal); color: #7f8c83; }
-  .fleet-sys > .fs-l { display: block; overflow-wrap: anywhere; padding-left: 7ch; text-indent: -7ch; }
-  .fleet-sys .fs-k { display: inline-block; width: 6.4ch; text-indent: 0; font-style: normal; color: #5d685f; }
-  .fleet-row > .fleet-sys.fleet-former > .fs-l { padding-left: 0; text-indent: 0; }
+  /* 2026-09-28 round 2 (REG-1377) - EACH FACT IS ITS OWN FLEX ITEM, EXACTLY AS THE RIVER'S TRIAGE LINE (.shr-tri):
+     the facts of one line were one string joined by middots, so a wrap stranded a middot at one end or the other - at
+     375 a river line began "· CAPTURE 4 ·", at 1280 a triage line ended "walking (53s ago) ·". A separator that wraps
+     is orphaned at one end or the other; choosing which end is not a fix, so there is no glyph between facts at all -
+     the gap is the separator, and a fact that wraps takes the indent whole. The key (films / river / triage) hangs in
+     the indent on the first line; no child is nowrap. */
+  .fleet-sys > .fs-l { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.6ch;
+                       min-width: 0; padding-left: 7ch; }
+  .fleet-sys .fs-k { position: absolute; left: 0; top: 0; width: 6.4ch; font-style: normal; color: #5d685f; }
+  .fleet-sys .fs-f { min-width: 0; overflow-wrap: anywhere; }
+  .fleet-row > .fleet-sys.fleet-former > .fs-l { padding-left: 0; }
   .fleet-sys .fs-unk { color: var(--muted, #8b8071); font-style: italic; }
   .fleet-sys .fs-stand { color: #d8b36a; }
   .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
@@ -12439,7 +12447,10 @@ window._lockMark = function(isOpen, px, label){
     } else if (lk === 'done') {
       bits.push('<b>caught up</b>' + lastAgo);
     } else if (!lk) {
-      bits.push('<span class="shr-unk">no tick yet since this console started</span>');
+      /* REG-1378 - "no tick yet" only when the lane has ticked 0 times; a lane that ticked and kept no outcome says so */
+      bits.push(t.ticks === 0 ? '<span class="shr-unk">no tick yet since this console started</span>'
+        : ((typeof t.ticks === 'number' && isFinite(t.ticks) && t.ticks > 0)
+          ? '<span class="shr-unk">last outcome unreadable</span>' : '<span class="shr-unk">last outcome UNKNOWN</span>'));
     }
     bits.push((typeof t.backlog === 'number')
       ? ('<b>' + t.backlog + '</b> owed')
@@ -24522,7 +24533,10 @@ function escC(s) {
   var _fleetSince = function (iso) {
     if (!iso) return 'never';
     var ms = Date.now() - Date.parse(iso);
-    if (!isFinite(ms) || ms < 0) return 'just now';
+    /* REG-1378 - a time it cannot READ is not "just now" (the sibling of the formerly line's defect); a stamp a little
+       ahead of this clock is skew between two machines and stays "just now" */
+    if (!isFinite(ms)) return 'age UNKNOWN';
+    if (ms < 0) return 'just now';
     var m = Math.round(ms / 60000);
     if (m < 1) return 'just now';
     if (m < 60) return m + 'm ago';
@@ -24651,48 +24665,60 @@ function escC(s) {
     try { if (typeof window._triageSay === 'function') return window._triageSay(k); } catch (e) {}
     return String(k || '');
   };
+  /* one part = a key and its FACTS (REG-1377): the card draws each fact as its own item, never a middot-joined string
+     that a wrap can strand a middot in; `t` is the same facts joined, for a reader that wants one line of text */
+  var _fleetPart = function (k, f, o) {
+    var p = o || {};
+    p.k = k; p.f = f; p.t = f.join(' · ');
+    return p;
+  };
   var _fleetSysParts = function (m, nowMs) {
     var sy = (m && m.system && typeof m.system === 'object') ? m.system : null;
     var out = [];
     /* 1. HOW IT FILMS D2R */
     var c = sy && sy.capture;
     if (!c || typeof c !== 'object') {
-      out.push({ k: 'films', t: 'UNKNOWN · an older build', unk: true,
-                 why: 'this console did not say how it films D2R (a build older than the field)' });
+      out.push(_fleetPart('films', ['UNKNOWN', 'an older build'], { unk: true,
+                 why: 'this console did not say how it films D2R (a build older than the field)' }));
     } else if (!_FLEET_ROUTE_WORD[c.route]) {
-      out.push({ k: 'films', t: 'UNKNOWN', unk: true,
-                 why: String(c.why || 'the route could not be named') });
+      out.push(_fleetPart('films', ['UNKNOWN'], { unk: true,
+                 why: String(c.why || 'the route could not be named') }));
     } else {
-      out.push({ k: 'films', t: _FLEET_ROUTE_WORD[c.route] + ' · ' + _fleetAgeTxt(_fleetAgeNow(c.ageS, m, nowMs)),
+      out.push(_fleetPart('films', [_FLEET_ROUTE_WORD[c.route], _fleetAgeTxt(_fleetAgeNow(c.ageS, m, nowMs))], {
                  why: 'which way this PC last filmed D2R, read from ' + (c.source === 'capture-half'
                       ? 'its capture half’s own pin' : (c.source === 'finder' ? 'its window finder’s last pick'
-                      : 'a source it did not name')) + (c.why ? ' — ' + c.why : '') });
+                      : 'a source it did not name')) + (c.why ? ' — ' + c.why : '') }));
     }
     /* 2. ITS RIVER — the router's station keys as that console counted them, in ITS order */
     var rv = sy && sy.river;
     if (!rv || typeof rv !== 'object') {
-      out.push({ k: 'river', t: 'UNKNOWN · an older build', unk: true,
-                 why: 'this console did not report its river (a build older than the field)' });
+      out.push(_fleetPart('river', ['UNKNOWN', 'an older build'], { unk: true,
+                 why: 'this console did not report its river (a build older than the field)' }));
     } else if (!rv.lanes || typeof rv.lanes !== 'object') {
-      out.push({ k: 'river', t: 'UNKNOWN', unk: true, why: String(rv.why || 'no lane answered') });
+      out.push(_fleetPart('river', ['UNKNOWN'], { unk: true, why: String(rv.why || 'no lane answered') }));
     } else {
       var ks = Object.keys(rv.lanes), bits = [];
       ks.forEach(function (s) { var n = rv.lanes[s]; if (typeof n === 'number' && n > 0) bits.push(s + ' ' + n); });
-      out.push({ k: 'river', t: (bits.length ? bits.join(' · ') : 'empty — 0 reels at every station')
-                 + ' · ' + _fleetAgeTxt(_fleetAgeNow(rv.ageS, m, nowMs)),
-                 why: 'reels per station, from the last river that console computed' + (rv.why ? ' — ' + rv.why : '') });
+      out.push(_fleetPart('river', (bits.length ? bits : ['empty — 0 reels at every station'])
+                 .concat([_fleetAgeTxt(_fleetAgeNow(rv.ageS, m, nowMs))]), {
+                 why: 'reels per station, from the last river that console computed' + (rv.why ? ' — ' + rv.why : '') }));
     }
     /* 3. ITS TRIAGE LANE — what it is doing, in words, as of that beacon */
     var x = rv && typeof rv === 'object' ? rv.triage : null;
     var asOf = _fleetAgeTxt(_fleetAgeNow(0, m, nowMs));
     if (!rv || typeof rv !== 'object' || !x || typeof x !== 'object') {
-      out.push({ k: 'triage', t: 'UNKNOWN' + ((!rv || typeof rv !== 'object') ? ' · an older build' : ''), unk: true,
-                 why: 'this console did not report its triage lane' });
+      out.push(_fleetPart('triage', (!rv || typeof rv !== 'object') ? ['UNKNOWN', 'an older build'] : ['UNKNOWN'], { unk: true,
+                 why: 'this console did not report its triage lane' }));
     } else if (x.ok === false) {
-      out.push({ k: 'triage', t: 'UNKNOWN', unk: true, why: String(x.why || 'the lane state could not be read') });
+      out.push(_fleetPart('triage', ['UNKNOWN'], { unk: true, why: String(x.why || 'the lane state could not be read') }));
     } else {
-      var lk = x.lastKey, st;
-      if (!lk) st = 'no tick yet';
+      var lk = x.lastKey, tk = x.ticks, st;
+      /* REG-1378 - no readable key is "no tick yet" ONLY when the lane has ticked 0 times: the worker nulls a key it
+         cannot read (functions/api/console.js key()), so a lane that HAS ticked and whose last outcome did not survive
+         the wire read "no tick yet" - a confident zero. Ticks > 0 is "last outcome unreadable"; ticks the console did
+         not send is UNKNOWN. [[unknown-stays-unknown]] */
+      if (!lk) st = (tk === 0) ? 'no tick yet'
+        : ((typeof tk === 'number' && isFinite(tk) && tk > 0) ? 'last outcome unreadable' : 'last outcome UNKNOWN');
       else if (lk === 'surveyed') st = 'walking';
       else if (lk === 'done') st = 'caught up';
       else if (lk === 'playing') st = 'standing aside for his game';
@@ -24701,29 +24727,41 @@ function escC(s) {
       var walk = (typeof x.sinceLastS === 'number')
         ? ('last walk ' + _fleetAgeTxt(_fleetAgeNow(x.sinceLastS, m, nowMs)))
         : 'no walk on record';
-      out.push({ k: 'triage', t: st + ' (' + asOf + ') · ' + owed + ' · ' + walk,
+      out.push(_fleetPart('triage', [st + ' (' + asOf + ')', owed, walk], {
                  stand: lk === 'playing',
-                 why: (x.lastWhy ? String(x.lastWhy) : 'the lane’s last tick, as that console last reported it') });
+                 why: (x.lastWhy ? String(x.lastWhy) : 'the lane’s last tick, as that console last reported it') }));
     }
     return out;
   };
-  var _fleetFormerTxt = function (m) {
+  /* A RENAMED HOST'S "formerly" LINE, as facts. REG-1378: its age was _fleetSince's, which answers "just now" for a
+     lastSeen it cannot parse and for one in the future - a machine last seen at an unreadable time read as seen this
+     minute. Now the card's own rule: an age that cannot be established (absent, unparseable, or after now - a FORMER
+     name cannot have been seen later than this moment) is "age UNKNOWN". [[stale-reading]] */
+  var _fleetFormerParts = function (m, nowMs) {
     var fm = (m && Array.isArray(m.formerMachines)) ? m.formerMachines : [];
+    var now = (typeof nowMs === 'number') ? nowMs : Date.now();
     return fm.filter(function (f) { return f && f.machine; }).map(function (f) {
-      return 'formerly ' + f.machine + ' · ' + (f.ver || 'version UNKNOWN') + ' · '
-           + (f.lastSeen ? ('last seen ' + _fleetSince(f.lastSeen)) : 'last seen UNKNOWN');
+      var seen = f.lastSeen ? Date.parse(String(f.lastSeen)) : NaN;
+      var age = (isFinite(seen) && seen <= now) ? (now - seen) / 1000 : null;
+      return ['formerly ' + f.machine, (f.ver || 'version UNKNOWN'), 'last seen ' + _fleetAgeTxt(age)];
     });
+  };
+  var _fleetFormerTxt = function (m, nowMs) {
+    return _fleetFormerParts(m, nowMs).map(function (f) { return f.join(' · '); });
+  };
+  var _fleetFacts = function (f) {
+    return f.map(function (x) { return '<span class="fs-f">' + escC(x) + '</span>'; }).join('');
   };
   var _fleetSysHtml = function (m, nowMs) {
     var h = '<span class="fleet-meta fleet-sys">' + _fleetSysParts(m, nowMs).map(function (p) {
       return '<span class="fs-l' + (p.unk ? ' fs-unk' : '') + (p.stand ? ' fs-stand' : '') + '" title="' + escC(p.why || '') + '">'
-           + '<i class="fs-k">' + escC(p.k) + '</i> ' + escC(p.t) + '</span>';
+           + '<i class="fs-k">' + escC(p.k) + '</i>' + _fleetFacts(p.f) + '</span>';
     }).join('') + '</span>';
-    var fm = _fleetFormerTxt(m);
+    var fm = _fleetFormerParts(m, nowMs);
     if (fm.length) {
       h += '<span class="fleet-meta fleet-sys fleet-former" title="the same install reported earlier under another host '
          + 'name - one console, a renamed host, folded into this row">'
-         + fm.map(function (t) { return '<span class="fs-l">' + escC(t) + '</span>'; }).join('') + '</span>';
+         + fm.map(function (f) { return '<span class="fs-l">' + _fleetFacts(f) + '</span>'; }).join('') + '</span>';
     }
     return h;
   };

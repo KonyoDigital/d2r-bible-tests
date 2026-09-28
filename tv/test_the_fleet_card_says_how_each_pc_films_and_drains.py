@@ -27,6 +27,16 @@ rows (never re-typed here), and the SHIPPED card rendered in a real headless Chr
     game" when that is the state, UNKNOWN when absent — and _shLanesRender draws it on every path, lanes or none.
   · THE JOIN, in Chrome: _fleetRefresh over a stubbed /api/fleet draws every row's films / river / triage line and
     the "formerly" line, and nothing in the card scrolls sideways at 901 and 1280 wide.
+ROUND 2 (2026-09-28, three findings of the adversarial review, each reproduced on fe817ab7):
+  · REG-1377 NO MIDDOT IS STRANDED BY A WRAP: the facts of a line were one middot-joined string, so at 375 a river line
+    began "· CAPTURE 4 ·" and at 1280 a triage line ended "walking (53s ago) ·". Each fact is its own flex item (the
+    river's own .shr-tri fix); measured in Chrome at 375 and 1280, line by line from the characters' own rects: no
+    line of a fact row starts or ends with a middot, and at 375 some row really wraps (the case is not vacuous).
+  · REG-1378 AN AGE THE CARD CANNOT ESTABLISH IS "age UNKNOWN": the "formerly" line took _fleetSince's age, which says
+    "just now" for a lastSeen it cannot parse and for one after now; and _fleetSince itself said "just now" for any
+    time it could not read. A lane that has TICKED but whose last outcome did not survive the wire said "no tick yet";
+    now "last outcome unreadable" (ticks > 0), "no tick yet" only at 0 ticks, UNKNOWN when ticks were not sent - on the
+    fleet row and on the river's own line.
 
 ⚠ NOTHING REAL IS TOUCHED: fixture rows only, a file:// page with fetch stubbed at document start, its own headless
 Chrome on its own port (render_check's handle, killed by it). No console, no store, no network. RED_PROOF below.
@@ -214,7 +224,9 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
                  ("capture-mini", "last refusal: standing aside for a live capture ("),
                  ("a-key-with-no-words", "last refusal: a-key-with-no-words ("), (None, "no tick yet ("))
         for key, want in cases:
-            p = _parts(_row(120, river={"lanes": {"TRIAGE": 3}, "ageS": 1.0, "why": "", "triage": _tri(lastKey=key)}))
+            # round 2 (REG-1378): "no tick yet" is a lane that has ticked 0 times - its own case below holds the rest
+            tri = _tri(lastKey=key, ticks=0) if key is None else _tri(lastKey=key)
+            p = _parts(_row(120, river={"lanes": {"TRIAGE": 3}, "ageS": 1.0, "why": "", "triage": tri}))
             self.assertTrue(p["triage"]["t"].startswith(want), "%s: %r" % (key, p["triage"]))
             self.assertEqual(p["triage"]["stand"], key == "playing", "%s: only 'playing' is drawn standing aside" % key)
             self.assertIn("2m ago)", p["triage"]["t"], "%s: the state's age is the beacon's record age" % key)
@@ -243,13 +255,13 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
         m = _row(30, capture={"route": "native", "ageS": 1.0, "why": "", "source": "finder"})
         m["formerMachines"] = [{"machine": "cursor", "lastSeen": _iso(NOW - 8 * 86400 * 1000), "ver": "v3377"},
                                {"machine": "old-box", "lastSeen": None, "ver": None}]
-        out = _run("OUT.h = _fleetSysHtml(%s, NOW); OUT.none = _fleetSysHtml(%s, NOW);"
-                   % (json.dumps(m), json.dumps(_row(30))))
+        out = _run("OUT.h = _fleetSysHtml(%s, NOW); OUT.none = _fleetSysHtml(%s, NOW); OUT.t = _fleetFormerTxt(%s, NOW).map(plain);"
+                   % (json.dumps(m), json.dumps(_row(30)), json.dumps(m)))
         self.assertIn('class="fleet-meta fleet-sys fleet-former"', out["h"])
-        # lastSeen is aged by the page's own clock (a wall time, not a reading): the fixture is 8 d before NOW, so only
-        # its shape is pinned here
-        self.assertRegex(out["h"].replace(NBSP, " "), r"formerly cursor · v3377 · last seen \d+d ago")
-        self.assertIn("formerly old-box · version UNKNOWN · last seen UNKNOWN", out["h"])
+        # round 2 (REG-1378): lastSeen is aged against the SAME now as every other age on the card, so it is exact
+        self.assertEqual(out["t"], ["formerly cursor · v3377 · last seen 8d ago",
+                                    "formerly old-box · version UNKNOWN · last seen age UNKNOWN"])
+        self.assertIn('<span class="fs-f">formerly cursor</span>', out["h"], "the formerly line is not drawn as facts")
         self.assertNotIn("fleet-former", out["none"], "a machine with no former name grew a 'formerly' line")
 
     def test_a_machines_own_words_are_escaped(self):
@@ -257,6 +269,59 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
         h = _run("OUT.h = _fleetSysHtml(%s, NOW);" % json.dumps(m))["h"]
         self.assertNotIn("<img", h)
         self.assertIn("&lt;img", h)
+
+    def test_r2_a_lane_that_ticked_without_a_readable_outcome_is_never_no_tick_yet(self):
+        """REG-1378 (round 2, reproduced on fe817ab7): the worker nulls a lastKey it cannot read, and a lane with 9 ticks
+        read "no tick yet" - a confident zero. ticks > 0 -> "last outcome unreadable"; 0 -> "no tick yet"; ticks not sent
+        -> "last outcome UNKNOWN". The backlog and last walk beside it are unchanged."""
+        for ticks, want in ((9, "last outcome unreadable ("), (1, "last outcome unreadable ("), (0, "no tick yet ("),
+                            (None, "last outcome UNKNOWN (")):
+            p = _parts(_row(120, river={"lanes": {"TRIAGE": 3}, "ageS": 1.0, "why": "", "triage": _tri(lastKey=None, ticks=ticks)}))
+            self.assertTrue(p["triage"]["t"].startswith(want), "ticks=%r: %r" % (ticks, p["triage"]["t"]))
+            self.assertIn("2 owed", p["triage"]["t"], "ticks=%r: the backlog left the line: %r" % (ticks, p["triage"]["t"]))
+        # the river's own line, the same rule (the sibling in the first script block)
+        out = _run("var d = { triage: %s }; OUT.a = strip(_shTriageLine({ triage: %s }, NOW)); OUT.z = strip(_shTriageLine({ triage: %s }, NOW));"
+                   " OUT.u = strip(_shTriageLine({ triage: %s }, NOW));"
+                   % (json.dumps(_lane(lastKey=None, ticks=5)), json.dumps(_lane(lastKey=None, ticks=5)),
+                      json.dumps(_lane(lastKey=None, ticks=0)), json.dumps(_lane(lastKey=None, ticks=None))))
+        self.assertIn("last outcome unreadable", out["a"])
+        self.assertNotIn("no tick yet", out["a"], "a lane that ticked 5 times says 'no tick yet': %r" % out["a"])
+        self.assertIn("no tick yet since this console started", out["z"])
+        self.assertIn("last outcome UNKNOWN", out["u"])
+
+    def test_r2_an_age_the_card_cannot_establish_is_unknown_never_just_now(self):
+        """REG-1378 (round 2, reproduced on fe817ab7): the "formerly" line aged lastSeen with _fleetSince, which answers
+        "just now" for a time it cannot parse and for one after now - a former name cannot have been seen later than this
+        moment. Absent, unparseable and future all read "last seen age UNKNOWN"; a real one reads its age against the card's
+        own now. And _fleetSince (the presence phrases) never answers "just now" for a time it cannot read."""
+        m = _row(30)
+        m["formerMachines"] = [{"machine": "a", "lastSeen": "sometime tuesday", "ver": "v1"},
+                               {"machine": "b", "lastSeen": _iso(NOW + 3600 * 1000), "ver": "v2"},
+                               {"machine": "c", "lastSeen": None, "ver": "v3"},
+                               {"machine": "d", "lastSeen": _iso(NOW - 2 * 3600 * 1000), "ver": "v4"}]
+        out = _run("OUT.t = _fleetFormerTxt(%s, NOW).map(plain); OUT.h = strip(_fleetSysHtml(%s, NOW));"
+                   " OUT.s = _fleetSince('sometime tuesday'); OUT.v = _fleetSince(iso(Date.now() - 7200000));"
+                   % (json.dumps(m), json.dumps(m)))
+        self.assertEqual(out["t"], ["formerly a · v1 · last seen age UNKNOWN", "formerly b · v2 · last seen age UNKNOWN",
+                                    "formerly c · v3 · last seen age UNKNOWN", "formerly d · v4 · last seen 2h ago"], out["t"])
+        self.assertNotIn("just now", out["h"], "the card says 'just now' for an age it could not establish: %r" % out["h"])
+        self.assertEqual(out["s"], "age UNKNOWN", "_fleetSince reads an unparseable time as %r" % out["s"])
+        self.assertEqual(out["v"], "2h ago", "PREMISE: _fleetSince stopped reading a real time")
+
+    def test_r2_each_fact_is_its_own_item_with_no_glyph_between_them(self):
+        """REG-1377 (round 2): the line's facts are separate items, so no middot sits between two of them for a wrap to
+        strand - in every part and in the formerly line. The joined text a reader gets (`t`) is unchanged."""
+        m = _row(60, capture={"route": "native", "ageS": 30.0, "why": "", "source": "finder"},
+                 river={"lanes": {"TRIAGE": 2, "PRINTER": 3, "CAPTURE": 4, "TOMBSTONE": 1}, "ageS": 120.0, "why": "",
+                        "triage": _tri()})
+        m["formerMachines"] = [{"machine": "cursor", "lastSeen": _iso(NOW - 86400 * 1000), "ver": "v3377"}]
+        out = _run("var h = _fleetSysHtml(%s, NOW), F = new RegExp('<span class=\"fs-f\">[^<]*</span>', 'g');"
+                   " OUT.h = h; OUT.between = h.replace(F, '').replace(new RegExp('<i class=\"fs-k\">[^<]*</i>', 'g'), '')"
+                   ".replace(new RegExp('<[^>]+>', 'g'), ''); OUT.facts = (h.match(F) || []).map(strip);" % json.dumps(m))
+        self.assertEqual(out["between"].strip(), "", "text outside a fact - a separator a wrap can strand: %r" % out["between"])
+        self.assertIn("CAPTURE 4", out["facts"])
+        self.assertIn("walking (1m ago)", out["facts"])
+        self.assertEqual([f for f in out["facts"] if "\u00b7" in f], [], "a fact carries a middot inside it")
 
 
 RIVER_LANES = {"ok": True, "reconciles": True, "shelf": 4, "closed": 3, "lifetime": 7, "lanes": [
@@ -350,6 +415,23 @@ READ = r"""(function(){ var l = document.getElementById('fleet-list'); if (!l) r
   return JSON.stringify({ rows: rows, sw: [l.scrollWidth, l.clientWidth], w: lr.width }); })()"""
 
 WIDTHS = ((901, 900), (1280, 800))
+#: round 2 (REG-1377) - where the reviewer saw a stranded middot: 375 ("· CAPTURE 4 ·") and 1280 ("walking (53s ago) ·")
+WRAP_WIDTHS = ((375, 812), (1280, 800))
+#: every rendered LINE of every fact row (films / river / triage / formerly), rebuilt from each character's own rect - the
+#: key hangs in the indent and is left out; a line is the characters whose tops agree within 3px
+LINES = r"""(function(){ var out = [];
+  [].forEach.call(document.querySelectorAll('#fleet-list .fleet-sys .fs-l'), function(l){
+    var ch = [], tw = document.createTreeWalker(l, NodeFilter.SHOW_TEXT), n;
+    while ((n = tw.nextNode())){
+      if (n.parentElement && n.parentElement.closest('.fs-k')) continue;
+      for (var i = 0; i < n.data.length; i++){ var rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+        var rs = rg.getClientRects(); if (!rs.length) continue; ch.push({ c: n.data[i], t: rs[0].top, x: rs[0].left }); } }
+    ch.sort(function(a, b){ return a.t - b.t || a.x - b.x; });
+    var lines = [], cur = null;
+    ch.forEach(function(c){ if (!cur || c.t > cur.t + 3){ cur = { t: c.t, cs: [] }; lines.push(cur); } cur.cs.push(c); });
+    out.push(lines.map(function(L){ return L.cs.sort(function(a, b){ return a.x - b.x; }).map(function(c){ return c.c; }).join('').replace(/\u00a0/g, ' ').trim(); }));
+  });
+  return JSON.stringify(out); })()"""
 _CACHE = {}
 
 
@@ -385,7 +467,7 @@ def _render():
         t.send("Page.enable")
         t.send("Runtime.enable")
         t.send("Page.addScriptToEvaluateOnNewDocument", source=STUB % json.dumps(_fixture()))
-        for (w, h) in WIDTHS:
+        for (w, h) in sorted(set(WIDTHS) | set(WRAP_WIDTHS), key=lambda x: -x[0]):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
             t.send("Page.navigate", url="file://" + UI_PATH)
             for _ in range(160):
@@ -405,6 +487,7 @@ def _render():
                     break
             time.sleep(0.3)
             res["%dx%d" % (w, h)] = json.loads(t.ev(READ))
+            res["lines %dx%d" % (w, h)] = json.loads(t.ev(LINES))
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -447,6 +530,25 @@ class TheShippedCardDrawsIt(unittest.TestCase):
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))
         self.assertEqual(bad, [], "\n  ".join(bad))
 
+    def test_r2_no_line_of_a_fact_row_starts_or_ends_with_a_middot(self):
+        """REG-1377 (round 2, reproduced on fe817ab7): the facts of a line were one middot-joined string, so a wrap left
+        a middot alone at a line's start ("· CAPTURE 4 ·" at 375) or end ("walking (53s ago) ·" at 1280). Line by line
+        from the characters' own rects: none starts or ends with one. PREMISE: every row's lines were read, and at 375 a
+        row really wraps."""
+        r, bad = _render(), []
+        for (w, h) in WRAP_WIDTHS:
+            rows = r["lines %dx%d" % (w, h)]
+            self.assertGreaterEqual(len(rows), 10, "%dx%d: PRINT THE DENOMINATOR - only %d fact rows read" % (w, h, len(rows)))
+            self.assertTrue(all(rows), "%dx%d: a fact row has no rendered line: %s" % (w, h, rows))
+            if w < 500:
+                self.assertTrue(any(len(x) > 1 for x in rows), "%dx%d: PREMISE - no fact row wraps, so a stranded middot "
+                                                                "could not have been seen: %s" % (w, h, rows))
+            for lines in rows:
+                for s in lines:
+                    if s.startswith(u"\u00b7") or s.endswith(u"\u00b7"):
+                        bad.append("%dx%d: %r (of %r)" % (w, h, s, lines))
+        self.assertEqual(bad, [], "a middot is stranded at a line's end:\n  " + "\n  ".join(bad))
+
 
 RED_PROOF = [
     {
@@ -466,8 +568,8 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - a river with no lane map is drawn as an empty river (a confident zero)",
         "file": "control_ui.html",
-        "find": "      out.push({ k: 'river', t: 'UNKNOWN', unk: true, why: String(rv.why || 'no lane answered') });\n",
-        "replace": "      out.push({ k: 'river', t: 'empty \\u2014 0 reels at every station', why: '' });\n",
+        "find": "      out.push(_fleetPart('river', ['UNKNOWN'], { unk: true, why: String(rv.why || 'no lane answered') }));\n",
+        "replace": "      out.push(_fleetPart('river', ['empty \\u2014 0 reels at every station'], { why: '' }));\n",
         "matches": 1,
     },
     {
@@ -503,6 +605,41 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "                 /* outside the fold: the lane's one line reads with the river shut */\n                 + _shTriageLine(d);\n",
         "replace": "                 ;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1377 round 2 - a fact row is one middot-joined string again, and a wrap strands a middot (375: '\u00b7 CAPTURE 4 \u00b7')",
+        "file": "control_ui.html",
+        "find": "           + '<i class=\"fs-k\">' + escC(p.k) + '</i>' + _fleetFacts(p.f) + '</span>';\n",
+        "replace": "           + '<i class=\"fs-k\">' + escC(p.k) + '</i> ' + escC(p.t) + '</span>';\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1378 round 2 - the formerly line ages lastSeen with _fleetSince again ('just now' for an unreadable or future time)",
+        "file": "control_ui.html",
+        "find": "      var age = (isFinite(seen) && seen <= now) ? (now - seen) / 1000 : null;\n",
+        "replace": "      var age = isFinite(seen) ? Math.max(0, (now - seen) / 1000) : 0;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1378 round 2 - _fleetSince reads a time it cannot parse as 'just now' again",
+        "file": "control_ui.html",
+        "find": "    if (!isFinite(ms)) return 'age UNKNOWN';\n",
+        "replace": "    if (!isFinite(ms)) return 'just now';\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1378 round 2 - a lane that has ticked with no readable outcome reads 'no tick yet' on the fleet row again",
+        "file": "control_ui.html",
+        "find": "      if (!lk) st = (tk === 0) ? 'no tick yet'\n",
+        "replace": "      if (!lk) st = true ? 'no tick yet'\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1378 round 2 - the river's own line says 'no tick yet' for a lane that has ticked",
+        "file": "control_ui.html",
+        "find": "      bits.push(t.ticks === 0 ? '<span class=\"shr-unk\">no tick yet since this console started</span>'\n",
+        "replace": "      bits.push(true ? '<span class=\"shr-unk\">no tick yet since this console started</span>'\n",
         "matches": 1,
     },
 ]

@@ -6172,7 +6172,13 @@ GATES = [
              "than the fields); a renamed host as a quiet 'formerly' line; the river panel's one triage line on every "
              "path of _shLanesRender. And the JOIN in a real headless Chrome (fetch stubbed at document start, its own "
              "port): _fleetRefresh draws every row's films / river / triage line and nothing goes sideways at 901 and "
-             "1280. 15 cases, 8 red-proofs"),
+             "1280. 15 cases, 8 red-proofs. ROUND 2 ('make sure its all properly rendering everywhere'): REG-1377 no "
+             "line of a fact row starts or ends with a middot at 375 or 1280 (each fact its own item, as the river's "
+             "own line; it read '\u00b7 CAPTURE 4 \u00b7' at 375 and 'walking (53s ago) \u00b7' at 1280); REG-1378 "
+             "an age the card cannot establish is 'age UNKNOWN' (a renamed host's unreadable or future lastSeen said "
+             "'just now', and so did _fleetSince for any unreadable time), and a lane that has ticked with no readable "
+             "outcome is 'last outcome unreadable', never 'no tick yet' - on the fleet row and the river's line. "
+             "19 cases, 13 red-proofs"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "
@@ -7448,7 +7454,7 @@ GATES = [
              "16 cases, 22 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_fits_at_every_width",
-         [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 150,
+         [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 300,
          needs_app=False,
          why="#174 v-B2 - the Character Builder measured in a REAL browser (its own headless Chrome on a free port) at "
              "7 widths in 5 states - as it opens, with Crown of Ages worn and Annihilus in the inventory, the helm's "
@@ -7468,7 +7474,14 @@ GATES = [
              "(<= 12px, no word between; the caption and status line under the panel), 10 x 4 equal square cells edge to "
              "edge, radius 0, never wider than the doll, >= 26px from 1280 up, every item inside its cells - in every "
              "plain / worn state and with three charms (Annihilus, a Grand Charm, Gheed's Fortune) placed through the "
-             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs",
+             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs. "
+             "#29 ROUND 2 (his words kept - 'cap 75%' - and his 'Tighten both'): REG-1376 his cap words cost no "
+             "label a line - at every width, plain and worn, every capped STATS row's label has the lines it has with "
+             "the chip taken away (Physical Damage Reduction went 2 -> 3 lines at 1280x800, Lightning Resistance 1 -> 2), "
+             "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
+             "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
+             "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
+             "150 -> 300: a full run measured 100-119s. Now 27 cases, 42 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -7487,7 +7500,7 @@ GATES = [
              "window exactly when it moves the unit). 25 cases, 17 red-proofs",
          skip_ok=()),
     Gate("test_the_mule_window_fits_at_every_width",
-         [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 120,
+         [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 300,
          needs_app=False,
          why="#174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed "
              "green: every length was N*--u and the type was fixed px, so between 900 and 1250 wide the "
@@ -7510,7 +7523,16 @@ GATES = [
              "mouse at 2000 and 1280x695, each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar "
              "and under their panel's header. FIX ROUND at 375, real input: a drag held at the top edge scrolls the window to "
              "another mule's tab and the drop moves the item there; ] carries a keyboard item to the next mule; a real tap "
-             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs",
+             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs. #29 ROUND 2, his "
+             "'Tighten both': REG-1379 the window is as tall as what it holds - where it does not scroll it ends under "
+             "its content by its own padding (at 2000x1300 it ran 248px past their rects to the glass), where it "
+             "scrolls it is the glass's height, and no panel is stretched past what it holds (round 1 made STRENGTHS "
+             "AND WEAKNESSES ~330px of empty box and NOTES ~370px of empty textarea; at 2000 every panel is their rect "
+             "again, heights included); REG-1375 the mule window's own EQUIPMENT / STASH / SKILL TREE / CALCULATIONS "
+             "tabs stay in view while its Select or Edit modal is open, at every width in both arrangements (the "
+             "builder's tab rule skipped the mule host - the #174 Edit panel covered them everywhere). Timeout 120 -> "
+             "300: a full run measured 108-120s. TV_LAW_PORT pins its port as the builder's law does. Now 23 cases, "
+             "25 red-proofs",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,

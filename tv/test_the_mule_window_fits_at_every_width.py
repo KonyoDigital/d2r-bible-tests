@@ -69,11 +69,19 @@ doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` appli
     moves from the stash to the inventory and survives a reload. Every target cell is found from the RENDERED cell,
     never from the product's own geometry.
 
-#29(d) his answer 2026-09-28 ("TIGHTEN") — NO EMPTY BAND UNDER THE WINDOW. At 2000x1300 their literal rects end at 1052
-and the glass at 1300 (248px of nothing under every column; 228 at 901x900). In columns the window is as tall as the glass
-and the last panel of each column (STRENGTHS AND WEAKNESSES, NOTES, STATS) takes what is left: in every arrangement at
-every column width the three end on one line, and where the window does not scroll they end at the window's bottom (its
-30px padding). At 2000 every other panel is still their rect; those three keep their x, y and width.
+#29(d) his answer 2026-09-28 ("Tighten both") — THE WINDOW IS AS TALL AS WHAT IT HOLDS (REG-1379, round 2). At 2000x1300
+their literal rects end at 1052 and the window ran on to the glass's 1300 (248px of empty band; 228 at 901x900). Round 1
+stretched the last panel of each column into it, which only moved the emptiness inside: STRENGTHS AND WEAKNESSES ~330px of
+empty bordered box, NOTES ~370px of empty textarea. In every arrangement at every width (the doll or the stash in front,
+plain and with the doll in use + its picker open): where the window does not scroll it ends under its content by its own
+bottom padding and never reaches the glass (no band); where it scrolls it is exactly the glass's height (capped, scrolling
+inside); and in columns no panel is stretched past what it holds - STRENGTHS AND WEAKNESSES no taller than its content (or
+its 57u floor), NOTES its 206u, STATS its 726u. At 2000 every panel is their rect again, heights included.
+REG-1375 (round 2) — THE MULE WINDOW'S OWN TABS STAY IN VIEW WHILE ITS PICKER IS OPEN. The #174 Edit panel lives in the
+mule window, and the builder's tab rule skipped the mule host: the Select and Edit modals covered EQUIPMENT / STASH at
+every width and the phone sheet covered all four. At every width, the doll and the stash in front, Select (the left hand)
+and Edit (a database helm placed through the host's own Select): where the tab row is on the glass with room under it the
+modal does not overlap it and each tab's centre hit-tests to that tab.
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
 so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
@@ -110,8 +118,11 @@ def _free_port():
         s.close()
 
 
-# ⚠ BEFORE the import: render_check reads its port once, at import time.
-os.environ["TV_RENDER_PORT"] = str(_free_port())
+# ⚠ BEFORE the import: render_check reads its port once, at import time. A free port by default; TV_LAW_PORT pins one
+# when the caller owns a port range (parallel builders each given their own), as the builder's width law does - never
+# 9222/9223, which are his.
+_LAW_PORT = os.environ.get("TV_LAW_PORT", "").strip()
+os.environ["TV_RENDER_PORT"] = _LAW_PORT if _LAW_PORT.isdigit() and _LAW_PORT not in ("9222", "9223") else str(_free_port())
 import render_check as RC  # noqa: E402
 
 from test_the_mule_window_is_the_planner_shell import THEIR_SLOTS, DOLL_K, THEIR_EQ  # noqa: E402  ONE witness table
@@ -599,6 +610,36 @@ def _phone_pass(t):
     return out
 
 
+#: REG-1379 round 2 - the WINDOW (#vault-detail) against what it holds, and the natural height of STRENGTHS AND WEAKNESSES:
+#: its own content (or its min-height floor) with every stretch taken away, measured by sizing it to max-content in place
+TIGHT = r"""(function(){ var box = document.getElementById('vault-detail'), mp = box && box.querySelector('.mp');
+  if (!mp) return JSON.stringify({ err: 'the mule window did not render (.mp absent)' });
+  var br = box.getBoundingClientRect(), mr = mp.getBoundingClientRect(), bs = getComputedStyle(box);
+  var natural = function(e){ if (!e) return null; var s = e.style;
+    s.setProperty('height', 'max-content', 'important'); s.setProperty('flex', 'none', 'important'); s.setProperty('align-self', 'flex-start', 'important');
+    var h = e.getBoundingClientRect().height; s.removeProperty('height'); s.removeProperty('flex'); s.removeProperty('align-self'); return h; };
+  var sw = box.querySelector('.mp-sw'), h = function(c){ var e = box.querySelector(c); return e ? e.getBoundingClientRect().height : null; };
+  return JSON.stringify({ win: [br.top, br.bottom], mp: [mr.top, mr.bottom], vh: innerHeight, sh: box.scrollHeight, ch: box.clientHeight,
+    padB: parseFloat(bs.paddingBottom) || 0, stack: mp.classList.contains('mp-stack'), k: +mp.getAttribute('data-k'),
+    sw: h('.mp-sw'), swNat: natural(sw), notes: h('.mp-notes'), stats: h('.mp-stats') }); })()"""
+#: REG-1375 round 2 - the mule window's own tab row while the modal is open: overlapped or not, each tab's centre hit-tested
+MTABS = r"""(function(){ var m = document.getElementById('cb-modal'), tb = document.querySelector('#vault-detail .mp-ctabs');
+  if (!m || m.hidden) return JSON.stringify({ modal: false });
+  if (!tb) return JSON.stringify({ modal: true, err: 'the mule tab row (.mp-ctabs) is not drawn' });
+  var mr = m.getBoundingClientRect(), tr = tb.getBoundingClientRect(), vh = innerHeight;
+  var hit = [].map.call(tb.querySelectorAll('.mp-ctab'), function(b){ var r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    var at = (y >= 0 && y < vh) ? document.elementFromPoint(x, y) : null; return { tab: b.textContent.trim(), seen: !!(at && (at === b || b.contains(at))) }; });
+  return JSON.stringify({ modal: true, tab: ((m.querySelector('.cb-tab.cb-on') || {}).textContent || '').trim(), edit: !!m.querySelector('.cb-ed'),
+    onScreen: tr.height > 0 && tr.bottom > 0 && tr.top < vh, room: vh - tr.bottom, hit: hit,
+    over: mr.left < tr.right && mr.right > tr.left && mr.top < tr.bottom && mr.bottom > tr.top,
+    tabs: [tr.left, tr.top, tr.width, tr.height], at: [mr.left, mr.top, mr.width, mr.height] }); })()"""
+#: a DATABASE helm on the doll through the host's own Select (a locker item opens on its list, a database item on Edit)
+HELM = r"""(function(mule){ window.vaultCloseCard(); window.openMuleCard(mule); window._mpPick('head'); window._cbPickTab('select');
+  var r = window._cbPickRows().filter(function(x){ return x[1] === 'Crown of Ages'; })[0];
+  if (!r) { window._mpPick(null); return 'Crown of Ages is not in the Select list'; }
+  window._cbChoose(r[0]); window._mpPick(null); return r[0]; })(%s)"""
+UNHELM = "(function(){ window._mpPick('head'); window._cbUnequip(); window._mpPick(null); return 1; })()"
+
 FOCUS_TYPE = r"""(function(){ var i = document.querySelector('#vault-detail .mp-search input'); if (!i) return 'no search box';
   i.focus(); i.value = 'fire'; window._mpFilter('fire'); i.setSelectionRange(2, 3); window.__mpBox = i;
   return document.activeElement === i ? 'typing' : 'focus refused'; })()"""
@@ -661,8 +702,10 @@ def _measure():
             # #174 R1 — what a mule opens on (the doll in front), then the stash in front
             _open(t, "equip")
             res["%dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            res["tight %dx%d" % (w, h)] = json.loads(t.ev(TIGHT))          # REG-1379 round 2
             _open(t, "stash")
             res["st %dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            res["tight st %dx%d" % (w, h)] = json.loads(t.ev(TIGHT))
             _open(t, "equip")
         # #174 v-B — the same widths with the doll in use and the picker open on the left hand
         t.send("Emulation.setDeviceMetricsOverride", width=WIDTHS[0][0], height=WIDTHS[0][1], deviceScaleFactor=1,
@@ -684,7 +727,24 @@ def _measure():
                 t.ev("(function(){ window._mpPick('larm'); return 1; })()")
                 time.sleep(0.35)
                 res["%s %dx%d" % (key, w, h)] = json.loads(t.ev(MEASURE))
+                res["tight %s %dx%d" % (key, w, h)] = json.loads(t.ev(TIGHT))
         t.ev("(function(){ window._mpPick(null); return 1; })()")
+        # REG-1375 round 2 - the mule window's own tabs while its picker is open: Select (the left hand) and Edit (a database
+        # helm placed through the host's Select), the doll and the stash in front, at every width; the helm comes off after
+        res["helm"] = t.ev(HELM % json.dumps(MULE))
+        time.sleep(0.3)
+        for (w, h) in WIDTHS:
+            t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
+            time.sleep(0.25)
+            for view in ("equip", "stash"):
+                for state, js in (("select", "window._mpPick('larm'); window._cbPickTab('select');"), ("edit", "window._mpPick('head');")):
+                    _open(t, view)
+                    t.ev("(function(){ %s return 1; })()" % js)
+                    time.sleep(0.4)
+                    res["mtabs %s %s %dx%d" % (state, view, w, h)] = json.loads(t.ev(MTABS))
+                    t.ev("(function(){ window._mpPick(null); return 1; })()")
+        res["unhelm"] = t.ev(UNHELM)
+        time.sleep(0.2)
         # the phone: type in the Stats search, open a keyboard (height-only resize), then re-render underneath
         t.send("Emulation.setDeviceMetricsOverride", width=390, height=844, deviceScaleFactor=1, mobile=True)
         time.sleep(0.25)
@@ -721,8 +781,6 @@ def _near(a, b, tol):
     return all(abs(x - y) <= tol for x, y in zip(a, b))
 
 
-#: #29(d) - the last panel of each column grows to the window's bottom; at 2000 their x, y and width stay theirs
-GROWS = ("mp-sw", "mp-notes", "mp-stats")
 BAND_TOL = 1.5
 
 
@@ -824,9 +882,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
             self.assertEqual(m["k"], 1.0)
             for c in THEIR_PANELS:
                 want, got = _ours(c), m["panels"][c]
-                if got and c in GROWS:
-                    # #29(d) - it takes the glass below it (test_29d_no_empty_band_under_the_window); x, y, w are theirs
-                    want, got = tuple(want[:3]) + (0,), tuple(got[:3]) + (0,)
+                # REG-1379 round 2: heights included again - no panel is stretched into the glass under it
                 if not got or not _near(got, want, SW_TOL if c == "mp-sw" else TOL_2000):
                     bad.append("%s %s %s, measured %s" % (key, c, [round(v, 2) for v in want],
                                                           [round(x, 2) for x in got] if got else None))
@@ -1013,45 +1069,118 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                                        "focus on %s, not the search box he was typing in" % rf["activeTag"])
         self.assertEqual((rf["value"], rf["caret"]), ("fire", [2, 3]), rf)
 
-    def test_29d_no_empty_band_under_the_window(self):
-        """#29(d) his answer 2026-09-28: no empty band under the mule window at very large sizes. In columns, every arrangement
-        (the doll or the stash in front, plain and with the doll in use): the last panels of the three columns end on one
-        line, and where the window does not scroll they end at its bottom (less its padding) - at 2000x1300 they stopped
-        248px short of it"""
-        bad, fits = [], 0
-        for label, m in _states():
-            if m.get("stack"):
-                continue
-            p = m["panels"]
-            if not all(p.get(c) for c in GROWS):
-                bad.append("%s: a column's last panel is not drawn: %s" % (label, [c for c in GROWS if not p.get(c)]))
-                continue
-            ends = dict((c, m["mpTop"] + p[c][1] + p[c][3]) for c in GROWS)
-            if abs(ends["mp-sw"] - ends["mp-notes"]) > BAND_TOL:
-                bad.append("%s: the left column ends at %.0f and the centre at %.0f" % (label, ends["mp-sw"], ends["mp-notes"]))
-            if m["vscroll"][0] <= m["vscroll"][1] + 1:
+    def _tights(self):
+        r = _measure()
+        return [(k[len("tight "):], v) for k, v in sorted(r.items()) if k.startswith("tight ")]
+
+    def test_r2_the_window_is_as_tall_as_what_it_holds(self):
+        """REG-1379 his "Tighten both" (round 2): in every arrangement at every width, where the window does not scroll it
+        ends under its content by its own bottom padding and above the glass's bottom - no band (at 2000x1300 it ran 248px
+        past their rects to the glass); where it scrolls it is the glass's height exactly, scrolling inside itself"""
+        bad, fits, scrolls = [], 0, 0
+        tights = self._tights()
+        self.assertGreaterEqual(len(tights), 4 * len(WIDTHS), "PRINT THE DENOMINATOR: %d window states measured" % len(tights))
+        for label, m in tights:
+            self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
+            if m["sh"] <= m["ch"] + 1:
                 fits += 1
-                floor = m["vh"] - m["padB"]
-                for c, e in sorted(ends.items()):
-                    if floor - e > BAND_TOL:
-                        bad.append("%s: %s ends %.0fpx above the window's bottom - an empty band under it" % (label, c, floor - e))
-        self.assertGreaterEqual(fits, 4, "PREMISE: only %d column states fit the glass - 2000x1300 alone is four" % fits)
-        self.assertEqual(bad, [], "an empty band under the mule window:\n  " + "\n  ".join(bad))
+                band = m["win"][1] - m["mp"][1] - m["padB"]
+                if band > BAND_TOL:
+                    bad.append("%s: %.0fpx of empty band under the content, inside the window (it ends at %.0f of the glass's %.0f)"
+                               % (label, band, m["win"][1], m["vh"]))
+            else:
+                scrolls += 1
+                if abs((m["win"][1] - m["win"][0]) - m["vh"]) > 0.5:
+                    bad.append("%s: it scrolls inside itself but is %.0fpx tall on a %.0fpx glass" % (label, m["win"][1] - m["win"][0], m["vh"]))
+        self.assertGreaterEqual(fits, 4, "PREMISE: only %d states fit the glass - 2000x1300 alone is four" % fits)
+        self.assertGreaterEqual(scrolls, 4, "PREMISE: only %d states scroll - 375x812 alone is four" % scrolls)
+        self.assertEqual(bad, [], "the mule window is not as tall as what it holds:\n  " + "\n  ".join(bad))
+
+    def test_r2_no_panel_is_stretched_past_what_it_holds(self):
+        """REG-1379 (round 2, reproduced on fe817ab7): round 1 filled the band by stretching the last panels - at 2000x1300
+        STRENGTHS AND WEAKNESSES was ~330px of empty bordered box and NOTES ~370px of empty textarea. In columns, every
+        arrangement at every width: STRENGTHS AND WEAKNESSES is no taller than its own content (or its 57u floor), measured
+        with every stretch taken away; NOTES is its 206u; STATS its 726u at most"""
+        bad, seen = [], 0
+        for label, m in self._tights():
+            if m.get("err") or m.get("stack"):
+                continue
+            seen += 1
+            k = m["k"]
+            if m["sw"] is None or m["swNat"] is None:
+                bad.append("%s: STRENGTHS AND WEAKNESSES is not drawn" % label)
+            elif m["sw"] > m["swNat"] + BAND_TOL:
+                bad.append("%s: STRENGTHS AND WEAKNESSES is %.0fpx tall and holds %.0fpx - %.0fpx of empty box"
+                           % (label, m["sw"], m["swNat"], m["sw"] - m["swNat"]))
+            if m["notes"] is None or m["notes"] > 206 * k + BAND_TOL:
+                bad.append("%s: NOTES is %spx, not its 206u (%.0f)" % (label, m["notes"], 206 * k))
+            if m["stats"] is None or m["stats"] > 726 * k + BAND_TOL:
+                bad.append("%s: STATS is %spx, past its 726u (%.0f)" % (label, m["stats"], 726 * k))
+        self.assertGreaterEqual(seen, 4 * 6, "PREMISE: only %d column states were measured" % seen)
+        self.assertEqual(bad, [], "a mule window panel is stretched past what it holds:\n  " + "\n  ".join(bad))
+
+    def test_r2_the_mule_windows_tabs_stay_in_view_while_its_picker_is_open(self):
+        """REG-1375 (round 2, reproduced on fe817ab7): the #174 Edit panel lives in the mule window, and the builder's tab
+        rule skipped the mule host - the Select and Edit modals covered EQUIPMENT / STASH at every width, the phone sheet all
+        four. At every width, the doll and the stash in front, Select and Edit: where the mule's tab row is on the glass with
+        room under it, the modal does not overlap it and each tab's centre hit-tests to that tab"""
+        r, bad, seen = _measure(), [], 0
+        self.assertTrue(str(r.get("helm") or "").startswith("u"), "PREMISE: no database helm was placed, so Edit could not open: %r" % r.get("helm"))
+        for key, tb in sorted(r.items()):
+            if not key.startswith("mtabs "):
+                continue
+            if not tb.get("modal"):
+                bad.append("%s: PREMISE - no modal was open" % key)
+                continue
+            if "err" in tb:
+                bad.append("%s: %s" % (key, tb["err"]))
+                continue
+            if key.startswith("mtabs edit") and not tb.get("edit"):
+                bad.append("%s: PREMISE - the helm opened on %r, not its Edit tab" % (key, tb.get("tab")))
+            if key.startswith("mtabs select") and tb.get("tab") != "Select":
+                bad.append("%s: PREMISE - the left hand opened on %r, not Select" % (key, tb.get("tab")))
+            if not tb["onScreen"] or tb["room"] < 280:
+                continue          # the row is off the glass (or has no room under it): nothing to keep in view here
+            seen += 1
+            if tb["over"]:
+                bad.append("%s: the modal %s lies over the mule's tab row %s" % (key, [round(v) for v in tb["at"]], [round(v) for v in tb["tabs"]]))
+            hidden = [x["tab"] for x in tb["hit"] if not x["seen"]]
+            if hidden or len(tb["hit"]) != 4:
+                bad.append("%s: tabs not in view: %s (of %d)" % (key, hidden, len(tb["hit"])))
+        self.assertGreaterEqual(seen, 4 * len(WIDTHS), "PREMISE: the mule's tab row was checked in only %d modal states" % seen)
+        self.assertEqual(r.get("unhelm"), 1, "the fixture's helm did not come off after the tabs pass")
+        self.assertEqual(bad, [], "a modal hides the mule window's tabs:\n  " + "\n  ".join(bad))
 
 
 RED_PROOF = [
     {
-        "why": "#29(d) - the mule window stops at their literal rects again: 248px of empty band under it at 2000x1300",
+        "why": "REG-1379 round 2 - the mule window is the glass's height again: 248px of empty band under their rects at 2000x1300",
         "file": "bible.html",
-        "find": ".mp:not(.mp-stack){min-height:calc(100vh - 44px);align-items:stretch}\n",
-        "replace": "",
+        "find": ".vault-detail.vd-fs.mp-on{bottom:auto;max-height:100vh;max-height:100dvh;",
+        "replace": ".vault-detail.vd-fs.mp-on{",
         "matches": 1,
     },
     {
-        "why": "#29(d) - the columns' last panels stop growing, so the window is tall and its columns end short (a band inside it)",
+        "why": "REG-1379 round 2 - round 1's fix again: the last panels stretch into the band (S&W an empty box, NOTES an empty textarea)",
         "file": "bible.html",
-        "find": ".mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > :last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}\n",
-        "replace": "",
+        "find": ".vault-detail.vd-fs.mp-on{bottom:auto;max-height:100vh;max-height:100dvh;",
+        "replace": ".mp:not(.mp-stack){min-height:calc(100vh - 44px);align-items:stretch}\n.mp:not(.mp-stack) > .mp-main{display:flex;flex-direction:column}\n"
+                   ".mp:not(.mp-stack) .mp-lc{flex:1 1 auto;align-items:stretch}\n.mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > "
+                   ":last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}\n.vault-detail.vd-fs.mp-on{",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1375 round 2 - the mule host's modal is placed with no tab rule again: it covers the mule's EQUIPMENT / STASH tabs",
+        "file": "bible.html",
+        "find": "    var _tr = _cbTabsBottom(vh, mh0);\n",
+        "replace": "    var _tr = mh0 ? null : _cbTabsBottom(vh, mh0);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1375 round 2 - on a phone the mule host's sheet takes the glass from the top again, over all four tabs",
+        "file": "bible.html",
+        "find": "      var tr0 = _cbTabsBottom(vh, mh0), top0 = ",
+        "replace": "      var tr0 = mh0 ? null : _cbTabsBottom(vh, mh0), top0 = ",
         "matches": 1,
     },
     {

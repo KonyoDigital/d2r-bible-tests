@@ -35986,17 +35986,18 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
    the glass under it: the Grok seat at 1280 read "Stats stops at Life". 312 = their AUTHOR + SHOWCASE + gutters above
    it, 30 = the window's top padding and a bottom breath. At 2000x1300 this is 958px of room for their 726. */
 .mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}
-/* #29(d) his answer 2026-09-28 — NO EMPTY BAND UNDER THE WINDOW. At 2000x1300 their literal rects end at 1052 and the glass
-   at 1300: 248px of nothing under every column (228 at 901x900). In columns the window is at least as tall as the glass
-   (less its 14px top and 30px bottom padding), and the last panel of each column takes what is left - STATS, NOTES,
-   STRENGTHS AND WEAKNESSES - so the three columns end on one line at the window's bottom. Every rect above them is still
-   theirs; where the content is taller than the glass nothing grows (the window scrolls, as before) */
-.mp:not(.mp-stack){min-height:calc(100vh - 44px);align-items:stretch}
-.mp:not(.mp-stack) > .mp-main{display:flex;flex-direction:column}
-.mp:not(.mp-stack) .mp-lc{flex:1 1 auto;align-items:stretch}
-.mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > :last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}
-/* a grown STRENGTHS AND WEAKNESSES keeps its sentence under its header, not floating in the middle of the panel */
-.mp:not(.mp-stack) .mp-left > .mp-sw:last-child > .mp-empty{margin:calc(2*var(--u)) 0 auto}
+/* #29(d) his answer 2026-09-28, "Tighten both" (REG-1379) — THE WINDOW IS AS TALL AS WHAT IT HOLDS. At 2000x1300 their
+   literal rects end at 1052 and the window ran on to the glass's 1300: 248px of empty band under every column (228 at
+   901x900). The first fix stretched the last panel of each column into that band, which only moved the emptiness inside
+   the window - STRENGTHS AND WEAKNESSES became ~330px of empty bordered box and NOTES ~370px of empty textarea. Now every
+   panel is its own height again (their rects at 2000) and the WINDOW ends under its content, its own 30px padding below:
+   height auto, capped by the glass, scrolling inside itself only when what it holds is taller than the glass. The vault
+   under a short window is dimmed and inert (html.vd-lock::after, under the window's z-index), so it reads as a window
+   floating over the vault - never a strip of empty glass. Its edge is a shadow, not a border, so a window capped at the
+   glass draws no line at the glass's bottom. The dim is .82: at .66 the Grok CLI's cold look read the board's own dock under the
+   window as part of the window ("the floating bar covers the three bottom cards"). */
+.vault-detail.vd-fs.mp-on{bottom:auto;max-height:100vh;max-height:100dvh;box-shadow:0 1px 0 var(--gold-dim),0 18px 48px rgba(0,0,0,.72)}
+html.vd-lock::after{content:"";position:fixed;inset:0;z-index:99996;background:rgba(5,4,3,.82)}
 .mp-stats .mp-h{min-height:calc(44*var(--u))}
 .mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
@@ -53011,6 +53012,10 @@ html{overflow-x:clip}
 @font-face{font-family:"D2 Exocet";src:local("Exocet Blizzard OT"),local("ExocetBlizzardOT-Medium"),url('/api/d2r_font/exocet') format('opentype');font-display:swap}
 .cb-win,.cb-host{--cb-q-unique:rgb(199,179,119);--cb-q-set:rgb(0,255,0);--cb-q-crafted:rgb(255,168,0);--cb-q-base:rgb(255,255,255);--cb-q-magic:rgb(105,105,255);--cb-q-rare:rgb(255,255,100);--cb-q-runeword:rgb(199,179,119);--cb-glow:rgb(40,220,90);--cb-d2:"D2 Exocet","Cinzel",var(--serif-display),serif;--cb-slate:#3a3b3d}
 .cb-win{position:fixed;inset:0;z-index:99996;overflow:auto;background:var(--bg);color:var(--text);font-family:var(--sans);padding:calc(14*var(--u)) 16px 30px;overscroll-behavior:contain}
+/* #29(d) "Tighten both" (REG-1379) - the builder, like the mule window, is as tall as what it holds (capped by the glass,
+   scrolling inside itself when taller); the board under a short window is dimmed and inert. See .vault-detail.vd-fs.mp-on */
+.cb-win{bottom:auto;max-height:100vh;max-height:100dvh;box-shadow:0 1px 0 var(--gold-dim),0 18px 48px rgba(0,0,0,.72)}
+html.cb-lock::after{content:"";position:fixed;inset:0;z-index:99995;background:rgba(5,4,3,.82)}
 .cb-win[hidden]{display:none}
 html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-win,.cb-host{--fs-cb-display:max(var(--fs-micro),calc(var(--fs-display)*var(--kf,1)));--fs-cb-title:max(var(--fs-micro),calc(var(--fs-title)*var(--kf,1)));--fs-cb-body:max(var(--fs-micro),calc(var(--fs-body)*var(--kf,1)));--fs-cb-meta:max(var(--fs-micro),calc(var(--fs-meta)*var(--kf,1)));--fs-cb-micro:var(--fs-micro);--fs-cb-d2:max(var(--fs-body),calc(var(--fs-title)*1.28*var(--kf,1)));--fs-cb-d2h:max(var(--fs-body),calc(var(--fs-title)*1.4*var(--kf,1)));--fs-cb-tip:calc(var(--fs-title)*1.2)}
@@ -53133,19 +53138,18 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-notes textarea:focus{outline:none;border-color:var(--gold)}
 /* RIGHT — STATS from the stats engine, every number with its source; UNKNOWN when there is no engine */
 .cb-stats{grid-area:stats;display:flex;flex-direction:column;min-height:calc(726*var(--u))}
-/* #174 R2 — STATS ENDS AT THE WINDOW'S BOTTOM AND SCROLLS INSIDE ITSELF, as the mule window's already does. The Grok seat
-   on R1 (2000x1300): "the stats column is cut off at the bottom edge, rows from Energy down are sliced". It was a
-   726-unit floor that grew with its rows, so the builder's whole window scrolled to reach them. In columns it is now the
-   window's height less its top padding (14u), the header row (46u) and the gap under it (6u) and a 30px breath - its
-   own list scrolls; stacked on a phone it keeps its natural height. */
-.cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}
-/* #29(d) — the same band under the builder (REG-1314 kept it for R3): STATS already ends at the window's bottom and the
-   left and centre columns stopped ~270px short of it at 2000x1300. Their last panels (STRENGTHS AND WEAKNESSES, NOTES) now
-   take what is left, so the columns end on one line; where the content is taller than STATS nothing grows */
-.cb:not(.cb-stack){align-items:stretch}
-.cb:not(.cb-stack) .cb-body{align-self:stretch}
-.cb:not(.cb-stack) .cb-lc{flex:1 1 auto;align-items:stretch}
-.cb:not(.cb-stack) .cb-left > :last-child,.cb:not(.cb-stack) .cb-mc > .cb-notes{flex-grow:1}
+/* #174 R2 — STATS ENDS INSIDE THE GLASS AND SCROLLS INSIDE ITSELF, as the mule window's already does. The Grok seat on R1
+   (2000x1300): "the stats column is cut off at the bottom edge, rows from Energy down are sliced". It was a 726-unit floor
+   that grew with its rows, so the builder's whole window scrolled to reach them. In columns it is never taller than the
+   glass less its top padding (14u), the header row (46u), the gap under it (6u) and a 30px breath - its own list scrolls;
+   stacked on a phone it keeps its natural height.
+   #29(d) "Tighten both" (REG-1379): and it is exactly as tall as the columns beside it. Its rows no longer set the
+   window's height (contain:size - the list is a scroller, so its length is not the panel's), it stretches to the row the
+   left and centre columns make, and where they are taller than the glass it stops at the glass. It used to be the
+   glass's height whatever stood beside it: at 2000x1300 the left and centre ended ~270px above it, and the first fix
+   stretched their last panels (STRENGTHS AND WEAKNESSES, NOTES) into that band - empty boxes. Every panel is its own
+   height now and the window ends under its content. */
+.cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}
 .cb-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .cb-seg button{flex:1;height:calc(32*var(--u));min-height:26px;border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);font-weight:var(--fw-medium);cursor:pointer}
 .cb-seg button.cb-on{background:var(--gold-bright);color:#1a1208}
@@ -53181,6 +53185,18 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-sv-UNKNOWN b{color:var(--text-dim);font-weight:var(--fw-normal)}
 /* #174 v-B2 integration - the cap the game holds a stat to, after its source ("≤75%") */
 .cb-sv em.cb-cap{font-style:normal;font-family:var(--sans);font-size:var(--fs-cb-micro);color:var(--text-dim);white-space:nowrap;margin-left:-1px}
+/* #29(b) round 2 (REG-1376) - HIS WORDS COST NO LINE. "cap 75%" is wider than the "≤75%" it replaced, and on the number's
+   line it widened the value's column, so the label beside it wrapped once more: Physical Damage Reduction 2 -> 3 lines at
+   1280x800, Lightning Resistance 1 -> 2 at 1280 and at 2000, Fire / Cold Resistance and the three absorbs at 900-1180. A
+   capped value is now a small block of text: the number and its source chip flow as words (the chip wraps under the
+   number only when the row is too tight for both, round 8's rule), and the cap is a line of its own under them,
+   right-aligned and never wrapped. A block's widest line is its width, so the value is as wide as its number and source,
+   never their sum with the cap: the label keeps the lines it has without the cap, and all eight capped rows read alike
+   at every width (the four resistances never differ). */
+.cb-sv:has(> em.cb-cap){display:block;white-space:normal;text-align:right}
+.cb-sv:has(> em.cb-cap) > b{white-space:nowrap}
+.cb-sv:has(> em.cb-cap) > i{display:inline-block;white-space:nowrap;margin-left:4px}
+.cb-sv:has(> em.cb-cap) > em.cb-cap{display:block;margin-left:0;line-height:var(--lh-tight)}
 .cb-st-note{margin:2px 0;color:var(--text-dim)}
 /* THE MODAL — their Select | Edit + ✕, ~800x750, placed so the slot it serves stays in view (it glows green) */
 .cb-modal{position:fixed;z-index:99998;display:flex;flex-direction:column;background:#141210;border:1px solid var(--border-light);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.6);color:var(--text);font-family:var(--sans);overflow:hidden}
@@ -54986,8 +55002,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* ⚠ NOT _cbFits - that name is the inventory's "does this item fit at x,y" further down, and a second function
      declaration of one name in one scope silently loses to the later one (it did, on the first render) */
   function _cbModalFits(){ return !!(st.newb || (st.pick && st.pick.tab === 'edit' && !st.modOpen)); }
-  function _cbTabsBottom(vh){
-    var tb = document.querySelector('#cb-win .cb-ctabs'), r = tb && tb.getBoundingClientRect();
+  /* #29(d) round 2 (REG-1375) - THE TAB ROW OF THE WINDOW THE MODAL IS IN: the builder's (Equipment | Skill Tree |
+     Calculations) in the builder host, the mule window's own (EQUIPMENT | STASH | SKILL TREE | CALCULATIONS) in the mule
+     host. The #174 Edit panel lives in the mule window, and there the Edit and Select modals were placed with no tab rule
+     at all - they covered the mule's EQUIPMENT / STASH tabs at every width, and on a phone the sheet covered all four */
+  function _cbTabsBottom(vh, mule){
+    var tb = document.querySelector(mule ? '#vault-detail .mp-ctabs' : '#cb-win .cb-ctabs'), r = tb && tb.getBoundingClientRect();
     return (r && r.height > 0 && r.bottom > 0 && r.top < vh) ? r : null;
   }
   window._cbModalFits = _cbModalFits;
@@ -54998,7 +55018,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       /* the phone's sheet starts under the tabs when they are on screen (it took the whole glass, inset 8), and an Edit
          sheet ends under its content (it held ~230px of nothing on a 375x812 phone) */
       m.classList.add('cb-sheet');
-      var tr0 = mh0 ? null : _cbTabsBottom(vh), top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;
+      var tr0 = _cbTabsBottom(vh, mh0), top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;
       m.style.left = m.style.width = '';
       m.style.top = Math.round(top0) + 'px';
       if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(vh - top0 - 8) + 'px'; }
@@ -55045,10 +55065,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     top = clamp(top, 8, Math.max(8, vh - H - 8));
     H = Math.min(H, vh - top - 8);
-    /* #29(d) — the builder's tabs stay in view: a modal that would reach up over them starts under them instead (it keeps
-       the side it was given, so the slot it serves stays uncovered) and gives up the height above; the mule host has its
-       own tabs and its own placement */
-    var _tr = mh0 ? null : _cbTabsBottom(vh);
+    /* #29(d) — the window's tabs stay in view: a modal that would reach up over them starts under them instead (it keeps
+       the side it was given, so the slot it serves stays uncovered) and gives up the height above - the builder's tabs in
+       the builder, the mule window's own tabs in the mule host (REG-1375) */
+    var _tr = _cbTabsBottom(vh, mh0);
     if (_tr && left < _tr.right && left + W > _tr.left && top < _tr.bottom + 6 && vh - (_tr.bottom + 6) - 8 >= 240){
       top = _tr.bottom + 6;
       H = Math.min(H, vh - top - 8);
