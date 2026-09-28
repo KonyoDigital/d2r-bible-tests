@@ -3195,6 +3195,36 @@ def _dbg(msg):
         pass
 
 
+def _test_pinned_reels():
+    """Reel ids the test suite pins as real footage (test_reel_refs.json 'accepted'). -> set | None
+
+    None means the list could not be read - the reaper then only knows what the vault cites."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_reel_refs.json"),
+                  encoding="utf-8") as fh:
+            return set(json.load(fh).get("accepted") or [])
+    except Exception:
+        return None
+
+
+def _reap_victim(candidates, cited, pinned):
+    """Which reel the disk floor may take, oldest first. -> (reel | None, took_a_pinned_reel)
+
+    ⚠ 2026-09-28 — MEASURED on his Mac: at 02:43 this reaper took reel_s_1785708285647_38665 and
+    reel_s_1786385768689_67392, the two oldest on a shelf of 20, and BOTH were on the blessed list the retention
+    planner never touches; a gate that proves itself on one of them now reads UNPROVABLE on his machine. A reel a
+    vault witness cites is never taken (unchanged). Among the rest, the oldest reel no law pins goes first; a
+    pinned reel goes only when nothing else may, because a full disk stops recording, which is worse."""
+    pinned = pinned or set()
+    free = [c for c in (candidates or []) if (c[5:] if c.startswith("reel_") else c) not in (cited or set())]
+    for c in free:
+        if c not in pinned:
+            return c, False
+    if free:
+        return free[0], True
+    return None, False
+
+
 def _reap_record(reel, frames, removed, shelf):
     """A durable line for every emergency reel deletion. -> None
 
@@ -3428,13 +3458,11 @@ def archive_read_frame(src_path, n, ts_ms=None):
                             _dbg("reel-reap REFUSED: the vault ledger would not read, so whether "
                                  "any reel is still cited as evidence is UNKNOWN")
                         else:
-                            _victim = None
-                            for _cand in _all[:-2]:      # never the two newest
-                                _sid = _cand[5:] if _cand.startswith("reel_") else _cand
-                                if _sid in _cited:
-                                    continue             # a vault witness still points into it
-                                _victim = _cand
-                                break
+                            # never the two newest; never a cited reel; a reel a law pins only when nothing else may go
+                            _victim, _took_pin = _reap_victim(_all[:-2], _cited, _test_pinned_reels())
+                            if _took_pin:
+                                _dbg("reel-reap: every reel it may take is pinned by a law - taking the oldest "
+                                     "pinned one, because a full disk stops recording")
                             if _victim is None:
                                 _dbg("reel-reap found NOTHING it may take: %d reel(s), every "
                                      "candidate is cited by a vault witness or is one of the two "

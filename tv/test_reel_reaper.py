@@ -47,6 +47,20 @@ import tv_diablo as T  # noqa: E402
 
 RED_PROOF = [
     {
+        "why": "2026-09-28 - the disk floor takes the oldest reel even when a law pins it and an unpinned one could go",
+        "file": "tv_diablo.py",
+        "find": "    for c in free:\n        if c not in pinned:\n            return c, False\n",
+        "replace": "    for c in free:\n        return c, False\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - the recorder's reaper stops asking which reels a law pins",
+        "file": "tv_diablo.py",
+        "find": "_reap_victim(_all[:-2], _cited, _test_pinned_reels())",
+        "replace": "_reap_victim(_all[:-2], _cited, set())",
+        "matches": 1,
+    },
+    {
         "why": 'the law requires this text in tv_diablo.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'tv_diablo.py',
         "find": '_reel_capture_ms(_r) == 0',
@@ -157,6 +171,44 @@ class TheReaperRefusesEvidence(unittest.TestCase):
         entirely — worse than losing a reel. It must still be able to take something."""
         b = self._block()
         self.assertIn("rmtree", b, "the emergency was removed rather than made honest")
+
+
+class TheReaperSparesPinnedFootage(unittest.TestCase):
+    """2026-09-28 — MEASURED on his Mac: at 02:43 the disk floor took reel_s_1785708285647_38665 and
+    reel_s_1786385768689_67392, the two oldest of 20, and both were on the blessed list in test_reel_refs.json;
+    a gate that proves itself on one of them now reads UNPROVABLE there. Driven on the shipped chooser."""
+
+    A, B, C = "reel_s_1500000000001_1", "reel_s_1500000000002_2", "reel_s_1500000000003_3"
+
+    def test_the_oldest_UNPINNED_reel_goes_first(self):
+        self.assertEqual(T._reap_victim([self.A, self.B, self.C], set(), {self.A}), (self.B, False),
+                         "the reaper took a reel a law pins while an unpinned one could go")
+
+    def test_a_pinned_reel_goes_only_when_nothing_else_may(self):
+        self.assertEqual(T._reap_victim([self.A, self.B], set(), {self.A, self.B}), (self.A, True),
+                         "with every candidate pinned the emergency must still take the oldest - a full disk "
+                         "stops recording")
+
+    def test_a_cited_reel_is_never_taken_pinned_or_not(self):
+        cited = {self.A[5:], self.B[5:]}
+        self.assertEqual(T._reap_victim([self.A, self.B], cited, set()), (None, False))
+        self.assertEqual(T._reap_victim([self.A, self.B, self.C], {self.B[5:]}, {self.A}), (self.C, False))
+
+    def test_an_unreadable_pin_list_falls_back_to_the_oldest_uncited(self):
+        self.assertEqual(T._reap_victim([self.A, self.B], set(), None), (self.A, False))
+
+    def test_the_pin_list_is_the_one_the_suite_blesses(self):
+        pinned = T._test_pinned_reels()
+        self.assertIsNotNone(pinned, "test_reel_refs.json would not read")
+        self.assertIn("reel_s_1786385768689_67392", pinned,
+                      "PREMISE: the reel the 02:43 reap took is not on the blessed list - the case tests nothing")
+
+    def test_the_block_asks_the_chooser_with_the_pins(self):
+        import inspect
+        src = inspect.getsource(T.archive_read_frame)
+        i = src.index("REELS DIE WHOLE")
+        self.assertIn("_reap_victim(_all[:-2], _cited, _test_pinned_reels())", src[i:src.index("YOUTH SHIELD", i)],
+                      "the reaper no longer asks the chooser with the pinned list")
 
 
 class TheRecordIsNotTheTombstoneStore(unittest.TestCase):
