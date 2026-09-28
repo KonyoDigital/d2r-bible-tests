@@ -5449,10 +5449,11 @@ GATES = [
              "path (8, discovered not listed) and the G5 stats path. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
     Gate("test_a_shared_stash_item_survives_the_vault_cleanse",
          [sys.executable, os.path.join(HERE, "test_a_shared_stash_item_survives_the_vault_cleanse.py")], 60,
-         why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned on each "
-             "owner load, and a shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: "
-             "a registered Bone Break vanished on reload, Black Cleft (no seed name) stayed. The shipped cleanse statement "
-             "runs in node with the shipped _SHARED_KEEP: shared kept, floor residue still stripped. 3 cases, 1 red-proof"),
+         why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned, and a "
+             "shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: a registered Bone "
+             "Break vanished on reload, Black Cleft (no seed name) stayed. Since the review of bd976210 the cleanse is "
+             "window._seedCleanse (one-time per world, journaled); the shipped door runs in node with the shipped "
+             "_SHARED_KEEP the floor hands it: shared kept, floor residue still stripped. 4 cases, 2 red-proofs"),
     Gate("test_a_live_witness_is_not_an_extraction",
          [sys.executable, os.path.join(HERE, "test_a_live_witness_is_not_an_extraction.py")], 90,
          why="REG-1277 (#221) - his ruling was DIG. The 18 unexplained tombstones were his console's own "
@@ -6896,6 +6897,19 @@ GATES = [
              "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
              "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
              "disk (the locator probes the stem, as frame_ref.Index.resolve does). 8 red-proofs."),
+    Gate("test_carried_loot_keeps_its_order",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_keeps_its_order.py")], 120,
+         why="2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings. "
+             "H1 the grail floor's seed cleanse ran on EVERY load and deleted carried found uniques unjournaled: it is "
+             "window._seedCleanse now, booted twice through the floor's own slice - once per world, only residue (no "
+             "filing, no receipt, no lock, not the shared stash), every removal in the removal journal, nothing while the "
+             "MAIN ledger is UNKNOWN. H2 carried is a STATE: stash/worn/locked/hand items are never re-marked carried and "
+             "a same-named floor label never un-owns them or touches a filing. H3 the register keeps the LATEST sighting "
+             "and the board reads first/held/latest in time order - his pick-up-look-drop is not owned, the reverse is "
+             "carried, an already-carried item leaves with the drop's frame. M1 the per-name place decides and the "
+             "register agrees with the board on every pair. M2 the backfill reads the same order (one function). M3 one "
+             "fold for removals and owned names. M4 an unattributed strip is ONE row saying character UNKNOWN (#54). L2 no "
+             "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole. 27 cases, 17 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "

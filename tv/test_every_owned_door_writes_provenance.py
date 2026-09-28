@@ -641,6 +641,10 @@ def _register_items():
         if x.get("heldLoc"):
             it.update({"heldLoc": x.get("heldLoc"), "heldScene": x.get("heldScene"), "heldFrame": x.get("heldFrame"),
                        "heldTs": x.get("heldTs")})
+        # H3 (review of bd976210) — and the LATEST sighting, exactly as the console's builder now hands it over
+        if x.get("latestLoc") or x.get("latestScene"):
+            it.update({"latestLoc": x.get("latestLoc"), "latestScene": x.get("latestScene"),
+                       "latestFrame": x.get("latestFrame"), "latestTs": x.get("latestTs")})
         out.append(it)
     return reg, out
 
@@ -1439,7 +1443,7 @@ RED_PROOF = [
     {
         "why": "M3: a name he removed comes back through the backfill",
         "file": "bible.html",
-        "find": "      if (_rmAt[nm]){ _skip('removed-by-him'); return; }\n",
+        "find": "      if (_rmAt[k]){ _skip('removed-by-him'); return; }\n",
         "replace": "",
         "matches": 1,
     },

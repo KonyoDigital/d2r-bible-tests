@@ -103,7 +103,11 @@ class TheRemovalJournalForksLikeTheStore(unittest.TestCase):
         self.assertGreaterEqual(len(self.lp), 3, "_LP_FORKED parsed as %d keys — the reader "
                                                  "stopped matching the literal, so this law is "
                                                  "UNKNOWN not clean" % len(self.lp))
-        self.assertLess(len(self.lp), 60, "_LP_FORKED parsed as %d keys — the reader overshot "
+        # ⚠ H1 (review of bd976210) — THE CEILING WAS ONE KEY ABOVE THE REAL COUNT. d2r_seedCleanse made _LP_FORKED hold
+        # 60 genuine members and this line went red on correct code. The overshoot it exists for harvested 1,350; a
+        # ceiling that sits at the real count fails on the next CORRECT addition, so it sits well clear of it now and
+        # still far below the failure it catches. [[regression-guard]] (pin the law, not the number)
+        self.assertLess(len(self.lp), 200, "_LP_FORKED parsed as %d keys — the reader overshot "
                                           "its own literal and is harvesting the rest of the "
                                           "file" % len(self.lp))
         self.assertGreaterEqual(len(self.wp), 5, "_WP_FORKED parsed as %d keys — same problem"

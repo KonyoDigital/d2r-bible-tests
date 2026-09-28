@@ -3280,6 +3280,13 @@ def _journal_frame_ids():
             pass
         _JFID_STATE["path"], _JFID_STATE["ids"] = JOURNAL, ids
     ids = _JFID_STATE["ids"]
+    # ⚠ L1 (review of bd976210) — THE SHIELD IS THE NEWEST 2,000 READ FRAMES, AND THAT IS A KNOWN LIMIT, NOT A PROMISE.
+    # The board's evidence card cites receipt frameIds from d2r_vaultProv — the BOARD's store, which this process cannot
+    # read. What it CAN see is this journal (capped below) and the evidence authority (_reel_evidence: the witness index
+    # + chron_evidence's receipts). So a receipt's frame older than the newest 2,000 journal ids, and cited by neither,
+    # can still be reaped under the disk floor. The card then says "picture not on this machine — <who took it>" in
+    # words (picture_status / reel_reaps.jsonl), never a broken image. Shielding the board's receipts here would need a
+    # store the console does not have, and the brief ruled out building one. REG-1387. [[unknown-stays-unknown]]
     PROTECT_CAP = max(200, int(os.environ.get("TV_PROTECT_CAP", "2000") or 2000))
     if len(ids) > PROTECT_CAP:
         def _fid_ms(x):

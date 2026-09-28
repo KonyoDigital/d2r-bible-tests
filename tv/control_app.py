@@ -8800,11 +8800,31 @@ def _vault_claim_lanes():
     return _VAULT_LANES_CACHE["lanes"]
 
 
+def _kai_sighting_leaves(loc, scene):
+    """H3 (review of bd976210, reproduced) — does THIS sighting say the item LEFT his hands? -> bool
+
+    The ground, a vendor window or a trade window. The reader's PER-NAME place decides; the frame's scene speaks only
+    when the reader gave no place for the name (M1 — a name the reader placed in his inventory inside a frame tagged
+    'loot' is in his inventory, not on the ground). A Chronicle page says found-ever, never where an item is now.
+    The BOARD decides the route (window._vaultHoldingRoute); this only picks which sighting the register hands over
+    as the LATEST, and test_carried_loot_keeps_its_order drives both on the same (place, scene) pairs and requires
+    them to agree. [[copy-drift]]"""
+    l = str(loc or "").strip().lower()
+    s = str(scene or "").strip().lower()
+    if s == "chronicle" or l == "chronicle":
+        return False
+    if l:
+        return l in ("floor", "ground", "vendor", "trade")
+    return s in ("loot", "vendor", "trade")
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
     minus anchors + noise. One record per unique name, earliest sighting wins.
-    Record: {name, firstSeenTs, frameId, loc, tier}. Pure — no side effects."""
+    Record: {name, firstSeenTs, frameId, loc, tier, scene} + the best HOLDING sighting (heldLoc/heldScene/heldFrame/
+    heldTs) + H3 the LATEST sighting that places the item (latestLoc/latestScene/latestFrame/latestTs), each one
+    tuple from one frame. Pure — no side effects."""
     fulln = _kai_fullnames()
     reg = {}   # name.lower() -> record
     # H1 — the board's holding lanes, asked once per compile (None = UNKNOWN: nothing is promoted as held)
@@ -8812,7 +8832,9 @@ def _kai_compile_register(sess_rows):
 
     def _held_rank(loc, scene):
         """How strongly THIS sighting says he holds the item. -> 2 (a vault lane: worn, stash, cube, mule ...),
-        1 (his inventory's free space — carried, §31.2), 0 (nothing: a Chronicle page, the floor, UNKNOWN)."""
+        1 (his inventory's free space — carried, §31.2), 0 (nothing: a Chronicle page, the floor, UNKNOWN).
+        M1 (review of bd976210) — the reader's PER-NAME place decides, exactly as the board's route does: the frame's
+        scene only vetoes a Chronicle page, so a name placed in his inventory inside a 'loot' frame is held (1)."""
         l = str(loc or "").strip().lower()
         s = str(scene or "").strip().lower()
         if not l or s == "chronicle" or l == "chronicle":
@@ -8848,6 +8870,10 @@ def _kai_compile_register(sess_rows):
         ts = int(ts or 0)
         cur = reg.get(low)
         _hr = _held_rank(loc, scene)
+        # H3 — a sighting PLACES the item when it says he holds it (_hr) or that it left his hands (the ground, a vendor
+        # or a trade window). A Chronicle page or an UNKNOWN place says nothing about where it is now, so it can never
+        # become the latest and hide a drop behind it.
+        _placed = bool(_hr) or _kai_sighting_leaves(loc, scene)
         if cur is None:
             # 2026-09-28 — AND THE SCENE THE READER SAW (inventory / stash / chronicle / loot ...). It knew it for
             # every frame and it was dropped here, so the board row's `loc` was null for 397 of 400 rows and the
@@ -8857,6 +8883,9 @@ def _kai_compile_register(sess_rows):
             if _hr:
                 reg[low].update({"heldLoc": str(loc).strip().lower(), "heldScene": (scene or None),
                                  "heldFrame": frame_id or "", "heldTs": ts, "_heldRank": _hr})
+            if _placed:
+                reg[low].update({"latestLoc": (str(loc).strip().lower() if loc else None), "latestScene": (scene or None),
+                                 "latestFrame": frame_id or "", "latestTs": ts})
             return
         # earliest sighting wins the frame/ts/loc (a factual "when was it first seen" —
         # first really is best there). TIER is a QUALITY verdict, not a timestamp — sess_rows
@@ -8887,6 +8916,15 @@ def _kai_compile_register(sess_rows):
             # the stronger place wins; within one strength the LATER look wins — where he holds it now
             cur.update({"heldLoc": str(loc).strip().lower(), "heldScene": (scene or None),
                         "heldFrame": frame_id or "", "heldTs": ts, "_heldRank": _hr})
+        # ⚠⚠ H3 (review of bd976210, reproduced) — AND THE LATEST SIGHTING, WHOLE. The register kept the earliest sighting
+        # and the best HOLDING one, and threw a LATER floor sighting away (it ranks 0) — so his v2346 case ("picked it
+        # up, identified it ... thrown back out to the ground") handed the board only the inventory look, the route said
+        # 'carried', and a pick-up-look-drop OWNED the item. Now the latest sighting that places the item rides beside
+        # the other two as one tuple (latestLoc / latestScene / latestFrame / latestTs), and the board reads the three in
+        # TIME ORDER: held, then a later ground / vendor / trade look, is a DROP. [[unknown-stays-unknown]]
+        if _placed and (cur.get("latestTs") is None or ts > int(cur.get("latestTs") or 0)):
+            cur.update({"latestLoc": (str(loc).strip().lower() if loc else None), "latestScene": (scene or None),
+                        "latestFrame": frame_id or "", "latestTs": ts})
         if tier and _KAI_TIER_RANK.get(tier, 0) > _KAI_TIER_RANK.get(cur.get("tier") or "", 0):
             cur["tier"] = tier
 
@@ -12006,6 +12044,10 @@ def _kai_closer_loop():
                                            **({"heldLoc": x.get("heldLoc"), "heldScene": x.get("heldScene"),
                                                "heldFrame": x.get("heldFrame"), "heldTs": x.get("heldTs")}
                                               if x.get("heldLoc") else {}),
+                                           # H3 — and the LATEST sighting that places it, so the board can see a drop
+                                           **({"latestLoc": x.get("latestLoc"), "latestScene": x.get("latestScene"),
+                                               "latestFrame": x.get("latestFrame"), "latestTs": x.get("latestTs")}
+                                              if (x.get("latestLoc") or x.get("latestScene")) else {}),
                                            **({"g4": x.get("g4")} if (_g3live and x.get("g4")) else {}))
                                       for x in (_register or [])[:40]]
                             _cjs = ("(function(){try{var F=document.getElementById('tvd-eng');"

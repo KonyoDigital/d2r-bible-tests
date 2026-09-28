@@ -7,6 +7,108 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1380 - THE "ONE-TIME" SEED CLEANSE RAN ON EVERY LOAD AND TOOK HIS CARRIED FINDS, UNJOURNALED (H1, review of bd976210, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** the grail floor's v677 "one-time vault cleanse" had no stamp - its only guard was the
+floor's own clause - so it ran on EVERY owner load and deleted every owned _GRAIL_SEED / _UNI_EXTRA name with no
+d2r_muleAssign row. Carried loot is never mule-filed (§31.2), so every carried FOUND unique left owned on the next reload;
+nothing reached the removal journal, the receipt still said carried:true, and the strip lost it (it lists owned names
+only). Driven through the board's own slice on bd976210: a carried Harlequin Crest, a worn Arachnid Mesh, a landed
+Nagelring, a hand-ticked Gheed's Wager and a lane-locked Magefist all vanished on the first load, journal empty.
+**FIX:** the floor ARMS window._seedCleanse (the owned-prov door); it runs at load once the lock, the route and the
+removal door exist, and on the owner console only after the MAIN ledger answered (unanswered = UNKNOWN, nothing removed,
+no stamp). One-time per world (d2r_seedCleanse, in _LP_FORKED). It takes only residue - no filing, no d2r_vaultProv row
+of any kind, no §29 lock, not the shared stash (REG-1280 kept) - through window.vaultRemove (lane seed-cleanse: dated,
+listed, undoable), and the found ledger keeps each name. HEART: test_carried_loot_keeps_its_order H1 (5 cases, 4
+red-proofs); test_a_shared_stash_item_survives_the_vault_cleanse re-pointed at the door (4 cases, 2 red-proofs).
+
+### REG-1381 - "CARRIED" WAS A FIELD ANYONE COULD FILL, SO A FLOOR LABEL UN-OWNED STASHED AND WORN GEAR (H2, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** _ownedProvWrite's _FILL list held 'carried', and a non-carried receipt writes
+carried:null, so the FIRST inventory read of a stashed, filed or worn item's name copied true over null; a same-named
+floor label then un-owned it through _carriedLeave AND deleted its mule filing. Driven: stash (filed uni-armor) ->
+inventory read -> floor label = gone and unfiled; worn + lane-locked Arachnid Mesh -> inventory read -> floor label = gone.
+**FIX:** carried is a STATE with an order, decided by _stateOf (filed > locked > worn > landed > carried > hand > null):
+an inventory read marks a receipt carried only when nothing on it says where the item is; _carriedLeave acts only on
+state 'carried' (never landed, filed, worn, locked or hand-ticked) and so never reaches a mule filing; the strip lists only
+state 'carried', and so do the receipt words and the evidence card (a row written before the state order that says
+carried but is filed / locked / worn is not shown as carried). HEART: test_carried_loot_keeps_its_order H2 (3 cases incl.
+a baseline that a real drop still leaves, 2 red-proofs).
+
+### REG-1382 - PICK IT UP, LOOK, DROP IT: THE BOARD OWNED IT (H3, his v2346 case, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** control_app._kai_compile_register kept the earliest and the best HOLDING sighting;
+a LATER floor sighting ranks 0 and was thrown away, so the board routed on the inventory look ('carried') and owned a
+pick-up-look-drop - his v2346 words, "picked it up, identified it ... thrown back out to the ground". **FIX:** the register
+also keeps the LATEST sighting that places the item (latestLoc/latestScene/latestFrame/latestTs, one tuple - a Chronicle
+page or an unknown place never becomes the latest and cannot hide a drop); the console's builder and kaiChroniclePropose
+carry it; the board reads first/held/latest in TIME ORDER through ONE function (window._sightingsRoute): held then a later
+ground/vendor/trade look is a DROP (not owned; an item already owned as carried leaves with the drop's own frame), ground
+then a later inventory look is carried, a pair with no time waits. The auto-accept door asks the same route. HEART:
+test_carried_loot_keeps_its_order H3 (5 cases, driven through the SHIPPED register, 3 red-proofs).
+
+### REG-1383 - A NAME PLACED IN HIS INVENTORY INSIDE A 'LOOT' FRAME WAS READ AS DROPPED (M1, 2026-09-28)
+
+**SEEN:** window._vaultHoldingRoute checked the frame's scene (loot / vendor / trade) BEFORE the reader's per-name place,
+so inventory-in-a-loot-frame answered not-held + leave. **FIX:** the per-name place decides; the scene speaks only when
+the reader gave none (a Chronicle page still overrules, §28). The register ranks the same way, and a law drives both on
+16 (place, scene) pairs and requires them to agree (control_app._kai_sighting_leaves + the held rank vs the board).
+HEART: test_carried_loot_keeps_its_order M1 (2 cases, 2 red-proofs - one per side).
+
+### REG-1384 - THE ONE-TIME BACKFILL OWNED PICK-UP-LOOK-DROP LOOT AS CARRIED (M2, 2026-09-28)
+
+**SEEN:** _ownedProvBackfill replayed each ledger row on its own, so a historical inventory read became owned carried
+loot even where a later floor read of the same item said he let it go (the measured shapes: Storm Emblem, Cloudy Sphere,
+a Small Charm of Good Luck, five set pieces). **FIX:** the rows of one item (every spelling the fold joins) are read
+together - each row's first, held and latest sightings - through window._sightingsRoute, the SAME function the live route
+asks; drops are listed on the backfill's receipt (rc.dropped). HEART: test_carried_loot_keeps_its_order M2 (3 cases incl.
+the reverse-order baseline and a no-copy pin, 1 red-proof).
+
+### REG-1385 - A NAME HE REMOVED CAME BACK THROUGH THE BACKFILL UNDER ANOTHER SPELLING (M3, 2026-09-28)
+
+**SEEN:** the backfill keyed d2r_vaultRemoved and owned.has() by the exact string, so a removal of "Tal Rasha's Horadric
+Crest" did not stop "Tal Rasha’s Horadric Crest" (curly) from being filed, and a lower-case ledger row of an owned item
+minted a second vault item. **FIX:** both are keyed through the vault's ONE canonical fold - tvVaultRegister's _cnV, moved
+beside the owned door as window._vaultCanonName and asked by the register itself; an owned item gets its receipt under the
+spelling it is owned by. HEART: test_carried_loot_keeps_its_order M3 (2 cases, 1 red-proof).
+
+### REG-1386 - THE CARRIED STRIP'S PER-CHARACTER LAYOUT IMPLIED A CHARACTER NOTHING PRODUCES (M4, 2026-09-28)
+
+**SEEN:** the register and the propose items carry no character and nothing supplies meta.character, so every carried
+receipt in production has character: null - yet the strip was built as a per-character layout. **FIX:** one builder
+(window._carriedStripHtml): a named character keeps its own row (for #54), and everything unattributed is ONE row that
+says "character UNKNOWN — the reader does not name the character yet (login/char-select read is #54)"; the receipt keeps
+its character field. HEART: test_carried_loot_keeps_its_order M4 (2 cases, driven from the shipped register, 1 red-proof).
+
+### REG-1387 - AN EVIDENCE CARD'S PICTURE IS SHIELDED ONLY WHILE IT IS AMONG THE 2,000 NEWEST READ FRAMES (L1, NOT FIXED - SAID)
+
+**SEEN:** the card cites receipt frameIds from the BOARD's d2r_vaultProv, which the console cannot read; the recorder's
+shield is the newest 2,000 journal frame ids plus the evidence authority's citations (tv_diablo._journal_frame_ids /
+_reel_evidence). An older receipt's frame, cited by neither, can be reaped under the disk floor. **NOT FIXED, BY THE
+BRIEF:** shielding the board's receipts would need a store the console does not have, and no new store was allowed. The
+limit is now SAID beside the cap and beside _vaultEvidencePicture; the card already says "picture not on this machine —
+<the console's reason>" in words and never draws a broken image (test_every_owned_door_writes_provenance pins that).
+
+### REG-1388 - THE CARRIED WORDS PROMISED A VENDOR / TRADE LEAVE, AND 'carried' HAD NO PILL (L2 + L3, 2026-09-28)
+
+**SEEN:** (L2) names_loc accepts only equipped|inventory|stash|floor and no scene says vendor or trade, so a vendor/trade
+leave can never fire - while the strip and card implied it could. (L3) tvVaultRegister records status 'carried' and
+_CH_PILL_MAP had no pill for it; the pill census was blind twice (a 700-char window that never reached the TV register's
+status, and a regex that saw only literal statuses, not a ternary chain). **FIX:** every carried surface (route why,
+register refusal, evidence card, strip rule) says it leaves on a drop and that vendor/trade reads are not supported yet;
+the route's vendor/trade branch stays ready. Swept with it: the empty dock beside a carried strip said "every owned item
+has a home — the vault is in perfect order" about loot still in his hands; it now says "nothing loose — what you carry
+lands when it is seen in a stash tab or on a mule". 'carried' has its pill; the census reads each call to its real closing
+paren and every slug a status expression can yield. HEART: test_carried_loot_keeps_its_order L2 (3 cases, 2 red-proofs);
+test_sets_base_index TestEveryLedgerStatusHasAPill (1 red-proof).
+
+### REG-1389 - THE CARRIED CHIP CUT ITS NAME AND ITS TIME EVEN AT 2000px (L4, 2026-09-28)
+
+**SEEN:** "Harlequin Crest (S…", "seen 28 Sep 1…" at every width - one nowrap line, ellipsis on both, 270px tracks.
+**FIX:** name and last-seen time stack in one column (.vcar-text) and wrap; no carried-chip rule ellipsises; the grid
+track is min(270px, 100%). Verified on real pixels at 375x812, 1280x800 and 2000x1300 (evid_r3_*.png). HEART:
+test_carried_loot_keeps_its_order L4 (2 cases, 1 red-proof).
+
 ### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
 
 **SEEN (grok-cli on a3f7a020..69d4ebb0):** (1) apply_plan writes the tombstone `kept` row BEFORE the delete, and plan()

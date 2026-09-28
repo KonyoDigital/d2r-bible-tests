@@ -171,8 +171,8 @@ RED_PROOF = [
     {
         "why": "#246 W2 - the sweep's rows lose `loc` again, the container gate is false for every row, nothing lands",
         "file": "bible.html",
-        "find": "source: 'vault-sweep', loc: it.lane, gate: it.gate });",
-        "replace": "source: 'vault-sweep', gate: it.gate });",
+        "find": "source: 'vault-sweep', loc: it.lane, scene: it.scene || null, gate: it.gate });",
+        "replace": "source: 'vault-sweep', scene: it.scene || null, gate: it.gate });",
         "matches": 1,
     },
     {
@@ -192,8 +192,8 @@ RED_PROOF = [
     {
         "why": "#246 review - the ledger row calls an unroutable register 'no-witness' again",
         "file": "bible.html",
-        "find": "                 : (r.filed === false ? (r.refused === 'no-home' ? 'no-home'\n",
-        "replace": "                 : (r.filed === false ? (false ? 'no-home'\n",
+        "find": "                 : (r.filed === false ? (r.refused === 'carried' ? 'carried' : r.refused === 'no-home' ? 'no-home'\n",
+        "replace": "                 : (r.filed === false ? (r.refused === 'carried' ? 'carried' : false ? 'no-home'\n",
         "matches": 1,
     },
     {

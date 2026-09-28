@@ -169,8 +169,8 @@ class TheLooseFilmReaperAsksFirst(_Shelf):
 class TheReelReaperKeepsTheEvidence(_Shelf):
     """(c) and (a), through the SHIPPED archive_read_frame under a patched disk."""
 
-    R = ["reel_s_1784000000001_1", "reel_s_1784000000002_2", "reel_s_1784000000003_3",
-         "reel_s_1784000000004_4", "reel_s_1784000000005_5", "reel_s_1784000000006_6"]
+    R = ["reel_s_1500000000001_1", "reel_s_1500000000002_2", "reel_s_1500000000003_3",
+         "reel_s_1500000000004_4", "reel_s_1500000000005_5", "reel_s_1500000000006_6"]
 
     def _reels(self):
         for i, r in enumerate(self.R):
@@ -181,10 +181,10 @@ class TheReelReaperKeepsTheEvidence(_Shelf):
         self.ledgers(
             accum={"owned": [
                 {"name": "Nagelring", "lane": "stash", "kind": "item",
-                 "witnesses": [{"session": "s_1784000000001_1", "frame": "f_1784000001000.jpg", "conf": 0.9}]},
+                 "witnesses": [{"session": "s_1500000000001_1", "frame": "f_1784000001000.jpg", "conf": 0.9}]},
                 {"name": "Magefist", "lane": "stash", "kind": "item",
-                 "witnesses": [{"session": "s_1784000000003_3", "frame": "f_elsewhere.jpg", "conf": 0.9}]}]},
-            chron={"uniques": {"Stormshield": [{"reel": "reel_s_1784000000002_2", "frame": "f_1784000002001.jpg",
+                 "witnesses": [{"session": "s_1500000000003_3", "frame": "f_elsewhere.jpg", "conf": 0.9}]}]},
+            chron={"uniques": {"Stormshield": [{"reel": "reel_s_1500000000002_2", "frame": "f_1784000002001.jpg",
                                                 "conf": 0.9}]}, "sets": {}})
         self.src = os.path.join(self.root, "live.jpg")
         _jpg(self.src)
@@ -349,21 +349,21 @@ class TheReelPickKeepsWhatAReadNamed(_Shelf):
 
     def test_a_read_frame_is_kept_and_a_named_but_absent_reel_is_kept_whole(self):
         self.ledgers(accum={"owned": []}, chron={"uniques": {}, "sets": {}})
-        self._reel("reel_s_1784000000001_1", ["f_1784000001000.jpg", "f_1784000001001.jpg", "f_1784000001002.jpg"])
-        self._reel("reel_s_1784000000002_2", ["f_1784000002000.jpg", "f_1784000002001.jpg"])
-        self._reel("reel_s_1784000000003_3", ["f_1784000003000.jpg"])
-        self.journal_rows([{"lane": "deep", "frameId": "reel_s_1784000000001_1/f_1784000001001", "names": ["Shako"],
+        self._reel("reel_s_1500000000001_1", ["f_1784000001000.jpg", "f_1784000001001.jpg", "f_1784000001002.jpg"])
+        self._reel("reel_s_1500000000002_2", ["f_1784000002000.jpg", "f_1784000002001.jpg"])
+        self._reel("reel_s_1500000000003_3", ["f_1784000003000.jpg"])
+        self.journal_rows([{"lane": "deep", "frameId": "reel_s_1500000000001_1/f_1784000001001", "names": ["Shako"],
                             "ts": 1784000001001},
-                           {"lane": "deep", "frameId": "reel_s_1784000000002_2/f_1784000002999", "names": ["Nagelring"],
+                           {"lane": "deep", "frameId": "reel_s_1500000000002_2/f_1784000002999", "names": ["Nagelring"],
                             "ts": 1784000002999}])
         ev = T._reel_evidence(self.hist)
         self.assertIsNotNone(ev)
-        c = ["reel_s_1784000000001_1", "reel_s_1784000000002_2", "reel_s_1784000000003_3"]
+        c = ["reel_s_1500000000001_1", "reel_s_1500000000002_2", "reel_s_1500000000003_3"]
         p1 = T._reel_reap_pick(self.hist, c, ev)
-        self.assertEqual(("reel_s_1784000000001_1", "partial", ["f_1784000001001.jpg"]),
+        self.assertEqual(("reel_s_1500000000001_1", "partial", ["f_1784000001001.jpg"]),
                          (p1["reel"], p1["mode"], p1["kept"]), "a partial release took the frame a read was taken from")
         p2 = T._reel_reap_pick(self.hist, c[1:], ev)
-        self.assertEqual(("reel_s_1784000000003_3", "whole"), (p2["reel"], p2["mode"]),
+        self.assertEqual(("reel_s_1500000000003_3", "whole"), (p2["reel"], p2["mode"]),
                          "a reel the journal names (its named picture absent) was not kept whole — or BASELINE: the "
                          "uncited reel beside it must still go")
 
