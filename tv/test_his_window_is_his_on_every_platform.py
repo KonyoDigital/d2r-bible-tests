@@ -92,6 +92,13 @@ def _keydown_block(ui, i):
 
 RED_PROOF = [
     {
+        "why": "2026-09-28 - leaving fullscreen on Windows leaves the window where WinForms put it, half off his screen",
+        "file": "control_app.py",
+        "find": "                _mv(0, 0)\n",
+        "replace": "                pass\n",
+        "matches": 1,
+    },
+    {
         "why": "without the toggle_fullscreen guard, minimize is judged by size too - and a "
                "minimize that legitimately leaves the reported size alone is called ignored, "
                "manufacturing a failure out of correct behaviour",
@@ -469,6 +476,68 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
             self.calls.append("toggle_fullscreen")
             if self._grows:
                 self._size = (self._size[0] * 2, self._size[1] * 2)
+
+    class _Shrinks(object):
+        """A fullscreen window that comes back smaller - the ALT's 1280x720 -> 1120x660 - and records moves."""
+        def __init__(self, raise_on_move=False):
+            self.calls, self._size, self._raise = [], (1280, 720), raise_on_move
+            class _Ev(object):
+                class shown(object):
+                    @classmethod
+                    def is_set(cls):
+                        return True
+            self.events = _Ev()
+
+        @property
+        def width(self):
+            return self._size[0]
+
+        @property
+        def height(self):
+            return self._size[1]
+
+        def toggle_fullscreen(self):
+            self.calls.append("toggle_fullscreen")
+            self._size = (1120, 660) if self._size == (1280, 720) else (1280, 720)
+
+        def move(self, x, y):
+            self.calls.append(("move", x, y))
+            if self._raise:
+                raise RuntimeError("no")
+
+    def _toggle_on(self, win, is_win):
+        self.ca.__dict__["_MAIN_WIN"] = win
+        prev = self.ca.IS_WIN
+        self.ca.IS_WIN = is_win
+        try:
+            return self.ca.window_action("fullscreen")
+        finally:
+            self.ca.IS_WIN = prev
+
+    def test_LEAVING_fullscreen_on_Windows_puts_the_whole_window_on_his_screen(self):
+        """2026-09-28, his ALT: W left fullscreen but the window came back ~170 px under the bottom edge."""
+        w = self._Shrinks()
+        r = self._toggle_on(w, True)
+        self.assertTrue(r["ok"], r)
+        self.assertIn(("move", 0, 0), w.calls, "the window was left where WinForms put it: %r" % (w.calls,))
+        self.assertEqual(r["moved"], [0, 0])
+
+    def test_ENTERING_fullscreen_moves_nothing_and_a_Mac_keeps_its_own_place(self):
+        w = self._Shrinks()
+        w._size = (1120, 660)                           # windowed -> fullscreen grows it
+        r = self._toggle_on(w, True)
+        self.assertFalse(any(isinstance(c, tuple) for c in w.calls), "entering fullscreen moved the window")
+        self.assertIsNone(r["moved"])
+        m = self._Shrinks()
+        r = self._toggle_on(m, False)
+        self.assertFalse(any(isinstance(c, tuple) for c in m.calls), "a Mac window was moved")
+
+    def test_a_MOVE_that_raises_is_said_and_the_toggle_still_counts(self):
+        w = self._Shrinks(raise_on_move=True)
+        r = self._toggle_on(w, True)
+        self.assertTrue(r["ok"], "the toggle worked; a failed move must not turn it into a failure: %r" % r)
+        self.assertIs(r["moved"], False)
+        self.assertIn("Window.move raised", r["why"])
 
     def test_the_frame_read_NEVER_touches_his_window(self):
         """The heart asks this every eagle tick. A supervisor that minimises the thing it

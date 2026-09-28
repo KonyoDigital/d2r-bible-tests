@@ -3565,7 +3565,7 @@ def _disk_eye_age_ms():
 def _disk_cap_target():
     """v1426 — Windows pin truth from capture_win even when /state is slow."""
     try:
-        p = os.path.join(HERE, "frames", "cap_target.json")
+        p = _CAP_TARGET_FILE          # one definition of where the capture half's pin lives
         if not os.path.isfile(p):
             return {}
         with open(p, encoding="utf-8-sig") as f:
@@ -4703,6 +4703,26 @@ def window_action(what):
         out["ok"] = False
         out["why"] = ("the window reported the same size %sx%s before and after, so it ignored "
                       "the fullscreen toggle on this platform" % (before[0], before[1]))
+    # ⚠ 2026-09-28 — LEAVING FULLSCREEN ON WINDOWS PUTS THE WINDOW WHERE HE CAN REACH ALL OF IT. MEASURED on
+    # his ALT (1280x720 logical, ~672 of work area): W took the console from 1280x720 to 1120x660, but WinForms
+    # restored it at about (238,230), so ~80 px ran off the right edge and ~170 px under the bottom - the
+    # bottom of the console was unreachable. v1464 removed a work-area clamp because SPI_GETWORKAREA answers in
+    # logical OR physical px depending on how the process was launched; this asks for nothing: pywebview's
+    # move(x, y) takes LOGICAL px and scales them itself, and (0, 0) is (0, 0) at any scale. The shipped
+    # 1120x660 window fits every common laptop from the top-left (v1464's own measurement). Mac keeps its
+    # own placement (its traffic lights and Space already restore it sensibly).
+    out["moved"] = None
+    if (_fn == "toggle_fullscreen" and IS_WIN and out["changed"]
+            and after[0] <= before[0] and after[1] <= before[1]):
+        _mv = getattr(win, "move", None)
+        if callable(_mv):
+            try:
+                _mv(0, 0)
+                out["moved"] = [0, 0]
+            except Exception as e:
+                out["moved"] = False
+                out["why"] = ("left fullscreen, but Window.move raised %s - the window stays where Windows "
+                              "put it" % type(e).__name__)
     return out
 
 
@@ -13073,7 +13093,9 @@ def _second_eye_lane_state():
 _CAPTURE_WIRE_ROUTES = ("native", "boosteroid", "geforce-now", "unknown")
 #: the capture half's own pin, on Windows (capture_win.ps1 writes it every loop). A seam, so a law
 #: can point it at a fixture instead of this machine's frames/.
-_CAP_TARGET_FILE = os.path.join(HERE, "frames", "cap_target.json")
+#: ⚠ 2026-09-28 — the world's frames dir (TV_FRAMES_DIR), not always this checkout's: test_the_harness_isolates_the_world
+#: found this constant resolving to the LIVE frames/ inside a fixture world.
+_CAP_TARGET_FILE = os.path.join(os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames"), "cap_target.json")
 #: the last pinned route this console READ from that file — the pin the capture last made, kept with
 #: the capture half's own stamp, for the stretches it is waiting between sessions. None = none seen.
 _CAPTURE_ROUTE_SEEN = {"route": None, "ts": None}

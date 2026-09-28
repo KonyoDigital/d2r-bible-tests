@@ -10669,7 +10669,10 @@ window._lockMark = function(isOpen, px, label){
     // the eye's target is VISIBLE truth now: window pin vs full screen
     var capEl = $('sig-capture');
     if (capEl){
-      if (_shadowArmed && !on) {
+      /* 2026-09-28 second eye (v3520, ca60116a): the switch turned OFF while a shadow reel still rolls leaves
+         _shadowArmed false and _shadowRun true - the pin showed on the standby board until the reel stopped.
+         The background lane, armed OR still rolling, never shows the pin. */
+      if ((_shadowArmed || _shadowRun) && !on) {
         capEl.textContent = '';
         capEl.className = 'val cap-pill cap-idle';
         capEl.style.color = '';
