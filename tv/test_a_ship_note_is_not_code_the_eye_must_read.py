@@ -150,8 +150,14 @@ class AShipNoteIsNotCode(unittest.TestCase):
         calls = {"n": 0}
 
         def _fake_sh(argv, timeout=None):
+            # Answer by WHAT IS ASKED, never by call order: since 2026-09-28 payload_for first asks git whether
+            # the sha is a merge (_first_parent_of_merge), so "the first call is the diff" fed the note to that
+            # question and handed the eye an empty diff. The python diff is the one call without "*.html".
             calls["n"] += 1
-            return (self._NOTE_DIFF, "") if calls["n"] == 1 else ("", "")
+            a = [str(x) for x in (argv or [])]
+            if a[:2] in (["git", "show"], ["git", "diff"]) and "*.html" not in a:
+                return (self._NOTE_DIFF, "")
+            return ("", "")
 
         R._sh = _fake_sh
         R.absent_from = lambda sha, body: ([], "")

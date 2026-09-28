@@ -63,6 +63,9 @@ STORES = {
                                  "that can be exercised at all. Declared so the mention is accounted for "
                                  "rather than reading as a second writer",
             "control_app":   "serves it to the console surfaces",
+            "corroborate":   "NOT a toucher — the 'triage starved' NO_JOINT_YET sentence (2026-09-28) NAMES this\n"
+                             "                              store while explaining why that row has no independent witness yet.\n"
+                             "                              Prose in a string, never a read. Declared so the mention is accounted for",
             "printer_reach": "the printer-zone acceptance test reads panels to find the A4 case",
             "declared_vs_content": "A15 — asks whether a reel's route is derived from its CONTENT "
                                    "or guessed from a declared stamp, so it needs what the "

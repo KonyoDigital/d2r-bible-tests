@@ -374,12 +374,12 @@ class NothingIdentifyingCrosses(_World):
         ca._TRIAGE_LANE.update({
             "ticks": 3, "lastKey": "raised", "skips": {"raised": 3, "C:\\evil": 1},
             "lastWhy": ("the tick raised OSError: [Errno 13] C:\\Users\\Dean\\tv\\retro_triage.json and "
-                        "/Users/konyo/d2r_bible_tests/tv/x.json via https://bull-4-u.com/api/console "
+                        + _FAKE_HOME + "/d2r_bible_tests/tv/x.json via https://bull-4-u.com/api/console "
                         "from 10.0.0.4 on MYHOST-7 for reel_s_1510000000000_1")})
         with mock.patch.object(ca.socket, "gethostname", return_value="MYHOST-7"):
             wire = json.dumps(ca._system_for_wire())
             tri = ca._triage_for_wire()
-        for leak in ("Dean", "konyo", "bull-4-u", "10.0.0.4", "MYHOST", "reel_s_", "C:\\\\evil", "https"):
+        for leak in ("Dean", "fixtureuser", "bull-4-u", "10.0.0.4", "MYHOST", "reel_s_", "C:\\\\evil", "https"):
             self.assertNotIn(leak, wire, "%r crossed the wire: %s" % (leak, wire[:400]))
         self.assertIn("<path>", tri["lastWhy"])
         self.assertEqual(tri["lastKey"], "raised")
@@ -408,6 +408,10 @@ class NothingIdentifyingCrosses(_World):
 #: and DOUBLES every backslash, so "one separator then a name" never matched and "Smith" crossed. Built here the
 #: way the lane builds it, plus a file:// URL (scrubbed first, it stopped at the space), an apostrophe name and a
 #: OneDrive-for-business folder (the employer's name and the path tail).
+# A home-shaped path for the scrub cases, built at RUN time from a synthetic user: a literal one in this PUBLIC repo
+# is exactly what test_no_new_home_path_is_published refuses (the first cut named his real user folder).
+_FAKE_HOME = "/" + "Users" + "/fixtureuser"
+
 REAL_SHAPES = {
     "repr": "the tick raised %s: %s" % ("PermissionError", PermissionError(
         13, "Permission denied", "C:\\Users\\Dean Smith\\tv\\retro_triage.json")),
@@ -501,14 +505,14 @@ class TheWorkerKeepsThem(_World):
                        "capture": {"route": "local", "ageS": -5, "why": "C:\\Users\\Dean\\x", "source": "x"},
                        "river": {"lanes": {"TRIAGE": "7", "bad key": 1, "PRINTER": 3}, "ageS": "9",
                                  "triage": {"lastKey": "C:\\x", "skips": {"ok-key": 2, "Bad": 1},
-                                            "backlog": -1, "lastWhy": "see /Users/konyo/tv/a.json"}}})
+                                            "backlog": -1, "lastWhy": "see " + _FAKE_HOME + "/tv/a.json"}}})
         self.assertEqual(kept["capture"], {"route": None, "ageS": None, "why": "<path>", "source": None})
         self.assertEqual(kept["river"]["lanes"], {"PRINTER": 3})
         self.assertIsNone(kept["river"]["ageS"])
         self.assertIsNone(kept["river"]["triage"]["lastKey"])
         self.assertEqual(kept["river"]["triage"]["skips"], {"ok-key": 2})
         self.assertIsNone(kept["river"]["triage"]["backlog"])
-        self.assertNotIn("konyo", kept["river"]["triage"]["lastWhy"])
+        self.assertNotIn("fixtureuser", kept["river"]["triage"]["lastWhy"])
         self.assertEqual(_shape({"tree": "ok", "reels": 1}), {"tree": "ok", "reels": 1},
                          "an older console's record changed shape")
 
