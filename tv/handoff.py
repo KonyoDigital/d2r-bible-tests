@@ -227,6 +227,14 @@ def _new_rows(issue, since=None):
         rows = [c for c in rows
                 if c.get("id") != _seen_id
                 or (_seen_upd is not None and c.get("updated_at") != _seen_upd)]
+        # ⚠ 2026-09-28 — AND EVERY OLDER COMMENT FROM THE SAME SECOND. Three second-eye posts landed at
+        # 13:22:17; the mark named the last, and the hook said "2 NEW" on every prompt for the two before it.
+        # GitHub ids only grow, so a lower id was created before the watermarked comment; it is excluded unless
+        # it was EDITED after the mark (updated_at later than the mark's time), which is new information.
+        if isinstance(_seen_id, int) and since:
+            rows = [c for c in rows
+                    if not (isinstance(c.get("id"), int) and c["id"] < _seen_id
+                            and (c.get("updated_at") or "") <= since)]
     rows.sort(key=lambda c: c.get("created_at") or "")
     return rows, since, readable
 
