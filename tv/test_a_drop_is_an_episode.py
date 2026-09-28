@@ -146,6 +146,25 @@ class ADropIsAnEpisode(unittest.TestCase):
             self._post(OWNER, 90, 280, 4001 + i)  # a partial recovery, held: still nothing new
         self.assertEqual(1, len(self._eps("sets")), "sitting after a partial recovery filed a fall")
 
+    def test_an_unreadable_last_reading_never_refiles_an_open_fall(self):
+        """2026-09-28 review (round 2): with the lane's last reading unreadable, the before-count fell back to
+        the high-water mark EVERY tally, so a lane sitting below it re-opened the same fall each time - and
+        open episodes are never evicted."""
+        self._post(OWNER, 134, 280, 1000)
+        self._post(OWNER, 60, 280, 2000)                                   # the fall, recorded once
+        self.assertEqual(1, len(self._eps("sets")), "PREMISE: the fall was not recorded")
+        for i in range(6):
+            CA.board_tally_merge({"v": 2, "who": OWNER, "route": OWNER, "at": 3000 + 2 * i,
+                                  "sets": {"have": None, "total": 135},        # the lane could not be read
+                                  "uniques": {"have": 280, "total": 403}, "runewords": {"have": 99, "total": 99}})
+            self._post(OWNER, 60, 280, 3001 + 2 * i)                       # still sitting at the low
+        eps = self._eps("sets")
+        self.assertEqual(1, len(eps), "an unreadable reading re-filed the open fall %d times" % len(eps))
+        self._post(OWNER, 40, 280, 5000)                                    # a real new fall IS recorded
+        self.assertEqual(2, len(self._eps("sets")), "a new fall below the open low was not recorded")
+        self.assertEqual("last reading", self._eps("sets")[-1].get("beforeFile"),
+                         "the episode does not say what it was measured from")
+
     def test_a_fall_after_a_partial_recovery_is_recorded(self):
         # 2026-09-28 (Ledger fix round 2, finding C). HIS RULE: "EVERY fall is recorded, as before".
         # Round 1 measured from the LOWEST open `to`, so 90 -> 70 — a real fall, above the open low
@@ -236,6 +255,13 @@ class ADropIsAnEpisode(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-28 review round 2 - an unreadable last reading falls back to the high-water mark every tally and re-files the open fall without end",
+        "file": "control_app.py",
+        "find": "            if _open_to:\n                _was, _kind[store] = min(_open_to), \"the open fall's low\"\n",
+        "replace": "            if False:\n                _was, _kind[store] = min(_open_to), \"the open fall's low\"\n",
+        "matches": 1,
+    },
     {
         "why": "a lane sitting low re-files a drop on every tally — the 40-slot defect",
         "file": "control_app.py",

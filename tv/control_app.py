@@ -2149,7 +2149,7 @@ def board_tally_merge(t):
         _lr = None
         doc["dropsUnknown"] = ("ledger_restore could not be read (%s), so whether this tally "
                                "opened or closed a drop is UNKNOWN" % str(_e)[:60])
-    _seen, _lane_of = [], {}
+    _seen, _lane_of, _kind = [], {}, {}
     for lane in ("sets", "uniques", "runewords"):
         pair = t.get(lane)
         if not isinstance(pair, dict) or not isinstance(pair.get("have"), int):
@@ -2165,8 +2165,21 @@ def board_tally_merge(t):
         # reading that cannot be read falls back to the high-water mark, never to a guess
         _lp = _last.get(lane) if isinstance(_last.get(lane), dict) else {}
         _was = _lp.get("have")
+        _kind[store] = "last reading"
         if isinstance(_was, bool) or not isinstance(_was, int):
-            _was = prev["have"]
+            # ⚠ 2026-09-28 review (round 2): falling back to the high-water mark EVERY time re-opened the same
+            # fall on every tally while the lane sat below the mark - open episodes are never evicted, so the
+            # copies grew without a bound. A fall still OPEN for this lane already records where it went: its
+            # lowest `to` is the comparator, so sitting there files nothing. Only with no open fall is the
+            # high-water mark the comparator (the first fall, recorded once).
+            _open_to = [d.get("to") for d in doc["drops"]
+                        if isinstance(d, dict) and d.get("open") and d.get("routeKey") == key
+                        and d.get("store") == store and isinstance(d.get("to"), int)
+                        and not isinstance(d.get("to"), bool)]
+            if _open_to:
+                _was, _kind[store] = min(_open_to), "the open fall's low"
+            else:
+                _was, _kind[store] = prev["have"], "high-water mark"
         _seen.append((store, _was, have))
         if have > prev["have"]:
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
@@ -2183,7 +2196,10 @@ def board_tally_merge(t):
         for _ep in _opened:
             # the fields the doctor's "last recorded fall" sentence reads, beside the episode's own
             _lane, _hi_at = _lane_of.get(_ep.get("store"), (None, None))
-            _ep.update({"route": key, "lane": _lane, "highAt": _hi_at})
+            # the comparator this fall was measured FROM, named per store (review round 2: every episode was
+            # labelled "high-water mark" while `from` was the lane's last reading)
+            _ep.update({"route": key, "lane": _lane, "highAt": _hi_at,
+                        "beforeFile": _kind.get(_ep.get("store")) or "last reading"})
     # a rolling record, not a growing file — and an OPEN episode is never the one evicted
     _keep_closed = [d for d in doc["drops"]
                     if not (isinstance(d, dict) and d.get("open"))][-40:]
