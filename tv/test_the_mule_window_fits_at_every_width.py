@@ -69,6 +69,12 @@ doll's unit, DOLL_K = 1.25 — THEIR_PANELS stays their capture, `_ours()` appli
     moves from the stash to the inventory and survives a reload. Every target cell is found from the RENDERED cell,
     never from the product's own geometry.
 
+#29(d) his answer 2026-09-28 ("TIGHTEN") — NO EMPTY BAND UNDER THE WINDOW. At 2000x1300 their literal rects end at 1052
+and the glass at 1300 (248px of nothing under every column; 228 at 901x900). In columns the window is as tall as the glass
+and the last panel of each column (STRENGTHS AND WEAKNESSES, NOTES, STATS) takes what is left: in every arrangement at
+every column width the three end on one line, and where the window does not scroll they end at the window's bottom (its
+30px padding). At 2000 every other panel is still their rect; those three keep their x, y and width.
+
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
 so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
 The Chrome it starts is killed by the handle it holds, and its temp profile goes with it.
@@ -169,6 +175,7 @@ MEASURE = r"""(function(){ try {
   if (gb && sv && !sv.hidden){ var gs = getComputedStyle(gb), gr = gb.getBoundingClientRect();
     gl = (gr.height - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - parseFloat(gs.borderTopWidth) - parseFloat(gs.borderBottomWidth)) / parseFloat(gs.lineHeight); }
   var out = { k: +mp.getAttribute('data-k'), goldLines: gl, goldText: gb ? gb.textContent : null, mpTop: ob.top, vh: innerHeight,
+    vscroll: [box.scrollHeight, box.clientHeight], padB: parseFloat(getComputedStyle(box).paddingBottom) || 0,
     stashScroll: (sv && !sv.hidden) ? [sv.scrollHeight, sv.clientHeight] : null,
     stack: mp.classList.contains('mp-stack'), hscroll: [box.scrollWidth, box.clientWidth], panels: {}, slots: {},
     cut: [], outside: [], sideways: [], collide: [], nText: 0,
@@ -714,6 +721,11 @@ def _near(a, b, tol):
     return all(abs(x - y) <= tol for x, y in zip(a, b))
 
 
+#: #29(d) - the last panel of each column grows to the window's bottom; at 2000 their x, y and width stay theirs
+GROWS = ("mp-sw", "mp-notes", "mp-stats")
+BAND_TOL = 1.5
+
+
 def _states():
     """(label, measurement) for every width — #174 R1: the doll in front and the stash in front, each plain and with
     the doll in use + the picker open"""
@@ -812,6 +824,9 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
             self.assertEqual(m["k"], 1.0)
             for c in THEIR_PANELS:
                 want, got = _ours(c), m["panels"][c]
+                if got and c in GROWS:
+                    # #29(d) - it takes the glass below it (test_29d_no_empty_band_under_the_window); x, y, w are theirs
+                    want, got = tuple(want[:3]) + (0,), tuple(got[:3]) + (0,)
                 if not got or not _near(got, want, SW_TOL if c == "mp-sw" else TOL_2000):
                     bad.append("%s %s %s, measured %s" % (key, c, [round(v, 2) for v in want],
                                                           [round(x, 2) for x in got] if got else None))
@@ -998,8 +1013,47 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                                        "focus on %s, not the search box he was typing in" % rf["activeTag"])
         self.assertEqual((rf["value"], rf["caret"]), ("fire", [2, 3]), rf)
 
+    def test_29d_no_empty_band_under_the_window(self):
+        """#29(d) his answer 2026-09-28: no empty band under the mule window at very large sizes. In columns, every arrangement
+        (the doll or the stash in front, plain and with the doll in use): the last panels of the three columns end on one
+        line, and where the window does not scroll they end at its bottom (less its padding) - at 2000x1300 they stopped
+        248px short of it"""
+        bad, fits = [], 0
+        for label, m in _states():
+            if m.get("stack"):
+                continue
+            p = m["panels"]
+            if not all(p.get(c) for c in GROWS):
+                bad.append("%s: a column's last panel is not drawn: %s" % (label, [c for c in GROWS if not p.get(c)]))
+                continue
+            ends = dict((c, m["mpTop"] + p[c][1] + p[c][3]) for c in GROWS)
+            if abs(ends["mp-sw"] - ends["mp-notes"]) > BAND_TOL:
+                bad.append("%s: the left column ends at %.0f and the centre at %.0f" % (label, ends["mp-sw"], ends["mp-notes"]))
+            if m["vscroll"][0] <= m["vscroll"][1] + 1:
+                fits += 1
+                floor = m["vh"] - m["padB"]
+                for c, e in sorted(ends.items()):
+                    if floor - e > BAND_TOL:
+                        bad.append("%s: %s ends %.0fpx above the window's bottom - an empty band under it" % (label, c, floor - e))
+        self.assertGreaterEqual(fits, 4, "PREMISE: only %d column states fit the glass - 2000x1300 alone is four" % fits)
+        self.assertEqual(bad, [], "an empty band under the mule window:\n  " + "\n  ".join(bad))
+
 
 RED_PROOF = [
+    {
+        "why": "#29(d) - the mule window stops at their literal rects again: 248px of empty band under it at 2000x1300",
+        "file": "bible.html",
+        "find": ".mp:not(.mp-stack){min-height:calc(100vh - 44px);align-items:stretch}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) - the columns' last panels stop growing, so the window is tall and its columns end short (a band inside it)",
+        "file": "bible.html",
+        "find": ".mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > :last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#174 v-B2 fix round - the window stops scrolling under a drag (at 375 another mule's tab is out of reach)",
         "file": "bible.html",

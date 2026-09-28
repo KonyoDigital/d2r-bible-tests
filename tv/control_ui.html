@@ -2119,6 +2119,14 @@
     color: #e05545; }
   #th-shelfov .shr-note { margin-top: 8px; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
     color: #9a8f7a; }
+  /* 2026-09-28 — the triage lane's one line under the river: each fact its own item, so a wrap never
+     strands a middot (the .shr-head rule) */
+  #th-shelfov .shr-tri { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline;
+    font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #b7ab8e; min-width: 0; }
+  #th-shelfov .shr-tri-k { color: var(--gold-dim); text-transform: uppercase; letter-spacing: var(--ls-snug); }
+  #th-shelfov .shr-tri-b { min-width: 0; overflow-wrap: anywhere; }
+  #th-shelfov .shr-tri b { color: #e8dcc0; font-weight: var(--fw-semibold); }
+  #th-shelfov .shr-tri .shr-tri-stand { color: #e9b96e; }
   @media (max-width: 700px) { #th-shelfov .shr-arrow { display: none; }
     #th-shelfov .shr-lane { flex: 1 1 45%; } }
   #th-shelfov .sh-story { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--edge);
@@ -6582,6 +6590,18 @@
                              text-align: right; }
   .fleet-row > .fleet-why  { grid-column: 1 / -1; margin-left: 14px; justify-self: start;
                              text-align: left; }
+  /* 2026-09-28 — HOW EACH PC FILMS AND DRAINS, a quiet line under the row (films · river · triage), set
+     exactly like the reason clause above: the full width, indented to the name's own column, one
+     weight lighter than the verdict. Each fact is its own block so a wrap never strands a middot, and
+     no child is nowrap (test_the_fleet_row_can_shrink_below_its_own_text). */
+  .fleet-row > .fleet-sys  { grid-column: 1 / -1; margin-left: 14px; justify-self: stretch;
+                             text-align: left; font-weight: var(--fw-normal); color: #7f8c83; }
+  .fleet-sys > .fs-l { display: block; overflow-wrap: anywhere; padding-left: 7ch; text-indent: -7ch; }
+  .fleet-sys .fs-k { display: inline-block; width: 6.4ch; text-indent: 0; font-style: normal; color: #5d685f; }
+  .fleet-row > .fleet-sys.fleet-former > .fs-l { padding-left: 0; text-indent: 0; }
+  .fleet-sys .fs-unk { color: var(--muted, #8b8071); font-style: italic; }
+  .fleet-sys .fs-stand { color: #d8b36a; }
+  .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
   .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
@@ -12346,6 +12366,102 @@ window._lockMark = function(isOpen, px, label){
      it looked correct. It cost a full round of probing — the fetch fired, the render never ran,
      and no error was thrown anywhere. Found only by printing window._shRiverLoad.toString()
      and reading a function I had not written. [[the-unjoined-end]] */
+  /* ══ 2026-09-28 — THE LANE THAT MOVES REELS OUT OF TRIAGE, ONE LINE ON THE RIVER ═══════════════
+     /api/river has carried `triage` (triage_lane_state()) since the lane learned to record every
+     refusal: on his Windows ALT 7 of 10 reels sat in TRIAGE while the lane refused every 90 s tick
+     and said nothing, so a starved lane and an idle one read the same. The DOCTOR reads it; the
+     shelf, where the TRIAGE count is on screen, did not. [[the-unjoined-end]]
+     ONE line: the backlog, how long since the last walk, the last refusal in words, and "standing
+     aside for his game" when that is what the lane is doing. Absent, or a lane that could not be
+     read, is UNKNOWN in words — never a backlog of 0. [[unknown-stays-unknown]]
+     ⚠ AGES: sinceSurveyS was computed by the console at the moment it answered; the page stamps the
+     answer's arrival (__askedAt) so a shelf REBUILD that repaints the remembered answer ages it on.
+     The refusal's stamp is the console's own clock, and this page runs beside that console, so
+     now - lastSkipTs is the same clock on both ends. [[stale-reading]]
+     _triageSay is the ONE vocabulary for a lane outcome — THE FLEET card (second script block)
+     reads it through window._triageSay at call time. [[copy-drift]] [[console-ui-two-script-blocks]] */
+  var _TRIAGE_WORDS = {
+    'surveyed': 'walked a reel', 'walked-nothing': 'walked nothing', 'done': 'caught up — nothing owed',
+    'playing': 'standing aside for his game', 'playing-unknown': 'cannot tell whether he is playing — refusing',
+    'capture-unowned': 'standing aside for a live capture', 'paid-sweep': 'standing aside for a paid sweep',
+    'cpu-unmeasured': 'the CPU could not be measured — refusing', 'cpu-shadow': 'a shadow reel is rolling and the CPU is busy',
+    'cpu-loaded': 'the machine is too busy', 'unworkable': 'the owed reels cannot be walked yet',
+    'not-remembered': 'the survey store did not keep a walk', 'off': 'the lane is off',
+    'unavailable': 'the lane is unavailable', 'raised': 'the tick raised an error',
+    'unreadable': 'the tick answered nothing readable'
+  };
+  function _triageSay(k){
+    if (!k) return '';
+    k = String(k);
+    if (_TRIAGE_WORDS[k]) return _TRIAGE_WORDS[k];
+    if (k.indexOf('capture-') === 0) return 'standing aside for a live capture';
+    return k;       /* an outcome this page has no words for is shown as its own key, never dropped */
+  }
+  window._triageSay = _triageSay;
+  function _shAgo(sec){
+    /* the number keeps its unit on one line (a wrap never leaves "ago" alone at 375) */
+    if (typeof sec !== 'number' || !isFinite(sec)) return 'UNKNOWN';
+    var s = Math.max(0, Math.round(sec));
+    if (s < 60) return s + 's\u00a0ago';
+    var mi = Math.round(s / 60);
+    if (mi < 60) return mi + 'm\u00a0ago';
+    var h = Math.round(mi / 60);
+    return (h < 24) ? h + 'h\u00a0ago' : Math.round(h / 24) + 'd\u00a0ago';
+  }
+  function _shTriageLine(d, nowMs){
+    var now = (typeof nowMs === 'number') ? nowMs : Date.now();
+    var head = '<span class="shr-tri-k">triage lane</span>';
+    var t = d && d.triage;
+    if (!d) {
+      return '<div class="shr-tri shr-unk">' + head + 'UNKNOWN — the river was not answered, so what the '
+           + 'lane is doing was not read</div>';
+    }
+    if (!t || typeof t !== 'object') {
+      return '<div class="shr-tri shr-unk">' + head + 'UNKNOWN — this console does not publish its triage lane</div>';
+    }
+    if (t.ok === false) {
+      return '<div class="shr-tri shr-unk">' + head + 'UNKNOWN — ' + esc(String(t.why || 'the lane state could not be read')) + '</div>';
+    }
+    /* how long this answer has sat on the page since the console gave it */
+    var held = (typeof d.__askedAt === 'number') ? Math.max(0, (now - d.__askedAt) / 1000) : 0;
+    var bits = [], lk = t.lastKey ? String(t.lastKey) : '';
+    /* in parentheses, not after a middot: at 375 the phrase wrapped and left "·" alone at the end of its line (the Grok
+       CLI's cold look at the first render) */
+    var lastAgo = (typeof t.lastAt === 'number') ? (' (' + _shAgo((now - t.lastAt) / 1000) + ')') : '';
+    if (lk === 'playing') {
+      bits.push('<b class="shr-tri-stand" title="' + esc(String(t.lastWhy || '')) + '">standing aside for his game</b>' + lastAgo);
+    } else if (t.on === false) {
+      bits.push('<b>the lane is off</b>');
+    } else if (t.stoodDown) {
+      bits.push('<b>stood down</b>');
+    } else if (lk === 'surveyed') {
+      bits.push('<b>walking</b>' + lastAgo);
+    } else if (lk === 'done') {
+      bits.push('<b>caught up</b>' + lastAgo);
+    } else if (!lk) {
+      bits.push('<span class="shr-unk">no tick yet since this console started</span>');
+    }
+    bits.push((typeof t.backlog === 'number')
+      ? ('<b>' + t.backlog + '</b> owed')
+      : '<span class="shr-unk" title="no tick has counted the backlog yet">owed UNKNOWN</span>');
+    if (typeof t.sinceSurveyS === 'number') {
+      bits.push('last walk ' + _shAgo(t.sinceSurveyS + held));
+    } else if (t.storeWhy) {
+      bits.push('<span class="shr-unk" title="' + esc(String(t.storeWhy)) + '">last walk UNKNOWN</span>');
+    } else {
+      bits.push('no walk on record');
+    }
+    if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')) {
+      var sa = (typeof t.lastSkipTs === 'number') ? _shAgo((now - t.lastSkipTs) / 1000) : 'UNKNOWN';
+      bits.push('<span title="' + esc(String(t.lastSkipWhy || '')) + '">last refusal: ' + esc(_triageSay(t.lastSkipKey))
+              + ' · ' + sa + '</span>');
+    } else if (!t.lastSkipKey) {
+      bits.push('no refusal since this console started');
+    }
+    return '<div class="shr-tri">' + head + bits.map(function(b){ return '<span class="shr-tri-b">' + b + '</span>'; }).join('')
+         + '</div>';
+  }
+  window._shTriageLine = _shTriageLine;
   function _shLanesRender(d){
     var el = document.getElementById('sh-lanes');
     if (!el) return;
@@ -12357,17 +12473,18 @@ window._lockMark = function(isOpen, px, label){
          from a page that had simply not finished loading, and it hid the escC bug below for a
          full round of probing. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
       el.innerHTML = '<div class="shr-wait shr-bad">the river could not be read — the console '
-                   + 'was asked and did not answer. This is UNKNOWN, not an empty river.</div>';
+                   + 'was asked and did not answer. This is UNKNOWN, not an empty river.</div>'
+                   + _shTriageLine(d);
       return;
     }
     if (!L.ok) {
       /* a REFUSAL renders as a refusal — never as four zeroes */
       el.innerHTML = '<div class="shr-wait shr-bad">the river could not be drawn — '
-                   + esc(String(L.why || 'no reason given')) + '</div>';
+                   + esc(String(L.why || 'no reason given')) + '</div>' + _shTriageLine(d);
       return;
     }
     var rows = L.lanes || [];
-    if (!rows.length) { el.innerHTML = '<div class="shr-wait shr-bad">the river reported no lanes</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<div class="shr-wait shr-bad">the river reported no lanes</div>' + _shTriageLine(d); return; }
     /* ⚠ v2773 — THE LABEL IS WRAPPED IN ITS OWN ELEMENT ON PURPOSE. Left bare it was three
        anonymous flex items (`the river · `, `<b>49</b>`, ` reel(s) on the shelf`) that each
        wrapped in their own column; see the note beside `.shr-lbl`. One element = one sentence. */
@@ -12584,7 +12701,9 @@ window._lockMark = function(isOpen, px, label){
                  +     ((_cl === null) ? '' : (' \u00b7 ' + _cl + ' closed out')) + '</span>'
                  + '</summary>'
                  + '<div class="shr-body">' + H.join('') + '</div>'
-                 + '</details>';
+                 + '</details>'
+                 /* outside the fold: the lane's one line reads with the river shut */
+                 + _shTriageLine(d);
     /* ⚠⚠ NO INLINE `ontoggle`. This file has been bitten four times by a handler in the markup,
        the fourth an inline ontoggle that fired DURING PARSE before its function existed. The
        listener is attached here, after the node is real. [[console-ui-two-script-blocks]] */
@@ -12927,6 +13046,8 @@ window._lockMark = function(isOpen, px, label){
     try {
       var r = await fetch(API + '/api/river', { signal: _lanesAC && _lanesAC.signal });
       var _lanesJson = await r.json();
+      /* when this answer arrived — the triage line ages the console's figures from here */
+      try { if (_lanesJson && typeof _lanesJson === 'object') _lanesJson.__askedAt = Date.now(); } catch (eA) {}
       if (_lanesTO) { clearTimeout(_lanesTO); _lanesTO = null; }
       /* #157 — remember the last ANSWER so a shelf REBUILD can paint it at once (see thShelf). Only an
          answer that carries lanes: a refusal is never replayed as if it were the river. */
@@ -24494,6 +24615,119 @@ function escC(s) {
     var h = Math.round(m / 60);
     return (h < 24) ? h + 'h ago' : Math.round(h / 24) + 'd ago';
   };
+  /* ══ 2026-09-28 — HOW EACH PC FILMS AND DRAINS, SAID ON ITS OWN ROW ═══════════════════════════
+     His order: "make sure its all properly rendering everywhere". Since the beacon fields shipped,
+     every /api/fleet row carries system.capture {route, ageS, why, source}, system.river {lanes,
+     ageS, why, triage} and — when one install reported under two host names — formerMachines
+     [{machine, lastSeen, ver}]. This card drew NONE of them: the wire carried it and no reader spent
+     it, the seventh-joint shape the worker's shaper already names four times. [[the-unjoined-end]]
+
+     ⚠ EVERY AGE IS THE READING'S, NEVER THE FETCH'S. `ageS` is how old the pin / the river read was
+     WHEN THE BEACON LEFT that machine, and the row's `t` is when the site recorded that beacon, so
+     the age on screen is ageS + (now - t): an offline machine's route keeps ageing with it. A row
+     with no `t`, or a field with no ageS, reads "age UNKNOWN" — never "just now". [[stale-reading]]
+     ⚠ UNKNOWN IS NEVER 0. No lane map is "river UNKNOWN" with the machine's own why, never
+     "TRIAGE 0"; no backlog is "owed UNKNOWN"; a console older than the fields says so rather than
+     drawing an empty river. [[unknown-stays-unknown]]
+     ⚠ ON THE ROW, NOT IN THE HOVER — v3174's rule for the reason clause: a fact that needs a hover
+     to exist is a fact he does not have. The one word beside the name stays alone (his v2875
+     ruling); this is a quiet line under it, indented to the name's own column.
+     Pure functions of (row, now): tv/test_the_fleet_card_says_how_each_pc_films_and_drains.py RUNS
+     them in node over fixture rows. */
+  var _FLEET_ROUTE_WORD = { 'native': 'native', 'boosteroid': 'Boosteroid', 'geforce-now': 'GeForce NOW' };
+  var _fleetAgeNow = function (ageS, m, nowMs) {
+    if (typeof ageS !== 'number' || !isFinite(ageS) || ageS < 0) return null;
+    var rec = Date.parse(String((m && m.t) || ''));
+    if (!isFinite(rec)) return null;
+    var now = (typeof nowMs === 'number') ? nowMs : Date.now();
+    return ageS + Math.max(0, (now - rec) / 1000);
+  };
+  var _fleetAgeTxt = function (sec) {
+    return ((sec === null || sec === undefined) ? 'age UNKNOWN' : _fleetAgo(sec)).replace(/ /g, ' ');
+  };
+  var _fleetSay = function (k) {
+    /* the ONE vocabulary for a triage outcome lives beside the river panel (first script block),
+       exported on window; read at CALL time, never bare across the blocks. [[console-ui-two-script-blocks]] */
+    try { if (typeof window._triageSay === 'function') return window._triageSay(k); } catch (e) {}
+    return String(k || '');
+  };
+  var _fleetSysParts = function (m, nowMs) {
+    var sy = (m && m.system && typeof m.system === 'object') ? m.system : null;
+    var out = [];
+    /* 1. HOW IT FILMS D2R */
+    var c = sy && sy.capture;
+    if (!c || typeof c !== 'object') {
+      out.push({ k: 'films', t: 'UNKNOWN · an older build', unk: true,
+                 why: 'this console did not say how it films D2R (a build older than the field)' });
+    } else if (!_FLEET_ROUTE_WORD[c.route]) {
+      out.push({ k: 'films', t: 'UNKNOWN', unk: true,
+                 why: String(c.why || 'the route could not be named') });
+    } else {
+      out.push({ k: 'films', t: _FLEET_ROUTE_WORD[c.route] + ' · ' + _fleetAgeTxt(_fleetAgeNow(c.ageS, m, nowMs)),
+                 why: 'which way this PC last filmed D2R, read from ' + (c.source === 'capture-half'
+                      ? 'its capture half’s own pin' : (c.source === 'finder' ? 'its window finder’s last pick'
+                      : 'a source it did not name')) + (c.why ? ' — ' + c.why : '') });
+    }
+    /* 2. ITS RIVER — the router's station keys as that console counted them, in ITS order */
+    var rv = sy && sy.river;
+    if (!rv || typeof rv !== 'object') {
+      out.push({ k: 'river', t: 'UNKNOWN · an older build', unk: true,
+                 why: 'this console did not report its river (a build older than the field)' });
+    } else if (!rv.lanes || typeof rv.lanes !== 'object') {
+      out.push({ k: 'river', t: 'UNKNOWN', unk: true, why: String(rv.why || 'no lane answered') });
+    } else {
+      var ks = Object.keys(rv.lanes), bits = [];
+      ks.forEach(function (s) { var n = rv.lanes[s]; if (typeof n === 'number' && n > 0) bits.push(s + ' ' + n); });
+      out.push({ k: 'river', t: (bits.length ? bits.join(' · ') : 'empty — 0 reels at every station')
+                 + ' · ' + _fleetAgeTxt(_fleetAgeNow(rv.ageS, m, nowMs)),
+                 why: 'reels per station, from the last river that console computed' + (rv.why ? ' — ' + rv.why : '') });
+    }
+    /* 3. ITS TRIAGE LANE — what it is doing, in words, as of that beacon */
+    var x = rv && typeof rv === 'object' ? rv.triage : null;
+    var asOf = _fleetAgeTxt(_fleetAgeNow(0, m, nowMs));
+    if (!rv || typeof rv !== 'object' || !x || typeof x !== 'object') {
+      out.push({ k: 'triage', t: 'UNKNOWN' + ((!rv || typeof rv !== 'object') ? ' · an older build' : ''), unk: true,
+                 why: 'this console did not report its triage lane' });
+    } else if (x.ok === false) {
+      out.push({ k: 'triage', t: 'UNKNOWN', unk: true, why: String(x.why || 'the lane state could not be read') });
+    } else {
+      var lk = x.lastKey, st;
+      if (!lk) st = 'no tick yet';
+      else if (lk === 'surveyed') st = 'walking';
+      else if (lk === 'done') st = 'caught up';
+      else if (lk === 'playing') st = 'standing aside for his game';
+      else st = 'last refusal: ' + _fleetSay(lk);
+      var owed = (typeof x.backlog === 'number') ? (x.backlog + ' owed') : 'owed UNKNOWN';
+      var walk = (typeof x.sinceLastS === 'number')
+        ? ('last walk ' + _fleetAgeTxt(_fleetAgeNow(x.sinceLastS, m, nowMs)))
+        : 'no walk on record';
+      out.push({ k: 'triage', t: st + ' (' + asOf + ') · ' + owed + ' · ' + walk,
+                 stand: lk === 'playing',
+                 why: (x.lastWhy ? String(x.lastWhy) : 'the lane’s last tick, as that console last reported it') });
+    }
+    return out;
+  };
+  var _fleetFormerTxt = function (m) {
+    var fm = (m && Array.isArray(m.formerMachines)) ? m.formerMachines : [];
+    return fm.filter(function (f) { return f && f.machine; }).map(function (f) {
+      return 'formerly ' + f.machine + ' · ' + (f.ver || 'version UNKNOWN') + ' · '
+           + (f.lastSeen ? ('last seen ' + _fleetSince(f.lastSeen)) : 'last seen UNKNOWN');
+    });
+  };
+  var _fleetSysHtml = function (m, nowMs) {
+    var h = '<span class="fleet-meta fleet-sys">' + _fleetSysParts(m, nowMs).map(function (p) {
+      return '<span class="fs-l' + (p.unk ? ' fs-unk' : '') + (p.stand ? ' fs-stand' : '') + '" title="' + escC(p.why || '') + '">'
+           + '<i class="fs-k">' + escC(p.k) + '</i> ' + escC(p.t) + '</span>';
+    }).join('') + '</span>';
+    var fm = _fleetFormerTxt(m);
+    if (fm.length) {
+      h += '<span class="fleet-meta fleet-sys fleet-former" title="the same install reported earlier under another host '
+         + 'name - one console, a renamed host, folded into this row">'
+         + fm.map(function (t) { return '<span class="fs-l">' + escC(t) + '</span>'; }).join('') + '</span>';
+    }
+    return h;
+  };
+  window._fleetSysHtml = _fleetSysHtml;   /* exported so a gate can put every state to it */
   /* ── v2851 — A TRANSIENT FAILURE MUST NOT BECOME A PERMANENT CARD ────────────────────────
      MEASURED on his console 2026-09-09 15:14, screenshot in hand: the card read "fleet
      unreachable — TLS handshake timed out" and "no roster was ever received here", while at the
@@ -25189,6 +25423,9 @@ function escC(s) {
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
                 + escC(w.w) + '</span>' + _rw;
             })()
+          /* 2026-09-28 — how this PC films D2R, its river and its triage lane, each with its age; a
+             renamed host as a quiet "formerly" line (see _fleetSysParts) */
+          + _fleetSysHtml(m, Date.now())
           + _tip(m) + '</div>';
       };
       var rows = (j.online || []).map(function (m) { return _row(m, true); })

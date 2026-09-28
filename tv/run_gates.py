@@ -6159,6 +6159,20 @@ GATES = [
              "every river computation patched to count); paths, URLs, IPs, this host's name and "
              "reel ids never cross; the worker's shaper (node) keeps both fields; /api/fleet "
              "relays them for every peer"),
+    Gate("test_the_fleet_card_says_how_each_pc_films_and_drains",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_card_says_how_each_pc_films_and_drains.py")], 120,
+         needs_app=False,
+         why="2026-09-28 — his 'make sure its all properly rendering everywhere': the beacon's capture / river / "
+             "formerMachines reached /api/fleet and /api/river's triage reached the page, and the fleet card and the "
+             "river panel drew none of it. RUNS the shipped control_ui.html helpers in node over fixture rows: a route "
+             "(native / Boosteroid / GeForce NOW) aged ageS + (now - the row's record time), a row with no record time "
+             "'age UNKNOWN' never 'just now'; the river's stations in that console's order with the river's age; the "
+             "triage lane in words (walking / caught up / standing aside for his game / last refusal: ...) with its "
+             "backlog and last walk; UNKNOWN never 0 (no lane map, an unreadable lane, a null backlog, a console older "
+             "than the fields); a renamed host as a quiet 'formerly' line; the river panel's one triage line on every "
+             "path of _shLanesRender. And the JOIN in a real headless Chrome (fetch stubbed at document start, its own "
+             "port): _fleetRefresh draws every row's films / river / triage line and nothing goes sideways at 901 and "
+             "1280. 15 cases, 8 red-proofs"),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "

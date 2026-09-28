@@ -35986,6 +35986,17 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
    the glass under it: the Grok seat at 1280 read "Stats stops at Life". 312 = their AUTHOR + SHOWCASE + gutters above
    it, 30 = the window's top padding and a bottom breath. At 2000x1300 this is 958px of room for their 726. */
 .mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}
+/* #29(d) his answer 2026-09-28 — NO EMPTY BAND UNDER THE WINDOW. At 2000x1300 their literal rects end at 1052 and the glass
+   at 1300: 248px of nothing under every column (228 at 901x900). In columns the window is at least as tall as the glass
+   (less its 14px top and 30px bottom padding), and the last panel of each column takes what is left - STATS, NOTES,
+   STRENGTHS AND WEAKNESSES - so the three columns end on one line at the window's bottom. Every rect above them is still
+   theirs; where the content is taller than the glass nothing grows (the window scrolls, as before) */
+.mp:not(.mp-stack){min-height:calc(100vh - 44px);align-items:stretch}
+.mp:not(.mp-stack) > .mp-main{display:flex;flex-direction:column}
+.mp:not(.mp-stack) .mp-lc{flex:1 1 auto;align-items:stretch}
+.mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > :last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}
+/* a grown STRENGTHS AND WEAKNESSES keeps its sentence under its header, not floating in the middle of the panel */
+.mp:not(.mp-stack) .mp-left > .mp-sw:last-child > .mp-empty{margin:calc(2*var(--u)) 0 auto}
 .mp-stats .mp-h{min-height:calc(44*var(--u))}
 .mp-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .mp-seg button{flex:1;height:calc(32*var(--u));border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-mp-body);font-weight:var(--fw-medium);cursor:pointer}
@@ -53128,6 +53139,13 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
    window's height less its top padding (14u), the header row (46u) and the gap under it (6u) and a 30px breath - its
    own list scrolls; stacked on a phone it keeps its natural height. */
 .cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}
+/* #29(d) — the same band under the builder (REG-1314 kept it for R3): STATS already ends at the window's bottom and the
+   left and centre columns stopped ~270px short of it at 2000x1300. Their last panels (STRENGTHS AND WEAKNESSES, NOTES) now
+   take what is left, so the columns end on one line; where the content is taller than STATS nothing grows */
+.cb:not(.cb-stack){align-items:stretch}
+.cb:not(.cb-stack) .cb-body{align-self:stretch}
+.cb:not(.cb-stack) .cb-lc{flex:1 1 auto;align-items:stretch}
+.cb:not(.cb-stack) .cb-left > :last-child,.cb:not(.cb-stack) .cb-mc > .cb-notes{flex-grow:1}
 .cb-seg{display:flex;margin:calc(12*var(--u)) calc(12*var(--u)) 0;padding:3px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,.25)}
 .cb-seg button{flex:1;height:calc(32*var(--u));min-height:26px;border:0;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);font-weight:var(--fw-medium);cursor:pointer}
 .cb-seg button.cb-on{background:var(--gold-bright);color:#1a1208}
@@ -53239,6 +53257,9 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-ed-acts{display:flex;flex-wrap:wrap;gap:calc(6*var(--u));margin-top:calc(8*var(--u))}
 .cb-ed-grid{display:flex;flex-wrap:wrap;gap:calc(8*var(--u)) calc(14*var(--u));margin-top:calc(10*var(--u));align-items:center}
 .cb-ed-f{display:inline-flex;align-items:center;gap:calc(6*var(--u));font-size:var(--fs-cb-body);color:var(--text-muted)}
+/* #29(d) — a number box is as wide as its range hint: Chrome sizes an input[type=number] by its max's digits, so Sockets
+   (max 2) was one digit wide and its placeholder "1-2" read "1-" beside the spin arrows (the Grok CLI's cold look, v3522) */
+.cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}
 .cb-ed-f select,.cb-ed-f input[type=number]{height:calc(30*var(--u));min-height:26px;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);padding:0 6px;max-width:calc(260*var(--u))}
 .cb-ed-q{margin-top:calc(16*var(--u));padding-bottom:calc(4*var(--u));border-bottom:1px solid var(--border);font-family:var(--cb-d2);font-size:var(--fs-cb-d2h);letter-spacing:var(--ls-snug);color:#9a9a9a}
 .cb-lines{margin:calc(6*var(--u)) 0 0;padding:0;list-style:none;font-family:var(--cb-d2);font-size:var(--fs-cb-d2);color:rgb(232,232,232);line-height:var(--lh-relaxed)}
@@ -53267,6 +53288,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .cb-ctl>span{white-space:nowrap}
 .cb-ctl input[type=number],.cb-ctl select{height:calc(28*var(--u));min-height:24px;background:transparent;border:0;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);padding:0 2px;min-width:0;max-width:calc(210*var(--u))}
 .cb-ctl input[type=number]{width:calc(64*var(--u));min-width:44px}
+/* #29(d) — a box that carries a range hint holds the widest one a base prints ("487-600", 7 characters) beside its spin
+   arrows: the rare Diadem's Defense read "50-6" at 375 wide, found by round 9's own hint law the day it was written */
+.cb-ctl input[type=number][placeholder]{min-width:calc(7ch + 22px)}
 .cb-ctl input[type=number].cb-typed{color:var(--best)}
 .cb-ctl input[type=number]::placeholder{color:var(--text-dim)}
 .cb-ctl select option{background:var(--surface);color:var(--text)}
@@ -53328,7 +53352,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 .cb.cb-stack .cb-main,.cb.cb-stack .cb-stats,.cb.cb-stack .cb-notes{min-height:0}
 .cb.cb-stack .cb-st{max-height:60vh}
 .cb.cb-stack .cb-top{flex-direction:column;align-items:stretch}
-.cb-modal.cb-sheet{inset:8px !important;width:auto !important;height:auto !important}
+/* #29(d) — the sheet spans the width inset 8; its top and height are _cbPlace's (under the tabs, and an Edit sheet as tall
+   as its content) - it used to be inset:8px on every side, the whole glass whatever it held */
+.cb-modal.cb-sheet{left:8px !important;right:8px !important;width:auto !important}
 .cb-sheet .cb-mb{flex-direction:column}
 /* #174 v-B2 fix round: in the stacked sheet the pane is a flex:1 child of a column - with no min-height it grew to its
    list (8715px of weapons) and the list's own overflow:auto never engaged, so only ~35 rows could ever be reached */
@@ -54853,13 +54879,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
           var rlo = r.raw && typeof r.raw === 'object' ? r.raw.min : r.raw, rhi = r.raw && typeof r.raw === 'object' ? r.raw.max : r.raw;
           v = span(r.value.min, r.value.max)
             + (cp && rlo != null && (rlo !== r.value.min || rhi !== r.value.max) ? ' (raw ' + span(rlo, rhi) + ')' : '');
+          /* #29(b) his answer 2026-09-28: a max-resistance row is a BONUS to the cap, never a resistance of its own - it reads
+             "+0%" (and "+5%", "+5–10%"); a negative keeps its real minus */
+          if (/^res-[a-z]+-max$/.test(String(r.key || '')) && r.value.min >= 0) v = '+' + v;
         }
-        /* the value (or range), its source, and the cap the game holds it to, as "≤75%" - the word "cap" pushed the
-           longest labels (Lightning Resistance, Physical Damage Reduction) onto a second line at their 300px column;
-           the row's own title (the engine's why) says "capped at 75 (75 + max ..., never above 95)" in full */
+        /* the value (or range), its source, and the cap the game holds it to, as "cap 75%" - #29(b) his answer 2026-09-28
+           ("≤75%" read as a comparison, not a cap). Round 8 keeps the NUMBER on its label's first line; when the row is tight
+           the chip and the cap wrap under the number, inside the value. The row's own title (the engine's why) says
+           "capped at 75 (75 + max ..., never above 95)" in full */
         h += '<div class="cb-st-r" data-k="' + esc(String(r.label || r.key || '').toLowerCase()) + '"><span class="cb-sl">' + esc(r.label || r.key) + '</span>'
           + '<span class="cb-sv cb-sv-' + esc(src) + '" title="' + esc(r.why || src) + '">' + (v ? '<b>' + esc(v) + '</b>' : '') + '<i>' + esc(src) + '</i>'
-          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
+          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
       });
     }
     return h + '</div></div>';
@@ -54948,9 +54978,33 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbRender = _cbRender;
 
   /* ── THE MODAL: Select | Edit (a slot / an inventory cell), Stash | Create, + New build ─────────────────────── */
+  /* #29(d) his answer 2026-09-28 ("TIGHTEN"): an Edit window is as tall as what it holds - its fixed 750 units left the
+     lower third empty for a helm and more for a charm - and the builder's own tabs (Equipment | Skill Tree | Calculations,
+     and the set tabs above them) stay in view while it is open: at 1280x800 its top was pulled up to 108 and it covered
+     EQUIPMENT, the tab it was editing for. A list (Select, Quality, Base, Stash) keeps its full height - the list is what
+     fills it - and so does Edit while ADD MOD is open, whose list takes the room of its tab (_cbFitAddList). */
+  /* ⚠ NOT _cbFits - that name is the inventory's "does this item fit at x,y" further down, and a second function
+     declaration of one name in one scope silently loses to the later one (it did, on the first render) */
+  function _cbModalFits(){ return !!(st.newb || (st.pick && st.pick.tab === 'edit' && !st.modOpen)); }
+  function _cbTabsBottom(vh){
+    var tb = document.querySelector('#cb-win .cb-ctabs'), r = tb && tb.getBoundingClientRect();
+    return (r && r.height > 0 && r.bottom > 0 && r.top < vh) ? r : null;
+  }
+  window._cbModalFits = _cbModalFits;
   function _cbPlace(m){
-    var vw = window.innerWidth, vh = window.innerHeight, L = _cbLayout(vw, vh);
-    if (L.stack){ m.classList.add('cb-sheet'); m.style.left = m.style.top = m.style.width = m.style.height = ''; return; }
+    var vw = window.innerWidth, vh = window.innerHeight, L = _cbLayout(vw, vh), fit = _cbModalFits();
+    var mh0 = !!(st.pick && st.pick.host === 'mule');
+    if (L.stack){
+      /* the phone's sheet starts under the tabs when they are on screen (it took the whole glass, inset 8), and an Edit
+         sheet ends under its content (it held ~230px of nothing on a 375x812 phone) */
+      m.classList.add('cb-sheet');
+      var tr0 = mh0 ? null : _cbTabsBottom(vh), top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;
+      m.style.left = m.style.width = '';
+      m.style.top = Math.round(top0) + 'px';
+      if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(vh - top0 - 8) + 'px'; }
+      else { m.style.height = Math.round(vh - top0 - 8) + 'px'; m.style.maxHeight = ''; }
+      return;
+    }
     m.classList.remove('cb-sheet');
     var W = Math.min(800 * L.u, vw - 16), H = clamp(750 * L.u, 420, vh - 16), left, top = 8;
     var anchor = null, doll = document.getElementById('cb-doll');
@@ -54991,8 +55045,20 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     top = clamp(top, 8, Math.max(8, vh - H - 8));
     H = Math.min(H, vh - top - 8);
+    /* #29(d) — the builder's tabs stay in view: a modal that would reach up over them starts under them instead (it keeps
+       the side it was given, so the slot it serves stays uncovered) and gives up the height above; the mule host has its
+       own tabs and its own placement */
+    var _tr = mh0 ? null : _cbTabsBottom(vh);
+    if (_tr && left < _tr.right && left + W > _tr.left && top < _tr.bottom + 6 && vh - (_tr.bottom + 6) - 8 >= 240){
+      top = _tr.bottom + 6;
+      H = Math.min(H, vh - top - 8);
+    }
     m.style.left = Math.round(left) + 'px'; m.style.top = Math.round(top) + 'px';
-    m.style.width = Math.round(W) + 'px'; m.style.height = Math.round(H) + 'px';
+    m.style.width = Math.round(W) + 'px';
+    /* an Edit window hugs what it holds: shorter than the 750-unit frame when it holds less, and taller - down to the
+       window's bottom - when it holds more, so it scrolls inside itself only when the glass runs out */
+    if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(Math.max(H, vh - top - 8)) + 'px'; }
+    else { m.style.height = Math.round(H) + 'px'; m.style.maxHeight = ''; }
   }
   function _cbModal(){
     var m = document.getElementById('cb-modal');
@@ -66265,10 +66331,12 @@ window.tvStashAutoIntake = async function(tab, opts){
     ['res-cold', 'Cold Resistance', 'resistances', '%', 'coldresist'],
     ['res-ltng', 'Lightning Resistance', 'resistances', '%', 'lightresist'],
     ['res-pois', 'Poison Resistance', 'resistances', '%', 'poisonresist'],
-    ['res-fire-max', 'Maximum Fire Resistance', 'resistances', '%', 'maxfireresist'],
-    ['res-cold-max', 'Maximum Cold Resistance', 'resistances', '%', 'maxcoldresist'],
-    ['res-ltng-max', 'Maximum Lightning Resistance', 'resistances', '%', 'maxlightresist'],
-    ['res-pois-max', 'Maximum Poison Resistance', 'resistances', '%', 'maxpoisonresist'],
+    /* #29(b) his answer 2026-09-28: "Max Fire Resistance +0%" - these rows are a BONUS to the 75 cap, so STATS signs the
+       value and the label says Max (the builder's STATS reads this label; the tooltip keeps the game's own string) */
+    ['res-fire-max', 'Max Fire Resistance', 'resistances', '%', 'maxfireresist'],
+    ['res-cold-max', 'Max Cold Resistance', 'resistances', '%', 'maxcoldresist'],
+    ['res-ltng-max', 'Max Lightning Resistance', 'resistances', '%', 'maxlightresist'],
+    ['res-pois-max', 'Max Poison Resistance', 'resistances', '%', 'maxpoisonresist'],
     ['res-mag', 'Magic Resistance', 'resistances', '%', 'magicresist'],
     ['abs-fire%', 'Fire Absorb', 'absorb', '%', 'item_absorbfire_percent'],
     ['abs-fire', 'Fire Absorb (flat)', 'absorb', '', 'item_absorbfire'],
