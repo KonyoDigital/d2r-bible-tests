@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1420 - AN UNPARSEABLE MULE STORE READ AS EMPTY, AND THE NEXT SAVE ERASED IT (2026-09-29)
+
+**SEEN (the #41 heart audit, verified, rank 7):** the vault module's load() answered {} for d2r_muleAssign bytes that
+would not parse; the picker said "<mule> holds no items in this PC's store"; the next saveA() wrote {} over the
+corrupt bytes, erasing every mule assignment, while the doctor reading the same store said UNKNOWN. **FIX:** load()
+records a store that could not be read or would not parse; every write to d2r_muleAssign / d2r_muleRoster in the
+module goes through one guard that refuses to write over unread bytes (they are kept, and the refusal is logged); the
+picker says UNKNOWN. Five mule laws now cut the shipped guard with their slices (EQ._guard). **LAW:**
+test_a_corrupt_mule_store_is_never_overwritten (5 cases, 2 red-proofs PROVEN).
+
 ### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
 
 **SEEN:** the first cut of the quiet-relaunch law drove open_control_window(). That call runs start_background_watchers(),

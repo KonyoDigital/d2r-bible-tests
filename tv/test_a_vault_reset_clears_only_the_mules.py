@@ -57,7 +57,7 @@ DOOR_RESET = "  window.vaultReset = async function(){\n"
 DOOR_FULL = "  window.vaultClearHistory = async function(){\n"
 LINES = (
     "  var RK='d2r_muleRoster', AK='d2r_muleAssign';",
-    "  function saveA(){ window.LSR.setItem(AK, JSON.stringify(assign)); }",
+    "  function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }",
     "  var PROV_KEY = 'd2r_vaultProv';",
     "  var JOURNAL_KEY='d2r_intakeLog';",
     "  var FOLDER_DB='d2r_vault_fs', FOLDER_KEY='shotdir', SEEN_KEY='d2r_intakeSeen';",
@@ -115,8 +115,15 @@ def _scope(s):
     return s[i:j]
 
 
+def _guard(s):
+    """2026-09-29 - the vault module's unreadable-store guard, cut from the shipped page (saveA now writes through it)."""
+    start, end = "  var _muleUnread = {};", "  window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };"
+    i = s.rfind("\n", 0, s.index(start)) + 1
+    return s[i:s.index(end, i) + len(end)] + "\n"
+
+
 def _pieces(s):
-    return ("".join(_line(s, t) for t in LINES) + _between(s, PROV_FROM, PROV_TO)
+    return (_guard(s) + "".join(_line(s, t) for t in LINES) + _between(s, PROV_FROM, PROV_TO)
             + _scope(s) + _door(s, DOOR_RESET) + _door(s, DOOR_FULL))
 
 

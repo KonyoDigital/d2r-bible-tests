@@ -60,7 +60,7 @@ ROOT = os.path.dirname(HERE)
 NODE = shutil.which("node")
 
 from test_the_mule_window_is_the_planner_shell import _vault_span, _static_attrs  # noqa: E402  ONE cut
-from test_the_mule_window_equips_and_says_its_source import _src, _between, _line, _sets_and_runewords  # noqa: E402
+from test_the_mule_window_equips_and_says_its_source import _src, _between, _line, _guard, _sets_and_runewords  # noqa: E402
 
 MULE = "uni-armor"
 #: the board's own spellings, with the packer's real footprints (the SIZE_RULES answer for each base)
@@ -169,7 +169,7 @@ def _drive(scenario, assign=None, copies=None, store=None, sizes=None):
     s = _src()
     tables = _line(s, "const ITEM_CODEX = {") + _line(s, "const ITEM_TIP = {") + _sets_and_runewords(s)
     helpers = (_line(s, "  var RK='d2r_muleRoster', AK='d2r_muleAssign';")
-               + _line(s, "  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }")
+               + _guard(s) + _line(s, "  function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }")
                + _line(s, "  function art(n, glyph, size){")
                + _line(s, "  function esc(t){ return String(t)")
                + _line(s, "  function jsArg(t){")

@@ -345,6 +345,10 @@ GATES = [
                           os.path.join(HERE, "test_one_install_is_one_machine.py")], 60,
          why="2026-09-28 - ONE INSTALL IS ONE MACHINE. His fleet panel showed a second GrokBot: the same install id (1bba07477e40) under machine 'cursor' (last seen 09-20, v3377) beside the live 'grok-bot-vm' row, because the worker keys records by machine name and a renamed host keeps its own row. /api/fleet now folds rows sharing an install into the newest, keeps the old name as formerMachines and states it in mergedInstalls; the stale lastGood roster is merged the same way. Driven through Handler.do_GET, 3 red-proofs"
          ),
+    Gate("test_a_corrupt_mule_store_is_never_overwritten", [sys.executable,
+                          os.path.join(HERE, "test_a_corrupt_mule_store_is_never_overwritten.py")], 60,
+         why="2026-09-29 - DATA LOSS found by the #41 heart audit (verified, rank 7): the vault module's load() answered {} for d2r_muleAssign bytes that would not parse, the picker said the mule holds nothing, and the next saveA() wrote {} over the corrupt bytes - every mule assignment gone while the doctor said UNKNOWN. An unparseable store now reads UNKNOWN on the picker and NO write goes over bytes that could not be read (both mule stores, every write in the module through one guard). Driven on the shipped code cut from bible.html, in node. 2 red-proofs"
+         ),
     Gate("test_the_background_lane_never_shows_the_pin", [sys.executable,
                           os.path.join(HERE, "test_the_background_lane_never_shows_the_pin.py")], 60,
          why="2026-09-28 - his v2362 words: 'shadow reader is suppose to be behind the scenes'. Second eye on v3520 (ca60116a), confirmed on main: the capture pin was hidden only for an ARMED reader, so turning the shadow switch off while a shadow reel still rolled showed the pin on the standby board until the reel stopped. The background lane, armed or still rolling, never shows the pin. 1 red-proof"

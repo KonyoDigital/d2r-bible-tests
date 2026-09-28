@@ -36211,7 +36211,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
-  function load(k,f){ try{ var v=JSON.parse(window.LSR.getItem(k)); return v||f; }catch(e){ return f; } }
+  /* ⚠ 2026-09-29 (#41 heart audit, rank 7 - DATA LOSS): a store that will not PARSE is UNKNOWN, never empty, and NOTHING
+     writes over bytes it could not read. load() answered {} for corrupt bytes and the next saveA() replaced them with {},
+     erasing every mule assignment while the doctor, reading the same store, said UNKNOWN. [[unknown-stays-unknown]] */
+  var _muleUnread = {};
+  function load(k,f){ var raw; try{ raw = window.LSR.getItem(k); }catch(e){ _muleUnread[k] = 'could not be read'; return f; }
+    if (raw == null || raw === '') return f;
+    try{ var v=JSON.parse(raw); return v||f; }catch(e){ _muleUnread[k] = 'will not parse'; return f; } }
+  function _guardedSet(k, v){ if (_muleUnread[k]) { try{ console.warn('[mule] ' + k + ' ' + _muleUnread[k] + ' - NOT overwritten'); }catch(e){} return false; }
+    window.LSR.setItem(k, v); return true; }
+  window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
   // v230 migration: runes / essences / Worldstone shards / statues live in RoW's
@@ -36224,8 +36233,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     roster = roster.filter(function(m){ return !DEAD[m.id]; });
     var prunedAssign = false;
     Object.keys(assign).forEach(function(n){ if (DEAD[assign[n]]){ delete assign[n]; prunedAssign = true; } });
-    if (had){ try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){} }
-    if (prunedAssign){ try{ window.LSR.setItem(AK, JSON.stringify(assign)); }catch(e){} }
+    if (had){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
+    if (prunedAssign){ try{ _guardedSet(AK, JSON.stringify(assign)); }catch(e){} }
   })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
@@ -36234,7 +36243,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rw = {id:'runewords', name:'RUNEWORDS', icon:'📜', note:'forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor'};
     var bi = roster.findIndex(function(m){ return m.id === 'bases'; });
     if (bi >= 0) roster.splice(bi, 0, rw); else roster.push(rw);
-    try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
+    try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
   })();
   // v322: rename the legacy BASES locker → SOCKETED (same id 'bases', so assignments survive) for
   // rosters saved before this version, and refresh its icon/note to the socketed-base wording.
@@ -36243,7 +36252,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (b && b.name !== 'SOCKETED'){
       b.name='SOCKETED'; b.icon='🔩';
       b.note='socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)';
-      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
   // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
@@ -36252,18 +36261,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'};
       var idx=roster.findIndex(function(m){ return m.id==='bases'; });
       if (idx>=0) roster.splice(idx+1, 0, mr); else roster.push(mr);
-      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
     }
     // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
     if (!roster.some(function(m){ return m.id==='shared'; })){
       var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'};
       var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
       if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
-      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
-  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }
-  function saveA(){ window.LSR.setItem(AK, JSON.stringify(assign)); }
+  function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }
+  function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }
   var selectedChip = null;
   // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
   // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
@@ -42398,7 +42407,9 @@ window.vaultAutoAssign = function(){
          empty store. Without the builder's block on the page it stands alone, as before. */
       var _hosted = typeof window._cbHostHtml === 'function';
       var _none = names.length ? 'Nothing in ' + esc(m.name) + ' fits the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.'
-        : esc(m.name) + ' holds no items in this PC’s store' + (_hosted ? ' — <b>Select</b> lists every item in the database for the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.' : '.');
+        : (typeof window._muleStoreUnread === 'function' && window._muleStoreUnread())
+          ? 'UNKNOWN — this PC’s mule store ' + esc(window._muleStoreUnread()) + ', so what ' + esc(m.name) + ' holds cannot be read (nothing was overwritten)'
+          : esc(m.name) + ' holds no items in this PC’s store' + (_hosted ? ' — <b>Select</b> lists every item in the database for the ' + esc(_pdef ? _pdef[2] : _ps) + ' slot.' : '.');
       pick = '<div class="mp-pick" role="group" aria-label="Choose the ' + esc(_slotSay) + ' from ' + esc(m.name) + '">'
         + '<div class="mp-pick-h"><span class="mp-pick-t">' + esc(_slotSay) + '<span class="mp-pick-sub"> · ' + _mpPickList.length + ' of ' + names.length + ' fit</span></span>'
         +   (_pcur ? '<button type="button" class="mp-btn" data-fk="pick-un" onclick="window._mpUnequip(\'' + _ps + '\')">Unequip</button>' : '')
