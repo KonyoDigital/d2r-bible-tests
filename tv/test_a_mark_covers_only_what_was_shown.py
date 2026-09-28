@@ -137,7 +137,7 @@ RED_PROOF = [
     {
         "why": "the summary stops counting ACT/ASK: a question to Claude reads as a plain tick in the prompt hook",
         "file": "handoff.py",
-        "find": "    owed = sum(1 for v in verbs if v in OWED)\n",
+        "find": "    owed = sum(1 for c in rows if owed_here(c.get(\"body\")))\n",
         "replace": "    owed = 0\n",
         "matches": 1,
     },
