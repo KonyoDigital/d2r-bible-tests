@@ -5745,7 +5745,7 @@ def capture_preflight(door, look_for_window=True):
             win = _tv.find_d2r_window_win() if IS_WIN else _tv.find_d2r_window_mac()
             facts["windowSeen"] = bool(win)
             facts["windowLabel"] = (str(win[1]) if win and len(win) > 1 and win[1] else "")
-            if not win and IS_WIN and getattr(_tv, "_PICK_UNKNOWN", False):
+            if not win and getattr(_tv, "_PICK_UNKNOWN", False):   # either OS (the second eye on v3520)
                 facts["windowLabel"] = ""
                 # the finder could not LOOK (no desktop, no process snapshot): UNKNOWN, never "no game"
                 facts["windowSeen"] = None

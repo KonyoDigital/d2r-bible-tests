@@ -508,6 +508,19 @@ class TheDoctorSaysSoUntilItIsBack(_World):
                      "/api/owned_restore", "/api/ledger_drop_accept"):
             self.assertIn(must, why)
 
+    def test_a_runeword_drop_is_sent_to_the_runeword_door(self):
+        """The second eye on v3520: rwMade is BACKED_UP_ONLY - the chronicle door never carries it, so sending him
+        there for a runeword loss restored nothing. The advice names /api/rw_restore and keeps rwMade off the list
+        the chronicle plan 'reads'."""
+        _write(self.bdir, PINNED_NOW - 3 * 3600, _board(134, 0, rw=99))
+        n = _write(self.bdir, PINNED_NOW - 3600, _board(134, 0, rw=0))
+        CA._ledger_drop_watch(os.path.join(self.bdir, n), bdir=self.bdir, path=self.rec, now_ms=PINNED_NOW * 1000)
+        st, why = self._row()
+        self.assertEqual(CD.MISSING, st, why)
+        self.assertIn("rwMade fell 99 -> 0", why)
+        self.assertIn("/api/rw_restore", why, "a runeword drop is not sent to the runeword door")
+        self.assertNotIn("the plan reads rwMade", why, "the chronicle plan is said to read rwMade - it does not")
+
     def test_it_is_UNKNOWN_when_it_cannot_see(self):
         self.assertEqual(CD.UNKNOWN, self._row(bdir=os.path.join(self.bdir, "gone"))[0],
                          "no readable backup dir must be UNKNOWN, not clean")
@@ -545,6 +558,13 @@ class TheDoctorSaysSoUntilItIsBack(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3520 - a runeword drop is sent to the chronicle door that never restores it",
+        "file": "console_doctor.py",
+        "find": "        if any(e.get(\"store\") == \"rwMade\" for e in open_eps):\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
     {"why": "a partial drop (445 -> 333) is never seen — only a fall to zero counts",
      "file": "ledger_restore.py",
      "find": "        if b == 0 or (a - b) >= max(DROP_MIN, DROP_FRAC * a):",

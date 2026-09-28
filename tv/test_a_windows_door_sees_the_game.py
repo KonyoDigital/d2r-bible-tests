@@ -204,6 +204,28 @@ class TheLaneHealthHonoursUnknown(unittest.TestCase):
         self.assertEqual(self._owed(lambda: (5, "Boosteroid")), 1, "the game on screen with nothing rolling owes a reel")
 
 
+class TheMacFinderSaysWhenItCannotLook(unittest.TestCase):
+    """The second eye on v3520: the Mac finder returned None on a Quartz failure without raising _PICK_UNKNOWN, so
+    'could not look' read as 'no game' on his Mac too. Driven with Quartz made unimportable."""
+
+    def test_a_quartz_failure_is_unknown_and_a_real_look_clears_it(self):
+        saved = ("Quartz" in sys.modules, sys.modules.get("Quartz"), tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN)
+        try:
+            sys.modules["Quartz"] = None            # import Quartz now raises ImportError
+            tv._PICK_CACHE = None
+            tv.sys.platform = "darwin"
+            tv._PICK_UNKNOWN = False
+            self.assertIsNone(tv.find_d2r_window_mac())
+            self.assertTrue(tv._PICK_UNKNOWN, "a Quartz import failure read as 'no game' - it could not look")
+        finally:
+            had, q, cache, plat, unk = saved
+            if had:
+                sys.modules["Quartz"] = q
+            else:
+                sys.modules.pop("Quartz", None)
+            tv._PICK_CACHE, tv.sys.platform, tv._PICK_UNKNOWN = cache, plat, unk
+
+
 class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
     def test_the_csharp_twin_pins_the_measured_title_native_only(self):
@@ -223,9 +245,16 @@ class TheCaptureHalfCarriesTheSameTitle(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "the second eye on v3520 - a Quartz failure on the Mac reads as 'no game' again",
+        "file": "tv_diablo.py",
+        "find": "        _PICK_UNKNOWN = True                    # could not LOOK - never \"no game\" (second eye on v3520)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": "the second eye on v3519 - lane health reads a blind Windows finder as 'nothing owed' again",
         "file": "lane_health.py",
-        "find": "            if win is None and getattr(_tv, \"_PICK_UNKNOWN\", False):\n",
+        "find": "            if win == \"RAISED\" or (win is None and getattr(_tv, \"_PICK_UNKNOWN\", False)):\n",
         "replace": "            if False:\n",
         "matches": 1,
     },
@@ -239,7 +268,7 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - the door ignores the finder's UNKNOWN and tells shadow the game is off",
         "file": "control_app.py",
-        "find": "            if not win and IS_WIN and getattr(_tv, \"_PICK_UNKNOWN\", False):\n",
+        "find": "            if not win and getattr(_tv, \"_PICK_UNKNOWN\", False):   # either OS (the second eye on v3520)\n",
         "replace": "            if False:\n",
         "matches": 1,
     },

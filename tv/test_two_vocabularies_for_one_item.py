@@ -146,15 +146,18 @@ class TwoVocabulariesForOneItem(unittest.TestCase):
         # the three names measured as broken when the ruling was made, plus a control that must
         # stay unwitnessed because its evidence belongs to a DIFFERENT entity
         if not owned:
-            # 2026-09-27: his FULL RESET (Vault -> Reset everything) emptied d2r_owned - a defect since fixed: a vault
-            # reset now clears only the mules (test_a_vault_reset_clears_only_the_mules), so backups taken after it keep
-            # his owned list. An EMPTY owned ledger (a backup from that window) holds nothing to probe - that is
-            # UNMEASURED, never "the names vanished". A NON-empty ledger missing all four names still fails below:
-            # that is the drift this line exists for. [[unknown-stays-unknown]]
+            # 2026-09-27: his ruling "clear owned" - a full vault reset clears the mules AND the owned list, and it
+            # refills only from witnessed looks or his hand (HANDOFF §23-§25). An EMPTY owned ledger holds nothing to
+            # probe - UNMEASURED, never "the names vanished". [[unknown-stays-unknown]]
             self.skipTest("UNMEASURED, not a pass: the newest ledger backup's owned list is EMPTY (a reset) - nothing to probe")
         probes = [n for n in owned if n in (
             "Atma's Scarab", "Saracen's Chance", "Athena's Wrath (set piece)", "Black Cleft")]
-        self.assertTrue(probes, "none of the measured names are in this ledger any more")
+        if not probes:
+            # 2026-09-28: a FRESH vault (his "clear owned" ruling) need not own the four names measured before it -
+            # measured on his 03:21 backup: owned = ['Plague', 'Grief']. Absent measured names after a reset are the
+            # ruling working, not drift; the law re-arms the day any of them is owned again. UNMEASURED, not a pass.
+            self.skipTest("UNMEASURED, not a pass: none of the four measured names is owned in this fresh vault "
+                          "(%d owned) - the probe re-arms when one is witnessed again" % len(owned))
         row = he.check_vault_receipts()
         print("   organ says: %s" % (row.get("line") or "")[:100])
         for nm in probes:

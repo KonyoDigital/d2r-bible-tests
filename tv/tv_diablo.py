@@ -1502,7 +1502,7 @@ def find_d2r_window_mac():
     Uses Quartz. Read-only. NEVER returns CrossOver Home or Battle.net shell.
     v783 — short TTL cache so capture doesn't re-scan every frame.
     v843 — score_d2r_window_candidate hard-prefers D2R.exe · Diablo II: Resurrected."""
-    global _PICK_WHY, _PICK_CACHE
+    global _PICK_WHY, _PICK_CACHE, _PICK_UNKNOWN
     # #232 — his words: "linux cant open those they lock automatically". There is no game and no
     # cloud route to find on Linux, so say THAT instead of a Quartz import error.
     if sys.platform.startswith("linux"):
@@ -1520,13 +1520,16 @@ def find_d2r_window_mac():
         )
     except Exception as e:
         _PICK_WHY = "quartz-import: %s" % e
+        _PICK_UNKNOWN = True                    # could not LOOK - never "no game" (second eye on v3520)
         return None
     try:
         # Fullscreen D2R can live on its own Space — list ALL spaces.
         wins = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID) or []
     except Exception as e:
         _PICK_WHY = "winlist: %s" % e
+        _PICK_UNKNOWN = True
         return None
+    _PICK_UNKNOWN = False                       # a real look: whatever it finds is a measurement
     rows = []
     for w in wins:
         try:

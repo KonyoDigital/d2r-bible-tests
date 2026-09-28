@@ -485,8 +485,8 @@ def owed_counts():
                 win = (_tv.find_d2r_window_win() if sys.platform.startswith("win")
                        else _tv.find_d2r_window_mac())   # the door's own finder, per OS
             except Exception:
-                win = None                    # could not look -> leave it None below
-            if win is None and getattr(_tv, "_PICK_UNKNOWN", False):
+                win = "RAISED"                # could not look -> UNKNOWN below (the second eye on v3520)
+            if win == "RAISED" or (win is None and getattr(_tv, "_PICK_UNKNOWN", False)):
                 # the second eye on v3519: the Windows finder could not LOOK (no desktop), so whether a
                 # reel is owed is UNKNOWN - never "nothing owed" [[unknown-stays-unknown]]
                 out["shadow-watch"] = None

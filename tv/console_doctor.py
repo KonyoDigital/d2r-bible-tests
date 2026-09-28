@@ -889,7 +889,7 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
                  % (e.get("store"), e.get("from"), e.get("to"), _when(e), e.get("beforeFile"))
                  for e in open_eps]
         via_chronicle = sorted(set(str(e.get("store")) for e in open_eps
-                                   if e.get("store") in ("foundLog", "setPieces", "rwMade")))
+                                   if e.get("store") in ("foundLog", "setPieces")))
         owned = any(e.get("store") == "owned" for e in open_eps)
         door = ("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
                 "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "
@@ -898,6 +898,11 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         if owned:
             door += ("; owned is a possession record and is NOT put back by that door — "
                      "/api/owned_restore is its own, confirm required")
+        # the second eye on v3520 (read against ledger_restore.RESTORABLE): runewords are BACKED_UP_ONLY - the
+        # chronicle door never carries them, so sending him there for an rwMade drop restores nothing
+        if any(e.get("store") == "rwMade" for e in open_eps):
+            door += ("; rwMade (runewords made) is NOT put back by that door either — /api/rw_restore is its own, "
+                     "confirm required")
         door += (". A deliberate clear is not a loss to undo: POST /api/ledger_drop_accept "
                  "{\"store\": %r, \"reason\": \"why\", \"confirm\": true}"
                  % open_eps[0].get("store"))
