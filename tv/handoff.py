@@ -142,8 +142,38 @@ _SEAT_TAG_RX = re.compile(
 _OBSERVED = ("LOOKED", "STATE")
 
 
+#: 2026-09-28 — WHO an ACT/ASK is FOR. The routing header reads "SENDER → SEAT"; the hook counted every ACT as owed
+#: by Claude, so 14 instructions Grok and Claude had written TO GrokBot ("GROK → GB-L / ACT — read the live console")
+#: read as 14 things Claude owed. A body addressed to the GrokBot seat is that seat's to answer.
+_ROUTE_RX = re.compile(r"^(?:CLAUDE|GROK|GB-[A-Z0-9]+(?:-[A-Z0-9]+)*)\s*(?:→|->)\s*(\S+)", re.I)
+_OTHER_SEAT_RX = re.compile(r"^(?:GB-|GROKBOT)", re.I)
+
+
+def _addressee(body):
+    """-> the seat named after the arrow on the routing header, or None when the body has no routing header."""
+    for raw in (body or "").splitlines():
+        line = raw.strip().lstrip("#* ").strip()
+        if not line or line.startswith("```"):
+            continue
+        m = _ROUTE_RX.match(line)
+        return m.group(1).upper() if m else None
+    return None
+
+
+def owed_here(body):
+    """True when this body is an ACT/ASK the code seat owes an answer to (not one addressed to GrokBot)."""
+    if _classify(body)[0] not in OWED:
+        return False
+    to = _addressee(body)
+    return not (to and _OTHER_SEAT_RX.match(to))
+
+
 def _classify(body):
     """-> ('ACT'|'ASK'|'FYI'|'?', first_meaningful_line). Protocol v2 leads with the verb - after the seat tag."""
+    first = next((r.strip() for r in (body or "").splitlines() if r.strip()), "")
+    if first.upper().startswith("SECOND-EYE"):
+        # 2026-09-28 — a second-eye post is a RECORD of a look (version · sha · verdict), read and never answered
+        return "FYI", first[:200]
     skipped = 0
     for raw in (body or "").splitlines():
         line = raw.strip().lstrip("#* ").strip()
@@ -221,8 +251,9 @@ def drain(issue, since=None, limit=40):
         verb, lead = _classify(c.get("body"))
         buckets[verb].append((c, lead))
 
-    print("  %d ACT · %d ASK · %d FYI · %d pre-v2 (no lead verb)"
-          % (len(buckets["ACT"]), len(buckets["ASK"]), len(buckets["FYI"]), len(buckets["?"])))
+    _here = sum(1 for c in rows if owed_here(c.get("body")))
+    print("  %d ACT · %d ASK · %d FYI · %d pre-v2 (no lead verb) — %d owed HERE (the rest are addressed to "
+          "another seat)" % (len(buckets["ACT"]), len(buckets["ASK"]), len(buckets["FYI"]), len(buckets["?"]), _here))
     shown_ids = set()
     for verb in ("ACT", "ASK", "?", "FYI"):
         got = buckets[verb]
@@ -274,8 +305,7 @@ def summary(issue):
         return "#%s: UNKNOWN — the watermark store could not be READ" % issue
     if not rows:
         return "#%s: nothing new since %s (a measured zero)" % (issue, since or "the beginning")
-    verbs = [_classify(c.get("body"))[0] for c in rows]
-    owed = sum(1 for v in verbs if v in OWED)
+    owed = sum(1 for c in rows if owed_here(c.get("body")))
     return ("#%s: %d NEW since %s (%d ACT/ASK owed) · newest %s — read them: handoff.py --issue %s, "
             "then --mark" % (issue, len(rows), since or "THE BEGINNING (no watermark)", owed,
                             (rows[-1].get("created_at") or "?")[:16], issue))

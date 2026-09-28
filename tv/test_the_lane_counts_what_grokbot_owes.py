@@ -75,7 +75,42 @@ class TheLaneCountsWhatGrokBotOwes(unittest.TestCase):
         self.assertEqual(sum(1 for v in verbs if v in H.OWED), 1, "the owed count the hook prints is wrong: %r" % verbs)
 
 
+class TheCountIsWhatThisSeatOwes(unittest.TestCase):
+    """2026-09-28: the hook printed "14 ACT/ASK owed" - every one an instruction Grok or Claude wrote TO GrokBot
+    ("GROK → GB-L / ACT — read the live console"). Owed HERE is an ACT/ASK not addressed to another seat; a SECOND-EYE
+    post is a record."""
+
+    def test_an_act_addressed_to_grokbot_is_not_owed_here(self):
+        for b in ("GROK → GB-L\nACT — read the live console. Do not change his data.",
+                  "CLAUDE → GB-L\nACT — verify v3519 live and hold the eyes"):
+            self.assertEqual(H._classify(b)[0], "ACT")
+            self.assertFalse(H.owed_here(b), "an instruction TO GrokBot was counted as owed by the code seat: %r" % b)
+
+    def test_grokbots_own_act_is_owed_here(self):
+        self.assertTrue(H.owed_here(TODAYS_ACT))
+        self.assertTrue(H.owed_here("# GB-L-n — GrokBot (Linux native) → Claude\n\nASK — which store holds sets?"))
+
+    def test_a_second_eye_post_is_a_record(self):
+        b = "SECOND-EYE\n\nversion: v3518\nsha: bf98e77391dbe1183de8340905fa57aacf440d2a"
+        self.assertEqual(H._classify(b)[0], "FYI", "a second-eye record read as 'no lead verb'")
+        self.assertFalse(H.owed_here(b))
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-28 - every ACT counts as owed by the code seat again, whoever it is addressed to",
+        "file": "handoff.py",
+        "find": "    return not (to and _OTHER_SEAT_RX.match(to))\n",
+        "replace": "    return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - a SECOND-EYE record reads as 'no lead verb' again",
+        "file": "handoff.py",
+        "find": "    if first.upper().startswith(\"SECOND-EYE\"):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-27 - the seat tag is read as the lead line again: every GrokBot ACT is 'pre-v2', the hook says 0 owed",
         "file": "handoff.py",
