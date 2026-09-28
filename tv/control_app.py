@@ -17,6 +17,7 @@ import bisect
 import collections
 import inspect
 import io
+import itertools
 import json
 import math
 import contextlib
@@ -13029,14 +13030,234 @@ def _second_eye_lane_state():
     return out
 
 
+#: ══ 2026-09-28 — HOW EACH PC FILMS D2R, AND HOW ITS RIVER DRAINS, ON THE FLEET BEACON ══════════════
+#: His order: "yea add those beacon fields". Dean's laptop plays D2R NATIVELY ("usually"), his ALT
+#: streams through Boosteroid, and each console now decides from its own machine whether triage may
+#: run — so from his Mac, THE FLEET has to be able to say which way each PC films and whether its
+#: river is draining. Both fields ride `system` (the block every console already sends) and are
+#: read from memory the console already holds: the beacon never looks for a window and never
+#: computes the river (2-4 s). No path, host, name or id crosses the wire. [[the-unjoined-end]]
+_CAPTURE_WIRE_ROUTES = ("native", "boosteroid", "geforce-now", "unknown")
+#: the capture half's own pin, on Windows (capture_win.ps1 writes it every loop). A seam, so a law
+#: can point it at a fixture instead of this machine's frames/.
+_CAP_TARGET_FILE = os.path.join(HERE, "frames", "cap_target.json")
+#: the last pinned route this console READ from that file — the pin the capture last made, kept with
+#: the capture half's own stamp, for the stretches it is waiting between sessions. None = none seen.
+_CAPTURE_ROUTE_SEEN = {"route": None, "ts": None}
+#: the last /api/river this console computed, cached WHERE it is computed — so the beacon can carry
+#: the lanes without paying for them. "good" = {ts, stations}; "fail" = {ts, why}. Rebound, never
+#: mutated, because the beacon thread reads it while an HTTP thread writes it.
+_RIVER_LAST = {"good": None, "fail": None}
+_RIVER_SEQ = itertools.count(1)
+_WIRE_URL_RX = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
+_WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/][^\s'\"]*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
+                           r"|(?<![\w.])/(?:[^\s/'\"]+/)+[^\s'\"]*")
+_WIRE_IP_RX = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+_WIRE_HOST_RX = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|app|local|lan|home|internal)\b",
+                           re.I)
+_WIRE_ID_RX = re.compile(r"\breel_[A-Za-z0-9_]+|\bs_\d{10,}_\d+\b")
+_WIRE_KEY_RX = re.compile(r"^[a-z][a-z-]{0,31}$")
+
+
+def _wire_text(s, cap=200):
+    """A sentence on its way to ANOTHER MACHINE, through a PUBLIC repo's worker. -> str
+
+    Stricter than _redact_for_wire, which only folds /Users|/home: a Windows path (C:\\Users\\<him>),
+    a UNC share, a URL, an IP, a hostname — this machine's own, or a domain — and a reel/session id
+    each collapse to a placeholder. The sentences the triage lane writes are ours; an exception's
+    text is not, and it is exactly where a path or a host rides along."""
+    txt = " ".join(str(s or "").split())
+    txt = _WIRE_URL_RX.sub("<url>", txt)
+    txt = _WIRE_PATH_RX.sub("<path>", txt)
+    txt = _WIRE_IP_RX.sub("<ip>", txt)
+    try:
+        for h in {socket.gethostname(), socket.gethostname().split(".")[0]}:
+            if h and len(h) > 2:
+                txt = re.sub(re.escape(h), "<host>", txt, flags=re.I)
+    except Exception:
+        pass
+    txt = _WIRE_HOST_RX.sub("<host>", txt)
+    txt = _WIRE_ID_RX.sub("<id>", txt)
+    return txt[:cap]
+
+
+def _capture_route_for_wire(now_ms=None):
+    """WHICH WAY THIS MACHINE LAST FILMED D2R. -> {route, ageS, why, source}
+
+    route   "native" (D2R.exe on this machine, CrossOver included) | "boosteroid" | "geforce-now" |
+            "unknown" — never a guess. ageS is the age of the PIN (the capture half's own stamp on
+            Windows, the finder's on the Mac), not of this read. [[stale-reading]]
+    source  "capture-half" (Windows: cap_target.json, which capture_win.ps1 writes as
+            "<proc> [<route>] - <title> via <how>") | "finder" (Mac: tv_diablo's last pick in THIS
+            process, recorded as _PICK_ROUTE when the pick was made).
+    ⚠ In-memory or one small file read; never a window search. `why` is fixed vocabulary — a
+    window title or _PICK_WHY (which quotes titles) never crosses the wire."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+
+    def _age(ts):
+        return (round(max(0.0, (now - int(ts)) / 1000.0), 1)
+                if isinstance(ts, (int, float)) and not isinstance(ts, bool) and ts > 0 else None)
+    out = {"route": "unknown", "ageS": None, "why": "", "source": None}
+    if IS_WIN:
+        out["source"] = "capture-half"
+        seen = dict(_CAPTURE_ROUTE_SEEN)
+        p = _CAP_TARGET_FILE
+        if not os.path.isfile(p):
+            why = "the capture half has written no target on this machine"
+            d = None
+        else:
+            try:
+                with io.open(p, encoding="utf-8-sig") as fh:
+                    d = json.load(fh)
+                why = "" if isinstance(d, dict) else "the capture target is not a record"
+            except Exception as e:
+                d, why = None, "the capture target could not be read (%s)" % type(e).__name__
+        if isinstance(d, dict):
+            mode = str(d.get("mode") or "").lower()
+            label = str(d.get("label") or "")
+            m = re.match(r"^[^\[\]]*\[(local|geforce-now|boosteroid)\] - ", label)
+            route = None
+            if mode == "window" and m:
+                route = "native" if m.group(1) == "local" else m.group(1)
+            elif mode == "window" and label.startswith("D2R alive - full virtual fallback"):
+                route = "native"          # written only while a LOCAL D2R.exe is alive
+            if route:
+                _CAPTURE_ROUTE_SEEN.update({"route": route, "ts": d.get("ts")})
+                out.update(route=route, ageS=_age(d.get("ts")))
+                return out
+            if mode == "off":
+                out["why"] = "capture is OFF on this machine (TV_CAPTURE) - it films nothing"
+                return out
+            why = ("the capture half pinned a window without naming its route" if mode == "window"
+                   else "the capture half is not pinned to a game window right now")
+        if seen.get("route") in _CAPTURE_WIRE_ROUTES:
+            out.update(route=seen["route"], ageS=_age(seen.get("ts")),
+                       why=why + "; this is the last pin this console read")
+            return out
+        out["why"] = why
+        return out
+    out["source"] = "finder"
+    tvd = sys.modules.get("tv_diablo")
+    pr = getattr(tvd, "_PICK_ROUTE", None) if tvd is not None else None
+    if isinstance(pr, dict) and pr.get("route") in _CAPTURE_WIRE_ROUTES:
+        out.update(route=pr["route"], ageS=_age(pr.get("ts")))
+        if pr["route"] == "unknown":
+            out["why"] = "the finder pinned a window whose route it could not name"
+        return out
+    if tvd is not None and getattr(tvd, "_PICK_UNKNOWN", False):
+        out["why"] = "the window finder could not look (no desktop was visible to it)"
+    elif tvd is not None and getattr(tvd, "_PICK_WHY", ""):
+        out["why"] = "the finder has looked in this process and pinned no game window"
+    else:
+        out["why"] = "this console has not looked for the game window since it started"
+    return out
+
+
+def _river_station_counts(lanes):
+    """Reels per station from a /api/river `lanes` block. -> {station: n} | None (no lane answered)"""
+    if not isinstance(lanes, dict) or not lanes.get("ok"):
+        return None
+    rows = lanes.get("lanes")
+    if not isinstance(rows, list) or not rows:
+        return None
+    out = {}
+    for l in rows:
+        by = (l or {}).get("byStation")
+        if not isinstance(by, dict):
+            continue
+        for k, v in by.items():
+            try:
+                out[str(k)] = out.get(str(k), 0) + int(v or 0)
+            except (TypeError, ValueError):
+                return None
+    return out or None
+
+
+def _river_remember(lanes=None, error=None):
+    """Keep what /api/river just computed, for the beacon. Called WHERE the river is computed. -> None
+
+    ⚠ It must never cost the route its answer: /api/river's own except would turn a raise here into
+    "the river could not be read" for the shelf and the doctor. So it says so and returns."""
+    try:
+        _river_remember_once(lanes, error)
+    except Exception as e:
+        print("⚠ river cache: could not keep the river for the beacon (%s)" % type(e).__name__,
+              flush=True)
+
+
+def _river_remember_once(lanes, error):
+    now = int(time.time() * 1000)
+    # `n` orders the two records exactly: a good read and a failed one can land in the same ms
+    n = next(_RIVER_SEQ)
+    if error is not None:
+        _RIVER_LAST["fail"] = {"ts": now, "n": n, "why": "the river could not be read (%s)"
+                                                         % type(error).__name__}
+        return
+    st = _river_station_counts(lanes)
+    if st is None:
+        _RIVER_LAST["fail"] = {"ts": now, "n": n, "why": "the river's lanes did not answer: " + _wire_text(
+            (lanes or {}).get("why") if isinstance(lanes, dict) else "no lanes", 140)}
+    else:
+        _RIVER_LAST["good"] = {"ts": now, "n": n, "stations": st}
+
+
+def _triage_for_wire():
+    """The triage lane's record, trimmed for the wire. -> dict (in-memory; triage_lane_state)"""
+    s = triage_lane_state()
+    if not isinstance(s, dict) or s.get("ok") is False:
+        return {"ok": False, "why": _wire_text((s or {}).get("why") if isinstance(s, dict) else
+                                               "the lane state was not a record", 200)}
+    key = s.get("lastKey")
+    return {"ok": True,
+            "lastKey": key if isinstance(key, str) and _WIRE_KEY_RX.match(key) else None,
+            "lastWhy": _wire_text(s.get("lastWhy"), 200) or None,
+            # lastTs = the newest walk this lane KNOWS OF (this process, else the survey store)
+            "lastTs": s.get("lastSurveyTs"), "sinceLastS": s.get("sinceSurveyS"),
+            "backlog": s.get("backlog"), "owedSince": s.get("owedSince"),
+            "owedForS": s.get("owedForS"), "waitS": s.get("waitS"), "ticks": s.get("ticks"),
+            "skips": {str(k): int(v) for k, v in (s.get("skips") or {}).items()
+                      if _WIRE_KEY_RX.match(str(k)) and isinstance(v, int)}}
+
+
+def _river_for_wire(now_ms=None):
+    """THIS MACHINE'S RIVER, from memory only. -> {lanes: {station: n} | None, ageS, why, triage}
+
+    ⚠ NEVER COMPUTES THE RIVER. /api/river walks reel_router over every reel (2-4 s); the beacon reads
+    the last result that route already computed (_RIVER_LAST), with ITS age. No cached river is lanes
+    None with a why, never an empty river. [[unknown-stays-unknown]] [[stale-reading]]"""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    g, f = _RIVER_LAST.get("good"), _RIVER_LAST.get("fail")
+    out = {"lanes": None, "ageS": None, "why": "", "triage": None}
+    if isinstance(g, dict) and isinstance(g.get("stations"), dict):
+        out["lanes"] = dict(g["stations"])
+        out["ageS"] = round(max(0.0, (now - int(g["ts"])) / 1000.0), 1)
+        if isinstance(f, dict) and int(f.get("n") or 0) > int(g.get("n") or 0):
+            out["why"] = ("a newer river read failed %.0f s ago - these lanes are the last good read"
+                          % max(0.0, (now - int(f["ts"])) / 1000.0))
+    elif isinstance(f, dict):
+        out["why"] = str(f.get("why") or "the last river read failed")
+    else:
+        # (no route path in this sentence: the worker scrubs anything path-shaped to "<path>")
+        out["why"] = ("this console has not computed its river since it started - nothing has asked "
+                      "for the river yet, and the beacon never computes it itself")
+    try:
+        out["triage"] = _triage_for_wire()
+    except Exception as e:
+        out["triage"] = {"ok": False, "why": "the triage lane could not be read (%s)" % type(e).__name__}
+    return out
+
+
 def _system_for_wire():
     """#229 — THIS MACHINE'S OWN SYSTEM, COUNTS ONLY, SO THE FLEET CAN SEE EACH CONSOLE STANDS ON ITS OWN.
-    -> {"tree": "ok"|"missing"|"unmeasured"|"unknown"|None, "reels": int|None}
+    -> {"tree": "ok"|"missing"|"unmeasured"|"unknown"|None, "reels": int|None,
+        "capture": {route, ageS, why, source}, "river": {lanes, ageS, why, triage}}
 
     `tree` is the doctor's OWN last verdict on "this console tree is established" - read from the eagle,
     so the beacon never proves a write itself (ensure() writes a probe into every root). `reels` is the
     reel folders on this machine's shelf. None is UNREAD, never 0: an unmeasured eagle or an unreadable
     shelf must not reach the fleet as "an empty machine". No path and no name crosses the wire.
+    ⚠ 2026-09-28 — `capture` (which way this PC films D2R) and `river` (its lanes and its triage lane)
+    ride here too, both read from memory — see _capture_route_for_wire / _river_for_wire.
     [[unknown-stays-unknown]] [[the-unjoined-end]]"""
     out = {"tree": None, "reels": None}
     try:
@@ -13049,6 +13270,16 @@ def _system_for_wire():
                 break
     except Exception:
         pass
+    try:
+        out["capture"] = _capture_route_for_wire()
+    except Exception as e:
+        out["capture"] = {"route": "unknown", "ageS": None, "source": None,
+                          "why": "the capture route could not be read (%s)" % type(e).__name__}
+    try:
+        out["river"] = _river_for_wire()
+    except Exception as e:
+        out["river"] = {"lanes": None, "ageS": None, "triage": None,
+                        "why": "the river state could not be read (%s)" % type(e).__name__}
     try:
         hist = HIST_DIR
         out["reels"] = sum(1 for n in os.listdir(hist)
@@ -25436,9 +25667,284 @@ def _vault_owed_reels(hist=None):
             for k in (p.get("kept") or [])
             if k.get("tag") in _vault_tags]
 
-_TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {}}
+#: ══ 2026-09-28 — ONE CPU READING, ON EVERY OS ══════════════════════════════════════════════════
+#: MEASURED over SSH on his Windows ALT (plays through Boosteroid, shadow reader ON, hourly rollover
+#: live, 10 rotations overnight): 7 of its 10 reels sat in TRIAGE and nothing reached TOMBSTONE.
+#: The tick's load guard was `os.getloadavg()` inside `except Exception: pass`, and getloadavg DOES
+#: NOT EXIST ON WINDOWS — the AttributeError was swallowed, so the ALT ran with NO load guard at
+#: all, and nothing anywhere could tell that from an idle machine. One helper, one unit (percent of
+#: the machine busy), two mechanisms, and None when neither can answer — never a guessed core
+#: count (the old `os.cpu_count() or 4`), never 0. [[unknown-stays-unknown]] [[copy-drift]]
+#:
+#: the rule the tick has always had — "load above the core count, the backlog is not urgent" —
+#: spoken in the helper's unit: at 100 the machine is saturated. ⚠ THIS IS THE LOAD-AVERAGE BAR
+#: (Mac/Linux), where load/cores is capped at 100 and a load at or above the core count reaches it.
+_TRIAGE_MAX_CPU = 100.0
+#: ⚠ 2026-09-28 — AND A UTILISATION SAMPLE NEVER REACHES ITS OWN CEILING. On Windows the reading is
+#: GetSystemTimes over half a second: a pegged machine reads 97-99, almost never exactly 100, so a
+#: bar AT 100 was a guard that could not trip (an adversarial review reproduced it). Windows gets
+#: its own bar BELOW the ceiling. TV_TRIAGE_WIN_MAX_CPU overrides it at CALL time, and only below
+#: 100 — an override at the ceiling would restore the very defect. [[feedback-threshold-above-the-ceiling]]
+_TRIAGE_WIN_MAX_CPU = 90.0
+#: HIS POLITENESS RULE STAYS: triage never competes with HIS sessions (ON AIR, MINI). A SHADOW reel
+#: is the console's own, rolling on the hour with a ~2 s gap between reels, so refusing beside it
+#: refused ~every 90 s tick for ever. Beside a shadow reel triage may run only while the machine is
+#: at most this busy. TV_TRIAGE_SHADOW_MAX_CPU overrides it, read at CALL time (v2423's lesson: an
+#: env honoured only at import is a redirect that silently does not take).
+_TRIAGE_SHADOW_MAX_CPU = 60.0
+#: GetSystemTimes is cumulative, so a busy percentage needs two samples this far apart.
+_CPU_SAMPLE_S = 0.5
+#: A reel directory modified this recently is still being FOLDED. tv_diablo renames a session's
+#: loose f_*.jpg into reel_<sid>/ only when the session ENDS — so while a reel rolls it is not a
+#: reel_* directory at all and no survey can reach it — but a fold is a loop of renames plus an
+#: index write, and with the hourly rollover one lands every hour while triage may now run beside
+#: the next shadow reel. A survey that walked a half-moved reel would remember it as walked IN
+#: FULL, and a later frame would never be looked at. Two minutes is well past a fold.
+_TRIAGE_SETTLE_S = 120
+
+
+def _triage_shadow_max_cpu():
+    """The busiest the machine may be for triage to run beside a SHADOW reel. -> float (1-100)"""
+    raw = (os.environ.get("TV_TRIAGE_SHADOW_MAX_CPU") or "").strip()
+    if raw:
+        try:
+            v = float(raw)
+            if 0 < v <= 100:
+                return v
+        except ValueError:
+            pass
+    return float(_TRIAGE_SHADOW_MAX_CPU)
+
+
+def _triage_max_cpu():
+    """The busiest this machine may be for triage to run with NO capture beside it. -> float
+
+    Windows reads utilisation (GetSystemTimes), so its bar sits below 100; elsewhere the reading is
+    load/cores capped at 100 and the bar is the cap itself ("load at or above the core count")."""
+    if IS_WIN:
+        raw = (os.environ.get("TV_TRIAGE_WIN_MAX_CPU") or "").strip()
+        if raw:
+            try:
+                v = float(raw)
+                if 0 < v < 100:
+                    return v
+            except ValueError:
+                pass
+        return float(_TRIAGE_WIN_MAX_CPU)
+    return float(_TRIAGE_MAX_CPU)
+
+
+def _d2r_running_here():
+    """Is D2R.exe running ON THIS MACHINE? -> (True | False | None, how)
+
+    ⚠ 2026-09-28 — HIS LAPTOP PLAYS NATIVELY, AND THE LANE COULD NOT SEE IT. Dean plays D2R.exe on a
+    Windows laptop ("usually" how he plays), and triage must stand aside while the game runs and
+    catch up when he stops. The tick asked tv_diablo._d2r_process_alive(), which is `pgrep` — absent
+    on Windows, FileNotFoundError swallowed, False on every Windows PC — so with the shadow allowance
+    triage walked reels beside his LOCAL game. Windows now asks the process table (Toolhelp32); the
+    Mac keeps pgrep (D2R.exe under CrossOver). Both answer None when the probe cannot run.
+    ⚠ LOCAL PROCESS ONLY — never the capture half's window label: his ALT streams through Boosteroid
+    under a window titled for the game with no D2R.exe here, and a label step would starve it again.
+    Same code on every PC; each decides from its own machine. [[unknown-stays-unknown]]"""
+    try:
+        import tv_diablo as _tvd
+        if IS_WIN:
+            return _tvd._toolhelp_d2r_state(), "a Toolhelp32 process snapshot"
+        return _tvd._pgrep_d2r_state(), "pgrep"
+    except Exception as e:
+        return None, "the process probe raised %s" % type(e).__name__
+
+
+def _system_times():
+    """Windows kernel32.GetSystemTimes -> (idle, kernel, user) in 100 ns ticks, or None.
+
+    ⚠ kernel time INCLUDES idle time — _cpu_busy_from_times depends on that."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        idle, kern, user = wintypes.FILETIME(), wintypes.FILETIME(), wintypes.FILETIME()
+        if not ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kern),
+                                                      ctypes.byref(user)):
+            return None
+        return tuple((ft.dwHighDateTime << 32) | ft.dwLowDateTime for ft in (idle, kern, user))
+    except Exception:
+        # None = UNKNOWN; the tick turns it into a NAMED refusal ('cpu-unmeasured'), never "idle".
+        return None
+
+
+def _cpu_busy_from_times(before, after):
+    """Percent of the machine busy between two GetSystemTimes samples. -> float 0-100 | None
+
+    busy = (kernel + user - idle) / (kernel + user), because kernel ALREADY CONTAINS idle. Adding
+    idle to the denominator a second time reads a pegged machine as ~50% busy."""
+    try:
+        di = int(after[0]) - int(before[0])
+        total = (int(after[1]) - int(before[1])) + (int(after[2]) - int(before[2]))
+    except Exception:
+        return None
+    if total <= 0 or di < 0 or di > total:
+        return None                   # a clock that did not move, or ran backwards: unmeasured
+    return round(100.0 * (total - di) / total, 1)
+
+
+def _cpu_busy_pct(sample_s=None):
+    """How busy this machine is right now, 0-100. -> float | None (it could not be measured)
+
+    Windows: kernel32.GetSystemTimes sampled twice `_CPU_SAMPLE_S` apart. Elsewhere: the one-minute
+    load average over the core count, capped at 100. None whenever neither can answer — a caller
+    must treat None as UNKNOWN and say so, never as an idle machine."""
+    if IS_WIN:
+        a = _system_times()
+        if a is None:
+            return None
+        time.sleep(_CPU_SAMPLE_S if sample_s is None else sample_s)
+        b = _system_times()
+        if b is None:
+            return None
+        return _cpu_busy_from_times(a, b)
+    try:
+        load1 = float(os.getloadavg()[0])
+    except (AttributeError, OSError):
+        return None                   # no load average on this OS — UNKNOWN, not 0
+    cpus = os.cpu_count()
+    if not cpus:
+        return None
+    return round(max(0.0, min(100.0, 100.0 * load1 / cpus)), 1)
+
+
+#: ⚠ 2026-09-28 — EVERY OUTCOME IS RECORDED, NOT ONLY A SURVEY. `skips` sat in this dict since it was
+#: born and nothing ever filled it; the loop printed only on success, and nothing published the dict
+#: at all. So a lane that refused every tick for ever read exactly like a lane with nothing to do —
+#: on the ALT, 7 reels in TRIAGE and a lane with no voice. _triage_record() writes every branch;
+#: triage_lane_state() publishes it on /api/river for the doctor, which runs in ANOTHER process.
+#: `upSince` is when this process began, so "has not surveyed for 3 h" can be asked of a lane
+#: that has never surveyed at all. [[heart-first]] §2 §3 [[feedback-silence-is-not-evidence]]
+_TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {},
+                "ticks": 0, "idle": 0, "lastKey": None, "lastWhy": None, "lastAt": None,
+                "lastSkipKey": None, "lastSkipWhy": None, "lastSkipTs": None,
+                "backlog": None, "backlogAt": None, "upSince": int(time.time() * 1000),
+                # ⚠ 2026-09-28 — HOW LONG THE REELS HAVE WAITED, not how long since the last walk.
+                # After an idle day the last walk is a day old, so a reel folded 30 s ago (still
+                # settling) or held ten minutes behind 'playing' read MISSING "24.0 h" — every
+                # evening he plays. owedSince: the first tick that counted a backlog > 0 after a
+                # walk or a done (cleared when it counts 0). caughtUpTs: the last tick that counted
+                # 0 — any reel waiting now became owed after it, even when every tick since has
+                # refused before it could count. [[stale-reading]]
+                "owedSince": None, "caughtUpTs": None}
 _TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
 _TRIAGE_ON = (os.environ.get("TV_TRIAGE") or "1") != "0"
+#: the survey store's newest FULL row, read once per process — so a relaunch (every ship re-execs
+#: this console) does not reset "when did the lane last walk a reel" to never. None = not read yet.
+_TRIAGE_STORE_SEED = {"read": False, "ts": None, "why": ""}
+
+
+def _triage_record(r):
+    """Write one tick's OUTCOME into _TRIAGE_LANE — refusals included. -> None
+
+    ⚠ `skips` is REBOUND, never mutated in place: /api/river copies it from an HTTP thread while
+    this runs on the loop thread, and a dict that grows under a copy raises there."""
+    now = int(time.time() * 1000)
+    if not isinstance(r, dict):
+        r = {"ok": False, "key": "unreadable",
+             "why": "the tick answered %s, not a dict" % type(r).__name__}
+    key = str(r.get("key") or "unnamed")
+    why = str(r.get("why") or "")[:240]
+    L = _TRIAGE_LANE
+    L["ticks"] = int(L.get("ticks") or 0) + 1
+    L["lastKey"], L["lastWhy"], L["lastAt"] = key, why, now
+    if r.get("backlog") is not None:
+        _b = int(r["backlog"])
+        L["backlog"], L["backlogAt"] = _b, now
+        if _b <= 0:
+            L["owedSince"], L["caughtUpTs"] = None, now
+        elif key == "surveyed" or L.get("owedSince") is None:
+            # a walk restarts the wait: whatever is still owed has waited only since it
+            L["owedSince"] = now
+    if not r.get("ok"):
+        sk = dict(L.get("skips") or {})
+        sk[key] = int(sk.get(key) or 0) + 1
+        L["skips"] = sk
+        L["lastSkipKey"], L["lastSkipWhy"], L["lastSkipTs"] = key, why, now
+    elif r.get("done"):
+        L["idle"] = int(L.get("idle") or 0) + 1
+
+
+def _triage_store_newest_ts():
+    """Epoch ms of the newest FULL survey row in retro_triage's store, read once. -> int | None"""
+    if _TRIAGE_STORE_SEED.get("read"):
+        return _TRIAGE_STORE_SEED.get("ts")
+    ts, why = None, ""
+    try:
+        import retro_triage as _rt
+        blob, ok = _rt.load()
+        if not ok:
+            why = "the survey store did not read back cleanly"
+        else:
+            for row in blob.values():
+                if isinstance(row, dict) and row.get("full") and isinstance(row.get("ts"), (int, float)):
+                    ts = int(row["ts"]) if ts is None else max(ts, int(row["ts"]))
+    except Exception as e:
+        why = "the survey store could not be read (%s)" % type(e).__name__
+    _TRIAGE_STORE_SEED.update({"read": True, "ts": ts, "why": why})
+    return ts
+
+
+def triage_lane_state():
+    """What the structural triage lane has done AND REFUSED, for a reader in another process. -> dict
+
+    The doctor runs in another process, where _TRIAGE_LANE is the empty import literal — the
+    four-day twin (test_the_doctor_reads_the_console_not_a_twin). So the serving console publishes
+    this on /api/river. In-memory and cheap: one store read per process, then dict copies.
+
+    lastSurveyTs  newest of this process's last walk and the store's newest full row; None = no
+                  reel has ever been walked, which is NOT "recently".
+    sinceSurveyS  seconds since then, computed HERE so no reader needs this machine's clock.
+    upS           seconds this process has been up — the clock a never-walked lane is judged by.
+    worked/owed   the shared lane vocabulary; owed None = UNKNOWN (no tick has counted it yet).
+    waitS         ⚠ 2026-09-28 — how long the reels waiting NOW can have waited with no walk: seconds
+                  since the LATEST of the last walk, the last tick that found nothing owed
+                  (caughtUpTs), the first tick that found this backlog (owedSince) and this process
+                  starting. The doctor judges starvation by this, not by sinceSurveyS — after an
+                  idle day the last walk is a day old while the reel waiting was folded a minute
+                  ago. The process start is in it on purpose: a lane is starved over the time it
+                  RAN, and a console closed overnight did not starve anything. `waitFrom` names
+                  which stamp won, so a reader can see what the number is the age of.
+    """
+    try:
+        d = dict(_TRIAGE_LANE)
+        d["skips"] = dict(d.get("skips") or {})
+        now = int(time.time() * 1000)
+        stored = _triage_store_newest_ts()
+        last, src = d.get("lastTs"), ("this process" if d.get("lastTs") else None)
+        if stored is not None and (last is None or stored > last):
+            last, src = stored, "the survey store"
+        d.update({
+            "ok": True, "on": bool(_TRIAGE_ON), "everyS": _TRIAGE_EVERY_S,
+            "stoodDown": "tvd-retro-triage" in _LANES_STOOD_DOWN,
+            "maxCpu": _triage_max_cpu(), "shadowMaxCpu": _triage_shadow_max_cpu(),
+            "lastSurveyTs": last, "lastSurveySource": src,
+            "storeWhy": _TRIAGE_STORE_SEED.get("why") or "",
+            "sinceSurveyS": (None if last is None else round(max(0.0, (now - last) / 1000.0), 1)),
+            "upS": round(max(0.0, (now - int(d.get("upSince") or now)) / 1000.0), 1),
+            "worked": d.get("surveyed"), "owed": d.get("backlog"),
+        })
+        _marks = [("the last walk", last),
+                  ("the last tick that found nothing owed", d.get("caughtUpTs")),
+                  ("the first tick that found this backlog", d.get("owedSince")),
+                  ("this process starting", d.get("upSince"))]
+        _marks = [(n, int(t)) for n, t in _marks
+                  if isinstance(t, (int, float)) and not isinstance(t, bool)]
+        if _marks:
+            _wf, _wt = max(_marks, key=lambda m: m[1])
+            d.update({"waitS": round(max(0.0, (now - _wt) / 1000.0), 1), "waitFrom": _wf,
+                      "waitSinceTs": _wt})
+        else:
+            d.update({"waitS": None, "waitFrom": None, "waitSinceTs": None})
+        d["owedForS"] = (None if not isinstance(d.get("owedSince"), (int, float))
+                         else round(max(0.0, (now - int(d["owedSince"])) / 1000.0), 1))
+        return d
+    except Exception as e:
+        return {"ok": False, "why": "the triage lane state could not be read: %s" % str(e)[:120]}
 
 
 def retro_triage_tick():
@@ -25458,50 +25964,117 @@ def retro_triage_tick():
     the store survives a relaunch because every reel is persisted as it finishes.
 
     IT BACKS OFF HARD, and each reason is its own sentence rather than a silent skip:
-      · he is playing            - D2R alive; his frames matter more than my backlog
-      · the machine is loaded    - load above the core count; the sweep is not urgent
-      · a capture is live        - never compete with the thing that makes the footage
+      · he is playing            - D2R.exe alive ON THIS MACHINE (Toolhelp32 on Windows, pgrep
+                                   elsewhere); his frames matter more than my backlog. It catches
+                                   up when he stops — the river flows between his sessions.
+      · whether he is playing is UNKNOWN - the probe could not run: refused, never read as "no"
+      · HIS capture is live      - ON AIR / MINI, or a reel whose door cannot be read: never
+                                   compete with the thing that makes his footage. Keyed on the
+                                   console's OWN agent (every OS) as well as the Windows capture pid
       · a paid sweep is running  - the expensive lane owns the CPU while it is spending
-      · the disk is desperate    - below the floor, a survey that writes a store is not the fix
+      · the CPU is unmeasurable  - UNKNOWN is not idle; it refuses and says so
+      · a SHADOW reel is rolling - the console's own reel; triage runs beside it only while the
+                                   machine is at most _TRIAGE_SHADOW_MAX_CPU busy (2026-09-28)
+      · the machine is saturated - _triage_max_cpu(): the load bar ("at or above the core count")
+                                   on the Mac, a utilisation bar below 100 on Windows
+      · a walk it could not REMEMBER - the store would not take the verdict: the reel is still
+                                   owed, so it is a refusal ('not-remembered'), never a walk
+
+    ⚠ 2026-09-28 — "THE DISK IS DESPERATE" IS NO LONGER LISTED, BECAUSE NO CODE EVER IMPLEMENTED IT.
+    This docstring promised it and nothing checked a floor. It is not added now either, on purpose:
+    no disk-floor helper exists to call (ON_AIR_FLOOR_GB is a constant each caller measures
+    against), a survey writes one small JSON row, and a reel it walks is what lets the retention
+    drain release that reel's frames — below the floor, triage is part of the fix, not a cost to
+    shed. A promise no code keeps is a comment that blinds. [[feedback-comments-vs-code]]
+
+    ⚠ 2026-09-28 — EVERY OUTCOME IS RECORDED HERE, AT THE ONE DOOR, by _triage_record — each branch
+    of the body names a `key`, and a raise is recorded before it propagates. On his Windows ALT the
+    lane refused every 90 s tick beside a continuously rolling shadow reel and said nothing, so
+    seven reels sat in TRIAGE under a lane that read like one with nothing to do.
     """
+    try:
+        r = _retro_triage_tick_once()
+    except Exception as e:
+        _triage_record({"ok": False, "key": "raised",
+                        "why": "the tick raised %s: %s" % (type(e).__name__, str(e)[:120])})
+        raise
+    _triage_record(r)
+    return r
+
+
+def _retro_triage_tick_once():
+    """The body of retro_triage_tick: one outcome, with a `key` naming its branch. -> dict"""
     if not _TRIAGE_ON:
-        return {"ok": False, "why": "the structural triage lane is off (TV_TRIAGE=0)"}
+        return {"ok": False, "key": "off", "why": "the structural triage lane is off (TV_TRIAGE=0)"}
     try:
         import retro_triage as _rt
         import frame_authority as _fa
     except Exception as e:
-        return {"ok": False, "why": "triage unavailable: %s" % str(e)[:90]}
+        return {"ok": False, "key": "unavailable", "why": "triage unavailable: %s" % str(e)[:90]}
 
     # ── back off, in the order that costs least to check ──────────────────────────────────────
-    try:
-        import tv_diablo as _tvd
-        if _tvd._d2r_process_alive():
-            return {"ok": False, "why": "he is playing - the game owns this machine"}
-    except Exception:
-        pass
-    try:
-        load1 = os.getloadavg()[0]
-        cpus = os.cpu_count() or 4
-        if load1 > cpus:
-            return {"ok": False, "why": "load %.1f on %d cpus - the backlog is not urgent"
-                                        % (load1, cpus)}
-    except Exception:
-        pass
-    if _capture_is_live():
-        return {"ok": False, "why": "a capture is live - never compete with the camera"}
+    # ⚠ 2026-09-28 — A LOCAL PROCESS PROBE, ASKED ON EVERY OS, AND ITS UNKNOWN REFUSES. This asked
+    # _d2r_process_alive() (pgrep) inside `except: pass`: on Windows pgrep does not exist, so the
+    # answer was False on every Windows PC and triage walked reels beside Dean's NATIVE game. A probe
+    # that cannot run is not "he is not playing". See _d2r_running_here.
+    _playing, _how = _d2r_running_here()
+    if _playing is True:
+        return {"ok": False, "key": "playing",
+                "why": "he is playing - D2R.exe is running on this machine (%s); the game owns it, "
+                       "and triage catches up when he stops" % _how}
+    if _playing is None:
+        return {"ok": False, "key": "playing-unknown",
+                "why": "whether he is playing is UNKNOWN - %s could not answer - and triage will "
+                       "not guess on a machine he plays on" % _how}
+    # ⚠ 2026-09-28 — WHOSE CAPTURE, not only whether one is live. The door comes from
+    # _rolling_reel(), the same reading the hourly rollover trusts: only a reel THIS console opened
+    # through the shadow door is shadow's. His (onair/mini) and an unreadable door (an orphan, a
+    # busy lock) both refuse — an unknown reel is treated as his, never as the console's.
+    # ⚠ AND "A CAPTURE IS LIVE" IS THE AGENT TOO, NOT ONLY THE WINDOWS CAPTURE PID. control_capture.pid
+    # is written only on Windows (capture_win.ps1); on the Mac the AGENT is the camera, so
+    # _capture_is_live() was never True there and triage ran beside his ON AIR session with nothing
+    # but the load bar in its way. Either signal opens the door check. [[the-unjoined-end]]
+    shadow = False
+    if _capture_is_live() or _agent_alive():
+        door = (_rolling_reel() or {}).get("door")
+        if door == "shadow":
+            shadow = True
+        elif door is None:
+            return {"ok": False, "key": "capture-unowned",
+                    "why": "a capture is live and whose reel it is cannot be read - never compete "
+                           "with the camera"}
+        else:
+            return {"ok": False, "key": "capture-" + str(door),
+                    "why": "a capture is live (%s - his session) - never compete with the camera"
+                           % str(door).upper()}
     try:
         if (_CHRON_JOB or {}).get("running") or (vault_sweep_state() or {}).get("running"):
-            return {"ok": False, "why": "a paid sweep is running - it owns the CPU while spending"}
+            return {"ok": False, "key": "paid-sweep",
+                    "why": "a paid sweep is running - it owns the CPU while spending"}
     except Exception:
         pass
+    cpu = _cpu_busy_pct()
+    if cpu is None:
+        return {"ok": False, "key": "cpu-unmeasured",
+                "why": ("%sthis machine's CPU could not be measured - triage will not run blind "
+                        "on a machine he plays on"
+                        % ("a SHADOW reel is rolling and " if shadow else ""))}
+    if shadow and cpu > _triage_shadow_max_cpu():
+        return {"ok": False, "key": "cpu-shadow",
+                "why": "a SHADOW reel is rolling and the CPU is %.0f%% busy, above the %.0f%% "
+                       "triage may share with it" % (cpu, _triage_shadow_max_cpu())}
+    if cpu >= _triage_max_cpu():
+        return {"ok": False, "key": "cpu-loaded",
+                "why": "the machine is %.0f%% busy (at or above the %.0f%% bar) - the backlog is "
+                       "not urgent" % (cpu, _triage_max_cpu())}
 
     sealed, _ok = _fa.sealed_sessions()
-    todo = []
+    owed = []
     for d in _rt.unread_reels(HIST_DIR, sealed):
         if _rt.worth_reading(d) is None:          # None = NOT SURVEYED. False means we looked.
-            todo.append(d)
-    if not todo:
-        return {"ok": True, "done": True,
+            owed.append(d)
+    if not owed:
+        return {"ok": True, "done": True, "key": "done", "backlog": 0,
                 "why": "every unread reel has been surveyed at least once"}
 
     # ⚠ SMALLEST FIRST, NOT OLDEST. His reels run from 26 frames (the median) to 2,385 (the
@@ -25510,21 +26083,72 @@ def retro_triage_tick():
     # the backlog steadily and defers the monsters to when there is nothing cheaper left - which
     # is also the order that gets the store useful soonest.
     import glob as _glob
+    _nf = {}
     def _n_frames(p):
+        if p not in _nf:
+            try:
+                _nf[p] = len(_glob.glob(os.path.join(p, "*.jpg")))
+            except Exception:
+                _nf[p] = 1 << 30      # unreadable sorts LAST, never first
+        return _nf[p]
+    # ⚠ 2026-09-28 — TWO KINDS OF REEL IT MUST NOT PARK ON. A reel still being FOLDED (see
+    # _TRIAGE_SETTLE_S) would be remembered as walked in full from a half-moved directory. And a
+    # reel with NO frame sorts FIRST under smallest-first while survey() skips it without
+    # remembering it — so the lane would pick the same empty reel every tick for ever. Both stay
+    # owed and are COUNTED in the outcome; neither is walked. An unreadable mtime is treated as
+    # settling: cannot tell -> do not act.
+    _now_s = time.time()
+    def _settling(p):
         try:
-            return len(_glob.glob(os.path.join(p, "*.jpg")))
-        except Exception:
-            return 1 << 30            # unreadable sorts LAST, never first
+            return (_now_s - os.path.getmtime(p)) < _TRIAGE_SETTLE_S
+        except OSError:
+            return True
+    settling = [d for d in owed if _settling(d)]
+    frameless = [d for d in owed if d not in settling and _n_frames(d) == 0]
+    todo = [d for d in owed if d not in settling and d not in frameless]
+    if not todo:
+        return {"ok": False, "key": "unworkable", "backlog": len(owed),
+                "settling": len(settling), "frameless": len(frameless),
+                "why": "%d reel(s) owe a survey and none can be walked now: %d folded under %ds "
+                       "ago (still settling), %d hold no frame at all"
+                       % (len(owed), len(settling), _TRIAGE_SETTLE_S, len(frameless))}
     todo.sort(key=_n_frames)
     d = todo[0]
     out = _rt.survey([d], stash_screen_open_cached, every_frame=True,
                      nice_delay_s=0.01, budget_s=120)
-    _TRIAGE_LANE["surveyed"] += out.get("reels") or 0
-    _TRIAGE_LANE["panels"] += out.get("panels") or 0
-    _TRIAGE_LANE["lastTs"] = int(time.time() * 1000)
-    _TRIAGE_LANE["lastReel"] = os.path.basename(d)
-    return {"ok": True, "reel": os.path.basename(d), "frames": out.get("frames"),
+    looked = int(out.get("reels") or 0)
+    # ⚠⚠ 2026-09-28 — A WALK COUNTS ONLY WHEN THE REEL LEFT THE OWED SET. survey() counts a reel it
+    # looked at whether or not remember() kept the verdict, and remember() returns False WITHOUT
+    # RAISING on an unwritable or corrupt store. So the lane walked the SAME reel every 90 s for
+    # ever, answered key=surveyed, stamped lastTs, and the doctor read OK — an adversarial review
+    # reproduced it with a chmod-555 store and a corrupt one. The store is asked back: a reel it
+    # still calls NOT SURVEYED is still owed, and this tick is a refusal. [[the-unjoined-end]]
+    walked = 1 if (looked and _rt.worth_reading(d) is not None) else 0
+    _TRIAGE_LANE["surveyed"] += walked
+    if walked:
+        _TRIAGE_LANE["panels"] += out.get("panels") or 0
+    # ⚠ lastTs means A REEL WAS WALKED. A survey that walked nothing is a tick, not a walk — stamping
+    # it would let a lane parked on one reel read as busy to the doctor's 'triage starved' row.
+    if walked:
+        _TRIAGE_LANE["lastTs"] = int(time.time() * 1000)
+        _TRIAGE_LANE["lastReel"] = os.path.basename(d)
+    if looked and not walked:
+        try:
+            _store_ok = bool(_rt.load()[1])
+        except Exception:
+            _store_ok = False
+        return {"ok": False, "key": "not-remembered", "reel": os.path.basename(d),
+                "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
+                "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+                "why": ("a reel was looked at and the survey store did not keep the verdict (%s), "
+                        "so it is still owed and the next tick will pay for it again"
+                        % ("the store would not take the write" if _store_ok
+                           else "the store does not read back cleanly - corrupt or unreadable"))}
+    return {"ok": bool(walked), "key": ("surveyed" if walked else "walked-nothing"),
+            "reel": os.path.basename(d), "frames": out.get("frames"),
             "panels": out.get("panels"), "remaining": len(todo) - 1,
+            "backlog": len(owed) - walked, "settling": len(settling),
+            "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
             "partial": bool(out.get("stoppedEarly")), "why": out.get("say")}
 
 
@@ -25692,6 +26316,7 @@ def river_walk_state():
 
 def _retro_triage_loop():
     """Ticks forever, sleeping between. A watchdog that can die is not a watchdog."""
+    _said = None           # the refusal key last printed, so a held lane speaks once per change
     while True:
         try:
             time.sleep(_TRIAGE_EVERY_S)
@@ -25705,6 +26330,14 @@ def _retro_triage_loop():
                 print("\U0001f9ea triage: %s - %s frame(s), %s panel(s), %s left"
                       % (r["reel"], r.get("frames"), r.get("panels"), r.get("remaining")),
                       flush=True)
+                _said = None
+            elif not r.get("ok") and r.get("key") != _said:
+                # ⚠ 2026-09-28 — A REFUSAL SPEAKS, ONCE PER CHANGE OF REASON. This loop printed only
+                # on success, so a lane refusing every tick for ever was silent in his terminal too.
+                # Once per change, not per tick: 960 identical lines a day is its own silence.
+                print("\U0001f9ea triage: holding - %s" % str(r.get("why") or r.get("key"))[:160],
+                      flush=True)
+                _said = r.get("key")
             # v2746 — WALK THE RIVER ON THE SAME FREE TICK. Konyo: "something needs to run that
             # river". Before this, reel_router recomputed every reel's station on demand and stored
             # nothing, so a reel had a POSITION and never a JOURNEY — nothing in this tree could say
@@ -35750,6 +36383,9 @@ class Handler(BaseHTTPRequestHandler):
                     _lanes = {"ok": False,
                               "why": "river_lanes raised %s, so the lanes are UNKNOWN and "
                                      "specifically not empty" % type(_le).__name__}
+                # ⚠ 2026-09-28 — KEPT WHERE IT IS COMPUTED, for the fleet beacon, which must never pay
+                # the 2-4 s itself. The beacon carries these counts with THIS moment's age.
+                _river_remember(_lanes)
                 self._json(200, {
                     "ok": bool(_cen.get("ok")),
                     "lanes": _lanes,
@@ -35805,6 +36441,12 @@ class Handler(BaseHTTPRequestHandler):
                     # the doctor can see cannot answer the question at the moment it is asked.
                     # [[the-unjoined-end]]
                     "population": reel_census(),
+                    # ⚠ 2026-09-28 — THE LANE THAT MOVES REELS OUT OF TRIAGE, beside the river
+                    # that counts them. On his Windows ALT 7 of 10 reels sat in TRIAGE while this
+                    # lane refused every tick and published nothing, so no reader could tell a
+                    # starved lane from an idle one. In-memory and cheap; the doctor's
+                    # 'triage starved' row reads it from here because it runs in another process.
+                    "triage": triage_lane_state(),
                     "walked": _walked, "rowMeta": _rowmeta,
                     "why": _cen.get("why") or "",
                     "detail": _reels,
@@ -35812,7 +36454,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 # UNKNOWN, never an empty shelf — an unreadable river must not render as a river
                 # with nothing in it.
+                _river_remember(error=e)
                 self._json(200, {"ok": False, "stations": None, "counts": None, "reels": None,
+                                 # the lane's own record does not depend on the census that failed
+                                 "triage": triage_lane_state(),
                                  "why": "the river could not be read: %s" % str(e)[:180]})
             return
         if path == "/api/reel_story":

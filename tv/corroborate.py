@@ -2273,6 +2273,14 @@ NO_JOINT_YET = {
         "the row counts WATCHED / PROVEN / HARDENED from the witness ledger through the one Wilson function that assigns "
         "them, so the counts and the tiers share a source. An independent check would recount looks straight from the "
         "session frames on disk and compare the tier each earns; nothing does that walk yet.",
+    # 2026-09-28 — the triage starvation row.
+    'triage starved':
+        "the row pairs two things the serving console publishes on /api/river — reel_router's TRIAGE "
+        "count (the printer's evidence) and the triage lane's record of its last walk and refusals — "
+        "but the second is the lane describing itself (its last walk is seeded from retro_triage.json, "
+        "the lane's own store). A genuinely independent witness would be retro_triage.owed() recounted "
+        "from the reel directories on disk against a walk observed from outside the lane, and no "
+        "registered builder takes that walk yet.",
     # 2026-09-27 — the drain row.
     'retention drain':
         "the row reads the drain contract the serving console publishes from TWO of its own records "

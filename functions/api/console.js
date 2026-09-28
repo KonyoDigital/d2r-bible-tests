@@ -279,10 +279,90 @@ export async function onRequestPost(context) {
       if (!s || typeof s !== 'object') return null;
       const t = String(s.tree == null ? '' : s.tree);
       const r = s.reels;                      // a NUMBER from the beacon; a string '25' is not a count
-      return {
+      const out = {
         tree: ['ok', 'missing', 'unmeasured', 'unknown'].indexOf(t) >= 0 ? t : null,
         reels: (typeof r === 'number' && Number.isInteger(r) && r >= 0 && r <= 100000) ? r : null,
       };
+      /* ⚠ 2026-09-28 — HOW THIS PC FILMS D2R (`capture`) AND HOW ITS RIVER DRAINS (`river`). His order:
+         "yea add those beacon fields". The console sends both inside `system`; this shaper was the
+         whitelist that would have dropped them on arrival — the SEVENTH-JOINT shape `tally` already
+         names four times above. Shaped, never trusted: routes and keys from a fixed vocabulary,
+         numbers clamped, sentences collapsed, capped and scrubbed of paths/URLs/IPs a second time
+         (the console scrubs first; this boundary is PUBLIC). Absent stays ABSENT, so a console
+         older than the fields stores exactly what it stored before. [[the-unjoined-end]] */
+      const txt = function (v, cap) {
+        if (typeof v !== 'string') return null;
+        const x = v.replace(/\s+/g, ' ').trim()
+          .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, '<url>')
+          .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '<path>')
+          .replace(/\\\\[^\s'"]+/g, '<path>')
+          .replace(/~[\\/][^\s'"]*/g, '<path>')
+          .replace(/(^|[^\w.])\/(?:[^\s\/'"]+\/)+[^\s'"]*/g, '$1<path>')
+          .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '<ip>');
+        return x ? x.slice(0, cap) : null;
+      };
+      const num = function (v, max) {
+        return (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? Math.min(v, max) : null;
+      };
+      const whole = function (v, max) {
+        return (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max) ? v : null;
+      };
+      const key = function (v) {
+        return (typeof v === 'string' && /^[a-z][a-z-]{0,31}$/.test(v)) ? v : null;
+      };
+      const DAY400 = 400 * 86400;
+      if (s.capture && typeof s.capture === 'object') {
+        const c = s.capture;
+        out.capture = {
+          route: ['native', 'boosteroid', 'geforce-now', 'unknown'].indexOf(String(c.route)) >= 0
+            ? String(c.route) : null,
+          ageS: num(c.ageS, DAY400),
+          why: txt(c.why, 200),
+          source: ['capture-half', 'finder'].indexOf(String(c.source)) >= 0 ? String(c.source) : null,
+        };
+      }
+      if (s.river && typeof s.river === 'object') {
+        const rv = s.river;
+        let lanes = null;
+        if (rv.lanes && typeof rv.lanes === 'object' && !Array.isArray(rv.lanes)) {
+          const o = {};
+          for (const k of Object.keys(rv.lanes).slice(0, 24)) {
+            const v = whole(rv.lanes[k], 100000);
+            if (/^[A-Z][A-Z_]{0,23}$/.test(k) && v !== null) o[k] = v;
+          }
+          lanes = Object.keys(o).length ? o : null;
+        }
+        let tri = null;
+        const x = rv.triage;
+        if (x && typeof x === 'object') {
+          if (x.ok === false) {
+            tri = { ok: false, why: txt(x.why, 200) };
+          } else {
+            const sk = {};
+            if (x.skips && typeof x.skips === 'object') {
+              for (const k of Object.keys(x.skips).slice(0, 24)) {
+                const v = whole(x.skips[k], 100000000);
+                if (key(k) && v !== null) sk[k] = v;
+              }
+            }
+            tri = {
+              ok: true,
+              lastKey: key(x.lastKey),
+              lastWhy: txt(x.lastWhy, 200),
+              lastTs: whole(x.lastTs, 1e14),
+              sinceLastS: num(x.sinceLastS, DAY400),
+              backlog: whole(x.backlog, 100000),
+              owedSince: whole(x.owedSince, 1e14),
+              owedForS: num(x.owedForS, DAY400),
+              waitS: num(x.waitS, DAY400),
+              ticks: whole(x.ticks, 1e9),
+              skips: sk,
+            };
+          }
+        }
+        out.river = { lanes: lanes, ageS: num(rv.ageS, DAY400), why: txt(rv.why, 200), triage: tri };
+      }
+      return out;
     })(body.system),
     masks: (function (m) {
       if (!m || typeof m !== 'object') return null;
