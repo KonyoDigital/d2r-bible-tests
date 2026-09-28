@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1341 - A RUNEWORD DID NOT COMPOSE ONTO THE BASE ALREADY IN THE CELL (wave 2)
+
+**SEEN:** a normal Sacred Armor in the mule 10x4 already drew Sacred Armor and said its own defense, durability and requirements. Choosing Chains of Honor opened the Base tab and left the armor as it was. The word's first base is Ancient Armor, so placing it there would have swapped the picture. **FIX:** a white or superior base that can hold the runes takes the runeword onto itself. The picture stays the base. The name, the rune string and the mods are the runeword's, through the one tooltip. An empty cell still waits on the Base tab. A weapon word, and a magic base, are not replaced. The door files the runeword once. **LAW:** `test_a_runeword_composes_onto_its_base` (heart2 --prove 2/2 PROVEN).
+
 ### REG-1340 - THE MULE HOVER'S COLOUR ROLES WERE UNHELD (wave 2)
 
 **SEEN:** the builder's one tooltip already paints the game's colour roles, and the mule hover already calls it. No law held that join. A hover that painted every name white, a runeword base in gold, a defense number in the label's white, or the art's name instead of the stored item, would still be green. The grey under a runeword is rgb(121, 121, 121), measured on the Chains of Honor frame; the colour map never named that role. **FIX:** no second colour map. The same hover paints Annihilus gold on gold, Fine Small Charm of Balance blue, and Enigma on Mage Plate with a grey base, a gold rune string, and a blue defense number. A mule has no character level, so a requirement stays white. **LAW:** `test_an_inventory_hover_paints_the_games_colours` (heart2 --prove 5/5 PROVEN).

@@ -55583,6 +55583,25 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var it = _cbItem(id), p = st.pick; if (!it || !p) return false;
     p.pending = null; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
     p.rw = null;
+    /* Wave 2 — a white or superior base already here, then a runeword that base can hold, is
+       composed onto it. The picture stays the base (_cbArtName). An empty cell still opens the
+       Base tab below. A magic or rare item, or a base that cannot hold the runes, is left as it is. */
+    if (it[2] === 'r' && it[7] && it[7].runes){
+      var held = _cbCurEntry(), hq = held && (held.q || 'b');
+      if (held && held.base && (hq === 'b' || hq === 'sup')
+          && _cbBasesOf(it).indexOf(held.base) >= 0
+          && _cbMaxSock(held.base, held.ilvl == null ? 99 : held.ilvl) >= it[7].runes.length){
+        var eC = _cbEntryFor(it);
+        eC.base = held.base;
+        if (held.ilvl) eC.ilvl = held.ilvl;
+        eC.eth = !!held.eth;
+        if (held.def != null){
+          var bdC = _cbBase(held.base);
+          if (bdC && held.def >= bdC[8] && held.def <= bdC[9]) eC.def = held.def;
+        }
+        return _cbEquip(it, eC);
+      }
+    }
     /* #174 v-B4 — a RUNEWORD waits on its Base tab (theirs: Select | Base | Edit): it is no longer worn on its first base */
     /* #174 v-B5 — in the MULE's inventory too: a runeword's size is its base's, so the base is his to choose (its Base tab
        lists the bases that fit at the cell), never its first base placed silently */

@@ -7562,6 +7562,17 @@ GATES = [
              "string, a white defense label with a blue number, and a white durability line. Drives the shipped "
              "hover in node.",
          skip_ok=()),
+    Gate("test_a_runeword_composes_onto_its_base",
+         [sys.executable, os.path.join(HERE, "test_a_runeword_composes_onto_its_base.py")], 90,
+         needs_app=False,
+         why="#174 wave 2 (ACT 5855268494) - the base comes first. A normal Sacred Armor in the mule 10x4 "
+             "draws Sacred Armor and says its own defense, durability and requirements. Choosing Chains of "
+             "Honor then composes onto that base: the picture stays Sacred Armor, the tile says the runeword, "
+             "and the one tooltip is the gold name, the grey base, the rune string and that word's mods. "
+             "The word's first base is not used. An empty cell still waits on the Base tab. Breath of the "
+             "Dying cannot be made in that armor, and a magic Sacred Armor is not a runeword base, so neither "
+             "is replaced. The door files the runeword once. Drives the shipped picker in node.",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,
