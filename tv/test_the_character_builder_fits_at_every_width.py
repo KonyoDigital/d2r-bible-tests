@@ -62,6 +62,27 @@ the stats (All Skills and Strength differ from the same build before them).
     fresh build also wears Crown of Ages (its Required Level read from its tooltip, above Gheed's): red and named as left
     out exactly when the level is below it.
 The fixture's fresh build is made at its level input's own max, so the charms it places can be used.
+#29(d) ROUND 9 (his answers 2026-09-28, "TIGHTEN"), in every Edit state at every width (the helm at the 7 widths, the
+rare Diadem and the magic Grand Charm at 2000 / 1280 / 375):
+  · THE EDIT WINDOW IS AS TALL AS WHAT IT HOLDS: no more than 12px of its body lies empty under its last line (a fixed
+    750-unit frame left ~40px under the helm at 2000, ~340px under a charm, ~230px on a 375 phone), and when it does
+    scroll inside itself no more than 12px of the glass is free under it (at 901x900 it scrolled 97px of the helm with
+    ~260px of glass unused).
+  · THE BUILDER'S TABS STAY IN VIEW WHILE IT IS OPEN: in every state with a modal (Select, Edit, the stash, an inventory
+    cell's picker, the mod states) and the tab row on the glass, the modal does not overlap the Equipment | Skill Tree |
+    Calculations row and each tab's centre hit-tests to that tab (at 1280x800 the Edit window's top was pulled to 108 and
+    covered EQUIPMENT; on a phone the sheet covered the whole glass).
+  · (superseded by round 2, REG-1379) no empty band under the builder, which round 1 met by stretching the last panels.
+#29 ROUND 2 (2026-09-28, the adversarial review of round 1, each finding reproduced on fe817ab7):
+  · REG-1376 HIS WORDS COST NO LINE: "cap 75%" (his ruling, kept) is wider than the "≤75%" it replaced and widened the value's
+    column, so a label beside it wrapped once more (Physical Damage Reduction 2 -> 3 lines at 1280x800, Lightning Resistance
+    1 -> 2 at 1280 and 2000). At every width, plain and with the helm worn: every capped row's label has the lines it has with
+    the cap chip taken away, the chip is one line and lies inside its row; 1280x800 and 901x900 are required.
+  · REG-1379 "Tighten both": THE BUILDER IS AS TALL AS WHAT IT HOLDS - round 1 filled the band under it by stretching
+    STRENGTHS AND WEAKNESSES and NOTES into empty boxes. At every width, plain and worn: where the window does not scroll it
+    ends under its content by its own bottom padding (no band) and STATS ends with the columns beside it (it was the glass's
+    height whatever stood there); where it scrolls it is the glass's height; in columns STRENGTHS AND WEAKNESSES and NOTES are
+    no taller than their own content (or their floors) with every stretch taken away.
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT, killed by the handle it holds (render_check._chrome_up / _chrome_down).
 ⚠ NO CHROME ON THIS MACHINE = a DECLARED skip (exit 77), never a pass.
@@ -436,6 +457,59 @@ SPILL = r"""(function(){ var out = [], st = document.querySelector('#cb-win .cb-
 #: the band where the stats column is tight enough for a label to wrap (measured 2026-09-26: every regression was 900-1240)
 SWEEP = range(900, 1401, 20)
 
+#: #29(d) round 9 - the Edit window's body: how much of it lies EMPTY under its last line, whether it scrolls, and how much
+#: of the glass is free under the window
+EDFIT = r"""(function(){ var m = document.getElementById('cb-modal'); if (!m || m.hidden) return JSON.stringify({ err: 'no modal open' });
+  var ed = m.querySelector('.cb-ed'); if (!ed) return JSON.stringify({ err: 'no Edit body (.cb-ed) in the modal' });
+  var mr = m.getBoundingClientRect(), er = ed.getBoundingClientRect(), cs = getComputedStyle(ed), lc = ed.lastElementChild;
+  var bodyBottom = er.top + ed.clientTop + ed.clientHeight;
+  var inkBottom = lc ? lc.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(lc).marginBottom) || 0) + (parseFloat(cs.paddingBottom) || 0) : er.top;
+  /* a number box's range hint (placeholder) against the room its box gives it, less the spin arrows */
+  var ph = [].map.call(m.querySelectorAll('input[type=number][placeholder]'), function(i){ var s = getComputedStyle(i), c = document.createElement('canvas').getContext('2d');
+    c.font = s.fontStyle + ' ' + s.fontWeight + ' ' + s.fontSize + ' ' + s.fontFamily;
+    return { id: i.id, ph: i.placeholder, text: c.measureText(i.placeholder).width, room: i.clientWidth - (parseFloat(s.paddingLeft) || 0) - (parseFloat(s.paddingRight) || 0) }; });
+  return JSON.stringify({ modal: [mr.left, mr.top, mr.width, mr.height], empty: bodyBottom - inkBottom, sh: ed.scrollHeight, ch: ed.clientHeight,
+    free: innerHeight - 8 - mr.bottom, sheet: m.classList.contains('cb-sheet'), n: ed.children.length, ph: ph }); })()"""
+#: #29(d) round 9 - the builder's own tab row while a modal is open: overlapped or not, and each tab's centre hit-tested
+TABS = r"""(function(){ var m = document.getElementById('cb-modal'), tb = document.querySelector('#cb-win .cb-ctabs');
+  if (!m || m.hidden) return JSON.stringify({ modal: false });
+  if (!tb) return JSON.stringify({ modal: true, err: 'the tab row (.cb-ctabs) is not drawn' });
+  var mr = m.getBoundingClientRect(), tr = tb.getBoundingClientRect(), vh = innerHeight;
+  var onScreen = tr.height > 0 && tr.bottom > 0 && tr.top < vh;
+  var over = mr.left < tr.right && mr.right > tr.left && mr.top < tr.bottom && mr.bottom > tr.top;
+  var hit = [].map.call(tb.querySelectorAll('.cb-ctab'), function(b){ var r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    var at = (y >= 0 && y < vh) ? document.elementFromPoint(x, y) : null; return { tab: b.textContent.trim(), seen: !!(at && (at === b || b.contains(at))) }; });
+  return JSON.stringify({ modal: true, onScreen: onScreen, room: vh - tr.bottom, over: over, hit: hit, tabs: [tr.left, tr.top, tr.width, tr.height],
+    at: [mr.left, mr.top, mr.width, mr.height] }); })()"""
+#: REG-1376 round 2 - every capped STATS row: its label's lines with the cap chip, and with the chip taken away (a style that
+#: hides it, removed in the same evaluate); the chip's own lines, and whether it lies inside its row
+CAPS = r"""(function(){ var rows = [].slice.call(document.querySelectorAll('#cb-win .cb-st-r:not([hidden])')).filter(function(r){ return !!r.querySelector('.cb-cap'); });
+  var lines = function(el){ var g = document.createRange(); g.selectNodeContents(el); var t = [];
+    [].forEach.call(g.getClientRects(), function(c){ if (c.width > 0.5 && !t.some(function(x){ return Math.abs(x - c.top) < 3; })) t.push(c.top); });
+    return t.length; };
+  var out = rows.map(function(r){ var c = r.querySelector('.cb-cap'), rr = r.getBoundingClientRect(), cr = c.getBoundingClientRect();
+    return { k: r.querySelector('.cb-sl').textContent.trim(), n: lines(r.querySelector('.cb-sl')), cap: c.textContent, capLines: lines(c),
+             capIn: cr.left >= rr.left - 0.5 && cr.right <= rr.right + 0.5 && cr.top >= rr.top - 0.5 && cr.bottom <= rr.bottom + 0.5 }; });
+  var s = document.createElement('style'); s.textContent = '#cb-win .cb-st-r .cb-cap{display:none !important}'; document.body.appendChild(s);
+  try { rows.forEach(function(r, i){ out[i].bare = lines(r.querySelector('.cb-sl')); }); } finally { s.parentNode.removeChild(s); }
+  return JSON.stringify(out); })()"""
+#: REG-1379 round 2 - the WINDOW against what it holds, STATS against the columns beside it, and the natural heights of
+#: STRENGTHS AND WEAKNESSES and NOTES: their own content (or their min-height floors) with every stretch taken away,
+#: measured by sizing each to max-content in place
+TIGHT = r"""(function(){ var w = document.getElementById('cb-win'), cb = w && w.querySelector('.cb'); if (!cb) return JSON.stringify({ err: 'no builder' });
+  var q = function(s){ return w.querySelector(s); }, bot = function(e){ return e ? e.getBoundingClientRect().bottom : null; };
+  var natural = function(e){ if (!e) return null; var s = e.style;
+    s.setProperty('height', 'max-content', 'important'); s.setProperty('flex', 'none', 'important'); s.setProperty('align-self', 'flex-start', 'important');
+    var h = e.getBoundingClientRect().height; s.removeProperty('height'); s.removeProperty('flex'); s.removeProperty('align-self'); return h; };
+  var wr = w.getBoundingClientRect(), sw = q('.cb-left > :last-child'), nt = q('.cb-notes');
+  return JSON.stringify({ stack: cb.classList.contains('cb-stack'), win: [wr.top, wr.bottom], cb: bot(cb), vh: innerHeight, sh: w.scrollHeight,
+    ch: w.clientHeight, pb: parseFloat(getComputedStyle(w).paddingBottom) || 0, left: bot(q('.cb-left')), notes: bot(nt), stats: bot(q('.cb-stats')),
+    sw: sw ? [sw.getBoundingClientRect().height, natural(sw), String(sw.className)] : null,
+    nt: nt ? [nt.getBoundingClientRect().height, natural(nt)] : null }); })()"""
+EDIT_STATES = ("edit", "mods", "gcmods")
+BAND_TOL = 1.5
+EMPTY_MAX = 12.0
+
 
 def _point_at(t, sel, i):
     """the pointer comes to rest on the i-th match (two real moves) - no click"""
@@ -522,6 +596,8 @@ def _measure():
             t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
             time.sleep(0.35)
             res["plain %dx%d" % (w, h)] = json.loads(t.ev(MEASURE))
+            res["caps plain %dx%d" % (w, h)] = json.loads(t.ev(CAPS))   # REG-1376 round 2
+            res["tight plain %dx%d" % (w, h)] = json.loads(t.ev(TIGHT))  # REG-1379 round 2
             res["tpl plain %dx%d" % (w, h)] = json.loads(t.ev(TEMPLATE))
         # equip by real input at 2000: the helm slot, the search box, the row; a roll typed; a charm dropped and dragged
         _set_size(t, 2000, 1300)
@@ -556,6 +632,12 @@ def _measure():
                 res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
                 if state == "worn":
                     res["tpl worn %dx%d" % (w, h)] = json.loads(t.ev(TEMPLATE))
+                    res["caps worn %dx%d" % (w, h)] = json.loads(t.ev(CAPS))    # REG-1376 round 2
+                    res["tight worn %dx%d" % (w, h)] = json.loads(t.ev(TIGHT))  # REG-1379 round 2
+                else:
+                    res["tabs %s %dx%d" % (state, w, h)] = json.loads(t.ev(TABS))       # #29(d) round 9
+                if state == "edit":
+                    res["edfit %s %dx%d" % (state, w, h)] = json.loads(t.ev(EDFIT))
         # #174 v-B2 fix round - the picker's list, by a real wheel, at 375 and 2000
         for (w, h) in ((375, 812), (2000, 1300)):
             _set_size(t, w, h)
@@ -573,6 +655,9 @@ def _measure():
                 t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % MOD_JS[state])
                 time.sleep(0.35)
                 res["%s %dx%d" % (state, w, h)] = json.loads(t.ev(MEASURE))
+                res["tabs %s %dx%d" % (state, w, h)] = json.loads(t.ev(TABS))           # #29(d) round 9
+                if state in EDIT_STATES:
+                    res["edfit %s %dx%d" % (state, w, h)] = json.loads(t.ev(EDFIT))
                 if state.endswith("addmod"):
                     res["fit %s %dx%d" % (state, w, h)] = json.loads(t.ev(FIT))
                 if state.startswith("gc"):
@@ -1184,6 +1269,140 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
             bad.append("Calculations' failed requirements: %r at level %d, %r at level %d" % (mc, gheed, lc, gheed - 1))
         self.assertEqual(bad, [], "a charm the level cannot use is not red, or still feeds STATS:\n  " + "\n  ".join(bad))
 
+    def test_round9_an_edit_window_is_as_tall_as_what_it_holds(self):
+        """#29(d) his answer 2026-09-28 ("TIGHTEN"): the Edit window is sized to its content - no empty lower third. In every
+        Edit state measured: at most EMPTY_MAX px of its body lies empty under its last line, and when its body scrolls, at
+        most EMPTY_MAX px of the glass is free under the window (it took the room before it scrolled)"""
+        r, bad, seen = _measure(), [], 0
+        for key, f in sorted(r.items()):
+            if not key.startswith("edfit "):
+                continue
+            seen += 1
+            if "err" in f:
+                bad.append("%s: %s" % (key, f["err"]))
+                continue
+            if f["n"] < 2:
+                bad.append("%s: PRINT THE DENOMINATOR - the Edit body drew %d block(s)" % (key, f["n"]))
+            if f["empty"] > EMPTY_MAX:
+                bad.append("%s: %.0fpx of the Edit window lies empty under its last line (window %s)" % (key, f["empty"], [round(v) for v in f["modal"]]))
+            if f["sh"] > f["ch"] + 1 and f["free"] > EMPTY_MAX:
+                bad.append("%s: it scrolls %dpx inside itself with %.0fpx of the glass free under it" % (key, f["sh"] - f["ch"], f["free"]))
+        self.assertGreaterEqual(seen, len(WIDTHS) + 2 * len(MOD_WIDTHS), "PREMISE: only %d Edit states were measured" % seen)
+        self.assertEqual(bad, [], "an Edit window is not sized to what it holds:\n  " + "\n  ".join(bad))
+
+    def test_round9_a_range_hint_in_a_number_box_is_shown_whole(self):
+        """#29(d) (the Grok CLI's cold look at v3522): the helm's Sockets box read "1-" - Chrome sizes an input[type=number] by
+        its max's digits, so a box whose max is 2 is one digit wide and its range hint "1-2" was cut under the spin arrows.
+        In every Edit state: every number box with a range hint gives it its text width plus the arrows (14px). Its first
+        run found a second one: the rare Diadem's Defense box (a base's Edit row) read "50-6" at 375"""
+        r, bad, seen = _measure(), [], 0
+        for key, f in sorted(r.items()):
+            if not key.startswith("edfit ") or "err" in f:
+                continue
+            for p in f.get("ph") or []:
+                seen += 1
+                if p["room"] < p["text"] + 14:
+                    bad.append("%s #%s: the hint %r needs %.0fpx and its box gives %.0fpx" % (key, p["id"], p["ph"], p["text"] + 14, p["room"]))
+        self.assertGreaterEqual(seen, len(WIDTHS), "PREMISE: only %d range hints were measured (the helm's Sockets at every width)" % seen)
+        self.assertEqual(bad, [], "a range hint is cut in its box:\n  " + "\n  ".join(bad))
+
+    def test_round9_the_builders_tabs_stay_in_view_while_a_modal_is_open(self):
+        """#29(d) his answer 2026-09-28: the builder's tabs stay visible while the Edit window is open - at 1280x800 it was
+        pulled up over EQUIPMENT, the tab it was editing for, and on a phone the sheet covered the whole glass. In every state
+        with a modal, where the tab row is on the glass with room under it: the modal does not overlap the row, and each
+        tab's centre hit-tests to that tab"""
+        r, bad, seen = _measure(), [], 0
+        for key, tb in sorted(r.items()):
+            if not key.startswith("tabs "):
+                continue
+            if not tb.get("modal"):
+                bad.append("%s: PREMISE - no modal was open in a modal state" % key)
+                continue
+            if "err" in tb:
+                bad.append("%s: %s" % (key, tb["err"]))
+                continue
+            if not tb["onScreen"] or tb["room"] < 280:
+                continue          # the row is off the glass (or has no room under it): nothing to keep in view here
+            seen += 1
+            if tb["over"]:
+                bad.append("%s: the modal %s lies over the tab row %s" % (key, [round(v) for v in tb["at"]], [round(v) for v in tb["tabs"]]))
+            hidden = [x["tab"] for x in tb["hit"] if not x["seen"]]
+            if hidden or len(tb["hit"]) != 3:
+                bad.append("%s: tabs not in view: %s (of %d)" % (key, hidden, len(tb["hit"])))
+        self.assertGreaterEqual(seen, 3 * len(WIDTHS), "PREMISE: the tab row was checked in only %d modal states" % seen)
+        self.assertEqual(bad, [], "a modal hides the builder's tabs:\n  " + "\n  ".join(bad))
+
+    def test_r2_his_cap_words_cost_no_label_a_line(self):
+        """REG-1376 (round 2, reproduced on fe817ab7): his ruling is the words "cap 75%" (kept), and on the number's line they
+        widened the value so its label wrapped once more - Physical Damage Reduction 2 -> 3 lines at 1280x800, Lightning
+        Resistance 1 -> 2 at 1280 and 2000. At every width, plain and with the helm worn: every capped row's label has the
+        lines it has with the chip taken away; the chip is one line and lies inside its row. PREMISE: the eight capped rows
+        (four resistances, three absorbs, damage reduction) at 1280x800 and 901x900 in both states"""
+        r, bad, seen = _measure(), [], {}
+        for key, rows in sorted(r.items()):
+            if not key.startswith("caps "):
+                continue
+            seen[key] = len(rows)
+            for x in rows:
+                if x["n"] != x["bare"]:
+                    bad.append("%s: %s is %d line(s) beside %r and %d without it" % (key, x["k"], x["n"], x["cap"], x["bare"]))
+                if x["capLines"] != 1:
+                    bad.append("%s: %s's chip %r wraps onto %d lines" % (key, x["k"], x["cap"], x["capLines"]))
+                if not x["capIn"]:
+                    bad.append("%s: %s's chip %r lies outside its row" % (key, x["k"], x["cap"]))
+                if not x["cap"].startswith("cap "):
+                    bad.append("%s: %s's chip reads %r, not his words 'cap N%%'" % (key, x["k"], x["cap"]))
+        for size in ("1280x800", "901x900"):
+            for state in ("plain", "worn"):
+                self.assertGreaterEqual(seen.get("caps %s %s" % (state, size), 0), 8,
+                                        "PREMISE: %s %s measured %s capped rows, not the eight" % (state, size, seen.get("caps %s %s" % (state, size))))
+        self.assertEqual(bad, [], "the cap chip costs a STATS label a line:\n  " + "\n  ".join(bad))
+
+    def test_r2_the_builder_is_as_tall_as_what_it_holds(self):
+        """REG-1379 his "Tighten both" (round 2): at every width, plain and worn - where the window does not scroll it ends
+        under its content by its own bottom padding (no band) and STATS ends with the columns beside it (it was the glass's
+        height whatever stood there, ~270px past them at 2000x1300); where it scrolls it is the glass's height exactly"""
+        r, bad, fits, scrolls = _measure(), [], 0, 0
+        for key, b in sorted(r.items()):
+            if not key.startswith("tight "):
+                continue
+            self.assertNotIn("err", b, "%s: %s" % (key, b))
+            if b["sh"] <= b["ch"] + 1:
+                fits += 1
+                band = b["win"][1] - b["cb"] - b["pb"]
+                if band > BAND_TOL:
+                    bad.append("%s: %.0fpx of empty band under the content, inside the window (it ends at %.0f of the glass's %.0f)"
+                               % (key, band, b["win"][1], b["vh"]))
+                if not b["stack"] and None not in (b["left"], b["notes"], b["stats"]):
+                    cols = max(b["left"], b["notes"])
+                    if abs(b["stats"] - cols) > BAND_TOL:
+                        bad.append("%s: STATS ends at %.0f and the columns beside it at %.0f" % (key, b["stats"], cols))
+            else:
+                scrolls += 1
+                if abs((b["win"][1] - b["win"][0]) - b["vh"]) > 0.5:
+                    bad.append("%s: it scrolls inside itself but is %.0fpx tall on a %.0fpx glass" % (key, b["win"][1] - b["win"][0], b["vh"]))
+        self.assertGreaterEqual(fits, 2, "PREMISE: only %d states fit the glass (2000x1300 plain and worn must)" % fits)
+        self.assertGreaterEqual(scrolls, 2, "PREMISE: only %d states scroll (375x812 plain and worn must)" % scrolls)
+        self.assertEqual(bad, [], "the builder is not as tall as what it holds:\n  " + "\n  ".join(bad))
+
+    def test_r2_no_builder_panel_is_stretched_past_what_it_holds(self):
+        """REG-1379 (round 2, reproduced on fe817ab7): round 1 filled the band under the builder by stretching STRENGTHS AND
+        WEAKNESSES and NOTES (an empty bordered box and an empty textarea at 2000x1300). In columns, plain and worn, at every
+        width: each is no taller than its own content (or its min-height floor), measured with every stretch taken away"""
+        r, bad, seen = _measure(), [], 0
+        for key, b in sorted(r.items()):
+            if not key.startswith("tight ") or b.get("err") or b.get("stack"):
+                continue
+            seen += 1
+            for name, v in (("STRENGTHS AND WEAKNESSES", b.get("sw")), ("NOTES", b.get("nt"))):
+                if not v or v[1] is None:
+                    bad.append("%s: %s is not drawn" % (key, name))
+                elif v[0] > v[1] + BAND_TOL:
+                    bad.append("%s: %s is %.0fpx tall and holds %.0fpx - %.0fpx of empty box" % (key, name, v[0], v[1], v[0] - v[1]))
+        cols = 2 * len([w for (w, h) in WIDTHS if w > 900])      # plain and worn at every column width
+        self.assertGreaterEqual(seen, cols, "PREMISE: only %d of %d column states were measured" % (seen, cols))
+        self.assertEqual(bad, [], "a builder panel is stretched past what it holds:\n  " + "\n  ".join(bad))
+
 
 def _rgba(s):
     """'rgb(3, 3, 3)' / 'rgba(16, 4, 70, 0.4)' -> (r, g, b, a), or None"""
@@ -1203,6 +1422,78 @@ def _over(top, under):
 
 
 RED_PROOF = [
+    {
+        "why": "#29(d) round 9 - a number box is one digit wide again and the helm's Sockets hint '1-2' reads '1-'",
+        "file": "bible.html",
+        "find": ".cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) round 9 - the base Edit's Defense box is 44px again and its hint '50-60' reads '50-6' on a phone",
+        "file": "bible.html",
+        "find": ".cb-ctl input[type=number][placeholder]{min-width:calc(7ch + 22px)}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) round 9 - the Edit window keeps its fixed 750-unit frame again (an empty lower third under a charm)",
+        "file": "bible.html",
+        "find": "    if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(Math.max(H, vh - top - 8)) + 'px'; }\n",
+        "replace": "    if (false){}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) round 9 - the phone's Edit sheet runs to the glass's bottom whatever it holds",
+        "file": "bible.html",
+        "find": "      if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(vh - top0 - 8) + 'px'; }\n",
+        "replace": "      if (false){}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) round 9 - the Edit window is pulled up over the builder's tabs again (EQUIPMENT hidden at 1280x800)",
+        "file": "bible.html",
+        "find": "    if (_tr && left < _tr.right && left + W > _tr.left && top < _tr.bottom + 6 && vh - (_tr.bottom + 6) - 8 >= 240){\n",
+        "replace": "    if (false){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#29(d) round 9 - the phone's sheet takes the whole glass again and covers the tabs",
+        "file": "bible.html",
+        "find": "top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;",
+        "replace": "top0 = 8;",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1379 round 2 - the builder is the glass's height again, with an empty band under its columns at 2000x1300",
+        "file": "bible.html",
+        "find": ".cb-win{bottom:auto;max-height:100vh;max-height:100dvh;",
+        "replace": ".cb-win{",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1379 round 2 - STATS is the glass's height again whatever stands beside it (~270px past the columns at 2000x1300)",
+        "file": "bible.html",
+        "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}\n",
+        "replace": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1379 round 2 - round 1's fix again: STRENGTHS AND WEAKNESSES and NOTES stretch into the band as empty boxes",
+        "file": "bible.html",
+        "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}\n",
+        "replace": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n.cb:not(.cb-stack){align-items:stretch}\n"
+                   ".cb:not(.cb-stack) .cb-body{align-self:stretch}\n.cb:not(.cb-stack) .cb-lc{flex:1 1 auto;align-items:stretch}\n"
+                   ".cb:not(.cb-stack) .cb-left > :last-child,.cb:not(.cb-stack) .cb-mc > .cb-notes{flex-grow:1}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1376 round 2 - the cap sits on the number's line again and widens the value: a label beside it wraps once more",
+        "file": "bible.html",
+        "find": ".cb-sv:has(> em.cb-cap)",
+        "replace": ".cb-sv:has(> em.cb-law-off)",
+        "matches": 4,
+    },
     {
         "why": "#174 v-B4 fix round - a unique's inventory tile is filled gold with a gold frame again (theirs: one indigo)",
         "file": "bible.html",
@@ -1349,7 +1640,8 @@ RED_PROOF = [
     {
         "why": "#174 R2 - the builder's STATS grows with its rows again and runs off the bottom of the window (the Grok seat: rows from Energy down sliced)",
         "file": "bible.html",
-        "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n",
+        # REG-1379 round 2 moved the rule: STATS is now the columns' height capped by the glass, and it is that rule removed
+        "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}\n",
         "replace": "",
         "matches": 1,
     },

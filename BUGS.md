@@ -205,6 +205,74 @@ keepFiled + a 'retro: TIER' flag (it still passes the 2-look witness check) and 
 The :154 assertion is flipped. MEASURED on a read-only copy of his ledger: rebuilt = Horadric Cube, Radiance (WATCHED
 2/2, 2 witness looks each). HEART: new test_a_reset_keeps_the_retro_rows_filed - the plan the real
 /api/vault_rebuild_plan handler serves, driven through the SHIPPED reset and door in node, twice; 4 red-proofs.
+### REG-1379 - "TIGHTEN BOTH" WAS MET BY STRETCHING PANELS INTO EMPTY BOXES; NOW THE WINDOWS ARE AS TALL AS WHAT THEY HOLD (#29d round 2, 2026-09-28)
+
+**SEEN (adversarial review of round 1, fe817ab7, reproduced):** his words for the mule window and the builder were
+"Tighten both". Round 1 removed the band under each window by stretching the last panel of each column into it, so the
+emptiness only moved inside: at 2000x1300 the mule window's STRENGTHS AND WEAKNESSES measured 374px (their 57), NOTES 434
+(their 206) and STATS 944 (their 726); the builder's STRENGTHS AND WEAKNESSES 337px holding 150 at 1024x768. The builder's
+STATS had been the glass's height whatever stood beside it since #174 R2. **FIX:** every panel is its own height again
+(their rects at 2000) and each WINDOW is as tall as its content: `.vault-detail.vd-fs.mp-on` and `.cb-win` take
+`bottom:auto; max-height:100vh/100dvh` - they end under their content by their own 30px padding, are capped by the glass
+and scroll inside themselves only when taller; the page under a short window is dimmed and inert (`html.vd-lock::after` /
+`html.cb-lock::after`, under each window's z-index); the edge is a shadow, so a capped window draws no line at the glass's
+bottom. The builder's STATS is `contain:size` + `align-self:stretch` + the old glass cap: exactly the columns' height,
+its rows scroll. Measured: mule 2000x1300 window 0..1082 (content 1052), builder 0..1030 (content 1000), 901x900 mule
+702 / builder 676 of 900; 1280x800 and 375x812 capped at the glass and scrolling. PNGs v3522r2_mule_* / builder_*.
+**HEART:** test_the_mule_window_fits_at_every_width (test_r2_the_window_is_as_tall_as_what_it_holds,
+test_r2_no_panel_is_stretched_past_what_it_holds, and the 2000 rects with heights again) and
+test_the_character_builder_fits_at_every_width (test_r2_the_builder_is_as_tall_as_what_it_holds,
+test_r2_no_builder_panel_is_stretched_past_what_it_holds); 5 new red-proofs + the moved #174 R2 STATS proof, all PROVEN.
+
+### REG-1378 - AN AGE THE FLEET CARD COULD NOT ESTABLISH READ "just now", AND A LANE THAT TICKED READ "no tick yet" (2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** a renamed host's "formerly" line aged lastSeen with `_fleetSince`,
+which answers "just now" for a time it cannot parse and for one after now ("formerly a · v1 · last seen just now" for
+"sometime tuesday"); `_fleetSince` itself said "just now" for any unreadable time. The worker nulls a lastKey it cannot
+read, so a triage lane with 9 ticks read "no tick yet" - a confident zero. **FIX:** `_fleetFormerParts(m, now)` ages
+lastSeen against the card's own now; absent, unparseable or future is "last seen age UNKNOWN". `_fleetSince`: unreadable
+is "age UNKNOWN" (a stamp slightly ahead stays "just now" - skew). No readable key: ticks 0 -> "no tick yet", ticks > 0 ->
+"last outcome unreadable", ticks not sent -> "last outcome UNKNOWN", on the fleet row AND the river's own triage line
+(the sibling). **HEART:** test_the_fleet_card_says_how_each_pc_films_and_drains
+(test_r2_an_age_the_card_cannot_establish_is_unknown_never_just_now,
+test_r2_a_lane_that_ticked_without_a_readable_outcome_is_never_no_tick_yet), 4 red-proofs PROVEN.
+
+### REG-1377 - A WRAPPED FLEET FACT LINE STRANDED A MIDDOT (2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** inside a films / river / triage line the facts were one string
+joined by " · ", so a wrap left a middot alone: at 375 a river line read "TRIAGE 2 · PRINTER 3 ·", at 1280 a triage line
+ended "walking (53s ago) ·". **FIX:** exactly the river's own `.shr-tri` fix - each fact its own flex item, the gap is
+the separator (a separator that wraps is orphaned at one end or the other; choosing which end is not a fix); the key hangs
+in the indent; the "formerly" line too. `t` (the joined text) is unchanged for readers. **HEART:**
+test_the_fleet_card_says_how_each_pc_films_and_drains (test_r2_each_fact_is_its_own_item_with_no_glyph_between_them;
+test_r2_no_line_of_a_fact_row_starts_or_ends_with_a_middot - Chrome at 375 and 1280, line by line from each character's
+rect, with the premise that a row really wraps at 375), 1 red-proof PROVEN.
+
+### REG-1376 - HIS "cap 75%" COST A STATS LABEL A LINE (#29b round 2, 2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** his ruling is the words "cap 75%" (kept). On the number's line they
+are wider than the "≤75%" they replaced and widened the value's column, so the label beside it wrapped once more:
+Physical Damage Reduction 2 -> 3 lines at 1280x800 (the reviewer's state), Lightning Resistance 1 -> 2 at 1280 and 2000,
+Fire / Cold Resistance and the absorbs at 900-1180. **FIX (CSS only, the markup the join laws pin is unchanged):** a capped
+value (`.cb-sv:has(> em.cb-cap)`) is a block of text - the number and its source chip flow as words (the chip wraps under
+the number only when the row is too tight for both, round 8's rule) and the cap is its own line under them, right-aligned
+and never wrapped; a block's widest line is its width, so the cap never adds to the number and source. Swept 900-1400
+every 40px + 375/800/901/1024/1120/1280/2000, plain and with the helm worn, Fire widened: 0 labels changed by the cap, 0
+drops, 0 chips outside their row, nothing sideways. (A first cut as a 2-column grid overflowed the worn build's RANGE rows
+at 900-1000; the law's own sweep caught it.) **HEART:** test_the_character_builder_fits_at_every_width
+(test_r2_his_cap_words_cost_no_label_a_line), 1 red-proof PROVEN.
+
+### REG-1375 - THE #174 EDIT PANEL COVERED THE MULE WINDOW'S OWN TABS (#29d round 2, 2026-09-28)
+
+**SEEN (review of round 1, reproduced on fe817ab7):** `_cbPlace`'s tabs-stay-visible rule (#29 d, his words: the Edit
+window hides the active tab) was skipped for the mule host (`mh0 ? null : _cbTabsBottom(vh)` in both branches). The
+#174 Edit panel lives in the mule window, so its Select and Edit modals covered EQUIPMENT / STASH at every width
+(1024x768 Edit: modal top 146, tabs 151..177) and the phone sheet covered all four. **FIX:** `_cbTabsBottom(vh, mule)`
+reads the tab row of the window the modal is in (`#vault-detail .mp-ctabs` in the mule host) and both branches apply the
+rule to it. Measured: every width 375-2000, both arrangements, Select and Edit - the modal starts under the tabs, all
+four hit-test. **HEART:** test_the_mule_window_fits_at_every_width
+(test_r2_the_mule_windows_tabs_stay_in_view_while_its_picker_is_open, a database helm placed through the host's own
+Select so Edit really opens), 2 red-proofs PROVEN.
 
 ### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
 
