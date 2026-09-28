@@ -169,12 +169,12 @@ class _Base(unittest.TestCase):
         return {"reels": self.walks, "frames": 3 if self.walks else 0, "panels": 0,
                 "stoppedEarly": False, "say": "stub survey"}
 
-    def reel(self, name="reel_s_1789000000000_1", frames=3, age_s=HOUR):
+    def reel(self, name="reel_s_1510000000000_1", frames=3, age_s=HOUR):
         """A folded reel on the fixture shelf, last modified `age_s` ago."""
         d = os.path.join(self.world, name)
         os.makedirs(d, exist_ok=True)
         for i in range(frames):
-            with io.open(os.path.join(d, "f_%d.jpg" % (1789000000000 + i)), "wb") as fh:
+            with io.open(os.path.join(d, "f_%d.jpg" % (1510000000000 + i)), "wb") as fh:
                 fh.write(b"\xff\xd8\xff")
         t = time.time() - age_s
         os.utime(d, (t, t))
@@ -256,7 +256,7 @@ class TriageRunsBesideAShadowReel(_Base):
         self.rolling("shadow")
         self.cpu = 20.0
         r = self.tick()
-        self.assertEqual(self.surveyed, [["reel_s_1789000000000_1"]],
+        self.assertEqual(self.surveyed, [["reel_s_1510000000000_1"]],
                          "a shadow reel rolling beside a 20%%-busy machine still blocked triage: %r" % r)
         self.assertTrue(r.get("ok"), r)
         self.assertEqual(r.get("key"), "surveyed")
@@ -264,7 +264,7 @@ class TriageRunsBesideAShadowReel(_Base):
         lane = ca._TRIAGE_LANE
         self.assertEqual(lane["surveyed"], 1)
         self.assertIsNotNone(lane["lastTs"], "a walk that happened was not stamped")
-        self.assertEqual(lane["lastReel"], "reel_s_1789000000000_1")
+        self.assertEqual(lane["lastReel"], "reel_s_1510000000000_1")
         self.assertEqual(lane["backlog"], 0, "the backlog after the only reel was walked must be 0")
         self.assertEqual(lane["skips"], {}, "a successful walk was counted as a refusal")
 
@@ -327,7 +327,7 @@ class TriageRunsBesideAShadowReel(_Base):
         self.assertEqual(self.tick().get("key"), "cpu-shadow", "one point above the bar was let through")
         self.cpu = bar
         self.assertEqual(self.tick().get("key"), "surveyed", "the bar itself must be allowed")
-        self.reel("reel_s_1789000000001_2")
+        self.reel("reel_s_1510000000001_2")
         os.environ["TV_TRIAGE_SHADOW_MAX_CPU"] = "95"
         self.cpu = 90.0
         self.assertEqual(self.tick().get("key"), "surveyed",
@@ -408,10 +408,10 @@ class EveryOutcomeIsRecorded(_Base):
         self.assertEqual(ca._TRIAGE_LANE["backlog"], 1, "a settling reel is still OWED")
 
     def test_a_frameless_reel_does_not_park_the_lane(self):
-        self.reel("reel_s_1789000000000_0", frames=0)
-        self.reel("reel_s_1789000000001_1", frames=4)
+        self.reel("reel_s_1510000000000_0", frames=0)
+        self.reel("reel_s_1510000000001_1", frames=4)
         r = self.tick()
-        self.assertEqual(self.surveyed, [["reel_s_1789000000001_1"]],
+        self.assertEqual(self.surveyed, [["reel_s_1510000000001_1"]],
                          "smallest-first picked the reel with NO frame, which survey() skips without "
                          "remembering - the lane would pick it again every tick for ever")
         self.assertEqual(r.get("frameless"), 1)
@@ -701,7 +701,7 @@ class TheGameOnThisMachine(_Base):
         r = self.tick()
         self.assertEqual(r.get("key"), "surveyed",
                          "a Boosteroid session with no local D2R.exe starved triage again: %r" % r)
-        self.assertEqual(self.surveyed, [["reel_s_1789000000000_1"]])
+        self.assertEqual(self.surveyed, [["reel_s_1510000000000_1"]])
 
     def test_a_windows_probe_that_cannot_run_refuses_and_says_unknown(self):
         self.reel()
@@ -754,7 +754,7 @@ class TheGameOnThisMachine(_Base):
             self.assertTrue(TVD._d2r_process_alive())
             outcome.clear(); outcome["rc"] = 1
             self.assertEqual(self.tick().get("key"), "surveyed")
-        self.assertEqual(self.surveyed, [["reel_s_1789000000000_1"]])
+        self.assertEqual(self.surveyed, [["reel_s_1510000000000_1"]])
 
 
 class TheStoreMustKeepTheWalk(_Base):
@@ -840,7 +840,7 @@ class TheWaitIsHowLongAReelWaited(_Base):
     def _an_idle_day(self):
         ts = int((time.time() - 24 * HOUR) * 1000)
         with io.open(RT._store_path(), "w", encoding="utf-8") as fh:
-            json.dump({"reel_s_1788000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
+            json.dump({"reel_s_1500000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
         ca._TRIAGE_LANE["upSince"] -= int(48 * HOUR * 1000)
 
     def test_a_day_old_store_row_and_a_reel_folded_moments_ago_reads_ok(self):
@@ -896,7 +896,7 @@ class ABootIsNotAStarvedLane(_Base):
     def _five_hour_old_walk(self):
         ts = int((time.time() - 5 * HOUR) * 1000)
         with io.open(RT._store_path(), "w", encoding="utf-8") as fh:
-            json.dump({"reel_s_1788000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
+            json.dump({"reel_s_1500000000000_9": {"panels": 0, "frames": 3, "ts": ts, "full": True}}, fh)
 
     def test_a_lane_that_has_not_ticked_yet_is_unknown_not_missing(self):
         self._five_hour_old_walk()
@@ -1161,7 +1161,7 @@ class ReviewRoundTwo(_Base):
         def _mono():
             clock[0] += 2.0          # every frame costs 2 s: 100 frames would be 200 s between asks
             return clock[0]
-        d = os.path.join(self.world, "reel_s_1789000000000_9")
+        d = os.path.join(self.world, "reel_s_1510000000000_9")
         os.makedirs(d, exist_ok=True)
         for i in range(12):
             with open(os.path.join(d, "f_17890000%05d.jpg" % i), "wb") as fh:
@@ -1287,14 +1287,14 @@ class TheSurveyStopsWhenAsked(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="triage_abort_")
         self.addCleanup(shutil.rmtree, self.root, True)
-        self.a, self.b = self._reel("reel_s_1789000000000_1"), self._reel("reel_s_1789000000000_2")
+        self.a, self.b = self._reel("reel_s_1510000000000_1"), self._reel("reel_s_1510000000000_2")
         self.calls = 0
 
     def _reel(self, name, frames=5):
         d = os.path.join(self.root, name)
         os.makedirs(d)
         for i in range(frames):
-            with io.open(os.path.join(d, "f_%d.jpg" % (1789000000000 + i)), "wb") as fh:
+            with io.open(os.path.join(d, "f_%d.jpg" % (1510000000000 + i)), "wb") as fh:
                 fh.write(b"\xff\xd8\xff")
         return d
 
@@ -1693,8 +1693,8 @@ RED_PROOF = [
     {
         "why": "review 1 - any other outcome no longer ends the run of play: two sessions read as one",
         "file": "control_app.py",
-        "find": "    else:\n        L[\"playingSince\"] = None\n",
-        "replace": "    else:\n        pass\n",
+        "find": "    elif key != \"playing-unknown\":\n        L[\"playingSince\"] = None\n",
+        "replace": "    elif key != \"playing-unknown\":\n        pass\n",
         "matches": 1,
     },
     {
@@ -1735,8 +1735,8 @@ RED_PROOF = [
     {
         "why": "review 6 - survey asks the hook only between reels, so one long reel walks on beside his game",
         "file": "retro_triage.py",
-        "find": "            if walked_here and walked_here % every == 0:\n",
-        "replace": "            if False:\n",
+        "find": "            if walked_here and (walked_here % every == 0\n",
+        "replace": "            if False and (walked_here % every == 0\n",
         "matches": 1,
     },
     {

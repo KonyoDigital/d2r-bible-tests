@@ -7,6 +7,57 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
+
+**SEEN:** the first cut of the quiet-relaunch law drove open_control_window(). That call runs start_background_watchers(),
+which started the REAL drift loop inside the test, and the drift loop's direct os.execv replaced the test process and
+rewrote his .tvd_window.pid and .relaunch_receipt.json - twice, because a failed edit script was chained to a test run.
+Both files were restored by hand. **FIX:** the window's options come from the pure _control_window_kwargs(); every case
+in the update law makes os.execv FAIL instead of exec; a guard law (NoLawOpensTheRealConsole) reads every law with
+tokenize and fails any CALL of open_control_window or start_background_watchers. Same batch: a relaunch beside his game
+opens minimized, unfocused and never fullscreen (TV_QUIET_RELAUNCH); an EXPIRED hold neither cuts the shadow reel nor
+keeps the shadow door shut; the drift loop's own exec takes the green-light lock. **LAW:** test_an_update_lands_beside_a_shadow_reel.
+
+### REG-1364 - TEST REEL IDS SAT IN THE REAL-FOOTAGE RANGE (2026-09-28)
+
+**SEEN:** test_a_gate_may_not_pin_his_footage went red: the triage and beacon laws named reel_s_1789000000000_* - a 2026
+epoch, the range his recordings use, so each id would pin footage. **FIX:** moved to the synthetic 15xxxxxxxxxxx range
+(2017), order kept. **LAW:** test_a_gate_may_not_pin_his_footage (unchanged, green again).
+
+### REG-1363 - MORE SIGHTINGS THAN LOOKS SCORED AS A PERFECT RECORD (2026-09-28)
+
+**SEEN (second eye on v3520, 4877464e):** vault_evidence.tier() clamped successes to trials, so 15 sightings over 10 looks
+became 10 of 10 and could clear the PROVEN bar. More successes than trials means the counts were taken in different
+units (frames against visits). **FIX:** that count is UNKNOWN and nothing is re-filed from it. The shared
+confidence.wilson_lower keeps its clamp: every other caller counts k as a subset of n (swept). **LAW:**
+test_the_evidence_rebuilds_what_is_proven.
+
+### REG-1362 - THE HEART'S EVIDENCE ROW NEVER OPENED THE SHELF (2026-09-28)
+
+**SEEN (second eye on v3520, 7fcb836c):** console_doctor registers _check_the_evidence_tiers with no arguments, so its
+shelf root stayed None and the row read "picture gone: UNKNOWN" for ever. MEASURED on his Mac after the fix: 20 of the
+27 pictures his witness ledger cites are not on the shelf. **FIX:** the live call (no arguments) opens the console's own
+shelf (TV_HIST or frames/hist); a law that passes its own paths is unchanged. 0.02 s on his shelf. **LAW:**
+test_the_vault_heart_says_what_the_reset_and_the_tiers_did.
+
+### REG-1361 - THE DISK FLOOR TOOK FOOTAGE A LAW PINS (2026-09-28)
+
+**SEEN:** reel_reaps.jsonl on his Mac: at 02:43 the recorder's disk-floor reaper removed reel_s_1785708285647_38665 (98
+frames) and reel_s_1786385768689_67392 (217), the two oldest of 20 - both on the blessed list in test_reel_refs.json that
+the retention planner never touches; a gate proving itself on one of them now reads UNPROVABLE there. **FIX:** the pure
+_reap_victim(): a cited reel is never taken (unchanged), the oldest UNPINNED reel goes first, a pinned one only when
+nothing else may (a full disk stops recording). reel_reaps.jsonl is now gitignored - his runtime record. **LAW:**
+test_reel_reaper (TheReaperSparesPinnedFootage).
+
+### REG-1360 - THE FRAME INDEX STAT'D EVERY FILE: 33 s FOR THE RIVER ON HIS ALT (2026-09-28)
+
+**SEEN:** GET /api/river took 32.8 s on the ALT (Windows + Boosteroid, 14 reels) and 4.1 s for 66 reels on his Mac. A
+read-only profile on the ALT put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in
+frame_ref.Index and 1.7 s in 21,349 relpath calls; reel_retention._dir_mb summed sizes the same way. **FIX:** one
+os.scandir listing per folder (on Windows the listing carries the size), paths from the folder prefix, same walk order,
+a symlinked folder not entered. On the ALT's real 21,383 frames: identical index, 1.0-1.4 s -> 0.25-0.32 s. **LAW:**
+test_a_frame_index_lists_each_folder_once.
+
 ### REG-1348 - THE v3521 SECOND EYE: SIX FINDINGS, ALL REPRODUCED IN CODE, ALL FIXED (2026-09-28)
 
 **SEEN (grok-cli on a3f7a020..69d4ebb0):** (1) apply_plan writes the tombstone `kept` row BEFORE the delete, and plan()

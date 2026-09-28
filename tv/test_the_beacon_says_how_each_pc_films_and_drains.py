@@ -375,7 +375,7 @@ class NothingIdentifyingCrosses(_World):
             "ticks": 3, "lastKey": "raised", "skips": {"raised": 3, "C:\\evil": 1},
             "lastWhy": ("the tick raised OSError: [Errno 13] C:\\Users\\Dean\\tv\\retro_triage.json and "
                         "/Users/konyo/d2r_bible_tests/tv/x.json via https://bull-4-u.com/api/console "
-                        "from 10.0.0.4 on MYHOST-7 for reel_s_1789000000000_1")})
+                        "from 10.0.0.4 on MYHOST-7 for reel_s_1510000000000_1")})
         with mock.patch.object(ca.socket, "gethostname", return_value="MYHOST-7"):
             wire = json.dumps(ca._system_for_wire())
             tri = ca._triage_for_wire()
@@ -414,6 +414,10 @@ REAL_SHAPES = {
     "url": "open file:///Users/Dean Smith/d2r/x.json failed",
     "apostrophe": "C:\\Users\\Dean O'Brien\\tv\\x.json failed",
     "onedrive": "C:\\Users\\Dean\\OneDrive - Acme Corp\\Desktop\\x.json",
+    # a path with NO home folder and no backslash - only the path scrub itself can catch it (heart2 found the
+    # path-scrub red-proof BLIND: every shape above was also caught by the user or backslash scrub)
+    "posix": "the tick raised %s: %s" % ("FileNotFoundError", FileNotFoundError(
+        2, "No such file or directory", "/var/folders/zq/Acme_T/tvd/x.json")),
 }
 REAL_LEAKS = ("Dean", "Smith", "Brien", "Acme", "Corp", "Desktop")
 
@@ -679,7 +683,7 @@ RED_PROOF = [
         "why": "review 3 - the user-folder scrub is dropped: 'C:\\\\Users\\\\Dean Smith\\\\...' leaks 'Smith' "
                "to the fleet",
         "file": "control_app.py",
-        "find": "    txt = _WIRE_USER_RX.sub(\"<user>\", txt)\n",
+        "find": "    txt = _WIRE_USER_RX.sub(\"<user>\", txt)           # FIRST: a user folder with spaces, quoted or not\n",
         "replace": "",
         "matches": 1,
     },
@@ -693,7 +697,7 @@ RED_PROOF = [
     {
         "why": "review 3 - the worker's second scrub stops at a space: a spaced user name crosses the PUBLIC boundary",
         "file": "functions/api/console.js",
-        "find": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/'\"]+/gi, '<user>')\n",
+        "find": "          .replace(/\\b(?:Users|home)[\\\\/]+(?:[^'\"]|'(?=\\w))*/gi, '<user>')\n",
         "replace": "",
         "matches": 1,
     },
