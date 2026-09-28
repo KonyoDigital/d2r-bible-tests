@@ -7540,6 +7540,17 @@ GATES = [
              "damage, attack rating, and 5% faster hit recovery. An armour prefix and a second prefix are refused. "
              "A move keeps the mods. A charm with no mods still says its base.",
          skip_ok=()),
+    Gate("test_an_inventory_charm_carries_its_picture_on_the_pointer",
+         [sys.executable, os.path.join(HERE, "test_an_inventory_charm_carries_its_picture_on_the_pointer.py")], 90,
+         needs_app=False,
+         why="#174 wave 2 (ACT 5855265931) - lifting a mule-inventory charm puts that charm's own picture on the "
+             "pointer. The picture is the mule drag's ghost (vd-ghost), not a second cursor: its HTML is the art "
+             "the tile drew. A Fine Small Charm of Balance still carries the Small Charm picture, not the composed "
+             "name. Off the grid the picture sits on the pointer at the size it was lifted. Over a cell it sits on "
+             "that green footprint at the charm's own width and height (a grand charm is three rows, not one). A "
+             "press that does not move paints nothing. Letting go takes the picture off the pointer and an air "
+             "drop does not write. Drives the shipped listeners in node.",
+         skip_ok=()),
     Gate("test_the_runeword_base_tab_is_theirs",
          [sys.executable, os.path.join(HERE, "test_the_runeword_base_tab_is_theirs.py")], 90,
          needs_app=False,

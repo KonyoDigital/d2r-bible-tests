@@ -7,6 +7,10 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1339 - A LIFTED CHARM'S PICTURE WAS NOT HELD ON THE POINTER (wave 2)
+
+**SEEN:** the mule drag already copies the tile onto vd-ghost, and no law held that copy. A cursor that showed the charm's text name, sat at the corner, drew every charm one row tall, or stayed after the drop would still be green. **FIX:** no second cursor. The same ghost is the picture: the art the tile drew, on the pointer off the grid, on the charm's own footprint over a cell. A Fine Small Charm of Balance keeps the Small Charm picture. A press that does not move paints nothing. Letting go takes the picture off. **LAW:** `test_an_inventory_charm_carries_its_picture_on_the_pointer` (heart2 --prove 4/4 PROVEN).
+
 ### REG-1338 - A MULE CHARM'S PREFIX AND SUFFIX DID NOT NAME THE TILE (wave 2)
 
 **SEEN:** Add Mod already wrote Fine and of Balance onto a Small Charm in the mule 10x4, and the hover already said Fine Small Charm of Balance. The tile, its spoken name, and the inventory list still said Small Charm. **FIX:** those three ask the builder's own name composer. The store keeps the base name, so the charm stays a generic copy and the door does not file the composed name. The picture stays the base. A charm with no mods still says its base. A move keeps the mods. **LAW:** `test_an_inventory_charm_keeps_a_prefix_and_a_suffix` (heart2 --prove 3/3 PROVEN).
