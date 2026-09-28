@@ -26451,7 +26451,12 @@ def shadow_watch_tick():
         roll = _rolling_reel()
         if roll.get("door") == "shadow":
             pre = capture_preflight("shadow", look_for_window=True)
-            if pre.get("windowSeen") is False:
+            _since = roll.get("since")
+            _age_s = ((now - int(_since)) / 1000.0) if isinstance(_since, (int, float)) else None
+            # an hour already owed still rolls over below. The grace is only for a reel that
+            # has not run its hour, so one missed look does not cut it.
+            _hour_owed = _age_s is not None and _age_s >= _shadow_rotate_after_s()
+            if pre.get("windowSeen") is False and not _hour_owed:
                 cur = _shadow_watch_stored() or {}
                 gone = cur.get("gameGoneSince")
                 if not isinstance(gone, (int, float)):

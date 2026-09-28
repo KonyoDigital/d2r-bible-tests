@@ -162,8 +162,8 @@ RED_PROOF = [
         "why": "putting the reader's diagnostic back as the seed is the original defect; the AST "
                "law must turn red",
         "file": "control_app.py",
-        "find": "    cur = _shadow_watch_stored()",
-        "replace": "    cur = shadow_watch_state()",
+        "find": "    cur = _shadow_watch_stored()\n    if cur is None:",
+        "replace": "    cur = shadow_watch_state()\n    if cur is None:",
         "matches": 1,
     },
     {
