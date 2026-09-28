@@ -326,6 +326,23 @@ except Exception:
     fi
     echo "pre-push: [$(_pp_el)] ✅ the second eye looked at $_prev_ver."
   fi
+  # ⚠⚠ 2026-09-28 — AN UNBUMPED PUSH OF A SURFACE HE CAN SEE IS REFUSED. The block above asks for the second
+  # eye only when the version CHANGES, so a push that never bumps skips the look for ever - and his console keeps
+  # showing the old version while new code runs. MEASURED: 27 commits went live after v3520 (bible.html and the
+  # console among them) with no stamp and no look; he asked "i see no versions have been shipped". A change to
+  # bible.html or tv/control_ui.html must ship as a version (tv/bump_version.py), which then earns its look.
+  if [ -n "$_prev_ver" ] && [ "$_prev_ver" = "$_this_ver" ] \
+     && [ -n "$_se_remote" ] && [ "$_se_remote" != "0000000000000000000000000000000000000000" ]; then
+    _pp_vis="$(git diff --name-only "$_se_remote" "$_se_local" -- bible.html tv/control_ui.html 2>/dev/null | head -3 | tr '\n' ' ')"
+    if [ -n "$_pp_vis" ]; then
+      echo "pre-push: [$(_pp_el)] ❌ this push changes what he SEES ($_pp_vis) but is still stamped $_this_ver,"
+      echo "          the version already live - so his console would not change its number, and the second eye"
+      echo "          (asked only when the version changes) would never look. Stamp it first:"
+      echo "              python3 tv/bump_version.py vNNNN \"name\" \"note HEART: ...\""
+      echo "          (deliberate exception: git push --no-verify)"
+      exit 1
+    fi
+  fi
   # ⚠⚠ v2794 — THE MAP GOES STALE SILENTLY, AND IT DID: measured 2026-09-08, BLUEPRINT.md had not
   # been regenerated since Sep 2 and knew nothing of the river or the printer — `station` 0
   # mentions, `INTAKE` 0, `TOMBSTONE` 0, `printer` 0. Both were built after that date. The file's
