@@ -1179,6 +1179,67 @@ def fleet_drop_non_machines(fl):
     return out
 
 
+def fleet_merge_same_install(fl):
+    """ONE INSTALL IS ONE MACHINE, whatever its host happens to be called. -> a NEW dict, merges STATED.
+
+    ★ Konyo, 2026-09-28, pointing at his fleet panel: "i see another grok bot fix it if it doesnt really exist".
+
+    MEASURED: the roster held two GrokBot rows with the SAME install id (1bba07477e40) - machine
+    "grok-bot-vm-..." live on v3521, and machine "cursor" last seen 2026-09-20 on v3377. The worker keys its
+    records by MACHINE NAME (console:<machine>, lastseen:<machine> with a 400-day TTL), so when a console's
+    host is renamed the old name keeps a row of its own - a ghost PC with 8-day-old counts ("as of 8d ago")
+    and a "differs" chip that no real machine owns.
+
+    The install id is the identity (fleet_drop_non_machines already treats it so). Rows sharing one keep
+    the NEWEST (by seenAt/t); every older row folds into it as `formerMachines` (name, last seen, version)
+    and is listed in `fl["mergedInstalls"]` - merged, never silently dropped. [[unknown-stays-unknown]]
+    """
+    if not isinstance(fl, dict):
+        return fl
+    out = dict(fl)
+
+    def _when(m):
+        return str(m.get("seenAt") or m.get("t") or "")
+
+    rows = []
+    for bucket in ("online", "offline"):
+        for m in (out.get(bucket) or []):
+            rows.append((bucket, m))
+    newest = {}
+    for bucket, m in rows:
+        inst = str(m.get("install") or "").strip()
+        if not inst:
+            continue
+        if inst not in newest or _when(m) > _when(newest[inst][1]):
+            newest[inst] = (bucket, m)
+    merged = []
+    keep = {"online": [], "offline": []}
+    folded = {}
+    for bucket, m in rows:
+        inst = str(m.get("install") or "").strip()
+        if inst and newest.get(inst, (None, None))[1] is not m:
+            folded.setdefault(inst, []).append({"machine": m.get("machine"), "lastSeen": _when(m) or None,
+                                                "ver": m.get("ver")})
+            merged.append({"install": inst, "machine": m.get("machine"),
+                           "into": newest[inst][1].get("machine"),
+                           "why": "the same install id reported later as %r - one console, a renamed host"
+                                  % newest[inst][1].get("machine")})
+            continue
+        keep.setdefault(bucket, []).append(m)
+    for bucket in ("online", "offline"):
+        if bucket in out:
+            rows_b = []
+            for m in keep.get(bucket, []):
+                inst = str(m.get("install") or "").strip()
+                if inst in folded:
+                    m = dict(m)
+                    m["formerMachines"] = folded[inst]
+                rows_b.append(m)
+            out[bucket] = rows_b
+    out["mergedInstalls"] = merged
+    return out
+
+
 def fleet_annotate_lag(fl):
     """Stamp every machine that is NOT this one with how far behind it is. -> a NEW dict.
 
@@ -35427,6 +35488,7 @@ class Handler(BaseHTTPRequestHandler):
                     _fl["ahead"] = _os_.get("ahead")
                     _fl["publishedVer"] = _os_.get("publishedVer")
                     _fl = fleet_drop_non_machines(_fl)   # v2297 — his probe was not a PC
+                    _fl = fleet_merge_same_install(_fl)  # 2026-09-28 — a renamed host is not a second PC
                     _fl = fleet_annotate_lag(_fl)        # v2296 — see fleet_annotate_lag
             except Exception:
                 pass
@@ -35452,6 +35514,10 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if isinstance(_fl, dict):
                     _lg, _lgAge = fleet_presence_last_good()
+                    # the stale roster is shown when the fleet cannot be reached - the ghost of a
+                    # renamed host must not come back through it (2026-09-28)
+                    if isinstance(_lg, dict):
+                        _lg = fleet_merge_same_install(fleet_drop_non_machines(_lg))
                     _fl["lastGood"] = _lg
                     _fl["lastGoodAgeS"] = _lgAge
                     _fl["lastGoodWhy"] = (
