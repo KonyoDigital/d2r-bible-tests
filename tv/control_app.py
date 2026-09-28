@@ -8479,7 +8479,7 @@ def _judge_already_near(rows, ts, window_ms=6000):
     return False
 
 
-def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False, tag=None):
+def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False, tag=None, scene=None):
     """Shared evaluate_js payload: aicJudge → aicJudgeApply → /kai_verdict.
     live=True tags the body so journals/notes distinguish mid-session vs post-seal.
     v949.x — optional `tag` (e.g. 'super') rides through to /kai_verdict as res.tag so a
@@ -8491,14 +8491,15 @@ def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False, tag=None):
         "if(typeof W.aicJudge!=='function')return 0;"
         "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
         "return W.aicJudge(new W.File([b],'kai-judge.jpg',{type:'image/jpeg'}))}).then(function(res){"
-        "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;res.live=%s;%s"
+        "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;res.live=%s;res.scene=%s;%s"
         "try{if(res.ok&&typeof W.aicJudgeApply==='function'){"
-        "res.applied=W.aicJudgeApply(res,{sid:res.sid,frameId:res.frameId,fts:res.fts})||null"
+        "res.applied=W.aicJudgeApply(res,{sid:res.sid,frameId:res.frameId,fts:res.fts,scene:res.scene})||null"
         "}}catch(_ae){res.applied={ok:false,why:String(_ae&&_ae.message||_ae)}}"
         "fetch('/kai_verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)}).catch(function(){})"
         "}).catch(function(){});return 1}catch(e){return 0}})()"
     ) % (json.dumps(hist_path), json.dumps(sid or ""), json.dumps(frame_id or ""),
          json.dumps(int(fts or 0)), "true" if live else "false",
+         json.dumps(str(scene).strip().lower() if scene else None),
          ("res.tag=" + json.dumps(str(tag)) + ";") if tag else "")
 
 
@@ -8720,7 +8721,7 @@ def _kai_compile_register(sess_rows):
     fulln = _kai_fullnames()
     reg = {}   # name.lower() -> record
 
-    def _consider(name, ts, frame_id, loc, tier):
+    def _consider(name, ts, frame_id, loc, tier, scene=None):
         nm = str(name or "").strip()
         if not nm:
             return
@@ -8743,8 +8744,11 @@ def _kai_compile_register(sess_rows):
         ts = int(ts or 0)
         cur = reg.get(low)
         if cur is None:
+            # 2026-09-28 — AND THE SCENE THE READER SAW (inventory / stash / chronicle / loot ...). It knew it for
+            # every frame and it was dropped here, so the board row's `loc` was null for 397 of 400 rows and the
+            # vault route could not tell a Chronicle page from a worn item. [[heart-first]] rule 6.
             reg[low] = {"name": nm, "firstSeenTs": ts, "frameId": frame_id or "",
-                        "loc": loc, "tier": (tier or None)}
+                        "loc": loc, "tier": (tier or None), "scene": (scene or None)}
             return
         # earliest sighting wins the frame/ts/loc (a factual "when was it first seen" —
         # first really is best there). TIER is a QUALITY verdict, not a timestamp — sess_rows
@@ -8761,8 +8765,12 @@ def _kai_compile_register(sess_rows):
             cur["frameId"] = frame_id or cur["frameId"]
             if loc is not None:
                 cur["loc"] = loc
+            if scene:
+                cur["scene"] = scene
         if loc is not None and cur.get("loc") is None:
             cur["loc"] = loc
+        if scene and not cur.get("scene"):
+            cur["scene"] = scene
         if tier and _KAI_TIER_RANK.get(tier, 0) > _KAI_TIER_RANK.get(cur.get("tier") or "", 0):
             cur["tier"] = tier
 
@@ -8813,6 +8821,21 @@ def _kai_compile_register(sess_rows):
             return None
         return lane or None
 
+    def _scene_of(row):
+        # the read's OWN scene first; a judge row carries none, so the segment it fell in answers (same clock
+        # as _loc_of); nothing known = None, never a guess. [[unknown-stays-unknown]]
+        sc = str(row.get("scene") or "").strip().lower()
+        if sc:
+            return sc
+        if not _segs:
+            return None
+        try:
+            act, _sg = _rseg.activity_at(_segs, str(row.get("sessionId") or ""),
+                                         row.get("captureTs") or row.get("ts") or 0)
+            return act or None
+        except Exception:
+            return None
+
     for r in sess_rows:
         ts = int(r.get("ts") or r.get("captureTs") or 0)
         fid = str(r.get("frameId") or "")
@@ -8829,7 +8852,7 @@ def _kai_compile_register(sess_rows):
                         _reg_names = list(_reg_names) + [_m]
             for nm in (_reg_names or []):
                 _loc = _loc_of(nm, r, nl)
-                _consider(nm, ts, fid, _loc, None)
+                _consider(nm, ts, fid, _loc, None, scene=_scene_of(r))
                 # ══ v2361 — FEED THE CHARACTER LEARNER FROM THE SAME PROVENANCE ═══════════════
                 # `main_character.saw()` has existed since v2320 and NOTHING HAS EVER CALLED IT:
                 # `main_character.json` does not exist on his machine, while console_doctor and
@@ -8875,14 +8898,14 @@ def _kai_compile_register(sess_rows):
             if isinstance(j, dict):
                 tier = str(j.get("tier") or "").lower()
                 if tier in ("grail", "keep", "border"):
-                    _consider(j.get("name"), ts, fid, _loc_of(j.get("name"), r, nl), tier)
+                    _consider(j.get("name"), ts, fid, _loc_of(j.get("name"), r, nl), tier, scene=_scene_of(r))
             # FIX C (F3) — names the KAI closer GROUNDED from garbled tooltip OCR (a legible
             # grail whose read was leet-mangled, e.g. 'H4RLEQVIN CR' -> 'Harlequin Crest').
             # Already _kai_fullnames-verified by the grounder; tier stays None (a factual
             # sighting, not a judge quality verdict) so it registers without inventing a grade.
             if isinstance(k, dict) and isinstance(k.get("grounded"), list):
                 for gm in k.get("grounded") or []:
-                    _consider(gm, ts, fid, _loc_of(gm, r, nl), None)
+                    _consider(gm, ts, fid, _loc_of(gm, r, nl), None, scene=_scene_of(r))
     # ══ v3212 (#100 wire 2) — THE SESSION GETS A VOTE, AND IT MAY ONLY FLAG ═══════════════════
     # `retro_gate.corroborate_location` has answered "what location does the SESSION agree on?"
     # since it was written and NOTHING has ever asked it — one of the 26 verdict-shaped functions
@@ -11859,7 +11882,7 @@ def _kai_closer_loop():
                         if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
                             _items = [dict({"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"),
                                             "frameId": x.get("frameId"), "tier": x.get("tier"),
-                                            "sessionId": sid, "loc": x.get("loc")},
+                                            "sessionId": sid, "loc": x.get("loc"), "scene": x.get("scene")},
                                            **({"g4": x.get("g4")} if (_g3live and x.get("g4")) else {}))
                                       for x in (_register or [])[:40]]
                             _cjs = ("(function(){try{var F=document.getElementById('tvd-eng');"
@@ -12531,6 +12554,7 @@ def _engine_driver():
                             "ts": int(rd.get("captureTs") or rd.get("ts") or ts or 0),
                             "sid": str(rd.get("sessionId") or "")[:48],
                             "names": _live_judge_interesting_names(rd)[:8],
+                            "scene": scene or None,
                         })
                         # v1205 — reserve so we never double-queue. Bounded (see
                         # _drv_live_judged_reserve) — unbounded growth here is the FUNNEL
@@ -12812,7 +12836,7 @@ def _engine_driver():
                     _hpj = "/hist/" + _rel
                     _jsj = _fire_aic_judge_js(
                         _hpj, jjob.get("sid") or "", _jfid2,
-                        int(jjob.get("ts") or 0), live=True)
+                        int(jjob.get("ts") or 0), live=True, scene=jjob.get("scene"))
                     try:
                         _ejs(w, _jsj, timeout=5.0)
                         last_judge_ms = now_ms
@@ -14670,8 +14694,8 @@ def vault_route_probe():
           ":localStorage.getItem('d2r_vaultProv'))||'{}')||{};}catch(e){}"
           "var wouldFile=0,unwitnessed=0;Object.keys(prov).forEach(function(k){"
           "var lk2='';try{lk2=(window._laneLocked&&window._laneLocked(k))||'';}catch(e){}"
-          "if(assign[k]==null&&!lk2&&(prov[k]||{}).mule!=='__throwout')wouldFile++;});"
-          "Object.keys(assign).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(prov,k))unwitnessed++;});"
+          "if(assign[k]==null&&!lk2&&(prov[k]||{}).mule!=='__throwout'&&(prov[k]||{}).kind!=='owned')wouldFile++;});"
+          "Object.keys(assign).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(prov,k)||(prov[k]||{}).kind==='owned')unwitnessed++;});"
           "var soj=null;try{var _s=window.suggestMule('The Stone of Jordan');"
           "soj=_s?{id:_s.id,why:_s.why||''}:null;}catch(e){}"
           "var sojLock='';try{sojLock=(window._laneLocked&&window._laneLocked('The Stone of Jordan'))||'';}catch(e){}"
@@ -35861,6 +35885,21 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/reader_health":
             # v1537 — which link of the read chain broke, on THIS machine. Free, read-only.
             self._json(200, reader_health())
+            return
+        if path == "/api/picture_status":
+            # 2026-09-28 — is the picture of this read on disk, and if not, WHO took it (the recorder's reap
+            # record, a tombstone) or was it never written (the disk floor). GET, read-only, bounded to 40 ids.
+            # The board's evidence panel asks this only after the picture failed to load, so a missing frame
+            # is said in words and never drawn as a broken image. [[unknown-stays-unknown]]
+            try:
+                import urllib.parse as _upp
+                import read_pictures as _rpic
+                import frame_authority as _fap
+                _qp = _upp.parse_qs(_upp.urlparse(self.path).query or "")
+                _ids = [x for x in (_qp.get("ids") or [""])[0].split(",") if x.strip()]
+                self._json(200, _rpic.status_for(_ids, _fap._hist_dir(None)))
+            except Exception as _pse:
+                self._json(200, {"ok": False, "why": "the picture status could not be read: %s" % str(_pse)[:120]})
             return
         if path.startswith("/api/evidence"):
             # v2162 — WHY DOES THE BOARD BELIEVE HE HAS THIS? The sightings that earned the tick,

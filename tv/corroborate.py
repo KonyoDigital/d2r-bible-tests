@@ -2262,6 +2262,17 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # 2026-09-28 — the owned door's heart rows. Each is one source today, said so rather than claimed covered.
+    'a vault item with no provenance':
+        "the row compares the board's owned list against its own d2r_vaultProv store — two stores written by the "
+        "same board through one door (window._ownedAdd), so they are one writer describing itself. An independent "
+        "second source would be the reader's own ledger (d2r_chronicleInboxLog) or the console's session journal "
+        "naming the read that filed each item; no joint walks either against the owned list yet.",
+    'a read left no picture':
+        "the row joins the reader's journal (which reads named things) against the frame shelf on disk and the "
+        "recorder's own reap and refusal records — the journal and the shelf are written by the same recorder "
+        "process. A genuinely independent side would be the vision lane's own receipt of the frame it was handed "
+        "(its size and hash at read time) compared with the file on disk; nothing records that receipt yet.",
     # 2026-09-28 — Grok's #246 heart rows (§27) shipped without a registry line; test_every_doctor_check_is_explained
     # went red on CI. Both are one source today, said so rather than claimed covered.
     'vault reset receipt':

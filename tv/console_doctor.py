@@ -2403,6 +2403,9 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         gate_fn = lambda ev: _vr.gate(ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
     assign = assign if isinstance(assign, dict) else {}
     prov = prov if isinstance(prov, dict) else {}
+    # 2026-09-28 — an owned RECEIPT (kind 'owned', written by window._ownedAdd) says who put a name in `owned`;
+    # it is never a filing witness, so a filing whose only row is a receipt still counts as unwitnessed here.
+    prov = {k: v for k, v in prov.items() if not (isinstance(v, dict) and v.get("kind") == "owned")}
     filings = sorted(n for n, h in assign.items() if h and h != "__throwout")
     unwitnessed = [n for n in filings if n not in prov]
     in_mule = []
@@ -2616,6 +2619,94 @@ def _check_vault_provenance():
         main_state = {"ok": False, "locked": None,
                       "why": "main_character would not answer (%s) — nothing is known about MAIN gear" % type(e).__name__}
     st, why, _counts = vault_provenance_verdict(assign, prov, lane, rows, feeder, main_state=main_state)
+    return st, why
+
+
+def _row_says_who(row):
+    """A provenance row that names who or what filed the item — a filing witness or an owned receipt."""
+    return isinstance(row, dict) and bool(str(row.get("source") or "").strip())
+
+
+def owned_provenance_verdict(owned, prov):
+    """2026-09-28 — 'a vault item with no provenance'. PURE. -> (status, why, counts)
+
+    His words, looking at Grief and Plague: "where is the ledger proof of these two items? i cant find it". Every
+    name in d2r_owned must carry a d2r_vaultProv row that says who or what filed it — a mule filing's witness, or
+    the RECEIPT window._ownedAdd writes at every owned door. MISSING names them; UNKNOWN when either store could
+    not be read (never "0 missing" about a board nobody read). [[unknown-stays-unknown]]
+    """
+    if owned is None or prov is None:
+        return UNKNOWN, "the board's owned list or its provenance store would not read — UNKNOWN, not clean", {}
+    if not isinstance(owned, list) or not isinstance(prov, dict):
+        return UNKNOWN, "the board's owned list or its provenance store is not the shape this row grades", {}
+    names = sorted(set(n.strip() for n in owned if isinstance(n, str) and n.strip()))
+    missing = [n for n in names if not _row_says_who(prov.get(n))]
+    receipts = sum(1 for n in names if isinstance(prov.get(n), dict) and prov[n].get("kind") == "owned")
+    counts = {"items": len(names), "missing": len(missing), "receipts": receipts,
+              "filings": len(names) - len(missing) - receipts}
+    if not names:
+        return OK, "the vault holds nothing yet — 0 items, nothing to account for", counts
+    if missing:
+        more = (" (+%d more)" % (len(missing) - 6)) if len(missing) > 6 else ""
+        return MISSING, ("%d of %d vault item(s) have no provenance — nothing recorded who or what filed them: %s%s"
+                         % (len(missing), len(names), ", ".join(missing[:6]), more)), counts
+    return OK, ("every one of the %d vault item(s) says who filed it (%d filing witness(es) · %d owned receipt(s))"
+                % (len(names), counts["filings"], receipts)), counts
+
+
+def _check_vault_items_carry_provenance():
+    """2026-09-28 — reads the board's persisted stores through the ONE shared board read, like 'vault provenance'."""
+    got = _board_read()
+    if not got:
+        return UNKNOWN, "the console did not answer — nobody asked the board, so nothing is known"
+    if got.get("ok") is False:
+        return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
+    fs = got.get("fullStores")
+    if not isinstance(fs, dict):
+        return UNKNOWN, "the board read carried no stores, so its vault could not be judged"
+
+    def _j(k, dflt):
+        v = fs.get(k)
+        if v is None:
+            return dflt
+        if isinstance(v, (dict, list)):
+            return v
+        try:
+            return json.loads(v)
+        except Exception:
+            return None
+    st, why, _c = owned_provenance_verdict(_j("d2r_owned", []), _j("d2r_vaultProv", {}))
+    return st, why
+
+
+def _check_a_read_left_no_picture(rows=None, hist=None, now_ms=None):
+    """2026-09-28 — 'a read left no picture': every read that NAMED something in the last 24 h has its frame on disk,
+    and when one does not, the row names who took it (the recorder's reap record, a tombstone) or says it was never
+    written (the disk floor). The journal, the shelf and the records are read here; the judging is
+    read_pictures.verdict. UNKNOWN when the journal or the shelf cannot be read. [[unknown-stays-unknown]]"""
+    import read_pictures as _rp
+    if rows is None:
+        try:
+            import control_app as _ca
+            rows, jwhy = _ca._kai_journal_rows(want_why=True)
+            if jwhy:
+                rows = None
+        except Exception:
+            rows = None
+    if hist is None:
+        try:
+            import frame_authority as _fa
+            hist = _fa._hist_dir(None)
+        except Exception:
+            hist = None
+    if not hist or not os.path.isdir(hist):
+        return UNKNOWN, "the frame shelf is not on this machine, so whether any read kept its picture is unknown"
+    reads = _rp.named_reads(rows, now_ms) if rows is not None else None
+    present = _rp.locator(hist)
+    reaps = _rp.load_jsonl(os.path.join(_rp.root_of(hist), _rp.REAPS))
+    refusals = _rp.load_jsonl(os.path.join(_rp.root_of(hist), _rp.REFUSALS))
+    tombs = _rp.load_tombstones(hist)
+    st, why, _c = _rp.verdict(reads, present, reaps, tombs, refusals)
     return st, why
 
 
@@ -8807,6 +8898,9 @@ CHECKS = [
     # #246 W7 — the one door into the mule map, watched: every filing carries its witness, no MAIN item in
     # a mule, no gate-passing stash row left unfiled, the feeder's banked vs runs.
     ("vault provenance", _check_vault_provenance),
+    # 2026-09-28 — every name in `owned` says who filed it; every read that named something kept its picture.
+    ("a vault item with no provenance", _check_vault_items_carry_provenance),
+    ("a read left no picture", _check_a_read_left_no_picture),
     ("vault reset receipt", _check_the_vault_reset),
     ("evidence tiers", _check_the_evidence_tiers),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -9526,6 +9620,10 @@ WATCHES = {
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),
+    # 2026-09-28 — both read stores and files through shared reads; neither owns a screen element of its own.
+    # Empty tuples as DECLARATIONS, not omissions.
+    "a vault item with no provenance": (),
+    "a read left no picture":      (),
     # 2026-09-27 — the reset receipt and the tier census. Neither owns a screen element of its
     # own; both reach him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault reset receipt":         (),

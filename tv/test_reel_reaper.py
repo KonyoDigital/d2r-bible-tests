@@ -125,9 +125,14 @@ class TheReaperRefusesEvidence(unittest.TestCase):
         return src[i:j]
 
     def test_the_block_consults_the_witness_ledger(self):
+        """2026-09-28 — the ONE authority now (frame_authority's witness index + chron_evidence), not only
+        vault_accum's witness sessions: on that day it took a reel chron_evidence cites. The decision itself is
+        driven, not read, by test_an_evidence_picture_is_never_reaped.py."""
         b = self._block()
-        self.assertIn("_witness_protected_sessions", b,
-                      "the reel reaper does not ask whether a reel is still cited as evidence")
+        self.assertIn("_ev = _reel_evidence()", b,
+                      "the reel reaper does not ask the evidence authority whether a reel is still cited")
+        self.assertIn("_reel_reap_pick(HIST_DIR, _all[:-2], _ev)", b,
+                      "the reel reaper does not decide through the evidence-aware pick")
 
     def test_an_UNREADABLE_ledger_refuses_the_reap(self):
         b = self._block()

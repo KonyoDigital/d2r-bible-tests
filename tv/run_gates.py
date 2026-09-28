@@ -6832,6 +6832,29 @@ GATES = [
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
              "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
+    Gate("test_every_owned_door_writes_provenance",
+         [sys.executable, os.path.join(HERE, "test_every_owned_door_writes_provenance.py")], 120,
+         why="2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read "
+             "WORN, reached only the found list. Every owned.add in CODE is inside the one door "
+             "(window._ownedAdd), which writes a receipt (who, when, session, frame, place) and never clobbers a "
+             "filing row; the live route files a held place into the dock and never a Chronicle page, the floor "
+             "or an UNKNOWN place; the one-time backfill writes Grief/Plague's receipts and files String of Ears, "
+             "runs once and undoes exactly what it did; a receipt is never a witness; the evidence panel says "
+             "who/when/frame and never draws a picture that is not there. Driven in node. 9 red-proofs."),
+    Gate("test_an_evidence_picture_is_never_reaped",
+         [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
+         why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
+             "in-loop reaper spares read-bearing and cited frames and refuses on an unreadable ledger; the reel "
+             "reaper asks the ONE authority (witness index + chron_evidence), keeps cited pictures and releases "
+             "the rest; a read keeps a small picture under the floor, none below the hard floor, and every "
+             "refusal and every reap is recorded by name. Driven through archive_read_frame on a temp shelf. "
+             "7 red-proofs."),
+    Gate("test_a_vault_item_and_a_read_say_where_they_came_from",
+         [sys.executable, os.path.join(HERE, "test_a_vault_item_and_a_read_say_where_they_came_from.py")], 60,
+         why="2026-09-28 - the heart rows for the owned door: 'a vault item with no provenance' names every "
+             "owned name nobody can account for, and 'a read left no picture' names who took each missing "
+             "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
+             "be read. Registered, declared, explained. 7 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "
