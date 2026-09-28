@@ -6849,7 +6849,10 @@ GATES = [
          why="2026-09-27 - the heart says what a vault reset rebuilt and how many items each "
              "evidence tier holds. An unreadable ledger or a missing receipt is UNKNOWN, never 0. "
              "A kept store that changed is named. A cited picture that is not on the shelf is "
-             "named. The tier count is corroborated by rebuild_plan. 5 red-proofs."),
+             "named. The tier count is corroborated by rebuild_plan. 2026-09-28: its fixture gave "
+             "every look its own session, so frames and visits were one number and it never saw "
+             "Radiance's shape; it now carries a 21-frame still screen that must read WATCHED, and "
+             "the row names the retro flags. 7 red-proofs."),
     Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
          [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
          why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "
@@ -6864,6 +6867,46 @@ GATES = [
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
              "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
+    Gate("test_a_still_screen_is_one_look",
+         [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
+         why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "
+             "§34.2). vault_evidence._measure counted witness rows, so Radiance - 102 frames of one "
+             "held stash screen plus one look from a second recording - scored HARDENED 103/103 on "
+             "his real ledger, and the Horadric Cube HARDENED 21/21; honest is WATCHED 2/2. It now "
+             "counts vault_retro.gate's own look id (the REOPEN_GAP_MS re-look bucket, else the "
+             "session) folded by _fold_bare_sessions, and the visit count must equal the gate's. "
+             "The heart joint a-tier-stands-on-its-looks is driven here: AGREE on visits, DISAGREE "
+             "on the frame math, UNKNOWN unread. 4 red-proofs."),
+    Gate("test_the_retro_plan_keeps_them_filed",
+         [sys.executable, os.path.join(HERE, "test_the_retro_plan_keeps_them_filed.py")], 60,
+         why="2026-09-28 (Ledger P0) - his ruling §34.2, \"Keep filed, flag 'retro: WATCHED'\": "
+             "vault_evidence.retro_plan names every item filed on a tier higher than its visits "
+             "earn as {name, recordedTier, honestTier, why}, every row keepFiled, with no unfile "
+             "half. Served read-only as the `retro` field of POST /api/vault_rebuild_plan, which the "
+             "board's reset never reads. The board's own record is compared when handed in; a "
+             "filing with no readable evidence is UNJUDGED, never honest. 3 red-proofs."),
+    Gate("test_evidence_names_its_witnesses",
+         [sys.executable, os.path.join(HERE, "test_evidence_names_its_witnesses.py")], 60,
+         why="2026-09-28 (Ledger P0) - /api/evidence answered witnesses null for EVERY name: "
+             "evidence_for asked counter_ledger for .witnesses behind a hasattr, and the real one is "
+             "chronicle_retro.witnesses. A name with 3 sightings in 2 reels now reads witnesses 2 "
+             "(independent reels) with chronicle_retro's own tags; an unreadable engine is None "
+             "WITH a reason. 2 red-proofs."),
+    Gate("test_evidence_counts_a_reel_once",
+         [sys.executable, os.path.join(HERE, "test_evidence_counts_a_reel_once.py")], 60,
+         why="2026-09-28 (Ledger P0) - one reel is spelled s_... and reel_s_..., and trace_spine "
+             "measured 3,914 of his 8,517 sightings as the same row twice, so /api/evidence ran about "
+             "2x. Rows now dedupe on trace_spine.independence's key through chronicle_retro._reel_key; "
+             "count is the deduped rows, rows keeps the raw figure beside it, and the route agrees "
+             "with the spine. 2 red-proofs."),
+    Gate("test_a_drop_is_an_episode",
+         [sys.executable, os.path.join(HERE, "test_a_drop_is_an_episode.py")], 60,
+         why="2026-09-28 (Ledger P0) - board_tally_merge filed a drop on EVERY tally below the "
+             "high-water mark, and on his board_tally.json all 40 rolling slots were ONE event, sets "
+             "134 -> 0. It now runs ledger_restore.step_episodes, the one drop definition the backup "
+             "watcher runs: an hour at 0 is one episode, a recovery closes it, another world cannot "
+             "close it, an open episode outlives the cap, and the doctor reads it as his last fall. "
+             "3 red-proofs."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "

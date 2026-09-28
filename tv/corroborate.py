@@ -2186,7 +2186,80 @@ def _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE():
             "ledgers that publish a mask", right, "==")
 
 
-BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
+def _inv_a_tier_stands_on_the_looks_the_gate_counts():
+    """2026-09-28 (Ledger P0) — AN ITEM'S TIER MUST STAND ON LOOKS THE LIVE GATE WOULD COUNT.
+
+    His ruling (§34.2): "a look is a distinct visit, never a frame of a still screen."
+    MEASURED on his vault_accum.json, read-only: Radiance scored HARDENED 103/103 and the Horadric
+    Cube HARDENED 21/21, because vault_evidence._measure counted witness ROWS — 102 of Radiance's
+    were one stash screen held still. The live gate, vault_retro.gate, counted TWO looks for each.
+    Two engines disagreed about the same item for a day and nothing compared them: the doctor row
+    'evidence tiers' counted the tiers through the one Wilson function that assigned them.
+
+    THE TWO SIDES:
+      LEFT   items the tier table places at PROVEN or above (vault_evidence.tier_census)
+      RIGHT  items the LIVE GATE sees at least TRIALS_PROVEN distinct looks for
+             (vault_retro.gate's own `looksSeen`, over the same witness rows)
+    Independent by ENGINE: the left is the Wilson tier table, the right is the keep-bar gate's own
+    witness counting, which owns the independence law (vault_retro.py: "Wilson runs on the FOLDED
+    WITNESS LIST, never on raw sightings").
+
+    ⚠ THE RELATION IS `<=`. PROVEN needs a Wilson bound of WILSON_BAR (0.722), which no record
+    under ten successful visits reaches (a perfect 9/9 is 0.701), and every successful visit is a
+    look the gate counts. So a tier above the gate's look count means the tier counted something
+    that is not a look. Measured with the frame math: 2 <= 0 — DISAGREE.
+
+    ⚠ WHY NOT trace_spine.independence, which the Ledger design named: it hangs every vault look
+    with `witness: None`, so it can count REELS and never re-look visits. A re-look-proven item
+    (ten visits in four recordings) would read as a false alarm, and the frame-counting defect
+    passes it cleanly. It answers a different question. [[the-unjoined-end]]
+
+    UNKNOWN when the witness ledger cannot be read, never 0. [[unknown-stays-unknown]]
+    """
+    def _ledger():
+        return os.environ.get("TV_VAULT_LEDGER") or os.path.join(HERE, "vault_accum.json")
+
+    def left():
+        import vault_evidence as ve
+        got = ve.tier_census(_ledger())
+        if not got.get("ok"):
+            return None
+        return int(got.get("proven") or 0) + int(got.get("hardened") or 0)
+
+    def right():
+        import vault_retro as vr
+        import vault_evidence as ve
+        try:
+            with io.open(_ledger(), encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except Exception:
+            return None
+        rows = doc.get("owned") if isinstance(doc, dict) else None
+        if not isinstance(rows, list):
+            return None
+        piles = {}
+        for row in rows:
+            if not isinstance(row, dict) or not str(row.get("name") or "").strip():
+                continue
+            looks = row.get("witnesses") if "witnesses" in row else row.get("looks")
+            if not isinstance(looks, list):
+                continue
+            piles.setdefault(str(row["name"]).strip(), []).extend(
+                x for x in looks if isinstance(x, dict))
+        return sum(1 for ev in piles.values()
+                   if vr.gate(ev).get("looksSeen", 0) >= ve.TRIALS_PROVEN)
+
+    return ("a-tier-stands-on-its-looks",
+            "no item is PROVEN or HARDENED on fewer looks than the live gate counts for it",
+            "count witness ROWS as trials in vault_evidence._measure — one stash screen held still "
+            "for 103 frames reads HARDENED while vault_retro.gate counts 2 looks (Radiance, "
+            "2026-09-28)",
+            "tier table: PROVEN+ items", left,
+            "live gate: items with TRIALS_PROVEN+ looks", right, "<=")
+
+
+BUILDERS = (_inv_a_tier_stands_on_the_looks_the_gate_counts,
+            _inv_the_router_and_the_shelf_count_the_SAME_reels,
             _inv_a_tombstone_is_never_ahead_of_extraction,
             _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it,
             _inv_a_posted_COUNT_and_its_own_MASK_agree,
@@ -2259,20 +2332,22 @@ COVERED_BY = {
     # [[label-outlived-referent]] [[the-unjoined-end]]
     # v2730 — his "so its all not in the dark". 310 names of testimony had NO joint of any kind.
     "evidence ledger":   ("evidence-survived-its-sweep",),
+    # 2026-09-28 (Ledger P0) — moved out of NO_JOINT_YET. The row's tiers are now checked against
+    # the live gate's own look count, the engine that owns the independence law. What it does NOT
+    # cover, said so the claim cannot over-reach: the broken-picture half of the row (cited frames
+    # gone from the shelf) has no second source yet.
+    "evidence tiers":    ("a-tier-stands-on-its-looks",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
     # 2026-09-28 — Grok's #246 heart rows (§27) shipped without a registry line; test_every_doctor_check_is_explained
-    # went red on CI. Both are one source today, said so rather than claimed covered.
+    # went red on CI. Both were one source, said so rather than claimed covered. 'evidence tiers'
+    # got its joint on 2026-09-28 (a-tier-stands-on-its-looks) and moved to COVERED_BY.
     'vault reset receipt':
         "the row reads the receipt the reset runner writes (window._vaultLastReset: cleared / kept / touched / unknown), and "
         "the runner is also what compared the kept stores before and after — one writer describing its own act. An "
         "independent second source would be a ledger backup taken just before the reset diffed against the store after it; "
         "the backup lane holds those snapshots but no joint reads them against a receipt yet.",
-    'evidence tiers':
-        "the row counts WATCHED / PROVEN / HARDENED from the witness ledger through the one Wilson function that assigns "
-        "them, so the counts and the tiers share a source. An independent check would recount looks straight from the "
-        "session frames on disk and compare the tier each earns; nothing does that walk yet.",
     # 2026-09-28 — the triage starvation row.
     'triage starved':
         "the row pairs two things the serving console publishes on /api/river — reel_router's TRIAGE "

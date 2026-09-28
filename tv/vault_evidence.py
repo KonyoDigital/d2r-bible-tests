@@ -8,6 +8,10 @@ confidence.wilson_lower, not a second copy of that sum.
 
 tier() and rebuild_plan() decide. plan_from_ledger() only reads a ledger the caller names and
 turns its rows into that shape. It does not write the ledger and it does not file a mark.
+
+A trial is a distinct VISIT, never a frame (his ruling 2026-09-28, §34.2): _measure counts the
+re-look buckets vault_retro.gate counts, folded the same way. retro_plan() names every item
+filed on a tier higher than its visits earn; it keeps them filed and never writes.
 """
 import io
 import json
@@ -92,7 +96,7 @@ _MAIN_LANES = frozenset(("equipment", "equipped", "inventory", "belt", "cube"))
 
 
 def _unread(why=None):
-    return {"ok": False, "rebuilt": [], "held": [], "why": why or _UNREAD}
+    return {"ok": False, "rebuilt": [], "held": [], "retro": None, "why": why or _UNREAD}
 
 
 def _conf_floor():
@@ -142,6 +146,33 @@ def _is_success(look, floor):
     return conf >= floor
 
 
+def _visit_fold():
+    """vault_retro's own fold for look ids, or None when that module cannot be read.
+
+    Borrowed, never copied: the rule that a bare prior "sA" and its own bucket "sA#0" are one look
+    lives in vault_retro._fold_bare_sessions, and the live gate folds with it. A second copy here
+    would be the drift this file exists to prevent. [[copy-drift]]
+    """
+    try:
+        import vault_retro as VR
+        return VR._fold_bare_sessions
+    except Exception:
+        return None
+
+
+def _visit_of(look):
+    """The visit one look belongs to, as vault_retro.gate names it. '' when the look names none.
+
+    `witness` is "<session>#<bucket>". The sweep mints it (vault_retro.py, the re-look loop) and
+    opens a new bucket at every REOPEN_GAP_MS gap between still runs, so one bucket is one time
+    he opened the stash, however many frames that screen was held for. A row persisted before
+    the bucket existed carries only `session`, and that recording counts once. This is the exact
+    key gate() counts with its keep-bar witness field — the same law, not a second one.
+    """
+    key = look.get("witness") or look.get("session")
+    return str(key) if key else ""
+
+
 def _group(rows):
     order, buckets = [], {}
     for row in rows:
@@ -158,13 +189,36 @@ def _group(rows):
 
 
 def _measure(rows, floor):
-    """-> (successes, trials, sessions, cells, witness_sessions) or None when a row cannot be read.
+    """-> (successes, trials, sessions, cells, witness_sessions, frames) or None when a row cannot
+    be read.
 
     A missing witness list is UNKNOWN, not zero. An empty list is a real measurement of no looks.
+
+    ══ A TRIAL IS A DISTINCT VISIT, NEVER A FRAME — his ruling 2026-09-28 (§34.2) ══════════════
+    "P0 fixes the math: a look is a distinct visit, never a frame of a still screen."
+
+    This counted `trials += 1` per witness ROW. MEASURED on his vault_accum.json, read-only:
+    Radiance held 103 rows, 102 of them under ONE re-look id (one stash screen held still and
+    photographed 102 times) and one from a second recording. It scored HARDENED 103/103, bound
+    0.964, on two looks. The Horadric Cube did the same on 20 + 1. Both were filed back as
+    HARDENED by the 2026-09-27 reset rebuild. Honest: WATCHED 2/2.
+
+    vault_retro already had the law, beside its own Wilson note: "Wilson runs on the FOLDED
+    WITNESS LIST, never on raw sightings". gate() counts _visit_of() folded by
+    _fold_bare_sessions. So does this now: one trial per visit, a success when any look of that
+    visit saw the item. A look that names no visit cannot be shown to be a separate one and adds
+    no trial, exactly as gate() skips it. `misses` still adds failed trials, one per miss.
+
+    `frames` is the old per-row count, {successes, trials, unplaced}, carried BESIDE the visit
+    count and never instead of it. The retro plan reads it to say what the frame math filed an
+    item as. No tier decision reads it.
     """
-    successes, trials = 0, 0
-    sessions, witness_sessions, cells = [], [], []
-    seen_sessions, seen_cells = set(), set()
+    fold = _visit_fold()
+    if fold is None:
+        return None
+    frame_ok, frame_n, extra_total, unplaced = 0, 0, 0, 0
+    order, by_visit = [], {}
+    cells, seen_cells = [], set()
     for row in rows:
         if "witnesses" not in row and "looks" not in row:
             return None
@@ -178,33 +232,167 @@ def _measure(rows, floor):
         else:
             extra = 0
         for look in raw:
-            trials += 1
+            frame_n += 1
             if not isinstance(look, dict):
+                unplaced += 1
                 continue
             cell = look.get("cell")
             if isinstance(cell, dict) and "x" in cell and "y" in cell:
-                key = (str(cell.get("tab") or ""), cell.get("x"), cell.get("y"))
-                if key not in seen_cells:
-                    seen_cells.add(key)
+                ck = (str(cell.get("tab") or ""), cell.get("x"), cell.get("y"))
+                if ck not in seen_cells:
+                    seen_cells.add(ck)
                     cells.append({"tab": cell.get("tab"), "x": cell.get("x"), "y": cell.get("y")})
-            if not _is_success(look, floor):
+            ok = _is_success(look, floor)
+            if ok:
+                frame_ok += 1
+            visit = _visit_of(look)
+            if not visit:
+                unplaced += 1
                 continue
-            successes += 1
-            sid = str(look.get("session") or look.get("witness") or "").strip()
-            frame = str(look.get("frame") or "").strip()
-            if not sid or not frame or sid in seen_sessions:
-                continue
-            seen_sessions.add(sid)
-            sessions.append(sid)
-            try:
-                conf = float(look.get("conf"))
-            except (TypeError, ValueError):
-                continue
-            witness_sessions.append({
-                "witness": sid, "session": sid, "frame": frame, "conf": conf,
-            })
-        trials += extra
-    return successes, trials, sessions, cells, witness_sessions
+            if visit not in by_visit:
+                by_visit[visit] = []
+                order.append(visit)
+            by_visit[visit].append((look, ok))
+        extra_total += extra
+    visits = set(fold(order))
+    successes = 0
+    sessions, witness_sessions, seen_sessions = [], [], set()
+    for visit in order:
+        if visit not in visits:
+            continue            # a bare prior folded into its own bucket: not a second look
+        hit = None
+        for look, ok in by_visit[visit]:
+            if ok:
+                hit = look
+                break
+        if hit is None:
+            continue
+        successes += 1
+        session = str(hit.get("session") or "").strip() or visit
+        if session not in seen_sessions:
+            seen_sessions.add(session)
+            sessions.append(session)
+        witness_sessions.append({
+            "witness": visit, "session": session,
+            "frame": str(hit.get("frame") or "").strip(), "conf": float(hit.get("conf")),
+        })
+    trials = len(visits) + extra_total
+    frames = {"successes": frame_ok, "trials": frame_n + extra_total, "unplaced": unplaced}
+    return successes, trials, sessions, cells, witness_sessions, frames
+
+
+# ── THE RETRO PLAN — his ruling 2026-09-28 (§34.2) ──────────────────────────────────────────────
+# Konyo: "Keep filed, flag 'retro: WATCHED'". Radiance and the Horadric Cube came back HARDENED
+# from the 2026-09-27 rebuild only because one still screen counted as 21 to 103 looks. They
+# stay filed, show their true tier with a retro flag, and must earn PROVEN/HARDENED with real
+# looks. So this NAMES them. It never unfiles, never writes, and has no apply half.
+_TIER_RANK = {WATCHED: 0, PROVEN: 1, HARDENED: 2}
+_RETRO_RULING = ("His ruling 2026-09-28 (§34.2): it stays filed, carries the flag, and earns "
+                 "PROVEN/HARDENED with real looks — never auto-unfiled")
+
+
+def _retro_row(name, measured, recorded=None):
+    """One item filed on a tier higher than its visits earn, or None. Never writes.
+
+    `recorded` is the tier the board recorded when the caller handed it in. Without it, the
+    recorded tier is what the FRAME math gives on these same rows — the math the 2026-09-27
+    rebuild filed on — and `recordedBy` says so, so a derived tier never reads as the board's.
+    """
+    honest = tier(measured[0], measured[1])
+    frames = measured[5] if len(measured) > 5 else None
+    if recorded is not None:
+        rec, by = recorded, "board"
+    elif isinstance(frames, dict):
+        rec, by = tier(frames.get("successes"), frames.get("trials"))["tier"], "frames"
+    else:
+        return None
+    if rec not in _TIER_RANK or honest["tier"] not in _TIER_RANK:
+        return None
+    if _TIER_RANK[rec] <= _TIER_RANK[honest["tier"]]:
+        return None
+    visits = "%d/%d" % (honest["successes"], honest["trials"])
+    if by == "frames":
+        what = ("%s counted by frames (%d of %d frames), but those frames are %d visit(s)"
+                % (rec, frames.get("successes") or 0, frames.get("trials") or 0, honest["trials"]))
+    else:
+        what = "filed %s on the board, but its looks are %d visit(s)" % (rec, honest["trials"])
+    return {"name": name, "recordedTier": rec, "honestTier": honest["tier"],
+            "flag": "retro: %s" % honest["tier"], "keepFiled": True, "recordedBy": by,
+            "visits": {"successes": honest["successes"], "trials": honest["trials"],
+                       "bound": honest["bound"]},
+            "frames": ({"successes": frames.get("successes"), "trials": frames.get("trials")}
+                       if isinstance(frames, dict) else None),
+            "sessions": list(measured[2]),
+            "why": "%s — its true tier is %s %s. %s." % (what, honest["tier"], visits, _RETRO_RULING)}
+
+
+def _retro_answer(rows, by, unjudged=None):
+    names = [r["name"] for r in rows]
+    return {"ok": True, "n": len(rows), "rows": rows, "names": names, "recordedBy": by,
+            "unjudged": list(unjudged or []),
+            "why": ("%d item(s) filed above what their visits earn: %s. %s."
+                    % (len(rows), ", ".join(names[:8]), _RETRO_RULING)) if rows
+                   else "no item is filed above what its visits earn"}
+
+
+def _recorded_tiers(recorded):
+    """The board's recorded tiers, as {name: tier}. None when the shape cannot be read."""
+    out = {}
+    if isinstance(recorded, dict):
+        pairs = list(recorded.items())
+    elif isinstance(recorded, list):
+        pairs = [(r.get("name"), r) for r in recorded if isinstance(r, dict)]
+    else:
+        return None
+    for name, val in pairs:
+        t = val.get("tier") if isinstance(val, dict) else val
+        if name and isinstance(t, str) and t.strip().upper() in _TIER_RANK:
+            out[str(name)] = t.strip().upper()
+    return out
+
+
+def retro_plan(path, recorded=None):
+    """Every item whose recorded tier is HIGHER than its honest (visit) tier. Never writes.
+
+    -> {ok, n, rows:[{name, recordedTier, honestTier, why, flag, keepFiled, ...}], names,
+        recordedBy, unjudged, why}
+
+    `recorded` is optional: the board's own filings, as {name: tier} or [{name, tier}], so the
+    comparison is against what was really filed. Without it, the recorded tier is the frame
+    math's (recordedBy "frames"). A name the board filed with no readable ledger row is listed
+    in `unjudged`, never called honest. An unreadable ledger is UNKNOWN: rows and n are None.
+    Every row says keepFiled — this plan has no unfile, by his ruling.
+    """
+    unread = {"ok": False, "n": None, "rows": None, "names": None, "recordedBy": None,
+              "unjudged": None, "why": _UNREAD}
+    doc = _load_owned(path)
+    if doc is None:
+        return unread
+    floor = _conf_floor()
+    if floor is None:
+        return unread
+    board = None
+    if recorded is not None:
+        board = _recorded_tiers(recorded)
+        if board is None:
+            return dict(unread, why=("the recorded tiers handed in could not be read, so which "
+                                     "items are filed too high is UNKNOWN"))
+    rows, unjudged, seen = [], [], set()
+    for name, grp in _group(doc["owned"]):
+        seen.add(name)
+        measured = _measure(grp, floor)
+        if board is not None and name not in board:
+            continue             # never filed on the board, so it cannot be filed too high
+        if measured is None:
+            if board is not None:
+                unjudged.append(name)
+            continue
+        flagged = _retro_row(name, measured, board.get(name) if board is not None else None)
+        if flagged:
+            rows.append(flagged)
+    if board is not None:
+        unjudged += sorted(n for n in board if n not in seen)
+    return _retro_answer(rows, "board" if board is not None else "frames", unjudged)
 
 
 def plan_from_ledger(path):
@@ -229,7 +417,7 @@ def plan_from_ledger(path):
     floor = _conf_floor()
     if floor is None:
         return _unread()
-    items, filing = [], {}
+    items, filing, retro = [], {}, []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -237,7 +425,10 @@ def plan_from_ledger(path):
             extra = {"equipped": _equipped_of(rows), "kind": _kind_of(rows),
                      "cells": [], "sessions": [], "witness": None}
         else:
-            successes, trials, sessions, cells, witness_sessions = measured
+            successes, trials, sessions, cells, witness_sessions, _frames = measured
+            flagged = _retro_row(name, measured)
+            if flagged:
+                retro.append(flagged)
             item = {"name": name, "successes": successes, "trials": trials,
                     "equipped": _equipped_of(rows), "kind": _kind_of(rows)}
             extra = {"equipped": item["equipped"], "kind": item["kind"],
@@ -270,6 +461,10 @@ def plan_from_ledger(path):
     if again != blob:
         return _unread("the witness ledger changed while it was read, so nothing is rebuilt "
                        "and nothing is called empty")
+    # The retro flags ride on the plan the console already serves (POST /api/vault_rebuild_plan),
+    # read from these same bytes. The board files `rebuilt` and never reads this key, so nothing
+    # here can unfile an item. [[the-unjoined-end]]
+    plan["retro"] = _retro_answer(retro, "frames")
     return plan
 
 
@@ -309,7 +504,7 @@ def cited_frames(path):
         measured = _measure(rows, floor)
         if measured is None:
             continue
-        successes, trials, _sessions, _cells, shots = measured
+        successes, trials, _sessions, _cells, shots, _frames = measured
         got = tier(successes, trials)
         if got["tier"] not in (WATCHED, PROVEN, HARDENED):
             continue
@@ -350,7 +545,8 @@ def tier_census(path):
     a measurement. The two answers are not the same.
     """
     unread = {"ok": False, "watched": None, "proven": None, "hardened": None,
-              "unknown": None, "disagree": None, "why": _UNREAD}
+              "unknown": None, "disagree": None, "retro": None, "retroNames": None,
+              "why": _UNREAD}
     doc = _load_owned(path)
     if doc is None:
         return unread
@@ -365,7 +561,7 @@ def tier_census(path):
         if isinstance(row, dict) and row.get("name"):
             by_plan[row["name"]] = row.get("tier")
     counts = {WATCHED: 0, PROVEN: 0, HARDENED: 0, "unknown": 0}
-    disagree = []
+    disagree, retro = [], []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -373,6 +569,8 @@ def tier_census(path):
         else:
             successes, trials = measured[0], measured[1]
             got_tier = tier(successes, trials)["tier"]
+            if _retro_row(name, measured):
+                retro.append(name)
         key = got_tier if got_tier in (WATCHED, PROVEN, HARDENED) else "unknown"
         counts[key] += 1
         if by_plan.get(name) != got_tier:
@@ -383,7 +581,7 @@ def tier_census(path):
                % ", ".join(disagree[:8]))
     return {"ok": True, "watched": counts[WATCHED], "proven": counts[PROVEN],
             "hardened": counts[HARDENED], "unknown": counts["unknown"],
-            "disagree": disagree, "why": why}
+            "disagree": disagree, "retro": len(retro), "retroNames": retro, "why": why}
 
 
 def pictures_gone(path, root):

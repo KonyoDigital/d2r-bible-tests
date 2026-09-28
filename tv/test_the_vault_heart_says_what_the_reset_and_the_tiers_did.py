@@ -26,6 +26,18 @@ def _looks(frame, n):
     return [{"session": "s%02d" % i, "frame": frame, "conf": 0.91, "lane": "stash"} for i in range(n)]
 
 
+def _still(session, n, frame):
+    """n frames of ONE held screen: one recording, one re-look id.
+
+    ⚠ 2026-09-28 (Ledger P0) — _looks above gives EVERY look its own session, and that is why
+    this law never saw the bug: frames and visits were the same number on every row it built.
+    His real Radiance row is the other shape — 102 frames under one re-look id plus one from a
+    second recording — and it scored HARDENED. This builds that shape.
+    """
+    return [{"session": session, "witness": session + "#0", "frame": frame, "conf": 0.91,
+             "lane": "stash"} for _ in range(n)]
+
+
 class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
 
     def setUp(self):
@@ -36,13 +48,15 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
             {"name": "War Traveler", "lane": "stash", "kind": "item", "witnesses": _looks("watch.jpg", 2)},
             {"name": "Arachnid Mesh", "lane": "stash", "kind": "item", "witnesses": _looks("hard.jpg", 21)},
             {"name": "Unread Thing", "lane": "stash", "witnesses": 4},
+            {"name": "Radiance", "lane": "stash", "kind": "item",
+             "witnesses": _still("sR1", 1, "still.jpg") + _still("sR2", 20, "still.jpg")},
         ]}
         self.before = json.dumps(self.doc).encode("utf-8")
         with io.open(self.ledger, "wb") as fh:
             fh.write(self.before)
         self.shelf = os.path.join(self.tmp, "shelf")
         os.makedirs(self.shelf)
-        for name in ("cited.jpg", "watch.jpg", "hard.jpg"):
+        for name in ("cited.jpg", "watch.jpg", "hard.jpg", "still.jpg"):
             with io.open(os.path.join(self.shelf, name), "w", encoding="utf-8") as fh:
                 fh.write(name)
 
@@ -52,9 +66,9 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
     def test_the_tiers_agree_with_the_plan_and_name_a_missing_picture(self):
         got = VE.tier_census(self.ledger)
         self.assertTrue(got["ok"], got)
-        self.assertEqual(1, got["watched"])
+        self.assertEqual(2, got["watched"], "War Traveler and the still screen are both WATCHED")
         self.assertEqual(1, got["proven"])
-        self.assertEqual(1, got["hardened"])
+        self.assertEqual(1, got["hardened"], "a still screen of 21 frames was counted as hardened")
         self.assertEqual(1, got["unknown"])
         self.assertEqual([], got["disagree"])
         with io.open(self.ledger, "rb") as fh:
@@ -69,6 +83,18 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertIn("cited.jpg", why)
         self.assertIn(("evidence tiers", CD._check_the_evidence_tiers), CD.CHECKS)
         self.assertIn("evidence tiers", CD.WATCHES)
+
+    def test_the_row_counts_visits_and_names_the_retro_flags(self):
+        got = VE.tier_census(self.ledger)
+        self.assertEqual(1, got["retro"], "the still screen filed HARDENED by frames is not flagged")
+        self.assertEqual(["Radiance"], got["retroNames"])
+        st, why = CD._check_the_evidence_tiers(path=self.ledger, root=self.shelf)
+        self.assertEqual(CD.OK, st, why)
+        self.assertIn("tiers by visit, never frame: WATCHED 2 · PROVEN 1 · HARDENED 1", why)
+        self.assertIn("retro flags 1 (Radiance)", why,
+                      "the doctor row does not say which items are filed above their visits")
+        with io.open(self.ledger, "rb") as fh:
+            self.assertEqual(self.before, fh.read(), "the doctor row wrote the witness ledger")
 
     def test_an_unreadable_ledger_is_unknown_not_zero(self):
         missing = os.path.join(self.tmp, "nope.json")
@@ -164,6 +190,20 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    (\"evidence tiers\", _check_the_evidence_tiers),\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the census counts frames again, so one still screen reads HARDENED on the heart",
+        "file": "vault_evidence.py",
+        "find": "            successes, trials = measured[0], measured[1]\n",
+        "replace": "            successes, trials = measured[5][\"successes\"], measured[5][\"trials\"]\n",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor row stops naming the retro flags, so the heart says nothing about them",
+        "file": "console_doctor.py",
+        "find": "    elif got[\"retro\"]:\n",
+        "replace": "    elif False:\n",
         "matches": 1,
     },
 ]

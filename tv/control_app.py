@@ -2030,6 +2030,12 @@ def _route_key(who):
     return "%s|%s" % (str(who.get("id") or "")[:40], str(who.get("p") or "")[:16])
 
 
+# The board tally's lanes in ledger_restore's store vocabulary, so a drop here is the SAME drop the
+# backup watcher records. ledger_restore.RESTORABLE already pairs foundLog/uniques and
+# setPieces/sets; rwMade is its runeword store.
+_TALLY_DROP_STORE = {"sets": "setPieces", "uniques": "foundLog", "runewords": "rwMade"}
+
+
 def board_tally_merge(t):
     """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
 
@@ -2098,7 +2104,34 @@ def board_tally_merge(t):
     doc["byRoute"][key] = {k: t.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
 
     # the high-water mark, per world, per ledger — and a DROP is an event, not a silent overwrite
+    #
+    # ══ 2026-09-28 (Ledger P0) — A DROP IS ONE EPISODE, NOT ONE ROW PER TALLY ═══════════════════
+    # This appended a drop on EVERY tally while a lane sat below its high-water mark, and the mark
+    # only rises. The board posts about once a minute, so one fall filled the 40-slot record in
+    # 40 minutes. MEASURED on his board_tally.json: all 40 rows were ONE event, sets 134 -> 0, and
+    # every earlier drop had been evicted by it.
+    #
+    # ledger_restore already owns the definition of a drop AND its lifecycle — step_episodes
+    # opens an episode once and closes it when the count is back — and the backup watcher runs it
+    # once per snapshot. Here it runs once per tally, from the lane's high-water mark. A lane that
+    # already has an OPEN episode for this world is left out of the "before" side, so sitting low
+    # re-files nothing; the "after" side always carries it, so a recovery closes it. One
+    # definition, two callers — two would drift. [[copy-drift]]
+    #
+    # ⚠ THE DEFINITION IS ledger_restore's, NOT "ANY FALL": a fall opens an episode when it reaches
+    # 0 or falls by at least max(DROP_MIN, DROP_FRAC x the mark). A smaller fall (an un-tick, which
+    # is his testimony, not a loss) still leaves the lane below its mark, and the doctor's
+    # high-water check still says so — it reads `high`, not this list.
     hi = doc["high"].setdefault(key, {})
+    try:
+        import ledger_restore as _lr
+    except Exception as _e:
+        _lr = None
+        doc["dropsUnknown"] = ("ledger_restore could not be read (%s), so whether this tally "
+                               "opened or closed a drop is UNKNOWN" % str(_e)[:60])
+    _open_stores = {d.get("store") for d in doc["drops"]
+                    if isinstance(d, dict) and d.get("open") and d.get("routeKey") == key}
+    _seen, _lane_of = [], {}
     for lane in ("sets", "uniques", "runewords"):
         pair = t.get(lane)
         if not isinstance(pair, dict) or not isinstance(pair.get("have"), int):
@@ -2108,12 +2141,31 @@ def board_tally_merge(t):
         if not isinstance(prev, dict) or not isinstance(prev.get("have"), int):
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
             continue
+        store = _TALLY_DROP_STORE[lane]
+        _lane_of[store] = (lane, prev.get("at"))
+        _seen.append((store, prev["have"], have))
         if have > prev["have"]:
             hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
-        elif have < prev["have"]:
-            doc["drops"].append({"route": key, "lane": lane, "from": prev["have"], "to": have,
-                                 "at": t.get("at"), "highAt": prev.get("at")})
-            doc["drops"] = doc["drops"][-40:]      # a rolling record, not a growing file
+    if _lr is not None and _seen:
+        doc.pop("dropsUnknown", None)
+        # the count key ledger_restore.store_count reads for a blob that carries counts, not rows
+        _ck = _lr._COUNT_KEY
+        _before = {_ck[s]: was for s, was, _now in _seen if s not in _open_stores}
+        _after = {_ck[s]: now for s, _was, now in _seen}
+        _opened, _closed = _lr.step_episodes(
+            doc["drops"], {"ledger": {}, "counts": _before}, {"ledger": {}, "counts": _after},
+            "high-water mark", "board tally at %s" % t.get("at"),
+            route_key=key, at_ms=t.get("at"))
+        for _ep in _opened:
+            # the fields the doctor's "last recorded fall" sentence reads, beside the episode's own
+            _lane, _hi_at = _lane_of.get(_ep.get("store"), (None, None))
+            _ep.update({"route": key, "lane": _lane, "highAt": _hi_at})
+    # a rolling record, not a growing file — and an OPEN episode is never the one evicted
+    _keep_closed = [d for d in doc["drops"]
+                    if not (isinstance(d, dict) and d.get("open"))][-40:]
+    _keep_ids = {id(d) for d in _keep_closed}
+    doc["drops"] = [d for d in doc["drops"]
+                    if id(d) in _keep_ids or (isinstance(d, dict) and d.get("open"))]
 
     # what the rest of the console reads: the OWNER world's numbers, with the older single-slot
     # shape kept at the top level so every existing reader keeps working unchanged
@@ -30179,13 +30231,42 @@ def evidence_for(name, ledger=None):
                 sightings = None
             if not isinstance(sightings, list) or not sightings:
                 continue
-        reels, lanes, frames = [], [], []
-        found_at = dropped_by = None
-        for sg in sightings:
-            if not isinstance(sg, dict):
+        # ══ 2026-09-28 (Ledger P0) — ONE REEL IS ONE WITNESS, WHICHEVER WAY IT WAS SPELLED ══════
+        # Two defects lived here, both MEASURED on his chron_evidence.json:
+        #   1. `witnesses` was None for EVERY name. It asked counter_ledger for .witnesses behind a
+        #      hasattr, and counter_ledger has no such function — the real one is
+        #      chronicle_retro.witnesses. The hasattr turned a wrong module into a silent None.
+        #   2. `reels` and `count` read raw strings. One reel lands as both "s_…" and "reel_s_…"
+        #      (read_reel's sessionId fallback), and trace_spine measured 3,914 of 8,517 sightings
+        #      as the same row under both spellings, so "seen N times across R reels" ran ~2x.
+        # Now a row is deduped on trace_spine.independence's key through chronicle_retro._reel_key,
+        # `count` is the deduped rows (`rows` keeps the raw figure BESIDE it, never instead),
+        # `witnesses` is the number of INDEPENDENT reels, and `witnessTags` is chronicle_retro's
+        # own independence verdict. When chronicle_retro cannot be read, witnesses is None WITH a
+        # reason — UNKNOWN is said, never a silent null. [[the-unjoined-end]] [[unknown-stays-unknown]]
+        try:
+            import chronicle_retro as _cr
+            _rk = _cr._reel_key
+        except Exception as _e:
+            _cr, _rk, _cr_why = None, (lambda r: str(r or "")), (
+                "chronicle_retro could not be read (%s), so which reels are independent is "
+                "UNKNOWN" % str(_e)[:60])
+        raw_rows = [sg for sg in sightings if isinstance(sg, dict)]
+        uniq, _seen_rows = [], set()
+        for sg in raw_rows:
+            _k = (_rk(sg.get("reel")), sg.get("frame"), sg.get("lane"), sg.get("conf"))
+            if _k in _seen_rows:
                 continue
+            _seen_rows.add(_k)
+            uniq.append(sg)
+        # `reels` keeps the FIRST spelling seen for each reel (a path a surface can open), and
+        # dedupes on the normalised key, so the same reel is never listed or counted twice.
+        reels, lanes, frames, _reel_keys = [], [], [], set()
+        found_at = dropped_by = None
+        for sg in uniq:
             r = sg.get("reel")
-            if r and r not in reels:
+            if r and _rk(r) not in _reel_keys:
+                _reel_keys.add(_rk(r))
                 reels.append(r)
             l = sg.get("lane")
             if l and l not in lanes:
@@ -30194,11 +30275,18 @@ def evidence_for(name, ledger=None):
                 frames.append(sg.get("frame"))
             found_at = found_at or sg.get("foundAt")
             dropped_by = dropped_by or sg.get("droppedBy")
-        try:
-            import counter_ledger as _clg
-            wit = _clg.witnesses(sightings) if hasattr(_clg, "witnesses") else None
-        except Exception:
-            wit = None
+        wit, wit_tags, wit_why = None, None, None
+        if _cr is None:
+            wit_why = _cr_why
+        else:
+            try:
+                wit_tags = list(_cr.witnesses(uniq))
+                wit = len(reels)
+            except Exception as _e:
+                wit, wit_tags = None, None
+                wit_why = ("chronicle_retro.witnesses failed (%s), so which reels are independent "
+                           "is UNKNOWN" % str(_e)[:60])
+        sightings = uniq
         # v2164 — BOUND THE PAYLOAD, KEEP THE COUNT HONEST. `sightings` went back whole while
         # `frames` was already capped at 24 — an inconsistency I introduced and then found by
         # measuring my own worst case: "Bloodmoon" carries 104 sightings, an 18.5 KB response, and
@@ -30209,10 +30297,11 @@ def evidence_for(name, ledger=None):
         _CAP = 24
         return {"ok": True, "name": n, "ledger": led,
                 "sightings": sightings[:_CAP], "count": len(sightings),
+                "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
                 "truncated": len(sightings) > _CAP,
                 "reels": reels, "lanes": lanes, "frames": frames[:24],
                 "foundAt": found_at, "droppedBy": dropped_by,
-                "witnesses": wit,
+                "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
                 # the one-line answer, so a surface does not have to compose it and drift
                 "say": ("%d sighting%s across %d reel%s, read by %s%s"
                         % (len(sightings), "" if len(sightings) == 1 else "s",

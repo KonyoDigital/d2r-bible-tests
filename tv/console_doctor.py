@@ -2544,6 +2544,10 @@ def _check_the_evidence_tiers(path=None, root=None):
     The count is vault_evidence.tier, corroborated by rebuild_plan on the same ledger. An
     unreadable ledger is UNKNOWN, never 0. A shelf that was not opened leaves the broken-link
     count UNKNOWN, never 0.
+
+    2026-09-28 (Ledger P0) — the tiers are counted in VISITS, never frames (his §34.2 ruling),
+    and the row says how many items the frame math filed above that — the retro flags. Those
+    stay filed by his ruling, so a flag is reported, not a failure. [[unknown-stays-unknown]]
     """
     import vault_evidence as _ve
     got = _ve.tier_census(path if path is not None else _evidence_ledger_path())
@@ -2559,8 +2563,16 @@ def _check_the_evidence_tiers(path=None, root=None):
                          % ", ".join(pics.get("gone") or [])[:180])
     else:
         pic = "evidence links whose picture is gone: 0"
-    return OK, ("WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s"
-                % (got["watched"], got["proven"], got["hardened"], got["unknown"], pic))
+    if got.get("retro") is None:
+        retro = "retro flags: UNKNOWN"
+    elif got["retro"]:
+        retro = ("retro flags %d (%s) — filed above what their visits earn, kept filed by his "
+                 "ruling" % (got["retro"], ", ".join((got.get("retroNames") or [])[:4])))
+    else:
+        retro = "retro flags 0"
+    return OK, ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · "
+                "unreadable %d · %s · %s"
+                % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
 
 
 def _check_vault_provenance():
