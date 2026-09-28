@@ -10472,7 +10472,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears ONLY the mules and the intake's own records: mule assignments, their witness rows, the Recently-registered log, the scan ledger and the linked folder. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">🧹 Reset vault (mules + intake)</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
      _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
      which keeps all 38 of its crop steps and its locate/rawname/socketcheck/vault templates.
@@ -43202,7 +43202,10 @@ window.vaultAutoAssign = function(){
   // Recently-registered log, the scan ledger, and the linked folder (v569 — "if I reset, how come it still
   // shows linked to folder?" — the unlink is the scope's `folder` step). His testimony — owned, set pieces,
   // the chronicle, runewords, Magic & Rare, copies, tallies, rune/gem/material stashes — is outside the
-  // scope, and no reset door can reach it.
+  // scope, and no reset door can reach it. ⚠ ONE EXCEPTION, his later ruling (2026-09-27 15:35, "clear
+  // owned"): THIS door also clears the ✓ owned list (the scope's `owned` step); vaultReset does not. The
+  // witness evidence is never cleared, and proven items are rebuilt from it (_vaultRefileFromPlan). The
+  // second eye on 0704d1bc caught this comment still saying owned was out of reach.
   window.vaultClearHistory = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultClearHistory')))) return;
     var R = await _vaultResetRun('vaultClearHistory');
