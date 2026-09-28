@@ -2262,6 +2262,17 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # 2026-09-28 — Grok's #246 heart rows (§27) shipped without a registry line; test_every_doctor_check_is_explained
+    # went red on CI. Both are one source today, said so rather than claimed covered.
+    'vault reset receipt':
+        "the row reads the receipt the reset runner writes (window._vaultLastReset: cleared / kept / touched / unknown), and "
+        "the runner is also what compared the kept stores before and after — one writer describing its own act. An "
+        "independent second source would be a ledger backup taken just before the reset diffed against the store after it; "
+        "the backup lane holds those snapshots but no joint reads them against a receipt yet.",
+    'evidence tiers':
+        "the row counts WATCHED / PROVEN / HARDENED from the witness ledger through the one Wilson function that assigns "
+        "them, so the counts and the tiers share a source. An independent check would recount looks straight from the "
+        "session frames on disk and compare the tier each earns; nothing does that walk yet.",
     # 2026-09-27 — the drain row.
     'retention drain':
         "the row reads the drain contract the serving console publishes from TWO of its own records "

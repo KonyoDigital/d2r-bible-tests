@@ -44527,7 +44527,7 @@ function renderJournal(){
       if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence();
     } catch (e) { return unread; }
     var host = '';
-    try { host = (typeof location !== 'undefined' && location) ? String(location.hostname || '') : ''; }
+    try { host = (window.location) ? String(window.location.hostname || '') : ''; }
     catch (e2) { host = ''; }
     if (host !== '127.0.0.1' && host !== 'localhost') return unread;
     if (typeof fetch !== 'function') return unread;

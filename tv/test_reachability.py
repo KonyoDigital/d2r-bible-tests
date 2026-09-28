@@ -478,6 +478,11 @@ class TestLaw19ForPythonToo(unittest.TestCase):
 
     # symbol -> why it is allowed to have no production caller TODAY
     ALLOWED = {
+        "reel_retention.py:release_uncited":
+            "2026-09-28 - the frame-trim half of his s26 ruling (keep the cited pictures, release the rest of a reel). "
+            "It deletes frames, so it is joined only when cited pictures can live apart from their reel where the frame "
+            "server still serves them; until then vault_evidence_reels() makes the drain HOLD any reel a vault item "
+            "stands on, and its own law (test_a_cited_frame_stays_and_the_evidence_line_opens_it) drives it.",
         "vault_corpus.py:infer_transfer":
             "blocked on FOOTAGE, not on code: every one of his 31 reels was scanned and not one "
             "shows the panel changing, because none captured him stashing. Joining it now would be "

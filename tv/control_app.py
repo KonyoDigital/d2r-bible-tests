@@ -33052,7 +33052,8 @@ def status_payload():
                          and _agent_origin == "shadow"),
         # The switch, separate from whether a reel is rolling. On unless he toggled it off.
         # The page uses this to stay awake (ONLINE) without painting a session.
-        "shadowOn": (lambda: (lambda s: s.get("on") if isinstance(s, dict) else None)(_shadow_state()))(),
+        # timed like its neighbours (test_the_status_breakdown_covers_what_it_bills): it reads the shadow file
+        "shadowOn": _t("shadowOn", lambda: (lambda s: s.get("on") if isinstance(s, dict) else None)(_shadow_state())),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "stopping": bool(_stop_inflight),
