@@ -37,6 +37,7 @@ agent, _exec_relaunch_now would REPLACE THIS PROCESS, and the drift lane would g
 every one is stubbed in setUp before anything runs, and the watcher's store is asserted to sit inside
 the fixture before anything is written. RED_PROOF below.
 """
+import glob
 import io
 import json
 import os
@@ -45,6 +46,7 @@ import sys
 import tempfile
 import threading
 import time
+import tokenize
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -117,6 +119,14 @@ class _Base(object):
         os.environ.pop("TV_SHADOW_ROTATE_S", None)
         os.environ.pop("TV_AUTO_RELAUNCH", None)      # the default: updates are not optional
         self._saved = {k: getattr(ca, k) for k in self.STUBS}
+        # ⛔ 2026-09-28 — THE PROCESS IS NEVER REPLACED. _drift_loop holds a DIRECT os.execv; a case that reached it
+        # (or anything that opened the real console) exec'd the test process and wrote his .tvd_window.pid and
+        # .relaunch_receipt.json. For every case here os.execv FAILS LOUDLY instead - a red law, never a new image.
+        self._execv = ca.os.execv
+
+        def _no_exec(*a, **k):
+            raise AssertionError("a law reached os.execv - it would have REPLACED the test process: %r" % (a[:1],))
+        ca.os.execv = _no_exec
         self._finders = (tv.find_d2r_window_mac, tv.find_d2r_window_win)
         self._note = LT.note
         self.addCleanup(self._restore)
@@ -174,6 +184,7 @@ class _Base(object):
     def _restore(self):
         for k, v in self._saved.items():
             setattr(ca, k, v)
+        ca.os.execv = self._execv
         tv.find_d2r_window_mac, tv.find_d2r_window_win = self._finders
         LT.note = self._note
         for k, v in self._env.items():
@@ -464,6 +475,90 @@ class _Cases(_Base):
         self.assertIn("SHADOW CLOSE FAILED", why, why)
 
 
+class AnUpdateLandsQuietlyBesideHisGame(_Base):
+    """2026-09-28 — the review of this change (medium): a relaunch from the shadow side lands while he PLAYS, and
+    the new console opened FULLSCREEN and activated itself, pulling focus off D2R / Boosteroid mid-fight. Now the
+    shadow side marks the exec (TV_QUIET_RELAUNCH crosses os.execv in the environment) and the new image opens
+    minimized, unfocused, windowed - read once. And an EXPIRED hold closes no reel (reproduced: two early cuts
+    for one update)."""
+
+    def tearDown(self):
+        os.environ.pop("TV_QUIET_RELAUNCH", None)
+
+    def test_a_green_light_fired_from_the_shadow_side_marks_the_relaunch_quiet(self):
+        real = ca.relaunch_green_light_tick
+        try:
+            ca.relaunch_green_light_tick = lambda: (True, "fired")
+            self.assertEqual(ca._fire_green_light_now(), (True, "fired"))
+            self.assertTrue(os.environ.get("TV_QUIET_RELAUNCH"),
+                            "a relaunch fired beside his game carries no quiet mark - it opens fullscreen over D2R")
+            os.environ.pop("TV_QUIET_RELAUNCH", None)
+            ca.relaunch_green_light_tick = lambda: (False, "still held")
+            ca._fire_green_light_now()
+            self.assertIsNone(os.environ.get("TV_QUIET_RELAUNCH"),
+                              "a green light that did NOT fire left the quiet mark for some later relaunch")
+        finally:
+            ca.relaunch_green_light_tick = real
+
+    def test_a_quiet_boot_opens_minimized_unfocused_and_never_fullscreen(self):
+        """Checked on _control_window_kwargs - the pure options function. ⛔ NEVER drive open_control_window in a
+        law: it arms the console's real watchers, and a first cut of this case ran the real drift loop, which
+        os.execv'd the test process and wrote his .tvd_window.pid and .relaunch_receipt.json (restored)."""
+        os.environ.pop("TV_WINDOWED", None)
+        os.environ["TV_QUIET_RELAUNCH"] = "an update landed beside a shadow reel while the game was on screen"
+        kw = ca._control_window_kwargs("http://127.0.0.1:1/")
+        self.assertEqual((kw.get("minimized"), kw.get("focus"), bool(kw.get("fullscreen"))), (True, False, False),
+                         "a relaunch beside his game opens as %r - it takes the screen from D2R" % kw)
+        self.assertIsNone(os.environ.get("TV_QUIET_RELAUNCH"), "the quiet mark was not read ONCE - it lingers")
+        kw = ca._control_window_kwargs("http://127.0.0.1:1/")
+        self.assertTrue(kw.get("fullscreen") and not kw.get("minimized"),
+                        "an ordinary open no longer opens as it always did: %r" % kw)
+
+    def test_a_law_that_reaches_exec_fails_instead_of_replacing_the_process(self):
+        """The harness itself: a path that reaches os.execv inside these laws must go RED, never exec. A path that
+        cannot exist, so even a missing stub raises (OSError) rather than replacing this process."""
+        with self.assertRaises(AssertionError):
+            ca.os.execv("/nonexistent/never-a-binary", ["never"])
+
+    def test_the_window_is_opened_with_those_options(self):
+        """The join: open_control_window takes its options from _control_window_kwargs, once."""
+        import inspect
+        src = inspect.getsource(ca.open_control_window)
+        self.assertEqual(src.count("_control_window_kwargs(url)"), 1,
+                         "open_control_window no longer asks _control_window_kwargs - the quiet boot is unjoined")
+
+    def test_an_expired_hold_does_not_keep_the_door_shut(self):
+        """The door's own guard: a hold past its expiry must not stop the watcher opening his next reel."""
+        real = ca._green_light_question
+        ca._green_light_question = lambda: (False, "only a shadow reel is in the way", "shadow")
+        try:
+            ca._RELAUNCH_HOLD.clear()
+            ca._RELAUNCH_HOLD.update({"held": True, "expiresTs": time.time() + 600})
+            self.assertIsNotNone(ca._shadow_door_held_for_update()[0], "PREMISE: a live hold does not shut the door")
+            ca._RELAUNCH_HOLD["expiresTs"] = time.time() - 1
+            self.assertEqual(ca._shadow_door_held_for_update(), (None, None),
+                             "an EXPIRED hold still keeps the shadow door shut - no reel would ever open again")
+        finally:
+            ca._green_light_question = real
+
+    def test_an_expired_hold_closes_no_reel(self):
+        self.begin("shadow", self.now - 10 * MIN)
+        self.drift_look()
+        self.assertTrue(ca._RELAUNCH_HOLD.get("held"), "PREMISE: the update is not held")
+        ca._RELAUNCH_HOLD["expiresTs"] = time.time() - 1
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("rotated"), "an EXPIRED hold still cut the shadow reel early: %r" % (r,))
+        self.assertEqual(self.stops, [], "the expired hold closed the reel")
+
+
+class TheQuietUpdateOnAWindowsConsole(AnUpdateLandsQuietlyBesideHisGame, unittest.TestCase):
+    WIN = True
+
+
+class TheQuietUpdateOnAMacConsole(AnUpdateLandsQuietlyBesideHisGame, unittest.TestCase):
+    WIN = False
+
+
 class TheRowOnAWindowsConsole(_Cases, unittest.TestCase):
     WIN = True
 
@@ -544,7 +639,94 @@ class TheDoctorVerdictIsPure(unittest.TestCase):
                       set(C.COVERED_BY) | set(C.NO_JOINT_YET))
 
 
+class NoLawOpensTheRealConsole(unittest.TestCase):
+    """2026-09-28 — A LAW THAT OPENS THE REAL WINDOW ARMS HIS CONSOLE'S WATCHERS INSIDE THE TEST.
+
+    MEASURED, twice in one hour: the first cut of AnUpdateLandsQuietlyBesideHisGame drove
+    open_control_window(). That call runs start_background_watchers(), which starts the REAL drift loop,
+    and the drift loop's direct os.execv replaced the test process and rewrote his .tvd_window.pid and
+    .relaunch_receipt.json. Both files were restored by hand. The window's options now come from the pure
+    _control_window_kwargs(), and no file of laws may CALL either door. Read with tokenize, so a name in
+    a comment, a docstring or a red-proof string is not a call."""
+
+    DOORS = ("open_control_window", "start_background_watchers")
+
+    def _calls(self, src):
+        skip = (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT)
+        toks = [t for t in tokenize.generate_tokens(io.StringIO(src).readline) if t.type not in skip]
+        return [(t.start[0], t.string) for i, t in enumerate(toks[:-1])
+                if t.type == tokenize.NAME and t.string in self.DOORS and toks[i + 1].string == "("
+                and not (i and toks[i - 1].string == "def")]
+
+    def test_the_scan_sees_a_call_and_only_a_call(self):
+        self.assertEqual(self._calls("ca.open_control_window()\n"), [(1, "open_control_window")],
+                         "PREMISE: the scan cannot see a call, so its green below means nothing")
+        self.assertEqual(self._calls("x = 1\nstart_background_watchers ('t')\n"), [(2, "start_background_watchers")])
+        self.assertEqual(self._calls("# open_control_window()\ns = 'start_background_watchers(y)'\n"
+                                     "n = src.count(\"open_control_window(\")\ng = inspect.getsource(ca.open_control_window)\n"
+                                     "def open_control_window():\n    pass\n"), [],
+                         "a comment, a string, a reference or a definition was read as a call")
+
+    def test_no_law_calls_the_real_window_or_its_watchers(self):
+        laws = sorted(glob.glob(os.path.join(HERE, "test_*.py")))
+        self.assertGreater(len(laws), 100, "PREMISE: the scan found %d law files - wrong folder" % len(laws))
+        found = []
+        for p in laws:
+            with open(p, encoding="utf-8") as f:
+                src = f.read()
+            try:
+                hits = self._calls(src)
+            except (tokenize.TokenError, IndentationError, SyntaxError) as e:
+                found.append("%s: unreadable (%s) - a law nobody can scan is not proven safe" % (os.path.basename(p), e))
+                continue
+            found += ["%s:%d calls %s()" % (os.path.basename(p), n, name) for n, name in hits]
+        self.assertEqual(found, [], "a law drives the REAL console window - it arms his watchers and can exec "
+                                    "the test process over his pid file: %s" % found)
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-28 review - an EXPIRED hold cuts the shadow reel early again (two cuts for one update)",
+        "file": "control_app.py",
+        "find": "    if _hold_expired():\n        return False, \"the held update has EXPIRED",
+        "replace": "    if False:\n        return False, \"the held update has EXPIRED",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - a law opens the real console window again (it armed his watchers and exec'd the test over his pid file)",
+        "file": "test_an_update_lands_beside_a_shadow_reel.py",
+        "find": "        ca.os.execv = self._execv\n",
+        "replace": "        ca.os.execv = self._execv\n        if False:\n            ca.open_control_window()\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 - a law may reach os.execv without failing: it would REPLACE the test process",
+        "file": "test_an_update_lands_beside_a_shadow_reel.py",
+        "find": "        ca.os.execv = _no_exec\n",
+        "replace": "        ca.os.execv = lambda *a, **k: None\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 review - a relaunch beside his game opens fullscreen and takes focus again (no quiet mark)",
+        "file": "control_app.py",
+        "find": "    os.environ[\"TV_QUIET_RELAUNCH\"] = \"an update landed beside a shadow reel while the game was on screen\"\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 review - the new image ignores the quiet mark and opens fullscreen over the game",
+        "file": "control_app.py",
+        "find": "        kwargs.update(minimized=True, focus=False)\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-28 review - an EXPIRED hold keeps the shadow door shut: the watcher never opens another reel",
+        "file": "control_app.py",
+        "find": "    if not _RELAUNCH_HOLD.get(\"held\") or _hold_expired():\n        return None, None\n",
+        "replace": "    if not _RELAUNCH_HOLD.get(\"held\"):\n        return None, None\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 - the ALT's defect: a SHADOW reel read as 'you are filming', so the update is "
                "refused on every look and never lands on a console where the game stays open",

@@ -6831,6 +6831,49 @@ def start_background_watchers(why):
             "roster": [n for n, _ in roster]}
 
 
+def _control_window_kwargs(url):
+    """The native window's options, and nothing else. -> dict
+
+    ⚠ 2026-09-28 — LIFTED OUT OF open_control_window so a law can check them. That function also arms the
+    console's background watchers, engine threads and hard-exit deadlines; a law that drove it ran the REAL
+    retention, prune, ledger-backup and drift loops in the test process, and the drift loop os.execv'd the
+    test and wrote .tvd_window.pid and .relaunch_receipt.json in his tree (both restored). A pure function
+    starts nothing. Reads TV_WINDOWED and consumes TV_QUIET_RELAUNCH (once)."""
+    _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
+    kwargs = dict(
+        title="TV DIABLO",
+        url=url,
+        width=1120,
+        height=660,   # v1464 — fits a 672-logical work area; see the note above
+        min_size=(880, 600),
+        background_color="#070605",
+        text_select=False,
+        confirm_close=False,
+        easy_drag=False,
+    )
+    # ⚠ 2026-09-28 — A QUIET RELAUNCH (see _fire_green_light_now): an update that landed beside a shadow
+    # reel while he plays opens minimized and unfocused, never fullscreen over his game. Read ONCE and
+    # removed, so a later relaunch he asks for opens as always. The installed pywebview's signature filter
+    # below drops `focus`/`minimized` on a build without them (and says so).
+    _quiet = os.environ.pop("TV_QUIET_RELAUNCH", None)
+    globals()["_QUIET_BOOT"] = _quiet
+    if _quiet:
+        kwargs.update(minimized=True, focus=False)
+        print("   quiet relaunch - %s: the console opens minimized and does not take focus" % _quiet,
+              flush=True)
+    if not _windowed and not _quiet:
+        kwargs["fullscreen"] = True
+        # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
+        # the macOS title bar he reported ("this TV diablo banner on top is now here when it
+        # wasnt"). It cost him the window controls — "now i cant minimize or window mode the
+        # console" — AND THE WHITE STRIP WAS STILL THERE, so it paid a real price for nothing.
+        # A cosmetic strip is never worth the buttons that move and minimise his console.
+        # The strip is NOT the pywebview frame; it survives framelessness, so it is something
+        # else and will be found by looking rather than by guessing at window flags again.
+        # [[design-is-fine-until-he-says]]
+    return kwargs
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
     # v1251 — cache-bust the WKWebView URL with the ship stamp so a relaunch never
@@ -6939,28 +6982,7 @@ def open_control_window():
             AppKit.NSWindow.setAllowsAutomaticWindowTabbing_(False)
         except Exception:
             pass
-    _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
-    kwargs = dict(
-        title="TV DIABLO",
-        url=url,
-        width=1120,
-        height=660,   # v1464 — fits a 672-logical work area; see the note above
-        min_size=(880, 600),
-        background_color="#070605",
-        text_select=False,
-        confirm_close=False,
-        easy_drag=False,
-    )
-    if not _windowed:
-        kwargs["fullscreen"] = True
-        # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
-        # the macOS title bar he reported ("this TV diablo banner on top is now here when it
-        # wasnt"). It cost him the window controls — "now i cant minimize or window mode the
-        # console" — AND THE WHITE STRIP WAS STILL THERE, so it paid a real price for nothing.
-        # A cosmetic strip is never worth the buttons that move and minimise his console.
-        # The strip is NOT the pywebview frame; it survives framelessness, so it is something
-        # else and will be found by looking rather than by guessing at window flags again.
-        # [[design-is-fine-until-he-says]]
+    kwargs = _control_window_kwargs(url)
 
     # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
     # The old code passed icon= to create_window and caught TypeError into a hardcoded
@@ -20683,6 +20705,22 @@ def _drift_loop():
                     if not _was_held:                 # say it once per hold, not every 300 s
                         print("  \u27f2 %s" % str(_hsay)[:200], flush=True)
                 continue
+            # ⚠ 2026-09-28 (the review of the shadow-close change): the green light's exec thread and this
+            # direct exec are two roads to os.execv. _GREEN_LIGHT_LOCK kept two green lights apart but not
+            # this one - and on Windows os.execv SPAWNS, so both could start a console. Take the same lock
+            # without waiting, and stand down if a green light fired under 90 s ago; the next look decides.
+            if not _GREEN_LIGHT_LOCK.acquire(blocking=False):
+                print("  \u27f2 auto-relaunch stands down - a green light is relaunching right now", flush=True)
+                continue
+            try:
+                _fired = float(_RELAUNCH_HOLD.get("firedTs") or 0.0)
+            except Exception:
+                _fired = 0.0
+            if _fired and (time.time() - _fired) < 90:
+                _GREEN_LIGHT_LOCK.release()
+                print("  \u27f2 auto-relaunch stands down - a green light fired %ds ago"
+                      % int(time.time() - _fired), flush=True)
+                continue
             print("  \u27f2 auto-relaunch: nothing in flight, replacing this process with %s"
                   % st.get("disk"), flush=True)
             # the same sequence the route's own _exec_soon uses — that one is nested inside the
@@ -20698,6 +20736,11 @@ def _drift_loop():
             except Exception as e:
                 print("  \u26a0 auto-relaunch failed, staying on the old version: %s"
                       % str(e)[:120], flush=True)
+            finally:
+                try:
+                    _GREEN_LIGHT_LOCK.release()          # only reached when the exec did not happen
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -27335,6 +27378,18 @@ def _rolling_reel():
 _RELAUNCH_UNDERWAY_S = 90
 
 
+def _hold_expired():
+    """Has the held relaunch passed its deadline? -> bool. The review (reproduced): both helpers read only
+    `held`, so a look landing after the 2 h deadline and before the rescue tick's release closed a reel
+    early, the release then DROPPED the expired hold, nothing fired, and a new reel opened on the old
+    build - two early cuts for one update. No deadline recorded = not expired."""
+    try:
+        exp = _RELAUNCH_HOLD.get("expiresTs")
+        return bool(exp) and time.time() >= float(exp)
+    except Exception:
+        return False
+
+
 def _an_update_waits_on_the_shadow_reel():
     """Is a HELD relaunch waiting on the rolling shadow reel ALONE? -> (bool, why)
 
@@ -27344,6 +27399,8 @@ def _an_update_waits_on_the_shadow_reel():
     """
     if not _RELAUNCH_HOLD.get("held"):
         return False, "no update is held"
+    if _hold_expired():
+        return False, "the held update has EXPIRED - the reel is left to its hour"
     ok, why, blocker = _green_light_question()
     if blocker == "shadow":
         return True, "an update is waiting"
@@ -27362,7 +27419,7 @@ def _shadow_door_held_for_update():
     if fired and (time.time() - fired) < _RELAUNCH_UNDERWAY_S:
         return ("a relaunch onto the new build is under way — no new shadow reel opens on this "
                 "build; the next one opens on the new build"), "fired"
-    if not _RELAUNCH_HOLD.get("held"):
+    if not _RELAUNCH_HOLD.get("held") or _hold_expired():
         return None, None
     ok, why, blocker = _green_light_question()
     if blocker in ("clear", "shadow"):
@@ -27372,11 +27429,21 @@ def _shadow_door_held_for_update():
 
 
 def _fire_green_light_now():
-    """Ask the green light from the shadow side, now. -> (fired, say). Never raises into the watcher."""
+    """Ask the green light from the shadow side, now. -> (fired, say). Never raises into the watcher.
+
+    ⚠ 2026-09-28 (the review of this change, medium): a relaunch from HERE lands while he is PLAYING - the
+    shadow reel was rolling because the game is on screen. The new console used to open FULLSCREEN and
+    ACTIVATE itself (pywebview activates on macOS and Windows), which pulls focus off D2R / Boosteroid in
+    the middle of a fight. TV_QUIET_RELAUNCH crosses os.execv in the environment; the new image reads it
+    ONCE at window creation and opens minimized, unfocused and windowed - he brings it forward himself."""
+    os.environ["TV_QUIET_RELAUNCH"] = "an update landed beside a shadow reel while the game was on screen"
     try:
-        return relaunch_green_light_tick()
+        fired, say = relaunch_green_light_tick()
     except Exception as e:
-        return False, "the green light could not be asked (%s)" % type(e).__name__
+        fired, say = False, "the green light could not be asked (%s)" % type(e).__name__
+    if not fired:
+        os.environ.pop("TV_QUIET_RELAUNCH", None)     # nothing relaunched - the next one decides afresh
+    return fired, say
 
 
 def _shadow_rollover(now):
