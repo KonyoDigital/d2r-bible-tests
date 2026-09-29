@@ -13553,7 +13553,7 @@ def _redact_for_wire(s, cap=160):
     box. `g5_grok_eyes` stores `str(e)[:160]` in `last_error`, and an exception routinely names an
     absolute path — a home directory does not belong on a wire, and it tells him nothing he can act
     on. Home paths collapse to `~`, and the whole thing is capped.
-    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\s]+`,
+    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\\s]+`,
     which stops at the first space: "/Users/Dean Smith/x.json" crossed as "~ Smith/x.json", and
     "C:\\Users\\Dean\\x.json" was not folded at all. The user-folder segment is now the ONE pattern
     _wire_text scrubs with (_WIRE_USER_PAT: the name runs to the next separator or quote), with an
@@ -13925,6 +13925,84 @@ def _river_for_wire(now_ms=None):
         out["triage"] = _triage_for_wire()
     except Exception as e:
         out["triage"] = {"ok": False, "why": "the triage lane could not be read (%s)" % type(e).__name__}
+    # #74 (REG-1461) — which stations are not draining, and whether this PC has proved its own instruments
+    try:
+        out["stuck"] = _river_stuck_for_wire(now)
+    except Exception:
+        out["stuck"] = None
+    _sp = dict(_SELF_PROVE)
+    out["heart"] = {"census": _sp.get("census"), "key": _sp.get("key"),
+                    "blind": (len(_sp.get("blind") or []) if _sp.get("blind") is not None else None)}
+    return out
+
+
+#: #74 (REG-1461) — a station whose OLDEST reel has waited this long is STUCK, and the fleet card says so.
+RIVER_STUCK_AFTER_S = 6 * 3600
+#: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
+#: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
+_RIVER_OWNER = {"TRIAGE": "triage", "EMPTY": "route", "JOIN": "route", "STATION": "reader",
+                "PRINTER": "vault", "INTAKE": "survey"}
+
+
+def _river_stuck_why(station):
+    """The OWNING lane's own last word on why a station is not draining. -> str (never raises)"""
+    lane = _RIVER_OWNER.get(station)
+    try:
+        if lane == "route":
+            w = str((_ROUTE_LANE or {}).get("why") or "")
+            return ("route lane: " + w) if w else "the route lane has not run since this console started"
+        if lane == "vault":
+            v = _vault_autoread_state_cached() or {}
+            owed, reads = v.get("owed"), v.get("reads")
+            return ("vault lane: owes %s, %s read(s) on record%s"
+                    % ("UNKNOWN" if owed is None else owed, "UNKNOWN" if reads is None else reads,
+                       (" - " + str(v.get("owedWhy"))) if v.get("owedWhy") else ""))
+        if lane == "triage":
+            t = _triage_for_wire() or {}
+            return "triage lane: " + str(t.get("lastWhy") or t.get("lastKey") or t.get("why") or "no word")
+    except Exception as e:
+        return "the %s lane could not be asked (%s)" % (lane or "owning", type(e).__name__)
+    return "no lane has moved these on"
+
+
+def _river_stuck_for_wire(now_ms=None, _rows=None):
+    """#74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THIS PC, AND WHY. -> list | None
+
+    His ask 2026-09-29, after the ALT was found with 76 reels at EMPTY and 25 at PRINTER for two days and
+    NOTHING on any screen said so: see every console's river from his own, "so for deans pc it will do the
+    same". Read from the river's own stamp log (the time each reel ARRIVED at its current station) - one
+    file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
+    oldest first; [] is measured-and-flowing; None is an unreadable log (UNKNOWN, never "flowing")."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    try:
+        if _rows is None:
+            import river_stamp as _rvs
+            rep = _rvs.rows()
+            if not rep.get("ok"):
+                return None
+            _rows = rep.get("rows") or []
+    except Exception:
+        return None
+    last = {}
+    for r in _rows:
+        last[str(r.get("reel"))] = r
+    by = {}
+    for r in last.values():
+        st = str(r.get("station"))
+        if st not in _RIVER_OWNER:
+            continue
+        try:
+            age = max(0.0, (now - int(r.get("at"))) / 1000.0)
+        except (TypeError, ValueError):
+            continue
+        if age < RIVER_STUCK_AFTER_S:
+            continue
+        e = by.setdefault(st, {"station": st, "n": 0, "oldestS": 0})
+        e["n"] += 1
+        e["oldestS"] = max(e["oldestS"], int(age))
+    out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
+    for e in out:
+        e["why"] = _river_stuck_why(e["station"])[:200]
     return out
 
 
@@ -17156,6 +17234,59 @@ def _exec_relaunch_soon():
 _SELF_PROBE = {"tick": 0, "strikes": 0, "lastKind": None, "lastTs": None, "lastOkTs": None, "lastMs": None,
                "acted": None, "say": "not asked yet"}
 SELF_PROBE_EVERY_TICKS = 6          # the rescue loop ticks every 10 s -> once a minute
+#: #50 (REG-1447) — every PC proves its own instruments: asked every 10 minutes, first at minute 5.
+SELF_PROVE_EVERY_TICKS = 60
+#: The SHELF's list, warmed once ~30 s after the console starts (REG-1459).
+SHELF_PREWARM_TICK = 3
+_SHELF_PREWARM = {"done": None, "ms": None, "why": "not yet - the console has not been up 30 s"}
+
+
+def _prewarm_shelf(port=None, _urlopen=None, _thread=None):
+    """REG-1459 — ask this console's own /api/sessions once, off the rescue loop, so his first click on
+    THE SHELF is served warm.
+
+    His report 2026-09-29: "the SHELF when clicked its not opening the section for me". MEASURED on his
+    Mac right after a relaunch: /api/sessions (448 sessions, 453 KB) took 11.2 s cold and 2.7 s warm, and
+    the console demo that opens the shelf gives it 15 s including the render - the first click after a
+    start looked like a dead button. The request goes through the REAL handler on the real port, so the
+    caches it fills are exactly the ones his click reads; there is no second copy of the work to drift.
+    Never raises; a daemon thread, so it cannot hold the console open; the outcome is published."""
+    import urllib.request as _ur
+
+    def _run():
+        t0 = time.time()
+        try:
+            (_urlopen or _ur.urlopen)("http://127.0.0.1:%d/api/sessions" % int(port or CONTROL_PORT),
+                                      timeout=180).read()
+            _SHELF_PREWARM.update(done=True, ms=int((time.time() - t0) * 1000),
+                                  why="warmed the shelf list at boot")
+        except Exception as e:
+            _SHELF_PREWARM.update(done=False, ms=int((time.time() - t0) * 1000),
+                                  why="the boot prewarm could not ask (%s)" % type(e).__name__)
+    if _thread is not None:
+        return _thread(_run)
+    threading.Thread(target=_run, daemon=True, name="tvd-shelf-prewarm").start()
+SELF_PROVE_FIRST_TICK = 30
+_SELF_PROVE = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": None,
+               "say": "the self-prove lane has not ticked yet since this console started"}
+
+
+def _self_prove_tick():
+    """#50 (REG-1447) — one pass of `self_prove.tick`. Never raises; the rescue loop must keep going.
+
+    An INSTALLED console (clean, at origin) whose heart census is absent or stale starts heart2 --prove in
+    the background, hidden and below everything he does, only while the machine is idle - so the ALT and
+    Dean's PC prove their own gates, and their locks open on their own evidence. A development tree never
+    does: there the pre-push gate is the prover."""
+    try:
+        import self_prove as _sp
+        r = _sp.tick(busy=_cpu_busy_pct)
+    except Exception as e:
+        r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
+             "say": "the self-prove tick raised %s" % type(e).__name__}
+    _SELF_PROVE.clear()
+    _SELF_PROVE.update(r)
+    return r
 SELF_PROBE_STRIKES = 3              # three refusals in a row
 SELF_PROBE_ACT_EVERY_S = 600        # and never more than one relaunch per ten minutes
 
@@ -17251,6 +17382,10 @@ def _console_rescue_loop():
             _SELF_PROBE["tick"] = int(_SELF_PROBE.get("tick") or 0) + 1
             if _SELF_PROBE["tick"] % SELF_PROBE_EVERY_TICKS == 0:
                 _self_probe_tick()          # #71 — can this console still answer itself?
+            if _SELF_PROBE["tick"] % SELF_PROVE_EVERY_TICKS == SELF_PROVE_FIRST_TICK:
+                _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
+            if _SELF_PROBE["tick"] == SHELF_PREWARM_TICK:
+                _prewarm_shelf()            # REG-1459 — his first SHELF click is served warm
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -23555,7 +23690,29 @@ def _retention_once():
                           "is UNKNOWN — not zero")
     else:
         _vault_unknown = ""
-        _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
+        # #50 (REG-1446) — the SAME rule the sweeper selects on (`_vault_owed_reels`): a reel the river
+        # holds at PRINTER awaits a sweep whatever retention's first-match tag is - on a KNOWN seal store
+        # and never for a reel it already holds; an unreadable stamp log is UNKNOWN, not a count.
+        _w_pos, _w_seals = _vault_positions_and_seals()
+        if _w_pos is None:
+            _w_vault = []
+            _vault_unknown = ("the river's stamp log could not be read, so how many reels await a sweep "
+                              "is UNKNOWN — not zero")
+        else:
+            try:
+                import reel_retention as _rr_w
+            except Exception:
+                _rr_w = None
+            _w_vault = []
+            for k in (p.get("kept") or []):
+                _rid = os.path.basename(str(k.get("reel")))
+                if not _sd_lane.vault_owes_read(k.get("tag"), _w_pos.get(_rid)):
+                    continue
+                if k.get("tag") not in _vault_lane_tags and (
+                        _w_seals is None or _rr_w is None
+                        or _rr_w.lookup_either_way(_w_seals, _rid) is not None):
+                    continue
+                _w_vault.append(k)
     # ⚠⚠ v3226 — "WAITING ON A SWEEP" WAS FALSE FOR REELS THAT HAD ALREADY HAD ONE, AND HE HAS
     # NOW ASKED ABOUT IT TWICE. chronicle_retro.py:2513 records the first time, almost verbatim:
     # *"how come they are still waiting on a sweep the items it says in the tooltip here"*. And
@@ -27106,9 +27263,56 @@ def _vault_owed_reels(hist=None):
         return None
     if not _vault_tags:
         return None
-    return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
-            for k in (p.get("kept") or [])
-            if k.get("tag") in _vault_tags]
+    # ⚠⚠ 2026-09-29 (#50, REG-1446) — AND THE RIVER'S OWN POSITION, WHICH RETENTION'S ORDER HIDES.
+    # A reel at PRINTER (names read, no seal) that retention files as `recent` or `zero-pages`
+    # carried no vault tag, so this list never held it and the lane published owed:0 over a reel
+    # waiting for the seal only this lane writes. MEASURED: the ALT held 25 such reels since 09-27,
+    # his Mac 4. `shelf_driver.vault_owes_read` is the one definition (the screen's count and
+    # river_walk's probe ask it too); the position is the river's last stamp - one file read, not a
+    # router pass every 45 s. An unreadable stamp store leaves the position UNKNOWN (None), and then
+    # only the tag decides - the list is never widened on a guess. A reel the vault has ALREADY
+    # sealed is not re-bought on a stale stamp. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _pos, _sealed = _vault_positions_and_seals()
+    # ⚠ second eye on this change (Grok, 2026-09-29), both reproduced by reading the branches:
+    #   · an UNREADABLE stamp log made every PRINTER reel's position None, so the list silently shrank
+    #     to the tag half and the lamp read owed:N as if measured. The river could not be asked -> None,
+    #     the same UNKNOWN every other unreadable input to this function already returns;
+    #   · an UNREADABLE seal store let a stale PRINTER stamp re-buy a reel that is already sealed. With
+    #     the seals UNKNOWN the PRINTER half adds nothing; the tag half is unchanged.
+    if _pos is None:
+        return None
+    out = []
+    for k in (p.get("kept") or []):
+        rid = os.path.basename(str(k.get("reel")))
+        if not _sd.vault_owes_read(k.get("tag"), _pos.get(rid)):
+            continue
+        if k.get("tag") not in _vault_tags:
+            # the PRINTER half: only on a KNOWN seal store, and never for a reel it already holds -
+            # asked both ways (`reel_s_1` / `s_1`), membership not truthiness (REG-561/563)
+            if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:
+                continue
+        out.append(os.path.join(h_abs, rid))
+    return out
+
+
+def _vault_positions_and_seals():
+    """(river positions, vault seals) for `_vault_owed_reels`. -> (dict|None, dict|None). Never raises.
+
+    None is UNKNOWN on either side. The stamp store is resolved by river_stamp itself, so a fixture
+    world's TV_HIST redirect reaches it the same way it reaches every other reader of the river.
+    """
+    try:
+        import river_stamp as _rvs
+        pos, _w = _rvs.positions()
+    except Exception:
+        pos = None
+    try:
+        import frame_authority as _fa
+        seals, ok = _fa.sealed_sessions(_fixture_root_for_state())   # a fixture world's, never his
+        seals = seals if ok else None
+    except Exception:
+        seals = None
+    return pos, seals
 
 #: ══ 2026-09-28 — ONE CPU READING, ON EVERY OS ══════════════════════════════════════════════════
 #: MEASURED over SSH on his Windows ALT (plays through Boosteroid, shadow reader ON, hourly rollover
@@ -35379,7 +35583,7 @@ def status_payload():
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
-        "selfProbe": dict(_SELF_PROBE),
+        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM),
         "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
@@ -36336,6 +36540,24 @@ def doctor_payload():
     # and this row says so in words, with the way back - otherwise "where did my console go" has no answer.
     _wm = window_mode_payload()
     checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
+
+    # ── SELF-PROVE — #50 (REG-1447): has THIS PC proved its own instruments? Every self-arming lock (the
+    # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76
+    # reels at EMPTY for two days with nothing on any screen. It reads the lane's LAST tick and never
+    # starts a proof itself - a doctor that spawned a prover would be a second, unscheduled door.
+    _spv = dict(_SELF_PROVE)
+    _sp_key = _spv.get("key")
+    _sp_blind = list(_spv.get("blind") or [])
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy") and not _sp_blind)
+    checks.append(_chk(
+        "self_prove", _sp_ok, "warn",
+        ("self-prove: census %s - %s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",
+                                           (" · %d instrument(s) BLIND here (%s) - every lock stays shut "
+                                            "until each goes red again" % (len(_sp_blind),
+                                                                          ", ".join(_sp_blind[:3])))
+                                           if _sp_blind else "")),
+        "The lane retries by itself; the prover's log is tv/.self_prove.json.log. A BLIND instrument is a "
+        "law that stayed green through its own sabotage on THIS machine - fix the law for this platform."))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")

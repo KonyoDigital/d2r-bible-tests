@@ -763,9 +763,9 @@ def _strip_ship_notes(diff):
     comma there is a live defect class in this repo — so nothing else in run_gates.py is touched.
 
     ⚠⚠ AND IT REMOVES LESS THAN IT LOOKS LIKE, STATED SO THE NUMBER IS NOT OVER-READ. In a DIFF
-    every continuation line begins with `+`, `-` or a space, and the pattern's `\s*` cannot cross
+    every continuation line begins with `+`, `-` or a space, and the pattern's `\\s*` cannot cross
     that marker — so a note spanning five lines loses its FIRST quoted chunk and keeps the rest.
-    That is deliberate: widening the pattern to eat `^[+- ]\s*"..."` would start eating ordinary
+    That is deliberate: widening the pattern to eat `^[+- ]\\s*"..."` would start eating ordinary
     string literals in ordinary code, and the 65 -> 58 measurement above is of THIS narrow form,
     not of a fuller one. A wider strip needs its own measurement before it is worth anything.
 

@@ -177,23 +177,33 @@ def _install_path_interception(hide_from_filesystem):
     if "Popen" not in _REAL_IO:
         _REAL_IO["Popen"] = subprocess.Popen
 
-        def Popen(args, *a, **k):
-            argv0 = None
-            if isinstance(args, (list, tuple)) and args:
-                argv0 = args[0]
-            elif isinstance(args, str) and args.split():
-                argv0 = args.split()[0]
-            m = _path_mode(argv0) if argv0 is not None else None
-            if m == "absent":
-                raise FileNotFoundError(2, "No such file or directory", str(argv0))
-            if m == "not-executable":
-                # ⚠ WHAT A LINUX RUNNER REALLY RAISES for a checked-in Mach-O binary. Not a
-                # stand-in that works, and not a silent no-op: the call fails, the way it fails
-                # there.
-                raise OSError(8, "Exec format error", str(argv0))
-            return _REAL_IO["Popen"](args, *a, **k)
+        # ⚠⚠ #50 (REG-1451) — A CLASS, NOT A FUNCTION. The stub was a plain function, and on Windows
+        # `asyncio.windows_utils` declares `class Popen(subprocess.Popen)` when it is first imported -
+        # which `unittest.mock` does - so subclassing a FUNCTION raised "function() argument 'code' must
+        # be code, not str" and the simulator died on every Windows PC (measured on the ALT, Python 3.12)
+        # while running green on his Mac, where asyncio never imports that module. A subclass behaves the
+        # same for every caller and can itself be subclassed.
+        class Popen(_REAL_IO["Popen"]):
+            _ci_sim_path_stub = True
 
-        Popen._ci_sim_path_stub = True
+            def __init__(self, args, *a, **k):
+                argv0 = None
+                if isinstance(args, (list, tuple)) and args:
+                    argv0 = args[0]
+                elif isinstance(args, str) and args.split():
+                    argv0 = args.split()[0]
+                m = _path_mode(argv0) if argv0 is not None else None
+                if m in ("absent", "not-executable"):
+                    self._child_created = False      # so Popen.__del__ has nothing to reap
+                if m == "absent":
+                    raise FileNotFoundError(2, "No such file or directory", str(argv0))
+                if m == "not-executable":
+                    # ⚠ WHAT A LINUX RUNNER REALLY RAISES for a checked-in Mach-O binary. Not a
+                    # stand-in that works, and not a silent no-op: the call fails, the way it fails
+                    # there.
+                    raise OSError(8, "Exec format error", str(argv0))
+                super(Popen, self).__init__(args, *a, **k)
+
         subprocess.Popen = Popen
     if hide_from_filesystem and "exists" not in _REAL_IO:
         _REAL_IO["exists"] = os.path.exists

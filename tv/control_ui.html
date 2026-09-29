@@ -6613,6 +6613,8 @@
   .fleet-row > .fleet-sys.fleet-former > .fs-l { padding-left: 0; }
   .fleet-sys .fs-unk { color: var(--muted, #8b8071); font-style: italic; }
   .fleet-sys .fs-stand { color: #d8b36a; }
+  .fleet-sys .fs-warn { color: #e0795f; }
+  .fleet-riverstuck { color: #e0795f; font-weight: 600; white-space: nowrap; }
   .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
@@ -24797,8 +24799,57 @@ function escC(s) {
                  stand: lk === 'playing',
                  why: (x.lastWhy ? String(x.lastWhy) : 'the lane’s last tick, as that console last reported it') }));
     }
+    /* 4. #74 (REG-1461) — IS ITS RIVER DRAINING? His ask 2026-09-29: the ALT had 76 reels at EMPTY and 25 at
+       PRINTER for two days and nothing on any screen said so. A station whose oldest reel has waited over 6 h
+       names itself here, with the owning lane's own reason; `none` is measured-and-flowing, a missing field is
+       an older build and a null is an unreadable stamp log - both UNKNOWN, never "flowing". */
+    var sk = (rv && typeof rv === 'object') ? rv.stuck : undefined;
+    if (!rv || typeof rv !== 'object' || sk === undefined) {
+      out.push(_fleetPart('stuck', ['UNKNOWN', 'an older build'], { unk: true,
+                 why: 'this console does not report which stations are not draining (a build older than the field)' }));
+    } else if (sk === null || !Array.isArray(sk)) {
+      out.push(_fleetPart('stuck', ['UNKNOWN'], { unk: true, why: 'that console could not read its own river stamp log' }));
+    } else if (!sk.length) {
+      out.push(_fleetPart('stuck', ['none — every station is draining'], {
+                 why: 'no station on that PC has held a reel for more than 6 hours' }));
+    } else {
+      out.push(_fleetPart('stuck', sk.map(function (e) {
+                   var a = _fleetAgeNow(e.oldestS, m, nowMs);
+                   return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ' for '
+                        + _fleetAgeTxt(a).replace(/[\s ]ago$/, '');
+                 }), { warn: true,
+                 why: sk.map(function (e) { return e.station + ': ' + (e.why || 'no reason given'); }).join('  |  ') }));
+    }
+    /* 5. #74 (REG-1461) — HAS THAT PC PROVED ITS OWN INSTRUMENTS? Every lock that moves its river (routing, the
+       vault sweep, frame release) refuses until it has; REG-1447 makes every PC prove itself in the background. */
+    var hs = (rv && typeof rv === 'object') ? rv.heart : undefined;
+    if (!hs || typeof hs !== 'object') {
+      out.push(_fleetPart('proved', ['UNKNOWN'], { unk: true,
+                 why: 'this console does not report whether it has proved its own instruments (an older build)' }));
+    } else {
+      var hw = { current: 'proved', stale: 'proof out of date', missing: 'never proved on this PC',
+                 unreadable: 'proof unreadable', unknown: 'UNKNOWN' }[hs.census] || 'UNKNOWN';
+      var hb = (typeof hs.blind === 'number') ? (hs.blind + ' blind') : null;
+      out.push(_fleetPart('proved', hb ? [hw, hb] : [hw], {
+                 warn: hs.census !== 'current' || (typeof hs.blind === 'number' && hs.blind > 0),
+                 unk: !hs.census || hs.census === 'unknown',
+                 why: 'every lock that moves this PC\u2019s river opens only on its OWN proof' + (hs.key ? ' - lane: ' + hs.key : '') }));
+    }
     return out;
   };
+  /* #74 (REG-1461) — THE ONE WORD ON THE ROW: a red "river stuck" beside the name when any station on that PC has
+     held a reel for over 6 h, the reasons in its hover; nothing when it drains or cannot say (the detail box says
+     UNKNOWN in words). Exported so a gate can put every state to it. */
+  var _fleetStuckChip = function (m) {
+    var rv = (m && m.system && typeof m.system === 'object') ? m.system.river : null;
+    var sk = (rv && typeof rv === 'object' && Array.isArray(rv.stuck)) ? rv.stuck : null;
+    if (!sk || !sk.length) return '';
+    var tip = sk.map(function (e) {
+      return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ': ' + (e.why || 'no reason given');
+    }).join(' | ');
+    return '<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '"> · river stuck</span>';
+  };
+  window._fleetStuckChip = _fleetStuckChip;
   /* A RENAMED HOST'S "formerly" LINE, as facts. REG-1378: its age was _fleetSince's, which answers "just now" for a
      lastSeen it cannot parse and for one in the future - a machine last seen at an unreadable time read as seen this
      minute. Now the card's own rule: an age that cannot be established (absent, unparseable, or after now - a FORMER
@@ -24820,7 +24871,7 @@ function escC(s) {
   };
   var _fleetSysHtml = function (m, nowMs) {
     var h = '<span class="fleet-meta fleet-sys">' + _fleetSysParts(m, nowMs).map(function (p) {
-      return '<span class="fs-l' + (p.unk ? ' fs-unk' : '') + (p.stand ? ' fs-stand' : '') + '" title="' + escC(p.why || '') + '">'
+      return '<span class="fs-l' + (p.unk ? ' fs-unk' : '') + (p.stand ? ' fs-stand' : '') + (p.warn && !p.unk ? ' fs-warn' : '') + '" title="' + escC(p.why || '') + '">'
            + '<i class="fs-k">' + escC(p.k) + '</i>' + _fleetFacts(p.f) + '</span>';
     }).join('') + '</span>';
     var fm = _fleetFormerParts(m, nowMs);
@@ -25488,6 +25539,7 @@ function escC(s) {
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
+          + _fleetStuckChip(m)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the
              information"*. The row carried `idle · v2874 · unpublished · just now`, and
@@ -25927,17 +25979,19 @@ function escC(s) {
          they are absent and `| 0` turned three unknowns into three confident zeros — two numbers
          for one thing on one card, which is the defect this console has had to correct more than
          any other. Known figures when known, an em-dash when not. [[label-outlived-referent]] */
+      /* each dot is glued on BOTH sides (\u00a0), so a wrap can never leave one at a line's start or end -
+         Grok's cold look at 375px, 2026-09-29, the same class as REG-1441 [[REG-1462]] */
       + '<div class="fx-foot">'
       + (j.ok ? ((j.mineN | 0) + ' / ' + _fxDen(j) + ' yours')
               : (_yoursN + ' / ' + _fxDen(j) + ' yours'))
-      + ' · '
+      + '\u00a0·\u00a0'
       + (j.ok ? ((j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs')
               : (typeof j.theirHave === 'number'
                    ? (j.theirHave + ' / ' + (j.theirTotal || _fxDen(j)) + ' theirs (count only)')
                    : '\u2014 theirs'))
-      + ' · '
+      + '\u00a0·\u00a0'
       + (j.ok ? ((j.both | 0) + ' shared') : '\u2014 shared')
-      + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
+      + '<span class="fx-age">\u00a0·\u00a0your list ' + escC(age(j.mineAt))
       + ', theirs ' + escC(age(j.theirAt)) + '</span></div></div></div>';
     } catch (err) {
       box.innerHTML = '<div class="fxr-win">' + head

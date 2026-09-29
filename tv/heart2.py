@@ -795,6 +795,15 @@ SANDBOX_STALE_S = 24 * 3600
 
 
 def _pid_alive(pid):
+    # ⚠⚠ #50 (REG-1447) — os.kill(pid, 0) IS A CTRL-C ON WINDOWS (signal 0 == CTRL_C_EVENT), not a probe.
+    # Now that every PC proves itself, this runs on Windows: ask the way control_app does. An import
+    # failure answers ALIVE - keeping a sandbox is safe, removing a live prover's sandbox is not.
+    if os.name == "nt":
+        try:
+            import self_prove as _sp
+            return _sp.pid_alive(pid)
+        except Exception:
+            return True
     try:
         os.kill(int(pid), 0)
     except ProcessLookupError:
@@ -804,6 +813,69 @@ def _pid_alive(pid):
     except (OSError, ValueError, TypeError):
         return False
     return True
+
+
+#: Off the Mac there is no free clone, so a need is COPIED - and only below these sizes. Above them the gate
+#: stays UNPROVABLE, which is honest, rather than a prover filling his disk one sandbox at a time.
+_NEED_COPY_MAX_FILE = 50 * 1024 * 1024
+_NEED_COPY_MAX_TREE = 200 * 1024 * 1024
+
+
+def _bring_across(src, dst, need, say):
+    """Place one PROOF_NEEDS item in a sandbox. Never escapes the sandbox, never fills the disk.
+
+    ⚠⚠ #50 (REG-1448) — THIS WAS `cp -c -R` ON EVERY PLATFORM, AND `cp` DOES NOT EXIST ON WINDOWS. Every
+    need raised FileNotFoundError there, so no sandbox on the ALT carried `.git` or the spec file, and the
+    laws that read them SKIPPED through their own sabotage - `test_eye_declares_reach` read BLIND on the
+    ALT while it goes red on the Mac. Now that every PC proves itself (REG-1447), that is a lock held shut
+    on every Windows PC by the prover's own plumbing.
+    The Mac keeps the APFS clone, byte for byte. Elsewhere: `.git` (1.8 GB on his Mac) becomes a
+    `git clone --shared` - the objects are BORROWED read-only through alternates, the refs and the index
+    are the sandbox's own, so nothing a law runs in there can write into the real repository; its index
+    is rebuilt from HEAD, which on an installed console is the working tree. Anything else is copied only
+    under the size caps above.
+    """
+    if sys.platform == "darwin":
+        _rc = subprocess.run(["cp", "-c", "-R", src, dst],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
+        if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
+            say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
+                "UNPROVABLE rather than risking the disk" % (need, _rc))
+        return
+    if os.path.basename(os.path.normpath(src)) == ".git" and os.path.isdir(src):
+        tmp = dst + ".shared"
+        env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+        r = subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout",
+                            os.path.dirname(os.path.normpath(src)), tmp],
+                           capture_output=True, text=True, timeout=300, env=env)
+        if r.returncode != 0:
+            shutil.rmtree(tmp, ignore_errors=True)
+            say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
+                "that read it stay UNPROVABLE" % r.returncode)
+            return
+        os.replace(os.path.join(tmp, ".git"), dst)
+        shutil.rmtree(tmp, ignore_errors=True)
+        subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
+                       capture_output=True, text=True, timeout=120, env=env)
+        return
+    if os.path.isfile(src):
+        if os.path.getsize(src) > _NEED_COPY_MAX_FILE:
+            say("  PROOF_NEEDS %r is too large to copy without a clone — the gate stays UNPROVABLE" % need)
+            return
+        shutil.copy2(src, dst)
+        return
+    total = 0
+    for _r, _ds, _fs in os.walk(src):
+        for _f in _fs:
+            try:
+                total += os.path.getsize(os.path.join(_r, _f))
+            except OSError:
+                pass
+            if total > _NEED_COPY_MAX_TREE:
+                say("  PROOF_NEEDS %r is over %d MB — not copied without a clone; the gate stays UNPROVABLE"
+                    % (need, _NEED_COPY_MAX_TREE // (1024 * 1024)))
+                return
+    shutil.copytree(src, dst)
 
 
 def _track_sandbox(root):
@@ -989,11 +1061,7 @@ def make_sandbox(say=print):
             continue
         try:
             os.makedirs(os.path.dirname(_d), exist_ok=True)
-            _rc = subprocess.run(["cp", "-c", "-R", _s, _d],
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
-            if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
-                say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
-                    "UNPROVABLE rather than risking the disk" % (_need, _rc))
+            _bring_across(_s, _d, _need, say)
         except Exception as _e:
             say("  PROOF_NEEDS %r could not be brought across: %s" % (_need, type(_e).__name__))
     for _root_file in ("bible.html", "visual_lock_invariant.py"):
@@ -1219,6 +1287,28 @@ LANE_DISK_FLOOR_MB = 4096     # the same floor safe_copy itself refuses to copy 
 # had, and a genuinely hung gate still gives up — at 2x a bounded budget, never never.
 LANE_DEADLINE_SCALE = 2
 DEADLINE_SCALE = 1            # what _prove_one actually multiplies in; set by _prove_gates
+#: ⚠⚠ #50 (REG-1454) — A BACKGROUND PROOF ON A SLOWER PC IS THE SAME CASE AS A BUSY LANE. On the ALT the
+#: self-prove lane runs this at BELOW_NORMAL priority beside a console that is filming, and
+#: `test_screen_parity` timed out at its 120 s on every proof - UNPROVABLE - while the same law passes in a
+#: plain copy there given time. The deadline is this prover's patience, not the law, so the caller that
+#: KNOWS it is running slow says so: heart2 reads HEART2_DEADLINE_SCALE (a number >= 1, capped at 8; junk
+#: is ignored and said). A genuinely hung gate still gives up, at most 8x a bounded budget.
+DEADLINE_SCALE_MAX = 8
+
+
+def _deadline_scale(n_lanes, env=None, say=None):
+    """The factor every gate's registered timeout is multiplied by in this run. -> int >= 1"""
+    base = LANE_DEADLINE_SCALE if n_lanes > 1 else 1
+    raw = (env if env is not None else os.environ).get("HEART2_DEADLINE_SCALE")
+    if not raw:
+        return base
+    try:
+        asked = int(float(raw))
+    except (TypeError, ValueError):
+        if say:
+            say("  HEART2_DEADLINE_SCALE=%r is not a number - ignored" % raw)
+        return base
+    return max(base, min(DEADLINE_SCALE_MAX, max(1, asked)))
 
 
 def prove_workers(n_gates=None, say=None):
@@ -2170,7 +2260,7 @@ def _prove_gates(have, say=print, workers=None):
     # keeps it. A dial that does not spring back is a dial nobody set. [[label-outlived-referent]]
     global DEADLINE_SCALE
     _prev_scale = DEADLINE_SCALE
-    DEADLINE_SCALE = LANE_DEADLINE_SCALE if n > 1 else 1
+    DEADLINE_SCALE = _deadline_scale(n, say=say)
     try:
         if n == 1:
             _prove_lane(1, work, out, lock, say, built, buffered=False)

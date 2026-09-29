@@ -148,6 +148,16 @@ class TestALockStateIsAskedNotAsserted(unittest.TestCase):
                     says_open = any(OPEN_CLAIM.search(s) for s in near)
                     if says_shut and live[lk]:
                         bad.append("%s:%d claims %s is SHUT, but may() is True" % (name, line, lk))
+                    elif says_shut:
+                        # ⚠⚠ #50 (REG-1453) — AND AGAINST THE STATE IT WILL REACH, NOT ONLY THE ONE IT IS IN.
+                        # Judged against the live lock alone, this law could only see a stale SHUT claim on
+                        # a machine whose locks are OPEN. On a PC that has not proved itself yet (the ALT,
+                        # Dean's) every lock is shut, the claim agreed, the law stayed green through its own
+                        # sabotage, and heart2 called it BLIND - and one BLIND instrument keeps every lock on
+                        # that PC shut: a deadlock no proof could break. A lock opens by itself, so a SHUT
+                        # claim is stale the moment it does; it is wrong on every machine, now or later.
+                        bad.append("%s:%d claims %s is SHUT - a lock that opens itself makes that stale "
+                                   "(it is shut on THIS machine today; it will not stay so)" % (name, line, lk))
                     if says_open and not live[lk]:
                         bad.append("%s:%d claims %s is OPEN, but may() is False" % (name, line, lk))
 

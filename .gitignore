@@ -191,6 +191,10 @@ tv/.second_eye.jsonl
 # make one Mac's census read as the repo's truth, and a stale row would then be indistinguishable
 # from a fresh one — a supervision layer's worst failure mode.
 tv/.heart2.json
+# #50 (REG-1447) — each PC's own self-prove lane memory + prover log; per-machine, never shared
+tv/.self_prove.json
+tv/.self_prove.json.log
+tv/.self_prove.json.tmp
 # #42 P3 — the push-time verdict cache beside the census: which PROVEN verdicts THIS machine may reuse, keyed by a
 # digest of every byte each depends on (tv/heart2.py law_inputs). Per machine for the same reason as .heart2.json: a
 # cache that travelled would let one Mac's proofs pass on a tree it never proved.

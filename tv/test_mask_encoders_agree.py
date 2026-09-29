@@ -265,12 +265,25 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
             # only shrink the window, and a retry cannot tell "the harness raced" from "the two
             # encoders genuinely disagree" — which is the one thing this gate exists to catch.
             # [[feedback-suspect-the-instrument]] [[regression-guard]]
-            _deadline = time.time() + 15.0
+            # ⚠⚠ #50 (REG-1458) — READY MEANS THE PAGE'S OWN SCRIPT RAN, NOT THAT EVERY PICTURE ARRIVED.
+            # MEASURED on the ALT: the served console reached `interactive` at once and `complete` only
+            # after 39 s (>90 s cold) - every image and font - so this 15 s window skipped all 8 cases and
+            # the proof read BLIND there; under a heavy load his Mac skipped 4 of them the same way. The
+            # snippet needs localStorage and the page's `window.LSR` wrapper, both present at
+            # `interactive`. And the window is the prover's patience (HEART2_DEADLINE_SCALE, which the
+            # self-prove lane sets on a slower PC), not a constant: 15 s by default, up to 8x.
+            try:
+                _patience = max(1.0, min(8.0, float(os.environ.get("HEART2_DEADLINE_SCALE") or 1)))
+            except (TypeError, ValueError):
+                _patience = 1.0
+            _deadline = time.time() + 15.0 * _patience
             while time.time() < _deadline:
-                _st = tab.ev("[location.href, document.readyState]") or []
+                _st = tab.ev("[location.href, document.readyState, "
+                             "!!(window.LSR && window.LSR.getItem)]") or []
                 _href = str(_st[0]) if len(_st) > 0 else ""
                 _rs = str(_st[1]) if len(_st) > 1 else ""
-                if _href and _href != "about:blank" and _rs == "complete":
+                _lsr = bool(_st[2]) if len(_st) > 2 else False
+                if _href and _href != "about:blank" and (_rs == "complete" or (_rs == "interactive" and _lsr)):
                     break
                 time.sleep(0.2)
             else:

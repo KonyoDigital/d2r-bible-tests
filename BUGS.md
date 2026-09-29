@@ -25,6 +25,269 @@ pre-push gate is a subset, and v3522's CI was green, so every one of these would
   cache answering None for a just-started agent while `_lock` is contended - is PRE-EXISTING (v877) and is filed as
   its own task with a driven law owed, not patched blind here.
 
+### REG-1462 - THE FLEET COMPARE FOOTER STRANDED A MIDDOT AT PHONE WIDTH (2026-09-29)
+
+**Found** by the Grok CLI's COLD look at the REG-1461 screenshots (it was not told what to look for): at 375 px
+the compare box footer's second line read "· your list unknown, theirs unknown" - the REG-1377/1441 class,
+in a place those fixes never reached. **Fix:** every footer separator is glued on BOTH sides (\u00a0·\u00a0),
+so a wrap can only fall inside a fact. **Law:** the rendered-card law's line reader now covers the footer; its
+red-proof (the age separator made breakable again) reproduces Grok's exact line at 375 and is RED.
+Also in the same look, NOT defects of this change and left as found: the green presence dot beside a red
+"river stuck" (presence, not health), ON AIR vs OFF AIR in the header (the fixture), the triage facts sharing
+one line at 1280 (pre-existing).
+
+### REG-1461 - A PC'S RIVER COULD STALL FOR DAYS AND NO SCREEN WOULD SAY SO (2026-09-29)
+
+**Found** on the ALT (#50): 76 reels at EMPTY and 25 at PRINTER since 09-27, found only by SSH; Dean's PC has
+no SSH. His ask: see Dean's river from his own console (#74, step 1 of the fleet river). **Fix:** the beacon's
+`system.river` gains `stuck` - each station a reel is meant to LEAVE whose oldest reel has waited > 6 h, with
+its count, age and the OWNING lane's own last reason (route lane / vault lane / triage lane) - read from the
+river's stamp log (one file, never a router pass), and `heart` - that PC's self-prove census and blind count.
+CAPTURE never alarms (it waits on a capture change by design). The worker admits both, shaped and scrubbed;
+the fleet row shows a red "river stuck" with the reasons in its hover, the detail box two new lines (stuck /
+proved). An older build reads UNKNOWN on both - never "flowing". **Law:** `test_the_fleet_says_where_a_river_
+is_stuck.py` - console, worker and card each driven; 3 red-proofs RED. The rendered-card law now counts five
+UNKNOWN lines for an older build.
+
+### REG-1460 - TWO ORPHAN-ATTRIBUTION CASES DEPENDED ON THE HOST'S lsof (2026-09-29)
+
+**Found** on the ALT: `test_orphans_say_whose_they_are` red - "a process running this repo's own code was
+not attributed to us" and "an unattributable process was given a definite answer". `_attribute` asks the
+port witness first, through lsof; on his Mac lsof answers "no port" for a fake pid, on Windows there is no
+lsof, the port is UNKNOWN and the rule fails closed to NEVER MINE - correct for the rule, wrong premise
+for cases written about the OTHER two witnesses. **Fix:** those two cases hold the port answer at "no port
+of his"; the fail-closed port rule is untouched and keeps its own case. Its red-proof is still RED.
+
+### REG-1459 - THE FIRST SHELF CLICK AFTER A START PAID AN 11-SECOND COLD BUILD (2026-09-29)
+
+**His report:** *"the SHELF when clicked its not opening the section for me"*. **Measured** right after
+relaunching his console: `/api/sessions` (448 sessions, 453 KB) 11.2 s cold, 2.7 s warm; the J7 shelf demo
+(15 s including render) timed out against the fresh server and passed 16/16 once warm. **Fix:** the rescue
+loop asks the console's own `/api/sessions` once at ~30 s (`_prewarm_shelf`, daemon thread, through the
+real handler so the caches it fills are the ones his click reads); `shelfPrewarm` in /api/status says
+what happened. **Law:** `test_the_shelf_is_warm_before_he_clicks.py`, real loopback server, 2 red-proofs RED.
+
+### REG-1458 - THE MASK LAW WAITED FOR EVERY PICTURE, SO A SLOW PAGE SKIPPED IT INTO "BLIND" (2026-09-29)
+
+**Found** on the ALT after REG-1457 gave it a browser: the served console reached `interactive` at once
+and `complete` only after 39 s (>90 s cold), and `_js_mask` waited 15 s for `complete` - all 8 encoder
+cases skipped. Under today's load (48 on 10 cores) his Mac skipped 4 of them the same way. **Fix:** ready
+= the served page's own script ran (`interactive` + `window.LSR`), or `complete`; the window is 15 s x
+HEART2_DEADLINE_SCALE (the prover's patience, capped at 8). **Status, honestly:** on his Mac 9 of 12 run
+(3 still skip under load 48). On the ALT the cases STILL skip - measured while the ALT was also running
+its full heart inventory, so that reading is contaminated; RE-MEASURE ON AN IDLE ALT before calling this
+closed. The ALT's slow `complete` (39-90 s for a page his Mac loads in ~1 s) is itself a finding for #66.
+
+### REG-1457 - NO BROWSER LAW COULD RUN ON WINDOWS: NO WINDOWS PATH, AND NO websocket-client (2026-09-29)
+
+**Found** by the Windows inventory: `test_mask_encoders_agree[3]` BLIND - 8 of 12 laws skipped with "no
+headless Chrome". `render_check._find_chrome` knew his Mac, Playwright's cache and Linux names, and no
+Windows path. With Windows paths added, the ALT found its Chrome and all 8 cases then FAILED with
+`No module named 'websocket'` - the installer never put websocket-client on a Windows PC, because only
+his Mac had ever proved anything. **Fix:** `_find_chrome` looks in Program Files / Program Files (x86) /
+LocalAppData for Chrome, then Edge (every Windows 10/11 has it; same DevTools protocol). The self-prove
+lane ensures the prover's imports before a real proof (`ensure_prover_deps`: hidden, `--user`, bounded,
+Windows only, and it says what it did - the console's boot-Pillow pattern), and `install-tvd.ps1` installs
+websocket-client up front. **Laws:** two cases each in the Windows and self-prove laws; both red-proofs RED.
+
+### REG-1456 - THE ANCESTOR-WALK LAW COULD ONLY TELL SPELLINGS APART BY CASE, WHICH WINDOWS ERASES (2026-09-29)
+
+**Found** by the Windows inventory: `test_agent[1]` BLIND - the sabotage `samefile(cur, b)` -> `cur == b`
+stayed green. Its "any volume" case told the two spellings apart only by CASE, and on Windows
+`_under`'s normcase fallback lowercases both, so the broken walk was rescued. **Fix:** a case whose two
+spellings differ by a LINK (`…/tvlink/…` is `…/tv`), which no normcase reconciles and only the
+filesystem (stubbed as samefile would answer) can see. The proof is RED with the new case on every OS.
+
+### REG-1455 - A MISSING OWNER CLAIM HID HIS POPULATED BOARD, AND FROZE HIS CONSOLE ON OLD CODE (2026-09-29)
+
+**Found** chasing why his Mac console ran 10-hour-old server code under a push gate: `drift_may_relaunch`
+refused with *"the board is in an UNCLAIMED guest world (pfx='I·1d4afc43·')"*. Read on a COPY of his
+WebKit store: `d2r_ownerClaim` and `d2r_installId` both gone (the store folder was rewritten at 02:54;
+the console went deaf at 03:05), a fresh id `1d4afc43` minted at ~03:13, and since then his board has
+rendered an EMPTY guest world ("Runewords 0/99") while 280 finds / 133 set pieces / his owned records sat
+untouched in the bare keys. The 15 guest keys hold only derived caches. v2776 already recovers a
+populated world when the claim stops MATCHING - but it lives inside `if (claim)`, so a claim that is
+MISSING never reached it.
+
+**Fix (bible.html):** the bare-world probe is now ONE function `_d2rBareWorldEntries()` asked by both
+paths; with NO claim, a real browser (never under `navigator.webdriver`) holding a populated owner-only
+world re-pins the claim to `*`, records `__d2rClaimRecovered {why: 'claim missing'}` and warns. Same
+property as v2776: a guest never writes a bare key, so it cannot fire in Dean's browser, a fresh
+install or a headless probe. **Replayed on the copy of his real store: owner, '*', 518 entries.**
+
+**Law:** 3 cases added to `test_a_populated_world_survives_a_lost_claim.py` (his state; empty and blank
+worlds stay guest and write nothing; never under automation). 2 red-proofs, both RED; v2776's own proof
+still RED after the refactor.
+
+### REG-1454 - A BACKGROUND PROOF ON A SLOWER PC USED THE MAC'S DEADLINES (2026-09-29)
+
+**Found** by the Windows inventory: `test_screen_parity` UNPROVABLE on all four proofs - *"timed out after
+120s"* - while the same law passes in a plain copy on the ALT. The ALT proves at BELOW_NORMAL priority
+beside a console that is filming. The deadline is the prover's patience, not the law (heart2 already
+widens it x2 for its own parallel lanes). **Fix:** `heart2._deadline_scale()` honours
+`HEART2_DEADLINE_SCALE` (>= 1, capped at 8, junk ignored and said); the self-prove lane asks for 4.
+**Law:** two cases in `test_every_pc_proves_itself.py`; red-proof seen RED.
+
+### REG-1453 - A LAW THAT COULD ONLY GO RED WHERE THE LOCKS WERE ALREADY OPEN: A DEADLOCK ON EVERY NEW PC (2026-09-29)
+
+**Found** by the Windows inventory on the ALT: `test_lock_state_asked[0]` and `[1]` BLIND - green through
+their own sabotage (a restored "the lock is SHUT" comment). The law flagged a SHUT claim only when
+`may()` answered True on the machine running it. On his Mac the locks are open, so it goes red; on a PC
+that has not proved itself every lock is shut, the claim agrees, the law is BLIND - and since REG-1447 a
+BLIND instrument keeps every lock on that PC shut. The locks could never open because the law could
+never go red because the locks were shut.
+
+**Fix:** a SHUT claim is flagged on every machine: a lock opens by itself, so the claim is stale the
+moment it does - the law's own failure message already said so. OPEN claims are still judged against
+the live lock. Verified both ways: with `may()` forced shut (a never-proved PC) the tree is clean and
+both red-proofs go RED; on his Mac, live, both go RED.
+
+### REG-1452 - THE UNREADABLE-STORE LAW COULD NOT MAKE A FILE UNREADABLE ON WINDOWS (2026-09-29)
+
+**Found** on the ALT: `a mode-000 file opened successfully` - chmod on Windows only toggles read-only, so
+the premise failed and `handoff._marks`, `_rnf_load`, `_shadow_watch_stored` were never tested on the
+machines that run them. **Fix:** on Windows `_unreadable` holds the file open with NO SHARING
+(CreateFileW, share mode 0) - what an antivirus scan or a second process actually does - and
+`_readable_again` closes it; POSIX is unchanged.
+
+### REG-1451 - THE CI SIMULATOR DIED ON EVERY WINDOWS PC: ITS Popen STUB WAS A FUNCTION (2026-09-29)
+
+**Found** on the ALT (Python 3.12): `TypeError: function() argument 'code' must be code, not str` from
+`asyncio/windows_utils.py: class Popen(subprocess.Popen)`, reached through `test_control` ->
+`unittest.mock` -> `asyncio`. `ci_sim._install_path_interception` had replaced `subprocess.Popen` with a
+plain function; asyncio never imports windows_utils on the Mac, so it was green there.
+**Fix:** the stub is a subclass of the real Popen (same refusals, `_child_created = False` before raising
+so `__del__` has nothing to reap). **Law:** a child python installs the stub and subclasses Popen. RED.
+
+### REG-1450 - FOUR MODULES COMPILED WITH A WARNING; ON 3.12 IT LANDS IN EVERY CHILD'S OUTPUT (2026-09-29)
+
+**Found** on the ALT: `control_app.py:13054: SyntaxWarning: invalid escape sequence '\s'` printed into
+the simulator's output, so its `reach:` line was not where the law looked; on his Mac's 3.9 it is a
+silent DeprecationWarning, and a later Python makes it an error. Same in `chronicle_hunt`,
+`second_eye_run`, `source_window`. **Fix:** the offending backslashes doubled - the parsed program is
+byte-for-byte the same AST before and after, checked. **Law:** no production module in `tv/` compiles
+with any warning. RED. Also: `test_the_encoding_rule_has_one_definition` decoded a child's UTF-8 with
+the Windows codepage (`'charmap' codec can't decode byte 0x9c`); it now reads UTF-8.
+
+### REG-1449 - THE RIVER-OUTLET LAW'S SHELF WAS WHATEVER THE HOST HAD, SO IT WAS BLIND OFF HIS MAC (2026-09-29)
+
+**Found** by the one-law trial prove on the ALT (#50): `test_the_river_has_an_outlet[0]` BLIND - green
+through its own sabotage - while it goes red on his Mac. Its laws took a reel from `route()` on the
+machine's own shelf and skipped when there was none. heart2's sandbox never copies frames, so on his Mac
+the only reel present was one of HIS, brought in because another gate lists it in PROOF_NEEDS; on the
+ALT, on Dean's PC and on CI the shelf was empty and every law skipped. The law's own comment already
+named the host-machine fixture; the fix it chose (skip loudly) is honest on CI and fatal once every PC
+proves itself (REG-1447), because one BLIND instrument shuts every lock on that PC.
+
+**Fix:** the law brings its own shelf through the seam the router documents - `reel_router._evidence`
+patched for the module with one reel per station built from EVIDENCE_FIELDS alone (two at EMPTY, so the
+FIFO case has an order); the retention guard, which reads the SOURCE of the production builder, is
+handed the real one. 18 cases, 0 skips in a tree with no footage at all; both red-proofs seen RED.
+
+### REG-1448 - THE PROVER COULD NOT HAND ITS SANDBOX ANYTHING ON WINDOWS, SO LAWS SKIPPED INTO "BLIND" (2026-09-29)
+
+**Found** by the full Windows inventory on the ALT: `PROOF_NEEDS '../.git' could not be brought across:
+FileNotFoundError` for every need, and `test_eye_declares_reach` BLIND - *"ALL 4 law(s) SKIPPED in the
+sandbox"*. heart2 placed needs with `cp -c -R` (an APFS clone) on every platform, and Windows has no `cp`.
+On his Mac the `.git` other gates ask for is cloned into every sandbox for free, which is why the same law
+goes red there.
+
+**Fix:** `heart2._bring_across()`: the Mac keeps `cp -c`; elsewhere `.git` becomes a `git clone --shared`
+(objects borrowed read-only through alternates, refs + index the sandbox's own, index rebuilt from HEAD),
+and other needs are copied only under 50 MB per file / 200 MB per tree - above that the gate stays
+UNPROVABLE rather than filling the disk.
+
+**Law:** two cases in `tv/test_the_gates_load_on_windows.py`, driven off the Mac on a real temp repo:
+history and index arrive, the history is BORROWED (alternates) not copied, a commit inside the sandbox
+never moves the real HEAD or index, an oversize need is refused. 2 more red-proofs, seen RED.
+
+### REG-1447 - NO PC BUT HIS MAC HAD EVER PROVED ITS INSTRUMENTS, SO EVERY LOCK ELSEWHERE STAYED SHUT (2026-09-29)
+
+**Found** with REG-1445 on the ALT: `.heart2.json` absent, `may("reel.route")` = *"the heart has never run
+here"*. The census is per-machine and the only writer was his Mac's pre-push gate. His ruling: every PC
+proves itself - the ALT, Dean's. Measured why a Mac proof cannot be shipped instead: different gate
+fingerprints at one clean commit, and a one-law trial on the ALT found the river-outlet law BLIND there
+(green through its own sabotage; the Mac's sandbox happened to carry one of his reels). A full Windows
+inventory is running on the ALT to list every law that is blind or already red there.
+
+**Fix:** `tv/self_prove.py` + `_self_prove_tick()` in the rescue loop (every 10 min, first at minute 5).
+On an INSTALLED console - clean tree, at its upstream - whose census is absent or stale for the gates on
+disk, it starts `heart2.py --prove` hidden (CREATE_NO_WINDOW), at BELOW_NORMAL priority (nice 15 off
+Windows), one lane, only while the machine is under 45% busy; one proof at a time; a proof that ends
+without a current census backs off 3 h for those gates. A development tree never proves in the
+background - there the pre-push gate is the prover. The lane speaks on/worked/lastTs/owed, is published
+as `selfProve` in /api/status, and has a doctor row naming any BLIND instrument on that machine.
+`heart2._pid_alive` no longer calls `os.kill(pid, 0)` on Windows, where signal 0 is CTRL_C_EVENT.
+
+**Law:** `tv/test_every_pc_proves_itself.py` - the decision in every state, the tick end to end with a
+recording spawn, `tree_state` on a real temporary git repo, the process probe, heart2 driven as Windows.
+6 red-proofs, all seen RED by hand (the 6th: an update during a proof is not a failure).
+
+**Second eye (Grok CLI, cold) on `decide`/`tick` - 3 real, fixed, red-proved; the rest rejected with
+reasons:** a save that failed right after a spawn made the next tick forget the running proof and start
+a SECOND prover (the pid is now also held in-process); `tick` promised never to raise but a corrupted
+memory file raised on every tick (now wrapped, every conversion defensive); a NaN load reading passed
+the idle check (now UNKNOWN). Rejected: pid 0 / a failure time of 0 / "installed with local commits" -
+states this code never produces (`tree_state` answers `dev` for an unpushed commit). The review of
+`_bring_across` and the Windows tree lock timed out THREE times (3.2-30 KB prompts) - those two are
+UNAUDITED by a second eye, and are covered only by their laws and red-proofs. 9 red-proofs, all RED.
+
+### REG-1446 - A REEL AT PRINTER WAITED FOR A SEAL NOTHING WOULD WRITE (2026-09-29)
+
+**Found** on the ALT (#50): 25 reels at PRINTER ("N name(s) read and the session carries no seal")
+since 09-27 21:09; vault lane `on, reads 0, owed 0, storeReadable false - this lane has genuinely never
+recorded a read`; no `vault_swept.json` ever written. The seal is written only by the vault sweep, and
+`_vault_owed_reels` selected on retention's tag alone (`vault-owes`, `panels-never-banked`). Retention's
+rules answer *why is this reel still on disk*, first-match-wins, so every one of the 25 matched
+`zero-pages` first (the Chronicle reader found no pages). His Mac had the same shape, milder: 4 PRINTER
+reels (265 / 23 / 26 / 14 names) all `recent`, sealed only once they aged out. `river_walk`'s PRINTER
+probe had been saying so in words - *"retention's rules are first-match-wins ... this reel waits for a
+seal nothing will write"* - on a screen nobody had open.
+
+**Fix:** `shelf_driver.vault_owes_read(tag, station)` is the one definition: a vault read tag owes
+anywhere; otherwise a reel the ROUTER places at PRINTER owes, unless retention vetoes it
+(`test-fixture`, `no-witness-index`, `ledger-unreadable`, `rows-not-banked`). The position is the
+river's own last stamp (`river_stamp.positions()`, one file read) - a router pass every 45 s would cost
+1.7 s per 25 reels on his Mac and far more on the ALT. An unreadable river leaves the position UNKNOWN
+and the tag alone decides; a reel already sealed is not re-bought on a stale stamp; the seal read
+resolves against the fixture root. The sweeper, the SHELF's "awaiting a sweep" count and river_walk's
+probe all ask it. Replayed on his Mac's real shelf: owed 2 -> 6, exactly the 4 PRINTER reels, no fixture.
+
+**Law:** `tv/test_a_reel_at_printer_is_the_vaults_work.py` - the table stated independently, the
+sweeper's list driven through its real body, `positions()` on a temp store, `river_walk.walk` on a
+stubbed shelf. 4 red-proofs, all seen RED by hand.
+
+**Second eye (Grok CLI, cold, on the pasted code) - 7 findings, 3 real, all fixed and red-proved:** an
+unreadable stamp log silently shrank the list to its tag half (now `None`, UNKNOWN, like every other
+unreadable input there); an unreadable seal store let a stale PRINTER stamp re-buy a sealed reel (the
+PRINTER half now adds nothing unless the seals are KNOWN, looked up both ways via
+`reel_retention.lookup_either_way`); the veto was a deny-list, so a tag retention never emits would have
+spent (the PRINTER path now takes only `reel_retention.RULES`). Rejected with reasons: the fixture-root
+seal read (positions and seals resolve to the same root), stamp row order (file order IS the history),
+and two behaviours unchanged by this fix. The SHELF's "awaiting a sweep" count got the same three fixes.
+6 red-proofs now, all RED.
+
+### REG-1445 - NO WINDOWS PC COULD LOAD ITS OWN GATES, SO EVERY LOCK THERE STAYED SHUT (2026-09-29)
+
+**Found** measuring why the ALT's river never reaches TOMBSTONE (#50): 76 reels at EMPTY never ROUTED,
+25 at PRINTER never sealed, both since 09-27. `self_arming.may("reel.route")` on the ALT answered
+*"the heart has never run here… UNKNOWN fails CLOSED"*. The heart census is per-machine and the Mac's
+cannot speak for Windows: at the same clean commit (562b1687) the ALT's gate fingerprint was `2d9eff1d`
+against the Mac's `56b2a8c3`, because **`run_gates.py` imports `fcntl` at top level** (since v1751,
+2026-08-17) and would not import on Windows at all - `heart2.gate_files()` saw ZERO gates there. With
+fcntl stubbed the ALT lists 679 gates (Mac 678), and a one-law trial prove on the ALT showed the
+river-outlet law BLIND there (green through its own sabotage) while it goes red on the Mac. His ruling:
+every PC proves itself.
+
+**Fix:** fcntl and msvcrt are both imported under `try/except ImportError`; `_lock_nb()` takes the
+per-tree lock with `msvcrt.locking(LK_NBLCK)` on Windows, on a byte far past the holder's text so a
+refused run can still read who holds the tree. The sweep found a sibling: `soak_test.py` imported
+`resource` (unused) - dropped.
+
+**Law:** `tv/test_the_gates_load_on_windows.py` - run_gates + heart2 imported in a child python where
+`import fcntl` raises, gate count > 100; the msvcrt path driven with a recording msvcrt (non-blocking,
+past the text, holder named on refusal); an AST sweep refusing any bare top-level import of a
+Unix-only module in `tv/`. 2 red-proofs, both seen RED by hand.
 ### REG-1463 - THE CHEAP-SUBSET TIMING GATE MEASURED THE UNMEMOIZED PLAN THE CONSOLE NEVER RUNS (2026-09-29)
 
 **Found** when v3523 push #5 was REFUSED at 129 min: `test_the_cheap_subset_is_actually_CHEAP` 9,093 ms > 9,000.

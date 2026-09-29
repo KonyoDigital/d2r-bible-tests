@@ -95,7 +95,8 @@ class TestTheEncodingRuleHasOneDefinition(unittest.TestCase):
             io.open(os.path.join(tmp, "tv", "bad_cli.py"), "w", encoding="utf-8").write(
                 u'if __name__ == "__main__":\n    print("⚠ warning")\n')
             bad = subprocess.run([sys.executable, os.path.join(ROOT, "tv", "console_safe.py"), tmp],
-                                 capture_output=True, text=True, timeout=120)
+                                 capture_output=True, text=True, timeout=120,
+                                 encoding="utf-8", errors="replace")   # #50: not the Windows codepage
             self.assertEqual(bad.returncode, 1,
                              "an unsafe script was found and the CLI still reported success - the "
                              "hook reads this code, so a printed finding with exit 0 is invisible")
@@ -105,7 +106,8 @@ class TestTheEncodingRuleHasOneDefinition(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
         r = subprocess.run([sys.executable, os.path.join(ROOT, "tv", "console_safe.py")],
-                           capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, timeout=120,
+                                 encoding="utf-8", errors="replace")   # #50: not the Windows codepage
         self.assertEqual(r.returncode, 0,
                          "the tree is clean today, so the CLI must succeed: %s" % r.stdout[-300:])
         self.assertIn("encoding-safe", r.stdout,

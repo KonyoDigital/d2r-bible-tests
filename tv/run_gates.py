@@ -31,7 +31,20 @@ from __future__ import annotations
 import argparse
 import shutil
 import atexit
-import fcntl
+# ⚠⚠ 2026-09-29 (#50) — fcntl IS UNIX-ONLY, AND A TOP-LEVEL IMPORT OF IT MADE THIS WHOLE MODULE
+# UNIMPORTABLE ON WINDOWS. MEASURED on the ALT at v3522: `run_gates will not import: No module
+# named 'fcntl'`, so heart2.gate_files() saw ZERO gates there, the gate fingerprint covered only
+# heart2.py, and no Windows PC could ever prove its own instruments - every self-arming lock
+# (reel.route, vault.sweep_start, ...) stayed shut and the river never reached TOMBSTONE.
+# The one caller is the per-tree lock below, which now uses msvcrt on Windows.
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:  # everywhere but Windows
+    msvcrt = None
 import glob
 import os
 import re
@@ -177,6 +190,48 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_the_fleet_says_where_a_river_is_stuck", [sys.executable,
+         os.path.join(HERE, "test_the_fleet_says_where_a_river_is_stuck.py")], 120,
+         why="REG-1461 - the ALT held 76 reels at EMPTY and 25 at PRINTER for two days and nothing on any screen "
+             "said so; his ask: see every PC's river from his own, Dean's included. The beacon now names each "
+             "station whose oldest reel waited > 6 h with the owning lane's reason (from the stamp log, never a "
+             "router pass) and whether that PC proved its instruments; the worker shapes both; the fleet row shows "
+             "a red 'river stuck', the detail the stations and ages. Console, worker and card each driven. "
+             "3 red-proofs"),
+    Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
+         why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "
+             "relaunch (2.7 s warm) and the shelf demo gives 15 s including the render. The console now asks its "
+             "own /api/sessions once, 30 s after boot, off the rescue loop, through the real handler; the outcome "
+             "is published. Real loopback server. 2 red-proofs"),
+    Gate("test_every_pc_proves_itself", [sys.executable,
+         os.path.join(HERE, "test_every_pc_proves_itself.py")], 180,
+         why="REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak "
+             "for Windows (different fingerprints at one commit; the outlet law BLIND on the ALT). So every other "
+             "PC answered 'the heart has never run here' and every self-arming lock stayed shut. An INSTALLED "
+             "console (clean, at origin) with an absent or stale census now proves itself in the background - "
+             "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
+             "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
+             "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "
+             "9 red-proofs"),
+    Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
+         os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
+         why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "
+             "vault lane chose its work from retention's first-match tag, so a PRINTER reel filed `recent` or "
+             "`zero-pages` was never selected, the lane lamp read owed:0, and river_walk kept printing 'a seal "
+             "nothing will write'. The ALT held 25 such reels since 09-27, his Mac 4. One rule "
+             "(shelf_driver.vault_owes_read) now serves the sweeper, the SHELF count and the river probe; the "
+             "position is the river's own last stamp. 4 red-proofs"),
+    Gate("test_the_gates_load_on_windows", [sys.executable,
+         os.path.join(HERE, "test_the_gates_load_on_windows.py")], 180,
+         why="REG-1445 - run_gates imported fcntl (Unix-only) at top level, so on every Windows PC it would not "
+             "import, heart2 saw ZERO gates, no census could ever speak for that machine's instruments, and every "
+             "self-arming lock stayed shut: the ALT held 76 reels at EMPTY and 25 at PRINTER since 09-27. The lock "
+             "now uses msvcrt there (past the holder's text, so a refusal can still name who holds the tree); an AST "
+             "sweep refuses any bare top-level import of a Unix-only module in tv/. Child python with fcntl absent. "
+             "REG-1448: heart2 brought PROOF_NEEDS across with `cp -c` (no cp on Windows) so no ALT sandbox had "
+             "`.git` and eye_declares_reach read BLIND; off the Mac `.git` is now a `git clone --shared` (borrowed, "
+             "never written, never 1.8 GB copied). 4 red-proofs"),
     Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
          os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
          why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "
@@ -5426,7 +5481,7 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
-             "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+             "(8 of 9 lines were render_check's on day one). 12 cases, 6 red-proofs"),
     Gate("test_the_chronicle_inbox_asks_on_the_page",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
          why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
@@ -5685,7 +5740,7 @@ GATES = [
              "Handler with a recording board: no write door writes without confirm, each writes with "
              "it, the probe only reads. #246 L4: a confirmed possession door never presses the sorter, a "
              "chronicle restore never reaches the owned door, and the register button re-gates the stored "
-             "sweep row by row, naming what it holds back. 6 cases, 5 red-proofs"),
+             "sweep row by row, naming what it holds back. 6 cases, 6 red-proofs"),
     Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
          [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
          why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "
@@ -5770,7 +5825,7 @@ GATES = [
          why="#171's class in PRODUCTION code: MEASURED 2026-09-26, per day, 1,890 diskrep_* (the disk proof, every "
              "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
              "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
-             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 5 red-proofs"),
+             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 6 red-proofs"),
     Gate("test_the_affix_tables_are_the_installs",
          [sys.executable, os.path.join(HERE, "test_the_affix_tables_are_the_installs.py")], 90,
          why="#174 v-B3 - the Edit tab's ADD MOD and the sheet read the CB_DB block's af / rn / qm rows, generated from "
@@ -5847,7 +5902,7 @@ GATES = [
              "(Wearwolf), a page is not a tab position (the Druid's page 3 is Elemental, leftmost; the Warlock's "
              "leftmost key is Wa3), and a tab order the tables do not settle is UNKNOWN. A fake install runs "
              "everywhere; the json's sourceHash and content match a fresh build when the install is present, "
-             "UNMEASURED otherwise. 23 cases, 5 red-proofs"),
+             "UNMEASURED otherwise. 23 cases, 6 red-proofs"),
     Gate("test_the_eye_reads_the_commit_read_only",
          [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
          why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "
@@ -5863,14 +5918,14 @@ GATES = [
          why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
              "ledger name and nothing called it. Now one routine claims + names the ledger; it runs by itself only in "
              "a pywebview window on a store with no claim, and only when this machine never held a populated board "
-             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 5 red-proofs"),
+             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 6 red-proofs"),
     Gate("test_each_console_shows_its_own_counts",
          [sys.executable, os.path.join(HERE, "test_each_console_shows_its_own_counts.py")], 60,
          why="#240 - from his ALT, Konyo's and GrokBot's fleet rows showed no numbers while Dean's did ('as if im "
              "the same person on all three'). The rows were individual; every v3504 tally sealed measured=False "
              "over SYNCED ledgers (the authority was asked before ok was sealed, and the seal keyed on 'EARNED', "
              "a word the authority never says), and the card blanks a False. Now per ledger (measuredBy) through "
-             "seal, relay, card and doctor. 11 cases, 5 red-proofs"),
+             "seal, relay, card and doctor. 11 cases, 6 red-proofs"),
     Gate("test_a_character_save_reads_byte_exact",
          [sys.executable, os.path.join(HERE, "test_a_character_save_reads_byte_exact.py")], 60,
          why="tv/d2s_read.py reads a D2R .d2s (format 105): an item bitstream has no per-item length, so one "
@@ -6044,7 +6099,7 @@ GATES = [
              "applied at read time so the count moves in the same request, in its own bucket (never "
              "CLAUDE OWES). POST /api/board_answer refuses a foreign/missing Origin (_cors answers *), "
              "an automated browser, no explicit yes, a guest board, nothing measured, an undeclared "
-             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 5 red-proofs"),
+             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 6 red-proofs"),
     Gate("test_a_row_is_his_only_when_it_asks",
          [sys.executable, os.path.join(HERE, "test_a_row_is_his_only_when_it_asks.py")], 90,
          why="#226 - his ruling: 'it should only really be waiting on me if its something i need to do'. "
@@ -8287,6 +8342,30 @@ def run(only=None, live_watch=True, live_writer=None):
 _LOCK_FH = None
 
 
+def _lock_nb(fh):
+    """Take an exclusive, non-blocking lock on `fh`, or raise OSError. Both platforms release it when
+    the process exits.
+
+    ⚠ ON WINDOWS THE LOCKED BYTE LIES FAR PAST THE TEXT, on purpose. msvcrt locks a byte RANGE and a
+    locked range cannot be READ by another process - so locking byte 0 would make the refused run's
+    `fh.read()` (which names the holder) raise instead of saying who has the tree. Windows allows a
+    lock beyond end-of-file, so the holder's line stays readable.
+    """
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return
+    if msvcrt is not None:
+        fd = fh.fileno()
+        here = os.lseek(fd, 0, os.SEEK_CUR)
+        os.lseek(fd, 1 << 30, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        finally:
+            os.lseek(fd, here, os.SEEK_SET)
+        return
+    raise OSError("this platform offers neither fcntl nor msvcrt, so the tree cannot be locked")
+
+
 def _claim_the_tree():
     """Take the per-tree gate lock, or explain who has it. Returns None on success, else a message."""
     global _LOCK_FH
@@ -8300,7 +8379,7 @@ def _claim_the_tree():
     path = os.path.join(tempfile.gettempdir(), "d2r_gates_%s.lock" % safe)
     fh = open(path, "a+")
     try:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_nb(fh)
     except OSError:
         fh.seek(0)
         who = (fh.read() or "").strip() or "an unnamed run"

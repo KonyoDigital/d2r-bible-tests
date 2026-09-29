@@ -125,6 +125,9 @@ try {
   & $py -m pip install --user --quiet 'pywebview>=5.0' | Out-Null
   # #227 - and Pillow: without it no frame this console films can be decoded (measured on the ALT)
   & $py -m pip install --user --quiet 'Pillow' | Out-Null
+  # #50 (REG-1457) - and websocket-client: every PC now proves its own gates, and the browser laws drive
+  # Chrome/Edge over DevTools with it. The ALT had never had it; the self-prove lane also installs it.
+  & $py -m pip install --user --quiet 'websocket-client' | Out-Null
   # v770 - pywebview on Windows NEEDS the Edge WebView2 Runtime; locked-down PCs lack it and
   # the app silently falls to a browser. Bootstrap it loudly if missing.
   $wv2 = Test-Path "$env:ProgramFiles (x86)\Microsoft\EdgeWebView\Application" -PathType Container

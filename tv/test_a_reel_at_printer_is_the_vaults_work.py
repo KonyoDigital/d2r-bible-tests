@@ -1,0 +1,238 @@
+# -*- coding: utf-8 -*-
+"""#50 — A REEL THE RIVER HOLDS AT PRINTER IS THE VAULT LANE'S WORK, WHATEVER RETENTION CALLS IT (REG-1446).
+
+PRINTER means "names were read off the frames and the session carries no seal". The only writer of that
+seal is the vault sweep. But the vault lane chose its work from retention's tag alone, and retention
+answers a different question - why is this reel still ON DISK - first-match-wins. So a PRINTER reel filed
+as `recent` or `zero-pages` never carried a vault tag, the lane published owed:0 (a healthy idle lamp),
+and the reel waited for a seal nothing would write. river_walk's own PRINTER probe had been printing that
+sentence ("retention's rules are first-match-wins ... waits for a seal nothing will write").
+
+MEASURED 2026-09-29: the ALT held 25 reels at PRINTER since 09-27, every one `zero-pages`, vault lane
+`reads: 0`, no vault store ever written. His Mac held 4, every one `recent` (265, 23, 26, 14 names).
+Replayed on his Mac's real shelf, the new rule adds exactly those 4 and no fixture.
+
+ONE DEFINITION, `shelf_driver.vault_owes_read(tag, station)`, asked by all three readers: the sweeper's
+list (`_vault_owed_reels`), the SHELF's "awaiting a sweep" count, and river_walk's PRINTER probe.
+
+DRIVEN: the rule's table stated independently here; `_vault_owed_reels` run through its real body with
+retention's plan and the river's positions stubbed at the module edge; `river_stamp.positions` on a temp
+store; `river_walk.walk` on a stubbed shelf. RED_PROOF below.
+"""
+import io
+import json
+import os
+import sys
+import tempfile
+import types
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+import shelf_driver as SD  # noqa: E402
+import river_stamp as RS  # noqa: E402
+
+
+class TheRuleSaysPrinterIsTheVaultsWork(unittest.TestCase):
+    """The table, written out here on purpose - a law that asked the function what it returns would
+    agree with any answer."""
+
+    def test_a_printer_reel_is_owed_whatever_retention_calls_it(self):
+        for tag in ("recent", "zero-pages", "never-chronicle-swept", "holds-proof", "target-met",
+                    "eligible"):
+            self.assertTrue(SD.vault_owes_read(tag, "PRINTER"),
+                            "a reel at PRINTER filed as %r is not the vault's work - it waits for a "
+                            "seal nothing will write" % tag)
+
+    def test_the_vetoes_hold_even_at_printer(self):
+        for tag in ("test-fixture", "no-witness-index", "ledger-unreadable", "rows-not-banked"):
+            self.assertFalse(SD.vault_owes_read(tag, "PRINTER"),
+                             "%r at PRINTER would be BOUGHT: a fixture, an UNKNOWN, or a reel owed a "
+                             "bank rather than a read" % tag)
+
+    def test_the_old_tags_still_owe_anywhere(self):
+        for st in (None, "CAPTURE", "EMPTY", "PRINTER"):
+            self.assertTrue(SD.vault_owes_read("vault-owes", st))
+            self.assertTrue(SD.vault_owes_read("panels-never-banked", st))
+
+    def test_an_unknown_position_is_never_guessed_to_be_printer(self):
+        self.assertFalse(SD.vault_owes_read("zero-pages", None))
+        for tag in (None, "", "mystery-tag"):
+            self.assertFalse(SD.vault_owes_read(tag, "PRINTER"),
+                             "a tag retention never emits (%r) was bought at PRINTER - a deny-list lets "
+                             "anything unforeseen spend" % (tag,))
+        self.assertFalse(SD.vault_owes_read("recent", "EMPTY"))
+        self.assertFalse(SD.vault_owes_read("recent", "UNKNOWN"))
+
+
+class ThePositionsComeFromTheRiversOwnRecord(unittest.TestCase):
+
+    def test_the_last_stamp_wins_and_a_missing_store_is_empty_not_unknown(self):
+        d = tempfile.mkdtemp(prefix="printer_law_")
+        p = os.path.join(d, "river_stamp.jsonl")
+        self.assertEqual(RS.positions(p)[0], {}, "a store that does not exist yet read as UNKNOWN")
+        with io.open(p, "w", encoding="utf-8") as fh:
+            for i, (reel, st) in enumerate((("reel_s_1_a", "TRIAGE"), ("reel_s_1_a", "PRINTER"),
+                                            ("reel_s_2_b", "EMPTY"))):
+                fh.write(json.dumps({"at": 1000 + i, "seq": i, "reel": reel, "station": st,
+                                     "by": "law", "byKind": "observer"}) + "\n")
+        pos, _w = RS.positions(p)
+        self.assertEqual(pos, {"reel_s_1_a": "PRINTER", "reel_s_2_b": "EMPTY"})
+
+
+class TheSweeperSelectsOnTheRule(unittest.TestCase):
+
+    KEPT = [
+        {"reel": "reel_s_10_a", "tag": "zero-pages"},      # PRINTER  -> owed (the ALT's 25)
+        {"reel": "reel_s_11_b", "tag": "recent"},          # PRINTER  -> owed (his Mac's 4)
+        {"reel": "reel_s_12_c", "tag": "test-fixture"},    # PRINTER  -> vetoed
+        {"reel": "reel_s_13_d", "tag": "recent"},          # EMPTY    -> not owed
+        {"reel": "reel_s_14_e", "tag": "zero-pages"},      # PRINTER, but ALREADY SEALED (stale stamp)
+        {"reel": "reel_s_15_f", "tag": "vault-owes"},      # the old path, unchanged
+    ]
+    POS = {"reel_s_10_a": "PRINTER", "reel_s_11_b": "PRINTER", "reel_s_12_c": "PRINTER",
+           "reel_s_13_d": "EMPTY", "reel_s_14_e": "PRINTER", "reel_s_15_f": "CAPTURE"}
+
+    def _owed(self, pos, seals):
+        import control_app as ca
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda h, **k: {"ok": True, "kept": list(self.KEPT)}), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (pos, seals)):
+            got = ca._vault_owed_reels(hist=tempfile.gettempdir())
+        return sorted(os.path.basename(g) for g in (got or []))
+
+    def test_the_printer_reels_are_on_the_list(self):
+        got = self._owed(self.POS, {"s_14_e": {"by": "vault"}})
+        self.assertEqual(got, ["reel_s_10_a", "reel_s_11_b", "reel_s_15_f"],
+                         "the vault's work list is wrong: %r" % got)
+
+    def test_an_unreadable_river_is_unknown_not_a_shorter_list(self):
+        import control_app as ca
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda h, **k: {"ok": True, "kept": list(self.KEPT)}), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (None, {})):
+            got = ca._vault_owed_reels(hist=tempfile.gettempdir())
+        self.assertIsNone(got, "an unreadable stamp log produced a confident list (%r) - the PRINTER half "
+                               "was silently dropped and the lamp would read it as measured" % (got,))
+
+    def test_an_unreadable_seal_store_adds_nothing_through_printer(self):
+        self.assertEqual(self._owed(self.POS, None), ["reel_s_15_f"],
+                         "with the seals UNKNOWN a stale PRINTER stamp could re-buy a sealed reel")
+
+    def test_a_seal_under_either_spelling_is_honoured(self):
+        got = self._owed(self.POS, {"reel_s_14_e": {"by": "vault"}})
+        self.assertNotIn("reel_s_14_e", got, "a seal stored under the prefixed key was not recognised")
+
+
+class _FakeStory(types.ModuleType):
+    STAGES = ("SHELF", "READ", "SEALED")
+
+    def __init__(self, tag):
+        types.ModuleType.__init__(self, "reel_story")
+        self.tag = tag
+
+    def story(self, hist_dir=None):
+        return {"ok": True, "reels": [{"reel": "reel_s_20_z", "tag": self.tag, "stage": "READ",
+                                       "stageIdx": 1, "stageKnown": True, "held": True,
+                                       "holdKind": "policy", "why": "law"}]}
+
+
+class _FakeRouter(types.ModuleType):
+    def __init__(self):
+        types.ModuleType.__init__(self, "reel_router")
+
+    def route(self, hist=None):
+        return {"ok": True, "reels": [{"reel": "reel_s_20_z", "station": "PRINTER", "owes": "SEAL",
+                                       "why": "7 name(s) read and the session carries no seal",
+                                       "sealed": False, "names": 7}]}
+
+
+class _FakePrinter(types.ModuleType):
+    STATIONS = ()
+
+    def __init__(self):
+        types.ModuleType.__init__(self, "printer")
+
+    def stream(self, name):
+        return {"ok": False, "why": "law"}
+
+
+class TheRiverProbeAgreesWithTheSweeper(unittest.TestCase):
+
+    def _walk(self, tag):
+        import river_walk as RW
+        mods = {"reel_story": _FakeStory(tag), "reel_router": _FakeRouter(), "printer": _FakePrinter()}
+        with mock.patch.dict(sys.modules, mods):
+            return RW.walk("reel_s_20_z")
+
+    def test_a_zero_pages_reel_at_printer_is_on_the_lanes_queue(self):
+        out = self._walk("zero-pages")
+        q = ((out.get("next") or {}).get("queue") or {})
+        self.assertNotIn("nothing will write", str(q.get("why")),
+                         "the river still says the seal will never be written, while the sweeper "
+                         "selects this reel: %r" % q.get("why"))
+        self.assertGreaterEqual(q.get("carryingIt") or 0, 1)
+
+    def test_a_fixture_at_printer_still_reads_as_nobodys(self):
+        q = ((self._walk("test-fixture").get("next") or {}).get("queue") or {})
+        self.assertIn("nothing will write", str(q.get("why")),
+                      "PREMISE: a vetoed reel should still read as waiting on nobody: %r" % q.get("why"))
+
+
+RED_PROOF = [
+    {
+        "why": "2026-09-29 (second eye) - an unreadable stamp log yields a confident shorter list instead of UNKNOWN",
+        "file": "tv/control_app.py",
+        "find": "    if _pos is None:\n        return None\n    out = []\n",
+        "replace": "    _pos = _pos or {}\n    out = []\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (second eye) - a tag retention never emits is bought at PRINTER",
+        "file": "tv/shelf_driver.py",
+        "find": "        return tag in _rr.RULES\n",
+        "replace": "        return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - the router's PRINTER position is ignored again: the ALT's 25 reels wait forever",
+        "file": "tv/shelf_driver.py",
+        "find": "    if station != \"PRINTER\":\n        return False\n",
+        "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - a fixture at PRINTER is bought by a paid vault read",
+        "file": "tv/shelf_driver.py",
+        "find": "VAULT_READ_VETO = (\"test-fixture\", \"no-witness-index\", \"ledger-unreadable\", \"rows-not-banked\")\n",
+        "replace": "VAULT_READ_VETO = (\"no-witness-index\", \"ledger-unreadable\", \"rows-not-banked\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - a reel the vault already sealed is re-bought on a stale PRINTER stamp",
+        "file": "tv/control_app.py",
+        "find": "            if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - river_walk's probe goes back to the tag alone and says 'a seal nothing will write' over a queued reel",
+        "file": "tv/river_walk.py",
+        "find": "            if _this_owed and row.get(\"tag\") not in _tags:\n                owes += 1\n",
+        "replace": "",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
