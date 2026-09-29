@@ -390,7 +390,9 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         yes = block.find('if [ "$_tvd_front" = "yes" ]; then')
         self.assertGreater(yes, -1, "the launcher no longer checks that the console ANSWERED - a hidden console that "
                                     "did not come forward would leave the Desktop icon doing nothing (v1460)")
-        self.assertIn("exit 0", block[yes:yes + 400], "the launcher asks it forward and then replaces it anyway")
+        end = block.find("\n    fi\n", yes)             # the yes-branch's own closing fi - a real boundary
+        self.assertGreater(end, yes, "the yes-branch has no closing fi")
+        self.assertIn("exit 0", block[yes:end], "the launcher asks it forward and then replaces it anyway")
 
     def test_the_windows_launcher_asks_the_console_to_show_itself_before_focusing(self):
         with io.open(WIN_LAUNCHER, encoding="utf-8-sig") as fh:

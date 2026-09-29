@@ -50,6 +50,8 @@ if HERE not in sys.path:
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
+import fixture_tmp as _fx_tmp  # noqa: E402  - this run's scratch dirs leave with it
+_fx_tmp.contain()
 
 GRABBERS = ("capture_mac", "_quartz_grab_screen", "_quartz_grab_window", "_grab_full_screen_frame",
             "_capture_window_to_file", "find_d2r_window_mac",

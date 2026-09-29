@@ -40954,11 +40954,20 @@ class TestV2377TheUNBOUNDEDPruneAboveTheFloorIsHisRuling(unittest.TestCase):
         import control_app as ca
         need = max(0.0, (ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - 999.0) * 1000.0)
         self.assertEqual(need, 0.0, "a huge free disk should need nothing freed")
+        import ast
         import inspect
-        blk = inspect.getsource(ca._retention_once)
-        self.assertEqual(blk.count("_rr.plan(hist, free_mb=None)"), 1,
-                         "the retention pass no longer asks the plan for NO target — a disk-derived "
-                         "target makes pressure free less than a roomy disk would")
+        import textwrap
+        # 2026-09-29 — READ THE CALL, NOT ITS SPELLING. This counted the literal "_rr.plan(hist, free_mb=None)", which
+        # went red the day the pass also passed keep_recent= (REG-1433's disk-guarded window) while still asking for no
+        # target. The rule is the free_mb KEYWORD: exactly one plan call, and its free_mb is the constant None.
+        tree = ast.parse(textwrap.dedent(inspect.getsource(ca._retention_once)))
+        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                 and n.func.attr == "plan" and isinstance(n.func.value, ast.Name) and n.func.value.id == "_rr"]
+        self.assertEqual(len(calls), 1, "the retention pass does not make exactly one plan() call")
+        fm = [k.value for k in calls[0].keywords if k.arg == "free_mb"]
+        self.assertTrue(fm and isinstance(fm[0], ast.Constant) and fm[0].value is None,
+                        "the retention pass no longer asks the plan for NO target — a disk-derived "
+                        "target makes pressure free less than a roomy disk would")
 
     def test_below_the_floor_it_still_MEASURES_exactly_what_is_missing(self):
         """The measurement survives as `needMb`; it just no longer caps the pass."""

@@ -20683,7 +20683,8 @@ def _git_running_here():
                           % ", ".join(str(p) for p in hits[:4]))
         return False, "a Toolhelp32 snapshot of %d processes lists no git" % len(procs)
     try:
-        r = subprocess.run(["pgrep", "-x", "git"], capture_output=True, text=True, timeout=5)
+        r = subprocess.run(["pgrep", "-x", "git"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=5)
     except Exception as e:
         return None, "pgrep could not run (%s)" % type(e).__name__
     if r.returncode == 0:
@@ -35376,7 +35377,7 @@ def status_payload():
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
-        "window": window_mode_payload(),
+        "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
         "selfProbe": dict(_SELF_PROBE),
         "ver": "v3522",

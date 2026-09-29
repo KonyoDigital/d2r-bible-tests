@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +55,17 @@ def _run(stored):
           "var assign = load(AK, {}); assign['Shako'] = 'uni-armor'; var wrote = saveA();\n"
           "process.stdout.write(JSON.stringify({after: store[AK], unread: window._muleStoreUnread(), assign: assign}));\n"
           ) % (json.dumps(stored), body)
-    out = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=30)
+    # the program goes in a FILE, never on argv (test_no_law_hands_node_its_program_on_argv: argv has a length cap)
+    fd, path = tempfile.mkstemp(suffix=".js", prefix="mule-guard-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(js)
+        out = subprocess.run([NODE, path], capture_output=True, text=True, timeout=30)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
     if out.returncode != 0:
         raise AssertionError("node failed: %s" % out.stderr[-400:])
     return json.loads(out.stdout)

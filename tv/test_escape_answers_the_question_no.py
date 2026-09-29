@@ -106,7 +106,7 @@ class EscapeAnswersTheQuestionNo(unittest.TestCase):
 
     def test_premise_on_an_empty_page_escape_quits(self):
         out = _run("press('Escape');" + STATE)
-        self.assertEqual(out["quits"], ["/api/quit"], "premise: the empty-page Escape must quit, or the no-quit cases prove nothing")
+        self.assertEqual(out["quits"], ["/api/window"], "premise: the empty-page Escape must leave the console, or the no-quit cases prove nothing")  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
 
     def test_escape_with_a_question_up_answers_no_and_the_inbox_stays(self):
         out = _run("CH.open = true; modal.hidden = false; chAsk('Promote ALL 5?', 'Promote all 5', function(){ YES++; });"

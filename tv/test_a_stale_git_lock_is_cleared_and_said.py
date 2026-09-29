@@ -54,6 +54,8 @@ if HERE not in sys.path:
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
+import fixture_tmp as _fx_tmp     # noqa: E402  - this run's scratch dirs leave with it
+_fx_tmp.contain()
 import control_app as ca          # noqa: E402
 import console_doctor as cd       # noqa: E402
 

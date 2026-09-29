@@ -242,7 +242,9 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         self.assertGreater(i, -1, "the Escape handler no longer sends the console to the background")
         tail = _span(js, i, ".catch(")
         self.assertIn("escape-empty-stack", tail, "the Escape handler's background request does not name itself")
-        self.assertIn("'/api/window'", js[max(0, i - 200):i], "the Escape handler's request is not /api/window")
+        k = js.rfind("fetch(", 0, i)          # bounded by the call itself, not a guessed width
+        self.assertGreater(k, -1, "the background request is not a fetch")
+        self.assertIn("'/api/window'", js[k:i], "the Escape handler's request is not /api/window")
 
 
 if __name__ == "__main__":
