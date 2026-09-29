@@ -249,6 +249,14 @@ GATES = [
              "nothing will write'. The ALT held 25 such reels since 09-27, his Mac 4. One rule "
              "(shelf_driver.vault_owes_read) now serves the sweeper, the SHELF count and the river probe; the "
              "position is the river's own last stamp. 4 red-proofs"),
+    Gate("test_a_pulse_that_never_fired_also_leaves_zero", [sys.executable,
+         os.path.join(HERE, "test_a_pulse_that_never_fired_also_leaves_zero.py")], 120,
+         why="REG-1518 (#80) - the v39 spec pulsed, slept 1100 ms and expected 0 .syncing: a pulse that early-returns "
+             "on its throttle or finds no summary cell ALSO leaves 0, so it could never fail; and its bypass wrote a "
+             "window property, not the top-level `let` the pulse reads. The spec now seeds a synced cell and requires "
+             "the class ON before OFF; three sibling blocks (v1599, v1520, v549) got their premise. The shipped pulse "
+             "is driven in node (seeded / throttled / no cell), the spec text is joined to the pulse's own selector "
+             "list, and a ratchet counts zero-without-a-premise blocks across tests/. 5 red-proofs"),
     Gate("test_the_gates_load_on_windows", [sys.executable,
          os.path.join(HERE, "test_the_gates_load_on_windows.py")], 180,
          why="REG-1445 - run_gates imported fcntl (Unix-only) at top level, so on every Windows PC it would not "

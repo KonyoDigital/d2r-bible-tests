@@ -49,12 +49,18 @@ test('chronicleReset() flips to fresh + empties; chronicleLoadSeed() restores th
   const r = await page.evaluate(async () => {
     const w: any = window;
     w.uiConfirm = async () => true;
+    // #80 (REG-1518) — "empties" needs something to empty. Whatever the seed floor did at boot, one
+    // toggle puts at least one entry on record before the reset (on a seeded board it un-makes
+    // Spirit and 44 remain; on a bare one it makes it and 1 remains) — a reset from 0 to 0 proves nothing.
+    w.rwToggleMade('Spirit');
+    const before = Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length;
     await w.chronicleReset();
     const afterReset = { fresh: w._rwIsFresh(), count: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
     await w.chronicleLoadSeed();
     const afterSeed = { fresh: w._rwIsFresh(), count: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
-    return { afterReset, afterSeed };
+    return { before, afterReset, afterSeed };
   });
+  expect(r.before, 'nothing was on record before the reset, so "empties" would measure nothing').toBeGreaterThanOrEqual(1);
   expect(r.afterReset.fresh).toBe(true);
   expect(r.afterReset.count).toBe(0);
   expect(r.afterSeed.fresh).toBe(false);

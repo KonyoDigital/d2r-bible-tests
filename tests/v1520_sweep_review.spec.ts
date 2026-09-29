@@ -276,6 +276,8 @@ test.describe('v1520 — the review he decides from', () => {
   test('a name with no evidence shows no drawer rather than an empty one', async ({ page }) => {
     await open(page, DONE);
     const row = page.locator('.chron-c.add .chron-n', { hasText: 'Windforce' });
+    // #80 (REG-1518) — a row that never rendered also has 0 drawers; the row is the denominator
+    expect(await row.count(), 'the Windforce row must render before its drawer can be judged').toBe(1);
     expect(await row.locator('.chron-ev').count()).toBe(0);
   });
 
