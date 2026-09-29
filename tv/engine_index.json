@@ -1373,9 +1373,11 @@
       "apply_plan() :1094 (--apply --yes)",
       "proof_reels() :502",
       "_tombstone() :1019",
-      "KEEP_RECENT = 8 (his 2026-09-10 ruling)"
+      "KEEP_RECENT = 8 (his 2026-09-10 ruling)",
+      "blocked_upstream() - the river's last stamps vs the pass's plan: what waits UPSTREAM of the mouth (REG-1517)",
+      "drain_state() - the drain in the shared vocabulary; BLOCKED when reels older than the newest window wait upstream"
     ],
-    "gotcha": "A 0-page seal means THIS READER FOUND NOTHING, not done — 'delete what has been swept' would have taken 1166 MB that was never read; the single removing line is one shutil.rmtree at :1101 and it needs --apply AND --yes.",
+    "gotcha": "A 0-page seal means THIS READER FOUND NOTHING, not done — 'delete what has been swept' would have taken 1166 MB that was never read; the single removing line is one shutil.rmtree at :1101 and it needs --apply AND --yes. REG-1517: drain_owed() counts the plan's CANDIDATES - reels held at EMPTY or PRINTER are not candidates, so on the ALT (EMPTY 91 / PRINTER 33) the drain said CLEAR 'nothing is owed'; drain_state now takes the river's own reading (blocked_upstream) and a CLEAR needs a readable, complete river - unread is UNKNOWN, never CLEAR.",
     "purpose": "The REEL deleter: which whole reels have given up their information and may go, behind five bars (evidence banked, both lanes sealed, newest 8 kept, oldest first, stop at the floor).",
     "territory": "river-reels"
   },
@@ -1579,7 +1581,9 @@
       "run",
       "history",
       "current",
-      "census"
+      "census",
+      "last_stamps",
+      "positions"
     ],
     "gotcha": "Append-only means no second mode: the store opens 'a' and never 'w', there is no age-trim, and at _CEILING = 500000 rows it REFUSES the write rather than making room by forgetting the beginning of every journey. `by` is required and an empty one is refused. Re-stamping a reel at the station it is already at writes NOTHING and reports `wrote: False, ok: True` — but a genuine re-entry (PRINTER -> TRIAGE -> PRINTER) is a different fact and is kept.",
     "purpose": "The only store that REMEMBERS a reel's journey: append-only stamps of each station reached, by whom, why. No trim; the ceiling refuses.",

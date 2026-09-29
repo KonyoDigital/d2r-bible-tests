@@ -6374,6 +6374,21 @@ GATES = [
              "tree, and the drain's heart (on/worked/lastTs/owed) reads STOPPED after "
              "DRAIN_STOPPED_AFTER_PASSES passes that released nothing — surviving a relaunch — "
              "and UNKNOWN when the plan cannot run"),
+    Gate("test_the_drain_names_what_is_blocked_upstream",
+         [sys.executable, os.path.join(HERE, "test_the_drain_names_what_is_blocked_upstream.py")], 180,
+         why="#84 (REG-1517) - the drain's green that lies. Measured on the ALT: 126 reels, river EMPTY 91 / "
+             "PRINTER 33 behind a closed reel.route lock, and retention.drain said CLEAR / owed 0 / 'nothing is "
+             "owed' - drain_owed counts the plan's candidates, so it counted only the reels that reached ITS "
+             "stage. Now reel_retention.blocked_upstream reads the river's OWN last stamps (river_stamp."
+             "last_stamps, one read, never a router pass) against the pass's plan: every reel older than the "
+             "newest keep window at a station a lane owns is 'blocked upstream: N reel(s) ... waiting at "
+             "<stations> behind <the owning lane's own word>', the drain is BLOCKED with owed = N (+ the "
+             "mouth's own), the newest window and the suite's fixtures are never counted, CAPTURE (by design) "
+             "and the mouth sit BESIDE n, a reel the river never placed makes n a FLOOR (a floor of 0 is "
+             "UNKNOWN, never CLEAR), an unreadable or unread river is UNKNOWN, and the doctor row goes MISSING "
+             "past the console's declared 6 h bar (the river's arrival stamps, never a process clock), OK "
+             "inside it. Pure half, the SHIPPED _retention_once on a temp shelf, and the doctor over the "
+             "wire - each driven; 5 red-proofs"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
