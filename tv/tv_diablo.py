@@ -4709,12 +4709,14 @@ def _toolhelp_d2r_state():
     return _toolhelp_any(lambda n: n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""))
 
 
-def _toolhelp_any(pred):
+def _toolhelp_any(pred, with_pid=False):
     """Windows: ONE Toolhelp32 snapshot - does any running exe's lowercased name satisfy `pred`? -> True | False | None
 
     REG-1502 — the walk _toolhelp_d2r_state always did, with the name test handed in, so the self-prove lane can ask
     "is he playing - the game OR a cloud client streaming it" through the same snapshot instead of a second copy.
-    None = UNKNOWN (no ctypes.windll, a refused or empty snapshot). [[copy-drift]]"""
+    REG-1511 — `with_pid=True` hands `pred(name, pid)` the process id too: a cloud client idling in his tray is not a
+    stream, and only its pid lets the lane read how much memory it holds. None = UNKNOWN (no ctypes.windll, a refused
+    or empty snapshot). [[copy-drift]]"""
     try:
         import ctypes
         from ctypes import wintypes
@@ -4743,7 +4745,7 @@ def _toolhelp_any(pred):
                 return None           # a snapshot with no first process was not a look
             while True:
                 n = (pe.szExeFile or "").lower()
-                if pred(n):
+                if (pred(n, int(pe.th32ProcessID)) if with_pid else pred(n)):
                     return True
                 if not k32.Process32NextW(snap, ctypes.byref(pe)):
                     break
