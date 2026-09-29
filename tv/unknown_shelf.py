@@ -6,17 +6,27 @@ Seen 2026-09-29 in BLUEPRINT.md generated on a tree with no footage: the river l
 an empty shelf — no reel reached this probe ...". Five readers (reel_river, per_reel_routes, one_funnel, printer,
 reel_router) each prefixed the phrase to a reason that, one layer down, already carried it. The reason is right; the
 stutter buries it. Every one of them now asks this one function, which leads with the phrase only when the reason
-does not already say UNKNOWN. [[unknown-stays-unknown]] [[copy-drift]]
+does not already carry the PHRASE. [[unknown-stays-unknown]] [[copy-drift]]
+
+⚠⚠ REG-1512 (review of v3524) — THE PHRASE, NOT THE WORD. The first cut skipped the lead whenever the bare word
+UNKNOWN appeared anywhere in the reason. But reasons say UNKNOWN about OTHER things: a lock ("printer.stream is
+LOCKED — UNKNOWN: the proof queue would not parse") or the tombstone ledger ("... not a record — UNKNOWN, not zero
+reels"). Reproduced with those two: printer.stream()'s why and reel_router.route()'s why carried the phrase ZERO
+times, so no layer said the shelf was UNREAD rather than EMPTY, while the same refusal with a lock reason that
+happened not to use the word still led with it — one refusal class, two framings. A reason that says UNKNOWN about a
+lock has said nothing about the shelf. The suffix spelling extract_gap / reel_templates / river_walk write
+("... — UNKNOWN, not an empty shelf") contains the phrase, so it is still never doubled.
 """
 
-LEAD = "UNKNOWN, not an empty shelf — "
+PHRASE = "UNKNOWN, not an empty shelf"
+LEAD = PHRASE + " — "
 DEFAULT = "no reel reached this probe and nothing said why"
 
 
 def not_an_empty_shelf(why, default=DEFAULT):
     """-> the reason, led by LEAD exactly once. An empty reason becomes `default`, never an empty sentence."""
     w = str(why or "").strip() or default
-    return w if "UNKNOWN" in w else LEAD + w
+    return w if PHRASE in w else LEAD + w
 
 
 def says_unknown(why):

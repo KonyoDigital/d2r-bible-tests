@@ -2060,7 +2060,7 @@
       "not_an_empty_shelf",
       "says_unknown"
     ],
-    "gotcha": "Leads with 'UNKNOWN, not an empty shelf — ' only when the reason does not already say UNKNOWN - five readers (reel_river, per_reel_routes, one_funnel, printer, reel_router) nest, and each used to prefix it, so one reason read three times. An empty reason becomes the default sentence, never an empty one.",
+    "gotcha": "Leads with 'UNKNOWN, not an empty shelf — ' only when the reason does not already carry that PHRASE - never the bare word UNKNOWN, which a lock or the tombstone ledger says about something else (REG-1512). Five readers (reel_river, per_reel_routes, one_funnel, printer, reel_router) nest, and each used to prefix it, so one reason read three times. An empty reason becomes the default sentence, never an empty one.",
     "purpose": "#77 - the ONE place the river's readers say 'UNKNOWN, not an empty shelf', so a reason passed up five layers says it once.",
     "territory": "river-reels"
   },
