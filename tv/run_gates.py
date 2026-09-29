@@ -5747,6 +5747,20 @@ GATES = [
              "reads the row (W5); the board's bars equal vault_retro's (his 2-look ruling). Source half: no "
              "assign[...] = outside the door, every wholesale re-bind named. #246 review: a hand must say WHEN "
              "(a time that is no date, or none, is refused) and the row carries the spec's `main`. 11 cases, 6 red-proofs"),
+    Gate("test_a_hardened_filing_is_locked_until_he_releases_it",
+         [sys.executable, os.path.join(HERE, "test_a_hardened_filing_is_locked_until_he_releases_it.py")], 120,
+         why="#41 heart audit rank 17 (REG-1562) - vault_evidence.rebuild_plan said 'HARDENED is re-filed and locked' "
+             "and the rebuild wrote locked:true on the row, and NO door read it: the vault audit's move, a drag to "
+             "another locker and the cell x took a 21/21 row exactly as a 2-look one. One reader now (window._vaultHardLock) "
+             "and the HAND doors ask it: the machine's move (vaultFile {move}), his drag to another locker and a re-drop "
+             "on the same one (assignItem -> vaultFile), a reader's re-look at the same locker, and the cell x "
+             "(vaultUnassign) all leave a locked row standing - refused 'hardened' and SAID on the status line with the "
+             "release - until the drop or the x carries Shift (opts.unlock); the release rides on the row (unlockedFrom) "
+             "or the receipt (unlocked). A PROVEN row moves and unassigns freely (the baseline). A witness store that "
+             "will not parse reads UNKNOWN and every hand door refuses 'prov-unreadable' rather than reading {} as "
+             "unlocked. Evidence lanes stay free: vaultRemove takes a locked filing and vaultRestoreLast brings the row "
+             "back lock included. Source half: the mule cell's x and both hand paths (drop, click) carry the Shift "
+             "release, code-only. The SHIPPED doors cut from bible.html and driven in node. 12 cases, 11 red-proofs"),
     Gate("test_a_one_look_frameless_read_does_not_paint_the_vault_ring",
          [sys.executable, os.path.join(HERE, "test_a_one_look_frameless_read_does_not_paint_the_vault_ring.py")], 90,
          needs_app=False,
@@ -7197,7 +7211,9 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_reset_refiles_only_what_the_plan_says.py")], 180,
          why="2026-09-27 - the full vault reset clears the marks and then files back only what "
              "vault_evidence.rebuild_plan names, through window.vaultFile, with a provenance row. "
-             "Driven on a seeded witness ledger: 12 clean looks come back proven, 21 come back locked, "
+             "Driven on a seeded witness ledger: 12 clean looks come back proven, 21 come back locked "
+             "(locked:true on the row - and since #41 rank 17 / REG-1562 the board's hand doors READ it: "
+             "test_a_hardened_filing_is_locked_until_he_releases_it), "
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
              "says UNKNOWN, never rebuilt 0. #41 rank 18 (REG-1529): the plan is asked of the console that "

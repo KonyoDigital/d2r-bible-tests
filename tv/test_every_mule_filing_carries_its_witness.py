@@ -320,7 +320,8 @@ RED_PROOF = [
     {
         "why": "#246 W1 - a second door: his hand writes the map directly again, around the witness",
         "file": "bible.html",
-        "find": "    var _vf = window.vaultFile(name, { by: 'hand', at: new Date().toISOString(), where: 'the vault manager' }, { mule: muleId });\n",
+        # #41 rank 17 (REG-1562) — the door's call now hands the Shift release through (opts.unlock); re-aimed at the line as it reads
+        "find": "    var _vf = window.vaultFile(name, { by: 'hand', at: new Date().toISOString(), where: 'the vault manager' }, { mule: muleId, unlock: !!(opts && opts.unlock) });\n",
         "replace": "    assign[name]=muleId; saveA(); var _vf = { ok: true };\n",
         "matches": 1,
     },

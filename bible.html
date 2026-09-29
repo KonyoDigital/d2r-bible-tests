@@ -39459,6 +39459,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v347 — duplicate/multi-keep count badge on the locker cell (top-right)
         var _cc = (typeof copyCount === 'function') ? copyCount(n) : 1;
         var _cntTag = (_cc > 1) ? '<span class="vm-cell-cnt" title="you own ' + _cc + ' of this">×' + _cc + '</span>' : '';
+        /* #41 rank 17 (REG-1562) — the ✕ says when it will refuse: a HARDENED row is locked here (Shift+✕ releases it),
+           and an unreadable witness store is UNKNOWN, which refuses as well */
+        var _hlk = null; try { _hlk = window._vaultHardLock ? window._vaultHardLock(n) : null; } catch(e){ _hlk = null; }
+        var _xTitle = !_hlk ? 'send back to the unsorted dock'
+          : _hlk.unknown ? '⚠ the witness store could not be read — whether this is locked is UNKNOWN, so ✕ is refused until it can be'
+          : '🔒 ' + _hlk.tier + ' — locked in this locker by the evidence; hold Shift and click ✕ to release it';
       /* v2243 — THE approx FLAG WAS INERT, WHICH IS THE DEFECT I HAD JUST SPENT THE DAY FIXING
          ELSEWHERE. v2242 marked an unresolved footprint {w:1,h:2,approx:true} so a guess could not
          pass as a measurement — and then nothing read it, so it passed as a measurement anyway.
@@ -39470,7 +39476,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
-          + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>';
+          + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\', { unlock: !!event.shiftKey })" title="' + esc(_xTitle) + '">✕</button></div>';
       });
       // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
       // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
@@ -39559,12 +39565,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
 
   // ── actions ──
-  function assignItem(name, muleId){
+  function assignItem(name, muleId, opts){
     if (!muleById(muleId)) return;
     /* #246 — HIS HAND IS A WITNESS, AND IT GOES THROUGH THE ONE DOOR. A drag or a click onto a locker is a
        manual declaration for that locker (his ruling: a manual add counts for the section it is made in),
-       so it files and leaves a provenance row saying so. The door still refuses a MAIN-locked name. */
-    var _vf = window.vaultFile(name, { by: 'hand', at: new Date().toISOString(), where: 'the vault manager' }, { mule: muleId });
+       so it files and leaves a provenance row saying so. The door still refuses a MAIN-locked name.
+       #41 rank 17 (REG-1562) — and a HARDENED row, unless the drop carried the release (Shift held -> opts.unlock). */
+    var _vf = window.vaultFile(name, { by: 'hand', at: new Date().toISOString(), where: 'the vault manager' }, { mule: muleId, unlock: !!(opts && opts.unlock) });
     if (!_vf || !_vf.ok){ status('🔒 ' + name + ' was not filed — ' + ((_vf && _vf.why) || 'the door refused it')); return; }
     selectedChip=null; renderVault(); refreshOpenCard();
     /* v1952 — HIS OWN HAND IS ALSO AN ANSWER. The board's placements have carried a reason since
@@ -39679,9 +39686,52 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       conf: (typeof r.conf === 'number') ? r.conf : null, where: r.where || null, tier: r.tier || null,
       successes: (typeof r.successes === 'number') ? r.successes : null, trials: (typeof r.trials === 'number') ? r.trials : null };
     keep.kind = 'owned'; keep.demotedFrom = { mule: r.mule || null, at: new Date().toISOString() };
+    if (r.unlockedAt) keep.unlocked = { at: r.unlockedAt, why: r.unlockedWhy || null };   /* #41 rank 17 — a released lock rides on the receipt */
     all[k] = keep; _provWrite(all); return true;
   }
   window._vaultProvDemote = _provDemote;
+  /* #41 rank 17 (REG-1562) — THE HARDENED LOCK, READ. vault_evidence.rebuild_plan has said "HARDENED is re-filed and
+     locked" since the reset was built, and the rebuild branch below writes locked:true on such a row — and no door ever
+     read it, so the lock was a label. This is its one reader, and the HAND doors ask it: a drag onto another locker or
+     a re-drop on the same one (assignItem -> vaultFile), the machine's move (vaultFile {move}) and the cell ✕
+     (vaultUnassign) refuse a locked row until he releases it — opts.unlock, which the drop and the ✕ carry when Shift
+     is held. Evidence lanes stay free: a reset rebuilds from the ledger at the true tier, and vaultRemove's lanes (the
+     TV saw it thrown, carried loot that left, a cleanse, his un-own of the name) are journaled and undoable, and the
+     undo puts the row back verbatim, lock included.
+     -> null (not locked) | {tier, successes, trials, mule, holder} | {unknown:true, why} when the witness store will
+     not parse — a lock read as {} off unreadable bytes is no lock, so the hand doors refuse on UNKNOWN as well.
+     [[unknown-stays-unknown]] */
+  function _hardLock(name){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return null;
+    var raw = null;
+    try { raw = window.LSR.getItem(PROV_KEY); }
+    catch (e) { return { unknown: true, why: 'the witness store (' + PROV_KEY + ') could not be read, so whether ' + nm + ' is locked is UNKNOWN — nothing hardened moves until it can be read' }; }
+    if (raw == null || raw === '') return null;      /* no store = no rows, a measured nothing */
+    var all = null;
+    try { all = JSON.parse(raw); } catch (e) { all = null; }
+    if (!all || typeof all !== 'object' || Array.isArray(all))
+      return { unknown: true, why: 'the witness store (' + PROV_KEY + ') would not parse, so whether ' + nm + ' is locked is UNKNOWN — nothing hardened moves until it can be read' };
+    var r = all[nm];
+    if (!r || typeof r !== 'object' || r.kind === 'owned' || r.locked !== true) return null;   /* the lock is the row's own word */
+    return { tier: String(r.tier || 'HARDENED'), successes: (typeof r.successes === 'number') ? r.successes : null,
+             trials: (typeof r.trials === 'number') ? r.trials : null, mule: r.mule || null, holder: r.holder || r.mule || null };
+  }
+  function _hardLockWhy(nm, lk, verb){
+    if (lk && lk.unknown) return lk.why;
+    return nm + ' is ' + lk.tier + ((lk.successes != null && lk.trials != null) ? ' ' + lk.successes + '/' + lk.trials : '')
+      + ' and LOCKED in ' + (lk.holder || 'its mule') + ' — a hardened filing is not ' + verb + ' by hand. Hold Shift while you '
+      + (verb === 'sent back to the dock' ? 'click ✕' : 'drop it') + ' to release it, or reset the vault from evidence.';
+  }
+  /* the release: the row keeps its evidence and says who opened it and when; locked reads false from here on */
+  function _hardUnlock(name, why){
+    var all = _provAll(), nm = String(name == null ? '' : name).trim(), r = all[nm];
+    if (!r || typeof r !== 'object' || r.locked !== true) return false;
+    r.locked = false; r.unlockedAt = new Date().toISOString(); r.unlockedBy = 'hand'; r.unlockedWhy = String(why || 'released by hand');
+    all[nm] = r; _provWrite(all); return true;
+  }
+  window._vaultHardLock = _hardLock;
+  window._vaultHardUnlock = _hardUnlock;
   function _lookConf(e){
     var c = e && e.conf;
     c = (typeof c === 'number') ? c : parseFloat(c);
@@ -39790,6 +39840,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!_vHomeOk(to)) return { ok: false, refused: 'no-home', why: 'no mule "' + to + '" on this board' };
       if (lk && to !== '__keep') return { ok: false, refused: 'locked', lock: lk,
         why: nm + ' is locked to your MAIN (' + lk + ') — a MAIN item is never moved into a mule' };
+      /* #41 rank 17 (REG-1562) — a HARDENED row is locked in its home: the machine's move (the vault audit, a reroute)
+         is refused outright, and a hand's only proceeds with the release (opts.unlock) */
+      var lkM = _hardLock(nm);
+      if (lkM && opts.unlock !== true) return { ok: false, refused: lkM.unknown ? 'prov-unreadable' : 'hardened', lock: lkM, why: _hardLockWhy(nm, lkM, 'moved') };
+      if (lkM) _hardUnlock(nm, 'moved by ' + String(opts.by || 'hand') + ' to ' + _vHomeName(to));
       var pm = _provAll();
       if (pm[nm]){ pm[nm].mule = to; pm[nm].holder = _vHomeName(to); pm[nm].movedAt = new Date().toISOString();
                    pm[nm].movedBy = String(opts.by || 'hand'); _provWrite(pm); }
@@ -39903,15 +39958,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!home) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, null) };
     if (!_vHomeOk(home)) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
     var hand = (wc.kind === 'hand');
+    /* #41 rank 17 (REG-1562) — HIS HAND ON A HARDENED ROW. A drag onto another locker and a re-drop on the same one both
+       land here (assignItem -> this door), so this is where the lock meets his hand: refused until the drop carries the
+       release (Shift held -> opts.unlock); a same-locker re-drop without it leaves the evidence row standing instead of
+       replacing it with a hand row, which would have let the lock evaporate on a confirm. An unreadable witness store is
+       UNKNOWN, and UNKNOWN refuses. */
+    var lkH = null;
+    if (hand && assign[nm] != null){
+      lkH = _hardLock(nm);
+      if (lkH && opts.unlock !== true){
+        if (assign[nm] === home && !lkH.unknown)
+          return { ok: true, mode: 'already', mule: home, locked: true,
+                   why: nm + ' is ' + lkH.tier + ' and locked here — your hand agrees with the evidence, and the evidence row stands' };
+        return { ok: false, refused: lkH.unknown ? 'prov-unreadable' : 'hardened', lock: lkH, why: _hardLockWhy(nm, lkH, 'moved') };
+      }
+      if (lkH) _hardUnlock(nm, 'his hand re-filed it to ' + _vHomeName(home));
+    }
     /* NEVER OVERRIDE A HOME HE CHOSE — only his own hand, naming the home, may re-file a filed name */
     if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule))
       return { ok: true, mode: 'already', mule: assign[nm], why: nm + ' is already filed to ' + _vHomeName(assign[nm]) };
     var wasHere = (assign[nm] === home);
     /* A MANUAL PLACEMENT ALWAYS WINS (MP_SRC_RANK's rule, and his): a reader's witness never replaces the row his
-       hand left at the same home — it would turn "you put it here" into "the film saw it". */
+       hand left at the same home — it would turn "you put it here" into "the film saw it".
+       #41 rank 17 — and a reader's fresh looks never replace a LOCKED evidence row either: two looks over-writing
+       twenty-one would have let the lock evaporate on a re-read. */
     if (wasHere && !hand){
       var _pw = _provAll()[nm];
       if (_pw && _pw.kind !== 'owned' && _pw.source === 'hand') return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
+      if (_pw && _pw.kind !== 'owned' && _pw.locked === true) return { ok: true, mode: 'already', mule: home, locked: true, why: nm + ' is ' + String(_pw.tier || 'HARDENED') + ' and locked here — a read agrees, and the evidence row stands' };
     }
     var now = new Date().toISOString();
     var g = (witness && typeof witness.gate === 'object' && witness.gate) ? witness.gate : null;
@@ -39931,6 +40005,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null
     };
     if (hand) row.where = wc.where;
+    if (lkH) row.unlockedFrom = { tier: lkH.tier, successes: lkH.successes, trials: lkH.trials, mule: lkH.mule, holder: lkH.holder, at: now };   /* #41 rank 17 — the lock his hand opened rides on the row that replaced it */
     if (wc.kind === 'd2s'){ row.file = wc.file; row.char = wc.char; }
     try { var _pr0 = _provAll()[nm]; if (_pr0 && _pr0.kind === 'owned') row.ownedBy = _pr0; } catch (e) {}   /* the receipt it replaces rides along */
     var pa = _provAll(); pa[nm] = row; _provWrite(pa);
@@ -39982,7 +40057,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (r.tier && typeof r.successes === 'number' && typeof r.trials === 'number'){
       var sess = Array.isArray(r.sessions) ? r.sessions.length : 0;
       return r.tier + ' ' + r.successes + '/' + r.trials
-        + (sess ? (' · ' + sess + ' session' + (sess === 1 ? '' : 's')) : '');
+        + (sess ? (' · ' + sess + ' session' + (sess === 1 ? '' : 's')) : '')
+        + (r.locked === true ? ' · 🔒 locked' : (r.unlockedAt ? ' · unlocked by hand' : ''));   /* #41 rank 17 — the lock is said where the tier is */
     }
     /* 2026-09-28 — EVERY ROW SPEAKS, not only a tiered one: who filed it and its tally of looks. */
     var n = Array.isArray(r.looks) ? r.looks.length : 0;
@@ -40814,7 +40890,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { label: lbl, mode: 'new' };
     } catch(e){ return null; }
   };
-  window.vaultUnassign = function(name){ delete assign[name]; try { if (owned.has(name)) _provDemote(name); else _provDrop(name); } catch(e){} saveA(); renderVault(); refreshOpenCard(); };
+  window.vaultUnassign = function(name, opts){
+    opts = opts || {};
+    /* #41 rank 17 (REG-1562) — THE CELL ✕ IS A HAND DOOR, AND A HARDENED ROW IS LOCKED: refused, and said, until Shift+✕
+       carries the release (opts.unlock). An unreadable witness store is UNKNOWN, and UNKNOWN refuses too. */
+    var lkU = _hardLock(name);
+    if (lkU && opts.unlock !== true){
+      var whyU = _hardLockWhy(String(name == null ? '' : name).trim(), lkU, 'sent back to the dock');
+      try { status('🔒 ' + whyU); } catch(e){}
+      return { ok: false, refused: lkU.unknown ? 'prov-unreadable' : 'hardened', lock: lkU, why: whyU };
+    }
+    if (lkU) _hardUnlock(name, 'sent back to the dock by hand (Shift+✕)');
+    delete assign[name]; try { if (owned.has(name)) _provDemote(name); else _provDrop(name); } catch(e){} saveA(); renderVault(); refreshOpenCard();
+    return { ok: true, unlocked: !!lkU };
+  };
   // v226: erase an AI misread in one click — removes the ✓ owned mark itself
   // (not just the locker assignment). Recoverable: re-✓ on the item's card.
   window.vaultUnown = function(name){
@@ -45065,7 +45154,7 @@ window.vaultAutoAssign = function(){
     if (!mule) return;
     e.preventDefault(); mule.classList.remove('vm-over');
     var name=e.dataTransfer.getData('text/vault-item');
-    if (name) assignItem(name, mule.dataset.vaultMule);
+    if (name) assignItem(name, mule.dataset.vaultMule, { unlock: !!e.shiftKey });   /* #41 rank 17 — Shift on the drop releases a HARDENED lock */
   });
   document.addEventListener('click', function(e){
     var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
@@ -45073,7 +45162,7 @@ window.vaultAutoAssign = function(){
     var plate=e.target&&e.target.closest&&e.target.closest('.vm-plate');
     if (plate){
       var mule=plate.closest('.vault-mule');
-      if (selectedChip) assignItem(selectedChip, mule.dataset.vaultMule);
+      if (selectedChip) assignItem(selectedChip, mule.dataset.vaultMule, { unlock: !!e.shiftKey });   /* #41 rank 17 — Shift on the click releases a HARDENED lock */
       else window.openMuleCard(mule.dataset.vaultMule); // v204: click a locker → its in-game ID card
     }
   });

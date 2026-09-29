@@ -79,12 +79,13 @@ def rebuild_plan(items):
     """Which cleared marks come back. `items` is the evidence already in hand, not a file.
 
     Each item is {name, successes, trials} and may say equipped=True or kind= one of KEPT_KINDS.
-    A WATCHED item stays cleared. PROVEN is re-filed. HARDENED is re-filed with locked:true on its row.
-    ⚠ #41 rank 17 (2026-09-29) — THAT FLAG IS RECORDED, NOT ENFORCED. A grep of bible.html for readers of prov.locked
-    finds only the write (the rebuild door) and two other locks (the MAIN ledger's list, the picker's _mpLockRefusal);
-    the move, restore, unassign and remove doors read it nowhere, so "locked" names no refusal today. It stays on the
-    row because the tier is real (the evidence line shows HARDENED n/n); which door a locked row refuses, and what
-    releases it (his rule: a lock with no release is a trap), awaits his ruling — see the #41 plan.
+    A WATCHED item stays cleared. PROVEN is re-filed. HARDENED is re-filed with locked:true on its row, and since
+    #41 rank 17 (REG-1562; his ruling 2026-09-30, "whatever is logical... just make it visually known") the lock is
+    READ: the board's hand doors (a drag onto another locker, the vault audit's move, the cell's ✕ - bible.html
+    _hardLock) refuse a locked row until he releases it with Shift on the drop or the ✕; an unreadable witness store
+    is UNKNOWN and never releases; the cell wears 🔒 and a refusal is said where he is looking. Evidence lanes stay
+    free: a reset rebuilds from this table, and a journaled removal's undo brings the row back lock included.
+    Until 2026-09-30 the field was a label no door read.
     An equipped item or a kept kind comes back even below the bar, and says why.
 
     An item may also carry retro="retro: <TIER>" — the flag retro_plan / _retro_row give an item

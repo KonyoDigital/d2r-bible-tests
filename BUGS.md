@@ -692,6 +692,74 @@ fixture and the two sides part), the tally tick cut and run in node, the route a
 world, the real worker in node over an in-memory KV, `/api/fleet` driven, the card helpers in node over fixture rows,
 the doctor row pure and through the cache. 9 red-proofs, one per joint, each seen RED by heart2. PROOF_NEEDS brings
 the worker into the proof sandbox.
+### REG-1562 - THE HARDENED LOCK WAS A LABEL: locked:true WAS WRITTEN ON THE ROW AND READ BY NO DOOR (#41 heart audit rank 17, 2026-09-30)
+
+**Found** by the #41 heart audit (verified, rank 17): `vault_evidence.rebuild_plan` said "HARDENED is re-filed and locked",
+the reset's rebuild branch wrote `locked: pr.locked === true` on the row, and a grep of bible.html for readers found only the
+write, the MAIN-ledger list and the picker's `_mpLockRefusal` (a different lock - his MAIN's gear). MEASURED by driving the
+SHIPPED doors in node before the fix: a rebuilt HARDENED 21/21 row was moved by the vault audit's `vaultFile {move}`, re-homed
+by a hand drop (assignItem -> vaultFile) and unfiled by the cell ✕ (vaultUnassign) exactly as a 2-look row - and a re-drop on
+the same locker, or a reader's re-look there, REPLACED the evidence row with a plain one, so the lock evaporated on a confirm.
+Reach today: HARDENED is 0 on his ledger (the audit's own count), so nothing on his board changes until a reset rebuilds a
+21-look item. No ruling forbids the lock: his words of 2026-09-26 ask the vault to keep "locking the items", the MAIN lock
+already refuses his hand and names its release ("Release the lock first if that is wrong"), and REG-1507's standing rule -
+never delete a mule filing - points the same way.
+
+**Fix (bible.html):** ONE reader, `_hardLock` (window._vaultHardLock): the row's own `locked === true` (a receipt is never a
+lock), or `{unknown:true}` when `d2r_vaultProv` will not parse - a lock read as {} off unreadable bytes is no lock. The HAND
+doors ask it: the machine's move, his drag to another locker, a re-drop on the same locker (the evidence row stands - 'already'
+with locked:true), a reader's re-look at the same locker (two looks never overwrite twenty-one) and the cell ✕ - each refused
+'hardened' (or 'prov-unreadable' on UNKNOWN) and SAID on the status line with the release. The release is his: Shift held on
+the drop or the click (the handlers -> assignItem -> opts.unlock) or Shift+✕ (the cell's onclick). The hand row that replaces
+an opened lock carries `unlockedFrom` {tier, successes, trials, mule, holder, at}; a dock receipt carries `unlocked` {at, why};
+`_hardUnlock` stamps unlockedAt / unlockedBy / unlockedWhy on the row it opens. The ✕'s title says the lock and the release;
+the evidence line says "· 🔒 locked" (or "· unlocked by hand") beside the tier. Evidence lanes stay free BY DESIGN: a reset
+rebuilds from the ledger at the true tier, and every vaultRemove lane (tv-unvault, carried-left, seed-cleanse, clear-unsorted,
+menu-import, un-tick, card-click) is journaled and undoable - vaultRestoreLast puts the row back verbatim, lock included
+(driven). `vault_evidence.rebuild_plan`'s docstring and the refile gate's why now say the lock is read, not only written.
+
+**Law:** `tv/test_a_hardened_filing_is_locked_until_he_releases_it.py` (registered) - the SHIPPED doors cut from bible.html
+(the vaultFile block, vaultUnassign, assignItem, _vrRead/_vrWrite, vaultRemove, vaultRestoreLast) and driven in node, 12
+cases: the premise (a rebuilt HARDENED row says locked:true, PROVEN says false, the reader answers tier/tally/holder), the
+machine's move, his hand's move + the status line, the same-locker re-drop, the reader's re-look, the ✕ + the status line,
+the PROVEN baseline (moves and unassigns freely - a lock that refuses everything is an off switch), Shift on the drop +
+unlockedFrom, Shift on the ✕ + the receipt, an unreadable store refusing at every hand door and writing nothing, the evidence
+lane + its undo, and the source join (the ✕ and both hand paths carry the release, code-only). 11 red-proofs, each applied in
+a heart2 sandbox and seen RED: `python3 tv/heart2.py --prove test_a_hardened_filing_is_locked_until_he_releases_it` = PROVEN
+11/11 in 12 s. Siblings re-run green on the edited door: test_every_mule_filing_carries_its_witness (11; its proof [1]
+anchored the assignItem call and was re-aimed at the line as it reads, re-proved PROVEN 6/6), test_a_reset_refiles_only_what_the_plan_says
+(7), test_a_reset_keeps_the_retro_rows_filed (18), test_a_vault_reset_clears_only_the_mules (8),
+test_every_owned_door_writes_provenance (44), test_main_gear_never_files_to_a_mule (9), test_a_corrupt_mule_store_is_never_overwritten
+(5), test_carried_loot_is_decided_by_owned_and_lands_in_order (29); the js-syntax gate OK; render_check --target vault green
+(11/11 painted at every width). ⚠ NOT SEEN ON PIXELS WITH A LOCKED ROW: a guest world holds no HARDENED filing, so the render
+proves only that the vault surface still paints - the lock's words on a tile wait for a real rebuild on his board. ⚠ SIBLING
+FOUND, NOT FIXED (needs its own REG): `_provAll()` still answers {} for `d2r_vaultProv` bytes that will not parse, and every
+door's `pa = _provAll(); pa[nm] = row; _provWrite(pa)` would then write ONE row over the whole corrupt store - REG-1420's class
+for the witness store, which that fix's law does not name. The hand doors now refuse on UNKNOWN; a READER's fresh filing onto
+an unreadable store still overwrites it.
+
+### REG-1563 - A GATE'S UNPROVABLE LEFT NO REASON BEHIND: test_found_ever_never_files_to_a_mule RE-PROVED ALONE, PROVEN 6/6 (#41 heart audit rank 26, 2026-09-30)
+
+**Found** by the #41 heart audit (rank 26): the heart census of 2026-09-29 01:04 (partial) carried
+`test_found_ever_never_files_to_a_mule` with a verdict stamp of 09-27 01:02 and no place in provedGates, blind or blindUnchecked
+- declared, not proven, no reason recorded. WHY NO REASON EXISTS: heart2's `_write_state` persists PROVEN names (provedGates)
+and BLIND/INVALID names (blind); an UNPROVABLE revokes a standing proof (`_proved.discard`) and stamps verdictAt, and its
+sentence lives only in that run's stdout - and hooks/pre-push writes its prove log to `$TMPDIR/d2r-prove.$$.log` and removes it
+on BOTH exits. So the 09-27 reason is UNRECOVERABLE from the record; that is the finding, not a guess dressed as one.
+
+**Measured 2026-09-30 02:15 IDT** (`python3 tv/heart2.py --prove test_found_ever_never_files_to_a_mule`, one lane, its own
+sandbox, nothing else of mine running): PROVEN 6/6, 178 s wall for 12 runs of the gate (a clean and a tampered run per proof),
+each starting its own headless Chrome on a free port - ~15 s a run against a 300 s deadline PER RUN, so alone it cannot time
+out; every tamper matched exactly once; no Chrome and no sandbox left behind. The main checkout's census of 09-30 01:00 already
+carried it PROVEN (verdictAt 09-29 22:59). Likeliest cause of the 09-27 verdict, labelled inference: REG-1442 (2026-09-29) names
+this gate among the 15 that reach the renderer only through a helper import and so sat OUTSIDE the push-time one-browser lock -
+at push time it could run beside a width law's Chrome, and a clean run whose browser will not start is "ALREADY RED untampered"
+= UNPROVABLE; the stamp predates that fix.
+
+**Record:** the gate's docstring now carries what its proof costs (12 browser runs, 178 s alone, the 300 s per-run deadline) and
+this history, so the next UNPROVABLE on it is read against a number. Nothing in the proof needed fixing. ⚠ Still fixable and NOT
+done here (heart2.py is shared by every lane tonight): persist the UNPROVABLE sentence per gate in .heart2.json so the census can
+answer "why" without the run's stdout.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
