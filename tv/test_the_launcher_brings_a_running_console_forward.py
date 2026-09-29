@@ -1,0 +1,155 @@
+# -*- coding: utf-8 -*-
+"""REG-1514 — A DOUBLE-CLICK BRINGS A RUNNING CONSOLE FORWARD; IT REPLACES ONLY A STALE OR WINDOWLESS ONE.
+
+The second eye on v3523's bg-service merge (4e22a57a, #231): start_tvd_mac.sh asked a console forward only when its
+window was in the BACKGROUND; a window that was simply UP fell through to the soft-kill of :17772, so a Desktop
+double-click replaced a healthy console - and any session it was filming. The kill exists for v1379.1 alone (never
+window-only onto a STALE console), and the console says whether it is stale itself.
+
+DRIVEN: tv/launcher_decide.decide() against a fake console on an EPHEMERAL port (never :17772) that answers
+/api/window and /api/status the way the real one does, and records every POST. RED_PROOF below.
+"""
+import json
+import os
+import sys
+import threading
+import unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+import launcher_decide as LD  # noqa: E402
+
+
+class _Console(BaseHTTPRequestHandler):
+    mode = "front"
+    fresh = {"known": True, "stale": False}
+    front_ok = True
+    posts = []
+
+    def _send(self, obj):
+        body = json.dumps(obj).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path.startswith("/api/window"):
+            self._send({"ok": True, "mode": _Console.mode})
+        elif self.path.startswith("/api/status"):
+            self._send({"moduleFreshness": _Console.fresh})
+        else:
+            self._send({})
+
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        _Console.posts.append(json.loads(self.rfile.read(n).decode("utf-8") or "{}"))
+        self._send({"ok": _Console.front_ok})
+
+    def log_message(self, *a):
+        pass
+
+
+class TheDecision(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = HTTPServer(("127.0.0.1", 0), _Console)
+        cls.port = cls.srv.server_address[1]
+        assert cls.port != 17772
+        cls.t = threading.Thread(target=cls.srv.serve_forever, daemon=True)
+        cls.t.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+        cls.srv.server_close()
+
+    def _decide(self, mode, fresh, front_ok=True):
+        _Console.mode, _Console.fresh, _Console.front_ok, _Console.posts = mode, fresh, front_ok, []
+        done, why = LD.decide(self.port, "law", timeout=5.0)
+        return done, why, list(_Console.posts)
+
+    CURRENT = {"known": True, "stale": False}
+    STALE = {"known": True, "stale": True}
+    UNKNOWN = {"known": False}
+
+    def test_a_window_that_is_up_on_current_code_is_brought_forward_not_replaced(self):
+        done, why, posts = self._decide("front", self.CURRENT)
+        self.assertTrue(done, "a healthy console with its window up was replaced by a double-click: %s" % why)
+        self.assertEqual([{"do": "front", "from": "law"}], posts)
+
+    def test_a_backgrounded_console_is_brought_forward_even_when_it_cannot_say_it_is_current(self):
+        done, why, posts = self._decide("background", self.UNKNOWN)
+        self.assertTrue(done, "a hidden console filming a reel was replaced: %s" % why)
+        self.assertEqual(1, len(posts))
+
+    def test_a_stale_console_is_replaced_and_never_asked(self):
+        for mode in ("front", "background"):
+            done, why, posts = self._decide(mode, self.STALE)
+            self.assertFalse(done, "a console running OLDER code was kept (v1379.1): %s" % why)
+            self.assertEqual([], posts, "a stale console was asked forward")
+            self.assertIn("OLDER", why)
+
+    def test_a_window_up_that_cannot_say_it_is_current_is_replaced(self):
+        done, why, posts = self._decide("front", self.UNKNOWN)
+        self.assertFalse(done)
+        self.assertEqual([], posts)
+
+    def test_a_windowless_console_is_replaced(self):
+        for mode in ("headless", "window-only", ""):
+            done, why, posts = self._decide(mode, self.CURRENT)
+            self.assertFalse(done, "a console with no window to show was kept for a double-click (%r)" % mode)
+            self.assertEqual([], posts)
+
+    def test_a_console_that_does_not_come_forward_is_replaced(self):
+        done, why, posts = self._decide("front", self.CURRENT, front_ok=False)
+        self.assertFalse(done, "the icon would do nothing (v1460): %s" % why)
+        self.assertIn("v1460", why)
+
+    def test_no_console_means_replace(self):
+        import socket
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        dead = s.getsockname()[1]
+        s.close()
+        done, why = LD.decide(dead, "law", timeout=2.0)
+        self.assertFalse(done)
+        self.assertIn("did not answer", why)
+
+
+RED_PROOF = [
+    {
+        "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is replaced",
+        "file": "tv/launcher_decide.py",
+        "find": "    if mode not in (\"front\", \"background\"):\n",
+        "replace": "    if mode != \"background\":\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1514) - a console running older code is kept (v1379.1's reason for the kill)",
+        "file": "tv/launcher_decide.py",
+        "find": "    if fresh is False:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1514) - a console that did not come forward ends the launch anyway (v1460's dead icon)",
+        "file": "tv/launcher_decide.py",
+        "find": "    if not ok:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

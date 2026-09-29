@@ -239,34 +239,20 @@ if command -v lsof >/dev/null 2>&1 && [ -z "${TV_FORCE_PORT:-}" ]; then
   done
 fi
 
-# ── 2026-09-29 — A BACKGROUNDED CONSOLE IS BROUGHT FORWARD, NEVER REPLACED ─────────────────────────────────
-# ✕ now sends the console to the BACKGROUND, where it keeps filming the shadow reel and running triage and
-# drain. The kill below would stop all of that to boot a fresh window - so ask first. A console that answers
-# /api/window with mode "background" is asked to come to the front, and this launch ends there.
-# TV_FORCE_PORT=1 still replaces it, exactly as before.
-if [ -z "${TV_FORCE_PORT:-}" ] && command -v curl >/dev/null 2>&1; then
-  _tvd_mode=$(curl -s -m 3 "http://127.0.0.1:17772/api/window" 2>/dev/null \
-    | python3 -c 'import json,sys
-try:
-    print((json.load(sys.stdin) or {}).get("mode", ""))
-except Exception:
-    print("")' 2>/dev/null)
-  if [ "$_tvd_mode" = "background" ]; then
-    _tvd_front=$(curl -s -m 5 -X POST -H 'Content-Type: application/json' -d '{"do":"front","from":"mac-launcher"}' \
-      "http://127.0.0.1:17772/api/window" 2>/dev/null | python3 -c 'import json,sys
-try:
-    print("yes" if (json.load(sys.stdin) or {}).get("ok") else "no")
-except Exception:
-    print("no")' 2>/dev/null)
-    if [ "$_tvd_front" = "yes" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') console on :17772 was HIDDEN - brought it to the front instead of replacing it (TV_FORCE_PORT=1 replaces it)" \
-        >>"$HERE/control_app.log" 2>/dev/null || true
-      exit 0
-    fi
-    # v1460's trap is a Desktop icon that does nothing: a hidden console that would not come forward is
-    # replaced below, exactly as before, rather than left unreachable.
-    echo "$(date '+%Y-%m-%d %H:%M:%S') console on :17772 is HIDDEN and did not come forward - replacing it" \
-      >>"$HERE/control_app.log" 2>/dev/null || true
+# ── 2026-09-29 — A RUNNING CONSOLE IS BROUGHT FORWARD, NEVER REPLACED (REG-1514) ───────────────────────────
+# ✕ sends the console to the BACKGROUND, where it keeps filming the shadow reel and running triage and drain;
+# and a double-click while its window is simply UP used to fall through to the kill below too - a healthy
+# console, maybe filming his session, replaced by a fresh one. The kill exists for one reason (v1379.1): never
+# window-only onto a STALE console running older code, and the console answers that itself. One decision,
+# tv/launcher_decide.py (driven by a law against a fake console): current code + a window -> brought forward
+# and this launch ends; stale, headless, or not answering -> replaced below, exactly as before.
+# TV_FORCE_PORT=1 still replaces it unconditionally.
+if [ -z "${TV_FORCE_PORT:-}" ]; then
+  _tvd_why=$(python3 "$HERE/launcher_decide.py" --port 17772 --from mac-launcher 2>/dev/null)
+  _tvd_rc=$?
+  echo "$(date '+%Y-%m-%d %H:%M:%S') launcher: ${_tvd_why:-no answer from launcher_decide}" >>"$HERE/control_app.log" 2>/dev/null || true
+  if [ "$_tvd_rc" -eq 0 ]; then
+    exit 0
   fi
 fi
 

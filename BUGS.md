@@ -175,6 +175,20 @@ doctor's `aside-cooldown`. Each one was applied, seen RED, and the file restored
 second eye's `_STARTED` proof had its anchor moved and was re-pointed and seen RED again. All 33 entries went RED.
 **Not changed:** `control_app._kill_pid` still taskkills pids read from pid files without an identity check. It is a
 sibling of this class in another lane, left for its own fix.
+### REG-1514 - A DOUBLE-CLICK REPLACED A HEALTHY MAC CONSOLE; A HIDE THAT FAILED STILL CLAIMED "BACKGROUND" (2026-09-29)
+
+**Found** by the second eye (Grok CLI) on v3523's bg-service merge `4e22a57a` (#231), two defects:
+- `tv/start_tvd_mac.sh` asked a console forward only when its window was BACKGROUNDED; a window that was simply UP fell
+  through to the soft-kill of :17772, so a Desktop double-click replaced a running console and any session it was
+  filming (the Windows launcher only brings it forward). **Fix:** one decision, `tv/launcher_decide.py`: a console on
+  current code with a window (front or background) is asked forward and the launch ends; stale (v1379.1's reason for
+  the kill), headless, window-only, silent, or one that will not come forward (v1460) is replaced as before.
+- `console_to_background` sets the background mark BEFORE the hide; a hide that raised left it set, so `/api/window`
+  said "background" and the UI rescue and pixel check skipped a window still on screen. **Fix:** the mark is withdrawn
+  unless the window really went.
+Laws: `test_the_launcher_brings_a_running_console_forward` (7 cases against a fake console on an ephemeral port, 3
+red-proofs) and `test_closing_the_window_keeps_the_console_running` (+2 cases; its launcher check now pins the
+decision before the kill; 18 red-proofs, all RED).
 
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 

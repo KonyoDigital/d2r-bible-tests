@@ -5429,6 +5429,12 @@ def console_to_background(by="window-close", sleep=time.sleep):
         if _mac_set_dock_icon(False):
             did.append("no-dock-icon")
     except Exception as e:
+        # REG-1514 — the second eye on 4e22a57a: the mark above is set BEFORE the hide (so the rescue does not
+        # reopen a window mid-hide), and a hide that raised left it set - /api/window said "background" and the UI
+        # rescue and the pixel check skipped a window that was still on screen. The mark is withdrawn unless the
+        # window really went (a failure AFTER the hide, e.g. the Dock icon, leaves it hidden and marked).
+        if "hidden" not in did:
+            _BACKGROUND.update(on=False, since=None, by=None)
         return {"ok": False, "did": did, "why": "hiding the window raised %s" % type(e).__name__}
     try:
         print("📺 the console is HIDDEN (%s) - it keeps running: shadow reader, triage and drain carry on. "

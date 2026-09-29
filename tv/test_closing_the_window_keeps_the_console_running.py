@@ -171,6 +171,33 @@ class WhatTheCloseButtonDoes(_Base):
                          "would minimize a console he asked to quit")
 
 
+class AHideThatFailsDoesNotClaimTheWindowIsHidden(_Base):
+    """REG-1514 — the second eye on 4e22a57a: the background mark is set BEFORE the hide, and a hide that raised left
+    it set - the window reported 'background' while it was on screen, so the UI rescue and the pixel check skipped
+    it. The mark is withdrawn unless the window really went."""
+
+    def test_a_hide_that_raises_leaves_the_window_front(self):
+        def _boom():
+            raise RuntimeError("the webview refused")
+        self.win.hide = _boom
+        ca._win_is_fullscreen = lambda w: False
+        r = ca.console_to_background("close-button", sleep=_no_sleep)
+        self.assertFalse(r["ok"])
+        self.assertFalse(ca._BACKGROUND.get("on"), "a window that never hid is reported hidden")
+        self.assertEqual("front", ca.window_mode_payload()["mode"])
+
+    def test_a_failure_after_the_hide_keeps_it_hidden(self):
+        ca._win_is_fullscreen = lambda w: False
+
+        def _dock(show):
+            raise RuntimeError("the Dock would not answer")
+        ca._mac_set_dock_icon = _dock
+        r = ca.console_to_background("close-button", sleep=_no_sleep)
+        self.assertFalse(r["ok"])
+        self.assertIn("hidden", r["did"])
+        self.assertTrue(ca._BACKGROUND.get("on"), "a window that DID hide was reported front")
+
+
 class FullscreenOnEachPlatform(_Base):
 
     def test_the_mac_leaves_fullscreen_then_hides_drops_the_dock_icon_and_goes_back(self):
@@ -377,22 +404,20 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         self.assertFalse(ca.ask_running_console_front(17999, "x", _urlopen=_boom)["ok"],
                          "an unreachable console read as brought forward")
 
-    def test_the_mac_launcher_brings_a_hidden_console_forward_before_it_would_kill_one(self):
+    def test_the_mac_launcher_asks_the_decision_before_it_would_kill_one(self):
+        """REG-1514: the decision itself is DRIVEN in test_the_launcher_brings_a_running_console_forward; this pins
+        the one thing a law about the helper cannot see - that the launcher asks it BEFORE the kill, and ends the
+        launch when it says the console came forward."""
         with io.open(LAUNCHER, encoding="utf-8") as fh:
             sh = fh.read()
-        probe = sh.find('if [ "$_tvd_mode" = "background" ]; then')
+        ask = sh.find('"$HERE/launcher_decide.py" --port 17772')
         kill = sh.find("# soft-kill anything still listening on the control port")
-        self.assertGreater(probe, -1, "the launcher no longer asks whether the console is hidden")
-        self.assertLess(probe, kill, "the launcher kills :17772 BEFORE asking - a hidden console filming "
-                                     "a session would be replaced")
-        block = sh[probe:kill]
-        self.assertIn('"do":"front"', block)
-        yes = block.find('if [ "$_tvd_front" = "yes" ]; then')
-        self.assertGreater(yes, -1, "the launcher no longer checks that the console ANSWERED - a hidden console that "
-                                    "did not come forward would leave the Desktop icon doing nothing (v1460)")
-        end = block.find("\n    fi\n", yes)             # the yes-branch's own closing fi - a real boundary
-        self.assertGreater(end, yes, "the yes-branch has no closing fi")
-        self.assertIn("exit 0", block[yes:end], "the launcher asks it forward and then replaces it anyway")
+        self.assertGreater(ask, -1, "the launcher no longer asks launcher_decide whether to replace the console")
+        self.assertLess(ask, kill, "the launcher kills :17772 BEFORE asking - a running console would be replaced")
+        block = sh[ask:kill]
+        yes = block.find('if [ "$_tvd_rc" -eq 0 ]; then')
+        self.assertGreater(yes, -1, "the launcher no longer reads the decision's answer")
+        self.assertIn("exit 0", block[yes:block.find("\n  fi\n", yes)], "the console came forward and was replaced anyway")
 
     def test_the_windows_launcher_asks_the_console_to_show_itself_before_focusing(self):
         with io.open(WIN_LAUNCHER, encoding="utf-8-sig") as fh:
@@ -598,17 +623,17 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-29 - the Mac launcher replaces a hidden console (stopping its reel) instead of asking it forward",
+        "why": "2026-09-29 (REG-1514) - the Mac launcher replaces a running console without asking the decision",
         "file": "tv/start_tvd_mac.sh",
-        "find": "  if [ \"$_tvd_mode\" = \"background\" ]; then\n",
-        "replace": "  if [ \"$_tvd_mode\" = \"never\" ]; then\n",
+        "find": "  if [ \"$_tvd_rc\" -eq 0 ]; then\n    exit 0\n  fi\n",
+        "replace": "",
         "matches": 1,
     },
     {
-        "why": "2026-09-29 - the Mac launcher ends the launch whether or not the console came forward (v1460's dead icon)",
-        "file": "tv/start_tvd_mac.sh",
-        "find": "    if [ \"$_tvd_front\" = \"yes\" ]; then\n",
-        "replace": "    if true; then\n",
+        "why": "2026-09-29 (REG-1514) - a hide that raised leaves the window reported 'background' while it is on screen",
+        "file": "tv/control_app.py",
+        "find": "        if \"hidden\" not in did:\n            _BACKGROUND.update(on=False, since=None, by=None)\n",
+        "replace": "",
         "matches": 1,
     },
     {

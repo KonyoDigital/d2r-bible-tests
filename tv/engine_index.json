@@ -927,6 +927,15 @@
     "purpose": "Writes one small per-lane file recording WHAT A LOOP DECIDED (drift verdict, orphan count, shadow result) so an outside process can date the loop — the second, independent witness a corroborator needs.",
     "territory": "heart-organs"
   },
+  "launcher_decide.py": {
+    "entryPoints": [
+      "decide",
+      "main"
+    ],
+    "gotcha": "Never binds or kills anything: it only ASKS the console on the given port (/api/window, /api/status moduleFreshness) and POSTs a front request. Exit 0 = the console came forward, the launcher ends; exit 1 = replace it (stale, headless, window-only, silent, or it would not come forward - v1460: the icon must never do nothing). A backgrounded console that cannot say it is current is still asked forward (replacing it would stop its reel).",
+    "purpose": "REG-1514 - the Mac launcher's one decision: bring the running console forward, or let the launcher replace it (v1379.1's stale-code case only).",
+    "territory": "console"
+  },
   "law_widths.py": {
     "entryPoints": [
       "parse",
