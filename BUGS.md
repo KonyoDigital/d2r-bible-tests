@@ -422,7 +422,10 @@ array opener counts. Both halves driven apart in the anchors law and pinned as r
 the walker. Measured on both hooks: anchors stage depth 0, prove call depth 1, EOF depth 0, no quote open at EOF.
 **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py` (7 cases, 8 red-proofs) - reads the hook's own
 stage order through the anchors law's shell walker, pins every stage and bound, runs `bash -n`.
-### REG-1460 - A RECEIPT THAT OUTLIVED ITS NAME STOPPED A REAL PICK-UP FROM BEING CARRIED (M-1, review of 7cded0c1, 2026-09-29)
+> REG-1505..1508 were filed as REG-1460..1463 on the evidence-fix branch; those numbers were taken on main by the
+> time it merged (v3524), so they were renumbered at the merge. The entries are otherwise unchanged.
+
+### REG-1505 - A RECEIPT THAT OUTLIVED ITS NAME STOPPED A REAL PICK-UP FROM BEING CARRIED (M-1, review of 7cded0c1, 2026-09-29)
 
 **SEEN (reproduced on 7cded0c1, driven on 2cf8d4ad):** the M-3 line `if (fresh.carried === true && (cur || owned.has(nm)))`
 read the standing receipt beside `owned`. A door that takes a name out of `owned` without its receipt (the unique card's
@@ -432,7 +435,7 @@ pick-up of a name he does not own is a pick-up; the stale receipt is kept beside
 mode 'renewed'); a name he DOES own is still never re-marked (M-3 stands). HEART: test_carried_loot_is_decided_by_owned_and_lands_in_order
 M1 (2 cases, 2 red-proofs); test_carried_loot_holds_its_time_and_its_name's stale case re-pointed (it asserted the defect).
 
-### REG-1461 - A REPLAYED OLDER STASH OR WORN SIGHTING LANDED (AND WOULD HAVE LOCKED) NEWER CARRIED LOOT (M-2, 2026-09-29)
+### REG-1506 - A REPLAYED OLDER STASH OR WORN SIGHTING LANDED (AND WOULD HAVE LOCKED) NEWER CARRIED LOOT (M-2, 2026-09-29)
 
 **SEEN:** the merge landed a carried receipt on ANY holding look (`cur.carried === true && _landsCarried(fresh.loc)`), with no
 time order — the H-1 sibling. The closer loop recloses old reels on every kaiVer bump / POST /api/kai_reclose, so an OLDER
@@ -443,7 +446,7 @@ against the latest look on the receipt, exactly as a drop is — _ownedSinceMs);
 and never lands; a look or a receipt with no time is UNKNOWN (unorderedLandings) and lands nothing; "last seen" never moves
 backwards. HEART: M2 (4 cases, 2 red-proofs).
 
-### REG-1462 - FOUR UN-OWN DOORS TOOK NAMES OUT BESIDE THE REMOVAL JOURNAL, SO THE NEXT RECLOSE RE-OWNED WHAT HE DELETED (M-3, 2026-09-29)
+### REG-1507 - FOUR UN-OWN DOORS TOOK NAMES OUT BESIDE THE REMOVAL JOURNAL, SO THE NEXT RECLOSE RE-OWNED WHAT HE DELETED (M-3, 2026-09-29)
 
 **SEEN:** vaultClearUnsorted ("Delete unsorted"), vaultDropMenuImport ("These look like a chronicle page"), tvVaultUnregister (the
 TV unvault) and toggleOwned's unique un-tick each did `owned.delete(name)` with no d2r_vaultRemoved batch (the un-tick also left
@@ -457,7 +460,7 @@ assign[name] on every lane); the old un-tick left the filing standing, and "neve
 The un-tick now passes `keepFiling: true`: the filing and its witness row stay on the mule, only the name leaves owned — journaled
 (the batch says keepFiling) and undoable. A plain removal still takes the filing (REG-1479).
 
-### REG-1463 - REMOVALS AND LEAVES WERE MATCHED ON THE READ'S NAME WHILE THE REGISTER OWNS THE RESOLVED ONE (L-1, 2026-09-29)
+### REG-1508 - REMOVALS AND LEAVES WERE MATCHED ON THE READ'S NAME WHILE THE REGISTER OWNS THE RESOLVED ONE (L-1, 2026-09-29)
 
 **SEEN:** since M-2 the fold keeps "(any)" apart from its bare stem, so a removal of "Worldstone Shard (any)" no longer blocked a
 bare "Worldstone Shard" read (the backfill re-filed it: 20c0df1e skipped it removed-by-him, 7cded0c1 filed it); and on both

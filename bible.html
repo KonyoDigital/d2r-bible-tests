@@ -24789,7 +24789,7 @@ function toggleOwned(name, prov) {
         if (owned.has(name)){
           /* round-5 review (LOW) — HIS RULING STANDS: THE UN-TICK NEVER DELETES A MULE FILING. The removal door dropped
              assign[name] for every lane; the old un-tick left the filing standing. keepFiling keeps the filing and its
-             witness row on the mule — only the name leaves owned, journaled and undoable (REG-1462). */
+             witness row on the mule — only the name leaves owned, journaled and undoable (REG-1507). */
           var _vrUT = null;
           try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, keepFiling: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
           if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }
