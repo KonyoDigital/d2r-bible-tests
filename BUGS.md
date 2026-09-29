@@ -7,6 +7,40 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1518 - A PULSE THAT NEVER FIRED ALSO LEAVES ZERO: THE v39 SPEC COULD NOT FAIL, AND THREE SIBLINGS SHARED THE SHAPE (2026-09-29)
+
+**Found** by the second eye on 6521bda8 (#80): `tests/v39_polish_invariants.spec.ts` '.syncing class is removed after
+pulse window (~700ms)' called `_v39_pulseAllSyncedCells`, slept 1100 ms and expected 0 `.syncing`. The pulse
+early-returns on its own 600 ms throttle, and returns before touching anything when no summary cell exists - BOTH
+leave 0, so the one assertion could never fail. Measured on the SHIPPED function in node: seeded cell with the
+throttle armed -> 0 right after AND 0 after the window; no synced cell -> 0 and 0. A second defect underneath: the
+spec's "bypass" wrote `w._v39_pulseTimer = null`, a window PROPERTY - the pulse checks the script's top-level `let`,
+which a classic script never puts on window, so the bypass had been a no-op in all three tests since 6521bda8 and the
+two `> 0` tests were green only because nothing arms the throttle at load.
+
+**Fix:** the block seeds one synced cell the way the page defines them (a `.stat-value`, one of the pulse's own nine
+selectors), clears the REAL binding with `(0, eval)('_v39_pulseTimer = null;')` and reads it back as a premise, reads
+the count synchronously in the evaluate that pulsed, requires the seeded cell ON and the count > 0, then after 1100 ms
+the seeded cell OFF and 0 in total. The two green siblings share the real bypass. **Sweep** of every `.toBe(0)` in
+tests/*.spec.ts (236 sites) for the same shape - 0 after an action never shown to have happened: `v1599_kept_promises`
+(the prompt overlay found gone, never found present - `r.open` must be 1 first), `v1520_sweep_review` (a drawer count
+of 0 on a row never shown to render - `row.count()` must be 1 first), `v549_chronicle_profile_reset` (a reset from 0
+to 0 - one `rwToggleMade` puts an entry on record, `before >= 1`). Read and left alone, by class: zero-BY-DESIGN blocks
+(an undo with nothing to undo, an empty locker, a removed door, an absence law with no action) - 40 of 2217 blocks.
+
+**Law** `tv/test_a_pulse_that_never_fired_also_leaves_zero.py` (registered): the shipped pulse cut from bible.html by
+its two neighbours and DRIVEN in node over a stub document - the class the spec seeds reads ON at once and OFF at
+900 ms; throttled -> 0/0 (6521bda8's only assertion, satisfied by nothing); a stranger cell -> 0/0. Spec text: the v39
+block asserts `toBeGreaterThan(0)` before its `.toBe(0)`, seeds a class the pulse's own selector list carries (JOINED -
+read from bible.html, never a copy), and bypasses through eval, not a window property; v1599 / v1520 / v549 carry their
+premise; and a ratchet counts the blocks that reach `.toBe(0)` with no positive assertion before it (LIMIT 40, DOWN
+only, driven on a planted pair). RED on the pre-fix specs: 9 failures, the ratchet at 43. **Red-proofs, each applied,
+run RED, restored byte-for-byte (git diff clean):** [0] the add goes to `syncing-never` (the seeded cell never ON),
+[1] the strip is `if (false)` (still ON at 900 ms), [2] the v39 premise dropped, [3] v1599's premise dropped (+ the
+ratchet, 41 > 40), [4] v1520's premise dropped (+ the ratchet). ⚠ Browser suites run on CI only ([[test-venue]]) -
+**Routine I must confirm** the four edited specs; the eval bypass and the seeded cell are reasoned from bible.html, not
+run here. Pre-existing and NOT touched: the red-proof census reports `test_every_pc_proves_itself[34]` matching 0 times
+in `tv/control_app.py` - 0 at the v3524 integration's HEAD too.
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:
