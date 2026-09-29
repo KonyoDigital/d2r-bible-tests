@@ -884,15 +884,24 @@ def _bare_session(sess):
 
 
 def keeps_diff(before, after):
-    """Which kept stores changed between two digest maps, and which could not be compared. -> (touched, unknown)"""
-    touched, unknown = [], []
+    """Which kept stores changed between two digest maps, which could not be compared, and which the reset MATERIALISED.
+    -> (touched, unknown, materialised)
+
+    round-5 (seen on the captured pixels): a store absent before ('absent') and present after was written by the reset's
+    own persistOwned() with the page's default — on a fresh board that is not a change to his data and must not read
+    "a reset must never change ... it did"; it is named apart, never hidden. [[unknown-stays-unknown]]
+    """
+    touched, unknown, materialised = [], [], []
     for key in sorted(set(before) | set(after)):
         if key not in before or key not in after:
             unknown.append(key)
             continue
+        if before[key] == "absent" and after[key] != "absent":
+            materialised.append(key)
+            continue
         if before[key] != after[key]:
             touched.append(key)
-    return touched, unknown
+    return touched, unknown, materialised
 
 
 def _refusals(receipt):
@@ -957,9 +966,10 @@ def reset_receipt(receipt, before, after):
 
     rebuilt_n, held_n = _n("rebuilt"), _n("held")
     refused_n, refused_rows = _refusals(receipt)
-    touched, unknown = keeps_diff(before, after)
-    base = {"rebuilt": rebuilt_n, "held": held_n, "touched": touched, "unknown": unknown,
+    touched, unknown, materialised = keeps_diff(before, after)
+    base = {"rebuilt": rebuilt_n, "held": held_n, "touched": touched, "unknown": unknown, "materialised": materialised,
             "refused": refused_n, "refusedRows": refused_rows}
+    made = (" · wrote where no store existed (the page's defaults, not a change): %s" % ", ".join(materialised)) if materialised else ""
     # #41 rank 2 — "Reset assignments" (door vaultReset) never rebuilds: rebuilt / held are NOT APPLICABLE to it, not
     # UNKNOWN, so its receipt is judged on the kept stores alone and never reads as "rebuilt is UNKNOWN" for ever
     if receipt.get("door") == "vaultReset":
@@ -968,7 +978,7 @@ def reset_receipt(receipt, before, after):
             return dict(base, ok=False, why="a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown))
         if touched:
             return dict(base, ok=False, why="a reset must never change %s — it did" % ", ".join(touched))
-        return dict(base, ok=True, why="Reset assignments never rebuilds · kept stores unchanged")
+        return dict(base, ok=True, why="Reset assignments never rebuilds · kept stores unchanged" + made)
     if rebuilt_n is None or held_n is None:
         return dict(base, ok=False, why="rebuilt is UNKNOWN, not 0" if rebuilt_n is None
                     else "held is UNKNOWN, not 0")
@@ -986,4 +996,4 @@ def reset_receipt(receipt, before, after):
                     why=("rebuilt %d · held %d · %d plan row(s) the door REFUSED to re-file: %s"
                          % (rebuilt_n, held_n, refused_n, _refusals_say(refused_rows))))
     return dict(base, ok=True,
-                why="rebuilt %d · held %d · refused 0 · kept stores unchanged" % (rebuilt_n, held_n))
+                why="rebuilt %d · held %d · refused 0 · kept stores unchanged%s" % (rebuilt_n, held_n, made))

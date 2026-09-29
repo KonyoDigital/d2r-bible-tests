@@ -253,10 +253,13 @@ in the after-keep sentence) instead of pretending the constant exact (heart-law 
 1 red-proof). **(4) SEEN ON THE CAPTURED PIXELS, not by the reviewer — a fresh board's empty stores read as a change.** The
 rank-9 status line captured for this round said "⚠ a reset must never change d2r_magicFinds, d2r_copies, d2r_multiKeep,
 d2r_unknownReads — it did" on a board that had never held those keys: the full reset's own persistOwned() writes '{}' / '[]'
-where no key was, and the keep check read null -> '{}' as a change (the reset law's harness seeds every store, so it never saw
-a fresh one — [[gate-blind-to-unexercised-input]]). Absent and empty are the same content: `_vEmpty` in the runner's keep check
-and the persisted digest ('empty' for both, so the doctor's keeps_diff agrees); a store that will not READ is still UNKNOWN.
-HEART: reset law test_a_fresh_board_s_empty_stores_are_not_a_change (+2 red-proofs; the keep-loop proof re-pointed).
+where no key was (multiKeep's default is not even empty), and the keep check read null -> '{...}' as a change (the reset law's
+harness seeds every store, so it never saw a fresh one — [[gate-blind-to-unexercised-input]]). A store absent before and present
+after is MATERIALISED: the runner names it apart (R.materialised, "wrote where no store existed (the page's own defaults, not a
+change to your data)"), the persisted digest keeps 'absent' -> the new digest, and vault_evidence.keeps_diff names it apart so
+the doctor's row says the same — never hidden, never "it did"; a store that will not READ is still UNKNOWN. HEART: reset law
+test_a_fresh_board_s_empty_stores_are_not_a_change (the doctor's row read off the same persisted receipt; +3 red-proofs), heart
+law test_a_store_the_reset_materialised_is_named_never_read_as_a_change (+1 red-proof).
 
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 

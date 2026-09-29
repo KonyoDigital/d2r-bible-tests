@@ -266,6 +266,24 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertEqual(CD.OK, st5, why5)
         self.assertIn("never rebuilds", why5)
 
+    def test_a_store_the_reset_materialised_is_named_never_read_as_a_change(self):
+        """Round-5, seen on the captured pixels: a fresh board's full reset writes the page's defaults where no store existed
+        (d2r_multiKeep's default is not even empty), and the row read digest 'absent' -> '9:...' as "a reset must never change
+        d2r_multiKeep — it did". Materialised is named apart, never a change; a real change is still MISSING."""
+        rec = {"door": "vaultClearHistory", "at": "2026-09-29T08:00:00.000Z", "rebuilt": [], "held": [], "rebuiltFailed": [],
+               "keepsBefore": {"d2r_setPieces": "3:abc", "d2r_multiKeep": "absent"},
+               "keepsAfter": {"d2r_setPieces": "3:abc", "d2r_multiKeep": "9:f00"}}
+        st, why = self._board({"d2r_vaultLastReset": json.dumps(rec)})
+        self.assertEqual(CD.OK, st, "a materialised store was read as a change: %s" % why)
+        self.assertIn("wrote where no store existed", why)
+        self.assertIn("d2r_multiKeep", why)
+        self.assertNotIn("it did", why)
+        self.assertEqual((["d2r_multiKeep"], [], []), tuple(VE.keeps_diff(rec["keepsBefore"], rec["keepsAfter"])[i] for i in (2, 0, 1)))
+        changed = dict(rec, keepsAfter={"d2r_setPieces": "0:0", "d2r_multiKeep": "9:f00"})
+        st2, why2 = self._board({"d2r_vaultLastReset": json.dumps(changed)})
+        self.assertEqual(CD.MISSING, st2, "BASELINE: a kept store that really changed must still be named: %s" % why2)
+        self.assertIn("d2r_setPieces", why2)
+
     def _stones(self, rows):
         with io.open(os.path.join(self.shelf, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
             json.dump({"reels": rows}, fh)

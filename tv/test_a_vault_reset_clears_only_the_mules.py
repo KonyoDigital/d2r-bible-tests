@@ -377,13 +377,36 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         for k in ("d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"):
             self.assertNotIn(k, f["before"]["store"], "PREMISE: the fresh board holds no %s" % k)
         rc = f["receipt"] or {}
-        self.assertEqual([], rc.get("touched"), "a fresh board's empty stores were reported as changed: %r" % rc.get("touched"))
+        four = ["d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"]
+        self.assertEqual([], rc.get("touched"), "a fresh board's materialised stores were reported as changed: %r" % rc.get("touched"))
         self.assertEqual([], rc.get("unknown"))
+        self.assertEqual(sorted(four), sorted(rc.get("materialised") or []), "the stores the reset wrote where none existed are not named: %r" % rc)
         self.assertNotIn("it did", f["status"] or "")
+        self.assertIn("wrote where no store existed", f["status"] or "", f["status"])
+        self.assertIn("d2r_multiKeep", f["status"] or "")
         saved = json.loads(f["after"]["store"].get(RECEIPT_KEY) or "null")
-        for k in ("d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"):
-            self.assertEqual(("empty", "empty"), (saved["keepsBefore"].get(k), saved["keepsAfter"].get(k)),
-                             "the persisted digest tells absent from empty for %s, so the doctor's row would name it" % k)
+        for k in four:
+            self.assertEqual("absent", saved["keepsBefore"].get(k), k)
+            self.assertNotEqual("absent", saved["keepsAfter"].get(k), k)
+        # the doctor reads the same receipt off the board and says the same: OK, the materialised stores named, never "it did"
+        import console_doctor as CD
+        real = CD._board_read
+        CD._board_read = lambda: {"ok": True, "fullStores": {"d2r_vaultLastReset": f["after"]["store"].get(RECEIPT_KEY)}}
+        try:
+            st, why = CD._check_the_vault_reset()
+        finally:
+            CD._board_read = real
+        self.assertNotEqual(CD.MISSING, st, "the doctor's row read a materialised store as a change: %s" % why)
+        self.assertNotIn("it did", why)
+        # this harness has no plan, so the row is honestly UNKNOWN on `rebuilt`; hand the same digests a rebuilt list and the
+        # kept-store verdict names the materialised stores apart, never as a change
+        import vault_evidence as VE
+        got = VE.reset_receipt(dict(saved, rebuilt=[], held=[], rebuiltFailed=[]), saved["keepsBefore"], saved["keepsAfter"])
+        self.assertTrue(got["ok"], got)
+        self.assertEqual(sorted(four), got["materialised"])
+        self.assertEqual([], got["touched"])
+        self.assertIn("wrote where no store existed", got["why"])
+        self.assertIn("d2r_multiKeep", got["why"])
         # BASELINE: a kept store that really changed is still named (the corroborator run above)
         self.assertIn("d2r_setPieces", (self.o["touched"]["receipt"] or {}).get("touched") or [])
 
@@ -492,22 +515,29 @@ RED_PROOF = [
     {
         "why": "the heart - the self-check goes blind: a kept store changed by the reset reads as untouched",
         "file": "bible.html",
-        "find": "      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);\n",
+        "find": "      else if (now !== was) R.touched.push(k.store);\n",
         "replace": "      else if (false) R.touched.push(k.store);\n",
         "matches": 1,
     },
     {
-        "why": "round-5 (pixels) - a fresh board's empty stores read as 'a reset must never change ... it did' again",
+        "why": "round-5 (pixels) - a store the reset materialised on a fresh board reads as 'a reset must never change ... it did' again",
         "file": "bible.html",
-        "find": "      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);\n",
-        "replace": "      else if (now !== was) R.touched.push(k.store);\n",
+        "find": "      else if (was === null && now !== null) R.materialised.push(k.store);\n",
+        "replace": "",
         "matches": 1,
     },
     {
-        "why": "round-5 (pixels) - the persisted digest tells absent from empty again, so the doctor's row names a store that held nothing",
+        "why": "round-5 (pixels) - the status line hides which stores the reset wrote where none existed",
         "file": "bible.html",
-        "find": "    if (_vEmpty(raw)) return 'empty';\n",
-        "replace": "    if (raw === null) return 'absent';\n",
+        "find": "    if (Array.isArray(R.materialised) && R.materialised.length) bits.push('wrote where no store existed (the page’s own defaults, not a change to your data): ' + R.materialised.join(', '));\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - the doctor's row reads a materialised store as a change again",
+        "file": "vault_evidence.py",
+        "find": "        if before[key] == \"absent\" and after[key] != \"absent\":\n            materialised.append(key)\n            continue\n",
+        "replace": "        if False:\n            materialised.append(key)\n            continue\n",
         "matches": 1,
     },
     {

@@ -46254,12 +46254,13 @@ function renderJournal(){
     if (v && typeof v === 'object') return Object.keys(v).length;
     return null;
   }
-  /* round-5 (seen on the pixels, 2026-09-29) — ABSENT AND EMPTY ARE THE SAME CONTENT. On a fresh board (no d2r_magicFinds /
-     d2r_copies / d2r_multiKeep / d2r_unknownReads yet) the full reset's own persistOwned() writes '{}' / '[]' where no key
-     was, and the keep check read null -> '{}' as "a reset must never change d2r_magicFinds ... — it did": a false ⚠ on
-     his first reset. A store that held nothing and holds nothing has not changed; only a store that will not READ is
-     UNKNOWN (undefined, handled beside). The persisted digest says 'empty' for both, so the doctor's row agrees. */
-  function _vEmpty(raw){ return raw === null || _vResetCount(raw) === 0; }
+  /* round-5 (seen on the captured pixels, 2026-09-29) — A STORE THE RESET MATERIALISED IS NOT A STORE IT CHANGED. On a
+     fresh board (no d2r_magicFinds / d2r_copies / d2r_multiKeep / d2r_unknownReads yet) the full reset's own persistOwned()
+     writes the page's defaults where no key was (multiKeep's is MULTI_KEEP_DEFAULT, not even empty), and the keep check read
+     null -> '{...}' as "a reset must never change d2r_multiKeep ... — it did": a false ⚠ on his first reset. Absent before
+     and present after is MATERIALISED: said in its own words on the status line and the receipt (R.materialised, digest
+     'absent' -> the new digest; vault_evidence.keeps_diff names it apart), never hidden and never a change to his data.
+     A store that will not READ is still UNKNOWN. [[unknown-stays-unknown]] */
   /* #41 rank 1 — WHAT THE BOARD HELD GOING INTO A RESET, read BEFORE the clears. His ruling §34.2 keeps a retro row FILED
      because it was filed before; the plan was asked with '{}' and derived "filed before" from surplus FRAMES, so a board
      that held nothing (every backup since his 09-27 reset) was promised keepFiled for Radiance and the Cube on the 1-look
@@ -46284,7 +46285,7 @@ function renderJournal(){
   var RESET_RECEIPT_KEY = 'd2r_vaultLastReset';
   function _vDigest(raw){
     if (raw === undefined) return undefined;
-    if (_vEmpty(raw)) return 'empty';
+    if (raw === null) return 'absent';
     var h = 5381, s = String(raw);
     for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
     return s.length + ':' + h.toString(16);
@@ -46309,7 +46310,7 @@ function renderJournal(){
      one changed or a step failed, null (UNKNOWN) when a keep store could not be read. */
   async function _vaultResetRun(door){
     var S = _VAULT_RESET_SCOPE, parts = S.doors[door];
-    var R = { door: door, at: new Date().toISOString(), cleared: {}, failed: [], kept: {}, touched: [], unknown: [], ok: null };
+    var R = { door: door, at: new Date().toISOString(), cleared: {}, failed: [], kept: {}, touched: [], unknown: [], materialised: [], ok: null };
     window._vaultLastReset = R;
     if (!parts){ R.ok = false; R.failed.push('no such reset door: ' + door); return R; }
     var before = {};
@@ -46320,7 +46321,8 @@ function renderJournal(){
     S.keeps.forEach(function(k){
       var was = before[k.store], now = _vResetRead(k.store);
       if (was === undefined || now === undefined) R.unknown.push(k.store);
-      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);
+      else if (was === null && now !== null) R.materialised.push(k.store);
+      else if (now !== was) R.touched.push(k.store);
     });
     for (var i = 0; i < parts.length; i++){
       var c = S.clears[parts[i]]; if (!c.later) continue;
@@ -46449,6 +46451,7 @@ function renderJournal(){
     if (R.failed.length) bits.push('⚠ could not clear: ' + R.failed.join(', '));
     if (R.touched.length) bits.push('⚠ a reset must never change ' + R.touched.join(', ') + ' — it did');
     if (R.unknown.length) bits.push('could not re-read ' + R.unknown.join(', ') + ' — UNKNOWN, not confirmed intact');
+    if (Array.isArray(R.materialised) && R.materialised.length) bits.push('wrote where no store existed (the page’s own defaults, not a change to your data): ' + R.materialised.join(', '));
     if (R.door === 'vaultClearHistory') {
       /* rank 9 — planWhy has a reader: an unread plan says why; held says how many were WATCHED and how many UNKNOWN */
       if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read' + (R.planWhy ? ' (' + R.planWhy + ')' : ''));
