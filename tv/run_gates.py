@@ -7032,6 +7032,24 @@ GATES = [
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
              "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
+    Gate("test_a_rare_item_stands_on_the_same_looks_as_a_unique",
+         [sys.executable, os.path.join(HERE, "test_a_rare_item_stands_on_the_same_looks_as_a_unique.py")], 120,
+         why="REG-1519 (#51) - his ask 2026-09-28: magic (blue) and rare (gold) items get the evidence chain uniques "
+             "have. The tier table read no look's quality and the evidence route read only the chronicle books. Now "
+             "vault_evidence.rarity_of says what an item IS from the SAME looks (the roster for a unique/set, the looks' "
+             "quality vote for a rolled name; a tie or a blank is UNKNOWN, never white), every plan row carries it, "
+             "tier_census splits the same count by rarity, the doctor's line says the tally, the reset receipt's "
+             "rebuiltByRarity is read (absent = UNKNOWN), and /api/evidence answers a vault-only name from the witness "
+             "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). 8 red-proofs."),
+    Gate("test_a_proven_rare_comes_back_to_the_magic_and_rare_locker",
+         [sys.executable, os.path.join(HERE, "test_a_proven_rare_comes_back_to_the_magic_and_rare_locker.py")], 120,
+         why="REG-1520 (#51) - the board half, driven in node over a plan the real route served: a proven rare or magic "
+             "plan row reached vaultFile's rebuild branch with no home and suggestMule filed it under the weapons mule, "
+             "its witness row carried no rarity so _artRarity painted it unique gold, and the receipt said nothing about "
+             "what came back. Now the door files a blue/gold row into the MAGIC & RARE locker (refuses in words when the "
+             "board has none), the witness row carries the rarity, _artRarity paints from it (and a witness write empties "
+             "its cache), and the status line + persisted receipt tally the rebuild by rarity - read back by "
+             "vault_evidence.reset_receipt. 6 red-proofs."),
     Gate("test_the_vault_heart_says_what_the_reset_and_the_tiers_did",
          [sys.executable, os.path.join(HERE, "test_the_vault_heart_says_what_the_reset_and_the_tiers_did.py")], 120,
          why="2026-09-27 - the heart says what a vault reset rebuilt and how many items each "

@@ -26826,8 +26826,19 @@ def vault_proven_names(min_witnesses=2):
         else:
             w, visits, raw = 0, 0, 0
         if w >= int(min_witnesses):
+            # #51 — WHAT the proven name IS rides with it: vault_evidence.rarity_of, the one resolver the
+            # plan, the census and the evidence route use (the roster for a unique/set, the looks'
+            # quality for a rolled name, None = UNKNOWN). The board's proven set then knows a rare
+            # from a unique without a second table. [[copy-drift]]
+            try:
+                import vault_evidence as _VE
+                _rar = _VE.rarity_of(n, [r])
+                _rarity, _rarity_by = _rar.get("rarity"), _rar.get("by")
+            except Exception:
+                _rarity, _rarity_by = None, None
             proven.append({"name": n, "witnesses": w, "visits": visits, "rows": raw,
-                           "conf": r.get("conf"), "lane": r.get("lane")})
+                           "conf": r.get("conf"), "lane": r.get("lane"),
+                           "rarity": _rarity, "rarityBy": _rarity_by})
         else:
             short += 1
     return {"ok": True, "proven": sorted(proven, key=lambda x: x["name"]),
@@ -32475,44 +32486,23 @@ def evidence_for(name, ledger=None):
         prop = _chron_evidence_load() or {}
     except Exception as e:
         return {"ok": False, "why": "the evidence ledger could not be read: %s" % str(e)[:80]}
+    # ══ #51 — A MAGIC OR RARE ITEM'S EVIDENCE LIVES IN THE VAULT WITNESS LEDGER, NOT A CHRONICLE BOOK ═
+    # This route read the two chronicle books (uniques, sets) and nothing else, so the board's
+    # evidence click on a rolled-name keeper — a rare ring, a magic skiller — answered "nothing
+    # banked for this name" while its looks (frame, reel, conf, quality, crop) sat in
+    # vault_accum.json, the same store the tier table proves it from. The sources are now walked
+    # in order by _evidence_sources: the chronicle books first (unchanged), then the vault ledger,
+    # each yielding its sightings in this route's ONE shape, so the dedupe, the reel count, the
+    # witness tags and the sentence below are computed once for all of them. [[copy-drift]]
+    # An empty chronicle ledger no longer ends the search: a vault-only name still answers.
+    chron_why = None
     if not isinstance(prop, dict) or not prop:
-        return {"ok": False, "why": "no evidence ledger has been banked yet"}
-    leds = (ledger,) if ledger in ("uniques", "sets") else ("uniques", "sets")
-    for led in leds:
-        book = prop.get(led)
-        if not isinstance(book, dict):
+        chron_why, prop = "no evidence ledger has been banked yet", {}
+    vault_unread = None
+    for led, sightings, extra in _evidence_sources(n, prop, ledger):
+        if led == "vault" and sightings is None:
+            vault_unread = extra          # the ledger exists and would not read — said at the end
             continue
-        sightings = book.get(n)
-        if not isinstance(sightings, list) or not sightings:
-            # ══ v3183 — ASK BY VAULT ENTITY, NOT BY BYTES ══════════════════════════════════
-            # HIS RULING: *"each its own.. for chronicle there is only one name for it.. and
-            # for items found or stashed or items renewed from the hordaic cube these are their
-            # own entity in vault terms"*.
-            #
-            # MEASURED: three rows he genuinely owns answered "nothing banked" while their
-            # evidence sat in this very book — Atma's Scarab (54 sightings under a typographic
-            # apostrophe), Saracen's Chance (55), Athena's Wrath (50, under the bare name while
-            # the row carries the board's "(set piece)" disambiguator). An exact dict-get cannot
-            # see any of them.
-            #
-            # ⚠ AND IT MUST NOT OVER-REACH. item_identity folds only RENDERING - the apostrophe
-            # byte, the base-type tail, and a parenthetical suffix whose bare name belongs to
-            # exactly one roster. The qualifier (Latent / Renewed) is IDENTITY and never folds,
-            # so a Latent charm's footage can never answer for a renewed one. `Crescent Moon`
-            # keeps its "(amulet)" because the bare name is also a runeword.
-            sightings = None
-            try:
-                import item_identity as _ii
-                _want = _ii.vault_key(n).lower()
-                if _want:
-                    for _k, _v in book.items():
-                        if isinstance(_v, list) and _v and _ii.vault_key(_k).lower() == _want:
-                            sightings = _v
-                            break
-            except Exception:
-                sightings = None
-            if not isinstance(sightings, list) or not sightings:
-                continue
         # ══ 2026-09-28 (Ledger P0) — ONE REEL IS ONE WITNESS, WHICHEVER WAY IT WAS SPELLED ══════
         # Two defects lived here, both MEASURED on his chron_evidence.json:
         #   1. `witnesses` was None for EVERY name. It asked counter_ledger for .witnesses behind a
@@ -32612,22 +32602,167 @@ def evidence_for(name, ledger=None):
         if _hand:
             _hand_say = ("his own hand tick" if _hand == 1 else "%d hand ticks of his" % _hand)
             _across = (_across + " + " + _hand_say) if _across else (": " + _hand_say)
-        return {"ok": True, "name": n, "ledger": led,
-                "sightings": sightings[:_CAP], "count": len(sightings),
-                "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
-                "truncated": len(sightings) > _CAP,
-                "reels": reels, "lanes": lanes, "frames": frames[:24],
-                "foundAt": found_at, "droppedBy": dropped_by,
-                "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
-                "witnessesKnown": len(reels), "unplaced": _unplaced, "hand": _hand,
-                # the one-line answer, so a surface does not have to compose it and drift
-                "say": ("%d sighting%s%s, read by %s%s"
-                        % (len(sightings), "" if len(sightings) == 1 else "s", _across,
-                           " and ".join(lanes) or "an unnamed lane",
-                           (" — the game dates it %s" % found_at) if found_at else ""))}
+        out = {"ok": True, "name": n, "ledger": led,
+               "sightings": sightings[:_CAP], "count": len(sightings),
+               "rows": len(raw_rows), "duplicateRows": len(raw_rows) - len(sightings),
+               "truncated": len(sightings) > _CAP,
+               "reels": reels, "lanes": lanes, "frames": frames[:24],
+               "foundAt": found_at, "droppedBy": dropped_by,
+               "witnesses": wit, "witnessTags": wit_tags, "witnessWhy": wit_why,
+               "witnessesKnown": len(reels), "unplaced": _unplaced, "hand": _hand,
+               # the one-line answer, so a surface does not have to compose it and drift
+               "say": ("%d sighting%s%s, read by %s%s"
+                       % (len(sightings), "" if len(sightings) == 1 else "s", _across,
+                          " and ".join(lanes) or "an unnamed lane",
+                          (" — the game dates it %s" % found_at) if found_at else ""))}
+        if isinstance(extra, dict):
+            # #51 — the vault source also says what the item IS and where it STANDS, from
+            # vault_evidence.stand (the same tier() and _measure the plan and census use).
+            # UNKNOWN is said as such on the line, never dressed as a colour or a tier.
+            out.update(extra)
+            _say_r = _VE_RARITY_SAY.get(extra.get("rarity")) if extra.get("rarity") else None
+            _t = extra.get("tier")
+            out["say"] += " — %s · tier %s (vault witness ledger)" % (
+                _say_r or "rarity UNKNOWN",
+                ("%s %d/%d by visits" % (_t, extra.get("successes"), extra.get("trials"))) if _t
+                else "UNKNOWN")
+        return out
+    if vault_unread:
+        return {"ok": False, "name": n, "why": vault_unread}
+    if chron_why:
+        return {"ok": False, "name": n, "why": chron_why + " and the vault witness ledger holds no look at this name"}
     return {"ok": False, "name": n,
             "why": "nothing banked for this name — it was ticked by hand, or before the evidence "
-                   "ledger existed, or it is spelled differently in the ledger"}
+                   "ledger existed, or it is spelled differently in the ledger; the vault witness "
+                   "ledger holds no look at it either"}
+
+
+_VE_RARITY_SAY = {"unique": "unique", "set": "set", "gold": "rare (gold)", "blue": "magic (blue)",
+                  "white": "white"}
+
+
+def _evidence_sources(name, prop, ledger=None):
+    """#51 — every store that can witness `name`, in the ONE shape evidence_for speaks.
+
+    Yields (ledger, sightings, extra): the chronicle books ("uniques", "sets" — the lookup that
+    lived inline in evidence_for, moved here verbatim) and then the vault witness ledger
+    ("vault"), whose looks are re-spelled into the chronicle row shape (reel, frame, lane, conf)
+    with the vault's own facts beside them (witness = the visit, quality, crop, cell). `extra`
+    is the vault item's standing (vault_evidence.stand). A vault ledger that exists and will not
+    read yields ("vault", None, why) — UNKNOWN, never "nothing banked". `ledger` narrows the
+    walk: "uniques" | "sets" | "vault"; anything else walks all three.
+    """
+    n = str(name or "").strip()
+    if ledger == "vault":
+        leds = ()
+    else:
+        leds = (ledger,) if ledger in ("uniques", "sets") else ("uniques", "sets")
+    for led in leds:
+        book = prop.get(led) if isinstance(prop, dict) else None
+        if not isinstance(book, dict):
+            continue
+        sightings = book.get(n)
+        if not isinstance(sightings, list) or not sightings:
+            # ══ v3183 — ASK BY VAULT ENTITY, NOT BY BYTES ══════════════════════════════════
+            # HIS RULING: *"each its own.. for chronicle there is only one name for it.. and
+            # for items found or stashed or items renewed from the hordaic cube these are their
+            # own entity in vault terms"*.
+            #
+            # MEASURED: three rows he genuinely owns answered "nothing banked" while their
+            # evidence sat in this very book — Atma's Scarab (54 sightings under a typographic
+            # apostrophe), Saracen's Chance (55), Athena's Wrath (50, under the bare name while
+            # the row carries the board's "(set piece)" disambiguator). An exact dict-get cannot
+            # see any of them.
+            #
+            # ⚠ AND IT MUST NOT OVER-REACH. item_identity folds only RENDERING - the apostrophe
+            # byte, the base-type tail, and a parenthetical suffix whose bare name belongs to
+            # exactly one roster. The qualifier (Latent / Renewed) is IDENTITY and never folds,
+            # so a Latent charm's footage can never answer for a renewed one. `Crescent Moon`
+            # keeps its "(amulet)" because the bare name is also a runeword.
+            sightings = None
+            try:
+                import item_identity as _ii
+                _want = _ii.vault_key(n).lower()
+                if _want:
+                    for _k, _v in book.items():
+                        if isinstance(_v, list) and _v and _ii.vault_key(_k).lower() == _want:
+                            sightings = _v
+                            break
+            except Exception:
+                sightings = None
+            if not isinstance(sightings, list) or not sightings:
+                continue
+        yield led, sightings, None
+    if ledger in ("uniques", "sets"):
+        return
+    got = _vault_evidence_for(n)
+    if got is not None:
+        yield got
+
+
+def _vault_evidence_for(name):
+    """#51 — the vault witness ledger's looks at `name`. -> ("vault", sightings, extra) | ("vault", None, why) | None.
+
+    None means the ledger is absent or holds no row for this name — nothing to say, and the
+    caller's "nothing banked" stands. ("vault", None, why) is a ledger that exists and would not
+    read: UNKNOWN, said in words. The rows are matched by name, then by item_identity.vault_key —
+    the same fold the chronicle books use, so one spelling rule serves both. Each look becomes a
+    chronicle-shaped sighting: `reel` is the reel DIRECTORY ("reel_" + the look's session, the
+    path the board's click opens), `frame`, `lane` (the look's, else the row's), `conf`; and the
+    vault's own facts ride beside them — `witness` (the visit id), `quality`, `crop` / `cropWhy`,
+    `cell`, `saw` / `hit` — so a miss and a crop are never lost in the re-spelling. `extra` is
+    vault_evidence.stand(name, rows): tier, bound, successes, trials, rarity, rarityBy.
+    """
+    doc, state, _mt = _vault_store_read(VAULT_LEDGER_PATH)
+    if state == "absent":
+        return None
+    if state != "ok" or not isinstance(doc, dict):
+        return ("vault", None, "the vault witness ledger exists and could not be read (%s), so whether it "
+                               "holds a look at this name is UNKNOWN — not 'nothing banked'" % state)
+    rows = doc.get("owned")
+    if not isinstance(rows, list):
+        return ("vault", None, "the vault witness ledger carries no readable `owned` list, so whether it holds "
+                               "a look at this name is UNKNOWN — not 'nothing banked'")
+    exact = [r for r in rows if isinstance(r, dict) and str(r.get("name") or "").strip() == name]
+    mine = exact
+    if not mine:
+        try:
+            import item_identity as _ii
+            want = _ii.vault_key(name).lower()
+            if want:
+                mine = [r for r in rows if isinstance(r, dict)
+                        and _ii.vault_key(str(r.get("name") or "")).lower() == want]
+        except Exception:
+            mine = []
+    if not mine:
+        return None
+    sightings = []
+    for r in mine:
+        looks = r.get("witnesses")
+        if not isinstance(looks, list):
+            continue
+        for w in looks:
+            if not isinstance(w, dict):
+                continue
+            sess = str(w.get("session") or "").strip()
+            reel = (sess if sess.startswith("reel_") else "reel_" + sess) if sess else None
+            row = {"reel": reel, "frame": w.get("frame") or None,
+                   "lane": w.get("lane") or r.get("lane"), "conf": w.get("conf")}
+            for k in ("witness", "quality", "crop", "cropWhy", "cell", "saw", "hit", "ts", "sockets", "eth"):
+                if w.get(k) is not None:
+                    row[k] = w.get(k)
+            sightings.append(row)
+    if not sightings:
+        return None
+    try:
+        import vault_evidence as _VE
+        extra = _VE.stand(name, mine)
+    except Exception as e:
+        extra = {"tier": None, "bound": None, "successes": None, "trials": None, "rarity": None,
+                 "rarityBy": None, "rarityWhy": None,
+                 "why": "the tier table could not be read (%s), so the tier is UNKNOWN" % type(e).__name__}
+    extra = dict(extra, visits=extra.get("trials"), countedBy="vault_evidence.stand (a trial is a visit)")
+    return ("vault", sightings, extra)
 
 
 def _chron_evidence_merge(prop):

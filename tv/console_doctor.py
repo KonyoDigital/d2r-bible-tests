@@ -2722,8 +2722,13 @@ def _check_the_evidence_tiers(path=None, root=None):
             retro += ("; %d of them held — no visit saw it (%s)" % (len(_rheld), ", ".join(_rheld[:4])))
     else:
         retro = "retro flags 0"
-    line = ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s · %s"
-            % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
+    # #51 — THE SAME COUNT, SPLIT BY WHAT EACH ITEM IS. His ask: magic (blue) and rare (gold)
+    # items tallied like uniques. The split is the census's own byRarity (vault_evidence.rarity_of
+    # per item, never a second count here); a name whose rarity nothing could tell is counted
+    # under "rarity UNKNOWN", never folded into white. [[unknown-stays-unknown]]
+    line = ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s · %s · %s"
+            % (got["watched"], got["proven"], got["hardened"], got["unknown"],
+               _ve.rarity_tally_say(got.get("byRarity")), retro, pic))
     if bad_pics:
         return MISSING, bad_pics + " · " + line
     return OK, line

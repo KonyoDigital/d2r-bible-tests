@@ -103,6 +103,11 @@ def rebuild_plan(items):
         got = tier(it.get("successes"), it.get("trials"))
         row = {"name": it["name"], "tier": got["tier"], "bound": got["bound"],
                "successes": got["successes"], "trials": got["trials"]}
+        if "rarity" in it:
+            # #51 — what the item IS rides on every row, rebuilt or held: the board's door reads it
+            # to send a magic or rare row to the MAGIC & RARE locker. None stays None (UNKNOWN).
+            row["rarity"] = it.get("rarity")
+            row["rarityBy"] = it.get("rarityBy")
         kept = bool(it.get("equipped")) or str(it.get("kind") or "") in KEPT_KINDS
         retro = it.get("retro") if isinstance(it.get("retro"), str) else ""
         if not retro.startswith("retro: "):
@@ -171,6 +176,131 @@ def _equipped_of(rows):
         if str(row.get("lane") or "").strip().lower() in _MAIN_LANES:
             return True
     return False
+
+
+# ══ #51 — MAGIC (blue) AND RARE (gold) STAND ON THE SAME LOOKS AS A UNIQUE ═══════════════════════
+# His ask 2026-09-28: witnessed looks, Wilson tiers, a rebuild after a reset, clickable evidence
+# pictures and tallies for magic and rare items, the way uniques already get them. MEASURED before
+# this was written: every look has carried `quality` since v3369 (vault_retro.normalize_item puts
+# it on the sighting, _witness_rows banks it), and this table grouped the rows by NAME and read
+# none of it — so a plan row, the census and the doctor's line could not say what an item IS, and
+# the board's rebuild door, handed a rolled name, asked suggestMule, whose last line routes a name
+# nothing recognises to the weapons mule. ONE resolver, called by the plan, the census, the
+# evidence route and (through the plan row it carries) the board's door. [[copy-drift]]
+#: what each rarity is called on a line he reads: the ledger's own vocabulary (vault_retro.QUALITIES)
+#: beside his words ("magic (blue)", "rare (gold)"). UNKNOWN is never one of these.
+RARITY_SAY = {"unique": "unique", "set": "set", "gold": "rare (gold)", "blue": "magic (blue)",
+              "white": "white"}
+RARITY_ORDER = ("unique", "set", "gold", "blue", "white")
+
+
+def _roster_rarity(name):
+    """'unique' | 'set' when the item rosters name it as exactly one of those, else ''.
+
+    item_identity._rosters is the ONE roster index this tree keeps (unique_roster.json,
+    set_roster.json, runeword_roster.json, folded by fold_rendering) — borrowed, never copied.
+    A name on both a unique and a runeword roster (Crescent Moon) is not decided by the roster:
+    '' here, and its looks may still say. A roster that cannot be read answers '' too, which is
+    "the roster did not say", never a rarity.
+    """
+    try:
+        import item_identity as _ii
+        tags = _ii._rosters().get(_ii.fold_rendering(name).lower()) or set()
+    except Exception:
+        return ""
+    kinds = [k for k in ("unique", "set", "runeword") if k in tags]
+    # exactly one roster, and it is an item roster: a name that is also a runeword (Crescent Moon,
+    # measured: {unique, runeword}) is not decided here — a completed runeword in his stash reads
+    # the same name, so the looks must say
+    return kinds[0] if len(kinds) == 1 and kinds[0] != "runeword" else ""
+
+
+def _votes_say(votes):
+    return " · ".join("%s %d" % (RARITY_SAY.get(q, q), n)
+                      for q, n in sorted(votes.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def rarity_of(name, rows):
+    """What this item IS, from the SAME evidence its tier stands on. Never writes.
+
+    -> {rarity, by, votes, why}. `rarity` is one of vault_retro.QUALITIES or None (UNKNOWN).
+
+    The roster decides a unique or a set piece (a name IS its rarity — the law the console's name
+    colour already follows). A rolled name is what its looks SAW: each witness row's `quality`,
+    read through vault_retro._quality_of (the one vocabulary: magic -> blue, rare -> gold,
+    normal -> white), by majority. A tie is UNKNOWN with the votes beside it — the contradiction
+    is the finding, never averaged. No roster and no vote is UNKNOWN, never white: a row read
+    before v3369 carries no quality, and a blank is not a colour. When the looks disagree with
+    the roster, the roster's answer stands and `looksSay` carries theirs.
+    """
+    roster = _roster_rarity(name)
+    try:
+        import vault_retro as VR
+        qual = VR._quality_of
+    except Exception:
+        qual = None
+    if qual is None:
+        if roster:
+            return {"rarity": roster, "by": "roster", "votes": None,
+                    "why": "the %s roster names it" % roster}
+        return {"rarity": None, "by": None, "votes": None,
+                "why": "vault_retro could not be read, so what the looks saw is UNKNOWN"}
+    votes = {}
+    for row in (rows or []):
+        if not isinstance(row, dict):
+            continue
+        looks = row.get("witnesses") if "witnesses" in row else row.get("looks")
+        for look in (looks if isinstance(looks, list) else []):
+            if not isinstance(look, dict) or look.get("quality") is None:
+                continue
+            q = qual(look.get("quality"))
+            if q:
+                votes[q] = votes.get(q, 0) + 1
+    seen = ""
+    if votes:
+        top = max(votes.values())
+        lead = [q for q, n in votes.items() if n == top]
+        seen = lead[0] if len(lead) == 1 else ""
+    if roster:
+        out = {"rarity": roster, "by": "roster", "votes": votes, "why": "the %s roster names it" % roster}
+        if seen and seen != roster:
+            out["looksSay"] = seen
+            out["why"] += ("; its looks read it as %s (%s) — the roster stands"
+                           % (RARITY_SAY.get(seen, seen), _votes_say(votes)))
+        return out
+    if seen:
+        return {"rarity": seen, "by": "looks", "votes": votes,
+                "why": "its looks read it as %s (%s)" % (RARITY_SAY.get(seen, seen), _votes_say(votes))}
+    if votes:
+        return {"rarity": None, "by": None, "votes": votes,
+                "why": ("its looks disagree about what it is (%s) — UNKNOWN, never averaged"
+                        % _votes_say(votes))}
+    return {"rarity": None, "by": None, "votes": votes,
+            "why": ("no roster names it and no look recorded its quality (a row read before v3369 "
+                    "carries none), so what it is stays UNKNOWN — never white")}
+
+
+def stand(name, rows):
+    """One item's standing on its own looks: its tier by visits, and what it is. Never writes.
+
+    -> {tier, bound, successes, trials, rarity, rarityBy, rarityWhy, why}. tier None is UNKNOWN
+    (a row whose looks cannot be read), never WATCHED. The evidence route (control_app.evidence_for,
+    the vault branch) answers a magic or rare name with this — the same tier() and the same
+    _measure the plan and the census use, never a second count.
+    """
+    rar = rarity_of(name, rows)
+    floor = _conf_floor()
+    measured = None
+    if floor is not None:
+        measured = _measure([r for r in (rows or []) if isinstance(r, dict)], floor)
+    if measured is None:
+        got = {"tier": None, "bound": None, "successes": None, "trials": None,
+               "why": "the look counts could not be read, so the tier is UNKNOWN"}
+    else:
+        got = tier(measured[0], measured[1])
+    return {"tier": got["tier"], "bound": got["bound"], "successes": got["successes"],
+            "trials": got["trials"], "rarity": rar["rarity"], "rarityBy": rar["by"],
+            "rarityWhy": rar["why"], "why": got["why"]}
 
 
 def _is_success(look, floor):
@@ -548,8 +678,10 @@ def plan_from_ledger(path, recorded=None):
     items, filing, retro = [], {}, []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
+        rar = rarity_of(name, rows)
         if measured is None:
-            item = {"name": name, "successes": None, "trials": None}
+            item = {"name": name, "successes": None, "trials": None,
+                    "rarity": rar["rarity"], "rarityBy": rar["by"]}
             extra = {"equipped": _equipped_of(rows), "kind": _kind_of(rows),
                      "cells": [], "sessions": [], "witness": None}
         else:
@@ -559,7 +691,10 @@ def plan_from_ledger(path, recorded=None):
             flagged = (_retro_row(name, measured, held_tiers.get(name), board_filed=(held_names is not None))
                        if (held_names is None or name in held_names) else None)
             item = {"name": name, "successes": successes, "trials": trials,
-                    "equipped": _equipped_of(rows), "kind": _kind_of(rows)}
+                    "equipped": _equipped_of(rows), "kind": _kind_of(rows),
+                    # #51 — the SAME looks say what it is (rarity_of); a magic or rare row is
+                    # judged by the same tier and rebuilt through the same door as a unique
+                    "rarity": rar["rarity"], "rarityBy": rar["by"]}
             if flagged:
                 retro.append(flagged)
                 # ══ 2026-09-28 (Ledger fix, finding 1) — THE RESET READS `rebuilt`, SO THE FLAG
@@ -695,7 +830,8 @@ def tier_census(path):
     """
     unread = {"ok": False, "watched": None, "proven": None, "hardened": None,
               "unknown": None, "disagree": None, "retro": None, "retroNames": None,
-              "retroHeldNames": None, "provenNames": None, "why": _UNREAD}
+              "retroHeldNames": None, "provenNames": None, "byRarity": None,
+              "rarityUnknown": None, "why": _UNREAD}
     doc = _load_owned(path)
     if doc is None:
         return unread
@@ -711,6 +847,10 @@ def tier_census(path):
             by_plan[row["name"]] = row.get("tier")
     counts = {WATCHED: 0, PROVEN: 0, HARDENED: 0, "unknown": 0}
     disagree, retro, retro_held, proven_names = [], [], [], []
+    # #51 — the SAME count, split by what each item is: {rarity | "unknown": {watched, proven,
+    # hardened, unknown}}. A name whose rarity nothing could tell sits under "unknown", counted,
+    # never folded into white. The tallies he asked for are read off this by the doctor's line.
+    by_rarity = {}
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -725,6 +865,9 @@ def tier_census(path):
                     retro_held.append(name)     # finding B: no visit saw it — held, not kept
         key = got_tier if got_tier in (WATCHED, PROVEN, HARDENED) else "unknown"
         counts[key] += 1
+        rar = rarity_of(name, rows)["rarity"] or "unknown"
+        bucket = by_rarity.setdefault(rar, {"watched": 0, "proven": 0, "hardened": 0, "unknown": 0})
+        bucket[key.lower()] += 1
         if got_tier in (PROVEN, HARDENED):
             # the NAMES, not only the count: corroborate's a-tier-stands-on-its-looks checks each
             # one against the live gate, because a count can balance two wrong items (finding 4)
@@ -739,7 +882,29 @@ def tier_census(path):
             "hardened": counts[HARDENED], "unknown": counts["unknown"],
             "disagree": disagree, "retro": len(retro), "retroNames": retro,
             "retroHeldNames": retro_held,
-            "provenNames": proven_names, "why": why}
+            "provenNames": proven_names, "byRarity": by_rarity,
+            "rarityUnknown": sum((by_rarity.get("unknown") or {}).values()), "why": why}
+
+
+def rarity_tally_say(by_rarity):
+    """The census split, in words: 'unique W1/P1/H0 · rare (gold) W0/P1/H0 · rarity UNKNOWN 1'.
+
+    Read by the doctor's evidence-tiers row. None (an unread census) is said UNKNOWN, never a
+    row of zeros. A bucket with an unreadable tier says it (/?N) so a count never hides one.
+    """
+    if not isinstance(by_rarity, dict):
+        return "by rarity: UNKNOWN"
+    bits = []
+    order = list(RARITY_ORDER) + sorted(k for k in by_rarity if k not in RARITY_ORDER and k != "unknown")
+    for k in order:
+        b = by_rarity.get(k)
+        if not b:
+            continue
+        bits.append("%s W%d/P%d/H%d%s" % (RARITY_SAY.get(k, k), b.get("watched") or 0, b.get("proven") or 0,
+                                           b.get("hardened") or 0,
+                                           ("/?%d" % b["unknown"]) if b.get("unknown") else ""))
+    n_unk = sum((by_rarity.get("unknown") or {}).values())
+    return "by rarity: " + (" · ".join(bits) if bits else "none") + " · rarity UNKNOWN %d" % n_unk
 
 
 def pictures_gone(path, root):
@@ -924,6 +1089,40 @@ def _refusals(receipt):
     return len(rows), rows
 
 
+def _rebuilt_by_rarity(receipt):
+    """#51 — what the reset filed back, by rarity, as the board's receipt carries it.
+
+    -> {rarity: n} | None when the receipt does not say (an older board), which is UNKNOWN,
+    never {}. A count that is not a non-negative int is dropped, and a receipt whose tally is
+    not a mapping is UNKNOWN.
+    """
+    raw = receipt.get("rebuiltByRarity")
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for k, v in raw.items():
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            continue
+        out[str(k)] = v
+    return out
+
+
+def rebuilt_rarity_say(tally, rebuilt_n=None):
+    """'rebuilt by rarity: 1 rare (gold) · 2 unique' — or that the receipt does not say."""
+    if tally is None:
+        return ("rebuilt by rarity UNKNOWN (the receipt does not say)" if rebuilt_n
+                else "rebuilt by rarity: n/a (nothing rebuilt)" if rebuilt_n == 0
+                else "rebuilt by rarity UNKNOWN (the receipt does not say)")
+    if not tally:
+        return "rebuilt by rarity: none"
+    # the board's own key for a row the plan could not place is "unknown" (bible.html _vaultRefileFromPlan);
+    # said as such, in the same words the status line uses, never as a colour
+    say = dict(RARITY_SAY, unknown="rarity UNKNOWN")
+    order = list(RARITY_ORDER) + sorted(k for k in tally if k not in RARITY_ORDER)
+    return "rebuilt by rarity: " + " · ".join("%d %s" % (tally[k], say.get(k, "rarity " + k))
+                                             for k in order if k in tally)
+
+
 def _refusals_say(rows):
     bits = []
     for r in rows[:6]:
@@ -967,8 +1166,11 @@ def reset_receipt(receipt, before, after):
     rebuilt_n, held_n = _n("rebuilt"), _n("held")
     refused_n, refused_rows = _refusals(receipt)
     touched, unknown, materialised = keeps_diff(before, after)
+    # #51 — the tally by rarity rides on the receipt (bible.html _vaultRefileFromPlan writes
+    # rebuiltByRarity from the plan rows the door filed); absent is UNKNOWN, never 0 of each
+    by_rarity = _rebuilt_by_rarity(receipt)
     base = {"rebuilt": rebuilt_n, "held": held_n, "touched": touched, "unknown": unknown, "materialised": materialised,
-            "refused": refused_n, "refusedRows": refused_rows}
+            "refused": refused_n, "refusedRows": refused_rows, "byRarity": by_rarity}
     made = (" · wrote where no store existed (the page's defaults, not a change): %s" % ", ".join(materialised)) if materialised else ""
     # #41 rank 2 — "Reset assignments" (door vaultReset) never rebuilds: rebuilt / held are NOT APPLICABLE to it, not
     # UNKNOWN, so its receipt is judged on the kept stores alone and never reads as "rebuilt is UNKNOWN" for ever
@@ -996,4 +1198,5 @@ def reset_receipt(receipt, before, after):
                     why=("rebuilt %d · held %d · %d plan row(s) the door REFUSED to re-file: %s"
                          % (rebuilt_n, held_n, refused_n, _refusals_say(refused_rows))))
     return dict(base, ok=True,
-                why="rebuilt %d · held %d · refused 0 · kept stores unchanged%s" % (rebuilt_n, held_n, made))
+                why="rebuilt %d · held %d · refused 0 · %s · kept stores unchanged%s"
+                    % (rebuilt_n, held_n, rebuilt_rarity_say(by_rarity, rebuilt_n), made))

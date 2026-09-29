@@ -970,8 +970,11 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1511) - the doctor warns through every stand-aside cooldown",
         "file": "tv/control_app.py",
-        "find": "\"playing\", \"stood-aside\", \"low-memory\", \"aside-cooldown\")",
-        "replace": "\"playing\", \"stood-aside\", \"low-memory\")",
+        # REG-1521 - the v3524 union put "running-unverified" inside this tuple after the anchor was written, so it
+        # matched 0 times and the red-proof census refused every push from the integration (REG-1513's class). The
+        # anchor is the tuple as the tree holds it; the tamper still drops only "aside-cooldown".
+        "find": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\", \"aside-cooldown\")",
+        "replace": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\")",
         "matches": 1,
     },
 ]
