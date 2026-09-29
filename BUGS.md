@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1501 - THE RESTORE HINT OFFERED ONE BACKUP FOR TWO DROPS THAT FELL AGAINST DIFFERENT ONES (2026-09-29)
+
+**Found** by the second eye (Grok CLI) on v3519 `11c3e2f5`, posted to #231 at 15:00 IDT. The doctor row 'a ledger store
+dropped' told him to add `"file": <first open drop's beforeFile>` "to take every store from that one file". A named file
+wins OUTRIGHT in `ledger_restore.plan` (every store from it; `_sources_after_drops` never runs), so when setPieces fell
+against 11:00's backup and foundLog against 13:00's, the hint would have put foundLog back from 11:00 - losing what it
+gained in between. **Reproduced** through the real snapshot writer and the real drop watcher before the fix.
+**Fix:** the one-file shortcut is offered only when every plan-routed drop fell against the SAME backup; otherwise the
+row names each before-file and says not to add "file". Law: `test_the_backup_lane_survives_a_loss` +2 cases, 1
+red-proof (seen RED on the exact defect).
+
 ### REG-1460 - TWO ORPHAN-ATTRIBUTION CASES DEPENDED ON THE HOST'S lsof (2026-09-29)
 
 **Found** on the ALT: `test_orphans_say_whose_they_are` red - "a process running this repo's own code was

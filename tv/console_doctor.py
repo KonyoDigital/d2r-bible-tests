@@ -898,11 +898,20 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         _via_plan = [e for e in open_eps if e.get("store") not in _own_doors]
         doors = []
         if _via_plan:
+            # the second eye on v3519 (11c3e2f5): a named file wins OUTRIGHT in ledger_restore.plan - every store comes
+            # from it and the per-store choice (_sources_after_drops) never runs. Offering the FIRST episode's
+            # beforeFile when two stores fell against different backups told him to put the later store back from an
+            # older snapshot, losing what it gained in between. One file is offered only when there IS one file.
+            _bfs = sorted(set(str(e.get("beforeFile")) for e in _via_plan))
+            if len(_bfs) == 1:
+                _file_hint = "(add \"file\": \"%s\" to take every store from that one file)" % _bfs[0]
+            else:
+                _file_hint = ("(the drops fell against %d different backups - %s - so do NOT add \"file\": one file "
+                              "would put a later store back from an older snapshot)" % (len(_bfs), ", ".join(_bfs)))
             doors.append("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
-                         "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "
-                         "\"file\": \"%s\" to take every store from that one file)"
+                         "{\"confirm\": true} — the plan reads %s from the last backup BEFORE each drop %s"
                          % (", ".join(via_chronicle) or ", ".join(sorted(set(str(e.get("store")) for e in _via_plan))),
-                            _via_plan[0].get("beforeFile")))
+                            _file_hint))
         if owned:
             doors.append(("owned is a possession record and is NOT put back by that door — "
                           if _via_plan else "RESTORE owned (a possession record): ")

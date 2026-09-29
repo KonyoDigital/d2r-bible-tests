@@ -525,6 +525,37 @@ class TheDoctorSaysSoUntilItIsBack(_World):
         self.assertNotIn("/api/ledger_restore_plan", why, "an rwMade-only drop still sends him to the chronicle plan first")
         self.assertTrue(why.index("/api/rw_restore") < why.index("ledger_drop_accept"), why)
 
+    def test_one_file_is_offered_only_when_every_drop_fell_against_it(self):
+        """The second eye on v3519 (11c3e2f5): a named file wins OUTRIGHT in ledger_restore.plan, so the hint that
+        offered the FIRST drop's beforeFile for 'every store' sent a store that fell LATER back to an older snapshot.
+        Two chronicle stores fall against two different backups here, through the real writer and the real watcher:
+        no single file may be offered, and both before-files are named. The one-drop world still gets its one file."""
+        a = _write(self.bdir, PINNED_NOW - 4 * 3600, _board(134, 0, found=500))
+        b = _write(self.bdir, PINNED_NOW - 3 * 3600, _board(0, 0, found=500))            # setPieces 134 -> 0
+        CA._ledger_drop_watch(os.path.join(self.bdir, b), bdir=self.bdir, path=self.rec, now_ms=PINNED_NOW * 1000)
+        c = _write(self.bdir, PINNED_NOW - 2 * 3600, _board(0, 0, found=600))            # he kept playing
+        CA._ledger_drop_watch(os.path.join(self.bdir, c), bdir=self.bdir, path=self.rec, now_ms=PINNED_NOW * 1000)
+        d = _write(self.bdir, PINNED_NOW - 3600, _board(0, 0, found=0))                  # foundLog 734 -> 134
+        CA._ledger_drop_watch(os.path.join(self.bdir, d), bdir=self.bdir, path=self.rec, now_ms=PINNED_NOW * 1000)
+        opened = dict((e["store"], e["beforeFile"]) for e in self._record().get("episodes") or [] if e.get("open"))
+        self.assertEqual({"setPieces": a, "foundLog": c}, opened,
+                         "PREMISE: two chronicle stores fell against two different backups: %r" % opened)
+        st, why = self._row()
+        self.assertEqual(CD.MISSING, st, why)
+        self.assertIn("/api/ledger_restore_apply", why)
+        self.assertNotIn("take every store from that one file", why,
+                         "one file was offered for two drops that fell against different backups - the later store "
+                         "would be put back from the older snapshot")
+        for f in (a, c):
+            self.assertIn(f, why, "the hint does not name the backup %s fell against" % f)
+
+    def test_the_one_drop_world_still_gets_its_one_file(self):
+        before, drop, newest = self._measured()
+        CA._ledger_drop_watch(os.path.join(self.bdir, newest), bdir=self.bdir, path=self.rec,
+                              now_ms=PINNED_NOW * 1000)
+        st, why = self._row()
+        self.assertIn("\"file\": \"%s\" to take every store from that one file" % before, why)
+
     def test_it_is_UNKNOWN_when_it_cannot_see(self):
         self.assertEqual(CD.UNKNOWN, self._row(bdir=os.path.join(self.bdir, "gone"))[0],
                          "no readable backup dir must be UNKNOWN, not clean")
@@ -562,6 +593,13 @@ class TheDoctorSaysSoUntilItIsBack(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "the second eye on v3519 - one backup is offered for every store when two drops fell against different backups",
+        "file": "tv/console_doctor.py",
+        "find": "            if len(_bfs) == 1:\n",
+        "replace": "            if True:\n",
+        "matches": 1,
+    },
     {
         "why": "the second eye on v3521 - an rwMade-only drop LEADS with the chronicle plan, which puts back nothing that fell",
         "file": "console_doctor.py",
