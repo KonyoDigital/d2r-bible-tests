@@ -2502,6 +2502,15 @@ NO_JOINT_YET = {
         "the lane's own store). A genuinely independent witness would be retro_triage.owed() recounted "
         "from the reel directories on disk against a walk observed from outside the lane, and no "
         "registered builder takes that walk yet.",
+    # 2026-09-29 (#58, Ledger 3.0 first slice) — the per-session extraction record row.
+    'ledger3 sessions':
+        "the row draws each shelf reel's extraction record through control_app._ledger3_stores — the journal "
+        "ring (the live reader's own rows), the chronicle book and the vault witness ledger — and prints the "
+        "reader-against-vault agreement side by side, which IS two engines (the live deep reader writes the "
+        "journal; vault_retro's sweep writes the witnesses). But that comparison lives on the row and is not "
+        "a registered corroborate BUILDER yet, and the row's red condition (a sealed reel on the shelf with no "
+        "journal rows) is one source — the shelf listed against the ring. The joint would be ledger3.census "
+        "recounted against reel_index's own per-reel row list by a builder that runs; none does yet.",
     # 2026-09-27 — the drain row.
     'retention drain':
         "the row reads the drain contract the serving console publishes from TWO of its own records "

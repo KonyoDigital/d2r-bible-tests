@@ -8127,6 +8127,25 @@ GATES = [
              "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
              "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
          skip_ok=()),
+    Gate("test_a_session_says_what_it_yielded",
+         [sys.executable, os.path.join(HERE, "test_a_session_says_what_it_yielded.py")], 180,
+         needs_app=False,
+         why="#58 Ledger 3.0 first slice (REG-1541..1543, 2026-09-29) — no door answered 'what did reel X "
+             "yield': /api/session is keyed by POSITION, /api/forensics dies once a reel is released, the river "
+             "stamps carry a count of names and never the names, and the journal (sessionId), the chronicle book "
+             "(reel) and the vault ledger (session) each spell one reel their own way. tv/ledger3.py assembles "
+             "the per-session extraction record from those stores AS OBJECTS (control_app._ledger3_stores loads "
+             "them through its own path authorities; the module names no store) and GET /api/ledger3/session?id= "
+             "and /api/ledger3/sessions serve it: who read each name (the model, else the lane), on which frames, "
+             "where it was seen (names_loc), how the reader routed it, what the chronicle book banked from THIS "
+             "reel (one reel once, whichever way it was spelled), what the vault ledger witnessed in THIS visit "
+             "(visits, never frames — §34.2) with the item's tier today, the film or the tombstone, the river "
+             "station, the survey, and the reader-vs-vault agreement side by side. A provisional OCR-only name "
+             "is listed apart, never counted as named; an unreadable side is UNKNOWN, never 0; a session no store "
+             "knows is refused, never an empty record. The doctor's 'ledger3 sessions' row (PERIODIC) names a "
+             "sealed reel on the shelf whose journal rows rotated out — a trail that cannot be drawn for footage "
+             "he still has. 13 cases over temp stores, the real handler driven in-process, 11 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
