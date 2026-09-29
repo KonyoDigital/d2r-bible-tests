@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1503 - A LIVE AGENT READ DEAD BECAUSE A LOCK WAS BUSY (#78, 2026-09-29)
+
+**Found** by the v3523 pre-flight: `test_button_matrix` 'SIM -> reads grow or bridge stays: reads=0' inside a 39-min gate
+run, 18 s green alone. `status_payload`'s bridge needs `_agent_alive()`, which trusts the child handle only when it gets
+`_lock` quickly and otherwise asks `_pid_cached()` - whose 10 s port-scan cache could hold a None scanned while the agent
+was still booting. Nothing told the cache the agent had started (it was written only inside `_pid_cached`), so a live
+agent read 'off' until the cache aged out: the v872 "STANDBY keeps jumping" shape, under game load on his screen.
+**Fix:** `_pid_cache_seed(pid)` at the spawn and `_pid_cache_seed(None)` at every clear. Law
+`test_a_live_agent_never_reads_dead_under_contention`: `_lock` held from another thread, a stale None planted, the real
+`_agent_alive()` asked; every `_agent_proc` assignment must be followed by a seed IN ITS OWN BLOCK (ast) - a first,
+per-function version stayed GREEN with the spawn's seed removed, because the same function seeds on its failure path.
+3 red-proofs, all RED.
+
 ### REG-1502 - FIVE CAPTURE SCRIPTS AT ONCE: DWM DIED OF MEMORY EXHAUSTION AND TOOK HIS BOOSTEROID WITH IT (2026-09-29)
 
 **His report:** *"my boosteroid app keeps crashing on me! something is related to the console i think"*.

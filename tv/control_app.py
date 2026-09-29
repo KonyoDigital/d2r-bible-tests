@@ -1670,6 +1670,15 @@ _BR_CACHE = {"ping": False, "st": None, "ts": 0.0, "st_ts": 0.0}
 _PID_CACHE = {"pid": None, "ts": 0.0}
 
 
+def _pid_cache_seed(pid):
+    """#78 — the console just started (pid) or stopped (None) the agent: the port-scan cache below speaks for the
+    OLD state for up to 10 s. MEASURED 2026-09-29 (v3523 pre-flight): under load, a SIM agent that was up read
+    DEAD six seconds after it answered - the cache held a None scanned while it was still booting, and every
+    status read that lost the lock race believed it. The spawn knows the pid; it tells the cache."""
+    _PID_CACHE["pid"] = int(pid) if pid else None
+    _PID_CACHE["ts"] = time.time() if pid else 0.0
+
+
 def _pid_cached():
     """v872 — the status poll must NEVER pay an lsof subprocess. Prefer the tracked child;
     fall back to a port scan at most every 10s."""
@@ -4683,6 +4692,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
 
         try:
             _agent_proc = subprocess.Popen(**popen_kw)
+            _pid_cache_seed(_agent_proc.pid)
         except Exception as e:
             _agent_mode = "off"
             _log_fp.write("!! Popen failed: %s\n" % e)
@@ -4734,6 +4744,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
                     pass
             _agent_mode = "off"
             _agent_proc = None
+            _pid_cache_seed(None)
         tail = ""
         try:
             with open(LOG_PATH, "rb") as _lf:
@@ -4937,6 +4948,7 @@ def _force_kill_all_agents(reason=""):
     with _lock:
         _agent_proc = None
         _agent_mode = "off"
+        _pid_cache_seed(None)
     _stop_inflight = False
     _BOARD_OPENED = False
     try:
@@ -6071,6 +6083,7 @@ def stop_agent(farewell=True):
                 except Exception:
                     pass
             _agent_proc = None
+            _pid_cache_seed(None)
             _agent_mode = "off"
         try:
             if os.path.isfile(PID_PATH):

@@ -190,6 +190,12 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_a_live_agent_never_reads_dead_under_contention", [sys.executable,
+         os.path.join(HERE, "test_a_live_agent_never_reads_dead_under_contention.py")], 60,
+         why="REG-1503 (#78) - under load a live SIM agent read DEAD 6 s after it answered: a status read that lost "
+             "the lock race asked a 10 s port-scan cache holding a None from before the agent listened, and nothing "
+             "told the cache the agent had started. Every start/stop now seeds it; driven with _lock held by another "
+             "thread, every assignment site checked per block by ast. 3 red-proofs"),
     Gate("test_one_capture_per_console", [sys.executable,
          os.path.join(HERE, "test_one_capture_per_console.py")], 120,
          why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "
