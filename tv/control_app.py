@@ -32624,7 +32624,8 @@ def evidence_for(name, ledger=None):
             # vault_evidence.stand (the same tier() and _measure the plan and census use).
             # UNKNOWN is said as such on the line, never dressed as a colour or a tier.
             out.update(extra)
-            _say_r = _ve_rarity_say().get(extra.get("rarity")) if extra.get("rarity") else None
+            _rsay = _ve_rarity_say()
+            _say_r = _rsay.get(extra.get("rarity")) if (_rsay and extra.get("rarity")) else None
             _t = extra.get("tier")
             out["say"] += " — %s · tier %s (vault witness ledger)" % (
                 _say_r or "rarity UNKNOWN",
@@ -32643,12 +32644,13 @@ def evidence_for(name, ledger=None):
 
 def _ve_rarity_say():
     """The words for what an item IS — vault_evidence.RARITY_SAY, the one table (a copy here drifted by
-    construction; the w25 skeptic named it). {} when the engine cannot load: the line then says no colour."""
+    construction; the w25 skeptic named it). None when the engine cannot load (UNKNOWN): the line then
+    says no colour rather than reading an empty table as "no such rarity"."""
     try:
         import vault_evidence as _VEm
         return _VEm.RARITY_SAY
     except Exception:
-        return {}
+        return None
 
 
 def _evidence_sources(name, prop, ledger=None):
@@ -32742,8 +32744,9 @@ def _vault_evidence_for(name):
             if want:
                 mine = [r for r in rows if isinstance(r, dict)
                         and _ii.vault_key(str(r.get("name") or "")).lower() == want]
-        except Exception:
-            mine = []
+        except Exception as _e:
+            return ("vault", None, "the vault witness ledger could not be matched against this name (%s: %s), so "
+                                   "whether it holds a look is UNKNOWN — not 'nothing banked'" % (type(_e).__name__, _e))
     if not mine:
         return None
     sightings = []

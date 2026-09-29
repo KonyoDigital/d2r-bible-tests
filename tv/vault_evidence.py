@@ -200,14 +200,15 @@ def _roster_rarity(name):
     item_identity._rosters is the ONE roster index this tree keeps (unique_roster.json,
     set_roster.json, runeword_roster.json, folded by fold_rendering) — borrowed, never copied.
     A name on both a unique and a runeword roster (Crescent Moon) is not decided by the roster:
-    '' here, and its looks may still say. A roster that cannot be read answers '' too, which is
-    "the roster did not say", never a rarity.
+    '' here, and its looks may still say. A roster that cannot be read answers None (UNKNOWN - nobody
+    could ask), never '' dressed as "the roster did not say" and never a rarity; the caller treats both
+    as "no roster answer" and asks the looks.
     """
     try:
         import item_identity as _ii
         tags = _ii._rosters().get(_ii.fold_rendering(name).lower()) or set()
     except Exception:
-        return ""
+        return None
     kinds = [k for k in ("unique", "set", "runeword") if k in tags]
     # exactly one roster, and it is an item roster: a name that is also a runeword (Crescent Moon,
     # measured: {unique, runeword}) is not decided here — a completed runeword in his stash reads
