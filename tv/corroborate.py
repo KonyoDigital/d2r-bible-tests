@@ -2753,7 +2753,15 @@ NO_JOINT_YET = {
     # #174 v-B2 fix round - the same shape for the builder's CB_DB block: one install, one generator
     'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
                           'would be the game listing its own item database, which it never writes anywhere this '
-                          'console can read.',
+                          'console can read. #41 rank 16 (2026-09-29) - AND THE BUILDER\'S OTHER LINKS ARE GATE-ONLY '
+                          'BY DESIGN, said here so silence is not read as coverage: the picker (test_the_character_'
+                          'builder_is_their_builder, the mule picker law), the tooltip composition and the art rule '
+                          'have no runtime invariant or doctor row. The one independent engine is their planner\'s '
+                          'tooltip oracle (tv/the_tooltip_oracle.json: 203 rows over 6 runewords, measured once and '
+                          'frozen), compared by test_the_tooltip_is_the_games_tooltip in node - a gate, never a '
+                          'joint this console runs unattended, because the shipped composition needs node over '
+                          'bible.html and no lane writes a per-row verdict the eagle could read. A runtime joint '
+                          'would need that lane and its receipt (the #41 plan).',
     # #41 rank 15 (2026-09-29) — NO_JOINT_YET, not COVERED_BY, the #174 v-B2 shape again: one install, one generator.
     'mule slot rules': 'the row re-derives the MULE_BASE_* blocks from the install through ONE generator '
                        '(tv/mule_slot_map.py) and compares them. The builder\'s CB_DB block is the same install through '

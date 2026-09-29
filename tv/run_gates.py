@@ -7060,7 +7060,8 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_evidence_rebuilds_what_is_proven.py")], 60,
          why="2026-09-27 - his ruling: a reset clears the marks, and an item comes back only when its own looks "
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
-             "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
+             "with the bound at the vault bar is proven. About 20 is hardened (its row carries locked:true - recorded, "
+             "enforced by no door yet, #41 rank 17). Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
     Gate("test_the_vault_heart_says_what_the_reset_and_the_tiers_did",
          [sys.executable, os.path.join(HERE, "test_the_vault_heart_says_what_the_reset_and_the_tiers_did.py")], 120,

@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1532 - THE BUILDER'S LINKS WERE GATE-ONLY AND NOTHING SAID SO (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 16): no runtime invariant or doctor row covers the builder's picker,
+tooltip composition or art rule; the one independent engine (their planner's tooltip oracle, 203 rows over 6 runewords)
+is a frozen gate fixture, and no registry line stated that these pieces are gate-only by design - so silence read as
+coverage. **Fix (the record half):** corroborate.NO_JOINT_YET['builder item data'] now names the gate-only pieces, the
+oracle's limit (6 runewords, measured once, frozen) and why no joint runs unattended: the shipped composition needs node
+over bible.html and no lane writes a per-row verdict the eagle could read. **Not built, on the record:** the runtime
+joint itself - a lane that runs the composition over the oracle on its own cadence, persists a PER-ROW verdict (never a
+summary), and an invariant whose left side is the oracle's rows and right side the rows measured agreeing, UNKNOWN when
+the receipt is older than the page - is the #41 plan's rank 16. No behaviour changed; no law added.
+### REG-1531 - "HARDENED IS RE-FILED AND LOCKED" NAMED A LOCK NO DOOR READS (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 17): the rebuild door writes `locked: true` on a HARDENED row
+(vault_evidence.py) and the docstring, a gate why and the reset ruling's words all said the item is "locked" - while a
+grep of bible.html for readers of prov.locked finds only the write, the MAIN ledger's list and the picker's
+_mpLockRefusal (two different locks); the move, restore, unassign and remove doors read it nowhere. A label that
+outlived its referent; and the Ledger 3.0 design defines no item lock ("No surface shows HARDENED for an ITEM").
+**Fix (the honest half):** the words now say what is measured - recorded on the row, enforced by no door yet - in
+vault_evidence.rebuild_plan's docstring and the refile gate's why; the flag stays because the tier is real and the
+evidence line shows it (rank 10). **Not decided, on the record:** which door a locked row refuses and what releases it
+(his standing rule: a lock with no release is a trap) is a ruling on his filings, not a code choice - the #41 plan
+carries the two candidate designs. No behaviour changed; no law added.
 ### REG-1530 - TWO RED-PROOFS MATCHED NOTHING: ONE MOVED BY THIS ARC, ONE LEFT BEHIND BY THE v3524 MERGE (2026-09-29)
 
 **Found** by the red-proof census (`test_the_heart_can_see_its_own_instruments`, the case hooks/pre-push runs at top
