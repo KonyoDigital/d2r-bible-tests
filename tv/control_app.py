@@ -17158,6 +17158,36 @@ _SELF_PROBE = {"tick": 0, "strikes": 0, "lastKind": None, "lastTs": None, "lastO
 SELF_PROBE_EVERY_TICKS = 6          # the rescue loop ticks every 10 s -> once a minute
 #: #50 (REG-1447) — every PC proves its own instruments: asked every 10 minutes, first at minute 5.
 SELF_PROVE_EVERY_TICKS = 60
+#: The SHELF's list, warmed once ~30 s after the console starts (REG-1459).
+SHELF_PREWARM_TICK = 3
+_SHELF_PREWARM = {"done": None, "ms": None, "why": "not yet - the console has not been up 30 s"}
+
+
+def _prewarm_shelf(port=None, _urlopen=None, _thread=None):
+    """REG-1459 — ask this console's own /api/sessions once, off the rescue loop, so his first click on
+    THE SHELF is served warm.
+
+    His report 2026-09-29: "the SHELF when clicked its not opening the section for me". MEASURED on his
+    Mac right after a relaunch: /api/sessions (448 sessions, 453 KB) took 11.2 s cold and 2.7 s warm, and
+    the console demo that opens the shelf gives it 15 s including the render - the first click after a
+    start looked like a dead button. The request goes through the REAL handler on the real port, so the
+    caches it fills are exactly the ones his click reads; there is no second copy of the work to drift.
+    Never raises; a daemon thread, so it cannot hold the console open; the outcome is published."""
+    import urllib.request as _ur
+
+    def _run():
+        t0 = time.time()
+        try:
+            (_urlopen or _ur.urlopen)("http://127.0.0.1:%d/api/sessions" % int(port or CONTROL_PORT),
+                                      timeout=180).read()
+            _SHELF_PREWARM.update(done=True, ms=int((time.time() - t0) * 1000),
+                                  why="warmed the shelf list at boot")
+        except Exception as e:
+            _SHELF_PREWARM.update(done=False, ms=int((time.time() - t0) * 1000),
+                                  why="the boot prewarm could not ask (%s)" % type(e).__name__)
+    if _thread is not None:
+        return _thread(_run)
+    threading.Thread(target=_run, daemon=True, name="tvd-shelf-prewarm").start()
 SELF_PROVE_FIRST_TICK = 30
 _SELF_PROVE = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": None,
                "say": "the self-prove lane has not ticked yet since this console started"}
@@ -17276,6 +17306,8 @@ def _console_rescue_loop():
                 _self_probe_tick()          # #71 — can this console still answer itself?
             if _SELF_PROBE["tick"] % SELF_PROVE_EVERY_TICKS == SELF_PROVE_FIRST_TICK:
                 _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
+            if _SELF_PROBE["tick"] == SHELF_PREWARM_TICK:
+                _prewarm_shelf()            # REG-1459 — his first SHELF click is served warm
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -35473,7 +35505,7 @@ def status_payload():
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
-        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE),
+        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM),
         "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on

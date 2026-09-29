@@ -190,6 +190,12 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
+         why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "
+             "relaunch (2.7 s warm) and the shelf demo gives 15 s including the render. The console now asks its "
+             "own /api/sessions once, 30 s after boot, off the rescue loop, through the real handler; the outcome "
+             "is published. Real loopback server. 2 red-proofs"),
     Gate("test_every_pc_proves_itself", [sys.executable,
          os.path.join(HERE, "test_every_pc_proves_itself.py")], 180,
          why="REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak "

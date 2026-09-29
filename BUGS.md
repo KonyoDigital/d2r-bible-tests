@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1459 - THE FIRST SHELF CLICK AFTER A START PAID AN 11-SECOND COLD BUILD (2026-09-29)
+
+**His report:** *"the SHELF when clicked its not opening the section for me"*. **Measured** right after
+relaunching his console: `/api/sessions` (448 sessions, 453 KB) 11.2 s cold, 2.7 s warm; the J7 shelf demo
+(15 s including render) timed out against the fresh server and passed 16/16 once warm. **Fix:** the rescue
+loop asks the console's own `/api/sessions` once at ~30 s (`_prewarm_shelf`, daemon thread, through the
+real handler so the caches it fills are the ones his click reads); `shelfPrewarm` in /api/status says
+what happened. **Law:** `test_the_shelf_is_warm_before_he_clicks.py`, real loopback server, 2 red-proofs RED.
+
 ### REG-1458 - THE MASK LAW WAITED FOR EVERY PICTURE, SO A SLOW PAGE SKIPPED IT INTO "BLIND" (2026-09-29)
 
 **Found** on the ALT after REG-1457 gave it a browser: the served console reached `interactive` at once
