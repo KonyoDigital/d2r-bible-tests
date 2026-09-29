@@ -55,6 +55,7 @@ test('★★★ every surface printing a set-piece count shows the SAME one, on 
       localStorage.setItem('d2r_setPieces', JSON.stringify(names));
       /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
       localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(names.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
+      localStorage.setItem('d2r_foundLog', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'), Object.fromEntries(names.map((n: string) => [n, 'Aug 1, 2026 \u00b7 10:00'])))));   // and dated before it — the date is the witness
       localStorage.removeItem('d2r_setRepairAt');
       localStorage.removeItem('d2r_setRepairRemoved');
       localStorage.setItem('d2r_grailUnfound', '{}');

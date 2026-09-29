@@ -1,4 +1,7 @@
 node_modules/
+# a node_modules SYMLINK is a file, not a directory: 'node_modules/' never matched it, and one was committed (v3525,
+# it replaced main's real folder on a fast-forward). Match the name itself too.
+/node_modules
 playwright-report/
 test-results/
 *.bak

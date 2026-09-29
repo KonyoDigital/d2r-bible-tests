@@ -84,6 +84,9 @@ test('F·Sets: pieces tick with the same ledger — dated, undoable, synced to t
   const r = await page.evaluate(async () => {
     const w: any = window; const box = document.getElementById('tab-fsets')!;
     const gridTicks = box.querySelectorAll('.gf-allgrid [data-gf-tick]').length;
+    const roster: string[] = []; (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => roster.push(p)));
+    const held = new Set(JSON.parse(localStorage.getItem('d2r_setPieces') || '[]'));
+    const missingN = roster.filter((n) => !held.has(n)).length;
     const anyTick = [...box.querySelectorAll('.gf-allgrid [data-gf-tick]')][0] as any;
     const pieceName = anyTick.getAttribute('data-gf-tick');
     anyTick.click();
@@ -94,10 +97,14 @@ test('F·Sets: pieces tick with the same ledger — dated, undoable, synced to t
     (undoBar!.querySelector('button') as any).click();
     await new Promise((res) => setTimeout(res, 600));
     const haveAfter = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]').includes(pieceName);
-    return { gridTicks, dated: !!log[pieceName], have, undone: !haveAfter };
+    return { gridTicks, missingN, dated: !!log[pieceName], have, undone: !haveAfter };
   });
   await cleanup(page);
-  expect(r.gridTicks).toBeGreaterThan(20);          // v682: the seed floors 108/135 pieces — 27 remain missing, all tickable
+  // v3525 — the LAW, not a count: every missing piece is tickable. '> 20' was v682 arithmetic (seed 108/135); the seed
+  // is 118 now, and REG-1548 rightly stopped the Aug-21 reading from un-ticking the two pieces the seed itself dates
+  // after it (Laying of Hands, Taebaek's Glory) — which took the old count from 22 to 20.
+  expect(r.gridTicks, 'a missing piece has no tick in the grid').toBe(r.missingN);
+  expect(r.gridTicks).toBeGreaterThan(0);
   expect(r.dated).toBe(true);
   expect(r.have).toBe(true);
   expect(r.undone).toBe(true);

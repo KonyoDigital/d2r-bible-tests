@@ -129,8 +129,9 @@ class TheBootRepairAsksTheStamps(unittest.TestCase):
     def test_the_auto_run_keeps_what_it_cannot_prove_is_older(self):
         seg = self._repair_src()
         self.assertIn("opts.auto", seg)
-        self.assertIn("_spSince[n] && _readAtMs && _spSince[n] < _readAtMs", seg,
+        self.assertIn("_ps && _readAtMs && _ps + 86400000 <= _readAtMs", seg,
                       "the boot repair no longer asks whether a piece predates the reading")
+        self.assertIn("var v = _spFound[n];", seg, "the repair no longer asks the ledger's own found date first")
         self.assertIn("window.LSR.spSide('d2r_setPiecesSince')", seg,
                       "the repair reads the stamps from a different world than the hook writes them")
 
@@ -160,7 +161,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1548) - the boot repair removes on the stale reading again, whatever the stamps say",
         "file": "bible.html",
-        "find": "          && !(_spSince[n] && _readAtMs && _spSince[n] < _readAtMs)){\n",
+        "find": "          && !(_ps && _readAtMs && _ps + 86400000 <= _readAtMs)){\n",
         "replace": "          && false){\n",
         "matches": 1,
     },

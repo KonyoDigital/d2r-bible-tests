@@ -45,8 +45,13 @@ the 16 marked kept, the flag set): the page reads 134/135 - finish Cow King's.
 **Fix (bible.html):** `window.LSR.setItem` - the one door LS/LSx/LSR are - now stamps each piece's FIRST
 appearance (`d2r_setPiecesSince`) and, on any shrink, keeps the list as it was with what left and when
 (`d2r_setPiecesHistory`, newest 20), both routed to the same world as the pieces. The AUTO boot repair
-removes a listed piece only when a stamp PROVES it predates `readAt`; newer or UNKNOWN stays and is reported
-(`newerThanReading`). A hand-run repair still acts. Konyo: *"make sure the ledger is restoring from the last
+removes a listed piece only when its date PROVES it predates `readAt` by a whole day - the ledger's own found
+date first (`d2r_foundLog`, which every tick and the seed floor write), else the door's first-seen stamp;
+newer or UNKNOWN stays and is reported (`newerThanReading`). His 16 were all UNDATED, so they now stay. A
+hand-run repair still acts. The pre-push smoke's `> 20` tick count was v682 arithmetic (seed 108/135; it is 118
+now) and fell to 20 because the two pieces the seed itself dates AFTER the reading (Laying of Hands 08-24,
+Taebaek's Glory 08-23) are no longer un-ticked in a fresh browser; it now pins the rule - every missing piece
+has a tick. Konyo: *"make sure the ledger is restoring from the last
 and most recent refreshed and updated last read.. we should be having a history of this in ledger to go by"*.
 
 **Law:** `tv/test_the_sets_ledger_keeps_its_history.py` - drives the real LSR IIFE in node (8 cases); 4

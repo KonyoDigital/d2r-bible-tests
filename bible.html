@@ -51261,8 +51261,20 @@ function renderJournal(){
     try { _repairSuppressed = window.LSR.getItem('d2r_v1925RemainingRepairApplied') === '1'; } catch(e){}
     var _repairKept = {};
     try { _repairKept = JSON.parse(window.LSR.getItem('d2r_setRepairKept') || '{}') || {}; } catch(e){}
-    var _spSince = {}, _readAtMs = Date.parse(readAt) || 0;
+    var _spSince = {}, _readAtMs = Date.parse(readAt) || 0, _spFound = {};
     try { _spSince = JSON.parse(window.LSR.raw.getItem(window.LSR.spSide('d2r_setPiecesSince')) || '{}') || {}; } catch(e){ _spSince = {}; }
+    try { var _flr = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}');
+          if (_flr && typeof _flr === 'object' && !Array.isArray(_flr)) _spFound = _flr; } catch(e){ _spFound = {}; }
+    var _MON = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    /* v3525 (REG-1548) — WHEN DID THIS LEDGER FIRST KNOW HE HAD IT? Its own dated record first (d2r_foundLog,
+       "May 18, 2026 · 23:24" - written by every tick and by the seed floor from _SET_SEED's dates), else the
+       storage door's first-seen stamp; 0 = UNKNOWN. Parsed by hand: WebKit's Date.parse is stricter than V8's. */
+    function _pieceSince(n){
+      var v = _spFound[n];
+      if (v){ var m = /^([A-Z][a-z]{2}) (\d{1,2}), (\d{4})/.exec(String(v));
+              if (m && _MON[m[1]] != null) return new Date(+m[3], _MON[m[1]], +m[2]).getTime(); }
+      return +(_spSince[n] || 0);
+    }
     /* v1938 — THE FLAG HAS TO STOP THE WHOLE BOOT REPAIR, NOT ONE OF ITS TWO BRANCHES.
        v1937 gated only the `missing[n]` branch. The OTHER branch — "not a set piece in this game" —
        kept running under suppression, so v949's merge fixture (which seeds two set pieces with
@@ -51323,11 +51335,13 @@ function renderJournal(){
       /* v3525 (REG-1548) — A READING MAY ONLY REMOVE WHAT IT IS NEWER THAN. The boot repair used to remove any
          listed piece he had not re-ticked by hand, on every load, for ever — so pieces that came back through a
          chronicle read or a sync (never a hand tick) were taken again, and when a store lost this repair's flags
-         the Aug-21 reading wiped 16 pieces found weeks after it. On the AUTO run a piece goes only when
-         d2r_setPiecesSince PROVES it arrived before readAt; newer, or UNKNOWN (no stamp), stays and is reported.
-         A hand-run repair is his deliberate act and still acts. */
+         the Aug-21 reading wiped 16 pieces found weeks after it (all 16 UNDATED in his foundLog). On the AUTO run
+         a piece goes only when its date PROVES it predates readAt (a whole day before, so a same-day date is not
+         proof): the seed floor's pre-reading guesses are still corrected; a newer or UNKNOWN date stays and is
+         reported. A hand-run repair is his deliberate act and still acts. */
+      var _ps = opts.auto ? _pieceSince(n) : 0;
       if (missing[n] && !_repairKept[n] && !_repairSuppressed && opts.auto
-          && !(_spSince[n] && _readAtMs && _spSince[n] < _readAtMs)){
+          && !(_ps && _readAtMs && _ps + 86400000 <= _readAtMs)){
         (out.newerThanReading = out.newerThanReading || []).push(n);
         keep.push(n);
         return;
