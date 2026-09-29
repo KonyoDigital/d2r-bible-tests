@@ -27,7 +27,7 @@ as `selfProve` in /api/status, and has a doctor row naming any BLIND instrument 
 
 **Law:** `tv/test_every_pc_proves_itself.py` - the decision in every state, the tick end to end with a
 recording spawn, `tree_state` on a real temporary git repo, the process probe, heart2 driven as Windows.
-5 red-proofs, all seen RED by hand.
+6 red-proofs, all seen RED by hand (the 6th: an update during a proof is not a failure).
 
 ### REG-1446 - A REEL AT PRINTER WAITED FOR A SEAL NOTHING WOULD WRITE (2026-09-29)
 

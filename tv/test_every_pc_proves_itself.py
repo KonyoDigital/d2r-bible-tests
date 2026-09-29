@@ -115,6 +115,16 @@ class TheTickEndToEnd(unittest.TestCase):
         self.assertEqual(len(self.spawned), 1, "a prover that failed was restarted ten minutes later")
         self.assertEqual(r["key"], "backoff")
 
+    def test_an_update_during_the_proof_is_not_a_failure(self):
+        SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={})
+        moved = dict(STALE, fingerprint="def")          # the console pulled new gates mid-proof
+        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=moved, path=self.path,
+                    spawn_fn=self._spawn, env={})
+        self.assertEqual(len(self.spawned), 2, "an update during the proof was punished with the failure "
+                                                "backoff instead of proving the new gates")
+        self.assertEqual(r["key"], "start")
+
     def test_an_unreadable_memory_is_unknown_and_starts_nothing(self):
         io.open(self.path, "w", encoding="utf-8").write("{not json")
         r = SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
@@ -194,6 +204,13 @@ class TheConsoleAsks(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - an update during a proof is booked as a failure and the new gates wait 3 hours",
+        "file": "tv/self_prove.py",
+        "find": "        elif mem.get(\"startedFor\") and census.get(\"fingerprint\") != mem.get(\"startedFor\"):\n",
+        "replace": "        elif False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - a development tree proves in the background and fights the pre-push gate for the CPU",
         "file": "tv/self_prove.py",

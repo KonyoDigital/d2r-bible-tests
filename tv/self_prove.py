@@ -134,7 +134,11 @@ def census_state():
                                            "is UNKNOWN" % type(e).__name__}
     p = _h2.STATE
     if not os.path.exists(p):
-        return {"state": "missing", "why": "this PC has never proved its instruments"}
+        try:
+            fp = _h2.gates_fingerprint()
+        except Exception:
+            fp = None
+        return {"state": "missing", "why": "this PC has never proved its instruments", "fingerprint": fp}
     try:
         with io.open(p, encoding="utf-8") as fh:
             st = json.load(fh)
@@ -234,13 +238,17 @@ def spawn(log_path, python=None, workers=1, popen=None):
     if IS_WIN:
         kw["creationflags"] = _BELOW_NORMAL | _CREATE_NO_WINDOW
     else:
+        # ⚠ `nice` THE COMMAND, not preexec_fn: this runs inside the console's threaded server, and
+        # Python documents preexec_fn as unsafe when threads are running.
         kw["start_new_session"] = True
-        kw["preexec_fn"] = lambda: os.nice(15)
+    cmd = [py, os.path.join(HERE, "heart2.py"), "--prove"]
+    if not IS_WIN and os.path.exists("/usr/bin/nice"):
+        cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")
     kw["stdout"] = log
     kw["stderr"] = subprocess.STDOUT
     try:
-        p = (popen or subprocess.Popen)([py, os.path.join(HERE, "heart2.py"), "--prove"], **kw)
+        p = (popen or subprocess.Popen)(cmd, **kw)
     finally:
         log.close()                       # the child holds its own handle
     return p.pid
@@ -261,10 +269,16 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
         if census.get("state") == "current":
             mem.update(worked=int(mem.get("worked") or 0) + 1, lastTs=int(now_s * 1000),
                        lastOk=census.get("why"))
+        elif mem.get("startedFor") and census.get("fingerprint") != mem.get("startedFor"):
+            # the console UPDATED while it proved: the proof spoke for the old gates. Not a failure -
+            # the new gates are simply unproved, and are proved next, without the backoff.
+            mem["lastMoved"] = "the gates changed during the proof (%s -> %s)" % (
+                str(mem.get("startedFor"))[:8], str(census.get("fingerprint"))[:8])
         else:
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"),
                        lastFailWhy="census still %s after the proof exited" % census.get("state"))
         mem.pop("pid", None)
+        mem.pop("startedFor", None)
     on = enabled(env)
     d = decide(census, tree if tree is not None else tree_state(), running,
                busy() if callable(busy) else busy, mem, now_s, on=on)
@@ -272,6 +286,7 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
         try:
             log_path = _store_path(path) + ".log"
             mem["pid"] = (spawn_fn or spawn)(log_path)
+            mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
             mem["runs"] = int(mem.get("runs") or 0) + 1
         except Exception as e:

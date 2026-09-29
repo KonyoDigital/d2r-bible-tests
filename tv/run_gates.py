@@ -198,7 +198,7 @@ GATES = [
              "console (clean, at origin) with an absent or stale census now proves itself in the background - "
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
              "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. "
-             "5 red-proofs"),
+             "6 red-proofs"),
     Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
          os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
          why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "
@@ -5464,7 +5464,7 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
-             "(8 of 9 lines were render_check's on day one). 12 cases, 5 red-proofs"),
+             "(8 of 9 lines were render_check's on day one). 12 cases, 6 red-proofs"),
     Gate("test_the_chronicle_inbox_asks_on_the_page",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
          why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
@@ -5723,7 +5723,7 @@ GATES = [
              "Handler with a recording board: no write door writes without confirm, each writes with "
              "it, the probe only reads. #246 L4: a confirmed possession door never presses the sorter, a "
              "chronicle restore never reaches the owned door, and the register button re-gates the stored "
-             "sweep row by row, naming what it holds back. 6 cases, 5 red-proofs"),
+             "sweep row by row, naming what it holds back. 6 cases, 6 red-proofs"),
     Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
          [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
          why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "
@@ -5808,7 +5808,7 @@ GATES = [
          why="#171's class in PRODUCTION code: MEASURED 2026-09-26, per day, 1,890 diskrep_* (the disk proof, every "
              "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
              "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
-             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 5 red-proofs"),
+             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 6 red-proofs"),
     Gate("test_the_affix_tables_are_the_installs",
          [sys.executable, os.path.join(HERE, "test_the_affix_tables_are_the_installs.py")], 90,
          why="#174 v-B3 - the Edit tab's ADD MOD and the sheet read the CB_DB block's af / rn / qm rows, generated from "
@@ -5885,7 +5885,7 @@ GATES = [
              "(Wearwolf), a page is not a tab position (the Druid's page 3 is Elemental, leftmost; the Warlock's "
              "leftmost key is Wa3), and a tab order the tables do not settle is UNKNOWN. A fake install runs "
              "everywhere; the json's sourceHash and content match a fresh build when the install is present, "
-             "UNMEASURED otherwise. 23 cases, 5 red-proofs"),
+             "UNMEASURED otherwise. 23 cases, 6 red-proofs"),
     Gate("test_the_eye_reads_the_commit_read_only",
          [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
          why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "
@@ -5901,14 +5901,14 @@ GATES = [
          why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
              "ledger name and nothing called it. Now one routine claims + names the ledger; it runs by itself only in "
              "a pywebview window on a store with no claim, and only when this machine never held a populated board "
-             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 5 red-proofs"),
+             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 6 red-proofs"),
     Gate("test_each_console_shows_its_own_counts",
          [sys.executable, os.path.join(HERE, "test_each_console_shows_its_own_counts.py")], 60,
          why="#240 - from his ALT, Konyo's and GrokBot's fleet rows showed no numbers while Dean's did ('as if im "
              "the same person on all three'). The rows were individual; every v3504 tally sealed measured=False "
              "over SYNCED ledgers (the authority was asked before ok was sealed, and the seal keyed on 'EARNED', "
              "a word the authority never says), and the card blanks a False. Now per ledger (measuredBy) through "
-             "seal, relay, card and doctor. 11 cases, 5 red-proofs"),
+             "seal, relay, card and doctor. 11 cases, 6 red-proofs"),
     Gate("test_a_character_save_reads_byte_exact",
          [sys.executable, os.path.join(HERE, "test_a_character_save_reads_byte_exact.py")], 60,
          why="tv/d2s_read.py reads a D2R .d2s (format 105): an item bitstream has no per-item length, so one "
@@ -6082,7 +6082,7 @@ GATES = [
              "applied at read time so the count moves in the same request, in its own bucket (never "
              "CLAUDE OWES). POST /api/board_answer refuses a foreign/missing Origin (_cors answers *), "
              "an automated browser, no explicit yes, a guest board, nothing measured, an undeclared "
-             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 5 red-proofs"),
+             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 6 red-proofs"),
     Gate("test_a_row_is_his_only_when_it_asks",
          [sys.executable, os.path.join(HERE, "test_a_row_is_his_only_when_it_asks.py")], 90,
          why="#226 - his ruling: 'it should only really be waiting on me if its something i need to do'. "
