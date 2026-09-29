@@ -171,6 +171,12 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_the_triage_line_names_every_refusal", [sys.executable,
+         os.path.join(HERE, "test_the_triage_line_names_every_refusal.py")], 60,
+         why="REG-1441 - the second eye on the v3522 screens merge: THE SHELF's triage line said 'no refusal since "
+             "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
+             "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
+             "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
     Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
          os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
          why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "

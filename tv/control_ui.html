@@ -12455,7 +12455,7 @@ window._lockMark = function(isOpen, px, label){
     }
     /* how long this answer has sat on the page since the console gave it */
     var held = (typeof d.__askedAt === 'number') ? Math.max(0, (now - d.__askedAt) / 1000) : 0;
-    var bits = [], lk = t.lastKey ? String(t.lastKey) : '';
+    var bits = [], lk = t.lastKey ? String(t.lastKey) : '', lkRefusal = false;
     /* in parentheses, not after a middot: at 375 the phrase wrapped and left "·" alone at the end of its line (the Grok
        CLI's cold look at the first render) */
     var lastAgo = (typeof t.lastAt === 'number') ? (' (' + _shAgo((now - t.lastAt) / 1000) + ')') : '';
@@ -12474,6 +12474,16 @@ window._lockMark = function(isOpen, px, label){
       bits.push(t.ticks === 0 ? '<span class="shr-unk">no tick yet since this console started</span>'
         : ((typeof t.ticks === 'number' && isFinite(t.ticks) && t.ticks > 0)
           ? '<span class="shr-unk">last outcome unreadable</span>' : '<span class="shr-unk">last outcome UNKNOWN</span>'));
+    } else if (lk === 'walked-nothing') {
+      bits.push('<b>walked nothing</b>' + lastAgo);
+    } else {
+      /* 2026-09-29 (the second eye on 60d4e07e) - EVERY OTHER KEY IS A REFUSAL, AND IT IS SAID. This chain had no
+         else: a lastKey of raised / unworkable / cpu-loaded / ... added no state, and with no lastSkipKey the line
+         below then painted "no refusal since this console started" - over a lane whose last tick WAS a refusal,
+         while the fleet card (_fleetSysParts) said "last refusal: <word>" for the same object. */
+      lkRefusal = true;
+      bits.push('<span title="' + esc(String(t.lastWhy || '')) + '">last refusal: ' + esc(_triageSay(lk)) + '</span>'
+              + lastAgo);
     }
     bits.push((typeof t.backlog === 'number')
       ? ('<b>' + t.backlog + '</b> owed')
@@ -12485,11 +12495,13 @@ window._lockMark = function(isOpen, px, label){
     } else {
       bits.push('no walk on record');
     }
-    if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')) {
+    if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')
+        && !(lkRefusal && String(t.lastSkipKey) === lk)) {
       var sa = (typeof t.lastSkipTs === 'number') ? _shAgo((now - t.lastSkipTs) / 1000) : 'UNKNOWN';
+      /* the age in brackets, never ' · ' inside one wrapping span: a wrap left the middot alone on its line */
       bits.push('<span title="' + esc(String(t.lastSkipWhy || '')) + '">last refusal: ' + esc(_triageSay(t.lastSkipKey))
-              + ' · ' + sa + '</span>');
-    } else if (!t.lastSkipKey) {
+              + ' (' + sa + ')</span>');
+    } else if (!t.lastSkipKey && !lkRefusal) {
       bits.push('no refusal since this console started');
     }
     return '<div class="shr-tri">' + head + bits.map(function(b){ return '<span class="shr-tri-b">' + b + '</span>'; }).join('')

@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1441 - THE SHELF SAID "NO REFUSAL" OVER A LANE WHOSE LAST TICK WAS ONE (2026-09-29)
+
+Found by the second eye on 60d4e07e (v3522's screens merge). `_shTriageLine` set a state for lastKey playing /
+surveyed / done only, with no else: a lastKey of raised / unworkable / cpu-loaded / ... added nothing, and with no
+lastSkipKey the line painted "no refusal since this console started" while the fleet card (`_fleetSysParts`) said
+"last refusal: <word>" for the same object - two surfaces, one fact, opposite answers. And "last refusal: <words> ·
+<age>" sat in one span that wraps anywhere, so the middot could be stranded. **Fix:** every other key is a refusal
+and is named (walked-nothing is a walk, not a refusal); one refusal is said once; the age goes in brackets.
+**Law:** `tv/test_the_triage_line_names_every_refusal.py` (5 cases in node, 2 red-proofs).
+
 ### REG-1435 - HIS CONSOLE WENT DEAF FOR NOBODY BUT HIM TO NOTICE (2026-09-29)
 
 **What he saw, ~03:05:** the fleet "unreachable", THE SHELF not opening, W doing nothing, TV·D "Control server
