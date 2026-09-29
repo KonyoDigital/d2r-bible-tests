@@ -370,7 +370,11 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             # REG-1309 — the sandbox OWNER stamp is written inside the temp root heart2 itself just made
             # (_track_sandbox is handed mkdtemp's path), never into his tree; test_a_killed_prover_leaves_no_sandbox
             # drives it and checks the stamp lands in that root
-            ok = ("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
+            # #42 P3 — the verdict CACHE is heart2's own record beside STATE (gitignored, per machine); its writer
+            # refuses any path not named like CACHE, in code, so the token here is the refusal and not a comment.
+            # test_a_proven_verdict_is_reused_only_on_identical_bytes drives that refusal.
+            ok = (("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
+                  or ("basename(CACHE)" in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))

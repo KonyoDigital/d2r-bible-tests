@@ -7535,7 +7535,7 @@ GATES = [
              "the key is identical. A miss runs; an unkeyable law runs every push; only PROVEN is stored and only a stored "
              "PROVEN is reused; the key is taken from the sandbox before AND after the run; the plain --prove path, "
              "run_gates and CI never open it. Per machine, gitignored, beside .heart2.json. Fixtures only - no browser. "
-             "13 cases, 10 red-proofs",
+             "15 cases, 11 red-proofs",
          skip_ok=()),
     Gate("test_the_render_gate_runs_before_the_proving_stage",
          [sys.executable, os.path.join(HERE, "test_the_render_gate_runs_before_the_proving_stage.py")], 120,

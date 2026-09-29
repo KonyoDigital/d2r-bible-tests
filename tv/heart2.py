@@ -1603,6 +1603,12 @@ class _VerdictCache(object):
         with self.lock:
             if not self.dirty:
                 return False
+            if os.path.basename(self.path) != os.path.basename(CACHE):
+                # ⛔ IT NEVER EDITS A GUARD: the only file this object may write is one named like CACHE - the real
+                # one beside .heart2.json, or a law's fixture copy of it. Any other path is refused, and said.
+                self.say("  #42 P3 CACHE: refusing to write %s - a verdict cache is only ever named %s"
+                         % (self.path, os.path.basename(CACHE)))
+                return False
             body = {"_why": "#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of every "
                             "byte each depends on (tv/heart2.py law_inputs). Per machine, never committed.",
                     "entries": self.entries}

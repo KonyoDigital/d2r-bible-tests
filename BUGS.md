@@ -22,7 +22,7 @@ directory) runs every push and says why; only PROVEN is stored and only a stored
 the SANDBOX before and after the run (a tree that moved under a proof banks nothing); the plain `--prove` path, run_gates
 and CI never open it; `HEART2_PROVE_CACHE=0` runs everything. **Its reach:** a file reached by a computed path is outside
 the key (name it in PROOF_NEEDS); the prover's own records (.heart2.json, this cache, .render_verdict.json) are the one
-named exclusion. **Law:** `tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py` (13 cases, 10 red-proofs).
+named exclusion. **Law:** `tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py` (15 cases, 11 red-proofs).
 **Not done:** the census itself (`gatesFingerprint`, read by the lock's `_heart_says_watched`) still keys gate files
 only - widening it would close his console's locks on every edit to control_app.py until a full prove runs.
 

@@ -46,18 +46,23 @@ from test_a_push_proof_runs_only_where_its_defect_shows import _Env, _Patch, _no
 #: the fixture law: imports helper_p3, names helper_lazy inside a function that never runs (it is in the CLOSURE but
 #: never executes), reads its subject and the repo-root bible.html, logs every run (restriction | clean/tampered), and
 #: goes red when its subject says BROKEN and 1280x800 is measured. P3_MUTATE=1 makes it write beside itself.
+#: ⚠ THE SUBJECT IS REACHED BY A COMPUTED NAME, ON PURPOSE. Named by the literal "subject.txt" it would enter the key
+#: through the closure's named files as well as through the proof's target, and the red-proof that drops the target
+#: from the key came back BLIND on exactly that: an inert sabotage, not a blind law (measured 2026-09-29). Reached by
+#: a computed name, the ONLY way the subject reaches the key is the tampered-target rule this law exists to pin.
 _LAW = r'''
 import io, os, sys
 import helper_p3
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.dirname(here)
+SUBJECT = os.path.join(here, "sub" + "ject.txt")
 
 
 def never():
     import helper_lazy
 
 
-with io.open(os.path.join(here, "subject.txt"), encoding="utf-8") as fh:
+with io.open(SUBJECT, encoding="utf-8") as fh:
     subject = fh.read()
 with io.open(os.path.join(root, "bible.html"), encoding="utf-8") as fh:
     page = fh.read()
@@ -66,7 +71,7 @@ measured = {"1280x800", "375x812"} if raw is None else set(raw.split(","))
 with io.open(os.environ["P3_LOG"], "a", encoding="utf-8") as fh:
     fh.write("%s|%s\n" % (raw if raw is not None else "ALL", "tampered" if "BROKEN" in subject else "clean"))
 if os.environ.get("P3_MUTATE"):
-    with io.open(os.path.join(here, "subject.txt"), "a", encoding="utf-8") as fh:
+    with io.open(SUBJECT, "a", encoding="utf-8") as fh:
         fh.write("# moved\n")
 red = "BROKEN" in subject and "1280x800" in measured
 print("Ran 1 tests in 0.001s")
@@ -105,15 +110,16 @@ class _Tree(object):
         return os.path.join(repo, "tv"), root
 
 
-def _push_run(tree, proofs, cache, env=None):
-    """The REAL push-time path over the fixture tree with `cache` (a _VerdictCache or None).
-    -> (results, per_proof, stopped, runs logged, lines said)"""
+def _push_run(tree, proofs, cache_path, env=None):
+    """The REAL push-time path over the fixture tree, with a _VerdictCache opened on `cache_path` the way one push opens
+    it (None: no cache, every proof runs). -> (results, per_proof, stopped, runs logged, lines said)"""
     fd, log = tempfile.mkstemp(prefix="p3log.")
     os.close(fd)
     said, stopped = [], []
     kw = dict(P3_LOG=log, HEART2_PROVE_WORKERS="1", TV_LAW_WIDTHS=None, P3_MUTATE=None)
     kw.update(env or {})
     try:
+        cache = H._VerdictCache(path=cache_path, say=said.append) if cache_path else None
         with _Env(**kw), _Patch(make_sandbox=tree.make, _push_facts=_no_facts):
             results, per = H._prove_push([(_GATE, _FILE, proofs)], said.append, stopped, cache=cache)
         with io.open(log, encoding="utf-8") as fh:
@@ -140,9 +146,6 @@ class _Case(unittest.TestCase):
         for r in self.tree.made:
             shutil.rmtree(r, ignore_errors=True)
 
-    def cache(self):
-        return H._VerdictCache(path=self.cache_path, say=self.said.append)
-
     def entries(self):
         if not os.path.exists(self.cache_path):
             return {}
@@ -150,7 +153,7 @@ class _Case(unittest.TestCase):
             return json.load(fh)["entries"]
 
     def push(self, proofs=None, env=None):
-        return _push_run(self.tree, proofs or [_proof()], self.cache(), env)
+        return _push_run(self.tree, proofs or [_proof()], self.cache_path, env)
 
     def assertRan(self, runs, said, what):
         self.assertEqual(runs, _CLEAN_TAMPERED, "%s: the proof did not RUN (clean then tampered): %s\n%s"
@@ -328,6 +331,20 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         self.assertTrue(any("OFF for this run" in l and "HEART2_PROVE_CACHE=0" in l for l in self.said),
                         "the off switch was not said: %s" % self.said[-3:])
 
+    def test_the_cache_writes_only_a_file_named_like_itself(self):
+        """★ it never edits a guard: a _VerdictCache pointed at any other name refuses to write, says so, and leaves no
+        file - the instruments law admits heart2's cache write on exactly that refusal"""
+        other = os.path.join(self.dir, "control_app.py")
+        c = H._VerdictCache(path=other, say=self.said.append)
+        c.store("k", {"verdict": H.PROVEN})
+        self.assertFalse(c.flush(), "a cache named like a guard was written")
+        self.assertFalse(os.path.exists(other), "the refused write left a file")
+        self.assertTrue(any("refusing to write" in l and "control_app.py" in l for l in self.said), self.said)
+        ok = H._VerdictCache(path=self.cache_path, say=self.said.append)
+        ok.store("k", {"verdict": H.PROVEN})
+        self.assertTrue(ok.flush(), "the cache named like itself was not written")
+        self.assertEqual(self.entries(), {"k": {"verdict": H.PROVEN}})
+
     def test_run_gates_and_ci_never_consult_it_and_it_lives_gitignored_beside_the_census(self):
         """★ the registry passes --push to no gate and names the cache nowhere; no workflow names either; the file is
         ignored by git and sits beside .heart2.json"""
@@ -472,6 +489,13 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": "        if not self.readable:\n            say(",
         "replace": "        if False:\n            say(",
+        "matches": 1,
+    },
+    {
+        "why": "the cache writes wherever it is pointed - a guard's name included",
+        "file": "heart2.py",
+        "find": "            if os.path.basename(self.path) != os.path.basename(CACHE):\n",
+        "replace": "            if False:\n",
         "matches": 1,
     },
     {

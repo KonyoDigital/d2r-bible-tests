@@ -348,7 +348,7 @@ class TheLikeliestFailureRunsFirstAndStopsTheRun(unittest.TestCase):
         so a push-time run stopped before any gate was judged to the end writes nothing at all"""
         wrote = []
 
-        def stopped_run(have, say, stopped):
+        def stopped_run(have, say, stopped, cache=None):      # P3: prove(push=True) hands the cache in by keyword
             stopped.append(("g", 0, H.UNPROVABLE, "the law is ALREADY RED untampered"))
             return {}, {"g": [H.UNPROVABLE, None]}
 
