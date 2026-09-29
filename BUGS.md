@@ -7,6 +7,49 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1400 - A PUSH THAT TOUCHED A WIDTH LAW RE-RENDERED EVERY VIEWPORT FOR EVERY RED-PROOF, AND FINISHED A 159-MINUTE RUN AFTER ITS ONE BLIND PROOF (#42, 2026-09-29)
+
+**SEEN (his order 2026-09-28: "do #42 right after v3522 lands"):** the v3522 push gate took ~2h50m. heart2 gives each lane its
+own sandbox but runs ALL proofs of one gate serially in the lane that owns it, and a proof is a clean AND a tampered run.
+The character builder's width law renders ~33 viewports per run (98 s MEASURED for one full run on his Mac) and carries 41
+red-proofs; the mule window's (110 s a run) carries 25. Attempt 1 of the push ran 159 min and was refused on ONE blind proof
+that a targeted run finds in ~3 min - the run finished all 381 others first. And on 2026-09-28 four parallel Chrome lanes
+drove his Mac to load 100; an uncommitted first cut of this fix (found in the worktree, never shipped) spread one gate's
+proofs across the lanes - that same shape - and was taken out before anything ran.
+**FIX:** `heart2.py --prove NAMES --push` - hooks/pre-push passes the flag on its heart2 call and nowhere else.
+  · a red-proof may declare `"widths"`: the viewports its defect shows at, MEASURED (every tampered law run at one viewport
+    alone, serially, one Chrome; the full sweep's own failure labels where no single probe went red). Its clean AND tampered
+    runs get TV_LAW_WIDTHS naming them (tv/law_widths.py, the one owner of the variable); the two width laws restrict every
+    width loop and one-viewport pass to them, skip a case measured nowhere in the set, and count each PREMISE over the
+    viewports measured. A proof that declares none runs at every width - never skipped.
+  · FAIL CLOSED: a declared width at which the tamper stays green is BLIND and the push refuses as it always has; an
+    UNPROVABLE at the declared widths is re-proved at EVERY width and that verdict stands.
+  · FAIL FAST (P2): the likeliest failures run first - an anchor that no longer matches as declared, an entry new or changed
+    since @{push} / origin/main, a proof whose tampered file changed - and the run STOPS at the first BLIND / INVALID /
+    clean-run red, printed at once and again as the last lines the hook's tail shows. Every proof not reached is NOT RUN:
+    never banked (an empty result is never written over the census), never PROVEN, and the exit is 1. With no failure every
+    proof still runs.
+  · ONE BROWSER AT A TIME: a gate that imports render_check / playwright or declares widths holds one lock while it is
+    proved, whatever the lane count; every other gate keeps its lane.
+  · run_gates.run() scrubs TV_LAW_WIDTHS before its first gate, heart2's _run_gate removes it from every run it did not
+    restrict itself, no CI workflow names it: the full sweep stays the verdict of record.
+**MEASURED (his Mac, one Chrome, HEART2_PROVE_WORKERS=1, load 6-30 from other sessions):**
+  · BEFORE - the builder law's proofs at every width through heart2's own per-proof path: 5 timed (indices 0/10/20/30/40)
+    = 1032 s, 206 s a proof; x41 = ~141 min EXTRAPOLATED. One full run of each law: builder 98 s, mule 110 s.
+  · AFTER - `heart2.py --prove test_the_character_builder_fits_at_every_width --push`: 41/41 PROVEN at their declared
+    viewports in 2395 s (39.9 min), exit 0. Per proof: 1280x800 39 s (19 proofs), 375x812 58 s (5), 1024x768 32 s (1),
+    2000x1300 83 s (16 - the keyboard, pointer, hover and tile passes all run at 2000, and they are 55% of the time).
+  · FAIL CLOSED, SEEN LIVE: the first push-time run of the mule law stopped at proof 13 after 779 s, BLIND at its
+    declared 1280x800, exit 1 - the one-viewport probe that "measured" 1280x800 had gone red on
+    test_at_1280_the_fixed_panels' 6px font-reflow flake, not on the hover defect. Re-measured alone: red at 1280x695 in
+    its own test (proof 18 had the same flake; also 1280x695). A wrong declaration read BLIND, never PROVEN.
+  · MULE AFTER: [MULE]
+  · NOT MET: the 15-20 min target. A restricted run still pays ~15 s of the fixture's own settle sleeps plus page load,
+    twice per proof. The measured levers left: one clean run per (gate, widths) when the sandbox is byte-identical (P3's
+    verdict cache) - ~22 min projected for the builder from the per-run times above; and splitting 2000x1300's
+    one-viewport passes so a tile proof does not render the keyboard pass.
+**LAW:** test_a_push_proof_runs_only_where_its_defect_shows (18 cases, fixtures only - no browser; 17 red-proofs).
+
 ### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
 
 **SEEN:** the first cut of the quiet-relaunch law drove open_control_window(). That call runs start_background_watchers(),

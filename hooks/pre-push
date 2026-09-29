@@ -441,7 +441,12 @@ PYGATE
     echo "          exercised. THIS IS A SKIP, NOT A PASS."
   else
     _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
-    if python3 "$REPO/tv/heart2.py" --prove $_gates > "$_prove_log" 2>&1; then
+    # #42 — --push, and ONLY on this call: a red-proof that declares the widths its defect shows at runs its clean and
+    # tampered runs only there (one that declares none runs at every width); the proofs likeliest to fail run first
+    # and the run STOPS at the first BLIND / INVALID / clean-run red; a gate that starts a browser is proved one at a
+    # time. A declared width that stays green is BLIND and refuses exactly as before. The full sweep stays run_gates'
+    # and CI's - neither ever sets TV_LAW_WIDTHS (test_a_push_proof_runs_only_where_its_defect_shows).
+    if python3 "$REPO/tv/heart2.py" --prove $_gates --push > "$_prove_log" 2>&1; then
       echo "pre-push: [$(_pp_el)] ✅ every changed law demonstrated it can still go red."
       rm -f "$_prove_log"
     else

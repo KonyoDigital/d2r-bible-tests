@@ -7468,6 +7468,21 @@ GATES = [
              "measured - test_control is 19.5s idle and 565.9s under concurrent load, and parallel "
              "proving deliberately manufactures that load.",
          skip_ok=()),
+    Gate("test_a_push_proof_runs_only_where_its_defect_shows",
+         [sys.executable, os.path.join(HERE, "test_a_push_proof_runs_only_where_its_defect_shows.py")], 180,
+         needs_app=False,
+         why="#42 (REG-1400) - his order, 2026-09-28: 'do #42 right after v3522 lands' - pushes take too long. MEASURED "
+             "on the v3522 push: heart2 runs every proof of one gate serially in the lane that owns it, so the character "
+             "builder's width law (41 red-proofs, each a clean AND a tampered run of a ~100 s law) was ONE ~105-minute "
+             "thread and the gate took ~2h50m; attempt 1 ran 159 min and was refused on ONE blind proof a targeted run "
+             "finds in ~3 min. heart2 --prove --push (the hook's call, nothing else): a proof that declares the "
+             "'widths' its defect shows at runs its clean and tampered runs ONLY there, one that declares none runs at "
+             "every width; a declared width that stays green is BLIND, never PROVEN; the likeliest failures run first "
+             "and the run STOPS at the first BLIND / INVALID / clean-run red (NOT RUN is never banked, exit 1); a gate "
+             "that starts a browser is proved one at a time (four parallel Chrome lanes drove his Mac to load 100). "
+             "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
+             "Fixtures only - no browser. 18 cases, 17 red-proofs",
+         skip_ok=()),
     Gate("test_a_host_dependency_is_not_always_an_attribute",
          [sys.executable, os.path.join(HERE, "test_a_host_dependency_is_not_always_an_attribute.py")], 120,
          needs_app=False,
@@ -7599,7 +7614,9 @@ GATES = [
              "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
              "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
              "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
-             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block)",
+             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block). "
+             "#42 (REG-1400): every red-proof declares the viewport its defect shows at, MEASURED one viewport at a time, and "
+             "a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -7650,7 +7667,9 @@ GATES = [
              "tabs stay in view while its Select or Edit modal is open, at every width in both arrangements (the "
              "builder's tab rule skipped the mule host - the #174 Edit panel covered them everywhere). Timeout 120 -> "
              "300: a full run measured 108-120s. TV_LAW_PORT pins its port as the builder's law does. Now 23 cases, "
-             "25 red-proofs",
+             "25 red-proofs. #42 (REG-1400): every red-proof declares the viewport(s) its defect shows at, MEASURED one "
+             "viewport at a time, and a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate "
+             "always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -7934,6 +7953,16 @@ def run(only=None, live_watch=True, live_writer=None):
     live there, so the cheap net covers the case and the expensive one buys almost nothing.
     """
     results = []
+    # ⚠ #42 — THE FULL SWEEP IS THE VERDICT OF RECORD, SO NO GATE HERE MAY INHERIT A SAMPLE. `heart2.py --prove --push`
+    # hands a width law TV_LAW_WIDTHS so a push-time red-proof measures only where its defect shows (tv/law_widths.py).
+    # Every gate below is a subprocess that inherits this environment, so a value left in a shell - or exported by
+    # anything upstream - would turn every width law into a sample that still prints PASS. Scrubbed here, before the
+    # first gate, and said out loud. test_a_push_proof_runs_only_where_its_defect_shows drives this. [[regression-guard]]
+    import law_widths as _LW
+    _stray_widths = _LW.scrub()
+    if _stray_widths is not None:
+        print("⚠ %s=%r was in the environment and is REMOVED: the gate set measures every width"
+              % (_LW.ENV, _stray_widths))
     app_up = _app_up()
     _lw_prev = _state_fingerprint() if live_watch else None
     _lw_blame = []

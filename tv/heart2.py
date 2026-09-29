@@ -5,6 +5,11 @@
     python3 tv/heart2.py --report      the census: proven · blind · unproven · unprovable
     python3 tv/heart2.py --prove       re-tamper every guard that declares a proof, in a SANDBOX
     python3 tv/heart2.py --prove NAME  just this one
+    python3 tv/heart2.py --prove NAMES --push
+                                       what hooks/pre-push runs (#42): a proof that declares "widths" runs its clean
+                                       AND tampered runs only at those viewports; the proofs likeliest to fail run
+                                       first and the run STOPS at the first BLIND / INVALID / clean-run red; a gate
+                                       that starts a browser is proved one at a time, whatever the lane count
     python3 tv/heart2.py --detect      what no gate covers, dropping what is already covered
     python3 tv/heart2.py --ratchet     the unproven backlog may only ever shrink
 
@@ -514,6 +519,13 @@ def red_proofs_in(filename):
             tree = ast.parse(fh.read())
     except Exception:
         return None
+    return _red_proofs_of_tree(tree)
+
+
+def _red_proofs_of_tree(tree):
+    """red_proofs_in's reader, on a tree already parsed - #42 reads a gate's RED_PROOF as the push BASE holds it through
+    this same function, never a second copy of the rule below. [[copy-drift]]"""
+    import ast
     # ⚠⚠ #220 — IT RETURNED INSIDE THE FIRST MATCHING ASSIGN. Two defects from one early return:
     # (1) the eye on v3476: a literal list followed by an unreadable one landed in `have` (its first
     # list's proofs ran) AND in red_proof_unreadable's bucket, so prove()'s "do not" went -1 and the
@@ -924,7 +936,7 @@ def blind_reason(why, matches, tail):
             % (n_skipped, n_ran, n_ran - n_skipped))
 
 
-def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None):
+def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
     # else. Default empty keeps every existing caller identical.
@@ -934,6 +946,14 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None):
         return None, "the gate file is not in the sandbox"
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"      # no stale .pyc can outlive a tamper
+    # ⚠ #42 — THE RESTRICTION BELONGS TO THE PROOF, NEVER TO THE ENVIRONMENT. `widths` is handed in only by a push-time
+    # proof that DECLARED them (_prove_push_one); every other run — every run without --push, every proof that declares
+    # none, triage — has TV_LAW_WIDTHS REMOVED, so a value left in a shell can never quietly turn a full sweep into a
+    # sample that still prints OK. [[regression-guard]]
+    env.pop("TV_LAW_WIDTHS", None)
+    if widths:
+        import law_widths as _LW
+        env[_LW.ENV] = _LW.label(widths)
     # ⚠⚠ v2888 — AN ABSOLUTE ARGUMENT POINTS AT THE REAL TREE, WHICH THE TAMPER NEVER TOUCHED.
     # A gate handed /Users/.../tv/x.py reads the ORIGINAL x.py no matter what this sandbox says,
     # so its proof can only ever come back green. Re-root every repo-absolute argument onto the
@@ -1149,6 +1169,283 @@ class _LaneSay(object):
                 self._sink(line)
 
 
+# ══ #42 — PUSH TIME: PROVE EACH RED-PROOF WHERE ITS DEFECT SHOWS, LIKELIEST FAILURE FIRST, ONE BROWSER AT A TIME ════════
+# His words, 2026-09-28: pushes take too long — "do #42 right after v3522 lands". MEASURED on the v3522 push: a lane
+# takes a whole GATE and runs all its proofs back to back, so the character builder's width law (41 proofs, each a
+# clean AND a tampered run of a law that renders ~33 viewports at ~100 s a run) was ONE ~105-minute thread, the mule
+# window's (25 proofs) the other long pole, and the push gate took ~2h50m. Attempt 1 of that push ran 159 min and was
+# refused on ONE blind proof that a targeted run finds in ~3 min. `--push` (hooks/pre-push passes it, nothing else
+# does) changes three things, and without it not one line of the path below runs:
+#   1. WHERE (P1): a proof that declares "widths" runs its clean AND its tampered run with TV_LAW_WIDTHS naming them
+#      (tv/law_widths.py); a proof that declares none runs at every width, exactly as without --push - never skipped.
+#      ⚠ FAIL CLOSED: a declared width at which the tamper stays green reads BLIND and the push refuses as it always
+#      has - a wrong declaration can never read PROVEN. An UNPROVABLE at the declared widths is re-proved at EVERY
+#      width and that verdict stands. run_gates and CI never set the variable: the full sweep stays the verdict of record.
+#   2. WHEN (P2): the proofs likeliest to fail run FIRST - an anchor that no longer matches as declared, an entry new or
+#      changed since the push base (@{push}, else origin/main - the hook's own order), a proof whose tampered file
+#      changed - and the run STOPS at the first BLIND / INVALID / clean-run red, printed the moment it is found. Every
+#      proof it did not reach is NOT RUN: never banked, never PROVEN, and the exit is non-zero - a stop is a refusal,
+#      never a pass. With no failure every proof still runs.
+#   3. ONE BROWSER AT A TIME: a gate that starts a browser (it imports render_check / playwright, or declares widths)
+#      holds ONE lock while it is proved, whatever the lane count - four parallel Chrome lanes drove his Mac to load 100
+#      on 2026-09-28. Every other gate keeps its lane.
+# The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
+NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
+_PUSH = None            # the running push-time context (_PushRun) while prove(push=True) runs; None otherwise
+
+
+class _PushRun(object):
+    """#42 — what the lanes of ONE `--prove --push` run share: the order, the browser lock, the stop."""
+
+    def __init__(self, order=None, browser=()):
+        self.order = dict(order or {})          # {gate: [proof index, ...]}, the likeliest to fail first
+        self.browser = set(browser or ())       # the gates proved one at a time: they start a browser
+        self.browser_lock = threading.Lock()
+        self.stop = threading.Event()
+        self.first = None                       # (gate, index, verdict, reason): the failure that stopped the run
+        self._lock = threading.Lock()
+
+    def fail(self, name, idx, verdict, reason):
+        """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
+        with self._lock:
+            first = self.first is None
+            if first:
+                self.first = (name, idx, verdict, reason)
+        self.stop.set()
+        return first
+
+    def browser_slot(self, name):
+        """The lock a browser gate is proved under; for every other gate a context that holds nothing."""
+        import contextlib
+        return self.browser_lock if name in self.browser else contextlib.nullcontext()
+
+
+def _declares_widths(proofs):
+    """#42 — does any proof of this gate declare the viewports its defect shows at?"""
+    return any(isinstance(pr, dict) and "widths" in pr for pr in (proofs or []))
+
+
+def _canon(pr):
+    """#42 — one red-proof as a comparable string: two entries are the same declaration exactly when these agree."""
+    return json.dumps(pr, sort_keys=True, default=str)
+
+
+def push_order(have, base_proofs=None, changed=None, anchor_off=None):
+    """#42 P2 — the order a push-time run proves in, the likeliest to fail FIRST. -> ({gate: [idx]}, [gate], counts)
+
+    have         [(name, filename, proofs)]
+    base_proofs  {filename: [proof] | None} as the push base holds them - [] for a gate file the base does not have
+                 (every entry NEW), None for one whose base RED_PROOF cannot be read (nothing counts as changed there);
+                 the whole argument None = the base is unknown, so no entry ranks as changed (the caller says so)
+    changed      set of repo-relative paths changed since the base, or None (unknown)
+    anchor_off   callable(proof) -> True when its anchor does not match as declared in the tree being proved
+
+    Score per proof: 4 anchor off · 2 entry new or changed · 1 its tampered file changed. Ties keep RED_PROOF order;
+    gates go by their best-scored proof, ties in the order given. It ORDERS - it decides no verdict (_prove_one does).
+    Pure, so the law drives it with fixtures."""
+    order, rank, counts = {}, {}, {"anchor": 0, "entry": 0, "target": 0}
+    for pos, (name, filename, proofs) in enumerate(have):
+        base = None if base_proofs is None else base_proofs.get(filename)
+        seen = None if base is None else set(_canon(x) for x in base)
+        scores = []
+        for i, pr in enumerate(proofs or []):
+            sc = 0
+            if anchor_off is not None and anchor_off(pr):
+                sc += 4
+                counts["anchor"] += 1
+            if seen is not None and _canon(pr) not in seen:
+                sc += 2
+                counts["entry"] += 1
+            tgt = _proof_target_rel(pr)
+            if changed is not None and tgt and tgt in changed:
+                sc += 1
+                counts["target"] += 1
+            scores.append((-sc, i))
+        order[name] = [i for _s, i in sorted(scores)]
+        rank[name] = (min([s for s, _i in scores] or [0]), pos)
+    return order, sorted(order, key=lambda n: rank[n]), counts
+
+
+def _proof_target_rel(pr):
+    """#42 — a proof's tampered file as a repo-relative path (tv/ first, then the root: resolve_proof_target's rule)."""
+    rel = str((pr or {}).get("file") or "") if isinstance(pr, dict) else ""
+    if not rel:
+        return None
+    return os.path.relpath(resolve_proof_target(HERE, rel), REPO).replace(os.sep, "/")
+
+
+def _git(*args):
+    """#42 — one read-only git question about this repo. -> (ok, stdout)"""
+    try:
+        r = subprocess.run(["git", "-C", REPO] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           timeout=30)
+    except Exception as _e:
+        # the question could not be asked: said as a failed answer (ok False), which the caller reports as UNKNOWN
+        return False, "git %s: %s" % (args[0] if args else "", type(_e).__name__)
+    return r.returncode == 0, (r.stdout or b"").decode("utf-8", "replace")
+
+
+def _push_facts(have, say):
+    """#42 — what push_order needs, read from git and the tree being proved. -> (base | None, order, gates, counts)"""
+    base = None
+    for ref in ("@{push}", "origin/main"):          # the hook's own order for "what this push changes"
+        ok, out = _git("rev-parse", "--verify", "--quiet", ref)
+        if ok and out.strip():
+            base = ref
+            break
+    changed, base_proofs = None, None
+    if base:
+        ok, out = _git("diff", "--name-only", base)   # the base against the tree being proved (the sandbox copies it)
+        changed = set(l.strip() for l in out.splitlines() if l.strip()) if ok else None
+        base_proofs = {}
+        for _n, filename, _p in have:
+            rel = os.path.relpath(os.path.join(HERE, filename), REPO).replace(os.sep, "/")
+            ok, src = _git("show", "%s:%s" % (base, rel))
+            if not ok:
+                base_proofs[filename] = []           # the base has no such file: every entry is NEW
+                continue
+            try:
+                # the SAME reader the prover uses, never a second one; read in memory - nothing is written
+                base_proofs[filename] = _red_proofs_of_tree(ast.parse(src))
+            except SyntaxError:
+                base_proofs[filename] = None         # the base's file will not parse: UNKNOWN, nothing ranks as changed
+    texts = {}
+
+    def _anchor_off(pr):
+        # ⚠ AN ORDERING HINT, NOT A VERDICT: _prove_one alone decides INVALID. This only puts the proof it will decide
+        # INVALID first, so a rotted anchor refuses the push in one clean run instead of after every other proof.
+        rel, find = str(pr.get("file") or ""), str(pr.get("find") or "")
+        if not rel or not find:
+            return True
+        tgt = resolve_proof_target(HERE, rel)
+        if tgt not in texts:
+            texts[tgt] = _read_text(tgt)
+        if texts[tgt] is None:
+            return True
+        got, want = texts[tgt].count(find), pr.get("matches")
+        try:
+            return got < 1 or (want is not None and got != int(want))
+        except (TypeError, ValueError):
+            return True        # a count nobody can read: _prove_one will refuse it, so it goes first
+
+    order, gates, counts = push_order(have, base_proofs, changed, _anchor_off)
+    return base, order, gates, counts
+
+
+def _browser_slot(name):
+    """#42 — the lock a gate is proved under at push time (a browser gate's), or a context that holds nothing."""
+    import contextlib
+    return _PUSH.browser_slot(name) if _PUSH is not None else contextlib.nullcontext()
+
+
+def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
+    """#42 — ONE proof at push time, at the widths it declares. -> verdict (the PUSH TIME block above)"""
+    label = "%s[%d]" % (name, idx)
+    widths = None
+    if isinstance(pr, dict) and "widths" in pr:
+        import law_widths as _LW
+        try:
+            widths = _LW.declared(pr)
+        except ValueError as _we:
+            say("     %-52s %s — its 'widths' cannot be read (%s): a declaration nobody can read is refused, never "
+                "guessed at" % (label, INVALID, _we))
+            return INVALID
+    if not widths:
+        return _prove_one(sandbox, name, filename, pr, idx, say, why=why)
+    v = _prove_one(sandbox, name, filename, pr, idx, say, widths=widths, why={})
+    if v != UNPROVABLE:
+        return v
+    # ⚠ AN UNPROVABLE AT A SAMPLE IS NOT KEPT: it is not failed, so keeping it would let a restriction that broke the
+    # clean run wave through a proof the full run might find BLIND. The full run's verdict is the one that stands.
+    say("     %-52s   ↳ #42: its declared widths could not judge it - re-proved at EVERY width; that verdict stands"
+        % label)
+    return _prove_one(sandbox, name, filename, pr, idx, say, why=why)
+
+
+def _push_gate_verdict(per):
+    """#42 — a push-time gate's verdict from its proofs' (None = NOT RUN). A failure counts wherever it was found; a
+    gate the stop cut short is NOT_RUN - never PROVEN on the proofs that happened to run first."""
+    got = [v for v in per if v is not None]
+    if BLIND in got:
+        return BLIND
+    if INVALID in got:
+        return INVALID
+    if len(got) < len(per):
+        return NOT_RUN
+    return UNPROVABLE if UNPROVABLE in got else PROVEN
+
+
+def _prove_gate_push(sandbox, name, filename, proofs, say, run):
+    """#42 — one gate's proofs at push time: in the run's order, each at its declared widths, the whole run stopped at
+    the first failure. -> (verdict | NOT_RUN, [verdict | None per proof, in RED_PROOF order])
+
+    The per-proof rule is _prove_gate's - a proof that raises is BLIND and is recorded - only the order, the widths and
+    the stop are new."""
+    got = {}
+    for i in (run.order.get(name) or list(range(len(proofs)))):
+        if run.stop.is_set():
+            break
+        why = {}
+        try:
+            got[i] = _prove_push_one(sandbox, name, filename, proofs[i], i, say, why)
+        except Exception as _pe:
+            say("    proof %d raised %s — recorded BLIND: %s" % (i, type(_pe).__name__, str(_pe)[:120]))
+            got[i] = BLIND
+        reason = {BLIND: "the tamper ran and the law stayed GREEN",
+                  INVALID: "the red-proof cannot tamper as declared"}.get(got[i])
+        if got[i] == UNPROVABLE and why.get("red"):
+            reason = "the law is ALREADY RED untampered, so no proof of it can be judged"
+        if reason:
+            if run.fail(name, i, got[i], reason):
+                say("  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, and "
+                    "the push is refused on this one." % (name, i, got[i], reason))
+            break
+    per = [got.get(i) for i in range(len(proofs))]
+    return _push_gate_verdict(per), per
+
+
+def _prove_push(have, say, stopped=None):
+    """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
+    OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on."""
+    global _PUSH
+    _nw = sum(1 for _n, _f, _p in have for _pr in _p if isinstance(_pr, dict) and "widths" in _pr)
+    _np = sum(len(_p) for _n, _f, _p in have)
+    say("  #42 PUSH TIME: %d of %d proof(s) declare the widths their defect shows at and run only there; the other %d "
+        "run at every width. The full sweep stays run_gates' and CI's." % (_nw, _np, _np - _nw))
+    base, order, gates, counts = _push_facts(have, say)
+    say("  #42 FAIL FAST: likeliest to fail first - %d anchor(s) off, %d entr(ies) new or changed since %s, %d whose "
+        "tampered file changed; the run stops at the first BLIND / INVALID / clean-run red."
+        % (counts["anchor"], counts["entry"], base or "an UNKNOWN base (neither @{push} nor origin/main resolves - "
+           "nothing ranks as changed)", counts["target"]))
+    browser = pixel_gates([(n, f) for n, f, _p in have]) | set(n for n, _f, p in have if _declares_widths(p))
+    if browser:
+        say("  #42 ONE BROWSER AT A TIME: %d gate(s) start a browser and are proved one after another: %s"
+            % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
+    by = dict((n, (n, f, p)) for n, f, p in have)
+    run = _PushRun(order, browser)
+    _prev, _PUSH = _PUSH, run
+    try:
+        results, per_proof = _prove_gates([by[n] for n in gates], say)
+    finally:
+        _PUSH = _prev
+    if results is None:
+        return None, None
+    not_run = sorted(n for n, v in results.items() if v == NOT_RUN)
+    results = dict((n, v) for n, v in results.items() if v != NOT_RUN)
+    if run.first:
+        _n, _i, _v, _why = run.first
+        _unrun = sum(1 for _p in per_proof.values() for x in _p if x is None)
+        say("")
+        say("  ⛔ #42 STOPPED at the first failure: %s[%d] %s — %s." % (_n, _i, _v, _why))
+        say("     %d of %d proof(s) NOT RUN%s. Nothing unrun is banked or passed: the push is refused on the failure "
+            "above. Reproduce: python3 tv/heart2.py --prove %s --push" % (
+                _unrun, _np, (" (%d gate(s) never started: %s)" % (len(not_run), ", ".join(not_run[:6])))
+                if not_run else "", _n))
+        if stopped is not None:
+            stopped.append(run.first)
+    return results, per_proof
+
+
 def _prove_gate(sandbox, name, filename, proofs, say):
     """Every proof of ONE gate, serially, inside ONE sandbox. -> (verdict, [verdict per proof])
 
@@ -1156,7 +1453,11 @@ def _prove_gate(sandbox, name, filename, proofs, say):
     second copy of that policy, it is the only one, and both the one-lane and the many-lane paths
     call this same function. A rule that exists twice is how this repo's defects start.
     [[copy-drift]]
+    #42 — at push time (and only then) the gate goes to _prove_gate_push: the same per-proof rule, plus the order, the
+    declared widths and the stop.
     """
+    if _PUSH is not None:
+        return _prove_gate_push(sandbox, name, filename, proofs, say, _PUSH)
     verdicts = []
     for i, pr in enumerate(proofs):
         # ⚠⚠ ONE BAD PROOF MAY NOT TAKE THE WHOLE RUN WITH IT. This loop sits inside a
@@ -1214,13 +1515,17 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
         say("  lane %d sandbox: %s" % (lane, sandbox))
         say.flush()
         while True:
+            # #42 — a STOPPED push-time run takes no further gate; _prove_gates names what is left NOT RUN
+            if _PUSH is not None and _PUSH.stop.is_set():
+                break
             try:
                 name, filename, proofs = work.get_nowait()
             except Exception:
                 break
             holding = [(name, proofs)]
             try:
-                v, per = _prove_gate(sandbox, name, filename, proofs, say)
+                with _browser_slot(name):          # #42 — a browser gate waits for the one browser at push time
+                    v, per = _prove_gate(sandbox, name, filename, proofs, say)
             except Exception as _ge:
                 say("    %s raised %s outside its own proofs — recorded BLIND, the run continues: "
                     "%s" % (name, type(_ge).__name__, str(_ge)[:120]))
@@ -1291,6 +1596,14 @@ def _prove_gates(have, say=print, workers=None):
     # ⚠ NOBODY MAY VANISH. Every gate handed in comes back with a row even if the lane holding it
     # died before writing one — an absent row reads as "nothing to see". [[zero-needs-a-denominator]]
     missing = [(nm, prs) for nm, _fn, prs in have if nm not in out]
+    if missing and _PUSH is not None and _PUSH.stop.is_set():
+        # #42 — a STOPPED push-time run never reached these: NOT RUN, not BLIND - nothing was found wrong with them, and
+        # the run is refused on the failure that stopped it, so nothing unrun is ever passed either
+        say("  #42 the run stopped before %d gate(s) were reached — NOT RUN: %s"
+            % (len(missing), ", ".join(nm for nm, _p in missing[:6])))
+        for nm, prs in missing:
+            out[nm] = (NOT_RUN, [None] * len(prs))
+        missing = []
     if missing:
         say("  ⚠ %d gate(s) were never reached by any lane — recorded BLIND, never dropped: %s"
             % (len(missing), ", ".join(nm for nm, _p in missing[:6])))
@@ -1300,7 +1613,7 @@ def _prove_gates(have, say=print, workers=None):
             {k: p for k, (_v, p) in out.items()})
 
 
-def prove(only=None, say=print, detail=None):
+def prove(only=None, say=print, detail=None, push=False, stopped=None):
     gates = gate_files()
     todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
     with_proofs = [(n, f, red_proofs_in(f)) for n, f in todo]
@@ -1325,7 +1638,17 @@ def prove(only=None, say=print, detail=None):
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
-    results, per_proof = _prove_gates(have, say)
+    if push:
+        # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time
+        results, per_proof = _prove_push(have, say, stopped)
+        if results is not None and not results:
+            # ⚠ A STOP BEFORE ANY GATE WAS JUDGED TO THE END IS NOT AN EMPTY RUN. _write_state reads an empty result as a
+            # FULL run that proved nothing and would wipe every standing proof (provedGates, blind) - so nothing is
+            # written, and the stop itself refuses the push. [[unknown-stays-unknown]]
+            say("  #42 no gate was judged to the end, so the census is left exactly as it was")
+            return {}
+    else:
+        results, per_proof = _prove_gates(have, say)
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
@@ -1504,7 +1827,20 @@ def gate_spec(name):
     return [], 180, None
 
 
-def _prove_one(sandbox, name, filename, pr, idx, say):
+def _at_widths(widths):
+    """#42 — ' at 1280x800' on a push-time proof's lines, '' on every other (so those lines read as they always did)"""
+    if not widths:
+        return ""
+    import law_widths as _LW
+    return " at %s" % _LW.label(widths)
+
+
+def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
+    # #42 — `widths` (a push-time proof's own declaration, from _prove_push_one) reaches BOTH runs below, so the clean
+    # run and the tampered run measure the same viewports; None = every width, all this function ever did. `why`, when
+    # a caller hands one in, learns whether an UNPROVABLE was a law ALREADY RED untampered (the push-time run stops on
+    # that) or a run that could not judge at all (a deadline, a missing file - named, never failed).
+    _w = {"widths": widths} if widths else {}
     tgt_rel = str(pr.get("file") or "")
     # ⚠⚠ v2821 — RESOLVE AGAINST tv/ FIRST, THEN THE REPO COPY'S ROOT.
     # `sandbox` is the copied tv/ directory, so a proof naming "bible.html" resolved to
@@ -1569,13 +1905,15 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     # single-lane path, so that path is unchanged; with lanes running it widens by a measured
     # factor so a verdict can never be decided by how many copies of the prover are busy.
     _to = int(_to * DEADLINE_SCALE) if _to else _to
-    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
+    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
     if ok_clean is None:
-        say("     %-52s %s — clean run: %s" % (label, UNPROVABLE, tail))
+        say("     %-52s %s — clean run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail))
         return UNPROVABLE
     if not ok_clean:
-        say("     %-52s %s — it is ALREADY RED untampered in the sandbox (%s)"
-            % (label, UNPROVABLE, tail[:60]))
+        say("     %-52s %s — it is ALREADY RED untampered in the sandbox%s (%s)"
+            % (label, UNPROVABLE, _at_widths(widths), tail[:60]))
+        if why is not None:
+            why["red"] = True
         return UNPROVABLE
 
     with io.open(tgt, encoding="utf-8") as fh:
@@ -1625,18 +1963,22 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
     try:
-        ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
+        ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
 
     if ok_tampered is None:
-        say("     %-52s %s — tampered run: %s" % (label, UNPROVABLE, tail2))
+        say("     %-52s %s — tampered run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail2))
         return UNPROVABLE
     if ok_tampered:
         say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2)))
+        if widths:
+            say("     %-52s   ↳ #42: GREEN at its DECLARED widths %s - the declaration is wrong (or the law is blind "
+                "there); either way it proves nothing and the push refuses. Re-measure where the defect shows."
+                % ("", _at_widths(widths).strip()))
         return BLIND
-    say("     %-52s %s (%d match(es) tampered → red)" % (label, PROVEN, got))
+    say("     %-52s %s (%d match(es) tampered → red)%s" % (label, PROVEN, got, _at_widths(widths)))
     return PROVEN
 
 
@@ -1982,6 +2324,9 @@ def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--prove", nargs="*", default=None)
+    ap.add_argument("--push", action="store_true",
+                    help="#42 push-time proving, what hooks/pre-push runs: declared 'widths' restrict a proof's runs, the "
+                         "likeliest failures run first and the run stops at the first; one browser gate at a time")
     ap.add_argument("--detect", action="store_true")
     ap.add_argument("--ratchet", action="store_true")
     ap.add_argument("--triage", action="store_true",
@@ -1999,11 +2344,15 @@ def main(argv):
         a.report = True
 
     census, results, hits = {}, {}, []
+    _stopped = []
     if a.report or a.ratchet:
         census = report()
     if a.prove is not None:
         print("")
-        results = prove(only=set(a.prove) or None)
+        if a.push:
+            results = prove(only=set(a.prove) or None, push=True, stopped=_stopped)
+        else:
+            results = prove(only=set(a.prove) or None)
     if a.detect:
         print("")
         hits = detect()
@@ -2083,6 +2432,13 @@ def main(argv):
                   % (len(_broken), ", ".join(_broken[:8]) + (" …" if len(_broken) > 8 else "")))
         if _code:
             return _code
+    # #42 — A STOPPED PUSH-TIME RUN IS A REFUSAL even when what stopped it is not failed above (a law ALREADY RED
+    # untampered is UNPROVABLE): the proofs after it were never run, and exit 0 would pass them unseen.
+    if _stopped:
+        _n, _i, _v, _why = _stopped[0]
+        print("\n  ✗ #42 the push-time run STOPPED at %s[%d] (%s: %s) — the proofs after it were NOT RUN, so this "
+              "cannot pass." % (_n, _i, _v, _why))
+        return 1
     return 0
 
 
