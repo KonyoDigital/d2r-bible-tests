@@ -124,7 +124,7 @@ STATE = ("console.log(JSON.stringify({quits: QUITS, heart: _hOv.hidden, verx: _v
 class EscOnAConsolePanelNeverQuits(unittest.TestCase):
 
     def test_premise_escape_on_an_empty_console_quits(self):
-        self.assertEqual(_run("press('Escape');" + STATE)["quits"], ["/api/quit"],
+        self.assertEqual(_run("press('Escape');" + STATE)["quits"], ["/api/window"],  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
                          "premise: the empty-page Esc must quit (v1420), or the no-quit cases prove nothing")
 
     def test_the_state_panel_closes_and_the_console_stays(self):
@@ -155,7 +155,7 @@ class EscOnAConsolePanelNeverQuits(unittest.TestCase):
     def test_after_the_panel_closes_a_second_escape_still_quits(self):
         """v1420 is his design: once the page IS empty, Esc leaves the console. The fix must not remove that."""
         out = _run("_vxOv.hidden = false; press('Escape'); press('Escape');" + STATE)
-        self.assertEqual(out["quits"], ["/api/quit"], "the snapshot latched and Esc can never quit any more")
+        self.assertEqual(out["quits"], ["/api/window"], "the snapshot latched and Esc can never leave any more")  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
 
 
 if __name__ == "__main__":

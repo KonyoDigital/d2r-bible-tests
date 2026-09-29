@@ -84,7 +84,15 @@ and Edit (a database helm placed through the host's own Select): where the tab r
 modal does not overlap it and each tab's centre hit-tests to that tab.
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT. A free port is chosen here and exported before render_check is imported,
-so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one.
+so this law never adopts a Chrome something else started (REG-1258) and two lanes of heart2 never share one. TV_LAW_PORT
+pins one instead (the builder's width law already honoured it) - only for a caller that owns a port range and hands
+each concurrent run its own; run_gates and the hook set none.
+#42 - A PUSH-TIME RED-PROOF MEASURES ONLY WHERE ITS DEFECT SHOWS (tv/law_widths.py). TV_LAW_WIDTHS, set only by
+`heart2.py --push --prove` from a proof's own "widths", restricts every width loop and every one-viewport pass to those
+viewports; a case whose viewports are all outside it is a declared SKIP; unset, this law is exactly what it was. The
+passes that CHANGE the locker (the equip, the Lacerator assigned under the typing, the drag pass before the phone pass)
+still run whenever a later measurement reads what they leave, so a restricted run meets each measured state as the full
+run does.
 The Chrome it starts is killed by the handle it holds, and its temp profile goes with it.
 ⚠ NO CHROME ON THIS MACHINE = a DECLARED skip (exit 77), never a pass. Chrome installed and refusing to start is
 a FAILURE, not a venue fact.
@@ -124,12 +132,24 @@ def _free_port():
 _LAW_PORT = os.environ.get("TV_LAW_PORT", "").strip()
 os.environ["TV_RENDER_PORT"] = _LAW_PORT if _LAW_PORT.isdigit() and _LAW_PORT not in ("9222", "9223") else str(_free_port())
 import render_check as RC  # noqa: E402
+import law_widths as LW  # noqa: E402  #42 - the one reader of TV_LAW_WIDTHS
 
 from test_the_mule_window_is_the_planner_shell import THEIR_SLOTS, DOLL_K, THEIR_EQ  # noqa: E402  ONE witness table
 
 NO_BROWSER = "no Chrome/Chromium on this machine, so the mule window was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1280, 695), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
 CONSOLE = (1280, 695)   # #174 v-B2 — his console's board at 1280 wide, under the console's own header
+#: #42 - the one-viewport passes, by the viewports they set: the hover card, the phone's typing (a keyboard opening is a
+#: height-only resize), the real drag, and the phone pass (its keyboard ] runs at 2000)
+HOVER_WIDTHS = (WIDTHS[0], CONSOLE)
+TYPE_AT = ((390, 844), (390, 464))
+DRAG_AT = ((2000, 1300), CONSOLE)
+PHONE_AT = ((375, 812), (2000, 1300))
+#: every viewport this law measures at - what TV_LAW_WIDTHS may name
+VIEWPORTS = tuple(sorted(set(WIDTHS) | set(HOVER_WIDTHS) | set(TYPE_AT) | set(DRAG_AT) | set(PHONE_AT)))
+#: #42 - None = every width, exactly as before; run_gates and CI never set it
+_ONLY = LW.only()
+_W = lambda seq: LW.pick(seq, _ONLY)  # noqa: E731
 MULE = "uni-weap"
 ITEMS = ["Windforce", "Doombringer", "The Grandfather", "Stormlash", "Lightsabre", "Nagelring", "Raven Frost"]
 
@@ -696,7 +716,7 @@ def _measure():
             time.sleep(0.25)
         res["fonts"] = t.ev("document.fonts.status")
         res["seeded"] = t.ev(SEED % (json.dumps(ITEMS), json.dumps(MULE)))
-        for (w, h) in WIDTHS:
+        for (w, h) in _W(WIDTHS):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
             # #174 R1 — what a mule opens on (the doll in front), then the stash in front
@@ -713,13 +733,13 @@ def _measure():
         time.sleep(0.25)
         res["equipped"] = _equip(t, MULE, WEAR)
         res["hover"] = {}
-        for (w, h) in (WIDTHS[0], CONSOLE):
+        for (w, h) in _W(HOVER_WIDTHS):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
             time.sleep(0.25)
             for view in ("stash", "equip"):
                 res["hover"]["%dx%d %s-front" % (w, h, view)] = _hover_worn(t, view)
             _open(t, "equip")
-        for (w, h) in WIDTHS:
+        for (w, h) in _W(WIDTHS):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
             for view, key in (("stash", "eqs"), ("equip", "eq")):
@@ -733,7 +753,8 @@ def _measure():
         # helm placed through the host's Select), the doll and the stash in front, at every width; the helm comes off after
         res["helm"] = t.ev(HELM % json.dumps(MULE))
         time.sleep(0.3)
-        for (w, h) in WIDTHS:
+        # #42 - the helm goes on and comes off WHATEVER the restriction (the passes after it read the locker it leaves)
+        for (w, h) in _W(WIDTHS):
             t.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=(w < 500))
             time.sleep(0.25)
             for view in ("equip", "stash"):
@@ -746,26 +767,35 @@ def _measure():
         res["unhelm"] = t.ev(UNHELM)
         time.sleep(0.2)
         # the phone: type in the Stats search, open a keyboard (height-only resize), then re-render underneath
-        t.send("Emulation.setDeviceMetricsOverride", width=390, height=844, deviceScaleFactor=1, mobile=True)
-        time.sleep(0.25)
-        t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(MULE))
-        time.sleep(0.35)
-        res["typing"] = t.ev(FOCUS_TYPE)
-        t.send("Emulation.setDeviceMetricsOverride", width=390, height=464, deviceScaleFactor=1, mobile=True)
-        time.sleep(0.6)                      # past the handler's 160ms debounce
-        res["keyboard"] = json.loads(t.ev(FOCUS_READ))
+        # ⚠ #42 - Lacerator is assigned WHATEVER the restriction: it stays in the locker through the reload below, so the
+        # drag pass packs around it; skipping it would hand a restricted run a different stash from the full run's
+        _typing = bool(_W(TYPE_AT))
+        if _typing:
+            t.send("Emulation.setDeviceMetricsOverride", width=390, height=844, deviceScaleFactor=1, mobile=True)
+            time.sleep(0.25)
+            t.ev("(function(){ window.vaultCloseCard(); window.openMuleCard(%s); return 1; })()" % json.dumps(MULE))
+            time.sleep(0.35)
+            res["typing"] = t.ev(FOCUS_TYPE)
+            t.send("Emulation.setDeviceMetricsOverride", width=390, height=464, deviceScaleFactor=1, mobile=True)
+            time.sleep(0.6)                      # past the handler's 160ms debounce
+            res["keyboard"] = json.loads(t.ev(FOCUS_READ))
         t.ev("(function(){ window.tvVaultRegister('Lacerator'); window.vaultAssign('Lacerator', %s); return 1; })()"
              % json.dumps(MULE))
         time.sleep(0.3)
-        res["refresh"] = json.loads(t.ev(FOCUS_READ))
-        try:
-            res["drag"] = _drag_pass(t, bible)
-        except Exception as e:          # the instrument failed: said once, as UNKNOWN, never as a pass
-            res["drag"] = {"err": "the drag pass itself failed - UNKNOWN, not passing: %r" % (e,)}
-        try:
-            res["phone"] = _phone_pass(t)
-        except Exception as e:
-            res["phone"] = {"err": "the phone pass itself failed - UNKNOWN, not passing: %r" % (e,)}
+        if _typing:
+            res["refresh"] = json.loads(t.ev(FOCUS_READ))
+        # ⚠ #42 - the phone pass's touch step places a ring in THIS mule's stash, which the drag pass has rearranged, so
+        # the drag pass runs whenever the phone pass does
+        if _W(DRAG_AT) or _W(PHONE_AT):
+            try:
+                res["drag"] = _drag_pass(t, bible)
+            except Exception as e:          # the instrument failed: said once, as UNKNOWN, never as a pass
+                res["drag"] = {"err": "the drag pass itself failed - UNKNOWN, not passing: %r" % (e,)}
+        if _W(PHONE_AT):
+            try:
+                res["phone"] = _phone_pass(t)
+            except Exception as e:
+                res["phone"] = {"err": "the phone pass itself failed - UNKNOWN, not passing: %r" % (e,)}
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -789,12 +819,34 @@ def _states():
     the doll in use + the picker open"""
     r = _measure()
     out = []
-    for w, h in WIDTHS:
+    for w, h in _W(WIDTHS):
         out.append(("%dx%d" % (w, h), r["%dx%d" % (w, h)]))
         out.append(("%dx%d stash-front" % (w, h), r["st %dx%d" % (w, h)]))
         out.append(("%dx%d equipped+picker" % (w, h), r["eq %dx%d" % (w, h)]))
         out.append(("%dx%d stash-front equipped+picker" % (w, h), r["eqs %dx%d" % (w, h)]))
     return out
+
+
+def _skip(case, whs):
+    """#42 - a case whose viewports all lie outside a push-time restriction measured nothing: a DECLARED skip, never a pass.
+    Unrestricted it is never reached; if it were, it returns False and the caller's assertTrue fails - never silence."""
+    if _ONLY is not None and not _W(whs):
+        case.skipTest("#42 TV_LAW_WIDTHS=%s - this case is measured at %s only" % (LW.label(_ONLY), LW.label(sorted(set(whs)))))
+    return False
+
+
+def _need(case, whs):
+    """#42 - the case measures at `whs`: go on, or skip as declared above"""
+    case.assertTrue(_W(whs) or _skip(case, whs))
+
+
+def _floor(full, whs):
+    """#42 - a PRINT-THE-DENOMINATOR floor: the full run's own number; restricted, one per restricted column-layout
+    viewport (900 wide and up) up to that number - never stricter than the full run's, so a restriction can only lose
+    a red, never invent one (a lost red reads BLIND and refuses the push)"""
+    if _ONLY is None:
+        return full
+    return min(full, len([x for x in _W(whs) if x[0] >= 900]))
 
 
 class TheWindowFitsAtEveryWidth(unittest.TestCase):
@@ -813,13 +865,14 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         stat values drawn, the picker open with choices in it — at every width."""
         r = _measure()
         self.assertEqual(r.get("equipped"), [p[1] for p in WEAR], "the picker did not equip the fixture's items")
-        for w, h in WIDTHS:
+        for w, h in _W(WIDTHS):
             m = r["eq %dx%d" % (w, h)]
             self.assertEqual((m["worn"], m["pick"]), (len(WEAR), 1), "%dx%d: worn %s, picker %s" % (w, h, m["worn"], m["pick"]))
             self.assertGreater(m["sv"], 0, "%dx%d: no stat value was drawn from the worn gear" % (w, h))
             self.assertGreater(m["opts"], 0, "%dx%d: the left-hand picker offered nothing" % (w, h))
 
     def test_no_word_or_control_is_cut_or_outside_its_panel(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             bad += ["%s %s" % (label, x) for x in m["cut"] + m["outside"]]
@@ -827,6 +880,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                          + "\n  ".join(bad))
 
     def test_nothing_scrolls_sideways(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             if m["hscroll"][0] > m["hscroll"][1] + 1:
@@ -837,6 +891,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
     def test_the_gold_box_is_one_line_and_the_stash_never_scrolls(self):
         """#174 v-B review — the stash cell budget assumes a one-line gold box; a second line scrolled the stash view
         and cut the box's border at 2000 wide. In columns, plain and with the doll in use, at every width."""
+        _need(self, WIDTHS)
         bad, seen = [], 0
         for label, m in _states():
             if m.get("stack") or m.get("goldLines") is None:
@@ -846,18 +901,20 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s the gold box is %.2f lines: %r" % (label, m["goldLines"], m["goldText"]))
             if m["stashScroll"] and m["stashScroll"][0] > m["stashScroll"][1]:
                 bad.append("%s the stash view scrolls %d/%d" % (label, m["stashScroll"][0], m["stashScroll"][1]))
-        self.assertGreaterEqual(seen, 10, "the gold box was measured at only %d column-layout states" % seen)
+        self.assertGreaterEqual(seen, _floor(10, WIDTHS), "the gold box was measured at only %d column-layout states" % seen)
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_no_header_title_runs_under_its_control(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             bad += ["%s %s" % (label, x) for x in m["collide"]]
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_the_type_is_its_token_times_the_unit_never_below_the_floor(self):
+        _need(self, WIDTHS)
         r = _measure()
-        for w, h in WIDTHS:
+        for w, h in _W(WIDTHS):
             m = r["%dx%d" % (w, h)]
             # the LAW, not the numbers: the root tokens are read off the page, so a retuned scale still grades
             tok = m["tokens"]
@@ -876,6 +933,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
 
     def test_at_2000_the_panels_and_the_doll_are_their_measured_rects(self):
         """their rects, with the one declared upgrade (_ours / _our_slot) — plain and with the doll in use"""
+        _need(self, ((2000, 1300),))
         bad = []
         for key in ("st 2000x1300", "eqs 2000x1300"):      # #174 R1 — their arrangement is the stash in front
             m = _measure()[key]
@@ -897,6 +955,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         panel is their 322x364 body on MP_EQ_BIG, centred in the centre panel under its tab band; the side stash takes
         EQUIPMENT's own rect at the left (their 322x400); every slot is their rect on the big unit. Plain and in use."""
         import re as _re
+        _need(self, ((2000, 1300),))
         with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as f:
             big = float(_re.search(r"var MP_EQ_BIG = ([0-9.]+),", f.read()).group(1))
         bad = []
@@ -917,6 +976,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(bad, [], "with the doll in front the window is not the big doll + the side stash:\n  " + "\n  ".join(bad))
 
     def test_at_1280_the_fixed_panels_are_their_rects_times_the_unit(self):
+        _need(self, ((1280, 800),))
         m = _measure()["st 1280x800"]
         k = m["k"]
         self.assertLess(k, 1.0)
@@ -939,10 +999,14 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         """#174 v-B2 — the Grok seat's "bottoms sliced" at 1280, reproduced at 1280x695 (the console's board): the stash
         panel ran 64px and PRIMARY SKILLS 37px under the glass. Header, mule bar, doll + inventory and the stash panel
         (its page bar and gold box inside it) now end inside the window, and STATS ends at its bottom."""
+        _need(self, (CONSOLE,))
         bad = []
+        # #42 - the unit is compared with 1280x800's wherever that viewport was measured too (always, unrestricted)
+        k800 = _measure()["1280x800"]["k"] if LW.at((1280, 800), _ONLY) else None
         for key in ("%dx%d" % CONSOLE, "eq %dx%d" % CONSOLE, "st %dx%d" % CONSOLE, "eqs %dx%d" % CONSOLE):
             m = _measure()[key]
-            self.assertLess(m["k"], _measure()["1280x800"]["k"], "%s: the height did not set the unit" % key)
+            if k800 is not None:
+                self.assertLess(m["k"], k800, "%s: the height did not set the unit" % key)
             for c in ("mp-set", "mp-eq", "mp-sstash", "mp-cp", "mp-prim", "mp-stats"):
                 if not m["panels"].get(c):
                     # the #231 eye on v3507: a missing panel was SKIPPED, so a doll or a stats panel that vanished
@@ -961,8 +1025,10 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         v-B it rose over MULES IN THIS LOCKER and read it "ES IN THIS LOCKER". #174 v-B2 integration: the card is the
         builder's in-game box (#cb-tip) naming the hovered item, the board's #arttip stays shut; the worn ring (a short
         box that fits above it) and a stash tile are hovered too, and no box rises over its own panel's header."""
+        _need(self, HOVER_WIDTHS)
         hover = _measure()["hover"]
-        self.assertEqual(len(hover), 4, "the hover card was measured at %d size x arrangement pairs, not 4" % len(hover))
+        self.assertEqual(len(hover), 2 * len(_W(HOVER_WIDTHS)), "the hover card was measured at %d size x arrangement pairs, not %d"
+                         % (len(hover), 2 * len(_W(HOVER_WIDTHS))))
         seen = 0
         for size, byItem in sorted(hover.items()):
             self.assertEqual(sorted(byItem), ["ring", "stash", "weapon"], "%s: hovered %s" % (size, sorted(byItem)))
@@ -975,9 +1041,10 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 self.assertFalse(hv["overBar"], "%s: the box %s covers the mule bar %s" % (key, hv["tip"], hv["bar"]))
                 self.assertGreaterEqual(hv["tip"][1], hv["headBottom"] - 0.5, "%s: the box rose over its panel's header" % key)
                 seen += 1
-        self.assertEqual(seen, 12, "PRINT THE DENOMINATOR: %d of 12 hovers were measured" % seen)
+        self.assertEqual(seen, 6 * len(_W(HOVER_WIDTHS)), "PRINT THE DENOMINATOR: %d of %d hovers were measured" % (seen, 6 * len(_W(HOVER_WIDTHS))))
 
     def test_a_real_drag_locks_an_item_where_it_is_dropped_and_a_reload_keeps_it(self):
+        _need(self, DRAG_AT + PHONE_AT)
         dr = _measure()["drag"]
         self.assertNotIn("err", dr, dr.get("err"))
         for key in ("2000", "console"):
@@ -998,6 +1065,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                              {"tab": want[0], "x": want[1], "y": want[2], "page": 0}, "%s: the store does not hold the drop" % key)
 
     def test_a_drop_that_does_not_fit_is_refused_on_screen(self):
+        _need(self, DRAG_AT + PHONE_AT)
         self.assertNotIn("err", _measure()["drag"], _measure()["drag"].get("err"))
         d = _measure()["drag"]["refuse"]
         self.assertTrue(d["from"] and d["from"]["hit"], d["from"])
@@ -1009,6 +1077,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertIn("stays where it was", (d["said"] or {}).get("t", ""))
 
     def test_the_keyboard_carries_an_item_right_click_unlocks_it_and_a_stash_tab_takes_a_drop(self):
+        _need(self, DRAG_AT + PHONE_AT)
         d = _measure()["drag"]
         self.assertNotIn("err", d, d.get("err"))
         k = d["keys"]
@@ -1027,6 +1096,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                          "a drop on the Gems tab did not land in the Gems tab's first cell: %s" % g["after"])
 
     def test_at_375_a_drag_scrolls_the_window_to_another_mules_tab(self):
+        _need(self, PHONE_AT)
         ph = _measure()["phone"]
         self.assertNotIn("err", ph, ph.get("err"))
         self.assertGreaterEqual(ph["mules"], 2, "PRINT THE DENOMINATOR: the big locker did not spill onto a second mule (%s)" % ph)
@@ -1038,6 +1108,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(ph.get("page"), 1, "the drop on the Mule 2 tab did not move the item to Mule 2")
 
     def test_the_keyboard_carries_an_item_to_another_mule(self):
+        _need(self, PHONE_AT)
         kb = _measure()["phone"]["keys"]
         self.assertTrue(kb["focused"], "the stash item could not take focus")
         self.assertIs(kb["over"], True, "] did not point the carried item at the next mule's tab")
@@ -1045,6 +1116,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(kb["page"], 1, "Enter after ] did not move the item to Mule 2")
 
     def test_a_finger_can_unlock_a_placed_item(self):
+        _need(self, PHONE_AT)
         tp = _measure()["phone"]["touch"]
         self.assertIs(tp["coarse"], True, "the touch emulation did not make the pointer coarse - UNKNOWN, not passing")
         self.assertTrue((tp["placed"] or {}).get("ok"), tp["placed"])
@@ -1056,6 +1128,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertIsNone(tp["after"], "a real tap in the lock's pad did not unlock the ring")
 
     def test_a_keyboard_opening_leaves_the_search_box_he_is_typing_in(self):
+        _need(self, TYPE_AT)
         r = _measure()
         self.assertEqual(r["typing"], "typing", "the Stats search box could not be focused at all")
         kb = r["keyboard"]
@@ -1064,6 +1137,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         self.assertTrue(kb["focused"] and kb["value"] == "fire" and kb["caret"] == [2, 3], kb)
 
     def test_a_re_render_underneath_him_puts_the_caret_back(self):
+        _need(self, TYPE_AT)
         rf = _measure()["refresh"]
         self.assertTrue(rf["focused"], "an item assigned in the background re-rendered the window and left the "
                                        "focus on %s, not the search box he was typing in" % rf["activeTag"])
@@ -1077,9 +1151,10 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         """REG-1379 his "Tighten both" (round 2): in every arrangement at every width, where the window does not scroll it
         ends under its content by its own bottom padding and above the glass's bottom - no band (at 2000x1300 it ran 248px
         past their rects to the glass); where it scrolls it is the glass's height exactly, scrolling inside itself"""
+        _need(self, WIDTHS)
         bad, fits, scrolls = [], 0, 0
         tights = self._tights()
-        self.assertGreaterEqual(len(tights), 4 * len(WIDTHS), "PRINT THE DENOMINATOR: %d window states measured" % len(tights))
+        self.assertGreaterEqual(len(tights), 4 * len(_W(WIDTHS)), "PRINT THE DENOMINATOR: %d window states measured" % len(tights))
         for label, m in tights:
             self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
             if m["sh"] <= m["ch"] + 1:
@@ -1092,8 +1167,9 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 scrolls += 1
                 if abs((m["win"][1] - m["win"][0]) - m["vh"]) > 0.5:
                     bad.append("%s: it scrolls inside itself but is %.0fpx tall on a %.0fpx glass" % (label, m["win"][1] - m["win"][0], m["vh"]))
-        self.assertGreaterEqual(fits, 4, "PREMISE: only %d states fit the glass - 2000x1300 alone is four" % fits)
-        self.assertGreaterEqual(scrolls, 4, "PREMISE: only %d states scroll - 375x812 alone is four" % scrolls)
+        # #42 - each premise names the viewport that carries it, so it binds wherever that viewport is measured
+        self.assertGreaterEqual(fits, 4 if LW.at((2000, 1300), _ONLY) else 0, "PREMISE: only %d states fit the glass - 2000x1300 alone is four" % fits)
+        self.assertGreaterEqual(scrolls, 4 if LW.at((375, 812), _ONLY) else 0, "PREMISE: only %d states scroll - 375x812 alone is four" % scrolls)
         self.assertEqual(bad, [], "the mule window is not as tall as what it holds:\n  " + "\n  ".join(bad))
 
     def test_r2_no_panel_is_stretched_past_what_it_holds(self):
@@ -1101,6 +1177,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         STRENGTHS AND WEAKNESSES was ~330px of empty bordered box and NOTES ~370px of empty textarea. In columns, every
         arrangement at every width: STRENGTHS AND WEAKNESSES is no taller than its own content (or its 57u floor), measured
         with every stretch taken away; NOTES is its 206u; STATS its 726u at most"""
+        _need(self, WIDTHS)
         bad, seen = [], 0
         for label, m in self._tights():
             if m.get("err") or m.get("stack"):
@@ -1116,7 +1193,8 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s: NOTES is %spx, not its 206u (%.0f)" % (label, m["notes"], 206 * k))
             if m["stats"] is None or m["stats"] > 726 * k + BAND_TOL:
                 bad.append("%s: STATS is %spx, past its 726u (%.0f)" % (label, m["stats"], 726 * k))
-        self.assertGreaterEqual(seen, 4 * 6, "PREMISE: only %d column states were measured" % seen)
+        # four arrangements at each column width (six of the eight; #42: of those this run measures)
+        self.assertGreaterEqual(seen, 4 * len([x for x in _W(WIDTHS) if x[0] > 900]), "PREMISE: only %d column states were measured" % seen)
         self.assertEqual(bad, [], "a mule window panel is stretched past what it holds:\n  " + "\n  ".join(bad))
 
     def test_r2_the_mule_windows_tabs_stay_in_view_while_its_picker_is_open(self):
@@ -1124,6 +1202,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         rule skipped the mule host - the Select and Edit modals covered EQUIPMENT / STASH at every width, the phone sheet all
         four. At every width, the doll and the stash in front, Select and Edit: where the mule's tab row is on the glass with
         room under it, the modal does not overlap it and each tab's centre hit-tests to that tab"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], 0
         self.assertTrue(str(r.get("helm") or "").startswith("u"), "PREMISE: no database helm was placed, so Edit could not open: %r" % r.get("helm"))
         for key, tb in sorted(r.items()):
@@ -1147,7 +1226,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
             hidden = [x["tab"] for x in tb["hit"] if not x["seen"]]
             if hidden or len(tb["hit"]) != 4:
                 bad.append("%s: tabs not in view: %s (of %d)" % (key, hidden, len(tb["hit"])))
-        self.assertGreaterEqual(seen, 4 * len(WIDTHS), "PREMISE: the mule's tab row was checked in only %d modal states" % seen)
+        self.assertGreaterEqual(seen, 4 * len(_W(WIDTHS)), "PREMISE: the mule's tab row was checked in only %d modal states" % seen)
         self.assertEqual(r.get("unhelm"), 1, "the fixture's helm did not come off after the tabs pass")
         self.assertEqual(bad, [], "a modal hides the mule window's tabs:\n  " + "\n  ".join(bad))
 
@@ -1159,6 +1238,7 @@ RED_PROOF = [
         "find": ".vault-detail.vd-fs.mp-on{bottom:auto;max-height:100vh;max-height:100dvh;",
         "replace": ".vault-detail.vd-fs.mp-on{",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "REG-1379 round 2 - round 1's fix again: the last panels stretch into the band (S&W an empty box, NOTES an empty textarea)",
@@ -1168,6 +1248,7 @@ RED_PROOF = [
                    ".mp:not(.mp-stack) .mp-lc{flex:1 1 auto;align-items:stretch}\n.mp:not(.mp-stack) .mp-left > :last-child,.mp:not(.mp-stack) .mp-centre > "
                    ":last-child,.mp:not(.mp-stack) .mp-right > .mp-stats{flex-grow:1}\n.vault-detail.vd-fs.mp-on{",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "REG-1375 round 2 - the mule host's modal is placed with no tab rule again: it covers the mule's EQUIPMENT / STASH tabs",
@@ -1175,6 +1256,7 @@ RED_PROOF = [
         "find": "    var _tr = _cbTabsBottom(vh, mh0);\n",
         "replace": "    var _tr = mh0 ? null : _cbTabsBottom(vh, mh0);\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "REG-1375 round 2 - on a phone the mule host's sheet takes the glass from the top again, over all four tabs",
@@ -1182,6 +1264,7 @@ RED_PROOF = [
         "find": "      var tr0 = _cbTabsBottom(vh, mh0), top0 = ",
         "replace": "      var tr0 = mh0 ? null : _cbTabsBottom(vh, mh0), top0 = ",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#174 v-B2 fix round - the window stops scrolling under a drag (at 375 another mule's tab is out of reach)",
@@ -1189,6 +1272,7 @@ RED_PROOF = [
         "find": "    _mpTrack(d, e.clientX, e.clientY);\n    _mpAutoScroll(d, e.clientX, e.clientY);\n",
         "replace": "    _mpTrack(d, e.clientX, e.clientY);\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 fix round - the keyboard carry has no key that changes mule again",
@@ -1196,6 +1280,7 @@ RED_PROOF = [
         "find": "      if (k === '[' || k === ']'){\n",
         "replace": "      if (false){\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 fix round - the lock is a 10px target on a phone again",
@@ -1203,6 +1288,7 @@ RED_PROOF = [
         "find": "  .mp .vd-unlock::after{content:\"\";position:absolute;inset:-10px}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         # #174 v-B moved the tightest prose panel: the LEFT column is now their 322 on the doll's unit, so MERCENARY's
@@ -1214,6 +1300,9 @@ RED_PROOF = [
         "find": ".mp-sw{min-height:calc(57*var(--u))}\n",
         "replace": ".mp-sw{height:calc(57*var(--u))}\n",
         "matches": 1,
+        # #42 measured 2026-09-29: green alone at 1280x800 / 2000x1300 / 375x812 / 1280x695 / 390x844; the full sweep
+        # cuts it at 1024x768 and 901x900
+        "widths": ["1024x768"],
     },
     {
         "why": "#174 v-B - the picker's choice never reaches the doll, so the equipped pass measures an empty doll and calls it fitting",
@@ -1221,6 +1310,7 @@ RED_PROOF = [
         "find": "      try { _mpEqWrite(r.all); }\n",
         "replace": "      try { void 0; }\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B review - the gold box says its worn copies in a sentence that wraps it, and the stash view scrolls",
@@ -1228,6 +1318,9 @@ RED_PROOF = [
         "find": "+ ' in inventory · ' + _wornHere + ' worn</div>'",
         "replace": "+ ' in inventory · ' + _wornHere + ' worn on the doll · ' + (_thisMuleN + _wornHere) + ' on this mule</div>'",
         "matches": 1,
+        # #42 measured 2026-09-29: green alone at 1280x800 / 2000x1300 / 375x812 / 1280x695 / 390x844; the full sweep
+        # wraps it at 1120x628, 1024x768 and 901x900
+        "widths": ["1024x768"],
     },
     {
         "why": "#174 v-B review - a doll slot stops taking the pointer, so real input cannot open it (a .click() would have)",
@@ -1235,6 +1328,7 @@ RED_PROOF = [
         "find": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n",
         "replace": ".mp-slot.mp-gone{border-color:var(--hell);border-style:dashed}\n.mp-slot{pointer-events:none}\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B2 - the hover card of an item rises over its panel's header again (it read ES IN THIS LOCKER); since the integration the card is window.d2Tip and its floor is passed here",
@@ -1242,6 +1336,7 @@ RED_PROOF = [
         "find": "    window.d2Tip.show(entry, el, { floor: floorOf(el) });\n",
         "replace": "    window.d2Tip.show(entry, el);\n",
         "matches": 1,
+        "widths": ["1280x695"],   # #42 measured 2026-09-29: the tampered law is red at 1280x695 alone
     },
     {
         "why": "#174 v-B2 integration - the board's #arttip opens over the mule window's in-game box again: two boxes for one hover",
@@ -1249,6 +1344,7 @@ RED_PROOF = [
         "find": "      try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return; } catch (_e) {}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 integration - the mule window's hover opens no in-game box at all (the lane listens to nothing)",
@@ -1256,6 +1352,9 @@ RED_PROOF = [
         "find": "    if (el !== cur) show(el);\n",
         "replace": "",
         "matches": 1,
+        # #42 measured 2026-09-29: red at 1280x695 alone (the hover card); the first probe's red at 1280x800 was
+        # test_at_1280_the_fixed_panels' 6px font-reflow flake, not this defect - the push-time run caught it BLIND
+        "widths": ["1280x695"],
     },
     {
         "why": "#174 v-B2 - the unit answers the width alone again, so in his console at 1280 the stash he packs from runs under the glass",
@@ -1263,6 +1362,7 @@ RED_PROOF = [
         "find": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W, Math.max(MP_K_FLOOR, (vh - MP_PAD_V) / MP_WORK_H)) };",
         "replace": "return { stack: false, k: Math.min(grow, (vw - 48) / MP_COL_W) };",
         "matches": 1,
+        "widths": ["1280x695"],   # #42 measured 2026-09-29: the tampered law is red at 1280x695 alone
     },
     {
         "why": "#174 v-B2 - a dragged item lands one cell off from where it was let go (the drop reads the wrong cell)",
@@ -1270,6 +1370,7 @@ RED_PROOF = [
         "find": "    return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p), y: Math.floor((cy - r.top - g.clientTop - 3) / p) };\n",
         "replace": "    return { x: Math.floor((cx - r.left - g.clientLeft - 3) / p) - 1, y: Math.floor((cy - r.top - g.clientTop - 3) / p) };\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 - a drag never starts: the tiles take no pointer (his_mule_locked_21 - the ring would not move)",
@@ -1277,6 +1378,7 @@ RED_PROOF = [
         "find": "    var it = e.target.closest('#vault-detail .vd-item[data-key], #vault-detail .vd-item[data-dbkey]'), g = it && it.closest('.vd-grid[data-area]');\n",
         "replace": "    var it = null, g = null;\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 - the keyboard cannot pick an item up",
@@ -1284,6 +1386,7 @@ RED_PROOF = [
         "find": "      _mpCarry = { key: it.getAttribute('data-key'), el: it, grid: g, w: +it.getAttribute('data-w') || 1, h: +it.getAttribute('data-h') || 1,\n",
         "replace": "      return; _mpCarry = { key: it.getAttribute('data-key'), el: it, grid: g, w: +it.getAttribute('data-w') || 1, h: +it.getAttribute('data-h') || 1,\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 - STATS runs under the glass again at 1280 (the Grok seat: Stats stops at Life)",
@@ -1291,6 +1394,12 @@ RED_PROOF = [
         "find": ".mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}\n",
         "replace": "",
         "matches": 1,
+        # #42 re-measured 2026-09-29, this proof alone, one Chrome: at 1280x800 the clean run is green (15.2 s) and the
+        # tampered run red (13.8 s) in test_at_1280_the_fixed_panels_are_their_rects_times_the_unit on the defect
+        # itself - mp-stats 485.3 px tall -> 662.5 px, STATS running under the glass - not the 6 px reflow flake that
+        # misled proof 13's probe. (The first push-time run stopped at 13 and never reached this proof.) It is also red
+        # at 1280x695 alone, the declaration it carried before.
+        "widths": ["1280x800"],
     },
     {
         "why": "#174 v-B2 - the lock badge covers a small tile's centre again (1280 inventory), so pressing the ring unlocks it",
@@ -1298,6 +1407,7 @@ RED_PROOF = [
         "find": "height:calc(12*var(--u));max-width:40%;max-height:40%;overflow:hidden;display:flex;",
         "replace": "height:calc(12*var(--u));min-width:12px;min-height:12px;overflow:hidden;display:flex;",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 - openMuleCard stops writing --kf, so the window's type no longer rides its unit",
@@ -1305,6 +1415,7 @@ RED_PROOF = [
         "find": "style=\"--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'\"",
         "replace": "style=\"--u:'+k.toFixed(4)+'px\"",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 - the stash's gold box stops wrapping, so a phone scrolls the stash view sideways",
@@ -1312,6 +1423,7 @@ RED_PROOF = [
         "find": ".mp-v-stash .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;",
         "replace": ".mp-v-stash .vd-goldbox{margin-top:6px;width:auto;max-width:100%;padding:4px 14px;white-space:nowrap;",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#174 - the mule tabs stop wrapping on a phone, so the ghost tab scrolls off the edge",
@@ -1319,6 +1431,7 @@ RED_PROOF = [
         "find": ".mp.mp-stack .mp-settabs{flex-wrap:wrap;",
         "replace": ".mp.mp-stack .mp-settabs{flex-wrap:nowrap;",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#174 - a height-only resize (a phone keyboard) rebuilds the window under his typing again",
@@ -1326,6 +1439,8 @@ RED_PROOF = [
         "find": "      if (mp && mp.getAttribute('data-sig') === _mpLayout(window.innerWidth || 1440, window.innerHeight || 900).sig) return;\n",
         "replace": "",
         "matches": 1,
+        # #42 measured 2026-09-29: the tampered law is red at 390x844, 390x464 alone
+        "widths": ["390x844", "390x464"],
     },
     {
         "why": "#174 - a background re-render no longer puts the caret back in the Stats search box",
@@ -1333,6 +1448,8 @@ RED_PROOF = [
         "find": "      if (_in){ try { _in.focus({ preventScroll: true }); _in.setSelectionRange(_keep.q[0], _keep.q[1]); } catch (e) {} }\n",
         "replace": "",
         "matches": 1,
+        # #42 measured 2026-09-29: the tampered law is red at 390x844, 390x464 alone
+        "widths": ["390x844", "390x464"],
     },
 ]
 
@@ -1340,6 +1457,8 @@ RED_PROOF = [
 if __name__ == "__main__":
     # A class-level skip would print OK (skipped=N) and exit 0, which run_gates reads as a PASS. With no browser
     # binary at all this is a DECLARED skip (77) that the gate's skip_ok names; everything else runs and can fail.
+    if _ONLY is not None:
+        sys.stderr.write("⚠ " + LW.banner(_ONLY, VIEWPORTS) + "\n")
     if not os.path.exists(RC.CHROME):
         sys.stderr.write("⚪ SKIP — %s. UNMEASURED, declared as a skip (77), never a pass.\n" % NO_BROWSER)
         raise SystemExit(77)

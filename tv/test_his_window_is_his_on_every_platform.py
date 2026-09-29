@@ -92,6 +92,13 @@ def _keydown_block(ui, i):
 
 RED_PROOF = [
     {
+        "why": "2026-09-29 - the W shortcut listens for the English letter only; with a Hebrew layout on it does nothing",
+        "file": "tv/control_ui.html",
+        "find": "      var k = ev.key; if (!k || (k.toLowerCase() !== 'w' && ev.code !== 'KeyW')) return;\n",
+        "replace": "      var k = ev.key; if (!k || (k.toLowerCase() !== 'w')) return;\n",
+        "matches": 1,
+    },
+    {
         "why": "2026-09-28 - leaving fullscreen on Windows leaves the window where WinForms put it, half off his screen",
         "file": "control_app.py",
         "find": "                _mv(0, 0)\n",
@@ -316,7 +323,13 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         """⚠ a helper nobody routes to is [[the-unjoined-end]]: built, correct, unreachable."""
         src = _py_only(SRC)
         self.assertIn('if path == "/api/window":', src, "the window route is gone or renamed")
-        i = src.find('if path == "/api/window":')
+        # ⚠ 2026-09-29 — /api/window has a GET too now (the launchers ask it whether the console is hidden) and it
+        # sits EARLIER in the file, in do_GET. The buttons POST, so the block that must reach the helper is the one
+        # inside do_POST - bounded, as before, by the next route.
+        k = src.find("def do_POST")
+        self.assertGreater(k, -1, "no do_POST - the buttons have nothing to POST to")
+        i = src.find('if path == "/api/window":', k)
+        self.assertGreater(i, -1, "the window route is not a POST route, so the buttons reach nothing")
         # ⚠ #123 — was src[i:i + 700], a guessed length. Bounded by the NEXT ROUTE: a real boundary.
         j = src.find('if path == "', i + 10)
         self.assertGreater(j, i, "no route follows /api/window, so this block has no end to anchor on")
@@ -364,6 +377,16 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         blk = _keydown_block(ui, i)
         self.assertIn("_win('fullscreen')", blk,
                       "W is listened for but never toggles the window")
+
+    def test_W_WORKS_ON_A_HEBREW_LAYOUT_TOO(self):
+        """2026-09-29 — his "W windows shortcut is regressing again". On a Hebrew layout the W key's `key` is an
+        apostrophe, and he types with Hebrew on as often as not, so the handler must also take the physical key."""
+        ui = _js_only(UI)
+        i = ui.find("k.toLowerCase() !== 'w'")
+        self.assertGreater(i, -1, "nothing listens for the W key at all")
+        blk = _keydown_block(ui, i)
+        self.assertIn("ev.code !== 'KeyW'", blk,
+                      "W only answers the English letter - with the Hebrew layout on, the W key does nothing")
 
     def test_W_WITH_A_MODIFIER_IS_LEFT_ALONE_so_Cmd_W_STILL_CLOSES(self):
         """⚠⚠ Cmd+W and Ctrl+W CLOSE THE WINDOW. Swallowing those turns a convenience into data

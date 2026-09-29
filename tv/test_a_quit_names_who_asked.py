@@ -212,8 +212,14 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         this law is the thing that says why."""
         js = _js_code()
         self.assertIn("'/api/quit'", js, "the page no longer calls the quit route at all")
+        # 2026-09-29 — the one page caller is now ⏻ quit: Esc and ✕ send the console to the BACKGROUND
+        # (his ruling that the sessions keep working whether the window is up or not), so the only
+        # deliberate exit left in the page is the button, and it must name itself or the refusal
+        # locks him out of quitting at all.
+        self.assertEqual(js.count("'/api/quit'"), 1, "a second page caller of /api/quit appeared - the "
+                                                     "one-caller premise this law rests on moved")
         i = js.find("'/api/quit'")
-        self.assertIn("escape-empty-stack", _span(js, i, ".catch("),   # the fetch call's own tail
+        self.assertIn("quit-button", _span(js, i, ".catch("),   # the fetch call's own tail
                       "the page's quit no longer names itself, so v3280's refusal would block "
                       "the one legitimate exit")
 
@@ -223,9 +229,22 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         js = _js_code()
         i = js.find("'/api/quit'")
         self.assertGreater(i, -1, "the page no longer calls /api/quit — re-anchor this law")
-        self.assertIn("escape-empty-stack", _span(js, i, ".catch("),   # the fetch call's own tail
-                      "the Escape handler does not name itself, so a legitimate exit is also "
+        self.assertIn("quit-button", _span(js, i, ".catch("),   # the fetch call's own tail
+                      "the quit button does not name itself, so a legitimate exit is also "
                       "recorded as UNATTRIBUTED and the signal cannot distinguish anything")
+
+    def test_escape_sends_the_console_to_the_background_and_names_itself(self):
+        """2026-09-29 — Esc on the empty homepage is "same as ✕", and ✕ no longer quits: it POSTs
+        /api/window {do: background} and still names itself, so a backgrounded console's log says who
+        sent it there."""
+        js = _js_code()
+        i = js.find("do: 'background'")
+        self.assertGreater(i, -1, "the Escape handler no longer sends the console to the background")
+        tail = _span(js, i, ".catch(")
+        self.assertIn("escape-empty-stack", tail, "the Escape handler's background request does not name itself")
+        k = js.rfind("fetch(", 0, i)          # bounded by the call itself, not a guessed width
+        self.assertGreater(k, -1, "the background request is not a fetch")
+        self.assertIn("'/api/window'", js[k:i], "the Escape handler's request is not /api/window")
 
 
 if __name__ == "__main__":

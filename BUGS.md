@@ -7,6 +7,449 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
+
+v3523's push was refused TWICE at the render gate (95 and 98 minutes in) on `shelf-cards`: "the panel could not be
+ACTIVATED after 30s ... cards found=34 PAINTED=16". The arrival proof counted every `.shc-hero, .shc-sess` in the grid,
+including the cards the river pushed out with `data-river-out` + `display:none` - a 0x0 rect forever - so the proof
+could never pass once the river had marked any card. It slipped through before only because the river marked late;
+alt-speed made plan() fast (REG-1411) and the marks now landed inside the 30 s window every time. The target's own
+`sel` already excluded them; the arrival proof now counts the same population. Standalone: green at all 6 widths.
+**Still open (next push):** the shelf's visible river is `RIVER_KEEP = 8` in control_ui.html - a FOURTH copy of the
+window that REG-1433's 16 did not reach, pinned by four laws written for the old "8" ruling.
+
+### REG-1441 - THE SHELF SAID "NO REFUSAL" OVER A LANE WHOSE LAST TICK WAS ONE (2026-09-29)
+
+Found by the second eye on 60d4e07e (v3522's screens merge). `_shTriageLine` set a state for lastKey playing /
+surveyed / done only, with no else: a lastKey of raised / unworkable / cpu-loaded / ... added nothing, and with no
+lastSkipKey the line painted "no refusal since this console started" while the fleet card (`_fleetSysParts`) said
+"last refusal: <word>" for the same object - two surfaces, one fact, opposite answers. And "last refusal: <words> ·
+<age>" sat in one span that wraps anywhere, so the middot could be stranded. **Fix:** every other key is a refusal
+and is named (walked-nothing is a walk, not a refusal); one refusal is said once; the age goes in brackets.
+**Law:** `tv/test_the_triage_line_names_every_refusal.py` (5 cases in node, 2 red-proofs).
+
+### REG-1435 - HIS CONSOLE WENT DEAF FOR NOBODY BUT HIM TO NOTICE (2026-09-29)
+
+**What he saw, ~03:05:** the fleet "unreachable", THE SHELF not opening, W doing nothing, TV·D "Control server
+unreachable". **Measured:** pid up 24 h, window up, :17772 in LISTEN with an empty queue (0/0/5) - every request
+accepted then RESET, no Python error logged, a native `sample` showed the server thread idle in poll() (kept in
+d2r_session_carry). Relaunched by hand (03:13) and healthy. **The defect we can fix:** every watchdog the console has
+talks to it over that same port, so a deaf console is invisible to itself. It now asks its own port once a minute on
+the rescue loop's tick; three refusals/resets in a row record `console-server-deaf` and relaunch it through
+`_exec_relaunch_soon` (which still refuses mid-sweep / mid-mini), never twice in ten minutes; a timeout neither counts
+nor clears (the ALT stalls for minutes - slow is not deaf). `/api/status` carries `selfProbe`. **Still open:** why the
+server went deaf. **Law:** `tv/test_a_deaf_console_relaunches_itself.py` (10 cases on real loopback sockets, 5 red-proofs).
+
+### REG-1434 - THE FIRST BEACON LEFT BEFORE THE WINDOW: HIS ROW READ "konyo-3 · no native window" OVER HIS WINDOW (2026-09-29)
+
+**What he saw, 03:21, after his console was relaunched:** *"suddenly in fleet my name changed and says i have no
+window"* - the row read `konyo-3 · this console has no native window (headless or --no-open) ... relaunch it WITH a
+window`. **Measured:** one console on :17772 (the windowed one), and by 00:22Z its row read `Konyo`, masks present,
+no maskWhy. The `boot` beacon fires in the first second - before the window, the board and the install identity are
+up - and the next one is 240 s away. **Fix:** a console started to open a window sends its first beacon once the
+window is on screen (bounded at 60 s, never for a headless one), and a console whose window is still opening says so
+instead of "relaunch it WITH a window". Law cases + 2 red-proofs in test_closing_the_window_keeps_the_console_running.
+
+### REG-1433 - THE SHELF KEEPS THE NEWEST 16 REELS, NOT 8 - AND NEVER AT THE COST OF RECORDING (2026-09-29)
+
+**His words:** *"8 sessions 8 hours long? if its less than 8 double the amount to 16 reels.. FIFO same style just
+that instead of 8 last reels it reads 16"*. **Measured that night:** a full hour of shadow reel is 344-506 MB on his
+Mac (1440x904 JPEG screenshots, ~145 KB each, one per ~1.0 s - median gap 1.01 s, p90 1.27 s) and 50-62 MB on the
+ALT (~55 KB, one per ~3.5 s). Eight hours is ~3-4 GB on the Mac - under his 8 GB line - so the FIFO floor doubles:
+`KEEP_RECENT` 8 -> 16 in reel_retention, frame_authority and journal_retention (the floor law pins them equal).
+**The guard:** sixteen full hours is ~8 GB on the Mac (14 GB free that night), and below `ON_AIR_FLOOR_GB` the
+console refuses to film. So the deleting pass asks `reel_retention.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)`:
+under the floor it keeps the old eight and the oldest EXTRACTED reels beyond them go first; an unreadable disk keeps
+all sixteen. Eligibility is untouched - nothing unread ever goes. The frame stripper never narrows, which is the
+safe direction (no reel is left gutted of its frames).
+**Laws:** test_the_two_keep_floors_agree (16 + the pressure rule, 4 red-proofs); the river-drain pressure case now
+expects every finished reel beyond the newest 8 to go below the floor; the journal fixture is sized from the
+constant; two anchors re-aimed (fullscreen guard, the retention plan call).
+
+### REG-1430 - CLOSING THE WINDOW STOPPED THE WHOLE CONSOLE, SO SESSIONS PLAYED WITH IT SHUT WERE NEVER FILMED (2026-09-29)
+
+**His ask:** *"make sure after the console is up and running there is a default ON true for shadow reader and
+tooltips pass on and background service running with the console hidden always by design ... that way sessions
+are always working and running based on games and sessions being done regardless if the console is on or not. a
+one time update to the newer version should keep it backgrounded"* - then, at 02:55: *"make sure this thing and
+window is completely hidden"*.
+
+**Measured before the change:** the shadow reader and the tooltip pass (one switch, `/api/shadow`) were already
+ON on the Mac and the ALT (`on: true, recording: true` on both). What stopped the sessions was the WINDOW: ✕ and
+Esc called `_request_console_exit` (v935.8 "exiting the console must stop ON AIR"), so the process, the shadow
+reel, triage and drain all ended with it. On the Mac the launcher also KILLED whatever held :17772 on every
+double-click. And the Mac supervisor has stood down since 2026-09-01 (a headless console holds no Screen
+Recording), so nothing brought a shut console back.
+
+**Fix:** ✕ and Esc HIDE the console completely - no window, no taskbar button, and on the Mac no Dock icon (the
+app turns into an accessory while hidden). Every lane keeps running. v1460 removed a hide() fallback because a
+hidden window was unreachable ("the Desktop icon then did nothing forever"), so the way back is built: GET
+/api/window says "background", the Desktop icon (Mac and Windows launchers) and a second launch POST
+`{do: front}` and the console shows ITSELF in-process; the Mac launcher replaces it only when that request is not
+answered. macOS leaves fullscreen before hiding and returns to fullscreen; MEASURED on his MacBook, a fullscreen
+window's frame is 1470x887 on a 1470x956 screen and pywebview's flag goes stale after the green traffic light, so
+fullscreen is read from the window's own style bit on the main thread. Windows comes back with Show + SW_RESTORE,
+never pywebview's restore() (it forces a fullscreen form to Normal). The rescue watchdog holds while hidden; an
+update relaunch while hidden opens minimized and unfocused (TV_QUIET_RELAUNCH through `_before_exec`, which every
+os.execv passes). A real quit is ⏻ quit (two-click, names itself `quit-button`), /api/quit with a `from`, or
+TV_CLOSE_EXITS=1. The doctor has a `console_window` row.
+
+**Verified on a real window (before his correction):** windowed, ✕ was cancelled and the OS minimized event
+fired, front restored it, a real quit closed it. Fullscreen FAILED under the first cut - the frame measure read
+"not fullscreen", macOS ignored the minimize, and the console said "background" while it stayed on screen - which
+is what moved the measure to the style bit. Those test windows appeared on his screen; no more on-screen tests.
+
+**Not done here, and why:** starting the console at LOGIN on either machine (a LaunchAgent / Startup entry) -
+that is a change to how his machines boot, so it is offered, not installed. Page-side intakes that run in the
+board's JavaScript behave as they already do while he plays with the console behind the game.
+
+**Law:** `tv/test_closing_the_window_keeps_the_console_running.py` (21 cases, 18 red-proofs). A hidden console also RELAUNCHES hidden (TV_START_HIDDEN across os.execv), and `--background` starts one hidden for a sign-in launch.
+### REG-1431 - THE FLEET ROWS PRINTED EVERY PC'S FILMS / RIVER / TRIAGE UPFRONT (2026-09-29)
+
+**His words:** *"i dont want it rendering to me all this here upfront. only if clicked on or something like a
+backdoor to the informational background ... simplified for the eye and user friendly like it was and even
+better"*. v3522 put three fact lines under every PC row. They now live in the PC's cross-reference box (opened by a
+click), in a quiet strip above the SETS / UNIQUES tabs; the row is back to name, dot and one status word.
+**Law:** `tv/test_the_fleet_card_says_how_each_pc_films_and_drains.py` (15 red-proofs PROVEN; its reader now waits
+on the box head, not on the element under test - the old wait turned a tamper into a 180 s hang).
+### REG-1428 - THE TWO PULL DOORS COULD JUDGE AND REMOVE A LOCK ON ONE CHECKOUT AT ONCE (2026-09-29)
+
+**SEEN (the review of #64):** _clear_stale_git_lock is reachable from _pull_once (the drift thread) and fleet_pull
+(/api/update) at the same time, and nothing kept them apart: one door could stat a lock while the other door's own git
+took a NEW lock at the same path, and the re-stat compared only size and mtime - a lock removed and re-created between the
+two looks, 0 bytes with the same mtime, is a different file owned by a live git and would be removed. **FIX:** one
+re-entrant lock (_GIT_PULL_DOOR) held around the WHOLE pull in both doors and around the lock judge (@_one_pull_at_a_time),
+so the two never run git on one checkout at once; the re-stat compares st_ino too. **LAW:**
+test_a_stale_git_lock_is_cleared_and_said (TestOnePullAtATime) - a lock replaced between the looks (same size, same
+mtime, a different inode, each premise asserted) is left and said; with the lock held, neither door runs git until it is
+released. 3 red-proofs.
+
+### REG-1427 - A STUB AGENT AND A CAPTURE-OFF AGENT STILL ASKED MACOS FOR SCREEN RECORDING AND WALKED HIS WINDOWS (2026-09-29)
+
+**SEEN (the review of #63):** a TV_STUB agent and a TV_CAPTURE=off agent - the one a TV_STUB console hands to /api/on
+since REG-1424 - still called screen_recording_ok() (CGRequestScreenCaptureAccess, the system dialog when the grant is
+missing) at the boot preflight, and the capture-off agent called it again in the capture-fail branch, which then opens
+System Settings: #236's door made capture_mac refuse, and the loop read the refusal as a missing grant. Its game gate
+(_game_window_present) walked his window list and processes. His words: "make sure nothing is running on my pc for
+nothing". **FIX:** _may_ask_for_screen_recording() (not a stub agent and not capture-off) guards the boot preflight (now
+_boot_screen_recording_preflight) and the permission branch - a capture-off agent says once that capture is OFF and never
+asks; _game_window_present() answers True under TV_CAPTURE=off without walking anything, as it already did under
+TV_STUB. **LAW:** test_a_stub_agent_never_films_his_screen - the recorded doors now include screen_recording_ok,
+open_screen_recording_settings and the window/process walk; a real stub agent AND a real capture-off agent call none of
+them, and in-process with the platform handed in the boot ask is refused off a Mac too. 4 red-proofs.
+
+### REG-1426 - A READ-ONLY GIT STATUS TOOK INDEX.LOCK, AND EVERY CONSOLE GIT CALL IS KILLED BY SIGKILL (2026-09-29)
+
+**SEEN (the review of #64, the root cause REG-1421 left in place):** `git status` refreshes the index on its own and takes
+.git/index.lock to write it back (optional locking), and every console git call is subprocess.run(timeout=N), which
+SIGKILLs git with no cleanup - so any status killed mid-refresh leaves the 0-byte lock that wedged his ALT. Measured on a
+600-file temp repo with its mtimes touched: a plain `git status` was SEEN holding index.lock and rewrote the index on
+every run. **FIX:** tv/git_quiet.run - the one door every console git call goes through (control_app.py and
+console_doctor.py, pinned by test_windows_git_spawns_hide_the_console) - sets GIT_OPTIONAL_LOCKS=0 on every platform,
+keeping the caller's own env. Merge/pull/checkout still take the locks they need. The sites the review named
+(_git_tracked_dirty, _pull_once's and fleet_pull's status, _tree_is_mid_edit) all go through it; none bypassed it.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said (TestNoConsoleGitTakesAnOptionalLock) - every status site's spawn
+carries GIT_OPTIONAL_LOCKS=0, and on a real repo a status through the door never creates index.lock nor rewrites the
+index (after a plain status is first seen doing both). 1 red-proof.
+
+### REG-1425 - AN UPDATE CUT OFF MID-CHECKOUT READ AS "OK, STANDING DOWN ON PURPOSE" (2026-09-29)
+
+**SEEN (the review of #64):** a fast-forward SIGKILLed mid-checkout leaves a 0-byte index.lock AND a half-written tree.
+Reviewer: a bare origin + a 20k-file clone, origin one commit ahead, `git merge --ff-only origin/main` SIGKILLed 150 ms
+after index.lock appeared -> exit -9, the lock left, hundreds of modified files, and the row said OK. Re-measured on
+4,000 files (SIGKILL 50 ms after the lock appeared): exit -9, a 0-byte lock, HEAD unmoved, 113 modified tracked files.
+_pull_once's DIRTY branch read those files as his edits (outcome 'dirty'), the doctor graded that OK "on purpose", the
+fleet beacon said "local tracked edits", and the checkout could never update again. **FIX:** in the DIRTY branch of
+_pull_once and fleet_pull, .git/index.lock is STAT'ED (report only: never removed, nothing merged); a 0-byte lock older
+than _GIT_LOCK_STALE_S beside a dirty tree is its own outcome, 'interrupted', whose sentence names both facts (the lock and
+N modified tracked files) and runs the failure clock; pull_lane_verdict grades it MISSING at once, naming it; the fleet
+beacon says "update CUT OFF mid-checkout". No lock, a young lock or a non-empty lock is still an ordinary 'dirty'.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said (TestAnInterruptedUpdateIsNotAStandDown) - on a real git fixture with
+the state constructed (an old 0-byte lock + a modified tracked file). 5 red-proofs.
+
+### REG-1424 - A STUB CONSOLE'S LIVE AGENT READ HIS SCREEN, AND A STUB AGENT'S WINDOWS CAPTURE HALF STARTED (2026-09-29)
+
+**SEEN (measured before building #63):** test_roundtrip_sim boots its console with TV_STUB=1, but /api/on spawns the
+agent with sim=False and _env_clean POPS TV_STUB - a probe read the running agent's environment (ps eww): TV_STUB absent.
+So the roundtrip's agent ran the REAL capture path on his Mac (game gate over his window list, capture_mac on whatever
+game window was up), which is why its verdict followed his screen; a guard inside the agent alone could not change that.
+On Windows the screen is read by capture_win.ps1, which start_agent spawned for a SIM (stub) agent too. **FIX:** a
+TV_STUB console hands its live agent TV_CAPTURE=off (the #236 door that never touches a window), so his Mac behaves like
+CI's runner; _start_capture never spawns capture_win.ps1 for a stub agent and says so in the log; the lamp reads OFF (not a
+death to restart five times, REG-1272's rule). TV_STUB_REAL_CAPTURE=1 on the console is the one explicit way back.
+**LAW:** test_a_stub_agent_never_films_his_screen (TheConsoleKeepsItsAgentsOffTheScreen).
+
+### REG-1423 - A TV_STUB AGENT FILMED AND OCR'D HIS REAL DESKTOP (2026-09-28)
+
+**SEEN:** tv_diablo's live loop, under TV_STUB, called the REAL capture_mac(frame) first and used capture_stub_synth only
+when that FAILED. With Screen Recording granted on his Mac, a stub agent filmed and read his real screen; test_roundtrip_sim
+passed at 17:12 and failed at 19:05 on the same commit. **FIX:** _stub_capture_only(): a TV_STUB agent synthesizes its
+frames on the live loop, the film thread and the farewell look, and never calls capture_mac or a Quartz grab, unless
+TV_STUB_REAL_CAPTURE=1 (then the old order: real grab first, synthetic on failure). WATCH_MODE still consumes files from
+TV_FRAMES_DIR, which is how replay.py feeds recorded frames to a stub agent. **LAW:** test_a_stub_agent_never_films_his_screen
+- a REAL agent process with every screen reader patched to record-and-raise settles and reads on synthetic frames and calls
+none of them (the film thread handed a pinned window, the farewell look driven by SIGTERM).
+
+### REG-1422 - THE PULL LANE'S FAILURES WERE WRITTEN AND NEVER READ (2026-09-29)
+
+**SEEN:** _pull_once recorded "the fast-forward did not succeed ... UNKNOWN, NOT up to date" in _PULL.say for 11 hours on
+his ALT and NOTHING read _PULL - no doctor row, no status field, and the fleet beacon's pull said "N commits behind and
+clear to pull" off the cached origin view. A doctor row reading `import control_app` would not have fixed it: the console
+runs as __main__, so an import is a second copy whose _PULL says "nobody has looked yet" (measured: a different object).
+**FIX:** every attempt records its outcome and failure clock (outcome / failSince / failures / lastErr); pull_state() is
+published on /api/status as pullLane; the doctor row 'this checkout can update' reads it over the wire - MISSING when pulls
+have failed past the lane's own 1 h bar (reason + since when), OK after a success or a deliberate stand-down
+(TV_NO_AUTO_PULL, tracked edits), UNKNOWN when nobody tried; registered in CHECKS, WATCHES and NO_JOINT_YET. Past the bar
+_pull_report() refuses with "auto-pull FAILING <age> (<n> tries, since <when>): <error>" in pull.why, which the worker
+already keeps. The failure sentence names git's error line, not its closing advice. **LAW:**
+test_a_stale_git_lock_is_cleared_and_said (TestTheDoctorRowReadsTheLane, TestTheLaneIsPublishedWhereTheRowReads).
+
+### REG-1421 - AN ABANDONED GIT LOCK WEDGED EVERY PULL ON HIS ALT FOR 11 HOURS (2026-09-29)
+
+**SEEN:** his ALT held .git/index.lock from 2026-09-28 14:09, 0 bytes, with no git process running; every automatic pull
+after it failed "Unable to create index.lock: File exists" and the ALT stayed on v3521. git never removes a lock it
+abandoned, so one crashed git wedged the lane for good. **FIX:** _clear_stale_git_lock() - before the fetch and again when
+git's own error names index.lock (one retry, only after a clearing), in _pull_once and in fleet_pull (/api/update) - removes
+the lock only when it is EMPTY, older than 10 min, and no git process runs on this machine (Windows: the Toolhelp32
+process snapshot, never tasklist.exe; Mac/Linux: pgrep -x git; a probe that cannot answer never removes). A clearing is
+kept as a receipt (lockCleared: when, the lock's time, the sentence); any other lock is left and the lane says exactly why.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said - on real git fixtures in a temp dir: a stale lock is cleared and the
+pull lands; a young, non-empty, running-git or unanswerable-probe lock is left untouched and said.
+
+### REG-1420 - AN UNPARSEABLE MULE STORE READ AS EMPTY, AND THE NEXT SAVE ERASED IT (2026-09-29)
+
+**SEEN (the #41 heart audit, verified, rank 7):** the vault module's load() answered {} for d2r_muleAssign bytes that
+would not parse; the picker said "<mule> holds no items in this PC's store"; the next saveA() wrote {} over the
+corrupt bytes, erasing every mule assignment, while the doctor reading the same store said UNKNOWN. **FIX:** load()
+records a store that could not be read or would not parse; every write to d2r_muleAssign / d2r_muleRoster in the
+module goes through one guard that refuses to write over unread bytes (they are kept, and the refusal is logged); the
+picker says UNKNOWN. Five mule laws now cut the shipped guard with their slices (EQ._guard). **LAW:**
+test_a_corrupt_mule_store_is_never_overwritten (5 cases, 2 red-proofs PROVEN).
+### REG-1440 - THE RATCHET IS AS NEW AS ITS LAST COMMIT: A LAW NOT YET RATCHETED IS HELD BY THE SCAN, NOT BY A CONSOLE (2026-09-29, docs)
+
+**SEEN (the adversarial review of alt-speed):** on the console path the fixture set is the committed ratchet
+(REG-1410). A law written in a working tree that names a real reel, and is not yet in tv/test_reel_refs.json, is
+held by the exact scan (the gate, CI, a CLI) but not by a console reading the ratchet, until the ratchet is edited
+to accept it. **FIX (docs only):** the gap is stated in frame_authority.test_referenced_reels' REG-1410 paragraph.
+test_a_gate_may_not_pin_his_footage asks exact=True and refuses any real id the ratchet lacks, so it closes at
+push; between the write and that push a console on that tree can offer the reel for release. **LAW:** the ratchet
+law (unchanged).
+
+### REG-1439 - A CONSOLE WHOSE RATCHET WOULD NOT READ KEPT ITS PLAN OVER FILES ITS KEY DID NOT COVER (2026-09-29)
+
+**SEEN (the adversarial review of alt-speed):** an unreadable ratchet falls back to the exact scan (REG-1410 -
+UNKNOWN is not empty), and that scan reads tv/*.py and tests/*. plan_fingerprint() keyed the ratchet FILE but not
+those, so a kept plan outlived an edited test: a test that began naming a reel left the console offering it for
+release. Reproduced at 8b5ecd0a: `(runs, served) == (1, 1)` - kept and served while the fixture set came from the
+scan. **FIX:** plan_fingerprint raises _Unkeyable when on_console_path() and frame_authority.ratchet_reels() is
+None: no plan is kept, every call computes. **LAW:** test_a_plan_is_computed_once
+TheConsoleNeverTokenizes.test_an_unreadable_ratchet_keys_no_plan (+ red-proof, PROVEN).
+
+### REG-1438 - HIST'S OWN FOLDER KEY DECIDES A PROOF HOLD, AND NOTHING PINNED IT (2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, probe_loose.py):** a loose hist/f_<ms>.jpg whose STEM a citation names
+decides where that citation resolves: to the loose copy (the reel no longer holds the proof -> eligible) or, once
+it is folded or pruned, to the reel (holds-proof). Adding or removing it moves ONLY hist's own folder key. The
+fingerprint had that line; no law would have gone red without it. **FIX:** none needed in the code - the line is
+now named (REG-1438 comment) and pinned. **LAW:** test_a_plan_is_computed_once EveryInputMovesTheAnswer gains two
+moves - a loose frame whose stem a citation names lands at hist root, then leaves - each must recompute and equal a
+from-scratch plan; red-proof on `parts.append((hist, _fr.folder_key(st)))`, PROVEN.
+
+### REG-1437 - WHILE HE FILMS, EVERY plan() CALLER COMPUTED ALONE (#66, 2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, measure_filming.py):** the footage writer drops a loose hist/f_<ms>.jpg
+about once a second while D2R runs, so hist's stamp is never RACY_S still, plan_fingerprint raised _Moving on every
+call, and every caller computed alone - REG-1411's concurrent index walks, for as long as he plays. **FIX:**
+reel_retention._plan_wave. A remembered answer is still never served while an input moves, but concurrent callers
+share ONE computation: with nothing running a caller computes at once; with a computation running (it began before
+this call, so it may have read the world before it) the caller joins the NEXT wave, which starts only after the
+running one finishes, and every caller that arrived meanwhile shares that run. No caller is handed an answer older
+than its call. Keyed on the call's question (tree, HERE, TV_HIST, _pick order, free_mb, keep_recent) - not on what
+the files hold. MEASURED: on the ALT-shaped fixture (30 reels, 21,205 files; per round 3 plan() callers + reel_story.story at once, a loose frame landing every 1 s): each FILMING round was 4 runs, 4 index builds, 0.26-0.31 s at 8b5ecd0a and is 2 runs (the one a caller starts at once + ONE shared wave), 2 builds, 0.12-0.18 s now, 0 served, every round's verdicts identical to the still shelf's; COLD 0.38 s / 1 build / 0 tokenized, unchanged-world 0.01 s. **LAW:** test_a_plan_is_computed_once
+WhileHeFilmsCallersStillShareOneRun (a writer drops a loose frame every 0.2 s; 5 concurrent callers -> fewer runs
+than callers, each answer equal to a from-scratch plan taken after its call began; +2 red-proofs, PROVEN).
+
+### REG-1436 - THE BOOT BANNER TOKENIZED THE SUITE BEFORE THE CONSOLE PATH WAS MARKED (#66, 2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, boot_order_probe.py):** control_app.main() asked status_payload() for
+the boot banner BEFORE frame_ref.mark_console_path(True). status_payload kicks the tvd-vault-autoread refresh ->
+_vault_owed_reels -> reel_retention.plan() -> frame_authority.test_referenced_reels(), which with the console path
+unmarked is the exact tokenize scan over every tv/*.py - the post-ship stall REG-1410 fixed, once per ship, at
+boot. The law only asked whether main()'s co_names held `mark_console_path`, which stays true with the mark one line
+late. Reproduced at 8b5ecd0a: main() asked `_reap_inherited_at_boot` and `status_payload` before the mark.
+**FIX:** mark_console_path(True) is main()'s FIRST statement (it spawns nothing, so it may precede the #224 reap).
+**LAW:** test_a_plan_is_computed_once TheConsoleIsMarkedBeforeItAsksAnything DRIVES main() on a fixture shelf with
+its boot prefix stubbed (status_payload's stub asks _vault_owed_reels(<hist>) on the calling thread; the exact scan
+points at a one-file repo and is counted; a BaseException halts main() before it binds, opens or spawns) and
+asserts every boot step saw the console marked and nothing was tokenized. Replaces the co_names check. Red-proof:
+the mark moved after status_payload(), PROVEN.
+
+### REG-1414 - A RATCHET LAW GRADED AGAINST THE RATCHET CAN NEVER GO RED (2026-09-29)
+
+**SEEN (while building REG-1410):** test_a_gate_may_not_pin_his_footage asks `test_referenced_reels()` for the reel
+ids the suite names and fails on any real id missing from tv/test_reel_refs.json. REG-1410 makes a CONSOLE answer
+that same question FROM the ratchet - so any caller in a console-path process asking it would compare the ratchet
+with itself, `found - accepted` would be empty by construction, and the law would stay green over a new pin.
+**FIX:** the law asks `test_referenced_reels(exact=True)`, which always tokenizes, on every venue; `repo=` also
+always scans. **LAW:** test_a_plan_is_computed_once (TheJoints reads the ratchet law's own call; TheConsoleNever
+Tokenizes drives exact=True on the console path and proves it scans).
+
+### REG-1413 - EVERY plan() GREW sys.path BY ONE ENTRY, FOR EVER (2026-09-29)
+
+**SEEN:** reel_retention._tombstone_path ran `sys.path.insert(0, HERE)` on every call, and plan() calls it on every
+run (twice on his live tree), so a console's sys.path grew by one or two entries per plan for the life of the
+process. MEASURED: +50 entries over 50 calls. A failed import walks every entry and stats each: 1.1 ms with 6
+entries, 15.9 ms with 1,000, 153 ms with 10,000 on the Mac - and a stat costs more on Windows. **FIX:** `_on_path()`
+inserts HERE once. 89 other production modules still insert at function level; they are not on the plan() path
+and were not swept here (each needs its own look). **LAW:** none of its own - the plan fingerprint calls
+_tombstone_path on every call, so this rode along with REG-1411.
+
+### REG-1412 - THE FRAME INDEX RE-LISTED EVERY SEALED REEL, ON EVERY BUILD, IN EVERY LANE (2026-09-29)
+
+**SEEN:** on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522, /api/river timed out at
+90 s while py-spy showed THREE threads - tvd-retro-triage, tvd-eagle-watch and an HTTP request - each inside
+frame_ref.Index.__init__ at the same moment, each re-listing every folder of the shelf. Only one folder was moving:
+the live shadow reel. **FIX:** frame_ref.listing() is the one folder listing Index and reel_retention._dir_mb share.
+On the CONSOLE PATH (control_app.main marks it) a folder's listing is kept by its own stamp (mtime, ctime, inode,
+device, size, nlink) and served while that stamp is identical; it is kept only when the folder had been still for
+RACY_S (3 s - FAT stamps in 2 s, NTFS from a ~15.6 ms clock), did not change while it was read, and holds no *.tmp.
+reel_router._captured_ms (a whole-shelf walk per route(), on the triage thread's stack) reads the same listing. Off
+the console path nothing is kept: laws, the gate and CI list exactly as before. The three REG-1360 red-proofs
+were re-aimed at the shared listing and re-PROVEN. MEASURED on an ALT-shaped fixture: 268 folder listings per round
+of 4 callers -> 0 on an unchanged shelf, and only the live reel's folder when a frame lands. **LAW:**
+test_a_plan_is_computed_once, test_a_frame_index_lists_each_folder_once.
+
+### REG-1411 - plan() WAS REBUILT FROM SCRATCH BY EVERY LANE, CONCURRENTLY, OVER FOOTAGE THAT HAD NOT MOVED (2026-09-29)
+
+**SEEN:** the same /api/river timeout: reel_retention.plan() is called from ~62 places (printer.stream ->
+reel_story.story, lane_health.owed_counts -> control_app._vault_owed_reels, heart_state, river_stamp.run ...) and
+remembered nothing, so every lane rebuilt the frame index and the proof set from scratch at the same moment.
+**FIX:** on the console path plan() is SINGLE-FLIGHT and REMEMBERED. A caller whose arguments and fingerprint match
+a running computation joins it; a finished answer is served until plan_fingerprint() moves - every file plan()
+reads (both copies of chronicle_swept/vault_swept, the tombstone, the durable witness stores, the triage store,
+chron_evidence, the ratchet), the hist folder's stamp, every folder under it and each reel's index.json. An answer
+is kept or shared only if the fingerprint taken again after it finished is identical; any input that moved less
+than RACY_S ago is computed fresh and never kept; an input that cannot be keyed (a symlinked reel, an unstattable
+store) means no memo. Every answer handed out is a deep copy; an exception is never shared. plan() (reel_story) and
+plan(<the same tree>) (_vault_owed_reels) share one key while each ledger has ONE copy - _pick's HERE-or-hist order
+can only change the answer when both copies exist, and then the order is keyed. While a reel is filming its folder is
+always moving, so callers then compute separately - cheaply, over kept listings. MEASURED on an
+ALT-shaped fixture (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once): v3522 warm 4.6 s / 4 index
+builds; now 1 computation + 3 joined, 0.02 s served when unchanged, and all five rounds' plans byte-identical to
+v3522's. **LAW:** test_a_plan_is_computed_once (a DIFFERENTIAL over 12 moves of every input: each recomputed and
+equal to a from-scratch plan).
+
+### REG-1410 - HIS CONSOLE TOKENIZED THE WHOLE TEST SUITE AFTER EVERY SHIP (#66, 2026-09-29)
+
+**SEEN:** on his ALT for ~15 minutes after v3522 landed, /api/status took 11 s and then timed out; py-spy showed ONE
+hot thread, tvd-eagle-watch, holding the GIL in frame_authority.test_referenced_reels -> _executable_only ->
+tokenize over every tv/*.py (plus tests/), reached through reel_templates -> reel_river -> reel_story ->
+reel_retention.plan. The scan's key is every test file's (size, mtime), so every ship moved it (REG-1284 measured
+9 s on the Mac; 20.6 s here on 2026-09-29; minutes on the ALT). On an ALT-shaped fixture, 4 concurrent callers each
+ran it: 7,232 files tokenized, 114-154 s. **FIX:** on the console path the fixture set is the committed ratchet
+(tv/test_reel_refs.json `accepted`), which test_a_gate_may_not_pin_his_footage keeps a SUPERSET of every real id
+the scan finds (39 = 39 today); synthetic 2017 ids pin no footage. A ratchet that will not read is UNKNOWN, not
+empty - the console then pays the exact scan. The gate, CI, a CLI, `repo=` and `exact=True` scan exactly as before.
+MEASURED: 0 files tokenized, cold round 0.69 s. **LAW:** test_a_plan_is_computed_once.
+### REG-1443 - A BLIND LINE READ A DECLARED RESTRICTION'S SKIPS AS THE LAW OPTING OUT (#42 review, 2026-09-29)
+
+**SEEN (adversarial review of #42):** under a push-time proof's declared widths a width law skips every case measured at
+other viewports BY DESIGN, so a BLIND tampered run ends `OK (skipped=12)`. blind_reason did not know a restriction was in
+force and said "some laws opted out... Both jobs, not one" - or, when every case skipped, "Fix the SKIP" - sending the
+reader to delete skipTests when the work is the declaration. **FIX:** `blind_reason(why, matches, tail, widths=None)`;
+_prove_one hands it the proof's own restriction. Under one, the skips are named as the declaration's ("N of M law(s)
+SKIPPED under the proof's DECLARED restriction to 1280x800 - ... not the law opting out"), and a run where every case
+skipped says the declaration measured nothing - re-measure where the defect shows. With no restriction every sentence is
+unchanged (test_a_blind_verdict_names_the_skip, 12 OK). **LAW:** test_a_push_proof_runs_only_where_its_defect_shows -
+test_a_declared_restriction_skip_never_reads_as_the_law_opting_out (with its unrestricted baseline), and the wrong-
+declaration case now checks the live BLIND line (the fixture law skips one case under a restriction); 2 red-proofs.
+
+### REG-1442 - THE ONE-BROWSER LOCK SAW ONLY A GATE'S OWN IMPORTS, SO A GATE STARTING CHROME THROUGH A HELPER RAN BESIDE A WIDTH LAW (#42 review, 2026-09-29)
+
+**SEEN (adversarial review of #42):** _prove_push built its lock set from pixel_gates() - render_check / playwright
+imported by the gate FILE itself - plus the gates that declare widths. test_the_rails_fold_is_a_chevron_not_a_dot does
+`import test_the_character_builder_fits_at_every_width as FT; RC = FT.RC` and calls RC._chrome_up(): outside the set, so
+at push time it could start a second Chrome in another lane while the lock said one. MEASURED over the registry: the
+one-file read finds 21 browser gates, the import closure 36 - 15 reach the renderer only through a helper (organ_matrix,
+test_control, ci_sim, coldread, overlap_ratchet, the builder's width law, test_found_ever_never_files_to_a_mule).
+**FIX:** heart2.browser_gates() - the transitive import closure over tv/*.py by AST: every `import` / `from` anywhere in a
+file (a lazy import starts the same browser), `from tv import x`, and a literal `__import__` / `importlib.import_module`,
+followed through every name that is a module in tv/; a gate is in the set when any module it reaches imports
+render_check or playwright. Each file is parsed at most once per call (~4.3 s for all 680 gates; a push hands it only the
+gates it proves). UNKNOWN GOES UNDER THE LOCK: a gate whose file or any helper cannot be read or parsed, or a tv/ that
+cannot be listed, is in the set and named (over-inclusion costs time, never a second Chrome); an ABSENT gate file runs
+nothing and is left out. pixel_gates() and the census's pixelTotal are unchanged (a documented floor). **LAW:**
+test_a_push_proof_runs_only_where_its_defect_shows - test_a_gate_that_reaches_the_renderer_through_helpers_holds_the_lock
+(fixture tv/ in a temp dir: one helper, two helpers, a lazy import, a literal import_module and playwright through a
+helper are IN; a gate importing neither - through an import cycle and a prose mention - is OUT; an unparseable helper and
+an unlistable tv/ are IN and named; PREMISE: pixel_gates sees only the direct one),
+test_the_real_rails_fold_law_is_in_the_lock_set, test_the_push_run_locks_what_the_closure_finds (the join, read from the
+running _PushRun); 5 red-proofs.
+
+### REG-1400 - A PUSH THAT TOUCHED A WIDTH LAW RE-RENDERED EVERY VIEWPORT FOR EVERY RED-PROOF, AND FINISHED A 159-MINUTE RUN AFTER ITS ONE BLIND PROOF (#42, 2026-09-29)
+
+**SEEN (his order 2026-09-28: "do #42 right after v3522 lands"):** the v3522 push gate took ~2h50m. heart2 gives each lane its
+own sandbox but runs ALL proofs of one gate serially in the lane that owns it, and a proof is a clean AND a tampered run.
+The character builder's width law renders ~33 viewports per run (98 s MEASURED for one full run on his Mac) and carries 41
+red-proofs; the mule window's (110 s a run) carries 25. Attempt 1 of the push ran 159 min and was refused on ONE blind proof
+that a targeted run finds in ~3 min - the run finished all 381 others first. And on 2026-09-28 four parallel Chrome lanes
+drove his Mac to load 100; an uncommitted first cut of this fix (found in the worktree, never shipped) spread one gate's
+proofs across the lanes - that same shape - and was taken out before anything ran.
+**FIX:** `heart2.py --prove NAMES --push` - hooks/pre-push passes the flag on its heart2 call and nowhere else.
+  · a red-proof may declare `"widths"`: the viewports its defect shows at, MEASURED (every tampered law run at one viewport
+    alone, serially, one Chrome; the full sweep's own failure labels where no single probe went red). Its clean AND tampered
+    runs get TV_LAW_WIDTHS naming them (tv/law_widths.py, the one owner of the variable); the two width laws restrict every
+    width loop and one-viewport pass to them, skip a case measured nowhere in the set, and count each PREMISE over the
+    viewports measured. A proof that declares none runs at every width - never skipped.
+  · FAIL CLOSED: a declared width at which the tamper stays green is BLIND and the push refuses as it always has; an
+    UNPROVABLE at the declared widths is re-proved at EVERY width and that verdict stands.
+  · FAIL FAST (P2): the likeliest failures run first - an anchor that no longer matches as declared, an entry new or changed
+    since @{push} / origin/main, a proof whose tampered file changed - and the run STOPS at the first BLIND / INVALID /
+    clean-run red, printed at once and again as the last lines the hook's tail shows. Every proof not reached is NOT RUN:
+    never banked (an empty result is never written over the census), never PROVEN, and the exit is 1. With no failure every
+    proof still runs.
+  · ONE BROWSER AT A TIME: a gate whose import graph reaches render_check / playwright (any number of helpers deep -
+    REG-1442; the first cut read the gate's own imports only) or that declares widths holds one lock while it is proved,
+    whatever the lane count; every other gate keeps its lane. So a push touching BOTH width laws proves them BACK TO BACK
+    under that one lock, never side by side: ~66 min (the builder's 39.9 + the mule's 25.7 measured below, added).
+  · run_gates.run() scrubs TV_LAW_WIDTHS before its first gate, heart2's _run_gate removes it from every run it did not
+    restrict itself, no CI workflow names it: the full sweep stays the verdict of record.
+**MEASURED (his Mac, one Chrome, HEART2_PROVE_WORKERS=1, load 6-30 from other sessions - 6-82 while the BEFORE sample ran):**
+  · BEFORE - THE BASELINE IS ~105 min, MEASURED: the v3522 push's builder thread (one lane, all 41 proofs at every width).
+    The ~141 min this entry and its fix commit first gave was EXTRAPOLATED - 5 proofs timed (indices 0/10/20/30/40 =
+    1032 s, 206 s a proof) x41, under load 6-82 from other sessions - and is not the baseline (corrected after the
+    adversarial review). One full run of each law: builder 98 s, mule 110 s.
+  · AFTER - `heart2.py --prove test_the_character_builder_fits_at_every_width --push`: 41/41 PROVEN at their declared
+    viewports in 2395 s (39.9 min, against the ~105 min measured), exit 0. Per proof: 1280x800 39 s (19 proofs), 375x812 58 s (5), 1024x768 32 s (1),
+    2000x1300 83 s (16 - the keyboard, pointer, hover and tile passes all run at 2000, and they are 55% of the time).
+  · FAIL CLOSED, SEEN LIVE: the first push-time run of the mule law stopped at proof 13 after 779 s, BLIND at its
+    declared 1280x800, exit 1 - the one-viewport probe that "measured" 1280x800 had gone red on
+    test_at_1280_the_fixed_panels' 6px font-reflow flake, not on the hover defect. Re-measured alone: red at 1280x695 in
+    its own test. A wrong declaration read BLIND, never PROVEN. ⚠ Proof 18 was moved to 1280x695 in the same breath with
+    the reason "the same flake" - FALSE, found by the adversarial review: that run stopped at 13 and never reached 18,
+    and 18's red at 1280x800 is its own defect (PROOF 18 RE-MEASURED below).
+  · MULE AFTER (13 and 18 re-declared): `--prove test_the_mule_window_fits_at_every_width --push` 25/25 PROVEN in 1540 s
+    (25.7 min), exit 0 - with 18 then at 1280x695. Before, not timed proof by proof: one full run is 108-135 s, so
+    ~25 x 2 x 110 s = ~92 min.
+  · PROOF 18 RE-MEASURED (after the review; alone, one Chrome, a sandbox copy, TV_LAW_WIDTHS=1280x800): clean GREEN in
+    15.2 s (23 tests, 12 skipped by the restriction); tampered RED in 13.8 s in
+    test_at_1280_the_fixed_panels_are_their_rects_times_the_unit - "mp-stats [958.2, 284.7, 273.8, 485.3], measured
+    [958.2, 284.7, 273.8, 662.5]": STATS 177 px taller, running under the glass - the defect itself, not the 6 px
+    EQUIPMENT reflow. Re-declared at 1280x800, where a run costs ~14 s. Re-proved through heart2's own push-time
+    path (_prove_push_one, index 18, one Chrome): PROVEN at 1280x800 in 26.2 s. NOT re-run: the full mule `--push`
+    (~26 min) - a full gate run held a browser on the main checkout; the other 24 proofs did not change.
+  · FAIL FAST, LIVE ON THE REAL BUILDER LAW: proof 40's declaration set to 1280x800 (measured GREEN there alone) in the
+    working tree, the push base at HEAD (the one stand-in: this branch has no @{push}, so a driver mapped it to HEAD). The
+    run ranked "1 entr(ies) new or changed" first, read it BLIND at 42.2 s, stopped, said "40 of 41 proof(s) NOT RUN" last,
+    and banked only that gate's BLIND - 46.6 s wall, where v3522 #1 paid 159 min. The declaration was restored.
+  · Both laws unrestricted after the change (the verdict of record): builder 27 tests OK in 105 s, mule 23 OK in 108 s.
+  · NOT MET: the 15-20 min target. A restricted run still pays ~15 s of the fixture's own settle sleeps plus page load,
+    twice per proof. The measured levers left: one clean run per (gate, widths) when the sandbox is byte-identical (P3's
+    verdict cache) - ~22 min projected for the builder from the per-run times above; and splitting 2000x1300's
+    one-viewport passes so a tile proof does not render the keyboard pass.
+**LAW:** test_a_push_proof_runs_only_where_its_defect_shows (18 cases, fixtures only - no browser; 17 red-proofs; with
+REG-1442 / REG-1443: 22 cases, 24 red-proofs).
+
 ### REG-1390 - A RECLOSE REPLAYED AN OLDER SESSION'S DROP AND UN-OWNED LOOT A NEWER SESSION CARRIES (H-1, review of 20c0df1e, 2026-09-29)
 
 **SEEN (reproduced on 20c0df1e, driven on 090ace9a):** window._sightingsRoute's drop branch and window._carriedLeave never

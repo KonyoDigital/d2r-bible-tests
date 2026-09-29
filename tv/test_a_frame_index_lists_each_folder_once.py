@@ -131,8 +131,8 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - every file is stat'd for its size again (34,143 stats, 33 s on his ALT)",
         "file": "frame_ref.py",
-        "find": "                    self.bytes += e.stat().st_size\n",
-        "replace": "                    self.bytes += os.path.getsize(full)\n",
+        "find": "            size = e.stat().st_size\n",
+        "replace": "            size = os.path.getsize(os.path.join(folder, e.name))\n",
         "matches": 1,
     },
     {
@@ -145,15 +145,15 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - a symlinked folder is walked into, which os.walk never did",
         "file": "frame_ref.py",
-        "find": "                        if not e.is_symlink():\n",
-        "replace": "                        if True:\n",
+        "find": "                if not e.is_symlink():\n",
+        "replace": "                if True:\n",
         "matches": 1,
     },
     {
         "why": "2026-09-28 - a reel's size is read one getsize per file again",
         "file": "reel_retention.py",
-        "find": "                total += e.stat().st_size\n",
-        "replace": "                total += os.path.getsize(os.path.join(here, e.name))\n",
+        "find": "                total += size\n",
+        "replace": "                total += os.path.getsize(os.path.join(here, name))\n",
         "matches": 1,
     },
 ]

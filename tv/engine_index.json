@@ -927,6 +927,21 @@
     "purpose": "Writes one small per-lane file recording WHAT A LOOP DECIDED (drift verdict, orphan count, shadow result) so an outside process can date the loop — the second, independent witness a corroborator needs.",
     "territory": "heart-organs"
   },
+  "law_widths.py": {
+    "entryPoints": [
+      "parse",
+      "only",
+      "pick",
+      "at",
+      "label",
+      "declared",
+      "scrub",
+      "banner"
+    ],
+    "gotcha": "A PROVING DEVICE, NEVER A VERDICT: run_gates.run() calls scrub() before its first gate and heart2's _run_gate drops TV_LAW_WIDTHS from every run it did not restrict itself, so the full width sweep stays the verdict of record (CI never sets it). Unset or empty means EVERY width; garbage refuses rather than silently narrowing.",
+    "purpose": "The one reader of TV_LAW_WIDTHS (#42): at push time heart2 --prove --push hands a width-law red-proof the viewports its defect was MEASURED to show at, and the width laws restrict every width loop to that set.",
+    "territory": "gates"
+  },
   "ledger_authority.py": {
     "entryPoints": [
       "authority",

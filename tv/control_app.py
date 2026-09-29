@@ -1013,6 +1013,28 @@ def _git_run(argv, **kw):
     """subprocess.run for git. On Windows the child must not own a console. See tv/git_quiet.py."""
     return _git_quiet.run(argv, **kw)
 
+
+#: ⚠⚠ #64 follow-up — ONE PULL AT A TIME ON THIS CHECKOUT. Two doors pull it: _pull_once (the drift
+#: thread, every 300 s) and fleet_pull (/api/update, the banner's POST). Both judge and REMOVE a stale
+#: index.lock, and nothing stopped them running at once: door A could stat a lock, door B's own git
+#: could take a NEW one in the same path, and A would remove a lock a live git owned. Re-entrant, so
+#: the lock judge can hold it too without a door deadlocking on itself.
+_GIT_PULL_DOOR = threading.RLock()
+
+
+def _one_pull_at_a_time(fn):
+    """Run `fn` holding _GIT_PULL_DOOR, so no two pulls (or lock judgements) touch one checkout at once.
+
+    The lock is read from the module at CALL time, so every decorated door shares the one object.
+    """
+    import functools as _functools
+
+    @_functools.wraps(fn)
+    def _held(*a, **k):
+        with _GIT_PULL_DOOR:
+            return fn(*a, **k)
+    return _held
+
 # v1418 — FLEET UNITY: how far is this install behind GitHub origin/main?
 # Cached so /api/status never blocks on a slow fetch every 12s poll.
 _FLEET_CACHE = {"t": 0.0, "val": None}
@@ -1040,6 +1062,7 @@ def _git_tracked_dirty():
         return False
 
 
+@_one_pull_at_a_time
 def fleet_pull():
     """v2102 — fast-forward this checkout to origin/main, or explain precisely why not.
 
@@ -1067,6 +1090,14 @@ def fleet_pull():
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
         if (dirty.stdout or "").strip():
+            # #64 follow-up — the same question the lane asks: is this "dirty" tree an update that
+            # was CUT OFF mid-checkout (a 0-byte stale lock beside it)? Report only, never cleared.
+            _door_cut = _interrupted_update(REPO, dirty.stdout)
+            if _door_cut:
+                _pull_note_interrupted(_door_cut)
+                out["outcome"] = "interrupted"
+                out["msg"] = _door_cut["say"]
+                return out
             out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
                           "Commit or stash them, then update.")
             return out
@@ -1076,11 +1107,27 @@ def fleet_pull():
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
         out["before"] = (before.stdout or "").strip()
+        # #64 — THE IN-APP DOOR MEETS THE SAME ABANDONED LOCK THE LANE DOES, so it asks the SAME
+        # function, before the pull and again when git's error names index.lock (one retry, only
+        # after a clearing). The decision is recorded on the lane's record, not a second store.
+        _lk = _clear_stale_git_lock(REPO)
+        _pull_note_lock(_lk)
         r = _git_run(
             ["git", "pull", "--ff-only"],
             cwd=REPO, capture_output=True, text=True, timeout=180,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
+        if r.returncode != 0 and _names_index_lock(r):
+            _lk = _clear_stale_git_lock(REPO)
+            _pull_note_lock(_lk)
+            if _lk.get("cleared"):
+                r = _git_run(
+                    ["git", "pull", "--ff-only"],
+                    cwd=REPO, capture_output=True, text=True, timeout=180,
+                    creationflags=_WIN_CREATE if IS_WIN else 0,
+                )
+        if _lk.get("present") is not False and _lk.get("say") and _lk.get("path"):
+            out["lock"] = _lk.get("say")
         after = _git_run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
@@ -1088,7 +1135,9 @@ def fleet_pull():
         )
         out["after"] = (after.stdout or "").strip()
         if r.returncode != 0:
-            out["msg"] = ((r.stderr or r.stdout or "git pull failed").strip().splitlines() or [""])[-1][:160]
+            out["msg"] = ((_git_err_line(r, 160)
+                           or ((r.stdout or "git pull failed").strip().splitlines() or [""])[-1][:160])
+                          + _lock_left_words(_lk))
             return out
         out["ok"] = True
         out["pulled"] = bool(out["before"] and out["after"] and out["before"] != out["after"])
@@ -1577,6 +1626,14 @@ def _env_clean(sim=False, door=""):
         env["TV_STUB"] = "1"
     else:
         env.pop("TV_STUB", None)
+    # ⚠ #63 — A TV_STUB CONSOLE'S LIVE AGENT NEVER READS THE REAL SCREEN EITHER. MEASURED 2026-09-29: a
+    # harness console (TV_STUB=1 in ITS environment) that presses ON AIR spawns an agent with TV_STUB
+    # popped (the line above), so that agent ran the REAL capture path — on his Mac it filmed whatever
+    # game window was up and read it, and test_roundtrip_sim's verdict followed his screen. It gets
+    # TV_CAPTURE=off, the door #236 already proved never touches a window, so his Mac behaves like CI's
+    # runner (no screen, no frames). TV_STUB_REAL_CAPTURE=1 on the console is the one explicit way back.
+    if not sim and _stub_never_films(False):
+        env["TV_CAPTURE"] = "off"
     # ⚠⚠ v2772 — THE CHILD'S LAST WORDS WERE BEING DESTROYED, WHICH IS WHY EVERY CAPTURE FAILURE
     # HAS BEEN UNDIAGNOSABLE. The agent is spawned with `stdout=_log_fp` (a FILE, not a tty), so
     # Python block-buffers it — and the agent exits through `os._exit()`, which skips the flush.
@@ -3125,8 +3182,12 @@ def board_mask(ledger="sets"):
     # [[headless-console-looks-like-lost-data]] [[unknown-stays-unknown]]
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
+        # 2026-09-29 — a console that was STARTED to open a window and has not got it yet is opening, not
+        # headless; telling him to "relaunch it WITH a window" over the window on his screen was wrong.
         return _mask_fallback(
             ledger,
+            "this console's window is still opening - the names are read once it is up"
+            if _window_expected() else
             "this console has no native window (headless or --no-open), so it can COUNT its "
             "pieces but can never NAME them - relaunch it WITH a window")
     js = ("(function(){try{"
@@ -3351,8 +3412,23 @@ def _pull_report():
     if fl.get("ok") is False:
         return {"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])}
     if fl.get("dirty"):
+        # #64 follow-up — a "dirty" tree the lane found beside a stale 0-byte lock is an update CUT OFF
+        # mid-checkout, not his edits; the fleet is told which (the worker keeps 160 chars of why)
+        with _PRUNE_LOCK:
+            _cut = _PULL.get("outcome") == "interrupted"
+        if _cut:
+            return {"can": False, "behind": fl.get("behind"),
+                    "why": ("update CUT OFF mid-checkout: a stale 0-byte index.lock beside a half-written "
+                            "tree - a person has to look")[:160]}
         return {"can": False, "behind": fl.get("behind"),
                 "why": "local tracked edits — a fast-forward would not be safe here"}
+    # ⚠ #64 — THE LANE'S OWN FAILURES OUTRANK THE CACHED ORIGIN VIEW. For eleven hours his ALT's
+    # beacon said "N commits behind and clear to pull" while every pull there failed on an abandoned
+    # index.lock: this read only fleet_origin_status(), which can see how far behind a machine is and
+    # never whether its pulls WORK. Past the lane's bar it is refused, with the reason.
+    _failing = _pull_failing_words()
+    if _failing:
+        return {"can": False, "behind": fl.get("behind"), "why": _failing}
     n = fl.get("behind")
     if not n:
         return {"can": True, "behind": 0, "why": "level with origin"}
@@ -3556,7 +3632,35 @@ def _console_beacon_async(event):
     threading.Thread(target=_console_beacon, args=(event,), daemon=True).start()
 
 
+def _window_expected(argv=None):
+    """Was this console started to OPEN a window (the launchers pass --open)? -> bool. Pure over argv."""
+    a = sys.argv if argv is None else argv
+    return ("--open" in a or "-o" in a) and "--no-open" not in a and "--window-only" not in a
+
+
+def _boot_beacon_wait(timeout=60.0, sleep=time.sleep, clock=time.time):
+    """2026-09-29 — THE FIRST BEACON WAITS FOR THE WINDOW IT IS ABOUT TO HAVE. After a relaunch his fleet row read
+    "konyo-3 · this console has no native window (headless or --no-open) ... relaunch it WITH a window" over a
+    console whose window was on his screen: the boot beacon went out in the first second, before the window, the
+    board and the install identity were up, and the next beacon is four minutes away. A console opening a window
+    now waits for it (bounded - a window that never comes must not silence the fleet). -> the reason it went."""
+    if not _window_expected():
+        return "no window expected"
+    t0 = clock()
+    while clock() - t0 < timeout:
+        w = globals().get("_MAIN_WIN")
+        if w is not None:
+            if globals().get("_HIDDEN_BOOT"):
+                return "window created hidden"
+            ev = getattr(getattr(w, "events", None), "shown", None)
+            if ev is None or ev.is_set():
+                return "window up"
+        sleep(1.0)
+    return "the window did not come up in %ds - beaconing anyway" % int(timeout)
+
+
 def _console_beacon_loop():
+    _boot_beacon_wait()
     _console_beacon("boot")
     _last_mode = [None]
     while True:
@@ -4072,10 +4176,35 @@ def _capture_off(env=None):
     return (str((env or os.environ).get("TV_CAPTURE") or "")).strip().lower() in ("off", "none")
 
 
+def _stub_never_films(sim=False, env=None):
+    """#63 — must an agent started with this `sim` flag stay off the real screen? -> bool
+
+    True for a stub agent (sim, or TV_STUB in the environment it gets) unless TV_STUB_REAL_CAPTURE=1
+    says otherwise, explicitly. The SAME rule tv_diablo._stub_capture_only() applies inside the agent;
+    this is the console's half of it (which agents it hands TV_CAPTURE=off, and whether the Windows
+    capture half is started at all). [[copy-drift]] — both read the same two variables, nothing else.
+    """
+    e = os.environ if env is None else env
+    if str(e.get("TV_STUB_REAL_CAPTURE") or "").strip() == "1":
+        return False
+    return bool(sim or e.get("TV_STUB"))
+
+
 def _start_capture(env, log_fp):
     """Windows only: hidden capture_win.ps1 loop."""
     global _capture_proc
     if not IS_WIN:
+        return None
+    # ⚠ #63 — A STUB AGENT'S CAPTURE HALF IS NOT STARTED. On Windows the SCREEN is read by this
+    # script, not by the agent (which only consumes the files it drops), so this is where a SIM/stub
+    # agent would film his real desktop. Said in the log, never silent; TV_STUB_REAL_CAPTURE=1 restores it.
+    if _stub_never_films(env=env) and not _capture_off(env):
+        try:
+            log_fp.write("capture_win.ps1 NOT started: a TV_STUB agent never reads the real screen "
+                         "(TV_STUB_REAL_CAPTURE=1 to film it)\n")
+            log_fp.flush()
+        except Exception:
+            pass
         return None
     # REG-1272 — the second eye on cb6690d3 (grok-4.7, #231 5824107955), confirmed here: under
     # TV_CAPTURE=off the script exits 0 before any grab (REG-1252), and the lamp below read every exit
@@ -4165,6 +4294,12 @@ def _capture_health():
         return ""
     if _capture_off():
         # REG-1272 — off is a SETTING, not a death: nothing to restart, and never DEAD.
+        _CAP_RESTART_N = 0
+        _CAP_RESTART_TS = 0.0
+        return "OFF"
+    # #63 — a stub agent's capture half is never started (and a TV_STUB console's live agent runs
+    # with TV_CAPTURE=off): the same rule as REG-1272, so it is not a death to restart five times.
+    if _stub_never_films(sim=(_agent_mode == "sim")):
         _CAP_RESTART_N = 0
         _CAP_RESTART_TS = 0.0
         return "OFF"
@@ -4721,7 +4856,7 @@ def _win_frame(win):
         return None
 
 
-def window_action(what):
+def window_action(what, by="api-window"):
     """minimise / restore / toggle fullscreen on the console's own window. -> dict
 
     ⚠⚠ v3271 — WINDOWS AND LINUX HAD NO WAY OUT OF FULLSCREEN, AND THIS IS THE SECOND REPORT.
@@ -4758,10 +4893,15 @@ def window_action(what):
     # must never touch his window: a supervisor that minimises the thing it supervises is a
     # worse defect than the one it was watching for. It is accepted HERE, beside the real
     # actions, so the bad-name refusal keeps being judged before the environment.
-    if _name != "frame" and _name not in _ACTS:
+    if _name != "frame" and _name not in _ACTS and _name not in ("background", "front"):
         return {"ok": False, "did": None,
-                "why": "%r is not a window action — minimize, restore, fullscreen or frame"
-                       % what}
+                "why": "%r is not a window action — minimize, restore, fullscreen, background, front "
+                       "or frame" % what}
+    # 2026-09-29 — the background service: ✕ / Esc send the window here, the launchers bring it back.
+    if _name == "background":
+        return console_to_background(by)
+    if _name == "front":
+        return console_to_front(by)
     _fn = _ACTS.get(_name)
     win = globals().get("_MAIN_WIN")
     if win is None:
@@ -4816,6 +4956,338 @@ def window_action(what):
                 out["why"] = ("left fullscreen, but Window.move raised %s - the window stays where Windows "
                               "put it" % type(e).__name__)
     return out
+
+
+# ⚠⚠ 2026-09-29 — THE CONSOLE IS A BACKGROUND SERVICE; THE WINDOW IS ONLY A VIEW OF IT.
+#
+# Konyo: *"make sure after the console is up and running there is a default ON true for shadow reader
+# and tooltips pass on and background service running with the console hidden always by design ... that
+# way sessions are always working and running based on games and sessions being done regardless if the
+# console is on or not."*
+#
+# ✕ used to END everything: v935.8 made closing the window stop ON AIR ("exiting the console must stop ON
+# AIR"), so a closed window meant no shadow reel, no triage, no drain - the sessions he plays with the
+# console shut were never filmed. His new ruling supersedes that one: ✕ and Esc now send the console to
+# the BACKGROUND and every lane keeps running. A REAL quit is still one click away (⏻ quit in the console,
+# /api/quit with a `from`), and TV_CLOSE_EXITS=1 restores the old ✕.
+#
+# ⚠ COMPLETELY HIDDEN - his second word on it, 2026-09-29 02:55, with a screenshot of a window left on his
+# screen: "make sure this thing and window is completely hidden". No window, no taskbar button, and on the Mac
+# no Dock icon (the app turns into an accessory while hidden - a Dock icon whose click shows nothing is a dead
+# icon). v1460 removed a hide() fallback for exactly that reason - "the Desktop icon then did nothing forever"
+# - so the way back is BUILT, not hoped for: GET /api/window says "background", the Desktop icon (Mac
+# launcher, Windows launcher) and a second launch POST {do: front} to the running console, which shows its own
+# window in-process. A cross-process ShowWindow does not reliably un-hide a WinForms window (v1460's own
+# note), and the launcher only replaces the console when that request is NOT answered.
+#
+# ⚠ macOS: a fullscreen window is taken OUT of fullscreen before it is hidden (an ordered-out fullscreen window
+# can leave an empty Space) and goes back to fullscreen when it returns. MEASURED 2026-09-29 on his MacBook: a
+# fullscreen window's frame is 1470x887 on a 1470x956 screen (the notch), so frame-vs-screen reads False; and
+# pywebview's `is_fullscreen` flag goes stale the moment the green traffic light is used. The truth is the
+# window's own style mask (NSWindowStyleMaskFullScreen), read on the main thread. [[verify-not-proxy]]
+_BACKGROUND = {"on": False, "since": None, "by": None, "wasFullscreen": None}
+
+
+def close_means_background(exit_requested=None, window_only=False, env=None):
+    """What ✕ does. -> (background: bool, why). Pure - judged without a window."""
+    env = os.environ if env is None else env
+    if exit_requested:
+        return False, ("a real quit was asked for (%s) - the whole console stops, recording included"
+                       % str(exit_requested)[:60])
+    if window_only:
+        return False, ("this window is a second view attached to another console - closing it closes only "
+                       "this view, and the console that owns the lanes keeps running")
+    if str(env.get("TV_CLOSE_EXITS") or "").strip().lower() not in ("", "0", "false", "no", "off"):
+        return False, ("TV_CLOSE_EXITS is set in this console's environment, so ✕ quits everything as it "
+                       "did before 2026-09-29")
+    return True, ("✕ sends the console to the background - the shadow reader, triage and drain keep "
+                  "running; ⏻ quit is what stops them")
+
+
+def _mac_fullscreen_bit(win, timeout=1.0):
+    """macOS only: the window's own NSWindowStyleMaskFullScreen bit, read ON THE MAIN THREAD (AppKit's
+    thread - the same AppHelper.callAfter route pywebview uses for every call it makes). -> True / False /
+    None when it could not be asked in `timeout` seconds. A read; it never changes the window."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        from PyObjCTools import AppHelper
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        nsw = getattr(inst, "window", None)
+        if nsw is None:
+            return None
+        box, ev = {}, threading.Event()
+
+        def _read():
+            try:
+                box["mask"] = int(nsw.styleMask())
+            except Exception:
+                pass
+            ev.set()
+        AppHelper.callAfter(_read)
+        if not ev.wait(timeout) or "mask" not in box:
+            return None
+        return bool(box["mask"] & (1 << 14))
+    except Exception:
+        return None
+
+
+def _mac_set_dock_icon(show):
+    """macOS only: an app with its window hidden drops out of the Dock (Accessory policy) and comes back into
+    it when the window returns (Regular) - the same NSApplication call pywebview makes when it starts, on the
+    main thread. -> True when it was asked."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        import AppKit
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(AppKit.NSApplication.sharedApplication().setActivationPolicy_, 0 if show else 1)
+        return True
+    except Exception:
+        return False
+
+
+def _win_is_fullscreen(win, screens=None):
+    """Is the window fullscreen RIGHT NOW? -> True / False / None (UNKNOWN). Never raises.
+
+    macOS: the window's own style bit (see _mac_fullscreen_bit - frame and flag both lie there). Windows:
+    pywebview's flag, because its toggle (the W button) is the only way into fullscreen on that platform.
+    Last resort: a frame that fills one of the screens."""
+    bit = _mac_fullscreen_bit(win)
+    if bit is not None:
+        return bit
+    try:
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        flag = getattr(inst, "is_fullscreen", None)
+        if flag is not None:
+            return bool(flag)
+    except Exception:
+        pass
+    fr = _win_frame(win)
+    if fr is not None:
+        try:
+            if screens is None:
+                import webview as _wv
+                screens = [(int(s.width), int(s.height)) for s in (_wv.screens or [])]
+            if screens:
+                return any(abs(fr[0] - w) <= 2 and abs(fr[1] - h) <= 2 for (w, h) in screens)
+        except Exception:
+            pass
+    return None
+
+
+def _win_sync_fullscreen_flag(win, actual):
+    """Tell pywebview what the window really is before asking it to toggle. Its toggle picks the macOS
+    collection behaviour FROM this flag, so a flag the green button left stale makes the next toggle ask for
+    the wrong thing. A plain attribute write on pywebview's own object - no call into AppKit or WinForms."""
+    if actual is None:
+        return False
+    try:
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        if inst is not None and hasattr(inst, "is_fullscreen"):
+            inst.is_fullscreen = bool(actual)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def window_mode_payload():
+    """How the console's window stands, for the status route, the launchers and the doctor. -> dict"""
+    if globals().get("_WINDOW_ONLY"):
+        mode = "window-only"
+    elif globals().get("_MAIN_WIN") is None:
+        mode = "headless"
+    elif _BACKGROUND.get("on"):
+        mode = "background"
+    else:
+        mode = "front"
+    say = {
+        "background": ("minimized since %s (%s) - the service is running; the Dock / taskbar brings it back"
+                       if _BACKGROUND.get("by") == "minimized" else
+                       "hidden since %s (%s) - the service is running; the Desktop icon brings it back") % (
+                          time.strftime("%H:%M", time.localtime((_BACKGROUND.get("since") or 0) / 1000.0))
+                          if _BACKGROUND.get("since") else "?", _BACKGROUND.get("by") or "?"),
+        "front": "the window is up",
+        "headless": "no native window on this console (headless or --no-open)",
+        "window-only": "a second view attached to another console",
+    }[mode]
+    return {"ok": True, "mode": mode, "since": _BACKGROUND.get("since") if mode == "background" else None,
+            "by": _BACKGROUND.get("by") if mode == "background" else None,
+            "wasFullscreen": _BACKGROUND.get("wasFullscreen"), "say": say}
+
+
+def _mark_background(by, was_fullscreen=None):
+    _BACKGROUND.update(on=True, since=int(time.time() * 1000), by=str(by or "?")[:80],
+                       wasFullscreen=was_fullscreen)
+
+
+def console_to_background(by="window-close", sleep=time.sleep):
+    """Send the window to the background; every lane keeps running. -> honest receipt, never raises."""
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
+                                               "--no-open) - it already runs as a background service"}
+    fs = _win_is_fullscreen(win)
+    _mark_background(by, was_fullscreen=fs)
+    did = []
+    try:
+        if fs and sys.platform == "darwin":
+            _win_sync_fullscreen_flag(win, True)
+            win.toggle_fullscreen()
+            did.append("left-fullscreen")
+            for _ in range(15):                    # the exit animation, ~1 s; never more than 3 s
+                sleep(0.2)
+                if _win_is_fullscreen(win) is False:
+                    break
+            sleep(0.5)                             # let the animation settle before the window goes
+        win.hide()
+        did.append("hidden")
+        if _mac_set_dock_icon(False):
+            did.append("no-dock-icon")
+    except Exception as e:
+        return {"ok": False, "did": did, "why": "hiding the window raised %s" % type(e).__name__}
+    try:
+        print("📺 the console is HIDDEN (%s) - it keeps running: shadow reader, triage and drain carry on. "
+              "The Desktop icon brings it back; ⏻ quit stops everything." % by, flush=True)
+    except Exception:
+        pass
+    return {"ok": True, "did": did, "why": ""}
+
+
+def console_to_front(by="launcher", sleep=time.sleep):
+    """Bring a backgrounded window back, fullscreen again if that is how it left. -> receipt, never raises."""
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
+                                               "--no-open), so there is nothing to bring forward"}
+    did = []
+    was_fs = _BACKGROUND.get("wasFullscreen")
+    try:
+        if _mac_set_dock_icon(True):
+            did.append("dock-icon")
+        win.show()                                 # in-process: Show()+Activate() / makeKeyAndOrderFront
+        did.append("shown")
+        if IS_WIN:
+            # a window HE minimized comes back through SW_RESTORE, which returns a fullscreen (borderless,
+            # maximized) form to fullscreen; pywebview's restore() would force Normal - a borderless half-window
+            _win_focus_existing_console()
+        else:
+            win.restore()                          # deminiaturize - harmless on a window that was not minimized
+        _BACKGROUND.update(on=False, since=None, by=None)
+        _refullscreen_after_restore(win, was_fs, sleep=sleep, did=did)
+    except Exception as e:
+        return {"ok": False, "did": did, "why": "bringing the window forward raised %s" % type(e).__name__}
+    return {"ok": True, "did": did, "why": "", "by": str(by)[:60]}
+
+
+def _refullscreen_after_restore(win, was_fs, sleep=time.sleep, did=None):
+    """A window that LEFT fullscreen to go to the background goes back to fullscreen when it returns."""
+    if not was_fs or globals().get("_RE_FULLSCREEN_BUSY"):
+        return False
+    globals()["_RE_FULLSCREEN_BUSY"] = True
+    try:
+        sleep(0.6)                                  # let the restore animation land first
+        if _win_is_fullscreen(win) is False:
+            _win_sync_fullscreen_flag(win, False)
+            win.toggle_fullscreen()
+            if did is not None:
+                did.append("fullscreen-again")
+            return True
+        return False
+    finally:
+        globals()["_RE_FULLSCREEN_BUSY"] = False
+
+
+def _on_console_window_closing():
+    """pywebview's `closing` handler. Returning False CANCELS the close (pywebview 6: `events.closing.set()`
+    answers True when any handler returned False). -> bool: may the window close?"""
+    bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
+    if not bg:
+        _request_console_exit("window-closing")
+        return True
+    try:
+        _BG_SPAWN(lambda: console_to_background("window-close"))
+    except Exception:
+        # the background move could not even be scheduled: better a closed console he can relaunch than
+        # a ✕ that silently does nothing
+        _request_console_exit("window-closing")
+        return True
+    return False
+
+
+def quiet_relaunch_reason(already=None, background=None):
+    """Why the NEXT image should open minimized and unfocused, or None. -> str | None. Pure.
+
+    An earlier reason (the shadow-reel relaunch sets its own) is kept; a backgrounded console adds one of its
+    own, so an update that lands while the window is down never pops it up over his game."""
+    if already:
+        return already
+    bg = background or {}
+    if bg.get("on"):
+        return "the console was in the background (%s) - an update keeps it there" % (bg.get("by") or "?")
+    return None
+
+
+def ask_running_console_front(port, who, timeout=4.0, _urlopen=None):
+    """Ask the console already serving `port` to bring its window forward. -> {"ok", "why", ...}. Never raises.
+    `_urlopen` is the seam a law drives without a live console."""
+    import urllib.request as _ur
+    _open = _urlopen or _ur.urlopen
+    try:
+        req = _ur.Request("http://127.0.0.1:%d/api/window" % int(port),
+                          data=json.dumps({"do": "front", "from": str(who)[:60]}).encode("utf-8"),
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with _open(req, timeout=timeout) as r:
+            j = json.loads(r.read().decode("utf-8") or "{}")
+        return j if isinstance(j, dict) else {"ok": False, "why": "the console answered something that is not a dict"}
+    except Exception as e:
+        return {"ok": False, "why": "the running console could not be asked (%s)" % type(e).__name__}
+
+
+def hidden_relaunch_env(background, env, argv):
+    """Before an os.execv: a HIDDEN window relaunches hidden (TV_START_HIDDEN); a window he brought forward
+    relaunches shown, even if this console was first started with --background - argv crosses os.execv, so the
+    flag is dropped here (every exec site builds its argv from sys.argv AFTER _before_exec returns). A window HE
+    minimized is not hidden and relaunches as the quiet path decides. Mutates `env` / `argv`; -> the hidden reason
+    or None."""
+    bg = background or {}
+    if bg.get("on") and bg.get("by") != "minimized":
+        env["TV_START_HIDDEN"] = "the console was hidden (%s)" % (bg.get("by") or "?")
+        return env["TV_START_HIDDEN"]
+    env.pop("TV_START_HIDDEN", None)
+    while "--background" in argv:
+        argv.remove("--background")
+    return None
+
+
+def _bg_spawn_thread(fn):
+    """Off the UI thread: the close handler must return at once, and the macOS fullscreen exit animates."""
+    threading.Thread(target=fn, daemon=True, name="tvd-to-background").start()
+
+
+_BG_SPAWN = _bg_spawn_thread
+
+
+def _on_console_minimized():
+    """The OS minimized the window (his minimize button, or ours). That IS the background."""
+    if not _BACKGROUND.get("on"):
+        _mark_background("minimized", was_fullscreen=False)
+
+
+def _on_console_restored():
+    """The OS restored the window (a Dock / taskbar click). Clear the background and, if the window left
+    fullscreen to get there, go back to fullscreen."""
+    if not _BACKGROUND.get("on"):
+        return
+    was_fs = _BACKGROUND.get("wasFullscreen")
+    _BACKGROUND.update(on=False, since=None, by=None)
+    win = globals().get("_MAIN_WIN")
+    if win is not None and was_fs:
+        try:
+            _BG_SPAWN(lambda: _refullscreen_after_restore(win, was_fs))
+        except Exception:
+            pass
 
 
 def _mark_window_gone(reason=""):
@@ -4891,6 +5363,10 @@ def _request_console_exit(reason="quit", hard_delay=None):
     _FORCE_EXIT_ARMED (not _arm_force_exit's return value — that is False on the
     idempotent second call, which is a success, not a failure). Callers that do not
     care may keep ignoring the return."""
+    # 2026-09-29 — SAY THAT A REAL EXIT WAS ASKED FOR, BEFORE ANYTHING ELSE. ✕ now sends the console to the
+    # background (close_means_background); destroy() below fires the same `closing` event, and this is how
+    # that handler knows to let the window go instead of minimizing it.
+    globals()["_EXIT_REQUESTED"] = str(reason or "quit")[:60]
     win = globals().get("_MAIN_WIN")
     errs = []
     marked = False
@@ -6971,9 +7447,24 @@ def _control_window_kwargs(url):
     globals()["_QUIET_BOOT"] = _quiet
     if _quiet:
         kwargs.update(minimized=True, focus=False)
+        # 2026-09-29 — a window born minimized is in the BACKGROUND from its first second, and when it comes
+        # back it goes to the fullscreen he likes unless TV_WINDOWED asked otherwise.
+        _mark_background("quiet relaunch: %s" % str(_quiet)[:60], was_fullscreen=not _windowed)
         print("   quiet relaunch - %s: the console opens minimized and does not take focus" % _quiet,
               flush=True)
-    if not _windowed and not _quiet:
+    # 2026-09-29 — A HIDDEN CONSOLE COMES BACK HIDDEN. His words: "a one time update to the newer version should
+    # keep it backgrounded" and "completely hidden". TV_START_HIDDEN crosses os.execv from _before_exec when the
+    # window was hidden; `--background` is the same start for a launch that should never show (a sign-in start).
+    # Hidden wins over minimized, and no fullscreen at creation - pywebview would enter fullscreen, which shows it.
+    _hidden = os.environ.pop("TV_START_HIDDEN", None) or ("a --background launch" if "--background" in sys.argv
+                                                          else None)
+    globals()["_HIDDEN_BOOT"] = _hidden
+    if _hidden:
+        kwargs.pop("minimized", None)
+        kwargs.update(hidden=True, focus=False)
+        _mark_background("started hidden: %s" % str(_hidden)[:60], was_fullscreen=not _windowed)
+        print("   started HIDDEN (%s) - the service runs; the Desktop icon brings the window" % _hidden, flush=True)
+    if not _windowed and not _quiet and not _hidden:
         kwargs["fullscreen"] = True
         # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
         # the macOS title bar he reported ("this TV diablo banner on top is now here when it
@@ -7138,6 +7629,11 @@ def open_control_window():
             background_color="#070605",
         )
 
+    # 2026-09-29 — a console STARTED hidden (a hidden relaunch, --background) leaves the Dock too. Queued on the
+    # main thread; it runs as soon as the app's run loop does.
+    if globals().get("_HIDDEN_BOOT"):
+        _mac_set_dock_icon(False)
+
     # v935.8 / v1410 / v1420 — window ✕ UX:
     #   v1410: mark gone FIRST + async stop (no UI-thread stop_agent → hang reports)
     #   v1420: ALSO arm hard os._exit deadline — Cocoa often never returns webview.start()
@@ -7145,13 +7641,19 @@ def open_control_window():
     try:
         win = globals().get("_MAIN_WIN")
         if win is not None and hasattr(win, "events"):
-            def _on_win_closing():
-                _request_console_exit("window-closing")
-                return True  # allow close (pywebview may honor this on some backends)
+            # 2026-09-29 — ✕ SENDS THE CONSOLE TO THE BACKGROUND (see close_means_background). The
+            # handler answers False to CANCEL the close and minimizes instead; a real quit (⏻ quit,
+            # /api/quit, TV_CLOSE_EXITS=1, a window-only view) still closes and exits exactly as before.
+            _on_win_closing = _on_console_window_closing
             def _on_win_closed():
                 _request_console_exit("window-closed")
             try:
                 win.events.closing += _on_win_closing
+            except Exception:
+                pass
+            try:
+                win.events.minimized += _on_console_minimized
+                win.events.restored += _on_console_restored
             except Exception:
                 pass
             try:
@@ -16614,6 +17116,11 @@ def _reap_inherited_at_boot(posix=None):
 def _before_exec(where):
     """#224 — stop the warm workers this image holds, so os.execv leaves no <defunct> child behind.
 
+    2026-09-29 — AND A BACKGROUNDED CONSOLE COMES BACK BACKGROUNDED. Every os.execv site passes through
+    here, so this is where an update relaunch learns that the window was in the background: the new image
+    opens minimized and unfocused (TV_QUIET_RELAUNCH) instead of fullscreen over his game. His words: "a one
+    time update to the newer version should keep it backgrounded".
+
     ⚠⚠ MEASURED: 35 <defunct> `ocr_mac` children under his console, exactly one per in-place relaunch
     — the warm tv_diablo OCR worker was alive at every exec and the new image could not wait() it.
     Every os.execv site calls this first (a guard pins that); it never blocks the relaunch, and it
@@ -16634,6 +17141,10 @@ def _before_exec(where):
         _wr.boot_log("relaunch-exec", where=where)
     except Exception:
         pass
+    _q = quiet_relaunch_reason(os.environ.get("TV_QUIET_RELAUNCH"), _BACKGROUND)
+    if _q:
+        os.environ["TV_QUIET_RELAUNCH"] = _q
+    hidden_relaunch_env(_BACKGROUND, os.environ, sys.argv)
 
 
 def _exec_relaunch_now():
@@ -16783,6 +17294,102 @@ def _exec_relaunch_soon():
     threading.Thread(target=_go, daemon=True, name="tvd-rescue-relaunch").start()
 
 
+# ⚠⚠ 2026-09-29 — A CONSOLE THAT CANNOT ANSWER ITSELF (#71, REG-1435). His Mac console ran 24 h, window up, :17772 in
+# LISTEN with an empty queue (0/0/5) - and every request was accepted and RESET: the fleet read "unreachable", THE SHELF
+# would not open, W did nothing, TV·D said "Control server unreachable". No Python error was logged; a native sample
+# showed the server thread idle in poll(). He found it; nothing in the console did, because every watchdog it has
+# talks to it OVER that port. So the console now asks its own port, once a minute, on the rescue loop's tick (no new
+# thread). Three immediate refusals/resets in a row = deaf: the fault is recorded and the console relaunches itself
+# through _exec_relaunch_soon (which still refuses while a sweep or a mini is in flight), at most once per 10 minutes.
+# ⚠ A SLOW ANSWER IS NEVER DEAF. The ALT stalls for minutes under a GIL-bound scan (#66); a timeout neither counts nor
+# clears a strike, so a busy console is never relaunched for being busy. [[heart-first]] [[unknown-stays-unknown]]
+_SELF_PROBE = {"tick": 0, "strikes": 0, "lastKind": None, "lastTs": None, "lastOkTs": None, "lastMs": None,
+               "acted": None, "say": "not asked yet"}
+SELF_PROBE_EVERY_TICKS = 6          # the rescue loop ticks every 10 s -> once a minute
+SELF_PROBE_STRIKES = 3              # three refusals in a row
+SELF_PROBE_ACT_EVERY_S = 600        # and never more than one relaunch per ten minutes
+
+
+def server_self_probe(port, timeout=5.0, _connect=None):
+    """Ask this console's own port for its cheapest route. -> {"kind": answered|reset|refused|timeout|error, "ms"}.
+    `_connect` is the seam a law drives; the default is a real loopback socket."""
+    import socket as _so
+    t0 = time.time()
+    kind = "error"
+    try:
+        s = (_connect or (lambda: _so.create_connection(("127.0.0.1", int(port)), timeout=timeout)))()
+        try:
+            s.settimeout(timeout)
+            s.sendall(b"GET /api/window HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
+            data = s.recv(64)
+        finally:
+            try:
+                s.close()
+            except Exception:
+                pass
+        # an empty read is the server closing on us without a word - the deaf shape, same as a reset
+        kind = "answered" if data.startswith(b"HTTP/") else "reset"
+    except ConnectionResetError:
+        kind = "reset"
+    except ConnectionRefusedError:
+        kind = "refused"
+    except _so.timeout:
+        kind = "timeout"
+    except OSError as e:
+        kind = "reset" if getattr(e, "errno", None) in (54, 104, 10054) else "error"
+    except Exception:
+        kind = "error"
+    return {"kind": kind, "ms": int((time.time() - t0) * 1000)}
+
+
+def self_probe_verdict(strikes, kind, act_after=SELF_PROBE_STRIKES):
+    """One probe's answer folded into the strike count. -> (strikes, act, why). Pure."""
+    n = int(strikes or 0)
+    if kind == "answered":
+        return 0, False, "this console answered its own port"
+    if kind in ("reset", "refused"):
+        n += 1
+        if n >= act_after:
+            return n, True, ("this console %s its own port %d times in a row - its server is deaf; relaunching it"
+                             % ("reset" if kind == "reset" else "refused", n))
+        return n, False, "this console could not answer its own port (%d of %d before it relaunches)" % (n, act_after)
+    return n, False, ("the self-probe could not decide (%s) - a slow or busy console is not a deaf one, so this "
+                      "neither counts nor clears a strike" % kind)
+
+
+def _self_probe_tick(port=None, probe=None, relaunch=None, now_ms=None):
+    """One self-probe, its verdict, and the cure when it is due. -> the state. Never raises into the loop."""
+    try:
+        _port = CONTROL_PORT if port is None else port
+        r = probe(_port) if probe is not None else server_self_probe(_port)
+    except Exception as e:
+        r = {"kind": "error", "ms": None, "why": type(e).__name__}
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    n, act, why = self_probe_verdict(_SELF_PROBE.get("strikes"), r.get("kind"))
+    _SELF_PROBE.update(strikes=n, lastKind=r.get("kind"), lastTs=now, lastMs=r.get("ms"), say=why)
+    if r.get("kind") == "answered":
+        _SELF_PROBE["lastOkTs"] = now
+    if act:
+        last = _SELF_PROBE.get("acted")
+        if last and (now - int(last)) < SELF_PROBE_ACT_EVERY_S * 1000:
+            _SELF_PROBE["say"] = why + " - already acted %ds ago, waiting" % int((now - int(last)) / 1000)
+            return dict(_SELF_PROBE)
+        _SELF_PROBE["acted"] = now
+        try:
+            ui_fault_record("console-server-deaf", why=why, where="_self_probe_tick")
+        except Exception:
+            pass
+        try:
+            print("🩺 " + why, flush=True)
+        except Exception:
+            pass
+        try:
+            (relaunch or _exec_relaunch_soon)()
+        except Exception as e:
+            _SELF_PROBE["say"] = why + " - the relaunch could not be asked (%s)" % type(e).__name__
+    return dict(_SELF_PROBE)
+
+
 def _console_rescue_loop():
     """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
     because a self-heal nobody records is a fault that keeps being reported by HIM instead of
@@ -16791,6 +17398,9 @@ def _console_rescue_loop():
         try:
             time.sleep(10.0)
             _lane_tick('_console_rescue_loop', 10.0)
+            _SELF_PROBE["tick"] = int(_SELF_PROBE.get("tick") or 0) + 1
+            if _SELF_PROBE["tick"] % SELF_PROBE_EVERY_TICKS == 0:
+                _self_probe_tick()          # #71 — can this console still answer itself?
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -16804,7 +17414,10 @@ def _console_rescue_loop():
             # unjoined-end this check was written to close, one layer up.
             # [[the-unjoined-end]] [[plumbing-with-no-tap]]
             _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
-            if _UI_BLANK_TICK[0] % 6 == 0:
+            _bg_now = bool(_BACKGROUND.get("on"))
+            # 2026-09-29 — a minimized window has no pixels to judge; asking would record BLANK for a console
+            # that is working in the background, and a BLANK verdict is what arms the pixel rescue below.
+            if _UI_BLANK_TICK[0] % 6 == 0 and not _bg_now:
                 _pixel_blank_report()
             # v3301 — THE GREEN LIGHT, on a thread that already exists and is already
             # instrumented. Adding a 22nd thread to a roster that can only see 11 is the
@@ -16816,7 +17429,7 @@ def _console_rescue_loop():
             win = globals().get("_MAIN_WIN")
             if win is None:
                 continue
-            due, why = ui_rescue_due(capture_live=_capture_is_live())
+            due, why = ui_rescue_due(capture_live=_capture_is_live(), backgrounded=_bg_now)
             if not due:
                 # ⚠⚠ v2627 — ASK THE PIXELS WHEN NOTHING ELSE WILL, AND ONLY REPORT.
                 # His fault, measured 2026-09-04: a window drawing 185 BLANK frames reports
@@ -17066,13 +17679,19 @@ def _console_rescue_loop():
                 pass
 
 
-def ui_rescue_due(now=None, capture_live=False):
+def ui_rescue_due(now=None, capture_live=False, backgrounded=False):
     """Should the window be reloaded? Returns (True, why) or (False, why-not).
 
     Kept separate from the thread that acts on it so the decision can be tested without a
     window, a timer, or a wedged page. A rescue rule nobody can exercise is a rule nobody
     knows the shape of. [[feedback-blind-fixture-green-gate]]"""
     now = time.time() if now is None else now
+    # 2026-09-29 — A BACKGROUNDED CONSOLE IS NOT A BROKEN ONE. Minimized on purpose (✕ / Esc), its page stops
+    # painting and stops beating exactly as a frozen one would; reloading it would disturb a service that is
+    # working. Nothing on screen means nothing to rescue.
+    if backgrounded:
+        return False, ("the console is in the background by design - its page is not on screen, so a quiet "
+                       "page is expected and there is nothing to rescue")
     age = ui_beat_age()
     if age is None:
         return False, "no console has ever checked in - nothing to rescue"
@@ -20140,9 +20759,335 @@ def drift_state():
 
 _PULL = {"checked": None, "on": None, "worked": 0, "lastTs": None,
          "before": None, "after": None, "pulled": None, "owed": None,
-         "say": "nobody has looked yet"}
+         "say": "nobody has looked yet",
+         # #64 — the lane's own record of HOW its last attempt ended, and since when it has been failing.
+         # outcome: None (nobody tried) | pulled | level | failed | dirty | off | unknown (not a checkout)
+         # | interrupted (an update cut off mid-checkout: a stale 0-byte lock beside a "dirty" tree).
+         "outcome": None, "failSince": None, "failures": 0, "lastErr": None,
+         # the last stale-lock decision, and the last clearing kept as its own receipt
+         "lock": None, "lockCleared": None, "interrupted": None}
+
+#: ⚠⚠ #64 — MEASURED 2026-09-29 ON HIS ALT: `.git/index.lock` dated 2026-09-28 14:09, 0 bytes, and no
+#: git process running. Every automatic pull after that failed with "Unable to create ... index.lock:
+#: File exists", so the ALT sat on v3521 for 11 h. _pull_once RECORDED the failure in _PULL.say
+#: ("the fast-forward did not succeed ... UNKNOWN, NOT up to date") and NOTHING read it: no doctor row,
+#: no fleet field, and nothing cleared the lock. A lock git abandons (a SIGKILLed or crashed git) is
+#: sticky: git never removes it, so one crash wedged every later update. [[the-unjoined-end]]
+#: An EMPTY lock this old with no git running is abandoned; anything else is left, and why is said.
+#: Read at CALL time so a law can move it.
+_GIT_LOCK_STALE_S = 600
+#: #64 — how long the lane may fail before it is a finding. ONE bar, published with the lane
+#: (pull_state()["failBarS"]), so the doctor row and the fleet beacon cannot disagree about it.
+_PULL_FAIL_MISSING_S = 3600
 
 
+def _git_dir_of(repo):
+    """The directory a checkout keeps its index (and index.lock) in. -> path | None
+
+    A plain checkout's `.git` is that directory. A worktree's `.git` is a FILE whose first line
+    names it ("gitdir: ..."), so joining ".git" there would judge a path that never holds the lock.
+    """
+    g = os.path.join(repo, ".git")
+    if os.path.isdir(g):
+        return g
+    try:
+        with open(g, encoding="utf-8") as fh:
+            first = fh.read(4096).strip()
+    except OSError:
+        return None
+    if not first.startswith("gitdir:"):
+        return None
+    rest = first[len("gitdir:"):].strip()
+    p = rest.splitlines()[0].strip() if rest else ""
+    if not p:
+        return None
+    return p if os.path.isabs(p) else os.path.normpath(os.path.join(repo, p))
+
+
+def _git_running_here():
+    """Is ANY git process running on this machine right now? -> (True | False | None, how)
+
+    ⚠ THREE ANSWERS, AND ONLY False LICENSES REMOVING A LOCK. None is "the probe could not answer"
+    (no pgrep, a timeout, a snapshot that would not walk) and must never read as "nothing running" —
+    a check that cannot answer does not remove. [[unknown-stays-unknown]]
+
+    ⚠ WINDOWS ASKS THE PROCESS TABLE, NOT tasklist.exe. tasklist hangs under D2R load (v1414) and is
+    a console child besides; tv_diablo._win_process_names() is the Toolhelp32 snapshot the triage
+    lane already trusts, and it spawns nothing, so no window can open on top of his game. The real
+    git binary this codebase runs is mingw64's git.exe (git_quiet), and helpers are git-*.exe.
+    Mac/Linux: `pgrep -x git` — exit 0 a match, 1 none, anything else unknown.
+    """
+    if IS_WIN:
+        try:
+            import tv_diablo as _tvd
+            procs = _tvd._win_process_names()
+        except Exception as e:
+            return None, "the process snapshot would not run (%s)" % type(e).__name__
+        if not isinstance(procs, dict) or not procs:
+            return None, "a Toolhelp32 process snapshot could not be taken"
+        hits = sorted(int(pid) for pid, n in procs.items()
+                      if str(n or "").lower() == "git.exe"
+                      or (str(n or "").lower().startswith("git-") and str(n or "").lower().endswith(".exe")))
+        if hits:
+            return True, ("a Toolhelp32 snapshot lists git (pid %s)"
+                          % ", ".join(str(p) for p in hits[:4]))
+        return False, "a Toolhelp32 snapshot of %d processes lists no git" % len(procs)
+    try:
+        r = subprocess.run(["pgrep", "-x", "git"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=5)
+    except Exception as e:
+        return None, "pgrep could not run (%s)" % type(e).__name__
+    if r.returncode == 0:
+        pids = " ".join((r.stdout or "").split()[:4])
+        return True, "pgrep -x git found pid %s" % (pids or "?")
+    if r.returncode == 1:
+        return False, "pgrep -x git found none"
+    return None, "pgrep -x git exited %d" % r.returncode
+
+
+@_one_pull_at_a_time
+def _clear_stale_git_lock(repo=None, now=None):
+    """#64 — REMOVE .git/index.lock ONLY WHEN IT IS PROVABLY ABANDONED, AND SAY WHAT WAS DECIDED. -> dict
+
+    Abandoned means ALL of: it exists, it is EMPTY (a git writing a new index fills its lock, so a
+    non-empty one may be live work and is never removed), it is older than _GIT_LOCK_STALE_S (a
+    young one may belong to a git that is mid-operation), and no git process is running on this
+    machine (asked, and answered False — an unanswerable probe leaves it). It is re-read just before
+    removal, so a lock that changed while it was being judged is left.
+
+    Returns {at, present, cleared, lockMtime, bytes, ageS, path, say}. `present` None = the lock
+    could not be read (left). `say` is a sentence either way — a lock LEFT is said with its reason,
+    because a lane that silently declines is the same defect as one that silently fails.
+    """
+    now = time.time() if now is None else float(now)
+    out = {"at": int(now * 1000), "present": None, "cleared": False, "lockMtime": None,
+           "bytes": None, "ageS": None, "path": None, "say": ""}
+    gd = _git_dir_of(repo or REPO)
+    if not gd:
+        out["say"] = "no git directory was found here, so there is no lock to judge"
+        return out
+    lk = os.path.join(gd, "index.lock")
+    out["path"] = lk
+    try:
+        st = os.stat(lk)
+    except FileNotFoundError:
+        out["present"] = False
+        out["say"] = "no index.lock"
+        return out
+    except OSError as e:
+        out["say"] = "index.lock could not be read (%s), so it was LEFT" % type(e).__name__
+        return out
+    out["present"] = True
+    out["bytes"] = int(st.st_size)
+    out["lockMtime"] = int(st.st_mtime * 1000)
+    age = now - st.st_mtime
+    out["ageS"] = round(age, 1)
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))
+    if st.st_size != 0:
+        out["say"] = ("left the git lock from %s: it holds %d bytes, and a git writing a new index "
+                      "fills its lock, so a non-empty lock is never removed" % (when, st.st_size))
+        return out
+    if age < float(_GIT_LOCK_STALE_S):
+        out["say"] = ("left the git lock from %s: it is only %ds old (the bar is %ds), so a git may "
+                      "still be mid-operation" % (when, max(0, int(age)), int(_GIT_LOCK_STALE_S)))
+        return out
+    running, how = _git_running_here()
+    if running is None:
+        out["say"] = ("left the git lock from %s: whether a git process is running here could not be "
+                      "asked (%s), and a check that cannot answer never removes it" % (when, how))
+        return out
+    if running:
+        out["say"] = ("left the git lock from %s: a git process is running on this machine (%s) and "
+                      "may own it" % (when, how))
+        return out
+    try:
+        st2 = os.stat(lk)
+        # #64 follow-up — the INODE too: a lock removed and re-created between the two stats (another
+        # git taking it anew) can carry the same 0 bytes and even the same mtime; it is a different
+        # file, owned by someone else, and is left.
+        if st2.st_size != 0 or st2.st_mtime != st.st_mtime or st2.st_ino != st.st_ino:
+            out["say"] = "left the git lock from %s: it changed while it was being judged" % when
+            return out
+        os.remove(lk)
+    except FileNotFoundError:
+        out["present"] = False
+        out["say"] = "the git lock from %s was gone before it could be removed" % when
+        return out
+    except OSError as e:
+        out["say"] = "left the git lock from %s: removing it failed (%s)" % (when, type(e).__name__)
+        return out
+    out["cleared"] = True
+    out["say"] = ("cleared a stale git lock: index.lock from %s, 0 bytes, %s old, with no git "
+                  "process running (%s)" % (when, _ago_words(age), how))
+    try:
+        print("  git: %s" % out["say"], flush=True)
+    except Exception:
+        pass
+    return out
+
+
+def _pull_note_lock(lk):
+    """Put one stale-lock decision on the lane's record. -> None
+
+    A clearing is ALSO kept as its own receipt (`lockCleared`), so a later pass that finds no lock
+    cannot erase the fact that one was removed, when, and how old it was.
+    """
+    if not isinstance(lk, dict):
+        return
+    with _PRUNE_LOCK:
+        _PULL["lock"] = None if lk.get("present") is False else dict(lk)
+        if lk.get("cleared"):
+            _PULL["lockCleared"] = {"at": lk.get("at"), "lockMtime": lk.get("lockMtime"),
+                                    "say": lk.get("say")}
+
+
+def _interrupted_update(repo, porcelain, now=None):
+    """Is this "dirty" tree an update that was CUT OFF mid-checkout? -> dict | None
+
+    ⚠⚠ #64 follow-up — AN INTERRUPTED FAST-FORWARD READ AS "OK, standing down on purpose". A git
+    killed mid-checkout (every console git runs under a timeout, which is a SIGKILL) leaves its 0-byte
+    index.lock AND a half-written tree. MEASURED on a temp fixture (4,000 tracked files, origin one
+    commit ahead): `git merge --ff-only origin/main` SIGKILLed 50 ms after index.lock appeared ->
+    exit -9, a 0-byte lock left behind, HEAD unmoved, and `git status` listing 113 modified tracked
+    files. The next pass read those files as HIS edits, stood down as 'dirty', and the doctor row said
+    OK, while the checkout could never update again. The reviewer's run (20k files) showed hundreds.
+
+    REPORT ONLY. The lock is stat'ed and nothing else: it is never removed here and nothing is merged,
+    because a half-written tree next to it is exactly the case where a person has to look. Only an
+    EMPTY lock older than _GIT_LOCK_STALE_S counts (the same bar the lock judge uses); a young or a
+    non-empty lock beside a dirty tree stays ordinary 'dirty'. -> {path, lockMtime, ageS, files, say}
+    """
+    gd = _git_dir_of(repo or REPO)
+    if not gd:
+        return None
+    lk = os.path.join(gd, "index.lock")
+    try:
+        st = os.stat(lk)
+    except OSError:
+        return None
+    now = time.time() if now is None else float(now)
+    age = now - st.st_mtime
+    if st.st_size != 0 or age < float(_GIT_LOCK_STALE_S):
+        return None
+    files = [ln for ln in str(porcelain or "").splitlines() if ln.strip() and not ln.startswith("??")]
+    if not files:
+        return None
+    # the path is what follows the status column; split, never slice (a caller may have stripped the
+    # first line's leading space, and a byte slice was off by one on exactly that line before)
+    names = [ln.strip().split(None, 1)[-1] for ln in files[:3]]
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))
+    say = ("an update was CUT OFF mid-checkout: a 0-byte .git/index.lock from %s (%s old) sits next to "
+           "%d modified tracked file%s (%s%s) - the tree may be half-written and is NOT up to date; "
+           "nothing was removed or merged, a person has to look before those files are kept or discarded"
+           % (when, _ago_words(age), len(files), "" if len(files) == 1 else "s", ", ".join(names),
+              ", ..." if len(files) > 3 else ""))
+    return {"path": lk, "lockMtime": int(st.st_mtime * 1000), "ageS": round(age, 1),
+            "files": len(files), "say": say}
+
+
+def _pull_note_interrupted(cut):
+    """Put an interrupted update on the lane's record, from either door. -> None"""
+    if not isinstance(cut, dict):
+        return
+    now = int(time.time() * 1000)
+    with _PRUNE_LOCK:
+        _PULL.update({"checked": now, "on": True, "say": cut.get("say"),
+                      "interrupted": dict(cut)})
+        _pull_outcome(now, "interrupted", cut.get("say"))
+
+
+def _pull_outcome(now_ms, outcome, err=None):
+    """How an attempt ended, and the failure clock. Caller holds _PRUNE_LOCK. -> None
+
+    `failSince` is the first failed attempt since the last one that worked; a success, or the lane
+    standing down on purpose (off, dirty), stops the clock. `unknown` (not a checkout) leaves it.
+    `interrupted` (an update cut off mid-checkout) is a failure: it runs the clock like one.
+    """
+    _PULL["outcome"] = outcome
+    if outcome != "interrupted":
+        _PULL["interrupted"] = None
+    if outcome in ("failed", "interrupted"):
+        _PULL["failures"] = int(_PULL.get("failures") or 0) + 1
+        if not _PULL.get("failSince"):
+            _PULL["failSince"] = now_ms
+        _PULL["lastErr"] = (str(err)[:160] if err else _PULL.get("lastErr"))
+    elif outcome in ("pulled", "level", "off", "dirty"):
+        _PULL["failures"] = 0
+        _PULL["failSince"] = None
+        _PULL["lastErr"] = None
+
+
+def _git_err_line(r, width=200):
+    """The line of git's output that NAMES the failure. -> str
+
+    ⚠ MEASURED (git 2.50.1): a held lock prints "error: Unable to create '.../index.lock': File
+    exists." FIRST and five lines of advice after it, ending "remove the file manually to continue."
+    Taking the LAST line published the advice as the reason. The error/fatal line wins; otherwise
+    the last line, as before.
+    """
+    lines = [l.strip() for l in (str(getattr(r, "stderr", "") or "")).strip().splitlines() if l.strip()]
+    for l in lines:
+        if l.lower().startswith(("error:", "fatal:")):
+            return l[:width]
+    return (lines[-1] if lines else "")[:width]
+
+
+def _names_index_lock(r):
+    """Did this git failure say the index lock was in the way? -> bool"""
+    return "index.lock" in (str(getattr(r, "stderr", "") or "") + str(getattr(r, "stdout", "") or ""))
+
+
+def _lock_left_words(lk):
+    """A lock that was judged and LEFT, as a clause a failure sentence can carry. -> str"""
+    if isinstance(lk, dict) and lk.get("present") is not False and not lk.get("cleared") and lk.get("say") \
+            and lk.get("path"):
+        return " · " + str(lk.get("say"))
+    return ""
+
+
+def pull_state():
+    """The auto-pull lane's own record, as /api/status publishes it. Reads a dict; changes nothing.
+
+    ⚠ #64 — THIS IS THE READER _PULL NEVER HAD. The lane wrote its failures for months and nothing
+    read them. It is published over the wire ON PURPOSE: the console runs as `__main__`, so a doctor
+    that did `import control_app` would get a SECOND copy of this module whose _PULL says "nobody
+    has looked yet" forever (measured: the imported copy is a different object). [[the-unjoined-end]]
+    """
+    with _PRUNE_LOCK:
+        out = dict(_PULL)
+        for k in ("lock", "lockCleared", "interrupted"):
+            if isinstance(out.get(k), dict):
+                out[k] = dict(out[k])
+    out["failBarS"] = int(_PULL_FAIL_MISSING_S)
+    out["now"] = int(time.time() * 1000)
+    return out
+
+
+def _pull_failing_words(now_ms=None):
+    """The lane has failed for longer than the bar -> a sentence for the fleet; otherwise None.
+
+    #64 — the fleet beacon's `pull` said "N commits behind and clear to pull" off the cached origin
+    view for eleven hours while every pull on the ALT failed. The worker keeps pull.why (160 chars),
+    so the finding rides there — no new beacon field for a fixed-key worker to drop.
+    """
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    with _PRUNE_LOCK:
+        oc, since, err, n = (_PULL.get("outcome"), _PULL.get("failSince"), _PULL.get("lastErr"),
+                             int(_PULL.get("failures") or 0))
+    if oc != "failed" or not isinstance(since, (int, float)):
+        return None
+    fail_s = (now_ms - since) / 1000.0
+    if fail_s <= float(_PULL_FAIL_MISSING_S):
+        return None
+    # the worker keeps 160 chars: a quoted absolute path (a whole drive path ending .git/index.lock) is cut to
+    # its last name so the part that names the cause survives the clamp
+    err = re.sub(r"'[^']*[\\/]([^\\/']+)'", r"'\1'", str(err or "no reason recorded"))
+    return ("auto-pull FAILING %s (%d tries, since %s): %s"
+            % (_ago_words(fail_s), n, time.strftime("%m-%d %H:%M", time.localtime(since / 1000.0)),
+               err))[:160]
+
+
+@_one_pull_at_a_time
 def _pull_once():
     """Fast-forward THIS machine onto origin/main. -> True moved / False did not / None cannot ask.
 
@@ -20166,18 +21111,31 @@ def _pull_once():
     an unguarded pull would land on top of whatever is being edited. Tracked modifications mean
     this lane stands down and says so. TV_NO_AUTO_PULL still turns it off entirely, the same
     switch both launchers honour.
+
+    ⚠⚠ #64 — A LOCK A CRASHED GIT LEFT BEHIND WEDGED EVERY LATER PULL, FOR 11 HOURS. MEASURED
+    2026-09-29 on his ALT: .git/index.lock from 14:09 the day before, 0 bytes, no git running;
+    every fast-forward since failed "Unable to create ... index.lock: File exists" and the ALT sat
+    on v3521. This lane RECORDED it and nothing read it or cleared it. Now, before the fetch AND
+    again when git's own error names index.lock, _clear_stale_git_lock() removes an EMPTY lock
+    older than _GIT_LOCK_STALE_S when no git process runs here — and leaves any other lock, saying
+    why. Every attempt also records how it ended (`outcome`) and since when the lane has been
+    failing (`failSince`), which pull_state() publishes on /api/status for the doctor row
+    'this checkout can update' and _pull_report() carries to the fleet. [[the-unjoined-end]]
     """
     now = int(time.time() * 1000)
 
     def _set(**kw):
         with _PRUNE_LOCK:
             _PULL.update(dict({"checked": now}, **kw))
+            _pull_outcome(now, kw.get("outcome"), kw.get("err"))
+            _PULL.pop("err", None)
 
     if os.environ.get("TV_NO_AUTO_PULL"):
-        _set(on=False, say="auto-pull is switched off here by TV_NO_AUTO_PULL")
+        _set(on=False, outcome="off", say="auto-pull is switched off here by TV_NO_AUTO_PULL")
         return None
     if not os.path.isdir(os.path.join(REPO, ".git")):
-        _set(on=None, say="this tree is not a git checkout, so whether it is current is UNKNOWN")
+        _set(on=None, outcome="unknown",
+             say="this tree is not a git checkout, so whether it is current is UNKNOWN")
         return None
     try:
         # ⚠⚠ v3409 — EXIT 128 WITH EMPTY STDOUT IS NOT A CLEAN TREE. `git status` fails that way on
@@ -20187,20 +21145,33 @@ def _pull_once():
         _st = _git_run(["git", "status", "--porcelain", "--untracked-files=no"],
                        cwd=REPO, capture_output=True, text=True, timeout=20)
         if _st.returncode != 0:
-            _set(on=True, say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
-                               "this lane does not pull over a tree it cannot see"
-                               % (_st.returncode,
-                                  ((_st.stderr or "").strip().splitlines() or [""])[-1][:90])))
+            _set(on=True, outcome="failed", err=_git_err_line(_st),
+                 say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
+                      "this lane does not pull over a tree it cannot see"
+                      % (_st.returncode, _git_err_line(_st))))
             return None
         _dirty = (_st.stdout or "").strip()
     except Exception as e:
-        _set(on=True, say="could not read the working tree (%s), so this is UNMEASURED - not clean"
-                          % type(e).__name__)
+        _set(on=True, outcome="failed", err="could not read the working tree (%s)" % type(e).__name__,
+             say="could not read the working tree (%s), so this is UNMEASURED - not clean"
+                 % type(e).__name__)
         return None
     if _dirty:
-        _set(on=True, say=("local tracked edits are present, so this machine is NOT auto-pulling - "
-                           "commit or stash them to rejoin the fleet"))
+        # ⚠⚠ #64 follow-up — "DIRTY" CAN BE AN UPDATE THAT WAS CUT OFF, NOT HIS EDITS. A fast-forward
+        # SIGKILLed mid-checkout leaves a 0-byte index.lock and a half-written tree, and this branch
+        # read it as work in progress: 'dirty', stand down, OK on the doctor, forever. The lock is
+        # only STAT'ED here (never removed, nothing merged) and the finding is its own outcome.
+        _cut = _interrupted_update(REPO, _dirty)
+        if _cut:
+            _pull_note_interrupted(_cut)
+            return None
+        _set(on=True, outcome="dirty",
+             say=("local tracked edits are present, so this machine is NOT auto-pulling - "
+                  "commit or stash them to rejoin the fleet"))
         return False
+    # #64 — BEFORE THE FETCH: a lock an earlier git abandoned is judged here, once per attempt.
+    _lock = _clear_stale_git_lock(REPO)
+    _pull_note_lock(_lock)
     try:
         before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                            cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
@@ -20217,25 +21188,36 @@ def _pull_once():
                 (["git", "fetch", "origin", "main", "--quiet"], 45, "the fetch"),
                 (["git", "merge", "--ff-only", "origin/main"], 45, "the fast-forward")):
             _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
+            # #64 — AND WHEN GIT ITSELF NAMES THE LOCK: judge it again (it may have appeared after
+            # the check above), and retry this one step ONCE if it was cleared.
+            if _r.returncode != 0 and _names_index_lock(_r):
+                _lock = _clear_stale_git_lock(REPO)
+                _pull_note_lock(_lock)
+                if _lock.get("cleared"):
+                    _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
             if _r.returncode != 0:
                 _set(on=True, before=before, after=None, pulled=None,
-                     say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date"
-                          % (_what, _r.returncode,
-                             ((_r.stderr or "").strip().splitlines() or [""])[-1][:90])))
+                     outcome="failed", err=_git_err_line(_r),
+                     say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date%s"
+                          % (_what, _r.returncode, _git_err_line(_r), _lock_left_words(_lock))))
                 return None
         after = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
     except Exception as e:
         _set(on=True, before=None, after=None, pulled=None,
+             outcome="failed", err="the pull did not complete (%s)" % type(e).__name__,
              say="the pull did not complete (%s) - UNKNOWN, not up to date" % type(e).__name__)
         return None
     moved = bool(before and after and before != after)
+    _cleared = (" (after %s)" % _lock.get("say")) if _lock.get("cleared") else ""
     with _PRUNE_LOCK:
         _PULL.update({"checked": now, "on": True, "before": before, "after": after,
                       "pulled": moved, "lastTs": now,
                       "worked": int(_PULL.get("worked") or 0) + (1 if moved else 0),
-                      "say": (("fleet update: %s -> %s" % (before, after)) if moved
-                              else "already level with origin/main at %s" % (after or "?"))})
+                      "say": ((("fleet update: %s -> %s" % (before, after)) if moved
+                               else "already level with origin/main at %s" % (after or "?"))
+                              + _cleared)})
+        _pull_outcome(now, "pulled" if moved else "level")
     return moved
 
 
@@ -22649,7 +23631,10 @@ def _retention_once():
     # retention_may_act still has the final say. plan()'s own `free_mb` stop is untouched for the
     # CLI's --free-mb; only this caller stopped handing it a disk-derived target.
     # [[feedback-threshold-above-the-ceiling]] [[heart-first]]
-    p = _rr.plan(hist, free_mb=None)
+    # 2026-09-29 — his sixteen, bent to eight only while the disk is under the recording floor (see
+    # reel_retention.keep_recent_for): holding the extra hours must never be what stops the next one filming.
+    _keep = _rr.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)
+    p = _rr.plan(hist, free_mb=None, keep_recent=_keep)
     if not p.get("ok"):
         _dr = dict(_retention_drain(unknown_why=str(p.get("why") or "no reason given")[:120]),
                    neverRecorded=bool(p.get("neverRecorded")))
@@ -34541,7 +35526,11 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3522",
+        # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
+        "window": _t("window", window_mode_payload),
+        # #71 — can this console still answer its own port (the fault it cannot report over that port)
+        "selfProbe": dict(_SELF_PROBE),
+        "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34557,6 +35546,10 @@ def status_payload():
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": _t("prune", prune_stats),
         "drift": _t("drift", drift_state),   # v2072 — running vs disk, so a five-ship-behind window says so
+        # #64 — the auto-pull lane's own record (how its last attempt ended, since when it has failed,
+        # the last stale-lock decision). The doctor row 'this checkout can update' reads THIS key over
+        # the wire, because an `import control_app` beside a `__main__` console is a second copy.
+        "pullLane": _t("pullLane", pull_state),
         "eagle": _t("eagle", eagle_state),   # v2078 — the watchdog's last look at the running system
         # v2438 — THE LOCKS, ON THE SURFACE THE CONSOLE ALREADY POLLS. The eagle is on-demand and
         # slow ("the sub-doctors take a moment"); a lock badge that has to wait for it would be
@@ -35315,7 +36308,8 @@ def doctor_payload():
         h = _capture_health()
         checks.append(_chk(
             "capture_proc", h in ("", "LINKED", "RESTARTED", "OFF"), "warn",
-            ("off by setting (TV_CAPTURE=off) - nothing is filmed" if h == "OFF" else (h or "idle (agent off)")),
+            ("off by setting (TV_CAPTURE=off, or a TV_STUB agent) - nothing is filmed" if h == "OFF"
+             else (h or "idle (agent off)")),
             "Press RESTART; if it recurs, check capture_win.ps1 and the D2R window"))
 
     # 7b) v1418 fleet — same GitHub main for Mac + Windows (never silently drift)
@@ -35487,6 +36481,11 @@ def doctor_payload():
         "Restart TV DIABLO — this console rebuilds every missing reel index at boot. Standalone: "
         "`python3 tv/reel_repair.py` to survey, `--apply` to rebuild (idempotent, never "
         "overwrites a usable index)."))
+
+    # ── WINDOW — 2026-09-29: the window is only a view of the service. A backgrounded console is HEALTHY,
+    # and this row says so in words, with the way back - otherwise "where did my console go" has no answer.
+    _wm = window_mode_payload()
+    checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")
@@ -37787,6 +38786,12 @@ class Handler(BaseHTTPRequestHandler):
             # [[unknown-stays-unknown]]
             self._json(200, _meter_state())
             return
+        if path == "/api/window":
+            # 2026-09-29 — how the window stands (front / background / headless / window-only). The Mac
+            # launcher reads this BEFORE it would kill anything on :17772: a backgrounded console is brought
+            # forward, never replaced - replacing it would stop the reel it is filming.
+            self._json(200, window_mode_payload())
+            return
         if path == "/api/shadow":
             # v2000 — WHAT THE WIDGET READS. Three separate facts, never averaged into one lamp:
             #   on        what HE chose (absent file = ON, the default since v932)
@@ -39247,12 +40252,13 @@ class Handler(BaseHTTPRequestHandler):
             # v3271 — HIS WINDOW, HIS CALL, ON EVERY PLATFORM. See window_action() for why this
             # exists: fullscreen is the default he likes, and on Windows/Linux it took the
             # titlebar with it, leaving no minimise and no way back to a window.
-            _wact = ""
+            _wact, _wby = "", ""
             try:
                 _wact = str((body or {}).get("do") or "") if isinstance(body, dict) else ""
+                _wby = str((body or {}).get("from") or "").strip()[:60] if isinstance(body, dict) else ""
             except Exception:
-                _wact = ""
-            self._json(200, window_action(_wact))
+                _wact, _wby = "", ""
+            self._json(200, window_action(_wact, by=(_wby or "api-window:UNATTRIBUTED")))
             return
 
         if path == "/api/quit":
@@ -39586,6 +40592,31 @@ def _win_focus_existing_console():
 
 
 def main():
+    # ⚠⚠ REG-1436 (#66) — THIS PROCESS IS A CONSOLE, SAID FIRST, BEFORE IT ASKS ANYTHING (REG-1410..1412).
+    # MEASURED on his ALT right after v3522: 11 s /api/status then timeouts while tvd-eagle-watch tokenized every
+    # tv/*.py, then 90 s /api/river while three threads each re-listed ~21,000 frames. On the console path the
+    # fixture set is the committed ratchet, a still reel folder is listed once, and reel_retention.plan() is
+    # shared and remembered until one of its inputs moves. Laws, the gate and CI never set this.
+    # ⚠ FIRST, NOT "BEFORE ANY LANE": the adversarial review of alt-speed found the mark too late. The boot
+    # banner below asks status_payload(), which kicks the tvd-vault-autoread refresh -> _vault_owed_reels ->
+    # reel_retention.plan() -> frame_authority.test_referenced_reels() - and with the console path not yet
+    # marked that is the exact tokenize scan over every tv/*.py: the post-ship stall itself, once per ship, at
+    # boot. Marking spawns nothing, so it may precede the #224 reap. Proven by DRIVING main() under stubs
+    # (test_a_plan_is_computed_once.TheConsoleIsMarkedBeforeItAsksAnything), not by reading its names.
+    try:
+        import frame_ref as _fr_console
+        _fr_console.mark_console_path(True)
+    except Exception as _cp_e:
+        print("⚠ the console path could not be marked (%s) - plans are computed fresh, every call"
+              % type(_cp_e).__name__, flush=True)
+    # ⚠⚠ #224 — before this image SPAWNS anything: the children present now were inherited from the image
+    # os.execv replaced, and only this image can ever wait() them. Reaped BY PID — a blanket waitpid(-1) would
+    # steal the exit status of our own Popen children. (status_payload() below spawns git.)
+    _reap_inherited_at_boot()
+    try:
+        _bv = (status_payload() or {}).get("ver") or "?"
+    except Exception:
+        _bv = "?"
     # ⚠ v2182 — A BOOT MARKER, so a log-reading check can ask about THIS RUN.
     # console_doctor's hunt-economy eye reads the tail of control_app.log, and the tail spans
     # hours across many process lifetimes. Right after the v2176 fix landed it still reported
@@ -39599,14 +40630,6 @@ def main():
     # which is the one place that owns it. Two guards (TestNoFunctionLoadsAnUndefinedName and
     # TestV2010NoCallIntoANameThatIsNotThere) caught my first attempt reaching for a module-level
     # VERSION, which lives in tv_diablo.py and has never existed here. [[copy-drift]]
-    # ⚠⚠ #224 — FIRST, before this image spawns anything: the children present now were inherited
-    # from the image os.execv replaced, and only this image can ever wait() them. Reaped BY PID —
-    # a blanket waitpid(-1) would steal the exit status of our own Popen children.
-    _reap_inherited_at_boot()
-    try:
-        _bv = (status_payload() or {}).get("ver") or "?"
-    except Exception:
-        _bv = "?"
     print("\U0001f680 CONSOLE BOOT %s pid=%d %s"
           % (_bv, os.getpid(), time.strftime("%Y-%m-%dT%H:%M:%S")), flush=True)
     # ⚠⚠ #225 — WRITE IT DOWN BEFORE ANYTHING CAN EXIT QUIETLY. The Windows ALT console died relaunching
@@ -39698,6 +40721,13 @@ def main():
             # reclaimed — fall through as PRIMARY (do not return)
         else:
             # v781 — a REAL window already exists → refuse a second one, point at the existing.
+            # 2026-09-29 — AND BRING IT FORWARD. With ✕ now sending the console to the background, "use the
+            # existing window" pointed at a window he could not see. Ask the running console to come to the
+            # front first; the notification below only fires when it could not.
+            if ask_running_console_front(CONTROL_PORT, "second-launch").get("ok"):
+                print("TV DIABLO is already running on :%d - brought its window to the front." % CONTROL_PORT,
+                      flush=True)
+                sys.exit(0)
             print(
                 f"TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
                 f"   Use the existing window (or STOP/quit it first).\n   ({e})"

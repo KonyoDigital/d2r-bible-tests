@@ -86,6 +86,13 @@ rare Diadem and the magic Grand Charm at 2000 / 1280 / 375):
 
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT, killed by the handle it holds (render_check._chrome_up / _chrome_down).
 ⚠ NO CHROME ON THIS MACHINE = a DECLARED skip (exit 77), never a pass.
+#42 - A PUSH-TIME RED-PROOF MEASURES ONLY WHERE ITS DEFECT SHOWS (tv/law_widths.py). TV_LAW_WIDTHS, set only by
+`heart2.py --prove --push` from a proof's own measured "widths", restricts every width loop and every one-viewport pass
+(the keyboard, pointer, hover and tile passes at 2000x1300, the indent at 1280x800) to those viewports; a case whose
+viewports are all outside it is a declared SKIP, and each PREMISE counts over the viewports measured (its per-width rate
+unchanged). The fixture's own steps - the entry, the equip, the Diadem set before the sweep, the fresh build - run
+whatever the restriction, so a restricted run meets each measured state as the full run does. Unset (run_gates, CI,
+every run without --push), this law is exactly what it was.
 RED_PROOF below.
 """
 import io
@@ -121,6 +128,7 @@ def _free_port():
 _LAW_PORT = os.environ.get("TV_LAW_PORT", "").strip()
 os.environ["TV_RENDER_PORT"] = _LAW_PORT if _LAW_PORT.isdigit() and _LAW_PORT not in ("9222", "9223") else str(_free_port())
 import render_check as RC  # noqa: E402
+import law_widths as LW  # noqa: E402  #42 - the one reader of TV_LAW_WIDTHS
 
 NO_BROWSER = "no Chrome/Chromium on this machine, so the character builder was not rendered"
 WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800, 1000), (375, 812))
@@ -129,6 +137,8 @@ WIDTHS = ((2000, 1300), (1280, 800), (1120, 628), (1024, 768), (901, 900), (800,
 STATES = ("plain", "worn", "picker", "edit", "stash", "invpick")
 #: #174 v-B3 - the Edit tab of a base with its picked mods, and with ADD MOD open, at these widths
 MOD_WIDTHS = ((2000, 1300), (1280, 800), (375, 812))
+#: #174 v-B2 fix round - the picker's list under a real wheel, at a phone and at 2000
+WHEEL_WIDTHS = ((375, 812), (2000, 1300))
 _DIADEM = ("window._cbOpenPick('slot','head'); window._cbChoose('b:ci3'); window._cbQuality('rare');"
            " ['p712','p374','s175','s316'].forEach(function(i){ window._cbAddMod(i); });")
 _GC = "window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm3'); window._cbAddMod('p700');"
@@ -456,6 +466,17 @@ SPILL = r"""(function(){ var out = [], st = document.querySelector('#cb-win .cb-
   return JSON.stringify(out); })()"""
 #: the band where the stats column is tight enough for a label to wrap (measured 2026-09-26: every regression was 900-1240)
 SWEEP = range(900, 1401, 20)
+#: #42 - the sweep's own viewports (its height follows the width, as it always did), so a red-proof can name one
+SWEEP_AT = tuple((w, 1300 if w >= 1280 else 800) for w in SWEEP)
+#: #42 - the ONE-viewport steps: the keyboard/pointer/hover/tile passes at 2000, the wrapped-label indent at 1280x800
+AT_2000, AT_INDENT = (2000, 1300), (1280, 800)
+#: every viewport this law measures at - what TV_LAW_WIDTHS may name
+VIEWPORTS = tuple(sorted(set(WIDTHS) | set(MOD_WIDTHS) | set(TPL_WIDTHS) | set(SWEEP_AT) | {AT_2000, AT_INDENT}))
+#: #42 - a PUSH-TIME red-proof restricts every width loop to the viewports it declares (heart2 --push --prove hands them
+#: over as TV_LAW_WIDTHS). None = every width, exactly as before; run_gates and CI never set it. A case whose viewports
+#: are all outside the set is a declared SKIP; the fixture's own steps (the entry, the equip, the fresh build) always run.
+_ONLY = LW.only()
+_W = lambda seq: LW.pick(seq, _ONLY)  # noqa: E731
 
 #: #29(d) round 9 - the Edit window's body: how much of it lies EMPTY under its last line, whether it scrolls, and how much
 #: of the glass is free under the window
@@ -591,7 +612,7 @@ def _measure():
         time.sleep(0.6)
         res["opened"] = t.ev("(function(){ var w = document.getElementById('cb-win'); return !!w && !w.hidden; })()")
         # plain, at every width
-        for (w, h) in WIDTHS:
+        for (w, h) in _W(WIDTHS):
             _set_size(t, w, h)
             t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
             time.sleep(0.35)
@@ -621,7 +642,7 @@ def _measure():
         res["store"] = t.ev("(function(){ var b = JSON.parse(window.LSR.getItem('d2r_charBuilds') || '{}'), k = Object.keys(b)[0];"
                             " if (!k) return null; var s = b[k].sets[0]; return JSON.stringify({ head: s.slots.head && [s.slots.head.name, s.slots.head.rolls],"
                             " inv: s.inv.map(function(e){ return [e.name, e.x, e.y]; }) }); })()")
-        for (w, h) in WIDTHS:
+        for (w, h) in _W(WIDTHS):
             _set_size(t, w, h)
             for state in ("worn", "picker", "edit", "stash", "invpick"):
                 js = {"worn": "", "picker": "window._cbOpenPick('slot','head'); window._cbPickTab('select');",
@@ -639,7 +660,7 @@ def _measure():
                 if state == "edit":
                     res["edfit %s %dx%d" % (state, w, h)] = json.loads(t.ev(EDFIT))
         # #174 v-B2 fix round - the picker's list, by a real wheel, at 375 and 2000
-        for (w, h) in ((375, 812), (2000, 1300)):
+        for (w, h) in _W(WHEEL_WIDTHS):
             _set_size(t, w, h)
             for slot in ("rarm", "feet"):
                 t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
@@ -649,7 +670,7 @@ def _measure():
                 res["wheel %s %dx%d" % (slot, w, h)] = _wheel_list(t)
         # #174 v-B3 - the Edit tab of a BASE with picked mods (a rare Diadem with four, a magic Grand Charm with two), and
         # its ADD MOD list open, at 2000 / 1280 / 375 - through the builder's own entry points (Choose -> Quality -> Add)
-        for (w, h) in MOD_WIDTHS:
+        for (w, h) in _W(MOD_WIDTHS):
             _set_size(t, w, h)
             for state in MOD_STATES:
                 t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s return 1; })()" % MOD_JS[state])
@@ -666,43 +687,50 @@ def _measure():
                         "(function(){ var m = document.getElementById('cb-modal'); return JSON.stringify({ img: !!(m && m.querySelector('.d2art-wrap img')),"
                         " failed: !!(m && m.querySelector('.d2art-failed')) }); })()"))
                     t.ev("(function(){ window._cbUnequip(); window._cbClosePick(); return 1; })()")
-        # #174 v-B3 fix round - ADD MOD by the KEYBOARD, real input at 2000: a rare Diadem with two prefixes, the search box
-        # pressed, "res" typed, ArrowDown, then Enter - focus must stay in the box and the painted option be what Enter adds
-        _set_size(t, 2000, 1300)
-        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); window._cbOpenPick('slot','head'); window._cbChoose('b:ci3');"
-             " window._cbQuality('rare'); ['p712','s175'].forEach(function(i){ window._cbAddMod(i); }); window._cbModOpen(true); return 1; })()")
-        time.sleep(0.35)
-        res["input"].append(_press(t, "#cb-add-q"))
-        _type(t, "res")
-        time.sleep(0.3)
-        combo = {"typed": json.loads(t.ev(COMBO))}
-        _key(t, "ArrowDown", 40)
-        combo["down"] = json.loads(t.ev(COMBO))
-        _key(t, "Enter", 13)
-        time.sleep(0.2)
-        combo["enter"] = json.loads(t.ev(COMBO))
-        res["combo"] = combo
-        # #174 round 2 (the Grok seat on v3509) - the POINTER and the keys light ONE row between them: the pointer comes to
-        # rest on the 4th option (real moves, no click), then a real ArrowDown with the pointer still there
-        t.ev("(function(){ window._cbModOpen(true); return 1; })()")
-        time.sleep(0.3)
-        res["input"].append(_point_at(t, "#cb-add-list .cb-add-o", 3))
-        lit = {"pointer": json.loads(t.ev(LIT))}
-        _key(t, "ArrowDown", 40)
-        time.sleep(0.2)
-        lit["down"] = json.loads(t.ev(LIT))
-        res["lit"] = lit
-        t.ev("(function(){ window._cbClosePick(); return 1; })()")
+        # #42 - one viewport: measured unless a push-time proof restricted the run elsewhere
+        if LW.at(AT_2000, _ONLY):
+            # #174 v-B3 fix round - ADD MOD by the KEYBOARD, real input at 2000: a rare Diadem with two prefixes, the search box
+            # pressed, "res" typed, ArrowDown, then Enter - focus must stay in the box and the painted option be what Enter adds
+            _set_size(t, 2000, 1300)
+            t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); window._cbOpenPick('slot','head'); window._cbChoose('b:ci3');"
+                 " window._cbQuality('rare'); ['p712','s175'].forEach(function(i){ window._cbAddMod(i); }); window._cbModOpen(true); return 1; })()")
+            time.sleep(0.35)
+            res["input"].append(_press(t, "#cb-add-q"))
+            _type(t, "res")
+            time.sleep(0.3)
+            combo = {"typed": json.loads(t.ev(COMBO))}
+            _key(t, "ArrowDown", 40)
+            combo["down"] = json.loads(t.ev(COMBO))
+            _key(t, "Enter", 13)
+            time.sleep(0.2)
+            combo["enter"] = json.loads(t.ev(COMBO))
+            res["combo"] = combo
+            # #174 round 2 (the Grok seat on v3509) - the POINTER and the keys light ONE row between them: the pointer comes to
+            # rest on the 4th option (real moves, no click), then a real ArrowDown with the pointer still there
+            t.ev("(function(){ window._cbModOpen(true); return 1; })()")
+            time.sleep(0.3)
+            res["input"].append(_point_at(t, "#cb-add-list .cb-add-o", 3))
+            lit = {"pointer": json.loads(t.ev(LIT))}
+            _key(t, "ArrowDown", 40)
+            time.sleep(0.2)
+            lit["down"] = json.loads(t.ev(LIT))
+            res["lit"] = lit
+            t.ev("(function(){ window._cbClosePick(); return 1; })()")
         # #174 round 2 - a wrapped stat label's second line is set in (a hanging indent), at 1280 where several wrap
+        # ⚠ #42 - THE DIADEM IS SET WHATEVER THE RESTRICTION, ONLY THE MEASUREMENT IS SKIPPED: the sweep below reads STATS
+        # with THIS helm on the doll, so a push-time run at one sweep width must reach it in the same state as the full run
+        # (skipped, the doll would still wear what the steps before it left - Crown of Ages when no Edit width is measured -
+        # and the sweep would read a different STATS panel from the verdict of record's)
         _set_size(t, 1280, 800)
         t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); %s window._cbClosePick(); return 1; })()" % _DIADEM)
         time.sleep(0.35)
-        res["indent"] = json.loads(t.ev(INDENT))
+        if LW.at(AT_INDENT, _ONLY):
+            res["indent"] = json.loads(t.ev(INDENT))
         # #174 round 3 (the Grok seat on v3510) - v-B2's rule at EVERY width of the tight band, not only at the fixed
         # widths above: round 2's indent dropped a value at 900 / 960 / 980 / 1200-1240, all BETWEEN them
         sweep = []
-        for w in SWEEP:
-            _set_size(t, w, 1300 if w >= 1280 else 800)
+        for (w, h) in _W(SWEEP_AT):
+            _set_size(t, w, h)
             time.sleep(0.2)
             real, over = json.loads(t.ev(DROP)), json.loads(t.ev(OVER))
             t.ev(FLUSH_ON)
@@ -724,23 +752,25 @@ def _measure():
             sweep.append({"w": w, "extra": sorted(set(real) - set(flush)), "over": over, "rows": len(real) + 0,
                           "real": real, "spill": spill, "widened": widened, "wide": wide, "wspill": wspill, "wover": wover})
         res["sweep"] = sweep
-        # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
-        _set_size(t, 2000, 1300)
-        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
-        time.sleep(0.35)
-        hv = {}
-        hv["set"] = _hover(t, "#cb-win .cb-settabs .cb-btn.cb-on")
-        hv["quests"] = _hover(t, "#cb-win .cb-stats .cb-h-r .cb-btn.cb-on")
-        res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="glov"]'))
-        res["input"].append(_press(t, "#cb-modal .cb-srow .cb-btn"))
-        hv["filters"] = _hover(t, "#cb-modal .cb-srow .cb-btn.cb-on")
-        _key(t, "Escape", 27)
-        _key(t, "Escape", 27)
-        t.ev("(function(){ window.openCharBuilder(); window._cbOpenNew(); return 1; })()")
-        time.sleep(0.3)
-        res["input"].append(_press(t, "#cb-modal .cb-new-cls .cb-btn", 1))
-        hv["class"] = _hover(t, "#cb-modal .cb-new-cls .cb-btn.cb-on")
-        res["hover"] = hv
+        # #42 - one viewport, as above
+        if LW.at(AT_2000, _ONLY):
+            # an ACTIVE button under the pointer, pressed by real input first where it is a toggle
+            _set_size(t, 2000, 1300)
+            t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
+            time.sleep(0.35)
+            hv = {}
+            hv["set"] = _hover(t, "#cb-win .cb-settabs .cb-btn.cb-on")
+            hv["quests"] = _hover(t, "#cb-win .cb-stats .cb-h-r .cb-btn.cb-on")
+            res["input"].append(_press(t, '#cb-win .cb-slot[data-slot="glov"]'))
+            res["input"].append(_press(t, "#cb-modal .cb-srow .cb-btn"))
+            hv["filters"] = _hover(t, "#cb-modal .cb-srow .cb-btn.cb-on")
+            _key(t, "Escape", 27)
+            _key(t, "Escape", 27)
+            t.ev("(function(){ window.openCharBuilder(); window._cbOpenNew(); return 1; })()")
+            time.sleep(0.3)
+            res["input"].append(_press(t, "#cb-modal .cb-new-cls .cb-btn", 1))
+            hv["class"] = _hover(t, "#cb-modal .cb-new-cls .cb-btn.cb-on")
+            res["hover"] = hv
         # #174 v-B4 - LAST, because it makes a new build the selected one: a fresh build, three charms placed through the
         # inventory cell's own picker, the template measured at the builder's five sizes
         _set_size(t, 2000, 1300)
@@ -749,39 +779,41 @@ def _measure():
         res["tpl before"] = json.loads(t.ev(TEMPLATE))
         res["tpl placed"] = [json.loads(t.ev(TPL_PLACE % (json.dumps(n), x, y, json.dumps(pre)))) for (n, x, y, pre) in TPL_CHARMS]
         time.sleep(0.3)
-        for (w, h) in TPL_WIDTHS:
+        for (w, h) in _W(TPL_WIDTHS):
             _set_size(t, w, h)
             t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
             time.sleep(0.4)
             res["tpl charms %dx%d" % (w, h)] = json.loads(t.ev(TEMPLATE))
-        # #174 v-B4 fix round - the tiles' STATE at 2000: at the build's own level; one tile pressed by REAL input (Edit
-        # opens on it); then at Gheed's Fortune's Required Level (read from its tooltip) and one lower by a REAL press of
-        # the level's down arrow
-        _set_size(t, 2000, 1300)
-        t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
-        time.sleep(0.4)
-        lv = {"helm": t.ev(TPL_HELM)}
-        time.sleep(0.4)
-        lv["max"] = json.loads(t.ev(TILES))
-        names = [x.get("name") for x in lv["max"].get("tiles", [])]
-        gi = names.index("Grand Charm") if "Grand Charm" in names else -1
-        lv["press"] = _press(t, "#cb-inv .cb-it", gi) if gi >= 0 else "no Grand Charm tile: %s" % names
-        time.sleep(0.3)
-        lv["sel"] = json.loads(t.ev(TILES))
-        _key(t, "Escape", 27)
-        need = dict((x.get("name"), x.get("need")) for x in lv["max"].get("tiles", []))
-        mid = need.get("Gheed's Fortune") or 0
-        if mid > 1:
-            t.ev("(function(){ window._cbSetField('level', %d); return 1; })()" % mid)
+        # #42 - one viewport, as above
+        if LW.at(AT_2000, _ONLY):
+            # #174 v-B4 fix round - the tiles' STATE at 2000: at the build's own level; one tile pressed by REAL input (Edit
+            # opens on it); then at Gheed's Fortune's Required Level (read from its tooltip) and one lower by a REAL press of
+            # the level's down arrow
+            _set_size(t, 2000, 1300)
+            t.ev("(function(){ window.closeCharBuilder(); window.openCharBuilder(); return 1; })()")
             time.sleep(0.4)
-            lv["mid"] = json.loads(t.ev(TILES))
-            lv["midCalc"] = t.ev(CALC_FAILS)
+            lv = {"helm": t.ev(TPL_HELM)}
+            time.sleep(0.4)
+            lv["max"] = json.loads(t.ev(TILES))
+            names = [x.get("name") for x in lv["max"].get("tiles", [])]
+            gi = names.index("Grand Charm") if "Grand Charm" in names else -1
+            lv["press"] = _press(t, "#cb-inv .cb-it", gi) if gi >= 0 else "no Grand Charm tile: %s" % names
             time.sleep(0.3)
-            lv["down"] = _press(t, '#cb-win .cb-step button[aria-label="level down"]')
-            time.sleep(0.4)
-            lv["low"] = json.loads(t.ev(TILES))
-            lv["lowCalc"] = t.ev(CALC_FAILS)
-        res["tiles"] = lv
+            lv["sel"] = json.loads(t.ev(TILES))
+            _key(t, "Escape", 27)
+            need = dict((x.get("name"), x.get("need")) for x in lv["max"].get("tiles", []))
+            mid = need.get("Gheed's Fortune") or 0
+            if mid > 1:
+                t.ev("(function(){ window._cbSetField('level', %d); return 1; })()" % mid)
+                time.sleep(0.4)
+                lv["mid"] = json.loads(t.ev(TILES))
+                lv["midCalc"] = t.ev(CALC_FAILS)
+                time.sleep(0.3)
+                lv["down"] = _press(t, '#cb-win .cb-step button[aria-label="level down"]')
+                time.sleep(0.4)
+                lv["low"] = json.loads(t.ev(TILES))
+                lv["lowCalc"] = t.ev(CALC_FAILS)
+            res["tiles"] = lv
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -795,7 +827,29 @@ def _measure():
 
 def _states():
     r = _measure()
-    return [("%s %dx%d" % (s, w, h), r["%s %dx%d" % (s, w, h)]) for (w, h) in WIDTHS for s in STATES]
+    return [("%s %dx%d" % (s, w, h), r["%s %dx%d" % (s, w, h)]) for (w, h) in _W(WIDTHS) for s in STATES]
+
+
+def _skip(case, whs):
+    """#42 - a case whose viewports all lie outside a push-time restriction measured nothing: a DECLARED skip, never a pass.
+    Unrestricted it is never reached; if it were, it returns False and the caller's assertTrue fails - never silence."""
+    if _ONLY is not None and not _W(whs):
+        case.skipTest("#42 TV_LAW_WIDTHS=%s - this case is measured at %s only" % (LW.label(_ONLY), LW.label(sorted(set(whs)))))
+    return False
+
+
+def _need(case, whs):
+    """#42 - the case measures at `whs`: go on, or skip as declared above"""
+    case.assertTrue(_W(whs) or _skip(case, whs))
+
+
+def _floor(full, whs):
+    """#42 - a PRINT-THE-DENOMINATOR floor: the full run's own number; restricted, one per restricted column-layout
+    viewport (900 wide and up) up to that number - never stricter than the full run's, so a restriction can only lose
+    a red, never invent one (a lost red reads BLIND and refuses the push)"""
+    if _ONLY is None:
+        return full
+    return min(full, len([x for x in _W(whs) if x[0] >= 900]))
 
 
 class TheBuilderFitsAtEveryWidth(unittest.TestCase):
@@ -811,7 +865,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         for label, m in _states():
             self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
             self.assertGreaterEqual(m["nText"], 60, "%s: only %d text nodes measured" % (label, m["nText"]))
-        for (w, h) in WIDTHS:
+        for (w, h) in _W(WIDTHS):
             self.assertEqual((r["worn %dx%d" % (w, h)]["worn"], r["worn %dx%d" % (w, h)]["inv"]), (1, 1))
             self.assertGreater(r["picker %dx%d" % (w, h)]["opts"], 50, "%dx%d: the helm picker listed too little" % (w, h))
             self.assertGreaterEqual(r["edit %dx%d" % (w, h)]["rolls"], 4, "%dx%d: the Edit tab drew no roll boxes" % (w, h))
@@ -820,7 +874,8 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
     def test_the_pickers_list_scrolls_to_its_last_row_under_a_real_wheel(self):
         r = _measure()
         bad = []
-        for (w, h) in ((375, 812), (2000, 1300)):
+        _need(self, WHEEL_WIDTHS)
+        for (w, h) in _W(WHEEL_WIDTHS):
             for slot in ("rarm", "feet"):
                 x = r["wheel %s %dx%d" % (slot, w, h)]
                 if "err" in x:
@@ -837,6 +892,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_an_active_button_keeps_its_label_under_the_pointer(self):
+        _need(self, (AT_2000,))
         hv = _measure()["hover"]
         bad = []
         for k in ("set", "quests", "filters", "class"):
@@ -850,12 +906,14 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_no_word_or_control_is_cut_or_outside_its_panel(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             bad += ["%s %s" % (label, x) for x in m["cut"] + m["outside"]]
         self.assertEqual(bad, [], "text or a control in the builder is cut or spills out of its panel:\n  " + "\n  ".join(bad[:40]))
 
     def test_nothing_scrolls_sideways(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             if m["hscroll"][0] > m["hscroll"][1] + 1:
@@ -864,12 +922,14 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         self.assertEqual(bad, [], "part of the builder scrolls sideways:\n  " + "\n  ".join(bad[:40]))
 
     def test_no_header_title_runs_under_its_control(self):
+        _need(self, WIDTHS)
         bad = []
         for label, m in _states():
             bad += ["%s %s" % (label, x) for x in m["collide"]]
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_the_modal_is_on_screen_and_never_hides_the_slot_it_serves(self):
+        _need(self, WIDTHS)
         bad, seen = [], 0
         for label, m in _states():
             if m["modal"] is None:
@@ -880,15 +940,16 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 seen += 1
                 if m["covered"]:
                     bad.append("%s the modal covers the glowing slot it serves" % label)
-        self.assertGreaterEqual(seen, 8, "the slot-cover check ran in only %d column states" % seen)
+        self.assertGreaterEqual(seen, _floor(8, WIDTHS), "the slot-cover check ran in only %d column states" % seen)
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_stats_ends_inside_the_window_and_scrolls_its_own_rows(self):
         """#174 R2 — the Grok seat on R1: "the stats column is cut off at the bottom edge ... rows from Energy down are
         sliced". In columns STATS ends inside the window and its row list scrolls inside it; every row is reachable
         without scrolling the whole builder."""
+        _need(self, WIDTHS)
         bad, seen = [], 0
-        for w, h in WIDTHS:
+        for w, h in _W(WIDTHS):
             m = _measure()["plain %dx%d" % (w, h)]
             if m.get("stack"):
                 continue
@@ -898,10 +959,11 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
             sl = m.get("statsList")
             if not sl or sl[2] not in ("auto", "scroll"):
                 bad.append("%dx%d: the stats list does not scroll inside its panel: %s" % (w, h, sl))
-        self.assertGreaterEqual(seen, 4, "PRINT THE DENOMINATOR: only %d column layouts measured" % seen)
+        self.assertGreaterEqual(seen, _floor(4, WIDTHS), "PRINT THE DENOMINATOR: only %d column layouts measured" % seen)
         self.assertEqual(bad, [], "\n  ".join(bad))
 
     def test_at_2000_the_columns_are_their_literal_322_716_300(self):
+        _need(self, (AT_2000,))
         bad = []
         for state in ("plain", "worn"):
             m = _measure()["%s 2000x1300" % state]
@@ -929,8 +991,9 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 v-B3 - a rare Diadem with four picked mods (shut, and with ADD MOD open) and a magic Grand Charm with two
         (and with its prefix alone and ADD MOD open, its suffixes listed): nothing cut, nothing outside its panel,
         nothing sideways, the modal on screen and off the glowing slot"""
+        _need(self, MOD_WIDTHS)
         r, bad = _measure(), []
-        for (w, h) in MOD_WIDTHS:
+        for (w, h) in _W(MOD_WIDTHS):
             for state in MOD_STATES:
                 label = "%s %dx%d" % (state, w, h)
                 m = r[label]
@@ -960,8 +1023,9 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 v-B3 fix round - the open list lies wholly inside the Edit tab's visible box, and where it has more options
         than fit it runs to that box's bottom: a fixed calc(330 x u) ran ~137px below the modal at 1280x800 (5 of 218
         options in view) and stopped at 158px on a phone with ~220px empty under it"""
+        _need(self, MOD_WIDTHS)
         r, bad = _measure(), []
-        for (w, h) in MOD_WIDTHS:
+        for (w, h) in _W(MOD_WIDTHS):
             for state in ("addmod", "gcaddmod"):
                 label = "fit %s %dx%d" % (state, w, h)
                 f = r.get(label)
@@ -980,6 +1044,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 v-B3 fix round - their ADD MOD paints the active option, so Enter's pick is seen: by REAL key input, the
         search box keeps focus through ArrowDown, names the active option (aria-activedescendant), which is the one
         painted, the second after one ArrowDown; Enter adds exactly that option"""
+        _need(self, (AT_2000,))
         r = _measure()
         self.assertEqual([x for x in r["input"] if x], [], "a real press missed")
         c = r["combo"]
@@ -997,6 +1062,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         painted in one gold, so two rows lit and nothing said which one Enter adds. By REAL input: the pointer at rest on
         the 4th option makes it the one active and the ONLY one painted; a real ArrowDown with the pointer still there
         moves the active option on, and still exactly one row is painted"""
+        _need(self, (AT_2000,))
         r = _measure()
         self.assertEqual([x for x in r["input"] if x], [], "a real press or pointer move missed")
         p, d = r["lit"]["pointer"], r["lit"]["down"]
@@ -1009,6 +1075,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 round 2 (the Grok seat on v3509, img2 AND img3): "Fire" / "Resistance" with the value on the first line
         read as a row "Resistance" with no value. Every label that wraps sets its continuation line in (a hanging indent),
         so the second line reads as the rest of the label - v-B2's rule (the value keeps the first line) stands"""
+        _need(self, (AT_INDENT,))
         rows = _measure()["indent"]
         self.assertGreater(len(rows), 0, "PREMISE: no stat label wraps at 1280, so this measured nothing")
         flat = ["%s (first %.1f, next %.1f)" % (x["text"], x["first"], x["next"]) for x in rows if x["next"] - x["first"] < 2]
@@ -1019,8 +1086,9 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         toward its min-content, and at 6 of 56 widths a value dropped under its label - v-B2's rule undone by the fix
         for the next complaint. Swept every 20px of the tight band (900-1400) against the same page with the indent
         taken away: the indent makes NO extra value drop, and no label text runs under its value"""
+        _need(self, SWEEP_AT)
         sw = _measure()["sweep"]
-        self.assertEqual(len(sw), len(SWEEP), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(SWEEP)))
+        self.assertEqual(len(sw), len(_W(SWEEP_AT)), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(_W(SWEEP_AT))))
         extra = [(x["w"], x["extra"]) for x in sw if x["extra"]]
         over = [(x["w"], x["over"]) for x in sw if x["over"]]
         self.assertEqual(extra, [], "the indent pushed these values under their labels (v-B2's rule): %s" % extra)
@@ -1033,8 +1101,9 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         900-1400, as the build stands AND with Fire alone widened: no value's number sits below its label's first line,
         no part of a value (number, chip, cap) lies outside its row or past STATS' edge, no label text runs under a value.
         This holds round 3's rule at every width, so round 3's own sabotage (the indent's margin) is retired with it"""
+        _need(self, SWEEP_AT)
         sw = _measure()["sweep"]
-        self.assertEqual(len(sw), len(SWEEP), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(SWEEP)))
+        self.assertEqual(len(sw), len(_W(SWEEP_AT)), "PREMISE: the band was not swept end to end: %d of %d widths" % (len(sw), len(_W(SWEEP_AT))))
         unwidened = [x["w"] for x in sw if not (x.get("widened") or "").startswith("\u221250 to \u221240%")]
         self.assertEqual(unwidened, [], "PREMISE: the Fire row was not widened at these widths, so the one-wide-row case measured nothing")
         for key, what in (("real", "as the build stands"), ("wide", "with Fire alone widened")):
@@ -1054,6 +1123,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         inventory cell's picker takes the side away from the GRID; its page-centre fallback is still reached at 1024x768
         and 901x900, so an inventory cell's Select is measured at every width. And a Grand Charm's Edit tile draws its in-game sprite - it
         printed "Grand Charm" in a box because only Small Charm was ever registered by its base name"""
+        _need(self, WIDTHS + MOD_WIDTHS)
         r, bad, seen = _measure(), [], 0
         for key, m in r.items():
             if not isinstance(m, dict) or not m.get("modal") or not m.get("cols") or m.get("stack"):
@@ -1068,15 +1138,16 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 continue
             if ml + mw > sl + 0.5:
                 bad.append("%s: the modal ends at %.0f, STATS starts at %.0f (%.0fpx covered)" % (key, ml + mw, sl, ml + mw - sl))
-        self.assertGreater(seen, 10, "PREMISE: only %d pick states with a modal were measured" % seen)
+        self.assertGreaterEqual(seen, _floor(11, WIDTHS + MOD_WIDTHS), "PREMISE: only %d pick states with a modal were measured" % seen)
         self.assertEqual(bad, [], "a pick covers STATS, which their Edit keeps in view: %s" % bad)
         arts = dict((k, v) for k, v in r.items() if k.startswith("gcart "))
-        self.assertEqual(len(arts), len(MOD_WIDTHS) * 2, "PREMISE: the charm's art was not probed at every width: %s" % sorted(arts))
+        self.assertEqual(len(arts), len(_W(MOD_WIDTHS)) * 2, "PREMISE: the charm's art was not probed at every width: %s" % sorted(arts))
         noart = [k for k, v in arts.items() if not v["img"] or v["failed"]]
         self.assertEqual(noart, [], "a Grand Charm's Edit tile has no art (its name in a box): %s" % noart)
 
     def test_under_900_the_character_comes_first(self):
-        for (w, h) in WIDTHS:
+        _need(self, WIDTHS)
+        for (w, h) in _W(WIDTHS):
             m = _measure()["worn %dx%d" % (w, h)]
             if w >= 900:
                 self.assertFalse(m["stack"], "%dx%d stacked" % (w, h))
@@ -1094,10 +1165,11 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         builder's 5 sizes: the grid and the doll lie inside the one panel, flush (<= 12px, no word between), the caption
         and the status line under it, 10 x 4 equal square cells edge to edge, radius 0, the grid never wider than the
         doll's inner width, cells >= 26px from 1280 up, every item inside its cells"""
+        _need(self, WIDTHS + TPL_WIDTHS)
         r, bad = _measure(), []
         tpl = sorted(k for k in r if k.startswith("tpl ") and isinstance(r[k], dict) and k != "tpl before")
-        want = ["tpl %s %dx%d" % (s, w, h) for s in ("plain", "worn") for (w, h) in WIDTHS] + \
-               ["tpl charms %dx%d" % (w, h) for (w, h) in TPL_WIDTHS]
+        want = ["tpl %s %dx%d" % (s, w, h) for s in ("plain", "worn") for (w, h) in _W(WIDTHS)] + \
+               ["tpl charms %dx%d" % (w, h) for (w, h) in _W(TPL_WIDTHS)]
         self.assertEqual(sorted(want), tpl, "PRINT THE DENOMINATOR: the template was not measured in every state")
         for k in want:
             m = r[k]
@@ -1156,7 +1228,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         before = r["tpl before"]
         self.assertNotIn("err", before, before.get("err"))
         self.assertEqual(before["items"], [], "PREMISE: the fresh build's inventory is not empty")
-        for (w, h) in TPL_WIDTHS:
+        for (w, h) in _W(TPL_WIDTHS):
             m = r["tpl charms %dx%d" % (w, h)]
             if "err" in m:
                 continue
@@ -1174,6 +1246,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#174 v-B4 fix round - theirs and the game draw every item in the grid on ONE indigo whatever its quality (a
         unique Annihilus and Hellfire Torch and a magic charm alike, (8,2,28) over the black cell, no frame, no halo); the
         one being edited is green. Ours filled a unique gold with a gold border and a gold bloom, a magic one blue."""
+        _need(self, (AT_2000,))
         lv = _measure().get("tiles") or {}
         m = lv.get("max") or {}
         self.assertNotIn("err", m, m.get("err"))
@@ -1215,6 +1288,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         red. Ours kept the tile gold and STATS summed it: Annihilus (Required Level 70) at level 50 read All Skills 1
         EXACT. Every tile red exactly when its own tooltip's Required Level is above the build's level, at three levels;
         STATS leaves the red ones out and names them; Calculations lists them among the failed requirements."""
+        _need(self, (AT_2000,))
         r = _measure()
         lv = r.get("tiles") or {}
         mx = lv.get("max") or {}
@@ -1273,6 +1347,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """#29(d) his answer 2026-09-28 ("TIGHTEN"): the Edit window is sized to its content - no empty lower third. In every
         Edit state measured: at most EMPTY_MAX px of its body lies empty under its last line, and when its body scrolls, at
         most EMPTY_MAX px of the glass is free under the window (it took the room before it scrolled)"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], 0
         for key, f in sorted(r.items()):
             if not key.startswith("edfit "):
@@ -1287,7 +1362,8 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 bad.append("%s: %.0fpx of the Edit window lies empty under its last line (window %s)" % (key, f["empty"], [round(v) for v in f["modal"]]))
             if f["sh"] > f["ch"] + 1 and f["free"] > EMPTY_MAX:
                 bad.append("%s: it scrolls %dpx inside itself with %.0fpx of the glass free under it" % (key, f["sh"] - f["ch"], f["free"]))
-        self.assertGreaterEqual(seen, len(WIDTHS) + 2 * len(MOD_WIDTHS), "PREMISE: only %d Edit states were measured" % seen)
+        # #42 - one helm Edit per width and two mod Edits per mod width, counted over the widths this run measures
+        self.assertGreaterEqual(seen, len(_W(WIDTHS)) + 2 * len(_W(MOD_WIDTHS)), "PREMISE: only %d Edit states were measured" % seen)
         self.assertEqual(bad, [], "an Edit window is not sized to what it holds:\n  " + "\n  ".join(bad))
 
     def test_round9_a_range_hint_in_a_number_box_is_shown_whole(self):
@@ -1295,6 +1371,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         its max's digits, so a box whose max is 2 is one digit wide and its range hint "1-2" was cut under the spin arrows.
         In every Edit state: every number box with a range hint gives it its text width plus the arrows (14px). Its first
         run found a second one: the rare Diadem's Defense box (a base's Edit row) read "50-6" at 375"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], 0
         for key, f in sorted(r.items()):
             if not key.startswith("edfit ") or "err" in f:
@@ -1303,7 +1380,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 seen += 1
                 if p["room"] < p["text"] + 14:
                     bad.append("%s #%s: the hint %r needs %.0fpx and its box gives %.0fpx" % (key, p["id"], p["ph"], p["text"] + 14, p["room"]))
-        self.assertGreaterEqual(seen, len(WIDTHS), "PREMISE: only %d range hints were measured (the helm's Sockets at every width)" % seen)
+        self.assertGreaterEqual(seen, len(_W(WIDTHS)), "PREMISE: only %d range hints were measured (the helm's Sockets at every width)" % seen)
         self.assertEqual(bad, [], "a range hint is cut in its box:\n  " + "\n  ".join(bad))
 
     def test_round9_the_builders_tabs_stay_in_view_while_a_modal_is_open(self):
@@ -1311,6 +1388,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         pulled up over EQUIPMENT, the tab it was editing for, and on a phone the sheet covered the whole glass. In every state
         with a modal, where the tab row is on the glass with room under it: the modal does not overlap the row, and each
         tab's centre hit-tests to that tab"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], 0
         for key, tb in sorted(r.items()):
             if not key.startswith("tabs "):
@@ -1329,7 +1407,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
             hidden = [x["tab"] for x in tb["hit"] if not x["seen"]]
             if hidden or len(tb["hit"]) != 3:
                 bad.append("%s: tabs not in view: %s (of %d)" % (key, hidden, len(tb["hit"])))
-        self.assertGreaterEqual(seen, 3 * len(WIDTHS), "PREMISE: the tab row was checked in only %d modal states" % seen)
+        self.assertGreaterEqual(seen, 3 * len(_W(WIDTHS)), "PREMISE: the tab row was checked in only %d modal states" % seen)
         self.assertEqual(bad, [], "a modal hides the builder's tabs:\n  " + "\n  ".join(bad))
 
     def test_r2_his_cap_words_cost_no_label_a_line(self):
@@ -1338,6 +1416,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         Resistance 1 -> 2 at 1280 and 2000. At every width, plain and with the helm worn: every capped row's label has the
         lines it has with the chip taken away; the chip is one line and lies inside its row. PREMISE: the eight capped rows
         (four resistances, three absorbs, damage reduction) at 1280x800 and 901x900 in both states"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], {}
         for key, rows in sorted(r.items()):
             if not key.startswith("caps "):
@@ -1352,7 +1431,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                     bad.append("%s: %s's chip %r lies outside its row" % (key, x["k"], x["cap"]))
                 if not x["cap"].startswith("cap "):
                     bad.append("%s: %s's chip reads %r, not his words 'cap N%%'" % (key, x["k"], x["cap"]))
-        for size in ("1280x800", "901x900"):
+        for size in [LW.label([x]) for x in _W(((1280, 800), (901, 900)))]:       # #42 - the two it names, where measured
             for state in ("plain", "worn"):
                 self.assertGreaterEqual(seen.get("caps %s %s" % (state, size), 0), 8,
                                         "PREMISE: %s %s measured %s capped rows, not the eight" % (state, size, seen.get("caps %s %s" % (state, size))))
@@ -1362,6 +1441,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         """REG-1379 his "Tighten both" (round 2): at every width, plain and worn - where the window does not scroll it ends
         under its content by its own bottom padding (no band) and STATS ends with the columns beside it (it was the glass's
         height whatever stood there, ~270px past them at 2000x1300); where it scrolls it is the glass's height exactly"""
+        _need(self, WIDTHS)
         r, bad, fits, scrolls = _measure(), [], 0, 0
         for key, b in sorted(r.items()):
             if not key.startswith("tight "):
@@ -1381,14 +1461,16 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                 scrolls += 1
                 if abs((b["win"][1] - b["win"][0]) - b["vh"]) > 0.5:
                     bad.append("%s: it scrolls inside itself but is %.0fpx tall on a %.0fpx glass" % (key, b["win"][1] - b["win"][0], b["vh"]))
-        self.assertGreaterEqual(fits, 2, "PREMISE: only %d states fit the glass (2000x1300 plain and worn must)" % fits)
-        self.assertGreaterEqual(scrolls, 2, "PREMISE: only %d states scroll (375x812 plain and worn must)" % scrolls)
+        # #42 - each premise names the viewport that carries it, so it binds wherever that viewport is measured
+        self.assertGreaterEqual(fits, 2 if LW.at(AT_2000, _ONLY) else 0, "PREMISE: only %d states fit the glass (2000x1300 plain and worn must)" % fits)
+        self.assertGreaterEqual(scrolls, 2 if LW.at((375, 812), _ONLY) else 0, "PREMISE: only %d states scroll (375x812 plain and worn must)" % scrolls)
         self.assertEqual(bad, [], "the builder is not as tall as what it holds:\n  " + "\n  ".join(bad))
 
     def test_r2_no_builder_panel_is_stretched_past_what_it_holds(self):
         """REG-1379 (round 2, reproduced on fe817ab7): round 1 filled the band under the builder by stretching STRENGTHS AND
         WEAKNESSES and NOTES (an empty bordered box and an empty textarea at 2000x1300). In columns, plain and worn, at every
         width: each is no taller than its own content (or its min-height floor), measured with every stretch taken away"""
+        _need(self, WIDTHS)
         r, bad, seen = _measure(), [], 0
         for key, b in sorted(r.items()):
             if not key.startswith("tight ") or b.get("err") or b.get("stack"):
@@ -1399,7 +1481,7 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
                     bad.append("%s: %s is not drawn" % (key, name))
                 elif v[0] > v[1] + BAND_TOL:
                     bad.append("%s: %s is %.0fpx tall and holds %.0fpx - %.0fpx of empty box" % (key, name, v[0], v[1], v[0] - v[1]))
-        cols = 2 * len([w for (w, h) in WIDTHS if w > 900])      # plain and worn at every column width
+        cols = 2 * len([w for (w, h) in _W(WIDTHS) if w > 900])      # plain and worn at every column width (#42: measured)
         self.assertGreaterEqual(seen, cols, "PREMISE: only %d of %d column states were measured" % (seen, cols))
         self.assertEqual(bad, [], "a builder panel is stretched past what it holds:\n  " + "\n  ".join(bad))
 
@@ -1428,6 +1510,7 @@ RED_PROOF = [
         "find": ".cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#29(d) round 9 - the base Edit's Defense box is 44px again and its hint '50-60' reads '50-6' on a phone",
@@ -1435,6 +1518,7 @@ RED_PROOF = [
         "find": ".cb-ctl input[type=number][placeholder]{min-width:calc(7ch + 22px)}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#29(d) round 9 - the Edit window keeps its fixed 750-unit frame again (an empty lower third under a charm)",
@@ -1442,6 +1526,7 @@ RED_PROOF = [
         "find": "    if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(Math.max(H, vh - top - 8)) + 'px'; }\n",
         "replace": "    if (false){}\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#29(d) round 9 - the phone's Edit sheet runs to the glass's bottom whatever it holds",
@@ -1449,6 +1534,7 @@ RED_PROOF = [
         "find": "      if (fit){ m.style.height = 'auto'; m.style.maxHeight = Math.round(vh - top0 - 8) + 'px'; }\n",
         "replace": "      if (false){}\n",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#29(d) round 9 - the Edit window is pulled up over the builder's tabs again (EQUIPMENT hidden at 1280x800)",
@@ -1456,6 +1542,7 @@ RED_PROOF = [
         "find": "    if (_tr && left < _tr.right && left + W > _tr.left && top < _tr.bottom + 6 && vh - (_tr.bottom + 6) - 8 >= 240){\n",
         "replace": "    if (false){\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#29(d) round 9 - the phone's sheet takes the whole glass again and covers the tabs",
@@ -1463,6 +1550,7 @@ RED_PROOF = [
         "find": "top0 = (tr0 && vh - (tr0.bottom + 6) - 8 >= 280) ? tr0.bottom + 6 : 8;",
         "replace": "top0 = 8;",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "REG-1379 round 2 - the builder is the glass's height again, with an empty band under its columns at 2000x1300",
@@ -1470,6 +1558,7 @@ RED_PROOF = [
         "find": ".cb-win{bottom:auto;max-height:100vh;max-height:100dvh;",
         "replace": ".cb-win{",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "REG-1379 round 2 - STATS is the glass's height again whatever stands beside it (~270px past the columns at 2000x1300)",
@@ -1477,6 +1566,7 @@ RED_PROOF = [
         "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}\n",
         "replace": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:calc(100vh - 30px - 66*var(--u))}\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "REG-1379 round 2 - round 1's fix again: STRENGTHS AND WEAKNESSES and NOTES stretch into the band as empty boxes",
@@ -1486,6 +1576,7 @@ RED_PROOF = [
                    ".cb:not(.cb-stack) .cb-body{align-self:stretch}\n.cb:not(.cb-stack) .cb-lc{flex:1 1 auto;align-items:stretch}\n"
                    ".cb:not(.cb-stack) .cb-left > :last-child,.cb:not(.cb-stack) .cb-mc > .cb-notes{flex-grow:1}\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "REG-1376 round 2 - the cap sits on the number's line again and widens the value: a label beside it wraps once more",
@@ -1493,6 +1584,7 @@ RED_PROOF = [
         "find": ".cb-sv:has(> em.cb-cap)",
         "replace": ".cb-sv:has(> em.cb-law-off)",
         "matches": 4,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B4 fix round - a unique's inventory tile is filled gold with a gold frame again (theirs: one indigo)",
@@ -1500,6 +1592,7 @@ RED_PROOF = [
         "find": ".cb-it.cb-sel{background:rgba(6,98,8,.26)}\n",
         "replace": ".cb-it[data-q=\"u\"]{background:rgba(199,179,119,.12);border-color:rgba(199,179,119,.45)}\n.cb-it.cb-sel{background:rgba(6,98,8,.26)}\n",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - the art component's rarity bloom is back on an inventory tile (a gold halo round a unique)",
@@ -1507,6 +1600,7 @@ RED_PROOF = [
         "find": ".cb-it .d2art-wrap .d2art-img{filter:none !important}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - the tile being edited is not green (theirs is the only non-indigo tile)",
@@ -1514,6 +1608,7 @@ RED_PROOF = [
         "find": "      h += '<div class=\"cb-it' + (sel ? ' cb-sel' : '') +",
         "replace": "      h += '<div class=\"cb-it' +",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - a charm above the build's level keeps its plain tile (the game turns it red)",
@@ -1521,6 +1616,7 @@ RED_PROOF = [
         "find": " + (lvlBad || clsBad ? ' cb-red' : '') + ",
         "replace": " + ",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - the builder stops handing the engine the Required Level: a charm the level cannot use feeds STATS",
@@ -1528,6 +1624,7 @@ RED_PROOF = [
         "find": "var req = function(e, x, k){ var n = x ? _cbNeedLvl(e, k, b) : 0; if (n) x.lvlreq = n; return x; };",
         "replace": "var req = function(e, x, k){ return x; };",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - a WORN item above the build's level feeds STATS while its doll slot is red (the sibling)",
@@ -1535,6 +1632,7 @@ RED_PROOF = [
         "find": "var x = req(s0.slots[k], _cbEngineEntry(s0.slots[k], eng, mine), k);",
         "replace": "var x = _cbEngineEntry(s0.slots[k], eng, mine);",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - the engine sums an item whose Required Level is above the build's (Annihilus at 50: All Skills 1)",
@@ -1542,6 +1640,7 @@ RED_PROOF = [
         "find": "        if (lvl !== null && needLvl > lvl){ res.notApplied.push(",
         "replace": "        if (false){ res.notApplied.push(",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 fix round - Calculations lists a red charm's level requirement as met ('none')",
@@ -1549,6 +1648,7 @@ RED_PROOF = [
         "find": "      if (si === (b.active | 0)) (s.inv || []).forEach(function(e){ var n = _cbNeedLvl(e, 'inv', b); if (n > clvl) fails.push(",
         "replace": "      if (false) (s.inv || []).forEach(function(e){ var n = _cbNeedLvl(e, 'inv', b); if (n > clvl) fails.push(",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B4 - the inventory's 2px gaps come back: the cells are no longer edge to edge like the game's grid",
@@ -1556,6 +1656,7 @@ RED_PROOF = [
         "find": ".cb-inv{--cb-inv-line:rgb(74,66,60);--cb-inv-cell:rgb(3,3,3);position:relative;margin:0 auto;display:grid;gap:0;padding:0;",
         "replace": ".cb-inv{--cb-inv-line:rgb(74,66,60);--cb-inv-cell:rgb(3,3,3);position:relative;margin:0 auto;display:grid;gap:2px;padding:0;",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B4 - the caption is drawn between the doll and its inventory again (v3514's 'Click a slot ...' line)",
@@ -1563,6 +1664,7 @@ RED_PROOF = [
         "find": "    return '<div class=\"cb-eqp\" id=\"cb-eqp\">' + doll + inv + '</div>';\n",
         "replace": "    return '<div class=\"cb-eqp\" id=\"cb-eqp\">' + doll + '<div class=\"cb-doll-say\">Click a slot to choose from the entire item database</div>' + inv + '</div>';\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B4 - the inventory escapes the template panel: a separate box under the doll again, not one set",
@@ -1570,6 +1672,7 @@ RED_PROOF = [
         "find": "    return '<div class=\"cb-eqp\" id=\"cb-eqp\">' + doll + inv + '</div>';\n",
         "replace": "    return '<div class=\"cb-eqp\" id=\"cb-eqp\">' + doll + '</div>' + inv;\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B4 - an item is drawn on the old gapped pitch and drifts out of the cells it occupies",
@@ -1577,6 +1680,7 @@ RED_PROOF = [
         "find": "    var pitch = L.cell;   /* #174 v-B4",
         "replace": "    var pitch = L.cell + 2;   /* #174 v-B4",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B4 - the grid's cells outgrow the doll: the inventory is wider than the doll it sits under",
@@ -1584,6 +1688,7 @@ RED_PROOF = [
         "find": "  function _cbCellPx(dk){ return Math.max(12, Math.floor((CB_DOLL_WH[0] * dk - 1) / 10)); }",
         "replace": "  function _cbCellPx(dk){ return Math.max(12, Math.floor((CB_DOLL_WH[0] * dk + 40) / 10)); }",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 round 7 - an inventory pick falls back to the page centre again and covers STATS by 25-28px",
@@ -1591,6 +1696,9 @@ RED_PROOF = [
         "find": "        if (left + W > _sl){ left = Math.max(8, _sl - W); if (left + W > _sl) W = Math.max(360, _sl - left); }\n",
         "replace": "",
         "matches": 1,
+        # #42 measured 2026-09-29: green alone at 1280x800 / 375x812 / 2000x1300; the full sweep is red at 1024x768
+        # and 901x900
+        "widths": ["1024x768"],
     },
     {
         "why": "#174 round 7 - a Grand Charm is not registered by its base name again: its Edit tile prints its name in a box",
@@ -1598,6 +1706,7 @@ RED_PROOF = [
         "find": "D2IO_ART['Grand Charm'] = 'art/hd_charm_large.png';",
         "replace": "",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     # #29(a) 2026-09-28 - round 3's sabotage (take the indent's negative margin away) is RETIRED: in the grid row a value has
     # its own column and cannot drop, so that margin carries nothing - measured clean at 375-2000 without it, and it was
@@ -1608,9 +1717,12 @@ RED_PROOF = [
         "find": ".cb-st-r{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:0 6px;",
         "replace": ".cb-st-r{display:flex;justify-content:space-between;flex-wrap:wrap;align-items:baseline;gap:0 6px;",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
-    # ⚠ RETIRED 2026-09-28 (v3522 push gate, 22:29): the proof above set .cb-sv to flex-wrap:nowrap and the law
-    # stayed GREEN at every width - BLIND. Since REG-1376 a CAPPED row is display:block (the cap on its own line),
+    # ⚠ RETIRED 2026-09-28 (v3522 push gate, 22:29): the proof that stood HERE - "a value's RANGE chip and cap may not
+    # wrap under its number", which set .cb-sv to flex-wrap:nowrap - was removed because the law stayed GREEN at every
+    # width through it - BLIND. (Not the stat-row proof just above: that one turns .cb-st-r from a grid row into a
+    # wrapping flex line, goes red, and stands.) Since REG-1376 a CAPPED row is display:block (the cap on its own line),
     # which overrides the flex wrap, and its own proof (".cb-sv:has(> em.cb-cap)" -> off) goes red for it; an
     # UNCAPPED row measured no overflow with nowrap at any of the law's widths, so the wrap is no longer
     # load-bearing. A sabotage of a rule that holds nothing up proves nothing. [[feedback-blind-fixture-green-gate]]
@@ -1620,6 +1732,7 @@ RED_PROOF = [
         "find": ".cb-st-r .cb-sl{min-width:auto;overflow-wrap:normal;padding-left:calc(6*var(--u));text-indent:calc(-6*var(--u))}\n",
         "replace": ".cb-st-r .cb-sl{min-width:auto;overflow-wrap:normal}\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 round 2 - the pointer no longer moves the active option: the row under it is not the one Enter adds",
@@ -1627,6 +1740,7 @@ RED_PROOF = [
         "find": " onmousemove=\"window._cbModHover(event)\">",
         "replace": ">",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 round 2 - :hover paints a second gold row beside the active one again",
@@ -1634,6 +1748,7 @@ RED_PROOF = [
         "find": ".cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}",
         "replace": ".cb-add-o:hover,.cb-add-o:focus-visible{background:rgba(214,170,90,.22);outline:none}",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 R2 - the builder's STATS grows with its rows again and runs off the bottom of the window (the Grok seat: rows from Energy down sliced)",
@@ -1642,6 +1757,7 @@ RED_PROOF = [
         "find": ".cb:not(.cb-stack) .cb-stats{min-height:0;height:auto;max-height:calc(100vh - 30px - 66*var(--u));contain:size;align-self:stretch}\n",
         "replace": "",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B3 fix round - the open ADD MOD list keeps a fixed height, below the modal at 1280x800",
@@ -1649,6 +1765,7 @@ RED_PROOF = [
         "find": "    if (st.modOpen && st.pick) _cbFitAddList();\n",
         "replace": "",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B3 fix round - the active ADD MOD option is not painted (what Enter adds is invisible)",
@@ -1656,6 +1773,7 @@ RED_PROOF = [
         "find": ".cb-add-o.cb-act{background:rgba(214,170,90,.30);box-shadow:inset 3px 0 0 var(--gold)}",
         "replace": ".cb-add-o.cb-act{}",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B3 fix round - the search box ignores ArrowDown and Enter (ADD MOD is no combobox)",
@@ -1663,6 +1781,7 @@ RED_PROOF = [
         "find": " onkeydown=\"window._cbModKey(event)\">",
         "replace": ">",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B3 - the open ADD MOD list stops scrolling inside its box and clips its options",
@@ -1670,6 +1789,7 @@ RED_PROOF = [
         "find": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:auto;",
         "replace": ".cb-add-list{max-height:calc(330*var(--u));min-height:120px;overflow:hidden;",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B3 - the Edit tab's controls row (Item level · Quality · Name · Base · Defense · Sockets · Ethereal) "
@@ -1678,6 +1798,7 @@ RED_PROOF = [
         "find": ".cb-ctls{display:flex;flex-wrap:wrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
         "replace": ".cb-ctls{display:flex;flex-wrap:nowrap;gap:calc(8*var(--u));margin-top:calc(10*var(--u))}",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B2 fix round - the stacked picker's pane is unbounded again: at 375 the list grows to its rows and never scrolls",
@@ -1685,6 +1806,7 @@ RED_PROOF = [
         "find": ".cb-sheet .cb-pane{min-height:0}",
         "replace": ".cb-sheet .cb-pane{min-height:auto}",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
     {
         "why": "#174 v-B2 fix round - an active gold button under the pointer paints its label gold on gold again",
@@ -1692,6 +1814,7 @@ RED_PROOF = [
         "find": ".cb-btn.cb-on:hover:not([disabled]){color:#1a1208;border-color:var(--gold-bright)}",
         "replace": ".cb-btn.cb-on:hover:not([disabled]){border-color:var(--gold-bright)}",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 - a prose panel gets a fixed height and clips its words (the class that cut the mule window)",
@@ -1699,6 +1822,7 @@ RED_PROOF = [
         "find": ".cb-prim{min-height:calc(102*var(--u))}.cb-merc{min-height:calc(80*var(--u))}",
         "replace": ".cb-prim{min-height:calc(102*var(--u))}.cb-merc{height:calc(34*var(--u));overflow:hidden}",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B2 - the modal is centred, so it covers the glowing slot it serves",
@@ -1706,6 +1830,7 @@ RED_PROOF = [
         "find": "      if (r.right <= cx + 1){ left = r.right + 12; W = Math.min(W0, roomR); }\n      else { W = Math.min(W0, roomL); left = r.left - 12 - W; }\n",
         "replace": "      W = W0; left = (vw - W) / 2;\n",
         "matches": 1,
+        "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
     {
         "why": "#174 v-B2 - the columns leave their literal 322 | 716",
@@ -1713,6 +1838,7 @@ RED_PROOF = [
         "find": ".cb-lc{display:grid;grid-template-columns:calc(322*var(--u)) calc(716*var(--u));",
         "replace": ".cb-lc{display:grid;grid-template-columns:calc(360*var(--u)) calc(678*var(--u));",
         "matches": 1,
+        "widths": ["2000x1300"],   # #42 measured 2026-09-29: the tampered law is red at 2000x1300 alone
     },
     {
         "why": "#174 v-B2 - a phone keeps the desktop width and the builder scrolls sideways",
@@ -1720,11 +1846,14 @@ RED_PROOF = [
         "find": "grid-template-areas:\"top\" \"set\" \"main\" \"stats\" \"left\" \"notes\";width:100%}",
         "replace": "grid-template-areas:\"top\" \"set\" \"main\" \"stats\" \"left\" \"notes\";width:calc(1350*var(--u))}",
         "matches": 1,
+        "widths": ["375x812"],   # #42 measured 2026-09-29: the tampered law is red at 375x812 alone
     },
 ]
 
 
 if __name__ == "__main__":
+    if _ONLY is not None:
+        sys.stderr.write("⚠ " + LW.banner(_ONLY, VIEWPORTS) + "\n")
     if not os.path.exists(RC.CHROME):
         sys.stderr.write("⚪ SKIP — %s. UNMEASURED, declared as a skip (77), never a pass.\n" % NO_BROWSER)
         raise SystemExit(77)

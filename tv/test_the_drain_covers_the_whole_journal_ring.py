@@ -32,6 +32,15 @@ import sys
 import tempfile
 import unittest
 
+# SIZED FROM THE WINDOW: more recent rows than the newest KEEP_RECENT, so that hold is never what does the work.
+# A literal 12 was 8 + 4 and went red when his window became 16 (2026-09-29, REG-1433).
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from reel_retention import KEEP_RECENT as _KEEP_FLOOR
+except Exception:
+    _KEEP_FLOOR = 16
+_NEWER = _KEEP_FLOOR + 4
+
 from console_safe import enable as _console_safe_enable
 
 _console_safe_enable()
@@ -65,10 +74,10 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.addCleanup(lambda: setattr(JR, "BACKUP_DIR", self._bd))
         RP.JOURNAL = self.live
         JD.BACKUP_DIR = os.path.join(self.d, "backups")
-        # 12 recent runs in the LIVE file so the "newest 8" hold is never what does the work,
+        # _NEWER recent runs in the LIVE file so the newest-KEEP_RECENT hold is never what does the work,
         # and one old run in the ROTATED file — the half the applier could not reach.
         with io.open(self.live, "w", encoding="utf-8") as fh:
-            for i in range(12):
+            for i in range(_NEWER):
                 fh.write(json.dumps(_row("s_live_%02d" % i, 1_800_000_000_000 + i)) + "\n")
             fh.write(json.dumps(_row("s_old_live", 1_700_000_000_000)) + "\n")
         with io.open(self.rot, "w", encoding="utf-8") as fh:
@@ -159,7 +168,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
     def test_a_released_row_in_the_rotated_half_is_removed(self):
         rows = [_row(sid, t0) for sid, t0 in
                 [("s_rotated", 1_700_000_000_001), ("s_old_live", 1_700_000_000_000)]
-                ] + [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+                ] + [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         rel = {r["sessionId"] for r in p["release"]}
         self.assertIn("s_rotated", rel, "the fixture did not release the rotated run, so this "
@@ -178,7 +187,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
     # ── 4. a corpus that MOVED is refused ─────────────────────────────────────────────────────
     def test_a_moved_corpus_is_refused(self):
         rows = [_row("s_rotated", 1_700_000_000_001)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         with io.open(self.live, "a", encoding="utf-8") as fh:      # the journal moves underneath
@@ -198,7 +207,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.assertNotEqual(a, b,
                             "both ring files backed up to the SAME path — the second overwrote "
                             "the first, so one generation has no backup while the log says it does")
-        self.assertEqual(na, 13)
+        self.assertEqual(na, _NEWER + 1)          # the live file: _NEWER recent rows + the one old run
         self.assertEqual(nb, 2)
 
 
@@ -211,7 +220,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         the backup step, before the live file is touched, and the doomed live rows stay forever."""
         io.open(self.rot, "w", encoding="utf-8").close()          # a generation drained to zero
         rows = [_row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertIn("s_old_live", {r["sessionId"] for r in p["release"]},
                       "fixture released nothing, so this proves nothing")
@@ -283,7 +292,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         plan, and the realistic time to run a drain is while a session is recording."""
         io.open(self.live, "a", encoding="utf-8").write(
             json.dumps(_row("s_arrived_mid_drain", 1_900_000_000_000)) + "\n")
-        late = JD._late_lines(self.live, 13, set(), JD._ident(self.live))   # 13 read before
+        late = JD._late_lines(self.live, _NEWER + 1, set(), JD._ident(self.live))   # the live file read before
         got = [json.loads(x)["sessionId"] for x in late]
         print("   appended mid-drain -> carried: %s" % got)
         self.assertEqual(got, ["s_arrived_mid_drain"],
@@ -310,7 +319,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         written between the read and the `os.replace`, with a backup that predates it — is back.
         [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         fired = self._during_the_rewrite_of(self.live, lambda: io.open(
@@ -343,7 +352,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         puts every released session back. An empty carry-forward list must never be the answer to
         "the file shrank": that reads "nothing to carry" and proceeds to rename. [[zero-needs-a-denominator]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
 
@@ -374,7 +383,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         the night that had just arrived. Worse, the loop reached live next and refused there, so
         the error named LIVE while the file that lost rows was `.1`. [[stale-reading]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         before = self._ids(self.live)
@@ -404,7 +413,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         green while `apply_plan` renamed a drained rewrite onto a generation it could not read.
         Two reasons, two proofs. [[zero-needs-a-denominator]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         n_before = len(self._ids(self.live))
@@ -433,7 +442,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         not hypothetical here: it is the carved scar that emptied his 6MB bible.html. Same file,
         fewer rows, and a count is the only witness left. [[open-for-write-truncates-first]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         ino_before = os.stat(self.live).st_ino
@@ -465,8 +474,8 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         [[zero-needs-a-denominator]]"""
         io.open(self.live, "a", encoding="utf-8").write(
             json.dumps(_row("s_late", 1_900_000_000_000)) + "\n")
-        with_id = JD._late_lines(self.live, 13, set(), JD._ident(self.live))
-        without = JD._late_lines(self.live, 13, set(), None)
+        with_id = JD._late_lines(self.live, _NEWER + 1, set(), JD._ident(self.live))
+        without = JD._late_lines(self.live, _NEWER + 1, set(), None)
         print("   ident given -> %r · ident absent -> %r"
               % (len(with_id) if with_id is not None else None, without))
         self.assertEqual(len(with_id or []), 1, "the fixture appended nothing to carry")
@@ -574,7 +583,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         is still lost and cannot be saved without a lock the writer does not take — said out loud
         rather than implied. [[unknown-stays-unknown]]"""
         rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
-               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertTrue(p["release"], "fixture released nothing")
         before = self._ids(self.live)

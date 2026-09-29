@@ -6594,6 +6594,10 @@
      exactly like the reason clause above: the full width, indented to the name's own column, one
      weight lighter than the verdict. Each fact is its own block so a wrap never strands a middot, and
      no child is nowrap (test_the_fleet_row_can_shrink_below_its_own_text). */
+  /* 2026-09-29 — the same lines inside the click box: one quiet panel under the box's head */
+  .fx-sys { margin: 4px 0 10px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 6px;
+            background: rgba(255,255,255,.02); }
+  .fx-sys > .fleet-sys { display: block; color: #7f8c83; font-weight: var(--fw-normal); }
   .fleet-row > .fleet-sys  { grid-column: 1 / -1; margin-left: 14px; justify-self: stretch;
                              text-align: left; font-weight: var(--fw-normal); color: #7f8c83; }
   /* 2026-09-28 round 2 (REG-1377) - EACH FACT IS ITS OWN FLEX ITEM, EXACTLY AS THE RIVER'S TRIAGE LINE (.shr-tri):
@@ -8409,6 +8413,21 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
                 <small id="sadv-auto-say">a new build on disk restarts this window · never mid-film, never into a changed world</small></span>
             </div>
           </div>
+          <!-- 2026-09-29 — ⤓ THE CONSOLE IS A BACKGROUND SERVICE. His words: "background service running with the
+               console hidden always by design ... sessions are always working and running ... regardless if the
+               console is on or not", then "make sure this thing and window is completely hidden". ✕ and Esc used to
+               QUIT, which stopped the shadow reader with the window; now they HIDE it completely (no window, no
+               taskbar button, no Dock icon) and every lane keeps going. The Desktop icon brings it back. A STATEMENT, not a switch -
+               the same idiom as auto-relaunch above - because the way out is a real control (⏻ quit, below),
+               not a toggle that decides what ✕ means. -->
+          <div class="adv-sec-h adv-sec-h-rest">⤓ WHEN YOU CLOSE THE WINDOW</div>
+          <div class="shadow-adv" id="bg-service-adv">
+            <div class="shadow-adv-fixed" id="sadv-bg-fixed">
+              <span class="shadow-adv-ic">⤓</span>
+              <span class="shadow-adv-t"><b>Keeps running in the background</b>
+                <small id="sadv-bg-say">✕ or Esc hides the console completely · the shadow reader, triage and drain keep going · the Desktop icon brings it back · ⏻ quit stops everything</small></span>
+            </div>
+          </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
             <!-- v2638 — HIS CALL, 2026-09-05: "DARK SEAL BRIDGE all dont need to be buttons
@@ -8426,6 +8445,7 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
             <button class="util-btn" id="btn-stop" type="button" hidden style="display:none" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" hidden style="display:none" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
+            <button class="util-btn" id="btn-quit" type="button" title="QUIT COMPLETELY - stops the shadow reader and seals any rolling reel. ✕ and Esc only hide the console, which keeps recording in the background.">⏻ quit</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
             <!-- v2350c — the lamp above was labelled "mini" and this one "MINI": two controls
                  differing only in CASE, side by side in the same strip, one of which drives his
@@ -12435,7 +12455,7 @@ window._lockMark = function(isOpen, px, label){
     }
     /* how long this answer has sat on the page since the console gave it */
     var held = (typeof d.__askedAt === 'number') ? Math.max(0, (now - d.__askedAt) / 1000) : 0;
-    var bits = [], lk = t.lastKey ? String(t.lastKey) : '';
+    var bits = [], lk = t.lastKey ? String(t.lastKey) : '', lkRefusal = false;
     /* in parentheses, not after a middot: at 375 the phrase wrapped and left "·" alone at the end of its line (the Grok
        CLI's cold look at the first render) */
     var lastAgo = (typeof t.lastAt === 'number') ? (' (' + _shAgo((now - t.lastAt) / 1000) + ')') : '';
@@ -12454,6 +12474,19 @@ window._lockMark = function(isOpen, px, label){
       bits.push(t.ticks === 0 ? '<span class="shr-unk">no tick yet since this console started</span>'
         : ((typeof t.ticks === 'number' && isFinite(t.ticks) && t.ticks > 0)
           ? '<span class="shr-unk">last outcome unreadable</span>' : '<span class="shr-unk">last outcome UNKNOWN</span>'));
+    } else if (lk === 'walked-nothing') {
+      bits.push('<b>walked nothing</b>' + lastAgo);
+    } else {
+      /* 2026-09-29 (the second eye on 60d4e07e) - EVERY OTHER KEY IS A REFUSAL, AND IT IS SAID. This chain had no
+         else: a lastKey of raised / unworkable / cpu-loaded / ... added no state, and with no lastSkipKey the line
+         below then painted "no refusal since this console started" - over a lane whose last tick WAS a refusal,
+         while the fleet card (_fleetSysParts) said "last refusal: <word>" for the same object. */
+      lkRefusal = true;
+      /* the SAME refusal recorded as the lane's last skip is painted below, with the skip's own age and reason */
+      if (String(t.lastSkipKey || '') !== lk) {
+        bits.push('<span title="' + esc(String(t.lastWhy || '')) + '">last refusal: ' + esc(_triageSay(lk)) + '</span>'
+                + lastAgo);
+      }
     }
     bits.push((typeof t.backlog === 'number')
       ? ('<b>' + t.backlog + '</b> owed')
@@ -12467,9 +12500,10 @@ window._lockMark = function(isOpen, px, label){
     }
     if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')) {
       var sa = (typeof t.lastSkipTs === 'number') ? _shAgo((now - t.lastSkipTs) / 1000) : 'UNKNOWN';
+      /* the age in brackets, never ' · ' inside one wrapping span: a wrap left the middot alone on its line */
       bits.push('<span title="' + esc(String(t.lastSkipWhy || '')) + '">last refusal: ' + esc(_triageSay(t.lastSkipKey))
-              + ' · ' + sa + '</span>');
-    } else if (!t.lastSkipKey) {
+              + ' (' + sa + ')</span>');
+    } else if (!t.lastSkipKey && !lkRefusal) {
       bits.push('no refusal since this console started');
     }
     return '<div class="shr-tri">' + head + bits.map(function(b){ return '<span class="shr-tri-b">' + b + '</span>'; }).join('')
@@ -20313,6 +20347,30 @@ window._lockMark = function(isOpen, px, label){
     };
   })();
 
+  /* 2026-09-29 — ⏻ QUIT, THE ONE CONTROL THAT STOPS THE SERVICE. ✕ and Esc now send the console to the
+     background, so quitting became a thing he has to be able to do on purpose - and it confirms in place,
+     like relaunch, because it stops the recording too. It names itself to /api/quit (v3262). */
+  (function(){
+    var _armed = false, _t = null;
+    var b = $('btn-quit');
+    if (!b) return;
+    b.onclick = function(){
+      if (!_armed){
+        _armed = true;
+        b.textContent = '\u23fb sure? recording stops too';
+        _t = setTimeout(function(){ _armed = false; b.textContent = '\u23fb quit'; }, 4000);
+        return;
+      }
+      clearTimeout(_t); _armed = false;
+      b.textContent = '\u23fb quitting\u2026';
+      b.disabled = true;
+      try {
+        fetch(API + '/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                   body: JSON.stringify({ from: 'quit-button' }) }).catch(function(){});
+      } catch (_q) {}
+    };
+  })();
+
   // v2059 — the ledger-repair taps. Both routes existed since v2052 with no caller at all.
   $('btn-repair').onclick = function(){
     var box = $('repair-box'); if (!box) return;
@@ -20515,7 +20573,11 @@ window._lockMark = function(isOpen, px, label){
       if (!ev) return;
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;      /* Cmd/Ctrl+W must still close */
       if (ev.isComposing || ev.keyCode === 229) return;        /* mid-IME composition */
-      var k = ev.key; if (!k || k.toLowerCase() !== 'w') return;
+      /* 2026-09-29 — THE PHYSICAL KEY TOO. He types with a Hebrew layout on as often as not (his own messages
+         arrive half in Hebrew keys), and on that layout the W key's `key` is an apostrophe - so "W is
+         regressing again" was a shortcut that only ever listened for the English letter. `code` is the key's
+         place on the board, whatever layout is on. */
+      var k = ev.key; if (!k || (k.toLowerCase() !== 'w' && ev.code !== 'KeyW')) return;
       var t = ev.target || {};
       var tag = (t.tagName || '').toUpperCase();
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -22338,10 +22400,11 @@ window._lockMark = function(isOpen, px, label){
     if (e.key === 'Escape') window._escOverlayAtPress = _consoleOverlayOpen();
   }, true);
 
-  // v1420 — Esc on the EMPTY console homepage = quit the native app.
+  // v1420 — Esc on the EMPTY console homepage = leave the console — same as ✕.
   // Capture-phase overlay handlers (theatre / shell / chronicle / forensics / …) run first
-  // and stopPropagation. If nothing claimed Esc, user means "leave the console" — same as ✕.
-  // Hits /api/quit which arms the Mac force-exit deadline (no more Force Quit).
+  // and stopPropagation. If nothing claimed Esc, user means "leave the console".
+  // 2026-09-29 (REG-1430) — leaving no longer quits: it HIDES the console and every lane keeps running.
+  // ⏻ quit is the deliberate exit (it hits /api/quit, which arms the Mac force-exit deadline).
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (e.defaultPrevented) return;
@@ -22366,14 +22429,14 @@ window._lockMark = function(isOpen, px, label){
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (typeof toast === 'function') toast('Leaving console…');
+      if (typeof toast === 'function') toast('Leaving console - it keeps recording, hidden. The Desktop icon brings it back; ⏻ quit stops it.');
     } catch (_t) {}
     try {
-      /* v3262 — NAME YOURSELF. An unattributed quit is recorded as UNATTRIBUTED, which is
-         itself the finding: this is the only caller in the page, so an UNATTRIBUTED line in
-         his log means something ELSE killed the console. */
-      fetch('/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                           body: JSON.stringify({ from: 'escape-empty-stack' }) })
+      /* 2026-09-29 — Esc is "same as ✕", and ✕ now sends the console to the BACKGROUND instead of quitting:
+         his ruling that the sessions keep working whether the console is up or not. A real quit is ⏻ quit.
+         v3262's rule still holds - the caller names itself. */
+      fetch('/api/window', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({ do: 'background', from: 'escape-empty-stack' }) })
         .catch(function(){});
     } catch (_f) {}
   }, false);
@@ -25418,7 +25481,7 @@ function escC(s) {
            "how far along is he", and this answers "what should I chase". */
         return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt fleet-clickable"'
           + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
-          + ' title="click to cross-reference their set pieces against yours"'
+          + ' title="click: how this PC films and drains, and their set pieces against yours"'
           + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
@@ -25464,11 +25527,16 @@ function escC(s) {
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
                 + escC(w.w) + '</span>' + _rw;
             })()
-          /* 2026-09-28 — how this PC films D2R, its river and its triage lane, each with its age; a
-             renamed host as a quiet "formerly" line (see _fleetSysParts) */
-          + _fleetSysHtml(m, Date.now())
+          /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
+             clicked on or something like a backdoor to the informational background". The films / river / triage lines
+             (and a renamed host's "formerly" line) live in the box a click opens (_fleetCompare), never on the row. */
           + _tip(m) + '</div>';
       };
+      /* 2026-09-29 — the click box reads a PC's films / river / triage from here (the backdoor) */
+      window._fleetByMachine = {};
+      (j.online || []).concat(j.offline || []).forEach(function (m) {
+        if (m && m.machine) window._fleetByMachine[m.machine] = m;
+      });
       var rows = (j.online || []).map(function (m) { return _row(m, true); })
         .concat((j.offline || []).map(function (m) { return _row(m, false); }));
       /* v3387 — AND THE PEOPLE THIS RAIL HAS ALWAYS BEEN BLIND TO. A cousin who reads the
@@ -25614,6 +25682,15 @@ function escC(s) {
     var box = document.getElementById('fleet-xref');
     if (!box) return;
     if (!machine) { box.hidden = true; return; }
+    /* 2026-09-29 — THE BACKDOOR: how this PC films, its river and its triage, shown only when he asks (a click) */
+    var _sys = '';
+    try {
+      var _fm = (window._fleetByMachine || {})[machine];
+      if (_fm && typeof _fleetSysHtml === 'function') {
+        _sys = '<div class="fx-sys" title="how this PC films D2R, where its reels are in the river, and its triage lane">'
+          + _fleetSysHtml(_fm, Date.now()) + '</div>';
+      }
+    } catch (_) { _sys = ''; }
     ledger = _FXR_LEDGERS[ledger] ? ledger : 'sets';
     var SPEC = _FXR_LEDGERS[ledger];
     box.hidden = false;
@@ -25628,6 +25705,7 @@ function escC(s) {
     if (!j) {
       box.innerHTML = '<div class="fxr-win"><div class="fx-head"><b>cross-reference</b>'
         + '<button class="fx-x" type="button" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+        + _sys
         + '<div class="fx-why">the console did not answer — this is UNKNOWN, not "you are level"</div></div>';
       return;
     }
@@ -25669,6 +25747,7 @@ function escC(s) {
                                  + (j.showN ? (' of ' + j.showN) : '')) : '')
       + '</span>'
       + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+      + _sys
       + tabs;
     /* ══ v3175 — A MISSING MASK ON THEIR SIDE MUST NOT BLANK YOURS ═════════════════════════
        His words, looking at this panel: "its not showing the images and the HD images of items

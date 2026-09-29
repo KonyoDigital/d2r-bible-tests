@@ -171,6 +171,29 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_the_triage_line_names_every_refusal", [sys.executable,
+         os.path.join(HERE, "test_the_triage_line_names_every_refusal.py")], 60,
+         why="REG-1441 - the second eye on the v3522 screens merge: THE SHELF's triage line said 'no refusal since "
+             "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
+             "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
+             "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
+         os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
+         why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "
+             "read 'unreachable', THE SHELF would not open, W did nothing. He found it from four screenshots; nothing "
+             "in the console did, because every watchdog it has talks over that port. It now asks its own port once a "
+             "minute; three refusals relaunch it (never while a sweep or mini is in flight, never twice in ten "
+             "minutes), and a slow answer never counts. Real loopback sockets. 5 red-proofs"),
+    Gate("test_closing_the_window_keeps_the_console_running", [sys.executable,
+         os.path.join(HERE, "test_closing_the_window_keeps_the_console_running.py")], 60,
+         why="REG-1430 - his words: 'background service running with the console hidden always by design ... "
+             "sessions are always working and running ... regardless if the console is on or not. a one time "
+             "update to the newer version should keep it backgrounded'. ✕ used to END everything (v935.8), so "
+             "a session played with the window shut was never filmed. ✕ / Esc now HIDE it completely ('make sure "
+             "this thing and window is completely hidden') and every lane keeps running; ⏻ quit still quits. "
+             "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
+             "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
+             "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434). 18 red-proofs"),
     Gate("test_quit_attribution", [sys.executable,
                                    os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
          why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "
@@ -345,6 +368,18 @@ GATES = [
                           os.path.join(HERE, "test_one_install_is_one_machine.py")], 60,
          why="2026-09-28 - ONE INSTALL IS ONE MACHINE. His fleet panel showed a second GrokBot: the same install id (1bba07477e40) under machine 'cursor' (last seen 09-20, v3377) beside the live 'grok-bot-vm' row, because the worker keys records by machine name and a renamed host keeps its own row. /api/fleet now folds rows sharing an install into the newest, keeps the old name as formerMachines and states it in mergedInstalls; the stale lastGood roster is merged the same way. Driven through Handler.do_GET, 3 red-proofs"
          ),
+    Gate("test_a_corrupt_mule_store_is_never_overwritten", [sys.executable,
+                          os.path.join(HERE, "test_a_corrupt_mule_store_is_never_overwritten.py")], 60,
+         why="2026-09-29 - DATA LOSS found by the #41 heart audit (verified, rank 7): the vault module's load() answered {} for d2r_muleAssign bytes that would not parse, the picker said the mule holds nothing, and the next saveA() wrote {} over the corrupt bytes - every mule assignment gone while the doctor said UNKNOWN. An unparseable store now reads UNKNOWN on the picker and NO write goes over bytes that could not be read (both mule stores, every write in the module through one guard). Driven on the shipped code cut from bible.html, in node. 2 red-proofs"
+         ),
+    Gate("test_a_stale_git_lock_is_cleared_and_said", [sys.executable,
+                          os.path.join(HERE, "test_a_stale_git_lock_is_cleared_and_said.py")], 120,
+         why="#64 (REG-1421, REG-1422) - his words: 'the windows needs proper care and attention'. MEASURED 2026-09-29 on his ALT: .git/index.lock from 2026-09-28 14:09, 0 bytes, no git process running, and every automatic pull after it failed 'Unable to create index.lock: File exists' - the ALT sat on v3521 for 11 h. _pull_once RECORDED the failure in _PULL.say and nothing read it or cleared it. Now the pull lane (and the /api/update door) removes an EMPTY lock older than 10 min when no git runs here (Windows asks the Toolhelp32 process table, Mac/Linux pgrep -x git; a probe that cannot answer never removes), before the fetch and again when git's error names index.lock, with a receipt on the lane; any other lock is left and SAID. The doctor row 'this checkout can update' reads the lane over /api/status (pullLane) - MISSING after failures past 1 h with the reason and since when, OK after a success or a deliberate stand-down, UNKNOWN when nobody tried - and the fleet beacon's pull.why says the pulls are failing. Driven on real git fixtures in a temp dir, never his checkout. FOLLOW-UP (REG-1425..1426, REG-1428, the review of #64): an update SIGKILLed mid-checkout (a 0-byte stale lock beside a half-written tree) read as 'dirty, standing down ON PURPOSE' and the row said OK - it is now its own outcome, 'interrupted', named with the lock and the file count, never cleared, MISSING on the doctor and named on the fleet beacon; the ROOT CAUSE is closed - every console git goes through the one door with GIT_OPTIONAL_LOCKS=0, so a read-only git status killed by its timeout cannot leave index.lock (seen on a real repo: a plain status takes the lock, the door's never does); and the two pull doors hold ONE lock, with the lock judge refusing a lock whose inode changed between its two looks. 19 red-proofs"
+         ),
+    Gate("test_a_stub_agent_never_films_his_screen", [sys.executable,
+                          os.path.join(HERE, "test_a_stub_agent_never_films_his_screen.py")], 240,
+         why="#63 (REG-1423, REG-1424) - his words: 'make sure nothing is running on my pc for nothing'. MEASURED 2026-09-28: under TV_STUB the agent's live loop called the REAL capture_mac first and used synthetic frames only when it failed, so with Screen Recording granted a stub agent filmed and OCR'd his desktop and test_roundtrip_sim passed 17:12 and failed 19:05 on one commit. MEASURED 2026-09-29: the roundtrip's own agent is not even a stub agent - /api/on pops TV_STUB - so a TV_STUB console now hands its live agent TV_CAPTURE=off. A stub agent synthesizes (live loop, film thread, farewell) unless TV_STUB_REAL_CAPTURE=1; on Windows its capture_win.ps1 is never spawned and the lamp reads OFF. Driven on a REAL agent process with every screen reader patched to record-and-raise. FOLLOW-UP (REG-1427, the review of #63): a stub agent and a TV_CAPTURE=off agent (the one a stub console hands to /api/on) still asked macOS for Screen Recording (CGRequestScreenCaptureAccess) at boot and in the capture-fail branch, which then opens System Settings, and the capture-off agent's game gate walked his windows - 'make sure nothing is running on my pc for nothing'. Neither asks nor walks now; driven on a real capture-off agent too, and in-process with the platform handed in so it is a law off a Mac. 10 red-proofs"
+         ),
     Gate("test_the_background_lane_never_shows_the_pin", [sys.executable,
                           os.path.join(HERE, "test_the_background_lane_never_shows_the_pin.py")], 60,
          why="2026-09-28 - his v2362 words: 'shadow reader is suppose to be behind the scenes'. Second eye on v3520 (ca60116a), confirmed on main: the capture pin was hidden only for an ARMED reader, so turning the shadow switch off while a shadow reel still rolled showed the pin on the standby board until the reel stopped. The background lane, armed or still rolling, never shows the pin. 1 red-proof"
@@ -352,6 +387,10 @@ GATES = [
     Gate("test_a_frame_index_lists_each_folder_once", [sys.executable,
                           os.path.join(HERE, "test_a_frame_index_lists_each_folder_once.py")], 60,
          why="2026-09-28 - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there thats the way we know it will work for dean too'. MEASURED on his ALT (Windows + Boosteroid, 14 reels): GET /api/river took 32.8 s there against 4.1 s for 66 reels on his Mac; a read-only profile put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in frame_ref.Index, and 1.7 s in 21,349 relpath calls. The index now lists each folder once (os.scandir - on Windows the listing carries the size) and builds each path from the folder prefix. Driven on a fixture tree: equals the old os.walk walk exactly (paths, stem lists, order, counts, bytes, symlinked folder not entered) and calls no getsize, no relpath and no per-file os.stat. 3 red-proofs"
+         ),
+    Gate("test_a_plan_is_computed_once", [sys.executable,
+                          os.path.join(HERE, "test_a_plan_is_computed_once.py")], 180,
+         why="REG-1410..1414 (#66) - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there'. MEASURED on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522 landed, with py-spy dumps: ~15 min of /api/status at 11 s then timeouts while ONE thread, tvd-eagle-watch, held the GIL tokenizing every tv/*.py for frame_authority.test_referenced_reels (reached through reel_retention.plan; its key moves on every ship), then /api/river timing out at 90 s while THREE threads (tvd-retro-triage, tvd-eagle-watch, an HTTP request) each re-listed the whole shelf inside frame_ref.Index at once - plan() is called from ~62 places and remembered nothing. On the CONSOLE PATH (control_app.main marks it; laws, the gate and CI never do): the fixture set is the committed ratchet (the exact scan stays for the gate and for exact=True; an unreadable ratchet falls back to it, never to an empty set); a still reel folder is listed once and kept by its own stamp; plan() is SINGLE-FLIGHT and remembered until plan_fingerprint moves - every ledger and store it reads, the hist listing, every folder under it, each reel's index.json - and an input that moved less than RACY_S ago is computed fresh and never kept; plan() and plan(<the same tree>) (reel_story's and the eagle's call shapes) are one question while each ledger has one copy. MEASURED on an ALT-shaped fixture (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once): v3522 cold 114-154 s / 7,232 files tokenized / 4 index builds / 284 listings, warm 4.6 s; now cold 0.69 s / 0 tokenized / 1 build, unchanged 0.02 s / 0 listings, a live frame 0.58 s, and all five rounds' plans byte-identical to v3522's. Driven: 4 concurrent callers -> 1 computation; a DIFFERENTIAL over 12 moves of every input, each recomputed and equal to a from-scratch plan; a moving ledger never kept; only the changed folder re-listed; the console never tokenizes; two ledger copies keep two answers; reel_router's filmed-at reads the same kept listing. 16 cases, 10 red-proofs"
          ),
     Gate("test_payload_names_what_it_left_out", [sys.executable,
                           os.path.join(HERE, "test_a_payload_names_what_it_left_out.py")], 60,
@@ -7528,6 +7567,21 @@ GATES = [
              "measured - test_control is 19.5s idle and 565.9s under concurrent load, and parallel "
              "proving deliberately manufactures that load.",
          skip_ok=()),
+    Gate("test_a_push_proof_runs_only_where_its_defect_shows",
+         [sys.executable, os.path.join(HERE, "test_a_push_proof_runs_only_where_its_defect_shows.py")], 180,
+         needs_app=False,
+         why="#42 (REG-1400) - his order, 2026-09-28: 'do #42 right after v3522 lands' - pushes take too long. MEASURED "
+             "on the v3522 push: heart2 runs every proof of one gate serially in the lane that owns it, so the character "
+             "builder's width law (41 red-proofs, each a clean AND a tampered run of a ~100 s law) was ONE ~105-minute "
+             "thread and the gate took ~2h50m; attempt 1 ran 159 min and was refused on ONE blind proof a targeted run "
+             "finds in ~3 min. heart2 --prove --push (the hook's call, nothing else): a proof that declares the "
+             "'widths' its defect shows at runs its clean and tampered runs ONLY there, one that declares none runs at "
+             "every width; a declared width that stays green is BLIND, never PROVEN; the likeliest failures run first "
+             "and the run STOPS at the first BLIND / INVALID / clean-run red (NOT RUN is never banked, exit 1); a gate "
+             "that starts a browser is proved one at a time (four parallel Chrome lanes drove his Mac to load 100). "
+             "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
+             "Fixtures only - no browser. 18 cases, 17 red-proofs",
+         skip_ok=()),
     Gate("test_a_host_dependency_is_not_always_an_attribute",
          [sys.executable, os.path.join(HERE, "test_a_host_dependency_is_not_always_an_attribute.py")], 120,
          needs_app=False,
@@ -7659,7 +7713,9 @@ GATES = [
              "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
              "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
              "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
-             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block)",
+             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block). "
+             "#42 (REG-1400): every red-proof declares the viewport its defect shows at, MEASURED one viewport at a time, and "
+             "a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -7710,7 +7766,9 @@ GATES = [
              "tabs stay in view while its Select or Edit modal is open, at every width in both arrangements (the "
              "builder's tab rule skipped the mule host - the #174 Edit panel covered them everywhere). Timeout 120 -> "
              "300: a full run measured 108-120s. TV_LAW_PORT pins its port as the builder's law does. Now 23 cases, "
-             "25 red-proofs",
+             "25 red-proofs. #42 (REG-1400): every red-proof declares the viewport(s) its defect shows at, MEASURED one "
+             "viewport at a time, and a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate "
+             "always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -7994,6 +8052,16 @@ def run(only=None, live_watch=True, live_writer=None):
     live there, so the cheap net covers the case and the expensive one buys almost nothing.
     """
     results = []
+    # ⚠ #42 — THE FULL SWEEP IS THE VERDICT OF RECORD, SO NO GATE HERE MAY INHERIT A SAMPLE. `heart2.py --prove --push`
+    # hands a width law TV_LAW_WIDTHS so a push-time red-proof measures only where its defect shows (tv/law_widths.py).
+    # Every gate below is a subprocess that inherits this environment, so a value left in a shell - or exported by
+    # anything upstream - would turn every width law into a sample that still prints PASS. Scrubbed here, before the
+    # first gate, and said out loud. test_a_push_proof_runs_only_where_its_defect_shows drives this. [[regression-guard]]
+    import law_widths as _LW
+    _stray_widths = _LW.scrub()
+    if _stray_widths is not None:
+        print("⚠ %s=%r was in the environment and is REMOVED: the gate set measures every width"
+              % (_LW.ENV, _stray_widths))
     app_up = _app_up()
     _lw_prev = _state_fingerprint() if live_watch else None
     _lw_blame = []
@@ -8611,6 +8679,16 @@ def main(argv):
         print("── SHARD %d/%d: %d of %d gates (balanced on %s) ──"
               % (_k, _n, len(only), len(GATES), _cost_table()[1]))
 
+    # ⚠ 2026-09-29 — A NAME THIS REGISTRY DOES NOT HAVE RUNS NOTHING, AND NOTHING IS NOT A PASS. A zsh `--only $G` handed
+    # 34 names as ONE argument; it matched no gate and the run printed "✅ 0 gate(s) passed" with exit 0 - a green over a
+    # check that never happened, the night v3523 was being cleared for push. Every unknown name refuses, like --shard's.
+    if a.only:
+        _known = set(g.name for g in GATES)
+        _unknown = [n for n in a.only if n not in _known]
+        if _unknown:
+            print("⛔ REFUSED — --only names %d gate(s) this registry does not have (%s); NO gate ran"
+                  % (len(_unknown), ", ".join(repr(x[:60]) for x in _unknown[:4])))
+            return 2
     busy = _claim_the_tree()
     if busy:
         print("⛔ REFUSED — %s" % busy)

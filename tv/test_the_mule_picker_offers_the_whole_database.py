@@ -114,7 +114,7 @@ def _drive(scenario, assign=None, store=None, builder=True):
     s = EQ._src()
     tables = EQ._line(s, "const ITEM_CODEX = {") + EQ._line(s, "const ITEM_TIP = {") + EQ._sets_and_runewords(s)
     helpers = (EQ._line(s, "  var RK='d2r_muleRoster', AK='d2r_muleAssign';")
-               + EQ._line(s, "  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }")
+               + EQ._guard(s) + EQ._line(s, "  function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }")
                + EQ._line(s, "  function art(n, glyph, size){")
                + EQ._line(s, "  function esc(t){ return String(t)")
                + EQ._line(s, "  function jsArg(t){")

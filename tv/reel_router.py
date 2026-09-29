@@ -213,7 +213,13 @@ def _captured_ms(reel, hist=None):
     d = os.path.join(hist or _hist_dir(), str(reel or ""))
     best = None
     try:
-        for nm in os.listdir(d):
+        # REG-1412 — the SAME listing the frame index and reel_retention._dir_mb walk (frame_ref.listing), so on
+        # a console a still reel folder is read once, not once more per route() for every reel on the shelf
+        import frame_ref as _fr
+        _names = _fr.listing(d)
+        if _names is None:
+            raise OSError("the reel folder cannot be listed")
+        for nm, _kind, _size in _names:
             if not nm.lower().endswith(".jpg"):
                 continue
             digits = "".join(ch for ch in os.path.splitext(nm)[0] if ch.isdigit())

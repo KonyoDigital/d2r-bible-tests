@@ -7707,6 +7707,94 @@ def _check_this_machine_is_keeping_itself_current():
                 "new leaves the ref untouched" % (fetch_h, _moved))
 
 
+#: #64 — the /api/status key the console publishes its pull lane under (control_app.pull_state()).
+_PULL_LANE_KEY = "pullLane"
+#: used ONLY when a console publishes a lane without its own bar (it predates `failBarS`)
+_PULL_FAIL_BAR_FALLBACK_S = 3600
+
+
+def pull_lane_verdict(pl, now_ms=None):
+    """THE PURE HALF of 'this checkout can update'. -> (state, why)
+
+    `pl` is the console's pull lane as /api/status publishes it. OK when the last attempt worked or
+    the lane is standing down ON PURPOSE (TV_NO_AUTO_PULL, local tracked edits) and says so; MISSING
+    when attempts have failed for longer than the lane's own bar, naming the reason and since when,
+    and at once when an update was INTERRUPTED mid-checkout (a stale 0-byte lock beside a dirty tree);
+    UNKNOWN when nobody has tried, when failures are still younger than the bar, or when the lane
+    reports something this row cannot grade. [[unknown-stays-unknown]]
+    """
+    if not isinstance(pl, dict):
+        return UNKNOWN, ("the console published no readable pull lane, so whether this checkout can "
+                         "update is UNKNOWN")
+    now_ms = pl.get("now") if isinstance(pl.get("now"), (int, float)) else now_ms
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    say = str(pl.get("say") or "no sentence recorded")[:220]
+    rec = pl.get("lockCleared") if isinstance(pl.get("lockCleared"), dict) else None
+    receipt = (" · last lock receipt: %s" % str(rec.get("say") or "")[:160]) if rec else ""
+    if pl.get("on") is False or pl.get("outcome") == "off":
+        return OK, "auto-pull is deliberately OFF on this machine: %s" % say
+    oc = pl.get("outcome")
+    if pl.get("checked") is None or oc is None:
+        return UNKNOWN, ("nobody has tried to pull on this console yet, so whether this checkout can "
+                         "update is UNKNOWN — not a clean bill")
+    # ⚠⚠ #64 follow-up — AN UPDATE CUT OFF MID-CHECKOUT IS NOT A STAND-DOWN. A SIGKILLed fast-forward
+    # leaves a 0-byte index.lock and a half-written tree; the lane used to call that tree 'dirty' and
+    # this row graded it OK "on purpose", while the checkout could never update again. No bar: it does
+    # not heal by itself, so the first sighting is the finding.
+    if oc == "interrupted":
+        return MISSING, ("an automatic update was INTERRUPTED mid-checkout, so this checkout cannot "
+                         "update itself until a person looks: %s" % say)
+    if oc == "dirty":
+        return OK, "the pull lane is standing down ON PURPOSE: %s%s" % (say, receipt)
+    if oc in ("pulled", "level"):
+        _ago = ""
+        if isinstance(pl.get("lastTs"), (int, float)):
+            _ago = ", %.0f min ago" % max(0.0, (now_ms - pl["lastTs"]) / 60000.0)
+        return OK, "the last automatic pull worked (%s%s)%s" % (say, _ago, receipt)
+    if oc == "failed":
+        since = pl.get("failSince")
+        if not isinstance(since, (int, float)):
+            return UNKNOWN, ("the last pull failed and the lane did not record since when, so how long "
+                             "this checkout has been stuck is UNKNOWN: %s" % say)
+        bar = pl.get("failBarS")
+        bar = float(bar) if isinstance(bar, (int, float)) and bar > 0 else float(_PULL_FAIL_BAR_FALLBACK_S)
+        fail_s = max(0.0, (now_ms - since) / 1000.0)
+        n = int(pl.get("failures") or 0)
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(since / 1000.0))
+        if fail_s > bar:
+            return MISSING, ("automatic pulls have FAILED for %.1fh (since %s, %d attempt(s)), so this "
+                             "checkout cannot update itself and every version shipped passes it by. "
+                             "Reason: %s%s" % (fail_s / 3600.0, when, n, say, receipt))
+        return UNKNOWN, ("the last %d pull attempt(s) failed, for %.0f min so far (since %s) — under "
+                         "the %.0f min bar, so not yet a finding: %s"
+                         % (n, fail_s / 60.0, when, bar / 60.0, say))
+    return UNKNOWN, "the pull lane reported %r, which this row cannot grade: %s" % (oc, say)
+
+
+def _check_this_checkout_can_update():
+    """#64 — CAN THIS CHECKOUT STILL UPDATE ITSELF, OR HAVE ITS PULLS BEEN FAILING?
+
+    ⚠ MEASURED 2026-09-29 on his ALT: a 0-byte .git/index.lock from 14:09 the day before, no git
+    running, and every automatic pull since failing "Unable to create ... index.lock: File exists" —
+    11 hours on v3521. The pull lane RECORDED it in _PULL.say and NO row read it. 'this machine keeps
+    itself current' asks git how far behind HEAD is; it cannot say WHY the pulls stopped landing, and
+    that is the half he needs. [[the-unjoined-end]] [[heart-first]]
+
+    ⚠⚠ IT ASKS THE CONSOLE OVER THE WIRE, NOT `import control_app`. The console runs as `__main__`,
+    so an import gives this process a SECOND copy of the module whose _PULL reads "nobody has looked
+    yet" forever — measured, the imported copy is a different object. The same rule as
+    'the running build is behind the disk'. The lane is published on /api/status as `pullLane`.
+    """
+    st = _get("/api/status")
+    if not isinstance(st, dict):
+        return UNKNOWN, ("the console did not answer /api/status, so whether this checkout can update "
+                         "is UNKNOWN")
+    if _PULL_LANE_KEY not in st:
+        return UNKNOWN, ("this console does not publish its pull lane (it predates #64), so whether "
+                         "its pulls are failing is UNKNOWN — restart it onto the current build")
+    return pull_lane_verdict(st.get(_PULL_LANE_KEY))
+
+
 def _check_his_window_has_a_keyboard_door():
     """v3402 — IS THE W SHORTCUT ACTUALLY ON THE WIRE?
 
@@ -9424,6 +9512,8 @@ CHECKS = [
     # v3404 — the fleet question, asked of THIS machine: a console that stops pulling
     # looks identical to one that is up to date, until he notices the version gap.
     ("this machine keeps itself current", _check_this_machine_is_keeping_itself_current),
+    # #64 — the WHY behind the row above: the pull lane's own record of whether its pulls land.
+    ("this checkout can update", _check_this_checkout_can_update),
 ]
 
 
@@ -9943,6 +10033,8 @@ WATCHES = {
     # element, so the empty tuple is the honest answer. Shipping the check without this
     # line made the organ table claim ABSENT for a row nobody had described.
     "this machine keeps itself current": (),
+    # #64 — DECLARED, NOT OMITTED. It reads the pull lane, which runs inside the drift beat.
+    "this checkout can update": ("_drift_loop",),
     "a verdict comes from a declared field": (),
     "a queue zero came from a read that worked": (),
     "river owes what its engine says": (),

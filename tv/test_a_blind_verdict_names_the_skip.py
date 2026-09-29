@@ -55,7 +55,7 @@ RED_PROOF = [
         "why": "un-joining the helper from the only place it is called: the reason text can be "
                "perfect and the prover still print the old sentence. Plumbing with no tap",
         "file": "heart2.py",
-        "find": 'say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2)))',
+        "find": 'say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2, widths=widths)))',
         "replace": 'say("     %-52s %s ← stayed GREEN" % (label, BLIND))',
         "matches": 1,
     },

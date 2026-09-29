@@ -111,7 +111,7 @@ RED_PROOF = [
                "losing focus and every visual pass photographs a black stage on a console that is "
                "perfectly healthy over HTTP",
         "file": "control_app.py",
-        "find": '    if not _windowed and not _quiet:\n        kwargs["fullscreen"] = True',
+        "find": '    if not _windowed and not _quiet and not _hidden:\n        kwargs["fullscreen"] = True',
         "replace": '    if False:\n        kwargs["fullscreen"] = True',
         "matches": 1,
     },

@@ -98,6 +98,15 @@ def _line(s, start):
     return s[i:s.index("\n", i) + 1]
 
 
+def _guard(s):
+    """2026-09-29 - the vault module's unreadable-store guard (load / _guardedSet / _muleStoreUnread), cut from the
+    shipped page: every mule-store write now goes through it, so a slice that saves must carry it too."""
+    start, end = "  var _muleUnread = {};", "  window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };"
+    assert s.count(start) == 1, "the guard block moved (%d)" % s.count(start)
+    i = s.rfind("\n", 0, s.index(start)) + 1
+    return s[i:s.index(end, i) + len(end)] + "\n"
+
+
 def _block(s, start):
     """a top-level `const X = [ ... ];` table, up to its own closing line"""
     return _between(s, start, "\n];\n") + "\n];\n"
@@ -189,7 +198,7 @@ def _drive(scenario, assign=None, copies=None, store=None):
     s = _src()
     tables = _line(s, "const ITEM_CODEX = {") + _line(s, "const ITEM_TIP = {") + _sets_and_runewords(s)
     helpers = (_line(s, "  var RK='d2r_muleRoster', AK='d2r_muleAssign';")
-               + _line(s, "  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }")
+               + _guard(s) + _line(s, "  function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }")
                + _line(s, "  function art(n, glyph, size){")
                + _line(s, "  function esc(t){ return String(t)")
                + _line(s, "  function jsArg(t){")

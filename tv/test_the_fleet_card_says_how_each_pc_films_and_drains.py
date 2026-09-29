@@ -357,7 +357,8 @@ class TheRiverSaysWhatItsTriageLaneIsDoing(unittest.TestCase):
         d = {"triage": _lane(lastKey="cpu-loaded", lastSkipKey="cpu-loaded", lastSkipTs=NOW - 180000,
                              lastSkipWhy="the machine is 97% busy")}
         out = self._line(d)
-        self.assertIn("last refusal: the machine is too busy · 3m ago", out["s"])
+        # REG-1441: the refusal's age sits in brackets (a middot inside one wrapping span could be stranded)
+        self.assertIn("last refusal: the machine is too busy (3m ago)", out["s"])
         self.assertNotIn("standing aside for his game", out["s"])
         w = self._line({"triage": _lane(lastKey="surveyed", lastSkipKey=None, lastSkipTs=None)})
         self.assertIn("walking", w["s"])
@@ -420,7 +421,7 @@ WRAP_WIDTHS = ((375, 812), (1280, 800))
 #: every rendered LINE of every fact row (films / river / triage / formerly), rebuilt from each character's own rect - the
 #: key hangs in the indent and is left out; a line is the characters whose tops agree within 3px
 LINES = r"""(function(){ var out = [];
-  [].forEach.call(document.querySelectorAll('#fleet-list .fleet-sys .fs-l'), function(l){
+  [].forEach.call(document.querySelectorAll('#fleet-xref .fx-sys .fs-l'), function(l){
     var ch = [], tw = document.createTreeWalker(l, NodeFilter.SHOW_TEXT), n;
     while ((n = tw.nextNode())){
       if (n.parentElement && n.parentElement.closest('.fs-k')) continue;
@@ -432,6 +433,14 @@ LINES = r"""(function(){ var out = [];
     out.push(lines.map(function(L){ return L.cs.sort(function(a, b){ return a.x - b.x; }).map(function(c){ return c.c; }).join('').replace(/\u00a0/g, ' ').trim(); }));
   });
   return JSON.stringify(out); })()"""
+#: 2026-09-29 - the lines live in the click box (#fleet-xref .fx-sys), not on the row: his "only if clicked on"
+BOX = r"""(function(){ var x = document.getElementById('fleet-xref'); if (!x || x.hidden) return JSON.stringify({ err: 'box closed' });
+  var s = x.querySelector('.fx-sys'); if (!s) return JSON.stringify({ err: 'no .fx-sys in the box' });
+  var br = x.getBoundingClientRect(), sys = s.querySelector('.fleet-sys:not(.fleet-former)'), fm = s.querySelector('.fleet-former');
+  var spill = [].filter.call(s.querySelectorAll('.fs-l'), function(e){ var b = e.getBoundingClientRect(); return b.width > 0 && b.right > br.right + 0.5; }).length;
+  return JSON.stringify({ sys: sys ? sys.innerText.replace(/\u00a0/g, ' ') : null, former: fm ? fm.innerText : null, spill: spill,
+                          sw: [document.documentElement.scrollWidth, document.documentElement.clientWidth] }); })()"""
+MACHINES = (("Konyo", "box-a"), ("ALT", "box-b"), ("Wife PC", "box-c"))
 _CACHE = {}
 
 
@@ -487,7 +496,19 @@ def _render():
                     break
             time.sleep(0.3)
             res["%dx%d" % (w, h)] = json.loads(t.ev(READ))
-            res["lines %dx%d" % (w, h)] = json.loads(t.ev(LINES))
+            _lines = []
+            for (nm, mach) in MACHINES:
+                t.ev("(function(){ try { window._fleetCompare(%s); } catch (e) {} return 1; })()" % json.dumps(mach))
+                for _ in range(60):
+                    time.sleep(0.2)
+                    # wait for the box's HEAD (both answer paths draw it), never for .fx-sys itself: waiting on the
+                    # thing under test turned a missing box into a 180 s hang instead of a red (proof [1], measured)
+                    if t.ev("!!document.querySelector('#fleet-xref .fx-head')"):
+                        break
+                time.sleep(0.2)
+                res["box %s %dx%d" % (nm, w, h)] = json.loads(t.ev(BOX))
+                _lines += json.loads(t.ev(LINES))
+            res["lines %dx%d" % (w, h)] = _lines
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
             t.close()
@@ -502,29 +523,39 @@ def _render():
 @unittest.skipUnless(os.path.exists(RC.CHROME), "no Chrome on this machine - the card was not rendered (declared skip 77)")
 class TheShippedCardDrawsIt(unittest.TestCase):
 
-    def test_every_row_draws_its_films_river_and_triage_line_and_nothing_goes_sideways(self):
+    def test_the_rows_are_calm_and_a_click_opens_films_river_and_triage(self):
+        """2026-09-29 - HIS WORDS: "i dont want it rendering to me all this here upfront. only if clicked on or something
+        like a backdoor to the informational background". The row carries NO films / river / triage line; a click on the
+        PC opens the box, and the box carries all three (and a renamed host's 'formerly' line)."""
         r, bad = _render(), []
         for (w, h) in WIDTHS:
             m = r["%dx%d" % (w, h)]
             self.assertNotIn("err", m, m)
             self.assertEqual(len(m["rows"]), 3, "%dx%d: PRINT THE DENOMINATOR - %d rows drawn of 3" % (w, h, len(m["rows"])))
             for row in m["rows"]:
-                s = row["sys"] or ""
+                if row["sys"] or row["former"]:
+                    bad.append("%dx%d %s: the row renders its detail upfront again (%r / %r)" % (w, h, row["name"], row["sys"], row["former"]))
+            boxes = dict((nm, r.get("box %s %dx%d" % (nm, w, h)) or {}) for nm, _m in MACHINES)
+            for nm, bx in boxes.items():
+                if bx.get("err"):
+                    bad.append("%dx%d %s: a click opened no detail (%s)" % (w, h, nm, bx.get("err")))
+                    continue
                 for word in ("films", "river", "triage"):
-                    if word not in s:
-                        bad.append("%dx%d %s: no %s fact on the row (%r)" % (w, h, row["name"], word, s))
-                if row["spill"]:
-                    bad.append("%dx%d %s: %d fact line(s) run past the card's right edge" % (w, h, row["name"], row["spill"]))
-            byname = dict((x["name"], x) for x in m["rows"])
-            k, a, wp = byname.get("Konyo") or {}, byname.get("ALT") or {}, byname.get("Wife PC") or {}
+                    if word not in (bx.get("sys") or ""):
+                        bad.append("%dx%d %s: no %s fact in the box (%r)" % (w, h, nm, word, bx.get("sys")))
+                if bx.get("spill"):
+                    bad.append("%dx%d %s: %d fact line(s) run past the box's right edge" % (w, h, nm, bx["spill"]))
+                if bx.get("sw") and bx["sw"][0] > bx["sw"][1] + 1:
+                    bad.append("%dx%d %s: the page scrolls sideways with the box open %s" % (w, h, nm, bx["sw"]))
+            k, a, wp = boxes.get("Konyo") or {}, boxes.get("ALT") or {}, boxes.get("Wife PC") or {}
             if "native" not in (k.get("sys") or "") or "walking" not in (k.get("sys") or ""):
-                bad.append("%dx%d Konyo: %r" % (w, h, k.get("sys")))
+                bad.append("%dx%d Konyo box: %r" % (w, h, k.get("sys")))
             if "formerly cursor" not in (k.get("former") or ""):
-                bad.append("%dx%d Konyo: no 'formerly cursor' line (%r)" % (w, h, k.get("former")))
+                bad.append("%dx%d Konyo box: no 'formerly cursor' line (%r)" % (w, h, k.get("former")))
             if "Boosteroid" not in (a.get("sys") or "") or "TRIAGE 7" not in (a.get("sys") or ""):
-                bad.append("%dx%d ALT: %r" % (w, h, a.get("sys")))
+                bad.append("%dx%d ALT box: %r" % (w, h, a.get("sys")))
             if (wp.get("sys") or "").count("UNKNOWN") != 3:
-                bad.append("%dx%d Wife PC (an older build): not three UNKNOWNs (%r)" % (w, h, wp.get("sys")))
+                bad.append("%dx%d Wife PC box (an older build): not three UNKNOWNs (%r)" % (w, h, wp.get("sys")))
             if m["sw"][0] > m["sw"][1] + 1:
                 bad.append("%dx%d the fleet list scrolls sideways %s" % (w, h, m["sw"]))
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))
@@ -538,7 +569,7 @@ class TheShippedCardDrawsIt(unittest.TestCase):
         r, bad = _render(), []
         for (w, h) in WRAP_WIDTHS:
             rows = r["lines %dx%d" % (w, h)]
-            self.assertGreaterEqual(len(rows), 10, "%dx%d: PRINT THE DENOMINATOR - only %d fact rows read" % (w, h, len(rows)))
+            self.assertGreaterEqual(len(rows), 7, "%dx%d: PRINT THE DENOMINATOR - only %d fact rows read in the boxes" % (w, h, len(rows)))
             self.assertTrue(all(rows), "%dx%d: a fact row has no rendered line: %s" % (w, h, rows))
             if w < 500:
                 self.assertTrue(any(len(x) > 1 for x in rows), "%dx%d: PREMISE - no fact row wraps, so a stranded middot "
@@ -551,6 +582,20 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - the fleet row renders films / river / triage upfront again (his 'only if clicked on')",
+        "file": "control_ui.html",
+        "find": "          + _tip(m) + '</div>';\n",
+        "replace": "          + _fleetSysHtml(m, Date.now()) + _tip(m) + '</div>';\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - a click on a PC opens the box without its films / river / triage (the backdoor is gone)",
+        "file": "control_ui.html",
+        "find": "      + _sys\n      + tabs;\n",
+        "replace": "      + tabs;\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 - a route's age is the pin's age at send again, not ageS + how long the site has held the beacon",
         "file": "control_ui.html",
@@ -580,10 +625,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-28 - the fleet row stops drawing how its PC films and drains (the wire carries it, nothing reads it)",
+        "why": "2026-09-28 - the fleet stops drawing how its PC films and drains anywhere (the wire carries it, nothing reads it) - since 2026-09-29 it is drawn in the click box",
         "file": "control_ui.html",
-        "find": "          + _fleetSysHtml(m, Date.now())\n",
-        "replace": "",
+        "find": "          + _fleetSysHtml(_fm, Date.now()) + '</div>';\n",
+        "replace": "          + '</div>';\n",
         "matches": 1,
     },
     {

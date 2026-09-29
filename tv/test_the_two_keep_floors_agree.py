@@ -40,8 +40,8 @@ RED_PROOF = [
                "promised, and are emptied of their frames anyway — the promise kept at one depth "
                "and broken at the other",
         "file": "frame_authority.py",
-        "find": "KEEP_RECENT = 8            # never touch the newest EIGHT reels",
-        "replace": "KEEP_RECENT = 5            # never touch the newest EIGHT reels",
+        "find": "KEEP_RECENT = 16           # never touch the newest SIXTEEN reels",
+        "replace": "KEEP_RECENT = 5            # never touch the newest SIXTEEN reels",
         "matches": 1,
     },
     {
@@ -49,8 +49,24 @@ RED_PROOF = [
                "it last 8', and a floor that silently returns to its old value is the drift this "
                "gate exists to stop",
         "file": "reel_retention.py",
-        "find": "KEEP_RECENT = 8          # never touch the newest EIGHT",
-        "replace": "KEEP_RECENT = 5          # never touch the newest EIGHT",
+        "find": "KEEP_RECENT = 16         # never touch the newest SIXTEEN",
+        "replace": "KEEP_RECENT = 8          # never touch the newest SIXTEEN",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - the sixteen he asked for holds even when the disk is under the recording floor, "
+               "so keeping the extra hours stops the next one from filming",
+        "file": "reel_retention.py",
+        "find": "            return KEEP_RECENT_UNDER_PRESSURE\n",
+        "replace": "            return KEEP_RECENT\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - the console's deleting pass never asks the disk, so the pressure rule is plumbing "
+               "with no tap",
+        "file": "control_app.py",
+        "find": "    p = _rr.plan(hist, free_mb=None, keep_recent=_keep)\n",
+        "replace": "    p = _rr.plan(hist, free_mb=None)\n",
         "matches": 1,
     },
 ]
@@ -90,10 +106,30 @@ class TheTwoKeepFloorsAgree(unittest.TestCase):
                          "the two floors have drifted apart; they are one promise written twice")
 
     def test_it_is_HIS_number(self):
-        """★ 8, on his 2026-09-10 instruction. A floor this repo lowers without being asked is a
-        floor that stopped being his."""
-        self.assertEqual([8], _const("reel_retention.py", "KEEP_RECENT"),
-                         "the reel floor is no longer the 8 he asked for")
+        """★ 16, on his 2026-09-29 instruction (8 on 2026-09-10): *"if its less than 8 double the amount to
+        16 reels.. FIFO same style just that instead of 8 last reels it reads 16"* - eight hourly reels
+        measured ~3-4 GB on his Mac. A floor this repo lowers without being asked stopped being his."""
+        self.assertEqual([16], _const("reel_retention.py", "KEEP_RECENT"),
+                         "the reel floor is no longer the 16 he asked for")
+
+    def test_under_the_recording_floor_the_extra_eight_go_first(self):
+        """2026-09-29 — sixteen full hours is ~8 GB on his Mac (14 GB free that night), and below
+        ON_AIR_FLOOR_GB the console refuses to film. So the deleting pass keeps the old eight while the disk
+        is under the floor; an UNKNOWN disk keeps all sixteen."""
+        import reel_retention as R
+        self.assertEqual(R.keep_recent_for(20.0, 8.0), 16)
+        self.assertEqual(R.keep_recent_for(8.0, 8.0), 16, "AT the floor is not below it")
+        self.assertEqual(R.keep_recent_for(6.5, 8.0), 8,
+                         "under the recording floor the extra hours still hold - the next one cannot film")
+        self.assertEqual(R.keep_recent_for(None, 8.0), 16, "an unreadable disk was treated as a full one")
+        self.assertEqual(R.KEEP_RECENT_UNDER_PRESSURE, 8)
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        i = src.index("def _retention_once(")
+        body = src[i:src.index("\ndef ", i + 10)]
+        self.assertIn("_rr.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)", body,
+                      "the deleting pass does not ask the disk - the pressure rule has no tap")
+        self.assertIn("keep_recent=_keep", body, "the pass asks the disk and then ignores the answer")
 
     def test_the_modules_AGREE_at_runtime_too(self):
         """★ Source and import must say the same thing — a constant can be reassigned below its

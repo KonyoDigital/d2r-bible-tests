@@ -93,6 +93,13 @@ class ASweepHoldsTheRelaunchLock(unittest.TestCase):
     def test_a_fresh_lock_refuses_and_a_cold_one_does_not(self):
         """Drive the SHIPPED decider against a real lock file."""
         import control_app as ca
+        # 2026-09-29 — THIS CASE TESTS THE SWEEP LOCK, SO HIS BOARD'S WORLD MAY NOT ANSWER FIRST. drift_may_relaunch
+        # asks board_identity_drift() BEFORE the lock, and that reads his LIVE .board_identity.json: on 2026-09-29 his
+        # board read an unclaimed guest world and this case went red with the board's sentence instead of 'sweep' - a
+        # verdict about his machine, not about the lock (CI, which has no board, never saw it). The world is neutral here.
+        _bid = ca.board_identity_drift
+        ca.board_identity_drift = lambda *a, **k: None
+        self.addCleanup(setattr, ca, "board_identity_drift", _bid)
         lk = ca._sweep_lock_path()
         had = os.path.exists(lk)
         saved = None
