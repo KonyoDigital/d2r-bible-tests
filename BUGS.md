@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1512 - A LOCK THAT SAID UNKNOWN SWALLOWED "NOT AN EMPTY SHELF", AND THE LAW NEVER ASKED A READER (2026-09-29)
+
+**Found** by the review of v3524 (REG-1504's fix, fb614f90), both findings reproduced before the fix:
+- `not_an_empty_shelf()` skipped the lead whenever the bare WORD `UNKNOWN` was anywhere in the reason. Reasons say
+  UNKNOWN about other things: with `may_on_merit` refusing `UNKNOWN: the proof queue would not parse ...`,
+  `reel_router.route()`'s why was `printer.stream() could not answer: printer.stream is LOCKED — UNKNOWN: ...` - the
+  phrase 0 times, while a lock reason that happened not to use the word still led with it (one refusal class, two
+  framings). With the river owner raising and the tombstone ledger a JSON list, `printer.stream()`'s why was
+  `river would not answer (disk I/O error); the tombstone ledger is list, not a record — UNKNOWN, not zero reels` -
+  again 0. No layer said the shelf was UNREAD rather than EMPTY.
+- the law only caught ONE spelling (a constant starting `<phrase> — %s`) and never called a reader: an f-string or a
+  `+` spelling in the router brought the stutter back green, and a reader that dropped the helper was green too.
+**Fix:** the helper skips the lead only when the reason already carries the PHRASE (`PHRASE in w`, `LEAD = PHRASE +
+" — "`); the nested case and the suffix spelling of extract_gap / reel_templates / river_walk still say it once. The
+law gains `TheRealReadersSayItOnce`: reel_river (no rows), printer.stream() (no owner), reel_router.route() (a locked
+printer, a silent walk, and the real chain river -> printer -> router) DRIVEN with only their seams stubbed
+(sys.modules for reel_story / self_arming, mock.patch for printer._sources and the router's two ledger reads - nothing
+on disk opened), counting the phrase in what each RETURNS; the ast walk now flags the phrase in ANY string constant.
+4 of the 6 new cases were RED on fb614f90. **Red-proofs, each applied, run, restored byte-for-byte:** the bare-word
+test back (4 tests RED), the router's f-string prefix (3 RED, incl. the driven chain at count 2), the printer
+concatenating the prefix (2 RED), reel_river returning the bare reason (1 RED - only a driven case can see it), plus
+REG-1504's two, re-anchored (3 RED each).
+
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 
 **Found** by pre-flighting `run_gates.py` (687 gates, the two suites excluded, 39 min) before v3523 push #6 - the
