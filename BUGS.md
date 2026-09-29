@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1499 - THE PUSH RE-PROVED AN UNCHANGED TREE THREE TIMES, AND ITS PROVEN WAS KEYED TO THE WRONG FILE (2026-09-29)
+
+**Measured on the v3523 push:** the render gate refused at 94m53s (and again on the retry) and each retry re-proved the
+same ~40 changed laws (~83 min) over a tree that had not changed by one byte - three times. His order, 2026-09-28: "this
+is CRITICAL we need to optimize clock time". **And #41 rank 8, verified:** heart2's PROVEN was keyed to the GATE file
+alone (`gatesFingerprint`), never to the file each red-proof tampers, so an edit to the SUBJECT could make a proof BLIND
+while the census still read proven. **Fix (#42 P3):** `heart2 --prove --push` banks a PROVEN in `tv/.heart2_cache.json`
+(per machine, gitignored, beside the census) under a key that digests every byte the proof can depend on - the law, its
+import closure (browser_gates' AST walk), every file a literal in that closure names (bible.html, control_ui.html,
+hooks/pre-push, data), the tampered target, every PROOF_NEEDS file, the proof entry, the gate's spec and the prover - and
+reuses it only when the key is identical. A miss runs; an unkeyable law (a helper nobody can parse, a PROOF_NEEDS
+directory) runs every push and says why; only PROVEN is stored and only a stored PROVEN is reused; the key is taken from
+the SANDBOX before and after the run (a tree that moved under a proof banks nothing); the plain `--prove` path, run_gates
+and CI never open it; `HEART2_PROVE_CACHE=0` runs everything. **Its reach:** a file reached by a computed path is outside
+the key (name it in PROOF_NEEDS); the prover's own records (.heart2.json, this cache, .render_verdict.json) are the one
+named exclusion. **Law:** `tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py` (13 cases, 10 red-proofs).
+**Not done:** the census itself (`gatesFingerprint`, read by the lock's `_heart_says_watched`) still keys gate files
+only - widening it would close his console's locks on every edit to control_app.py until a full prove runs.
+
+### REG-1498 - THE STAGE MOST LIKELY TO REFUSE RAN LAST, AND ONLY WHEN tv/ PYTHON CHANGED (2026-09-29)
+
+**Measured on the v3523 push:** every cheap stage green by 0m09s, ~83 min of proofs and both python suites green, then
+the render gate REFUSED at 94m53s (and ~98m on the retry) on a shelf proof that passed alone minutes later. Over
+2026-09-26..28 render refused 3 of 9 pushes, the console demos 1, a blind proof 1. **And a hole the move closed:** the
+render block sat textually inside the `tv/ python touched` lane since v2297, so a push changing only
+tv/render_coverage.json or art/ - no tv/*.py - never rendered, while its own v2710 comment names the ratchet file as a
+change to the verdict. **Fix (#42 P5):** `hooks/pre-push` runs the render gate (byte for byte: trigger, port, temporary
+profile, 353 s bound, crest-loudness, kill-by-pid) right after the cheap stages and before the proving stage, at top
+level. Nothing removed, no bound moved. **Before/after, same clocks:** a render refusal landed at ~95 min; it now lands
+at ~5 min (cheap stages 9 s + render ~4-6 min). **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py`
+(6 cases, 5 red-proofs) - reads the hook's own stage order through the anchors law's shell walker, pins every stage and
+bound, runs `bash -n`.
+
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 
 v3523's push was refused TWICE at the render gate (95 and 98 minutes in) on `shelf-cards`: "the panel could not be

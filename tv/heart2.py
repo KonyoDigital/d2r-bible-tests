@@ -9,7 +9,9 @@
                                        what hooks/pre-push runs (#42): a proof that declares "widths" runs its clean
                                        AND tampered runs only at those viewports; the proofs likeliest to fail run
                                        first and the run STOPS at the first BLIND / INVALID / clean-run red; a gate
-                                       that starts a browser is proved one at a time, whatever the lane count
+                                       that starts a browser is proved one at a time, whatever the lane count; and
+                                       (P3) a PROVEN is reused from tv/.heart2_cache.json when every byte it depends
+                                       on is identical - HEART2_PROVE_CACHE=0 runs everything
     python3 tv/heart2.py --detect      what no gate covers, dropping what is already covered
     python3 tv/heart2.py --ratchet     the unproven backlog may only ever shrink
 
@@ -1311,13 +1313,14 @@ _PUSH = None            # the running push-time context (_PushRun) while prove(p
 class _PushRun(object):
     """#42 — what the lanes of ONE `--prove --push` run share: the order, the browser lock, the stop."""
 
-    def __init__(self, order=None, browser=()):
+    def __init__(self, order=None, browser=(), cache=None):
         self.order = dict(order or {})          # {gate: [proof index, ...]}, the likeliest to fail first
         self.browser = set(browser or ())       # the gates proved one at a time: they start a browser
         self.browser_lock = threading.Lock()
         self.stop = threading.Event()
         self.first = None                       # (gate, index, verdict, reason): the failure that stopped the run
         self._lock = threading.Lock()
+        self.cache = cache                      # P3: the verdict cache prove(push=True) opened, or None (every proof runs)
 
     def fail(self, name, idx, verdict, reason):
         """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
@@ -1332,6 +1335,310 @@ class _PushRun(object):
         """The lock a browser gate is proved under; for every other gate a context that holds nothing."""
         import contextlib
         return self.browser_lock if name in self.browser else contextlib.nullcontext()
+
+
+# ══ #42 P3 — THE VERDICT CACHE: A PROVEN IS REUSED ONLY OVER BYTE-IDENTICAL INPUTS ═════════════════════════════════
+# MEASURED 2026-09-29 on the v3523 push: the render gate refused at minute 95 (twice), and every retry re-proved the
+# same ~40 changed laws (~83 min) over a tree that had not changed by one byte - three times. His order, 2026-09-28:
+# "this is CRITICAL we need to optimize clock time". So a push-time PROVEN is banked under a KEY that digests every byte
+# the verdict can depend on, and the next push re-runs only the proofs whose key changed:
+#   · the law file itself and every module it imports - TRANSITIVELY, by the same AST walk browser_gates() uses for the
+#     one-browser lock (_imported_names): a helper the law reaches through two others is still what it runs;
+#   · every file a literal string anywhere in that closure names (bible.html, control_ui.html, hooks/pre-push, a data
+#     file). Over-inclusion is the only error this may make on purpose - a file named in an error message costs one
+#     re-prove, never a stale PROVEN;
+#   · the proof's tampered target - #41 rank 8: PROVEN was keyed to the GATE file alone (gates_fingerprint), so an edit
+#     to the SUBJECT could make a proof BLIND while the census still read proven - and every PROOF_NEEDS that is a file;
+#   · the proof entry itself (find / replace / matches / widths), the gate's registered spec (argv tail, -c script,
+#     timeout) and the prover (this file, law_widths.py): a proof is only as true as the thing that produced it.
+# ⚠ THE KEY IS TAKEN FROM THE SANDBOX, NOT THE REAL TREE. The sandbox is the exact tree the proof ran in (safe_copy of
+#   the repo minus footage and .git), so a file the law names that is not in it was never read, and a target resolves
+#   through the same resolve_proof_target the tamper uses. It is taken BEFORE the proof and AGAIN after: when the two
+#   differ the tree moved under the proof and nothing is banked. The record carries repo-relative paths only.
+# ⚠ UNKEYABLE IS NEVER CACHED. A closure module nobody can read or parse, a PROOF_NEEDS that is a directory (his footage,
+#   .git), a target that is not a file inside the sandbox, a named file that cannot be read: the proof runs every push
+#   and the line says why. A miss runs. Only PROVEN is ever stored - BLIND / INVALID / UNPROVABLE are findings, never
+#   shortcuts - and only a stored PROVEN is ever reused, whatever else lands in the file.
+# ⚠ ITS REACH, STATED: a file the law reaches by a COMPUTED path (an env var, a join of variables) is outside the key -
+#   the same floor pixel_gates states for imports, one level down. A law about such a file names it in PROOF_NEEDS.
+# ⚠ PUSH TIME ONLY. prove(push=True) - hooks/pre-push's `--prove NAMES --push` - is the only opener; _prove_push takes
+#   the cache as a parameter and every other caller (the plain --prove path, run_gates, CI, a law driving _prove_push
+#   with a fixture) hands none and runs every proof. The file is per machine, gitignored, beside .heart2.json.
+#   HEART2_PROVE_CACHE=0 leaves it closed for one run (the cold half of a measurement) and says so.
+# The law: test_a_proven_verdict_is_reused_only_on_identical_bytes. [[regression-guard]] [[unknown-stays-unknown]]
+CACHE = os.path.join(HERE, ".heart2_cache.json")
+CACHE_MAX = 4000          # entries kept; the oldest leave first - a cache, not a ledger
+_NAME_MAX = 240           # a string constant longer than this is prose, not a path
+#: the run's OWN records - written by the prove / render that reads them. Keyed, every law whose closure names heart2
+#: (which names all of them) would miss on every push, and this cache would invalidate itself by being written. A record
+#: of a run cannot make a tamper stay green, so these are the one named exclusion; every other named file is keyed.
+_SELF_RECORDS = frozenset((".heart2.json", ".heart2_cache.json", ".heart2_cache.json.tmp", ".heart2_proposals.md",
+                           ".render_verdict.json"))
+
+
+def _sha_file(path, memo=None):
+    """sha256 of a file's bytes -> hex | None (unreadable). `memo` (one run) keys on (path, size, mtime_ns), so a
+    target the tamper rewrote and restored is hashed again, never served from before the tamper."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    k = (path, st.st_size, st.st_mtime_ns)
+    if memo is not None and k in memo:
+        return memo[k]
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+    except OSError:
+        return None
+    d = h.hexdigest()
+    if memo is not None:
+        memo[k] = d
+    return d
+
+
+def _inside(root, path):
+    try:
+        return os.path.commonpath([os.path.realpath(root), os.path.realpath(path)]) == os.path.realpath(root)
+    except Exception:
+        return False
+
+
+def _named_files(tree, sandbox, repo):
+    """The existing FILES the string constants of one parsed module name, relative to tv/ or the repo root. -> set
+    An absolute constant is skipped: it points outside the sandbox (Chrome's binary, a home path) - the environment,
+    not the tree - and a constant that climbs out of the repo is skipped for the same reason."""
+    out = set()
+    for x in ast.walk(tree):
+        if not (isinstance(x, ast.Constant) and isinstance(x.value, str)):
+            continue
+        s = x.value
+        if not s or len(s) > _NAME_MAX or "\n" in s or "\x00" in s or os.path.isabs(s):
+            continue
+        if os.path.basename(s) in _SELF_RECORDS:
+            continue
+        for base in (sandbox, repo):
+            p = os.path.normpath(os.path.join(base, s))
+            if _inside(repo, p) and os.path.isfile(p):
+                out.add(p)
+    return out
+
+
+def law_inputs(sandbox, filename, proofs, parsed=None):
+    """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
+
+    `why` is None when every input could be found and read; otherwise the reason this law is UNKEYABLE (the list then
+    holds what was found before that reason, for the line that says so). The closure walk is browser_gates()'s: the
+    law, every tv/ or repo-root module it imports, and so on. Each proof's tampered target and every PROOF_NEEDS file
+    join it; a PROOF_NEEDS directory makes the law unkeyable (his footage and .git are never hashed).
+    `parsed` (one run) memoises each module's imports and named files on (path, size, mtime_ns): control_app.py is in
+    most closures and costs ~1 s to walk, and a target the tamper rewrote and restored is walked again, never served
+    from before the tamper."""
+    repo = os.path.dirname(os.path.abspath(sandbox))
+    law = os.path.normpath(os.path.join(sandbox, filename))
+    if not os.path.isfile(law):
+        return [], "the gate file is not in the sandbox"
+    local = {}
+    for d in (repo, sandbox):                      # tv/ listed last, so a tv/ module wins over a root one
+        try:
+            for f in os.listdir(d):
+                if f.endswith(".py"):
+                    local[f[:-3]] = os.path.join(d, f)
+        except OSError:
+            return [], "the sandbox could not be listed, so what this law imports is UNKNOWN"
+    inputs, seen, stack = set(), set(), [law]
+    while stack:
+        p = os.path.normpath(stack.pop())
+        if p in seen:
+            continue
+        seen.add(p)
+        try:
+            st = os.stat(p)
+            mk = (p, st.st_size, st.st_mtime_ns)
+        except OSError:
+            mk = None
+        if parsed is not None and mk is not None and mk in parsed:
+            names, named = parsed[mk]
+        else:
+            src = _read_text(p)
+            if src is None:
+                return sorted(inputs), "%s cannot be read" % os.path.relpath(p, repo)
+            try:
+                tree = ast.parse(src)
+            except (SyntaxError, ValueError):
+                return sorted(inputs), "%s will not parse" % os.path.relpath(p, repo)
+            names, named = _imported_names(tree), _named_files(tree, sandbox, repo)
+            if parsed is not None and mk is not None:
+                parsed[mk] = (names, named)
+        inputs.add(p)
+        for dep in names & set(local):
+            stack.append(local[dep])
+        inputs |= named
+    for pr in (proofs or []):
+        rel = str(pr.get("file") or "") if isinstance(pr, dict) else ""
+        if not rel:
+            return sorted(inputs), "a proof names no file"
+        tgt = os.path.normpath(resolve_proof_target(sandbox, rel))
+        if not (_inside(repo, tgt) and os.path.isfile(tgt)):
+            return sorted(inputs), "the tampered target %r is not a file inside the sandbox" % rel
+        inputs.add(tgt)
+    needs = proof_needs_in(law)
+    if needs is None:
+        return sorted(inputs), "its PROOF_NEEDS cannot be read"
+    for need in needs:
+        s = os.path.normpath(os.path.join(sandbox, need))
+        if os.path.isdir(s):
+            return sorted(inputs), "PROOF_NEEDS %r is a directory - his footage and .git are never hashed" % need
+        if os.path.isfile(s):
+            inputs.add(s)
+        # absent: the sandbox never brought it, so the gate reads UNPROVABLE there and this proof is never PROVEN
+    for prover in ("heart2.py", "law_widths.py"):
+        p = os.path.join(sandbox, prover)
+        if os.path.isfile(p):
+            inputs.add(p)
+    return sorted(inputs), None
+
+
+def _load_cache(path):
+    """-> (entries, None) | (None, why). An absent file is an EMPTY cache; a file that will not parse or has the wrong
+    shape is UNREADABLE - said, never read as empty - and the first store rewrites it (a cache, not a ledger)."""
+    if not os.path.exists(path):
+        return {}, None
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception as _e:
+        return None, "it would not parse (%s)" % type(_e).__name__
+    ent = d.get("entries") if isinstance(d, dict) else None
+    if not isinstance(ent, dict):
+        return None, "it has no 'entries' map"
+    return ent, None
+
+
+class _VerdictCache(object):
+    """#42 P3 — the PROVEN verdicts one machine may reuse at push time, and the counts a run prints beside them."""
+
+    def __init__(self, path=None, say=print):
+        self.path = path or CACHE
+        self.say = say
+        self.lock = threading.Lock()
+        self.memo = {}                   # (path, size, mtime_ns) -> sha256, this run only
+        self.parsed = {}                 # (path, size, mtime_ns) -> (imports, named files), this run only
+        self.closures = {}               # (sandbox, filename) -> (inputs, why): one closure walk per law per lane
+        self.hits = self.misses = self.stores = self.unkeyable = self.moved = 0
+        self.dirty = False               # stores since the last flush - written per GATE, not per proof
+        self._said = set()               # (gate, why): an unkeyable law's reason is said once, not once per proof
+        ent, why = _load_cache(self.path)
+        self.readable = why is None
+        if not self.readable:
+            say("  #42 P3 CACHE: %s is UNREADABLE (%s) - every proof runs, and the first PROVEN rewrites it"
+                % (os.path.basename(self.path), why))
+        self.entries = ent if ent is not None else {}
+
+    def key_for(self, sandbox, name, filename, pr):
+        """-> (key | None, [repo-relative inputs], why-unkeyable | None), from the SANDBOX's bytes now."""
+        repo = os.path.dirname(os.path.abspath(sandbox))
+        with self.lock:
+            ck = (sandbox, filename)
+            if ck not in self.closures:
+                self.closures[ck] = law_inputs(sandbox, filename, [], parsed=self.parsed)
+            base, why = self.closures[ck]
+        if why:
+            return None, [], why
+        # the closure is shared by every proof of the law (walked once per lane); the target is this proof's own,
+        # resolved exactly as _prove_one resolves it before tampering
+        rel = str(pr.get("file") or "") if isinstance(pr, dict) else ""
+        if not rel:
+            return None, [], "the proof names no file"
+        tgt = os.path.normpath(resolve_proof_target(sandbox, rel))
+        if not (_inside(repo, tgt) and os.path.isfile(tgt)):
+            return None, [], "the tampered target %r is not a file inside the sandbox" % rel
+        inputs = sorted(set(base) | {tgt})
+        h = hashlib.sha256(b"heart2 P3 key v1\0")
+        h.update(str(filename).encode("utf-8", "replace") + b"\0")
+        h.update(_canon(pr).encode("utf-8", "replace") + b"\0")
+        h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
+        rels = []
+        for p in inputs:
+            with self.lock:
+                d = _sha_file(p, self.memo)
+            rel = os.path.relpath(p, repo).replace(os.sep, "/")
+            if d is None:
+                return None, [], "%s cannot be read" % rel
+            h.update(rel.encode("utf-8", "replace") + b"\0" + d.encode("ascii") + b"\0")
+            rels.append(rel)
+        return h.hexdigest(), rels, None
+
+    def count(self, what):
+        with self.lock:
+            setattr(self, what, getattr(self, what) + 1)
+
+    def say_once(self, name, why, line):
+        with self.lock:
+            first = (name, why) not in self._said
+            self._said.add((name, why))
+        if first:
+            self.say(line)
+
+    def lookup(self, key):
+        """The stored entry for `key`, only when it says PROVEN; anything else in the file is not a shortcut."""
+        with self.lock:
+            e = self.entries.get(key)
+        return e if isinstance(e, dict) and e.get("verdict") == PROVEN else None
+
+    def store(self, key, entry):
+        """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run)."""
+        with self.lock:
+            self.entries[key] = entry
+            if len(self.entries) > CACHE_MAX:
+                for k in sorted(self.entries, key=lambda k: self.entries[k].get("provedAt") or 0)[
+                        :len(self.entries) - CACHE_MAX]:
+                    self.entries.pop(k, None)
+            self.dirty = True
+
+    def flush(self):
+        """Write the file atomically when something was banked since the last write. -> True when written"""
+        with self.lock:
+            if not self.dirty:
+                return False
+            body = {"_why": "#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of every "
+                            "byte each depends on (tv/heart2.py law_inputs). Per machine, never committed.",
+                    "entries": self.entries}
+            tmp = self.path + ".tmp"
+            try:
+                with io.open(tmp, "w", encoding="utf-8") as fh:
+                    json.dump(body, fh, sort_keys=True)
+                os.replace(tmp, self.path)
+                self.readable, self.dirty = True, False
+                return True
+            except Exception as _e:
+                # a cache that cannot be written costs the next push a re-prove, never this push its verdict - said
+                self.say("  #42 P3 CACHE: could not write %s (%s) - what this run proved is not banked"
+                         % (os.path.basename(self.path), type(_e).__name__))
+                return False
+
+    def summary(self, n_total):
+        return ("#42 P3 CACHE: %d of %d proof(s) reused from the cache (byte-identical inputs, not re-run) · %d proved "
+                "and banked · %d missed and re-proved · %d not cacheable (ran, never banked) · %d moved under their "
+                "proof (not banked)" % (self.hits, n_total, self.stores, self.misses, self.unkeyable, self.moved))
+
+
+def open_cache(say=print):
+    """The cache prove(push=True) hands to _prove_push -> _VerdictCache | None (HEART2_PROVE_CACHE=0: closed, said)."""
+    if str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
+        say("  #42 P3 CACHE: OFF for this run (HEART2_PROVE_CACHE=0) - every proof runs, nothing is banked")
+        return None
+    return _VerdictCache(say=say)
+
+
+def _age_say(ms):
+    try:
+        s = max(0, int(time.time() - float(ms) / 1000.0))
+    except (TypeError, ValueError):
+        return "an UNKNOWN time"
+    return "%dm" % (s // 60) if s < 3600 else "%.1fh" % (s / 3600.0) if s < 86400 else "%.1fd" % (s / 86400.0)
 
 
 def _declares_widths(proofs):
@@ -1453,7 +1760,50 @@ def _browser_slot(name):
 
 
 def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
-    """#42 — ONE proof at push time, at the widths it declares. -> verdict (the PUSH TIME block above)"""
+    """#42 — ONE proof at push time: reused from the verdict cache when every keyed byte is identical (P3), otherwise
+    run at the widths it declares and banked only when it came back PROVEN. -> verdict (the PUSH TIME block above)"""
+    cache = _PUSH.cache if _PUSH is not None else None
+    key = None
+    if cache is not None:
+        label = "%s[%d]" % (name, idx)
+        key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)
+        if key is None:
+            cache.count("unkeyable")
+            cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; every proof of this law runs on "
+                                       "every push" % (label, kwhy))
+        else:
+            hit = cache.lookup(key)
+            if hit is not None:
+                cache.count("hits")
+                say("     %-52s %s (cached %s: %d byte-identical input(s), proved %s ago%s - not re-run)"
+                    % (label, PROVEN, key[:8], len(hit.get("inputs") or rels), _age_say(hit.get("provedAt")),
+                       (" at %s" % hit["at"]) if hit.get("at") else ""))
+                return PROVEN
+            cache.count("misses")
+    v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
+    if key is not None and v == PROVEN:
+        # ⚠ KEYED AGAIN AFTER THE RUN: the tamper wrote and restored the target, and a law may write beside itself; a key
+        # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie
+        again, rels2, _w2 = cache.key_for(sandbox, name, filename, pr)
+        if again == key:
+            import law_widths as _LW
+            try:
+                _at = _LW.declared(pr)
+            except ValueError:
+                _at = None
+            cache.store(key, {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
+                              "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
+                              "target": str(pr.get("file") or ""), "inputs": rels})
+            cache.count("stores")
+        else:
+            cache.count("moved")
+            say("     %-52s   ↳ #42 P3: the tree moved under this proof (its key changed while it ran) - PROVEN stands, "
+                "nothing is banked" % ("%s[%d]" % (name, idx)))
+    return v
+
+
+def _prove_push_one_run(sandbox, name, filename, pr, idx, say, why):
+    """#42 — the run itself: ONE proof at the widths it declares (the PUSH TIME block above). -> verdict"""
     label = "%s[%d]" % (name, idx)
     widths = None
     if isinstance(pr, dict) and "widths" in pr:
@@ -1515,12 +1865,15 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                     "the push is refused on this one." % (name, i, got[i], reason))
             break
     per = [got.get(i) for i in range(len(proofs))]
+    if run.cache is not None:
+        run.cache.flush()          # P3: what this gate proved reaches the disk now, not only at the end of the run
     return _push_gate_verdict(per), per
 
 
-def _prove_push(have, say, stopped=None):
+def _prove_push(have, say, stopped=None, cache=None):
     """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
-    OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on."""
+    OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on.
+    `cache` (P3) is the _VerdictCache prove(push=True) opened; None - every other caller - runs every proof."""
     global _PUSH
     _nw = sum(1 for _n, _f, _p in have for _pr in _p if isinstance(_pr, dict) and "widths" in _pr)
     _np = sum(len(_p) for _n, _f, _p in have)
@@ -1542,12 +1895,15 @@ def _prove_push(have, say, stopped=None):
         say("  #42 ⚠ %d gate(s) import a file nobody could read or parse, so whether they start a browser is UNKNOWN - "
             "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
     by = dict((n, (n, f, p)) for n, f, p in have)
-    run = _PushRun(order, browser)
+    run = _PushRun(order, browser, cache)
     _prev, _PUSH = _PUSH, run
     try:
         results, per_proof = _prove_gates([by[n] for n in gates], say)
     finally:
         _PUSH = _prev
+    if cache is not None:
+        cache.flush()
+        say("  " + cache.summary(_np))
     if results is None:
         return None, None
     not_run = sorted(n for n, v in results.items() if v == NOT_RUN)
@@ -1759,8 +2115,9 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None):
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
     if push:
-        # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time
-        results, per_proof = _prove_push(have, say, stopped)
+        # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time,
+        # and (P3) a PROVEN reused only over byte-identical inputs - the cache is opened HERE and nowhere else
+        results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say))
         if results is not None and not results:
             # ⚠ A STOP BEFORE ANY GATE WAS JUDGED TO THE END IS NOT AN EMPTY RUN. _write_state reads an empty result as a
             # FULL run that proved nothing and would wipe every standing proof (provedGates, blind) - so nothing is

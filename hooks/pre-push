@@ -382,6 +382,137 @@ except Exception:
   # Written down rather than left as a silent hole. [[unknown-stays-unknown]]
 fi
 
+# ══ #42 P5 — THE RENDER GATE RUNS BEFORE THE PROVING STAGE, BECAUSE IT IS THE ONE THAT REFUSES ══════════════════
+# MEASURED 2026-09-29 on the v3523 push: every cheap stage green by 0m09s, the changed laws proved and both python
+# suites green, and then the render gate REFUSED at 94m53s (and again at ~98m on the retry) on a shelf proof that
+# passed alone minutes later. Twice, the whole 83-minute proving stage was paid to learn what a 5-minute render would
+# have said first. Across 2026-09-26..28 the render gate refused 3 of 9 pushes, the console demos 1, a blind proof 1 -
+# render is the stage most likely to refuse, so it runs right after the cheap stages, before anything long.
+# ⚠ THIS IS A MOVE, NOT A CHANGE. The block below is the v2297 render gate byte for byte - its trigger, its port, its
+# temporary profile, its 353 s bound, crest-loudness, the kill-by-pid - and every stage it used to follow still runs
+# after it. Nothing was removed and no bound moved. It also LEAVES the `tv/ python touched` lane it sat inside
+# (textually, since v2297): there, a push that changed only tv/render_coverage.json or art/ - no tv/*.py - never
+# rendered at all, while its own v2710 comment says the ratchet file is a change to the verdict. At top level the
+# trigger alone decides. The law: test_the_render_gate_runs_before_the_proving_stage.
+# ── v2297 — A PIXEL GATE, BECAUSE NOTHING HERE COULD SEE THE PAGE ────────────────────────────
+# MEASURED from this very file: the gates that block a push are version-stamp, second-eye,
+# review-lite, visual-lock, boss-portraits, test_agent, test_control, test_tz_art,
+# test_chronicle_retro, test_chronicle_seal, console-demos and smoke. NOT ONE of them looks at a
+# rendered pixel — `visual-lock` is visual_lock_invariant.py, a type-system invariant over tokens.
+# render_check.py and run_gates.py ran only locally and in CI.
+#
+# That is exactly how v2294 got found. The install crest was the single most saturated element
+# above the fold — 92.5% of its own pixels, ahead of the help button at 75.7% — on every render for
+# many versions, and it took a cross-family read to notice. A parser cannot see "this is the
+# loudest thing on the page".
+#
+# Cost is paid only when something VISUAL is actually shipping, using the same range logic the
+# console-demos gate already uses. Both checks exit 2 (UNKNOWN) with no Chrome; UNKNOWN is reported
+# as a refusal to certify, never as a pass. [[unknown-stays-unknown]]
+_px_touched=0
+_px_range=""
+if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+  _px_range="$(git rev-parse --abbrev-ref '@{u}')..HEAD"
+elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+  _px_range="origin/main..HEAD"
+fi
+# ⚠⚠ v2710 — THE GATE'S OWN DEFINITION COUNTS AS A CHANGE TO WHAT IT MEASURES.
+# This matched bible.html and control_ui.html only, which is right for "did the PAGE change" and
+# wrong for "could the VERDICT change". render_check.py holds the targets, the selectors and the
+# declared floors; render_coverage.json holds the ratchet. Widening a selector changes what is
+# counted and which floors apply without touching one byte of the page.
+# MEASURED: commit 2879656a added `.hrt-svgwrap` to the heart-fan selector, touched no page file,
+# and the pre-push log contains ZERO mentions of "render" — the gate never ran. That widened the
+# clip scan from 1613 to 1853 nodes and surfaced a second clipped label at 375 against a declared
+# floor of 1. heart-fan was RED in the working tree and the push went through clean.
+# The one change guaranteed to move the verdict was the one change that did not re-run it.
+if git diff --cached --name-only 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
+  _px_touched=1
+elif [ -n "$_px_range" ] && git diff --name-only "$_px_range" 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
+  _px_touched=1
+fi
+if [ "$_px_touched" = "1" ]; then
+  # ⚠ 9222 is his Chrome and 9223 is TradingView. Scratch browsers live on 9224+, need their own
+  # --user-data-dir, and need --remote-allow-origins or the WebSocket upgrade is refused 403.
+  # ⚠ ONE about:blank, never two. "--headless=new ... about:blank about:blank" is REFUSED with
+  # "Multiple targets are not supported in headless mode" and the browser never starts at all —
+  # which then reads downstream as "no Chrome", i.e. the launch flag masquerading as a missing
+  # browser. Chrome is started fresh for this gate rather than kept warm, because a probe that
+  # opens and closes a tab can take an idle headless browser down with it.
+  _px_started=0
+  # ⚠⚠ A TEMPORARY PROFILE, LIKE render_check's OWN. This launched Chrome against a PERSISTENT
+  # profile at tv/.render_shots/chrome-profile — and render_check.py:1751 already mkdtemp's its own
+  # precisely because a persistent one "reached 1.4 GB and ENOSPC'd his Mac". That fix could never
+  # run on a push: _chrome_up() returns True the moment 9224 answers, and this block has already
+  # started Chrome before render_check is invoked. So the scar was recorded, the fix was written,
+  # and the gate kept using the thing the fix exists to avoid.
+  # MEASURED 2026-09-12: the profile is 1.7 GB — Default/Cache 1.2 GB, Local Storage 231 MB —
+  # against 443 PNGs / 147 MB of actual output, 11x its own artifacts, and up 15% in 9 days.
+  # ⚠ AND IT WAS COSTING PUSHES, NOT JUST DISK. heart-fan refused with "the panel could not be
+  # ACTIVATED after 12.2s" under this profile while the SAME TREE rendered all 18 targets green in
+  # 264s standalone, where render_check uses its own mkdtemp. Same code, different profile,
+  # opposite verdict. [[ab-against-head-before-blaming-the-room]]
+  # ⚠ SWEEP WHAT EARLIER RUNS LEFT. The persistent profile this replaced reached 1.7 GB precisely
+  # because nothing ever removed it; a temporary one that leaks on a race is the same disease with
+  # a slower clock. Bounded to this exact prefix, and only dirs older than a day so a CONCURRENT
+  # push's profile is never taken out from under it.
+  find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'd2r-render-profile*' -mtime +0 \
+       -exec rm -rf {} + >/dev/null 2>&1 || true
+  _px_profile="$(mktemp -d -t d2r-render-profile)"
+  if ! curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --remote-debugging-port="$TV_RENDER_PORT" \
+      --user-data-dir="$_px_profile" \
+      --no-first-run --no-default-browser-check --disable-gpu \
+      --window-size=1440,1000 --remote-allow-origins='*' about:blank \
+      >/dev/null 2>&1 &
+    _px_chrome_pid=$!
+    _px_started=1
+    for _i in $(seq 1 25); do
+      sleep 1
+      curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version" && break
+    done
+  fi
+  if curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
+    # ⚠ 2026-09-27 — 300 -> 353, MEASURED, NOT WISHED: a clean full pass costs 296-317s at his daytime load (~5,
+    # reported IDLE by the hang message), so 300 killed runs that had finished all but the last target and called
+    # them HUNG. The margins are the old ones moved with the cost (264/280/300 -> 317/333/353: a 16s read floor,
+    # 20s to print and tear down). Moves with render_check._CLEAN_RUN_COST / _RUN_REPORT_BY, never alone.
+    gate_run "render" "python3 tv/render_check.py" 353 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
+    gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
+  else
+    echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"
+    echo "          never looked at. That is UNKNOWN, not a pass."
+    _px_fail=1
+  fi
+  # kill by PID, never by name: :17772 is his live console and pkill -f cannot tell it from ours
+  if [ "$_px_started" = "1" ] && [ -n "${_px_chrome_pid:-}" ]; then
+    kill "$_px_chrome_pid" >/dev/null 2>&1 || true
+    # ⚠⚠ WAIT FOR IT TO ACTUALLY DIE BEFORE REMOVING ITS PROFILE. The first cut removed the dir
+    # on the line after `kill`, and Chrome is still shutting down then: the rm took what it could
+    # and Chrome RE-CREATED files on its way out, leaving an 8 KB skeleton behind. Measured twice,
+    # two pushes apart — 8.0 KB each, with no open handles by the time anyone looked, which is
+    # exactly what a race leaves and nothing like a permission failure.
+    # Bounded, and on the PID rather than a name: a pattern matches this shell's own siblings.
+    # [[wait-on-a-pid-not-a-pattern]]
+    _px_w=0
+    while kill -0 "$_px_chrome_pid" >/dev/null 2>&1 && [ "$_px_w" -lt 50 ]; do
+      sleep 0.1
+      _px_w=$((_px_w + 1))
+    done
+  fi
+  # the temp profile goes with it — that is the whole point of it being temporary. Guarded on the
+  # prefix so a mistyped variable can never hand `rm -rf` something else.
+  case "${_px_profile:-}" in
+    */d2r-render-profile*) rm -rf "$_px_profile" >/dev/null 2>&1 || true ;;
+  esac
+  if [ "${_px_fail:-0}" = "1" ]; then
+    echo "pre-push: [$(_pp_el)] BLOCKED — the rendered page did not pass. LOOK AT THE PNGs in tv/.render_shots."
+    exit 1
+  fi
+  echo "pre-push: [$(_pp_el)] ✅ the page was rendered and looked at."
+fi
+
 # ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
 # A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause
 # it targeted, and the law stayed GREEN — it had been asserting phrases that occur three times
@@ -570,124 +701,6 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # and skipped — which is exactly what happened on the v2120 push: the UI changed in that push and
   # the gate said it had not. The range is what is actually being shipped.
 
-# ── v2297 — A PIXEL GATE, BECAUSE NOTHING HERE COULD SEE THE PAGE ────────────────────────────
-# MEASURED from this very file: the gates that block a push are version-stamp, second-eye,
-# review-lite, visual-lock, boss-portraits, test_agent, test_control, test_tz_art,
-# test_chronicle_retro, test_chronicle_seal, console-demos and smoke. NOT ONE of them looks at a
-# rendered pixel — `visual-lock` is visual_lock_invariant.py, a type-system invariant over tokens.
-# render_check.py and run_gates.py ran only locally and in CI.
-#
-# That is exactly how v2294 got found. The install crest was the single most saturated element
-# above the fold — 92.5% of its own pixels, ahead of the help button at 75.7% — on every render for
-# many versions, and it took a cross-family read to notice. A parser cannot see "this is the
-# loudest thing on the page".
-#
-# Cost is paid only when something VISUAL is actually shipping, using the same range logic the
-# console-demos gate already uses. Both checks exit 2 (UNKNOWN) with no Chrome; UNKNOWN is reported
-# as a refusal to certify, never as a pass. [[unknown-stays-unknown]]
-_px_touched=0
-_px_range=""
-if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
-  _px_range="$(git rev-parse --abbrev-ref '@{u}')..HEAD"
-elif git rev-parse --verify origin/main >/dev/null 2>&1; then
-  _px_range="origin/main..HEAD"
-fi
-# ⚠⚠ v2710 — THE GATE'S OWN DEFINITION COUNTS AS A CHANGE TO WHAT IT MEASURES.
-# This matched bible.html and control_ui.html only, which is right for "did the PAGE change" and
-# wrong for "could the VERDICT change". render_check.py holds the targets, the selectors and the
-# declared floors; render_coverage.json holds the ratchet. Widening a selector changes what is
-# counted and which floors apply without touching one byte of the page.
-# MEASURED: commit 2879656a added `.hrt-svgwrap` to the heart-fan selector, touched no page file,
-# and the pre-push log contains ZERO mentions of "render" — the gate never ran. That widened the
-# clip scan from 1613 to 1853 nodes and surfaced a second clipped label at 375 against a declared
-# floor of 1. heart-fan was RED in the working tree and the push went through clean.
-# The one change guaranteed to move the verdict was the one change that did not re-run it.
-if git diff --cached --name-only 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
-  _px_touched=1
-elif [ -n "$_px_range" ] && git diff --name-only "$_px_range" 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
-  _px_touched=1
-fi
-if [ "$_px_touched" = "1" ]; then
-  # ⚠ 9222 is his Chrome and 9223 is TradingView. Scratch browsers live on 9224+, need their own
-  # --user-data-dir, and need --remote-allow-origins or the WebSocket upgrade is refused 403.
-  # ⚠ ONE about:blank, never two. "--headless=new ... about:blank about:blank" is REFUSED with
-  # "Multiple targets are not supported in headless mode" and the browser never starts at all —
-  # which then reads downstream as "no Chrome", i.e. the launch flag masquerading as a missing
-  # browser. Chrome is started fresh for this gate rather than kept warm, because a probe that
-  # opens and closes a tab can take an idle headless browser down with it.
-  _px_started=0
-  # ⚠⚠ A TEMPORARY PROFILE, LIKE render_check's OWN. This launched Chrome against a PERSISTENT
-  # profile at tv/.render_shots/chrome-profile — and render_check.py:1751 already mkdtemp's its own
-  # precisely because a persistent one "reached 1.4 GB and ENOSPC'd his Mac". That fix could never
-  # run on a push: _chrome_up() returns True the moment 9224 answers, and this block has already
-  # started Chrome before render_check is invoked. So the scar was recorded, the fix was written,
-  # and the gate kept using the thing the fix exists to avoid.
-  # MEASURED 2026-09-12: the profile is 1.7 GB — Default/Cache 1.2 GB, Local Storage 231 MB —
-  # against 443 PNGs / 147 MB of actual output, 11x its own artifacts, and up 15% in 9 days.
-  # ⚠ AND IT WAS COSTING PUSHES, NOT JUST DISK. heart-fan refused with "the panel could not be
-  # ACTIVATED after 12.2s" under this profile while the SAME TREE rendered all 18 targets green in
-  # 264s standalone, where render_check uses its own mkdtemp. Same code, different profile,
-  # opposite verdict. [[ab-against-head-before-blaming-the-room]]
-  # ⚠ SWEEP WHAT EARLIER RUNS LEFT. The persistent profile this replaced reached 1.7 GB precisely
-  # because nothing ever removed it; a temporary one that leaks on a race is the same disease with
-  # a slower clock. Bounded to this exact prefix, and only dirs older than a day so a CONCURRENT
-  # push's profile is never taken out from under it.
-  find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'd2r-render-profile*' -mtime +0 \
-       -exec rm -rf {} + >/dev/null 2>&1 || true
-  _px_profile="$(mktemp -d -t d2r-render-profile)"
-  if ! curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-      --headless=new --remote-debugging-port="$TV_RENDER_PORT" \
-      --user-data-dir="$_px_profile" \
-      --no-first-run --no-default-browser-check --disable-gpu \
-      --window-size=1440,1000 --remote-allow-origins='*' about:blank \
-      >/dev/null 2>&1 &
-    _px_chrome_pid=$!
-    _px_started=1
-    for _i in $(seq 1 25); do
-      sleep 1
-      curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version" && break
-    done
-  fi
-  if curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
-    # ⚠ 2026-09-27 — 300 -> 353, MEASURED, NOT WISHED: a clean full pass costs 296-317s at his daytime load (~5,
-    # reported IDLE by the hang message), so 300 killed runs that had finished all but the last target and called
-    # them HUNG. The margins are the old ones moved with the cost (264/280/300 -> 317/333/353: a 16s read floor,
-    # 20s to print and tear down). Moves with render_check._CLEAN_RUN_COST / _RUN_REPORT_BY, never alone.
-    gate_run "render" "python3 tv/render_check.py" 353 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
-    gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
-  else
-    echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"
-    echo "          never looked at. That is UNKNOWN, not a pass."
-    _px_fail=1
-  fi
-  # kill by PID, never by name: :17772 is his live console and pkill -f cannot tell it from ours
-  if [ "$_px_started" = "1" ] && [ -n "${_px_chrome_pid:-}" ]; then
-    kill "$_px_chrome_pid" >/dev/null 2>&1 || true
-    # ⚠⚠ WAIT FOR IT TO ACTUALLY DIE BEFORE REMOVING ITS PROFILE. The first cut removed the dir
-    # on the line after `kill`, and Chrome is still shutting down then: the rm took what it could
-    # and Chrome RE-CREATED files on its way out, leaving an 8 KB skeleton behind. Measured twice,
-    # two pushes apart — 8.0 KB each, with no open handles by the time anyone looked, which is
-    # exactly what a race leaves and nothing like a permission failure.
-    # Bounded, and on the PID rather than a name: a pattern matches this shell's own siblings.
-    # [[wait-on-a-pid-not-a-pattern]]
-    _px_w=0
-    while kill -0 "$_px_chrome_pid" >/dev/null 2>&1 && [ "$_px_w" -lt 50 ]; do
-      sleep 0.1
-      _px_w=$((_px_w + 1))
-    done
-  fi
-  # the temp profile goes with it — that is the whole point of it being temporary. Guarded on the
-  # prefix so a mistyped variable can never hand `rm -rf` something else.
-  case "${_px_profile:-}" in
-    */d2r-render-profile*) rm -rf "$_px_profile" >/dev/null 2>&1 || true ;;
-  esac
-  if [ "${_px_fail:-0}" = "1" ]; then
-    echo "pre-push: [$(_pp_el)] BLOCKED — the rendered page did not pass. LOOK AT THE PNGs in tv/.render_shots."
-    exit 1
-  fi
-  echo "pre-push: [$(_pp_el)] ✅ the page was rendered and looked at."
-fi
 
   _range=""
   if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
