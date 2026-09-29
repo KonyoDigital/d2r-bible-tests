@@ -4445,8 +4445,11 @@ CAP_KILL_SETTLE_S = 3.0
 def _gone_within(pid, alive, within_s, step_s=0.1):
     """Poll alive(pid) until it says no or within_s passes. -> True once the pid is gone, False if it outlived the
     wait. The first answer is taken at once, so a kill that already landed costs no wait."""
-    deadline = time.time() + max(0.0, float(within_s))
-    while True:
+    within_s, step_s = max(0.0, float(within_s)), max(0.01, float(step_s))
+    deadline = time.time() + within_s
+    # BOUNDED on purpose (one ask now, one per step, one at the deadline): this is a wait, not a lane,
+    # and the blueprint maps every `while True` in this file as a background loop (blueprint-agrees).
+    for _ in range(int(within_s / step_s) + 2):
         try:
             if not alive(pid):
                 return True
@@ -4455,6 +4458,7 @@ def _gone_within(pid, alive, within_s, step_s=0.1):
         if time.time() >= deadline:
             return False
         time.sleep(step_s)
+    return False
 
 
 def _stop_capture():
@@ -4582,7 +4586,7 @@ def _capture_rows(timeout=30):
     except Exception:
         try:
             proc.kill()
-            proc.communicate(timeout=5)
+            proc.wait(timeout=5)
         except Exception:
             pass
         return None

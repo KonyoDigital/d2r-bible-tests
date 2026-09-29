@@ -451,6 +451,10 @@ def ratchet():
               "These are runtime stores written by the machine that runs the console; their "
               "absence is a venue fact, not a clean result." % len(b_local))
     else:
+        # the same "a row is not a file" rule, per store: a DECLARED local store that is not on disk here is
+        # ABSENT (UNKNOWN, not fixed), never a rank drop — a checkout that holds SOME of his runtime stores
+        # (a worktree, a fresh clone after one console tick) read four declared ones as "went backwards".
+        lo = {s: v for s, v in lo.items() if os.path.exists(os.path.join(HERE, s))}
         reg2, gain2, new2, gone2 = _compare(b_local, lo)
         print("  local scope: %d store(s) measured against %d in the baseline" % (len(lo), len(b_local)))
         _red += ["local · %s" % x for x in reg2]

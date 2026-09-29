@@ -39857,8 +39857,13 @@ class TestV2359AStashIsNeverAlphabetical(unittest.TestCase):
                        "window.vaultAddMule", min_len=300, what="the menu-import removal")
         self.assertIn("if (!v.armed)", blk,
                       "the removal is no longer two-stage - one click would delete from owned")
-        self.assertIn("if (assign[name]) return;", blk,
-                      "it no longer spares items already filed in a mule; his hand put those there")
+        # REG-1470 (M-3) moved the removal through the journaled vaultRemove door: the spare is now a
+        # filter on the list handed to it. Either shape spares a filed item; neither may disappear.
+        spared = ("if (assign[name]) return;" in blk) or bool(re.search(
+            r"var (\w+) = names\.filter\(function\(name\)\{ return !assign\[name\]; \}\);[\s\S]*?"
+            r"window\.vaultRemove\(\1\b", blk))
+        self.assertTrue(spared,
+                        "it no longer spares items already filed in a mule; his hand put those there")
         self.assertIn("uiConfirm", blk, "it no longer confirms before deleting")
 
 

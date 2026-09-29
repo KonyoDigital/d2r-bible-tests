@@ -201,9 +201,14 @@ class TheBlueprintCannotGoStaleSilently(unittest.TestCase):
         i = src.find('A("## THE RIVER')
         self.assertGreater(i, 0, "the river section is gone from render()")
         seg = src[i:i + 900]
-        self.assertIn("UNKNOWN", seg,
-                      "render() prints the river without an UNKNOWN branch, so a river it could "
-                      "not read would be drawn as a river with nothing in it")
+        # REG-1504: the words now come from ONE helper (unknown_shelf.says_unknown) so five readers say
+        # UNKNOWN once. Accept the literal or the helper — and DRIVE the helper, so a helper that stopped
+        # saying UNKNOWN cannot hide behind its name.
+        import unknown_shelf as _us
+        says = "UNKNOWN" in seg or ("says_unknown(" in seg and _us.says_unknown("x").startswith("UNKNOWN"))
+        self.assertTrue(says,
+                        "render() prints the river without an UNKNOWN branch, so a river it could "
+                        "not read would be drawn as a river with nothing in it")
 
 
 

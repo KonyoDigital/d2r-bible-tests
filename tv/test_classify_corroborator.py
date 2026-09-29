@@ -219,8 +219,11 @@ class BothLogicsIntertwined(unittest.TestCase):
                          "a read covers this moment, so the answer is containment's — even "
                          "though the lane is deliberately None: %s" % why)
         self.assertIsNone(lane)
-        self.assertIn("holding", why.lower(),
-                      "lane_at's own reason was discarded: %s" % why)
+        # §31.2 (his ruling, 3fb6f8b4) rewrote the inventory reason from "holding" to CARRIED-but-no-lane;
+        # what this law guards is that lane_at's OWN reason survives the grading, whatever its words are.
+        self.assertEqual(why, rs.lane_at(segs, "s1", 1500)[1],
+                         "lane_at's own reason was discarded: %s" % why)
+        self.assertIn("inventory", why.lower(), "the reason no longer names the inventory: %s" % why)
 
     def test_no_segments_at_all_stays_UNSETTLED(self):
         lane, why, grade = rs.lane_at_graded([], "s1", 1000)

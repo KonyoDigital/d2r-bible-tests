@@ -249,7 +249,8 @@ def _check_behind_the_fleet():
         except Exception:
             return None
 
-    if not os.path.isdir(os.path.join(ROOT, ".git")):
+    # a linked worktree or submodule carries `.git` as a FILE pointing at the real git dir — still a checkout
+    if not os.path.exists(os.path.join(ROOT, ".git")):
         return UNKNOWN, "this install is not a git checkout, so there is no origin to be behind"
     if _git("rev-parse", "--verify", "--quiet", "origin/main") is None:
         return UNKNOWN, "no origin/main ref on disk yet — nothing has ever fetched here"

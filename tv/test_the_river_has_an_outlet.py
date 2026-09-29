@@ -79,11 +79,11 @@ _NO_SHELF = ("this shelf holds no reels, so nothing about reel STATIONS could be
 #: the supported seam: patch `_evidence`. One reel per station, built from EVIDENCE_FIELDS alone - the
 #: same inputs `_station_of` reads on his real shelf - and two at EMPTY so FIFO has an order to check.
 _SHELF = {
-    "reel_s_1788700000101_11": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
-    "reel_s_1788700000102_12": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
-    "reel_s_1788700000103_13": {"sealed": True, "names": 0, "surveyed": True, "worthReading": True},    # CAPTURE
-    "reel_s_1788700000104_14": {"sealed": False, "names": 0, "surveyed": True, "worthReading": True},   # STATION
-    "reel_s_1788700000105_15": {"sealed": False, "names": 3, "surveyed": True, "worthReading": True},   # PRINTER
+    "reel_s_1500000000101_11": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
+    "reel_s_1500000000102_12": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
+    "reel_s_1500000000103_13": {"sealed": True, "names": 0, "surveyed": True, "worthReading": True},    # CAPTURE
+    "reel_s_1500000000104_14": {"sealed": False, "names": 0, "surveyed": True, "worthReading": True},   # STATION
+    "reel_s_1500000000105_15": {"sealed": False, "names": 3, "surveyed": True, "worthReading": True},   # PRINTER
 }
 _REAL_EVIDENCE = None
 

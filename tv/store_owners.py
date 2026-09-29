@@ -90,6 +90,17 @@ STORES = {
             # SANDBOX (`_hist`), never tv/ — the isolation v1867 was carved for. It appeared here as
             # an undeclared toucher only once the scan stopped counting comments, which is the scan
             # working: this is a real write and it should have been argued in, not discovered.
+            # REG-1470..1479 (evidence route round 5) — two READERS, both asking the owner first.
+            "read_pictures": "READS it (load_tombstones) so a picture whose reel is gone says WHEN it went,\n"
+                             "                              instead of reading as a broken link. Asks\n"
+                             "                              reel_retention._tombstone_path(hist) for the path and joins\n"
+                             "                              its own only if that import fails. Read-only; returns None\n"
+                             "                              (UNKNOWN) on an unreadable file, never []",
+            "vault_evidence": "READS it (_tombstone_times) to DATE a gone frame's loss, so a missing\n"
+                              "                              picture says 'deleted at T' rather than 'undated'. Trusts\n"
+                              "                              reel_retention._tombstone_path(root) and refuses the one\n"
+                              "                              answer that would date a FIXTURE root with his real record.\n"
+                              "                              Read-only; deletes and writes nothing",
             "render_check":  "SEEDS a synthetic tombstone ledger inside the render sandbox so the\n"
                              "                              TOMBSTONE lane has rows to photograph. Writes to <hist>,\n"
                              "                              never to tv/, and reads nothing back from his real store",
