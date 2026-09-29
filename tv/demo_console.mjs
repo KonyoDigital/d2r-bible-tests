@@ -607,7 +607,11 @@ async function j7_shelfStory(page) {
     return ov.querySelectorAll('.sh-card').length > 0;
   }, null, { timeout: 15000 });
   const r = await page.evaluate(() => {
-    const glyphs = ['🛡', '🚨', '🧠', '📸']; // seal-verdict markers
+    // seal-verdict markers + the v940 REGRET ENGINE's two (💔 regrets / 🔬 judged). ⚠ 2026-09-29: the list
+    // predated v940, and his shelf never showed a card whose ONLY verdict was the judge until today -
+    // v3523's push #4 was refused at 113m by "🔬 2 judged", a verdict the page has rendered since July.
+    // The markers are the ones control_ui.html pushes into vparts; nothing else is admitted.
+    const glyphs = ['🛡', '🚨', '🧠', '📸', '💔', '🔬'];
     const cards = document.querySelectorAll('#th-shelfov .sh-card');
     const verdicts = Array.from(document.querySelectorAll('#th-shelfov .sh-verdict'));
     // any rendered verdict line must carry at least one verdict glyph; zero-verdict
