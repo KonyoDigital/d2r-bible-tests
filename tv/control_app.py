@@ -17041,6 +17041,101 @@ def _exec_relaunch_soon():
     threading.Thread(target=_go, daemon=True, name="tvd-rescue-relaunch").start()
 
 
+# ⚠⚠ 2026-09-29 — A CONSOLE THAT CANNOT ANSWER ITSELF (#71, REG-1435). His Mac console ran 24 h, window up, :17772 in
+# LISTEN with an empty queue (0/0/5) - and every request was accepted and RESET: the fleet read "unreachable", THE SHELF
+# would not open, W did nothing, TV·D said "Control server unreachable". No Python error was logged; a native sample
+# showed the server thread idle in poll(). He found it; nothing in the console did, because every watchdog it has
+# talks to it OVER that port. So the console now asks its own port, once a minute, on the rescue loop's tick (no new
+# thread). Three immediate refusals/resets in a row = deaf: the fault is recorded and the console relaunches itself
+# through _exec_relaunch_soon (which still refuses while a sweep or a mini is in flight), at most once per 10 minutes.
+# ⚠ A SLOW ANSWER IS NEVER DEAF. The ALT stalls for minutes under a GIL-bound scan (#66); a timeout neither counts nor
+# clears a strike, so a busy console is never relaunched for being busy. [[heart-first]] [[unknown-stays-unknown]]
+_SELF_PROBE = {"tick": 0, "strikes": 0, "lastKind": None, "lastTs": None, "lastOkTs": None, "lastMs": None,
+               "acted": None, "say": "not asked yet"}
+SELF_PROBE_EVERY_TICKS = 6          # the rescue loop ticks every 10 s -> once a minute
+SELF_PROBE_STRIKES = 3              # three refusals in a row
+SELF_PROBE_ACT_EVERY_S = 600        # and never more than one relaunch per ten minutes
+
+
+def server_self_probe(port, timeout=5.0, _connect=None):
+    """Ask this console's own port for its cheapest route. -> {"kind": answered|reset|refused|timeout|error, "ms"}.
+    `_connect` is the seam a law drives; the default is a real loopback socket."""
+    import socket as _so
+    t0 = time.time()
+    kind = "error"
+    try:
+        s = (_connect or (lambda: _so.create_connection(("127.0.0.1", int(port)), timeout=timeout)))()
+        try:
+            s.settimeout(timeout)
+            s.sendall(b"GET /api/window HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
+            data = s.recv(64)
+        finally:
+            try:
+                s.close()
+            except Exception:
+                pass
+        # an empty read is the server closing on us without a word - the deaf shape, same as a reset
+        kind = "answered" if data.startswith(b"HTTP/") else "reset"
+    except ConnectionResetError:
+        kind = "reset"
+    except ConnectionRefusedError:
+        kind = "refused"
+    except _so.timeout:
+        kind = "timeout"
+    except OSError as e:
+        kind = "reset" if getattr(e, "errno", None) in (54, 104, 10054) else "error"
+    except Exception:
+        kind = "error"
+    return {"kind": kind, "ms": int((time.time() - t0) * 1000)}
+
+
+def self_probe_verdict(strikes, kind, act_after=SELF_PROBE_STRIKES):
+    """One probe's answer folded into the strike count. -> (strikes, act, why). Pure."""
+    n = int(strikes or 0)
+    if kind == "answered":
+        return 0, False, "this console answered its own port"
+    if kind in ("reset", "refused"):
+        n += 1
+        if n >= act_after:
+            return n, True, ("this console %s its own port %d times in a row - its server is deaf; relaunching it"
+                             % ("reset" if kind == "reset" else "refused", n))
+        return n, False, "this console could not answer its own port (%d of %d before it relaunches)" % (n, act_after)
+    return n, False, ("the self-probe could not decide (%s) - a slow or busy console is not a deaf one, so this "
+                      "neither counts nor clears a strike" % kind)
+
+
+def _self_probe_tick(port=None, probe=None, relaunch=None, now_ms=None):
+    """One self-probe, its verdict, and the cure when it is due. -> the state. Never raises into the loop."""
+    try:
+        r = (probe or server_self_probe)(CONTROL_PORT if port is None else port)
+    except Exception as e:
+        r = {"kind": "error", "ms": None, "why": type(e).__name__}
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    n, act, why = self_probe_verdict(_SELF_PROBE.get("strikes"), r.get("kind"))
+    _SELF_PROBE.update(strikes=n, lastKind=r.get("kind"), lastTs=now, lastMs=r.get("ms"), say=why)
+    if r.get("kind") == "answered":
+        _SELF_PROBE["lastOkTs"] = now
+    if act:
+        last = _SELF_PROBE.get("acted")
+        if last and (now - int(last)) < SELF_PROBE_ACT_EVERY_S * 1000:
+            _SELF_PROBE["say"] = why + " - already acted %ds ago, waiting" % int((now - int(last)) / 1000)
+            return dict(_SELF_PROBE)
+        _SELF_PROBE["acted"] = now
+        try:
+            ui_fault_record("console-server-deaf", why=why, where="_self_probe_tick")
+        except Exception:
+            pass
+        try:
+            print("🩺 " + why, flush=True)
+        except Exception:
+            pass
+        try:
+            (relaunch or _exec_relaunch_soon)()
+        except Exception as e:
+            _SELF_PROBE["say"] = why + " - the relaunch could not be asked (%s)" % type(e).__name__
+    return dict(_SELF_PROBE)
+
+
 def _console_rescue_loop():
     """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
     because a self-heal nobody records is a fault that keeps being reported by HIM instead of
@@ -17049,6 +17144,9 @@ def _console_rescue_loop():
         try:
             time.sleep(10.0)
             _lane_tick('_console_rescue_loop', 10.0)
+            _SELF_PROBE["tick"] = int(_SELF_PROBE.get("tick") or 0) + 1
+            if _SELF_PROBE["tick"] % SELF_PROBE_EVERY_TICKS == 0:
+                _self_probe_tick()          # #71 — can this console still answer itself?
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -34813,6 +34911,8 @@ def status_payload():
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": window_mode_payload(),
+        # #71 — can this console still answer its own port (the fault it cannot report over that port)
+        "selfProbe": dict(_SELF_PROBE),
         "ver": "v3522",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on

@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1435 - HIS CONSOLE WENT DEAF FOR NOBODY BUT HIM TO NOTICE (2026-09-29)
+
+**What he saw, ~03:05:** the fleet "unreachable", THE SHELF not opening, W doing nothing, TV·D "Control server
+unreachable". **Measured:** pid up 24 h, window up, :17772 in LISTEN with an empty queue (0/0/5) - every request
+accepted then RESET, no Python error logged, a native `sample` showed the server thread idle in poll() (kept in
+d2r_session_carry). Relaunched by hand (03:13) and healthy. **The defect we can fix:** every watchdog the console has
+talks to it over that same port, so a deaf console is invisible to itself. It now asks its own port once a minute on
+the rescue loop's tick; three refusals/resets in a row record `console-server-deaf` and relaunch it through
+`_exec_relaunch_soon` (which still refuses mid-sweep / mid-mini), never twice in ten minutes; a timeout neither counts
+nor clears (the ALT stalls for minutes - slow is not deaf). `/api/status` carries `selfProbe`. **Still open:** why the
+server went deaf. **Law:** `tv/test_a_deaf_console_relaunches_itself.py` (10 cases on real loopback sockets, 5 red-proofs).
+
 ### REG-1434 - THE FIRST BEACON LEFT BEFORE THE WINDOW: HIS ROW READ "konyo-3 · no native window" OVER HIS WINDOW (2026-09-29)
 
 **What he saw, 03:21, after his console was relaunched:** *"suddenly in fleet my name changed and says i have no
