@@ -6002,12 +6002,16 @@ def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
                 store is put back (the ledger backup carries it since REG-1481);
               · d2r_cbMain names a build that is not saved — the room marks no card MAIN and the planner's dropdown
                 leads with none, while the pointer looks set;
-              · rank 13 — ★ MAIN (d2r_cbMain, a build) and the vault's MAIN (d2r_mainCharacter, the lock's owner)
-                NAME DIFFERENT CHARACTERS. They are two stores under one word, separated by his ruling (bible.html
-                'chars-tab-js'): marking a build ★ MAIN locks none of its gear, the lock follows the vault's MAIN.
-                Nothing said so anywhere; this does, naming both.
       OK      · an absent or empty store is MEASURED empty (the room itself reads null / '' as "No characters yet");
-                otherwise the count, the ★ MAIN and whether it is the vault's MAIN too.
+                otherwise the count, the ★ MAIN and whether it is the vault's MAIN too;
+              · rank 13 — ★ MAIN (d2r_cbMain, a build) and the vault's MAIN (d2r_mainCharacter, the lock's owner)
+                NAMING DIFFERENT CHARACTERS is SAID, naming both, on the OK line. They are two stores under one
+                word, separated by his ruling (bible.html 'chars-tab-js'): marking a build ★ MAIN locks none of its
+                gear, the lock follows the vault's MAIN. Nothing said so anywhere; this does.
+                ⚠ REG-1553 — SAID, NEVER RED. The planner names a build '<Class> build' (his one saved build: 'Amazon
+                build') and the vault's MAIN is a character name he typed in the lock panel: two hand-typed strings in
+                two vocabularies, and no reader can tell whether they are one character. The first cut went MISSING
+                here and told him he could leave it — a red he is told to ignore carries nothing.
     A vault MAIN with no name yet is not a disagreement: said, never red. [[unknown-stays-unknown]]
     """
     if builds_raw is None or builds_raw == "":
@@ -6041,10 +6045,10 @@ def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
     b = builds.get(main_id) if isinstance(builds.get(main_id), dict) else {}
     main_name = str(b.get("name") or "").strip() or ("(unnamed build %s)" % main_id)
     if vault_name and main_name.lower() != vault_name.lower():
-        return MISSING, ("★ MAIN build %s and the vault's MAIN %s name different characters — ★ MAIN locks no gear, the "
-                         "lock follows the vault's MAIN (d2r_mainCharacter): type the name in the Vault's lock panel if "
-                         "%s is the character you play, or leave it if the two are meant to differ (%d build%s)"
-                         % (main_name, vault_name, main_name, n, "" if n == 1 else "s"))
+        # REG-1553 — said on the OK line, never MISSING (see the docstring): two vocabularies, one word, the door named
+        return OK, ("%d build%s · ★ MAIN %s · the vault's MAIN is %s — two stores under one word: ★ MAIN locks no gear, the "
+                    "lock follows the vault's MAIN (d2r_mainCharacter, the Vault's lock panel)"
+                    % (n, "" if n == 1 else "s", main_name, vault_name))
     if vault_name:
         return OK, "%d build%s · ★ MAIN %s is also the vault's MAIN" % (n, "" if n == 1 else "s", main_name)
     return OK, "%d build%s · ★ MAIN %s · %s" % (n, "" if n == 1 else "s", main_name, vault_say)

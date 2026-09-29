@@ -79,6 +79,17 @@ AMB_TO = "      name = window._vaultResolveName(name);\n"
 def amb_gate(s=None):
     """The real L-4 gate, cut from the register — every harness stub carries it (the __AMB_GATE__ slot in HARNESS)."""
     return _between(s if s is not None else _src(), AMB_FROM, AMB_TO)
+
+
+def _origin_line(s=None):
+    """#41 rank 18 sibling (REG-1552) — the ONE rule for which console a board asks (_consoleOrigin: the page's own origin
+    when a local console served it, null otherwise), cut from bible.html by the reset law's own anchor so this harness
+    drives the shipped helper and never a re-typed copy. The evidence panel's picture ask reads it."""
+    import test_a_vault_reset_clears_only_the_mules as RESET
+    line = [l for l in RESET.LINES if "function _consoleOrigin(" in l][0]
+    src = s if s is not None else _src()
+    assert src.count(line) == 1, "the _consoleOrigin helper is not where the reset law cuts it (%d matches)" % src.count(line)
+    return line + "\n"
 SORT_FROM = "    var _pvS = _provAll();\n"
 SORT_TO = "    /* the throw-out ADVICE is still computed for the dock"
 W6_FROM = "    var _pvW6 = _provAll();\n"
@@ -253,6 +264,10 @@ window.LSR = {
   removeItem: function(k){ delete STORE[k]; } };
 window.D2R_BUILD = { id: 'vTEST' };
 window.D2R_PROFILE = 'main';
+/* #41 rank 18 sibling (REG-1552) — the console that SERVED this board: a port that is NOT his live console's, so an ask that
+   lands on :17772 is the defect (a board on a scratch console reading his console's picture status). Set on window, because
+   _consoleOrigin reads window.location and a top-level `var` in this CommonJS program never reaches globalThis. */
+window.location = { origin: 'http://127.0.0.1:17999' };
 console.info = function(){ LOGS.push(Array.prototype.join.call(arguments, ' ')); };
 var owned = new Set();
 var EXTRA_ITEMS = {}, _EXTRA_ITEM_SET = new Set();
@@ -263,6 +278,7 @@ function _provAll(){ try { var v = JSON.parse(window.LSR.getItem('d2r_vaultProv'
 %(lanes)s
 %(furn)s
 %(region)s
+%(origin)s
 %(evidence)s
 /* the register, stubbed around its REAL receipt cut; a name in UNKNOWN mints a TV stub, a name in FILES is filed by the
    door (d2r_muleAssign) — both as the real register does — and the real wrapper's own ledger patch is imitated */
@@ -486,7 +502,12 @@ var p2 = await pic('17_1790551926547');
 FETCH_IMPL = function(){ return Promise.reject(new Error('refused')); };
 var p3 = await pic('17_1790551926547');
 var p4 = await pic('');
-OUT.pictures = { present: p1, gone: p2, silent: p3, none: p4, fetches: FETCHES,
+/* #41 rank 18 sibling (REG-1552) — a board nobody served (no console origin: file://, the public site) asks NOBODY: no
+   fetch at all, never his :17772 by name, and the panel says UNKNOWN */
+var _o0 = window.location.origin, _f0 = FETCHES.length; window.location.origin = 'null';
+var p5 = await pic('17_1790551926547');
+window.location.origin = _o0;
+OUT.pictures = { present: p1, gone: p2, silent: p3, none: p4, fetches: FETCHES, noOrigin: p5, noOriginFetches: FETCHES.length - _f0,
                  presentHtml: window._vaultEvidencePicHtml(mG, p1), goneHtml: window._vaultEvidencePicHtml(mS, p2),
                  silentHtml: window._vaultEvidencePicHtml(mS, p3) };
 // ── the undo ──
@@ -676,7 +697,8 @@ def _drive():
     reg, items = _register_items()
     script = ("var REGISTER_ITEMS = %s;\n" % json.dumps(items)) + sort_src + SCRIPT % {"log": json.dumps(LOG)}
     prog = HARNESS % {"lanes": _lanes(s), "furn": _between(s, FURN_FROM, FURN_TO), "region": owned_prov_region(s),
-                      "evidence": _marked(s, EV_BEGIN, EV_END), "rec": _between(s, REC_FROM, REC_TO), "script": script}
+                      "origin": _origin_line(s), "evidence": _marked(s, EV_BEGIN, EV_END),
+                      "rec": _between(s, REC_FROM, REC_TO), "script": script}
     out = _node(prog, "main")
     out["_register"] = reg
     return out
@@ -1271,8 +1293,17 @@ class TheEvidenceIsVisible(unittest.TestCase):
         for k in ("goneHtml", "silentHtml"):
             self.assertNotIn("<img", p[k], "%s drew an image for a picture that did not load" % k)
             self.assertIn("picture not on this machine", p[k])
-        self.assertTrue(any("picture_status?ids=17_1790551926547" in u for u in p["fetches"]),
-                        "the console was never asked why the picture is gone")
+        asked = [u for u in p["fetches"] if "picture_status?ids=17_1790551926547" in u]
+        self.assertTrue(asked, "the console was never asked why the picture is gone")
+        # #41 rank 18 sibling (REG-1552) — asked of the console that SERVED the board (:17999 here), never his :17772 by name
+        for u in asked:
+            self.assertTrue(u.startswith("http://127.0.0.1:17999/api/picture_status?ids="),
+                            "the ask did not go to the console that served the board: %s" % u)
+            self.assertNotIn("17772", u, "the board asked his live console whatever console served it: %s" % u)
+        # a board nobody served asks nobody and says so
+        self.assertEqual("unknown", p["noOrigin"]["state"], p["noOrigin"])
+        self.assertIn("nobody was asked", p["noOrigin"]["say"])
+        self.assertEqual(0, p["noOriginFetches"], "a board nobody served still asked a console")
 
 
 class TheJoins(unittest.TestCase):
@@ -1305,6 +1336,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#41 rank 18 sibling (REG-1552) - the picture status is asked of :17772 by name again, whatever console served the board",
+        "file": "bible.html",
+        "find": "      var url = origin + '/api/picture_status?ids=' + encodeURIComponent(id);\n",
+        "replace": "      var url = 'http://127.0.0.1:17772/api/picture_status?ids=' + encodeURIComponent(id);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 18 sibling (REG-1552) - a board nobody served asks his console anyway (the origin guard dropped)",
+        "file": "bible.html",
+        "find": "      var origin = _consoleOrigin();\n      if (!origin) return end({ state: 'unknown', frame: id,",
+        "replace": "      var origin = _consoleOrigin() || 'http://127.0.0.1:17772';\n      if (false) return end({ state: 'unknown', frame: id,",
+        "matches": 1,
+    },
     {
         "why": "a door adds to owned bare again — no receipt, the Grief/Plague defect",
         "file": "bible.html",

@@ -40052,10 +40052,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!id) return end({ state: 'none', say: 'no picture was recorded with this read' });
     var ask = function(){
       if (typeof fetch !== 'function') return end({ state: 'unknown', say: 'picture not on this machine — why is UNKNOWN (nothing here can ask the console)' });
+      /* #41 rank 18 sibling (REG-1552, 2026-09-30) — asked of the console that SERVED this board (_consoleOrigin, the one
+         rule the reset's plan and the proof chip follow), never :17772 by name: a board on a scratch or second console
+         read HIS console's picture status. No serving console = nobody to ask, and the panel says so — UNKNOWN. The
+         VAULT_PICTURE_STATUS_URL knob nothing ever set is gone with it. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      var origin = _consoleOrigin();
+      if (!origin) return end({ state: 'unknown', frame: id, say: 'picture not on this machine — why is UNKNOWN (no console served this page, so nobody was asked)' });
       var ctl = null; try { ctl = new AbortController(); } catch (e) { ctl = null; }
       var kill = setTimeout(function(){ try { ctl && ctl.abort(); } catch (e) {} }, 3000);
       var opt = {}; if (ctl) opt.signal = ctl.signal;
-      var url = (window.VAULT_PICTURE_STATUS_URL || 'http://127.0.0.1:17772/api/picture_status') + '?ids=' + encodeURIComponent(id);
+      var url = origin + '/api/picture_status?ids=' + encodeURIComponent(id);
       fetch(url, opt).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
         clearTimeout(kill);
         var p = (d && d.ok && d.pictures) ? d.pictures[id] : null;

@@ -11,8 +11,10 @@ WHAT THIS LAW DRIVES (the real code, never a grep of it):
   · console_doctor.characters_room_verdict — pure, over fixtures: an absent store is MEASURED empty (OK, "0 builds"),
     an unparseable one is MISSING naming d2r_charBuilds and UNKNOWN (never "0 builds"), a store that is a list is
     MISSING, a d2r_cbMain naming no saved build is MISSING naming the id, a healthy store is OK with the count and the
-    ★ MAIN; rank 13: ★ MAIN and the vault's MAIN naming different characters is MISSING naming BOTH, the same name is
-    OK saying so, a vault MAIN with no name yet is OK (not a disagreement), and the name compare ignores case.
+    ★ MAIN; rank 13: ★ MAIN and the vault's MAIN naming different characters is SAID on the OK line naming BOTH and the
+    door (REG-1553 - the planner names a build '<Class> build' and the vault's MAIN is a typed character name: two
+    vocabularies, and a red he is told to leave carries nothing), the same name is OK saying "also", a vault MAIN with
+    no name yet is OK (not a disagreement), and the name compare ignores case.
   · console_doctor._check_the_characters_room — the live row, with the shared board read stubbed: no console, a refused
     read and a read with no stores are each UNKNOWN (never "0 builds"); with stores it answers what the pure verdict
     answers over the SAME three keys (the join, driven).
@@ -95,18 +97,23 @@ class TheVerdictOverHisStores(unittest.TestCase):
         self.assertIn("★ MAIN Konyoress", why1)
 
     def test_rank_13_two_mains_naming_different_characters_is_named_both_ways(self):
-        """★ MAIN is the Hammerdin, the vault's MAIN is Konyoress: MISSING, both names, and what the lock follows"""
+        """★ MAIN is the Hammerdin, the vault's MAIN is Konyoress: OK, both names, and what the lock follows.
+        REG-1553 — never MISSING: a build is named '<Class> build' by the planner and the vault's MAIN is a typed
+        character name, so the two differ on his first real use; a red he is told to leave carries nothing."""
         st, why = _v(main="b2")
-        self.assertEqual(st, CD.MISSING, "two MAINs naming different characters read %s: %s" % (st, why))
+        self.assertEqual(st, CD.OK, "two MAINs naming different characters went red (REG-1553): %s" % why)
         self.assertIn("Hammerdin", why)
         self.assertIn("Konyoress", why)
         self.assertIn("locks no gear", why)
         self.assertIn("d2r_mainCharacter", why)
         self.assertIn("lock panel", why, "the row must name the door that changes it: %s" % why)
-        # the same character under both words is OK, and says so
+        self.assertIn("two stores under one word", why, "the row does not say the two are different stores: %s" % why)
+        self.assertNotIn("also the vault's MAIN", why, "two names read as one character: %s" % why)
+        # the same character under both words is OK, and says so — the BASELINE that the two sentences differ
         st2, why2 = _v(main="b1")
         self.assertEqual(st2, CD.OK, why2)
         self.assertIn("also the vault's MAIN", why2)
+        self.assertNotIn("two stores under one word", why2)
         # case never makes a disagreement
         st3, why3 = _v(main="b1", vault=dict(VAULT_MAIN, name="konyoress"))
         self.assertEqual(st3, CD.OK, "a case difference read as two characters: %s" % why3)
@@ -139,8 +146,9 @@ class TheLiveRowReadsTheBoardOnce(unittest.TestCase):
               "d2r_muleAssign": "{}"}
         st, why = self._with_board({"ok": True, "fullStores": fs})
         self.assertEqual((st, why), CD.characters_room_verdict(fs["d2r_charBuilds"], fs["d2r_cbMain"], fs["d2r_mainCharacter"]))
-        self.assertEqual(st, CD.MISSING, why)
+        self.assertEqual(st, CD.OK, why)   # REG-1553 — two names are said, never red
         self.assertIn("Hammerdin", why)
+        self.assertIn("Konyoress", why)
         ok, okwhy = self._with_board({"ok": True, "fullStores": {"d2r_charBuilds": json.dumps(BUILDS), "d2r_cbMain": "b1"}})
         self.assertEqual(ok, CD.OK, okwhy)
         self.assertIn("2 builds", okwhy)
@@ -191,6 +199,13 @@ class TheButtonSaysWhatItDoesNotDo(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1553 - two MAINs naming different characters go MISSING again (a red he is told to leave)",
+        "file": "console_doctor.py",
+        "find": "        return OK, (\"%d build%s · ★ MAIN %s · the vault's MAIN is %s — two stores under one word: ★ MAIN locks no gear, the \"\n",
+        "replace": "        return MISSING, (\"%d build%s · ★ MAIN %s · the vault's MAIN is %s — two stores under one word: ★ MAIN locks no gear, the \"\n",
+        "matches": 1,
+    },
     {
         "why": "#41 rank 12 - an unparseable d2r_charBuilds reads as a measured-empty store (0 builds)",
         "file": "console_doctor.py",

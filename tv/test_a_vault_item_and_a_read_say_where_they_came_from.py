@@ -213,7 +213,10 @@ class TheRowsAreJoined(unittest.TestCase):
         self.assertIn("_rpic.status_for(_ids, _fap._hist_dir(None))", blk)
         with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
             bible = fh.read()
-        self.assertIn("'http://127.0.0.1:17772/api/picture_status'", bible, "nothing on the board asks the route")
+        # #41 rank 18 sibling (REG-1552) — the board asks the console that SERVED it (_consoleOrigin), never :17772 by name
+        ask = "      var url = origin + '/api/picture_status?ids=' + encodeURIComponent(id);\n"
+        self.assertEqual(bible.count(ask), 1, "nothing on the board asks the route of the console that served it (%d matches)" % bible.count(ask))
+        self.assertNotIn("/api/picture_status') + '?ids='", bible, "the board asks a console by name again (REG-1552)")
 
 
 if __name__ == "__main__":
@@ -221,6 +224,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#41 rank 18 sibling (REG-1552) - the board's picture-status ask names a console again instead of the one that served it",
+        "file": "bible.html",
+        "find": "      var url = origin + '/api/picture_status?ids=' + encodeURIComponent(id);\n",
+        "replace": "      var url = 'http://127.0.0.1:17772/api/picture_status?ids=' + encodeURIComponent(id);\n",
+        "matches": 1,
+    },
     {
         "why": "the row stops naming vault items with no provenance",
         "file": "console_doctor.py",

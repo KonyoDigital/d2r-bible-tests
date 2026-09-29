@@ -5967,9 +5967,11 @@ GATES = [
              "at runtime. The doctor row 'characters room' reads d2r_charBuilds, d2r_cbMain and d2r_mainCharacter off "
              "the shared board read: an unparseable store is MISSING saying UNKNOWN (never 0 builds), a dangling ★ MAIN "
              "is MISSING naming the id, no console / a refusal / no stores are UNKNOWN; and rank 13 - ★ MAIN (the "
-             "room's) and the vault's MAIN (what the lock follows) naming different characters is MISSING naming both, "
-             "because marking a build ★ MAIN locks no gear and nothing said so - the button and the help copy now do. "
-             "Registered in CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness). 9 cases, 7 red-proofs"),
+             "room's) and the vault's MAIN (what the lock follows) naming different characters is SAID on the OK line "
+             "naming both and the door (REG-1553: the planner names a build '<Class> build' and the vault's MAIN is a "
+             "typed character name - two vocabularies, and a red he is told to leave carries nothing), because marking "
+             "a build ★ MAIN locks no gear and nothing said so - the button and the help copy now do. Registered in "
+             "CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness). 9 cases, 8 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
@@ -7154,7 +7156,10 @@ GATES = [
              "(M3); owned_restore and the un-seed Undo write receipts and every d2r_owned write is censused (M4); no "
              "claim on the bare predicate (L1); the backfill's side writes are journaled and undone (L2); and his "
              "§31.2 ruling - inventory loot is CARRIED, owned right away, never filed, lands on a stash look, leaves "
-             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. 29 red-proofs."),
+             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. + #41 rank 18 "
+             "sibling (REG-1552): the evidence panel's picture-status ask goes to the console that SERVED the board "
+             "(_consoleOrigin, the harness serves it from :17999), never :17772 by name; a board nobody served asks "
+             "nobody and says UNKNOWN. 31 red-proofs."),
     Gate("test_an_evidence_picture_is_never_reaped",
          [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
          why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
@@ -7171,7 +7176,8 @@ GATES = [
              "owned name nobody can account for, and 'a read left no picture' names who took each missing "
              "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
              "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
-             "disk (the locator probes the stem, as frame_ref.Index.resolve does). 8 red-proofs."),
+             "disk (the locator probes the stem, as frame_ref.Index.resolve does). + REG-1552: the board's "
+             "picture-status ask is the serving console's (_consoleOrigin), never a console by name. 9 red-proofs."),
     Gate("test_carried_loot_keeps_its_order",
          [sys.executable, os.path.join(HERE, "test_carried_loot_keeps_its_order.py")], 120,
          why="2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings. "

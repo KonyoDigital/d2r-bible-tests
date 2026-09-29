@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1553 - THE CHARACTERS ROOM'S TWO-MAINS CLAUSE WOULD GO RED ON HIS FIRST REAL USE AND TELL HIM TO LEAVE IT (2026-09-30)
+
+**Found** by the skeptic of the #41 heart audit branch (ranks 11-18), driving `console_doctor.characters_room_verdict`
+against his real stores: the planner names a new build `<Class> build` (`_cbNewGo`; his one saved build is `Amazon
+build`) and the vault's MAIN is a character name he types in the lock panel - two hand-typed strings in two
+vocabularies. REG-1526's rank-13 clause compared them and answered MISSING "name different characters ... or leave it
+if the two are meant to differ": the moment he marks his first build ★ MAIN beside a named vault MAIN, the eagle goes
+red and stays red, and the row itself says he may ignore it. A red he is told to leave carries nothing (the
+always-red gate class). Nothing on his board trips it today (no ★ MAIN, no vault MAIN name) - it was measured by
+driving the verdict, not seen on his screen.
+
+**Fix (tv/console_doctor.py):** two differing names are SAID on the OK line - both names, "two stores under one word:
+★ MAIN locks no gear, the lock follows the vault's MAIN (d2r_mainCharacter, the Vault's lock panel)" - never MISSING.
+MISSING stays for the real breaks (an unparseable store, a dangling ★ MAIN). The ★ Set as MAIN sentence and the
+room's help copy (REG-1526) are unchanged.
+
+**Law:** `test_the_characters_room_has_a_doctor_row` - the rank-13 case asserts OK with both names and the door, with
+a BASELINE that the same name under both words reads "also the vault's MAIN" and two names never do; the live-row case
+follows. **Red-proofs, seen RED:** the clause going unsaid again (`and False`, the branch's own proof re-aimed by the
+new sentence) and the clause going MISSING again (new).
+
+### REG-1552 - THE EVIDENCE PANEL ASKED HIS LIVE CONSOLE FOR PICTURE STATUS WHATEVER CONSOLE SERVED THE BOARD (2026-09-30)
+
+**Found** by the skeptic of the #41 heart audit branch, sweeping the rank-18 class (REG-1529 moved the rebuild plan and
+the proof chip to `_consoleOrigin()`; its builder named this sibling and left it): `_vaultEvidencePicture` fetched
+`window.VAULT_PICTURE_STATUS_URL || <his console's /api/picture_status>` - a knob nothing in the repo sets, then :17772
+by name. A board served by a scratch console (a gate's :179xx, a second console) read HIS console's picture shelf, and
+control_app's CORS (`Access-Control-Allow-Origin *`) lets that answer through; a board nobody served (file://, the
+public site) asked his console too. Measured with acorn over every script block of the page: `_consoleOrigin` is
+declared in the vault block's function scope, which encloses this caller exactly as it encloses the two REG-1529 sites
+(0 out-of-scope references), so the one-line rule applies unchanged. Also measured before believing the branch: every
+one of the 697 database items and 692 bases driven through the shipped `_cbTipEntry` says UNKNOWN for none (rank 11
+has no false alarm), and the branch's 118 red-proofs across nine gates all went RED under `heart2 --prove`.
+
+**Fix (bible.html):** the ask goes to `_consoleOrigin() + '/api/picture_status?ids=...'`; with no serving console
+nobody is asked and the panel says "why is UNKNOWN (no console served this page, so nobody was asked)". The knob is
+gone with it.
+
+**Laws:** `test_every_owned_door_writes_provenance` - the harness now serves the board from :17999 and carries the
+shipped `_consoleOrigin` line (cut from bible.html by the reset law's own anchor, never re-typed); the picture case
+asserts every status ask goes to :17999 and never carries 17772, and a board with no origin asks nobody (0 fetches)
+and reads UNKNOWN. `test_a_vault_item_and_a_read_say_where_they_came_from` asserts the shipped ask line exactly once
+and the by-name form absent. **Red-proofs, seen RED:** the by-name fetch back (both laws); the origin guard dropped
+(`|| his console`).
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter
