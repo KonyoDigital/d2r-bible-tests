@@ -115,7 +115,8 @@ def world(hist=None, stamp_path=None):
         import frame_authority as _fa
         h = _fa._hist_dir(hist)
     except Exception:
-        h = hist or os.path.join(HERE, "frames", "hist")
+        # a fixture that named TV_HIST keeps its world even when frame_authority cannot load (never his live shelf)
+        h = hist or (os.environ.get("TV_HIST") or "").strip() or os.path.join(HERE, "frames", "hist")
     er = _er._store_paths(hist)
     rec_root = _rp.root_of(h)
     out = {

@@ -4395,7 +4395,8 @@ window.LSR = (function(){
       return RAW.setItem(key(k), v);
     },
     removeItem: function(k){ return RAW.removeItem(key(k)); },
-    raw: RAW, key: key, spSide: _spSide
+    spSide: _spSide,
+    raw: RAW, key: key
   };
 })();
 // v1478 — THE ROUTE, PUBLISHED. The console (tv/control_ui.html) shares this origin and reads the

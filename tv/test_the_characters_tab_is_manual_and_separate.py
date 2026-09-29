@@ -111,7 +111,9 @@ def _chars_js(s):
 def _stage(s):
     """the board pieces the room stands on, each cut between its own boundaries"""
     lp = "window._LP_FORKED = new Set([" + _between(s, "window._LP_FORKED = new Set([", "]);") + "]);\n"
-    wp = "window._WP_FORKED = new Set(" + _between(s, "window._WP_FORKED = new Set(", ");\n") + ");\n"
+    # the statement ends at its own ']));' (a comment follows on the line) - the old ');\n' marker ran on into LSR
+    # and parsed by luck until LSR gained a '});' (v3525), which ended the cut mid-function
+    wp = "window._WP_FORKED = new Set(" + _between(s, "window._WP_FORKED = new Set(", "]));") + "]));\n"
     lsr = "window.LSR = (function(){" + _between(s, "window.LSR = (function(){", "\n})();") + "\n})();\n"
     chars = "const CHARS = {" + _between(s, "const CHARS = {", "\n};\n") + "\n};\n"
     backup = "function _collectProgress(){" + _between(s, "function _collectProgress(){", "\nfunction _progressSnapshot(){") + "\n"

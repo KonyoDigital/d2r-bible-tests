@@ -318,10 +318,13 @@ _LEAN_HOME = None
 
 
 def _lean_home():
-    """An empty directory to stand in for HOME during a frame read. Created once per process."""
+    """An empty directory to stand in for HOME during a frame read - ONE fixed directory, never a new temp dir
+    per process (a production mkdtemp with no cleanup is a scratch-dir leak; nothing is ever written into it:
+    measured, a live read left it empty)."""
     global _LEAN_HOME
     if not (_LEAN_HOME and os.path.isdir(_LEAN_HOME)):
-        _LEAN_HOME = tempfile.mkdtemp(prefix="tvd-g5-home-")
+        _LEAN_HOME = os.path.join(tempfile.gettempdir(), "tvd-g5-home")
+        os.makedirs(_LEAN_HOME, exist_ok=True)
     return _LEAN_HOME
 
 
