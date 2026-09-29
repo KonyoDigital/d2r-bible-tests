@@ -6594,6 +6594,10 @@
      exactly like the reason clause above: the full width, indented to the name's own column, one
      weight lighter than the verdict. Each fact is its own block so a wrap never strands a middot, and
      no child is nowrap (test_the_fleet_row_can_shrink_below_its_own_text). */
+  /* 2026-09-29 — the same lines inside the click box: one quiet panel under the box's head */
+  .fx-sys { margin: 4px 0 10px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 6px;
+            background: rgba(255,255,255,.02); }
+  .fx-sys > .fleet-sys { display: block; color: #7f8c83; font-weight: var(--fw-normal); }
   .fleet-row > .fleet-sys  { grid-column: 1 / -1; margin-left: 14px; justify-self: stretch;
                              text-align: left; font-weight: var(--fw-normal); color: #7f8c83; }
   /* 2026-09-28 round 2 (REG-1377) - EACH FACT IS ITS OWN FLEX ITEM, EXACTLY AS THE RIVER'S TRIAGE LINE (.shr-tri):
@@ -25418,7 +25422,7 @@ function escC(s) {
            "how far along is he", and this answers "what should I chase". */
         return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt fleet-clickable"'
           + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
-          + ' title="click to cross-reference their set pieces against yours"'
+          + ' title="click: how this PC films and drains, and their set pieces against yours"'
           + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
@@ -25464,11 +25468,16 @@ function escC(s) {
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
                 + escC(w.w) + '</span>' + _rw;
             })()
-          /* 2026-09-28 — how this PC films D2R, its river and its triage lane, each with its age; a
-             renamed host as a quiet "formerly" line (see _fleetSysParts) */
-          + _fleetSysHtml(m, Date.now())
+          /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
+             clicked on or something like a backdoor to the informational background". The films / river / triage lines
+             (and a renamed host's "formerly" line) live in the box a click opens (_fleetCompare), never on the row. */
           + _tip(m) + '</div>';
       };
+      /* 2026-09-29 — the click box reads a PC's films / river / triage from here (the backdoor) */
+      window._fleetByMachine = {};
+      (j.online || []).concat(j.offline || []).forEach(function (m) {
+        if (m && m.machine) window._fleetByMachine[m.machine] = m;
+      });
       var rows = (j.online || []).map(function (m) { return _row(m, true); })
         .concat((j.offline || []).map(function (m) { return _row(m, false); }));
       /* v3387 — AND THE PEOPLE THIS RAIL HAS ALWAYS BEEN BLIND TO. A cousin who reads the
@@ -25614,6 +25623,15 @@ function escC(s) {
     var box = document.getElementById('fleet-xref');
     if (!box) return;
     if (!machine) { box.hidden = true; return; }
+    /* 2026-09-29 — THE BACKDOOR: how this PC films, its river and its triage, shown only when he asks (a click) */
+    var _sys = '';
+    try {
+      var _fm = (window._fleetByMachine || {})[machine];
+      if (_fm && typeof _fleetSysHtml === 'function') {
+        _sys = '<div class="fx-sys" title="how this PC films D2R, where its reels are in the river, and its triage lane">'
+          + _fleetSysHtml(_fm, Date.now()) + '</div>';
+      }
+    } catch (_) { _sys = ''; }
     ledger = _FXR_LEDGERS[ledger] ? ledger : 'sets';
     var SPEC = _FXR_LEDGERS[ledger];
     box.hidden = false;
@@ -25628,6 +25646,7 @@ function escC(s) {
     if (!j) {
       box.innerHTML = '<div class="fxr-win"><div class="fx-head"><b>cross-reference</b>'
         + '<button class="fx-x" type="button" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+        + _sys
         + '<div class="fx-why">the console did not answer — this is UNKNOWN, not "you are level"</div></div>';
       return;
     }
@@ -25669,6 +25688,7 @@ function escC(s) {
                                  + (j.showN ? (' of ' + j.showN) : '')) : '')
       + '</span>'
       + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+      + _sys
       + tabs;
     /* ══ v3175 — A MISSING MASK ON THEIR SIDE MUST NOT BLANK YOURS ═════════════════════════
        His words, looking at this panel: "its not showing the images and the HD images of items
