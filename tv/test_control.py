@@ -39437,20 +39437,36 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
                       "fire-and-forget and a hung child holds shutdown open")
 
     def test_a_swallowed_kill_deadline_no_longer_leaks(self):
-        """BOTH copies. This block exists twice, in two worker classes, and both leaked - fixing
-        one and leaving its twin is the failure this repo keeps paying for. [[copy-drift]]"""
+        """BOTH copies. This block existed twice, in two worker classes, and both leaked - fixing
+        one and leaving its twin is the failure this repo keeps paying for. [[copy-drift]]
+
+        ⚠ #83 (REG-1515) — THE LAW FOLLOWS THE ROUTINE, IT IS NOT WIDENED TO ADMIT IT (v3427's
+        precedent, above). The two inline copies became ONE door: each worker's stop() calls
+        `_stop_worker_process(role, p)`, which hands the Popen to `child_guard.end(..., wait_s)` -
+        a bounded wait whose survivor path hands the child to `_reap_later`, a daemon thread's
+        wait(). Pinning the old spelling (`p.wait(timeout=2)` twice) graded the implementation;
+        what this case has always meant is "both worker stops bound their wait AND reap a child
+        that outlives it, never swallowing the timeout" - asserted at the routine's new address,
+        from CODE with comments stripped. [[a-widened-guard-admits-what-it-bans]] checked: no case
+        the old text refused is admitted - a stop that skips the door, a door that drops the
+        reaper, or an inline copy creeping back, is RED here."""
         src = _code_only(io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read())
-        self.assertEqual(src.count("p.wait(timeout=2)"), 2,
-                         "the number of kill-deadline waits changed; re-check both copies")
-        self.assertEqual(src.count("reap-warm-child"), 2,
-                         "only %d of the 2 kill-deadline handlers reap a child that outlived "
-                         "its deadline" % src.count("reap-warm-child"))
-        import re
-        for m in re.finditer(r"p\.wait\(timeout=2\)\s*\n\s*except Exception:\s*\n(\s*)(\S.*)",
-                             src):
-            self.assertNotIn("pass", m.group(2),
-                             "a kill-deadline timeout is swallowed again - that child is a "
-                             "zombie for the life of the process")
+        self.assertEqual(src.count("p.wait(timeout=2)"), 0,
+                         "an inline kill-deadline wait is back in tv_diablo.py - the routine has ONE home "
+                         "(child_guard.end); two copies of it leaked before")
+        self.assertIn("_stop_worker_process(self.role, p)", src,
+                      "VisionWorker.stop() no longer goes through the one stop door")
+        self.assertIn('_stop_worker_process("ocr", p)', src,
+                      "OcrWorker.stop() no longer goes through the one stop door")
+        self.assertIn("_child_guard.end(role, proc=p, wait_s=wait_s)", src,
+                      "the stop door no longer hands the worker to child_guard.end - nothing bounds the wait")
+        door = _code_only(io.open(os.path.join(HERE, "child_guard.py"), encoding="utf-8").read())
+        self.assertIn('_reap_later(rec["proc"])', door,
+                      "the door's survivor path no longer hands the child to a reaper - a child that outlives "
+                      "its deadline is a zombie for the life of the process (20 <defunct> after 20 h, measured)")
+        reaper = door[door.index("def _reap_later("):door.index("\ndef ", door.index("def _reap_later(") + 1)]
+        self.assertIn("pr.wait()", reaper, "the reaper no longer waits")
+        self.assertIn("daemon=True", reaper, "the reap must run on a daemon thread, or a hung child holds shutdown open")
 
 
 

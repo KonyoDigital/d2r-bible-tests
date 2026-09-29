@@ -56,6 +56,7 @@ except Exception:
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import control_app as ca  # noqa: E402
+import child_guard as _cg  # noqa: E402  - #83: the spawn door the capture now goes through
 
 
 class _FakeProc(object):
@@ -100,8 +101,17 @@ class _World(unittest.TestCase):
         self.log = io.StringIO()
         self.saved = (ca._capture_proc, dict(ca._CAP_STOP), dict(ca._CAP_SWEEP))
         ca._capture_proc = None
+        # #83 — the door remembers the capture the PREVIOUS case spawned (a fake whose poll() says alive for ever),
+        # and would end it - through the unstubbed taskkill, which the patched Popen then counts as a spawn. Each
+        # case starts with an empty door and its own ledger dir; never the process's real one.
+        self.cg_saved = (_cg.LEDGER_DIR, dict(_cg._LIVE))
+        _cg._LIVE.clear()
+        _cg.LEDGER_DIR = os.path.join(self.d, "child_guard")
 
     def tearDown(self):
+        _cg._LIVE.clear()
+        _cg._LIVE.update(self.cg_saved[1])
+        _cg.LEDGER_DIR = self.cg_saved[0]
         ca._capture_proc = self.saved[0]
         ca._CAP_STOP.clear()
         ca._CAP_STOP.update(self.saved[1])
@@ -676,7 +686,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - a kill that did not land is assumed to have landed (the five-capture shape)",
         "file": "tv/control_app.py",
-        "find": "    if pid and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):\n        _CAP_STOP[\"survived\"]",
+        # REG-1550 - re-anchored: the settle check now runs only for a pid that WAS killed (`killed and`)
+        "find": "    if pid and killed and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):\n        _CAP_STOP[\"survived\"]",
         "replace": "    if False:\n        _CAP_STOP[\"survived\"]",
         "matches": 1,
     },
@@ -774,8 +785,9 @@ RED_PROOF = [
     {
         "why": "REG-1509 - the stop judges its kill the instant taskkill returns; a late death counts as a survivor",
         "file": "tv/control_app.py",
-        "find": "    if pid and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):\n",
-        "replace": "    if pid and _pid_alive(pid):\n",
+        # REG-1550 - re-anchored to the `killed and` form (the tamper is the same: judged the instant taskkill returns)
+        "find": "    if pid and killed and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):\n",
+        "replace": "    if pid and killed and _pid_alive(pid):\n",
         "matches": 1,
     },
     {

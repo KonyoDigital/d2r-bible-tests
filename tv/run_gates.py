@@ -233,6 +233,18 @@ GATES = [
              "orphans, and the capture leaves by itself when its lease or console is gone (real PowerShell where "
              "one exists). REG-1509 (review of v3524): End Session no longer races the capture lamp, the sweep never "
              "counts its own query, a reused console pid is still an orphan. 19 red-proofs"),
+    Gate("test_child_guard_one_tree_per_role", [sys.executable,
+         os.path.join(HERE, "test_child_guard_one_tree_per_role.py")], 120,
+         why="#83 (REG-1515) - his words after five capture_win.ps1 leaked at once and crashed his Boosteroid: 'architecture "
+             "something smart to make the ascending of the reel sessions smooth'. tv/child_guard.py is one spawn door per "
+             "role: it ends the role's previous tree first (verified by pid + creation time, a reused pid is never ours), "
+             "Windows children die with a Job Object (KILL_ON_JOB_CLOSE), POSIX children lead their own session, a ledger "
+             "lets a restarted console end its dead predecessor's children, a rescue-loop watchdog ends unrecorded "
+             "processes of known roles, the doctor grades 'one of each', and no secondary worker (the stall reader, OCR) "
+             "starts under the RAM floor - the stall reader releases its ~400 MB claude after each sweep. Driven on real "
+             "temp processes (a fake role with a grandchild: a restart leaves one tree) and through the real "
+             "_start_capture / VisionWorker / OcrWorker with the OS edges stubbed; a deaf reader is buried as a whole "
+             "tree. 23 red-proofs"),
     Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
          os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
          why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "

@@ -2382,5 +2382,19 @@
     "gotcha": "It RE-DERIVES NOTHING: the four dict stores come through end_routes.sources (which asks retro_triage and reel_retention for their paths), every keyed-both-ways lookup is reel_retention.lookup_either_way, a seal's meaning is frame_authority.seal_verdict, the journey is river_stamp.history, the door a tombstoned reel left by is end_routes.verdict. A hand is held True / False / None and the three are three: None (the store exists and will not read) never becomes False, and a contradiction is NEVER raised on a None side. The census lists no reel's frames (a listing per reel on every doctor tick is the a_watcher_over_a_growing_folder scar); only the per-reel record does. `reads` and `plan` are handed IN by the caller (the console's journal and reel_retention.plan) — None means not asked, never 'no reads'. MEASURED 2026-09-29 before it existed: 460 tombstones all say 'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE.",
     "purpose": "#55 first slice — ONE reel's chain of custody: which of five hands (recorder, triage, printer, vault, tombstone) hold a record of it, each quoted from the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict each other. Behind /api/custody and the doctor row 'reel custody'.",
     "territory": "river-reels"
+  },
+  "child_guard.py": {
+    "entryPoints": [
+      "spawn",
+      "end",
+      "census",
+      "watchdog_tick",
+      "free_ram_mb",
+      "secondary_spawn_allowed",
+      "status"
+    ],
+    "gotcha": "spawn(role, argv) ENDS the role's previous tree first (verified by pid + creation time; a reused pid is dropped, never killed) and waits a bounded END_WAIT_S - a role holds one process, ever. Windows children go into a Job Object with KILL_ON_JOB_CLOSE (ctypes), POSIX children lead their own session (killpg); the Mac AGENT must not come through it (v779, the Screen Recording TCC chain). The birth reader never spawns a subprocess (sysctl / /proc / GetProcessTimes): a `ps` here was counted as a capture by every console law that stubs subprocess.Popen. UNKNOWN free RAM never refuses a spawn. REG-1550: a LIVE parent's child is never the watchdog's to end (ours -> bypass, said; a stranger's -> counted; measured on his Mac, the first cut named the console's own closer OCR worker and warm reader TO_END); a kill needs a table row carrying this checkout's path and a known role, a birth match through ONE reader (the table's lstart/CIM clock is re-read through sysctl/GetProcessTimes - the DST hour disagrees by 3600 s), and the birth re-asked at the kill; an UNKNOWN table, parent birth or pid birth ends nothing. REG-1551: ceilings are per OWNER except the capture's (checkout-wide); `owed` is the survivors still alive; a post-execv console adopts its own previous life's records (same pid, same birth) before its first ledger write.",
+    "purpose": "#83 (REG-1515) the child supervisor: one spawn door per role (capture, vision readers, the stall reader, OCR) that ends the previous instance's whole tree before starting the next, a per-parent ledger so a restarted console ends its dead predecessor's children, a rescue-loop watchdog for unrecorded processes of known roles, a census by family for the doctor's one_of_each row, and the memory floor under which no secondary worker starts.",
+    "territory": "heart-organs"
   }
 }

@@ -7,6 +7,66 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1550 - THE CHILD SUPERVISOR WOULD HAVE ENDED THE CONSOLE'S OWN LIVE WORKERS, AND FOUR MORE ROADS TO A KILL IT COULD NOT PROVE WAS OURS (2026-09-30)
+
+**Found** verifying #83 (REG-1515) before it landed, by driving `child_guard.classify_unrecorded` - pure, it kills
+nothing - over the REAL process table of his live Mac from the console's own point of view: the KAI closer's OCR
+worker (`ocr_mac --worker`, a child of the console) and the console's warm chronicle reader (tv_diablo's pool runs
+inside the console for chronicle/vault reads) both came back TO_END as 'unrecorded child of ours'. Both are
+legitimately outside the door, and the same rule would have ended a reader the agent spawned 40 ms before a tick, its
+ledger write not yet landed - at tick 3 (~30 s after boot) and every 5 min after. Four more roads, each driven: (1)
+the table's births came from `ps -o lstart` / CIM CreationDate (local clocks) while the records hold sysctl /
+GetProcessTimes - measured, `Sun Oct 25 01:30:00 2026` -> mktime 1792881000 against sysctl 1792884600 for a process
+born in the repeated hour, so a live agent's recorded reader read as unrecorded and the agent as 'born after its
+child', and both roads end in a kill; (2) a live parent whose birth could not be read NOW read as gone and its
+children were ended; (3) a dead parent's child was ended on a birth match alone (Windows re-hands a pid within
+seconds of a crash at start) and no kill re-asked the birth after a table read that takes seconds under D2R load;
+(4) the OCR signature `--worker` is a substring of `--workers=3`; and `_stop_capture` still ran taskkill /T on a pid
+read from the lease FILE with nothing showing it was a capture - a reused pid there is a stranger's tree.
+
+**Fix (tv/child_guard.py, tv/control_app.py):** a LIVE parent's child is never the watchdog's to end - ours ->
+`bypass` (said, counted by the census against that parent's ceiling, named on the doctor row), a stranger's ->
+counted; the table's births are re-read through the records' own reader (`_same_reader`); a parent whose birth cannot
+be read is UNKNOWN and reads as alive (`_parent_verdict`); a dead parent's child is ended only when the table shows
+that pid running a known role's command carrying this checkout's path, born as recorded, and not now a live parent's
+- an UNKNOWN table judges none of them and keeps the file; every kill re-asks the birth the instant before it fires
+(`_verified_kill`: UNKNOWN or changed = kept and said); the OCR signature names the worker (`ocr_mac --worker` |
+`ocr_win.ps1`, any-of elements); the stop kills a lease pid only when `_capture_rows` shows it as a capture of this
+checkout (UNKNOWN kills nothing, says so, counts no survivor - the lease withdrawal still makes a real capture leave
+by itself within ~2 s). The v2352 law in test_control follows the unified stop routine to its new address
+(`_stop_worker_process` -> `child_guard.end` -> `_reap_later`), the v3427 way.
+
+**Law:** `tv/test_child_guard_one_tree_per_role.py` +14 cases - `ALiveParentsChildIsNeverEnded` (the shape measured
+on his Mac, through the real `_one_of_each_check`), `TheWatchdogNeverEndsOnAGuess` (7), the lease cases (4) - and
+the builder's watchdog fixture re-aimed to the stronger standard (every endable pid has a readable birth and a table
+row); 12 new red-proofs + 1 re-aimed, 41/41 PROVEN through heart2; `test_one_capture_per_console` 2 proofs
+re-anchored, 19/19 PROVEN; swallow ratchet held at 69.
+
+### REG-1551 - THE CENSUS GRADED CONSOLE + AGENT READERS AGAINST ONE CEILING, THE RECEIPT OWED PAID DEBTS, THE LEDGER WAS WALKED OUTSIDE ITS LOCK, AND AN IN-PLACE RELAUNCH FORGOT ITS OWN CHILDREN (2026-09-30)
+
+**Found** verifying #83: (1) `census()` summed a family across every live parent against ONE ceiling - on his Mac the
+console holds one warm reader and the agent one, so the doctor's `one_of_each` row would have read 'vision: 2 alive,
+at most 1 expected' for ever; (2) `RECEIPT.owed` was the lifetime survivor COUNT, which never fell when a survivor
+finally died; (3) `_ledger_write` walked `_LIVE` with no lock while `spawn` mutated it under a per-role lock (the
+agent warms its pool from reader threads) - a 'dictionary changed size during iteration' swallowed into a stale
+ledger; (4) the ledger is keyed by pid and `os.execv` keeps the pid AND the creation time: the new life's first write
+(tv_diablo's `expect()` at import) overwrote the previous life's file, and `_ledger_read_others` skips our own name
+by design, so a capture still filming across a relaunch was known to nobody.
+
+**Fix (tv/child_guard.py):** ROLES carry a `scope` - the capture stays checkout-wide (two consoles filming is the
+shape this module exists for); vision / vision-stall / ocr are graded per OWNER against that owner's declared
+ceiling (its ledger's `expect`, else ROLES), `expected` sums the owners present, and the watchdog's bypass rows count
+against their parent; `owed` = the survivors still alive, re-asked (`survivorPids`; `_reap_later` drops a survivor
+when its wait() returns); every walk and write of `_LIVE` under `_LOCK`; `_adopt_previous_life()` - once per life,
+before the first ledger write, the file under our own pid whose `parentBirth` is ours is adopted as records without
+a Popen, judged by alive + birth like a dead parent's (a stranger's file under a reused pid is not adopted, a file
+that cannot be read is UNKNOWN on the receipt, never '0 adopted').
+
+**Law:** `TheCensusGradesEachOwner` (3), `TheReceiptOwesOnlyWhatStillLives` (2), `TheLedgerIsWrittenUnderTheLock`
+(a `_LIVE` that records every walk outside the lock), `APostExecvConsoleAdoptsItsPreviousLife` (4) in
+`tv/test_child_guard_one_tree_per_role.py`; 8 red-proofs, each PROVEN; `test_the_blueprint_cannot_go_stale`,
+`lane_census --vs-blueprint` (20/20) and the store-owner / scratch-dir laws green on the merged tree.
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter
@@ -238,6 +298,63 @@ tree, an unreadable store UNKNOWN on the wire), and the doctor over the wire (MI
 UNKNOWN unread). **Red-proofs, each applied, run RED, restored byte-for-byte:** the BLOCKED branch off (6 RED), a
 floor of 0 reading CLEAR (1 RED), the console passing `upstream=None` (5 RED), the console declaring no bar (3 RED),
 the doctor blind to BLOCKED (3 RED).
+### REG-1515 - THE CHILD SUPERVISOR: ONE TREE PER ROLE, A REUSED PID IS NEVER OURS, NO SECOND CLAUDE INTO MEMORY PRESSURE (2026-09-29)
+
+**His ask (#83)**, after five capture_win.ps1 leaked at once and crashed his Boosteroid (REG-1502): *"have a logic
+coded for this so it bypasses it - architecture something smart to make the ascending of the reel sessions smooth"*.
+REG-1502/1509 closed the capture's own races one by one; this is the architecture under all of them.
+
+**Built - `tv/child_guard.py`**, the ONE spawn door every long-lived child of this checkout goes through:
+- **`spawn(role, argv)` ends the role's previous instance first** - whole tree, verified ours (our own unreaped
+  Popen, or a live pid whose creation time matches the record within 2 s; a pid the OS handed to a newer process is
+  DROPPED, never killed; an UNKNOWN birth ends nothing) - and waits a bounded 3 s for it before the new one starts. A
+  role holds one process, ever: `capture`, `vision-r0..rN`, `vision-stall`, `ocr`.
+- **Windows: a Job Object per child with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE** (ctypes, no package): conhost and node
+  helpers are born into the job and die with it; `end()` is one TerminateJobObject; a console that crashes closes the
+  handle and the tree goes with it. A failed assignment (a launcher's job on a Windows that cannot nest) is SAID and
+  taskkill /T stays the fallback. **POSIX: start_new_session + killpg.**
+- **A ledger per parent** (temp dir keyed by the checkout, `TV_CHILD_GUARD_DIR` to move it): a console that boots
+  after a crash ends its dead predecessor's children, verified by birth; the agent's readers live in the agent's own
+  file, so the console can see them.
+- **A rescue-loop watchdog** (`_child_guard_tick`, tick 3 then every 5 min): ends the recorded children of dead
+  parents and the UNRECORDED processes of known roles whose parent is gone (dead, reparented, or a pid whose holder
+  was born after the child - REG-1509's rule) or ours; another live console's child is counted and said, never ended.
+  An unreadable table is UNKNOWN: nothing ended, `owed` None, never 0. Receipts on/worked/lastTs/owed for the door,
+  the watchdog and the RAM meter ride `/api/status` as `childGuard`.
+- **A census by family and the doctor row `one_of_each`**: WARN when a family holds more than its ceiling (capture 1,
+  vision POOL_N - the agent declares it in its ledger - the stall reader 1, OCR 1), when a would-not-end is still
+  alive (and only while it lives), or when the watchdog's table was UNKNOWN; a watchdog that has not ticked is not
+  a fault.
+- **Memory-aware**: `free_ram_mb()` (GlobalMemoryStatusEx / MemAvailable / vm_stat, cached 5 s, None when it
+  cannot read) and `secondary_spawn_allowed()` - under `TV_RAM_FLOOR_MB` (1024) no stall reader and no OCR worker
+  starts; UNKNOWN free RAM never refuses (a refusal on a guess would silence both lanes for ever on a machine whose
+  meter cannot be read). **The stall reader releases its claude after every sweep** (`_stall_worker_release`, where
+  `_STALL_BUSY` clears): a warm `claude -p` is ~400 MB measured, and a safety net that fires once an hour was holding
+  it beside the live reader on the PC where dwm.exe died of memory exhaustion.
+- **Wired**: `control_app._start_capture_locked` / `_stop_capture` (the kill stays this console's own taskkill /T,
+  which its laws stub; a lease the door never recorded still gets the plain kill), `VisionWorker._spawn/stop`,
+  `OcrWorker._spawn/stop` - both stops are now ONE routine (`_stop_worker_process`; v2352's reap block existed twice
+  and both leaked), `_stall_drain_decision(ram_ok=...)` asked LAST so the meter is read only once the cheaper gates
+  have opened. The Mac AGENT does not come through the door (v779: a setsid child loses the Screen Recording chain).
+
+**Found while building**, and the reason the birth reader never spawns a subprocess: a `ps -o lstart` inside the
+door was counted as a capture by every console law that stubs `subprocess.Popen` (subprocess.run builds Popen from
+the module's globals) - "two starts at once spawned 3 captures". macOS reads creation time through `sysctl`
+KERN_PROC_PID (the first 8 bytes of kinfo_proc are `p_starttime.tv_sec`; verified against `ps` on his Mac), Linux
+through /proc, Windows through GetProcessTimes.
+
+**Swept:** `_bury_worker` (a reader whose write never landed) killed the head with `p.kill()` and left its helpers -
+the grandchild holding the pipe's read end that its own docstring is about; with a role it now goes through the door.
+
+**Law:** `tv/test_child_guard_one_tree_per_role.py` (32 cases, 23 red-proofs each seen RED): a fake role that
+spawns a grandchild, started twice through the door on REAL temp processes - after the restart exactly one tree is
+alive and `end()` ends it; a reused pid dropped; the Windows job driven against a fake kernel32 (flag, class, the
+144-byte structure, assign, terminate, close, the failed-assignment fallback); the watchdog's every branch on a
+planted table; the census and the doctor row through the real `_one_of_each_check`; the memory policy; the
+five-captures shape through the real `_start_capture` (a capture the lamp lost is ended before the next starts);
+the agent's readers, the stall release and the OCR gate through the real classes. Existing laws green:
+test_one_capture_per_console (its fixture now starts each case with an empty door - the door remembered the previous
+case's fake capture), test_a_stub_agent_never_films_his_screen, test_agent (265).
 
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 

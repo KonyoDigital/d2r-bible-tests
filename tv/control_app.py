@@ -38,6 +38,10 @@ try:
     _win_quiet.install()
 except Exception:
     pass
+# #83 (REG-1515) — THE CHILD SUPERVISOR: the capture is spawned and ended through one door that ends the role's
+# previous tree first (Windows: a Job Object with KILL_ON_JOB_CLOSE, so the tree dies with this console; POSIX:
+# its own session), records pid + birth so a reused pid is never ours, and runs a watchdog off the rescue loop.
+import child_guard as _child_guard
 import base64
 import threading
 import time
@@ -4323,7 +4327,13 @@ def _start_capture_locked(env, log_fp):
         # REG-1502 — the capture leaves by itself when THIS console is gone (capture_win.ps1 Get-LeaseVerdict): a
         # crashed console leaves a lease nobody will withdraw, and Windows does not end a dead parent's children.
         env2["TV_CONSOLE_PID"] = str(os.getpid())
-        _capture_proc = subprocess.Popen(
+        # #83 — THROUGH THE DOOR. If the role still holds a capture this console spawned (the lamp cleared the pid
+        # file and dropped _capture_proc, but the process never died), the door ends that tree - verified by our
+        # own unreaped Popen - and waits for it before this one starts. That is the five-captures shape, closed at
+        # the spawn itself. The kill is this console's own taskkill /T (the laws stub it); the new capture goes
+        # into a Job Object that dies with this console.
+        _capture_proc = _child_guard.spawn(
+            "capture",
             [
                 "powershell.exe",
                 "-NoLogo",
@@ -4335,6 +4345,8 @@ def _start_capture_locked(env, log_fp):
                 "-File",
                 CAPTURE_PS1,
             ],
+            kill=lambda pid: _kill_pid(pid, force=True),
+            alive=_pid_alive,
             cwd=HERE,
             env=env2,
             stdout=log_fp,
@@ -4344,7 +4356,8 @@ def _start_capture_locked(env, log_fp):
         )
         _lower_capture_priority(_capture_proc.pid)     # v1441 — BelowNormal so D2R + console UI keep the cores
         _write_pid(CAP_PID_PATH, _capture_proc.pid)
-        log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid} file={CAPTURE_PS1}\n")
+        _rec = _child_guard.record_of("capture") or {}
+        log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid} file={CAPTURE_PS1} · {_rec.get('jobSay') or 'unrecorded'}\n")
         log_fp.flush()
         return _capture_proc.pid
     except Exception as e:
@@ -4471,15 +4484,43 @@ def _stop_capture():
     # already set the mode off. The lock is never held while waiting on `_lock`.
     with _CAP_START_LOCK:
         pass
-    pid = None
+    pid, owned = None, False
     with _lock:
         if _capture_proc is not None and _capture_proc.poll() is None:
-            pid = _capture_proc.pid
+            pid, owned = _capture_proc.pid, True
         else:
             pid = _read_pid(CAP_PID_PATH)
         _capture_proc = None
+    killed = False
     if pid:
-        _kill_pid(pid, force=True)
+        # #83 — the door ends the tree it recorded (the Windows job first, then this console's taskkill /T) and
+        # forgets the role. wait_s=0: the settle check below is the one that counts survivors, and it counts them once.
+        _r = _child_guard.end("capture", kill=lambda p: _kill_pid(p, force=True), alive=_pid_alive, wait_s=0)
+        killed = _r.get("killedPid") == pid
+        if not killed and owned:
+            _kill_pid(pid, force=True)          # our own unreaped Popen: the kernel holds that pid for us
+            killed = True
+        elif not killed:
+            # REG-1550 — A PID READ FROM THE LEASE FILE IS A CLAIM, NOT A PROCESS. The file may be a previous life's,
+            # and Windows hands pids out again within minutes, so the plain taskkill /T this used to do could end a
+            # stranger's tree. It is killed only when the process table shows it running THIS checkout's
+            # capture_win.ps1; UNKNOWN (the table could not be asked) kills nothing and says so - the lease
+            # withdrawal below still makes a real capture leave by itself within ~2 s (REG-1502).
+            _v = _lease_pid_is_a_capture(pid)
+            if _v:
+                _kill_pid(pid, force=True)
+                killed = True
+            else:
+                _CAP_STOP["unverified"] = {"pid": int(pid), "ts": int(time.time() * 1000),
+                                           "say": ("lease pid %d not killed: %s" % (int(pid),
+                                                   "the process table could not be asked (UNKNOWN)" if _v is None else
+                                                   "it is not a capture of this checkout now (a reused pid?)"))}
+                try:
+                    if _log_fp:
+                        _log_fp.write("!! " + _CAP_STOP["unverified"]["say"] + "\n")
+                        _log_fp.flush()
+                except Exception:
+                    pass
     try:
         if os.path.isfile(CAP_PID_PATH):
             os.remove(CAP_PID_PATH)
@@ -4488,7 +4529,8 @@ def _stop_capture():
     # REG-1502 — THE KILL IS CHECKED, NOT ASSUMED. taskkill's result was thrown away, so a kill that did not land
     # left a capture running that nothing remembered - the next session started another beside it. Withdrawing the
     # lease above is what makes a survivor leave by itself (capture_win.ps1 reads it every ~2 s); this says so.
-    if pid and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):
+    # REG-1550 — only a pid that WAS killed is watched for surviving: an unverified lease pid was never ours to count.
+    if pid and killed and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):
         _CAP_STOP["survived"] = int(_CAP_STOP.get("survived") or 0) + 1
         _CAP_STOP["last"] = {"pid": int(pid), "ts": int(time.time() * 1000),
                              "say": "capture pid %d outlived its kill - its lease is withdrawn, so it leaves by itself "
@@ -4569,6 +4611,22 @@ def _parse_capture_rows(text, self_pid=None):
         pborn = (int(parts[3]) or None) if len(parts) == 4 else None
         rows.append((pid, int(parts[1]), born, pborn))
     return rows
+
+
+def _lease_pid_is_a_capture(pid, rows_fn=None):
+    """REG-1550 — is the pid the lease file names a capture_win.ps1 of THIS checkout right now? -> True / False /
+    None (UNKNOWN: the table could not be asked). A pid from a file is a claim; only the process table can turn it
+    into a process, and the stop kills nothing on a claim alone. Pure over rows_fn (default _capture_rows)."""
+    try:
+        rows = (rows_fn or _capture_rows)()
+    except Exception:
+        return None
+    if rows is None:
+        return None
+    try:
+        return any(int(r[0]) == int(pid) for r in rows)
+    except Exception:
+        return None
 
 
 def _capture_rows(timeout=30):
@@ -17836,6 +17894,9 @@ def _console_rescue_loop():
                 _prewarm_shelf()            # REG-1459 — his first SHELF click is served warm
             if _SELF_PROBE["tick"] == CAPTURE_SWEEP_TICK:
                 _sweep_orphan_captures()    # REG-1502 — end the captures a previous console left running
+            if (_SELF_PROBE["tick"] >= CHILD_GUARD_FIRST_TICK
+                    and (_SELF_PROBE["tick"] - CHILD_GUARD_FIRST_TICK) % CHILD_GUARD_EVERY_TICKS == 0):
+                _child_guard_tick()         # #83 — end the unrecorded children of known roles, and dead parents' children
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -36235,6 +36296,8 @@ def status_payload():
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
+        # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
+        "childGuard": _child_guard_status(),
         "ver": "v3525",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
@@ -36793,6 +36856,90 @@ def _one_capture_check(alive=None):
     return _chk("one_capture", not _c_bad, "warn", "capture scripts: %s" % _say, None if not _c_bad else fix)
 
 
+def _one_of_each_check(alive=None):
+    """#83 (REG-1515) — the doctor's one_of_each row. -> _chk dict. It reads child_guard's census (this console's
+    records and every live parent's ledger - the agent's readers and OCR worker included) and the watchdog's last
+    pass; it starts nothing and ends nothing. alive(pid) -> bool (default _pid_alive).
+
+    WARN when a family holds MORE live processes than its ceiling (capture 1, vision POOL_N, the stall reader 1,
+    OCR 1), when the watchdog found an unrecorded process of a known role it could not end that is STILL alive,
+    or when its last table read was UNKNOWN (an unreadable table is not a clean one - REG-1509's lesson on the
+    one_capture row). A watchdog that has not ticked yet (the first ~30 s) is not a fault. A stranger - a known
+    role whose parent is another live console - is SAID, never a fault: it is not ours to end."""
+    alive = alive or _pid_alive
+    try:
+        c = _child_guard.census(alive=alive)
+    except Exception as e:
+        return _chk("one_of_each", False, "warn",
+                    "child roles: UNKNOWN - the census raised %s" % type(e).__name__,
+                    "Restart TV DIABLO; if it recurs, run python3 tv/child_guard.py and read its output.")
+    wd = dict(_child_guard.WATCHDOG)
+
+    def _alive(p):
+        try:
+            return bool(p) and bool(alive(int(p)))
+        except Exception:
+            return True             # could not ask: never claimed gone
+    fams = c.get("families") or {}
+    over = [f.get("say") for f in fams.values() if f.get("ok") is False]
+    unk = [f.get("say") for f in fams.values() if f.get("ok") is None]
+    failed_live = [row for row in (wd.get("failed") or []) if _alive(row[0] if row else None)]
+    wd_unknown = wd.get("lastTs") is not None and bool(wd.get("unknown"))
+    strangers = wd.get("strangers") or []
+    bad = bool(over) or bool(unk) or bool(failed_live) or wd_unknown
+    parts = [f.get("say") for f in fams.values()]
+    say = "; ".join(p for p in parts if p) or "nothing recorded"
+    if wd.get("lastTs") is None:
+        say += " · watchdog not run yet"
+    else:
+        say += " · watchdog: %s" % (wd.get("say") or "")
+    if wd_unknown and "UNKNOWN" not in say:
+        say = "UNKNOWN - " + say
+    if strangers:
+        say += " · %d of another console's: %s" % (len(strangers), [s[0] for s in strangers])
+    bypass = wd.get("bypass") or []
+    if bypass:
+        # REG-1550 — a known role a live parent of ours spawned outside the door (the KAI closer's per-reel OCR
+        # worker): said, counted by the census against that parent's ceiling, never ended by the watchdog.
+        say += " · %d outside the door under a live parent of ours (left alone): %s" % (len(bypass), [b[0] for b in bypass])
+    if (wd.get("failed") or []) and not failed_live:
+        say += " (each would-not-end has since left)"
+    fix = None
+    if bad:
+        fix = ("More processes of one role than this console can account for, or one it could not end. Every child "
+               "started by this version dies with its console (a Windows Job Object); one that would not end: "
+               "Task Manager -> Details -> the powershell.exe (capture_win.ps1) or claude/node (--add-dir ...frames) "
+               "-> End task. An UNKNOWN table means the process list could not be read (WMI busy): restart TV "
+               "DIABLO to ask again.")
+    return _chk("one_of_each", not bad, "warn", "child roles: " + say, fix)
+
+
+CHILD_GUARD_FIRST_TICK = 3          # #83 — ~30 s after boot, after the REG-1502 capture sweep at tick 2
+CHILD_GUARD_EVERY_TICKS = 30        # then every ~5 min: a WMI query under D2R load is not free (REG-1509)
+
+
+def _child_guard_tick():
+    """#83 — one pass of child_guard.watchdog_tick through this console's own kill/alive doors (the laws stub
+    them). Never raises; the rescue loop must keep going."""
+    try:
+        return _child_guard.watchdog_tick(kill=lambda pid: _kill_pid(pid, force=True), alive=_pid_alive)
+    except Exception as e:
+        try:
+            _child_guard.WATCHDOG.update(worked=None, owed=None, say="the watchdog tick raised %s" % type(e).__name__)
+        except Exception:
+            pass
+        return None
+
+
+def _child_guard_status():
+    """#83 — the door's receipts for /api/status (no census: that reads the ledger dir and asks every pid)."""
+    try:
+        return {"door": dict(_child_guard.RECEIPT), "watchdog": dict(_child_guard.WATCHDOG),
+                "ram": dict(_child_guard.RAM)}
+    except Exception as e:
+        return {"door": None, "watchdog": None, "ram": None, "say": "raised %s" % type(e).__name__}
+
+
 def farmgate_payload():
     """GET /api/farmgate (v924, Grok FARM GATE): the ONE-BUTTON acceptance-day preflight.
     Read-only except ONE cheap subscription-lane CLI ping (the only check the default doctor
@@ -37240,6 +37387,10 @@ def doctor_payload():
     # ── ONE CAPTURE PER CONSOLE — REG-1502. Five capture scripts once ran at once on the ALT and dwm.exe died of
     # memory exhaustion under them, taking Boosteroid with it. See _one_capture_check.
     checks.append(_one_capture_check())
+    # ── ONE OF EACH — #83 (REG-1515). Every known child role (capture, the vision readers, the stall reader, OCR)
+    # holds at most its ceiling, in this console and in its agent's ledger, and the watchdog's last pass found no
+    # unrecorded process of a known role it could not end. See _one_of_each_check.
+    checks.append(_one_of_each_check())
 
     # ── SELF-PROVE — #50 (REG-1447): has THIS PC proved its own instruments? Every self-arming lock (the
     # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76
