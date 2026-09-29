@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1538 - THE HEART MAP NEVER READ THE BOARD: 513 SURFACES OF bible.html WERE NEITHER WATCHED NOR UNWATCHED, ONLY UNSAID (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 25: `tv/heart_map.py` read `control_ui.html` only
+(`ui = _read("control_ui.html")`), so the builder, the 👤 Characters tab, the mule window and the Vault - 513 ids on the
+board, 81 of them `cb-*` / `chars-*` / `mp-*` / `vault-*` - could never be counted as watched OR unwatched. HEART.md said
+nothing about them, which reads exactly like a map that had checked them. **Fix:** `PAGES` names both pages; `_read`
+resolves the board at the repo root; `measure_pages()` measures every page by the console's own rule (the console's
+`measure()` is unchanged, as are its figures: 17 of 366); `render()` adds "## The board - bible.html" with its own table
+(513 painted, 1 watched, `vault-moved-note`) and refuses when EITHER page cannot be read, naming the page; `--check`
+ratchets the board under `board` in `heart_floor.json` - no board entry is UNKNOWN and refused, a fall names the surface;
+`--bless` writes both. Blessed on this tree (console floor rose 8 -> 17 as measured; board 1). **Law:**
+`test_the_heart_map_covers_the_board` - 6 cases over the real tree and stand-ins (writes routed to a temp dir).
+**Red-proofs, each RED and restored:** the board leaves PAGES; the board looked for in tv/; the unblessed-board refusal
+skipped; the board's fall no longer refusing. Sibling noted, NOT changed: the console's "watched" is a substring match, and
+`th-shelf` counts as watched only because `th-shelf-x` / `th-shelfov` are named - a word-boundary rule would read 16, not 17.
+
+### REG-1537 - J10'S NINE DOORS AND ITS SILENT-SCROLL RULE HAD NO PYTHON LAW, AND THE CHARACTERS GATE'S LABEL WAS A COUNT NOBODY COUNTED (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 23: J10 (`tv/demo_console.mjs`) measures the header strip
+against the live console only and heart2 classifies python gates alone, so the nine doors and the #66 rule (overflow-x
+auto with scrollbar-width none makes a tab vanish silently) had no RED_PROOF anywhere; and the Characters-tab gate's `why`
+still said "15 cases, 25 red-proofs" while an AST count of the file gives 16 and 26. **Fix:** `test_the_console_header_has_
+nine_doors_on_one_row` - the strip's nine `.ht` buttons in order (session · forge · crafts · funi · fsets · tools · chars ·
+vault · tvd), each labelled, 👤 Characters between Tools and the Vault, HTML comments stripped first (the nav's own comment
+names tabs in prose; a planted commented-out button is proven not to count); J10's `if (r.tabs !== N)` constant read out
+of the mjs must equal the markup's count (two sources - a new tab moves both on purpose); the base-level `.head-tabs`
+declarations folded in source order, last wins, @media rules and CSS comments left out, and the silent pair may not stand.
+The pixel ROW count stays J10's. The label now reads 16 / 26. **Red-proofs, each RED and restored:** the Crafts door removed
+(eight doors; J10's 9 disagrees); the v2099 `overflow-x: visible` override dropped (the silent pair stands); J10 told 8.
+Sweep finding, NOT fixed here (51 edits across gates other builders own): a count of every `why` ending "N cases, M
+red-proofs" against the AST of its law finds 51 of 130 stale - the label is prose nobody re-counts.
+
 ### REG-1536 - AN UNREADABLE BUILDER DATABASE DREW THE ITEM'S OWN NAME - THE WRONG PICTURE #248 FIXED, BACK EXACTLY WHEN THE DATABASE FAILS (2026-09-29)
 
 **Found** by the #41 (#256) heart audit, verified list rank 24: `_cbArtName` returned `b ? b[0] : (it ? it[1] : (e && e.name)

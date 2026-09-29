@@ -1,15 +1,31 @@
 {
   "_why": "HEART coverage ratchet \u2014 it may only RISE. A fall means a surface this console used to watch is no longer watched, which in a green run reads exactly like clean.",
+  "board": {
+    "names": [
+      "vault-moved-note"
+    ],
+    "surfaces": 513,
+    "watched": 1
+  },
   "names": [
     "bug",
     "clock",
+    "heart-chip",
     "hero",
     "phase",
     "sadv-sha",
     "sadv-tip",
+    "sh-stationbar",
+    "sigil",
     "stage",
-    "theatre"
+    "stage-hold",
+    "th-shelf",
+    "th-shelf-x",
+    "th-shelfov",
+    "theatre",
+    "vault-body",
+    "win-ctl"
   ],
-  "surfaces": 354,
-  "watched": 8
+  "surfaces": 366,
+  "watched": 17
 }

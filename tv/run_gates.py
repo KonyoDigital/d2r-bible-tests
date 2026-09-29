@@ -7809,7 +7809,7 @@ GATES = [
              "keyboard delete keeps focus (armed -> Undo -> the restored card), one double-click is not a delete, Undo "
              "is byte-identical in ANY order, nothing is deleted under the open planner and the planner says when its "
              "build is gone (UNKNOWN when unreadable), and app context's row starts where a scroll reaches. "
-             "15 cases, 25 red-proofs",
+             "16 cases, 26 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_is_their_builder",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,
@@ -8176,6 +8176,31 @@ GATES = [
              "sentence, the mule slot (_mpSlotArt, in the mule window's own span) and the inventory tile draw that "
              "glyph, and the builder's doll says UNKNOWN. Positive control on the real database: a runeword draws its "
              "BASE, a unique its own name. Driven in node with the database block broken by the fixture. 3 cases, "
+             "4 red-proofs",
+         skip_ok=()),
+    Gate("test_the_console_header_has_nine_doors_on_one_row",
+         [sys.executable, os.path.join(HERE, "test_the_console_header_has_nine_doors_on_one_row.py")], 60,
+         needs_app=False,
+         why="#41 rank 23 (REG-1537, 2026-09-29) — J10's nine doors and its no-silent-scroll rule as a python law the "
+             "heart can count. J10 (demo_console.mjs) measures the header strip against the live console only and "
+             "heart2 classifies python gates alone, so a missing door had no RED_PROOF anywhere. The strip's nine .ht "
+             "buttons — session forge crafts funi fsets tools chars vault tvd — each with a label, 👤 Characters between "
+             "Tools and the Vault (his 2026-09-27 ruling), HTML comments stripped (the nav's own comment names tabs in "
+             "prose); J10's `if (r.tabs !== N)` constant is read out of the mjs and must equal the markup's count (two "
+             "sources); the base-level .head-tabs declarations are folded in source order (last wins, @media rules "
+             "left out, CSS comments stripped) and overflow-x auto|scroll with scrollbar-width none may not stand "
+             "(#66). The pixel ROW count stays J10's. 6 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_the_heart_map_covers_the_board",
+         [sys.executable, os.path.join(HERE, "test_the_heart_map_covers_the_board.py")], 120,
+         needs_app=False,
+         why="#41 rank 25 (REG-1538, 2026-09-29) — heart_map read control_ui.html ONLY, so bible.html's builder, "
+             "Characters and mule surfaces (513 ids, 81 of them cb-*/chars-*/mp-*/vault-*) could never be counted as "
+             "watched or unwatched: HEART.md said nothing about them and read like a map that had checked them. The "
+             "board is now a second page (PAGES), measured by the console's own rule, with its own table in HEART.md "
+             "and its own ratchet under 'board' in heart_floor.json: --check refuses a floor with no board entry "
+             "(never measured is UNKNOWN), refuses a fall naming the surface, and an unreadable bible.html is a "
+             "refusal naming bible.html — never a board table of zeros. The console's figures are unchanged. 6 cases, "
              "4 red-proofs",
          skip_ok=()),
 ]

@@ -43,6 +43,15 @@ FLOOR = os.path.join(HERE, "heart_floor.json")
 
 WATCHERS = ("console_doctor.py", "health_engine.py", "corroborate.py", "heart2.py")
 
+#: THE PAGES THE HEART MAPS — #41 rank 25 (2026-09-29). This read control_ui.html ONLY, so bible.html's builder,
+#: Characters and mule surfaces (measured: 513 ids on the board, 81 of them cb-* / chars-* / mp-* / vault-*) could
+#: never be counted as watched OR unwatched — the map said nothing about them and read exactly like a map that had
+#: checked them. The board is a second page: its own table, its own watched list, its own ratchet under "board" in
+#: heart_floor.json. The console's figures and floor are unchanged. Paths: the console page lives in tv/, the board
+#: at the repo root (_read resolves both). [[zero-needs-a-denominator]]
+PAGES = (("control_ui.html", "the console"), ("bible.html", "the board"))
+BOARD = "bible.html"
+
 # A surface is something the console PAINTS and he can therefore see go wrong. Ids are the honest
 # unit: a class may be shared by forty nodes, an id names one thing.
 _ID_RX = re.compile(r"""id=\\?["']([a-zA-Z][\w-]{2,})\\?["']""")
@@ -64,15 +73,16 @@ def _read(name):
     built to catch. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
     """
     try:
-        with io.open(os.path.join(HERE, name), encoding="utf-8") as fh:
+        # the board page lives at the repo root; every other file this map reads lives in tv/
+        with io.open(os.path.join(REPO if name == BOARD else HERE, name), encoding="utf-8") as fh:
             return fh.read()
     except Exception:
         return None
 
 
-def surfaces():
-    """-> sorted ids the console paints, or None when the console page could not be read."""
-    ui = _read("control_ui.html")
+def surfaces(name="control_ui.html"):
+    """-> sorted ids the page paints, or None when that page could not be read. The console by default."""
+    ui = _read(name)
     if ui is None:
         return None
     return sorted({m.group(1) for m in _ID_RX.finditer(ui)})
@@ -123,7 +133,25 @@ def measure():
     return ids, seen, missing
 
 
-def _why_unmeasurable(missing, page_unreadable):
+def measure_pages():
+    """Every page in PAGES, by the same rule measure() applies to the console. -> ({name: {"ids", "seen"}}, missing)
+
+    `ids` is None only when THAT page could not be read. `seen` is None whenever the map cannot be trusted for it —
+    the page unreadable, or any watcher missing (a missing watcher blinds every page at once). A page that reads and
+    has nothing watched is `seen: []`, which is a measurement. #41 rank 25. [[unknown-stays-unknown]]
+    """
+    blob, missing = watched()
+    out = {}
+    for name, _label in PAGES:
+        ids = surfaces(name)
+        if ids is None or missing:
+            out[name] = {"ids": ids, "seen": None}
+        else:
+            out[name] = {"ids": ids, "seen": sorted(i for i in ids if i in blob)}
+    return out, missing
+
+
+def _why_unmeasurable(missing, page_unreadable, unreadable_pages=()):
     """Say every reason the map could not be built, not the first one. -> str
 
     ⚠ THE CALLER TELLS IT; IT DOES NOT LOOK AGAIN. The first cut called `surfaces()` here, which
@@ -138,17 +166,28 @@ def _why_unmeasurable(missing, page_unreadable):
     bits = []
     if page_unreadable:
         bits.append("control_ui.html could not be read")
+    for name in unreadable_pages:
+        if name != "control_ui.html" or not page_unreadable:
+            bits.append("%s could not be read" % name)
     if missing:
         bits.append("these watchers could not be read: %s" % ", ".join(missing))
     return " AND ".join(bits) or "no reason recorded"
 
 
+def _unreadable_pages(pages):
+    return [name for name, _label in PAGES if pages.get(name, {}).get("ids") is None]
+
+
 def render():
-    ids, seen, missing = measure()
+    pages, missing = measure_pages()
+    ids, seen = pages["control_ui.html"]["ids"], pages["control_ui.html"]["seen"]
+    gone = _unreadable_pages(pages)
     # ⚠ REFUSE, DO NOT RENDER A ZERO. Writing the map is what banks it: the pre-push gate compares
     # HEART.md against the tree, so a map built from a failed read becomes the committed truth.
     # v3237 — refuse on EITHER failure, now that `ids` is no longer the single signal.
-    if ids is None or missing:
+    # #41 rank 25 — and on the BOARD page too: a map with the console's table and no board table
+    # would read as a board with nothing to say, which is the silence this section exists to end.
+    if ids is None or missing or gone:
         raise RuntimeError(
             # ⚠ the counterfactual must match the FAILURE. A watcher-only failure would not
             # have written "0 surfaces" — ids is the real list; what it would have written is a
@@ -159,7 +198,7 @@ def render():
             # v3233 — NAME BOTH. `missing` being non-empty used to hide that the console page
             # was ALSO unreadable, so a double failure reported as a watcher problem and sent
             # the reader to the wrong file. [[zero-needs-a-denominator]]
-            % _why_unmeasurable(missing, ids is None))
+            % _why_unmeasurable(missing, ids is None, gone))
     pct = (100.0 * len(seen) / len(ids)) if ids else 0.0
     lines = [
         "# THE HEART — what watches the console",
@@ -185,6 +224,28 @@ def render():
         "",
     ]
     lines += ["- `%s`" % s for s in seen] or ["_none_"]
+    # #41 rank 25 — THE BOARD, by the same rule, with its own ratchet ("board" in heart_floor.json).
+    bids, bseen = pages[BOARD]["ids"], pages[BOARD]["seen"]
+    bpct = (100.0 * len(bseen) / len(bids)) if bids else 0.0
+    lines += [
+        "",
+        "## The board — `bible.html`",
+        "",
+        "The page the console runs in its window: the builder, the 👤 Characters tab, the mule",
+        "window and the Vault paint their surfaces here. Same unit (an `id`), same watchers, its own",
+        "ratchet under `board` in `heart_floor.json`. Before 2026-09-29 this page was not mapped at",
+        "all, so its surfaces could be neither watched nor unwatched — only unsaid.",
+        "",
+        "| | |",
+        "|---|---|",
+        "| surfaces the board paints | **%d** |" % len(bids),
+        "| of those, watched | **%d** |" % len(bseen),
+        "| coverage | **%.1f%%** |" % bpct,
+        "",
+        "### Watched on the board",
+        "",
+    ]
+    lines += ["- `%s`" % s for s in bseen] or ["_none_"]
     return "\n".join(lines) + "\n"
 
 
@@ -203,14 +264,18 @@ def main(argv=None):
     except Exception:
         pass
     argv = argv or []
-    ids, seen, missing = measure()
+    pages, missing = measure_pages()
+    ids, seen = pages["control_ui.html"]["ids"], pages["control_ui.html"]["seen"]
+    gone_pages = _unreadable_pages(pages)
     # v3231 — an unmeasurable map is a REFUSAL at every door, not a quiet zero in one of them.
-    if ids is None or missing:
+    # #41 rank 25 — the board page is a door too.
+    if ids is None or missing or gone_pages:
         print("🔴 the heart map could not be measured: %s"
-              % _why_unmeasurable(missing, ids is None))
+              % _why_unmeasurable(missing, ids is None, gone_pages))
         print("   UNKNOWN is not a measurement. Refusing rather than banking a coverage figure "
               "nobody could take.")
         return 1
+    bids, bseen = pages[BOARD]["ids"], pages[BOARD]["seen"]
     if "--print" in argv:
         print(render())
         return 0
@@ -236,19 +301,36 @@ def main(argv=None):
                   % (was, len(seen), ", ".join(gone[:8]) or "(names not recorded)"))
             print("If that is deliberate, lower it by hand in tv/heart_floor.json and say why.")
             return 1
-        print("heart: %d of %d painted surfaces watched (floor %d)" % (len(seen), len(ids), was))
+        # #41 rank 25 — the board's own ratchet. A floor with no "board" entry has never measured the
+        # board, so whether ITS coverage shrank is UNKNOWN — a refusal, never a pass by omission.
+        bfl = fl.get("board")
+        if not isinstance(bfl, dict):
+            print("heart_floor.json carries no board floor, so whether the board's coverage SHRANK is "
+                  "UNKNOWN — run: python3 tv/heart_map.py --bless")
+            return 1
+        bwas = int(bfl.get("watched") or 0)
+        if len(bseen) < bwas:
+            bgone = sorted(set(bfl.get("names") or []) - set(bseen))
+            print("HEART coverage on the board FELL %d -> %d. A board surface that was watched no longer is: %s"
+                  % (bwas, len(bseen), ", ".join(bgone[:8]) or "(names not recorded)"))
+            print("If that is deliberate, lower it by hand under \"board\" in tv/heart_floor.json and say why.")
+            return 1
+        print("heart: %d of %d painted surfaces watched (floor %d) · board: %d of %d watched (floor %d)"
+              % (len(seen), len(ids), was, len(bseen), len(bids), bwas))
         return 0
     if "--bless" in argv:
         io.open(FLOOR, "w", encoding="utf-8").write(json.dumps(
             {"_why": "HEART coverage ratchet — it may only RISE. A fall means a surface this "
                      "console used to watch is no longer watched, which in a green run reads "
                      "exactly like clean.",
-             "watched": len(seen), "surfaces": len(ids), "names": seen},
+             "watched": len(seen), "surfaces": len(ids), "names": seen,
+             # #41 rank 25 — the board's ratchet, same rule, its own numbers
+             "board": {"watched": len(bseen), "surfaces": len(bids), "names": bseen}},
             indent=2, sort_keys=True) + "\n")
-        print("  blessed heart floor at %d of %d" % (len(seen), len(ids)))
+        print("  blessed heart floor at %d of %d (board %d of %d)" % (len(seen), len(ids), len(bseen), len(bids)))
     io.open(OUT, "w", encoding="utf-8").write(render())
-    print("  wrote %s — %d of %d painted surfaces watched" % (os.path.relpath(OUT, REPO),
-                                                              len(seen), len(ids)))
+    print("  wrote %s — %d of %d painted surfaces watched · board %d of %d"
+          % (os.path.relpath(OUT, REPO), len(seen), len(ids), len(bseen), len(bids)))
     return 0
 
 
