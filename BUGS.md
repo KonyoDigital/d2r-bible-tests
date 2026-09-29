@@ -133,6 +133,48 @@ in flight when the stop begins - each ending with no capture alive and no lease 
 RED** by applying it, running the law and restoring byte-for-byte (the 5 REG-1502 proofs re-anchored). Not seen
 here: the two PowerShell cases (Get-LeaseVerdict's start-time test, the query against a stubbed Get-CimInstance) -
 they run on CI's pwsh and on Windows.
+### REG-1511 - THE STAND-ASIDE COULD KILL A STRANGER, FLAP, AND NEVER LET THE ALT PROVE (2026-09-29)
+
+**Found** by the review of v3524, cluster self-prove-game (a3ef0574, the REG-1502 stand-aside). Seven findings. The
+high one was reproduced in memory by the reviewer and confirmed by a second agent reading the source and git history:
+- **HIGH - end_tree could kill a process that was not the prover.** A proof that ended normally left its pid in
+  `_STARTED` for the console's whole life, and the store's pid outlived a restart. `pid_alive` asks only "is SOME
+  process there", so once the pid was reused, the first tick where he played sent that stranger `taskkill /T /F`.
+  After a reboot the stale pid could be explorer.exe. **Fix:** `proc_birth(pid)` (Windows OpenProcess +
+  GetProcessTimes, POSIX `ps -o stat=,lstart=` in UTC/C locale, None for a zombie or when it cannot tell) is recorded
+  at spawn as `pidBirth`. `is_ours(pid, birth)` = alive AND the same birth. The tick trusts a pid, and end_tree
+  signals one, only when it is ours. A pid with no recorded birth is never ours. `_STARTED` carries the birth and
+  is emptied (`_forget`) the moment the proof ends.
+- **A memory stand-aside flapped.** start, stood-aside, start... every 600 s tick. **Fix:** nothing starts for
+  `STAND_ASIDE_COOLDOWN_S` (1800 s) after any stand-aside (key `aside-cooldown`, which the doctor counts as healthy).
+- **Boosteroid in the tray counted as playing forever**, so the ALT never proved. **Fix:** `is_play_proc(name,
+  private_mb)`. D2R always counts. Boosteroid counts only at `CLOUD_STREAM_MIN_MB` (600) private bytes or more
+  (a stream measured ~2 GB). Memory it cannot read counts as playing. The Windows walk reads the memory
+  (`tv_diablo._toolhelp_any(pred, with_pid=True)` + OpenProcess/K32GetProcessMemoryInfo).
+  ⚠ GeForce NOW still counts by name: its stream footprint was never measured, and a Boosteroid number is not a
+  measurement of it.
+- **On a Mac, `pgrep -if` matched the prover's own law** (`test_a_bare_boosteroid_window_must_show_the_hud.py`).
+  **Fix:** `ps -Ao pid=,command=` + `posix_play_line`, which never counts a python process or a `.py` argument.
+  An empty listing is UNKNOWN, not "nobody plays".
+- **A kill that did not take was forgotten.** **Fix:** end_tree waits up to `END_WAIT_S` and returns False when the
+  prover survived. The tick then keeps the pid (key `aside-survived`, which the doctor WARNS on) and asks again next
+  tick. If it ends later, it is booked as a stand-aside, never a failure.
+- **A proof already finishing its cleanup was stood aside**, and its `worked` was never booked. **Fix:** a running
+  proof whose census is current for its `startedFor` is booked as worked once (`finishingSince`) and left one tick
+  (`FINISH_GRACE_S`) to finish. If it is still running after that, it is a hang and stands aside as usual.
+- **free_mb on a Mac without psutil was None forever** ('mem-unknown'). **Fix:** a `vm_stat` fallback
+  (free + inactive pages x page size). Measured here: 3201 MB.
+
+**Law:** `test_every_pc_proves_itself` has a new class, TheStandAsideIsSafe, with 13 driven cases. The existing
+stand-aside cases now carry a real `pidBirth`, and 41 cases are green. Against the pre-fix sources the new law ran
+FAILED (2 failures, 15 errors). **Red-proofs:** 18 new, one per join: the `_forget` clear, the birth compare,
+end_tree's identity guard, the spawn-time birth, the cooldown, the tray threshold, GeForce NOW by name, the Windows
+walk's pred, tv_diablo's pid hand-off, the python/.py filter, end_tree's survivor verdict, the tick keeping a
+survivor, a late survivor booked as a stand-aside, finishing, its grace bound, booking once, vm_stat, and the
+doctor's `aside-cooldown`. Each one was applied, seen RED, and the file restored byte-for-byte (sha1 checked). The
+second eye's `_STARTED` proof had its anchor moved and was re-pointed and seen RED again. All 33 entries went RED.
+**Not changed:** `control_app._kill_pid` still taskkills pids read from pid files without an identity check. It is a
+sibling of this class in another lane, left for its own fix.
 
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 

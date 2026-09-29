@@ -25,6 +25,7 @@ THE SHARED VOCABULARY (heart-first rule 3): on · worked · lastTs · owed, with
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -56,23 +57,222 @@ PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 MIN_FREE_MB_TO_START = 2048
 MIN_FREE_MB_WHILE_RUNNING = 1024
 
+# ⚠⚠ REG-1511 — THE REVIEW OF v3524 FOUND THE STAND-ASIDE COULD KILL A STRANGER, FLAP, AND NEVER LET THE ALT PROVE.
+#   · a finished prover's pid stayed in `_STARTED`, and the store's pid outlived a restart; `pid_alive` asks only
+#     "is SOME process there", so a REUSED pid read as the running proof and got `taskkill /T /F` the first time he
+#     played. Now a pid is the prover only when its BIRTH (process creation time, recorded at spawn) matches.
+#   · a proof its own memory pushed under the line was killed, restarted once RAM came back, killed again - every ten
+#     minutes, the census never current. Now nothing starts for STAND_ASIDE_COOLDOWN_S after a stand-aside.
+#   · Boosteroid sitting in his tray counted as "playing" forever, so the ALT - the PC this lane exists for - never
+#     proved and the doctor called it healthy. Now a cloud client plays only above CLOUD_STREAM_MIN_MB private bytes.
+#: after a proof stands aside, no new proof starts for this long (seconds) - whatever the reason was
+STAND_ASIDE_COOLDOWN_S = 1800
+#: a proof whose census is ALREADY current for its gates is left to finish its cleanup this long (seconds) before a
+#: stand-aside may end it; one console tick is 600 s, so it gets exactly one tick
+FINISH_GRACE_S = 600
+#: private bytes (MB) above which a cloud client counts as STREAMING. A live Boosteroid stream was measured at ~2 GB;
+#: the client idling in the tray is a fraction of that. D2R.exe itself always counts.
+CLOUD_STREAM_MIN_MB = 600
+#: the clients whose streaming footprint HAS been measured, so the threshold may decide for them. GeForce NOW has not
+#: been: whether its stream lives in GeForceNOW.exe or in a child process is unknown here, and a Boosteroid number is
+#: not a measurement of it - so its name alone still counts, as before, until someone measures it.
+MEMORY_GATED_EXES = ("boosteroid.exe",)
+#: how long end_tree watches for the prover to be gone after it was told to end (seconds)
+END_WAIT_S = 10.0
+
+
+def _is_game_exe(n):
+    return n.startswith("d2r") or "diabloii" in n.replace(" ", "")
+
 
 def is_play_exe(name):
-    """A process name (any case) that means he is playing here. Pure."""
+    """A process name (any case) that CAN mean he is playing here: the game, or a cloud client. Pure.
+    Whether a cloud client is actually STREAMING is is_play_proc's question (REG-1511)."""
     n = (name or "").lower()
-    return n.startswith("d2r") or "diabloii" in n.replace(" ", "") or n in PLAY_EXES
+    return _is_game_exe(n) or n in PLAY_EXES
+
+
+def is_play_proc(name, private_mb=None):
+    """Does THIS process mean he is playing here? -> bool. Pure.
+
+    REG-1511 — the game always counts. A measured cloud client (MEMORY_GATED_EXES) counts only while it streams: at
+    CLOUD_STREAM_MIN_MB private bytes or more; any other cloud client still counts by name. `private_mb` None (its
+    memory could not be read) counts as playing - the conservative answer, because a proof beside a live stream is
+    what crashed dwm on the ALT, and a proof deferred is only a proof later."""
+    n = (name or "").lower()
+    if _is_game_exe(n):
+        return True
+    if n not in PLAY_EXES:
+        return False
+    if n not in MEMORY_GATED_EXES:
+        return True
+    try:
+        mb = None if private_mb is None else float(private_mb)
+    except (TypeError, ValueError):
+        mb = None
+    if mb is None or mb != mb:
+        return True
+    return mb >= CLOUD_STREAM_MIN_MB
+
+
+def _play_proc_pred(name, pid):
+    """The Toolhelp walk's question for one process. Its memory is read only for a cloud client's name."""
+    return is_play_proc(name, proc_private_mb(pid) if (name or "").lower() in MEMORY_GATED_EXES else None)
+
+
+#: what the POSIX `ps` listing is searched for - the same three names the Windows walk knows
+_POSIX_PLAY = re.compile(r"D2R\.exe|Boosteroid|GeForceNOW", re.I)
+
+
+def posix_play_line(line):
+    """One `ps -Ao pid=,command=` line -> does it mean he is playing? Pure.
+
+    REG-1511 — ⚠ NEVER A PYTHON PROCESS OR A .py FILE. MEASURED on his Mac: `pgrep -if` matched the prover's OWN law,
+    `python .../tv/test_a_bare_boosteroid_window_must_show_the_hud.py`, so while heart2 ran it the lane read
+    "playing" and stood its own proof aside - at the same offset on every restart, so the proof never finished."""
+    parts = (line or "").split()
+    if len(parts) < 2:
+        return False
+    argv = parts[1:]
+    if not _POSIX_PLAY.search(" ".join(argv)):
+        return False
+    exe = os.path.basename(argv[0]).lower()
+    if exe.startswith("python") or any(a.lower().endswith(".py") for a in argv):
+        return False
+    return True
 
 
 def playing_state():
-    """Is he playing on THIS machine - D2R.exe or a cloud client? -> True | False | None (UNKNOWN)"""
+    """Is he playing on THIS machine - D2R.exe or a cloud client streaming it? -> True | False | None (UNKNOWN)"""
     try:
         if IS_WIN:
             import tv_diablo as _tvd
-            return _tvd._toolhelp_any(is_play_exe)
-        out = subprocess.run(["pgrep", "-if", "D2R.exe|Boosteroid|GeForceNOW"], capture_output=True, timeout=3)
-        return True if out.returncode == 0 else (False if out.returncode == 1 else None)
+            return _tvd._toolhelp_any(_play_proc_pred, with_pid=True)
+        out = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
+        lines = [ln for ln in (out.stdout or "").splitlines() if ln.strip()]
+        if out.returncode != 0 or not lines:
+            return None                        # no listing is not "nobody is playing" [[zero-needs-a-denominator]]
+        return any(posix_play_line(ln) for ln in lines)
     except Exception:
         return None
+
+
+_K32 = {}
+
+
+def _k32():
+    """Windows: a PRIVATE kernel32 with the handle prototypes set. Private because setting restype/argtypes on
+    `ctypes.windll.kernel32` would change them for every other caller in the console process."""
+    k = _K32.get("k")
+    if k is None:
+        import ctypes
+        from ctypes import wintypes
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        k.OpenProcess.restype = wintypes.HANDLE
+        k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        k.CloseHandle.argtypes = (wintypes.HANDLE,)
+        k.GetProcessTimes.restype = wintypes.BOOL
+        k.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+        try:
+            k.K32GetProcessMemoryInfo.restype = wintypes.BOOL
+            k.K32GetProcessMemoryInfo.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD)
+        except AttributeError:
+            pass                                  # an older kernel32: proc_private_mb asks psapi instead
+        _K32["k"] = k
+    return k
+
+
+def proc_birth(pid):
+    """When was process `pid` created? -> an opaque string that is equal only for the SAME process, or None when it
+    cannot be told (dead, a zombie, refused, no tool). Never raises.
+
+    REG-1511 — a pid is a number the system hands out again; its creation time is not. Windows: OpenProcess +
+    GetProcessTimes (100 ns ticks). POSIX: `ps -o stat=,lstart=` in UTC and the C locale, so a console restarted
+    under another locale or zone reads the same string for the same process."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+    try:
+        if IS_WIN:
+            import ctypes
+            from ctypes import wintypes
+            k = _k32()
+            h = k.OpenProcess(0x1000, False, pid)       # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return None
+            try:
+                ft = [wintypes.FILETIME() for _ in range(4)]
+                if not k.GetProcessTimes(h, *[ctypes.byref(f) for f in ft]):
+                    return None
+                v = (int(ft[0].dwHighDateTime) << 32) | int(ft[0].dwLowDateTime)
+                return ("ft:%d" % v) if v else None
+            finally:
+                k.CloseHandle(h)
+        r = subprocess.run(["ps", "-o", "stat=,lstart=", "-p", str(pid)], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           timeout=3, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
+        parts = (r.stdout or "").split()
+        if r.returncode != 0 or len(parts) < 2 or parts[0].upper().startswith("Z"):
+            return None                         # gone, or a zombie: an exited prover is not a running one
+        return "ps:" + " ".join(parts[1:])
+    except Exception:
+        return None
+
+
+def proc_private_mb(pid):
+    """Windows: the private bytes of process `pid`, in MB, or None when they cannot be read. Never raises.
+    OpenProcess(QUERY_LIMITED | VM_READ) + K32GetProcessMemoryInfo (psapi's GetProcessMemoryInfo on an older
+    kernel32), PROCESS_MEMORY_COUNTERS_EX.PrivateUsage - the number Task Manager calls the commit size."""
+    if not IS_WIN:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _PMC(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+                        ("PrivateUsage", ctypes.c_size_t)]
+        k = _k32()
+        h = k.OpenProcess(0x1000 | 0x0010, False, int(pid))   # QUERY_LIMITED_INFORMATION | VM_READ, as documented
+        if not h:
+            h = k.OpenProcess(0x1000, False, int(pid))         # an elevated client refuses VM_READ; Windows 8.1+
+        if not h:                                               # answers with QUERY_LIMITED alone
+            return None
+        try:
+            c = _PMC()
+            c.cb = ctypes.sizeof(_PMC)
+            fn = getattr(k, "K32GetProcessMemoryInfo", None)
+            if fn is None:
+                fn = ctypes.WinDLL("psapi").GetProcessMemoryInfo
+                fn.restype = wintypes.BOOL
+                fn.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD)
+            if not fn(h, ctypes.byref(c), c.cb):
+                return None
+            return int(c.PrivateUsage // (1024 * 1024))
+        finally:
+            k.CloseHandle(h)
+    except Exception:
+        return None
+
+
+def vm_stat_free_mb(text):
+    """macOS `vm_stat` output -> available MB (free + inactive pages, the sum psutil calls available), or None. Pure."""
+    t = text or ""
+    ps = re.search(r"page size of (\d+) bytes", t)
+    got = {}
+    for label in ("Pages free", "Pages inactive"):
+        m = re.search(r"^%s:\s+(\d+)\." % re.escape(label), t, re.M)
+        got[label] = int(m.group(1)) if m else None
+    if not ps or None in got.values():
+        return None
+    return int((got["Pages free"] + got["Pages inactive"]) * int(ps.group(1)) // (1024 * 1024))
 
 
 def free_mb():
@@ -97,6 +297,13 @@ def free_mb():
             return int(psutil.virtual_memory().available // (1024 * 1024))
         except Exception:
             pass
+        # REG-1511 — MEASURED on his Mac: no psutil, and Darwin has no SC_AVPHYS_PAGES, so this answered None on
+        # every tick and an installed Mac could never start a proof ('mem-unknown' forever). vm_stat is always there.
+        if sys.platform == "darwin":
+            r = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
+            v = vm_stat_free_mb(r.stdout) if r.returncode == 0 else None
+            if v is not None:
+                return v
         if hasattr(os, "sysconf") and "SC_AVPHYS_PAGES" in os.sysconf_names:
             return int(os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") // (1024 * 1024))
     except Exception:
@@ -116,17 +323,49 @@ def stand_aside(playing, free):
     return False, ""
 
 
-def end_tree(pid):
-    """End a proof THIS lane started, with its children (the laws it runs). Never raises."""
+def is_ours(pid, birth):
+    """Is `pid` alive AND the very process this lane started - the same BIRTH recorded at spawn? -> bool. Never raises.
+
+    REG-1511 — `pid_alive` alone answers "is SOME process there". A pid is handed out again once its process ends
+    (Windows reuses them quickly), so a stored pid that outlived its prover named whatever came next. No recorded
+    birth (a store from before this fix, or a spawn whose birth could not be read) is NOT ours: an identity that
+    cannot be checked is never trusted with a kill."""
     try:
+        if birth is None or not pid_alive(pid):
+            return False
+        return proc_birth(pid) == birth
+    except Exception:
+        return False
+
+
+def end_tree(pid, birth=None, wait_s=None):
+    """End a proof THIS lane started, with its children (the laws it runs). Never raises.
+    -> True when our prover is gone afterwards, False when it SURVIVED the kill.
+
+    REG-1511 — ⚠⚠ ONLY A PID WHOSE BIRTH MATCHES IS EVER SIGNALLED. `taskkill /T /F` on a reused pid force-kills a
+    stranger and everything under it (after a reboot the stale store pid can be explorer.exe). And a kill that did
+    not take is reported, never assumed: taskkill can time out on a machine paging hard (the 690 MB-free afternoon),
+    and a prover that survived must stay tracked, or the lane starts a second one beside it."""
+    try:
+        if not is_ours(pid, birth):
+            return True                   # nothing of ours is there: nothing is signalled, nothing is left running
         if IS_WIN:
             subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"], stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=15, creationflags=_CREATE_NO_WINDOW)
         else:
             import signal
-            os.killpg(int(pid), signal.SIGTERM)      # spawn() gave the prover its own session
+            try:
+                os.killpg(int(pid), signal.SIGTERM)  # spawn() gave the prover its own session
+            except ProcessLookupError:
+                os.kill(int(pid), signal.SIGTERM)    # its birth matched, so this pid IS the prover; no group to end
     except Exception:
         pass
+    deadline = time.time() + (END_WAIT_S if wait_s is None else float(wait_s))
+    while is_ours(pid, birth):
+        if time.time() >= deadline:
+            return False                  # it SURVIVED: the caller keeps it, and asks again next tick
+        time.sleep(0.2)
+    return True
 
 
 def enabled(env=None):
@@ -249,7 +488,7 @@ def census_state():
 def _git(*args, timeout=15):
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
     r = subprocess.run(["git"] + list(args), cwd=REPO, capture_output=True, text=True,
-                       timeout=timeout, env=env)
+                       encoding="utf-8", errors="replace", timeout=timeout, env=env)
     return r.returncode, (r.stdout or "").strip()
 
 
@@ -320,6 +559,23 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
     if free < MIN_FREE_MB_TO_START:
         return {"start": False, "key": "low-memory",
                 "why": "only %d MB of memory free - a proof starts at %d MB" % (int(free), MIN_FREE_MB_TO_START)}
+    # REG-1511 — A STAND-ASIDE HOLDS THE NEXT START. Simulated in the review of v3524: free RAM 2500 MB idle and 900 MB
+    # with the proof running gave start, stood-aside, start, stood-aside... every 600 s tick - each run rebuilt its
+    # sandbox and threw the work away, the census never went current, and the doctor called both keys healthy.
+    try:
+        last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
+                      if mem.get("lastStoodAsideAt") is not None else None)
+    except (TypeError, ValueError):
+        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
+        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
+        # gates above still stand between a proof and his game.
+        last_aside = None
+    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
+        return {"start": False, "key": "aside-cooldown",
+                "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
+                       "finish here does not start and die every tick"
+                       % (int(max(0.0, now_s - last_aside) // 60), mem.get("lastStoodAsideWhy") or "?",
+                          STAND_ASIDE_COOLDOWN_S // 60)}
     try:
         busy_pct = None if busy_pct is None else float(busy_pct)
     except (TypeError, ValueError):
@@ -414,7 +670,9 @@ def spawn(log_path, python=None, workers=1, popen=None):
 #: ⚠ second eye (Grok, 2026-09-29): the pid of a proof THIS process started, kept in memory too. If saving
 #: the lane's store failed right after a spawn, the next tick read no pid and started a SECOND prover - and
 #: another every ten minutes after that. The store is the record; this is the backstop.
-_STARTED = {"pid": None}
+#: REG-1511 — it carries the prover's BIRTH too, and is emptied the moment that proof ends (see _forget): a finished
+#: prover's pid held here for the console's whole life was the pid a later stand-aside killed.
+_STARTED = {"pid": None, "birth": None}
 
 
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
@@ -443,8 +701,16 @@ def _ask(v, probe):
         return None
 
 
+def _forget(mem):
+    """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
+    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside"):
+        mem.pop(k, None)
+    _STARTED.update(pid=None, birth=None)
+
+
 def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None):
     now_s = time.time() if now_s is None else now_s
+    now_ms = int(now_s * 1000)
     play_now = _ask(playing, playing_state)
     free_now = _ask(free, free_mb)
     mem = load(path)
@@ -454,25 +720,52 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     census = census_state() if census is None else census
     if not isinstance(census, dict):
         census = {"state": "unknown", "why": "the census reading was not a record"}
-    pid = mem.get("pid")
-    if not pid and _STARTED["pid"] and pid_alive(_STARTED["pid"]):
-        pid = _STARTED["pid"]                              # the store lost it; this process did not
-    running = pid if (pid and pid_alive(pid)) else None
+    pid, birth = mem.get("pid"), mem.get("pidBirth")
+    if not pid and _STARTED["pid"]:
+        if is_ours(_STARTED["pid"], _STARTED.get("birth")):
+            pid, birth = _STARTED["pid"], _STARTED.get("birth")   # the store lost it; this process did not
+        else:
+            _STARTED.update(pid=None, birth=None)          # it ended (or its pid moved on) while the store had lost it
+    running = pid if (pid and is_ours(pid, birth)) else None
+    # the skeptic on fix24-selfprove: a store from before REG-1511 (or a spawn whose birth could not be read) holds a
+    # LIVE pid with no birth. is_ours() rightly refuses to trust it with a kill, but the tick then booked it as ENDED -
+    # a failure and a 3 h backoff, the pid forgotten, and a second prover could start beside the first. UNVERIFIED:
+    # left alone, not booked, and no new proof until that pid is gone.
+    unverified = bool(pid) and not running and birth is None and pid_alive(pid)
+    # REG-1511 — A PROOF WHOSE CENSUS IS ALREADY CURRENT FOR ITS GATES HAS DONE ITS WORK; it is only cleaning up
+    # (heart2 removes its sandbox after the write). Booked as worked NOW, once, and left to finish for one tick: a
+    # kill there cost the booking, and one landing inside heart2's plain census write left it truncated for good.
+    finishing = bool(running) and census.get("state") == "current" and mem.get("startedFor") is not None \
+        and census.get("fingerprint") == mem.get("startedFor")
+    if finishing and not mem.get("finishingSince"):
+        mem.update(worked=_int(mem.get("worked")) + 1, lastTs=now_ms, lastOk=census.get("why"),
+                   finishingSince=now_ms)
     aside, aside_why = stand_aside(play_now, free_now) if running else (False, "")
+    if aside and finishing and now_ms - _int(mem.get("finishingSince")) < FINISH_GRACE_S * 1000:
+        aside, aside_why = False, ""                       # finishing - still running a tick later is a hang
+    gone = None
     if aside:
-        # REG-1502 — stood aside, not failed: no backoff, no failure count; it proves again once he stops.
-        (kill_fn or end_tree)(running)
-        mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=int(now_s * 1000),
-                   lastStoodAsideWhy=aside_why)
-        mem.pop("pid", None)
-        mem.pop("startedFor", None)
-        _STARTED["pid"] = None
-        pid = running = None
-    if pid and not running:
-        # the proof we started has ended: did it leave a current census?
-        if census.get("state") == "current":
-            mem.update(worked=_int(mem.get("worked")) + 1, lastTs=int(now_s * 1000),
-                       lastOk=census.get("why"))
+        # REG-1502 — stood aside, not failed: no failure count, no 3 h backoff; REG-1511 — a cooldown, and a kill
+        # that did not take keeps the prover tracked instead of forgetting a process that is still running.
+        gone = bool((kill_fn or end_tree)(running, birth))
+        if gone:
+            mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
+                       lastStoodAsideWhy=aside_why)
+            _forget(mem)
+            pid = running = None
+        else:
+            mem.update(asideSurvived=_int(mem.get("asideSurvived")) + 1, lastAsideSurvivedAt=now_ms,
+                       standingAside=aside_why, pid=running, pidBirth=birth)
+    if pid and not running and not unverified:
+        # the proof we started has ended (or its pid now names another process): did it leave a current census?
+        if mem.get("finishingSince"):
+            pass                                           # booked as worked the tick its census went current
+        elif census.get("state") == "current":
+            mem.update(worked=_int(mem.get("worked")) + 1, lastTs=now_ms, lastOk=census.get("why"))
+        elif mem.get("standingAside"):
+            # told to stand aside, survived that tick, ended since: a stand-aside, never a failure
+            mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
+                       lastStoodAsideWhy=mem.get("standingAside"))
         elif mem.get("startedFor") and census.get("fingerprint") != mem.get("startedFor"):
             # the console UPDATED while it proved: the proof spoke for the old gates. Not a failure -
             # the new gates are simply unproved, and are proved next, without the backoff.
@@ -481,27 +774,38 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         else:
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"),
                        lastFailWhy="census still %s after the proof exited" % census.get("state"))
-        mem.pop("pid", None)
-        mem.pop("startedFor", None)
+        _forget(mem)
     on = enabled(env)
     d = decide(census, tree if tree is not None else tree_state(), running,
                busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now)
-    if aside:
+    if gone is True:
         d = {"start": False, "key": "stood-aside", "why": "the running proof stood aside: " + aside_why}
+    elif gone is False:
+        d = {"start": False, "key": "aside-survived",
+             "why": "the running proof was told to stand aside (%s) but pid %s is still alive - it stays tracked, "
+                    "is asked to end again next tick, and nothing new starts beside it" % (aside_why, running)}
+    elif finishing and d["key"] == "running":
+        d = dict(d, why="the proof made the census current (booked as worked) and is finishing its cleanup "
+                        "(pid %s)" % running)
+    if unverified:
+        d = {"start": False, "key": "running-unverified",
+             "why": "proof pid %s is alive but its start time was never recorded (a store from before REG-1511) - it "
+                    "is left to finish, never killed, and no second proof starts beside it" % pid}
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn
                 mem["deps"] = ensure_prover_deps()
             log_path = _store_path(path) + ".log"
             mem["pid"] = (spawn_fn or spawn)(log_path)
-            _STARTED["pid"] = mem["pid"]
+            mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
+            _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
             mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
             mem["runs"] = _int(mem.get("runs")) + 1
         except Exception as e:
             d = {"start": False, "key": "spawn-failed", "why": "the prover would not start (%s)" % type(e).__name__}
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailWhy=d["why"])
-    mem.update(lastKey=d["key"], lastWhy=d["why"], lastTick=int(now_s * 1000))
+    mem.update(lastKey=d["key"], lastWhy=d["why"], lastTick=now_ms)
     try:
         save(mem, path)
     except Exception:
@@ -511,4 +815,4 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             "owed": (0 if st == "current" else (None if st == "unknown" else 1)),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
             "running": bool(mem.get("pid")), "playing": play_now, "freeMb": free_now,
-            "stoodAside": _int(mem.get("stoodAside"))}
+            "stoodAside": _int(mem.get("stoodAside")), "asideSurvived": _int(mem.get("asideSurvived"))}

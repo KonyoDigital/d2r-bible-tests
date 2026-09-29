@@ -11,6 +11,11 @@ DRIVEN: `self_prove.decide` across every state; `self_prove.tick` end to end wit
 temp memory file and stubbed census/tree/load - never a real prover; `tree_state` on a real temporary
 git repo (clean + at upstream -> installed; a local edit or an unpushed commit -> dev); `pid_alive` on
 this process and on a dead pid; the rescue loop asks. RED_PROOF below.
+
+REG-1511 (review of v3524) - TheStandAsideIsSafe drives the stand-aside against a REUSED pid (alive, other birth),
+a prover that survives its kill, the start/kill flap, a proof already finishing, Boosteroid idling in the tray (the
+real Toolhelp walk and memory read over a stubbed kernel32), the prover's own law in a Mac `ps` listing, and free
+memory on a Mac without psutil. Never a real kill: every kill is a recorder, every Windows edge a stub.
 """
 import inspect
 import io
@@ -102,6 +107,7 @@ class TheTickEndToEnd(unittest.TestCase):
         self.dir = tempfile.mkdtemp(prefix="self_prove_law_")
         self.path = os.path.join(self.dir, ".self_prove.json")
         self.spawned = []
+        SP._STARTED.update(pid=None, birth=None)      # this process's memory of a prover never leaks between cases
 
     def _spawn(self, log_path):
         self.spawned.append(log_path)
@@ -151,12 +157,13 @@ class TheTickEndToEnd(unittest.TestCase):
             return 4_242_424
         SP._STARTED["pid"] = None
         with mock.patch.object(SP, "save", side_effect=OSError("disk full")), \
-                mock.patch.object(SP, "pid_alive", lambda pid: pid == alive["pid"]):
+                mock.patch.object(SP, "pid_alive", lambda pid: pid == alive["pid"]), \
+                mock.patch.object(SP, "proc_birth", lambda pid: "b%d" % pid if pid == alive["pid"] else None):
             SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
                     spawn_fn=_spawn_live, env={})
             r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
                         spawn_fn=_spawn_live, env={})
-        SP._STARTED["pid"] = None
+        SP._STARTED.update(pid=None, birth=None)
         self.assertEqual(len(self.spawned), 1, "a failed save made the lane forget its running proof and "
                                                "start a second one - a runaway every ten minutes")
         self.assertEqual(r["key"], "running")
@@ -333,6 +340,11 @@ class AProofNeverRunsBesideHisGame(unittest.TestCase):
         self.dir = tempfile.mkdtemp(prefix="self_prove_game_")
         self.path = os.path.join(self.dir, ".self_prove.json")
         self.killed = []
+        SP._STARTED.update(pid=None, birth=None)
+
+    def _kill(self, pid, birth):
+        self.killed.append(pid)
+        return True                                   # the recorded prover is gone - nothing real is signalled
 
     def d(self, **kw):
         a = dict(playing=False, free=8000)
@@ -360,13 +372,36 @@ class AProofNeverRunsBesideHisGame(unittest.TestCase):
         for n in ("chrome.exe", "python.exe", "powershell.exe", "", None):
             self.assertFalse(SP.is_play_exe(n), "%r counted as playing" % (n,))
 
-    def _running(self):
+    def test_a_corrupt_stand_aside_time_never_holds_the_lane_shut(self):
+        """The skeptic on fix24-selfprove: an unreadable lastStoodAsideAt re-armed the cooldown on EVERY tick."""
+        r = SP.decide(STALE, INSTALLED, None, 3.0, {"lastStoodAsideAt": "junk"}, 9e9, playing=False, free=8000)
+        self.assertTrue(r["start"], "a corrupt stand-aside time held the lane shut: %r" % r)
+
+    def test_a_live_prover_with_no_recorded_birth_is_left_alone_and_never_doubled(self):
+        """The skeptic on fix24-selfprove: a store from before REG-1511 holds a LIVE pid with no birth. It was booked as
+        ENDED (a failure, a 3 h backoff) and forgotten, so a second prover could start beside it."""
         SP.save({"pid": os.getpid(), "startedFor": "abc", "startedAt": "x", "runs": 1}, self.path)
+        spawned = []
+        r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                    spawn_fn=lambda lp: spawned.append(lp) or 1, playing=False, free=8000, kill_fn=self.killed.append)
+        mem = json.load(io.open(self.path, encoding="utf-8"))
+        self.assertEqual("running-unverified", r["key"], r)
+        self.assertEqual([], spawned, "a second proof started beside one that is still alive")
+        self.assertEqual([], self.killed, "a pid whose identity cannot be checked was killed")
+        self.assertEqual(os.getpid(), mem.get("pid"), "the live prover was forgotten")
+        self.assertIsNone(mem.get("lastFailAt"), "a proof that is still running was booked as a failure")
+
+    def _running(self):
+        # REG-1511 — a running proof is THIS process, with its real birth: the lane only ever acts on a pid it can
+        # prove is the one it started. A birth that cannot be read here would make every case below vacuous.
+        born = SP.proc_birth(os.getpid())
+        self.assertIsNotNone(born, "this platform cannot read a process's birth - the identity check has no input")
+        SP.save({"pid": os.getpid(), "pidBirth": born, "startedFor": "abc", "startedAt": "x", "runs": 1}, self.path)
 
     def test_a_running_proof_stands_aside_when_he_starts_playing_and_it_is_not_a_failure(self):
         self._running()
         r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
-                    spawn_fn=lambda lp: 1, playing=True, free=8000, kill_fn=self.killed.append)
+                    spawn_fn=lambda lp: 1, playing=True, free=8000, kill_fn=self._kill)
         self.assertEqual([os.getpid()], self.killed, "the running proof went on beside his game")
         self.assertEqual("stood-aside", r["key"])
         mem = json.load(io.open(self.path, encoding="utf-8"))
@@ -377,18 +412,336 @@ class AProofNeverRunsBesideHisGame(unittest.TestCase):
     def test_a_running_proof_gives_memory_back(self):
         self._running()
         r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
-                    spawn_fn=lambda lp: 1, playing=False, free=700, kill_fn=self.killed.append)
+                    spawn_fn=lambda lp: 1, playing=False, free=700, kill_fn=self._kill)
         self.assertEqual([os.getpid()], self.killed)
         self.assertIn("700 MB", r["say"])
 
     def test_an_unknown_answer_never_kills_a_running_proof(self):
         self._running()
         r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
-                    spawn_fn=lambda lp: 1, playing=None, free=None, kill_fn=self.killed.append)
+                    spawn_fn=lambda lp: 1, playing=None, free=None, kill_fn=self._kill)
         self.assertEqual([], self.killed, "a proof was killed on a guess")
         self.assertEqual("running", r["key"])
 
+
+VM_STAT_SAMPLE = (  # measured on his Mac 2026-09-29 (no psutil there, and Darwin has no SC_AVPHYS_PAGES)
+    "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
+    "Pages free:                                     4003.\n"
+    "Pages active:                                 239219.\n"
+    "Pages inactive:                               236127.\n"
+    "Pages speculative:                              1985.\n")
+
+
+class _FakeWin(object):
+    """The Windows edges, stubbed: a Toolhelp32 snapshot over `procs` [(exe, pid)], and a private kernel32 whose
+    OpenProcess / K32GetProcessMemoryInfo / GetProcessTimes answer from `private_mb` and `births` by pid. The real
+    Python in tv_diablo._toolhelp_any and self_prove.proc_private_mb / proc_birth fills and reads the structures."""
+
+    def __init__(self, procs, private_mb=None, births=None):
+        self.procs, self.private_mb, self.births = list(procs), dict(private_mb or {}), dict(births or {})
+        self._i = 0
+        self.kernel32 = self                      # ctypes.windll.kernel32
+
+    # -- Toolhelp32 (ctypes.windll.kernel32) --
+    def CreateToolhelp32Snapshot(self, flags, pid):
+        self._i = 0
+        return 77
+
+    def _fill(self, ref):
+        if self._i >= len(self.procs):
+            return 0
+        name, pid = self.procs[self._i]
+        ref._obj.szExeFile, ref._obj.th32ProcessID = name, pid
+        self._i += 1
+        return 1
+
+    def Process32FirstW(self, snap, ref):
+        return self._fill(ref)
+
+    def Process32NextW(self, snap, ref):
+        return self._fill(ref)
+
+    def CloseHandle(self, h):
+        return 1
+
+    # -- the private kernel32 self_prove._k32() returns --
+    def OpenProcess(self, access, inherit, pid):
+        return (10_000 + pid) if (pid in self.private_mb or pid in self.births) else None
+
+    def K32GetProcessMemoryInfo(self, h, ref, cb):
+        mb = self.private_mb.get(h - 10_000)
+        if mb is None:
+            return 0
+        ref._obj.PrivateUsage = int(mb * 1024 * 1024)
+        return 1
+
+    def GetProcessTimes(self, h, c, e, k, u):
+        v = self.births.get(h - 10_000)
+        if v is None:
+            return 0
+        c._obj.dwHighDateTime, c._obj.dwLowDateTime = v >> 32, v & 0xFFFFFFFF
+        return 1
+
+
+class TheStandAsideIsSafe(unittest.TestCase):
+    """REG-1511 — the review of v3524 found the REG-1502 stand-aside could kill a process that was not the prover
+    (a finished prover's pid kept in memory; a stored pid that outlived a restart), could flap start/kill every tick,
+    counted Boosteroid idling in the tray as play forever, matched the prover's own law as play on a Mac, forgot a
+    prover its kill did not end, killed a proof that had already written its census, and on a Mac without psutil
+    could never measure memory at all. Every case below drives the lane; the Windows edges are stubbed."""
+
+    def setUp(self):
+        from unittest import mock
+        self.mock = mock
+        self.dir = tempfile.mkdtemp(prefix="self_prove_safe_")
+        self.path = os.path.join(self.dir, ".self_prove.json")
+        self.killed, self.spawned = [], []
+        SP._STARTED.update(pid=None, birth=None)
+
+    def tearDown(self):
+        SP._STARTED.update(pid=None, birth=None)
+
+    def _kill(self, pid, birth):
+        self.killed.append(pid)
+        return True
+
+    def _tick(self, now, **kw):
+        a = dict(now_s=now, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                 spawn_fn=self._spawn, playing=False, free=8000, kill_fn=self._kill)
+        a.update(kw)
+        return SP.tick(**a)
+
+    def _spawn(self, log_path):
+        self.spawned.append(log_path)
+        return os.getpid()                        # a LIVE pid whose real birth the lane records
+
+    def _mem(self):
+        return json.load(io.open(self.path, encoding="utf-8"))
+
+    # (1) the pid is only ours while its birth matches
+    def test_a_finished_proof_is_forgotten_by_this_process_too(self):
+        world = {"alive": {4_242_001}}
+        with self.mock.patch.object(SP, "pid_alive", lambda pid: pid in world["alive"]), \
+                self.mock.patch.object(SP, "proc_birth", lambda pid: "b-one" if pid in world["alive"] else None):
+            r = self._tick(1000.0, spawn_fn=lambda lp: 4_242_001)
+            self.assertEqual(("start", 4_242_001), (r["key"], SP._STARTED["pid"]))
+            world["alive"].clear()                # the prover exits having made the census current
+            r = self._tick(1600.0, census=CURRENT)
+        self.assertEqual(1, r["worked"])
+        self.assertIsNone(SP._STARTED["pid"], "a finished prover's pid stayed in this process's memory - the pid a "
+                                              "later stand-aside handed to taskkill /T /F once something reused it")
+        self.assertNotIn("pid", self._mem())
+
+    def test_a_reused_pid_is_never_the_prover_and_never_killed(self):
+        me = SP.proc_birth(os.getpid())
+        self.assertIsNotNone(me, "baseline: this platform must read a live process's birth")
+        self.assertEqual(me, SP.proc_birth(os.getpid()), "the same process read two different births")
+        self.assertTrue(SP.is_ours(os.getpid(), me), "baseline: the prover itself must read as ours")
+        # the store names a LIVE pid, but the process there was born at another time: pid reuse, or a reboot
+        SP.save({"pid": os.getpid(), "pidBirth": "ps:Mon Jan  1 00:00:00 2024", "startedFor": "abc"}, self.path)
+        r = self._tick(5000.0, playing=True)
+        self.assertEqual([], self.killed, "a stand-aside killed a process that was not the prover (a reused pid)")
+        self.assertNotIn(r["key"], ("stood-aside", "running"))
+        self.assertNotIn("pid", self._mem(), "a pid that names a stranger stayed on the books")
+        # the same through this process's backstop, with the store empty
+        io.open(self.path, "w", encoding="utf-8").write("{}")
+        SP._STARTED.update(pid=os.getpid(), birth="ps:Mon Jan  1 00:00:00 2024")
+        self._tick(5600.0, playing=True)
+        self.assertEqual([], self.killed, "the in-memory backstop handed a stranger's pid to the kill")
+        # and a store from before this fix (a pid with no recorded birth) is never trusted with a kill either
+        SP.save({"pid": os.getpid(), "startedFor": "abc"}, self.path)
+        self._tick(6200.0, playing=True)
+        self.assertEqual([], self.killed, "a pid with no recorded birth was killed on trust")
+
+    def test_end_tree_signals_only_a_pid_whose_birth_matches(self):
+        for win in (False, True):
+            sent = []
+            with self.mock.patch.object(SP, "IS_WIN", win), \
+                    self.mock.patch.object(SP, "pid_alive", lambda pid: True), \
+                    self.mock.patch.object(SP, "proc_birth", lambda pid: "born-later"), \
+                    self.mock.patch.object(SP.os, "killpg", lambda *a: sent.append(("killpg",) + a), create=True), \
+                    self.mock.patch.object(SP.os, "kill", lambda *a: sent.append(("kill",) + a)), \
+                    self.mock.patch.object(SP.subprocess, "run", lambda *a, **k: sent.append(("run",) + a)):
+                gone = SP.end_tree(4_242_002, "born-first", wait_s=0)
+            self.assertEqual([], sent, "end_tree signalled a pid whose birth differs (IS_WIN=%s)" % win)
+            self.assertTrue(gone, "our prover is not there - nothing of ours is left running")
+
+    # (5) a kill that did not take is reported, and the prover stays tracked
+    def test_end_tree_reports_a_prover_that_survived(self):
+        for win in (False, True):
+            sent = []
+            with self.mock.patch.object(SP, "IS_WIN", win), \
+                    self.mock.patch.object(SP, "pid_alive", lambda pid: True), \
+                    self.mock.patch.object(SP, "proc_birth", lambda pid: "b"), \
+                    self.mock.patch.object(SP.os, "killpg", lambda *a: sent.append(("killpg",) + a), create=True), \
+                    self.mock.patch.object(SP.subprocess, "run", lambda *a, **k: sent.append(("run",) + a)):
+                gone = SP.end_tree(4_242_003, "b", wait_s=0)
+            self.assertEqual(1, len(sent), "our own prover was not told to end (IS_WIN=%s)" % win)
+            self.assertIs(False, gone, "a prover that outlived its kill was reported gone (IS_WIN=%s)" % win)
+
+    def test_a_prover_that_survives_its_kill_stays_tracked(self):
+        world = {"alive": {4_242_004}}
+        with self.mock.patch.object(SP, "pid_alive", lambda pid: pid in world["alive"]), \
+                self.mock.patch.object(SP, "proc_birth", lambda pid: "b4" if pid in world["alive"] else None):
+            SP.save({"pid": 4_242_004, "pidBirth": "b4", "startedFor": "abc"}, self.path)
+            r = self._tick(5000.0, playing=True, kill_fn=lambda pid, birth: False)
+            self.assertEqual("aside-survived", r["key"])
+            mem = self._mem()
+            self.assertEqual((4_242_004, "b4"), (mem.get("pid"), mem.get("pidBirth")),
+                             "a prover that survived the stand-aside was forgotten - still running, tracked by nothing")
+            self.assertEqual((1, 0), (mem.get("asideSurvived"), _int0(mem.get("stoodAside"))))
+            r = self._tick(5600.0, playing=False)
+            self.assertEqual("running", r["key"], "a second prover could start beside one that survived")
+            self.assertEqual([], self.spawned)
+            world["alive"].clear()                # it ends after all
+            r = self._tick(6200.0, playing=False)
+        mem = self._mem()
+        self.assertIsNone(mem.get("lastFailAt"), "a stood-aside prover that ended late was booked as a failure")
+        self.assertEqual(1, mem.get("stoodAside"))
+        self.assertEqual("aside-cooldown", r["key"])
+
+    # (2) no flapping
+    def test_a_stand_aside_holds_the_next_start(self):
+        # the review's simulation: 2500 MB free idle, 900 MB with the proof running, one reading per 600 s tick
+        keys = []
+        for i in range(7):
+            running = bool(self.spawned) and "pid" in (self._mem() if os.path.exists(self.path) else {})
+            keys.append(self._tick(1000.0 + 600 * i, free=900 if running else 2500)["key"])
+        self.assertEqual(["start", "stood-aside", "aside-cooldown", "aside-cooldown", "start", "stood-aside",
+                          "aside-cooldown"], keys, "a proof its own memory pushes out flapped start/kill every tick")
+        # after a PLAYING stand-aside too: he stops, and the cooldown still holds
+        self.setUp()
+        self._tick(1000.0)
+        self.assertEqual("stood-aside", self._tick(1600.0, playing=True)["key"])
+        self.assertEqual("aside-cooldown", self._tick(2200.0, playing=False)["key"])
+        self.assertEqual("start", self._tick(1600.0 + SP.STAND_ASIDE_COOLDOWN_S, playing=False)["key"])
+        # (an unreadable stand-aside time: see test_a_corrupt_stand_aside_time_never_holds_the_lane_shut)
+
+    # (6) a proof that already wrote its census is finishing, not in the way
+    def test_a_proof_whose_census_is_current_finishes_and_is_booked_once(self):
+        world = {"alive": {4_242_005}}
+        with self.mock.patch.object(SP, "pid_alive", lambda pid: pid in world["alive"]), \
+                self.mock.patch.object(SP, "proc_birth", lambda pid: "b5" if pid in world["alive"] else None):
+            SP.save({"pid": 4_242_005, "pidBirth": "b5", "startedFor": "abc"}, self.path)
+            r = self._tick(5000.0, census=CURRENT, playing=True)
+            self.assertEqual([], self.killed, "a proof that had already written its census was killed in its cleanup")
+            self.assertEqual(("running", 1), (r["key"], r["worked"]), "its census went current and it was not booked")
+            r = self._tick(5300.0, census=CURRENT, playing=True)
+            self.assertEqual(([], 1), (self.killed, r["worked"]))
+            world["alive"].clear()                # cleanup done, it exits
+            r = self._tick(5900.0, census=CURRENT, playing=True)
+        self.assertEqual(1, r["worked"], "one proof was booked as worked twice")
+        self.assertNotIn("pid", self._mem())
+
+    def test_a_finished_proof_that_hangs_is_still_stood_aside(self):
+        world = {"alive": {4_242_006}}
+        with self.mock.patch.object(SP, "pid_alive", lambda pid: pid in world["alive"]), \
+                self.mock.patch.object(SP, "proc_birth", lambda pid: "b6" if pid in world["alive"] else None):
+            SP.save({"pid": 4_242_006, "pidBirth": "b6", "startedFor": "abc"}, self.path)
+            self._tick(5000.0, census=CURRENT, playing=True)
+            r = self._tick(5000.0 + SP.FINISH_GRACE_S, census=CURRENT, playing=True)
+        self.assertEqual([4_242_006], self.killed, "a proof still running a whole tick after its census went on "
+                                                   "beside his game forever")
+        self.assertEqual(("stood-aside", 1), (r["key"], r["worked"]))
+
+    # (3) a cloud client plays only while it streams
+    def test_a_cloud_client_idling_in_the_tray_is_not_play(self):
+        self.assertFalse(SP.is_play_proc("Boosteroid.exe", 150), "Boosteroid in the tray counted as playing - the "
+                                                                  "ALT would never prove")
+        self.assertTrue(SP.is_play_proc("Boosteroid.exe", 2100), "a live ~2 GB stream did not count as playing")
+        self.assertTrue(SP.is_play_proc("Boosteroid.exe", None), "an unreadable client was guessed idle")
+        self.assertTrue(SP.is_play_proc("Boosteroid.exe", float("nan")))
+        # GeForce NOW's streaming footprint was never measured, so a Boosteroid number never decides for it
+        self.assertTrue(SP.is_play_proc("GeForceNOW.exe", 150), "an unmeasured client was ruled idle on another's number")
+        self.assertTrue(SP.is_play_proc("D2R.exe", 0), "the game itself must always count")
+        self.assertFalse(SP.is_play_proc("chrome.exe", 5000))
+
+    def test_the_windows_walk_reads_the_clients_memory(self):
+        import ctypes
+        real_playing = _REAL_PROBES[0]
+
+        def ask(procs, private_mb):
+            fake = _FakeWin(procs, private_mb=private_mb)
+            with self.mock.patch.object(SP, "IS_WIN", True), \
+                    self.mock.patch.object(ctypes, "windll", fake, create=True), \
+                    self.mock.patch.object(SP, "_k32", lambda: fake):
+                return real_playing()
+        tray = [("System", 4), ("Boosteroid.exe", 700), ("chrome.exe", 800)]
+        self.assertIs(False, ask(tray, {700: 150, 800: 3000}),
+                      "Boosteroid idling in the tray (150 MB) read as playing through the real Toolhelp walk")
+        self.assertIs(True, ask(tray, {700: 2100}), "a streaming client (2.1 GB) did not read as playing")
+        self.assertIs(True, ask(tray, {}), "a client whose memory could not be read was guessed idle")
+        self.assertIs(True, ask([("D2R.exe", 900)], {}), "the game did not read as playing")
+        self.assertIs(False, ask([("chrome.exe", 800)], {800: 3000}))
+        fake = _FakeWin([], births={700: (0x01DC << 32) | 0x1234})
+        with self.mock.patch.object(SP, "IS_WIN", True), self.mock.patch.object(SP, "_k32", lambda: fake):
+            self.assertEqual("ft:%d" % ((0x01DC << 32) | 0x1234), SP.proc_birth(700), "GetProcessTimes misread")
+            self.assertIsNone(SP.proc_birth(701), "a process that would not open was given a birth")
+
+    # (4) the prover's own law is not play
+    def test_a_mac_never_reads_the_provers_own_law_as_play(self):
+        law = ("81234 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/"
+               "Python.app/Contents/MacOS/Python /tmp/heart2.X/tv/test_a_bare_boosteroid_window_must_show_the_hud.py")
+        game = r"81235 /Applications/CrossOver.app/Contents/wine64-preloader C:\Program Files\Diablo II Resurrected\D2R.exe"
+        self.assertFalse(SP.posix_play_line(law), "the prover's own law read as play")
+        self.assertFalse(SP.posix_play_line("81236 python3 -c pass /tmp/x/test_a_bare_boosteroid_window.py"))
+        self.assertTrue(SP.posix_play_line(game), "D2R under CrossOver did not read as play")
+        self.assertTrue(SP.posix_play_line("81237 /Applications/Boosteroid.app/Contents/MacOS/Boosteroid"))
+        real_playing = _REAL_PROBES[0]
+
+        class _R(object):
+            def __init__(self, out, rc=0):
+                self.stdout, self.returncode = out, rc
+
+        for out, want in ((law + "\n", False), (law + "\n" + game + "\n", True), ("", None)):
+            with self.mock.patch.object(SP, "IS_WIN", False), \
+                    self.mock.patch.object(SP.subprocess, "run", lambda *a, **k: _R(out)):
+                self.assertIs(want, real_playing(), "ps listing %r read as %r" % (out[:40], want))
+
+    # (7) a Mac without psutil can still measure memory
+    def test_free_memory_is_measured_on_a_mac_without_psutil(self):
+        self.assertEqual((4003 + 236127) * 16384 // (1024 * 1024), SP.vm_stat_free_mb(VM_STAT_SAMPLE))
+        self.assertIsNone(SP.vm_stat_free_mb("garbage"))
+
+        class _R(object):
+            returncode, stdout = 0, VM_STAT_SAMPLE
+        with self.mock.patch.object(SP, "IS_WIN", False), self.mock.patch.object(SP.sys, "platform", "darwin"), \
+                self.mock.patch.dict(sys.modules, {"psutil": None}), \
+                self.mock.patch.object(SP.subprocess, "run", lambda *a, **k: _R()):
+            got = _REAL_PROBES[1]()
+        self.assertEqual(3752, got, "free memory on a Mac without psutil read %r - 'mem-unknown' forever" % (got,))
+
+    # the doctor reads the new keys the way they are meant
+    def test_the_doctor_calls_the_cooldown_healthy_and_a_survivor_a_warning(self):
+        import ast
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        anchor = '_sp_ok = (_sp_key in ('
+        self.assertEqual(1, src.count(anchor))
+        i = src.index(anchor) + len(anchor) - 1
+        keys = ast.literal_eval(src[i:src.index(")", i) + 1])
+        self.assertIn("aside-cooldown", keys, "the wait after a stand-aside warns on every doctor pass")
+        self.assertNotIn("aside-survived", keys, "a prover that outlived its kill beside his game reads healthy")
+
+
+def _int0(v):
+    return int(v or 0)
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-29 (skeptic on fix24-selfprove) - a corrupt stand-aside time re-arms the cooldown every tick, for ever",
+        "file": "tv/self_prove.py",
+        "find": "        last_aside = None\n",
+        "replace": "        last_aside = now_s\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (skeptic on fix24-selfprove) - a live prover with no recorded birth is booked as ended and a second one starts",
+        "file": "tv/self_prove.py",
+        "find": "    unverified = bool(pid) and not running and birth is None and pid_alive(pid)\n",
+        "replace": "    unverified = False\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 (REG-1502) - a proof starts beside his game when the CPU looks idle (a cloud client)",
         "file": "tv/self_prove.py",
@@ -434,7 +787,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (second eye) - a failed save after a spawn makes the lane start a second prover",
         "file": "tv/self_prove.py",
-        "find": "            _STARTED[\"pid\"] = mem[\"pid\"]\n",
+        "find": "            _STARTED.update(pid=mem[\"pid\"], birth=mem[\"pidBirth\"])\n",
         "replace": "",
         "matches": 1,
     },
@@ -492,6 +845,133 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "                _self_prove_tick()          # #50 — has THIS PC proved its own instruments?\n",
         "replace": "                pass\n",
+        "matches": 1,
+    },
+    # ── REG-1511 (review of v3524) ─────────────────────────────────────────────────────────────────────────────
+    {
+        "why": "2026-09-29 (REG-1511) - a finished prover's pid stays in this process's memory for the console's life",
+        "file": "tv/self_prove.py",
+        "find": "        mem.pop(k, None)\n    _STARTED.update(pid=None, birth=None)\n",
+        "replace": "        mem.pop(k, None)\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - any live process at the stored pid is taken for the prover (a reused pid is killed)",
+        "file": "tv/self_prove.py",
+        "find": "        return proc_birth(pid) == birth\n",
+        "replace": "        return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - end_tree runs taskkill /T /F on a pid whose birth is not the prover's",
+        "file": "tv/self_prove.py",
+        "find": "        if not is_ours(pid, birth):\n            return True                   # nothing of ours",
+        "replace": "        if False:\n            return True                   # nothing of ours",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - the prover's birth is never recorded at spawn, so the lane cannot recognise its own proof",
+        "file": "tv/self_prove.py",
+        "find": "            mem[\"pidBirth\"] = proc_birth(mem[\"pid\"])",
+        "replace": "            mem[\"pidBirth\"] = None",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a proof its own memory pushes out flaps start/stood-aside every tick",
+        "file": "tv/self_prove.py",
+        "find": "    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - Boosteroid idling in the tray counts as playing, so the ALT never proves",
+        "file": "tv/self_prove.py",
+        "find": "    return mb >= CLOUD_STREAM_MIN_MB\n",
+        "replace": "    return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - GeForce NOW is ruled idle on a threshold only Boosteroid was measured against",
+        "file": "tv/self_prove.py",
+        "find": "    if n not in MEMORY_GATED_EXES:\n        return True\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - the Windows walk asks the name alone again, never the client's memory",
+        "file": "tv/self_prove.py",
+        "find": "            return _tvd._toolhelp_any(_play_proc_pred, with_pid=True)\n",
+        "replace": "            return _tvd._toolhelp_any(is_play_exe)\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - the Toolhelp walk hands the wrong pid, so the client's memory is never read",
+        "file": "tv/tv_diablo.py",
+        "find": "                if (pred(n, int(pe.th32ProcessID)) if with_pid else pred(n)):\n",
+        "replace": "                if (pred(n, 0) if with_pid else pred(n)):\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - on a Mac the prover's own boosteroid law reads as play and stands the proof aside",
+        "file": "tv/self_prove.py",
+        "find": "    if exe.startswith(\"python\") or any(a.lower().endswith(\".py\") for a in argv):\n        return False\n",
+        "replace": "    if False:\n        return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - end_tree reports a prover that survived its kill as gone",
+        "file": "tv/self_prove.py",
+        "find": "            return False                  # it SURVIVED",
+        "replace": "            return True                   # it SURVIVED",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a prover that survived the stand-aside is forgotten while it still runs",
+        "file": "tv/self_prove.py",
+        "find": "        if gone:\n            mem.update(stoodAside=",
+        "replace": "        if True:\n            mem.update(stoodAside=",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a stood-aside prover that ended a tick late is booked as a failure (3 h backoff)",
+        "file": "tv/self_prove.py",
+        "find": "        elif mem.get(\"standingAside\"):\n",
+        "replace": "        elif False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a proof that already wrote its census is killed in its cleanup and never booked",
+        "file": "tv/self_prove.py",
+        "find": "    finishing = bool(running) and census.get(\"state\") == \"current\"",
+        "replace": "    finishing = False and census.get(\"state\") == \"current\"",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a finished proof that hangs runs beside his game forever",
+        "file": "tv/self_prove.py",
+        "find": "    if aside and finishing and now_ms - _int(mem.get(\"finishingSince\")) < FINISH_GRACE_S * 1000:\n",
+        "replace": "    if aside and finishing:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a proof booked when its census went current is booked again when it exits",
+        "file": "tv/self_prove.py",
+        "find": "        if mem.get(\"finishingSince\"):\n            pass",
+        "replace": "        if False:\n            pass",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - a Mac without psutil never measures free memory ('mem-unknown' forever)",
+        "file": "tv/self_prove.py",
+        "find": "        if sys.platform == \"darwin\":\n            r = subprocess.run([\"vm_stat\"]",
+        "replace": "        if False:\n            r = subprocess.run([\"vm_stat\"]",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1511) - the doctor warns through every stand-aside cooldown",
+        "file": "tv/control_app.py",
+        "find": "\"playing\", \"stood-aside\", \"low-memory\", \"aside-cooldown\")",
+        "replace": "\"playing\", \"stood-aside\", \"low-memory\")",
         "matches": 1,
     },
 ]
