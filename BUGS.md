@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1463 - THE CHEAP-SUBSET TIMING GATE MEASURED THE UNMEMOIZED PLAN THE CONSOLE NEVER RUNS (2026-09-29)
+
+**Found** when v3523 push #5 was REFUSED at 129 min: `test_the_cheap_subset_is_actually_CHEAP` 9,093 ms > 9,000.
+Measured, not guessed: `reel_retention.plan()` costs the same in v3522 (296 ms) and v3523 (318 ms) on the same
+real shelf - no code regression. v3523 (#66, REG-1412) gave plan() a memo that exists ONLY on the console path
+(`frame_ref.mark_console_path()`, set by control_app.main()), correctly off in laws; this gate therefore timed
+every river check re-walking the shelf (~320 ms a plan, ~650 ms a route), and the 16-reel FIFO doubled the shelf.
+The v2815 lesson one layer down: the timing gate was measuring the branch the console never takes. **Fix:** the
+gate turns the console path on for its own duration only (restored by addCleanup) - never in tick_caches(), which
+run() also enters, where it would put the memo under laws that monkeypatch plan(). Measured after: 6,135 ms
+re-measured (9,856 first pass), OK twice. Its variance under a busy LIVE console (12-56 s while his :17772 was
+working) is the older v2354/v2801 story and stays as it is.
+
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 
 v3523's push was refused TWICE at the render gate (95 and 98 minutes in) on `shelf-cards`: "the panel could not be

@@ -22182,6 +22182,18 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         So this measures. A subset called cheap that takes 17 seconds is not a naming problem."""
         import time as _t
         cd = self._cd()
+        # ⚠⚠ REG-1463 (2026-09-29) — MEASURE THE PATH THE CONSOLE TAKES, the v2815 lesson one layer down.
+        # v3523 (#66, REG-1412) gave reel_retention.plan() a memo that exists ONLY on the console path
+        # (frame_ref.mark_console_path(), set by control_app.main()) - off in every law, correctly, because a
+        # law may monkeypatch what plan() reads. So this gate timed the UNMEMOIZED plan: each river check
+        # re-walked the shelf, ~320 ms a plan and ~650 ms a route, and v3523's 16-reel FIFO doubled the shelf.
+        # MEASURED on his Mac, load ~4: 8,869 / 9,093 ms against the 9,000 budget - v3523 push #5 REFUSED at
+        # 129 min - while plan() itself costs the same in v3522 (296 ms) and v3523 (318 ms) on the same shelf.
+        # The console pays the memoized cost; this gate now measures that, for its own duration only.
+        import frame_ref as _frc
+        _was_console = _frc.on_console_path()
+        _frc.mark_console_path(True)
+        self.addCleanup(_frc.mark_console_path, _was_console)
         BUDGET_MS = 3000        # generous: the whole cheap tick, on a cold fixture tree
         slow = []
         total = 0.0
