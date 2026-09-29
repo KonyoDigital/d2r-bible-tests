@@ -148,7 +148,8 @@ class TheWindowsLampCallsOffOffNotDead(unittest.TestCase):
         ca._agent_mode = "live"
         ca._capture_proc = None
         ca._read_pid = lambda *a, **k: None                  # no pid on disk: the script is gone
-        ca._start_capture = lambda env, fp: self.starts.append(1)
+        # REG-1509 - the lamp's restart now passes wanted= (asked under the spawn lock); the stub takes it
+        ca._start_capture = lambda env, fp, wanted=None: self.starts.append(1)
         ca._CAP_RESTART_N, ca._CAP_RESTART_TS = 0, 0.0
         ca._log_fp = io.StringIO()
 
