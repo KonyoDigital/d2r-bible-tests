@@ -5923,7 +5923,18 @@ GATES = [
              "is a button whose rendered handler opens HIS characters (the Characters room's builds, MAIN first, and the "
              "MAIN he named); a bind writes ONLY that locker's boundChar, Unbind removes it, a rename follows, a deleted "
              "build is UNKNOWN, an empty store says how to add one, an unreadable one is UNKNOWN; Esc closes the list "
-             "first. 7 cases, 20 red-proofs"),
+             "first. #41 rank 11 (REG-1525): a runeword or unique whose base is not on record reads 'base UNKNOWN (not "
+             "on record: <code>)' in the Base control and in the hover box's base line - never '<code> (0 sockets "
+             "max)' and never a silent gap. 8 cases, 23 red-proofs"),
+    Gate("test_the_characters_room_has_a_doctor_row",
+         [sys.executable, os.path.join(HERE, "test_the_characters_room_has_a_doctor_row.py")], 60,
+         why="#41 ranks 12 + 13 (REG-1526, 2026-09-29) - the 👤 Characters room's heart was one proven law and nothing "
+             "at runtime. The doctor row 'characters room' reads d2r_charBuilds, d2r_cbMain and d2r_mainCharacter off "
+             "the shared board read: an unparseable store is MISSING saying UNKNOWN (never 0 builds), a dangling ★ MAIN "
+             "is MISSING naming the id, no console / a refusal / no stores are UNKNOWN; and rank 13 - ★ MAIN (the "
+             "room's) and the vault's MAIN (what the lock follows) naming different characters is MISSING naming both, "
+             "because marking a build ★ MAIN locks no gear and nothing said so - the button and the help copy now do. "
+             "Registered in CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness). 9 cases, 7 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "

@@ -2754,6 +2754,13 @@ NO_JOINT_YET = {
     'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
                           'would be the game listing its own item database, which it never writes anywhere this '
                           'console can read.',
+    # #41 rank 12 (2026-09-29) — NO_JOINT_YET, not COVERED_BY: his hand is the only witness.
+    'characters room': 'the row reads d2r_charBuilds and d2r_cbMain, which the 👤 room and the planner write from his '
+                       'own presses and nothing else — no reader, reel or ledger names a build, so there is no second '
+                       'source to pair them with. The one other fact it reads, the vault\'s MAIN (d2r_mainCharacter), '
+                       'is his declaration in the lock panel: two declarations by the same hand are one witness, not '
+                       'a joint. A real second source would be a .d2s of the build he says is his, read by the save '
+                       'reader; nothing files a build from a save yet.',
     # #246 W7 — the row already JOINS two sides (the board's map and witness store against the console's
     # gated stash ledger and MAIN ledger), but no registered builder returns that pair as a joint yet.
     'vault provenance': 'the row compares the board mule map and its d2r_vaultProv witness rows against the '

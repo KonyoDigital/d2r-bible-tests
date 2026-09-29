@@ -241,6 +241,56 @@ class TheEditPanelShowsTheBase(unittest.TestCase):
         self.assertGreaterEqual(_run_in(out["lowTip"], [r for r in _core(low) if r[0] != "d2t-unk"]), 0,
                                 "the low-quality base's Edit panel is not its hover box")
 
+    def test_a_base_not_on_record_is_unknown_never_zero_sockets(self):
+        """#41 rank 11 (2026-09-29) — a runeword whose stored base the database does not carry read "zzz (0 sockets
+        max) ▸" in the Base control (_cbMaxSock answers 0 for an unknown code, printed as if measured), and the hover
+        box printed NO base line at all. Both now say UNKNOWN with the code, and no number. Measured on the shipped
+        code before the fix: the control text was exactly 'zzz (0 sockets max) ▸' and the box had no base row."""
+        out = _edit(r"""
+          mk('Sorceress', 90); var crow = baseCode('Crowbill'), botd = null, shako = null;
+          d.it.forEach(function(x){ if (!botd && x[1] === 'Breath of the Dying') botd = x[0]; if (!shako && x[1] === 'Harlequin Crest') shako = x[0]; });
+          function ctl(){ var h = MODAL._html, i = h.indexOf('id="cb-base"'); if (i < 0) i = h.indexOf('aria-label="base (fixed)"'); if (i < 0) return null;
+            var s = h.lastIndexOf('<', i), tag = h.slice(s, h.indexOf('>', i) + 1), isBtn = tag.indexOf('<button') === 0;
+            var e = h.indexOf(isBtn ? '</button>' : '</select>', i);
+            return { text: txt(h.slice(h.indexOf('>', i) + 1, e)), aria: unesc((/aria-label="([^"]*)"/.exec(tag) || [])[1] || ''), tag: isBtn ? 'button' : 'select' }; }
+          function unesc(t){ return String(t).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
+          function rebase(code){ var b = JSON.parse(RAW['d2r_charBuilds']); var k = Object.keys(b)[0]; b[k].sets[0].slots.rarm.base = code; RAW['d2r_charBuilds'] = JSON.stringify(b);
+            window._cbClosePick(); window._cbOpenPick('slot', 'rarm'); if (window._cbState().pick.tab !== 'edit') window._cbPickTab('edit'); }
+          window._cbOpenPick('slot', 'rarm'); window._cbChoose(botd); window._cbPickBase(crow);
+          if (window._cbState().pick.tab !== 'edit') window._cbPickTab('edit');
+          OUT.known = ctl(); OUT.knownTip = tipRows('rarm');
+          rebase('zzz'); OUT.unk = ctl(); OUT.unkTip = tipRows('rarm');
+          rebase(null); OUT.none = ctl();
+          /* a unique on a base not on record: the fixed select says the same */
+          window._cbClosePick(); window._cbOpenPick('slot', 'head'); window._cbChoose(shako);
+          if (window._cbState().pick.tab !== 'edit') window._cbPickTab('edit');
+          var b2 = JSON.parse(RAW['d2r_charBuilds']); var k2 = Object.keys(b2)[0]; b2[k2].sets[0].slots.head.base = 'zzz'; RAW['d2r_charBuilds'] = JSON.stringify(b2);
+          window._cbClosePick(); window._cbOpenPick('slot', 'head'); if (window._cbState().pick.tab !== 'edit') window._cbPickTab('edit');
+          OUT.uniq = ctl();
+        """)
+        known = out["known"]
+        self.assertIsNotNone(known, "BASELINE: the runeword's Edit panel has no Base control")
+        self.assertEqual((known["tag"], known["text"]), ("button", "Crowbill (6 sockets max) ▸"),
+                         "BASELINE: with the base on record the control must read its name and ceiling: %s" % known)
+        self.assertFalse([r for r in out["knownTip"] if r[0] == "d2t-unk" and "base UNKNOWN" in r[1]],
+                         "BASELINE: a base on record was said UNKNOWN in the hover box")
+        unk = out["unk"]
+        self.assertIsNotNone(unk, "the Edit panel lost its Base control over an unrecorded base")
+        self.assertEqual(unk["text"], 'base UNKNOWN (not on record: zzz) ▸',
+                         "an unrecorded base must read UNKNOWN with its code, no number: %r" % unk["text"])
+        for bad in ("sockets max", "(0", "zzz ("):
+            self.assertNotIn(bad, unk["text"], "the control still prints a count for a base nobody measured: %r" % unk["text"])
+        self.assertIn("base: base UNKNOWN (not on record: zzz)", unk["aria"], "the control's aria-label still says a number: %r" % unk["aria"])
+        self.assertNotIn("sockets max", unk["aria"])
+        unk_rows = [r for r in out["unkTip"] if r[0] == "d2t-unk" and r[1] == "base UNKNOWN (not on record: zzz)"]
+        self.assertEqual(len(unk_rows), 1, "the hover box says nothing about the unrecorded base: %s" % out["unkTip"])
+        self.assertEqual(out["unkTip"][0][1], "Breath of the Dying", "the name still leads the box")
+        self.assertEqual(out["unkTip"][1], unk_rows[0], "the UNKNOWN base is not in the base line's own place (under the name)")
+        self.assertEqual(out["none"]["text"], 'base UNKNOWN (not on record) ▸', "a runeword with no base at all: %r" % out["none"])
+        uniq = out["uniq"]
+        self.assertEqual((uniq["tag"], uniq["text"]), ("select", "base UNKNOWN (not on record: zzz)"),
+                         "a unique's fixed base control prints the bare code over an unrecorded base: %s" % uniq)
+
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class TheLockersCharacterPickerOpens(unittest.TestCase):
@@ -499,6 +549,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (e.key !== 'Escape' || !openMuleId || !_mpBindAt || _mpPickAt) return;\n",
         "replace": "    return;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 11 - the Base control prints the bare code and '(0 sockets max)' for a base not on record",
+        "file": "bible.html",
+        "find": "                       : 'base UNKNOWN (not on record' + (e.base ? ': ' + esc(String(e.base)) : '') + ')';\n",
+        "replace": "                       : esc(String(e.base == null ? '' : e.base)) + ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max)';\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 11 - the hover box prints no base line at all over a base not on record",
+        "file": "bible.html",
+        "find": "    if (!b && !_cbIsBase(it)){ out.base = 'base UNKNOWN (not on record' + (e.base ? ': ' + String(e.base) : '') + ')'; out.baseUnknown = true; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 11 - the box's UNKNOWN base line wears the grey base class, not the UNKNOWN class",
+        "file": "bible.html",
+        "find": "(entry.baseUnknown ? 'd2t-unk' : (entry.baseGrey ? 'd2t-g' : qc))",
+        "replace": "(entry.baseGrey ? 'd2t-g' : qc)",
         "matches": 1,
     },
 ]

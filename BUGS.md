@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1526 - THE CHARACTERS ROOM HAD NO DOCTOR ROW, AND ITS TWO MAINS COULD NAME DIFFERENT CHARACTERS IN SILENCE (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, ranks 12 + 13): the 👤 Characters tab's heart was ONE proven law and nothing
+at runtime - a grep of console_doctor.py, corroborate.py and control_app.py for charBuild / cbMain found only the
+unrelated CB_DB row - while he has a real build in the store (backup 2026-09-29 01:10). An unparseable `d2r_charBuilds`
+(the room reads UNKNOWN and refuses every write), a `d2r_cbMain` pointing at a build that is gone (no card marked, the
+planner leads with none) and ★ MAIN (d2r_cbMain) naming a different character from the vault's MAIN (d2r_mainCharacter,
+what the #246 lock follows) all raised nothing. The name collision was never stated: marking a build ★ MAIN looked like
+it would lock its gear, and it locks none.
+**Fix:** `console_doctor.characters_room_verdict` (pure) + the row `characters room`, off the SHARED board read (the
+same fullStores the vault rows read, one read per tick): an absent / empty store is MEASURED empty (OK, "0 builds -
+the store is empty, not unread"), an unparseable one or a list is MISSING naming d2r_charBuilds and UNKNOWN (never
+"0 builds"), a dangling ★ MAIN is MISSING naming the id and the denominator, two MAINs naming different characters is
+MISSING naming both and the door (the Vault's lock panel), a vault MAIN with no name yet is said, never red; no console,
+a refused read or a read with no stores is UNKNOWN, not 0. Registered in CHECKS, declared in WATCHES, explained in
+NO_JOINT_YET ("his hand is the only witness"). Rank 13 on the page: the ★ Set as MAIN button carries the sentence as its
+title ("It does not lock gear: the Vault's lock follows the MAIN named in its lock panel") and the empty room's help
+copy says it too. ⚠ What the row cannot see: whether #tab-chars is on the rendered board (stores, not DOM).
+**Law:** new `test_the_characters_room_has_a_doctor_row` (9 cases): every verdict branch over fixtures, the live row
+with `_board_read` stubbed three ways, the row's registration in CHECKS / WATCHES / NO_JOINT_YET through `coverage()`,
+and the rendered button through the room's own harness. **Red-proofs, each applied, run RED, restored byte-for-byte:**
+an unparseable store reading as 0 builds; a dangling MAIN reading as none set; the two-MAIN clause dropped; the row
+dropped from CHECKS; the live row answering 0 builds with no console; the NO_JOINT_YET line renamed; the button's
+sentence removed - 7 of 7 RED.
+### REG-1525 - A RUNEWORD ON A BASE NOT ON RECORD READ "(0 SOCKETS MAX)" WITH THE BARE CODE, AND THE HOVER BOX SAID NOTHING (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 11), reproduced on the shipped code in node: a runeword whose stored
+base code the CB_DB block does not carry rendered its Base control as `zzz (0 sockets max) ▸` - `_cbMaxSock` answers 0
+for an unknown code and `_cbEditHtml` printed that 0 as if measured, beside the bare code - and the hover box printed
+NO base line at all (`_cbShown` fell back to the item's own name for its base, which equals the name, so d2Tip's base
+line was skipped). A grep of tv/test_*.py for 'sockets max' found 0 files: nothing drove the control.
+**Fix:** one `baseSay` in `_cbEditHtml` - the base's name and its ceiling when it is on record, `base UNKNOWN (not on
+record: <code>)` with no number otherwise - used by the runeword's Base button (text and aria-label) and by the
+unique / set item's fixed select; `_cbTipEntry` marks an unrecorded base `baseUnknown` and says it in the base line's
+own place, and d2Tip prints that line in the UNKNOWN class. [[unknown-stays-unknown]]
+**Law:** `test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character` gains
+`test_a_base_not_on_record_is_unknown_never_zero_sockets`: a BASELINE (Crowbill on record reads "Crowbill (6 sockets
+max) ▸", no UNKNOWN in the box), then the same runeword re-based to a code not on record (the control's text and
+aria-label, no 'sockets max', no '(0'; the box's UNKNOWN row directly under the name), a runeword with no base at all,
+and a unique on an unrecorded base (the fixed select). **Red-proofs, each applied, run RED, restored byte-for-byte:**
+the control printing the code and 0 again; the box's base line silent again; the UNKNOWN line in the grey class - 3 of 3.
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:
