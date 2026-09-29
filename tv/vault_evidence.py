@@ -781,6 +781,10 @@ def _tombstone_times(root):
                  os.path.join(os.path.dirname(os.path.realpath(root)), "reel_tombstones.json")]
     except Exception:
         cands = [os.path.join(root, "reel_tombstones.json")]
+    # ⚠ only a record inside the shelf's own tree: a fixture root must never be dated by his tombstones
+    # (the resolver answers HERE on an ImportError). [[feedback-fixtures-never-touch-live-data]]
+    home = os.path.dirname(os.path.realpath(root))
+    cands = [c for c in cands if c and os.path.realpath(c).startswith(home + os.sep)]
     for p in cands:
         if not p or not os.path.isfile(p):
             continue

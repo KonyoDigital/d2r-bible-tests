@@ -19168,10 +19168,13 @@ try {
       if (!cur.source && fresh.source){ cur.source = fresh.source; ch = true; }
       var lk = fresh.looks[0], looks = Array.isArray(cur.looks) ? cur.looks : [];
       if (lk && !looks.some(function(l){ return l && l.frame === lk.frame; })){
+        /* M-2 — the last look is the LATEST measured look on the receipt: an older replayed one never moves "last seen"
+           backwards (read BEFORE this look joins, so the look is weighed against what stood) */
+        var lkT = _ms(lk.at), latestT = _ownedSinceMs(cur);
         cur.looks = looks.concat([lk]).slice(-LOOKS_CAP);
         cur.seen = ((typeof cur.seen === 'number') ? cur.seen : looks.length) + 1;
-        /* M-2 — the last look is the LATEST look: an older replayed one never moves "last seen" backwards */
-        if (lk.at && (_ms(cur.lastAt) == null || _ms(lk.at) > _ms(cur.lastAt))) cur.lastAt = lk.at;
+        var newestT = (lkT != null && (latestT == null || lkT > latestT)) ? lkT : latestT;
+        if (newestT != null) cur.lastAt = _iso(newestT);
         ch = true;
       }
       if (ch){ all[nm] = cur; _write(all); }

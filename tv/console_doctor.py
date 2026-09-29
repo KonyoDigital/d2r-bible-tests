@@ -2600,6 +2600,9 @@ def _check_the_vault_reset(receipt=None, before=None, after=None):
     got = _ve.reset_receipt(receipt, before, after)
     if at:
         got = dict(got, why=("reset at %s (%s door) · " % (at, receipt.get("door") or "?")) + str(got.get("why") or ""))
+    if got.get("notApplicable"):
+        # Reset assignments never rebuilds: judged on the kept stores alone (vault_evidence.reset_receipt says so)
+        return (OK if got.get("ok") else MISSING), got.get("why") or "Reset assignments · kept stores unchanged"
     if got.get("rebuilt") is None or got.get("held") is None:
         return UNKNOWN, got.get("why") or "the reset receipt could not be read"
     if got.get("touched") or got.get("unknown"):

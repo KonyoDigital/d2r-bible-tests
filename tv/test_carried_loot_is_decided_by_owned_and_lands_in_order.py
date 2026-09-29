@@ -115,13 +115,16 @@ function frames(list){ return (list || []).map(function(d){ return d && d.frame;
 window._vaultResolveName = RESOLVE;
 var _reg0 = window.tvVaultRegister;
 window.tvVaultRegister = function(name, w){ return _reg0(window._vaultResolveName(name), w); };
+// the door's own answer to the last add (the stub register discards it), so a law can read the write's mode
+var _add0 = window._ownedAdd, LAST_ADD = null;
+window._ownedAdd = function(n, r){ LAST_ADD = _add0(n, r); return LAST_ADD; };
 // ══ M-1 — a standing receipt for a name he does NOT own never decides; a pick-up is a pick-up ══
 section('m1', function(){
   reset({ Shako: { kind: 'owned', source: 'ledger-restore', by: 'the un-seed undo', ts: T0 + 100, at: new Date(T0 + 100).toISOString(), looks: [] } }, []);
   var pick = LIVE({ name: 'Shako', loc: 'inventory', scene: 'inventory', frameId: 'm1p', sessionId: 's_m1', firstSeenTs: T0 + 100000 });
-  var after = row('Shako');
+  var after = row('Shako'), pickAdd = LAST_ADD;
   var drop = LIVE({ name: 'Shako', loc: 'floor', scene: 'loot', frameId: 'm1d', sessionId: 's_m1', firstSeenTs: T0 + 200000 });
-  OUT.m1 = { pick: pick.route, carried: after.carried === true, source: after.source || null, mode: (pick.register && pick.register.prov && pick.register.prov.mode) || null,
+  OUT.m1 = { pick: pick.route, carried: after.carried === true, source: after.source || null, mode: (pickAdd && pickAdd.prov && pickAdd.prov.mode) || null,
              past: (after.pastReceipts || []).map(function(r){ return r.source; }), drop: drop.route, owned: owned.has('Shako'),
              journal: journal().map(function(b){ return b.lane; }) };
   // the same receipt for a name he DOES own: still never re-marked (M-3 stands)
