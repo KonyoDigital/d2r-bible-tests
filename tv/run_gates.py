@@ -218,6 +218,14 @@ GATES = [
              "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
              "ephemeral port. 3 red-proofs. v3525 - and the SHELL block that calls it, run for real under "
              "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. 4 red-proofs"),
+    Gate("test_one_hunt_clock", [sys.executable,
+         os.path.join(HERE, "test_one_hunt_clock.py")], 60,
+         why="v3526 - 2026-09-30 his Cow King's Hooves read '~1 every 20030h' on its Sets run row, '~40h' on its "
+             "quick-win card, raw 1:157.5k on the hero and 84h/42h on the console, under the label 'Hell Hell "
+             "Bovines'. One engine now: pickFastest (shortest even-odds hour, kills-per-run aware; ties to the "
+             "higher rate) behind _pickSrc AND both console bridges, runHoursFor for every run row, one spelling "
+             "(_fmtHunt), the cow run named 'Cow Level'. Driven in node over code cut from bible.html and joined to "
+             "control_app._ev_rank. 10 cases, 6 red-proofs"),
     Gate("test_the_sets_ledger_keeps_its_history", [sys.executable,
          os.path.join(HERE, "test_the_sets_ledger_keeps_its_history.py")], 60,
          why="REG-1548 - 2026-09-29 his Mac store lost its one-shot flags, the Aug-21 set repair re-ran and took 16 "

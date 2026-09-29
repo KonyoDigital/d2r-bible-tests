@@ -80,8 +80,10 @@ test.describe('v1740 — the ops queue and F·Uniques agree about the same item'
     expect(txt, 'no grail ops row rendered').toBeTruthy();
     // "~3.9h to find" — the item's own number, the one F·Uniques also prints
     expect(txt, 'the row does not state the item time-to-find: ' + txt).toMatch(/~[\d.]+\s*(h|m)\s*to find/);
-    // "this run yields ~1 missing unique every 33m" — the number the pick was made on
-    expect(txt, 'the row does not state the run rate: ' + txt).toMatch(/run yields .*every/);
+    // "this run finds one of your missing uniques in ~33m" — the run's own clock (v3526: the SAME even-odds
+    // hour every run row prints, where it once printed a per-kill mean interval, "~1 missing unique every 33m")
+    expect(txt, 'the row does not state the run\'s clock: ' + txt).toMatch(/run finds one of your missing uniques in ~[\d.]+\s*(h|m)/);
+    expect(txt, 'the per-kill mean interval is back: ' + txt).not.toMatch(/~1 missing unique every/);
     expect(txt, 'the row lost its remaining count: ' + txt).toMatch(/uniques left/);
   });
 
