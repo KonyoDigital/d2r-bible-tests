@@ -372,6 +372,25 @@ class AProofNeverRunsBesideHisGame(unittest.TestCase):
         for n in ("chrome.exe", "python.exe", "powershell.exe", "", None):
             self.assertFalse(SP.is_play_exe(n), "%r counted as playing" % (n,))
 
+    def test_a_corrupt_stand_aside_time_never_holds_the_lane_shut(self):
+        """The skeptic on fix24-selfprove: an unreadable lastStoodAsideAt re-armed the cooldown on EVERY tick."""
+        r = SP.decide(STALE, INSTALLED, None, 3.0, {"lastStoodAsideAt": "junk"}, 9e9, playing=False, free=8000)
+        self.assertTrue(r["start"], "a corrupt stand-aside time held the lane shut: %r" % r)
+
+    def test_a_live_prover_with_no_recorded_birth_is_left_alone_and_never_doubled(self):
+        """The skeptic on fix24-selfprove: a store from before REG-1511 holds a LIVE pid with no birth. It was booked as
+        ENDED (a failure, a 3 h backoff) and forgotten, so a second prover could start beside it."""
+        SP.save({"pid": os.getpid(), "startedFor": "abc", "startedAt": "x", "runs": 1}, self.path)
+        spawned = []
+        r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                    spawn_fn=lambda lp: spawned.append(lp) or 1, playing=False, free=8000, kill_fn=self.killed.append)
+        mem = json.load(io.open(self.path, encoding="utf-8"))
+        self.assertEqual("running-unverified", r["key"], r)
+        self.assertEqual([], spawned, "a second proof started beside one that is still alive")
+        self.assertEqual([], self.killed, "a pid whose identity cannot be checked was killed")
+        self.assertEqual(os.getpid(), mem.get("pid"), "the live prover was forgotten")
+        self.assertIsNone(mem.get("lastFailAt"), "a proof that is still running was booked as a failure")
+
     def _running(self):
         # REG-1511 — a running proof is THIS process, with its real birth: the lane only ever acts on a pid it can
         # prove is the one it started. A birth that cannot be read here would make every case below vacuous.
@@ -596,9 +615,7 @@ class TheStandAsideIsSafe(unittest.TestCase):
         self.assertEqual("stood-aside", self._tick(1600.0, playing=True)["key"])
         self.assertEqual("aside-cooldown", self._tick(2200.0, playing=False)["key"])
         self.assertEqual("start", self._tick(1600.0 + SP.STAND_ASIDE_COOLDOWN_S, playing=False)["key"])
-        # an unreadable stand-aside time waits, never races
-        d = SP.decide(STALE, INSTALLED, None, 3.0, {"lastStoodAsideAt": "junk"}, 9e9, playing=False, free=8000)
-        self.assertEqual("aside-cooldown", d["key"])
+        # (an unreadable stand-aside time: see test_a_corrupt_stand_aside_time_never_holds_the_lane_shut)
 
     # (6) a proof that already wrote its census is finishing, not in the way
     def test_a_proof_whose_census_is_current_finishes_and_is_booked_once(self):
@@ -711,6 +728,20 @@ def _int0(v):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 (skeptic on fix24-selfprove) - a corrupt stand-aside time re-arms the cooldown every tick, for ever",
+        "file": "tv/self_prove.py",
+        "find": "        last_aside = None\n",
+        "replace": "        last_aside = now_s\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (skeptic on fix24-selfprove) - a live prover with no recorded birth is booked as ended and a second one starts",
+        "file": "tv/self_prove.py",
+        "find": "    unverified = bool(pid) and not running and birth is None and pid_alive(pid)\n",
+        "replace": "    unverified = False\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 (REG-1502) - a proof starts beside his game when the CPU looks idle (a cloud client)",
         "file": "tv/self_prove.py",

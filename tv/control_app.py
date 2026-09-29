@@ -36883,7 +36883,7 @@ def doctor_payload():
     # REG-1511 — "aside-cooldown" is the wait after a stand-aside, so it is healthy too; "aside-survived" (a prover that
     # outlived its kill beside his game) is deliberately NOT, so it warns.
     _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
-                        "playing", "stood-aside", "low-memory", "aside-cooldown")
+                        "playing", "stood-aside", "running-unverified", "low-memory", "aside-cooldown")
               and not _sp_blind)   # REG-1502: deferring to his game is healthy
     checks.append(_chk(
         "self_prove", _sp_ok, "warn",

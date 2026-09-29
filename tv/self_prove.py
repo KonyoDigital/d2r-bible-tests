@@ -148,7 +148,7 @@ def playing_state():
         if IS_WIN:
             import tv_diablo as _tvd
             return _tvd._toolhelp_any(_play_proc_pred, with_pid=True)
-        out = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True, timeout=3)
+        out = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
         lines = [ln for ln in (out.stdout or "").splitlines() if ln.strip()]
         if out.returncode != 0 or not lines:
             return None                        # no listing is not "nobody is playing" [[zero-needs-a-denominator]]
@@ -212,6 +212,7 @@ def proc_birth(pid):
             finally:
                 k.CloseHandle(h)
         r = subprocess.run(["ps", "-o", "stat=,lstart=", "-p", str(pid)], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            timeout=3, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
         parts = (r.stdout or "").split()
         if r.returncode != 0 or len(parts) < 2 or parts[0].upper().startswith("Z"):
@@ -299,7 +300,7 @@ def free_mb():
         # REG-1511 — MEASURED on his Mac: no psutil, and Darwin has no SC_AVPHYS_PAGES, so this answered None on
         # every tick and an installed Mac could never start a proof ('mem-unknown' forever). vm_stat is always there.
         if sys.platform == "darwin":
-            r = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=3)
+            r = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
             v = vm_stat_free_mb(r.stdout) if r.returncode == 0 else None
             if v is not None:
                 return v
@@ -487,7 +488,7 @@ def census_state():
 def _git(*args, timeout=15):
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
     r = subprocess.run(["git"] + list(args), cwd=REPO, capture_output=True, text=True,
-                       timeout=timeout, env=env)
+                       encoding="utf-8", errors="replace", timeout=timeout, env=env)
     return r.returncode, (r.stdout or "").strip()
 
 
@@ -565,7 +566,10 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
                       if mem.get("lastStoodAsideAt") is not None else None)
     except (TypeError, ValueError):
-        last_aside = now_s                                 # an unreadable stand-aside time waits, never races
+        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
+        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
+        # gates above still stand between a proof and his game.
+        last_aside = None
     if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
         return {"start": False, "key": "aside-cooldown",
                 "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
@@ -723,6 +727,11 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         else:
             _STARTED.update(pid=None, birth=None)          # it ended (or its pid moved on) while the store had lost it
     running = pid if (pid and is_ours(pid, birth)) else None
+    # the skeptic on fix24-selfprove: a store from before REG-1511 (or a spawn whose birth could not be read) holds a
+    # LIVE pid with no birth. is_ours() rightly refuses to trust it with a kill, but the tick then booked it as ENDED -
+    # a failure and a 3 h backoff, the pid forgotten, and a second prover could start beside the first. UNVERIFIED:
+    # left alone, not booked, and no new proof until that pid is gone.
+    unverified = bool(pid) and not running and birth is None and pid_alive(pid)
     # REG-1511 — A PROOF WHOSE CENSUS IS ALREADY CURRENT FOR ITS GATES HAS DONE ITS WORK; it is only cleaning up
     # (heart2 removes its sandbox after the write). Booked as worked NOW, once, and left to finish for one tick: a
     # kill there cost the booking, and one landing inside heart2's plain census write left it truncated for good.
@@ -747,7 +756,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         else:
             mem.update(asideSurvived=_int(mem.get("asideSurvived")) + 1, lastAsideSurvivedAt=now_ms,
                        standingAside=aside_why, pid=running, pidBirth=birth)
-    if pid and not running:
+    if pid and not running and not unverified:
         # the proof we started has ended (or its pid now names another process): did it leave a current census?
         if mem.get("finishingSince"):
             pass                                           # booked as worked the tick its census went current
@@ -778,6 +787,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     elif finishing and d["key"] == "running":
         d = dict(d, why="the proof made the census current (booked as worked) and is finishing its cleanup "
                         "(pid %s)" % running)
+    if unverified:
+        d = {"start": False, "key": "running-unverified",
+             "why": "proof pid %s is alive but its start time was never recorded (a store from before REG-1511) - it "
+                    "is left to finish, never killed, and no second proof starts beside it" % pid}
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn
