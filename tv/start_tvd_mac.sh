@@ -248,8 +248,10 @@ fi
 # and this launch ends; stale, headless, or not answering -> replaced below, exactly as before.
 # TV_FORCE_PORT=1 still replaces it unconditionally.
 if [ -z "${TV_FORCE_PORT:-}" ]; then
-  _tvd_why=$(python3 "$HERE/launcher_decide.py" --port 17772 --from mac-launcher 2>/dev/null)
-  _tvd_rc=$?
+  # ⚠ `set -e` is on (line 4): a bare `x=$(cmd)` whose cmd exits 1 ENDS THE SCRIPT right here, so "replace it"
+  # (rc 1 - the console is down, stale or windowless) launched nothing and the Desktop icon did nothing (v3524).
+  _tvd_rc=0
+  _tvd_why=$(python3 "$HERE/launcher_decide.py" --port 17772 --from mac-launcher 2>/dev/null) || _tvd_rc=$?
   echo "$(date '+%Y-%m-%d %H:%M:%S') launcher: ${_tvd_why:-no answer from launcher_decide}" >>"$HERE/control_app.log" 2>/dev/null || true
   if [ "$_tvd_rc" -eq 0 ]; then
     exit 0
