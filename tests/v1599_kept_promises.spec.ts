@@ -134,15 +134,19 @@ test.describe('v1599 — the guards that guarded nothing', () => {
 
   test('the prompt cleans itself up — no orphaned overlay left in the DOM', async ({ page }) => {
     await board(page);
-    const left = await page.evaluate(async () => {
+    const r = await page.evaluate(async () => {
       const w: any = window;
       const p = w.uiPrompt('x', 'y');
       await new Promise((r) => setTimeout(r, 200));
+      // #80 (REG-1518) — the overlay must be SEEN before it may be found gone: on a uiPrompt that
+      // rendered nothing (or under another class) the old count of 0 passed for the wrong reason
+      const open = document.querySelectorAll('.ui-confirm-ov').length;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await p;
       await new Promise((r) => setTimeout(r, 400));
-      return document.querySelectorAll('.ui-confirm-ov').length;
+      return { open, left: document.querySelectorAll('.ui-confirm-ov').length };
     });
-    expect(left, 'a stacked invisible overlay eats clicks on the page beneath it').toBe(0);
+    expect(r.open, 'the prompt overlay never appeared, so "none left" measures nothing').toBe(1);
+    expect(r.left, 'a stacked invisible overlay eats clicks on the page beneath it').toBe(0);
   });
 });

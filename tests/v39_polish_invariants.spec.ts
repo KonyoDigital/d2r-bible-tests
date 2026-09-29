@@ -83,45 +83,76 @@ test.describe('v39 polish — sync pulse on MF change', () => {
   // The pulse function has a 600ms internal throttle and a 700ms class-removal cycle.
   // To eliminate races, we read the .syncing count synchronously *inside the same
   // page.evaluate that calls the pulse* — no round-trips that could land outside
-  // the 700ms window. We also explicitly clear _v39_pulseTimer before calling so
-  // any prior throttle gate is bypassed.
+  // the 700ms window.
+  //
+  // #80 (REG-1518) — THE THROTTLE IS A `let`, NOT A WINDOW PROPERTY. The old bypass wrote
+  // `w._v39_pulseTimer = null`, a property nobody reads: the binding the pulse checks is the
+  // script's top-level `let`, which only an indirect eval can reach from here. So the bypass is
+  // `(0, eval)(...)`, and the same read reports whether the throttle really is clear before the call.
   test('pulse function adds .syncing class to summary cells', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForFunction(() => typeof (window as any)._v39_pulseAllSyncedCells !== 'undefined', { timeout: 3000 });
-    const syncingCount = await page.evaluate(() => {
+    const r = await page.evaluate(() => {
       const w = window as any;
-      w._v39_pulseTimer = null; // bypass throttle
+      (0, eval)('_v39_pulseTimer = null;'); // bypass throttle — the real binding, see above
+      const clear = (0, eval)('_v39_pulseTimer') === null;
       w._v39_pulseAllSyncedCells();
-      return document.querySelectorAll('.syncing').length;
+      return { clear, syncingCount: document.querySelectorAll('.syncing').length };
     });
-    expect(syncingCount).toBeGreaterThan(0);
+    expect(r.clear, 'premise: the throttle must be clear before the call').toBe(true);
+    expect(r.syncingCount).toBeGreaterThan(0);
   });
 
   test('.syncing class is removed after pulse window (~700ms)', async ({ page }) => {
+    // #80 (REG-1518) — the old shape (pulse, sleep 1100ms, expect 0) could never fail: a pulse that
+    // early-returns on its throttle, or finds no summary cell, ALSO leaves 0. So this seeds one synced
+    // cell the way the page defines them — a `.stat-value`, one of _v39_pulseAllSyncedCells' own
+    // targets — and requires the class ON (read synchronously, in the evaluate that pulsed) before it
+    // may find it OFF.
     await page.goto(BIBLE);
     await page.waitForFunction(() => typeof (window as any)._v39_pulseAllSyncedCells !== 'undefined', { timeout: 3000 });
-    await page.evaluate(() => {
+    const during = await page.evaluate(() => {
       const w = window as any;
-      w._v39_pulseTimer = null;
+      const seed = document.createElement('span');
+      seed.className = 'stat-value';
+      seed.id = 'v39-seeded-synced-cell';
+      seed.textContent = '0';
+      document.body.appendChild(seed);
+      (0, eval)('_v39_pulseTimer = null;'); // bypass throttle — the real binding, see above
+      const clear = (0, eval)('_v39_pulseTimer') === null;
       w._v39_pulseAllSyncedCells();
+      return {
+        clear,
+        seeded: seed.classList.contains('syncing'),
+        total: document.querySelectorAll('.syncing').length,
+      };
     });
+    expect(during.clear, 'premise: the throttle must be clear before the call').toBe(true);
+    expect(during.seeded, 'the seeded synced cell never received .syncing — the pulse did not fire, so a later 0 would prove nothing').toBe(true);
+    expect(during.total, 'no cell carries .syncing right after the pulse — it never fired, so a later 0 proves nothing').toBeGreaterThan(0);
     await page.waitForTimeout(1100);
-    const syncingAfter = await page.locator('.syncing').count();
-    expect(syncingAfter).toBe(0);
+    const after = await page.evaluate(() => ({
+      seeded: document.getElementById('v39-seeded-synced-cell')!.classList.contains('syncing'),
+      total: document.querySelectorAll('.syncing').length,
+    }));
+    expect(after.seeded, 'the seeded cell still carries .syncing after the pulse window').toBe(false);
+    expect(after.total).toBe(0);
   });
 
   test('pulse hits summary-class cells only (not every droptable td)', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForFunction(() => typeof (window as any)._v39_pulseAllSyncedCells !== 'undefined', { timeout: 3000 });
-    const syncingCount = await page.evaluate(() => {
+    const r = await page.evaluate(() => {
       const w = window as any;
-      w._v39_pulseTimer = null;
+      (0, eval)('_v39_pulseTimer = null;'); // bypass throttle — the real binding, see above
+      const clear = (0, eval)('_v39_pulseTimer') === null;
       w._v39_pulseAllSyncedCells();
-      return document.querySelectorAll('.syncing').length;
+      return { clear, syncingCount: document.querySelectorAll('.syncing').length };
     });
+    expect(r.clear, 'premise: the throttle must be clear before the call').toBe(true);
     // Total .syncing should be small (~60 summary cells), never the 19k droptable cell count
-    expect(syncingCount).toBeGreaterThan(0);
-    expect(syncingCount).toBeLessThan(500);
+    expect(r.syncingCount).toBeGreaterThan(0);
+    expect(r.syncingCount).toBeLessThan(500);
   });
 });
 
