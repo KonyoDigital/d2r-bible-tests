@@ -214,7 +214,9 @@ GATES = [
              "self-arming lock stayed shut: the ALT held 76 reels at EMPTY and 25 at PRINTER since 09-27. The lock "
              "now uses msvcrt there (past the holder's text, so a refusal can still name who holds the tree); an AST "
              "sweep refuses any bare top-level import of a Unix-only module in tv/. Child python with fcntl absent. "
-             "2 red-proofs"),
+             "REG-1448: heart2 brought PROOF_NEEDS across with `cp -c` (no cp on Windows) so no ALT sandbox had "
+             "`.git` and eye_declares_reach read BLIND; off the Mac `.git` is now a `git clone --shared` (borrowed, "
+             "never written, never 1.8 GB copied). 4 red-proofs"),
     Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
          os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
          why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "

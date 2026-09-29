@@ -132,6 +132,64 @@ class TheWindowsLockLeavesTheHolderReadable(unittest.TestCase):
         self.assertIn("pid 4242", why, "the refusal did not name who holds the tree: %r" % why)
 
 
+class TheSandboxGetsItsNeedsWithoutCp(unittest.TestCase):
+    """REG-1448 - heart2 brought PROOF_NEEDS across with `cp -c -R`, which does not exist on Windows, so no
+    sandbox there carried `.git` and `test_eye_declares_reach` read BLIND on the ALT. Driven OFF the Mac
+    (sys.platform patched) on a real temporary repository."""
+
+    def _git(self, cwd, *a):
+        return subprocess.run(["git"] + list(a), cwd=cwd, capture_output=True, text=True, timeout=60)
+
+    def setUp(self):
+        import heart2
+        self.h2 = heart2
+        self.root = tempfile.mkdtemp(prefix="bring_across_")
+        self.repo = os.path.join(self.root, "repo")
+        os.makedirs(self.repo)
+        self._git(self.repo, "init", "-q")
+        for k, v in (("user.email", "law@x"), ("user.name", "law")):
+            self._git(self.repo, "config", k, v)
+        io.open(os.path.join(self.repo, "a.txt"), "w").write("a\n")
+        self._git(self.repo, "add", "a.txt")
+        self._git(self.repo, "commit", "-qm", "v9999 the law's commit")
+        self.head = self._git(self.repo, "rev-parse", "HEAD").stdout.strip()
+        self.box = os.path.join(self.root, "box")
+        os.makedirs(self.box)
+        self.said = []
+
+    def _bring(self, src, dst, need):
+        from unittest import mock
+        with mock.patch.object(self.h2.sys, "platform", "win32"):
+            self.h2._bring_across(src, dst, need, lambda *a, **k: self.said.append(" ".join(map(str, a))))
+
+    def test_the_git_history_arrives_and_the_real_repo_cannot_be_written(self):
+        self._bring(os.path.join(self.repo, ".git"), os.path.join(self.box, ".git"), "../.git")
+        log = self._git(self.box, "log", "--format=%s").stdout
+        self.assertIn("v9999 the law's commit", log, "the sandbox has no git history off the Mac: %r %r"
+                      % (log, self.said))
+        self.assertIn("a.txt", self._git(self.box, "ls-files").stdout, "the sandbox index is empty - "
+                      "`git ls-files` laws would read nothing")
+        self.assertTrue(os.path.isfile(os.path.join(self.box, ".git", "objects", "info", "alternates")),
+                        "the history was COPIED, not borrowed - on his repo that is 1.8 GB per sandbox")
+        io.open(os.path.join(self.box, "b.txt"), "w").write("b\n")
+        self._git(self.box, "add", "b.txt")
+        self._git(self.box, "-c", "user.email=l@x", "-c", "user.name=l", "commit", "-qm", "sandbox")
+        self.assertEqual(self._git(self.repo, "rev-parse", "HEAD").stdout.strip(), self.head,
+                         "a commit INSIDE the sandbox moved the real repository's HEAD")
+        self.assertNotIn("b.txt", self._git(self.repo, "ls-files").stdout, "the sandbox wrote the real index")
+
+    def test_a_file_is_copied_and_an_oversize_need_is_refused(self):
+        src = os.path.join(self.root, "spec.ts")
+        io.open(src, "w").write("x" * 10)
+        self._bring(src, os.path.join(self.box, "spec.ts"), "../tests/spec.ts")
+        self.assertTrue(os.path.isfile(os.path.join(self.box, "spec.ts")), "a small need was not copied")
+        from unittest import mock
+        with mock.patch.object(self.h2, "_NEED_COPY_MAX_FILE", 5):
+            self._bring(src, os.path.join(self.box, "big.ts"), "big")
+        self.assertFalse(os.path.exists(os.path.join(self.box, "big.ts")), "an oversize need was copied")
+        self.assertTrue(any("too large" in x for x in self.said), "the refusal said nothing")
+
+
 class NoModuleImportsAUnixOnlyModuleBare(unittest.TestCase):
 
     def test_every_top_level_unix_only_import_is_guarded(self):
@@ -158,6 +216,20 @@ class NoModuleImportsAUnixOnlyModuleBare(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - off the Mac the sandbox gets no git history again (REG-1448): BLIND on every Windows PC",
+        "file": "tv/heart2.py",
+        "find": "    if os.path.basename(os.path.normpath(src)) == \".git\" and os.path.isdir(src):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - the sandbox's git index is left empty, so ls-files laws read nothing",
+        "file": "tv/heart2.py",
+        "find": "        subprocess.run([\"git\", \"read-tree\", \"HEAD\"], cwd=os.path.dirname(dst),\n",
+        "replace": "        subprocess.run([\"git\", \"--version\"], cwd=os.path.dirname(dst),\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - run_gates imports fcntl bare again: no Windows PC can load its gates or prove itself",
         "file": "tv/run_gates.py",

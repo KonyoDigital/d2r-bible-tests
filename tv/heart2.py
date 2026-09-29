@@ -812,6 +812,69 @@ def _pid_alive(pid):
     return True
 
 
+#: Off the Mac there is no free clone, so a need is COPIED - and only below these sizes. Above them the gate
+#: stays UNPROVABLE, which is honest, rather than a prover filling his disk one sandbox at a time.
+_NEED_COPY_MAX_FILE = 50 * 1024 * 1024
+_NEED_COPY_MAX_TREE = 200 * 1024 * 1024
+
+
+def _bring_across(src, dst, need, say):
+    """Place one PROOF_NEEDS item in a sandbox. Never escapes the sandbox, never fills the disk.
+
+    ⚠⚠ #50 (REG-1448) — THIS WAS `cp -c -R` ON EVERY PLATFORM, AND `cp` DOES NOT EXIST ON WINDOWS. Every
+    need raised FileNotFoundError there, so no sandbox on the ALT carried `.git` or the spec file, and the
+    laws that read them SKIPPED through their own sabotage - `test_eye_declares_reach` read BLIND on the
+    ALT while it goes red on the Mac. Now that every PC proves itself (REG-1447), that is a lock held shut
+    on every Windows PC by the prover's own plumbing.
+    The Mac keeps the APFS clone, byte for byte. Elsewhere: `.git` (1.8 GB on his Mac) becomes a
+    `git clone --shared` - the objects are BORROWED read-only through alternates, the refs and the index
+    are the sandbox's own, so nothing a law runs in there can write into the real repository; its index
+    is rebuilt from HEAD, which on an installed console is the working tree. Anything else is copied only
+    under the size caps above.
+    """
+    if sys.platform == "darwin":
+        _rc = subprocess.run(["cp", "-c", "-R", src, dst],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
+        if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
+            say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
+                "UNPROVABLE rather than risking the disk" % (need, _rc))
+        return
+    if os.path.basename(os.path.normpath(src)) == ".git" and os.path.isdir(src):
+        tmp = dst + ".shared"
+        env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+        r = subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout",
+                            os.path.dirname(os.path.normpath(src)), tmp],
+                           capture_output=True, text=True, timeout=300, env=env)
+        if r.returncode != 0:
+            shutil.rmtree(tmp, ignore_errors=True)
+            say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
+                "that read it stay UNPROVABLE" % r.returncode)
+            return
+        os.replace(os.path.join(tmp, ".git"), dst)
+        shutil.rmtree(tmp, ignore_errors=True)
+        subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
+                       capture_output=True, text=True, timeout=120, env=env)
+        return
+    if os.path.isfile(src):
+        if os.path.getsize(src) > _NEED_COPY_MAX_FILE:
+            say("  PROOF_NEEDS %r is too large to copy without a clone — the gate stays UNPROVABLE" % need)
+            return
+        shutil.copy2(src, dst)
+        return
+    total = 0
+    for _r, _ds, _fs in os.walk(src):
+        for _f in _fs:
+            try:
+                total += os.path.getsize(os.path.join(_r, _f))
+            except OSError:
+                pass
+            if total > _NEED_COPY_MAX_TREE:
+                say("  PROOF_NEEDS %r is over %d MB — not copied without a clone; the gate stays UNPROVABLE"
+                    % (need, _NEED_COPY_MAX_TREE // (1024 * 1024)))
+                return
+    shutil.copytree(src, dst)
+
+
 def _track_sandbox(root):
     """Register a sandbox the moment it exists, and stamp it with this process as its owner."""
     _SANDBOXES.add(root)
@@ -983,11 +1046,7 @@ def make_sandbox(say=print):
             continue
         try:
             os.makedirs(os.path.dirname(_d), exist_ok=True)
-            _rc = subprocess.run(["cp", "-c", "-R", _s, _d],
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
-            if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
-                say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
-                    "UNPROVABLE rather than risking the disk" % (_need, _rc))
+            _bring_across(_s, _d, _need, say)
         except Exception as _e:
             say("  PROOF_NEEDS %r could not be brought across: %s" % (_need, type(_e).__name__))
     for _root_file in ("bible.html", "visual_lock_invariant.py"):

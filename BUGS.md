@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1448 - THE PROVER COULD NOT HAND ITS SANDBOX ANYTHING ON WINDOWS, SO LAWS SKIPPED INTO "BLIND" (2026-09-29)
+
+**Found** by the full Windows inventory on the ALT: `PROOF_NEEDS '../.git' could not be brought across:
+FileNotFoundError` for every need, and `test_eye_declares_reach` BLIND - *"ALL 4 law(s) SKIPPED in the
+sandbox"*. heart2 placed needs with `cp -c -R` (an APFS clone) on every platform, and Windows has no `cp`.
+On his Mac the `.git` other gates ask for is cloned into every sandbox for free, which is why the same law
+goes red there.
+
+**Fix:** `heart2._bring_across()`: the Mac keeps `cp -c`; elsewhere `.git` becomes a `git clone --shared`
+(objects borrowed read-only through alternates, refs + index the sandbox's own, index rebuilt from HEAD),
+and other needs are copied only under 50 MB per file / 200 MB per tree - above that the gate stays
+UNPROVABLE rather than filling the disk.
+
+**Law:** two cases in `tv/test_the_gates_load_on_windows.py`, driven off the Mac on a real temp repo:
+history and index arrive, the history is BORROWED (alternates) not copied, a commit inside the sandbox
+never moves the real HEAD or index, an oversize need is refused. 2 more red-proofs, seen RED.
+
 ### REG-1447 - NO PC BUT HIS MAC HAD EVER PROVED ITS INSTRUMENTS, SO EVERY LOCK ELSEWHERE STAYED SHUT (2026-09-29)
 
 **Found** with REG-1445 on the ALT: `.heart2.json` absent, `may("reel.route")` = *"the heart has never run
