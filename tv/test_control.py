@@ -45818,7 +45818,10 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
     # old number can only mean the route's own entry, because the route was written before main's
     # entries existed; OUTSIDE them it is main's and is left alone. [[label-outlived-referent]]
     RENUMBERED = re.compile(r"REG-(\d+)\.\.(\d+) were filed as REG-(\d+)\.\.(\d+)")
-    ROUTE_KEPT = re.compile(r"other entries, REG-(\d+)\.\.(\d+), kept their numbers")
+    # the clause may name SEVERAL kept ranges ("REG-1380..1395 and REG-1464..1479") - a one-range pattern read the
+    # two-range note as no route at all, so REG-1479 was never graded and this law's red-proof went BLIND (v3524 push)
+    ROUTE_KEPT = re.compile(r"other entries, ((?:REG-\d+\.\.\d+(?:,? and |, )?)+), kept their numbers")
+    ROUTE_RANGE = re.compile(r"REG-(\d+)\.\.(\d+)")
 
     def _stale_route_citations(self, src):
         """-> (routes, stale, unseen): each renumber note's (old, route), every route entry citing an
@@ -45833,7 +45836,9 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
             new = set(range(int(m.group(1)), int(m.group(2)) + 1))
             old = set(range(int(m.group(3)), int(m.group(4)) + 1))
             k = self.ROUTE_KEPT.search(note)
-            route = new | (set(range(int(k.group(1)), int(k.group(2)) + 1)) if k else set())
+            route = set(new)
+            for rr in (self.ROUTE_RANGE.finditer(k.group(1)) if k else ()):
+                route |= set(range(int(rr.group(1)), int(rr.group(2)) + 1))
             routes.append((sorted(old), sorted(route)))
             # every entry of the route, bounded by the NEXT heading of any level (never a window)
             graded = set()
