@@ -39,6 +39,18 @@ test_every_mule_filing_carries_its_witness, and no map write outside the door ex
 ⚠ ITS OWN BROWSER, ON ITS OWN PORT: a free port unless TV_RENDER_PORT is already exported; the Chrome it starts
 is killed by the handle it holds and its temp profile goes with it. NO CHROME AT ALL = a declared skip (77),
 never a pass; Chrome installed and refusing to start is a FAILURE.
+
+⚠ WHAT ITS PROOF COSTS, AND WHY IT ONCE READ UNPROVEN (#41 heart audit rank 26, REG-1563). The heart census of
+2026-09-29 01:04 carried this gate with a verdict stamp of 09-27 01:02 and no place in provedGates or blind: a
+non-PROVEN verdict that was not BLIND, so UNPROVABLE - and heart2 persists only PROVEN and BLIND names, so the REASON
+of an UNPROVABLE lives in that run's stdout alone (the pre-push hook deletes its prove log on both exits). Re-proved
+ALONE on 2026-09-30 02:15 (python3 tv/heart2.py --prove test_found_ever_never_files_to_a_mule, one lane, its own
+sandbox): PROVEN 6/6 in 178 s wall - 12 runs of this file (a clean and a tampered run per proof), each starting its
+own headless Chrome, ~15 s a run against the 300 s deadline PER RUN, so alone on an idle machine it cannot time out.
+The likeliest cause of the 09-27 verdict, on the record and labelled inference: this file reaches the renderer only
+through render_check (REG-1442 names it among the 15 gates the push-time one-browser lock MISSED until 2026-09-29),
+so at push time it could run beside a width law's Chrome, where a clean run that cannot start its browser is
+"ALREADY RED untampered" = UNPROVABLE. The 09-30 01:00 census carries it PROVEN (verdictAt 09-29 22:59, after that fix).
 RED_PROOF below.
 """
 import io
