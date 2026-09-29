@@ -22,8 +22,14 @@ THE LAWS
     synthetic frames still flow.
   · the console: a TV_STUB console's live agent gets TV_CAPTURE=off (unless the opt-in); on Windows a
     stub agent's capture half (capture_win.ps1) is never spawned, and its lamp reads OFF, not a death.
+  · #63 follow-up (the review of #63): the TCC ask (screen_recording_ok -> CGRequestScreenCaptureAccess),
+    the System Settings deep-link and the game gate's window/process walk are screen doors too. A stub
+    agent AND a TV_CAPTURE=off agent (the one a stub console hands to /api/on) call none of them - at
+    the boot preflight, in the capture-fail branch, or in the game gate. Driven on real agent processes,
+    and in-process with the platform handed in so the boot ask is a law off a Mac as well.
 [[feedback-fixtures-never-touch-live-data]] [[the-unjoined-end]] [[unknown-stays-unknown]]
 """
+import contextlib
 import io
 import json
 import os
@@ -46,11 +52,19 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
 GRABBERS = ("capture_mac", "_quartz_grab_screen", "_quartz_grab_window", "_grab_full_screen_frame",
-            "_capture_window_to_file", "find_d2r_window_mac")
+            "_capture_window_to_file", "find_d2r_window_mac",
+            # #63 follow-up (the review of #63): the TCC ask and the System Settings deep-link are
+            # screen doors too, and so is the game gate's window/process walk
+            "screen_recording_ok", "open_screen_recording_settings", "_win_d2r_process_alive")
+
+# A capture-off agent's capture_mac IS the #236 door that refuses without touching a window, so it
+# runs for real; everything BEHIND it, and every other screen door, is recorded.
+OFF_GRABBERS = tuple(g for g in GRABBERS if g != "capture_mac")
 
 # The runner is the real agent (tv_diablo.main), with every screen reader swapped for a recorder.
 # `raise` mode: a call is a defect, so it is written down and then refused.
-# `fail` mode (the opt-in case): capture_mac answers False, the way a failed grab does.
+# `fail` mode (the opt-in case): capture_mac answers False, the way a failed grab does, and the
+# screen-recording ask (which the opt-in restores) answers "granted" without reaching the real TCC.
 _RUNNER = r'''
 import os, signal, sys
 TV = os.environ["LAW_TV"]
@@ -65,6 +79,8 @@ def _rec(name):
             fh.write(name + "\n")
         if MODE == "fail" and name == "capture_mac":
             return False
+        if MODE == "fail" and name == "screen_recording_ok":
+            return True        # the opt-in agent may ask; it is answered "granted", never the real TCC
         raise RuntimeError("law: a stub agent called %s" % name)
     return f
 
@@ -75,6 +91,10 @@ T._CAP_TARGET = {"mode": "window", "label": "law: a pinned window", "wid": 1}
 signal.signal(signal.SIGTERM, T._shutdown_handler)
 T.main()
 '''
+
+
+#: what a capture-off agent's capture-fail branch says instead of asking macOS for Screen Recording
+_OFF_SAID = "capture is OFF - this agent never reads the screen and never asks for Screen Recording"
 
 
 def _free_port():
@@ -88,7 +108,7 @@ def _free_port():
 class _Agent(object):
     """One real agent process in a sandbox of its own; always reaped by PID."""
 
-    def __init__(self, mode, real_capture=False):
+    def __init__(self, mode, real_capture=False, capture_off=False):
         self.dir = tempfile.mkdtemp(prefix="tvd-stubcap-")
         self.hist = os.path.join(self.dir, "hist")
         self.frames = os.path.join(self.dir, "frames")
@@ -105,10 +125,16 @@ class _Agent(object):
                    TV_CLAUDE_BIN="/bin/echo", TV_FILM="1", PYTHONUNBUFFERED="1",
                    LAW_TV=HERE, LAW_SENTINEL=self.sentinel, LAW_MODE=mode,
                    LAW_GRABBERS=",".join(GRABBERS))
-        for k in ("ANTHROPIC_API_KEY", "TV_STUB_REAL_CAPTURE", "TV_CAPTURE", "TV_STUB_MANIFEST"):
+        for k in ("ANTHROPIC_API_KEY", "TV_STUB_REAL_CAPTURE", "TV_CAPTURE", "TV_STUB_MANIFEST",
+                  "TV_NO_GAME_GUARD"):
             env.pop(k, None)
         if real_capture:
             env["TV_STUB_REAL_CAPTURE"] = "1"
+        if capture_off:
+            # the agent a TV_STUB console hands to /api/on: TV_STUB popped, TV_CAPTURE=off (REG-1424)
+            env.pop("TV_STUB", None)
+            env["TV_CAPTURE"] = "off"
+            env["LAW_GRABBERS"] = ",".join(OFF_GRABBERS)
         self.log = open(os.path.join(self.dir, "agent.log"), "wb")
         self.proc = subprocess.Popen([sys.executable, runner], env=env, cwd=self.dir,
                                      stdout=self.log, stderr=subprocess.STDOUT)
@@ -119,6 +145,11 @@ class _Agent(object):
                 return json.loads(r.read().decode("utf-8", "replace"))
         except Exception:
             return None
+
+    def said(self, text):
+        """Did the agent's brain log (/state events) carry this text? -> bool"""
+        return any(text in str(e.get("t") or "") for e in ((self.state() or {}).get("events") or [])
+                   if isinstance(e, dict))
 
     def grabbed(self):
         """Every recorded call. The sentinel is only ever CREATED by a call, so absent is 'none';
@@ -186,6 +217,31 @@ class AStubAgentNeverCallsAScreenReader(unittest.TestCase):
             a.stop()
             a.cleanup()
 
+    def test_a_CAPTURE_OFF_agent_never_asks_for_the_screen_or_walks_his_windows(self):
+        """#63 follow-up — the agent a TV_STUB console hands to /api/on (TV_STUB popped, TV_CAPTURE=off).
+
+        The review of #63 found it still calling screen_recording_ok() (CGRequestScreenCaptureAccess) at
+        the boot preflight and again in the capture-fail branch, which then opens System Settings, and
+        its game gate walking his windows. Its capture_mac runs for REAL (the #236 door refuses without
+        touching a window); every door behind it and every other screen door is record-and-raise.
+        """
+        a = _Agent("raise", capture_off=True)
+        try:
+            reached = a.wait_for(lambda: a.said(_OFF_SAID), 60)
+            if reached:
+                time.sleep(2.0)             # more laps past the branch: a repeat ask is caught too
+            live_ok = a.proc.poll() is None
+            a.stop(farewell_secs=15)
+            grabbed = a.grabbed()
+            self.assertEqual(grabbed, [], "a TV_CAPTURE=off agent reached for his screen: %s\n%s"
+                             % (grabbed, a.tail()))
+            self.assertTrue(live_ok, "the capture-off agent died: %s" % a.tail())
+            self.assertTrue(reached, "the capture-off agent never reached the capture-fail branch in "
+                            "60 s, so this case proved nothing about it\n%s" % a.tail())
+        finally:
+            a.stop(farewell_secs=10)
+            a.cleanup()
+
     def test_TV_STUB_REAL_CAPTURE_restores_the_old_order(self):
         """The opt-in: capture_mac is asked FIRST, and its failure still falls through to synthetic."""
         a = _Agent("fail", real_capture=True)
@@ -215,6 +271,72 @@ class AStubAgentIsDecidedByTwoVariables(unittest.TestCase):
                     if k not in env:
                         os.environ.pop(k, None)
                 self.assertIs(T._stub_capture_only(), want, env)
+
+
+class AnAgentThatNeverReadsTheScreenNeverAsksForIt(unittest.TestCase):
+    """#63 follow-up, IN-PROCESS: the boot ask runs only on a Mac, so the driven cases alone would make
+    this a law on his Mac and a skip on CI's Linux. The same code is driven here with the platform
+    handed in, and every door patched to RECORD (never the real Quartz)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tv_diablo as T
+        cls.T = T
+
+    def setUp(self):
+        self.assertFalse(self.T.WATCH_MODE, "premise: this process is not a Windows watch agent")
+        self.calls = []
+
+    @contextlib.contextmanager
+    def _env(self, **env):
+        """Exactly these capture variables set, the rest of the environment untouched; restored after."""
+        with mock.patch.dict(os.environ, env, clear=False):
+            for k in ("TV_STUB", "TV_STUB_REAL_CAPTURE", "TV_CAPTURE", "TV_NO_GAME_GUARD"):
+                if k not in env:
+                    os.environ.pop(k, None)
+            yield
+
+    def _rec(self, name, answer):
+        def f(*a, **k):
+            self.calls.append(name)
+            return answer
+        return f
+
+    def test_the_boot_preflight_never_asks_for_an_agent_that_never_reads(self):
+        T = self.T
+        with mock.patch.object(T, "screen_recording_ok", self._rec("screen_recording_ok", True)), \
+                mock.patch.object(T, "open_screen_recording_settings",
+                                  self._rec("open_screen_recording_settings", None)):
+            # premise: an agent that DOES read the screen asks, on a Mac - or this case is blind
+            with self._env():
+                self.assertIs(T._boot_screen_recording_preflight(platform="darwin"), True)
+            self.assertEqual(self.calls, ["screen_recording_ok"], "premise: his own agent asks once")
+            for env in ({"TV_STUB": "1"}, {"TV_CAPTURE": "off"}, {"TV_CAPTURE": "none"}):
+                del self.calls[:]
+                with self._env(**env):
+                    self.assertIsNone(T._boot_screen_recording_preflight(platform="darwin"), env)
+                self.assertEqual(self.calls, [], "%s asked macOS for Screen Recording" % env)
+
+    def test_the_game_gate_never_walks_his_windows_for_a_capture_off_agent(self):
+        T = self.T
+
+        class _R(object):
+            returncode, stdout, stderr = 1, b"", b""
+
+        def _run(*a, **k):
+            self.calls.append("subprocess.run %s" % (list(a[0])[:2] if a else "?"))
+            return _R()
+        with mock.patch.object(T, "find_d2r_window_mac", self._rec("find_d2r_window_mac", None)), \
+                mock.patch.object(T, "_win_d2r_process_alive", self._rec("_win_d2r_process_alive", False)), \
+                mock.patch.object(T, "_D2R_PROC_CACHE", None, create=True), \
+                mock.patch.object(T.subprocess, "run", _run):
+            with self._env():
+                self.assertIs(T._game_window_present(), False, "premise: no game and no window")
+            self.assertIn("find_d2r_window_mac", self.calls, "premise: his own agent walks the windows")
+            del self.calls[:]
+            with self._env(TV_CAPTURE="off"):
+                self.assertIs(T._game_window_present(), True)
+            self.assertEqual(self.calls, [], "a TV_CAPTURE=off agent walked his windows/processes")
 
 
 class TheConsoleKeepsItsAgentsOffTheScreen(unittest.TestCase):
@@ -323,6 +445,34 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    if _stub_never_films(env=env) and not _capture_off(env):",
         "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "#63 follow-up - the predicate both screen-recording asks consult: without it a stub or capture-off agent asks macOS (CGRequestScreenCaptureAccess) and opens System Settings",
+        "file": "tv_diablo.py",
+        "find": "    return not _stub_capture_only() and not _capture_is_off()\n",
+        "replace": "    return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "#63 follow-up - the BOOT preflight: a stub agent and a TV_CAPTURE=off agent asked for Screen Recording on every start",
+        "file": "tv_diablo.py",
+        "find": "    if not _may_ask_for_screen_recording():\n        ev(\"boot\",",
+        "replace": "    if False:\n        ev(\"boot\",",
+        "matches": 1,
+    },
+    {
+        "why": "#63 follow-up - the capture-fail branch: capture_mac refusing under TV_CAPTURE=off read as a missing grant, asked macOS and opened System Settings",
+        "file": "tv_diablo.py",
+        "find": "            elif not _may_ask_for_screen_recording():\n                # #63 follow-up",
+        "replace": "            elif False:\n                # #63 follow-up",
+        "matches": 1,
+    },
+    {
+        "why": "#63 follow-up - the game gate of a TV_CAPTURE=off agent walked his windows (Quartz window list) and processes",
+        "file": "tv_diablo.py",
+        "find": "    if os.environ.get(\"TV_STUB\") or _capture_is_off() or os.environ.get(\"TV_NO_GAME_GUARD\") == \"0\":",
+        "replace": "    if os.environ.get(\"TV_STUB\") or os.environ.get(\"TV_NO_GAME_GUARD\") == \"0\":",
         "matches": 1,
     },
 ]

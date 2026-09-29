@@ -1013,6 +1013,28 @@ def _git_run(argv, **kw):
     """subprocess.run for git. On Windows the child must not own a console. See tv/git_quiet.py."""
     return _git_quiet.run(argv, **kw)
 
+
+#: ⚠⚠ #64 follow-up — ONE PULL AT A TIME ON THIS CHECKOUT. Two doors pull it: _pull_once (the drift
+#: thread, every 300 s) and fleet_pull (/api/update, the banner's POST). Both judge and REMOVE a stale
+#: index.lock, and nothing stopped them running at once: door A could stat a lock, door B's own git
+#: could take a NEW one in the same path, and A would remove a lock a live git owned. Re-entrant, so
+#: the lock judge can hold it too without a door deadlocking on itself.
+_GIT_PULL_DOOR = threading.RLock()
+
+
+def _one_pull_at_a_time(fn):
+    """Run `fn` holding _GIT_PULL_DOOR, so no two pulls (or lock judgements) touch one checkout at once.
+
+    The lock is read from the module at CALL time, so every decorated door shares the one object.
+    """
+    import functools as _functools
+
+    @_functools.wraps(fn)
+    def _held(*a, **k):
+        with _GIT_PULL_DOOR:
+            return fn(*a, **k)
+    return _held
+
 # v1418 — FLEET UNITY: how far is this install behind GitHub origin/main?
 # Cached so /api/status never blocks on a slow fetch every 12s poll.
 _FLEET_CACHE = {"t": 0.0, "val": None}
@@ -1040,6 +1062,7 @@ def _git_tracked_dirty():
         return False
 
 
+@_one_pull_at_a_time
 def fleet_pull():
     """v2102 — fast-forward this checkout to origin/main, or explain precisely why not.
 
@@ -1067,6 +1090,14 @@ def fleet_pull():
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
         if (dirty.stdout or "").strip():
+            # #64 follow-up — the same question the lane asks: is this "dirty" tree an update that
+            # was CUT OFF mid-checkout (a 0-byte stale lock beside it)? Report only, never cleared.
+            _door_cut = _interrupted_update(REPO, dirty.stdout)
+            if _door_cut:
+                _pull_note_interrupted(_door_cut)
+                out["outcome"] = "interrupted"
+                out["msg"] = _door_cut["say"]
+                return out
             out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
                           "Commit or stash them, then update.")
             return out
@@ -3377,6 +3408,14 @@ def _pull_report():
     if fl.get("ok") is False:
         return {"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])}
     if fl.get("dirty"):
+        # #64 follow-up — a "dirty" tree the lane found beside a stale 0-byte lock is an update CUT OFF
+        # mid-checkout, not his edits; the fleet is told which (the worker keeps 160 chars of why)
+        with _PRUNE_LOCK:
+            _cut = _PULL.get("outcome") == "interrupted"
+        if _cut:
+            return {"can": False, "behind": fl.get("behind"),
+                    "why": ("update CUT OFF mid-checkout: a stale 0-byte index.lock beside a half-written "
+                            "tree - a person has to look")[:160]}
         return {"can": False, "behind": fl.get("behind"),
                 "why": "local tracked edits — a fast-forward would not be safe here"}
     # ⚠ #64 — THE LANE'S OWN FAILURES OUTRANK THE CACHED ORIGIN VIEW. For eleven hours his ALT's
@@ -20056,10 +20095,11 @@ _PULL = {"checked": None, "on": None, "worked": 0, "lastTs": None,
          "before": None, "after": None, "pulled": None, "owed": None,
          "say": "nobody has looked yet",
          # #64 — the lane's own record of HOW its last attempt ended, and since when it has been failing.
-         # outcome: None (nobody tried) | pulled | level | failed | dirty | off | unknown (not a checkout).
+         # outcome: None (nobody tried) | pulled | level | failed | dirty | off | unknown (not a checkout)
+         # | interrupted (an update cut off mid-checkout: a stale 0-byte lock beside a "dirty" tree).
          "outcome": None, "failSince": None, "failures": 0, "lastErr": None,
          # the last stale-lock decision, and the last clearing kept as its own receipt
-         "lock": None, "lockCleared": None}
+         "lock": None, "lockCleared": None, "interrupted": None}
 
 #: ⚠⚠ #64 — MEASURED 2026-09-29 ON HIS ALT: `.git/index.lock` dated 2026-09-28 14:09, 0 bytes, and no
 #: git process running. Every automatic pull after that failed with "Unable to create ... index.lock:
@@ -20138,6 +20178,7 @@ def _git_running_here():
     return None, "pgrep -x git exited %d" % r.returncode
 
 
+@_one_pull_at_a_time
 def _clear_stale_git_lock(repo=None, now=None):
     """#64 — REMOVE .git/index.lock ONLY WHEN IT IS PROVABLY ABANDONED, AND SAY WHAT WAS DECIDED. -> dict
 
@@ -20194,7 +20235,10 @@ def _clear_stale_git_lock(repo=None, now=None):
         return out
     try:
         st2 = os.stat(lk)
-        if st2.st_size != 0 or st2.st_mtime != st.st_mtime:
+        # #64 follow-up — the INODE too: a lock removed and re-created between the two stats (another
+        # git taking it anew) can carry the same 0 bytes and even the same mtime; it is a different
+        # file, owned by someone else, and is left.
+        if st2.st_size != 0 or st2.st_mtime != st.st_mtime or st2.st_ino != st.st_ino:
             out["say"] = "left the git lock from %s: it changed while it was being judged" % when
             return out
         os.remove(lk)
@@ -20230,14 +20274,72 @@ def _pull_note_lock(lk):
                                     "say": lk.get("say")}
 
 
+def _interrupted_update(repo, porcelain, now=None):
+    """Is this "dirty" tree an update that was CUT OFF mid-checkout? -> dict | None
+
+    ⚠⚠ #64 follow-up — AN INTERRUPTED FAST-FORWARD READ AS "OK, standing down on purpose". A git
+    killed mid-checkout (every console git runs under a timeout, which is a SIGKILL) leaves its 0-byte
+    index.lock AND a half-written tree. MEASURED on a temp fixture (4,000 tracked files, origin one
+    commit ahead): `git merge --ff-only origin/main` SIGKILLed 50 ms after index.lock appeared ->
+    exit -9, a 0-byte lock left behind, HEAD unmoved, and `git status` listing 113 modified tracked
+    files. The next pass read those files as HIS edits, stood down as 'dirty', and the doctor row said
+    OK, while the checkout could never update again. The reviewer's run (20k files) showed hundreds.
+
+    REPORT ONLY. The lock is stat'ed and nothing else: it is never removed here and nothing is merged,
+    because a half-written tree next to it is exactly the case where a person has to look. Only an
+    EMPTY lock older than _GIT_LOCK_STALE_S counts (the same bar the lock judge uses); a young or a
+    non-empty lock beside a dirty tree stays ordinary 'dirty'. -> {path, lockMtime, ageS, files, say}
+    """
+    gd = _git_dir_of(repo or REPO)
+    if not gd:
+        return None
+    lk = os.path.join(gd, "index.lock")
+    try:
+        st = os.stat(lk)
+    except OSError:
+        return None
+    now = time.time() if now is None else float(now)
+    age = now - st.st_mtime
+    if st.st_size != 0 or age < float(_GIT_LOCK_STALE_S):
+        return None
+    files = [ln for ln in str(porcelain or "").splitlines() if ln.strip() and not ln.startswith("??")]
+    if not files:
+        return None
+    # the path is what follows the status column; split, never slice (a caller may have stripped the
+    # first line's leading space, and a byte slice was off by one on exactly that line before)
+    names = [ln.strip().split(None, 1)[-1] for ln in files[:3]]
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))
+    say = ("an update was CUT OFF mid-checkout: a 0-byte .git/index.lock from %s (%s old) sits next to "
+           "%d modified tracked file%s (%s%s) - the tree may be half-written and is NOT up to date; "
+           "nothing was removed or merged, a person has to look before those files are kept or discarded"
+           % (when, _ago_words(age), len(files), "" if len(files) == 1 else "s", ", ".join(names),
+              ", ..." if len(files) > 3 else ""))
+    return {"path": lk, "lockMtime": int(st.st_mtime * 1000), "ageS": round(age, 1),
+            "files": len(files), "say": say}
+
+
+def _pull_note_interrupted(cut):
+    """Put an interrupted update on the lane's record, from either door. -> None"""
+    if not isinstance(cut, dict):
+        return
+    now = int(time.time() * 1000)
+    with _PRUNE_LOCK:
+        _PULL.update({"checked": now, "on": True, "say": cut.get("say"),
+                      "interrupted": dict(cut)})
+        _pull_outcome(now, "interrupted", cut.get("say"))
+
+
 def _pull_outcome(now_ms, outcome, err=None):
     """How an attempt ended, and the failure clock. Caller holds _PRUNE_LOCK. -> None
 
     `failSince` is the first failed attempt since the last one that worked; a success, or the lane
     standing down on purpose (off, dirty), stops the clock. `unknown` (not a checkout) leaves it.
+    `interrupted` (an update cut off mid-checkout) is a failure: it runs the clock like one.
     """
     _PULL["outcome"] = outcome
-    if outcome == "failed":
+    if outcome != "interrupted":
+        _PULL["interrupted"] = None
+    if outcome in ("failed", "interrupted"):
         _PULL["failures"] = int(_PULL.get("failures") or 0) + 1
         if not _PULL.get("failSince"):
             _PULL["failSince"] = now_ms
@@ -20286,7 +20388,7 @@ def pull_state():
     """
     with _PRUNE_LOCK:
         out = dict(_PULL)
-        for k in ("lock", "lockCleared"):
+        for k in ("lock", "lockCleared", "interrupted"):
             if isinstance(out.get(k), dict):
                 out[k] = dict(out[k])
     out["failBarS"] = int(_PULL_FAIL_MISSING_S)
@@ -20318,6 +20420,7 @@ def _pull_failing_words(now_ms=None):
                err))[:160]
 
 
+@_one_pull_at_a_time
 def _pull_once():
     """Fast-forward THIS machine onto origin/main. -> True moved / False did not / None cannot ask.
 
@@ -20387,6 +20490,14 @@ def _pull_once():
                  % type(e).__name__)
         return None
     if _dirty:
+        # ⚠⚠ #64 follow-up — "DIRTY" CAN BE AN UPDATE THAT WAS CUT OFF, NOT HIS EDITS. A fast-forward
+        # SIGKILLed mid-checkout leaves a 0-byte index.lock and a half-written tree, and this branch
+        # read it as work in progress: 'dirty', stand down, OK on the doctor, forever. The lock is
+        # only STAT'ED here (never removed, nothing merged) and the finding is its own outcome.
+        _cut = _interrupted_update(REPO, _dirty)
+        if _cut:
+            _pull_note_interrupted(_cut)
+            return None
         _set(on=True, outcome="dirty",
              say=("local tracked edits are present, so this machine is NOT auto-pulling - "
                   "commit or stash them to rejoin the fleet"))

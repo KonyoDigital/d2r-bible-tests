@@ -7627,7 +7627,8 @@ def pull_lane_verdict(pl, now_ms=None):
 
     `pl` is the console's pull lane as /api/status publishes it. OK when the last attempt worked or
     the lane is standing down ON PURPOSE (TV_NO_AUTO_PULL, local tracked edits) and says so; MISSING
-    when attempts have failed for longer than the lane's own bar, naming the reason and since when;
+    when attempts have failed for longer than the lane's own bar, naming the reason and since when,
+    and at once when an update was INTERRUPTED mid-checkout (a stale 0-byte lock beside a dirty tree);
     UNKNOWN when nobody has tried, when failures are still younger than the bar, or when the lane
     reports something this row cannot grade. [[unknown-stays-unknown]]
     """
@@ -7645,6 +7646,13 @@ def pull_lane_verdict(pl, now_ms=None):
     if pl.get("checked") is None or oc is None:
         return UNKNOWN, ("nobody has tried to pull on this console yet, so whether this checkout can "
                          "update is UNKNOWN — not a clean bill")
+    # ⚠⚠ #64 follow-up — AN UPDATE CUT OFF MID-CHECKOUT IS NOT A STAND-DOWN. A SIGKILLed fast-forward
+    # leaves a 0-byte index.lock and a half-written tree; the lane used to call that tree 'dirty' and
+    # this row graded it OK "on purpose", while the checkout could never update again. No bar: it does
+    # not heal by itself, so the first sighting is the finding.
+    if oc == "interrupted":
+        return MISSING, ("an automatic update was INTERRUPTED mid-checkout, so this checkout cannot "
+                         "update itself until a person looks: %s" % say)
     if oc == "dirty":
         return OK, "the pull lane is standing down ON PURPOSE: %s%s" % (say, receipt)
     if oc in ("pulled", "level"):

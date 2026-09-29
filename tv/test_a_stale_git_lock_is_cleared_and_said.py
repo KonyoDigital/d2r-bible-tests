@@ -19,6 +19,17 @@ THE LAWS, each on a REAL git fixture in a temp dir (never his checkout):
   · the row reads the lane OVER THE WIRE, and /api/status publishes it under the key the row reads
   · the fleet beacon's pull.why says the pulls are failing instead of "clear to pull"
 
+THE FOLLOW-UP LAWS (the review of #64, all four findings reproduced before fixing):
+  · an update SIGKILLed mid-checkout (a 0-byte lock older than the bar beside a dirty tree) is its own
+    outcome, 'interrupted' - named with the lock and the file count, the lock NEVER removed, nothing
+    merged - and the doctor row reads it MISSING, the fleet beacon names it; a dirty tree with no lock,
+    a young lock or a non-empty lock is still an ordinary stand-down
+  · the root cause: no console git takes an OPTIONAL lock (GIT_OPTIONAL_LOCKS=0 on the one door), so a
+    read of the tree killed by its timeout cannot leave index.lock behind - checked on the env of every
+    status site AND on a real temp repo, where a plain status is first SEEN taking the lock
+  · one pull at a time: both doors wait on the one lock, and a lock replaced between the judge's two
+    looks (same bytes, same mtime, a different inode) is left alone
+
 ⚠ The git-running probe is stubbed in the lock cases: a real `pgrep -x git` on his Mac answers
 about whatever git HE is running, and a verdict that depends on his machine is not a law.
 [[feedback-fixtures-never-touch-live-data]] [[the-unjoined-end]] [[unknown-stays-unknown]]
@@ -30,6 +41,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import types
 import unittest
@@ -236,6 +248,247 @@ class TestAnyOtherLockIsLeftAndSaid(_Base):
             self.assertIsNone(ca._pull_once())
         say = self._left(lk, b"")
         self.assertIn("could not be asked", say)
+
+
+def _half_update(clone):
+    """What a fast-forward SIGKILLed mid-checkout leaves: origin's bytes in a tracked file, HEAD unmoved."""
+    with open(os.path.join(clone, "f.txt"), "w") as fh:
+        fh.write("two\n")
+
+
+class TestAnInterruptedUpdateIsNotAStandDown(_Base):
+    """#64 follow-up — the review's repro: a bare origin + a 20k-file clone, origin one commit ahead,
+    `git merge --ff-only origin/main` SIGKILLed 150 ms after index.lock appeared -> exit -9, a 0-byte
+    lock left, hundreds of modified files, and the row said OK. Re-measured here on 4,000 files (lock
+    seen at 0.22 s, SIGKILL 50 ms later): exit -9, a 0-byte lock, 113 modified tracked files. The state
+    is CONSTRUCTED below (an old 0-byte lock + a modified tracked file) because a kill timed against a
+    checkout is a race on a CI runner, and a law that depends on winning a race is not a law."""
+
+    def test_BASELINE_git_still_reads_the_half_written_tree_beside_the_lock(self):
+        """Without this the lane would never reach its DIRTY branch and every case below is moot."""
+        _plant(self.clone, 20 * 60)
+        _half_update(self.clone)
+        r = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=self.clone,
+                           capture_output=True, text=True, timeout=30, env=dict(os.environ, **_GIT_ENV))
+        self.assertEqual(r.returncode, 0, "git status refused beside a held lock: %r" % r.stderr)
+        self.assertIn("f.txt", r.stdout, "the modified tracked file is not listed")
+
+    def test_the_lane_records_INTERRUPTED_and_touches_nothing(self):
+        lk, planted_ms = _plant(self.clone, 20 * 60)
+        _half_update(self.clone)
+        with self.probe(False, "stub: none"):
+            out = ca._pull_once()
+        self.assertIsNone(out, "an interrupted update read as a pull that answered")
+        self.assertEqual(ca._PULL.get("outcome"), "interrupted",
+                         "a tree cut off mid-checkout was filed as %r: %r"
+                         % (ca._PULL.get("outcome"), ca._PULL.get("say")))
+        say = ca._PULL.get("say") or ""
+        self.assertIn("CUT OFF mid-checkout", say)
+        self.assertIn("index.lock", say, "the sentence does not name the lock")
+        self.assertIn("1 modified tracked file", say, "the sentence does not name the files")
+        self.assertTrue(os.path.exists(lk), "report only: the lock was REMOVED")
+        self.assertEqual(os.path.getsize(lk), 0)
+        self.assertNotIn("fetch origin", self.seen, "it fetched on the interrupted branch: %s" % self.seen)
+        self.assertNotIn("merge --ff-only", self.seen, "it merged on the interrupted branch: %s" % self.seen)
+        self.assertNotEqual(self.head(), self.origin_head, "HEAD moved on a report-only branch")
+        self.assertEqual((ca._PULL.get("interrupted") or {}).get("lockMtime"), planted_ms)
+        self.assertEqual(ca._PULL.get("failures"), 1, "an interrupted update does not run the clock")
+
+    def test_the_doctor_row_and_the_fleet_say_INTERRUPTED(self):
+        _plant(self.clone, 20 * 60)
+        _half_update(self.clone)
+        with self.probe(False, "stub: none"):
+            ca._pull_once()
+        st, why = cd.pull_lane_verdict(ca.pull_state())
+        self.assertEqual(st, cd.MISSING, "an update cut off mid-checkout graded %s: %s" % (st, why))
+        self.assertIn("INTERRUPTED", why)
+        self.assertIn("index.lock", why, "the row does not name the lock: %s" % why)
+        self.assertIn("modified tracked file", why, "the row does not name the files: %s" % why)
+        with mock.patch.object(ca, "fleet_origin_status",
+                               lambda *a, **k: {"ok": True, "behind": 1, "dirty": True}):
+            rep = ca._pull_report()
+        self.assertIs(rep.get("can"), False)
+        self.assertIn("CUT OFF", rep.get("why") or "", "the fleet still says 'local tracked edits': %r" % rep)
+
+    def test_the_in_app_update_door_says_it_too(self):
+        lk, _ = _plant(self.clone, 20 * 60)
+        _half_update(self.clone)
+        with self.probe(False, "stub: none"):
+            out = ca.fleet_pull()
+        self.assertEqual(out.get("outcome"), "interrupted", "/api/update said: %r" % out.get("msg"))
+        self.assertIn("CUT OFF mid-checkout", out.get("msg") or "")
+        self.assertIn("1 modified tracked file", out.get("msg") or "")
+        self.assertFalse(out.get("ok"))
+        self.assertTrue(os.path.exists(lk), "report only: the door REMOVED the lock")
+        self.assertNotIn("pull --ff-only", self.seen, "the door pulled over a half-written tree")
+        self.assertEqual(ca._PULL.get("outcome"), "interrupted", "the door's finding is not on the lane")
+
+    def test_an_ordinary_dirty_tree_is_still_a_stand_down(self):
+        """The other side of the line: no lock, a YOUNG lock, or a NON-EMPTY lock beside edits is 'dirty'."""
+        for age, body in ((None, b""), (5, b""), (20 * 60, b"0123456789")):
+            ca._PULL.clear()
+            ca._PULL.update(_PULL0)
+            lk = os.path.join(self.clone, ".git", "index.lock")
+            if os.path.exists(lk):
+                os.remove(lk)
+            if age is not None:
+                _plant(self.clone, age, body)
+            _half_update(self.clone)
+            with self.probe(False, "stub: none"):
+                self.assertIs(ca._pull_once(), False, "age=%r bytes=%d" % (age, len(body)))
+            self.assertEqual(ca._PULL.get("outcome"), "dirty",
+                             "age=%r bytes=%d filed as %r" % (age, len(body), ca._PULL.get("outcome")))
+            self.assertEqual(cd.pull_lane_verdict(ca.pull_state())[0], cd.OK)
+
+
+class TestNoConsoleGitTakesAnOptionalLock(_Base):
+    """#64 follow-up — the root cause: a read-only `git status` takes index.lock on its own (to write a
+    refreshed index back), and every console git call is subprocess.run(timeout=N), which SIGKILLs git
+    with no cleanup. GIT_OPTIONAL_LOCKS=0 on the ONE door means no read of this tree can leave a lock."""
+
+    def test_every_console_git_spawn_carries_GIT_OPTIONAL_LOCKS_0(self):
+        seen_env = []
+
+        class _R(object):
+            returncode, stdout, stderr = 0, "", ""
+
+        def _spawn(argv, **kw):
+            seen_env.append((list(argv), dict(kw.get("env") or {})))
+            r = _R()
+            if not kw.get("text"):
+                r.stdout, r.stderr = b"", b""
+            return r
+        self._run.stop()                    # the REAL door, with only the process spawn stubbed
+        try:
+            with mock.patch.object(ca._git_quiet.subprocess, "run", _spawn), \
+                    self.probe(False, "stub: none"):
+                ca._git_tracked_dirty()
+                ca._tree_is_mid_edit()
+                ca._pull_once()
+                ca.fleet_pull()
+                ca._git_run(["git", "status"], env={"LAW_CALLER": "1"})
+        finally:
+            self._run.start()
+        # _git_tracked_dirty, _tree_is_mid_edit, _pull_once's and fleet_pull's status, the caller's own
+        statuses = [a for a, _ in seen_env if "status" in a]
+        self.assertGreaterEqual(len(statuses), 5, "the status sites were not all reached: %s"
+                                % [" ".join(a[1:4]) for a, _ in seen_env])
+        bad = [" ".join(a[:4]) for a, e in seen_env if e.get("GIT_OPTIONAL_LOCKS") != "0"]
+        self.assertEqual(bad, [], "git spawned WITHOUT GIT_OPTIONAL_LOCKS=0: %s" % bad)
+        self.assertEqual(seen_env[-1][1].get("LAW_CALLER"), "1", "the caller's own env was dropped")
+
+    def _many_file_repo(self, n=600):
+        repo = os.path.join(self.root, "optlock")
+        _git(self.root, "-c", "init.defaultBranch=main", "init", "-q", repo)
+        for i in range(n):
+            with open(os.path.join(repo, "f%04d.txt" % i), "w") as fh:
+                fh.write("x\n")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "files")
+        return repo, n
+
+    def _status_under_watch(self, repo, n, spawn):
+        """Touch every mtime (so status has an index refresh to write), run `spawn`, poll for the lock.
+        -> (lock seen while it ran, index rewritten)"""
+        t = time.time() - 30 - len(self._stamps)
+        self._stamps.append(t)
+        for i in range(n):
+            os.utime(os.path.join(repo, "f%04d.txt" % i), (t, t))
+        idx = os.path.join(repo, ".git", "index")
+        lk = idx + ".lock"
+        s0 = os.stat(idx)
+        seen, stop = [False], [False]
+
+        def _poll():
+            while not stop[0]:
+                if os.path.exists(lk):
+                    seen[0] = True
+        th = threading.Thread(target=_poll, daemon=True)
+        th.start()
+        try:
+            r = spawn()
+        finally:
+            stop[0] = True
+            th.join(5)
+        self.assertEqual(r.returncode, 0, "git status failed: %r" % (r.stderr,))
+        s1 = os.stat(idx)
+        return seen[0], (s0.st_ino != s1.st_ino or s0.st_mtime_ns != s1.st_mtime_ns)
+
+    def test_a_real_git_status_through_the_door_never_creates_index_lock(self):
+        repo, n = self._many_file_repo()
+        self._stamps = []
+        env = dict(os.environ, **_GIT_ENV)
+        env.pop("GIT_OPTIONAL_LOCKS", None)
+        # PREMISE: a plain status DOES take the lock, and this instrument can see it - or the absence
+        # below is the absence of a look. Up to five tries: a fast machine may win one race.
+        took = [self._status_under_watch(repo, n, lambda: subprocess.run(
+            ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, timeout=30,
+            env=env)) for _ in range(5)]
+        self.assertTrue(any(s or w for s, w in took),
+                        "premise failed: a plain git status never took index.lock here (%s)" % took)
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop("GIT_OPTIONAL_LOCKS", None)
+            quiet = [self._status_under_watch(repo, n, lambda: ca._git_quiet.run(
+                ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True,
+                timeout=30)) for _ in range(3)]
+        self.assertEqual(quiet, [(False, False)] * 3,
+                         "a git status through the ONE door took index.lock (seen, rewritten): %s" % quiet)
+
+
+class TestOnePullAtATime(_Base):
+    """#64 follow-up — the drift thread's _pull_once and /api/update's fleet_pull both judge and REMOVE
+    a stale lock, and nothing kept them apart."""
+
+    def test_a_lock_REPLACED_between_the_two_looks_is_left(self):
+        """Same 0 bytes, same mtime, a DIFFERENT file: another git took the lock anew. It is left."""
+        lk, _ = _plant(self.clone, 20 * 60)
+        st0 = os.stat(lk)
+        swapped = {}
+
+        def _probe_that_swaps():
+            tmp = lk + ".law-new"
+            with open(tmp, "wb"):
+                pass
+            os.utime(tmp, ns=(st0.st_atime_ns, st0.st_mtime_ns))
+            os.replace(tmp, lk)            # the old file still existed, so the inode cannot be reused
+            swapped["st"] = os.stat(lk)
+            return False, "stub: none"
+        with mock.patch.object(ca, "_git_running_here", _probe_that_swaps):
+            out = ca._clear_stale_git_lock(self.clone)
+        st1 = swapped.get("st")
+        self.assertIsNotNone(st1, "the probe never ran, so the re-stat was never reached")
+        self.assertEqual((st1.st_size, st1.st_mtime), (0, st0.st_mtime),
+                         "premise: only the inode may differ, or the size/mtime clause decides this")
+        self.assertNotEqual(st1.st_ino, st0.st_ino, "premise: the replacement kept the inode")
+        self.assertFalse(out.get("cleared"), "a lock replaced between the checks was removed: %r" % out)
+        self.assertTrue(os.path.exists(lk), "the replacement lock is gone")
+        self.assertIn("changed while it was being judged", out.get("say") or "")
+
+    def _held_door(self, door):
+        """Hold the pull lock, start `door` on a thread, and see it wait. -> (git calls while held, after)"""
+        box = {}
+        th = threading.Thread(target=lambda: box.setdefault("out", door()), daemon=True)
+        ca._GIT_PULL_DOOR.acquire()
+        try:
+            th.start()
+            time.sleep(0.8)
+            during = list(self.seen)
+            alive = th.is_alive()
+        finally:
+            ca._GIT_PULL_DOOR.release()
+        th.join(60)
+        self.assertFalse(th.is_alive(), "the door never finished after the lock was released")
+        self.assertTrue(alive, "the door finished while another pull held the checkout")
+        return during, list(self.seen)
+
+    def test_both_doors_wait_on_the_ONE_lock(self):
+        with self.probe(False, "stub: none"):
+            for name in ("_pull_once", "fleet_pull"):
+                del self.seen[:]
+                during, after = self._held_door(getattr(ca, name))
+                self.assertEqual(during, [], "%s ran git while the other door held the checkout: %s"
+                                 % (name, during))
+                self.assertTrue(after, "%s never ran git after the lock was released" % name)
 
 
 class TestTheRunningProbeAnswersThreeWays(unittest.TestCase):
@@ -448,6 +701,69 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    _failing = _pull_failing_words()\n",
         "replace": "    _failing = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - an update SIGKILLed mid-checkout (0-byte stale lock + half-written tree) read as 'dirty, standing down ON PURPOSE' and the row said OK",
+        "file": "control_app.py",
+        "find": "        _cut = _interrupted_update(REPO, _dirty)\n        if _cut:\n            _pull_note_interrupted(_cut)\n            return None\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - the /api/update door told him 'commit or stash your edits' about a tree an interrupted update half-wrote",
+        "file": "control_app.py",
+        "find": "            _door_cut = _interrupted_update(REPO, dirty.stdout)\n",
+        "replace": "            _door_cut = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - the doctor must grade an interrupted update MISSING, never a quiet stand-down",
+        "file": "console_doctor.py",
+        "find": "    if oc == \"interrupted\":\n        return MISSING,",
+        "replace": "    if False:\n        return MISSING,",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - without the size/age line EVERY dirty tree beside any lock (his own edits, a live git) would read as an interrupted update",
+        "file": "control_app.py",
+        "find": "    if st.st_size != 0 or age < float(_GIT_LOCK_STALE_S):\n        return None\n",
+        "replace": "    if False:\n        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - the fleet beacon called a half-written tree 'local tracked edits'",
+        "file": "control_app.py",
+        "find": "            _cut = _PULL.get(\"outcome\") == \"interrupted\"\n",
+        "replace": "            _cut = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - the root cause: a read-only git status takes index.lock on its own, and a timeout SIGKILL leaves it behind",
+        "file": "git_quiet.py",
+        "find": "    env[\"GIT_OPTIONAL_LOCKS\"] = \"0\"\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - a lock REPLACED between the two looks (same 0 bytes, same mtime, another git's) would be removed from under its owner",
+        "file": "control_app.py",
+        "find": " or st2.st_ino != st.st_ino:",
+        "replace": ":",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - /api/update and the drift thread judged and removed locks on one checkout AT THE SAME TIME",
+        "file": "control_app.py",
+        "find": "@_one_pull_at_a_time\ndef fleet_pull():",
+        "replace": "def fleet_pull():",
+        "matches": 1,
+    },
+    {
+        "why": "#64 follow-up - the drift thread's pull must wait on the same lock the /api/update door holds",
+        "file": "control_app.py",
+        "find": "@_one_pull_at_a_time\ndef _pull_once():",
+        "replace": "def _pull_once():",
         "matches": 1,
     },
 ]

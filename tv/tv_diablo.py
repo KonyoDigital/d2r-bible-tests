@@ -2316,6 +2316,37 @@ def _stub_capture_only():
     return bool(os.environ.get("TV_STUB"))
 
 
+def _may_ask_for_screen_recording():
+    '''#63 follow-up - may this agent ask macOS for Screen Recording at all? -> bool
+
+    screen_recording_ok() calls CGRequestScreenCaptureAccess (the system dialog when the grant is
+    missing) and its caller then opens System Settings. A stub agent (#63) and a capture-off agent
+    (#236) never read the screen, so they have nothing to ask for; the review of #63 found both still
+    asking, at the boot preflight and again in the capture-fail branch, which is a dialog on a PC whose
+    Python has no grant. Both sites ask this one predicate.'''
+    return not _stub_capture_only() and not _capture_is_off()
+
+
+def _boot_screen_recording_preflight(platform=None):
+    '''v779 - ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant; Terminal's
+    checkbox does not cover the control-app child agent). -> True granted / False denied / None not asked
+
+    Never asked by an agent that never reads the screen (_may_ask_for_screen_recording), nor off a Mac.
+    `platform` is a test seam, so the refusal is a law on every OS and not only on his Mac.'''
+    if WATCH_MODE or (sys.platform if platform is None else platform) != "darwin":
+        return None
+    if not _may_ask_for_screen_recording():
+        ev("boot", "Screen Recording not asked - this agent never reads the screen (stub or TV_CAPTURE=off)")
+        return None
+    if screen_recording_ok():
+        ev("boot", "Screen Recording OK — eye can pin the D2R window")
+        return True
+    ev("cap", "⚠ Screen Recording DENIED for this Python — open System Settings → Privacy → Screen Recording, enable Python / TV DIABLO, then RESTART")
+    open_screen_recording_settings()
+    print("  ⚠ Screen Recording not granted to this process — film will stay dark until you enable Python in System Settings → Privacy → Screen Recording")
+    return False
+
+
 def _film_loop():
     """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -4462,8 +4493,11 @@ def _toolhelp_d2r_state():
 def _game_window_present():
     """v899 — True when the real D2R game window is pin-able (Mac Quartz / Win watch target).
     Stub/SIM always True so harnesses never trip the no-game pause.
-    v1413 — Windows: process-alive OR window pin (exclusive fullscreen often has no EnumWindows hit)."""
-    if os.environ.get("TV_STUB") or os.environ.get("TV_NO_GAME_GUARD") == "0":
+    v1413 — Windows: process-alive OR window pin (exclusive fullscreen often has no EnumWindows hit).
+    #63 follow-up — TV_CAPTURE=off answers True too, WITHOUT walking his windows or his processes: an
+    agent that never reads the screen has no business listing what is on it, and with no frames it
+    has no reads for this gate to hold."""
+    if os.environ.get("TV_STUB") or _capture_is_off() or os.environ.get("TV_NO_GAME_GUARD") == "0":
         return True
     if WATCH_MODE:
         # Windows: capture half owns pin; also honor D2R.exe process (v1413)
@@ -7237,14 +7271,9 @@ def main():
     print("   in the bible: SESSIONS tab → ON AIR. Ctrl-C to stop.\n")
     ev("boot", "product=" + ("robot" if ROBOT_MODE else "auto-intake") + " · robot_frozen=" + ("0" if ROBOT_MODE else "1"))
     # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;
-    # Terminal's checkbox does not cover the control-app child agent).
-    if not WATCH_MODE and sys.platform == "darwin":
-        if screen_recording_ok():
-            ev("boot", "Screen Recording OK — eye can pin the D2R window")
-        else:
-            ev("cap", "⚠ Screen Recording DENIED for this Python — open System Settings → Privacy → Screen Recording, enable Python / TV DIABLO, then RESTART")
-            open_screen_recording_settings()
-            print("  ⚠ Screen Recording not granted to this process — film will stay dark until you enable Python in System Settings → Privacy → Screen Recording")
+    # Terminal's checkbox does not cover the control-app child agent). #63 follow-up: never by an
+    # agent that never reads the screen (a TV_STUB agent, a TV_CAPTURE=off agent).
+    _boot_screen_recording_preflight()
     ev("boot", f"autopilot {VERSION} — farewell on stop · chain vault · OCR · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
@@ -7739,6 +7768,16 @@ def main():
                     globals()["_STUB_CAP_WARNED"] = True
                     ev("cap", "SIM synthetic frames — grant Screen Recording to Python for live play")
                     print("  📺 SIM: no Screen Recording for this process — using synthetic frames + canned reads")
+            elif not _may_ask_for_screen_recording():
+                # #63 follow-up — capture_mac refused because this agent never reads the screen
+                # (TV_CAPTURE=off, e.g. a TV_STUB console's live agent). That is not a missing grant:
+                # the branch below would call CGRequestScreenCaptureAccess and open System Settings.
+                if not globals().get("_CAP_OFF_SAID"):
+                    globals()["_CAP_OFF_SAID"] = True
+                    ev("cap", "capture is OFF - this agent never reads the screen and never asks for Screen Recording")
+                    print("  📺 capture is OFF (TV_CAPTURE) - this agent never reads the screen")
+                time.sleep(0.5)
+                continue
             else:
                 # v840 — do NOT spam the log every poll (last night: thousands of identical lines)
                 now = time.time()
