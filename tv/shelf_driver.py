@@ -142,7 +142,16 @@ def vault_owes_read(tag, station):
         return False
     if tag in lane_read_tags("vault"):
         return True
-    return station == "PRINTER"
+    if station != "PRINTER":
+        return False
+    # ⚠ second eye on this change (Grok, 2026-09-29): a tag retention never emits - None, "", a renamed
+    # rule - would have been bought at PRINTER, because the veto is a deny-list. The PRINTER path takes
+    # only tags retention actually emits; anything else is UNKNOWN, and UNKNOWN never spends.
+    try:
+        import reel_retention as _rr
+        return tag in _rr.RULES
+    except Exception:
+        return False
 
 
 def lane_read_tags(lane):

@@ -127,6 +127,16 @@ probe all ask it. Replayed on his Mac's real shelf: owed 2 -> 6, exactly the 4 P
 sweeper's list driven through its real body, `positions()` on a temp store, `river_walk.walk` on a
 stubbed shelf. 4 red-proofs, all seen RED by hand.
 
+**Second eye (Grok CLI, cold, on the pasted code) - 7 findings, 3 real, all fixed and red-proved:** an
+unreadable stamp log silently shrank the list to its tag half (now `None`, UNKNOWN, like every other
+unreadable input there); an unreadable seal store let a stale PRINTER stamp re-buy a sealed reel (the
+PRINTER half now adds nothing unless the seals are KNOWN, looked up both ways via
+`reel_retention.lookup_either_way`); the veto was a deny-list, so a tag retention never emits would have
+spent (the PRINTER path now takes only `reel_retention.RULES`). Rejected with reasons: the fixture-root
+seal read (positions and seals resolve to the same root), stamp row order (file order IS the history),
+and two behaviours unchanged by this fix. The SHELF's "awaiting a sweep" count got the same three fixes.
+6 red-proofs now, all RED.
+
 ### REG-1445 - NO WINDOWS PC COULD LOAD ITS OWN GATES, SO EVERY LOCK THERE STAYED SHUT (2026-09-29)
 
 **Found** measuring why the ALT's river never reaches TOMBSTONE (#50): 76 reels at EMPTY never ROUTED,

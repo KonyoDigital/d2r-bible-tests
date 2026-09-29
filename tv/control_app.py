@@ -23580,14 +23580,29 @@ def _retention_once():
                           "is UNKNOWN — not zero")
     else:
         _vault_unknown = ""
-        # #50 (REG-1446) — the SAME definition the sweeper selects on: a reel the river holds at
-        # PRINTER awaits a sweep whatever retention's first-match tag is. One rule, two readers.
+        # #50 (REG-1446) — the SAME rule the sweeper selects on (`_vault_owed_reels`): a reel the river
+        # holds at PRINTER awaits a sweep whatever retention's first-match tag is - on a KNOWN seal store
+        # and never for a reel it already holds; an unreadable stamp log is UNKNOWN, not a count.
         _w_pos, _w_seals = _vault_positions_and_seals()
-        _w_vault = [k for k in (p.get("kept") or [])
-                    if _sd_lane.vault_owes_read(
-                        k.get("tag"), (_w_pos or {}).get(os.path.basename(str(k.get("reel")))))
-                    and not (k.get("tag") not in _vault_lane_tags and _w_seals is not None
-                             and _sealed_key(os.path.basename(str(k.get("reel")))) in _w_seals)]
+        if _w_pos is None:
+            _w_vault = []
+            _vault_unknown = ("the river's stamp log could not be read, so how many reels await a sweep "
+                              "is UNKNOWN — not zero")
+        else:
+            try:
+                import reel_retention as _rr_w
+            except Exception:
+                _rr_w = None
+            _w_vault = []
+            for k in (p.get("kept") or []):
+                _rid = os.path.basename(str(k.get("reel")))
+                if not _sd_lane.vault_owes_read(k.get("tag"), _w_pos.get(_rid)):
+                    continue
+                if k.get("tag") not in _vault_lane_tags and (
+                        _w_seals is None or _rr_w is None
+                        or _rr_w.lookup_either_way(_w_seals, _rid) is not None):
+                    continue
+                _w_vault.append(k)
     # ⚠⚠ v3226 — "WAITING ON A SWEEP" WAS FALSE FOR REELS THAT HAD ALREADY HAD ONE, AND HE HAS
     # NOW ASKED ABOUT IT TWICE. chronicle_retro.py:2513 records the first time, almost verbatim:
     # *"how come they are still waiting on a sweep the items it says in the tooltip here"*. And
@@ -27148,20 +27163,26 @@ def _vault_owed_reels(hist=None):
     # only the tag decides - the list is never widened on a guess. A reel the vault has ALREADY
     # sealed is not re-bought on a stale stamp. [[the-unjoined-end]] [[unknown-stays-unknown]]
     _pos, _sealed = _vault_positions_and_seals()
+    # ⚠ second eye on this change (Grok, 2026-09-29), both reproduced by reading the branches:
+    #   · an UNREADABLE stamp log made every PRINTER reel's position None, so the list silently shrank
+    #     to the tag half and the lamp read owed:N as if measured. The river could not be asked -> None,
+    #     the same UNKNOWN every other unreadable input to this function already returns;
+    #   · an UNREADABLE seal store let a stale PRINTER stamp re-buy a reel that is already sealed. With
+    #     the seals UNKNOWN the PRINTER half adds nothing; the tag half is unchanged.
+    if _pos is None:
+        return None
     out = []
     for k in (p.get("kept") or []):
         rid = os.path.basename(str(k.get("reel")))
-        if not _sd.vault_owes_read(k.get("tag"), (_pos or {}).get(rid)):
+        if not _sd.vault_owes_read(k.get("tag"), _pos.get(rid)):
             continue
-        if k.get("tag") not in _vault_tags and _sealed is not None and _sealed_key(rid) in _sealed:
-            continue
+        if k.get("tag") not in _vault_tags:
+            # the PRINTER half: only on a KNOWN seal store, and never for a reel it already holds -
+            # asked both ways (`reel_s_1` / `s_1`), membership not truthiness (REG-561/563)
+            if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:
+                continue
         out.append(os.path.join(h_abs, rid))
     return out
-
-
-def _sealed_key(rid):
-    """The vault seal store's key for a reel id: `reel_s_1_2` -> `s_1_2` (frame_authority._session_of)."""
-    return rid[len("reel_"):] if rid.startswith("reel_") else rid
 
 
 def _vault_positions_and_seals():

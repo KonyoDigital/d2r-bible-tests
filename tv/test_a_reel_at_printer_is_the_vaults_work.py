@@ -48,7 +48,7 @@ class TheRuleSaysPrinterIsTheVaultsWork(unittest.TestCase):
 
     def test_a_printer_reel_is_owed_whatever_retention_calls_it(self):
         for tag in ("recent", "zero-pages", "never-chronicle-swept", "holds-proof", "target-met",
-                    "eligible", None):
+                    "eligible"):
             self.assertTrue(SD.vault_owes_read(tag, "PRINTER"),
                             "a reel at PRINTER filed as %r is not the vault's work - it waits for a "
                             "seal nothing will write" % tag)
@@ -66,6 +66,10 @@ class TheRuleSaysPrinterIsTheVaultsWork(unittest.TestCase):
 
     def test_an_unknown_position_is_never_guessed_to_be_printer(self):
         self.assertFalse(SD.vault_owes_read("zero-pages", None))
+        for tag in (None, "", "mystery-tag"):
+            self.assertFalse(SD.vault_owes_read(tag, "PRINTER"),
+                             "a tag retention never emits (%r) was bought at PRINTER - a deny-list lets "
+                             "anything unforeseen spend" % (tag,))
         self.assertFalse(SD.vault_owes_read("recent", "EMPTY"))
         self.assertFalse(SD.vault_owes_read("recent", "UNKNOWN"))
 
@@ -111,9 +115,22 @@ class TheSweeperSelectsOnTheRule(unittest.TestCase):
         self.assertEqual(got, ["reel_s_10_a", "reel_s_11_b", "reel_s_15_f"],
                          "the vault's work list is wrong: %r" % got)
 
-    def test_an_unreadable_river_falls_back_to_the_tag_alone(self):
-        self.assertEqual(self._owed(None, {}), ["reel_s_15_f"],
-                         "an UNKNOWN river widened the paid list on a guess")
+    def test_an_unreadable_river_is_unknown_not_a_shorter_list(self):
+        import control_app as ca
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda h, **k: {"ok": True, "kept": list(self.KEPT)}), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (None, {})):
+            got = ca._vault_owed_reels(hist=tempfile.gettempdir())
+        self.assertIsNone(got, "an unreadable stamp log produced a confident list (%r) - the PRINTER half "
+                               "was silently dropped and the lamp would read it as measured" % (got,))
+
+    def test_an_unreadable_seal_store_adds_nothing_through_printer(self):
+        self.assertEqual(self._owed(self.POS, None), ["reel_s_15_f"],
+                         "with the seals UNKNOWN a stale PRINTER stamp could re-buy a sealed reel")
+
+    def test_a_seal_under_either_spelling_is_honoured(self):
+        got = self._owed(self.POS, {"reel_s_14_e": {"by": "vault"}})
+        self.assertNotIn("reel_s_14_e", got, "a seal stored under the prefixed key was not recognised")
 
 
 class _FakeStory(types.ModuleType):
@@ -173,9 +190,23 @@ class TheRiverProbeAgreesWithTheSweeper(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "2026-09-29 (second eye) - an unreadable stamp log yields a confident shorter list instead of UNKNOWN",
+        "file": "tv/control_app.py",
+        "find": "    if _pos is None:\n        return None\n    out = []\n",
+        "replace": "    _pos = _pos or {}\n    out = []\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (second eye) - a tag retention never emits is bought at PRINTER",
+        "file": "tv/shelf_driver.py",
+        "find": "        return tag in _rr.RULES\n",
+        "replace": "        return True\n",
+        "matches": 1,
+    },
+    {
         "why": "2026-09-29 - the router's PRINTER position is ignored again: the ALT's 25 reels wait forever",
         "file": "tv/shelf_driver.py",
-        "find": "    return station == \"PRINTER\"\n",
+        "find": "    if station != \"PRINTER\":\n        return False\n",
         "replace": "    return False\n",
         "matches": 1,
     },
@@ -189,8 +220,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - a reel the vault already sealed is re-bought on a stale PRINTER stamp",
         "file": "tv/control_app.py",
-        "find": "        if k.get(\"tag\") not in _vault_tags and _sealed is not None and _sealed_key(rid) in _sealed:\n            continue\n",
-        "replace": "",
+        "find": "            if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:\n",
+        "replace": "            if False:\n",
         "matches": 1,
     },
     {
