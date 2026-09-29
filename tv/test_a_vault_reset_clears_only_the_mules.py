@@ -253,6 +253,13 @@ function run(label, door){
   OUT.unknown = await run('unknown', 'vaultReset');
   delete THROW_ON['d2r_setPieces'];
 
+  /* round-5 (seen on the pixels) — a FRESH board: the owned-side stores persistOwned() writes do not exist yet */
+  seed(); ['d2r_magicFinds', 'd2r_copies', 'd2r_multiKeep', 'd2r_unknownReads'].forEach(function(k){ delete STORE[k]; });
+  magicFinds = {}; copies = {}; multiKeep = {}; unknownReads = new Set();
+  var f0 = snap();
+  await window.vaultClearHistory();
+  OUT.fresh = { before: f0, after: snap(), receipt: window._vaultLastReset || null, status: STATUS.length ? STATUS[STATUS.length - 1] : null };
+
   OUT.info = INFO.length;
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){ process.stderr.write(String((e && e.stack) || e)); process.exit(3); });
@@ -351,9 +358,34 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertTrue(f["reportHidden"], "the last intake report still shows after the reset")
         rc = f["receipt"] or {}
         self.assertEqual("vaultClearHistory", rc.get("door"), rc)
-        self.assertIs(True, rc.get("ok"), rc)
+        # #41 rank 9 — R.ok is decided AFTER the rebuild: this harness has no console and no plan hook, so the plan is
+        # unread, nothing is rebuilt, and the receipt is UNKNOWN (null) — never the clean true it wore before rank 9
+        self.assertIsNone(rc.get("ok"), "a full reset whose plan was unread still wore a clean ok: %r" % rc)
+        self.assertIsNone(rc.get("rebuilt"))
+        self.assertIn("could not be read", rc.get("planWhy") or "", rc)
+        self.assertEqual([], rc.get("touched"), "the kept stores moved — that is the one thing this harness can prove intact: %r" % rc)
+        self.assertEqual([], rc.get("failed"))
         self.assertEqual({"assign": 174, "prov": 174, "journal": 12, "seen": 40, "folder": True,
                           "owned": 223}, rc.get("cleared"))
+
+    def test_a_fresh_board_s_empty_stores_are_not_a_change(self):
+        """Round-5, seen on the captured pixels: on a board with no d2r_magicFinds / d2r_copies / d2r_multiKeep /
+        d2r_unknownReads yet, the full reset's own persistOwned() writes '{}' where no key was, and the receipt said
+        "a reset must never change d2r_magicFinds, d2r_copies, d2r_multiKeep, d2r_unknownReads — it did". Absent and
+        empty are the same content; only a store that will not read is UNKNOWN."""
+        f = self.o["fresh"]
+        for k in ("d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"):
+            self.assertNotIn(k, f["before"]["store"], "PREMISE: the fresh board holds no %s" % k)
+        rc = f["receipt"] or {}
+        self.assertEqual([], rc.get("touched"), "a fresh board's empty stores were reported as changed: %r" % rc.get("touched"))
+        self.assertEqual([], rc.get("unknown"))
+        self.assertNotIn("it did", f["status"] or "")
+        saved = json.loads(f["after"]["store"].get(RECEIPT_KEY) or "null")
+        for k in ("d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"):
+            self.assertEqual(("empty", "empty"), (saved["keepsBefore"].get(k), saved["keepsAfter"].get(k)),
+                             "the persisted digest tells absent from empty for %s, so the doctor's row would name it" % k)
+        # BASELINE: a kept store that really changed is still named (the corroborator run above)
+        self.assertIn("d2r_setPieces", (self.o["touched"]["receipt"] or {}).get("touched") or [])
 
     def test_the_words_he_reads_say_what_is_cleared_and_what_stays(self):
         says = self.o["scope"]["clears"]
@@ -460,8 +492,22 @@ RED_PROOF = [
     {
         "why": "the heart - the self-check goes blind: a kept store changed by the reset reads as untouched",
         "file": "bible.html",
-        "find": "      else if (now !== was) R.touched.push(k.store);\n",
+        "find": "      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);\n",
         "replace": "      else if (false) R.touched.push(k.store);\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - a fresh board's empty stores read as 'a reset must never change ... it did' again",
+        "file": "bible.html",
+        "find": "      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);\n",
+        "replace": "      else if (now !== was) R.touched.push(k.store);\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - the persisted digest tells absent from empty again, so the doctor's row names a store that held nothing",
+        "file": "bible.html",
+        "find": "    if (_vEmpty(raw)) return 'empty';\n",
+        "replace": "    if (raw === null) return 'absent';\n",
         "matches": 1,
     },
     {

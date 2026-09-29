@@ -343,19 +343,22 @@ _RETRO_RULING = ("His ruling 2026-09-28 (§34.2): it stays filed, carries the fl
                  "PROVEN/HARDENED with real looks — never auto-unfiled")
 
 
-def _retro_row(name, measured, recorded=None):
+def _retro_row(name, measured, recorded=None, board_filed=False):
     """One item filed on a tier higher than its visits earn, or None. Never writes.
 
     `recorded` is the tier the board recorded when the caller handed it in. Without it, the
     recorded tier is what the FRAME math gives on these same rows — the math the 2026-09-27
     rebuild filed on — and `recordedBy` says so, so a derived tier never reads as the board's.
+    `board_filed` (round-5 review, LOW): the board DID file this name but wrote no tier (every
+    normal-door filing, per #41 rank 10) — the row then says "board (no tier)", never "frames",
+    so the plan's summary and its rows name the same source. [[label-outlived-referent]]
     """
     honest = tier(measured[0], measured[1])
     frames = measured[5] if len(measured) > 5 else None
     if recorded is not None:
         rec, by = recorded, "board"
     elif isinstance(frames, dict):
-        rec, by = tier(frames.get("successes"), frames.get("trials"))["tier"], "frames"
+        rec, by = tier(frames.get("successes"), frames.get("trials"))["tier"], ("board (no tier)" if board_filed else "frames")
     else:
         return None
     if rec not in _TIER_RANK or honest["tier"] not in _TIER_RANK:
@@ -366,6 +369,9 @@ def _retro_row(name, measured, recorded=None):
     if by == "frames":
         what = ("%s counted by frames (%d of %d frames), but those frames are %d visit(s)"
                 % (rec, frames.get("successes") or 0, frames.get("trials") or 0, honest["trials"]))
+    elif by == "board (no tier)":
+        what = ("filed on the board with no tier; the frame math counts it %s (%d of %d frames), but those frames are "
+                "%d visit(s)" % (rec, frames.get("successes") or 0, frames.get("trials") or 0, honest["trials"]))
     else:
         what = "filed %s on the board, but its looks are %d visit(s)" % (rec, honest["trials"])
     # finding B (round 2): keepFiled only where the door can keep it — one look that saw it
@@ -466,9 +472,16 @@ def _recorded_filings(recorded):
     names and their witness rows' tiers, read BEFORE the reset's clears), or [{name, tier}]. A name whose value is
     not a tier is still a FILING (tier unknown), so the retro rule may keep it. None means the caller did not say
     (the frame math decides, as before); a shape that cannot be read is False, never an empty board.
+    ⚠ round-5 review (MED) — THE TWO ENDS AGREED ON NOTHING FOR "UNREADABLE". The page sent `null` when a store would
+    not read, and this read None as "the caller did not say" and fell back to the frame-surplus keep — the audit's own
+    defect, through the unreadable door. The page now sends `false` for a board it could not read (bible.html
+    _vaultAskRebuildPlan), and `false` is the unreadable arm here: UNKNOWN, nothing rebuilt. `null` / absent still means
+    the caller did not say. [[unknown-stays-unknown]] [[the-unjoined-end]]
     """
     if recorded is None:
         return None
+    if recorded is False:
+        return False
     if isinstance(recorded, dict):
         pairs = list(recorded.items())
     elif isinstance(recorded, list):
@@ -541,8 +554,9 @@ def plan_from_ledger(path, recorded=None):
                      "cells": [], "sessions": [], "witness": None}
         else:
             successes, trials, sessions, cells, witness_sessions, _frames = measured
-            # rank 1 — a row the board never filed is never flagged retro (nothing to keep filed)
-            flagged = (_retro_row(name, measured, held_tiers.get(name))
+            # rank 1 — a row the board never filed is never flagged retro (nothing to keep filed); a filing the board
+            # wrote with no tier is still the BOARD's (round-5 review, LOW: its row says "board (no tier)")
+            flagged = (_retro_row(name, measured, held_tiers.get(name), board_filed=(held_names is not None))
                        if (held_names is None or name in held_names) else None)
             item = {"name": name, "successes": successes, "trials": trials,
                     "equipped": _equipped_of(rows), "kind": _kind_of(rows)}
@@ -770,24 +784,52 @@ def pictures_gone(path, root):
 # loss. A picture gone AFTER it is a loss the keep should have prevented: MISSING, naming the item it
 # stands on. A loss no tombstone dates cannot be put on either side and is said UNKNOWN-when — red,
 # because an unexplained loss is not a baseline. [[unknown-stays-unknown]] [[stale-reading]]
+# ⚠ round-5 review (LOW) — THE COMMIT TIME IS A LOWER BOUND, NOT THE MOMENT THE KEEP REACHED THIS MACHINE.
+# The keep landed here when he pulled / deployed it, which is later than its commit; a reel drained in that
+# gap reads as lost AFTER the keep though nothing could have kept it. The row says so in its words
+# (KEEP_LANDED_WHY) rather than pretending the constant is exact. [[stale-reading]]
 KEEP_LANDED_MS = 1790581039000
+KEEP_LANDED_WHY = ("the keep's commit time, 2026-09-28 07:37Z — a lower bound: it reached this machine no "
+                   "earlier, so a drain between that commit and the pull reads as after")
+
+
+def _inside(path, tree):
+    """Is `path` inside `tree`? realpath'd and case-folded, never a bare startswith (his Windows box is the other half)."""
+    try:
+        p = os.path.normcase(os.path.realpath(path))
+        t = os.path.normcase(os.path.realpath(tree)).rstrip(os.sep)
+    except Exception:
+        return False
+    return p == t or p.startswith(t + os.sep)
 
 
 def _tombstone_times(root):
-    """{session: deletedTs} from the reel tombstones beside `root`, or None when there are none to read."""
+    """{session: deletedTs} from the reel tombstones of `root`'s tree, or None when there are none to read.
+
+    ⚠ round-5 review (HIGH, reproduced on his tree) — THE RESOLVER'S ANSWER IS TRUSTED. The first cut only accepted a
+    record under the shelf's parent, and his record is tv/reel_tombstones.json beside a shelf at tv/frames/hist: the
+    guard dropped it, all 21 of his gone frames read 'undated', and the row was MISSING for ever again wearing the false
+    sentence "no tombstone dates the loss". reel_retention._tombstone_path(root) already answers the FIXTURE case with a
+    file inside the fixture's own tree; the one answer that must be refused is the ImportError fallback (HERE — his file)
+    for a root OUTSIDE his tree. The shelf's own tree is asked first (a fixture that writes its record beside the shelf).
+    [[feedback-fixtures-never-touch-live-data]] [[unknown-stays-unknown]]
+    """
+    cands = [os.path.join(root, "reel_tombstones.json"),
+             os.path.join(os.path.dirname(os.path.realpath(root)), "reel_tombstones.json")]
     try:
         import reel_retention as _rr
-        cands = [_rr._tombstone_path(root), os.path.join(root, "reel_tombstones.json"),
-                 os.path.join(os.path.dirname(os.path.realpath(root)), "reel_tombstones.json")]
+        named, home = _rr._tombstone_path(root), _rr.HERE
     except Exception:
-        cands = [os.path.join(root, "reel_tombstones.json")]
-    # ⚠ only a record inside the shelf's own tree: a fixture root must never be dated by his tombstones
-    # (the resolver answers HERE on an ImportError). [[feedback-fixtures-never-touch-live-data]]
-    home = os.path.dirname(os.path.realpath(root))
-    cands = [c for c in cands if c and os.path.realpath(c).startswith(home + os.sep)]
+        named, home = None, None
+    # a fixture root (outside HERE's tree) is never dated by a record inside it — his tombstones
+    if named and not (home and not _inside(root, home) and _inside(named, home)):
+        cands.append(named)
+    seen = set()
     for p in cands:
-        if not p or not os.path.isfile(p):
+        key = os.path.normcase(os.path.realpath(p)) if p else None
+        if not p or key in seen or not os.path.isfile(p):
             continue
+        seen.add(key)
         try:
             with io.open(p, encoding="utf-8") as fh:
                 doc = json.load(fh)
@@ -926,7 +968,7 @@ def reset_receipt(receipt, before, after):
             return dict(base, ok=False, why="a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown))
         if touched:
             return dict(base, ok=False, why="a reset must never change %s — it did" % ", ".join(touched))
-        return dict(base, ok=True, why="Reset assignments · kept stores unchanged (nothing is rebuilt by that door)")
+        return dict(base, ok=True, why="Reset assignments never rebuilds · kept stores unchanged")
     if rebuilt_n is None or held_n is None:
         return dict(base, ok=False, why="rebuilt is UNKNOWN, not 0" if rebuilt_n is None
                     else "held is UNKNOWN, not 0")

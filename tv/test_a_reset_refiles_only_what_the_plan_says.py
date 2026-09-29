@@ -359,8 +359,8 @@ RED_PROOF = [
     {
         "why": "#41 rank 2 - the reset stops persisting its receipt, so the doctor's row can never read one",
         "file": "bible.html",
-        "find": "    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); R.persisted = true; }\n",
-        "replace": "    try { R.persisted = true; }\n",
+        "find": "    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); }\n",
+        "replace": "    try { }\n",
         "matches": 1,
     },
     {

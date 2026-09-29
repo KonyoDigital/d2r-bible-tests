@@ -2285,13 +2285,21 @@ def _inv_a_reset_hold_is_not_a_register_prompt():
 
     THE TWO SIDES:
       LEFT   names the last full reset's receipt says its plan HELD, as the BACKUP LANE snapshotted
-             them on disk (ledger_*.json allStores.d2r_vaultLastReset.heldNames), that the LIVE
-             2-look gate (vault_retro.gate) passes as unfiled stash rows of the witness ledger
+             them on disk (ledger_*.json allStores.d2r_vaultLastReset.heldNames), that arm 3's own
+             row filter (console_doctor.arm3_row_class, with the live 2-look gate) classes 'reset-held'
+             over the witness ledger — against the SNAPSHOT's mule map and lane locks
       RIGHT  of the stash rows the doctor judged, the ones its verdict counted as
              gatePassingResetHeld — off the LIVE board read (console_doctor._vault_provenance_counts)
-    Independent by RECORD: the left reads the backup lane's snapshot on disk and asks the gate itself;
-    the right is the doctor's own verdict over the live board. `==`, per name count: a reset-held row
-    the gate passes that the doctor did not report as held is a row it prompted him to register.
+    Independent by RECORD: the left reads the backup lane's snapshot on disk; the right is the doctor's
+    own verdict over the live board. `==`, per name count: a reset-held row the gate passes that the
+    doctor did not report as held is a row it prompted him to register.
+
+    ⚠ round-5 review (MED, reproduced) — THE TWO SIDES ASKED TWO FILTERS. The first cut counted on the
+    left every held stash row the gate passes, while the doctor reaches its held bucket only after arm
+    3's pre-filters (an ITEM row, not filed under its canonical name, worth registering, not locked,
+    routable) — so a held Sunder charm (shared stash: no mule), a rune tally row or a locked name was
+    counted left and skipped right: DISAGREE over a healthy board (left 3, right 1). Both sides now ask
+    the ONE predicate; what stays independent is the record each hands it. [[the-obvious-fix-cried-wolf]]
 
     UNKNOWN when no backup carries a receipt, the ledger cannot be read, or the console did not
     answer — never 0. A backup older than the live board's reset reads as a disagreement, which is
@@ -2329,11 +2337,17 @@ def _inv_a_reset_hold_is_not_a_register_prompt():
             return None
         if not isinstance(rec, dict) or rec.get("door") != "vaultClearHistory":
             return None
-        held = {str(n) for n in (rec.get("heldNames") or []) if n}
-        rawA = stores.get("d2r_muleAssign")
-        try:
-            assign = rawA if isinstance(rawA, dict) else (json.loads(rawA) if isinstance(rawA, str) else {})
-        except Exception:
+        held = {str(n): "held by the reset the backup snapshotted" for n in (rec.get("heldNames") or []) if n}
+
+        def _store(key, dflt):
+            raw = stores.get(key)
+            try:
+                v = raw if isinstance(raw, (dict, list)) else (json.loads(raw) if isinstance(raw, str) else dflt)
+            except Exception:
+                return None
+            return v if isinstance(v, dict) else None
+        assign, lane_lock = _store("d2r_muleAssign", {}), _store("d2r_laneLock", {})
+        if assign is None or lane_lock is None:
             return None
         try:
             with io.open(_ledger(), encoding="utf-8") as fh:
@@ -2343,14 +2357,11 @@ def _inv_a_reset_hold_is_not_a_register_prompt():
         rows = (doc.get("result") or {}).get("owned") if isinstance(doc.get("result"), dict) else doc.get("owned")
         if not isinstance(rows, list):
             return None
+        import console_doctor as cd
+        locked_fn, route_fn, gate_fn = cd._arm3_defaults(lane_lock, gate_fn=lambda ev: vr.gate(ev))
         n = 0
         for r in rows:
-            if not isinstance(r, dict):
-                continue
-            nm = str(r.get("name") or "").strip()
-            if not nm or nm not in held or str(r.get("lane") or "").lower() != "stash" or nm in (assign or {}):
-                continue
-            if vr.gate(r.get("witnesses") or []).get("pass"):
+            if cd.arm3_row_class(r, assign, route_fn, locked_fn, gate_fn, held) == "reset-held":
                 n += 1
         return n
 

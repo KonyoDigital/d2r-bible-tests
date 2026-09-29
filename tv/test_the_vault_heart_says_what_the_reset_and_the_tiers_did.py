@@ -304,6 +304,75 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertIn("Arachnid Mesh (hard.jpg)", why)
         self.assertIn("WATCHED 2 · PROVEN 1 · HARDENED 1", why)
 
+    def _his_layout(self):
+        """His tree's shape: the module's dir holds reel_tombstones.json, the shelf is <dir>/frames/hist — and the resolver
+        (reel_retention._tombstone_path) is asked with rr.HERE repointed at that dir, TV_HIST unset."""
+        import reel_retention as rr
+        tv = os.path.join(self.tmp, "tv")
+        shelf = os.path.join(tv, "frames", "hist")
+        os.makedirs(shelf)
+        for name in ("cited.jpg", "watch.jpg", "hard.jpg", "still.jpg"):
+            with io.open(os.path.join(shelf, name), "w", encoding="utf-8") as fh:
+                fh.write(name)
+        return rr, tv, shelf
+
+    def test_his_layout_the_tombstones_beside_the_module_date_the_shelf_under_frames_hist(self):
+        """Round-5 review (HIGH, reproduced on his tree): the resolver names tv/reel_tombstones.json beside a shelf at
+        tv/frames/hist, and the first guard dropped it (it demanded the file under the shelf's parent) — so all 21 of his
+        gone frames read 'undated' and the row was MISSING for ever wearing "no tombstone dates the loss". The resolver's
+        answer is trusted; a record in his layout dates the losses."""
+        rr, tv, shelf = self._his_layout()
+        before = VE.KEEP_LANDED_MS - 3600000
+        with io.open(os.path.join(tv, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
+            json.dump({"reels": [{"reel": "reel_s00", "deletedTs": before}]}, fh)
+        os.remove(os.path.join(shelf, "cited.jpg"))
+        here, hist = rr.HERE, os.environ.pop("TV_HIST", None)
+        rr.HERE = tv
+        try:
+            named = rr._tombstone_path(shelf)
+            self.assertEqual(os.path.join(tv, "reel_tombstones.json"), named, "PREMISE: the resolver names the module-side record")
+            self.assertEqual({"s00": before}, VE._tombstone_times(shelf), "the resolver's own answer was dropped by the guard (round-5 HIGH)")
+            losses = VE.picture_losses(self.ledger, shelf)
+            self.assertEqual(["cited.jpg"], [r["frame"] for r in losses["baseline"]], losses)
+            self.assertEqual([], losses["undated"])
+            st, why = CD._check_the_evidence_tiers(path=self.ledger, root=shelf)
+            self.assertEqual(CD.OK, st, "a dated baseline loss in his layout kept the row red: %s" % why)
+            self.assertIn("1 before the keep landed", why)
+            self.assertNotIn("no tombstone dates the loss", why)
+        finally:
+            rr.HERE = here
+            if hist is not None:
+                os.environ["TV_HIST"] = hist
+
+    def test_a_fixture_shelf_is_never_dated_by_a_record_outside_its_tree(self):
+        """The one refusal that stays: a shelf OUTSIDE HERE's tree (a fixture) is never dated by a record INSIDE it (his
+        tombstones) — the resolver's ImportError answer. A loss on such a shelf is UNKNOWN-when, never a baseline."""
+        rr, tv, _shelf = self._his_layout()
+        with io.open(os.path.join(tv, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
+            json.dump({"reels": [{"reel": "reel_s02", "deletedTs": VE.KEEP_LANDED_MS - 3600000}]}, fh)
+        os.remove(os.path.join(self.shelf, "hard.jpg"))     # self.shelf is outside `tv`, and holds no record of its own
+        here, path_fn = rr.HERE, rr._tombstone_path
+        rr.HERE = tv
+        rr._tombstone_path = lambda hist=None: os.path.join(rr.HERE, "reel_tombstones.json")   # the ImportError answer: HERE
+        try:
+            self.assertIsNone(VE._tombstone_times(self.shelf), "a fixture shelf was dated by a record outside its tree")
+            losses = VE.picture_losses(self.ledger, self.shelf)
+            self.assertEqual(["hard.jpg"], [r["frame"] for r in losses["undated"]], losses)
+            self.assertEqual([], losses["baseline"])
+        finally:
+            rr.HERE, rr._tombstone_path = here, path_fn
+
+    def test_a_loss_after_the_keep_says_the_commit_time_is_a_lower_bound(self):
+        """Round-5 review (LOW): the keep reached this machine when he pulled it, later than its commit — the row's words say
+        the constant is a lower bound rather than pretending it exact."""
+        self._stones([{"reel": "reel_sR1", "deletedTs": VE.KEEP_LANDED_MS + 3600000}])
+        os.remove(os.path.join(self.shelf, "still.jpg"))
+        st, why = CD._check_the_evidence_tiers(path=self.ledger, root=self.shelf)
+        self.assertEqual(CD.MISSING, st, why)
+        self.assertIn("lost AFTER the keep landed", why)
+        self.assertIn("a lower bound", why, "the row pretends the keep's commit time is when it reached this machine: %s" % why)
+        self.assertIn(VE.KEEP_LANDED_WHY, why)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -371,6 +440,27 @@ RED_PROOF = [
         "file": "vault_evidence.py",
         "find": "        if ts is None:\n            undated.append(row)\n",
         "replace": "        if ts is None:\n            baseline.append(row)\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 HIGH - the guard demands the record under the shelf's parent again, so his tv/reel_tombstones.json is dropped and every loss is undated",
+        "file": "vault_evidence.py",
+        "find": "    if named and not (home and not _inside(root, home) and _inside(named, home)):\n        cands.append(named)\n",
+        "replace": "    if named and _inside(named, os.path.dirname(os.path.realpath(root))):\n        cands.append(named)\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 HIGH - the fixture refusal is dropped, so a fixture shelf is dated by his tombstones",
+        "file": "vault_evidence.py",
+        "find": "    if named and not (home and not _inside(root, home) and _inside(named, home)):\n        cands.append(named)\n",
+        "replace": "    if named:\n        cands.append(named)\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 LOW - the row pretends the keep's commit time is exact",
+        "file": "console_doctor.py",
+        "find": "            bad_pics = \"%d cited picture(s) lost AFTER the keep landed (%s): %s\" % (\n                len(after), _ve.KEEP_LANDED_WHY,\n",
+        "replace": "            bad_pics = \"%d cited picture(s) lost AFTER the keep landed: %s\" % (\n                len(after),\n",
         "matches": 1,
     },
     {

@@ -2381,6 +2381,61 @@ def _vault_route_fn():
     return route
 
 
+def arm3_row_class(r, assign, route_fn, locked_fn, gate_fn, held_by_reset=None):
+    """ONE stash row of the witness ledger, as arm 3 of the 'vault provenance' row classes it. PURE.
+
+    ⚠ round-5 review (MED, reproduced) — THE JOINT'S TWO SIDES ASKED TWO FILTERS. corroborate's
+    `a-reset-hold-is-not-a-register-prompt` counted on its LEFT every reset-held stash row the gate passes,
+    while the doctor (RIGHT) reached the reset-held bucket only after these pre-filters — so a held row that
+    routes to the SHARED stash (a Sunder charm), a rune tally row, or a locked name was counted left and
+    skipped right: DISAGREE over a healthy board (left 3, right 1), the cried-wolf class. Both sides ask this
+    one predicate now; only the RECORDS they hand it differ (backup snapshot vs live board).
+    -> None (not a candidate: not an unfiled stash ITEM row, furniture, locked, or the gate does not pass)
+       | 'no-mule' | 'route-unknown' | 'reset-held' | 'unfiled'
+    """
+    if not isinstance(r, dict):
+        return None
+    assign = assign if isinstance(assign, dict) else {}
+    held_by_reset = held_by_reset if isinstance(held_by_reset, dict) else {}
+    nm = str(r.get("name") or "").strip()
+    if not nm or str(r.get("lane") or "").lower() != "stash" or nm in assign:
+        return None
+    if str(r.get("kind") or "item").lower() != "item":
+        return None               # the lane files grail ITEMS; a rune / gem / material row is a tally, never a filing
+    routable, canon = route_fn(nm)
+    if canon in assign:
+        return None               # filed under its slot-suffixed set-piece name — the lane's canonical form
+    try:
+        import inventory_law as _il2
+        if not _il2.worth_registering(nm)[0]:
+            return None           # furniture and consumables are never filed — not a gap
+    except Exception:
+        pass
+    if locked_fn(nm)[0]:
+        return None
+    gv = gate_fn(r.get("witnesses") or [])
+    if not gv.get("pass"):
+        return None
+    if routable is False:
+        return "no-mule"          # the shared stash: no mule exists for it, so it is not a gap
+    if routable is None:
+        return "route-unknown"    # the rule could not be read: UNKNOWN, never counted either way
+    if nm in held_by_reset or canon in held_by_reset:
+        return "reset-held"       # rank 1: his reset's plan held it — said beside, never a gap
+    return "unfiled"
+
+
+def _arm3_defaults(lane_lock, locked_fn=None, route_fn=None, gate_fn=None):
+    """The three predicates arm 3 runs with when the caller hands none — ONE place, so the joint's left side
+    runs exactly the doctor's own (round-5 review, MED)."""
+    locked_fn = locked_fn or (lambda n: _main_locked_py(n, lane_lock))
+    route_fn = route_fn or _vault_route_fn()
+    if gate_fn is None:
+        import vault_retro as _vr
+        gate_fn = lambda ev: _vr.gate(ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
+    return locked_fn, route_fn, gate_fn
+
+
 def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked_fn=None, gate_fn=None,
                              route_fn=None, main_state=None, reset_held=None):
     """#246 W7 — THE HEART OF THE ONE DOOR: does every mule filing carry its witness? -> (status, why, counts)
@@ -2413,11 +2468,7 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
     a MAIN ledger that locks nothing (every row under 3 sightings) with no 3-session lane lock measured
     NOTHING, so with filings in the mules the row is UNKNOWN — it never says "no MAIN item sits in a mule".
     """
-    locked_fn = locked_fn or (lambda n: _main_locked_py(n, lane_lock))
-    route_fn = route_fn or _vault_route_fn()
-    if gate_fn is None:
-        import vault_retro as _vr
-        gate_fn = lambda ev: _vr.gate(ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
+    locked_fn, route_fn, gate_fn = _arm3_defaults(lane_lock, locked_fn, route_fn, gate_fn)
     assign = assign if isinstance(assign, dict) else {}
     prov = prov if isinstance(prov, dict) else {}
     # 2026-09-28 — an owned RECEIPT (kind 'owned', written by window._ownedAdd) says who put a name in `owned`;
@@ -2436,37 +2487,12 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
     gate_unfiled, gate_known = [], accum_rows is not None
     gate_no_mule, gate_route_unknown, gate_reset_held = [], [], []
     held_by_reset = reset_held if isinstance(reset_held, dict) else {}
+    _bucket = {"no-mule": gate_no_mule, "route-unknown": gate_route_unknown, "reset-held": gate_reset_held,
+               "unfiled": gate_unfiled}
     for r in (accum_rows or []):
-        if not isinstance(r, dict):
-            continue
-        nm = str(r.get("name") or "").strip()
-        if not nm or str(r.get("lane") or "").lower() != "stash" or nm in assign:
-            continue
-        if str(r.get("kind") or "item").lower() != "item":
-            continue              # the lane files grail ITEMS; a rune / gem / material row is a tally, never a filing
-        routable, canon = route_fn(nm)
-        if canon in assign:
-            continue              # filed under its slot-suffixed set-piece name — the lane's canonical form
-        try:
-            import inventory_law as _il2
-            if not _il2.worth_registering(nm)[0]:
-                continue          # furniture and consumables are never filed — not a gap
-        except Exception:
-            pass
-        if locked_fn(nm)[0]:
-            continue
-        gv = gate_fn(r.get("witnesses") or [])
-        if gv.get("pass") and routable is False:
-            gate_no_mule.append(nm)          # the shared stash: no mule exists for it, so it is not a gap
-            continue
-        if gv.get("pass") and routable is None:
-            gate_route_unknown.append(nm)    # the rule could not be read: UNKNOWN, never counted either way
-            continue
-        if gv.get("pass") and (nm in held_by_reset or canon in held_by_reset):
-            gate_reset_held.append(nm)       # rank 1: his reset's plan held it — said beside, never a gap
-            continue
-        if gv.get("pass"):
-            gate_unfiled.append(nm)
+        cls = arm3_row_class(r, assign, route_fn, locked_fn, gate_fn, held_by_reset)
+        if cls:
+            _bucket[cls].append(str(r.get("name") or "").strip())
     # what the MAIN arm could see at all: the ledger's locks and every 3-session lane lock
     main_locks = main_tracked = None
     main_why = ""
@@ -2602,7 +2628,7 @@ def _check_the_vault_reset(receipt=None, before=None, after=None):
         got = dict(got, why=("reset at %s (%s door) · " % (at, receipt.get("door") or "?")) + str(got.get("why") or ""))
     if got.get("notApplicable"):
         # Reset assignments never rebuilds: judged on the kept stores alone (vault_evidence.reset_receipt says so)
-        return (OK if got.get("ok") else MISSING), got.get("why") or "Reset assignments · kept stores unchanged"
+        return (OK if got.get("ok") else MISSING), got.get("why") or "Reset assignments never rebuilds · kept stores unchanged"
     if got.get("rebuilt") is None or got.get("held") is None:
         return UNKNOWN, got.get("why") or "the reset receipt could not be read"
     if got.get("touched") or got.get("unknown"):
@@ -2657,8 +2683,10 @@ def _check_the_evidence_tiers(path=None, root=None):
         if base:
             pic += " (%d before the keep landed — a baseline nothing can repair)" % len(base)
         if after:
-            bad_pics = "%d cited picture(s) lost AFTER the keep landed: %s" % (
-                len(after), "; ".join("%s (%s, reel %s)" % (r["item"], r["frame"], r.get("reel") or "?") for r in after[:4]))
+            # round-5 review (LOW): the keep's commit time is a lower bound — said, never pretended exact
+            bad_pics = "%d cited picture(s) lost AFTER the keep landed (%s): %s" % (
+                len(after), _ve.KEEP_LANDED_WHY,
+                "; ".join("%s (%s, reel %s)" % (r["item"], r["frame"], r.get("reel") or "?") for r in after[:4]))
         if undated:
             bad_pics = ((bad_pics + "; ") if bad_pics else "") + (
                 "%d cited picture(s) gone and no tombstone dates the loss — when is UNKNOWN: %s" % (

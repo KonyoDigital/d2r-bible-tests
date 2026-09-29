@@ -146,6 +146,13 @@ function take(){
   OUT.first = take();
   await window.vaultClearHistory();       // the NEXT reset, on the board the first one left
   OUT.second = take();
+  // round-5 review (MED): a witness store that will not read — the ask must say UNREADABLE (false), never null ("not said")
+  seed();
+  THROW_ON['d2r_vaultProv'] = true;
+  await window.vaultClearHistory();
+  OUT.unreadable = take();
+  OUT.unreadable.sent = OUT.unreadable.bodies[0] ? OUT.unreadable.bodies[0].recorded : 'NO BODY';
+  THROW_ON = {};
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){ process.stderr.write(String((e && e.stack) || e)); process.exit(3); });
 """
@@ -252,6 +259,13 @@ class TheShippedResetKeepsThemFiled(unittest.TestCase):
     def test_the_next_reset_keeps_them_filed_too(self):
         self._filed("second")
 
+    def test_a_reset_whose_witness_store_would_not_read_says_so_to_the_plan(self):
+        """Round-5 review (MED): with d2r_vaultProv unreadable the reset's recorded filings are null; the ask carries `false`
+        (unreadable), never `null` (not said) — the two ends of rank 1 now mean the same thing."""
+        u = self.out["unreadable"]
+        self.assertIsNone(u["recorded"], "PREMISE: the receipt says the board's filings could not be read")
+        self.assertIs(False, u["sent"], "an unreadable board was sent to the plan as %r — the route reads null as 'not said'" % (u["sent"],))
+
     def test_the_reset_asks_the_plan_with_the_filings_the_board_held_before_its_clears(self):
         """#41 rank 1: the ask carried '{}', so the plan derived 'filed before' from surplus frames. The reset now reads
         its own filings BEFORE the clears (the mule map's names, the witness rows' tiers) and POSTs them as `recorded`."""
@@ -312,7 +326,11 @@ class TheKeepIsPromisedOnlyToARowTheBoardHeld(unittest.TestCase):
         rows = dict((r["name"], r) for r in plan["retro"]["rows"])
         self.assertEqual(("HARDENED", "board"), (rows["Radiance"]["recordedTier"], rows["Radiance"]["recordedBy"]),
                          "the board's own recorded tier is not the one compared")
-        self.assertEqual("frames", rows["Horadric Cube"]["recordedBy"], "a filing with no tier falls back to the frame math for its recorded tier")
+        # round-5 review (LOW): a filing the board wrote with no tier is still the BOARD's — its row says so, never "frames"
+        # under a plan that says "board"
+        self.assertEqual("board (no tier)", rows["Horadric Cube"]["recordedBy"],
+                         "a tier-less board filing's row names a source the plan's summary denies: %r" % rows["Horadric Cube"])
+        self.assertIn("filed on the board with no tier", rows["Horadric Cube"]["why"])
 
     def test_without_recorded_the_frame_math_still_decides_and_says_so(self):
         plan = self._plan({})
@@ -322,6 +340,20 @@ class TheKeepIsPromisedOnlyToARowTheBoardHeld(unittest.TestCase):
         self.assertFalse(unread["ok"], "an unreadable `recorded` was read as an empty board")
         self.assertIn("UNKNOWN", unread["why"])
         self.assertEqual([], unread["rebuilt"])
+
+    def test_a_board_the_page_could_not_read_is_unknown_not_the_frame_math(self):
+        """Round-5 review (MED, reproduced): the page sent recorded:null for a store that would not read, and the route read
+        None as "the caller did not say" — the frame-surplus keep, through the unreadable door. The page now sends `false`
+        for an unreadable board; the plan answers UNKNOWN and rebuilds nothing."""
+        unread = self._plan({"recorded": False})
+        self.assertFalse(unread["ok"], "an unreadable board (recorded:false) was read as 'not said' and the frame math decided")
+        self.assertIn("UNKNOWN", unread["why"])
+        self.assertIn("recorded filings could not be read", unread["why"])
+        self.assertEqual([], unread["rebuilt"])
+        self.assertIsNone(unread.get("recordedBy"))
+        said_nothing = self._plan({"recorded": None})
+        self.assertTrue(said_nothing["ok"], "null / not said must still be the frame math")
+        self.assertEqual("frames", said_nothing["recordedBy"])
 
     def test_the_route_wrote_nothing(self):
         with io.open(self.path, "rb") as fh:
@@ -554,7 +586,7 @@ RED_PROOF = [
     {
         "why": "#41 rank 1 - the plan flags a retro row the board never filed, so an empty board is promised keepFiled again",
         "file": "vault_evidence.py",
-        "find": "            flagged = (_retro_row(name, measured, held_tiers.get(name))\n                       if (held_names is None or name in held_names) else None)\n",
+        "find": "            flagged = (_retro_row(name, measured, held_tiers.get(name), board_filed=(held_names is not None))\n                       if (held_names is None or name in held_names) else None)\n",
         "replace": "            flagged = _retro_row(name, measured)\n",
         "matches": 1,
     },
@@ -640,6 +672,27 @@ RED_PROOF = [
         "file": "../bible.html",
         "find": "      if (retroN) { rowF.flag = retroN; rowF.keepFiled = true; }\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 MED - the page sends an unreadable board as null again, which the route reads as 'not said' (the frame math decides)",
+        "file": "../bible.html",
+        "find": "    var sent = (recorded === null) ? false : ((recorded && typeof recorded === 'object') ? recorded : null);\n",
+        "replace": "    var sent = (recorded && typeof recorded === 'object') ? recorded : null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 MED - the route reads the unreadable sentinel as 'not said', so an unreadable board is judged by the frame math",
+        "file": "vault_evidence.py",
+        "find": "    if recorded is False:\n        return False\n",
+        "replace": "    if recorded is False:\n        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 LOW - a tier-less board filing's row says 'frames' under a plan that says 'board' again",
+        "file": "vault_evidence.py",
+        "find": "        rec, by = tier(frames.get(\"successes\"), frames.get(\"trials\"))[\"tier\"], (\"board (no tier)\" if board_filed else \"frames\")\n",
+        "replace": "        rec, by = tier(frames.get(\"successes\"), frames.get(\"trials\"))[\"tier\"], \"frames\"\n",
         "matches": 1,
     },
 ]

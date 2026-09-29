@@ -69,6 +69,16 @@ LANES_HEAD = "  window._VAULT_LANES = ["
 MAY_HEAD = "  window._vaultMayClaim = function(loc){\n"
 REC_FROM = "      var _w0 = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};\n"
 REC_TO = "      /* v2018 — REG-349: ASK THE PLANNER ABOUT THE ITEM"
+#: round-5 review (HIGH) — the register's REAL ambiguity gate (L-4), cut into the stub as its receipt is: a stub that skipped
+#: it let the L-1 law's premise (a bare Worldstone Shard is owned as "(any)") contradict what the real register refused.
+#: The slice ends before `name = window._vaultResolveName(name);` — the laws that need the resolver install RESOLVE themselves.
+AMB_FROM = "      /* L-4 — a bare name several known items share is refused (or settled by the read's kind), never filed as one of them.\n"
+AMB_TO = "      name = window._vaultResolveName(name);\n"
+
+
+def amb_gate(s=None):
+    """The real L-4 gate, cut from the register — every harness stub carries it (the __AMB_GATE__ slot in HARNESS)."""
+    return _between(s if s is not None else _src(), AMB_FROM, AMB_TO)
 SORT_FROM = "    var _pvS = _provAll();\n"
 SORT_TO = "    /* the throw-out ADVICE is still computed for the dock"
 W6_FROM = "    var _pvW6 = _provAll();\n"
@@ -259,6 +269,7 @@ function _provAll(){ try { var v = JSON.parse(window.LSR.getItem('d2r_vaultProv'
 var UNKNOWN = { 'Compendium': 1 }, FILES = { 'Compendium': 'bases' };
 window.tvVaultRegister = function(name, witness){
   REG.push({ name: name, witness: witness });
+__AMB_GATE__
 %(rec)s
   window._ownedAdd(name, _rec);
   if (UNKNOWN[name]){ var t = JSON.parse(STORE['d2r_tvExtraItems'] || '{}'); t[name] = { rarity: 'basic', val: 'tv' };
@@ -598,6 +609,9 @@ FURN_FROM = "var _FURNITURE_WORDS = ['horadric cube'"
 FURN_TO = "/* THE MAIN LEDGER, AS THE CONSOLE PUBLISHES IT"
 REG_FROM = "  window.tvVaultRegister = function(name, witness){\n"
 REG_TO = "\n  // v731 — reverse a mistaken vault"
+#: L-1 (round 4) published the register's name resolution as window._vaultResolveName and the register calls it, so the SHIPPED
+#: register cut below must carry that door too (it sits directly above the register on the page)
+RESOLVER_FROM = "  window._vaultResolveName = function(name){\n"
 ROUTER_FROM = "window._LP_FORKED = new Set(["
 ROUTER_TO = "    raw: RAW, key: key\n  };\n})();\n"
 UNSEED_FROM = "window._d2rUnseedRestore = function(){\n"
@@ -605,6 +619,8 @@ UNSEED_TO = "\n</script>"
 
 
 def _node(prog, tag):
+    if "__AMB_GATE__" in prog:
+        prog = prog.replace("__AMB_GATE__", amb_gate())
     fd, path = tempfile.mkstemp(prefix=".owned_prov_%s_" % tag, suffix=".js", dir=HERE)
     try:
         with io.open(fd, "w", encoding="utf-8") as fh:
@@ -1039,7 +1055,7 @@ class TheRegisterNeverFilesCarriedLoot(unittest.TestCase):
     def test_the_shipped_register_owns_a_carried_read_and_files_a_stash_read(self):
         s = _src()
         o = _node(REGISTER % {"lanes": _lanes(s), "furn": _between(s, FURN_FROM, FURN_TO), "region": owned_prov_region(s),
-                              "reg": _between(s, REG_FROM, REG_TO)}, "register")
+                              "reg": _between(s, RESOLVER_FROM, REG_FROM) + _between(s, REG_FROM, REG_TO)}, "register")
         self.assertEqual("carried", o["carried"].get("refused"), o["carried"])
         self.assertEqual([], o["filedAfterCarried"], "the register FILED carried loot to a mule")
         self.assertTrue(o["carriedRow"]["carried"])

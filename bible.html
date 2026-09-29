@@ -4230,6 +4230,9 @@ window._LP_FORKED = new Set([
      on LADDER it starts empty, which is correct because ladder never had those removals.
      [[ladder-doctrine]] [[the-unjoined-end]] */
   'd2r_vaultRemoved',
+  /* round-5 review (MED) — the per-name record of his removals ({canon key: {at, lane, frame, ts}}), which the 20-deep ring
+     above evicts nothing from; it forks exactly as the ring and d2r_owned do, for the same reason. */
+  'd2r_vaultRemovedAt',
   /* #41 rank 2 — the last vault reset's receipt (window._vaultLastReset, persisted so the doctor's reset row can read it
      through the board read). A reset clears d2r_owned and d2r_muleAssign, both in this set, so its record forks as they do. */
   'd2r_vaultLastReset',
@@ -18935,6 +18938,8 @@ try {
                 /* §31.2 — loot seen in the inventory's free space is OWNED and CARRIED (not locked) by the character
                    the read was taken on; null = not carried / not said. The character is the read's own, never guessed. */
                 carried: (rec.carried === true) ? true : null, character: _str(rec.character),
+                /* round-5 review (HIGH) — a same-kind pair (Spirit: shield or sword) filed as its bare name: the receipt says the base is UNKNOWN */
+                baseUnknown: _str(rec.baseUnknown),
                 looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: m ? _iso(ts) : null, loc: _str(rec.loc), scene: _str(rec.scene) }] : [],
                 ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null };
     out.seen = out.looks.length;
@@ -19079,15 +19084,39 @@ try {
     if (st !== f) return null;
     var sib = K.stems[st];
     if (!sib || Object.keys(sib).length < 2) return null;
-    var among = Object.keys(sib).sort();
+    var among = Object.keys(sib).sort(), said = String(x).trim();
+    var kindSet = {}; among.forEach(function(n){ kindSet[K.kinds[n] || '?'] = 1; });
+    var kindsSeen = Object.keys(kindSet), oneKind = (kindsSeen.length === 1) ? kindsSeen[0] : null;
+    /* ⚠ round-5 review (HIGH, reproduced on the real name lists) — AMBIGUITY IS ABOUT DIFFERENT ITEMS, NOT SPELLINGS.
+       The first cut refused every stem with two siblings, so a bare "Hellmouth" (ONE unique the drop tables spell two
+       ways, "Hellmouth" and "Hellmouth (gloves)") and a bare "Spirit" (two runewords of one name) were refused under EVERY
+       kind — the kind tap could never reach them — and the TV live door and the inbox accept, which pass no kind, refused
+       bare Worldstone Shard, Aldur's Watchtower and Griswold's Legacy too, silently (x.vault=false, no ask). Three shapes,
+       three answers, none a refusal:
+         · every sibling is ONE kind and the bare name is itself one of them  -> the bare name IS the item, in its canonical
+           spelling (the suffix is a base-type note the tables add): not ambiguous
+         · every sibling is ONE kind and the bare name is not one of them      -> ONE registrable item whose BASE is UNKNOWN
+           (Spirit, shield or sword): settled to the bare name, baseUnknown said on the receipt
+         · a "<stem> (any)" sibling                                            -> the kind-unknown bucket the resolver already
+           answers (Worldstone Shard (any)): settled to it
+       Only siblings of DIFFERENT kinds (the runeword Crescent Moon beside the amulet) are a real ambiguity: refused without
+       the read's kind — and the refusal is SURFACED (the register holds the read in the Chronicle inbox naming the
+       candidates), never a silent false. [[unknown-stays-unknown]] */
+    if (oneKind && sib[f]) return null;
     var kind = (hint && typeof hint === 'object' && hint.kind) ? String(hint.kind).toLowerCase() : '';
     if (kind){
       var ofKind = among.filter(function(n){ return K.kinds[n] === kind; });
-      if (ofKind.length === 1) return { name: String(x), among: among, settled: K.names[ofKind[0]] || ofKind[0], kind: kind,
-                                         why: '"' + x + '" names ' + among.length + ' known items, settled by the read’s kind (' + kind + ')' };
+      if (ofKind.length === 1) return { name: said, among: among, settled: K.names[ofKind[0]] || ofKind[0], kind: kind,
+                                         why: '"' + said + '" names ' + among.length + ' known items, settled by the read’s kind (' + kind + ')' };
     }
-    return { name: String(x), among: among, settled: null,
-             why: '"' + x + '" names ' + among.length + ' known items (' + among.join(', ') + ') — ambiguity is not a match, so it waits for a read that says which' };
+    if (oneKind) return { name: said, among: among, settled: said, kind: oneKind, baseUnknown: true,
+                          why: '"' + said + '" names ' + among.length + ' ' + oneKind + 's of one name (' + among.join(', ')
+                               + ') — filed as "' + said + '"; which base is UNKNOWN' };
+    var anyB = among.filter(function(n){ return /\(any\)$/.test(n); });
+    if (anyB.length === 1) return { name: said, among: among, settled: K.names[anyB[0]] || anyB[0], bucket: 'any',
+                                    why: '"' + said + '" names ' + among.length + ' known items — filed as the kind-unknown "(any)" bucket' };
+    return { name: said, among: among, settled: null,
+             why: '"' + said + '" names ' + among.length + ' known items (' + among.join(', ') + ') — ambiguity is not a match, so it waits for a read that says which' };
   };
   window._ownedProvWrite = function(name, rec){
     var nm = String(name == null ? '' : name).trim();
@@ -19389,6 +19418,41 @@ try {
      -> null (no removal after it) | {at, lane, frame, why} | {unknown: why} (the journal would not read, or the read
      carries no time beside a removal — which came first is UNKNOWN) */
   var _RM_NOT_HIS_WORD = { 'seed-cleanse': 1, 'backfill-undo': 1 };
+  /* ⚠ round-5 review (MED) — IS THIS REMOVAL BATCH HIS WORD ABOUT THE ITEM, AND WHEN? One rule, asked by the journal
+     reader below, by the per-name note the removal door writes, and by the backfill. The cleanse's and the backfill undo's
+     batches never are. The TV's unvault ('tv-unvault', M-3) is a MACHINE's word: it outranks an older read only when it
+     carries the frame that saw the item thrown — a batch stamped with the clock and no proof un-owns the name (as before)
+     but blocks no replay. -> {at, lane, frame} | null */
+  window._removalIsHisWord = function(b){
+    if (!b || typeof b !== 'object' || _RM_NOT_HIS_WORD[String(b.lane || '')]) return null;
+    var lane = String(b.lane || 'manual'), frame = (b.proof && b.proof.frame) || null;
+    if (lane === 'tv-unvault' && !frame) return null;
+    var at = _ms(b.proof && b.proof.at) || _ms(b.ts);
+    if (at == null) return null;
+    return { at: at, lane: lane, frame: frame };
+  };
+  /* ⚠ round-5 review (MED) — THE RING FORGETS; HIS WORD MUST NOT. d2r_vaultRemoved keeps the last 20 batches for the undo,
+     and M-3 routed the un-tick and the TV's thrown items through it one batch each — so a sweep of 20 un-ticks or one
+     session's throws evicted his earlier card-click batches, and with them REG-1391's "his removal outranks every older
+     read". Every removal that is his word is ALSO noted per name here (d2r_vaultRemovedAt: {canon key: {at, lane, frame,
+     ts}}), which never evicts and only moves forward; _removedAfter and the backfill read it beside the ring. Keyed as the
+     backfill keys (the register's own resolution, then the vault fold — L-1 / M3). The removal door calls this. */
+  var _RM_AT_KEY = 'd2r_vaultRemovedAt';
+  window._vaultRemovalNote = function(b){
+    var w = window._removalIsHisWord(b);
+    if (!w || !Array.isArray(b.names) || !b.names.length) return { noted: 0, why: w ? 'no names' : 'not his word' };
+    var store = _bfJson(_RM_AT_KEY, {});
+    if (!store || typeof store !== 'object' || Array.isArray(store)) return { noted: 0, why: 'd2r_vaultRemovedAt would not read — nothing was written over it' };
+    var n = 0;
+    b.names.forEach(function(nm){
+      var k = _cnV(_regName(nm)); if (!k) return;
+      var cur = store[k];
+      if (cur && typeof cur === 'object' && _ms(cur.at) != null && _ms(cur.at) >= w.at) return;   /* never backwards */
+      store[k] = { at: w.at, lane: w.lane, frame: w.frame, ts: _ms(b.ts) }; n++;
+    });
+    if (n){ try { window.LSR.setItem(_RM_AT_KEY, JSON.stringify(store)); } catch (e) { return { noted: 0, why: 'd2r_vaultRemovedAt would not write' }; } }
+    return { noted: n };
+  };
   window._removedAfter = function(name, ts){
     /* L-1 — the read's name AND the name the register owns it as: a removal journaled under either is his word about it */
     var keys = {}, k0 = _cnV(name), k1 = _cnV(_regName(name));
@@ -19396,13 +19460,20 @@ try {
     if (!k0 && !k1) return null;
     var log = _bfJson('d2r_vaultRemoved', []);
     if (!Array.isArray(log)) return { unknown: 'the removal journal would not read — whether you removed it after this read is UNKNOWN' };
+    var noted = _bfJson(_RM_AT_KEY, {});
+    if (!noted || typeof noted !== 'object' || Array.isArray(noted)) return { unknown: 'the per-name removal record would not read — whether you removed it after this read is UNKNOWN' };
     var t = _ms(ts), last = null;
     log.forEach(function(b){
-      if (!b || typeof b !== 'object' || _RM_NOT_HIS_WORD[String(b.lane || '')]) return;
+      var w = window._removalIsHisWord(b);
+      if (!w) return;
       if (!(Array.isArray(b.names) ? b.names : []).some(function(n){ return keys[_cnV(n)] === 1; })) return;
-      var at = _ms(b.proof && b.proof.at) || _ms(b.ts);
-      if (at == null) return;
-      if (!last || at > last.at) last = { at: at, lane: String(b.lane || 'manual'), frame: (b.proof && b.proof.frame) || null };
+      if (!last || w.at > last.at) last = { at: w.at, lane: w.lane, frame: w.frame };
+    });
+    /* the per-name record outlives the ring: a removal the ring evicted is still his word */
+    Object.keys(keys).forEach(function(k){
+      var r = noted[k]; if (!r || typeof r !== 'object') return;
+      var at = _ms(r.at); if (at == null) return;
+      if (!last || at > last.at) last = { at: at, lane: String(r.lane || 'manual'), frame: r.frame || null };
     });
     if (!last) return null;
     if (t == null) return { unknown: 'removed ' + _iso(last.at) + ', and this read carries no time — whether it is newer is UNKNOWN' };
@@ -19673,6 +19744,12 @@ try {
     _rmLog.forEach(function(b){ (b && Array.isArray(b.names) ? b.names : []).forEach(function(n){
       var k = _cf(n); if (!k) return;
       var t = +((b && b.ts) || 0); _rmAt[k] = Math.max(_rmAt[k] || 0, t || 1); }); });
+    /* round-5 review (MED) — and the per-name record the ring evicts nothing from: a removal older than the ring's 20 batches
+       is still his; a record that will not read is UNKNOWN and nothing is replayed over it */
+    var _rmNoted = _bfJson(_RM_AT_KEY, {});
+    if (!_rmNoted || typeof _rmNoted !== 'object' || Array.isArray(_rmNoted)) return { ran: false, why: 'the per-name removal record would not read — whether he removed any of these is UNKNOWN, so nothing was backfilled; it asks again next load' };
+    Object.keys(_rmNoted).forEach(function(k){ var r = _rmNoted[k], t = r && typeof r === 'object' ? (_ms(r.at) || _ms(r.ts) || 0) : 0;
+      if (k) _rmAt[k] = Math.max(_rmAt[k] || 0, t || 1); });
     var _ownAs = {};
     owned.forEach(function(o){ var k = _cf(o); if (k && _ownAs[k] == null) _ownAs[k] = o; });
     var here = _hereWorld();
@@ -24672,8 +24749,11 @@ function toggleOwned(name, prov) {
            and owned it again, and the receipt it left behind blocked a later real pick-up from being carried (M-1). Through
            the removal door: dated, journaled, undoable — a replayed older read never brings it back. */
         if (owned.has(name)){
+          /* round-5 review (LOW) — HIS RULING STANDS: THE UN-TICK NEVER DELETES A MULE FILING. The removal door dropped
+             assign[name] for every lane; the old un-tick left the filing standing. keepFiling keeps the filing and its
+             witness row on the mule — only the name leaves owned, journaled and undoable (REG-1462). */
           var _vrUT = null;
-          try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
+          try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, keepFiling: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
           if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }
         }
         /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
@@ -40008,10 +40088,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.tvVaultRegister = function(name, witness){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
-      /* L-4 — a bare name several known items share is refused (or settled by the read's kind), never filed as one of them */
+      /* L-4 — a bare name several known items share is refused (or settled by the read's kind), never filed as one of them.
+         round-5 review (HIGH): a refusal is SURFACED — the read is held in the Chronicle inbox naming the candidates (the
+         ask), never a silent x.vault=false; a same-kind pair (Spirit) is settled to the bare name with its base UNKNOWN */
       var _ambV = (typeof window._vaultNameAmbiguity === 'function')
         ? window._vaultNameAmbiguity(name, { kind: (witness && typeof witness === 'object') ? witness.kind : null }) : null;
-      if (_ambV && !_ambV.settled) return { ok:false, refused:'ambiguous', among:_ambV.among, why:_ambV.why };
+      if (_ambV && !_ambV.settled){
+        var _heldV = null;
+        try { if (typeof window._vaultHoldAmbiguous === 'function') _heldV = window._vaultHoldAmbiguous(name, _ambV, witness); } catch(eH){ _heldV = null; }
+        return { ok:false, refused:'ambiguous', among:_ambV.among, why:_ambV.why, held: (_heldV && _heldV.ok) ? 'inbox' : null };
+      }
       if (_ambV && _ambV.settled) name = _ambV.settled;
       name = window._vaultResolveName(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
@@ -40024,7 +40110,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                    sessionId: _l0.session || _l0.witness || null, frameId: _l0.frame || null, conf: _l0.conf,
                    where: (_w0.by === 'hand') ? (_w0.where || null) : null,
                    /* §31.2 — a read the route called CARRIED: owned, on that character's strip, never filed */
-                   carried: _w0.carried === true, character: _w0.character || null };
+                   carried: _w0.carried === true, character: _w0.character || null,
+                   /* round-5 review (HIGH) — a same-kind pair filed as its bare name says which base is UNKNOWN */
+                   baseUnknown: (_ambV && _ambV.baseUnknown) ? String(_ambV.why) : null };
       /* v2018 — REG-349: ASK THE PLANNER ABOUT THE ITEM, NOT ABOUT A STUB I WROTE THREE LINES AGO.
          The UNIVERSE GUARANTEE below writes EXTRA_ITEMS[name] = {rarity:'basic', base:name} so the
          mirror can DRAW an unknown name. That write used to happen FIRST, and suggestMule's very
@@ -40415,20 +40503,64 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     };
   })();
 
-  window.tvVaultUnregister = function(name){
-    try {
-      name = String(name || '').trim(); if (!name) return { ok:false };
-      /* M-3 (review of 7cded0c1) — a name the board holds leaves through the journaled door (the TV saw it thrown: a real
-         signal, dated, undoable); a filing residue for a name it does not hold is dropped as before */
-      if (owned.has(name)){ try { window.vaultRemove([name], { lane: 'tv-unvault', quiet: true, why: 'the TV saw it thrown' }); } catch(e){} }
+  /* ⚠ round-5 review (MED) — ONE READ, ONE BATCH, WITH ITS FRAME. M-3 journaled the TV's thrown items one batch per name
+     inside unvaultList.forEach, so a session's throws could evict his earlier card-click batches from the 20-deep ring;
+     and the batch was stamped with the clock and no proof, so a machine claim outranked his older reads. The TV door now
+     hands the WHOLE unvault list here with the read's frame: one batch, proof {frame, at} (the frame's own stamp,
+     f_<epoch-ms>), and _removalIsHisWord lets a 'tv-unvault' batch outrank an older read ONLY with that frame.
+     `proof` = {frame, at} | null; a missing frame un-owns as before and blocks no replay. */
+  function _tvFrameMs(f){ var m = /^(?:.*\/)?f_(\d{12,14})/.exec(String(f || '')); return m ? +m[1] : null; }
+  window.tvVaultUnregisterMany = function(names, proof){
+    var list = (Array.isArray(names) ? names : [names]).map(function(n){ return String(n || '').trim(); }).filter(Boolean);
+    if (!list.length) return { ok:false, why:'no names' };
+    var pf = null;
+    if (proof && typeof proof === 'object' && proof.frame){
+      var at = (typeof proof.at === 'number' && isFinite(proof.at)) ? proof.at : _tvFrameMs(proof.frame);
+      pf = { frame: String(proof.frame), at: (at == null ? null : at) };
+    }
+    var held = list.filter(function(n){ return owned.has(n); }), batch = null;
+    /* M-3 (review of 7cded0c1) — a name the board holds leaves through the journaled door (the TV saw it thrown: a real
+       signal, dated, undoable); a filing residue for a name it does not hold is dropped as before */
+    if (held.length){ try { batch = window.vaultRemove(held, { lane: 'tv-unvault', quiet: true, why: 'the TV saw it thrown', proof: pf }); } catch(e){ batch = null; } }
+    list.forEach(function(name){
       try { owned.delete(name); } catch(e){}
       try { delete assign[name]; } catch(e){}
       try { _provDrop(name); } catch(e){}
-      persistOwned(); saveA();
-      try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
-      var st = document.getElementById('vault-status');
-      if (st) st.textContent = '📺 TV unvaulted (thrown): ' + name;
-      return { ok:true, mode:'unvault', label: name };
+    });
+    persistOwned(); saveA();
+    try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
+    var st = document.getElementById('vault-status');
+    if (st) st.textContent = '📺 TV unvaulted (thrown): ' + list.join(', ');
+    return { ok:true, mode:'unvault', labels: list, journaled: (batch && batch.batch) ? held : [], proof: pf };
+  };
+  window.tvVaultUnregister = function(name, proof){
+    try {
+      name = String(name || '').trim(); if (!name) return { ok:false };
+      var r = window.tvVaultUnregisterMany([name], proof || null);
+      return r && r.ok ? { ok:true, mode:'unvault', label: name, journaled: r.journaled, proof: r.proof } : r;
+    } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
+  };
+  /* ⚠ round-5 review (HIGH) — THE REFUSAL IS AN ASK, NOT A SILENCE. A read the register refuses as ambiguous (a bare name
+     that is several known items of different kinds) is held in the Chronicle inbox with the candidates named, so it
+     reaches his eye where every other undecided read does — never only an x.vault=false on a log row. Once per name.
+     -> {ok, name, candidates, why} | {ok:false, why} */
+  window._vaultHoldAmbiguous = function(name, amb, witness){
+    try {
+      var nm = String(name || '').trim(); if (!nm || !amb || !Array.isArray(amb.among)) return { ok:false, why:'nothing to hold' };
+      var w = (witness && typeof witness === 'object') ? witness : {}, s0 = (Array.isArray(w.sessions) && w.sessions[0]) || {};
+      var ib = [];
+      try { ib = JSON.parse(window.LSR.getItem('d2r_chronicleInbox') || '[]'); } catch(e){ return { ok:false, why:'the inbox would not read — the ask was not written over it' }; }
+      if (!Array.isArray(ib)) return { ok:false, why:'the inbox is not a list — the ask was not written over it' };
+      var why = 'which item? ' + amb.among.join(' | ') + ' — ' + String(amb.why || '');
+      var row = { name: nm, ask: 'which', candidates: amb.among.slice(), triageWhy: why, source: String(w.by || 'tv-register'),
+                  loc: w.lane || w.loc || null, scene: w.scene || null, frameId: s0.frame || w.frame || null,
+                  sessionId: s0.session || w.reel || null, firstSeenTs: (typeof w.at === 'string' ? Date.parse(w.at) : null) || null };
+      var has = ib.some(function(x){ return x && String(x.name || '').toLowerCase() === nm.toLowerCase(); });
+      if (!has){ ib.push(row); try { window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(ib.slice(-200))); } catch(e){ return { ok:false, why:'the inbox would not write' }; } }
+      try { if (typeof window.kaiChronicleRecord === 'function')
+              window.kaiChronicleRecord({ name: nm, status: 'pending', ask: 'which', candidates: amb.among.slice(), why: why, source: row.source,
+                                          frameId: row.frameId, sessionId: row.sessionId, loc: row.loc, scene: row.scene }); } catch(e){}
+      return { ok:true, name: nm, candidates: amb.among.slice(), why: why, queued: !has };
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
   // v598 — auto-register a "<Base> (Nos low base)" intake read as a FULL vault entry — no clicks.
@@ -40552,11 +40684,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          have no way to tell the difference. The denominator is what was ASKED; the numerator is
          what was actually there to take. [[zero-needs-a-denominator]] */
       if (!owned.has(nm)) { skipped.push(nm); return; }
-      if (assign[nm] != null) filed[nm] = assign[nm];
-      /* #246 — the witness row travels with the removal, so an undo restores the filing ON ITS EVIDENCE */
-      var _pvR = _provAll()[nm]; if (_pvR) provs[nm] = _pvR;
+      /* ⚠ round-5 review (LOW) — A MULE FILING IS NEVER DELETED AS A SIDE EFFECT. The unique card's un-tick (M-3) came
+         through here and took the filing with the name; the old un-tick left the filing standing, and "never delete a mule
+         filing" is his standing rule. `opts.keepFiling` keeps the filing AND its witness row on the mule; only the name
+         leaves owned. The batch says so (keepFiling), and the undo re-files nothing it did not take. */
+      if (!opts.keepFiling){
+        if (assign[nm] != null) filed[nm] = assign[nm];
+        /* #246 — the witness row travels with the removal, so an undo restores the filing ON ITS EVIDENCE */
+        var _pvR = _provAll()[nm]; if (_pvR) provs[nm] = _pvR;
+      }
       owned['delete'](nm);
-      delete assign[nm];
+      if (!opts.keepFiling) delete assign[nm];
       removed.push(nm);
     });
     /* AN EMPTY BATCH IS NOT WRITTEN. A stamp for nothing would push a real batch out of the
@@ -40573,10 +40711,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 prov: provs,
                 why: String(opts.why || 'removed from owned'),
                 lane: String(opts.lane || 'manual'),
+                keepFiling: !!opts.keepFiling,
                 /* §31.2 — a carried item leaves on a real signal, and the batch keeps the frame that proves it */
                 proof: (opts.proof && typeof opts.proof === 'object') ? opts.proof : null };
       var log = _vrRead(); log.push(batch); _vrWrite(log);
-      try { _provDrop(removed); } catch(e){}
+      /* round-5 review (MED) — the per-name record the ring never evicts (window._vaultRemovalNote, the owned door's rule) */
+      try { if (typeof window._vaultRemovalNote === 'function') batch.noted = window._vaultRemovalNote(batch); } catch(e){}
+      if (!opts.keepFiling){ try { _provDrop(removed); } catch(e){} }
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       window._repaintOwned();
       if (!opts.quiet) status('🗑 removed ' + removed.length + ' of ' + req.length + ' from owned'
@@ -41030,7 +41171,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* L-4 (review of 7cded0c1) — the register's rule, one step upstream: a bare name several known items share (Crescent
        Moon the runeword beside Crescent Moon (amulet); Spirit; Hellmouth) is not turned into whichever one the codex holds
        by the case-insensitive loop below. It is UNKNOWN, said (null), and the inbox holds it for his eye. */
-    try { if (typeof window._vaultNameAmbiguity === 'function' && window._vaultNameAmbiguity(nm)) return null; } catch(eA){}
+    /* round-5 review (HIGH) — only a name the rule cannot SETTLE is unknown: a same-kind pair (Spirit) and the "(any)"
+       bucket (Worldstone Shard) are settled answers, not refusals */
+    try { var _ambG = (typeof window._vaultNameAmbiguity === 'function') ? window._vaultNameAmbiguity(nm) : null;
+          if (_ambG && !_ambG.settled) return null; } catch(eA){}
     // inventory-only grails (always keep, never toss)
     if (/^(annihilus|hellfire torch|gheed'?s fortune)$/i.test(nm)) return { name: nm, rarity: 'unique', via: 'keep-inv' };
     try {
@@ -46110,6 +46254,12 @@ function renderJournal(){
     if (v && typeof v === 'object') return Object.keys(v).length;
     return null;
   }
+  /* round-5 (seen on the pixels, 2026-09-29) — ABSENT AND EMPTY ARE THE SAME CONTENT. On a fresh board (no d2r_magicFinds /
+     d2r_copies / d2r_multiKeep / d2r_unknownReads yet) the full reset's own persistOwned() writes '{}' / '[]' where no key
+     was, and the keep check read null -> '{}' as "a reset must never change d2r_magicFinds ... — it did": a false ⚠ on
+     his first reset. A store that held nothing and holds nothing has not changed; only a store that will not READ is
+     UNKNOWN (undefined, handled beside). The persisted digest says 'empty' for both, so the doctor's row agrees. */
+  function _vEmpty(raw){ return raw === null || _vResetCount(raw) === 0; }
   /* #41 rank 1 — WHAT THE BOARD HELD GOING INTO A RESET, read BEFORE the clears. His ruling §34.2 keeps a retro row FILED
      because it was filed before; the plan was asked with '{}' and derived "filed before" from surplus FRAMES, so a board
      that held nothing (every backup since his 09-27 reset) was promised keepFiled for Radiance and the Cube on the 1-look
@@ -46134,7 +46284,7 @@ function renderJournal(){
   var RESET_RECEIPT_KEY = 'd2r_vaultLastReset';
   function _vDigest(raw){
     if (raw === undefined) return undefined;
-    if (raw === null) return 'absent';
+    if (_vEmpty(raw)) return 'empty';
     var h = 5381, s = String(raw);
     for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
     return s.length + ':' + h.toString(16);
@@ -46147,7 +46297,10 @@ function renderJournal(){
       if (b !== undefined) R.keepsBefore[k.store] = b;
       if (a !== undefined) R.keepsAfter[k.store] = a;
     });
-    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); R.persisted = true; }
+    /* round-5 review (MED) — `persisted` is set BEFORE the receipt is serialised, so the stored copy says it was; a write
+       that throws leaves the in-memory receipt saying false and the store holding nothing */
+    R.persisted = true;
+    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); }
     catch (e) { R.persisted = false; }
   }
   /* the ONE runner. A door names itself; the scope says what that door may clear. The receipt is
@@ -46167,7 +46320,7 @@ function renderJournal(){
     S.keeps.forEach(function(k){
       var was = before[k.store], now = _vResetRead(k.store);
       if (was === undefined || now === undefined) R.unknown.push(k.store);
-      else if (now !== was) R.touched.push(k.store);
+      else if (now !== was && !(_vEmpty(was) && _vEmpty(now))) R.touched.push(k.store);
     });
     for (var i = 0; i < parts.length; i++){
       var c = S.clears[parts[i]]; if (!c.later) continue;
@@ -46197,8 +46350,13 @@ function renderJournal(){
      The witness ledger is not a store this runner writes. */
   async function _vaultAskRebuildPlan(recorded){
     var unread = { ok: false, rebuilt: [], held: [], why: 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty' };
+    /* ⚠ round-5 review (MED) — THE TWO ENDS OF RANK 1 DISAGREED ABOUT null. _vaultRecordedFilings answers null when a store
+       would not read, and this sent {recorded: null} — which vault_evidence read as "the caller did not say" and fell back to
+       the frame-surplus keep: the audit's own defect, through the unreadable door. An unreadable board is sent as
+       `false` (its own sentinel: UNKNOWN, nothing rebuilt); `null` is kept for a caller that truly did not say (undefined). */
+    var sent = (recorded === null) ? false : ((recorded && typeof recorded === 'object') ? recorded : null);
     try {
-      if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence(recorded);
+      if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence(sent);
     } catch (e) { return unread; }
     var host = '';
     try { host = (window.location) ? String(window.location.hostname || '') : ''; }
@@ -46209,9 +46367,10 @@ function renderJournal(){
     try { ctl = new AbortController(); } catch (e3) { ctl = null; }
     try {
       timer = setTimeout(function(){ try { if (ctl) ctl.abort(); } catch (e4) {} }, 4000);
-      /* rank 1 — the board's own filings ride with the ask; null = they could not be read (the plan is told so) */
+      /* rank 1 — the board's own filings ride with the ask; false = they could not be read (the plan is told so, and
+         answers UNKNOWN); null = not said */
       var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ recorded: (recorded && typeof recorded === 'object') ? recorded : null }) };
+                  body: JSON.stringify({ recorded: sent }) };
       if (ctl) opt.signal = ctl.signal;
       var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);
       if (!res || !res.ok) return unread;
@@ -64266,9 +64425,14 @@ window.tvStashAutoIntake = async function(tab, opts){
         pendingList.forEach(function(n){ pendSet[_nN(n)] = true; });
         confList.forEach(function(n){ confSet[_nN(n)] = true; });
         // reverse mistaken vaults (dropped after vault)
-        unvaultList.forEach(function(n){
-          try { if (typeof window.tvVaultUnregister === 'function') window.tvVaultUnregister(n); } catch(e){}
-        });
+        /* round-5 review (MED) — ONE batch for the whole read, with the frame that saw them thrown as its proof */
+        if (unvaultList.length){
+          try {
+            if (typeof window.tvVaultUnregisterMany === 'function')
+              window.tvVaultUnregisterMany(unvaultList, { frame: rd.frameId || rd.frame_id || null });
+            else unvaultList.forEach(function(n){ try { if (typeof window.tvVaultUnregister === 'function') window.tvVaultUnregister(n); } catch(e){} });
+          } catch(e){}
+        }
         if (vaultList.length){
           var _regd = {};   // v792 — names the routes-loop already registered (single-path truth)
           routes.forEach(function(x){

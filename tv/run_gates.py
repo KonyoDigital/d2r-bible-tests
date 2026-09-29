@@ -7043,8 +7043,15 @@ GATES = [
              "stamped with the wall clock and real drops were then 'OLDER': its time is null, tsMeasured false, recordedAt "
              "beside it, and UNKNOWN is said. L-3 with the mule map unreadable the line said '0 filed · N not filed': both "
              "UNKNOWN, and Auto-Sort waits. L-4 a bare name several known items share (Crescent Moon the runeword beside the "
-             "amulet; Spirit; Hellmouth) was filed as one of them: ambiguity is not a match - refused, or settled by the "
-             "read's kind, in the register and the AI checker alike. 22 cases, 15 red-proofs."),
+             "amulet) was filed as one of them: ambiguity is not a match - refused, or settled by the read's kind, in the "
+             "register and the AI checker alike - and the refusal is an ASK held in the Chronicle inbox, never a silent "
+             "false. ROUND-5 REVIEW: ambiguity is about DIFFERENT items, not spellings - a bare Hellmouth is the one unique "
+             "the tables spell two ways, a bare Spirit is ONE item whose base is UNKNOWN, a bare Worldstone Shard is the "
+             "(any) bucket; driven through the REAL register head on the kind-less TV and hand witnesses. R-5 the ring "
+             "forgets, his word must not: every removal is noted per name (d2r_vaultRemovedAt, never evicted), the TV's "
+             "thrown items are ONE batch with the read's frame as proof, a machine claim with no frame outranks no older "
+             "read, and the unique card's un-tick keeps the mule filing (his 'never delete a mule filing'). 29 cases, "
+             "30 red-proofs."),
     Gate("test_a_still_screen_is_one_look",
          [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
          why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "
