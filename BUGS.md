@@ -17,9 +17,11 @@ eight cards over a floor that kept sixteen. **Fix — the window is the console'
 publishes `riverKeep` = `_river_keep()` = reel_retention.KEEP_RECENT (the CONSTANT, not keep_recent_for(): the shelf is
 a VIEW cap by his ruling; the deleter's under-pressure narrowing is retention's business, reported in the same header
 as "closed out"); the page reads it into `SHELF_RIVER_KEEP` (null until the river answers, a non-number stays null);
-the block reads `RIVER_KEEP = SHELF_RIVER_KEEP >= 1 ? SHELF_RIVER_KEEP : 16`, and that fallback literal — for the
-seconds before /api/river answers and for a console that predates the field — is pinned to reel_retention.KEEP_RECENT
-by law, so it cannot become a fifth copy. **Why publish rather than only pin:** the ruling moved 5 -> 8 -> 16 in
+the block reads `RIVER_KEEP = SHELF_RIVER_KEEP >= 1 ? SHELF_RIVER_KEEP : 16`, and that fallback literal — for a console
+that answered WITHOUT a numeric `riverKeep` (one that predates the field, or `_river_keep()` -> None); never for the
+seconds before /api/river answers, which render the "reading the river…" header and never reach the block (the second
+eye's correction of this entry's first wording) — is pinned to reel_retention.KEEP_RECENT by law, so it cannot become a
+fifth copy. **Why publish rather than only pin:** the ruling moved 5 -> 8 -> 16 in
 nineteen days; a pinned literal still needs a page edit on every move, a published number does not, and a pin alone
 leaves the page one commit behind the console it renders. The fallback IS still a copy, which is why it is pinned too.
 **Laws (file and gate names kept — "of eight" is the ruling they were born under):** the four that pinned 8 now DERIVE
@@ -55,16 +57,30 @@ snapshot HOLDS d2r_charBuilds (1 build) and d2r_muleEquip. **And a quieter hole 
 `_ledger_snapshot_once` wrote NO snapshot when the board's ledger COUNTS were unchanged — and the watcher only judges
 snapshots — so a build wiped between two snapshots with nothing found in between would never have produced the file
 the watch reads. **Fix, built the way the ledger watch is built:** `ledger_restore.HAND_MADE` (charBuilds, muleEquip,
-muleAssign) counted off `allStores` (each value is the store's own JSON text; absent / unparseable / a bare ledger =
-UNKNOWN, never 0), judged on the SAME line (to 0, or >= max(10, 25%)) so his own Delete of one build (3 -> 2) never
-pages and a wipe (3 -> 0) opens an episode naming the file before it; `_ledger_drop_watch` opens it through the one
-`step_episodes`, the prune keeps `beforeFile`; the doctor's row names the store, the fall and the FILE as the door
-(`HAND_MADE_DOOR`, never the chronicle plan); the snapshot writer compares `hand_made_counts(fullStores)` beside the
-ledger counts; the put-back invariant counts a watched store with no declared door. cbMain is a declared POINTER
-(`HAND_MADE_POINTERS`): the Characters tab clears it with removeItem when the MAIN is deleted — a choice with an Undo,
-not a loss — and any wipe that takes it takes charBuilds, which is counted. **Law:**
-`tv/test_his_builds_are_watched_like_his_ledger.py` (12 cases over fixture blobs in a temp dir; the shipped watcher,
-prune and doctor row driven over real files there; 5 red-proofs).
+muleAssign) counted off `allStores` (each value is the store's own JSON text), judged on the SAME line (to 0, or >=
+max(10, 25%)) so his own Delete of one build (3 -> 2) never pages and a wipe (3 -> 0) opens an episode naming the
+file before it; `_ledger_drop_watch` opens it through the one `step_episodes`, the prune keeps `beforeFile`; the
+doctor's row names the store, the fall and the FILE as the door (`HAND_MADE_DOOR`, never the chronicle plan); the
+snapshot writer compares `hand_made_counts(fullStores)` beside the ledger counts; the put-back invariant counts a
+watched store with no declared door. cbMain is a declared POINTER (`HAND_MADE_POINTERS`): the Characters tab clears it
+with removeItem when the MAIN is deleted — a choice with an Undo, not a loss — and any wipe that takes it takes
+charBuilds, which is counted. **The second eye on the first cut, both reproduced and both fixed:** (1) the first cut
+read a key ABSENT from `allStores` as UNKNOWN and pinned that as correct — but `allStores` is `_collectProgress()`, a
+walk of the RAW store end to end (`for i < RAW.length`) for the active world, so absent means looked-for and not
+there, a measured 0; and absent is exactly what the owner wipe leaves (`RAW.removeItem` — the store is GONE, not
+emptied). Reproduced against the first cut: 1 build -> key removed gave `count None`, `drops []`, `episodes opened
+0`; the realistic path (owner wipe, `/api/ledger_restore_apply` puts back foundLog/setPieces only, the next snapshot
+lacks the key) opened no episode, no doctor row, and left the pre-wipe file unprotected. Now absent from a dict
+allStores = 0; only NO allStores (nobody could look) or unparseable text stays UNKNOWN. (2) the charBuilds door said
+"wrap that allStores as a grail-progress snapshot and import it" — and `_applyProgress` setItem()s EVERY string key
+it is handed, so the whole file would have put back the builds AND rolled foundLog / setPieces / owned / rwMade /
+gameFound back to that file's moment, behind a confirm that only says "OVERWRITES the chronicle / wishlist /
+settings". Every door now names its ONE key — `{"app":"d2r-bible","kind":"grail-progress","data":{"d2r_charBuilds":
+<its text from that allStores>}}` — and says that importing the whole allStores rolls every other store back; the
+doctor prints the door verbatim, so that reaches his screen. **Law:** `tv/test_his_builds_are_watched_like_his_ledger.py`
+(15 cases over fixture blobs in a temp dir; the shipped watcher, prune and doctor row driven over real files there,
+for an emptied store AND a removed key; 6 red-proofs — the absent-is-UNKNOWN one inverted, the whole-allStores door
+added).
 
 ### REG-1482 - THE DOLL'S OWN ART CALL WAS DRIVEN BY NO LAW: HALF OF #248 UNGUARDED (#41 rank 6, 2026-09-29)
 

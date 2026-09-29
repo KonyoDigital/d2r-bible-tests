@@ -19,8 +19,12 @@ reel_retention / frame_authority / journal_retention to 16 — and THE SHELF kep
 a fourth copy pinned by four laws written for the old ruling (REG-1444), so his shelf showed eight
 over a floor that kept sixteen. REG-1480: /api/river now publishes `riverKeep`
 (reel_retention.KEEP_RECENT, the ONE source), the page reads it into SHELF_RIVER_KEEP, and the
-block keeps only a FALLBACK for the seconds before the river answers — which this law pins to
-that same constant. The file keeps its name: "of eight" is the ruling it was born under, and a
+block keeps only a FALLBACK for a console that answered WITHOUT a numeric `riverKeep` (one that
+predates the field, or `_river_keep()` -> None) — which this law pins to that same constant. ⚠ The
+fallback is NOT for the seconds before the river answers: `_shGroups` returns the "reading the
+river…" header while SHELF_RIVER is null and the block is never reached; the reader that sets
+SHELF_RIVER sets SHELF_RIVER_KEEP in the same call (the second eye on REG-1480 corrected the first
+cut's prose here). The file keeps its name: "of eight" is the ruling it was born under, and a
 renamed law is a law whose history nobody can grep. [[copy-drift]] [[the-unjoined-end]]
 
 ★ WHAT THIS PINS, by DRIVING the shipped block in node against stub cards:

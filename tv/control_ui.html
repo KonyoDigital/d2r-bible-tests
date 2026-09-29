@@ -18160,10 +18160,12 @@ window._lockMark = function(isOpen, px, label){
      reel_retention.KEEP_RECENT — the ONE source, which frame_authority and journal_retention already
      follow — and /api/river carries it as `riverKeep`. This page reads it here and never re-types
      it: a FOURTH copy (`RIVER_KEEP = 8`) sat in the river block, unpinned, for fourteen days after
-     the ruling moved the other three (REG-1444). `null` until the river has answered; the river
-     block falls back to his ruling for those seconds, and THAT literal is pinned to
-     reel_retention.KEEP_RECENT by test_the_river_is_one_flow_of_eight so it cannot become a fifth.
-     [[copy-drift]] [[unknown-stays-unknown]] */
+     the ruling moved the other three (REG-1444). `null` until the river has answered — and the river
+     block is not reached before then (`_shGroups` returns the "reading the river…" header while
+     SHELF_RIVER is null; the reader that sets SHELF_RIVER sets this in the same call). The block's
+     fallback literal is for a console that answered WITHOUT a numeric riverKeep, and THAT literal is
+     pinned to reel_retention.KEEP_RECENT by test_the_river_is_one_flow_of_eight so it cannot become
+     a fifth. [[copy-drift]] [[unknown-stays-unknown]] */
   var SHELF_RIVER_KEEP = null;
   /* ⚠ v3270 — WHICH station is the terminus is the RIVER'S to say (`vocab.mouth`), never a
      literal in this file. `river.py` names it, `_river_vocab_facts()` publishes it, and a second
@@ -18842,8 +18844,10 @@ window._lockMark = function(isOpen, px, label){
          kept its own `RIVER_KEEP = 8` — a fourth copy, pinned by four laws written for the old
          ruling, so his shelf showed eight over a floor that kept sixteen. The window now comes
          from the console (`SHELF_RIVER_KEEP`, /api/river's `riverKeep` = reel_retention.KEEP_RECENT);
-         the literal after the colon is the FALLBACK for the seconds before the river answers and
-         for a console that predates the field, and the river law pins it to that same constant. */
+         the literal after the colon is the FALLBACK for a console that answered ok WITHOUT a numeric
+         `riverKeep` (one that predates the field, or `_river_keep()` -> None) — never for the seconds
+         before the river answers: this block runs only once SHELF_RIVER is set, and the reader that
+         sets it sets SHELF_RIVER_KEEP in the same call. The river law pins it to that same constant. */
       var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) ? SHELF_RIVER_KEEP : 16;
       var _t0 = function(c){ return parseInt(c.getAttribute('data-t0') || '0', 10) || 0; };
       var _isPin = function(c){ return c.getAttribute('data-pin') === '1'; };

@@ -39,6 +39,16 @@ to do that; this law is what replaces the refusal with a check.
 
 ⚠ AND IT MAY NEVER TOUCH HIS TREE. The seed is asserted to write only inside the directories it is
 handed. [[feedback-fixtures-never-touch-live-data]]
+
+★ THE WINDOW, AS HISTORY AND AS IT IS NOW. The river the seeded cards flow into is a FIFO on his
+2026-09-15 ruling — *"no only the last 8 sessions stay and the one coming in pushes the last one
+out of those 8 sections"* — and this law once read that 8 off the page's own `RIVER_KEEP = 8` to
+size its floor. On 2026-09-29 he ruled again (REG-1433): *"8 sessions 8 hours long? if its less
+than 8 double the amount to 16 reels.. FIFO same style just that instead of 8 last reels it reads
+16"*. The number is reel_retention.KEEP_RECENT — published by /api/river as `riverKeep`, read by
+the page, with a fallback the river law pins (REG-1480) — so this law now asks the MODULE for the
+window, requires FILM_RUNS > that window (the pushed-out branch stays reachable), and sizes the
+floor's bounds from it; no number is typed here.
 """
 import ast
 import base64

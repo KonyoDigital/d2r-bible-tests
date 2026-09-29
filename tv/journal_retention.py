@@ -2,7 +2,9 @@
 """WHAT MAY LEAVE THE JOURNAL, AND WHY EVERY OTHER ROW STAYS. Writes nothing.
 
 Konyo, 2026-09-13: *"it should all go through the river and end up in tombstone and then in
-deleted after being extracted"*, and *"should be left with last 8 sessions/reels"*.
+deleted after being extracted"*, and *"should be left with last 8 sessions/reels"* — the 8 is
+history: 2026-09-29 (REG-1433) *"instead of 8 last reels it reads 16"*, and the number lives in
+reel_retention.KEEP_RECENT, imported below, never re-typed here.
 
 ⚠⚠ THE REEL RIVER IS ALREADY FINISHED, AND THIS IS THE HALF THAT IS NOT. Measured 2026-09-13:
 20 reels on disk, `ROUTED 20` — every one routed, which reel_router's own note calls "the REAL
@@ -28,11 +30,12 @@ THE EXTRACTION RULE, and it is deliberately strict:
                  it is an absence of evidence either way. [[unknown-stays-unknown]]
 
 ⚠ FOUR THINGS ARE NEVER RELEASABLE, whatever the state says:
-    · the newest KEEP_RECENT sessions — his own number, and reel_retention already uses 8
+    · the newest KEEP_RECENT sessions — his own number; reel_retention OWNS it (16 since
+      2026-09-29, REG-1433) and this module imports it rather than carrying a copy
     · any row whose reel still has film on disk — the river has not finished with it
     · any row whose reel the TEST SUITE opens by name — deleting one turns a real check into a
       permanent skip, which has already happened three times
-    · any row that cannot be dated, because "newest 8" is meaningless without an order
+    · any row that cannot be dated, because "newest KEEP_RECENT" is meaningless without an order
 """
 import io
 import json

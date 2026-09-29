@@ -4189,7 +4189,9 @@ GATES = [
              "on a `retired` state - the retention lane's own proof that the film gave up its "
              "information first - and holds 2,325 that say `unknown`, which is no film AND no "
              "retention record: an absence of evidence in BOTH directions, never permission. Also "
-             "held: the newest 8 whatever their state, rows a test pins by name, rows whose reel "
+             "held: the newest KEEP_RECENT whatever their state (8 then; 16 since 2026-09-29's "
+             "'instead of 8 last reels it reads 16', REG-1433 - imported from reel_retention, never "
+             "re-typed), rows a test pins by name, rows whose reel "
              "still has film, and rows that cannot be dated. The planner is PARSED to prove it "
              "cannot write - no open-for-write, no remove, rename or rmtree anywhere in it."),
     Gate("test_a_card_with_no_film_says_so",
@@ -7912,14 +7914,18 @@ GATES = [
              "looped BACKED_UP only, so wiping them opened no episode, raised nothing, and the prune could take the last "
              "file that held them (measured read-only: the newest snapshot HOLDS 1 build and his mule placements). "
              "His standing words: \"i want it no wiped · i want that saved · and being able to be restored · "
-             "indefinitely\". Now HAND_MADE stores are counted off allStores (the board's own export, absent = UNKNOWN "
-             "never 0) on the SAME drop line as the ledger — his own Delete of one build (3 -> 2) never pages, a wipe "
-             "(3 -> 0) opens an episode naming the file before it, the prune keeps that file, and the doctor names "
-             "the store, the fall and the FILE as the door (never the chronicle plan, which puts back none of it). "
+             "indefinitely\". Now HAND_MADE stores are counted off allStores (the board's own export, a complete walk "
+             "of the store: a key ABSENT from it is 0 — the owner wipe REMOVES the key, and the second eye caught the "
+             "first cut reading that as UNKNOWN and opening nothing; only no allStores at all stays UNKNOWN) on the "
+             "SAME drop line as the ledger — his own Delete of one build (3 -> 2) never pages, a wipe (3 -> 0, or "
+             "3 -> the key gone) opens an episode naming the file before it, the prune keeps that file, and the doctor "
+             "names the store, the fall and the FILE as the door: the ONE key wrapped as a grail-progress snapshot, "
+             "never the chronicle plan (which puts back none of it) and never the whole allStores (which would roll "
+             "every other store back to that file — _applyProgress setItem()s every key it is handed). "
              "And the quieter hole: the snapshot writer skipped a snapshot when the ledger COUNTS were unchanged, so a "
              "builds-only wipe never produced the file the watcher judges — the hand-made counts now ride beside "
              "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
-             "counted store. 12 cases over fixture blobs in a temp dir, 5 red-proofs",
+             "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
          skip_ok=()),
 ]
 

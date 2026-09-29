@@ -26,6 +26,15 @@ not dimmed like an empty station — a section carrying a real terminus is not e
 ⚠ AND THE COUNT SAYS WHERE IT CAME FROM. The card count is the ROUTER's answer; the closed-out
 count is the LEDGER's. Two numbers from two stores under one heading, unlabelled, is exactly the
 confusion this whole view exists to end.
+
+★ THE WINDOW, AS HISTORY AND AS IT IS NOW. The section builder this law finds became the single
+river flow (v3185) on his 2026-09-15 ruling — *"no only the last 8 sessions stay and the one
+coming in pushes the last one out of those 8 sections"* — and the guard anchored on the literal
+`RIVER_KEEP = 8`. On 2026-09-29 he ruled again (REG-1433): *"8 sessions 8 hours long? if its less
+than 8 double the amount to 16 reels.. FIFO same style just that instead of 8 last reels it reads
+16"*. The number is reel_retention.KEEP_RECENT, published by /api/river as `riverKeep` and read by
+the page (REG-1480); this law's anchor is now the RIVER_KEEP line's SHAPE (the console's window
+with a fallback the river law pins to that constant), so no number is typed here.
 """
 import io
 import os
