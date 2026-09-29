@@ -83,7 +83,7 @@ def strip_js_comments(src):
 
     ⚠ MEASURED, v2811 — A BOUNDED STRIP PLUS A FIXED WINDOW MADE A LAW READ PROSE. A guard on
     bible.html cut the source to `body[i:i + 4000]` and then stripped comments with
-    `/\*.{0,8000}?\*/`. The cut landed INSIDE a comment: the opening `/*` at 2861 had no closing
+    `/\\*.{0,8000}?\\*/`. The cut landed INSIDE a comment: the opening `/*` at 2861 had no closing
     `*/` before 4000, so the regex could not match it and 969 characters of commentary survived
     into what the law then searched. The assertion `res.vaulted appears after the fork` passed —
     on a measurement TABLE someone had written in that comment:

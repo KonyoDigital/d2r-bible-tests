@@ -59,8 +59,36 @@ def _unreadable(payload):
     d = tempfile.mkdtemp()
     p = os.path.join(d, "store.json")
     io.open(p, "w", encoding="utf-8").write(json.dumps(payload))
-    os.chmod(p, 0o000)
+    if os.name == "nt":
+        # ⚠⚠ #50 (REG-1452) — MODE 000 MEANS NOTHING TO WINDOWS: chmod there only toggles read-only, so the
+        # premise below failed on the ALT ("a mode-000 file opened successfully") and the three loaders were
+        # never tested on the machines that most need them. What makes a file exist-and-unreadable on
+        # Windows is another handle holding it with NO SHARING (an antivirus scan, a second process) - so
+        # that is what this does, and `_readable_again` lets go of it.
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        k32.CreateFileW.restype = ctypes.c_void_p
+        h = k32.CreateFileW(p, 0x80000000, 0, None, 3, 0x80, None)   # GENERIC_READ, share 0, OPEN_EXISTING
+        if h in (None, ctypes.c_void_p(-1).value):
+            raise OSError("could not hold %s open without sharing" % p)
+        _HELD[p] = h
+    else:
+        os.chmod(p, 0o000)
     return p
+
+
+#: Windows handles held open with no sharing, so a store EXISTS and cannot be read (REG-1452).
+_HELD = {}
+
+
+def _readable_again(p):
+    """Undo `_unreadable`: let go of the Windows handle, or restore the POSIX mode."""
+    h = _HELD.pop(p, None)
+    if h is not None:
+        import ctypes
+        ctypes.windll.kernel32.CloseHandle(ctypes.c_void_p(h))
+        return
+    os.chmod(p, stat.S_IRUSR | stat.S_IWUSR)
 
 
 def _absent():
@@ -99,7 +127,7 @@ class TheThreeLoaders(unittest.TestCase):
         p = _unreadable(good)
         point_at(p)
         unreadable = loader()
-        os.chmod(p, stat.S_IRUSR | stat.S_IWUSR)
+        _readable_again(p)
         a = _absent()
         point_at(a)
         absent = loader()
@@ -173,7 +201,7 @@ class TheWriterActuallyRefuses(unittest.TestCase):
                 "_rnf_save wrote over a store it could not read. It refuses only on None, so the "
                 "loader handing back {} for an unreadable file is what re-opened this path.")
         finally:
-            os.chmod(p, stat.S_IRUSR | stat.S_IWUSR)
+            _readable_again(p)
             CA._rnf_path = old
             CA._RNF_STORE["tried"] = False
         # and the bytes are still there

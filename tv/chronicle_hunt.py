@@ -178,7 +178,7 @@ def page_names(page):
     wholePage, witness, conf, printed, sort, foundAt, droppedBy, read, framing, note — and `items`
     is not among them; `two_lane_read` passes that dict straight through. So every hunted frame was
     read, paid for, and scored against an EMPTY LIST. The focused hunt could not register a hit in
-    production, and never has: `grep -c "hunting\|hunt done"` across every log on his machine is 0.
+    production, and never has: `grep -c "hunting\\|hunt done"` across every log on his machine is 0.
 
     ⚠ AND THE TEST THAT COVERED IT HANDED IT THE WRONG SHAPE TOO — `{"items": [{"name": "Mid Name"}]}`
     — so a fixture nobody had cross-checked against the real reader kept the gate green over a

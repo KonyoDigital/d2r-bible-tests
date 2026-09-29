@@ -7,6 +7,33 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1452 - THE UNREADABLE-STORE LAW COULD NOT MAKE A FILE UNREADABLE ON WINDOWS (2026-09-29)
+
+**Found** on the ALT: `a mode-000 file opened successfully` - chmod on Windows only toggles read-only, so
+the premise failed and `handoff._marks`, `_rnf_load`, `_shadow_watch_stored` were never tested on the
+machines that run them. **Fix:** on Windows `_unreadable` holds the file open with NO SHARING
+(CreateFileW, share mode 0) - what an antivirus scan or a second process actually does - and
+`_readable_again` closes it; POSIX is unchanged.
+
+### REG-1451 - THE CI SIMULATOR DIED ON EVERY WINDOWS PC: ITS Popen STUB WAS A FUNCTION (2026-09-29)
+
+**Found** on the ALT (Python 3.12): `TypeError: function() argument 'code' must be code, not str` from
+`asyncio/windows_utils.py: class Popen(subprocess.Popen)`, reached through `test_control` ->
+`unittest.mock` -> `asyncio`. `ci_sim._install_path_interception` had replaced `subprocess.Popen` with a
+plain function; asyncio never imports windows_utils on the Mac, so it was green there.
+**Fix:** the stub is a subclass of the real Popen (same refusals, `_child_created = False` before raising
+so `__del__` has nothing to reap). **Law:** a child python installs the stub and subclasses Popen. RED.
+
+### REG-1450 - FOUR MODULES COMPILED WITH A WARNING; ON 3.12 IT LANDS IN EVERY CHILD'S OUTPUT (2026-09-29)
+
+**Found** on the ALT: `control_app.py:13054: SyntaxWarning: invalid escape sequence '\s'` printed into
+the simulator's output, so its `reach:` line was not where the law looked; on his Mac's 3.9 it is a
+silent DeprecationWarning, and a later Python makes it an error. Same in `chronicle_hunt`,
+`second_eye_run`, `source_window`. **Fix:** the offending backslashes doubled - the parsed program is
+byte-for-byte the same AST before and after, checked. **Law:** no production module in `tv/` compiles
+with any warning. RED. Also: `test_the_encoding_rule_has_one_definition` decoded a child's UTF-8 with
+the Windows codepage (`'charmap' codec can't decode byte 0x9c`); it now reads UTF-8.
+
 ### REG-1449 - THE RIVER-OUTLET LAW'S SHELF WAS WHATEVER THE HOST HAD, SO IT WAS BLIND OFF HIS MAC (2026-09-29)
 
 **Found** by the one-law trial prove on the ALT (#50): `test_the_river_has_an_outlet[0]` BLIND - green

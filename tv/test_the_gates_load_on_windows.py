@@ -27,6 +27,11 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable   # its messages carry non-ASCII; a cp1255 console crashes REPORTING them
+    _enable()
+except Exception:
+    pass
 
 #: Modules that exist on macOS/Linux and not on Windows. A bare top-level import of any of these makes
 #: the importing module - and everything that imports IT - unloadable on every Windows PC.
@@ -215,7 +220,71 @@ class NoModuleImportsAUnixOnlyModuleBare(unittest.TestCase):
                                   % "\n  ".join(bad))
 
 
+class TheSimulatorsPopenCanBeSubclassed(unittest.TestCase):
+    """REG-1451 - ci_sim replaced subprocess.Popen with a plain FUNCTION. On Windows `asyncio.windows_utils`
+    runs `class Popen(subprocess.Popen)` on first import (unittest.mock imports asyncio), so the simulator
+    died with "function() argument 'code' must be code, not str" on every Windows PC. Driven in a child
+    python so the interception never leaks into this process."""
+
+    def test_after_the_stub_a_module_may_still_subclass_popen(self):
+        code = ("import sys, subprocess; sys.path.insert(0, %r)\n"
+                "import ci_sim\n"
+                "ci_sim._install_path_interception(False)\n"
+                "assert getattr(subprocess.Popen, '_ci_sim_path_stub', False), 'PREMISE: not installed'\n"
+                "class Sub(subprocess.Popen):\n    pass\n"
+                "p = Sub([sys.executable, '-c', 'pass']); p.wait()\n"
+                "print('SUBCLASS-OK', p.returncode)\n" % HERE)
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120,
+                           encoding="utf-8", errors="replace")
+        self.assertIn("SUBCLASS-OK 0", r.stdout,
+                      "after ci_sim's interception, subclassing subprocess.Popen fails - asyncio does exactly "
+                      "that on Windows:\n%s" % (r.stderr or r.stdout)[-600:])
+
+
+class EveryModuleCompilesWithoutAWarning(unittest.TestCase):
+    """#50 (REG-1450) - control_app.py held an invalid escape (`\\s` in a docstring). On Python 3.12 - the
+    ALT's - that compiles with a SyntaxWarning printed to stderr, so EVERY child process that imports the
+    console carried a warning line in its output, and a law that reads that output (the simulator's
+    'reach:' line) failed on Windows and passed on his Mac's 3.9, where it is a silent DeprecationWarning.
+    A later Python makes it an error. Four production modules had one; this keeps it at zero."""
+
+    def test_no_production_module_compiles_with_a_warning(self):
+        import warnings
+        bad = []
+        for name in sorted(os.listdir(HERE)):
+            if not name.endswith(".py") or name.startswith("test_"):
+                continue
+            try:
+                src = io.open(os.path.join(HERE, name), encoding="utf-8").read()
+            except UnicodeDecodeError:
+                continue
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                try:
+                    compile(src, name, "exec")
+                except SyntaxError as e:
+                    bad.append("%s:%s %s" % (name, e.lineno, e.msg))
+                except (DeprecationWarning, SyntaxWarning) as e:
+                    bad.append("%s %s" % (name, e))
+        self.assertEqual(bad, [], "these compile with a warning (an error on a later Python, and noise in "
+                                  "every child's output on 3.12):\n  %s" % "\n  ".join(bad))
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - ci_sim's Popen stub is a plain function again, and asyncio cannot subclass it on Windows",
+        "file": "tv/ci_sim.py",
+        "find": "        class Popen(_REAL_IO[\"Popen\"]):\n",
+        "replace": "        class Popen(object):\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - control_app's docstring carries an invalid escape again (REG-1450)",
+        "file": "tv/control_app.py",
+        "find": "This folded `/(?:Users|home)/[^/\\\\s]+`,",
+        "replace": "This folded `/(?:Users|home)/[^/\\s]+`,",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - off the Mac the sandbox gets no git history again (REG-1448): BLIND on every Windows PC",
         "file": "tv/heart2.py",

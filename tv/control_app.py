@@ -13553,7 +13553,7 @@ def _redact_for_wire(s, cap=160):
     box. `g5_grok_eyes` stores `str(e)[:160]` in `last_error`, and an exception routinely names an
     absolute path — a home directory does not belong on a wire, and it tells him nothing he can act
     on. Home paths collapse to `~`, and the whole thing is capped.
-    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\s]+`,
+    ⚠ 2026-09-28 — A NAME WITH A SPACE, AND A WINDOWS HOME. This folded `/(?:Users|home)/[^/\\s]+`,
     which stops at the first space: "/Users/Dean Smith/x.json" crossed as "~ Smith/x.json", and
     "C:\\Users\\Dean\\x.json" was not folded at all. The user-folder segment is now the ONE pattern
     _wire_text scrubs with (_WIRE_USER_PAT: the name runs to the next separator or quote), with an
