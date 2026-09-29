@@ -352,6 +352,13 @@ def walk(reel, hist=None):
                         "UNKNOWN - not zero, and not an idle lane")}
         else:
             owes = sum(1 for r in rows if r.get("tag") in _tags)
+            # ⚠⚠ #50 (REG-1446) — THIS REEL IS AT PRINTER, and since REG-1446 the lane selects on the
+            # river's position as well as the tag: `shelf_driver.vault_owes_read` is the one rule.
+            # The count above stays the retention half; the verdict below asks the rule about THIS
+            # reel, so the probe and the sweeper cannot disagree about it again.
+            _this_owed = _sd.vault_owes_read(row.get("tag"), "PRINTER")
+            if _this_owed and row.get("tag") not in _tags:
+                owes += 1
             lane["queue"] = {
                 "tag": " + ".join(sorted(_tags)), "carryingIt": owes, "shelf": len(rows),
                 "why": ("%d of %d reels carry a tag this lane selects on. %s"

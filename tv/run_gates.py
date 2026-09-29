@@ -190,6 +190,14 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
+         os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
+         why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "
+             "vault lane chose its work from retention's first-match tag, so a PRINTER reel filed `recent` or "
+             "`zero-pages` was never selected, the lane lamp read owed:0, and river_walk kept printing 'a seal "
+             "nothing will write'. The ALT held 25 such reels since 09-27, his Mac 4. One rule "
+             "(shelf_driver.vault_owes_read) now serves the sweeper, the SHELF count and the river probe; the "
+             "position is the river's own last stamp. 4 red-proofs"),
     Gate("test_the_gates_load_on_windows", [sys.executable,
          os.path.join(HERE, "test_the_gates_load_on_windows.py")], 180,
          why="REG-1445 - run_gates imported fcntl (Unix-only) at top level, so on every Windows PC it would not "

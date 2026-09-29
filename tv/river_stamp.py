@@ -327,6 +327,24 @@ def stamp(reel, station, by, why=None, at=None, path=None, observed=False):
     return out
 
 
+def positions(path=None):
+    """Where each reel was LAST stamped. -> (dict reel -> station, why) | (None, why)
+
+    #50 (REG-1446) — the cheap read of the river's own record, for a lane that ticks every 45 s and
+    cannot afford a router pass each time (1.7 s for 25 reels on his Mac, under load; the ALT holds
+    102). It is the same fact `census()` counts, handed back per reel rather than per station.
+    ⚠ None is UNKNOWN (the store would not read), never an empty river; a store that does not exist
+    yet is measured-and-empty and answers {}.
+    """
+    rep = rows(path)
+    if not rep["ok"]:
+        return None, "UNKNOWN, not an empty river — %s" % rep["why"]
+    last = {}
+    for r in rep["rows"]:
+        last[str(r.get("reel"))] = str(r.get("station"))
+    return last, rep["why"]
+
+
 def census(path=None):
     """Where the fleet has been. -> dict
 

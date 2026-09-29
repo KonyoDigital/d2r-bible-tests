@@ -115,6 +115,36 @@ HELD = ("recent", "test-fixture", "holds-proof", "target-met",
         "no-witness-index", "ledger-unreadable")
 
 
+#: ⚠⚠ 2026-09-29 (#50, REG-1446) — THE TAGS THAT VETO A VAULT READ EVEN AT PRINTER. A fixture belongs
+#: to his suite; an unreadable ledger or witness index is UNKNOWN, and UNKNOWN never spends; and
+#: `rows-not-banked` owes a BANK, not a read (v2878). Everything else - `recent`, `zero-pages`,
+#: `holds-proof` - says why the reel is still ON DISK, which is not a reason to leave it unread.
+VAULT_READ_VETO = ("test-fixture", "no-witness-index", "ledger-unreadable", "rows-not-banked")
+
+
+def vault_owes_read(tag, station):
+    """Does the vault lane owe this reel a paid READ? -> bool. THE ONE DEFINITION.
+
+    ⚠⚠ 2026-09-29 (#50, REG-1446) — TWO INDEPENDENT FACTS, AND ONLY ONE WAS EVER ASKED. Retention's
+    tag answers "why is this reel still on disk", first-match-wins, so a reel the river puts at
+    PRINTER (names read, the session carries no seal) and that retention files as `recent` or
+    `zero-pages` never carried a vault tag: the lane published owed:0, and the reel waited for a
+    seal nothing would write. river_walk's PRINTER probe had been printing that very sentence.
+    MEASURED: the ALT held 25 reels at PRINTER since 09-27, every one `zero-pages`; his Mac held 4,
+    every one `recent` (265, 23, 26 and 14 names read).
+
+    `station` is the ROUTER's position (reel_router._station_of, from evidence: names, sealed) - a
+    source independent of retention, which is why it can see what retention's ordering hides.
+    None means the position is unknown, and then only the tag decides - never a guess of PRINTER.
+    [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
+    """
+    if tag in VAULT_READ_VETO:
+        return False
+    if tag in lane_read_tags("vault"):
+        return True
+    return station == "PRINTER"
+
+
 def lane_read_tags(lane):
     """The tags `lane` owns THAT A PAID READ CAN CLEAR — the one definition of a lane's work list.
 

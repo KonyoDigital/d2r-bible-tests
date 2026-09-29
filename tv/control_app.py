@@ -23555,7 +23555,14 @@ def _retention_once():
                           "is UNKNOWN — not zero")
     else:
         _vault_unknown = ""
-        _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
+        # #50 (REG-1446) — the SAME definition the sweeper selects on: a reel the river holds at
+        # PRINTER awaits a sweep whatever retention's first-match tag is. One rule, two readers.
+        _w_pos, _w_seals = _vault_positions_and_seals()
+        _w_vault = [k for k in (p.get("kept") or [])
+                    if _sd_lane.vault_owes_read(
+                        k.get("tag"), (_w_pos or {}).get(os.path.basename(str(k.get("reel")))))
+                    and not (k.get("tag") not in _vault_lane_tags and _w_seals is not None
+                             and _sealed_key(os.path.basename(str(k.get("reel")))) in _w_seals)]
     # ⚠⚠ v3226 — "WAITING ON A SWEEP" WAS FALSE FOR REELS THAT HAD ALREADY HAD ONE, AND HE HAS
     # NOW ASKED ABOUT IT TWICE. chronicle_retro.py:2513 records the first time, almost verbatim:
     # *"how come they are still waiting on a sweep the items it says in the tooltip here"*. And
@@ -27106,9 +27113,50 @@ def _vault_owed_reels(hist=None):
         return None
     if not _vault_tags:
         return None
-    return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
-            for k in (p.get("kept") or [])
-            if k.get("tag") in _vault_tags]
+    # ⚠⚠ 2026-09-29 (#50, REG-1446) — AND THE RIVER'S OWN POSITION, WHICH RETENTION'S ORDER HIDES.
+    # A reel at PRINTER (names read, no seal) that retention files as `recent` or `zero-pages`
+    # carried no vault tag, so this list never held it and the lane published owed:0 over a reel
+    # waiting for the seal only this lane writes. MEASURED: the ALT held 25 such reels since 09-27,
+    # his Mac 4. `shelf_driver.vault_owes_read` is the one definition (the screen's count and
+    # river_walk's probe ask it too); the position is the river's last stamp - one file read, not a
+    # router pass every 45 s. An unreadable stamp store leaves the position UNKNOWN (None), and then
+    # only the tag decides - the list is never widened on a guess. A reel the vault has ALREADY
+    # sealed is not re-bought on a stale stamp. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _pos, _sealed = _vault_positions_and_seals()
+    out = []
+    for k in (p.get("kept") or []):
+        rid = os.path.basename(str(k.get("reel")))
+        if not _sd.vault_owes_read(k.get("tag"), (_pos or {}).get(rid)):
+            continue
+        if k.get("tag") not in _vault_tags and _sealed is not None and _sealed_key(rid) in _sealed:
+            continue
+        out.append(os.path.join(h_abs, rid))
+    return out
+
+
+def _sealed_key(rid):
+    """The vault seal store's key for a reel id: `reel_s_1_2` -> `s_1_2` (frame_authority._session_of)."""
+    return rid[len("reel_"):] if rid.startswith("reel_") else rid
+
+
+def _vault_positions_and_seals():
+    """(river positions, vault seals) for `_vault_owed_reels`. -> (dict|None, dict|None). Never raises.
+
+    None is UNKNOWN on either side. The stamp store is resolved by river_stamp itself, so a fixture
+    world's TV_HIST redirect reaches it the same way it reaches every other reader of the river.
+    """
+    try:
+        import river_stamp as _rvs
+        pos, _w = _rvs.positions()
+    except Exception:
+        pos = None
+    try:
+        import frame_authority as _fa
+        seals, ok = _fa.sealed_sessions(_fixture_root_for_state())   # a fixture world's, never his
+        seals = seals if ok else None
+    except Exception:
+        seals = None
+    return pos, seals
 
 #: ══ 2026-09-28 — ONE CPU READING, ON EVERY OS ══════════════════════════════════════════════════
 #: MEASURED over SSH on his Windows ALT (plays through Boosteroid, shadow reader ON, hourly rollover

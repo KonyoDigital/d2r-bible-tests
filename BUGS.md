@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1446 - A REEL AT PRINTER WAITED FOR A SEAL NOTHING WOULD WRITE (2026-09-29)
+
+**Found** on the ALT (#50): 25 reels at PRINTER ("N name(s) read and the session carries no seal")
+since 09-27 21:09; vault lane `on, reads 0, owed 0, storeReadable false - this lane has genuinely never
+recorded a read`; no `vault_swept.json` ever written. The seal is written only by the vault sweep, and
+`_vault_owed_reels` selected on retention's tag alone (`vault-owes`, `panels-never-banked`). Retention's
+rules answer *why is this reel still on disk*, first-match-wins, so every one of the 25 matched
+`zero-pages` first (the Chronicle reader found no pages). His Mac had the same shape, milder: 4 PRINTER
+reels (265 / 23 / 26 / 14 names) all `recent`, sealed only once they aged out. `river_walk`'s PRINTER
+probe had been saying so in words - *"retention's rules are first-match-wins ... this reel waits for a
+seal nothing will write"* - on a screen nobody had open.
+
+**Fix:** `shelf_driver.vault_owes_read(tag, station)` is the one definition: a vault read tag owes
+anywhere; otherwise a reel the ROUTER places at PRINTER owes, unless retention vetoes it
+(`test-fixture`, `no-witness-index`, `ledger-unreadable`, `rows-not-banked`). The position is the
+river's own last stamp (`river_stamp.positions()`, one file read) - a router pass every 45 s would cost
+1.7 s per 25 reels on his Mac and far more on the ALT. An unreadable river leaves the position UNKNOWN
+and the tag alone decides; a reel already sealed is not re-bought on a stale stamp; the seal read
+resolves against the fixture root. The sweeper, the SHELF's "awaiting a sweep" count and river_walk's
+probe all ask it. Replayed on his Mac's real shelf: owed 2 -> 6, exactly the 4 PRINTER reels, no fixture.
+
+**Law:** `tv/test_a_reel_at_printer_is_the_vaults_work.py` - the table stated independently, the
+sweeper's list driven through its real body, `positions()` on a temp store, `river_walk.walk` on a
+stubbed shelf. 4 red-proofs, all seen RED by hand.
+
 ### REG-1445 - NO WINDOWS PC COULD LOAD ITS OWN GATES, SO EVERY LOCK THERE STAYED SHUT (2026-09-29)
 
 **Found** measuring why the ALT's river never reaches TOMBSTONE (#50): 76 reels at EMPTY never ROUTED,
