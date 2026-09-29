@@ -27,6 +27,12 @@ pid write were not atomic; and Windows does not end a dead console's children.
   so on `/api/status` (`captureStop`) and the log.
 - once per boot a Windows console ends the capture scripts of THIS checkout whose console is gone (the old script has
   no lease) - never one whose console lives, never its own; an unreadable process table ends nothing (UNKNOWN).
+- **the self-prove lane (#50) never runs beside his game:** a proof never STARTS while he plays (D2R.exe or a cloud
+  client - Boosteroid, GeForce NOW - whose CPU footprint the idle gate cannot see) or under 2 GB free, and a
+  RUNNING proof stands aside (its tree ended, not booked as a failure) when he starts playing or free memory drops
+  under 1 GB; UNKNOWN never starts one and never kills one. The play probe shares tv_diablo's one Toolhelp32 walk
+  (`_toolhelp_any`). `test_every_pc_proves_itself` +7 cases, 4 red-proofs - and its catch-all red-proof, found
+  GREEN at HEAD (no case ever made the tick raise), now has a case that does.
 - doctor row `one_capture`. Law `test_one_capture_per_console` - 9 cases (the PowerShell one runs where PowerShell
   exists), 5 red-proofs all seen RED.
 

@@ -44,6 +44,90 @@ RETRY_AFTER_FAIL_S = 3 * 3600
 _BELOW_NORMAL = 0x00004000
 _CREATE_NO_WINDOW = 0x08000000
 
+# ⚠⚠ REG-1502 — A PROOF NEVER RUNS BESIDE HIS GAME. MEASURED 2026-09-29 on the ALT (7.9 GB): a Windows inventory prove
+# (the job this lane automates, started by hand) ran five hours beside his Boosteroid session while RAM sat at 690 MB
+# free; dwm.exe died of memory exhaustion eight times in an hour and Boosteroid crashed with it. The CPU gate below
+# could not see it: a CLOUD client decodes on the GPU and leaves the CPU nearly idle. So "he is playing" is its own
+# question - the game itself OR a client streaming it - and so is free memory. Either one stops a proof from starting,
+# and either one stands a RUNNING proof aside; a proof that stood aside is not a failure and runs again once he stops.
+#: exe names (lowercased) that mean "he is playing on this PC" - the game, or a cloud client streaming it
+PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
+#: available memory, in MB, a proof needs to START, and below which a RUNNING proof stands aside
+MIN_FREE_MB_TO_START = 2048
+MIN_FREE_MB_WHILE_RUNNING = 1024
+
+
+def is_play_exe(name):
+    """A process name (any case) that means he is playing here. Pure."""
+    n = (name or "").lower()
+    return n.startswith("d2r") or "diabloii" in n.replace(" ", "") or n in PLAY_EXES
+
+
+def playing_state():
+    """Is he playing on THIS machine - D2R.exe or a cloud client? -> True | False | None (UNKNOWN)"""
+    try:
+        if IS_WIN:
+            import tv_diablo as _tvd
+            return _tvd._toolhelp_any(is_play_exe)
+        out = subprocess.run(["pgrep", "-if", "D2R.exe|Boosteroid|GeForceNOW"], capture_output=True, timeout=3)
+        return True if out.returncode == 0 else (False if out.returncode == 1 else None)
+    except Exception:
+        return None
+
+
+def free_mb():
+    """Available physical memory in MB, or None when it cannot be measured (UNKNOWN, never 'plenty')."""
+    try:
+        if IS_WIN:
+            import ctypes
+
+            class _MS(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            m = _MS()
+            m.dwLength = ctypes.sizeof(_MS)
+            if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+                return None
+            return int(m.ullAvailPhys // (1024 * 1024))
+        try:
+            import psutil
+            return int(psutil.virtual_memory().available // (1024 * 1024))
+        except Exception:
+            pass
+        if hasattr(os, "sysconf") and "SC_AVPHYS_PAGES" in os.sysconf_names:
+            return int(os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") // (1024 * 1024))
+    except Exception:
+        return None
+    return None
+
+
+def stand_aside(playing, free):
+    """Must a RUNNING proof stop now? -> (bool, why). Pure. UNKNOWN never stops it: it already runs below him."""
+    if playing is True:
+        return True, "he started playing - a proof never runs beside his game"
+    try:
+        if free is not None and float(free) < MIN_FREE_MB_WHILE_RUNNING:
+            return True, "only %d MB of memory left - the proof gives it back" % int(float(free))
+    except (TypeError, ValueError):
+        pass
+    return False, ""
+
+
+def end_tree(pid):
+    """End a proof THIS lane started, with its children (the laws it runs). Never raises."""
+    try:
+        if IS_WIN:
+            subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=15, creationflags=_CREATE_NO_WINDOW)
+        else:
+            import signal
+            os.killpg(int(pid), signal.SIGTERM)      # spawn() gave the prover its own session
+    except Exception:
+        pass
+
 
 def enabled(env=None):
     """TV_SELF_PROVE=0 turns the lane off. -> bool"""
@@ -194,8 +278,9 @@ def tree_state(git=None):
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
 
-def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True):
-    """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str}"""
+def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None):
+    """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str}
+    `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess."""
     if not on:
         return {"start": False, "key": "off", "why": "the self-prove lane is off (TV_SELF_PROVE=0)"}
     if running_pid:
@@ -219,6 +304,22 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True):
         return {"start": False, "key": "backoff",
                 "why": "the last proof for these gates ended without a census (%s); retrying after %d h"
                        % (mem.get("lastFailWhy") or "?", RETRY_AFTER_FAIL_S // 3600)}
+    if playing is None:
+        return {"start": False, "key": "play-unknown",
+                "why": "whether he is playing here could not be asked - a proof is not started on a guess"}
+    if playing:
+        return {"start": False, "key": "playing",
+                "why": "he is playing on this PC (the game or its cloud client) - a proof never starts beside it"}
+    try:
+        free = None if free is None else float(free)
+    except (TypeError, ValueError):
+        free = None
+    if free is None or free != free:
+        return {"start": False, "key": "mem-unknown",
+                "why": "free memory could not be measured - a proof is not started on a guess"}
+    if free < MIN_FREE_MB_TO_START:
+        return {"start": False, "key": "low-memory",
+                "why": "only %d MB of memory free - a proof starts at %d MB" % (int(free), MIN_FREE_MB_TO_START)}
     try:
         busy_pct = None if busy_pct is None else float(busy_pct)
     except (TypeError, ValueError):
@@ -316,11 +417,13 @@ def spawn(log_path, python=None, workers=1, popen=None):
 _STARTED = {"pid": None}
 
 
-def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None):
+def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
+         playing=None, free=None, kill_fn=None):
     """One pass of the lane. NEVER raises - it runs inside the rescue loop that also watches whether the
-    console can still answer its own port. -> the lane's status in the shared vocabulary."""
+    console can still answer its own port. -> the lane's status in the shared vocabulary.
+    `playing` / `free` are callables or values (REG-1502); None asks this machine."""
     try:
-        return _tick(now_s, busy, tree, census, path, spawn_fn, env)
+        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)
     except Exception as e:
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
@@ -333,8 +436,17 @@ def _int(v):
         return 0
 
 
-def _tick(now_s, busy, tree, census, path, spawn_fn, env):
+def _ask(v, probe):
+    try:
+        return (v() if callable(v) else v) if v is not None else probe()
+    except Exception:
+        return None
+
+
+def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None):
     now_s = time.time() if now_s is None else now_s
+    play_now = _ask(playing, playing_state)
+    free_now = _ask(free, free_mb)
     mem = load(path)
     if mem.get("unreadable"):
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "store-unreadable",
@@ -346,6 +458,16 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env):
     if not pid and _STARTED["pid"] and pid_alive(_STARTED["pid"]):
         pid = _STARTED["pid"]                              # the store lost it; this process did not
     running = pid if (pid and pid_alive(pid)) else None
+    aside, aside_why = stand_aside(play_now, free_now) if running else (False, "")
+    if aside:
+        # REG-1502 — stood aside, not failed: no backoff, no failure count; it proves again once he stops.
+        (kill_fn or end_tree)(running)
+        mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=int(now_s * 1000),
+                   lastStoodAsideWhy=aside_why)
+        mem.pop("pid", None)
+        mem.pop("startedFor", None)
+        _STARTED["pid"] = None
+        pid = running = None
     if pid and not running:
         # the proof we started has ended: did it leave a current census?
         if census.get("state") == "current":
@@ -363,7 +485,9 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env):
         mem.pop("startedFor", None)
     on = enabled(env)
     d = decide(census, tree if tree is not None else tree_state(), running,
-               busy() if callable(busy) else busy, mem, now_s, on=on)
+               busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now)
+    if aside:
+        d = {"start": False, "key": "stood-aside", "why": "the running proof stood aside: " + aside_why}
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn
@@ -386,4 +510,5 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env):
     return {"on": on, "worked": _int(mem.get("worked")), "lastTs": mem.get("lastTs"),
             "owed": (0 if st == "current" else (None if st == "unknown" else 1)),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
-            "running": bool(mem.get("pid"))}
+            "running": bool(mem.get("pid")), "playing": play_now, "freeMb": free_now,
+            "stoodAside": _int(mem.get("stoodAside"))}

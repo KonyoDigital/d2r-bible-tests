@@ -36605,7 +36605,8 @@ def doctor_payload():
     _spv = dict(_SELF_PROVE)
     _sp_key = _spv.get("key")
     _sp_blind = list(_spv.get("blind") or [])
-    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy") and not _sp_blind)
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
+                        "playing", "stood-aside", "low-memory") and not _sp_blind)   # REG-1502: deferring to his game is healthy
     checks.append(_chk(
         "self_prove", _sp_ok, "warn",
         ("self-prove: census %s - %s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",

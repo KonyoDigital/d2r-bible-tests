@@ -33,6 +33,20 @@ import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import self_prove as SP  # noqa: E402
 
+_REAL_PROBES = (SP.playing_state, SP.free_mb)
+
+
+def setUpModule():
+    # REG-1502 — the cases below are about the census, the tree and the load. Whether HIS machine is playing (his Mac
+    # runs D2R under CrossOver) or short of memory must not decide them, so both probes answer "idle, roomy" here,
+    # and the stand-aside cases pass their own values.
+    SP.playing_state = lambda: False
+    SP.free_mb = lambda: 8000
+
+
+def tearDownModule():
+    SP.playing_state, SP.free_mb = _REAL_PROBES
+
 INSTALLED = ("installed", "level with origin")
 STALE = {"state": "stale", "why": "gates changed", "fingerprint": "abc"}
 MISSING = {"state": "missing", "why": "never proved"}
@@ -41,8 +55,9 @@ CURRENT = {"state": "current", "why": "proved 600 of 650, 0 blind", "fingerprint
 
 class TheOneDecision(unittest.TestCase):
 
-    def d(self, census=STALE, tree=INSTALLED, pid=None, busy=5.0, mem=None, now=10_000.0, on=True):
-        return SP.decide(census, tree, pid, busy, mem or {}, now, on=on)
+    def d(self, census=STALE, tree=INSTALLED, pid=None, busy=5.0, mem=None, now=10_000.0, on=True,
+          playing=False, free=8000):
+        return SP.decide(census, tree, pid, busy, mem or {}, now, on=on, playing=playing, free=free)
 
     def test_an_idle_installed_pc_with_no_census_proves(self):
         for c in (MISSING, STALE):
@@ -153,10 +168,20 @@ class TheTickEndToEnd(unittest.TestCase):
                     spawn_fn=self._spawn, env={})
         self.assertEqual(self.spawned, [])
         self.assertIn("key", r)
-        self.assertEqual(SP.decide(STALE, INSTALLED, None, float("nan"), {}, 1.0)["key"], "load-unknown",
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, float("nan"), {}, 1.0, playing=False, free=8000)["key"], "load-unknown",
                          "a NaN load reading passed the idle check")
-        self.assertEqual(SP.decide(STALE, INSTALLED, None, "5", {}, 1.0)["start"], True)
-        self.assertEqual(SP.decide(STALE, INSTALLED, None, "junk", {}, 1.0)["key"], "load-unknown")
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, "5", {}, 1.0, playing=False, free=8000)["start"], True)
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, "junk", {}, 1.0, playing=False, free=8000)["key"], "load-unknown")
+
+    def test_a_probe_that_throws_never_reaches_the_rescue_loop(self):
+        """Its red-proof narrows tick()'s catch-all - and it had been GREEN through that sabotage (measured
+        2026-09-29): no case ever made _tick raise, so the guard it names was never exercised. Now one does."""
+        def _boom():
+            raise RuntimeError("the load probe fell over")
+        r = SP.tick(now_s=1000.0, busy=_boom, tree=INSTALLED, census=MISSING, path=self.path,
+                    spawn_fn=self._spawn, env={}, playing=False, free=8000)
+        self.assertEqual("raised", r["key"], "a probe that threw reached the rescue loop")
+        self.assertEqual(self.spawned, [], "a tick that raised started a proof anyway")
 
     def test_an_unreadable_memory_is_unknown_and_starts_nothing(self):
         io.open(self.path, "w", encoding="utf-8").write("{not json")
@@ -298,7 +323,100 @@ class TheConsoleAsks(unittest.TestCase):
         self.assertIn('"selfProve": dict(_SELF_PROVE)', inspect.getsource(ca), "the lane is invisible")
 
 
+
+class AProofNeverRunsBesideHisGame(unittest.TestCase):
+    """REG-1502 — MEASURED 2026-09-29 on the ALT: a hand-started inventory prove ran five hours beside his Boosteroid
+    session at 690 MB free, dwm.exe died of memory exhaustion eight times in an hour, and Boosteroid crashed with it.
+    A cloud client leaves the CPU nearly idle, so the load gate alone would have started this lane beside it."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="self_prove_game_")
+        self.path = os.path.join(self.dir, ".self_prove.json")
+        self.killed = []
+
+    def d(self, **kw):
+        a = dict(playing=False, free=8000)
+        a.update(kw)
+        return SP.decide(STALE, INSTALLED, None, 3.0, {}, 10_000.0, **a)
+
+    def test_it_never_starts_while_he_plays_or_when_that_cannot_be_asked(self):
+        r = self.d(playing=True)
+        self.assertEqual((False, "playing"), (r["start"], r["key"]),
+                         "a proof started beside his game on an idle CPU - the cloud-client case")
+        r = self.d(playing=None)
+        self.assertEqual((False, "play-unknown"), (r["start"], r["key"]), "a proof started on a guess about play")
+
+    def test_it_never_starts_short_of_memory_or_when_memory_cannot_be_measured(self):
+        r = self.d(free=690)
+        self.assertEqual((False, "low-memory"), (r["start"], r["key"]),
+                         "a proof started with 690 MB free - the ALT's number the afternoon dwm died")
+        self.assertEqual("mem-unknown", self.d(free=None)["key"])
+        self.assertEqual("mem-unknown", self.d(free=float("nan"))["key"])
+        self.assertTrue(self.d(free=SP.MIN_FREE_MB_TO_START)["start"])
+
+    def test_the_game_and_its_cloud_clients_count_as_playing(self):
+        for n in ("Boosteroid.exe", "D2R.exe", "GeForceNOW.exe", "DiabloII Resurrected.exe"):
+            self.assertTrue(SP.is_play_exe(n), "%s did not count as playing" % n)
+        for n in ("chrome.exe", "python.exe", "powershell.exe", "", None):
+            self.assertFalse(SP.is_play_exe(n), "%r counted as playing" % (n,))
+
+    def _running(self):
+        SP.save({"pid": os.getpid(), "startedFor": "abc", "startedAt": "x", "runs": 1}, self.path)
+
+    def test_a_running_proof_stands_aside_when_he_starts_playing_and_it_is_not_a_failure(self):
+        self._running()
+        r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                    spawn_fn=lambda lp: 1, playing=True, free=8000, kill_fn=self.killed.append)
+        self.assertEqual([os.getpid()], self.killed, "the running proof went on beside his game")
+        self.assertEqual("stood-aside", r["key"])
+        mem = json.load(io.open(self.path, encoding="utf-8"))
+        self.assertNotIn("pid", mem)
+        self.assertEqual(1, mem.get("stoodAside"))
+        self.assertIsNone(mem.get("lastFailAt"), "standing aside for his game was booked as a failure - 3 h backoff")
+
+    def test_a_running_proof_gives_memory_back(self):
+        self._running()
+        r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                    spawn_fn=lambda lp: 1, playing=False, free=700, kill_fn=self.killed.append)
+        self.assertEqual([os.getpid()], self.killed)
+        self.assertIn("700 MB", r["say"])
+
+    def test_an_unknown_answer_never_kills_a_running_proof(self):
+        self._running()
+        r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
+                    spawn_fn=lambda lp: 1, playing=None, free=None, kill_fn=self.killed.append)
+        self.assertEqual([], self.killed, "a proof was killed on a guess")
+        self.assertEqual("running", r["key"])
+
 RED_PROOF = [
+    {
+        "why": "2026-09-29 (REG-1502) - a proof starts beside his game when the CPU looks idle (a cloud client)",
+        "file": "tv/self_prove.py",
+        "find": "    if playing:\n        return {\"start\": False, \"key\": \"playing\",",
+        "replace": "    if False:\n        return {\"start\": False, \"key\": \"playing\",",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1502) - a running proof goes on beside the game he just started",
+        "file": "tv/self_prove.py",
+        "find": "    if playing is True:\n        return True, ",
+        "replace": "    if False:\n        return True, ",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1502) - Boosteroid does not count as playing: the ALT's exact case",
+        "file": "tv/self_prove.py",
+        "find": "PLAY_EXES = (\"boosteroid.exe\", ",
+        "replace": "PLAY_EXES = (",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1502) - a proof starts with 690 MB free",
+        "file": "tv/self_prove.py",
+        "find": "    if free < MIN_FREE_MB_TO_START:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - the prover's websocket-client is never ensured, so Windows browser laws fail (REG-1457)",
         "file": "tv/self_prove.py",
@@ -330,8 +448,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (second eye) - a corrupt lane memory makes every tick raise into the rescue loop",
         "file": "tv/self_prove.py",
-        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env)\n    except Exception as e:\n",
-        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env)\n    except ZeroDivisionError as e:\n",
+        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)\n    except Exception as e:\n",
+        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)\n    except ZeroDivisionError as e:\n",
         "matches": 1,
     },
     {
