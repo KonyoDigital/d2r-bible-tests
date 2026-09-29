@@ -113,7 +113,9 @@ class _World(unittest.TestCase):
         nothing) · r4 eligible · r5 holds-proof · r6 eligible · r7..r13 + the pinned reel: recent / test-fixture
     """
 
-    N = 14
+    # SIZED FROM THE WINDOW: six reels older than the newest KEEP_RECENT, which the cases name (r0..r5). A literal 14
+    # was 8 + 6 and went red the day his window became 16 (2026-09-29, REG-1433) - every reel read "recent".
+    N = RR.KEEP_RECENT + 6
 
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="world-", dir=_WORLD)
