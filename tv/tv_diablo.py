@@ -2299,6 +2299,54 @@ def _capture_is_off():
     return (os.environ.get("TV_CAPTURE") or "").strip().lower() in ("off", "none")
 
 
+def _stub_capture_only():
+    '''#63 - A TV_STUB AGENT NEVER READS THE REAL SCREEN. -> True when this agent must synthesize its frames.
+
+    MEASURED 2026-09-28: under TV_STUB the live loop tried the REAL capture_mac(frame) FIRST and fell
+    back to capture_stub_synth only when that FAILED - so on his Mac, where Screen Recording is granted,
+    a stub agent filmed and OCR'd whatever was on his screen, and a harness verdict depended on it.
+    His words: "make sure nothing is running on my pc for nothing". Stub means synthetic frames now,
+    on the live loop, the farewell look and the film thread alike; TV_STUB_REAL_CAPTURE=1 is the one
+    explicit way back to the old behaviour (real capture first, synthetic on failure).
+    Windows' screen is read by the capture half (capture_win.ps1), which control_app no longer starts
+    for a stub agent; WATCH_MODE here still consumes FILES from TV_FRAMES_DIR, which is how replay.py
+    feeds recorded truth to a stub agent, so that door is deliberately untouched.'''
+    if (os.environ.get("TV_STUB_REAL_CAPTURE") or "").strip() == "1":
+        return False
+    return bool(os.environ.get("TV_STUB"))
+
+
+def _may_ask_for_screen_recording():
+    '''#63 follow-up - may this agent ask macOS for Screen Recording at all? -> bool
+
+    screen_recording_ok() calls CGRequestScreenCaptureAccess (the system dialog when the grant is
+    missing) and its caller then opens System Settings. A stub agent (#63) and a capture-off agent
+    (#236) never read the screen, so they have nothing to ask for; the review of #63 found both still
+    asking, at the boot preflight and again in the capture-fail branch, which is a dialog on a PC whose
+    Python has no grant. Both sites ask this one predicate.'''
+    return not _stub_capture_only() and not _capture_is_off()
+
+
+def _boot_screen_recording_preflight(platform=None):
+    '''v779 - ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant; Terminal's
+    checkbox does not cover the control-app child agent). -> True granted / False denied / None not asked
+
+    Never asked by an agent that never reads the screen (_may_ask_for_screen_recording), nor off a Mac.
+    `platform` is a test seam, so the refusal is a law on every OS and not only on his Mac.'''
+    if WATCH_MODE or (sys.platform if platform is None else platform) != "darwin":
+        return None
+    if not _may_ask_for_screen_recording():
+        ev("boot", "Screen Recording not asked - this agent never reads the screen (stub or TV_CAPTURE=off)")
+        return None
+    if screen_recording_ok():
+        ev("boot", "Screen Recording OK — eye can pin the D2R window")
+        return True
+    ev("cap", "⚠ Screen Recording DENIED for this Python — open System Settings → Privacy → Screen Recording, enable Python / TV DIABLO, then RESTART")
+    open_screen_recording_settings()
+    print("  ⚠ Screen Recording not granted to this process — film will stay dark until you enable Python in System Settings → Privacy → Screen Recording")
+    return False
+
+
 def _film_loop():
     """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -2333,6 +2381,11 @@ def _film_loop():
             # whole display into the harness sandbox. Off means this console never reads the screen, in any
             # mode, WATCH_MODE included.
             if _capture_is_off() or (_CAP_TARGET or {}).get("mode") == "off":
+                time.sleep(1.5)
+                continue
+            # #63 — and a stub agent (without TV_STUB_REAL_CAPTURE=1) never films the real screen either,
+            # even with a window pinned. Its own statement, so the capture-off guard above keeps its shape.
+            if _stub_capture_only():
                 time.sleep(1.5)
                 continue
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
@@ -4440,8 +4493,11 @@ def _toolhelp_d2r_state():
 def _game_window_present():
     """v899 — True when the real D2R game window is pin-able (Mac Quartz / Win watch target).
     Stub/SIM always True so harnesses never trip the no-game pause.
-    v1413 — Windows: process-alive OR window pin (exclusive fullscreen often has no EnumWindows hit)."""
-    if os.environ.get("TV_STUB") or os.environ.get("TV_NO_GAME_GUARD") == "0":
+    v1413 — Windows: process-alive OR window pin (exclusive fullscreen often has no EnumWindows hit).
+    #63 follow-up — TV_CAPTURE=off answers True too, WITHOUT walking his windows or his processes: an
+    agent that never reads the screen has no business listing what is on it, and with no frames it
+    has no reads for this gate to hold."""
+    if os.environ.get("TV_STUB") or _capture_is_off() or os.environ.get("TV_NO_GAME_GUARD") == "0":
         return True
     if WATCH_MODE:
         # Windows: capture half owns pin; also honor D2R.exe process (v1413)
@@ -7215,14 +7271,9 @@ def main():
     print("   in the bible: SESSIONS tab → ON AIR. Ctrl-C to stop.\n")
     ev("boot", "product=" + ("robot" if ROBOT_MODE else "auto-intake") + " · robot_frozen=" + ("0" if ROBOT_MODE else "1"))
     # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;
-    # Terminal's checkbox does not cover the control-app child agent).
-    if not WATCH_MODE and sys.platform == "darwin":
-        if screen_recording_ok():
-            ev("boot", "Screen Recording OK — eye can pin the D2R window")
-        else:
-            ev("cap", "⚠ Screen Recording DENIED for this Python — open System Settings → Privacy → Screen Recording, enable Python / TV DIABLO, then RESTART")
-            open_screen_recording_settings()
-            print("  ⚠ Screen Recording not granted to this process — film will stay dark until you enable Python in System Settings → Privacy → Screen Recording")
+    # Terminal's checkbox does not cover the control-app child agent). #63 follow-up: never by an
+    # agent that never reads the screen (a TV_STUB agent, a TV_CAPTURE=off agent).
+    _boot_screen_recording_preflight()
     ev("boot", f"autopilot {VERSION} — farewell on stop · chain vault · OCR · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
@@ -7660,7 +7711,20 @@ def main():
                 _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
                 time.sleep(3.0)   # DORMANT — no full-screen capture while there is no game
                 continue
-        if WATCH_MODE:
+        if _stub_capture_only() and not WATCH_MODE:
+            # #63 — A STUB AGENT NEVER CALLS capture_mac. It used to try the REAL grab first and use
+            # these synthetic frames only when that failed, so with Screen Recording granted a TV_STUB
+            # agent filmed + OCR'd his real desktop (see _stub_capture_only). TV_STUB_REAL_CAPTURE=1
+            # restores the old order through the branch below.
+            if not capture_stub_synth(frame):
+                time.sleep(0.2)
+                continue
+            if not globals().get("_STUB_CAP_WARNED"):
+                globals()["_STUB_CAP_WARNED"] = True
+                ev("cap", "SIM synthetic frames — a TV_STUB agent never reads the real screen "
+                          "(TV_STUB_REAL_CAPTURE=1 to film it)")
+                print("  📺 SIM: synthetic frames — a TV_STUB agent never reads the real screen")
+        elif WATCH_MODE:
             # v784 — Windows capture half reports pin status via cap_target.json
             _refresh_cap_target_from_disk()
             f = newest_watched_frame()
@@ -7704,6 +7768,16 @@ def main():
                     globals()["_STUB_CAP_WARNED"] = True
                     ev("cap", "SIM synthetic frames — grant Screen Recording to Python for live play")
                     print("  📺 SIM: no Screen Recording for this process — using synthetic frames + canned reads")
+            elif not _may_ask_for_screen_recording():
+                # #63 follow-up — capture_mac refused because this agent never reads the screen
+                # (TV_CAPTURE=off, e.g. a TV_STUB console's live agent). That is not a missing grant:
+                # the branch below would call CGRequestScreenCaptureAccess and open System Settings.
+                if not globals().get("_CAP_OFF_SAID"):
+                    globals()["_CAP_OFF_SAID"] = True
+                    ev("cap", "capture is OFF - this agent never reads the screen and never asks for Screen Recording")
+                    print("  📺 capture is OFF (TV_CAPTURE) - this agent never reads the screen")
+                time.sleep(0.5)
+                continue
             else:
                 # v840 — do NOT spam the log every poll (last night: thousands of identical lines)
                 now = time.time()
@@ -8436,6 +8510,12 @@ def farewell_read(force_frame=None):
                 elif not os.path.isfile(frame):
                     ev("cap", "farewell: no watch frame")
                     print("  👋 farewell: no frame available — skipping")
+                    return None
+            elif _stub_capture_only():
+                # #63 — a stub agent's last look is synthetic too; it never grabs the real screen
+                if not capture_stub_synth(frame):
+                    ev("cap", "farewell: synthetic frame could not be written")
+                    print("  👋 farewell: synthetic frame could not be written — skipping")
                     return None
             else:
                 if not capture_mac(frame):

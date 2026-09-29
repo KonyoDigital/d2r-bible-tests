@@ -38,17 +38,27 @@ def run(argv, **kw):
 
     Everything else is passed straight through, so a caller keeps its own cwd, timeout and
     capture settings — this adds the quiet, it does not take the control.
+
+    ⚠⚠ #64 follow-up — NO CONSOLE GIT TAKES AN OPTIONAL LOCK. A read-only `git status` refreshes the
+    index on its own and takes .git/index.lock to write it back. Every console git call runs under
+    subprocess.run(timeout=N), and a timeout is a SIGKILL: git gets no chance to clean up, so a
+    status killed mid-refresh leaves a 0-byte index.lock, which is the same state his ALT was stuck in
+    for 11 hours. Measured on a 300-file temp repo with its mtimes touched: a plain `git status` took
+    index.lock on every run; with GIT_OPTIONAL_LOCKS=0 it never did and never rewrote the index.
+    Only the optional lock is affected: merge, pull and checkout still take the locks they need.
     """
     argv = list(argv)
+    # the caller's env if it passed one (an empty dict is still the caller's choice), else ours
+    env = dict(os.environ if kw.get("env") is None else kw["env"])
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    kw["env"] = env
     if IS_WIN:
         if argv and argv[0] == "git" and os.path.isfile(GIT_MINGW):
             argv[0] = GIT_MINGW
         kw["creationflags"] = kw.get("creationflags", 0) | WIN_CREATE
-        env = dict(kw.get("env") or os.environ)
         # ⚠ Git Credential Manager opens a window of its OWN and then sits there until the caller's
         # timeout kills it. A prompt nobody can answer is a stolen screen plus a stalled lane.
         env["GIT_TERMINAL_PROMPT"] = "0"
-        kw["env"] = env
         si = kw.get("startupinfo") or subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         si.wShowWindow = 0

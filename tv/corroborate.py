@@ -2440,6 +2440,12 @@ NO_JOINT_YET = {
         'the row checks the W shortcut is in the served bytes; a second source would be a synthetic key press observed to change the frame, which needs Accessibility (needs-hid).',
     'this machine keeps itself current':
         "the row reads this machine's own HEAD and pull cadence; a second source would be the fleet roster's record of this machine's version, which lives behind the console's KV read.",
+    # #64 — filed IN THE SAME COMMIT as the row, which is this registry's whole rule.
+    'this checkout can update':
+        "a SELF-REPORT: the row reads the pull lane's own record of how its last attempt ended (/api/status pullLane). "
+        "The independent second source exists — git's own count of HEAD..origin/main, which 'this machine keeps itself "
+        "current' reads from the refs — and a lane saying 'pulled' while that count stays above zero is exactly the "
+        "disagreement a joint would grade. That joint is not built yet.",
     # v3467 — the two rows THIS arc added (v3458, v3467) and never explained, so the explained-
     # exactly-once law grew 23 -> 25 on my ships. Declared, not claimed.
     'two eyes compared':

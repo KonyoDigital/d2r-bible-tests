@@ -91,6 +91,109 @@ better"*. v3522 put three fact lines under every PC row. They now live in the PC
 click), in a quiet strip above the SETS / UNIQUES tabs; the row is back to name, dot and one status word.
 **Law:** `tv/test_the_fleet_card_says_how_each_pc_films_and_drains.py` (15 red-proofs PROVEN; its reader now waits
 on the box head, not on the element under test - the old wait turned a tamper into a 180 s hang).
+### REG-1428 - THE TWO PULL DOORS COULD JUDGE AND REMOVE A LOCK ON ONE CHECKOUT AT ONCE (2026-09-29)
+
+**SEEN (the review of #64):** _clear_stale_git_lock is reachable from _pull_once (the drift thread) and fleet_pull
+(/api/update) at the same time, and nothing kept them apart: one door could stat a lock while the other door's own git
+took a NEW lock at the same path, and the re-stat compared only size and mtime - a lock removed and re-created between the
+two looks, 0 bytes with the same mtime, is a different file owned by a live git and would be removed. **FIX:** one
+re-entrant lock (_GIT_PULL_DOOR) held around the WHOLE pull in both doors and around the lock judge (@_one_pull_at_a_time),
+so the two never run git on one checkout at once; the re-stat compares st_ino too. **LAW:**
+test_a_stale_git_lock_is_cleared_and_said (TestOnePullAtATime) - a lock replaced between the looks (same size, same
+mtime, a different inode, each premise asserted) is left and said; with the lock held, neither door runs git until it is
+released. 3 red-proofs.
+
+### REG-1427 - A STUB AGENT AND A CAPTURE-OFF AGENT STILL ASKED MACOS FOR SCREEN RECORDING AND WALKED HIS WINDOWS (2026-09-29)
+
+**SEEN (the review of #63):** a TV_STUB agent and a TV_CAPTURE=off agent - the one a TV_STUB console hands to /api/on
+since REG-1424 - still called screen_recording_ok() (CGRequestScreenCaptureAccess, the system dialog when the grant is
+missing) at the boot preflight, and the capture-off agent called it again in the capture-fail branch, which then opens
+System Settings: #236's door made capture_mac refuse, and the loop read the refusal as a missing grant. Its game gate
+(_game_window_present) walked his window list and processes. His words: "make sure nothing is running on my pc for
+nothing". **FIX:** _may_ask_for_screen_recording() (not a stub agent and not capture-off) guards the boot preflight (now
+_boot_screen_recording_preflight) and the permission branch - a capture-off agent says once that capture is OFF and never
+asks; _game_window_present() answers True under TV_CAPTURE=off without walking anything, as it already did under
+TV_STUB. **LAW:** test_a_stub_agent_never_films_his_screen - the recorded doors now include screen_recording_ok,
+open_screen_recording_settings and the window/process walk; a real stub agent AND a real capture-off agent call none of
+them, and in-process with the platform handed in the boot ask is refused off a Mac too. 4 red-proofs.
+
+### REG-1426 - A READ-ONLY GIT STATUS TOOK INDEX.LOCK, AND EVERY CONSOLE GIT CALL IS KILLED BY SIGKILL (2026-09-29)
+
+**SEEN (the review of #64, the root cause REG-1421 left in place):** `git status` refreshes the index on its own and takes
+.git/index.lock to write it back (optional locking), and every console git call is subprocess.run(timeout=N), which
+SIGKILLs git with no cleanup - so any status killed mid-refresh leaves the 0-byte lock that wedged his ALT. Measured on a
+600-file temp repo with its mtimes touched: a plain `git status` was SEEN holding index.lock and rewrote the index on
+every run. **FIX:** tv/git_quiet.run - the one door every console git call goes through (control_app.py and
+console_doctor.py, pinned by test_windows_git_spawns_hide_the_console) - sets GIT_OPTIONAL_LOCKS=0 on every platform,
+keeping the caller's own env. Merge/pull/checkout still take the locks they need. The sites the review named
+(_git_tracked_dirty, _pull_once's and fleet_pull's status, _tree_is_mid_edit) all go through it; none bypassed it.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said (TestNoConsoleGitTakesAnOptionalLock) - every status site's spawn
+carries GIT_OPTIONAL_LOCKS=0, and on a real repo a status through the door never creates index.lock nor rewrites the
+index (after a plain status is first seen doing both). 1 red-proof.
+
+### REG-1425 - AN UPDATE CUT OFF MID-CHECKOUT READ AS "OK, STANDING DOWN ON PURPOSE" (2026-09-29)
+
+**SEEN (the review of #64):** a fast-forward SIGKILLed mid-checkout leaves a 0-byte index.lock AND a half-written tree.
+Reviewer: a bare origin + a 20k-file clone, origin one commit ahead, `git merge --ff-only origin/main` SIGKILLed 150 ms
+after index.lock appeared -> exit -9, the lock left, hundreds of modified files, and the row said OK. Re-measured on
+4,000 files (SIGKILL 50 ms after the lock appeared): exit -9, a 0-byte lock, HEAD unmoved, 113 modified tracked files.
+_pull_once's DIRTY branch read those files as his edits (outcome 'dirty'), the doctor graded that OK "on purpose", the
+fleet beacon said "local tracked edits", and the checkout could never update again. **FIX:** in the DIRTY branch of
+_pull_once and fleet_pull, .git/index.lock is STAT'ED (report only: never removed, nothing merged); a 0-byte lock older
+than _GIT_LOCK_STALE_S beside a dirty tree is its own outcome, 'interrupted', whose sentence names both facts (the lock and
+N modified tracked files) and runs the failure clock; pull_lane_verdict grades it MISSING at once, naming it; the fleet
+beacon says "update CUT OFF mid-checkout". No lock, a young lock or a non-empty lock is still an ordinary 'dirty'.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said (TestAnInterruptedUpdateIsNotAStandDown) - on a real git fixture with
+the state constructed (an old 0-byte lock + a modified tracked file). 5 red-proofs.
+
+### REG-1424 - A STUB CONSOLE'S LIVE AGENT READ HIS SCREEN, AND A STUB AGENT'S WINDOWS CAPTURE HALF STARTED (2026-09-29)
+
+**SEEN (measured before building #63):** test_roundtrip_sim boots its console with TV_STUB=1, but /api/on spawns the
+agent with sim=False and _env_clean POPS TV_STUB - a probe read the running agent's environment (ps eww): TV_STUB absent.
+So the roundtrip's agent ran the REAL capture path on his Mac (game gate over his window list, capture_mac on whatever
+game window was up), which is why its verdict followed his screen; a guard inside the agent alone could not change that.
+On Windows the screen is read by capture_win.ps1, which start_agent spawned for a SIM (stub) agent too. **FIX:** a
+TV_STUB console hands its live agent TV_CAPTURE=off (the #236 door that never touches a window), so his Mac behaves like
+CI's runner; _start_capture never spawns capture_win.ps1 for a stub agent and says so in the log; the lamp reads OFF (not a
+death to restart five times, REG-1272's rule). TV_STUB_REAL_CAPTURE=1 on the console is the one explicit way back.
+**LAW:** test_a_stub_agent_never_films_his_screen (TheConsoleKeepsItsAgentsOffTheScreen).
+
+### REG-1423 - A TV_STUB AGENT FILMED AND OCR'D HIS REAL DESKTOP (2026-09-28)
+
+**SEEN:** tv_diablo's live loop, under TV_STUB, called the REAL capture_mac(frame) first and used capture_stub_synth only
+when that FAILED. With Screen Recording granted on his Mac, a stub agent filmed and read his real screen; test_roundtrip_sim
+passed at 17:12 and failed at 19:05 on the same commit. **FIX:** _stub_capture_only(): a TV_STUB agent synthesizes its
+frames on the live loop, the film thread and the farewell look, and never calls capture_mac or a Quartz grab, unless
+TV_STUB_REAL_CAPTURE=1 (then the old order: real grab first, synthetic on failure). WATCH_MODE still consumes files from
+TV_FRAMES_DIR, which is how replay.py feeds recorded frames to a stub agent. **LAW:** test_a_stub_agent_never_films_his_screen
+- a REAL agent process with every screen reader patched to record-and-raise settles and reads on synthetic frames and calls
+none of them (the film thread handed a pinned window, the farewell look driven by SIGTERM).
+
+### REG-1422 - THE PULL LANE'S FAILURES WERE WRITTEN AND NEVER READ (2026-09-29)
+
+**SEEN:** _pull_once recorded "the fast-forward did not succeed ... UNKNOWN, NOT up to date" in _PULL.say for 11 hours on
+his ALT and NOTHING read _PULL - no doctor row, no status field, and the fleet beacon's pull said "N commits behind and
+clear to pull" off the cached origin view. A doctor row reading `import control_app` would not have fixed it: the console
+runs as __main__, so an import is a second copy whose _PULL says "nobody has looked yet" (measured: a different object).
+**FIX:** every attempt records its outcome and failure clock (outcome / failSince / failures / lastErr); pull_state() is
+published on /api/status as pullLane; the doctor row 'this checkout can update' reads it over the wire - MISSING when pulls
+have failed past the lane's own 1 h bar (reason + since when), OK after a success or a deliberate stand-down
+(TV_NO_AUTO_PULL, tracked edits), UNKNOWN when nobody tried; registered in CHECKS, WATCHES and NO_JOINT_YET. Past the bar
+_pull_report() refuses with "auto-pull FAILING <age> (<n> tries, since <when>): <error>" in pull.why, which the worker
+already keeps. The failure sentence names git's error line, not its closing advice. **LAW:**
+test_a_stale_git_lock_is_cleared_and_said (TestTheDoctorRowReadsTheLane, TestTheLaneIsPublishedWhereTheRowReads).
+
+### REG-1421 - AN ABANDONED GIT LOCK WEDGED EVERY PULL ON HIS ALT FOR 11 HOURS (2026-09-29)
+
+**SEEN:** his ALT held .git/index.lock from 2026-09-28 14:09, 0 bytes, with no git process running; every automatic pull
+after it failed "Unable to create index.lock: File exists" and the ALT stayed on v3521. git never removes a lock it
+abandoned, so one crashed git wedged the lane for good. **FIX:** _clear_stale_git_lock() - before the fetch and again when
+git's own error names index.lock (one retry, only after a clearing), in _pull_once and in fleet_pull (/api/update) - removes
+the lock only when it is EMPTY, older than 10 min, and no git process runs on this machine (Windows: the Toolhelp32
+process snapshot, never tasklist.exe; Mac/Linux: pgrep -x git; a probe that cannot answer never removes). A clearing is
+kept as a receipt (lockCleared: when, the lock's time, the sentence); any other lock is left and the lane says exactly why.
+**LAW:** test_a_stale_git_lock_is_cleared_and_said - on real git fixtures in a temp dir: a stale lock is cleared and the
+pull lands; a young, non-empty, running-git or unanswerable-probe lock is left untouched and said.
 
 ### REG-1420 - AN UNPARSEABLE MULE STORE READ AS EMPTY, AND THE NEXT SAVE ERASED IT (2026-09-29)
 
