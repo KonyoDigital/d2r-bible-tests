@@ -648,10 +648,13 @@ _PLAN_MEMO_MAX = 16
 _JOIN_WAIT_S = 300.0            # a joiner never waits longer than this on another thread's computation
 _PLAN_LOCK = threading.Lock()
 _IN_PLAN = threading.local()
-#: runs = executions of plan()'s body; served/joined = answers that ran nothing; moving/unkeyed/off/alone =
-#: calls that computed their own answer and shared it with nobody (see _plan_shared)
+_PLAN_WAVES = {}                # call key -> {"running": wave | None, "next": wave | None} (see _plan_wave)
+#: runs = executions of plan()'s body; served/joined = answers that ran nothing; unkeyed/off/alone = calls that
+#: computed their own answer and shared it with nobody (see _plan_shared); moving = calls that found an input
+#: moving, each answered by a WAVE (_plan_wave): waves = wave computations, coalesced = wave answers handed to a
+#: caller that ran nothing
 PLAN_STATS = {"runs": 0, "served": 0, "joined": 0, "led": 0, "moving": 0, "unkeyed": 0, "off": 0,
-              "alone": 0}
+              "alone": 0, "waves": 0, "coalesced": 0}
 
 
 class _Unkeyable(Exception):
@@ -720,11 +723,17 @@ def plan_fingerprint(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         found from its kept listing (frame_ref.listing), and each reel's index.json (_vault_lane_owes).
     Any input changed less than frame_ref.RACY_S ago raises _Moving: a second change inside one clock tick can
     leave a stamp unchanged, so a moving input is never trusted. A reel folder that is a symlink, a store that
-    cannot be stat'd, or a tree that cannot be listed raises _Unkeyable: no memo for that path."""
+    cannot be stat'd, or a tree that cannot be listed raises _Unkeyable: no memo for that path.
+    REG-1439 — and on a console whose ratchet will not read, _Unkeyable too: frame_authority then falls back to
+    the EXACT scan, whose answer comes from tv/*.py and tests/* - files this key does not cover, so an edited
+    test would leave a kept plan standing on a fixture set that has moved."""
     import frame_ref as _fr
     hist = _resolve_hist(hist_dir)
     now = time.time_ns()
     parts = [(p, _still_file(p, now)) for p in plan_input_files(hist_dir)]
+    import frame_authority as _fa_key
+    if _fr.on_console_path() and _fa_key.ratchet_reels() is None:
+        raise _Unkeyable("the ratchet will not read: the fixture set is the exact scan, which this key does not cover")
     _present = dict(parts)
     _both = any(_present.get(os.path.join(HERE, fn)) is not None and _present.get(os.path.join(hist, fn)) is not None
                 for fn in ("chronicle_swept.json", "vault_swept.json"))
@@ -740,6 +749,9 @@ def plan_fingerprint(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         raise _Unkeyable("no footage tree to key")        # plan answers that one cheaply anyway
     if not _fr.still(st, now):
         raise _Moving(hist)
+    # REG-1438 — hist's OWN folder key is load-bearing: a loose hist/f_<ms>.jpg whose stem a citation names
+    # decides whether that citation resolves to its reel (the reel HOLDS PROOF) or to the loose copy (it does not),
+    # and adding or removing one moves nothing else this fingerprint reads.
     parts.append((hist, _fr.folder_key(st)))
     top = _fr.listing(hist)
     if top is None:
@@ -785,7 +797,8 @@ def _plan_shared(hist_dir, free_mb, keep_recent):
                 is handed over only if the fingerprint taken again AFTER it finished is still identical.
       · otherwise the caller LEADS: it computes, and its answer is kept and shared only on that same condition.
     Every answer handed out is a deep copy - no caller can edit what another is served. An exception is never
-    shared (a joiner then computes its own). An input moving, or one that cannot be keyed, computes fresh."""
+    shared (a joiner then computes its own). An input that cannot be keyed computes fresh; an input MOVING
+    computes fresh too, in a wave shared only by callers that arrived before it started (_plan_wave, REG-1437)."""
     try:
         import frame_ref as _fr
         if not _fr.on_console_path():
@@ -803,7 +816,7 @@ def _plan_shared(hist_dir, free_mb, keep_recent):
             key, fp = plan_fingerprint(hist_dir, free_mb, keep_recent)
         except _Moving:
             _plan_count("moving")
-            return _NO_MEMO
+            return _plan_wave(hist_dir, free_mb, keep_recent)
         except Exception:
             _plan_count("unkeyed")
             return _NO_MEMO
@@ -865,6 +878,96 @@ def _plan_shared(hist_dir, free_mb, keep_recent):
         # the leader raised, or its inputs moved while it ran: ask again from the top
     _plan_count("alone")
     return _NO_MEMO
+
+
+def _plan_call_key(hist_dir, free_mb, keep_recent):
+    """The QUESTION a plan() call asks, apart from what its inputs hold. -> hashable key, or raises _Unkeyable
+
+    Two calls share a wave only when they read the same tree with the same HERE and TV_HIST, pick the ledger copies
+    in the same ORDER (_pick: a call that names its tree, or runs under TV_HIST, reads hist's copy first), and pass
+    the same free_mb and keep_recent - the same computation, whatever the files hold at the moment it runs. Unlike
+    plan_fingerprint's key this does not fold the order away when one ledger copy exists: that needs the ledgers
+    STILL, and a wave exists precisely because something is not."""
+    hist = _resolve_hist(hist_dir)
+    key = ("wave", hist, os.path.abspath(hist), HERE, os.environ.get("TV_HIST") or "",
+           bool(hist_dir) or bool(os.environ.get("TV_HIST")), free_mb, keep_recent)
+    try:
+        hash(key)
+    except Exception:
+        raise _Unkeyable("the arguments cannot be keyed")
+    return key
+
+
+def _plan_wave(hist_dir, free_mb, keep_recent):
+    """plan() while an input is MOVING: computed fresh, never remembered - and computed ONCE for every caller
+    waiting at the same moment. -> dict (this caller's answer) | _NO_MEMO (compute your own)
+
+    ⚠⚠ REG-1437 (#66) — WHILE HE FILMS, THE MEMO NEVER ENGAGED. The footage writer drops a loose hist/f_<ms>.jpg
+    about once a second, so hist's own stamp is never RACY_S still, plan_fingerprint raises _Moving on every call,
+    and every caller computed alone - the three concurrent index walks REG-1411 was written for, for as long as
+    D2R runs. A remembered answer can never be served while an input moves; but concurrent callers can share ONE
+    computation, if none of them is handed an answer older than its own call:
+      · nothing running for this question -> this caller computes now, alone;
+      · a computation IS running -> it began before this call, so it may have read the world as it was before
+        this call. This caller joins the NEXT wave instead, which starts only after the running one finishes -
+        after every caller waiting on it had arrived - and all of them share that one run.
+    The first caller to join a wave runs it (after _JOIN_WAIT_S it runs it beside a hung one). A leader that raises
+    shares nothing: its members compute their own. Each member gets a deep copy; nothing is kept afterwards."""
+    import copy
+    try:
+        key = _plan_call_key(hist_dir, free_mb, keep_recent)
+    except _Unkeyable:
+        _plan_count("alone")
+        return _NO_MEMO
+    with _PLAN_LOCK:
+        st = _PLAN_WAVES.get(key)
+        if st is None:
+            st = _PLAN_WAVES[key] = {"running": None, "next": None}
+        if st["running"] is None:
+            w = st["running"] = {"go": threading.Event(), "done": threading.Event(), "result": _NO_MEMO}
+            w["go"].set()
+            lead = True
+        else:
+            # a computation is running, and it began before this call: wait for the NEXT one to start
+            w = st["next"]
+            lead = w is None
+            if lead:
+                w = st["next"] = {"go": threading.Event(), "done": threading.Event(), "result": _NO_MEMO}
+    if not lead:
+        if not w["done"].wait(2 * _JOIN_WAIT_S):
+            _plan_count("alone")
+            return _NO_MEMO
+        if w["result"] is _NO_MEMO:
+            _plan_count("alone")            # the wave's leader raised: this caller computes its own
+            return _NO_MEMO
+        _plan_count("coalesced")
+        return copy.deepcopy(w["result"])
+    if not w["go"].wait(_JOIN_WAIT_S):
+        # the running computation has not finished in _JOIN_WAIT_S (a hung disk, a stuck store): run this wave
+        # now, beside it. Its members all arrived before this moment, so the answer is still not older than any.
+        with _PLAN_LOCK:
+            if st["next"] is w:
+                st["next"] = None
+            w["go"].set()
+    res = _NO_MEMO
+    _IN_PLAN.on = True
+    try:
+        res = plan(hist_dir, free_mb, keep_recent, _fresh=True)
+    finally:
+        _IN_PLAN.on = False
+        snap = copy.deepcopy(res) if res is not _NO_MEMO else _NO_MEMO
+        with _PLAN_LOCK:
+            PLAN_STATS["waves"] += 1
+            w["result"] = snap
+            if st["running"] is w:
+                nxt = st["running"] = st["next"]
+                st["next"] = None
+                if nxt is not None:
+                    nxt["go"].set()
+            if st["running"] is None and st["next"] is None and _PLAN_WAVES.get(key) is st:
+                del _PLAN_WAVES[key]
+            w["done"].set()
+    return res
 
 
 def _forget_plans():

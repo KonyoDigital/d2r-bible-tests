@@ -30,7 +30,20 @@ re-listed), and all five rounds' plans byte-identical to v3522's.
   · DRIVEN: the console path never tokenizes a test file; a ratchet that will not read falls back to the exact
     scan (UNKNOWN is not empty); exact=True always scans.
   · DRIVEN: reel_router's filmed-at reads the same kept listing (one more whole-shelf walk per route()).
-  · JOINED: control_app.main() marks the console path; the ratchet law asks for the exact set.
+  · JOINED: the ratchet law asks for the exact set.
+
+THE ADVERSARIAL REVIEW OF alt-speed (8b5ecd0a), each finding reproduced and then DRIVEN here:
+  · REG-1436 DRIVEN: control_app.main() runs its boot prefix under stubs on a fixture shelf - nothing it asks
+    before the mark may reach the exact scan. The co_names check this replaces stayed green with the mark one
+    line too late: status_payload() for the boot banner reached plan() -> the tokenize scan, once per ship.
+  · REG-1437 DRIVEN: while a writer drops a loose frame into hist every 0.2 s (his footage writer, ~1 s), no
+    input is ever still, so nothing may be remembered - but concurrent callers share one run, and none is handed
+    a run that began before its own call: each answer equals a from-scratch plan taken after that call began.
+  · REG-1438 DIFFERENTIAL: a loose frame at hist root whose STEM a citation names flips its reel between
+    holds-proof and eligible, and only hist's own folder key sees it arrive or leave.
+  · REG-1439 DRIVEN: on a console whose ratchet will not read, the exact scan decides the fixture set from files
+    the fingerprint does not cover - so no plan is kept, and an edited test moves the next answer.
+  · REG-1440 (docs) the working-tree gap is stated in frame_authority.test_referenced_reels.
 RED_PROOF below.
 """
 import ast
@@ -325,7 +338,17 @@ class EveryInputMovesTheAnswer(_World):
             b[r[0]]["panels"] = 9                                     # same byte length: 0 -> 9
 
         def cite(b):
-            b["uniques"]["Harlequin Crest"] = [{"reel": r[6], "frame": "%s/%s" % (r[6], _frame(6, 2)[:-4])}]
+            # by BARE stem, as a citation may be: the loose-frame moves below turn on how that stem resolves
+            b["uniques"]["Harlequin Crest"] = [{"reel": r[6], "frame": _frame(6, 2)[:-4]}]
+
+        def loose_dup():
+            # REG-1438 - the footage writer's own layout: a loose hist/f_<ms>.jpg, here the same capture the
+            # citation above names by stem. It now resolves to the loose copy, so r6 no longer holds the proof.
+            with open(os.path.join(h, _frame(6, 2)), "wb") as fh:
+                fh.write(b"\xff\xd8dup")
+
+        def loose_gone():
+            os.remove(os.path.join(h, _frame(6, 2)))                  # folded or pruned: ONLY hist's stamp moves
 
         def tomb():
             d = os.path.join(h, r[7])
@@ -373,6 +396,8 @@ class EveryInputMovesTheAnswer(_World):
             ("chronicle_swept.json entry", lambda: ledger("chronicle_swept.json", chron_drop)),
             ("retro_triage.json panels (same size)", lambda: ledger("retro_triage.json", triage)),
             ("chron_evidence.json new citation", lambda: ledger("chron_evidence.json", cite)),
+            ("a loose frame at hist root whose stem a citation names", loose_dup),
+            ("that loose frame leaves hist root", loose_gone),
             ("reel_tombstones.json remnant", tomb),
             ("vault_accum.json witness", durable),
             ("a reel's index.json rewritten in place", index_in_place),
@@ -450,6 +475,97 @@ class AMovingInputIsNeverKept(_World):
         self.assertEqual(FR.LIST_STATS["listed"] - listed, 1, "a folder holding a .tmp write was served from memory")
 
 
+class WhileHeFilmsCallersStillShareOneRun(_World):
+    """REG-1437 — his footage writer drops a loose hist/f_<ms>.jpg about once a second while D2R runs, so hist is
+    NEVER still and plan_fingerprint raises _Moving on every call: the memo cannot engage, and before this every
+    caller computed alone. Concurrent callers must share a run - but never one that began before their own call."""
+
+    LATE = 4
+
+    def test_concurrent_callers_share_a_run_that_began_after_them(self):
+        FR.RACY_S = 1.0                  # a 0.2 s writer against a 1 s window: hist is moving for the whole case
+        stop = threading.Event()
+
+        def writer():
+            k = 0
+            while not stop.is_set():
+                # a loose frame whose stem no citation names - the answer's content is stable under these writes
+                with open(os.path.join(self.hist, "f_%d.jpg" % (T0 - 10 ** 9 + k)), "wb") as fh:
+                    fh.write(b"\xff\xd8live")
+                k += 1
+                stop.wait(0.2)
+        wt = threading.Thread(target=writer, name="footage-writer", daemon=True)
+        wt.start()
+
+        def halt():
+            stop.set()
+            wt.join(5)
+        self.addCleanup(halt)
+        real = RR.proof_reels
+        inside = threading.Event()
+
+        def slow(h):
+            inside.set()                 # plan() has read both ledgers by now (_pick runs first)
+            time.sleep(0.8)
+            return real(h)
+        RR.proof_reels = slow
+        time.sleep(0.3)
+        out, errs = {}, []
+
+        def call(name, gate=None):
+            try:
+                if gate is not None:
+                    gate.wait(5)
+                out[name] = RR.plan(self.hist)
+            except Exception as e:
+                errs.append(repr(e))
+        first = threading.Thread(target=call, args=("first",))
+        first.start()
+        self.assertTrue(inside.wait(10), "PREMISE: the first caller's computation never started")
+        # the world moves WHILE that computation runs: r4's rows go unbanked (0 -> 7). A caller arriving now must
+        # not be handed the running computation's answer - it read the ledger before this call.
+        p = os.path.join(self.hist, "vault_swept.json")
+        b = _load(p)
+        b[self.reels[4][len("reel_"):]]["rows"] = 7
+        _dump(p, b)
+        gate = threading.Barrier(self.LATE)
+        late = [threading.Thread(target=call, args=("late%d" % i, gate)) for i in range(self.LATE)]
+        for t in late:
+            t.start()
+        for t in late + [first]:
+            t.join(30)
+        s = dict(RR.PLAN_STATS)
+        runs_burst = s["runs"]
+        # and one more caller, still filming: nothing was remembered, so it computes
+        call("after")
+        s2 = dict(RR.PLAN_STATS)
+        halt()
+        RR.proof_reels = real
+        self.assertEqual(errs, [])
+        callers = 1 + self.LATE
+        self.assertGreaterEqual(s["moving"], callers, "PREMISE: a caller found every input still, so the memo - "
+                                                      "not the moving path - answered it: %r" % s)
+        self.assertLess(runs_burst, callers,
+                        "%d concurrent callers while he films ran plan() %d times - every lane rebuilds the proof set "
+                        "alone for as long as D2R runs (2 expected: the running one, then ONE for every caller that "
+                        "arrived during it): %r" % (callers, runs_burst, s))
+        self.assertEqual((s2["runs"] - runs_burst, s2["served"]), (1, 0),
+                         "a remembered answer was served while an input was moving: %r" % s2)
+        want_new = _strip(self.fresh())                   # a from-scratch plan taken after every late call began
+        for i in range(self.LATE):
+            self.assertEqual(_strip(out["late%d" % i]), want_new,
+                             "late%d arrived after r4's rows went unbanked and was handed an answer computed from "
+                             "the ledger as it stood BEFORE its call - a stale 'may delete'" % i)
+        self.assertEqual(_strip(out["after"]), want_new)
+        b[self.reels[4][len("reel_"):]]["rows"] = 0
+        _dump(p, b)
+        want_old = _strip(self.fresh())                   # the world as it stood when `first` began
+        self.assertNotEqual(want_old, want_new, "PREMISE: unbanking r4's rows does not change the answer, so this "
+                                                "case cannot tell a stale answer from a fresh one")
+        self.assertIn(_strip(out["first"]), (want_old, want_new),
+                      "the first caller's answer matches neither the world at its call nor the world after it")
+
+
 class TheConsoleNeverTokenizes(_World):
 
     def test_the_console_reads_the_ratchet(self):
@@ -481,6 +597,35 @@ class TheConsoleNeverTokenizes(_World):
         self.assertEqual(got, {self.named}, "a ratchet that will not read answered %r - UNKNOWN is not EMPTY; the "
                                             "console must pay the exact scan instead" % (got,))
         self.assertGreater(len(n), 0)
+        FA.__dict__.pop("_FIXTURE_CACHE", None)
+
+    def test_an_unreadable_ratchet_keys_no_plan(self):
+        """REG-1439 — the exact scan the console falls back to reads tv/*.py and tests/*, which plan_fingerprint
+        does not cover: a kept plan would outlive an edited test. So on a console whose ratchet will not read,
+        nothing is kept, and a test that starts naming a reel moves the very next answer."""
+        self.tiny_repo()
+        with open(self.ratchet, "w", encoding="utf-8") as fh:
+            fh.write("{ not json")
+        # warm the exact scan FIRST: its disk cache lands in _fixture_root, which under TV_HIST is this fixture's
+        # hist (on his console it is tv/, outside the key) - written during a plan it would move hist and hide the
+        # defect behind an unkept answer
+        self.assertEqual(FA.test_referenced_reels(), {self.named}, "PREMISE: the fixture set did not come from the exact scan")
+        _settle()                                    # the ratchet is STILL: only its unreadability can refuse a key
+        r0 = self.reels[0]
+        a = RR.plan(self.hist)
+        self.assertEqual(self.tags(a).get(r0), "eligible", "PREMISE: r0 is not eligible, so a test naming it "
+                                                           "cannot move the answer")
+        RR.plan(self.hist)
+        self.assertEqual((RR.PLAN_STATS["runs"], RR.PLAN_STATS["served"]), (2, 0),
+                         "a plan was KEPT while the fixture set came from the exact scan: %r" % RR.PLAN_STATS)
+        with open(os.path.join(FA.HERE, "test_tiny.py"), "a", encoding="utf-8") as fh:
+            fh.write("S = %r\n" % r0)                # a test that now opens r0 by name
+        b = RR.plan(self.hist)
+        self.assertEqual(self.tags(b).get(r0), "test-fixture",
+                         "a test began naming r0 and the console still offered it for release: it served a plan kept "
+                         "while the fixture set came from files its key does not cover")
+        self.assertEqual(_strip(b), _strip(self.fresh()))
+        self.assertGreaterEqual(RR.PLAN_STATS["unkeyed"], 3)
         FA.__dict__.pop("_FIXTURE_CACHE", None)
 
     def test_exact_always_scans(self):
@@ -566,13 +711,73 @@ class TheRouterReadsTheSameListing(_World):
                                     % len(calls))
 
 
-class TheJoints(unittest.TestCase):
+class _Booted(BaseException):
+    """control_app.main() stops here: past its boot prefix, before it binds, opens a window or spawns a lane.
+    A BaseException, so none of main()'s `except Exception` arms can swallow it and carry on booting."""
 
-    def test_the_console_marks_itself_at_boot(self):
-        import control_app as ca
-        self.assertIn("mark_console_path", ca.main.__code__.co_names,
-                      "control_app.main() no longer marks the console path - his console tokenizes the suite and "
-                      "re-lists every reel again")
+
+class TheConsoleIsMarkedBeforeItAsksAnything(_World):
+    """REG-1436 — DRIVEN, never read: control_app.main() itself runs, on a fixture shelf, with every step of its boot
+    prefix stubbed to record whether the console path was marked when it was asked. status_payload()'s stub asks
+    what the real one's autoread refresh asks (_vault_autoread_kick -> tvd-vault-autoread -> _vault_autoread_state
+    -> _vault_owed_reels -> reel_retention.plan(<hist>)), on the calling thread so no race with the mark can
+    decide the verdict. The exact scan is pointed at a one-file repo and counted: before the mark it is the
+    tokenize over every tv/*.py that stalled his ALT after each ship. A co_names check was green with the mark
+    one line too late."""
+
+    def test_nothing_main_asks_at_boot_tokenizes_the_suite(self):
+        import types
+        import control_app as CA
+        n = self.tiny_repo()
+        FR.mark_console_path(False)                 # a fresh process: nothing has said "console" yet
+        asked = []
+
+        def reap(*a, **k):
+            asked.append(("_reap_inherited_at_boot", FR.on_console_path()))
+            return ""
+
+        def status(*a, **k):
+            asked.append(("status_payload", FR.on_console_path()))
+            CA._vault_owed_reels(self.hist)
+            raise _Booted()
+
+        def stop(*a, **k):
+            raise _Booted()
+        # backstops: if the boot ever stops asking status_payload(), main() still halts before anything real
+        fake_wr = types.ModuleType("win_relaunch")
+        for fn in ("install_excepthook", "wait_for_parent", "boot_log", "read_receipt"):
+            setattr(fake_wr, fn, stop)
+        had = "win_relaunch" in sys.modules
+        keep_wr = sys.modules.get("win_relaunch")
+        sys.modules["win_relaunch"] = fake_wr
+
+        def undo_wr():
+            if had:
+                sys.modules["win_relaunch"] = keep_wr
+            else:
+                sys.modules.pop("win_relaunch", None)
+        self.addCleanup(undo_wr)
+        for name, fn in (("_reap_inherited_at_boot", reap), ("status_payload", status),
+                         ("open_control_window", stop), ("start_background_watchers", stop),
+                         ("board_window", stop), ("_win_primary_mutex", stop), ("ThreadingHTTPServer", stop)):
+            self.addCleanup(setattr, CA, name, getattr(CA, name))
+            setattr(CA, name, fn)
+        runs0 = RR.PLAN_STATS["runs"]
+        with self.assertRaises(_Booted):
+            CA.main()
+        self.assertIn("status_payload", [a for a, _on in asked],
+                      "PREMISE: main() no longer asks status_payload() at boot, so this case drove nothing - re-aim "
+                      "it at whatever the boot asks first")
+        self.assertGreater(RR.PLAN_STATS["runs"], runs0, "PREMISE: the boot's question never reached plan()")
+        self.assertEqual([a for a, on in asked if not on], [],
+                         "control_app.main() asked these BEFORE it marked the console path - on his console that is "
+                         "the exact scan over every tv/*.py, once per ship, at boot")
+        self.assertEqual(len(n), 0, "control_app.main()'s boot tokenized %d test file(s) before the console path was "
+                                    "marked" % len(n))
+        self.assertTrue(FR.on_console_path(), "main() never marked the console path at all")
+
+
+class TheJoints(unittest.TestCase):
 
     def test_the_ratchet_law_asks_for_the_exact_set(self):
         with open(os.path.join(HERE, "test_a_gate_may_not_pin_his_footage.py"), encoding="utf-8") as fh:
@@ -660,6 +865,49 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        _fr_console.mark_console_path(True)\n",
         "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1436 - the console path is marked only AFTER status_payload() (the boot banner), whose autoread "
+               "refresh reaches plan() -> the exact tokenize scan over every tv/*.py, once per ship, at boot. "
+               "main() still names mark_console_path, so a co_names check stays green on exactly this",
+        "file": "control_app.py",
+        "find": "        _bv = (status_payload() or {}).get(\"ver\") or \"?\"\n",
+        "replace": "        _fr_console.mark_console_path(False)\n"
+                   "        _bv = (status_payload() or {}).get(\"ver\") or \"?\"\n"
+                   "        _fr_console.mark_console_path(True)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1437 - while he films, a caller joins the computation ALREADY RUNNING, which read the ledgers "
+               "before its call: a stale 'may delete' handed to a caller that asked after the world moved",
+        "file": "reel_retention.py",
+        "find": "            w = st[\"next\"]\n            lead = w is None\n",
+        "replace": "            w = st[\"running\"]\n            lead = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1437 - while he films (hist never still) every caller computes alone again: the concurrent index "
+               "walks REG-1411 was written for, for as long as D2R runs",
+        "file": "reel_retention.py",
+        "find": "            return _plan_wave(hist_dir, free_mb, keep_recent)\n",
+        "replace": "            return _NO_MEMO\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1438 - hist's own folder key leaves the fingerprint: a loose frame whose stem a citation names "
+               "arrives or leaves, the reel flips holds-proof <-> eligible, and the console serves the old verdict",
+        "file": "reel_retention.py",
+        "find": "    parts.append((hist, _fr.folder_key(st)))\n",
+        "replace": "    pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1439 - a console whose ratchet will not read keeps its plan, while the fixture set comes from the "
+               "exact scan over files the key does not cover: a test that starts naming a reel is not seen",
+        "file": "reel_retention.py",
+        "find": "    if _fr.on_console_path() and _fa_key.ratchet_reels() is None:\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
 ]

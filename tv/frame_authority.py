@@ -771,6 +771,12 @@ def test_referenced_reels(repo=None, exact=False):
     asks exact=True: graded against the ratchet itself it would be blind). A ratchet that will not read
     is UNKNOWN, not empty: the console then pays the exact scan rather than hold nothing.
     [[unknown-stays-unknown]]
+    ⚠ REG-1440 — THE WORKING-TREE GAP, STATED: the ratchet is a COMMITTED file, so it is only as new as its last
+    edit. A law written in a working tree that names a real reel, and is not yet ratcheted, is held by the exact
+    scan (the gate, CI, a CLI) but NOT by a console reading the ratchet - until tv/test_reel_refs.json is edited
+    to accept it. test_a_gate_may_not_pin_his_footage closes it at push: it asks exact=True and refuses any real
+    id the ratchet lacks. Between the write and that push, a console on that tree can offer the reel for release.
+    (A console whose ratchet will not read keys no plan at all - reel_retention.plan_fingerprint, REG-1439.)
 
     v2069 — MEASURED, after the fact, on a prune I had already run. Six reels were deleted as
     "sealed by both lanes, has given up its information" and THREE of them were named by
