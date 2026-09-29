@@ -39088,6 +39088,37 @@ class Handler(BaseHTTPRequestHandler):
             # v1537 — which link of the read chain broke, on THIS machine. Free, read-only.
             self._json(200, reader_health())
             return
+        if path == "/api/custody":
+            # 2026-09-29 (#55, first slice) — ONE REEL'S CHAIN OF CUSTODY: which hand holds it now and which
+            # hands held it (recorder · triage · printer · vault · tombstone), each answer quoted from the
+            # store that hand wrote, the river's own journey beside them, and every place two writers
+            # contradict each other. GET, read-only; `?reel=<reel_s_...|s_...>` for one reel, no reel for the
+            # census (`?limit=N` caps rows DRAWN, never the counts). MEASURED before it existed: 460
+            # tombstones all claim "sealed by BOTH lanes", 44 have a vault seal, and no surface could show
+            # that per reel. The journal is handed in only when it read cleanly — an unreadable journal is
+            # `reads: None` (not asked), never "no reads". [[unknown-stays-unknown]] [[the-unjoined-end]]
+            try:
+                import urllib.parse as _upc
+                import reel_custody as _rcu
+                _qc = _upc.parse_qs(_upc.urlparse(self.path).query or "")
+                _creel = (_qc.get("reel") or [""])[0].strip()
+                _clim = (_qc.get("limit") or ["200"])[0]
+                _csrc = _rcu.sources()
+                try:
+                    import reel_retention as _rrc
+                    _cplan = _rrc.plan()
+                except Exception as _cpe:
+                    _cplan = {"ok": False, "why": "reel_retention.plan would not answer (%s)" % type(_cpe).__name__}
+                if _creel:
+                    _crows, _cjwhy = _kai_journal_rows(want_why=True)
+                    self._json(200, _rcu.custody(_creel, src=_csrc, reads=(None if _cjwhy else _crows),
+                                                 plan=_cplan))
+                else:
+                    self._json(200, _rcu.census(src=_csrc, plan=_cplan, limit=_clim))
+            except Exception as _cue:
+                self._json(200, {"ok": False, "why": "the custody record could not be assembled: %s"
+                                                     % str(_cue)[:120]})
+            return
         if path == "/api/picture_status":
             # 2026-09-28 — is the picture of this read on disk, and if not, WHO took it (the recorder's reap
             # record, a tombstone) or was it never written (the disk floor). GET, read-only, bounded to 40 ids.

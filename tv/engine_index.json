@@ -2363,5 +2363,17 @@
     "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
     "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
     "territory": "vault"
+  },
+  "reel_custody.py": {
+    "entryPoints": [
+      "custody",
+      "census",
+      "doctor",
+      "sources",
+      "world"
+    ],
+    "gotcha": "It RE-DERIVES NOTHING: the four dict stores come through end_routes.sources (which asks retro_triage and reel_retention for their paths), every keyed-both-ways lookup is reel_retention.lookup_either_way, a seal's meaning is frame_authority.seal_verdict, the journey is river_stamp.history, the door a tombstoned reel left by is end_routes.verdict. A hand is held True / False / None and the three are three: None (the store exists and will not read) never becomes False, and a contradiction is NEVER raised on a None side. The census lists no reel's frames (a listing per reel on every doctor tick is the a_watcher_over_a_growing_folder scar); only the per-reel record does. `reads` and `plan` are handed IN by the caller (the console's journal and reel_retention.plan) — None means not asked, never 'no reads'. MEASURED 2026-09-29 before it existed: 460 tombstones all say 'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE.",
+    "purpose": "#55 first slice — ONE reel's chain of custody: which of five hands (recorder, triage, printer, vault, tombstone) hold a record of it, each quoted from the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict each other. Behind /api/custody and the doctor row 'reel custody'.",
+    "territory": "river-reels"
   }
 }

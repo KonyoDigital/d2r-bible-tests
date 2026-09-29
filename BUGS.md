@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1544 - NO RECORD COULD SAY WHO HELD A REEL: FIVE STORES, THREE KEYS, AND A TOMBSTONE NAMING TWO HANDS THAT NEVER TOUCHED IT (2026-09-29)
+
+**#55, first slice** of his robot-vacuum chain of custody (HANDOFF §30/§31), at REEL granularity - an item's trail is
+stamped onto frames, frames live in reels, and nothing could say in one place which hands had held a reel.
+**Measured before it existed, read-only on his tree:** 460 tombstone rows, EVERY ONE saying "sealed by BOTH lanes";
+44 of them have a vault seal, 404 a chronicle seal, **56 have neither**; 445 were surveyed; 50 were ever stamped by the
+river and **0 stamps say TOMBSTONE**. The shelf: 33 reels, 33 stamped, 33 surveyed, 21 chronicle-sealed, 7 vault-sealed.
+The five stores (river_stamp, retro_triage, chronicle_swept, vault_swept, reel_tombstones) are keyed three ways
+(`reel_s_…`, `s_…`, a list) and only `end_routes.derived_from` joined any of them - as ONE number
+(labelContradictions), never per reel. **Fix:** `tv/reel_custody.py` - one record per reel naming five hands
+(recorder · triage · printer · vault · tombstone), each answer QUOTED from the store that hand wrote (end_routes.sources
+for the four dict stores, reel_retention.lookup_either_way for every lookup, frame_authority.seal_verdict for what a seal
+certifies, river_stamp.history for the journey, river_walk.LANE_OF_STATION for the lane, read_pictures.who_took for a
+missing picture, end_routes.verdict for the door a tombstoned reel left by, reel_router._captured_ms for the clock -
+nothing re-derived). A hand is `held: True | False | None` and the three stay three: an unreadable store leaves that hand
+UNKNOWN and **no contradiction is raised on a None side**; a reel no store records is none yet, not nowhere. Three
+contradiction kinds, each with both writers named: `tombstone-claims-seals`, `deleted-but-present`,
+`stamped-tombstone-no-ledger-row`. The console serves `GET /api/custody?reel=…` (one reel; the journal handed in only when
+it read cleanly, `reads: None` otherwise; the deleter's CURRENT intent from reel_retention.plan labelled as intent) and
+`/api/custody[?limit=N]` (the census - the cap caps rows DRAWN, never a count). Heart: doctor row **'reel custody'**
+(CHECKS · WATCHES · corroborate NO_JOINT_YET, with the reason the natural joint is not registered yet) - MISSING with its
+denominators, UNKNOWN naming the unreadable file, OK over 0 of 0. **What the first run over his stores found:** 491 reels,
+**417 with a contradiction** (416 tombstones claiming seals the stores never wrote, and `reel_s_1788881493972_53985`
+tombstoned TWICE - 460 rows, 459 distinct reels - while STILL ON THE SHELF); the census and the tombstone hand now publish
+`ledgerRows` / `duplicateTombstones` / `namelessTombstones` so a second removal is never folded into the first. Cost on his
+tree: sources 0.01 s, census 0.55 s, doctor 0.20 s. **Law:** `test_a_reel_carries_its_custody` (17 cases over a temp world
+laid out where each owner's own resolver says; the world is pinned against those resolvers, not a layout); 4 red-proofs
+each seen RED and restored byte-for-byte. Not built here (later slices, his §31 rulings recorded): SPOT/TRAIL/CONTEXT per
+item, pictures that LINK from day one and NAME only once HARDENED, carried loot OWNED right away, the picture library.
+⚠ Pre-existing on the v3524 base, not this change (A/B against HEAD: 0 matches there too): `test_every_pc_proves_itself`
+red-proof [34] anchors on text control_app.py does not contain, so the red-proof census law is red before and after.
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

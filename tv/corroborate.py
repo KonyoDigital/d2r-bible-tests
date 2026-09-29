@@ -2485,6 +2485,21 @@ NO_JOINT_YET = {
         "recorder's own reap and refusal records — the journal and the shelf are written by the same recorder "
         "process. A genuinely independent side would be the vision lane's own receipt of the frame it was handed "
         "(its size and hash at read time) compared with the file on disk; nothing records that receipt yet.",
+    # 2026-09-29 (#55) — the reel custody row. It DOES compare two writers per reel (the deleter's tombstone
+    # sentence against the two sweeps' seal stores; the ledger against the shelf; a stamp against the ledger)
+    # and publishes each contradiction with both sides — but no corroborate JOINT is registered for it yet,
+    # said so rather than claimed. The joint would be `tombstone-claims-its-seals` (left: tombstones whose
+    # `why` says "sealed by BOTH lanes", right: those whose session the seal stores actually hold); MEASURED
+    # 2026-09-29 it reads 460 against 44 on his tree, because reel_retention writes one sentence for every
+    # door (end_routes.derived_from counts the same thing as labelContradictions). Registering that as an
+    # invariant before the deleter's sentence names its door would put a permanently red joint on the heart
+    # for a known cause, which is furniture. The row carries the finding until then.
+    'reel custody':
+        "the row joins five stores (reel_tombstones, vault_swept, chronicle_swept, retro_triage, river_stamp, plus "
+        "the recorder's reap/refusal records) written by five different lanes, and names every reel on which two "
+        "of them contradict each other. No corroborate joint yet: the natural one (tombstones claiming both seals "
+        "vs. sessions the seal stores hold) is red on every console for a known cause — the deleter writes one "
+        "sentence for every door — and would be furniture until reel_retention's tombstone names its door.",
     # 2026-09-28 — Grok's #246 heart rows (§27) shipped without a registry line; test_every_doctor_check_is_explained
     # went red on CI. Both were one source, said so rather than claimed covered. 'evidence tiers'
     # got its joint on 2026-09-28 (a-tier-stands-on-its-looks) and moved to COVERED_BY.

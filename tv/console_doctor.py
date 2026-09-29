@@ -2886,6 +2886,23 @@ def _check_a_read_left_no_picture(rows=None, hist=None, now_ms=None):
     return st, why
 
 
+def _check_reel_custody(src=None):
+    """2026-09-29 (#55, first slice) — 'reel custody': every reel this PC has a record of (on the shelf or in the
+    tombstone ledger) has a chain of custody its stores AGREE on. The five stores each hold one fragment
+    (river_stamp, retro_triage, chronicle_swept, vault_swept, reel_tombstones — plus the recorder's own reap and
+    refusal records), keyed three ways; reel_custody joins them and this row shouts when two writers contradict
+    each other about one reel (a tombstone claiming seals the seal stores never wrote, a ledger removal the shelf
+    still shows, a TOMBSTONE stamp with no ledger row). UNKNOWN when any of those stores could not be read — a
+    chain with an unreadable link is partial, and partial is not clean. The judging is reel_custody.doctor; this
+    only hands the answer through. [[unknown-stays-unknown]] [[heart-first]]"""
+    try:
+        import reel_custody as _rc
+        return _rc.doctor(src=src)
+    except Exception as e:
+        return UNKNOWN, ("the custody record could not be assembled (%s) — whether every reel's custody chain "
+                         "holds is UNKNOWN, never clean" % type(e).__name__)
+
+
 def _check_the_river_has_an_outlet():
     """★ THE RIVER COULD NOT FINISH A REEL, AND THE STATION THAT SAYS SO READ 0 FOR ITS WHOLE LIFE.
 
@@ -9510,6 +9527,8 @@ CHECKS = [
     # 2026-09-28 — every name in `owned` says who filed it; every read that named something kept its picture.
     ("a vault item with no provenance", _check_vault_items_carry_provenance),
     ("a read left no picture", _check_a_read_left_no_picture),
+    # 2026-09-29 (#55) — the reel's chain of custody: five stores, one record, and the contradictions named.
+    ("reel custody", _check_reel_custody),
     ("vault reset receipt", _check_the_vault_reset),
     ("evidence tiers", _check_the_evidence_tiers),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -10246,6 +10265,10 @@ WATCHES = {
     # Empty tuples as DECLARATIONS, not omissions.
     "a vault item with no provenance": (),
     "a read left no picture":      (),
+    # 2026-09-29 (#55) — reads five stores through their owners' loaders; no element of its own yet (the
+    # custody map is a later slice). Empty tuple as a DECLARATION, not an omission: it reaches him through
+    # the eagle line, and /api/custody answers per reel.
+    "reel custody":                (),
     # 2026-09-27 — the reset receipt and the tier census. Neither owns a screen element of its
     # own; both reach him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault reset receipt":         (),

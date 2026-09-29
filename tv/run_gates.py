@@ -8127,6 +8127,21 @@ GATES = [
              "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
              "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
          skip_ok=()),
+    Gate("test_a_reel_carries_its_custody",
+         [sys.executable, os.path.join(HERE, "test_a_reel_carries_its_custody.py")], 180,
+         needs_app=False,
+         why="#55 first slice (REG-1544, 2026-09-29) — his robot-vacuum map at REEL granularity: one record per reel "
+             "naming which of five hands hold it (recorder, triage, printer, vault, tombstone), each answer QUOTED "
+             "from the store that hand wrote, the river's journey beside them, and every reel on which two writers "
+             "contradict each other. MEASURED before it existed, read-only on his tree: 460 tombstones ALL say "
+             "'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE — five "
+             "stores keyed three ways and nothing joined them per reel. A hand is held True / False / None and the "
+             "three stay three: an unreadable store leaves that hand UNKNOWN and raises no contradiction; a reel no "
+             "store records is none yet, not nowhere; the census caps rows DRAWN and never a count; the console "
+             "serves /api/custody (one reel, or the census) and hands in the journal only when it read cleanly; the "
+             "doctor row 'reel custody' says MISSING with its denominators and UNKNOWN naming the unreadable file. "
+             "14 cases over a temp world laid out where each owner's own resolver says, 4 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
