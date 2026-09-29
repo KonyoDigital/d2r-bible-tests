@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1458 - THE MASK LAW WAITED FOR EVERY PICTURE, SO A SLOW PAGE SKIPPED IT INTO "BLIND" (2026-09-29)
+
+**Found** on the ALT after REG-1457 gave it a browser: the served console reached `interactive` at once
+and `complete` only after 39 s (>90 s cold), and `_js_mask` waited 15 s for `complete` - all 8 encoder
+cases skipped. Under today's load (48 on 10 cores) his Mac skipped 4 of them the same way. **Fix:** ready
+= the served page's own script ran (`interactive` + `window.LSR`), or `complete`; the window is 15 s x
+HEART2_DEADLINE_SCALE (the prover's patience, capped at 8). **Status, honestly:** on his Mac 9 of 12 run
+(3 still skip under load 48). On the ALT the cases STILL skip - measured while the ALT was also running
+its full heart inventory, so that reading is contaminated; RE-MEASURE ON AN IDLE ALT before calling this
+closed. The ALT's slow `complete` (39-90 s for a page his Mac loads in ~1 s) is itself a finding for #66.
+
 ### REG-1457 - NO BROWSER LAW COULD RUN ON WINDOWS: NO WINDOWS PATH, AND NO websocket-client (2026-09-29)
 
 **Found** by the Windows inventory: `test_mask_encoders_agree[3]` BLIND - 8 of 12 laws skipped with "no
