@@ -459,7 +459,7 @@ the walker. Measured on both hooks: anchors stage depth 0, prove call depth 1, E
 **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py` (7 cases, 8 red-proofs) - reads the hook's own
 stage order through the anchors law's shell walker, pins every stage and bound, runs `bash -n`.
 > REG-1505..1508 were filed as REG-1460..1463 on the evidence-fix branch; those numbers were taken on main by the
-> time it merged (v3524), so they were renumbered at the merge. The route's other entries, REG-1464..1479, kept their
+> time it merged (v3524), so they were renumbered at the merge. The route's other entries, REG-1380..1395 and REG-1464..1479, kept their
 > numbers. Inside the route an old number can only mean the route's own entry (it was written before main's existed):
 > REG-1513 moved the two citations the renumber missed (in REG-1507 and REG-1479). The entries are otherwise unchanged.
 

@@ -198,7 +198,7 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
 
         So this DRIVES the real declaration over the real file: every occurrence of each proof's
         `find` in control_ui.html must lie inside an eyebrow span from `_eyebrow_spans` (the same
-        bounds the law grades), and the declared `matches` must equal the in-eyebrow count.
+        bounds the law grades). The declared count is the anchor census's job, not this test's.
         """
         src = io.open(UI, encoding="utf-8").read()
         spans = _eyebrow_spans(src)
@@ -217,10 +217,10 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
                 "at line(s) %s. Its tamper would rewrite code this law does not grade, so a red run "
                 "is no longer evidence about the eyebrow. Narrow the anchor to the eyebrow's own "
                 "form; do not raise `matches` to swallow the new sites." % (i, find, outside))
-            self.assertEqual(
-                len(hits), pr.get("matches"),
-                "RED_PROOF[%d] declares %r match(es) and its find occurs %d time(s), all inside the "
-                "eyebrows — one of the two is wrong" % (i, pr.get("matches"), len(hits)))
+            # ⚠ NO COUNT ASSERTION HERE (the skeptic on fix24-merge): proof [0]'s tamper DELETES its own find, so a
+            # count check would go red under that tamper whatever the eyebrow law does - and heart2 reads any non-zero
+            # exit as PROVEN, so the proof would measure its own anchor, not the law. The anchor census already holds
+            # every declared `matches` to the real count; this only asks WHERE the hits are.
         # DENOMINATOR — a loop over zero proofs would pass by grading nothing.
         # [[zero-needs-a-denominator]]
         self.assertGreater(graded, 0, "no RED_PROOF targets control_ui.html, so this checked nothing")
