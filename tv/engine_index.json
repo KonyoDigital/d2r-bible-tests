@@ -1295,6 +1295,20 @@
     "purpose": "Splits names the DEEP reader put in the journal ring into auto-tallyable (3+ witnesses, conf floor) versus manual-lane, exposing that 119 unbanked names were never REFUSED — they were never judged.",
     "territory": "vault"
   },
+  "read_pictures.py": {
+    "entryPoints": [
+      "status_for",
+      "verdict",
+      "who_took",
+      "named_reads",
+      "record_refusal",
+      "budget_spent_mb",
+      "locator"
+    ],
+    "gotcha": "It never deletes and never decides to keep: it READS the reapers' tombstones, the recorder's refusal record and the frames on disk, and names who took a read's picture. Measured 2026-09-28: the frames behind String of Ears and seven Chronicle-page reads were gone, taken by three deleters none of which asked whether a frame was evidence. Anything it cannot establish is UNKNOWN, never 'fine' or 0. Under MIN_FREE_GB a read's picture is still saved small (1024 px, q70, 150 MB/hour); below HARD_FLOOR_GB (1 GB) nothing is written and that refusal is recorded here.",
+    "purpose": "The ONE answer to 'is the picture of this read on disk, and if not, WHY' - behind the doctor row 'a read left no picture', /api/picture_status (asked by the board's evidence panel before it draws an image), and the recorder's own refusal record.",
+    "territory": "vault"
+  },
   "reap_shape.py": {
     "entryPoints": [
       "reaps_first_param",
