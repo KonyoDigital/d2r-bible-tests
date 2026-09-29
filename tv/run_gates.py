@@ -8267,6 +8267,33 @@ GATES = [
              "refusal naming bible.html — never a board table of zeros. The console's figures are unchanged. 6 cases, "
              "4 red-proofs",
          skip_ok=()),
+    Gate("test_the_locker_list_says_when_the_main_is_gone",
+         [sys.executable, os.path.join(HERE, "test_the_locker_list_says_when_the_main_is_gone.py")], 120,
+         needs_app=False,
+         why="#41 rank 20 review (REG-1554, 2026-09-30) — the ONE room that asks the Characters room's reader "
+             "(the mule window's locker list, _mpBindChars) copied its rows and never read the mainDangling the "
+             "rank-20 fix taught the reader to carry, so under a d2r_cbMain naming no saved build the list marked "
+             "no row ★ MAIN and said nothing — exactly like no MAIN set, the defect rank 20 named, standing in the "
+             "second room behind a field written and never read. Now _mpBindChars carries the reader's word and "
+             "the open list says it above the rows (data-state='main-dangling', naming the id, UNKNOWN); a MAIN "
+             "that names a build and no MAIN at all stay quiet; the rows still list every build and a bind still "
+             "works. Driven in node over the shipped mule window + the Characters room's reader (the edit-panel "
+             "law's stand-in, one copy). 3 cases, 2 red-proofs",
+         skip_ok=()),
+    Gate("test_the_heart_map_reads_code_not_prose",
+         [sys.executable, os.path.join(HERE, "test_the_heart_map_reads_code_not_prose.py")], 120,
+         needs_app=False,
+         why="REG-1555 (2026-09-30) — heart_map counted a surface as WATCHED when any watcher's TEXT contained its "
+             "name: `i in blob` over the four files as written. Measured on the tree that blessed a console floor "
+             "of 17: nine of the seventeen stood only in comments and docstrings (heart-chip in the very comment "
+             "recording its REMOVAL from WATCHES 'because it could never match') and th-shelf only inside "
+             "th-shelf-x — 13 of 17, banked by the ratchet as watched. Now comments go by the tokenizer, "
+             "docstrings by the parser, a name counts only where it stands WHOLE in code (one _seen rule for every "
+             "page), and a watcher that does not parse is named MISSING rather than read as prose. The floor was "
+             "lowered to the measured 7 with the reason in heart_floor.json's own _why. Driven over a planted page "
+             "and watcher through heart_map._read, plus the real tree corroborated by an independent word-boundary "
+             "reading. 4 cases, 4 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

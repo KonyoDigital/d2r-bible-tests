@@ -29,12 +29,25 @@ heart2. A surface nobody names is UNWATCHED, and saying so is the whole point.
 ⚠ UNWATCHED IS NOT A FAILURE. Most surfaces do not need a watcher and never will. What this
 refuses is a surface being unwatched SILENTLY — the count is a ratchet, and it may not get worse
 without a human saying why. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+⚠⚠ REG-1555 (2026-09-30) — "APPEARS IN" MEANT THE WATCHER'S WHOLE TEXT, AND THE MAP READ PROSE AS
+WATCHING. `seen` was `i in blob` over the four files as written, so a COMMENT naming a surface made
+it WATCHED. Measured on the tree that blessed a console floor of 17: nine of the seventeen (`bug`,
+`heart-chip`, `sh-stationbar`, `sigil`, `stage-hold`, `th-shelfov`, `theatre`, `vault-body`,
+`win-ctl`) stood only in comments and docstrings — `heart-chip` in the very comment recording that
+it had been REMOVED from WATCHES "because it could never match" — and `th-shelf` only as the prefix
+of `th-shelf-x`. Thirteen of seventeen. The organ built to say a surface is unwatched said WATCHED
+for a name a comment had just declared unwatchable. Now a name counts only where a watcher's CODE
+names it WHOLE: comments go by the tokenizer, docstrings by the parser, and `th-shelf-x` does not
+vouch for `th-shelf`. [[source-reading-guard]] [[regression-guard]]
 """
+import ast
 import io
 import json
 import os
 import re
 import sys
+import tokenize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -55,6 +68,49 @@ BOARD = "bible.html"
 # A surface is something the console PAINTS and he can therefore see go wrong. Ids are the honest
 # unit: a class may be shared by forty nodes, an id names one thing.
 _ID_RX = re.compile(r"""id=\\?["']([a-zA-Z][\w-]{2,})\\?["']""")
+#: REG-1555 — a name in a watcher's code, the same shape as an id: it stands WHOLE or it is not there.
+_NAME_RX = re.compile(r"[A-Za-z][\w-]{2,}")
+
+
+def _code_only(text):
+    """-> a watcher's Python text with every comment and docstring blanked (the line count kept), or None when it
+    does not parse as Python. A watcher that does not parse watches nothing, and watched() names it MISSING rather
+    than reading its text as prose. Comments are found by the tokenizer, docstrings by the parser (the first
+    statement of a module, class or function when it is a string). REG-1555. [[source-reading-guard]]
+    """
+    try:
+        tree = ast.parse(text)
+        toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except Exception:
+        return None
+    doc_lines = set()
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if (isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and body
+                and isinstance(body[0], ast.Expr) and isinstance(getattr(body[0], "value", None), ast.Constant)
+                and isinstance(body[0].value.value, str)):
+            doc_lines.add(body[0].value.lineno)
+    spans = []
+    for t in toks:
+        if t.type == tokenize.COMMENT:
+            spans.append((t.start, t.end))
+        elif t.type == tokenize.STRING and t.start[0] in doc_lines:
+            spans.append((t.start, t.end))
+    lines = text.splitlines(keepends=True)
+    for (r1, c1), (r2, c2) in spans:
+        for r in range(r1, r2 + 1):
+            line = lines[r - 1]
+            a = c1 if r == r1 else 0
+            b = c2 if r == r2 else len(line.rstrip("\r\n"))
+            lines[r - 1] = line[:a] + " " * max(0, b - a) + line[b:]
+    return "".join(lines)
+
+
+def _seen(ids, blob):
+    """-> the ids of a page that the watchers' CODE names whole, sorted. ONE rule for every page (REG-1555): a name
+    inside a longer one (`th-shelf` inside `th-shelf-x`) is not that name, and `blob` is code only (see watched())."""
+    names = set(_NAME_RX.findall(blob))
+    return sorted(i for i in ids if i in names)
 
 
 def _read(name):
@@ -89,18 +145,20 @@ def surfaces(name="control_ui.html"):
 
 
 def watched():
-    """-> (blob of every watcher's text, [watchers that could not be read])
+    """-> (blob of every watcher's CODE — comments and docstrings blanked, REG-1555 — , [watchers that could not be read])
 
     A watcher that cannot be read makes every surface it covers look UNWATCHED — which would
     report as a coverage collapse and, worse, as a real one. It is named instead of skipped.
+    A watcher that does not PARSE is named the same way: its text is prose to this map, not code.
     """
     parts, missing = [], []
     for w in WATCHERS:
         t = _read(w)
-        if t is None:
+        c = None if t is None else _code_only(t)
+        if c is None:
             missing.append(w)
-        else:
-            parts.append(t)
+            continue
+        parts.append(c)
     return "\n".join(parts), missing
 
 
@@ -129,7 +187,7 @@ def measure():
         return None, None, missing          # the page itself could not be read
     if missing:
         return ids, None, missing           # the page is FINE; only watchers are missing
-    seen = sorted(i for i in ids if i in blob)
+    seen = _seen(ids, blob)
     return ids, seen, missing
 
 
@@ -147,7 +205,7 @@ def measure_pages():
         if ids is None or missing:
             out[name] = {"ids": ids, "seen": None}
         else:
-            out[name] = {"ids": ids, "seen": sorted(i for i in ids if i in blob)}
+            out[name] = {"ids": ids, "seen": _seen(ids, blob)}
     return out, missing
 
 
@@ -207,8 +265,11 @@ def render():
         "the pre-push refuses when it is stale, exactly like BLUEPRINT.md.",
         "",
         "A surface here is an `id` the console paints — the honest unit, because a class may be",
-        "shared by forty nodes while an id names one thing. WATCHED means its name appears in",
-        "`console_doctor.py`, `health_engine.py`, `corroborate.py` or `heart2.py`.",
+        "shared by forty nodes while an id names one thing. WATCHED means the CODE of",
+        "`console_doctor.py`, `health_engine.py`, `corroborate.py` or `heart2.py` names it whole:",
+        "a comment or docstring naming it does not count, and a longer id (`th-shelf-x`) does not",
+        "vouch for its prefix (`th-shelf`). Before 2026-09-30 both did, and 13 of the console's 17",
+        "\"watched\" surfaces were named nowhere but in prose (REG-1555).",
         "",
         "⚠ UNWATCHED IS NOT A DEFECT. Most surfaces neither need nor will ever have a watcher.",
         "What is refused is a surface going unwatched SILENTLY — the count below is a ratchet and",
@@ -322,7 +383,10 @@ def main(argv=None):
         io.open(FLOOR, "w", encoding="utf-8").write(json.dumps(
             {"_why": "HEART coverage ratchet — it may only RISE. A fall means a surface this "
                      "console used to watch is no longer watched, which in a green run reads "
-                     "exactly like clean.",
+                     "exactly like clean. A surface is watched only where a watcher's CODE names "
+                     "it whole (REG-1555): the floor of 17 blessed on 2026-09-29 counted 13 names "
+                     "that stood only in comments, docstrings or inside a longer id, and was "
+                     "lowered to the measured count on 2026-09-30 for that reason.",
              "watched": len(seen), "surfaces": len(ids), "names": seen,
              # #41 rank 25 — the board's ratchet, same rule, its own numbers
              "board": {"watched": len(bseen), "surfaces": len(bids), "names": bseen}},

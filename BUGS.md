@@ -7,6 +7,45 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1555 - THE HEART MAP READ PROSE AS WATCHING: 13 OF THE CONSOLE'S 17 "WATCHED" SURFACES WERE NAMED ONLY IN COMMENTS, DOCSTRINGS OR INSIDE A LONGER ID (2026-09-30)
+
+**Found** by the skeptic pass over #41 rank 25 (REG-1538), which had extended `tv/heart_map.py` to the board and blessed
+the console floor 8 -> 17 "as measured". The measurement was `i in blob` over the four watcher files AS WRITTEN — comments
+and docstrings included — so a surface read WATCHED when a comment mentioned it, and a short id read WATCHED when a longer
+one contained it. Measured on that tree: nine of the seventeen (`bug`, `heart-chip`, `sh-stationbar`, `sigil`,
+`stage-hold`, `th-shelfov`, `theatre`, `vault-body`, `win-ctl`) stood in NO watcher's code — `heart-chip` in the very
+`console_doctor.py` comment recording that it had been REMOVED from WATCHES "because it could never match" — and `th-shelf`
+only inside `th-shelf-x`. Thirteen of seventeen, banked by the ratchet as watched: the organ that exists to say a surface
+is unwatched said WATCHED for a name a comment had just declared unwatchable. **Fix:** `_code_only()` blanks comments by
+the tokenizer and docstrings by the parser (line count kept; a watcher that does not parse is named MISSING, never read as
+prose); `_seen()` is the ONE rule for every page — a name counts only where it stands WHOLE in a watcher's code, the same
+shape as an id; `measure()` and `measure_pages()` both call it; HEART.md's own text says the rule. The ratchet was SEEN
+RED first: `--check` against the floor of 17 refused "HEART coverage FELL 17 -> 7: bug, heart-chip, sh-stationbar, sigil,
+stage-hold, th-shelf, th-shelfov, theatre …"; then the floor was lowered to the measured 7 (board 1 of 513, unchanged:
+`vault-moved-note` is named in code) with the reason written into `heart_floor.json`'s own `_why`. **Law:**
+`test_the_heart_map_reads_code_not_prose` — a planted page and a planted watcher through `heart_map._read` (code names
+`planted-code` and `planted-prefix-x`, a comment names `planted-comment`, three docstrings name `planted-doc`: seen is
+exactly the two the code names, on both pages), a watcher that does not parse is MISSING with seen withheld, the stripper
+keeps the line count and ordinary strings, and the real tree is corroborated by an independent word-boundary reading of
+the same code-only text (with `heart-chip` asked of the code, never pinned). **Red-proofs, each RED and restored:** comments
+read as code again; docstrings read as code again; the substring match back; a non-parsing watcher read as prose.
+
+### REG-1554 - THE LOCKER'S CHARACTER LIST NEVER READ THE `mainDangling` RANK 20 TAUGHT THE READER TO CARRY (2026-09-30)
+
+**Found** by the skeptic pass over #41 rank 20 (REG-1534): the Characters room learned to say a dangling MAIN and its reader
+`window._charsList` learned to carry `mainDangling` "so a room asking here can say UNKNOWN instead of 'no MAIN'" — and the
+one room that asks, the mule window's locker list (`_mpBindChars`, #253), copied `rows` and never read it. Measured on the
+branch: under a `d2r_cbMain` naming no saved build the list marked no row ★ MAIN and said nothing, exactly like no MAIN set
+— rank 20's defect standing in the second room, behind a field written and never read (the rank-20 law's third red-proof
+even says "so the mule window cannot say UNKNOWN", describing a join that did not exist). **Fix:** `_mpBindChars` carries
+the reader's word (`mainDangling`, null when the builds could not be read); the open list draws a note above the rows
+(`data-state="main-dangling"`, naming the id, UNKNOWN, pointing at the 👤 Characters tab); a MAIN that names a build and no
+MAIN at all stay quiet; the rows still list every build and a bind still works. No new CSS: the note wears the list's own
+`mp-bind-none`. **Law:** `test_the_locker_list_says_when_the_main_is_gone` — 3 cases in node over the SHIPPED mule window +
+the Characters room's reader (the edit-panel law's stand-in, one copy): the dangling MAIN said and marking nothing, the two
+honest states quiet, and the two join sites graded by their exact expressions (a comment cannot carry an assignment).
+**Red-proofs, each RED and restored:** the list stops carrying the reader's field; the field is carried and never drawn.
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter

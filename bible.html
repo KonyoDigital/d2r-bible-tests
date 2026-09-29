@@ -43829,11 +43829,14 @@ window.vaultAutoAssign = function(){
   /* -> {ok, why, rows: [{src: 'build'|'main', id, name, cls, level, main, declared}]} - ok false = the builds are
      UNKNOWN (said); the MAIN he named is still listed then */
   function _mpBindChars(){
-    var out = { ok: true, why: '', rows: [] }, r = null;
+    var out = { ok: true, why: '', rows: [], mainDangling: null }, r = null;
     if (typeof window._charsList !== 'function') r = { ok: false, why: 'the 👤 Characters tab is not loaded on this page, so its builds could not be asked' };
     else { try { r = window._charsList(); } catch (e){ r = { ok: false, why: 'the builds could not be read (' + (e && e.message || e) + ')' }; } }
     if (!r || !r.ok || !Array.isArray(r.rows)){ out.ok = false; out.why = (r && r.why) || 'the builds could not be read'; }
     else r.rows.forEach(function(x){ out.rows.push({ src: 'build', id: String(x.id), name: String(x.name), cls: x.cls || null, level: x.level || null, main: !!x.main, declared: false }); });
+    /* #41 rank 20 review (REG-1554) - the reader's own word on a MAIN that names no saved build. It was written by the
+       Characters room and read by nobody: this list marked no row ★ MAIN and said nothing, exactly like no MAIN set. */
+    if (out.ok) out.mainDangling = r.mainDangling == null ? null : String(r.mainDangling);
     var mc = null;
     try { mc = typeof window.mainCharacter === 'function' ? window.mainCharacter() : null; } catch (e){ mc = null; }
     if (mc && mc.name){
@@ -43870,6 +43873,8 @@ window.vaultAutoAssign = function(){
     if (!open) return { btn: btn, list: say };
     var L = _mpBindChars(), cur = m.boundChar || null, h = '';
     if (!L.ok) h += '<div class="mp-bind-none mp-bind-bad" data-state="unknown">Your builds could not be read — UNKNOWN (' + esc(L.why) + '). None of them can be bound until they read again.</div>';
+    /* #41 rank 20 review (REG-1554) - a dangling MAIN is SAID here too, above the rows none of which wears ★ MAIN */
+    if (L.ok && L.mainDangling) h += '<div class="mp-bind-none" data-state="main-dangling" role="status">MAIN points at a build that is gone (' + esc(L.mainDangling) + ') — which character is your MAIN is <b>UNKNOWN</b>. Set as MAIN on a card in the 👤 Characters tab.</div>';
     L.rows.forEach(function(x, i){
       var on = !!cur && cur.src === x.src && String(cur.src === 'build' ? cur.id : cur.name) === x.id;
       h += '<button type="button" class="mp-bind-o' + (on ? ' on' : '') + '" data-fk="bind-' + i + '" data-src="' + x.src + '" data-id="' + esc(x.id) + '" aria-pressed="' + on + '"'
