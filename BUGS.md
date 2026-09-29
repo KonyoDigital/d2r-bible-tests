@@ -43,7 +43,13 @@ proofs across the lanes - that same shape - and was taken out before anything ra
     declared 1280x800, exit 1 - the one-viewport probe that "measured" 1280x800 had gone red on
     test_at_1280_the_fixed_panels' 6px font-reflow flake, not on the hover defect. Re-measured alone: red at 1280x695 in
     its own test (proof 18 had the same flake; also 1280x695). A wrong declaration read BLIND, never PROVEN.
-  · MULE AFTER: [MULE]
+  · MULE AFTER (13 and 18 re-declared): `--prove test_the_mule_window_fits_at_every_width --push` 25/25 PROVEN in 1540 s
+    (25.7 min), exit 0. Before, not timed proof by proof: one full run is 108-135 s, so ~25 x 2 x 110 s = ~92 min.
+  · FAIL FAST, LIVE ON THE REAL BUILDER LAW: proof 40's declaration set to 1280x800 (measured GREEN there alone) in the
+    working tree, the push base at HEAD (the one stand-in: this branch has no @{push}, so a driver mapped it to HEAD). The
+    run ranked "1 entr(ies) new or changed" first, read it BLIND at 42.2 s, stopped, said "40 of 41 proof(s) NOT RUN" last,
+    and banked only that gate's BLIND - 46.6 s wall, where v3522 #1 paid 159 min. The declaration was restored.
+  · Both laws unrestricted after the change (the verdict of record): builder 27 tests OK in 105 s, mule 23 OK in 108 s.
   · NOT MET: the 15-20 min target. A restricted run still pays ~15 s of the fixture's own settle sleeps plus page load,
     twice per proof. The measured levers left: one clean run per (gate, widths) when the sandbox is byte-identical (P3's
     verdict cache) - ~22 min projected for the builder from the per-run times above; and splitting 2000x1300's
