@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1457 - NO BROWSER LAW COULD RUN ON WINDOWS: NO WINDOWS PATH, AND NO websocket-client (2026-09-29)
+
+**Found** by the Windows inventory: `test_mask_encoders_agree[3]` BLIND - 8 of 12 laws skipped with "no
+headless Chrome". `render_check._find_chrome` knew his Mac, Playwright's cache and Linux names, and no
+Windows path. With Windows paths added, the ALT found its Chrome and all 8 cases then FAILED with
+`No module named 'websocket'` - the installer never put websocket-client on a Windows PC, because only
+his Mac had ever proved anything. **Fix:** `_find_chrome` looks in Program Files / Program Files (x86) /
+LocalAppData for Chrome, then Edge (every Windows 10/11 has it; same DevTools protocol). The self-prove
+lane ensures the prover's imports before a real proof (`ensure_prover_deps`: hidden, `--user`, bounded,
+Windows only, and it says what it did - the console's boot-Pillow pattern), and `install-tvd.ps1` installs
+websocket-client up front. **Laws:** two cases each in the Windows and self-prove laws; both red-proofs RED.
+
 ### REG-1456 - THE ANCESTOR-WALK LAW COULD ONLY TELL SPELLINGS APART BY CASE, WHICH WINDOWS ERASES (2026-09-29)
 
 **Found** by the Windows inventory: `test_agent[1]` BLIND - the sabotage `samefile(cur, b)` -> `cur == b`

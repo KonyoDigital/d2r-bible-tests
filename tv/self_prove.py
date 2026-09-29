@@ -233,6 +233,52 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True):
             "why": "census %s (%s) on an idle installed console - proving" % (st, census.get("why"))}
 
 
+#: What the PROVER needs that a console does not: the browser laws drive Chrome over DevTools with
+#: websocket-client. MEASURED on the ALT (#50, REG-1457): once render_check could find Chrome there, all 8
+#: browser cases of test_mask_encoders_agree failed with "No module named 'websocket'" - the installer never
+#: put it on a Windows PC, because only the pre-push gate on his Mac had ever proved anything.
+PROVER_DEPS = (("websocket", "websocket-client"),)
+
+
+def ensure_prover_deps(find=None, run=None):
+    """Make the prover's imports present before a proof starts. -> {"ok", "installed", "why"}. Never raises.
+
+    The same shape as the console's boot Pillow install (control_app): hidden, bounded, `--user`, and it
+    SAYS what it did. Only on Windows - his Mac and CI already carry these - and only once per missing
+    package per process."""
+    import importlib.util as _ilu
+    find = find or _ilu.find_spec
+    out = {"ok": True, "installed": [], "why": "every prover import is present"}
+    missing = []
+    for mod, pkg in PROVER_DEPS:
+        try:
+            if find(mod) is None:
+                missing.append(pkg)
+        except Exception:
+            missing.append(pkg)
+    if not missing:
+        return out
+    if not IS_WIN:
+        out.update(ok=False, why="missing %s - not installed automatically off Windows" % ", ".join(missing))
+        return out
+    exe = sys.executable or "python"
+    if exe.lower().endswith("pythonw.exe"):
+        exe = exe[:-len("pythonw.exe")] + "python.exe"
+    try:
+        r = (run or subprocess.run)([exe, "-m", "pip", "install", "--user", "--quiet"] + missing,
+                                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                    timeout=600, creationflags=_CREATE_NO_WINDOW if IS_WIN else 0)
+        rc = getattr(r, "returncode", None)
+    except Exception as e:
+        out.update(ok=False, why="pip could not run (%s)" % type(e).__name__)
+        return out
+    if rc != 0:
+        out.update(ok=False, why="pip exited %s installing %s" % (rc, ", ".join(missing)))
+        return out
+    out.update(installed=missing, why="installed %s for the prover" % ", ".join(missing))
+    return out
+
+
 def spawn(log_path, python=None, workers=1, popen=None):
     """Start `heart2.py --prove` hidden and below everything he does. -> pid"""
     py = python or sys.executable
@@ -320,6 +366,8 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env):
                busy() if callable(busy) else busy, mem, now_s, on=on)
     if d["start"]:
         try:
+            if spawn_fn is None:                           # a real start, not a law's recording spawn
+                mem["deps"] = ensure_prover_deps()
             log_path = _store_path(path) + ".log"
             mem["pid"] = (spawn_fn or spawn)(log_path)
             _STARTED["pid"] = mem["pid"]

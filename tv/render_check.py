@@ -469,6 +469,18 @@ def _find_chrome():
     mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if os.path.exists(mac):
         return mac
+    # ⚠⚠ #50 (REG-1457) — AND WINDOWS, WHICH THIS LIST NEVER HAD. Every law that renders a page read
+    # "no headless Chrome" on the ALT and SKIPPED, so a proof whose laws all skipped read BLIND
+    # (`test_mask_encoders_agree[3]`: 8 of 12 skipped) - and since every PC proves itself (REG-1447), a
+    # BLIND instrument keeps every lock on that PC shut. Chrome where it is installed, else Edge, which
+    # every Windows 10/11 ships and which speaks the same DevTools protocol and flags.
+    if os.name == "nt":
+        _bases = [os.environ.get(k) for k in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+        for _rel in (os.path.join("Google", "Chrome", "Application", "chrome.exe"),
+                     os.path.join("Microsoft", "Edge", "Application", "msedge.exe")):
+            for _b in _bases:
+                if _b and os.path.exists(os.path.join(_b, _rel)):
+                    return os.path.join(_b, _rel)
     # Playwright keeps a versioned directory; take the newest so a cache carrying two does not
     # pin the older one for ever.
     roots = sorted(_g.glob(os.path.expanduser("~/.cache/ms-playwright/chromium*/chrome-linux/chrome")))

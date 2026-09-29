@@ -255,6 +255,40 @@ class ABackgroundProofIsPatient(unittest.TestCase):
                          "the background prover runs with the Mac's deadlines on a slower, busier PC")
 
 
+class TheProverHasWhatItNeeds(unittest.TestCase):
+    """REG-1457 - on the ALT all 8 browser cases failed with "No module named 'websocket'"."""
+
+    def test_a_missing_import_is_installed_once_hidden_on_windows(self):
+        from unittest import mock
+        calls = []
+
+        class _R(object):
+            returncode = 0
+
+        def _run(argv, **kw):
+            calls.append((argv, kw))
+            return _R()
+        with mock.patch.object(SP, "IS_WIN", True):
+            got = SP.ensure_prover_deps(find=lambda m: None, run=_run)
+        self.assertEqual(len(calls), 1, "the missing prover import was not installed")
+        self.assertIn("websocket-client", calls[0][0])
+        self.assertIn("--user", calls[0][0])
+        self.assertTrue(calls[0][1].get("creationflags"), "pip ran without CREATE_NO_WINDOW - a window "
+                                                          "over his game")
+        self.assertEqual(got["installed"], ["websocket-client"])
+
+    def test_present_does_nothing_and_off_windows_never_installs(self):
+        from unittest import mock
+        ran = []
+        got = SP.ensure_prover_deps(find=lambda m: object(), run=lambda *a, **k: ran.append(a))
+        self.assertTrue(got["ok"])
+        self.assertEqual(ran, [])
+        with mock.patch.object(SP, "IS_WIN", False):
+            got = SP.ensure_prover_deps(find=lambda m: None, run=lambda *a, **k: ran.append(a))
+        self.assertEqual(ran, [], "pip was run off Windows")
+        self.assertFalse(got["ok"])
+
+
 class TheConsoleAsks(unittest.TestCase):
 
     def test_the_rescue_loop_ticks_the_lane_and_status_publishes_it(self):
@@ -265,6 +299,13 @@ class TheConsoleAsks(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - the prover's websocket-client is never ensured, so Windows browser laws fail (REG-1457)",
+        "file": "tv/self_prove.py",
+        "find": "PROVER_DEPS = ((\"websocket\", \"websocket-client\"),)\n",
+        "replace": "PROVER_DEPS = ()\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - the heart ignores the patience a background proof asks for (REG-1454)",
         "file": "tv/heart2.py",

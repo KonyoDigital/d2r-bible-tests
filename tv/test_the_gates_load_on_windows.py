@@ -195,6 +195,40 @@ class TheSandboxGetsItsNeedsWithoutCp(unittest.TestCase):
         self.assertTrue(any("too large" in x for x in self.said), "the refusal said nothing")
 
 
+class ABrowserIsFoundOnWindows(unittest.TestCase):
+    """REG-1457 - render_check._find_chrome knew his Mac, Playwright's cache and Linux names, and NO Windows
+    path: every law that renders a page SKIPPED on the ALT and a proof whose laws all skipped read BLIND
+    (test_mask_encoders_agree[3], 8 of 12). Driven as Windows with fake install folders."""
+
+    def _find(self, present, env_extra=None):
+        import render_check as RC
+        from unittest import mock
+        root = tempfile.mkdtemp(prefix="find_chrome_")
+        env = {"PROGRAMFILES": os.path.join(root, "pf"), "PROGRAMFILES(X86)": os.path.join(root, "pf86"),
+               "LOCALAPPDATA": os.path.join(root, "lad")}
+        env.update(env_extra or {})
+        for rel in present:
+            f = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(f), exist_ok=True)
+            io.open(f, "w").write("x")
+        real_exists = os.path.exists
+        mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        with mock.patch.object(RC.os, "name", "nt"), mock.patch.dict(os.environ, env, clear=False), \
+                mock.patch.object(RC.os.path, "exists", lambda p: False if p == mac else real_exists(p)):
+            os.environ.pop("TV_CHROME", None) if "TV_CHROME" not in (env_extra or {}) else None
+            return RC._find_chrome(), root
+
+    def test_edge_is_found_when_chrome_is_not(self):
+        got, root = self._find([os.path.join("pf86", "Microsoft", "Edge", "Application", "msedge.exe")])
+        self.assertTrue(got.endswith("msedge.exe") and got.startswith(root),
+                        "Windows Edge was not found - every rendering law skips on a Windows PC: %r" % got)
+
+    def test_chrome_wins_over_edge(self):
+        got, _ = self._find([os.path.join("pf", "Google", "Chrome", "Application", "chrome.exe"),
+                             os.path.join("pf86", "Microsoft", "Edge", "Application", "msedge.exe")])
+        self.assertTrue(got.endswith("chrome.exe"), got)
+
+
 class NoModuleImportsAUnixOnlyModuleBare(unittest.TestCase):
 
     def test_every_top_level_unix_only_import_is_guarded(self):
@@ -271,6 +305,13 @@ class EveryModuleCompilesWithoutAWarning(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - the browser finder has no Windows path again, so every rendering law skips into BLIND (REG-1457)",
+        "file": "tv/render_check.py",
+        "find": "    if os.name == \"nt\":\n        _bases = [",
+        "replace": "    if False:\n        _bases = [",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - ci_sim's Popen stub is a plain function again, and asyncio cannot subclass it on Windows",
         "file": "tv/ci_sim.py",
