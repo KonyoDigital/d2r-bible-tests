@@ -7,6 +7,70 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1530 - TWO RED-PROOFS MATCHED NOTHING: ONE MOVED BY THIS ARC, ONE LEFT BEHIND BY THE v3524 MERGE (2026-09-29)
+
+**Found** by the red-proof census (`test_the_heart_can_see_its_own_instruments`, the case hooks/pre-push runs at top
+level) on this branch, each attributed by delta against the v3524 base (00ece38d):
+- `test_an_inventory_hover_paints_the_games_colours[1]` (the runeword base painted in the name colour) anchored on d2Tip's
+  base line, which REG-1525 rewrote to carry the UNKNOWN class - 1 match at the base, 0 after. **Mine.** Re-aimed to the
+  new line; the tamper still drops the measured grey and nothing else. Seen RED.
+- `test_every_pc_proves_itself[34]` (REG-1511, the doctor warns through every stand-aside cooldown) anchored on the
+  healthy-states tuple `("playing", "stood-aside", "low-memory", "aside-cooldown")` - 0 matches at the base too: the
+  v3524 merge (fix24-selfprove, REG-1514) inserted `"running-unverified"` into that tuple after the proof was written,
+  so the census would have refused the integration push. **Not mine, swept anyway** ([[sweep-dont-ask]]): re-aimed to
+  the tuple as merged, the tamper still drops `"aside-cooldown"`. Seen RED.
+### REG-1529 - THE BOARD ASKED :17772 FOR THE REBUILD PLAN AND THE PROOF CHIP WHATEVER CONSOLE SERVED IT (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 18): `_vaultAskRebuildPlan` fetched `http://127.0.0.1:17772/api/vault_rebuild_plan`
+after checking only that the page's HOSTNAME was local, and control_app's CORS (`Access-Control-Allow-Origin *`, OPTIONS
+204) lets that answer through - so a board on a scratch console (a gate's :179xx) or a second console would have filed
+its vault from HIS REAL ledger. The audit's open question ("UNKNOWN whether CORS blocks it") is answered: it does not.
+The same shape sat on the proof chip (`_vaultAskProven`, `/api/vault_proven`), with no host guard at all.
+**Fix:** ONE rule, one line, `_consoleOrigin()` - the page's own `location.origin` when a local console served it (`http(s)://127.0.0.1|localhost[:port]`),
+null otherwise. The rebuild plan is asked of `origin + '/api/vault_rebuild_plan'` and an unserved board (file://, the
+public site) asks NOBODY and reads the plan UNKNOWN; the proof chip asks `origin + '/api/vault_proven'` and with no
+origin leaves the chip absent with its one-shot flag clear. ⚠ Not swept, on the record: `_vaultEvidencePicture` still
+falls back to `'http://127.0.0.1:17772/api/picture_status'` behind `window.VAULT_PICTURE_STATUS_URL` - a knob nothing
+sets - and `test_a_vault_item_and_a_read_say_where_they_came_from` pins that literal; the owned-door law drives that
+fetch through a harness whose `location` stub carries no origin. Its sweep needs both laws re-aimed with it.
+**Law:** `test_a_reset_refiles_only_what_the_plan_says` now serves the board from :17999 (`SERVING`): the full reset's one
+ask lands on `:17999/api/vault_rebuild_plan` and never on 17772, and a new case drives a board with no origin - no fetch,
+nothing filed, "rebuilt UNKNOWN". The reset harness (`test_a_vault_reset_clears_only_the_mules.LINES`) carries the
+helper's line, and the retro-rows law's two stubs carry the origin. **Red-proofs, each applied, run RED, restored
+byte-for-byte:** the plan asked of another path (re-aimed); :17772 hardcoded back; the origin guard dropped (an
+unserved board asks his console anyway) - 3 of 3; the law's 7 older proofs and the retro-rows law's 17 re-run RED under
+the new stubs.
+### REG-1528 - THE MULE WINDOW'S SLOT, HANDS AND CLASS BLOCKS WERE WATCHED BY NOTHING UNATTENDED (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 15): the MULE_BASE_SLOT / MULE_NAMED_BASE / MULE_BASE_RULES blocks that
+tv/mule_slot_map.py writes into bible.html from his install decide which slot a base is worn in, whether a second weapon
+may sit beside it, what a bow shoots and which class a base is locked to - and console_doctor.py had 0 references to
+mule_slot_map; the only caller of its check() was a gate that skips without an install; no test read both CB_DB and
+MULE_BASE_RULES. After a game patch they would drift silently while 'builder item data' went red on its sibling block.
+**Fix:** the PERIODIC doctor row `mule slot rules` (`_check_the_mule_slot_rules_match_the_install`) wraps
+mule_slot_map.check(): 0 OK · 1 MISSING with the generator's own sentence and the action (run --write) · 77 UNKNOWN,
+never OK · a raise UNKNOWN; in CHECKS, PERIODIC (it pulls four tables + itemtypes.txt from the install, like its
+siblings), WATCHES (empty tuple as a declaration) and NO_JOINT_YET (one install through one generator is not a second
+witness). **Law:** new `test_the_mule_rules_and_the_builder_agree_on_hands_and_class` - with no install, for EVERY base
+in CB_DB (b[14] hands 2 / 12 / 1, ty[t][2] the class lock) the mule block read through its own embedded() says the same
+hands and class: measured 692 bases, 0 mismatches, every rule name present in CB_DB (a missing one would make the
+compare a sample - red too); plus the row's three states and its registration. **Red-proofs, each applied, run RED,
+restored byte-for-byte:** Balrog Blade leaving the mule's one-or-two-handed list; the mule reader dropping every class
+lock; 77 reading as OK; the row out of CHECKS; out of PERIODIC; the NO_JOINT_YET line renamed - 6 of 6.
+### REG-1527 - THE console-tabs RENDER GATE ROUTED SIX TABS AFTER THE HEADER GOT A SEVENTH (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 14): render_check.py's console-tabs target still declared
+`ROUTING = ["forge","crafts","funi","fsets","tools","vault"]` and its why said "Six tabs" after v3518 gave the console
+header a 👤 Characters door, so no gate clicked that door in a real browser and checked that #tab-chars PAINTS in app
+context. The Characters law pins the app-ctx re-show list by source text, so a pane collapsed or hidden by CSS passed.
+**Fix:** `chars` joined ROUTING (the every-board-door rule is now stated beside it), the why says Seven, the comment
+says SEVEN ROUTE. **Law:** new `test_the_console_tabs_gate_routes_every_board_door` drives the target's REAL activate
+program (the string Chrome evaluates) in node over a stub console + board: the board doors it clicks are exactly
+control_ui.html's #head-tabs minus the console-native pair (derived from the real header, so a door added to the console
+and not to ROUTING goes red with no browser); the runnable sabotage - #tab-chars collapsed to 0x0 - turns it red, with a
+collapsed #tab-vault as the baseline proving the stub carries a collapse; and the why counts what ROUTING counts.
+Pixels stay the gate's own job, on Chrome, on CI. **Red-proofs, each applied, run RED, restored byte-for-byte:** chars
+out of ROUTING; the why back to Six; the pane-rect check dropped - 3 of 3.
 ### REG-1526 - THE CHARACTERS ROOM HAD NO DOCTOR ROW, AND ITS TWO MAINS COULD NAME DIFFERENT CHARACTERS IN SILENCE (2026-09-29)
 
 **Found** by the heart audit (#41 / #256, ranks 12 + 13): the 👤 Characters tab's heart was ONE proven law and nothing

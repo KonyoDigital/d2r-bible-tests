@@ -29,7 +29,10 @@ import test_every_mule_filing_carries_its_witness as FILE
 import vault_evidence as VE
 
 NODE = shutil.which("node")
-PLAN_URL = "http://127.0.0.1:17772/api/vault_rebuild_plan"
+#: #41 rank 18 — the board asks the console that SERVED it, so the stub serves it from a port that is NOT his live
+#: console's: an ask that lands on :17772 is the defect (a board on a scratch console filing from his real ledger)
+SERVING = "http://127.0.0.1:17999"
+PLAN_URL = SERVING + "/api/vault_rebuild_plan"
 CELL = {"tab": "personal", "x": 3, "y": 4}
 BACK = ["Shako", "Arachnid Mesh", "Harlequin Crest", "Lightning Sunder Charm"]
 HELD = ["War Traveler", "Chance Guards", "Unread Thing"]
@@ -49,7 +52,7 @@ window.D2R_BUILD = window.D2R_BUILD || { id: 'vLAW' };
 BODY = r"""
 var PLAN = __PLAN__;
 var FETCH_MODE = 'plan';
-var location = { hostname: '127.0.0.1' };
+var location = { hostname: '127.0.0.1', origin: __SERVING__ };
 var FETCHES = [], ASKED = [];
 globalThis.fetch = function(url){
   FETCHES.push(String(url));
@@ -118,6 +121,15 @@ function snap(){ return JSON.parse(JSON.stringify(STORE)); }
                  status: STATUS.length ? STATUS[STATUS.length - 1] : '',
                  receipt: window._vaultLastReset || null,
                  sets: STORE['d2r_setPieces'] };
+  /* #41 rank 18 — a board nobody served (file://, the public site): no console origin, so NOBODY is asked - never his
+     :17772 by name - and the plan is unread, UNKNOWN */
+  seed();
+  FETCH_MODE = 'plan';
+  location = { hostname: '127.0.0.1' };
+  await window.vaultClearHistory();
+  OUT.noOrigin = { fetches: FETCHES.slice(), asked: ASKED.slice(), owned: Array.from(owned),
+                   status: STATUS.length ? STATUS[STATUS.length - 1] : '',
+                   receipt: window._vaultLastReset || null };
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){ process.stderr.write(String((e && e.stack) || e)); process.exit(3); });
 """
@@ -152,7 +164,7 @@ def _ledger():
 def _drive(plan):
     with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
         src = fh.read()
-    body = BODY.replace("__PLAN__", json.dumps(plan))
+    body = BODY.replace("__PLAN__", json.dumps(plan)).replace("__SERVING__", json.dumps(SERVING))
     prog = RESET.HARNESS + EXTRA + FILE._door(src) + RESET._pieces(src) + body
     r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
@@ -228,9 +240,22 @@ class AResetRefilesOnlyWhatThePlanSays(unittest.TestCase):
         self.assertEqual(["Decoy Item"], door["owned"])
         self.assertNotIn("evidence plan", door["confirm"])
 
+    def test_a_board_nobody_served_asks_nobody_and_says_unknown(self):
+        """#41 rank 18 — no console origin (a file:// board, the public site): no ask at all, never :17772 by name,
+        and the plan is UNKNOWN, not empty"""
+        no = self.out["noOrigin"]
+        self.assertEqual([], no["fetches"], "a board nobody served still asked a console: %s" % no["fetches"])
+        self.assertEqual([], no["asked"], "the reset filed with no plan")
+        self.assertIsNone(no["receipt"].get("rebuilt"), no["receipt"])
+        self.assertIn("rebuilt UNKNOWN", no["status"])
+        self.assertNotIn("rebuilt 0", no["status"])
+
     def test_the_full_reset_refiles_only_the_plan_through_the_door(self):
         full = self.out["full"]
         self.assertEqual([PLAN_URL], full["fetches"])
+        # #41 rank 18 — the ask goes to the console that SERVED the board (:17999 here), never to his :17772 by name
+        self.assertNotIn("17772", full["fetches"][0], "the board asked his live console whatever console served it")
+        self.assertTrue(full["fetches"][0].startswith(SERVING + "/"), full["fetches"][0])
         self.assertEqual(BACK, full["asked"], "the reset filed a name the plan did not rebuild")
         self.assertEqual(BACK, full["owned"])
         self.assertNotIn("Decoy Item", full["owned"])
@@ -313,8 +338,22 @@ RED_PROOF = [
     {
         "why": "the full reset asks a different plan than the evidence ledger",
         "file": "bible.html",
-        "find": "http://127.0.0.1:17772/api/vault_rebuild_plan",
-        "replace": "http://127.0.0.1:17772/api/vault_rebuild_plan_other",
+        "find": "      var res = await fetch(origin + '/api/vault_rebuild_plan', opt);\n",
+        "replace": "      var res = await fetch(origin + '/api/vault_rebuild_plan_other', opt);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 18 - the board asks his :17772 by name again, whatever console served it",
+        "file": "bible.html",
+        "find": "      var res = await fetch(origin + '/api/vault_rebuild_plan', opt);\n",
+        "replace": "      var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 18 - a board nobody served asks his console anyway (the origin guard dropped)",
+        "file": "bible.html",
+        "find": "    var origin = _consoleOrigin();\n    if (!origin) return unread;\n",
+        "replace": "    var origin = _consoleOrigin() || 'http://127.0.0.1:17772';\n",
         "matches": 1,
     },
     {

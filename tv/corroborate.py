@@ -2754,6 +2754,13 @@ NO_JOINT_YET = {
     'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
                           'would be the game listing its own item database, which it never writes anywhere this '
                           'console can read.',
+    # #41 rank 15 (2026-09-29) — NO_JOINT_YET, not COVERED_BY, the #174 v-B2 shape again: one install, one generator.
+    'mule slot rules': 'the row re-derives the MULE_BASE_* blocks from the install through ONE generator '
+                       '(tv/mule_slot_map.py) and compares them. The builder\'s CB_DB block is the same install through '
+                       'a second generator, and test_the_mule_rules_and_the_builder_agree_on_hands_and_class compares '
+                       'the two on hands and class for every base (a transform bug shows) - but one install read twice '
+                       'is not a second witness to what the game wears where. A real second source would be the game '
+                       'itself laying an item in a slot, which no read captures.',
     # #41 rank 12 (2026-09-29) — NO_JOINT_YET, not COVERED_BY: his hand is the only witness.
     'characters room': 'the row reads d2r_charBuilds and d2r_cbMain, which the 👤 room and the planner write from his '
                        'own presses and nothing else — no reader, reel or ledger names a build, so there is no second '

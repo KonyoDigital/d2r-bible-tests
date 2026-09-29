@@ -970,8 +970,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1511) - the doctor warns through every stand-aside cooldown",
         "file": "tv/control_app.py",
-        "find": "\"playing\", \"stood-aside\", \"low-memory\", \"aside-cooldown\")",
-        "replace": "\"playing\", \"stood-aside\", \"low-memory\")",
+        "find": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\", \"aside-cooldown\")",
+        "replace": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\")",
         "matches": 1,
     },
 ]

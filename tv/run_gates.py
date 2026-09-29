@@ -5926,6 +5926,25 @@ GATES = [
              "first. #41 rank 11 (REG-1525): a runeword or unique whose base is not on record reads 'base UNKNOWN (not "
              "on record: <code>)' in the Base control and in the hover box's base line - never '<code> (0 sockets "
              "max)' and never a silent gap. 8 cases, 23 red-proofs"),
+    Gate("test_the_mule_rules_and_the_builder_agree_on_hands_and_class",
+         [sys.executable, os.path.join(HERE, "test_the_mule_rules_and_the_builder_agree_on_hands_and_class.py")], 60,
+         why="#41 rank 15 (REG-1528, 2026-09-29) - the mule window's MULE_BASE_* blocks (slot, hands, ammo, class - "
+             "from his install via tv/mule_slot_map.py) were checked by nothing unattended: console_doctor had 0 "
+             "references to mule_slot_map, and no test read both CB_DB and MULE_BASE_RULES. Now the PERIODIC doctor "
+             "row 'mule slot rules' wraps mule_slot_map.check() (0 OK / 1 MISSING with the action / 77 UNKNOWN, never "
+             "OK; a raise is UNKNOWN), declared in WATCHES and explained in NO_JOINT_YET; and this gate, with no "
+             "install, compares the builder's CB_DB (b[14] hands, ty[t][2] class) against the mule block through its "
+             "own embedded() for EVERY base - 692 compared, 0 mismatches, every rule name present (a missing one "
+             "would make it a sample). 3 cases, 6 red-proofs."),
+    Gate("test_the_console_tabs_gate_routes_every_board_door",
+         [sys.executable, os.path.join(HERE, "test_the_console_tabs_gate_routes_every_board_door.py")], 60,
+         why="#41 rank 14 (REG-1527, 2026-09-29) - render_check's console-tabs target routed SIX tabs after v3518 gave "
+             "the console header a 👤 Characters door, so no gate clicked it and checked #tab-chars PAINTS in app "
+             "context (the Characters law asserts the re-show list by source text; a pane collapsed by CSS passed). "
+             "'chars' joined ROUTING and the why says Seven. This law drives the target's REAL activate program in node "
+             "over a stub console + board: the doors it clicks are exactly control_ui.html's #head-tabs minus the "
+             "console-native pair, a collapsed #tab-chars turns it red (with a collapsed #tab-vault as the baseline), "
+             "and the why counts what ROUTING counts. 3 cases, 3 red-proofs. Pixels stay the gate's own job, on CI."),
     Gate("test_the_characters_room_has_a_doctor_row",
          [sys.executable, os.path.join(HERE, "test_the_characters_room_has_a_doctor_row.py")], 60,
          why="#41 ranks 12 + 13 (REG-1526, 2026-09-29) - the 👤 Characters room's heart was one proven law and nothing "
@@ -7068,7 +7087,9 @@ GATES = [
              "Driven on a seeded witness ledger: 12 clean looks come back proven, 21 come back locked, "
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
-             "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
+             "says UNKNOWN, never rebuilt 0. #41 rank 18 (REG-1529): the plan is asked of the console that "
+             "SERVED the board (_consoleOrigin, the page's own origin - the stub serves it from :17999), never of "
+             ":17772 by name; a board nobody served asks nobody and says UNKNOWN. 8 cases, 10 red-proofs."),
     Gate("test_every_owned_door_writes_provenance",
          [sys.executable, os.path.join(HERE, "test_every_owned_door_writes_provenance.py")], 120,
          why="2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read "

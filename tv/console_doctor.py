@@ -5909,6 +5909,37 @@ def _check_the_builder_database_matches_the_install():
     return OK, say
 
 
+def _check_the_mule_slot_rules_match_the_install():
+    """#41 rank 15 (2026-09-29) — 'mule slot rules': DOES THE MULE WINDOW STILL WEAR, HOLD AND CLASS-LOCK WHAT THE GAME
+    SAYS?
+
+    The mule window's picker offers a slot only the bases the game wears there, refuses a second weapon beside a
+    two-hander, names a bow's quiver and locks an orb to the Sorceress - all from the MULE_BASE_SLOT / MULE_NAMED_BASE /
+    MULE_BASE_RULES blocks tv/mule_slot_map.py writes into bible.html from his install. They came from the SAME install
+    as the builder's CB_DB block and had no row: this file had 0 references to mule_slot_map, and the only caller of its
+    check() was a gate that skips without an install - so after a patch 'builder item data' would go MISSING while the
+    mule's slots, hands and class rules drifted with nothing watching. This is its sibling, PERIODIC for the same reason
+    (it pulls four tables plus itemtypes.txt from the install).
+    THREE STATES: OK the blocks are what the install says · MISSING they are not (STALE - run tv/mule_slot_map.py
+    --write) · UNKNOWN no install to compare against (a CI runner, the Mac) - never OK. What only a gate can hold, with
+    no install: that CB_DB's hands and class equal MULE_BASE_RULES for every base
+    (test_the_mule_rules_and_the_builder_agree_on_hands_and_class).
+    """
+    try:
+        import mule_slot_map as MS
+    except Exception as e:
+        return UNKNOWN, "the mule slot-map generator will not import: %s" % str(e)[:90]
+    try:
+        code, say = MS.check()
+    except Exception as e:
+        return UNKNOWN, "the mule slot-map check raised: %s" % str(e)[:110]
+    if code == getattr(MS, "SKIP", 77):
+        return UNKNOWN, say
+    if code != 0:
+        return MISSING, say + " - the mule picker's slots, hands and class locks are last patch's"
+    return OK, say
+
+
 def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
     """#41 rank 12 + 13 (2026-09-29) — the 👤 Characters room's stores, judged: -> (status, why).
 
@@ -9588,6 +9619,8 @@ CHECKS = [
     ("save reader tables", _check_the_save_reader_matches_the_install),
     ("character sheet data", _check_the_character_sheet_data_matches_the_install),
     ("builder item data", _check_the_builder_database_matches_the_install),
+    # #41 rank 15 (2026-09-29) — the mule window's slot / hands / class blocks, from the same install, had no row.
+    ("mule slot rules", _check_the_mule_slot_rules_match_the_install),
     # #41 rank 12 + 13 (2026-09-29) — the 👤 Characters room had no row: an unparseable d2r_charBuilds, a dangling
     # d2r_cbMain, and two MAINs naming different characters were all silent. Off the shared board read, every tick.
     ("characters room", _check_the_characters_room),
@@ -9873,6 +9906,7 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "save reader tables",      # #174 — re-derives from the install, same reason as its sibling
             "character sheet data",    # #174 v-B2 — pulls 19 tables from the install (~3 s); a patch is monthly
             "builder item data",       # #174 v-B2 fix round — its sibling: 20 tables from the same install (~3.5 s)
+            "mule slot rules",         # #41 rank 15 — its sibling: 4 tables + itemtypes.txt from the same install
             "a worker read has a deadline",
             "no git child steals his screen",
             "the door and the writers agree",
@@ -10326,6 +10360,8 @@ WATCHES = {
     "character sheet data":        (),
     # #174 v-B2 fix round — the builder's CB_DB block, a generated block with no element of its own. DECLARED.
     "builder item data":           (),
+    # #41 rank 15 — the mule window's MULE_BASE_* blocks, generated into bible.html with no element of their own. DECLARED.
+    "mule slot rules":             (),
     # #41 rank 12 — reads three of the board's stores through the shared tick read. Its elements (#tab-chars,
     # #chars-list) live on the BOARD, which this registry (organ_matrix surfaces, console-side) does not list; it
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.

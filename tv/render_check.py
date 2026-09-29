@@ -2154,7 +2154,7 @@ TARGETS = {
         "path": "",
         "warmup": 12.0,
         "settles": False,
-        "why": ("Six tabs in the console header ROUTE THE BOARD and must PAINT what they route "
+        "why": ("Seven tabs in the console header ROUTE THE BOARD and must PAINT what they route "
                 "to, proven from the board's own active tab and the destination pane's rect "
                 "rather than from the header lighting up. TWO are console-native and must do "
                 "the opposite: session (the flagship hunt hub) and TV·D (the cockpit home) "
@@ -2166,7 +2166,7 @@ TARGETS = {
         # measured by its LABEL (so an ellipsized name stays caught); an icon tab by the button he clicks.
         "sel": "#head-tabs .ht:not(.ht-icon) .ht-lbl, #head-tabs .ht.ht-icon",
         "activate": r"""(function(){
-            /* ⚠⚠ SIX ROUTE, TWO ARE CONSOLE-NATIVE — and I had session in the wrong group,
+            /* ⚠⚠ SEVEN ROUTE, TWO ARE CONSOLE-NATIVE — and I had session in the wrong group,
                which the rect check exposed. control_ui.html dispatches TWO tabs to console views
                that deliberately leave the board alone:
                    :16178  if (b.dataset.tab === 'session'){ showSessions(); return; }
@@ -2180,7 +2180,13 @@ TARGETS = {
                session (src=…#session), so the click changed nothing. Clicked 4th and 8th it
                reported display:none with active still on the PREVIOUS tab. Both readings were the
                design, not a bug: the board never leaves the room it was in. */
-            var ROUTING = ["forge","crafts","funi","fsets","tools","vault"];
+            /* #41 rank 14 (2026-09-29) — 👤 Characters JOINED. v3518 gave the console header a chars door
+               and this list stayed at six, so no gate ever clicked it in a real browser and checked that
+               #tab-chars PAINTS in app context; a pane collapsed by CSS would have passed while the
+               source-text law (the app-ctx re-show list) stayed green. The list is every board door in
+               #head-tabs minus the console-native pair — test_the_console_tabs_gate_routes_every_board_door
+               derives that set from control_ui.html and drives this very function over a stub board. */
+            var ROUTING = ["forge","crafts","funi","fsets","tools","chars","vault"];
             var CONSOLE_NATIVE = ["session","tvd"];
             var f = document.getElementById('tvd-eng');
             if (!f) return false;

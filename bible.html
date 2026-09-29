@@ -38987,6 +38987,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.VAULT_PROVEN_BAR = null;
   function _vaultAskProven(then){
     if (window.__vaultProvenAsked) return;
+    /* #41 rank 18 — asked of the console that served this page (_consoleOrigin), never :17772 by name; with no serving
+       console (the public site, a file:// board) nobody is asked and the chip stays ABSENT — the one-shot flag is
+       left clear, so a console that serves a later load can still be asked */
+    var origin = _consoleOrigin();
+    if (!origin) return;
     window.__vaultProvenAsked = 1;
     var ctl = null;
     try { ctl = new AbortController(); } catch (e) { ctl = null; }
@@ -38994,7 +38999,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: '{}' };
     if (ctl) opt.signal = ctl.signal;
-    fetch('http://127.0.0.1:17772/api/vault_proven', opt)
+    fetch(origin + '/api/vault_proven', opt)
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(d){
         clearTimeout(killed);
@@ -39477,6 +39482,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      ("SHOULD NEVER BE TOLD TO BE MOVED its locked there"). The door refuses it with main:true.
      ⚠ THE PROVENANCE LANDS BEFORE THE FILING. If the second write fails, what is left is a witnessed row
      with no filing (vaultAutoAssign re-files it), never a filing with no witness. */
+  /* #41 rank 18 (2026-09-29) — THE CONSOLE THIS BOARD ASKS IS THE ONE THAT SERVED IT, never :17772 by name. The reset's
+     plan and the proof chip both fetched 'http://127.0.0.1:17772/api/...' whatever console served the page, and
+     control_app's CORS (Access-Control-Allow-Origin *, OPTIONS 204) lets that answer through: a board on a scratch
+     or second console (a gate's :179xx, his ALT's) would have filed its vault from HIS REAL ledger. ONE rule, one
+     line (the reset laws cut it by this line): the page's own origin when a local console served it, null otherwise
+     — a file:// board or the public site has no console to ask, and says UNKNOWN rather than asking his.
+     [[the-unjoined-end]] [[copy-drift]] */
+  function _consoleOrigin(){ var o = ''; try { o = (window.location && window.location.origin) ? String(window.location.origin) : ''; } catch (e) { o = ''; } return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o) ? o : null; }
+  window._consoleOrigin = _consoleOrigin;
   var PROV_KEY = 'd2r_vaultProv';
   var VAULT_WITNESS_FLOOR = 0.55;   /* = vault_retro.KEEP_CONF_FLOOR — pinned by test_every_mule_filing_carries_its_witness */
   var VAULT_WITNESS_MIN = 2;        /* = vault_retro.KEEP_MIN_WITNESSES — HIS ruling; pinned the same way */
@@ -46404,10 +46418,10 @@ function renderJournal(){
     try {
       if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence(sent);
     } catch (e) { return unread; }
-    var host = '';
-    try { host = (window.location) ? String(window.location.hostname || '') : ''; }
-    catch (e2) { host = ''; }
-    if (host !== '127.0.0.1' && host !== 'localhost') return unread;
+    /* #41 rank 18 — the plan is asked of the console that SERVED this board (_consoleOrigin: the page's own origin
+       when a local console did), never of :17772 by name; no serving console = unread, UNKNOWN */
+    var origin = _consoleOrigin();
+    if (!origin) return unread;
     if (typeof fetch !== 'function') return unread;
     var ctl = null, timer = null;
     try { ctl = new AbortController(); } catch (e3) { ctl = null; }
@@ -46418,7 +46432,7 @@ function renderJournal(){
       var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ recorded: sent }) };
       if (ctl) opt.signal = ctl.signal;
-      var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);
+      var res = await fetch(origin + '/api/vault_rebuild_plan', opt);
       if (!res || !res.ok) return unread;
       var doc = await res.json();
       return (doc && typeof doc === 'object') ? doc : unread;
