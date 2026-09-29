@@ -1731,6 +1731,19 @@
     "purpose": "The lock ledger: banks sabotages ATTEMPTED vs guard refusals per surface, scores them with Wilson + confluence, and answers may(lock) in his required order.",
     "territory": "gates-proofs"
   },
+  "self_prove.py": {
+    "entryPoints": [
+      "tick",
+      "decide",
+      "census_state",
+      "tree_state",
+      "spawn",
+      "ensure_prover_deps"
+    ],
+    "gotcha": "Runs ONLY on an installed console (clean tree at its upstream) - on a development tree the pre-push gate is the prover and a background prove would fight it for the CPU. It never decides a verdict: it starts `heart2.py --prove` hidden (BELOW_NORMAL + CREATE_NO_WINDOW on Windows, nice 15 elsewhere, HEART2_DEADLINE_SCALE=4) only while the machine is idle, and heart2 writes the census that self_arming reads. The Mac's census does not speak for another PC: measured 2026-09-29 the ALT's gate fingerprint differed at the same commit and one law was BLIND there while red on the Mac.",
+    "purpose": "#50 (REG-1447) - every PC proves its own instruments: when this machine's heart census is absent or stale for the gates on disk, start a background prove so self_arming's locks can open on the ALT and Dean's PC without anyone pushing from them.",
+    "territory": "heart-organs"
+  },
   "sets_base_index.py": {
     "entryPoints": [
       "build",
