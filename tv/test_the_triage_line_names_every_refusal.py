@@ -16,9 +16,18 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 UI = os.path.join(HERE, "control_ui.html")
 NODE = shutil.which("node")
 NOW = 1_790_000_000_000
@@ -34,7 +43,16 @@ def _line(tri):
           "var esc = function(s){ return String(s === undefined ? '' : s).replace(/&/g,'&amp;')"
           ".replace(/</g,'&lt;').replace(/\"/g,'&quot;'); };\n"
           + ui[i:j] + "\nprocess.stdout.write(_shTriageLine(" + json.dumps({"triage": tri}) + ", %d));\n" % NOW)
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60)
+    fd, path = tempfile.mkstemp(suffix=".js", prefix="triage-line-")    # a FILE, never a program on argv
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(js)
+        r = subprocess.run([NODE, path], capture_output=True, text=True, timeout=60)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
     if r.returncode != 0:
         raise AssertionError("the SHIPPED _shTriageLine would not run in node: %s" % (r.stderr or "")[-400:])
     return r.stdout
@@ -80,10 +98,11 @@ class TheTriageLineNamesEveryRefusal(unittest.TestCase):
             self.assertIn("last refusal: " + word, got, "%s was not named: %s" % (key, got))
             self.assertNotIn("no refusal since", got)
 
-    def test_one_refusal_is_said_once(self):
+    def test_one_refusal_is_said_once_with_the_skips_own_age(self):
         got = _line({"ok": True, "on": True, "lastKey": "cpu-shadow", "lastSkipKey": "cpu-shadow",
-                     "lastSkipTs": NOW - 60000, "ticks": 5, "backlog": 1})
+                     "lastSkipTs": NOW - 180000, "lastAt": NOW - 20000, "ticks": 5, "backlog": 1})
         self.assertEqual(got.count("last refusal:"), 1, "the same refusal was painted twice: %s" % got)
+        self.assertIn("(3m", got, "the refusal carried the TICK's age, not the refusal's own: %s" % got)
 
     def test_a_walk_and_a_quiet_lane_still_read_as_before(self):
         got = _line({"ok": True, "on": True, "lastKey": "surveyed", "ticks": 5, "backlog": 0})

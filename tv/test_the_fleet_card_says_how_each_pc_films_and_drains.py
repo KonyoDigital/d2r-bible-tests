@@ -357,7 +357,8 @@ class TheRiverSaysWhatItsTriageLaneIsDoing(unittest.TestCase):
         d = {"triage": _lane(lastKey="cpu-loaded", lastSkipKey="cpu-loaded", lastSkipTs=NOW - 180000,
                              lastSkipWhy="the machine is 97% busy")}
         out = self._line(d)
-        self.assertIn("last refusal: the machine is too busy · 3m ago", out["s"])
+        # REG-1441: the refusal's age sits in brackets (a middot inside one wrapping span could be stranded)
+        self.assertIn("last refusal: the machine is too busy (3m ago)", out["s"])
         self.assertNotIn("standing aside for his game", out["s"])
         w = self._line({"triage": _lane(lastKey="surveyed", lastSkipKey=None, lastSkipTs=None)})
         self.assertIn("walking", w["s"])

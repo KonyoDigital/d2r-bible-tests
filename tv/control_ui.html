@@ -12482,8 +12482,11 @@ window._lockMark = function(isOpen, px, label){
          below then painted "no refusal since this console started" - over a lane whose last tick WAS a refusal,
          while the fleet card (_fleetSysParts) said "last refusal: <word>" for the same object. */
       lkRefusal = true;
-      bits.push('<span title="' + esc(String(t.lastWhy || '')) + '">last refusal: ' + esc(_triageSay(lk)) + '</span>'
-              + lastAgo);
+      /* the SAME refusal recorded as the lane's last skip is painted below, with the skip's own age and reason */
+      if (String(t.lastSkipKey || '') !== lk) {
+        bits.push('<span title="' + esc(String(t.lastWhy || '')) + '">last refusal: ' + esc(_triageSay(lk)) + '</span>'
+                + lastAgo);
+      }
     }
     bits.push((typeof t.backlog === 'number')
       ? ('<b>' + t.backlog + '</b> owed')
@@ -12495,8 +12498,7 @@ window._lockMark = function(isOpen, px, label){
     } else {
       bits.push('no walk on record');
     }
-    if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')
-        && !(lkRefusal && String(t.lastSkipKey) === lk)) {
+    if (t.lastSkipKey && !(lk === 'playing' && t.lastSkipKey === 'playing')) {
       var sa = (typeof t.lastSkipTs === 'number') ? _shAgo((now - t.lastSkipTs) / 1000) : 'UNKNOWN';
       /* the age in brackets, never ' · ' inside one wrapping span: a wrap left the middot alone on its line */
       bits.push('<span title="' + esc(String(t.lastSkipWhy || '')) + '">last refusal: ' + esc(_triageSay(t.lastSkipKey))
