@@ -6615,6 +6615,8 @@
   .fleet-sys .fs-stand { color: #d8b36a; }
   .fleet-sys .fs-warn { color: #e0795f; }
   .fleet-riverstuck { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
+  /* #41 rank 22 (REG-1564) — the picker-disagrees chip, set exactly like the river-stuck one beside it */
+  .fleet-pickerodd  { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
   .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
@@ -24864,6 +24866,34 @@ function escC(s) {
                  unk: !hs.census || hs.census === 'unknown',
                  why: 'every lock that moves this PC\u2019s river opens only on its OWN proof' + (hs.key ? ' - lane: ' + hs.key : '') }));
     }
+    /* 6. #41 rank 22 (REG-1564) \u2014 WHAT ITS CHARACTER PICKER OFFERS, AGAINST WHAT ITS OWN DATABASE HOLDS. Nothing on
+       any PC reported what the picker lists (his ALT showed empty pickers for days, #174 v-B4). The beacon carries
+       `picker` {ok, slot, label, offers, holds, all, ageS, why}: `offers` is the picker's Base Items rows for the slot
+       as that page's own list function counts them, `holds` the same page's type table counting the slot on its own.
+       Equal = the picker shows what its database has; different = that PC's picker is hiding rows (warn). ok:false
+       is UNKNOWN with that console's own why; a console older than the field says so. Each fact is its own item and
+       no fact carries a middot (REG-1377). [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    var pk = (m && m.picker !== undefined) ? m.picker : undefined;
+    if (pk === undefined) {
+      out.push(_fleetPart('picker', ['UNKNOWN', 'an older build'], { unk: true,
+                 why: 'this console did not report what its character picker offers (a build older than the field)' }));
+    } else if (!pk || typeof pk !== 'object' || pk.ok !== true
+               || typeof pk.offers !== 'number' || typeof pk.holds !== 'number') {
+      out.push(_fleetPart('picker', ['UNKNOWN'], { unk: true,
+                 why: (pk && typeof pk === 'object' && pk.why) ? String(pk.why) : 'that console could not count what its picker offers' }));
+    } else {
+      var pkLab = String(pk.label || pk.slot || 'the slot'), pkAgree = pk.offers === pk.holds;
+      /* the key column already says `picker` (seen doubled on the 1280 shot: "picker picker offers"), so the first
+         fact starts at the verb and the line reads "picker offers N bases · database holds M" */
+      var pkF = ['offers ' + pk.offers + (pk.offers === 1 ? ' base' : ' bases'), 'database holds ' + pk.holds, pkLab];
+      if (typeof pk.all === 'number') pkF.push(pk.all + ' rows on its All tab');
+      pkF.push(_fleetAgeTxt(_fleetAgeNow(pk.ageS, m, nowMs)));
+      out.push(_fleetPart('picker', pkF, { warn: !pkAgree,
+                 why: pkAgree
+                   ? ('for the ' + pkLab + ' slot that PC\u2019s picker lists every base its own database holds (its list function and its type table agree)')
+                   : ('for the ' + pkLab + ' slot that PC\u2019s picker lists ' + pk.offers + ' base(s) while its own database holds '
+                      + pk.holds + ' - the picker on that PC is hiding rows, or its rail names a type its tree does not; update and restart that console') }));
+    }
     return out;
   };
   /* #74 (REG-1461) — THE ONE WORD ON THE ROW: a red "river stuck" beside the name when any station on that PC has
@@ -24878,6 +24908,19 @@ function escC(s) {
     }).join(' | ');
     return '<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '"> · river stuck</span>';
   };
+  /* #41 rank 22 (REG-1564) — THE ONE WORD ON THE ROW for the picker: a red "picker short" (or "picker over") beside the
+     name ONLY when that PC's picker and its own database disagree, both numbers in its hover; nothing when they agree
+     or when the census is unread (the click box says UNKNOWN in words). Exported so a gate can put every state to it. */
+  var _fleetPickerChip = function (m) {
+    var pk = (m && m.picker && typeof m.picker === 'object') ? m.picker : null;
+    if (!pk || pk.ok !== true || typeof pk.offers !== 'number' || typeof pk.holds !== 'number') return '';
+    if (pk.offers === pk.holds) return '';
+    var w = pk.offers < pk.holds ? 'picker short' : 'picker over';
+    return '<span class="fleet-pickerodd" title="' + escC('the character picker on this PC offers ' + pk.offers
+         + ' base(s) for ' + String(pk.label || pk.slot || 'the slot') + ' while its own database holds ' + pk.holds)
+         + '"> · ' + w + '</span>';
+  };
+  window._fleetPickerChip = _fleetPickerChip;
   window._fleetStuckChip = _fleetStuckChip;
   /* A RENAMED HOST'S "formerly" LINE, as facts. REG-1378: its age was _fleetSince's, which answers "just now" for a
      lastSeen it cannot parse and for one in the future - a machine last seen at an unreadable time read as seen this
@@ -25569,6 +25612,7 @@ function escC(s) {
           + '<b>' + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
           + _fleetStuckChip(m)
+          + _fleetPickerChip(m)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the
              information"*. The row carried `idle · v2874 · unpublished · just now`, and

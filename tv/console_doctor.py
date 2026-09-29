@@ -3676,6 +3676,11 @@ MINE = {
         "#128 — a ledger publishing a count and no list is a cut hand-over, not a decision. "
         "The fix is code and it is mine.",
 
+    "picker census":
+        "#41 rank 22 — a picker offering other than what its own database holds is a wiring defect "
+        "on that PC's page (its list function or its rail), and a PC that reports no census is a "
+        "build to update. The fix is code and it is mine.",
+
     "river owes what its engine says":
         "#28 — the river re-derived a verdict extract_gap had already given, and disagreed with "
         "it on one reel. Forwarding a value the printer already puts on the row is my work; "
@@ -5009,6 +5014,97 @@ def _route_health(route):
         return ({"OK": OK, "BROKEN": MISSING}.get(st, UNKNOWN),
                 str(r.get("why") or "the census gave no reason, so this route is UNKNOWN"))
     return run
+
+
+def picker_census_verdict(rows, me=None, local=None):
+    """#41 rank 22 (REG-1564) — every PC's picker census against its own database, one verdict. Pure over the rows.
+    -> (state, why)
+
+    `rows` are the fleet rows (online + offline) as /api/fleet carries them; `local` is THIS console's own banked
+    census (_picker_for_wire), laid over the row named `me` exactly as the card gets it. Three lists, three states:
+      MISSING  any PC whose picker offers other than what its own database holds - named, with both numbers
+      UNKNOWN  no PC reported a census, or one has not (an older build, an unreadable database) - named
+      OK       every PC agrees, with the numbers
+    A PC whose census is ok:false is UNKNOWN with that PC's own why, never a disagreement and never an agreement.
+    [[heart-first]] [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]"""
+    agree, differ, unknown = [], [], []
+    for row in (rows or []):
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("nickname") or row.get("machine") or "?")
+        pk = row.get("picker")
+        if me and local and isinstance(local, dict) and local.get("ok") and str(row.get("machine") or "") == str(me):
+            pk = local
+        if not isinstance(pk, dict):
+            unknown.append("%s (no census reported - an older build)" % name)
+            continue
+        offers, holds = pk.get("offers"), pk.get("holds")
+        if pk.get("ok") is not True or not isinstance(offers, int) or not isinstance(holds, int) \
+                or isinstance(offers, bool) or isinstance(holds, bool):
+            unknown.append("%s (%s)" % (name, str(pk.get("why") or "could not count its picker")[:90]))
+            continue
+        slot = str(pk.get("label") or pk.get("slot") or "the slot")
+        if offers == holds:
+            agree.append("%s %d/%d" % (name, offers, holds))
+        else:
+            differ.append("%s: picker offers %d base(s) for %s, its database holds %d" % (name, offers, slot, holds))
+    if differ:
+        return MISSING, ("on %d PC(s) the character picker does not offer what that PC's own database holds - %s. "
+                         "The picker there is hiding rows (or its rail names a type its tree does not): update and "
+                         "restart that console, then open a Body Armor slot and count"
+                         % (len(differ), "; ".join(differ)[:300]))
+    if unknown:
+        return UNKNOWN, ("%d PC(s) have not said what their character picker offers: %s%s"
+                         % (len(unknown), "; ".join(unknown)[:240],
+                            (" - the rest agree: " + ", ".join(agree)[:120]) if agree else ""))
+    if not agree:
+        return UNKNOWN, "no PC is on the roster, so there is no picker to compare with its database"
+    return OK, ("on every PC (%d) the character picker offers exactly what its own database holds for Body Armor: %s"
+                % (len(agree), ", ".join(agree)[:200]))
+
+
+def _check_the_picker_census_agrees_on_every_pc():
+    """★ #41 rank 22 (REG-1564) — WHAT EACH PC'S CHARACTER PICKER OFFERS, AGAINST WHAT ITS OWN DATABASE HOLDS.
+
+    His ALT showed an empty picker for every mule slot for days (#174 v-B4) and nothing on any screen carried the
+    number: the picker's offer was measured by nobody. Now every board hands its console a census (window
+    ._cbPickerCensus('tors'): the picker's Base Items rows for the Body Armor slot as its own list function counts
+    them, beside the bases its own type table folds to that slot), the beacon carries it per PC, and this row reads
+    it back off the roster: MISSING when any PC's two numbers disagree (that PC's picker is hiding rows), UNKNOWN when
+    a PC has not reported one, OK when every PC agrees.
+
+    ⚠ IT READS THE CACHE AND NEVER FETCHES, and it never pokes the board - the same rule as the fleet row below:
+    `_FLEET_PRESENCE_CACHE` is what /api/fleet serves the panel from, and his own row is overlaid from the banked
+    local file exactly as the card is. A roster never asked for is UNKNOWN, not OK. [[heart-first]]
+    [[unknown-stays-unknown]] [[borrowed-surface]]"""
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, "control_app will not import (%s), so no PC's picker census is measured" % str(e)[:60]
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so no PC's picker census can "
+                         "be read" % type(e).__name__)
+    last = cache.get("d")
+    if last is None:
+        return UNKNOWN, ("this console has not asked the site for the roster yet, so what any PC's character "
+                         "picker offers is UNKNOWN")
+    if last.get("ok") is False:
+        good = cache.get("goodD")
+        if good is None:
+            return UNKNOWN, ("the fleet is unreachable and no roster was ever received, so what any PC's "
+                             "character picker offers is UNKNOWN")
+        last = good
+    rows = list(last.get("online") or []) + list(last.get("offline") or [])
+    me, local = None, None
+    try:
+        import socket as _sk
+        me = _sk.gethostname().split(".")[0]
+        local = _ca._picker_for_wire()
+    except Exception:
+        me, local = None, None
+    return picker_census_verdict(rows, me=me, local=local)
 
 
 def _check_the_fleet_lane_is_reachable():
@@ -9850,6 +9946,8 @@ CHECKS = [
     # v2843 — THE FLEET, WHICH THE HEART HAD NEVER HEARD OF. `grep -c fleet` was 0 across
     # heart.py and lane_census.py while his card sat on "unreachable" and the footer said 8 dark.
     ("fleet reachable", _check_the_fleet_lane_is_reachable),
+    # #41 rank 22 (REG-1564) — each PC's character picker against its own database, off the same roster
+    ("picker census", _check_the_picker_census_agrees_on_every_pc),
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
     # a lane that had said nothing for 137h, a console asking ITSELF for the board, and my own

@@ -434,6 +434,44 @@ to its own. A different tree means the move IS the gate's, and that is a FAIL, n
 **Guards:** `test_a_rare_item_stands_on_the_same_looks_as_a_unique` (14 cases, 13 red-proofs),
 `test_the_drain_names_what_is_blocked_upstream` (20 cases, 7), `test_a_reel_carries_its_custody` (18 cases, 5) - every
 new rule with its own red-proof.
+### REG-1564 - NOTHING ON ANY PC REPORTED WHAT THE CHARACTER PICKER OFFERS (2026-09-30)
+
+**Found** by the #41 heart audit (rank 22). His ALT showed an empty picker for every mule slot for days (#174 v-B4)
+and no row on any screen carried the number: the picker's offer was measured by nobody, on any PC. The builder's
+list function was reachable only through an open picker (`_cbPickRows` read `st.pick`), so the console could not
+ask what the picker WOULD list without opening one on the window he is looking at.
+
+**Fix (four joints, each built with its law):**
+- `bible.html` — `_cbRowsFor(p)` is cut out of `_cbPickRows()` (one list, two askers); `window._cbPickerCensus(slot)`
+  is a READ-ONLY census: `offers` = the picker's Base Items rows for the slot counted by driving that list function,
+  `holds` = the same page's type table counting the slot on its own (every spawnable base whose type is the slot's
+  or folds to it through `ty[code][4]` ancestry — the JSON's structure, never the rail the picker reads), `all` = the
+  rows of the tab the picker opens on. st.pick is never touched, nothing renders; an unreadable database, no rail,
+  no such type or a raise is ok:false with a why and null counts, never 0. Measured on the shipped block: tors 45/45
+  (134 rows in all), glov 15/15, belt 15/15. The board's own tally tick (`__tallyPersist`) hands it over in the same
+  POST as the counts, computed inside the http(s) guard so a page opened off disk never parses the database for it.
+- `tv/control_app.py` — `/api/board_tally` banks it (`accept_handed_picker` -> `board_picker.json`) BEFORE and
+  independently of the counts, shaped and never re-derived; a garbled census is refused and named, never landing on
+  a good one; an ok:false census is banked with its why. `_picker_for_wire()` reads it back with its own age; the
+  beacon carries it per PC as `picker`; `/api/fleet` overlays his own row from the local file (`_fleet_overlay_local_picker`,
+  v2760's rule).
+- `functions/api/console.js` — the fixed key list keeps `picker` (the seventh-joint shape `tally` names four times):
+  counts clamped, words checked, an `ok` census without counts turned to ok:false, absent kept absent. Not material,
+  so it costs no KV write.
+- `tv/control_ui.html` — the fleet click box prints `picker offers N bases · database holds M · Body Armor · rows in
+  all · age` per PC (`_fleetSysParts` part 6), UNKNOWN in words when unread or an older build, warn on a disagreement;
+  a red `· picker short` / `· picker over` word on the row (`_fleetPickerChip`) ONLY when the two disagree.
+- `tv/console_doctor.py` — row `picker census` (`picker_census_verdict`, pure): MISSING naming the PC and both
+  numbers when any PC's picker and database disagree, UNKNOWN when a PC has not reported or the roster was never
+  asked, OK with the numbers when every PC agrees; reads `_FLEET_PRESENCE_CACHE` and the local file, never fetches,
+  never pokes the board.
+
+**Law:** `tv/test_the_picker_census_reaches_the_fleet.py` — 23 cases: the builder block in node (census without a
+picker; the census equals what the opened picker lists; unreadable = UNKNOWN; the baseline empties the rail in the
+fixture and the two sides part), the tally tick cut and run in node, the route and the beacon driven in a temp
+world, the real worker in node over an in-memory KV, `/api/fleet` driven, the card helpers in node over fixture rows,
+the doctor row pure and through the cache. 9 red-proofs, one per joint, each seen RED by heart2. PROOF_NEEDS brings
+the worker into the proof sandbox.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 

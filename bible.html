@@ -51842,9 +51842,23 @@ function renderJournal(){
          which a console exists to receive it. [[feedback-blind-fixture-green-gate]] */
       try {
         if (location.protocol === 'http:' || location.protocol === 'https:') {
+          /* #41 rank 22 (REG-1564) — THE PICKER CENSUS RIDES THE SAME HAND-OVER. What the character picker offers
+             for the Body Armor slot, beside what this page's own database holds for it (window._cbPickerCensus), so the
+             console can put it on the fleet wire and every PC's picker is reported where he can compare them. Computed
+             HERE, inside the http(s) guard, so a page opened off disk never parses the database for it, and never in
+             the LSR tally (that key's shape is the counts'). A page whose builder block is not up says so - ok:false
+             with a why - rather than sending nothing, which an older build already does. [[the-unjoined-end]] */
+          var _pc = null;
+          try {
+            _pc = (typeof window._cbPickerCensus === 'function') ? window._cbPickerCensus('tors')
+                : { ok: false, why: 'the builder block is not on this page (no _cbPickerCensus)' };
+          } catch (_pe) { _pc = { ok: false, why: 'the picker census raised ' + ((_pe && _pe.message) || _pe) }; }
+          var _body = {};
+          Object.keys(out).forEach(function(k){ _body[k] = out[k]; });
+          _body.picker = _pc;
           fetch('/api/board_tally', { method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(out) }).catch(function(){});
+            body: JSON.stringify(_body) }).catch(function(){});
         }
       } catch(e){}
       return true;
@@ -57351,8 +57365,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbModal = _cbModal;
 
   /* the picker's list rows: names only, in the quality colour, filtered by rail, tab, search and filter */
-  function _cbPickRows(){
-    var p = st.pick, b = _cbBuild(), clvl = _cbClvl(b);
+  function _cbPickRows(){ return _cbRowsFor(st.pick); }
+  /* #41 rank 22 (REG-1564) — THE ROWS FOR A PICK DESCRIPTOR, pure over `p`. The picker hands it st.pick; the census
+     below hands it a descriptor of its own, so it can ask what the picker WOULD list for a slot without opening one
+     (st.pick is never touched and nothing is drawn). One list function, two askers. [[copy-drift]] */
+  function _cbRowsFor(p){
+    var b = _cbBuild(), clvl = _cbClvl(b);
     var slot = _cbListSlot(p);
     var rows;
     if (p.qt === 'ex') rows = _cbExisting(slot, p.node ? -1 : p.rail);
@@ -57367,6 +57385,43 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return rows;
   }
   window._cbPickRows = function(){ return st.pick ? _cbPickRows().map(function(x){ return [x[0], x[1], x[2]]; }) : []; };
+  /* #41 rank 22 (REG-1564) — A READ-ONLY CENSUS OF WHAT THE PICKER OFFERS FOR ONE SLOT, BESIDE THE DATABASE'S OWN COUNT.
+     Nothing on any PC could say what its character picker lists: his ALT showed empty pickers for days (#174 v-B4) and no
+     row anywhere carried the number. Two sides, two routes through the block: `offers` is what the picker's Base Items
+     tab WOULD list for the slot, counted by driving the picker's own list function (_cbRowsFor - the renderer: rail,
+     class rule, spawnable flag, dedupe); `holds` is the database's own answer, counted off the type table alone - every
+     spawnable base whose type IS the slot's type or folds to it through ty[code][4] ancestry (the JSON's own structure,
+     never the rail the picker reads). When the two disagree the picker on THIS page is hiding rows its database holds,
+     or its rail names a type the tree does not - and that is a defect of this PC's page, which is why the board hands
+     the census to its console (window.__tallyPersist) and the fleet prints it per PC. `all` is the row count of the tab
+     the picker opens on (All Items), the number he sees first. `type` defaults to the slot key, which is the type code
+     for tors / belt / glov; a caller may name the type for the others. UNKNOWN is said, never counted: no readable
+     database, no rail for the slot, no such type, or a census that raised all answer ok:false with a why and null
+     counts - never 0. st.pick is not touched and nothing renders. [[heart-first]] [[unknown-stays-unknown]] */
+  function _cbPickerCensus(slot, type){
+    var out = { ok: false, slot: String(slot || ''), type: null, label: null, offers: null, holds: null, all: null, why: '', at: Date.now() };
+    try {
+      var d = _cbDb();
+      if (!d){ out.why = DB_ERR || 'the builder database is not readable'; return out; }
+      var cats = _cbCats(out.slot);
+      if (!cats.length){ out.why = 'the database has no rail for the slot ' + out.slot; return out; }
+      out.label = String(cats[0][0]);
+      out.type = String(type || out.slot);
+      if (!d.ty[out.type]){ out.why = 'the database has no type ' + out.type + ' to count the slot against'; return out; }
+      var rows = _cbRowsFor({ kind: 'slot', slot: out.slot, rail: -1, qt: 'all', q: '', filt: '', node: null });
+      out.all = rows.length;
+      out.offers = rows.filter(function(x){ return _cbInTab(x, 'b', out.slot); }).length;
+      var n = 0;
+      Object.keys(d.b).forEach(function(c){
+        var b = d.b[c]; if (!b || !b[20]) return;
+        if (b[1] === out.type || (d.anc[b[1]] && d.anc[b[1]][out.type])) n++;
+      });
+      out.holds = n;
+      out.ok = true;
+    } catch (e) { out.ok = false; out.offers = out.holds = out.all = null; out.why = 'the census raised ' + ((e && e.message) || e); }
+    return out;
+  }
+  window._cbPickerCensus = _cbPickerCensus;
   /* the slot a picker's LIST reads: a doll slot, a build's inventory ('inv'), or the mule's inventory (CB_MINV) */
   function _cbListSlot(p){ return p.kind === 'inv' ? (p.slot === CB_MINV ? CB_MINV : 'inv') : p.slot; }
   /* #174 v-B5 — WHAT THE MULE'S INVENTORY LISTS AT A CELL: charms, jewels, rings and amulets always (what an inventory is

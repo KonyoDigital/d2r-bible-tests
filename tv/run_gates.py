@@ -8428,6 +8428,21 @@ GATES = [
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
              "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
+    Gate("test_the_picker_census_reaches_the_fleet",
+         [sys.executable, os.path.join(HERE, "test_the_picker_census_reaches_the_fleet.py")], 240,
+         needs_app=False,
+         why="#41 rank 22 (REG-1564, 2026-09-30) — nothing on any PC reported what the character picker offers (his "
+             "ALT showed empty pickers for days, #174 v-B4). Four joints, each driven: the board's read-only census "
+             "window._cbPickerCensus('tors') = the picker's Base Items rows for Body Armor counted by DRIVING its own "
+             "list function (_cbRowsFor, cut out of _cbPickRows), beside the bases the same page's type table folds "
+             "to the slot on its own (ty[code][4] ancestry, never the rail) — measured 45/45 on the shipped block, and "
+             "the baseline empties the rail in the fixture to watch the two sides part; the board's tally tick hands "
+             "it over, the console banks it before and independently of the counts (board_picker.json), the beacon "
+             "carries it per PC, the worker's fixed key list keeps it, /api/fleet relays every peer's and his own row "
+             "reads the local file, the click box prints 'picker offers N bases · database holds M' per PC with a "
+             "red 'picker short' word on the row only on a disagreement, and the doctor row 'picker census' goes "
+             "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees. 23 cases, 9 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

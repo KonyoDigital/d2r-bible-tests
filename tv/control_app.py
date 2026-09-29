@@ -3044,6 +3044,153 @@ def board_stores_load():
         return None
 
 
+def _board_picker_path():
+    return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "board_picker.json")
+
+
+def board_picker_save(doc):
+    """Bank what the BOARD says its character picker offers. -> True when it landed.
+
+    #41 rank 22 (REG-1564) — beside board_tally.json and board_stores.json, its own file: the census is banked
+    INDEPENDENTLY of the counts, so a hand-over the tally route refuses ("no readable counts") still leaves what the
+    picker offers on record - one missing half must never blank the other (v3175's lesson, one surface over)."""
+    pth = _board_picker_path()
+    try:
+        d = os.path.dirname(pth)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = pth + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=1, sort_keys=True)
+        os.replace(tmp, pth)
+        return True
+    except Exception:
+        return False
+
+
+def board_picker_load():
+    """The banked picker census, or None when nothing is banked or the file will not read (UNKNOWN, never {})."""
+    try:
+        with open(_board_picker_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+#: #41 rank 22 — the one slot the board reports (its key is the type code the type table folds body armor to)
+PICKER_CENSUS_SLOT = "tors"
+
+
+def accept_handed_picker(body, who):
+    """Validate and bank the picker census a board just handed over. -> (saved: bool, why | None)
+
+    #41 rank 22 (REG-1564) — THE BOARD SAYS WHAT ITS PICKER OFFERS; THIS BANKS IT, SHAPED, NEVER RE-DERIVED.
+    A count is a non-negative int (`bool` is an int in Python and is refused), a slot and a type are short lower-case
+    words, the label and the why are capped strings. A census that says ok:false is BANKED with its why - "the
+    database would not parse" is the information, and dropping it would make a broken picker read as an older build.
+    A hand-over carrying no census at all (an older page) banks nothing and says so; a garbled one is refused and
+    NAMED, so it can never land on top of a good census from a minute ago. [[unknown-stays-unknown]]"""
+    pk = body.get("picker") if isinstance(body, dict) else None
+    if pk is None:
+        return False, "no picker census in that hand-over (a page older than the field)"
+    if not isinstance(pk, dict):
+        return False, "the picker census is not an object"
+
+    def _count(v):
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0 or v > 100000:
+            return None
+        return v
+
+    def _word(v):
+        return v if isinstance(v, str) and re.match(r"^[a-z][a-z0-9]{1,11}$", v) else None
+
+    def _txt(v, cap):
+        return re.sub(r"\s+", " ", v).strip()[:cap] if isinstance(v, str) else None
+
+    ok = pk.get("ok") is True
+    rec = {"v": 1, "who": who, "route": who,
+           "ok": ok, "slot": _word(pk.get("slot")), "type": _word(pk.get("type")),
+           "label": _txt(pk.get("label"), 40), "why": _txt(pk.get("why"), 200) or "",
+           "offers": _count(pk.get("offers")), "holds": _count(pk.get("holds")), "all": _count(pk.get("all")),
+           "at": (pk.get("at") if isinstance(pk.get("at"), (int, float)) and not isinstance(pk.get("at"), bool)
+                  and pk.get("at") > 0 else None),
+           "bankedAt": int(time.time() * 1000)}
+    if ok and (rec["offers"] is None or rec["holds"] is None or rec["slot"] is None):
+        return False, "the picker census claims ok and carries no readable counts - refused, the last one stands"
+    if not ok and not rec["why"]:
+        rec["why"] = "the board could not count its picker and gave no reason"
+    return bool(board_picker_save(rec)), None
+
+
+def _picker_for_wire():
+    """#41 rank 22 (REG-1564) — WHAT THIS PC'S CHARACTER PICKER OFFERS, FOR THE FLEET. Counts only, read from the
+    banked hand-over (board_picker.json) - never a poke at the window he is looking at, never a second derivation.
+    -> {ok, slot, type, label, offers, holds, all, ageS, why}
+    ageS is the census's own age at this post (now - the board's `at`), None when the board stamped none; the worker
+    stamps the record time, so a reader adds (now - asOf) exactly as it does for `system`. No file, or an unreadable
+    one, is ok:false with a why - a console that has not been handed a census is not a console whose picker is empty.
+    [[stale-reading]] [[unknown-stays-unknown]]"""
+    out = {"ok": False, "slot": PICKER_CENSUS_SLOT, "type": None, "label": None,
+           "offers": None, "holds": None, "all": None, "ageS": None, "why": ""}
+    try:
+        rec = board_picker_load()
+    except Exception as e:
+        rec = None
+        out["why"] = "the banked picker census could not be read (%s)" % type(e).__name__
+        return out
+    if rec is None:
+        exists = False
+        try:
+            exists = os.path.exists(_board_picker_path())
+        except Exception:
+            exists = False
+        out["why"] = ("the banked picker census will not read" if exists
+                      else "the board has not handed a picker census over yet")
+        return out
+    for k in ("slot", "type", "label", "why"):
+        v = rec.get(k)
+        out[k] = v if isinstance(v, str) and v else out[k]
+    for k in ("offers", "holds", "all"):
+        v = rec.get(k)
+        out[k] = v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+    at = rec.get("at")
+    if isinstance(at, (int, float)) and not isinstance(at, bool) and at > 0:
+        out["ageS"] = round(max(0.0, time.time() - float(at) / 1000.0), 1)
+    out["ok"] = rec.get("ok") is True and out["offers"] is not None and out["holds"] is not None
+    if not out["ok"] and not out["why"]:
+        out["why"] = "the banked census carries no readable counts"
+    return out
+
+
+def _fleet_overlay_local_picker(fl, me):
+    """HIS OWN ROW'S PICKER CENSUS READS THE LOCAL FILE, NOT THE ROUND TRIP. -> rows changed
+
+    #41 rank 22 — the same rule as _fleet_overlay_local_tally (v2760): his own census goes out to the site and comes
+    home 60 s cached, while the true one sits in board_picker.json on this disk. ONLY his row; a peer's census is
+    knowable only through the beacon. An absent local file leaves the beacon's copy in place - absent is not zero."""
+    n = 0
+    if not isinstance(fl, dict) or not me:
+        return 0
+    try:
+        mine = _picker_for_wire()
+    except Exception:
+        return 0
+    if not isinstance(mine, dict) or not mine.get("ok"):
+        return 0
+    for grp in ("online", "offline"):
+        for row in (fl.get(grp) or []):
+            if not isinstance(row, dict) or str(row.get("machine") or "") != str(me):
+                continue
+            pk = dict(mine)
+            pk["localRead"] = True
+            row["picker"] = pk
+            n += 1
+    return n
+
+
 def accept_handed_stores(body, who):
     """Validate and bank the stores a board just handed over. -> (saved, why | None)
 
@@ -3638,6 +3785,10 @@ def _console_beacon(event="hb"):
             "eye": _eye_for_wire(),
             # #229 — its OWN system: is its tree established, how many reels on its shelf. Counts only.
             "system": _system_for_wire(),
+            # #41 rank 22 (REG-1564) — what THIS PC's character picker offers for the Body Armor slot, beside what
+            # its own database holds. Counts and short words only, read from the banked hand-over; ok:false with a
+            # why when nothing was handed over, so "unread" never rides as "offers nothing".
+            "picker": _picker_for_wire(),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -39092,6 +39243,8 @@ class Handler(BaseHTTPRequestHandler):
                     # ⚠ ONLY HIS ROW. A peer's numbers are only knowable through the beacon, and
                     # overlaying local figures onto their row would report his board as theirs.
                     _fleet_overlay_local_tally(_fl, _fl["me"])
+                    # #41 rank 22 (REG-1564) — his own row's picker census from the local file, the same way
+                    _fleet_overlay_local_picker(_fl, _fl["me"])
                     # v2814 — AFTER the local overlay, so his own row is reconciled too
                     try: _fleet_reconcile_tally_with_masks(_fl)
                     except Exception: pass
@@ -40540,6 +40693,8 @@ class Handler(BaseHTTPRequestHandler):
             # fleet_mask.LEDGERS and is applied at read time by _mask_from_board_store.
             # [[copy-drift]] [[the-unjoined-end]]
             _st_saved, _st_why = accept_handed_stores(body, _who)
+            # #41 rank 22 (REG-1564) — AND THE PICKER CENSUS, banked before and independently of the counts
+            _pk_saved, _pk_why = accept_handed_picker(body, _who)
             _t = {"v": 1, "who": _who, "route": _who,
                   "sets": _pair(body.get("sets")), "uniques": _pair(body.get("uniques")),
                   "runewords": _pair(body.get("runewords")),
@@ -40549,14 +40704,16 @@ class Handler(BaseHTTPRequestHandler):
                 # ⚠ the STORES may still have landed, and saying so is the difference between
                 # "we got nothing from you" and "we got your list but not your totals".
                 self._json(200, {"ok": False, "why": "no readable counts in that tally",
-                                 "storesSaved": _st_saved, "storeWhy": _st_why})
+                                 "storesSaved": _st_saved, "storeWhy": _st_why,
+                                 "pickerSaved": _pk_saved, "pickerWhy": _pk_why})
                 return
             ok = board_tally_merge(_t)
             try:
                 _TALLY_CACHE["t"] = 0.0        # let the next beacon pick it up immediately
             except Exception:
                 pass
-            self._json(200, {"ok": bool(ok), "storesSaved": _st_saved, "storeWhy": _st_why})
+            self._json(200, {"ok": bool(ok), "storesSaved": _st_saved, "storeWhy": _st_why,
+                             "pickerSaved": _pk_saved, "pickerWhy": _pk_why})
             return
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.

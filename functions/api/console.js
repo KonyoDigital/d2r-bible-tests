@@ -448,6 +448,34 @@ export async function onRequestPost(context) {
       }
       return Object.keys(out).length ? out : null;
     })(body.maskWhy),
+    /* #41 rank 22 (REG-1564) — WHAT THAT PC'S CHARACTER PICKER OFFERS FOR THE BODY ARMOR SLOT, BESIDE WHAT ITS OWN
+       DATABASE HOLDS. The console posts it (`_picker_for_wire`) and, without this line, this fixed key list would
+       have dropped it on arrival - the seventh-joint shape `tally` names four times above, and the reason this
+       shaper is written in the same commit as the field. Shaped, never trusted: counts are whole numbers clamped,
+       the slot and the type are short words, the label and the why are collapsed and capped, `ok` is a real true or
+       it is false, and an `ok` census that arrives without its counts is turned to ok:false with a why rather than
+       stored as an agreement nobody counted. Absent stays absent (null), so an older console's record keeps its
+       shape and the card says "an older build" rather than inventing a census. [[the-unjoined-end]]
+       [[unknown-stays-unknown]] */
+    picker: (function (p) {
+      if (!p || typeof p !== 'object') return null;
+      const whole = (v, max) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max) ? v : null;
+      const num = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? Math.min(v, max) : null;
+      const word = (v) => (typeof v === 'string' && /^[a-z][a-z0-9]{1,11}$/.test(v)) ? v : null;
+      const txt = (v, cap) => (typeof v === 'string' && v.trim()) ? v.replace(/\s+/g, ' ').trim().slice(0, cap) : null;
+      const out = {
+        ok: p.ok === true,
+        slot: word(p.slot), type: word(p.type), label: txt(p.label, 40),
+        offers: whole(p.offers, 100000), holds: whole(p.holds, 100000), all: whole(p.all, 100000),
+        ageS: num(p.ageS, 400 * 86400),
+        why: txt(p.why, 200),
+      };
+      if (out.ok && (out.offers === null || out.holds === null || !out.slot)) {
+        out.ok = false;
+        out.why = out.why || 'the census arrived without its counts';
+      }
+      return out;
+    })(body.picker),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',
