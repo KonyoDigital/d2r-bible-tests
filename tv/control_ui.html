@@ -18156,6 +18156,19 @@ window._lockMark = function(isOpen, px, label){
   /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
      answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
   var SHELF_MOUTH = null;
+  /* 2026-09-29 (REG-1480) — THE RIVER'S WINDOW COMES FROM THE CONSOLE, NOT FROM THIS FILE.
+     His ruling (REG-1433): "8 sessions 8 hours long? if its less than 8 double the amount to 16
+     reels.. FIFO same style just that instead of 8 last reels it reads 16". That number is
+     reel_retention.KEEP_RECENT — the ONE source, which frame_authority and journal_retention already
+     follow — and /api/river carries it as `riverKeep`. This page reads it here and never re-types
+     it: a FOURTH copy (`RIVER_KEEP = 8`) sat in the river block, unpinned, for fourteen days after
+     the ruling moved the other three (REG-1444). `null` until the river has answered — and the river
+     block is not reached before then (`_shGroups` returns the "reading the river…" header while
+     SHELF_RIVER is null; the reader that sets SHELF_RIVER sets this in the same call). The block's
+     fallback literal is for a console that answered WITHOUT a numeric riverKeep, and THAT literal is
+     pinned to reel_retention.KEEP_RECENT by test_the_river_is_one_flow_of_eight so it cannot become
+     a fifth. [[copy-drift]] [[unknown-stays-unknown]] */
+  var SHELF_RIVER_KEEP = null;
   /* ⚠ v3270 — WHICH station is the terminus is the RIVER'S to say (`vocab.mouth`), never a
      literal in this file. `river.py` names it, `_river_vocab_facts()` publishes it, and a second
      copy here is how the two drift apart the day a station is renamed. null = the river did not
@@ -18555,6 +18568,9 @@ window._lockMark = function(isOpen, px, label){
         try { SHELF_RIVER_LANES = (d.lanes && d.lanes.lanes) || null; } catch(e){ SHELF_RIVER_LANES = null; }
         try { SHELF_RIVER_LABELS = d.labels || null; } catch(e){ SHELF_RIVER_LABELS = null; }
         SHELF_MOUTH = d.mouth || null;
+        /* REG-1480 — the river's window, as the console publishes it (reel_retention.KEEP_RECENT).
+           A number >= 1 is the console's ruling; anything else leaves the page on its fallback. */
+        SHELF_RIVER_KEEP = (typeof d.riverKeep === 'number' && isFinite(d.riverKeep) && d.riverKeep >= 1) ? Math.floor(d.riverKeep) : null;
         /* v3279 — the population reconciliation, carried so the header can answer "why does the
            disk hold more than I can see" at the moment he asks it. null = the console did not
            report one, which stays UNKNOWN rather than becoming a silent zero. */
@@ -18820,8 +18836,21 @@ window._lockMark = function(isOpen, px, label){
 
          ⚠ A PIN IS NEVER PUSHED OUT. He pins a run deliberately; silently hiding one to honour a
          count he set for the FLOW would be the console overruling him. Pins are kept and counted
-         separately, and the header says both numbers rather than quietly showing more than 8. */
-      var RIVER_KEEP = 8;
+         separately, and the header says both numbers rather than quietly showing more than the
+         window.
+
+         ⚠⚠ 2026-09-29 (REG-1433 / REG-1480) — THE WINDOW IS SIXTEEN, AND IT IS NOT WRITTEN HERE.
+         His ruling: "8 sessions 8 hours long? if its less than 8 double the amount to 16 reels..
+         FIFO same style just that instead of 8 last reels it reads 16". The 8 above is history:
+         REG-1433 moved reel_retention / frame_authority / journal_retention to 16 and this block
+         kept its own `RIVER_KEEP = 8` — a fourth copy, pinned by four laws written for the old
+         ruling, so his shelf showed eight over a floor that kept sixteen. The window now comes
+         from the console (`SHELF_RIVER_KEEP`, /api/river's `riverKeep` = reel_retention.KEEP_RECENT);
+         the literal after the colon is the FALLBACK for a console that answered ok WITHOUT a numeric
+         `riverKeep` (one that predates the field, or `_river_keep()` -> None) — never for the seconds
+         before the river answers: this block runs only once SHELF_RIVER is set, and the reader that
+         sets it sets SHELF_RIVER_KEEP in the same call. The river law pins it to that same constant. */
+      var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) ? SHELF_RIVER_KEEP : 16;
       var _t0 = function(c){ return parseInt(c.getAttribute('data-t0') || '0', 10) || 0; };
       var _isPin = function(c){ return c.getAttribute('data-pin') === '1'; };
       /* pinned first (they already sort to the top, and the 📌 header above is anchored to
@@ -18837,7 +18866,7 @@ window._lockMark = function(isOpen, px, label){
       flow.forEach(function(c){
         if (_isPin(c)) { c.removeAttribute('data-river-out'); return; }
         if (keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }
-        /* FIFO: the 9th and older leave the river. MARKED, not destroyed — the attribute is
+        /* FIFO: the (RIVER_KEEP + 1)th and older leave the river. MARKED, not destroyed — the attribute is
            inspectable so a gate can read what the screen actually did, and `230 retired to
            history` is still where they are reachable. */
         c.setAttribute('data-river-out', '1');   /* CSS hides it; display stays the filter's */

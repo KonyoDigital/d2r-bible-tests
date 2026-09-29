@@ -675,6 +675,95 @@ change to your data)"), the persisted digest keeps 'absent' -> the new digest, a
 the doctor's row says the same — never hidden, never "it did"; a store that will not READ is still UNKNOWN. HEART: reset law
 test_a_fresh_board_s_empty_stores_are_not_a_change (the doctor's row read off the same persisted receipt; +3 red-proofs), heart
 law test_a_store_the_reset_materialised_is_named_never_read_as_a_change (+1 red-proof).
+### REG-1480 - THE SHELF'S RIVER KEPT EIGHT OVER A FLOOR THAT KEPT SIXTEEN: A FOURTH COPY OF HIS WINDOW (2026-09-29)
+
+**His words:** *"8 sessions 8 hours long? if its less than 8 double the amount to 16 reels.. FIFO same style just
+that instead of 8 last reels it reads 16"*. REG-1433 moved `KEEP_RECENT` 8 -> 16 in reel_retention, frame_authority
+and journal_retention. THE SHELF's visible river was `var RIVER_KEEP = 8;` in control_ui.html — a fourth copy nothing
+joined to the source, pinned by four laws written for the 2026-09-15 ruling (REG-1444 named it), so his shelf showed
+eight cards over a floor that kept sixteen. **Fix — the window is the console's, never the page's:** /api/river
+publishes `riverKeep` = `_river_keep()` = reel_retention.KEEP_RECENT (the CONSTANT, not keep_recent_for(): the shelf is
+a VIEW cap by his ruling; the deleter's under-pressure narrowing is retention's business, reported in the same header
+as "closed out"); the page reads it into `SHELF_RIVER_KEEP` (null until the river answers, a non-number stays null);
+the block reads `RIVER_KEEP = SHELF_RIVER_KEEP >= 1 ? SHELF_RIVER_KEEP : 16`, and that fallback literal — for a console
+that answered WITHOUT a numeric `riverKeep` (one that predates the field, or `_river_keep()` -> None); never for the
+seconds before /api/river answers, which render the "reading the river…" header and never reach the block (the second
+eye's correction of this entry's first wording) — is pinned to reel_retention.KEEP_RECENT by law, so it cannot become a
+fifth copy. **Why publish rather than only pin:** the ruling moved 5 -> 8 -> 16 in
+nineteen days; a pinned literal still needs a page edit on every move, a published number does not, and a pin alone
+leaves the page one commit behind the console it renders. The fallback IS still a copy, which is why it is pinned too.
+**Laws (file and gate names kept — "of eight" is the ruling they were born under):** the four that pinned 8 now DERIVE
+the window: `test_the_river_is_one_flow_of_eight` sizes its fixtures from `reel_retention.KEEP_RECENT` (KEEP + 4 runs,
+4 pushed), adds `TheWindowIsTheConsoles` (published -> the block honours a window the page does not carry; unpublished
+-> it falls back to HIS number and the literal equals the module's; the /api/river dict literal carries `riverKeep`
+through `_river_keep`, which reads `KEEP_RECENT`, by AST; the page's reader, against code with comments blanked) and
+5 red-proofs where it had none; `test_the_river_reads_as_four_lanes`, `test_the_shelf_shows_the_mouth` anchor on the
+line's SHAPE; `test_the_render_fixture_can_reach_the_card_branch` reads the window off reel_retention and requires
+FILM_RUNS > window so the river branch stays reachable. **Measured on the pixels (a private render sandbox, one Chrome
+under the shared lock):** `render_check.py shelf-cards river-strip` green at all six widths, shelf-cards counting 34-43
+nodes where the eight-card river counted 16; a probe that waits for /api/river read the header `River — flowing, newest
+first · 4 pushed past the 16 (still on disk) · 7 closed out ...`, the count `16 of 20 · 4 past the river`, 20 cards / 4
+marked data-river-out / 16 shown, and the private console's /api/river answered `riverKeep: 16`. A cold Grok CLI look
+(grok 1.0.41, two PNGs in a read-only cwd, no premise) transcribed both lines letter for letter at 1120 and 1440 and
+reported no overlap, no bleed and no unlabelled control; it noted the long header wraps after "· 7" at 1440 (the mouth
+text's composition, unchanged here, now sitting at a different wrap point). ⚠ The first arrival-proof PNG showed the
+PRE-river placeholder ("reading the river... 20 of 20") while the DOM count already said 16 cards — the picture was
+older than the number, so the probe waits for the river before it photographs. **The coverage floor:** shelf-cards
+16 -> 34 at all six widths, the value a FULL clean `--bless` run (24 targets green) measured; only that target's floor and
+node signatures were kept from the bless, because the run's other 23 readings came from a side worktree's sandbox that
+provably differs from his console (heart-stored measured 11 against its floor of 18 there) and his other floors are
+not this change's to ratchet. The render-fixture law's coverage red-proof re-anchors on the 34.
+
+### REG-1481 - HIS BUILDS AND HIS HAND PLACEMENTS WERE BACKED UP AND NOBODY WATCHED THEM (#41 rank 5, 2026-09-29)
+
+**The heart audit's claim, verified:** d2r_charBuilds, d2r_muleEquip and d2r_muleAssign have ridden in the automatic
+backup since v2737 (`allStores`, the board's complete export) and no drop watcher judged them — `drops_between` /
+`step_episodes` looped `BACKED_UP` only, the put-back invariant read `blob['ledger']` and never `allStores`, and
+control_app / console_doctor had 0 matches for charBuilds or muleEquip. Wiping his builds opened no episode, raised
+nothing, and the prune could take the last file that held them. MEASURED read-only on his real backups: the newest
+snapshot HOLDS d2r_charBuilds (1 build) and d2r_muleEquip. **And a quieter hole found while building it:**
+`_ledger_snapshot_once` wrote NO snapshot when the board's ledger COUNTS were unchanged — and the watcher only judges
+snapshots — so a build wiped between two snapshots with nothing found in between would never have produced the file
+the watch reads. **Fix, built the way the ledger watch is built:** `ledger_restore.HAND_MADE` (charBuilds, muleEquip,
+muleAssign) counted off `allStores` (each value is the store's own JSON text), judged on the SAME line (to 0, or >=
+max(10, 25%)) so his own Delete of one build (3 -> 2) never pages and a wipe (3 -> 0) opens an episode naming the
+file before it; `_ledger_drop_watch` opens it through the one `step_episodes`, the prune keeps `beforeFile`; the
+doctor's row names the store, the fall and the FILE as the door (`HAND_MADE_DOOR`, never the chronicle plan); the
+snapshot writer compares `hand_made_counts(fullStores)` beside the ledger counts; the put-back invariant counts a
+watched store with no declared door. cbMain is a declared POINTER (`HAND_MADE_POINTERS`): the Characters tab clears it
+with removeItem when the MAIN is deleted — a choice with an Undo, not a loss — and any wipe that takes it takes
+charBuilds, which is counted. **The second eye on the first cut, both reproduced and both fixed:** (1) the first cut
+read a key ABSENT from `allStores` as UNKNOWN and pinned that as correct — but `allStores` is `_collectProgress()`, a
+walk of the RAW store end to end (`for i < RAW.length`) for the active world, so absent means looked-for and not
+there, a measured 0; and absent is exactly what the owner wipe leaves (`RAW.removeItem` — the store is GONE, not
+emptied). Reproduced against the first cut: 1 build -> key removed gave `count None`, `drops []`, `episodes opened
+0`; the realistic path (owner wipe, `/api/ledger_restore_apply` puts back foundLog/setPieces only, the next snapshot
+lacks the key) opened no episode, no doctor row, and left the pre-wipe file unprotected. Now absent from a dict
+allStores = 0; only NO allStores (nobody could look) or unparseable text stays UNKNOWN. (2) the charBuilds door said
+"wrap that allStores as a grail-progress snapshot and import it" — and `_applyProgress` setItem()s EVERY string key
+it is handed, so the whole file would have put back the builds AND rolled foundLog / setPieces / owned / rwMade /
+gameFound back to that file's moment, behind a confirm that only says "OVERWRITES the chronicle / wishlist /
+settings". Every door now names its ONE key — `{"app":"d2r-bible","kind":"grail-progress","data":{"d2r_charBuilds":
+<its text from that allStores>}}` — and says that importing the whole allStores rolls every other store back; the
+doctor prints the door verbatim, so that reaches his screen. **Law:** `tv/test_his_builds_are_watched_like_his_ledger.py`
+(15 cases over fixture blobs in a temp dir; the shipped watcher, prune and doctor row driven over real files there,
+for an emptied store AND a removed key; 6 red-proofs — the absent-is-UNKNOWN one inverted, the whole-allStores door
+added).
+
+### REG-1482 - THE DOLL'S OWN ART CALL WAS DRIVEN BY NO LAW: HALF OF #248 UNGUARDED (#41 rank 6, 2026-09-29)
+
+**The heart audit's claim, verified:** #248 (his 2026-09-27 screenshot, "Last Wish Thunder Maul" drew a SWORD) was
+fixed in two halves — `_cbArtName` (a runeword draws its base) and the mule doll's call site
+`art((e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name, ...)`. Only the first half
+had a law: the mule-picker law calls `_cbArtName` directly, the inventory law counts calls on inventory TILES, the
+equips law checks a unique (name equals art), and the width law compares the tooltip's first line to the art's
+aria-label — which a sabotaged doll satisfies with 'Last Wish' on both sides. The auditor's scratch sabotage
+(`e.name` at the doll) left 11 node gates green. **Law:** `TheDollDrawsTheBase` in
+`tv/test_the_mule_picker_offers_the_whole_database.py` places Last Wish from the database on a Thunder Maul in a mule's
+right hand through the shipped picker (baseline asserted: offered, Base tab, base accepted, the record on the mule),
+renders the mule card and reads the art THE SLOT drew off its own markup (`slotArt`, the `.d2art-wrap` aria-label inside
+the slot button): 'Thunder Maul', beside a Harlequin Crest on the helm that keeps its own art. **Red-proof:** the
+doll's call reduced to `e.name` (matches 1) turns the gate red.
 
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 

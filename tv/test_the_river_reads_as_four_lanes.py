@@ -34,6 +34,15 @@ THE LAW PINS FOUR THINGS, each of which was separately wrong or absent:
      confusion wearing a different hat);
   3. the labels reach the page from the BACKEND — control_ui.html must not grow a second list;
   4. the shelf builds its station order from the LANES, not from the flat list.
+
+★ THE WINDOW, AS HISTORY AND AS IT IS NOW. v3176 replaced the per-station sections with ONE flow on
+his 2026-09-15 ruling — *"no only the last 8 sessions stay and the one coming in pushes the last
+one out of those 8 sections"* — and this law then anchored on the literal `RIVER_KEEP = 8`. On
+2026-09-29 he ruled again (REG-1433): *"8 sessions 8 hours long? if its less than 8 double the
+amount to 16 reels.. FIFO same style just that instead of 8 last reels it reads 16"*. The number
+is reel_retention.KEEP_RECENT, published by /api/river as `riverKeep` and read by the page
+(REG-1480); this law now anchors on the RIVER_KEEP line's SHAPE (`RIVER_LINE`, the console's
+window with a fallback the river law pins to that constant), so no number is typed here.
 """
 import ast
 import io
@@ -83,6 +92,12 @@ def _no_comments(src):
 
 
 UI_CODE = _no_comments(UI)
+
+#: the one-river flow's opening line (REG-1480): the window is the console's, with a fallback the
+#: river law pins to reel_retention.KEEP_RECENT. The 8 it replaced was his 2026-09-15 ruling; 16 is
+#: his 2026-09-29 one, and neither number is typed into this law.
+RIVER_LINE = ("var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) "
+              "? SHELF_RIVER_KEEP : ")
 
 
 class TheRiverReadsAsFourLanes(unittest.TestCase):
@@ -193,7 +208,12 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
                              "river: 'all these anyways need to end up unified in one section'. "
                              "If that is being reversed deliberately, retire this law in the same "
                              "commit rather than leaving it to fail." % gone)
-        self.assertIn("var RIVER_KEEP = 8;", blk,
+        # 2026-09-29 (REG-1433 / REG-1480) — the flow's window used to be the literal 8 of his
+        # 2026-09-15 ruling ("only the last 8 sessions stay"); it is now the console's
+        # (reel_retention.KEEP_RECENT, 16: "instead of 8 last reels it reads 16"), read off
+        # /api/river with a fallback the river law pins. This law asks only that the ONE flow
+        # exists, in the shape that reads the console's window.
+        self.assertIn(RIVER_LINE, blk,
                       "the one-river flow is gone and nothing replaced it")
         print("no per-station section builder; the single river flow is present")
 
@@ -213,7 +233,7 @@ RED_PROOF = [
                'exist and the per-station section builder must not come back. Deleting the flow '
                'must turn the gate red',
         "file": 'control_ui.html',
-        "find": 'var RIVER_KEEP = 8;',
+        "find": "var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) ? SHELF_RIVER_KEEP : 16;",
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

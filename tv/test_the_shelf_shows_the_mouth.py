@@ -26,6 +26,15 @@ not dimmed like an empty station — a section carrying a real terminus is not e
 ⚠ AND THE COUNT SAYS WHERE IT CAME FROM. The card count is the ROUTER's answer; the closed-out
 count is the LEDGER's. Two numbers from two stores under one heading, unlabelled, is exactly the
 confusion this whole view exists to end.
+
+★ THE WINDOW, AS HISTORY AND AS IT IS NOW. The section builder this law finds became the single
+river flow (v3185) on his 2026-09-15 ruling — *"no only the last 8 sessions stay and the one
+coming in pushes the last one out of those 8 sections"* — and the guard anchored on the literal
+`RIVER_KEEP = 8`. On 2026-09-29 he ruled again (REG-1433): *"8 sessions 8 hours long? if its less
+than 8 double the amount to 16 reels.. FIFO same style just that instead of 8 last reels it reads
+16"*. The number is reel_retention.KEEP_RECENT, published by /api/river as `riverKeep` and read by
+the page (REG-1480); this law's anchor is now the RIVER_KEEP line's SHAPE (the console's window
+with a fallback the river law pins to that constant), so no number is typed here.
 """
 import io
 import os
@@ -64,7 +73,10 @@ class TheShelfShowsTheMouth(unittest.TestCase):
     def test_the_guard_can_find_the_river_section_builder(self):
         """⚠ A law that cannot find its subject passes having examined nothing."""
         # v3185 — the per-station section builder was replaced by the single river flow.
-        self.assertIn("var RIVER_KEEP = 8;", CODE,
+        # 2026-09-29 (REG-1480) — its window was the literal 8 of his 2026-09-15 ruling; it now reads
+        # the console's (reel_retention.KEEP_RECENT = 16, "instead of 8 last reels it reads 16") with
+        # a fallback the river law pins. This anchor is the line's SHAPE, never its number.
+        self.assertIn("var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number'", CODE,
                       "the river builder is gone or renamed — fix this guard first")
         self.assertIn("var _mouthHasRows = SHELF_MOUTH", CODE,
                       "the mouth no longer decides whether the ledger has rows to speak of")

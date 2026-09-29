@@ -4262,7 +4262,9 @@ GATES = [
              "on a `retired` state - the retention lane's own proof that the film gave up its "
              "information first - and holds 2,325 that say `unknown`, which is no film AND no "
              "retention record: an absence of evidence in BOTH directions, never permission. Also "
-             "held: the newest 8 whatever their state, rows a test pins by name, rows whose reel "
+             "held: the newest KEEP_RECENT whatever their state (8 then; 16 since 2026-09-29's "
+             "'instead of 8 last reels it reads 16', REG-1433 - imported from reel_retention, never "
+             "re-typed), rows a test pins by name, rows whose reel "
              "still has film, and rows that cannot be dated. The planner is PARSED to prove it "
              "cannot write - no open-for-write, no remove, rename or rmtree anywhere in it."),
     Gate("test_a_card_with_no_film_says_so",
@@ -4463,8 +4465,14 @@ GATES = [
              "it run and ruled the other way. The station is NOT lost, it moved onto the card "
              "where .shc-river has stamped it since v2746; what goes is the GROUPING. The laws "
              "DRIVE the shipped block in node against stub cards and pin: newest flows first so "
-             "top-to-bottom is downstream; exactly 8 flow and the 9th is marked data-river-out "
-             "and hidden; a PIN does not eat a flow slot (he pins deliberately, and silently "
+             "top-to-bottom is downstream; exactly the WINDOW flows and the next is marked data-river-out "
+             "and hidden — the window was his 8 and is his 16 since 2026-09-29 (\"8 sessions 8 hours long? "
+             "if its less than 8 double the amount to 16 reels.. FIFO same style just that instead of 8 "
+             "last reels it reads 16\", REG-1433), read from reel_retention.KEEP_RECENT and never typed "
+             "into the law; REG-1480: the page's own RIVER_KEEP = 8 was a FOURTH copy that stayed at 8 "
+             "for fourteen days, so /api/river now publishes riverKeep, the page reads it, and the block's "
+             "fallback literal is pinned to the same constant, with the join proven from both ends; "
+             "a PIN does not eat a flow slot (he pins deliberately, and silently "
              "shortening the river to honour a count he set for the flow would be the console "
              "overruling him); ONE header, not one per station; the header says how many were "
              "pushed, because runs vanishing with no denominator read as data loss; and the "
@@ -8088,6 +8096,27 @@ GATES = [
              "(Fortitude 80-120), the shift is the table's (Eaglehorn 480), Hellslayer's maximum is 602, Guardian Angel "
              "names four maximum resistances, Hellfire Torch rolls a CLASS, a class-locked item on another class is red "
              "and counts nothing, a magic charm leaves FCR EXACT. 16 cases, 22 red-proofs",
+         skip_ok=()),
+    Gate("test_his_builds_are_watched_like_his_ledger",
+         [sys.executable, os.path.join(HERE, "test_his_builds_are_watched_like_his_ledger.py")], 120,
+         needs_app=False,
+         why="#41 rank 5 (REG-1481, 2026-09-29) — his builds (d2r_charBuilds) and his hand placements (d2r_muleEquip, "
+             "d2r_muleAssign) rode in the automatic backup since v2737 and NO drop watcher judged them: drops_between "
+             "looped BACKED_UP only, so wiping them opened no episode, raised nothing, and the prune could take the last "
+             "file that held them (measured read-only: the newest snapshot HOLDS 1 build and his mule placements). "
+             "His standing words: \"i want it no wiped · i want that saved · and being able to be restored · "
+             "indefinitely\". Now HAND_MADE stores are counted off allStores (the board's own export, a complete walk "
+             "of the store: a key ABSENT from it is 0 — the owner wipe REMOVES the key, and the second eye caught the "
+             "first cut reading that as UNKNOWN and opening nothing; only no allStores at all stays UNKNOWN) on the "
+             "SAME drop line as the ledger — his own Delete of one build (3 -> 2) never pages, a wipe (3 -> 0, or "
+             "3 -> the key gone) opens an episode naming the file before it, the prune keeps that file, and the doctor "
+             "names the store, the fall and the FILE as the door: the ONE key wrapped as a grail-progress snapshot, "
+             "never the chronicle plan (which puts back none of it) and never the whole allStores (which would roll "
+             "every other store back to that file — _applyProgress setItem()s every key it is handed). "
+             "And the quieter hole: the snapshot writer skipped a snapshot when the ledger COUNTS were unchanged, so a "
+             "builds-only wipe never produced the file the watcher judges — the hand-made counts now ride beside "
+             "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
+             "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
          skip_ok=()),
 ]
 

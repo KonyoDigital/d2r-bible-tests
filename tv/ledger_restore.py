@@ -103,6 +103,93 @@ ANY_FALL = 1
 _COUNT_KEY = {"foundLog": "foundLog", "setPieces": "setPieces", "owned": "owned",
               "rwMade": "runewordsMade"}
 
+# ══ HIS HAND-MADE STORES — WATCHED LIKE HIS LEDGER (#41 rank 5, 2026-09-29, REG-1481) ═══════════════
+# His builds (the Character Builder) and his hand placements (the mule window) have travelled in the
+# automatic backup since v2737 — `allStores` is the board's complete export — and NO watcher judged them:
+# a wiped d2r_charBuilds opened no episode, raised nothing, and the prune could take the last file that
+# held it. MEASURED read-only on his real backups (2026-09-29): the newest snapshot HOLDS d2r_charBuilds
+# (1 build) and d2r_muleEquip; control_app and console_doctor had 0 matches for charBuilds / muleEquip.
+# ⚠ THE SAME DROP LINE AS THE LEDGER, ON PURPOSE: to 0, or by >= max(DROP_MIN, DROP_FRAC x before).
+# His own Delete + Undo of one build never pages (3 -> 2 is neither), while a wiped store opens an
+# episode naming the file to restore from — and that file is then kept from the prune like any other.
+# ⚠ COUNTED FROM `allStores`, WHERE EACH VALUE IS THE STORE'S OWN JSON TEXT as the board keeps it. There
+# is no independent count for these (the board publishes none). WHAT IS UNKNOWN AND WHAT IS ZERO — the
+# second eye on REG-1481 corrected the first cut here: `allStores` is `_collectProgress()`, which walks the
+# RAW store END TO END (`for i < RAW.length`) for the active world, so a key ABSENT from a dict allStores
+# was LOOKED FOR and not found — that is a measured 0, and it is exactly the shape the owner wipe leaves
+# (`RAW.removeItem`, so the wiped store is not empty, it is GONE). Reading it as UNKNOWN made the watch
+# blind to the one wipe that actually removes the key. Only NO allStores (not a dict: the board could not
+# be asked) or text that is not a JSON dict/list stays None — "nobody looked" and "he had none" still
+# never read the same. [[unknown-stays-unknown]] [[the-unjoined-end]]
+HAND_MADE = ("charBuilds", "muleEquip", "muleAssign")
+#: d2r_cbMain is the MAIN pointer INTO charBuilds and is deliberately NOT counted: the Characters tab
+#: clears it with removeItem when the MAIN build is deleted (a choice with an Undo, never a loss), and
+#: any wipe that takes it takes charBuilds with it, which IS counted. Named here so its absence from
+#: HAND_MADE reads as a decision, not an oversight.
+HAND_MADE_POINTERS = ("cbMain",)
+#: Where each hand-made store comes back from, in his words — the doctor prints this beside the episode.
+#: None of them travels through the chronicle door (RESTORABLE) or an /api/*_restore door; the backup FILE
+#: is the way back: its `allStores` is the board's own export (_collectProgress), so the store's exact text
+#: is there to put back by hand, or wrapped as a grail-progress snapshot through Backup & Share.
+#: ⚠ ONE KEY, NEVER THE WHOLE allStores (the second eye on REG-1481). `_applyProgress` setItem()s EVERY
+#: string key it is handed, so importing the file's whole allStores puts back the builds AND rolls foundLog /
+#: setPieces / owned / rwMade / gameFound back to that file's moment — every find since, discarded, behind a
+#: confirm that only says "OVERWRITES the chronicle / wishlist / settings". A door that puts back more than
+#: what fell is the chronicle-plan mistake wearing the other coat, so every door names its ONE key and says
+#: what the whole file would cost. One template, three stores — a copy per store is how one of them drifts.
+_HAND_MADE_WRAP = ('wrap ONLY that one key as a grail-progress snapshot — {"app":"d2r-bible","kind":"grail-progress",'
+                   '"data":{"d2r_%(store)s": <its text from that allStores>}} — and import it through Backup & Share; '
+                   'importing the whole allStores rolls every other store back to that file')
+
+
+def _hand_made_door(store, what):
+    """The door text for one hand-made store: what it is, where the file keeps it, and the ONE-key way back."""
+    return ("%s — d2r_%s in the named backup's allStores, the board's own export; put back by hand, or "
+            % (what, store)) + _HAND_MADE_WRAP % {"store": store}
+
+
+HAND_MADE_DOOR = {
+    "charBuilds": _hand_made_door("charBuilds", "his builds"),
+    "muleEquip": _hand_made_door("muleEquip", "his hand placements on the mules' dolls"),
+    "muleAssign": _hand_made_door("muleAssign", "which mule holds which item"),
+}
+
+
+def _hand_made_count(x, store):
+    """A hand-made store's count off a backup blob's `allStores`. -> int, or None = UNKNOWN.
+
+    The value is the board's own JSON text (a dict of builds / placements / assignments). Not a blob or
+    no allStores (nobody could look) = None; text that is not a JSON dict or list = None. The key ABSENT
+    from a dict allStores = 0: the export is a complete walk of the store, so absent means looked-for and
+    not there — the shape `RAW.removeItem` (the owner wipe) leaves, and the one the first cut of this
+    read as UNKNOWN, which made the watch blind to it. [[unknown-stays-unknown]]
+    """
+    al = x.get("allStores") if isinstance(x, dict) else None
+    if not isinstance(al, dict):
+        return None
+    raw = al.get("d2r_" + store)
+    if raw is None:
+        return 0                    # a complete export without the key: he has none (or it was removed)
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return None
+    if isinstance(raw, (dict, list)) and not isinstance(raw, bool):
+        return len(raw)             # a hand-made store's rows, as the board keeps them
+    return None
+
+
+def hand_made_counts(all_stores):
+    """{store: count | None} for every HAND_MADE store in a board export (`fullStores` / `allStores`).
+
+    The backup loop compares this beside the ledger counts to decide whether anything changed: a build
+    wiped between two snapshots with nothing FOUND in between used to produce NO snapshot at all, and
+    the drop watcher only judges snapshots. [[the-unjoined-end]]
+    """
+    blob = {"allStores": all_stores if isinstance(all_stores, dict) else None}
+    return dict((s, _hand_made_count(blob, s)) for s in HAND_MADE)
+
 
 def _ledger_of(x):
     """A backup blob or a bare ledger -> (ledger dict, counts dict)."""
@@ -116,7 +203,11 @@ def store_count(x, store):
 
     A store the file does not carry is NOT zero unless the board's own independent count says so —
     "nobody copied it" and "he had none" must never read the same. [[unknown-stays-unknown]]
+    A HAND_MADE store is counted off the blob's `allStores` (REG-1481); it has no independent count, and
+    the complete export IS the "independent" say-so for an absent key: absent from a dict allStores is 0.
     """
+    if store in HAND_MADE:
+        return _hand_made_count(x, store)
     led, counts = _ledger_of(x)
     v = led.get(store)
     if isinstance(v, (list, dict)):
@@ -144,7 +235,9 @@ def drops_between(prev_ledger, next_ledger, threshold=None):
                                   or threshold < 1):
         raise ValueError("a drop threshold is None or an int >= 1, not %r" % (threshold,))
     out = []
-    for store in BACKED_UP:
+    # REG-1481 — his hand-made stores are judged on the same line, in the same pass; a bare ledger or a
+    # counts-only blob (board_tally) carries no allStores, so for it they are UNKNOWN and never a drop.
+    for store in BACKED_UP + HAND_MADE:
         a = store_count(prev_ledger, store)
         b = store_count(next_ledger, store)
         if a is None or b is None or a <= 0 or b >= a:

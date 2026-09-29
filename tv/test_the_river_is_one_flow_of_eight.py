@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v3176 (#97) — THE RIVER IS ONE FLOW OF EIGHT, NEWEST FIRST, FIFO.
+"""v3176 (#97) — THE RIVER IS ONE FLOW, NEWEST FIRST, FIFO — AND THE WINDOW IS THE CONSOLE'S.
 
 HIS ORDER, 2026-09-15, with four screenshots of this very view: *"all these anyways need to end up
 unified in one section after being extracted one step behind deleted after flowing from top to
@@ -12,17 +12,36 @@ the page, intake to tombstone — and was built faithfully. He watched it run an
 way. The station is NOT lost: `.shc-river` has stamped it onto each card since v2746. What goes is
 the GROUPING, not the information.
 
+★★ 2026-09-29 — THE EIGHT IS HISTORY; THE WINDOW IS SIXTEEN AND IT IS NOT WRITTEN IN THE PAGE.
+His ruling (REG-1433): *"8 sessions 8 hours long? if its less than 8 double the amount to 16
+reels.. FIFO same style just that instead of 8 last reels it reads 16"*. That moved
+reel_retention / frame_authority / journal_retention to 16 — and THE SHELF kept `RIVER_KEEP = 8`,
+a fourth copy pinned by four laws written for the old ruling (REG-1444), so his shelf showed eight
+over a floor that kept sixteen. REG-1480: /api/river now publishes `riverKeep`
+(reel_retention.KEEP_RECENT, the ONE source), the page reads it into SHELF_RIVER_KEEP, and the
+block keeps only a FALLBACK for a console that answered WITHOUT a numeric `riverKeep` (one that
+predates the field, or `_river_keep()` -> None) — which this law pins to that same constant. ⚠ The
+fallback is NOT for the seconds before the river answers: `_shGroups` returns the "reading the
+river…" header while SHELF_RIVER is null and the block is never reached; the reader that sets
+SHELF_RIVER sets SHELF_RIVER_KEEP in the same call (the second eye on REG-1480 corrected the first
+cut's prose here). The file keeps its name: "of eight" is the ruling it was born under, and a
+renamed law is a law whose history nobody can grep. [[copy-drift]] [[the-unjoined-end]]
+
 ★ WHAT THIS PINS, by DRIVING the shipped block in node against stub cards:
   1. newest first, so top-to-bottom is downstream;
-  2. exactly 8 flow — the 9th and older are marked data-river-out and hidden;
+  2. exactly KEEP_RECENT flow — the next and older are marked data-river-out and hidden — where
+     KEEP_RECENT is read from reel_retention, never typed here (the fixtures are SIZED from it);
   3. A PIN IS NEVER PUSHED OUT. He pins deliberately; hiding one to honour a count he set for the
      FLOW would be the console overruling him;
   4. ONE header, not one per station;
   5. the TOMBSTONE mouth figure survives the section that used to carry it — a closed-out reel
      leaves the disk and becomes a retention-ledger row, which is why its section could only ever
      read 0 cards. Dropping it would re-tell the lie v2963 fixed: 410 finished journeys reading as
-     "nothing ever finished".
+     "nothing ever finished";
+  6. the window is the CONSOLE'S when published, his ruling's number when not, and the two ends
+     of that join — the route's dict literal and the page's reader — are both present.
 """
+import ast
 import io
 import re
 import json
@@ -41,22 +60,48 @@ try:
 except Exception:
     pass
 
+import reel_retention as _RR   # noqa: E402  — the ONE source of the window; side-effect free at import
+
+#: his number, read from the module that owns it. The fixtures below are sized from THIS, so the
+#: day the ruling moves again this law moves with it instead of pinning yesterday's literal.
+#: [[regression-guard]] — pin the LAW, not the number.
+KEEP = int(_RR.KEEP_RECENT)
+
 UI = os.path.join(HERE, "control_ui.html")
-START = "      var RIVER_KEEP = 8;"
+# ⚠ A PREFIX, on purpose: the line's tail is the window expression and the fallback literal, both
+# of which the red-proofs below tamper. Anchoring on the whole line would make every such tamper
+# fail here as "the river block is gone" — red for the wrong reason. The count is asserted to be 1.
+START = "      var RIVER_KEEP = "
 # v3185 — the mouth fix wrapped this call across two lines; the anchor follows the code.
 END = "             ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));"
+#: the shipped line, in full — what the block must say to read the console's window and fall back
+RIVER_LINE = ("var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) "
+              "? SHELF_RIVER_KEEP : %d;")
+
+
+def _src():
+    with io.open(UI, encoding="utf-8") as fh:
+        return fh.read()
 
 
 def _block():
     """Both ends anchored — a fixed-size window past the region reads as ABSENT and would let
     this law pass on a file that no longer contains the river. [[source-reading-guard]]"""
-    with io.open(UI, encoding="utf-8") as fh:
-        src = fh.read()
+    src = _src()
+    assert src.count(START) == 1, "the river block's opening line occurs %d times" % src.count(START)
     i = src.find(START)
     assert i >= 0, "the river block is gone from control_ui.html"
     j = src.find(END, i)
     assert j > i, "the river block no longer ends with its single mkHead"
     return src[i:j + len(END)]
+
+
+def _fallback_literal():
+    """The number after the colon on the RIVER_KEEP line. -> int. Read off the block, never guessed."""
+    m = re.search(r"var RIVER_KEEP = \(typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1\) "
+                  r"\? SHELF_RIVER_KEEP : (\d+);", _block())
+    assert m, "the RIVER_KEEP line no longer reads the console's window and falls back to a literal"
+    return int(m.group(1))
 
 
 VIS_START = "    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){"
@@ -66,8 +111,7 @@ VIS_END = "    });"
 def _vis_block():
     """The MEMBERSHIP line, anchored at both ends — a different region from the river block, and
     the river law could not see it: the node harness hands `vis` in ready-made."""
-    with io.open(UI, encoding="utf-8") as fh:
-        src = fh.read()
+    src = _src()
     i = src.find(VIS_START)
     assert i >= 0, "the shelf's visible-card filter is gone from control_ui.html"
     j = src.find(VIS_END, i)
@@ -121,6 +165,9 @@ var SHELF_MOUTH = %(mouth)s;
    dependency one version earlier. [[source-reading-guard]] — an extracted region carries its free
    names with it, and a harness that does not declare them measures its own gaps. */
 var SHELF_POP = %(pop)s;
+/* REG-1480 — the console's window, as /api/river publishes it and the page's reader stores it.
+   null = the river has not answered (the block falls back to his ruling); a number = the console's. */
+var SHELF_RIVER_KEEP = %(keep)s;
 
 %(block)s
 
@@ -135,23 +182,30 @@ console.log(JSON.stringify({
 """
 
 
+def _node(js, prefix):
+    fd, p = tempfile.mkstemp(prefix=prefix, suffix=".js", dir=HERE)
+    try:
+        with io.open(fd, "w", encoding="utf-8") as fh:
+            fh.write(js)
+        return subprocess.run(["node", p], capture_output=True, text=True, timeout=60,
+                              encoding="utf-8", errors="replace")
+    finally:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+
+
 class TheRiverIsOneFlowOfEight(unittest.TestCase):
 
-    def drive(self, cards, mouth="null", pop="null"):
+    def drive(self, cards, mouth="null", pop="null", keep=None):
+        """`keep` None = the console's published window (KEEP); "null" = the river has not answered."""
         js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth,
-                        "pop": pop}
-        fd, p = tempfile.mkstemp(prefix=".river_drive_", suffix=".js", dir=HERE)
+                        "pop": pop, "keep": (str(KEEP) if keep is None else str(keep))}
         try:
-            with io.open(fd, "w", encoding="utf-8") as fh:
-                fh.write(js)
-            r = subprocess.run(["node", p], capture_output=True, text=True, timeout=60)
+            r = _node(js, ".river_drive_")
         except (OSError, subprocess.TimeoutExpired):
             self.skipTest("node unavailable - a skip is NOT a pass")
-        finally:
-            try:
-                os.unlink(p)
-            except OSError:
-                pass
         self.assertEqual(r.returncode, 0, "the shipped river block threw:\\n%s" % (r.stderr or "")[-900:])
         return json.loads(r.stdout.strip().splitlines()[-1])
 
@@ -161,31 +215,23 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
 
     def drive_vis(self, cards):
         js = VIS_HARNESS % {"cards": json.dumps(cards), "block": _vis_block()}
-        fd, p = tempfile.mkstemp(prefix=".river_vis_", suffix=".js", dir=HERE)
         try:
-            with io.open(fd, "w", encoding="utf-8") as fh:
-                fh.write(js)
-            r = subprocess.run(["node", p], capture_output=True, text=True, timeout=60)
+            r = _node(js, ".river_vis_")
         except (OSError, subprocess.TimeoutExpired):
             self.skipTest("node unavailable - a skip is NOT a pass")
-        finally:
-            try:
-                os.unlink(p)
-            except OSError:
-                pass
         self.assertEqual(r.returncode, 0,
                          "the shipped membership filter threw:\\n%s" % (r.stderr or "")[-900:])
         return json.loads(r.stdout.strip().splitlines()[-1])
 
-    def test_a_run_pushed_past_eight_is_still_a_river_member(self):
+    def test_a_run_pushed_past_the_window_is_still_a_river_member(self):
         """v3181. The river hides its own overflow with display:none, and the population that
         decides the river was read straight off display — so the moment the grid re-rendered in
         place (he changes the sort dropdown), every evicted run had silently left the river
         ENTIRELY, and switching back to Newest never brought it back until the next poll rebuilt
         the grid from scratch.
 
-        The 8-limit is the RIVER's rule, not a filter he applied. A run it pushed past eight is
-        still a member of the flow; only a run HE filtered out is not. The marker is therefore
+        The window is the RIVER's rule, not a filter he applied. A run it pushed past the window
+        is still a member of the flow; only a run HE filtered out is not. The marker is therefore
         cleared on every pass and re-decided by the river block below.
 
         ⚠ The two hidden cards here are hidden for DIFFERENT REASONS and that is the whole test:
@@ -202,7 +248,7 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
             {"sid": "filtered", "hidden": True},
         ])
         self.assertIn("pushed", o["members"],
-                      "a run the river pushed past 8 was dropped from the river's own "
+                      "a run the river pushed past the window was dropped from the river's own "
                       "population — it can never flow back in")
         self.assertIn("shown", o["members"])
         self.assertNotIn("filtered", o["members"],
@@ -221,10 +267,12 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         self.assertEqual(o["order"], ["r05", "r04", "r03", "r02", "r01"],
                          "top-to-bottom must be downstream — newest enters at the top")
 
-    def test_exactly_eight_flow_and_the_ninth_is_pushed_out(self):
-        o = self.drive(self._runs(12))
+    def test_exactly_the_window_flows_and_the_next_is_pushed_out(self):
+        """Was "exactly eight ... and the ninth" under his 2026-09-15 ruling; the number is now
+        reel_retention.KEEP_RECENT (16 on 2026-09-29) and the fixture is KEEP + 4 runs."""
+        o = self.drive(self._runs(KEEP + 4))
         self.assertEqual(o["out"], ["r04", "r03", "r02", "r01"],
-                         "the 9th and older must leave the river")
+                         "the %dth and older must leave the river" % (KEEP + 1))
         # ⚠ v3194 — HIDING MOVED OFF `style.display` ON PURPOSE. _shFilter writes display too,
         # so while the river shared that channel its overflow could be un-hidden by the filter
         # pass and vice versa — measured on his shelf as "8 RUNS" in the header with ten cards on
@@ -234,44 +282,42 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         self.assertEqual(o["hidden"], [],
                          "the river is writing style.display again — that channel belongs to the "
                          "FILTER, and sharing it is what put ten cards under an 8-run header")
-        self.assertEqual(len(o["order"]) - len(o["out"]), 8, "exactly 8 flow")
+        self.assertEqual(len(o["order"]) - len(o["out"]), KEEP, "exactly %d flow" % KEEP)
 
     def test_the_mark_actually_hides(self):
         """A mark nobody styles is a flag nobody can see. [[plumbing-with-no-tap]]"""
-        with io.open(UI, encoding="utf-8") as fh:
-            ui = fh.read()
-        self.assertIn("[data-river-out] { display: none", ui,
-                      "nothing hides a run the river pushed past eight, so all of them render")
+        self.assertIn("[data-river-out] { display: none", _src(),
+                      "nothing hides a run the river pushed past the window, so all of them render")
 
     def test_a_pin_does_not_eat_a_flow_slot(self):
         """He pins a run deliberately. Hiding one to honour a count he set for the FLOW would be
         the console overruling him — and the real effect of the guard is that a pin does not
-        CONSUME one of the eight, so pinning something never silently shortens the river.
+        CONSUME one of the window's slots, so pinning something never silently shortens the river.
 
         ⚠ THE FIRST CUT OF THIS LAW WAS GREEN UNDER ITS OWN SABOTAGE. It asserted only that the
         pinned run was not pushed out — which is true either way, because pins sort to the top and
-        a single pin is inside the first eight regardless. A law that holds with the guard deleted
+        a single pin is inside the window regardless. A law that holds with the guard deleted
         tests nothing. [[sabotage-is-usually-the-wrong-one]]"""
-        o = self.drive(self._runs(12, pin=(1,)))
+        o = self.drive(self._runs(KEEP + 4, pin=(1,)))
         self.assertNotIn("r01", o["out"], "a pinned run was pushed out of the river")
         self.assertNotIn("r01", o["hidden"])
         self.assertEqual(o["order"][0], "r01", "pins stay at the top, where their header anchors")
-        # 12 runs, 1 pinned -> the pin is kept AND eight unpinned still flow, so only 3 leave
+        # KEEP + 4 runs, 1 pinned -> the pin is kept AND KEEP unpinned still flow, so only 3 leave
         self.assertEqual(o["out"], ["r04", "r03", "r02"],
-                         "the pin ate one of the eight flow slots, so pinning a run silently "
-                         "shortened the river by one")
-        self.assertEqual(len(o["order"]) - len(o["out"]), 9,
-                         "eight flowing plus the pin")
+                         "the pin ate one of the %d flow slots, so pinning a run silently "
+                         "shortened the river by one" % KEEP)
+        self.assertEqual(len(o["order"]) - len(o["out"]), KEEP + 1,
+                         "%d flowing plus the pin" % KEEP)
 
     def test_one_header_not_one_per_station(self):
-        o = self.drive(self._runs(12))
+        o = self.drive(self._runs(KEEP + 4))
         self.assertEqual(len(o["heads"]), 1,
                          "the river is sectioned again — he ruled it must be ONE flow")
         self.assertIn("River", o["heads"][0]["lab"])
 
     def test_the_header_says_how_many_were_pushed(self):
-        o = self.drive(self._runs(12))
-        self.assertIn("4 pushed past the 8", o["heads"][0]["lab"],
+        o = self.drive(self._runs(KEEP + 4))
+        self.assertIn("4 pushed past the %d" % KEEP, o["heads"][0]["lab"],
                       "runs vanished with no denominator — an unexplained disappearance reads "
                       "as data loss")
 
@@ -286,6 +332,100 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         self.assertIn("not read yet", o["heads"][0]["lab"],
                       "an unread ledger must not render as a confident zero")
 
+
+class TheWindowIsTheConsoles(unittest.TestCase):
+    """★★ REG-1480 — THE SHELF'S WINDOW IS reel_retention.KEEP_RECENT, PUBLISHED, READ, AND FALLEN
+    BACK TO — never a fourth copy in the page.
+
+    Three copies of his floor moved 8 -> 16 on 2026-09-29 (REG-1433) and the page's own literal did
+    not, because nothing joined it to the source and four laws pinned the stale number. So the join
+    is pinned from BOTH ends here — the route's dict literal (AST) and the page's reader (code, not
+    prose) — and the block is driven with the window published and unpublished. [[the-unjoined-end]]
+    """
+
+    def drive(self, n, keep):
+        return TheRiverIsOneFlowOfEight.drive(self, TheRiverIsOneFlowOfEight._runs(self, n), keep=keep)
+
+    def test_published_the_block_honours_the_consoles_window_not_its_own(self):
+        """Driven with a window the page does NOT carry, so a block that quietly used its fallback
+        (or a literal) cannot pass. [[sabotage-is-usually-the-wrong-one]]"""
+        other = KEEP - 3
+        self.assertGreaterEqual(other, 1, "KEEP_RECENT is too small for this fixture to discriminate")
+        o = self.drive(KEEP + 4, keep=other)
+        self.assertEqual(len(o["out"]), 7,
+                         "the console published a window of %d and the block kept %d — the page is "
+                         "using its own number, which is the fourth copy this law exists to end"
+                         % (other, len(o["order"]) - len(o["out"])))
+        self.assertEqual(len(o["order"]) - len(o["out"]), other)
+
+    def test_unpublished_the_page_falls_back_to_HIS_number(self):
+        """Before /api/river answers, or on a console that predates `riverKeep`, the block falls
+        back — and the fallback is his ruling, read off the block and compared with the module."""
+        o = self.drive(KEEP + 4, keep="null")
+        self.assertEqual(len(o["out"]), 4,
+                         "with no published window the block kept %d, not reel_retention's %d — "
+                         "the fallback literal has drifted from his ruling"
+                         % (len(o["order"]) - len(o["out"]), KEEP))
+        self.assertEqual(_fallback_literal(), KEEP,
+                         "the page's fallback is %d while reel_retention.KEEP_RECENT is %d: a fifth "
+                         "copy of the window, unpinned, is exactly how the fourth went stale"
+                         % (_fallback_literal(), KEEP))
+        # and a junk publication (0, a string) is not a window — the fallback still holds
+        for junk in ("0", "'16'", "-1"):
+            o2 = self.drive(KEEP + 4, keep=junk)
+            self.assertEqual(len(o2["out"]), 4, "a published %s was honoured as a window" % junk)
+
+    def test_the_console_publishes_the_window_from_the_one_source(self):
+        """AST, not grep: the /api/river dict literal that carries `mouth` also carries `riverKeep`,
+        its value is a call to `_river_keep`, and that function reads KEEP_RECENT off reel_retention."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        carriers = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Dict):
+                continue
+            keys = [k.value for k in node.keys if isinstance(k, ast.Constant)]
+            if "mouth" in keys and "population" in keys:
+                carriers.append(node)
+        self.assertEqual(len(carriers), 1,
+                         "%d dict literal(s) carry both mouth and population — re-anchor this law"
+                         % len(carriers))
+        d = carriers[0]
+        val = None
+        for k, v in zip(d.keys, d.values):
+            if isinstance(k, ast.Constant) and k.value == "riverKeep":
+                val = v
+        self.assertIsNotNone(val, "/api/river does not publish `riverKeep` — the page has nothing "
+                                  "to read and falls back forever, which is the fourth copy again")
+        self.assertTrue(isinstance(val, ast.Call) and isinstance(val.func, ast.Name)
+                        and val.func.id == "_river_keep",
+                        "riverKeep is not published through _river_keep()")
+        fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_river_keep"]
+        self.assertEqual(len(fns), 1, "_river_keep is defined %d times" % len(fns))
+        reads = [n for n in ast.walk(fns[0])
+                 if isinstance(n, ast.Attribute) and n.attr == "KEEP_RECENT"]
+        self.assertTrue(reads, "_river_keep does not read KEEP_RECENT off reel_retention — it is "
+                               "publishing a number from somewhere else")
+        print("   /api/river publishes riverKeep = _river_keep() = reel_retention.KEEP_RECENT (%d)" % KEEP)
+
+    def test_the_page_reads_what_the_console_publishes(self):
+        """Against CODE, with comments blanked: the declaration comment above the reader says
+        exactly what the reader does, and a law that greps prose grades prose. [[source-reading-guard]]"""
+        src = _src()
+        # ⚠ BLANKED, NEWLINES KEPT — the first cut replaced each comment with same-length spaces and
+        # this very assertion caught it (20721 != 29114): a stripper that eats newlines makes every
+        # offset downstream wrong. And `^\s*//` spans blank lines, so it is `[ \t]*`. [[source-reading-guard]]
+        _keep = lambda m: "".join(c if c == "\n" else " " for c in m.group(0))
+        code = re.sub(r"/\*.{0,4000}?\*/", _keep, src, flags=re.S)
+        code = re.sub(r"(?m)^[ \t]*//[^\n]*", _keep, code)
+        self.assertEqual(code.count("\n"), src.count("\n"), "the comment stripper ate newlines")
+        self.assertEqual(code.count("var SHELF_RIVER_KEEP = null;"), 1,
+                         "SHELF_RIVER_KEEP is not declared exactly once at its UNKNOWN value")
+        self.assertIn("SHELF_RIVER_KEEP = (typeof d.riverKeep === 'number'", code,
+                      "the page never reads `riverKeep` off /api/river, so the console's window "
+                      "cannot reach the shelf and the block runs on its fallback forever")
+        self.assertIn("? Math.floor(d.riverKeep) : null;", code,
+                      "a published window that is not a number >= 1 must leave the page on UNKNOWN")
 
 
 class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
@@ -308,8 +448,7 @@ class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
     def _river_branch(self):
         """START -> the branch's own `return;`. Both ends anchored, and the END is the RETURN
         rather than the mkHead, because everything after that return is unreachable from here."""
-        with io.open(UI, encoding="utf-8") as fh:
-            src = fh.read()
+        src = _src()
         i = src.find(START)
         self.assertGreater(i, -1, "the river block is gone from control_ui.html")
         e = src.find(END, i)
@@ -357,6 +496,52 @@ class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
         self.assertIn("sh-search-count", blk,
                       "the refresh is not inside the river branch at all — if it sits after the "
                       "branch's return it is unreachable, which is exactly where it sat twice")
+
+
+RED_PROOF = [
+    {
+        "why": "REG-1480 — the page's fallback drifts from his ruling (a fifth copy of the window): "
+               "with the river unanswered the shelf shows eight over a floor that keeps sixteen",
+        "file": "control_ui.html",
+        "find": "? SHELF_RIVER_KEEP : 16;",
+        "replace": "? SHELF_RIVER_KEEP : 8;",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1480 — the block stops reading the console's window and keeps its own literal, "
+               "which is the fourth copy that went stale for fourteen days",
+        "file": "control_ui.html",
+        "find": "var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) "
+                "? SHELF_RIVER_KEEP : 16;",
+        "replace": "var RIVER_KEEP = 16;",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1480 — /api/river stops publishing the window: the page has nothing to read and "
+               "falls back forever, and the next move of the ruling never reaches the shelf",
+        "file": "control_app.py",
+        "find": '                    "riverKeep": _river_keep(),\n',
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1480 — the page stops reading `riverKeep`: the route publishes into a void and the "
+               "join is plumbing with no tap",
+        "file": "control_ui.html",
+        "find": "        SHELF_RIVER_KEEP = (typeof d.riverKeep === 'number' && isFinite(d.riverKeep) "
+                "&& d.riverKeep >= 1) ? Math.floor(d.riverKeep) : null;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3176 — the cap stops capping: every run flows, nothing is pushed, and his shelf grows "
+               "without bound",
+        "file": "control_ui.html",
+        "find": "        if (keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }\n",
+        "replace": "        if (true) { c.removeAttribute('data-river-out'); keptN++; return; }\n",
+        "matches": 1,
+    },
+]
 
 
 if __name__ == "__main__":

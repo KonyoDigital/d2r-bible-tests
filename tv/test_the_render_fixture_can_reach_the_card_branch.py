@@ -39,6 +39,16 @@ to do that; this law is what replaces the refusal with a check.
 
 ⚠ AND IT MAY NEVER TOUCH HIS TREE. The seed is asserted to write only inside the directories it is
 handed. [[feedback-fixtures-never-touch-live-data]]
+
+★ THE WINDOW, AS HISTORY AND AS IT IS NOW. The river the seeded cards flow into is a FIFO on his
+2026-09-15 ruling — *"no only the last 8 sessions stay and the one coming in pushes the last one
+out of those 8 sections"* — and this law once read that 8 off the page's own `RIVER_KEEP = 8` to
+size its floor. On 2026-09-29 he ruled again (REG-1433): *"8 sessions 8 hours long? if its less
+than 8 double the amount to 16 reels.. FIFO same style just that instead of 8 last reels it reads
+16"*. The number is reel_retention.KEEP_RECENT — published by /api/river as `riverKeep`, read by
+the page, with a fallback the river law pins (REG-1480) — so this law now asks the MODULE for the
+window, requires FILM_RUNS > that window (the pushed-out branch stays reachable), and sizes the
+floor's bounds from it; no number is typed here.
 """
 import ast
 import base64
@@ -231,11 +241,23 @@ class TestTheRenderFixtureCanReachTheCardBranch(unittest.TestCase):
         #
         # ⚠ READ THE KEEP FROM THE SOURCE, never a literal 8 here: a second copy of his ruling is
         # how the two drift apart. [[label-outlived-referent]] [[copy-drift]]
-        _ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        _m = re.search(r"var RIVER_KEEP\s*=\s*(\d+)", _ui)
-        self.assertIsNotNone(_m, "RIVER_KEEP is gone from control_ui.html — re-anchor this law "
-                                 "rather than guessing how many cards the shelf keeps")
-        river_keep = int(_m.group(1))
+        #
+        # ⚠⚠ 2026-09-29 (REG-1433 / REG-1480) — AND "THE SOURCE" IS NOT THE PAGE. The lines above
+        # are history: the 8 was his 2026-09-15 ruling, and this law read it off the page's own
+        # `RIVER_KEEP = 8` — which is how a FOURTH copy of the window stayed at 8 for fourteen days
+        # after his "instead of 8 last reels it reads 16" moved the other three (REG-1444). The one
+        # source is reel_retention.KEEP_RECENT: /api/river publishes it as `riverKeep`, the page
+        # reads it and keeps only a fallback that test_the_river_is_one_flow_of_eight pins to the
+        # same constant. So this law asks the MODULE, and sizes its expectation from his number.
+        # A fixture that films more runs than the window (FILM_RUNS > KEEP_RECENT) is what makes
+        # the river branch reachable at all — cards must be pushed out for the count to matter.
+        import reel_retention as _RR
+        river_keep = int(_RR.KEEP_RECENT)
+        self.assertGreaterEqual(river_keep, 1, "reel_retention.KEEP_RECENT is not a window: %r" % river_keep)
+        self.assertGreater(rc.FILM_RUNS, river_keep,
+                           "the seed films %d run(s), not more than the %d-card window, so no card is "
+                           "ever pushed out and the river branch this fixture exists to reach cannot "
+                           "be told from a grid with no cap" % (rc.FILM_RUNS, river_keep))
         low = 2 * min(rc.FILM_RUNS, river_keep)
         for width, n in sorted(shelf.items()):
             print("   floor shelf-cards %-10s = %-4d (structural minimum %d)" % (width, n, low))
@@ -284,7 +306,7 @@ RED_PROOF = [
         "why": "the blessed floor is put back above what this world can paint, which is the "
                "permanently-red gate that started all of this",
         "file": "render_coverage.json",
-        "find": '   "shelf-cards": {\n      "1120x628": 16,',
+        "find": '   "shelf-cards": {\n      "1120x628": 34,',
         "replace": '  "shelf-cards": {\n   "1120x628": 441,',
         "matches": 1,
     },

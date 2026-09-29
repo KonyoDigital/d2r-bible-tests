@@ -1711,7 +1711,15 @@ def _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot():
         except Exception:
             return None                      # the module is the right-hand side; absent is UNKNOWN
         known = set(_LR.RESTORABLE) | set(_LR.BACKED_UP_ONLY)
-        return len([k for k in led if k not in known])
+        stray = [k for k in led if k not in known]
+        # REG-1481 — the hand-made stores the watcher judges live in `allStores`, not in `led`, and each
+        # must have a declared way back (HAND_MADE_DOOR). A store added to HAND_MADE without a door is
+        # the same drift one level down: judged, paged, and nowhere to send him.
+        al = (blob or {}).get("allStores")
+        if isinstance(al, dict):
+            stray += [s for s in getattr(_LR, "HAND_MADE", ())
+                      if ("d2r_" + s) in al and s not in getattr(_LR, "HAND_MADE_DOOR", {})]
+        return len(stray)
 
     def right():
         return 0
