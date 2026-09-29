@@ -847,7 +847,7 @@ def _bring_across(src, dst, need, say):
         env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
         r = subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout",
                             os.path.dirname(os.path.normpath(src)), tmp],
-                           capture_output=True, text=True, timeout=300, env=env)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, env=env)
         if r.returncode != 0:
             shutil.rmtree(tmp, ignore_errors=True)
             say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
@@ -856,7 +856,7 @@ def _bring_across(src, dst, need, say):
         os.replace(os.path.join(tmp, ".git"), dst)
         shutil.rmtree(tmp, ignore_errors=True)
         subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
-                       capture_output=True, text=True, timeout=120, env=env)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
         return
     if os.path.isfile(src):
         if os.path.getsize(src) > _NEED_COPY_MAX_FILE:

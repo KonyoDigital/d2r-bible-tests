@@ -4574,7 +4574,7 @@ def _capture_rows(timeout=30):
         proc = subprocess.Popen(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
                                  _capture_query_ps(CAPTURE_PS1)],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                                text=True, creationflags=_WIN_CREATE)
+                                text=True, encoding="utf-8", errors="replace", creationflags=_WIN_CREATE)
     except Exception:
         return None
     try:

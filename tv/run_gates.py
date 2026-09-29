@@ -211,7 +211,6 @@ GATES = [
              "reason does not already carry the PHRASE (REG-1512: the bare word, said about a lock or a ledger, "
              "swallowed the framing); reel_river, printer and reel_router are DRIVEN on their UNKNOWN paths and "
              "counted, and the readers are parsed so no spelling of the prefix comes back. 6 red-proofs"),
-             "reason does not say UNKNOWN; the readers are parsed so none builds the literal prefix again. 2 red-proofs"),
     Gate("test_the_launcher_brings_a_running_console_forward", [sys.executable,
          os.path.join(HERE, "test_the_launcher_brings_a_running_console_forward.py")], 60,
          why="REG-1514 - the second eye on 4e22a57a: a Desktop double-click on a Mac console whose window was UP fell "
@@ -224,7 +223,8 @@ GATES = [
              "the stream every 400 ms, and dwm.exe died of memory exhaustion eight times in an hour. The spawn is now "
              "one at a time, the capture is told its console, a stop checks its kill landed, a boot sweep ends only "
              "orphans, and the capture leaves by itself when its lease or console is gone (real PowerShell where "
-             "one exists). 5 red-proofs"),
+             "one exists). REG-1509 (review of v3524): End Session no longer races the capture lamp, the sweep never "
+             "counts its own query, a reused console pid is still an orphan. 19 red-proofs"),
     Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
          os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
          why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "
