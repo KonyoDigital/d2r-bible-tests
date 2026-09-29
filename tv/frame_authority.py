@@ -68,7 +68,10 @@ def _hist_dir(hist_dir):
         pass
     return os.path.join(HERE, "frames", "hist")
 
-KEEP_RECENT = 8            # never touch the newest EIGHT reels, whatever any ledger says
+KEEP_RECENT = 16           # never touch the newest SIXTEEN reels, whatever any ledger says
+#: ⚠ 2026-09-29 — 8 -> 16 with reel_retention.KEEP_RECENT (his "instead of 8 last reels it reads 16"). Only the
+#: reel deleter narrows under disk pressure (whole EXTRACTED reels go); this frame stripper never does, which is
+#: the safe direction test_the_two_deleters_share_one_window describes - no reel is ever left gutted.
 #: ⚠ v2875 — 5 -> 8 with reel_retention.KEEP_RECENT, on his instruction. These two MUST
 #: agree: one guards reels, the other the frames inside them, and a frame floor lower than
 #: the reel floor would empty a reel the retention rule swore never to touch.

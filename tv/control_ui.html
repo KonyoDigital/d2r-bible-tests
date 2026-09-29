@@ -22407,7 +22407,7 @@ window._lockMark = function(isOpen, px, label){
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (typeof toast === 'function') toast('Hidden - still recording. The Desktop icon brings it back; ⏻ quit stops it.');
+      if (typeof toast === 'function') toast('Leaving console - it keeps recording, hidden. The Desktop icon brings it back; ⏻ quit stops it.');
     } catch (_t) {}
     try {
       /* 2026-09-29 — Esc is "same as ✕", and ✕ now sends the console to the BACKGROUND instead of quitting:

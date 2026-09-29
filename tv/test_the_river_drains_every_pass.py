@@ -474,7 +474,16 @@ class PressureNeverFreesLess(_Base):
         # ⚠ freeGb is published rounded to 0.1 (7.9995 -> 8.0), so the premise is asserted on the
         # pinned number above and on needMb here, never on the rounded display figure.
         self.assertGreater(st.get("needMb") or 0, 0, "premise: the pass measured itself short")
-        self._check_all_four(r, st, "below the floor")
+        # 2026-09-29 — BELOW THE RECORDING FLOOR THE WINDOW NARROWS TO THE OLD EIGHT (his sixteen must never be
+        # what stops the next reel filming - reel_retention.keep_recent_for), so every finished reel older than
+        # the newest eight goes: MORE than a roomy disk frees, which is the direction this class exists to pin.
+        keep = RR.KEEP_RECENT_UNDER_PRESSURE
+        want = self.w.names[:-keep]
+        self.assertGreater(len(want), len(self.old), "premise: the narrowed window reaches past the four old reels")
+        self.assertEqual(sorted(r.get("removed") or []), sorted(want),
+                         "below the floor the pass kept more than the newest %d finished reels: %r" % (keep, r))
+        for nm in self.w.names[-keep:]:
+            self.assertIn(nm, self.w.on_disk(), "pressure reached into the newest %d reels" % keep)
 
 
 class TheHeartSeesTheDrainStop(_Base):
@@ -755,8 +764,8 @@ RED_PROOF = [
         "why": "restoring the need_mb gate makes disk pressure free LESS than a roomy disk — "
                "every finished reel past the first is held target-met",
         "file": "tv/control_app.py",
-        "find": "    p = _rr.plan(hist, free_mb=None)\n",
-        "replace": "    p = _rr.plan(hist, free_mb=(need_mb or None))\n",
+        "find": "    p = _rr.plan(hist, free_mb=None, keep_recent=_keep)\n",
+        "replace": "    p = _rr.plan(hist, free_mb=(need_mb or None), keep_recent=_keep)\n",
         "matches": 1,
     },
     {

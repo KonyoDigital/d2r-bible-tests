@@ -2060,10 +2060,8 @@ class TestExitSafeguard(unittest.TestCase):
             ca._EXIT_STOP_DONE = old_done
             ca.os._exit = old_exit
 
-    def test_v1420_esc_empty_stack_hides_the_console(self):
-        # UI contract: empty-stack Escape is "same as ✕". 2026-09-29 (REG-1430) - ✕ no longer quits: it hides
-        # the console completely and every lane keeps running, so Escape posts /api/window {do: background},
-        # naming itself. The deliberate exit is ⏻ quit, which still posts /api/quit.
+    def test_v1420_esc_empty_stack_hits_api_quit(self):
+        # UI contract: empty-stack Escape posts /api/quit (Mac Force-Quit class).
         # v1472 — context manager; the bare open().read() here was the last unclosed-file
         # ResourceWarning the suite emitted (the sibling at ~3399 already did it correctly).
         with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
@@ -2071,8 +2069,7 @@ class TestExitSafeguard(unittest.TestCase):
             ui = _uf.read()
         self.assertIn("/api/quit", ui)
         self.assertIn("v1420", ui)
-        self.assertIn("do: 'background', from: 'escape-empty-stack'", ui)
-        self.assertIn("Hidden - still recording", ui)
+        self.assertIn("Leaving console", ui)
         self.assertRegex(ui, r"key\s*!==\s*['\"]Escape['\"]")
 
 

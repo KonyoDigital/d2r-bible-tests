@@ -407,7 +407,103 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         self.assertTrue(all(ord(c) < 128 for c in branch), "non-ASCII in a file Windows PowerShell 5 reads")
 
 
+class TheFirstBeaconWaitsForTheWindow(_Base):
+    """2026-09-29 03:21 — after a relaunch his fleet row read "konyo-3 · this console has no native window ...
+    relaunch it WITH a window" over the window on his screen: the boot beacon left in the first second."""
+
+    def _clock(self):
+        t = [0.0]
+
+        def now():
+            return t[0]
+
+        def sleep(s):
+            t[0] += s
+        return now, sleep
+
+    def test_a_console_opening_a_window_beacons_once_it_is_up(self):
+        now, sleep = self._clock()
+        ca._MAIN_WIN = None
+        state = {"n": 0, "shown": False}
+
+        class _Shown(object):
+            def is_set(self_inner):
+                return state["shown"]
+
+        class _Evs(object):
+            shown = _Shown()
+        self.win.events = _Evs()
+
+        def _sleep(s):
+            state["n"] += 1
+            if state["n"] == 2:
+                ca._MAIN_WIN = self.win          # the window OBJECT exists on the second second...
+            if state["n"] == 5:
+                state["shown"] = True            # ...and is on screen on the fifth
+            sleep(s)
+        saved = list(sys.argv)
+        try:
+            sys.argv[:] = ["tv/control_app.py", "--open"]
+            why = ca._boot_beacon_wait(timeout=60.0, sleep=_sleep, clock=now)
+        finally:
+            sys.argv[:] = saved
+        self.assertEqual(why, "window up", "the boot beacon went before the window it was about to have")
+        self.assertEqual(state["n"], 5, "the boot beacon left before the window was on screen (at %d s)" % state["n"])
+
+    def test_it_never_waits_for_ever_and_never_waits_headless(self):
+        now, sleep = self._clock()
+        ca._MAIN_WIN = None
+        saved = list(sys.argv)
+        try:
+            sys.argv[:] = ["tv/control_app.py", "--open"]
+            why = ca._boot_beacon_wait(timeout=5.0, sleep=sleep, clock=now)
+            self.assertIn("did not come up", why, "a window that never comes silenced the fleet")
+            sys.argv[:] = ["tv/control_app.py", "--no-open"]
+            self.assertEqual(ca._boot_beacon_wait(timeout=5.0, sleep=sleep, clock=now), "no window expected")
+        finally:
+            sys.argv[:] = saved
+
+    def test_an_opening_window_is_not_called_headless(self):
+        self.assertTrue(ca._window_expected(["x", "--open"]))
+        self.assertFalse(ca._window_expected(["x", "--no-open"]))
+        self.assertFalse(ca._window_expected(["x", "--window-only"]))
+        # DRIVEN, not read: a source check here was BLIND (the tamper left the words in the file)
+        import fleet_mask as _fm
+        saved = (ca._mask_fallback, _fm.load_roster_for, getattr(ca, "_BOARD_WIN", None), list(sys.argv))
+        try:
+            ca._mask_fallback = lambda ledger, why: why
+            _fm.load_roster_for = lambda name: (["Tal Rasha's Guardianship"], "fp")
+            ca._BOARD_WIN = None
+            ca._MAIN_WIN = None
+            sys.argv[:] = ["tv/control_app.py", "--open"]
+            opening = ca.board_mask("sets")
+            sys.argv[:] = ["tv/control_app.py", "--no-open"]
+            headless = ca.board_mask("sets")
+        finally:
+            ca._mask_fallback, _fm.load_roster_for, ca._BOARD_WIN = saved[0], saved[1], saved[2]
+            sys.argv[:] = saved[3]
+        self.assertIn("still opening", str(opening),
+                      "a console whose window is opening is told to relaunch WITH a window: %r" % (opening,))
+        self.assertIn("no native window", str(headless), "a headless console lost its own sentence: %r" % (headless,))
+        self.assertIn("_boot_beacon_wait()", inspect.getsource(ca._console_beacon_loop),
+                      "the beacon loop no longer waits for the window before its first beacon")
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - the boot beacon leaves before the window again: the fleet shows the host name and 'no native window'",
+        "file": "tv/control_app.py",
+        "find": "            if ev is None or ev.is_set():\n                return \"window up\"\n",
+        "replace": "            if True:\n                return \"window up\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - a console whose window is still opening is told to relaunch WITH a window",
+        "file": "tv/control_app.py",
+        "find": "            if _window_expected() else\n",
+        "replace": "            if False else\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - ✕ quits by default again: every session he plays with the window shut goes unfilmed",
         "file": "tv/control_app.py",

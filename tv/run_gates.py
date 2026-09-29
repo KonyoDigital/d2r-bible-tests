@@ -180,7 +180,7 @@ GATES = [
              "this thing and window is completely hidden') and every lane keeps running; ⏻ quit still quits. "
              "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
              "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
-             "the window (frame and flag both lied, measured). 16 red-proofs"),
+             "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434). 18 red-proofs"),
     Gate("test_quit_attribution", [sys.executable,
                                    os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
          why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "

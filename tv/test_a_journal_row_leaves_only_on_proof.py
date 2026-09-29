@@ -73,8 +73,9 @@ class TestAJournalRowLeavesOnlyOnProof(unittest.TestCase):
     def test_only_a_retired_row_is_releasable(self):
         rows = [_row("s_old_%d" % i, t0=BEGAN + 1000 + i, state=s)
                 for i, s in enumerate(("retired", "unknown", "none", "", "RETIRED"))]
-        # 8 newer rows so none of the above are protected by the recent window
-        rows += [_row("s_new_%d" % i, t0=BEGAN + 9_000_000 + i) for i in range(8)]
+        # KEEP_RECENT newer rows so none of the above are protected by the recent window - SIZED FROM THE
+        # CONSTANT: a literal 8 went red the day his window became 16 (2026-09-29), for no reason of its own
+        rows += [_row("s_new_%d" % i, t0=BEGAN + 9_000_000 + i) for i in range(self.JR.KEEP_RECENT)]
         p = self.JR.plan(rows, hist_dir=os.path.join(HERE, "__no_such_dir__"))
         got = {r["sessionId"] for r in p["release"]}
         print("releasable: %s" % sorted(got))

@@ -7,6 +7,32 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1434 - THE FIRST BEACON LEFT BEFORE THE WINDOW: HIS ROW READ "konyo-3 · no native window" OVER HIS WINDOW (2026-09-29)
+
+**What he saw, 03:21, after his console was relaunched:** *"suddenly in fleet my name changed and says i have no
+window"* - the row read `konyo-3 · this console has no native window (headless or --no-open) ... relaunch it WITH a
+window`. **Measured:** one console on :17772 (the windowed one), and by 00:22Z its row read `Konyo`, masks present,
+no maskWhy. The `boot` beacon fires in the first second - before the window, the board and the install identity are
+up - and the next one is 240 s away. **Fix:** a console started to open a window sends its first beacon once the
+window is on screen (bounded at 60 s, never for a headless one), and a console whose window is still opening says so
+instead of "relaunch it WITH a window". Law cases + 2 red-proofs in test_closing_the_window_keeps_the_console_running.
+
+### REG-1433 - THE SHELF KEEPS THE NEWEST 16 REELS, NOT 8 - AND NEVER AT THE COST OF RECORDING (2026-09-29)
+
+**His words:** *"8 sessions 8 hours long? if its less than 8 double the amount to 16 reels.. FIFO same style just
+that instead of 8 last reels it reads 16"*. **Measured that night:** a full hour of shadow reel is 344-506 MB on his
+Mac (1440x904 JPEG screenshots, ~145 KB each, one per ~1.0 s - median gap 1.01 s, p90 1.27 s) and 50-62 MB on the
+ALT (~55 KB, one per ~3.5 s). Eight hours is ~3-4 GB on the Mac - under his 8 GB line - so the FIFO floor doubles:
+`KEEP_RECENT` 8 -> 16 in reel_retention, frame_authority and journal_retention (the floor law pins them equal).
+**The guard:** sixteen full hours is ~8 GB on the Mac (14 GB free that night), and below `ON_AIR_FLOOR_GB` the
+console refuses to film. So the deleting pass asks `reel_retention.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)`:
+under the floor it keeps the old eight and the oldest EXTRACTED reels beyond them go first; an unreadable disk keeps
+all sixteen. Eligibility is untouched - nothing unread ever goes. The frame stripper never narrows, which is the
+safe direction (no reel is left gutted of its frames).
+**Laws:** test_the_two_keep_floors_agree (16 + the pressure rule, 4 red-proofs); the river-drain pressure case now
+expects every finished reel beyond the newest 8 to go below the floor; the journal fixture is sized from the
+constant; two anchors re-aimed (fullscreen guard, the retention plan call).
+
 ### REG-1430 - CLOSING THE WINDOW STOPPED THE WHOLE CONSOLE, SO SESSIONS PLAYED WITH IT SHUT WERE NEVER FILMED (2026-09-29)
 
 **His ask:** *"make sure after the console is up and running there is a default ON true for shadow reader and
@@ -44,7 +70,7 @@ is what moved the measure to the style bit. Those test windows appeared on his s
 that is a change to how his machines boot, so it is offered, not installed. Page-side intakes that run in the
 board's JavaScript behave as they already do while he plays with the console behind the game.
 
-**Law:** `tv/test_closing_the_window_keeps_the_console_running.py` (18 cases, 16 red-proofs). A hidden console also RELAUNCHES hidden (TV_START_HIDDEN across os.execv), and `--background` starts one hidden for a sign-in launch.
+**Law:** `tv/test_closing_the_window_keeps_the_console_running.py` (21 cases, 18 red-proofs). A hidden console also RELAUNCHES hidden (TV_START_HIDDEN across os.execv), and `--background` starts one hidden for a sign-in launch.
 
 ### REG-1420 - AN UNPARSEABLE MULE STORE READ AS EMPTY, AND THE NEXT SAVE ERASED IT (2026-09-29)
 

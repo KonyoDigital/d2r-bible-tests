@@ -3125,8 +3125,12 @@ def board_mask(ledger="sets"):
     # [[headless-console-looks-like-lost-data]] [[unknown-stays-unknown]]
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
+        # 2026-09-29 — a console that was STARTED to open a window and has not got it yet is opening, not
+        # headless; telling him to "relaunch it WITH a window" over the window on his screen was wrong.
         return _mask_fallback(
             ledger,
+            "this console's window is still opening - the names are read once it is up"
+            if _window_expected() else
             "this console has no native window (headless or --no-open), so it can COUNT its "
             "pieces but can never NAME them - relaunch it WITH a window")
     js = ("(function(){try{"
@@ -3556,7 +3560,35 @@ def _console_beacon_async(event):
     threading.Thread(target=_console_beacon, args=(event,), daemon=True).start()
 
 
+def _window_expected(argv=None):
+    """Was this console started to OPEN a window (the launchers pass --open)? -> bool. Pure over argv."""
+    a = sys.argv if argv is None else argv
+    return ("--open" in a or "-o" in a) and "--no-open" not in a and "--window-only" not in a
+
+
+def _boot_beacon_wait(timeout=60.0, sleep=time.sleep, clock=time.time):
+    """2026-09-29 — THE FIRST BEACON WAITS FOR THE WINDOW IT IS ABOUT TO HAVE. After a relaunch his fleet row read
+    "konyo-3 · this console has no native window (headless or --no-open) ... relaunch it WITH a window" over a
+    console whose window was on his screen: the boot beacon went out in the first second, before the window, the
+    board and the install identity were up, and the next beacon is four minutes away. A console opening a window
+    now waits for it (bounded - a window that never comes must not silence the fleet). -> the reason it went."""
+    if not _window_expected():
+        return "no window expected"
+    t0 = clock()
+    while clock() - t0 < timeout:
+        w = globals().get("_MAIN_WIN")
+        if w is not None:
+            if globals().get("_HIDDEN_BOOT"):
+                return "window created hidden"
+            ev = getattr(getattr(w, "events", None), "shown", None)
+            if ev is None or ev.is_set():
+                return "window up"
+        sleep(1.0)
+    return "the window did not come up in %ds - beaconing anyway" % int(timeout)
+
+
 def _console_beacon_loop():
+    _boot_beacon_wait()
     _console_beacon("boot")
     _last_mode = [None]
     while True:
@@ -22884,7 +22916,10 @@ def _retention_once():
     # retention_may_act still has the final say. plan()'s own `free_mb` stop is untouched for the
     # CLI's --free-mb; only this caller stopped handing it a disk-derived target.
     # [[feedback-threshold-above-the-ceiling]] [[heart-first]]
-    p = _rr.plan(hist, free_mb=None)
+    # 2026-09-29 — his sixteen, bent to eight only while the disk is under the recording floor (see
+    # reel_retention.keep_recent_for): holding the extra hours must never be what stops the next one filming.
+    _keep = _rr.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)
+    p = _rr.plan(hist, free_mb=None, keep_recent=_keep)
     if not p.get("ok"):
         _dr = dict(_retention_drain(unknown_why=str(p.get("why") or "no reason given")[:120]),
                    neverRecorded=bool(p.get("neverRecorded")))
