@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1431 - THE FLEET ROWS PRINTED EVERY PC'S FILMS / RIVER / TRIAGE UPFRONT (2026-09-29)
+
+**His words:** *"i dont want it rendering to me all this here upfront. only if clicked on or something like a
+backdoor to the informational background ... simplified for the eye and user friendly like it was and even
+better"*. v3522 put three fact lines under every PC row. They now live in the PC's cross-reference box (opened by a
+click), in a quiet strip above the SETS / UNIQUES tabs; the row is back to name, dot and one status word.
+**Law:** `tv/test_the_fleet_card_says_how_each_pc_films_and_drains.py` (15 red-proofs PROVEN; its reader now waits
+on the box head, not on the element under test - the old wait turned a tamper into a 180 s hang).
+
 ### REG-1420 - AN UNPARSEABLE MULE STORE READ AS EMPTY, AND THE NEXT SAVE ERASED IT (2026-09-29)
 
 **SEEN (the #41 heart audit, verified, rank 7):** the vault module's load() answered {} for d2r_muleAssign bytes that
