@@ -9,6 +9,7 @@ window-only onto a STALE console), and the console says whether it is stale itse
 DRIVEN: tv/launcher_decide.decide() against a fake console on an EPHEMERAL port (never :17772) that answers
 /api/window and /api/status the way the real one does, and records every POST. RED_PROOF below.
 """
+import io
 import json
 import os
 import sys
@@ -126,6 +127,43 @@ class TheDecision(unittest.TestCase):
         self.assertIn("did not answer", why)
 
 
+class TheShellBlockRunsUnderSetE(unittest.TestCase):
+    """v3525 — the law above drove launcher_decide.py and never the SHELL that calls it. start_tvd_mac.sh runs
+    under `set -euo pipefail`, and `x=$(cmd)` whose cmd exits 1 ends the script on that line: with the console
+    down ("replace it", rc 1) the launcher launched nothing and his Desktop icon did nothing (measured on his Mac,
+    2026-09-29 21:03, `bash -x`: last line was the decide call). DRIVEN: the real block, cut from the real script,
+    run by bash with the same flags against a fake launcher_decide.py."""
+
+    def _run_block(self, rc):
+        import subprocess, tempfile
+        src = io.open(os.path.join(HERE, "start_tvd_mac.sh"), encoding="utf-8").read()
+        i = src.index('if [ -z "${TV_FORCE_PORT:-}" ]; then\n', src.index("REG-1514"))
+        j = src.index("\nfi\n", i) + 4
+        block = src[i:j]
+        self.assertIn("launcher_decide.py", block, "the cut missed the decide call")
+        d = tempfile.mkdtemp(prefix="launcher_block_")
+        try:
+            io.open(os.path.join(d, "launcher_decide.py"), "w", encoding="utf-8").write(
+                "import sys\nprint('fake decide')\nsys.exit(%d)\n" % rc)
+            script = "set -euo pipefail\nHERE=%s\n%s\necho REACHED-THE-LAUNCH\n" % (d, block)
+            r = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+            return r
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_replace_it_goes_on_to_launch(self):
+        r = self._run_block(1)
+        self.assertIn("REACHED-THE-LAUNCH", r.stdout,
+                      "with the console down the launcher stopped at the decide call and launched nothing "
+                      "(rc=%s stderr=%r)" % (r.returncode, r.stderr[-200:]))
+
+    def test_brought_forward_ends_the_launch(self):
+        r = self._run_block(0)
+        self.assertEqual(0, r.returncode)
+        self.assertNotIn("REACHED-THE-LAUNCH", r.stdout, "a console brought forward was replaced anyway")
+
+
 RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is replaced",
@@ -146,6 +184,13 @@ RED_PROOF = [
         "file": "tv/launcher_decide.py",
         "find": "    if not ok:\n",
         "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (v3525) - the decide call is bare again under set -e; 'replace it' ends the script",
+        "file": "tv/start_tvd_mac.sh",
+        "find": "  _tvd_why=$(python3 \"$HERE/launcher_decide.py\" --port 17772 --from mac-launcher 2>/dev/null) || _tvd_rc=$?\n",
+        "replace": "  _tvd_why=$(python3 \"$HERE/launcher_decide.py\" --port 17772 --from mac-launcher 2>/dev/null)\n",
         "matches": 1,
     },
 ]
