@@ -98,7 +98,7 @@ def _served_plan(path, body=b"{}"):
 
 BODY = r"""
 var PLAN = __PLAN__;
-var location = { hostname: '127.0.0.1' };
+var location = { hostname: '127.0.0.1', origin: 'http://127.0.0.1:17999' };   /* #41 rank 18 - the console that SERVED the board */
 var FETCHES = [], ASKED = [], RESULT = {}, BODIES = [];
 globalThis.fetch = function(url, opt){
   FETCHES.push(String(url));
@@ -383,7 +383,7 @@ def _ledger_b():
 
 BODY_B = r"""
 var PLAN = __PLAN__;
-var location = { hostname: '127.0.0.1' };
+var location = { hostname: '127.0.0.1', origin: 'http://127.0.0.1:17999' };   /* #41 rank 18 - the console that SERVED the board */
 globalThis.fetch = function(url){
   return Promise.resolve({ ok: true, json: function(){ return Promise.resolve(PLAN); } });
 };

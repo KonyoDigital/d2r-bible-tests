@@ -56,6 +56,9 @@ SCOPE_END = "⟦VAULT RESET SCOPE END⟧"
 DOOR_RESET = "  window.vaultReset = async function(){\n"
 DOOR_FULL = "  window.vaultClearHistory = async function(){\n"
 LINES = (
+    # #41 rank 18 — the ONE rule for which console a board asks (the origin that served it); the rebuild plan's ask
+    # reads it, so a reset driven here must carry it
+    "  function _consoleOrigin(){ var o = ''; try { o = (window.location && window.location.origin) ? String(window.location.origin) : ''; } catch (e) { o = ''; } return /^https?:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?$/.test(o) ? o : null; }",
     "  var RK='d2r_muleRoster', AK='d2r_muleAssign';",
     "  function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }",
     "  var PROV_KEY = 'd2r_vaultProv';",

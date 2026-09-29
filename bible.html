@@ -10221,6 +10221,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   var tick = null, say = '', serial = 0, undoSig = null;
   /* the room's words while the planner is open over it; cleared when the planner closes */
   var SAY_BUILDER = 'The Character Builder is open over this room. Close it first, then delete here - a build is never deleted while the planner is open, because it may be the one on screen there.';
+  /* #41 rank 13 (2026-09-29) — TWO MAINs UNDER ONE WORD, SAID ON THE BUTTON. ★ MAIN (d2r_cbMain) is this room's: the
+     build listed first here and in the planner. The Vault's MAIN (d2r_mainCharacter, its lock panel) is what the
+     #246 lock follows. They are separate by his ruling (above) and can name different characters; nothing said so,
+     and marking a build ★ MAIN looked like it would lock its gear. The doctor row 'characters room' names the two
+     when they differ. */
+  var SAY_MAIN = 'Marks the character you play most - listed first here and in the planner. It does not lock gear: the Vault\'s lock follows the MAIN named in its lock panel.';
   var own = Object.prototype.hasOwnProperty;
 
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -10299,7 +10305,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       + '<div class="chx-acts">'
       +   '<button type="button" class="chx-btn chx-open" data-act="open"' + fo + ' onclick="window._charsOpen(' + arg(id) + ')">Open</button>'
       +   (isMain ? '<button type="button" class="chx-btn chx-setmain" data-act="main"' + fo + ' disabled title="this is your MAIN character">★ MAIN</button>'
-                  : '<button type="button" class="chx-btn chx-setmain" data-act="main"' + fo + ' onclick="window._charsSetMain(' + arg(id) + ')">★ Set as MAIN</button>')
+                  : '<button type="button" class="chx-btn chx-setmain" data-act="main"' + fo + ' title="' + SAY_MAIN + '" onclick="window._charsSetMain(' + arg(id) + ')">★ Set as MAIN</button>')
       +   '<button type="button" class="chx-btn chx-del' + (isArmed ? ' chx-armed' : '') + '" data-act="del"' + fo + ' onclick="window._charsDelete(' + arg(id) + ')"'
       +     (isArmed ? ' aria-label="Confirm delete of ' + esc(b.name || id) + '"' : '') + '>' + (isArmed ? 'Confirm delete?' : 'Delete') + '</button>'
       + '</div></article>';
@@ -10381,7 +10387,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       list.innerHTML = '<div class="chx-empty" data-state="empty"><div class="chx-empty-t">No characters yet</div>'
         + '<div>Build one by hand in the planner. It is kept here, apart from the Vault\'s mules — the readers never add to it.</div>'
         + '<ul class="chx-how"><li><b>+ New character</b> opens the planner: pick a class and level, then click a slot on the doll to equip any item in the game, and click an inventory cell to add charms.</li>'
-        +   '<li><b>Set as MAIN</b> marks the character you play most; it is listed first here and in the planner.</li>'
+        +   '<li><b>Set as MAIN</b> marks the character you play most; it is listed first here and in the planner. It does not lock gear - the Vault\'s lock follows the MAIN named in its lock panel.</li>'
         +   '<li><b>Delete</b> asks twice, and an Undo restores the build exactly as it was for 20 seconds.</li></ul>'
         + '<button type="button" class="chx-btn chx-new" data-act="new" onclick="window._charsNew()">+ New character</button></div>';
       return true;
@@ -39036,6 +39042,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.VAULT_PROVEN_BAR = null;
   function _vaultAskProven(then){
     if (window.__vaultProvenAsked) return;
+    /* #41 rank 18 — asked of the console that served this page (_consoleOrigin), never :17772 by name; with no serving
+       console (the public site, a file:// board) nobody is asked and the chip stays ABSENT — the one-shot flag is
+       left clear, so a console that serves a later load can still be asked */
+    var origin = _consoleOrigin();
+    if (!origin) return;
     window.__vaultProvenAsked = 1;
     var ctl = null;
     try { ctl = new AbortController(); } catch (e) { ctl = null; }
@@ -39043,7 +39054,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: '{}' };
     if (ctl) opt.signal = ctl.signal;
-    fetch('http://127.0.0.1:17772/api/vault_proven', opt)
+    fetch(origin + '/api/vault_proven', opt)
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(d){
         clearTimeout(killed);
@@ -39526,6 +39537,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      ("SHOULD NEVER BE TOLD TO BE MOVED its locked there"). The door refuses it with main:true.
      ⚠ THE PROVENANCE LANDS BEFORE THE FILING. If the second write fails, what is left is a witnessed row
      with no filing (vaultAutoAssign re-files it), never a filing with no witness. */
+  /* #41 rank 18 (2026-09-29) — THE CONSOLE THIS BOARD ASKS IS THE ONE THAT SERVED IT, never :17772 by name. The reset's
+     plan and the proof chip both fetched 'http://127.0.0.1:17772/api/...' whatever console served the page, and
+     control_app's CORS (Access-Control-Allow-Origin *, OPTIONS 204) lets that answer through: a board on a scratch
+     or second console (a gate's :179xx, his ALT's) would have filed its vault from HIS REAL ledger. ONE rule, one
+     line (the reset laws cut it by this line): the page's own origin when a local console served it, null otherwise
+     — a file:// board or the public site has no console to ask, and says UNKNOWN rather than asking his.
+     [[the-unjoined-end]] [[copy-drift]] */
+  function _consoleOrigin(){ var o = ''; try { o = (window.location && window.location.origin) ? String(window.location.origin) : ''; } catch (e) { o = ''; } return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o) ? o : null; }
+  window._consoleOrigin = _consoleOrigin;
   var PROV_KEY = 'd2r_vaultProv';
   var VAULT_WITNESS_FLOOR = 0.55;   /* = vault_retro.KEEP_CONF_FLOOR — pinned by test_every_mule_filing_carries_its_witness */
   var VAULT_WITNESS_MIN = 2;        /* = vault_retro.KEEP_MIN_WITNESSES — HIS ruling; pinned the same way */
@@ -46470,10 +46490,10 @@ function renderJournal(){
     try {
       if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence(sent);
     } catch (e) { return unread; }
-    var host = '';
-    try { host = (window.location) ? String(window.location.hostname || '') : ''; }
-    catch (e2) { host = ''; }
-    if (host !== '127.0.0.1' && host !== 'localhost') return unread;
+    /* #41 rank 18 — the plan is asked of the console that SERVED this board (_consoleOrigin: the page's own origin
+       when a local console did), never of :17772 by name; no serving console = unread, UNKNOWN */
+    var origin = _consoleOrigin();
+    if (!origin) return unread;
     if (typeof fetch !== 'function') return unread;
     var ctl = null, timer = null;
     try { ctl = new AbortController(); } catch (e3) { ctl = null; }
@@ -46484,7 +46504,7 @@ function renderJournal(){
       var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ recorded: sent }) };
       if (ctl) opt.signal = ctl.signal;
-      var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);
+      var res = await fetch(origin + '/api/vault_rebuild_plan', opt);
       if (!res || !res.ok) return unread;
       var doc = await res.json();
       return (doc && typeof doc === 'object') ? doc : unread;
@@ -56350,6 +56370,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var out = { name: shown ? shown.name : e.name, base: shown ? shown.base : (b ? b[0] : ''), q: shown ? shown.q : (e.q || 'b'), eth: !!e.eth,
                 sockets: e.sockets | 0, clvl: clvl, lines: [], set: [], reqs: {}, defense: null, dmg1: null, dmg2: null, only: null };
     if (!it){ out.lines.push({ t: 'this item is not in the database this page carries', cls: 'd2t-unk' }); return out; }
+    /* #41 rank 11 — a unique / set item / runeword whose base is not on record: _cbShown fell back to the ITEM's own name
+       for its base, which equals the name, so the box printed NO base line at all — a silent gap under the Edit panel's
+       "(0 sockets max)". Said, as UNKNOWN, in the base line's own place. [[unknown-stays-unknown]] */
+    if (!b && !_cbIsBase(it)){ out.base = 'base UNKNOWN (not on record' + (e.base ? ': ' + String(e.base) : '') + ')'; out.baseUnknown = true; }
     /* #174 v-B4: ONE LIST - the item's lines and its sockets' (runes, gems, a unique jewel), summed and in the game's
        order, before anything below reads them (Hel's -20% is a rune line; Ohm's +50% Enhanced Damage and Sol's +9 to
        Minimum Damage reach the damage).
@@ -56559,7 +56583,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     entry = entry || {};
     var q = CB_QMAP[entry.q] || entry.q || 'b', qc = 'd2t-' + (q === 'rare' ? 'rare' : q), one = _d2tOne;
     var h = '<div class="' + qc + '">' + esc(entry.name || '') + '</div>';
-    if (entry.base && entry.base !== entry.name) h += '<div class="' + (entry.baseGrey ? 'd2t-g' : qc) + '">' + esc(entry.base) + '</div>';
+    if (entry.base && entry.base !== entry.name) h += '<div class="' + (entry.baseUnknown ? 'd2t-unk' : (entry.baseGrey ? 'd2t-g' : qc)) + '">' + esc(entry.base) + '</div>';
     if (entry.charm) h += '<div class="d2t-w">' + esc(entry.charm) + '</div>';
     if (entry.runes) h += '<div class="' + qc + '">' + esc(entry.runes) + '</div>';
     h += _d2TipBase(entry);
@@ -57330,11 +57354,18 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!it) return '<div class="cb-ed"><div class="cb-empty"><b>UNKNOWN</b> — "' + esc(e.name) + '" is not in the database this page carries.</div></div>';
     var qc = 'cb-c-' + (it[2] === 'm' ? 'm' : it[2]), base = _cbBase(e.base);
     var bases = _cbBasesOf(it), baseSel;
+    /* #41 rank 11 (2026-09-29) — A BASE NOT ON RECORD IS UNKNOWN, NEVER "(0 sockets max)". _cbMaxSock answers 0 for a
+       code the database does not carry, and this control printed that 0 beside the bare code ("zzz (0 sockets max)"),
+       which reads exactly like a measured base that takes no sockets. The name and the count are one sentence, said
+       once: the base's name and its ceiling when it is on record, UNKNOWN with the code otherwise, and no number.
+       [[unknown-stays-unknown]] */
+    var baseSay = base ? esc(base[0]) + (it[2] === 'r' ? ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max)' : '')
+                       : 'base UNKNOWN (not on record' + (e.base ? ': ' + esc(String(e.base)) : '') + ')';
     /* #174 v-B4 — a runeword's base is chosen in the Base tab (their Select | Base | Edit): this control goes back to it */
     if (it[2] === 'r')
-      baseSel = '<button type="button" class="cb-btn cb-base-go" id="cb-base" onclick="window._cbPickTab(\'base\')" aria-label="base: ' + esc(base ? base[0] : e.base) + ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max) — choose another in the Base tab">' + esc(base ? base[0] : e.base) + ' (' + _cbMaxSock(e.base, e.ilvl) + ' sockets max) ▸</button>';
+      baseSel = '<button type="button" class="cb-btn cb-base-go" id="cb-base" onclick="window._cbPickTab(\'base\')" aria-label="base: ' + baseSay + ' — choose another in the Base tab">' + baseSay + ' ▸</button>';
     else if (it[2] === 'u' || it[2] === 's' || bases.length <= 1)
-      baseSel = '<select disabled aria-label="base (fixed)"><option>' + esc(base ? base[0] : e.base) + '</option></select>';
+      baseSel = '<select disabled aria-label="base (fixed)"><option>' + baseSay + '</option></select>';
     else {
       var opts = it[2] === 'b' ? (base ? base[3].filter(function(c){ return c && d.b[c]; }) : [e.base]) : bases;
       baseSel = '<select id="cb-base" aria-label="base" onchange="window._cbEdit(\'base\', this.value)">' + opts.map(function(c){ var x = d.b[c]; return '<option value="' + esc(c) + '"' + (c === e.base ? ' selected' : '') + '>' + esc(x[0]) + (it[2] === 'r' ? ' (' + _cbMaxSock(c, e.ilvl) + ' sockets max)' : ' · ' + ['normal', 'exceptional', 'elite'][x[2]]) + '</option>'; }).join('') + '</select>';
