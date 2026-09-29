@@ -792,6 +792,15 @@ SANDBOX_STALE_S = 24 * 3600
 
 
 def _pid_alive(pid):
+    # ⚠⚠ #50 (REG-1447) — os.kill(pid, 0) IS A CTRL-C ON WINDOWS (signal 0 == CTRL_C_EVENT), not a probe.
+    # Now that every PC proves itself, this runs on Windows: ask the way control_app does. An import
+    # failure answers ALIVE - keeping a sandbox is safe, removing a live prover's sandbox is not.
+    if os.name == "nt":
+        try:
+            import self_prove as _sp
+            return _sp.pid_alive(pid)
+        except Exception:
+            return True
     try:
         os.kill(int(pid), 0)
     except ProcessLookupError:

@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1447 - NO PC BUT HIS MAC HAD EVER PROVED ITS INSTRUMENTS, SO EVERY LOCK ELSEWHERE STAYED SHUT (2026-09-29)
+
+**Found** with REG-1445 on the ALT: `.heart2.json` absent, `may("reel.route")` = *"the heart has never run
+here"*. The census is per-machine and the only writer was his Mac's pre-push gate. His ruling: every PC
+proves itself - the ALT, Dean's. Measured why a Mac proof cannot be shipped instead: different gate
+fingerprints at one clean commit, and a one-law trial on the ALT found the river-outlet law BLIND there
+(green through its own sabotage; the Mac's sandbox happened to carry one of his reels). A full Windows
+inventory is running on the ALT to list every law that is blind or already red there.
+
+**Fix:** `tv/self_prove.py` + `_self_prove_tick()` in the rescue loop (every 10 min, first at minute 5).
+On an INSTALLED console - clean tree, at its upstream - whose census is absent or stale for the gates on
+disk, it starts `heart2.py --prove` hidden (CREATE_NO_WINDOW), at BELOW_NORMAL priority (nice 15 off
+Windows), one lane, only while the machine is under 45% busy; one proof at a time; a proof that ends
+without a current census backs off 3 h for those gates. A development tree never proves in the
+background - there the pre-push gate is the prover. The lane speaks on/worked/lastTs/owed, is published
+as `selfProve` in /api/status, and has a doctor row naming any BLIND instrument on that machine.
+`heart2._pid_alive` no longer calls `os.kill(pid, 0)` on Windows, where signal 0 is CTRL_C_EVENT.
+
+**Law:** `tv/test_every_pc_proves_itself.py` - the decision in every state, the tick end to end with a
+recording spawn, `tree_state` on a real temporary git repo, the process probe, heart2 driven as Windows.
+5 red-proofs, all seen RED by hand.
+
 ### REG-1446 - A REEL AT PRINTER WAITED FOR A SEAL NOTHING WOULD WRITE (2026-09-29)
 
 **Found** on the ALT (#50): 25 reels at PRINTER ("N name(s) read and the session carries no seal")

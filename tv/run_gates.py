@@ -190,6 +190,15 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_every_pc_proves_itself", [sys.executable,
+         os.path.join(HERE, "test_every_pc_proves_itself.py")], 180,
+         why="REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak "
+             "for Windows (different fingerprints at one commit; the outlet law BLIND on the ALT). So every other "
+             "PC answered 'the heart has never run here' and every self-arming lock stayed shut. An INSTALLED "
+             "console (clean, at origin) with an absent or stale census now proves itself in the background - "
+             "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
+             "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. "
+             "5 red-proofs"),
     Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
          os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
          why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "

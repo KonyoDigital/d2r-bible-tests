@@ -17156,6 +17156,29 @@ def _exec_relaunch_soon():
 _SELF_PROBE = {"tick": 0, "strikes": 0, "lastKind": None, "lastTs": None, "lastOkTs": None, "lastMs": None,
                "acted": None, "say": "not asked yet"}
 SELF_PROBE_EVERY_TICKS = 6          # the rescue loop ticks every 10 s -> once a minute
+#: #50 (REG-1447) — every PC proves its own instruments: asked every 10 minutes, first at minute 5.
+SELF_PROVE_EVERY_TICKS = 60
+SELF_PROVE_FIRST_TICK = 30
+_SELF_PROVE = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": None,
+               "say": "the self-prove lane has not ticked yet since this console started"}
+
+
+def _self_prove_tick():
+    """#50 (REG-1447) — one pass of `self_prove.tick`. Never raises; the rescue loop must keep going.
+
+    An INSTALLED console (clean, at origin) whose heart census is absent or stale starts heart2 --prove in
+    the background, hidden and below everything he does, only while the machine is idle - so the ALT and
+    Dean's PC prove their own gates, and their locks open on their own evidence. A development tree never
+    does: there the pre-push gate is the prover."""
+    try:
+        import self_prove as _sp
+        r = _sp.tick(busy=_cpu_busy_pct)
+    except Exception as e:
+        r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
+             "say": "the self-prove tick raised %s" % type(e).__name__}
+    _SELF_PROVE.clear()
+    _SELF_PROVE.update(r)
+    return r
 SELF_PROBE_STRIKES = 3              # three refusals in a row
 SELF_PROBE_ACT_EVERY_S = 600        # and never more than one relaunch per ten minutes
 
@@ -17251,6 +17274,8 @@ def _console_rescue_loop():
             _SELF_PROBE["tick"] = int(_SELF_PROBE.get("tick") or 0) + 1
             if _SELF_PROBE["tick"] % SELF_PROBE_EVERY_TICKS == 0:
                 _self_probe_tick()          # #71 — can this console still answer itself?
+            if _SELF_PROBE["tick"] % SELF_PROVE_EVERY_TICKS == SELF_PROVE_FIRST_TICK:
+                _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -35427,7 +35452,7 @@ def status_payload():
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
-        "selfProbe": dict(_SELF_PROBE),
+        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE),
         "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
@@ -36384,6 +36409,24 @@ def doctor_payload():
     # and this row says so in words, with the way back - otherwise "where did my console go" has no answer.
     _wm = window_mode_payload()
     checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
+
+    # ── SELF-PROVE — #50 (REG-1447): has THIS PC proved its own instruments? Every self-arming lock (the
+    # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76
+    # reels at EMPTY for two days with nothing on any screen. It reads the lane's LAST tick and never
+    # starts a proof itself - a doctor that spawned a prover would be a second, unscheduled door.
+    _spv = dict(_SELF_PROVE)
+    _sp_key = _spv.get("key")
+    _sp_blind = list(_spv.get("blind") or [])
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy") and not _sp_blind)
+    checks.append(_chk(
+        "self_prove", _sp_ok, "warn",
+        ("self-prove: census %s - %s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",
+                                           (" · %d instrument(s) BLIND here (%s) - every lock stays shut "
+                                            "until each goes red again" % (len(_sp_blind),
+                                                                          ", ".join(_sp_blind[:3])))
+                                           if _sp_blind else "")),
+        "The lane retries by itself; the prover's log is tv/.self_prove.json.log. A BLIND instrument is a "
+        "law that stayed green through its own sabotage on THIS machine - fix the law for this platform."))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")
