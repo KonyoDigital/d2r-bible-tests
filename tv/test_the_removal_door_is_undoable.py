@@ -77,7 +77,10 @@ def _door_source():
     # #246 — AND THE ONE DOOR INTO THE MULE MAP, because the removal journal now carries each filing's
     # witness row and the undo files through window.vaultFile on it. Cut from the same file, never re-typed.
     from test_every_mule_filing_carries_its_witness import _door as _vault_door
-    return (_between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
+    # 2026-09-28 — AND THE ONE DOOR INTO `owned`: the undo and the socket fix put names back through
+    # window._ownedAdd, which carries each name's receipt. Cut whole from the board, never re-typed.
+    from test_every_owned_door_writes_provenance import owned_prov_region
+    return (owned_prov_region(src) + "\n" + _between(src, START, END) + "\n" + _between(src, UNOWN_START, UNOWN_END)
             + "\n" + _between(src, FIX_START, FIX_END) + "\n" + _vault_door(src))
 
 

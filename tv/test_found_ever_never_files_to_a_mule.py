@@ -225,7 +225,14 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
           function snap(name){
             var m = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');
             var p = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}');
-            T.push({ trigger: name, filed: Object.keys(m), prov: Object.keys(p) });
+            /* 2026-09-28 — the ONE owned door (window._ownedAdd) writes a RECEIPT beside the witness rows:
+               kind 'owned', who put the name in `owned`. A receipt is never a filing witness — the sorter,
+               the W6 prune, _provAsWitness and the doctor's filing arm all skip it (driven by
+               test_every_owned_door_writes_provenance) — so this law counts WITNESS rows only, and a trigger
+               that minted a witness still fails here exactly as before. */
+            T.push({ trigger: name, filed: Object.keys(m),
+                     prov: Object.keys(p).filter(function(k){ return !(p[k] && p[k].kind === 'owned'); }),
+                     receipts: Object.keys(p).filter(function(k){ return p[k] && p[k].kind === 'owned'; }) });
           }
           function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
           var U = %(uni)s, P = %(pieces)s, ONE = %(one)s;

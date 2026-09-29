@@ -540,6 +540,16 @@ def _evidence_rows():
         # [[copy-drift]] [[unknown-stays-unknown]] [[the-unjoined-end]]
     except ImportError:
         root = HERE
+    return evidence_rows_at(root)
+
+
+def evidence_rows_at(root):
+    """_evidence_rows for an EXPLICIT tree. -> (rows | None, why)
+
+    2026-09-28 — the recorder's disk-floor reaper (tv_diablo._reel_evidence) asks this with the root of the shelf
+    it deletes from. It cannot go through _evidence_rows, which resolves its root by importing tv_diablo — a
+    second copy of the running recorder. ONE flattening, two ways to name the tree. [[copy-drift]]
+    """
     p = os.path.join(root, "chron_evidence.json")
     try:
         with open(p, encoding="utf-8") as fh:

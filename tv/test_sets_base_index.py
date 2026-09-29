@@ -41,7 +41,72 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "L3 (review of bd976210): the ledger writes status 'carried' and the pill map cannot render it",
+        "file": "bible.html",
+        "find": "      'carried':         ['🎒 carried — yours, not filed', '#9fd4ff'],\n",
+        "replace": "",
+        "matches": 1,
+    },
 ]
+
+
+def _call_block(s, i):
+    """The text of the call whose `(` is at s[i], up to its REAL closing parenthesis, with comments blanked and strings
+    kept. -> str. Strings, template text and comments are skipped while counting, so a paren in prose cannot end it."""
+    assert s[i] == "(", "not a call at %d" % i
+    out, depth, j, n = [], 0, i, len(s)
+    while j < n:
+        c, two = s[j], s[j:j + 2]
+        if two == "/*":
+            e = s.find("*/", j + 2)
+            j = n if e < 0 else e + 2
+            out.append(" ")
+            continue
+        if two == "//":
+            e = s.find("\n", j)
+            j = n if e < 0 else e
+            continue
+        if c in "'\"`":
+            k = j + 1
+            while k < n and s[k] != c:
+                k += 2 if s[k] == "\\" else 1
+            out.append(s[j:k + 1])
+            j = k + 1
+            continue
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth == 0:
+                out.append(c)
+                break
+        out.append(c)
+        j += 1
+    return "".join(out)
+
+
+def _top_level_expr(blk, i):
+    """From blk[i] (just after a `key:`), the value expression up to the next comma or close at ITS depth. -> str"""
+    depth, j, n = 0, i, len(blk)
+    while j < n:
+        c = blk[j]
+        if c in "'\"`":
+            k = j + 1
+            while k < n and blk[k] != c:
+                k += 2 if blk[k] == "\\" else 1
+            j = k + 1
+            continue
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            if depth == 0:
+                break
+            depth -= 1
+        elif c == "," and depth == 0:
+            break
+        j += 1
+    return blk[i:j]
 
 def _embedded():
     with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
@@ -443,12 +508,23 @@ class TestEveryLedgerStatusHasAPill(unittest.TestCase):
         # idle, now, pipe and queued — other subsystems entirely, none of which this panel renders.
         # A guard that reaches past its subject reports six defects that are not there, and six
         # false positives is how a guard stops being read. [[source-reading-guard]]
+        # ⚠⚠ L3 (review of bd976210) — THIS CENSUS WAS BLIND TWICE, AND 'carried' WALKED THROUGH BOTH HOLES.
+        # (1) a 700-character window from `kaiChronicleRecord({`: the TV register's own call puts a 1,063-character comment
+        #     between the call and its `status:`, so that whole call was never read; (2) `status:\s*'x'` sees only a
+        #     LITERAL status, and that call computes its status in a ternary chain ('carried', 'no-home', 'lane-locked',
+        #     'no-witness' ...). §31.2 added 'carried' there and nothing taught the pill map. Each call is bounded by its
+        #     REAL closing parenthesis now (strings and comments skipped), and every slug a `status:` expression can yield
+        #     — the literal after `status:`, `?` or `:` — is read. [[source-reading-guard]] [[the-unjoined-end]]
         written = set()
         for m in re.finditer(r"kaiChronicleRecord\(\{", s):
-            seg = s[m.start():m.start() + 700]
-            written |= set(re.findall(r"status:\s*'([a-z\-]+)'", seg))
+            blk = _call_block(s, m.start() + len("kaiChronicleRecord"))
+            for st in re.finditer(r"\bstatus:", blk):
+                expr = _top_level_expr(blk, st.end())
+                written |= set(re.findall(r"(?:^|[?:])\s*'([a-z\-]+)'", expr))
         self.assertTrue(written, "no kaiChronicleRecord call sites found — this guard has lost its "
                                  "subject and would pass on an empty set")
+        self.assertIn("no-witness", written, "BASELINE: the TV register's computed status chain was not read — this "
+                                             "census is blind to the one call that computes its status")
         missing = sorted(w for w in written if w not in pills)
         self.assertEqual(missing, [],
                          "these statuses are written into the ledger but have no pill, so they "

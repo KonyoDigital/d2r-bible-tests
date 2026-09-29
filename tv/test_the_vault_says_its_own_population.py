@@ -16,6 +16,10 @@ independent tally is free to disagree with the thing it describes, which is the 
 class this panel exists to end. filed + loose == pool and pool + shared == owned, by
 construction rather than by luck.
 
+⚠ §31.2 (his ruling, 2026-09-28) ADDS A PART, and the construction holds it: loot the reader saw in his inventory is
+OWNED right away and CARRIED — it sits on the carried strip, not in the dock. `_carried` is cut FROM the pool (only
+names in it, never a filed one) and `unsorted` excludes it, so filed + carried + loose == pool, still by subtraction.
+
 ⚠ It deliberately does NOT restate why the loose items are loose. v3250 already put the sorter's
 own verdict on the dock bar ("every one is a discard suggestion — Auto-Sort will not throw items
 away for you"), and a second sentence saying the same thing is how two sentences begin to
@@ -79,16 +83,23 @@ class TestTheVaultSaysItsOwnPopulation(unittest.TestCase):
         self.assertIn("poolAll.length - pool.length", blk,
                       "the shared-stash figure is not derived from the two pools, so it is free "
                       "to disagree with them")
-        self.assertIn("pool.length - unsorted.length", blk,
+        self.assertIn("pool.length - unsorted.length - _carried.length", blk,
                       "the FILED figure is counted independently instead of being the remainder, "
-                      "so filed + loose is no longer guaranteed to equal the pool — which is the "
-                      "whole reason this line is trustworthy")
+                      "so filed + carried + loose is no longer guaranteed to equal the pool — which "
+                      "is the whole reason this line is trustworthy")
+
+    def test_the_carried_part_is_cut_from_the_same_pool(self):
+        """§31.2 — the carried figure is a SUBSET of the pool, never a second count: only names the pool holds, and
+        the loose dock excludes exactly those."""
+        pre = _between(self.code, "var _carried = null;", "var unsorted = pool.filter(", "the carried cut")
+        self.assertIn("pool.indexOf(c.name) >= 0", pre, "the carried strip counts names the pool does not hold")
+        self.assertIn("return assign[n] != null", pre, "a FILED item can also be counted as carried")
 
     def _fill_block(self):
         # both anchors are EXECUTABLE: a comment anchor cannot survive _executable_only
         return _between(
             self.code,
-            "var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });",
+            "var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]; });",
             "window._menuAscendingFraction",
             "the v3286 population fill")
 
@@ -112,8 +123,15 @@ RED_PROOF = [
     {
         "why": "counting FILED independently lets the parts stop summing to the whole",
         "file": "bible.html",
-        "find": "        var _filed  = pool.length - unsorted.length;",
+        "find": "        var _filed  = pool.length - unsorted.length - _carried.length;",
         "replace": "        var _filed  = Object.keys(assign).length;",
+        "matches": 1,
+    },
+    {
+        "why": "§31.2: the carried figure counts names the pool does not hold, so the parts stop summing to the whole",
+        "file": "bible.html",
+        "find": "    _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });",
+        "replace": "    _carried = (_carried || []).filter(function(c){ return !isSharedStash(c.name); });",
         "matches": 1,
     },
 ]

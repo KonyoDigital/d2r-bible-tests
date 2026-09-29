@@ -50,7 +50,7 @@ SEG_GAP_MS = 120000
 # items, most of which he does NOT have. Names read there are a checklist, never a holding.
 _ACTIVITY_LANE = {
     "stash": "stash",
-    "inventory": None,      # ⚠ see below — holding is not owning
+    "inventory": None,      # ⚠ see below — a panel is not a place (§31.2 makes inventory LOOT carried, per name)
     "chronicle": None,
     "loot": None,
     "town": None,
@@ -201,10 +201,17 @@ def lane_at(segs, sid, ts, pad_ms=0):
         return None, ("read while the CHRONICLE was open — that page is a list of item names, "
                       "most of which he does not own, so it is a checklist and never a holding")
     if act == "inventory":
-        return None, ("read while ONLY the inventory was open — that is holding, not owning. He "
-                      "may have picked it up, identified it, and dropped it again. Possession is "
-                      "claimed in the stash, once it is physically registered with a slot "
-                      "identity")
+        # ⚠ §31.2 (his ruling, 2026-09-28) SUPERSEDES v2346 for inventory LOOT: "Owned right away" — loot in the
+        # inventory's FREE space is his from the moment it is seen there, CARRIED on that character's strip (not
+        # locked), until it lands in a stash tab or on a mule or leaves on a real signal. But that ownership is
+        # a claim about ONE ITEM'S PLACE, and an open panel is not one: with the inventory open the left half of
+        # the screen is the ground, and a name read in this frame may be his inventory, his doll, or loot on the
+        # floor beside him. So the timeline still grants no vault LANE here; the reader's own per-name place
+        # ('inventory' in names_loc) is what makes an item carried. [[unknown-stays-unknown]]
+        return None, ("read while ONLY the inventory was open — §31.2: loot in the inventory's free space "
+                      "is his and CARRIED from the moment it is seen there, but an open panel does not say "
+                      "WHERE on screen this name sat (his inventory, his doll, or the ground beside him), "
+                      "so the timeline grants no vault lane; the reader's own per-name place decides")
     return None, "read during %s, which does not establish possession" % act
 
 

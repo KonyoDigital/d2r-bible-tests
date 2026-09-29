@@ -67,6 +67,8 @@ RED_PROOF = [
                "test_a_candidate_with_no_mb_adds_NOTHING_rather_than_defaulting, and "
                "test_the_sentence_his_console_prints_can_no_longer_disagree_with_itself",
         "file": "reel_retention.py",
+        # the anchor moved with REG-1348 (freed = what the removed reels really held, kept pictures excepted); the tamper
+        # still restores the plan's hope in its place
         "find": '            "freedMb": round(sum(freed_by.get(r, 0.0) for r in removed), 1),',
         "replace": '            "freedMb": p.get("freeMb", 0),',
         "matches": 1,

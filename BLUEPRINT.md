@@ -297,7 +297,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 
 ## GATES
 
-    697 registered in tv/run_gates.py — every one named below with what it guards,
+    703 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -455,7 +455,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_self_updated_console_can_read_its_frames** — REG-1260 (#227) - MEASURED on the ALT: tree at 6dab59f1 held the launcher's Pillow step, consoles started 20:26 and 21:06, no Pillow - the launcher's…
 - **test_a_shadow_log_nobody_read_is_not_agreement** — #188 - g5_grok_eyes wrote 6,082 Claude-vs-Grok rows and NOTHING ever read them: the four keys occur at exactly four lines tree-wide and all four are w…
 - **test_a_shadow_session_rolls_over_every_hour** — 2026-09-27 - his order: 'each session shadow reader should automatically be hourly ...
-- **test_a_shared_stash_item_survives_the_vault_cleanse** — REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned on each owner load, and a shared-stash item is neve…
+- **test_a_shared_stash_item_survives_the_vault_cleanse** — REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned, and a shared-stash item is never filed (tvVaultReg…
 - **test_a_ship_note_is_not_code_the_eye_must_read** — v3360 (#109) - A SHIP NOTE IS PROSE AND THE EYE BUDGET IS NOT FOR PROSE.
 - **test_a_sidecar_does_not_reowe_a_read** — #25 (v3298) — A MOVED DIRECTORY IS NOT MOVED FILM.
 - **test_a_sighting_says_which_surface** — TWO LOOKS AT DIFFERENT SURFACES ARE NOT A CONTRADICTION, AND TWELVE OF HIS WERE ABOUT TO BE.
@@ -479,6 +479,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_tick_filed_under_a_lane_name_still_counts** — THREE VESSELS REPORTED 'no tick has been stamped under this name' WHILE STAMPING PERFECTLY WELL.
 - **test_a_title_is_not_an_owner** — #223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the game (score 1602: 'diablo' in the title was the whole quali…
 - **test_a_total_is_only_as_known_as_its_parts** — v2881 — the second eye, reviewing v2880: 'unknown vault count is still published as a complete number on the fields the screen actually reads'.
+- **test_a_vault_item_and_a_read_say_where_they_came_from** — 2026-09-28 - the heart rows for the owned door: 'a vault item with no provenance' names every owned name nobody can account for, and 'a read left no p…
 - **test_a_vault_reset_clears_only_the_mules** — 2026-09-27 - he pressed 'Reset everything' and it cleared d2r_muleAssign 174->0 (wanted) AND d2r_owned 223->0 and d2r_setPieces 134->0 (not wanted
 - **test_a_weld_never_repeats_a_word** — a weld joins a figure to its noun and must never show a word twice.
 - **test_a_windows_boot_is_checked_before_it_reaches_him** — #229 - the only Windows console anything ever booted was his ALT, so a Windows-only boot death (#225) reached his box first.
@@ -496,6 +497,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_an_entity_inside_an_escaper_is_printed** — read off his screen: the SWEEP box under THE FLEET printed the six literal characters &mdash
 - **test_an_entrance_survives_endurance** — #228 - his ⚙ ADVANCED drawer read open with black under it and its tooltips answering from the black: after 10 minutes every console enters endurance…
 - **test_an_established_empty_shelf_is_not_footage** — #123 - a directory machine_tree.establish() built is not his shelf: EMPTY skips like ABSENT only when this host's ledger never closed a reel
+- **test_an_evidence_picture_is_never_reaped** — 2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items.
 - **test_an_examined_panel_is_not_an_unread_one** — A PANEL THAT WAS READ AND HELD NO NAMES IS NOT A PANEL NOBODY READ.
 - **test_an_exec_leaves_no_corpse** — #224 - 35 <defunct> ocr_mac children under his console, one per in-place os.execv relaunch (measured by ucomm + start times, 36/36): every exec site n…
 - **test_an_inventory_charm_carries_its_picture_on_the_pointer** — #174 wave 2 (ACT 5855265931) - lifting a mule-inventory charm puts that charm's own picture on the pointer.
@@ -522,6 +524,9 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_both_terms** — REG-1032 — vault_autosort guarded the BEFORE read against an unreadable store and left the AFTER read on the old path, so a failed read reported assig…
 - **test_build_stamp** — v1691.1 capped this badge deliberately and ruled 'id + date must survive
 - **test_button_matrix** — every app button, against the LIVE control API
+- **test_carried_loot_holds_its_time_and_its_name** — 2026-09-29 - the review of 20c0df1e (vault evidence route, round 4), his §31 / §29 rulings.
+- **test_carried_loot_is_decided_by_owned_and_lands_in_order** — 2026-09-29 - the review of 7cded0c1 (vault evidence route, round 5), his §31 / §29 rulings, each reproduced.
+- **test_carried_loot_keeps_its_order** — 2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings.
 - **test_cf_handoff** — v2454 — five inverted-role tasks. CF-8 UNKNOWN carries first-seen/last-attempt; CF-10 four states are four words; CF-12 SLOW checks reach slowRows not…
 - **test_chrome_alone_is_not_paint** — v2752 — HIS BLACK CONSOLE READ AS *PAINTED* BECAUSE OF TWO ROWS OF WINDOW CHROME.
 - **test_chronicle_calibrate** — the completion-bar reader shipped as a SAFEGUARD and returned a single constant — 0.8395 on every frame it answered across three reels, and 83.9% on a…
@@ -574,6 +579,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_every_locked_main_row_reaches_the_board** — #246 L11/W4 - main_character.is_locked had no reader on the board.
 - **test_every_mule_filing_carries_its_witness** — #246 L6/W5 - the mule map stored a bare string and had ~40 writers, none asking for a witness
 - **test_every_operator_door_keeps_its_contract** — REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design (owned_restore, rw_restore, vault_autosort, vault_route_probe): walke…
+- **test_every_owned_door_writes_provenance** — 2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read WORN, reached only the found list.
 - **test_every_pc_proves_itself** — REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak for Windows (different fingerprints at one commit
 - **test_every_push_checks_every_proof_anchor** — REG-1163 - four red-proofs went INVALID in one day because an ordinary edit changed a line another gate's proof pins, and the hook re-proves only laws…
 - **test_every_push_line_carries_its_elapsed_time** — #193 - every pre-push status line was untimed, so a gate's duration could only be BOUNDED from outside by polling ps
@@ -1011,7 +1017,7 @@ about what a module MEANS cannot be re-derived from its AST. The drift between t
 printed below rather than hidden, because a map that quietly drops a module is the exact
 failure this section was written about.
 
-    221 modules · 0 unindexed · 0 stale entries
+    222 modules · 0 unindexed · 0 stale entries
 
 `no importer` means no OTHER MODULE IN tv/ IMPORTS IT — measured by parsing, never by
 grepping a name that may be sitting inside a comment. It is not `dead`: a CLI tool, a
@@ -1646,7 +1652,7 @@ hook and a routine are all reached without an import, so it is a question, not a
       ↪ work · stages · plan · lane_census · beat
       ⚠ It holds NO second predicate on purpose — it carries retention's own tag and why through untouched, because every serious 2026-09-10 defect was two authorities answering one question (41 vs 0, 40 vs 0, 2 vs 19). It never deletes: _PRUNE_SAFE_TO_RUN is Konyo's to arm. _beat_path() resolves at CALL time via tv_diablo._fixture_root so TV_HIST can redirect it, and REFUSES (returns None, beat records it could not persist) rather than writing into his live tv/. work() returns ok False with owed=None on a failed plan — an empty list is a measurement, never a failure.
 
-### vault (24)
+### vault (25)
 
 - **affix_lexicon.py** — Generates tv/affix_lexicon.json from the D2R CASC and classifies an item NAME against it. The roster names uniques, sets and runewords; MAGIC and RARE names are COMPOSED at drop time from four affix tables plus a base type, so they can never be a list. Measured off the install: magicPrefix 269, magicSuffix 298, rarePrefix 42, rareSuffix 152, baseType 690. classify() answers GRAIL / BASE / MAGIC / RARE / UNKNOWN and vault_retro attaches it to every unsure row as `vocab`.
       ↪ build · load · classify · verify · main
@@ -1684,6 +1690,9 @@ hook and a routine are all reached without an import, so it is a question, not a
 - **read_names_lane.py** — Splits names the DEEP reader put in the journal ring into auto-tallyable (3+ witnesses, conf floor) versus manual-lane, exposing that 119 unbanked names were never REFUSED — they were never judged.
       ↪ split · evidence · report · rosters · referents_of
       ⚠ ⛔ IT WRITES NOTHING, and the reason is a deleter: reel_retention holds a reel with tag `rows-not-banked`, so landing a name in vault_accum.json RELEASES that reel's footage for pruning — wiring 119 unjudged names in would hand a deleter 119 new permissions and footage has no un-delete. Confidence is NOT the blocker (every deep row sits 0.60-0.95 against a 0.55 floor); witnesses are. The three names that DO clear 3 witnesses — Horadric Cube, Tome of Town Portal, Tome of Identify — corroborate only because every character carries them. rosters() refuses to PRODUCE an empty roster and split() refuses to CONSUME one.
+- **read_pictures.py** — The ONE answer to 'is the picture of this read on disk, and if not, WHY' - behind the doctor row 'a read left no picture', /api/picture_status (asked by the board's evidence panel before it draws an image), and the recorder's own refusal record.
+      ↪ status_for · verdict · who_took · named_reads · record_refusal · budget_spent_mb · locator
+      ⚠ It never deletes and never decides to keep: it READS the reapers' tombstones, the recorder's refusal record and the frames on disk, and names who took a read's picture. Measured 2026-09-28: the frames behind String of Ears and seven Chronicle-page reads were gone, taken by three deleters none of which asked whether a frame was evidence. Anything it cannot establish is UNKNOWN, never 'fine' or 0. Under MIN_FREE_GB a read's picture is still saved small (1024 px, q70, 150 MB/hour); below HARD_FLOOR_GB (1 GB) nothing is written and that refusal is recorded here.
 - **skill_tables.py** — Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.
       ↪ assemble · build · load · verify · main
       ⚠ A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\base\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).

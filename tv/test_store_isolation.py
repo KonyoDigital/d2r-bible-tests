@@ -53,6 +53,16 @@ KNOWN_UNISOLATED = {
     # ⚠ WHAT THAT COSTS: two MACHINES share one removal journal, exactly as they share the owned
     # list it describes. Nothing crosses an INSTALL — the router still scopes it per world.
     "d2r_vaultRemoved",
+    # ── 2026-09-29 (#41 rank 2 + the round-5 review) — TWO MORE THAT FORK EXACTLY AS THE JOURNAL ───
+    # `d2r_vaultLastReset` is the last vault reset's persisted receipt (it clears d2r_owned and
+    # d2r_muleAssign, both _LP_FORKED, so its record forks as they do) and `d2r_vaultRemovedAt` is the
+    # per-name record of his removals that the 20-deep ring above evicts nothing from. Both sit in
+    # _LP_FORKED beside d2r_vaultRemoved and, like it and d2r_owned, NOT in _WP_FORKED: a record
+    # matches the store it describes in both directions (test_the_removal_journal_forks_like_the_store,
+    # and the new law's test_the_per_name_record_forks_like_the_ring). Same cost as the journal: two
+    # MACHINES share them as they share the owned list; nothing crosses an INSTALL.
+    "d2r_vaultLastReset",
+    "d2r_vaultRemovedAt",
     "d2r_chronAdopted",
     "d2r_chronicleInbox",
     "d2r_chronicleInboxLog",   # the Routing Ledger — the "visual backend"

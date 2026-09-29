@@ -70,6 +70,8 @@ SCOPE_STORES = {"assign": "d2r_muleAssign", "prov": "d2r_vaultProv",
                 "journal": "d2r_intakeLog", "seen": "d2r_intakeSeen",
                 "owned": "d2r_owned"}
 FOLDER_IDB = "d2r_vault_fs/shotdir"
+#: #41 rank 2 — the reset persists its receipt here (the runner's own record; the doctor's reset row reads it)
+RECEIPT_KEY = "d2r_vaultLastReset"
 DOORS = {"vaultReset": ["assign", "prov"],
          "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder", "owned"]}
 #: what no reset may ever touch. d2r_owned is cleared by the FULL door only (his ruling 2026-09-27).
@@ -251,6 +253,13 @@ function run(label, door){
   OUT.unknown = await run('unknown', 'vaultReset');
   delete THROW_ON['d2r_setPieces'];
 
+  /* round-5 (seen on the pixels) — a FRESH board: the owned-side stores persistOwned() writes do not exist yet */
+  seed(); ['d2r_magicFinds', 'd2r_copies', 'd2r_multiKeep', 'd2r_unknownReads'].forEach(function(k){ delete STORE[k]; });
+  magicFinds = {}; copies = {}; multiKeep = {}; unknownReads = new Set();
+  var f0 = snap();
+  await window.vaultClearHistory();
+  OUT.fresh = { before: f0, after: snap(), receipt: window._vaultLastReset || null, status: STATUS.length ? STATUS[STATUS.length - 1] : null };
+
   OUT.info = INFO.length;
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){ process.stderr.write(String((e && e.stack) || e)); process.exit(3); });
@@ -303,7 +312,8 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
 
     def test_reset_assignments_clears_only_the_filings(self):
         r = self.o["reset"]
-        allowed = ("d2r_muleAssign", "d2r_vaultProv")
+        # #41 rank 2 — the reset's own receipt (d2r_vaultLastReset) is the runner's record of its act, not his data
+        allowed = ("d2r_muleAssign", "d2r_vaultProv", RECEIPT_KEY)
         self.assertEqual([], _changed(r["before"]["store"], r["after"]["store"], allowed),
                          "Reset assignments changed a store outside its scope")
         self.assertEqual("{}", r["after"]["store"].get("d2r_muleAssign"), "the mule assignments were not cleared")
@@ -319,10 +329,17 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertEqual(134, rc["kept"]["d2r_setPieces"])
         self.assertNotIn("d2r_owned", rc.get("cleared") or {}, "Reset assignments cleared the owned list")
         self.assertEqual(r["before"]["store"].get("d2r_owned"), r["after"]["store"].get("d2r_owned"))
+        # #41 rank 2 — the receipt is persisted, with a digest of every kept store before and after
+        saved = json.loads(r["after"]["store"].get(RECEIPT_KEY) or "null")
+        self.assertIsInstance(saved, dict, "the reset left no persisted receipt for the doctor to read")
+        self.assertEqual("vaultReset", saved.get("door"))
+        self.assertTrue(saved.get("persisted"))
+        self.assertIn("d2r_setPieces", saved.get("keepsBefore") or {})
+        self.assertEqual(saved["keepsBefore"]["d2r_setPieces"], saved["keepsAfter"]["d2r_setPieces"])
 
     def test_the_vault_reset_clears_only_the_mules_and_the_intake_records(self):
         f = self.o["full"]
-        allowed = tuple(SCOPE_STORES.values())
+        allowed = tuple(SCOPE_STORES.values()) + (RECEIPT_KEY,)
         self.assertEqual([], _changed(f["before"]["store"], f["after"]["store"], allowed),
                          "the vault reset changed a store outside its scope - his sets, uniques, chronicle or stashes")
         a = f["after"]["store"]
@@ -341,9 +358,57 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertTrue(f["reportHidden"], "the last intake report still shows after the reset")
         rc = f["receipt"] or {}
         self.assertEqual("vaultClearHistory", rc.get("door"), rc)
-        self.assertIs(True, rc.get("ok"), rc)
+        # #41 rank 9 — R.ok is decided AFTER the rebuild: this harness has no console and no plan hook, so the plan is
+        # unread, nothing is rebuilt, and the receipt is UNKNOWN (null) — never the clean true it wore before rank 9
+        self.assertIsNone(rc.get("ok"), "a full reset whose plan was unread still wore a clean ok: %r" % rc)
+        self.assertIsNone(rc.get("rebuilt"))
+        self.assertIn("could not be read", rc.get("planWhy") or "", rc)
+        self.assertEqual([], rc.get("touched"), "the kept stores moved — that is the one thing this harness can prove intact: %r" % rc)
+        self.assertEqual([], rc.get("failed"))
         self.assertEqual({"assign": 174, "prov": 174, "journal": 12, "seen": 40, "folder": True,
                           "owned": 223}, rc.get("cleared"))
+
+    def test_a_fresh_board_s_empty_stores_are_not_a_change(self):
+        """Round-5, seen on the captured pixels: on a board with no d2r_magicFinds / d2r_copies / d2r_multiKeep /
+        d2r_unknownReads yet, the full reset's own persistOwned() writes '{}' where no key was, and the receipt said
+        "a reset must never change d2r_magicFinds, d2r_copies, d2r_multiKeep, d2r_unknownReads — it did". Absent and
+        empty are the same content; only a store that will not read is UNKNOWN."""
+        f = self.o["fresh"]
+        for k in ("d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"):
+            self.assertNotIn(k, f["before"]["store"], "PREMISE: the fresh board holds no %s" % k)
+        rc = f["receipt"] or {}
+        four = ["d2r_magicFinds", "d2r_copies", "d2r_multiKeep", "d2r_unknownReads"]
+        self.assertEqual([], rc.get("touched"), "a fresh board's materialised stores were reported as changed: %r" % rc.get("touched"))
+        self.assertEqual([], rc.get("unknown"))
+        self.assertEqual(sorted(four), sorted(rc.get("materialised") or []), "the stores the reset wrote where none existed are not named: %r" % rc)
+        self.assertNotIn("it did", f["status"] or "")
+        self.assertIn("wrote where no store existed", f["status"] or "", f["status"])
+        self.assertIn("d2r_multiKeep", f["status"] or "")
+        saved = json.loads(f["after"]["store"].get(RECEIPT_KEY) or "null")
+        for k in four:
+            self.assertEqual("absent", saved["keepsBefore"].get(k), k)
+            self.assertNotEqual("absent", saved["keepsAfter"].get(k), k)
+        # the doctor reads the same receipt off the board and says the same: OK, the materialised stores named, never "it did"
+        import console_doctor as CD
+        real = CD._board_read
+        CD._board_read = lambda: {"ok": True, "fullStores": {"d2r_vaultLastReset": f["after"]["store"].get(RECEIPT_KEY)}}
+        try:
+            st, why = CD._check_the_vault_reset()
+        finally:
+            CD._board_read = real
+        self.assertNotEqual(CD.MISSING, st, "the doctor's row read a materialised store as a change: %s" % why)
+        self.assertNotIn("it did", why)
+        # this harness has no plan, so the row is honestly UNKNOWN on `rebuilt`; hand the same digests a rebuilt list and the
+        # kept-store verdict names the materialised stores apart, never as a change
+        import vault_evidence as VE
+        got = VE.reset_receipt(dict(saved, rebuilt=[], held=[], rebuiltFailed=[]), saved["keepsBefore"], saved["keepsAfter"])
+        self.assertTrue(got["ok"], got)
+        self.assertEqual(sorted(four), got["materialised"])
+        self.assertEqual([], got["touched"])
+        self.assertIn("wrote where no store existed", got["why"])
+        self.assertIn("d2r_multiKeep", got["why"])
+        # BASELINE: a kept store that really changed is still named (the corroborator run above)
+        self.assertIn("d2r_setPieces", (self.o["touched"]["receipt"] or {}).get("touched") or [])
 
     def test_the_words_he_reads_say_what_is_cleared_and_what_stays(self):
         says = self.o["scope"]["clears"]
@@ -386,6 +451,9 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         u = self.o["unknown"]
         rc = u["receipt"] or {}
         self.assertIn("d2r_setPieces", rc.get("unknown") or [], "an unreadable kept store was not called UNKNOWN: %r" % rc)
+        # rank 2 — the persisted digest leaves an unreadable store OUT (the doctor reads absence as UNKNOWN, never intact)
+        self.assertNotIn("d2r_setPieces", rc.get("keepsBefore") or {})
+        self.assertIn("d2r_foundLog", rc.get("keepsBefore") or {})
         self.assertIsNone(rc.get("ok"), "a reset that could not re-read a kept store claimed ok=%r" % rc.get("ok"))
         self.assertIsNone(rc["kept"]["d2r_setPieces"], "an unreadable store was counted as a number")
         st = u["status"] or ""
@@ -449,6 +517,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      else if (now !== was) R.touched.push(k.store);\n",
         "replace": "      else if (false) R.touched.push(k.store);\n",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - a store the reset materialised on a fresh board reads as 'a reset must never change ... it did' again",
+        "file": "bible.html",
+        "find": "      else if (was === null && now !== null) R.materialised.push(k.store);\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - the status line hides which stores the reset wrote where none existed",
+        "file": "bible.html",
+        "find": "    if (Array.isArray(R.materialised) && R.materialised.length) bits.push('wrote where no store existed (the page’s own defaults, not a change to your data): ' + R.materialised.join(', '));\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "round-5 (pixels) - the doctor's row reads a materialised store as a change again",
+        "file": "vault_evidence.py",
+        "find": "        if before[key] == \"absent\" and after[key] != \"absent\":\n            materialised.append(key)\n            continue\n",
+        "replace": "        if False:\n            materialised.append(key)\n            continue\n",
         "matches": 1,
     },
     {

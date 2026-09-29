@@ -307,7 +307,7 @@ GATES = [
          why="v3287 - Konyo: 'even top corner chronicles set uniques and runewords should color match the tabs in main console'. The Sessions header drew 99/99 CHRONICLE (runewords) and 309/403 CHRONICLE (uniques) - two different quantities under one word, four inches apart, both numbers right and the noun wrong. Pins that the chips name what they count, declare their room class, and take the SHARED tokens (--rune / --q-unique / --q-set) rather than a forked hex; and that the FULL BIBLE door spans the row and glows instead of hugging the end in --gold-dim. Runewords wears --rune not gold by v1631s ruling that a TAB labels a ROOM. 4 red-proofs"),
     Gate("test_vault_population", [sys.executable,
                                    os.path.join(HERE, "test_the_vault_says_its_own_population.py")], 60,
-         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 3 red-proofs"),
+         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 2026-09-28 (§31.2): CARRIED joins as a part cut from the same pool, so filed+carried+loose==pool. 4 red-proofs"),
     Gate("test_guest_intake_door", [sys.executable,
                                     os.path.join(HERE, "test_a_guest_may_not_walk_through_his_door.py")], 60,
          why="v3296 - Konyo authorised this while scoping the parallel-test console: 'yea do it obivously'. The intake endpoint expression was written out BY HAND AT TEN SITES in bible.html (24312, 26090, 26722, 26960, 27672, 37972, 39894, 46859, 47559, 52952), each carrying the production URL as its file:// fallback, and the copies had ALREADY DRIFTED - nine read localStorage, one read window.LSR. Over file:// that default was the production endpoint FOR EVERY BOARD, so a GUEST board (no ownerClaim - exactly what the Linux test console is) posted its intake into HIS REAL INTAKE, silently; running the two consoles in parallel is the precise activity that fires it. Pins both halves: the public door is named EXACTLY ONCE in executable source inside _d2rIntakeEndpoint, and the guest branch cannot reach it because the production return sits behind a _D2R_OWNER test with a relative fallback after it. Also pins that HIS OWN board still reaches his own live door, because breaking that is worse than the defect. 2 red-proofs. NOTE its call-site count is taken on RAW source on purpose - _executable_only drops bible.html L38004 (raw 10, stripped 9), tracked separately. CORRECTED v3299: the cause is NOT the regex literals above that line as first recorded, it is accept=image/* at bible.html:37910 whose /* opens a comment for the context-free scanner 94 lines upstream. 2 red-proofs"),
@@ -5573,10 +5573,11 @@ GATES = [
              "path (8, discovered not listed) and the G5 stats path. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
     Gate("test_a_shared_stash_item_survives_the_vault_cleanse",
          [sys.executable, os.path.join(HERE, "test_a_shared_stash_item_survives_the_vault_cleanse.py")], 60,
-         why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned on each "
-             "owner load, and a shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: "
-             "a registered Bone Break vanished on reload, Black Cleft (no seed name) stayed. The shipped cleanse statement "
-             "runs in node with the shipped _SHARED_KEEP: shared kept, floor residue still stripped. 3 cases, 1 red-proof"),
+         why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned, and a "
+             "shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: a registered Bone "
+             "Break vanished on reload, Black Cleft (no seed name) stayed. Since the review of bd976210 the cleanse is "
+             "window._seedCleanse (one-time per world, journaled); the shipped door runs in node with the shipped "
+             "_SHARED_KEEP the floor hands it: shared kept, floor residue still stripped. 4 cases, 2 red-proofs"),
     Gate("test_a_live_witness_is_not_an_extraction",
          [sys.executable, os.path.join(HERE, "test_a_live_witness_is_not_an_extraction.py")], 90,
          why="REG-1277 (#221) - his ruling was DIG. The 18 unexplained tombstones were his console's own "
@@ -7040,6 +7041,90 @@ GATES = [
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
              "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
+    Gate("test_every_owned_door_writes_provenance",
+         [sys.executable, os.path.join(HERE, "test_every_owned_door_writes_provenance.py")], 120,
+         why="2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read "
+             "WORN, reached only the found list. Every owned.add in CODE is inside the one door "
+             "(window._ownedAdd), which writes a receipt (who, when, session, frame, place) and never clobbers a "
+             "filing row; the live route files a held place into the dock and never a Chronicle page, the floor "
+             "or an UNKNOWN place; the one-time backfill writes Grief/Plague's receipts and files String of Ears, "
+             "runs once and undoes exactly what it did; a receipt is never a witness; the evidence panel says "
+             "who/when/frame and never draws a picture that is not there. Driven in node. + the review of 77d8d8b5: "
+             "one sighting one tuple, the held sighting routes and is cited (H1, the shipped register end to end); "
+             "the backfill stamp forks per world, a read replays only in its own world, his removals never come back "
+             "(M3); owned_restore and the un-seed Undo write receipts and every d2r_owned write is censused (M4); no "
+             "claim on the bare predicate (L1); the backfill's side writes are journaled and undone (L2); and his "
+             "§31.2 ruling - inventory loot is CARRIED, owned right away, never filed, lands on a stash look, leaves "
+             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. 29 red-proofs."),
+    Gate("test_an_evidence_picture_is_never_reaped",
+         [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
+         why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
+             "in-loop reaper spares read-bearing and cited frames and refuses on an unreadable ledger; the reel "
+             "reaper asks the ONE authority (witness index + chron_evidence), keeps cited pictures and releases "
+             "the rest; a read keeps a small picture under the floor, none below the hard floor, and every "
+             "refusal and every reap is recorded by name. Driven through archive_read_frame on a temp shelf. "
+             "+ the review of 77d8d8b5: the read EVICTION asks the same shield and records what it takes (H2); the "
+             "reel pick keeps the journal's read frames and a reel with no index is COULD NOT ASK (M1); a refused "
+             "picture no longer stops the shelf shedding (M2); an unreadable budget refuses (L2). 15 red-proofs."),
+    Gate("test_a_vault_item_and_a_read_say_where_they_came_from",
+         [sys.executable, os.path.join(HERE, "test_a_vault_item_and_a_read_say_where_they_came_from.py")], 60,
+         why="2026-09-28 - the heart rows for the owned door: 'a vault item with no provenance' names every "
+             "owned name nobody can account for, and 'a read left no picture' names who took each missing "
+             "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
+             "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
+             "disk (the locator probes the stem, as frame_ref.Index.resolve does). 8 red-proofs."),
+    Gate("test_carried_loot_keeps_its_order",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_keeps_its_order.py")], 120,
+         why="2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings. "
+             "H1 the grail floor's seed cleanse ran on EVERY load and deleted carried found uniques unjournaled: it is "
+             "window._seedCleanse now, booted twice through the floor's own slice - once per world, only residue (no "
+             "filing, no receipt, no lock, not the shared stash), every removal in the removal journal, nothing while the "
+             "MAIN ledger is UNKNOWN. H2 carried is a STATE: stash/worn/locked/hand items are never re-marked carried and "
+             "a same-named floor label never un-owns them or touches a filing. H3 the register keeps the LATEST sighting "
+             "and the board reads first/held/latest in time order - his pick-up-look-drop is not owned, the reverse is "
+             "carried, an already-carried item leaves with the drop's frame. M1 the per-name place decides and the "
+             "register agrees with the board on every pair. M2 the backfill reads the same order (one function). M3 one "
+             "fold for removals and owned names. M4 an unattributed strip is ONE row saying character UNKNOWN (#54). L2 no "
+             "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole. 27 cases, 17 red-proofs."),
+    Gate("test_carried_loot_holds_its_time_and_its_name",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_holds_its_time_and_its_name.py")], 120,
+         why="2026-09-29 - the review of 20c0df1e (vault evidence route, round 4), his §31 / §29 rulings. H-1 an OLDER "
+             "session's pick-up-look-drop, replayed by the closer loop's recloses, un-owned carried loot a NEWER session "
+             "owns: a drop now leaves only what it postdates (weighed against the latest look on the receipt), an older one "
+             "is recorded once as history, a timeless one is UNKNOWN; and a replayed older pick-up never brings back an item "
+             "that left on a newer drop or that he removed (the cleanse's own batch is not his word). M-2 the vault's one "
+             "fold drops a trailing (...) only when the stem names ONE known item (ITEMS, RUNEWORDS, ITEM_SETS, the shard "
+             "kinds): Spirit (shield)/(sword), Crescent Moon/(amulet), Aldur's/Griswold's (any)/(class), the shard kinds and "
+             "Hellmouth stay apart, Harlequin Crest still joins (Shako); the register no longer files the runeword as the "
+             "amulet. M-3 carried is decided once, by the read that made the item owned: no door's item (all 19 the board "
+             "names) and no pre-receipt name becomes droppable loot. L-4 an unreadable d2r_muleAssign is UNKNOWN on the "
+             "strip and the population line, never '0 carried' / 'still loose'. L-5 the carried grid and the dock reserve "
+             "the corner tray's band (pixels at 375/901/1280). Round 5 (M-1) re-pointed the stale-receipt case: `owned` "
+             "decides carried, a receipt that outlived its name is history. 24 cases, 16 red-proofs."),
+    Gate("test_carried_loot_is_decided_by_owned_and_lands_in_order",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_is_decided_by_owned_and_lands_in_order.py")], 120,
+         why="2026-09-29 - the review of 7cded0c1 (vault evidence route, round 5), his §31 / §29 rulings, each reproduced. "
+             "M-1 a receipt a door left behind when it un-owned the name stopped the next real pick-up from being carried, so "
+             "his later real drop never left: `owned` decides carried, the stale receipt is kept as history. M-2 a reclose "
+             "replayed an OLDER stash / worn sighting onto carried loot a NEWER session picked up and LANDED it there (a worn "
+             "one would have locked it): a holding look lands only what it postdates, an older one is history, an undated one "
+             "is UNKNOWN. M-3 'Delete unsorted', the menu-page import, the TV unvault and the unique card's un-tick took names "
+             "out beside the removal journal, so the next reclose re-owned what he deleted: every un-own goes through the "
+             "journaled door (three driven through the REAL door, the un-tick pinned as code). L-1 removals and leaves were "
+             "matched on the read's name while the register owns the resolved one (Worldstone Shard vs (any), Harlequin Crest "
+             "vs (Shako)): the read's name goes through the ONE published resolution slice first. L-2 an undated read was "
+             "stamped with the wall clock and real drops were then 'OLDER': its time is null, tsMeasured false, recordedAt "
+             "beside it, and UNKNOWN is said. L-3 with the mule map unreadable the line said '0 filed · N not filed': both "
+             "UNKNOWN, and Auto-Sort waits. L-4 a bare name several known items share (Crescent Moon the runeword beside the "
+             "amulet) was filed as one of them: ambiguity is not a match - refused, or settled by the read's kind, in the "
+             "register and the AI checker alike - and the refusal is an ASK held in the Chronicle inbox, never a silent "
+             "false. ROUND-5 REVIEW: ambiguity is about DIFFERENT items, not spellings - a bare Hellmouth is the one unique "
+             "the tables spell two ways, a bare Spirit is ONE item whose base is UNKNOWN, a bare Worldstone Shard is the "
+             "(any) bucket; driven through the REAL register head on the kind-less TV and hand witnesses. R-5 the ring "
+             "forgets, his word must not: every removal is noted per name (d2r_vaultRemovedAt, never evicted), the TV's "
+             "thrown items are ONE batch with the read's frame as proof, a machine claim with no frame outranks no older "
+             "read, and the unique card's un-tick keeps the mule filing (his 'never delete a mule filing'). 29 cases, "
+             "30 red-proofs."),
     Gate("test_a_still_screen_is_one_look",
          [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
          why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "

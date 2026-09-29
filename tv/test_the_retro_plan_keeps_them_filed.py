@@ -177,8 +177,8 @@ RED_PROOF = [
     {
         "why": "the plan the console serves drops the retro flags",
         "file": "vault_evidence.py",
-        "find": "    plan[\"retro\"] = _retro_answer(retro, \"frames\")\n",
-        "replace": "    plan[\"retro\"] = _retro_answer([], \"frames\")\n",
+        "find": "    plan[\"retro\"] = _retro_answer(retro, \"board\" if held_names is not None else \"frames\")\n",
+        "replace": "    plan[\"retro\"] = _retro_answer([], \"board\" if held_names is not None else \"frames\")\n",
         "matches": 1,
     },
 ]

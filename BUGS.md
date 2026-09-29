@@ -422,6 +422,259 @@ array opener counts. Both halves driven apart in the anchors law and pinned as r
 the walker. Measured on both hooks: anchors stage depth 0, prove call depth 1, EOF depth 0, no quote open at EOF.
 **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py` (7 cases, 8 red-proofs) - reads the hook's own
 stage order through the anchors law's shell walker, pins every stage and bound, runs `bash -n`.
+### REG-1460 - A RECEIPT THAT OUTLIVED ITS NAME STOPPED A REAL PICK-UP FROM BEING CARRIED (M-1, review of 7cded0c1, 2026-09-29)
+
+**SEEN (reproduced on 7cded0c1, driven on 2cf8d4ad):** the M-3 line `if (fresh.carried === true && (cur || owned.has(nm)))`
+read the standing receipt beside `owned`. A door that takes a name out of `owned` without its receipt (the unique card's
+un-tick, "These look like a chronicle page", a rewritten d2r_owned) leaves one behind — and the next real pick-up of that
+name was then NOT carried, so his later real drop never left: the v2346 item stayed owned. **FIX:** `owned` decides — a
+pick-up of a name he does not own is a pick-up; the stale receipt is kept beside the fresh one as history (pastReceipts,
+mode 'renewed'); a name he DOES own is still never re-marked (M-3 stands). HEART: test_carried_loot_is_decided_by_owned_and_lands_in_order
+M1 (2 cases, 2 red-proofs); test_carried_loot_holds_its_time_and_its_name's stale case re-pointed (it asserted the defect).
+
+### REG-1461 - A REPLAYED OLDER STASH OR WORN SIGHTING LANDED (AND WOULD HAVE LOCKED) NEWER CARRIED LOOT (M-2, 2026-09-29)
+
+**SEEN:** the merge landed a carried receipt on ANY holding look (`cur.carried === true && _landsCarried(fresh.loc)`), with no
+time order — the H-1 sibling. The closer loop recloses old reels on every kaiVer bump / POST /api/kai_reclose, so an OLDER
+session's stash read replayed onto loot a NEWER session picked up landed it at that older look (carried=false), his later real
+drop answered "yours is landed", and an older worn sighting would have locked it (§29). REG-1391's journal guard blocks it
+only when a journaled removal sits between the two sessions. **FIX:** a holding look lands only what it POSTDATES (weighed
+against the latest look on the receipt, exactly as a drop is — _ownedSinceMs); an older one joins as history (pastLandings)
+and never lands; a look or a receipt with no time is UNKNOWN (unorderedLandings) and lands nothing; "last seen" never moves
+backwards. HEART: M2 (4 cases, 2 red-proofs).
+
+### REG-1462 - FOUR UN-OWN DOORS TOOK NAMES OUT BESIDE THE REMOVAL JOURNAL, SO THE NEXT RECLOSE RE-OWNED WHAT HE DELETED (M-3, 2026-09-29)
+
+**SEEN:** vaultClearUnsorted ("Delete unsorted"), vaultDropMenuImport ("These look like a chronicle page"), tvVaultUnregister (the
+TV unvault) and toggleOwned's unique un-tick each did `owned.delete(name)` with no d2r_vaultRemoved batch (the un-tick also left
+the receipt, REG-1460). REG-1391's "his removal outranks every older read" cannot see a removal it never recorded: the next
+reclose replayed the same older read and owned the name again. **FIX:** every un-own goes through window.vaultRemove — dated,
+journaled, undoable — under its own lane (clear-unsorted, menu-import, tv-unvault, un-tick); the un-tick falls back to
+owned.delete + _ownedProvForget only when the door is not on the page. HEART: M3 (4 cases: three doors driven through the REAL
+removal door and replayed, the un-tick pinned as code; 4 red-proofs).
+**ROUND-5 REVIEW (LOW), RULED:** routing the un-tick through vaultRemove also deleted the item's MULE FILING (the door drops
+assign[name] on every lane); the old un-tick left the filing standing, and "never delete a mule filing" is his standing rule.
+The un-tick now passes `keepFiling: true`: the filing and its witness row stay on the mule, only the name leaves owned — journaled
+(the batch says keepFiling) and undoable. A plain removal still takes the filing (REG-1479).
+
+### REG-1463 - REMOVALS AND LEAVES WERE MATCHED ON THE READ'S NAME WHILE THE REGISTER OWNS THE RESOLVED ONE (L-1, 2026-09-29)
+
+**SEEN:** since M-2 the fold keeps "(any)" apart from its bare stem, so a removal of "Worldstone Shard (any)" no longer blocked a
+bare "Worldstone Shard" read (the backfill re-filed it: 20c0df1e skipped it removed-by-him, 7cded0c1 filed it); and on both
+trees a drop read as "Harlequin Crest" never left the "(Shako)" he carried (_carriedLeave asked owned.has of the read's name).
+**FIX:** the register's resolution slice is published as window._vaultResolveName (byte for byte the lines tvVaultRegister
+filed by; the register calls it) and the owned door's _removedAfter, _carriedLeave and the backfill's keys go through it
+first. HEART: L1 (3 cases, 3 red-proofs).
+
+### REG-1464 - AN UNDATED READ WAS STAMPED WITH THE WALL CLOCK, SO EVERY LATER REAL DROP WAS "OLDER" (L-2, 2026-09-29)
+
+**SEEN:** `var ts = _ms(rec.ts) || _ms(rec.at) || Date.now();` fed _ownedSinceMs, so a framed look with no time joined to
+carried loot made every drop processed after it (a reclose, a late seal) read as older — recorded as history, never a leave —
+and the "receipt with no time → UNKNOWN" branch was dead. **FIX:** `at` / `ts` and the look's `at` are the read's own time or
+null; `tsMeasured` says which; `recordedAt` keeps the clock beside them, labelled; the evidence card says "seen at an UNKNOWN
+time · recorded ..."; a later measured look restores the order and the drop leaves. HEART: L2 (3 cases, 1 red-proof).
+
+### REG-1465 - WITH THE MULE MAP UNREADABLE THE POPULATION LINE SAID "0 FILED · N NOT FILED" (L-3, 2026-09-29)
+
+**SEEN (his own evid_r4_after_unknown_375x812.png):** "13 owned · 0 filed to mules · carried UNKNOWN · 13 not filed" — both
+figures from the store that would not read; Auto-Sort stayed live over it (v3523's load() guard already stops saveA writing
+{} over it). **FIX:** renderVault hands filed:null / loose:null when window._muleStoreUnread(AK) says so; the line says
+"filed to mules UNKNOWN · carried UNKNOWN · not filed UNKNOWN"; vaultAutoAssign refuses (mule-map-unreadable). HEART: L3 (2
+cases, 2 red-proofs).
+
+### REG-1466 - A BARE "CRESCENT MOON" WAS FILED AS THE RUNEWORD; THE AMULET SHARES ITS NAME (L-4, 2026-09-29)
+
+**SEEN:** M-2 stopped the register folding the runeword into the amulet, and the other edge opened: in the game the unique
+amulet is also named "Crescent Moon", so a bare read on a door that calls the register directly (TV live, a stash sweep, his
+hand) filed it as the runeword and one item became two tiles; _aicIsGrailName's codex-ci loop turned the same bare name into
+"(amulet)". A bare "Spirit" registered as a third tile beside (shield)/(sword). **FIX:** window._vaultNameAmbiguity — a name
+that is its own stem, when that stem names more than one known item, is ambiguous: the register refuses it and names the
+candidates (or settles it when the read's kind — its ledger store: rwMade / foundLog / setPieces — picks exactly one), the
+live route waits, _aicIsGrailName answers null (UNKNOWN, held for his eye). HEART: L4 (3 cases, 1 red-proof).
+**ROUND-5 REVIEW (HIGH), CORRECTED — see REG-1474:** that rule refused a bare "Spirit" and "Hellmouth" under EVERY kind and a bare
+Worldstone Shard / Aldur's Watchtower / Griswold's Legacy on the kind-less doors, silently. Ambiguity is about DIFFERENT items,
+not spellings: Hellmouth is one unique, Spirit is one registrable item with its base UNKNOWN, the "(any)" bucket is the
+kind-unknown answer; only siblings of different kinds (Crescent Moon) are refused — and the refusal is held in the inbox.
+
+### REG-1467 - ONE VAULT, THREE ADMISSION BARS, NOTHING PAIRING THEM: THE RETRO KEEP WAS PROMISED TO A BOARD THAT HELD NOTHING (#41 rank 1, 2026-09-29)
+
+**SEEN (the #41 heart audit, verified):** Wilson 0.722 over 10 visits (the reset's rebuild), 2 looks at the normal door, 1 look
+for a keepFiled retro row — and the retro flag came from surplus FRAMES (plan_from_ledger asked _retro_row with no recorded
+tiers), never from what the board had filed. His board has held nothing since his 09-27 reset (every backup: assign {} and
+prov {}), and the plan still promised keepFiled for Radiance and the Horadric Cube; the doctor's 'vault provenance' arm 3 told
+him to press register for 11 rows the plan HELD, which would undo the hold. **FIX:** the reset reads its own filings BEFORE
+its clears (window._vaultRecordedFilings: the mule map's names + the witness rows' tiers) and POSTs them as `recorded`;
+plan_from_ledger(path, recorded) keeps a retro row filed only where the board filed it and compares the board's own tier; the
+doctor reports a row the last reset's receipt held BESIDE ("held by your reset ... the 2-look door would file it on
+register"), never as a gap; corroborate's `a-reset-hold-is-not-a-register-prompt` pairs the backup lane's snapshot of the
+receipt + the live gate against the doctor's verdict. NOT asked of him (the brief said ask one question): §34.2 keeps a row
+filed because it was filed before — a board that never filed it has nothing to keep; if he rules the 2-look door may re-file
+after a reset, the arm-3 sentence is the place to change. HEART: test_a_reset_keeps_the_retro_rows_filed (+1 node case, +4
+plan cases, 3 red-proofs); test_the_vault_provenance_row_can_go_red (+3 cases, 2 red-proofs).
+**ROUND-5 REVIEW (MED ×2), CORRECTED:** the two ends disagreed about `null` (REG-1478: an unreadable board is now sent as `false`
+and answers UNKNOWN), and the joint's two sides asked two filters (REG-1475: both ask console_doctor.arm3_row_class now).
+
+### REG-1468 - THE "VAULT RESET RECEIPT" ROW COULD NEVER READ A RECEIPT (#41 rank 2, 2026-09-29)
+
+**SEEN:** console_doctor registers _check_the_vault_reset with no arguments and returned UNKNOWN when there were none; nothing
+stored window._vaultLastReset and nothing POSTed it; his real 09-27 reset (assign 174→0, owned 223→0) left no trace; two
+comments (bible.html, corroborate NO_JOINT_YET) said the row read it. **FIX:** _vaultResetRun persists the receipt as
+d2r_vaultLastReset (forked like the stores it clears, _LP_FORKED) with a digest of every kept store before the clears and
+after the rebuild (an unreadable store is left out — UNKNOWN, never intact); the no-argument row reads it through the ONE
+board read, judges it with vault_evidence.reset_receipt and carries the reset's own time; a Reset-assignments receipt is judged
+on the kept stores alone (rebuilt / held not applicable, never "UNKNOWN for ever"); both comments corrected. HEART:
+test_the_vault_heart_says_what_the_reset_and_the_tiers_did (+2 cases, 2 red-proofs); the JOIN driven end to end in
+test_a_reset_refiles_only_what_the_plan_says (the shipped reset's persisted receipt fed to the row; 1 red-proof);
+test_a_vault_reset_clears_only_the_mules allows the receipt key and pins the digest.
+
+### REG-1469 - EVERY CLICK ON AN EVIDENCE LINE OPENED "FRAME MISSING" (#41 rank 3, the v3182 defect again, 2026-09-29)
+
+**SEEN (auditor, read-only on his ledger):** of 150 distinct cited frames 109 exist on disk, ALL under frames/hist/reel_<sid>/,
+none flat; _vaultShowEvidence called _tvdOpenFrame(look.frame, {title}) with no src, the bridge refuses any "/" in an id and the
+archive leg joins hist/<id>.jpg — 0 of 109 reachable; the law stubbed the viewer and was PROVEN over the stub. **FIX:**
+window._vaultLookSrc(look) → 'tv/frames/hist/reel_<sid>/<frame>' (the rebuild's visit id 's_…#0' loses its bucket); the click
+and the panel's off-screen probe walk the chain reel path first ('/hist/' + it is what control_app._serve_hist serves).
+HEART: test_a_cited_frame_stays_and_the_evidence_line_opens_it (+1 case that resolves the path through _serve_hist's own path
+join on a fixture shelf, 2 red-proofs).
+
+### REG-1470 - THE "EVIDENCE TIERS" ROW WAS PERMANENTLY MISSING ON PICTURE LOSSES NOTHING CAN REPAIR (#41 rank 4, 2026-09-29)
+
+**SEEN:** the row returned MISSING with a 180-character frame list before the tier counts and the retro flags were printed; on
+his shelf 21 of 29 cited frames went with 13 reels drained 08-30..09-10, before the keep landed (c45c5840, 2026-09-28
+07:37:19Z) — so the Ledger 3.0 report never reached the eagle and a NEW loss would hide inside the red. **FIX:**
+vault_evidence.picture_losses dates every gone frame by its reel's tombstone against KEEP_LANDED_MS: before = baseline, said
+beside an OK with the count; after = MISSING naming the item it stands on; a loss no tombstone dates = MISSING as
+UNKNOWN-when. The tiers and the retro flags are always printed. cited_frames now carries each frame's reel and items.
+HEART: the heart law (+2 cases, 3 red-proofs).
+**ROUND-5 REVIEW (HIGH), CORRECTED — see REG-1473:** this fix did not reach his machine — the tombstone resolver's answer
+(tv/reel_tombstones.json) was dropped by a guard that demanded the file under the shelf's parent, so all 21 losses read
+'undated' and the row was MISSING for ever wearing "no tombstone dates the loss".
+
+### REG-1471 - R.ok WAS DECIDED BEFORE THE REBUILD, AND held MIXED UNKNOWN WITH WATCHED (#41 rank 9, 2026-09-29)
+
+**SEEN:** R.ok was set before _vaultRefileFromPlan, so a reset whose plan was unread or whose rows the door refused wore the
+clean 🧹 prefix; planWhy had no reader; held counted tier-None rows with WATCHED. **FIX:** after the refile R.ok is false on a
+refusal and null (UNKNOWN) on an unread plan; the status line prints planWhy and "held N (a WATCHED · b UNKNOWN)"; the
+receipt carries heldNames for the doctor. HEART: test_a_reset_refiles_only_what_the_plan_says (+1 case, 2 red-proofs).
+
+### REG-1472 - A WITNESSED FILING'S EVIDENCE LINE SAID NOTHING OF ITS GATE OR THAT ITS TIER IS UNKNOWN (#41 rank 10, 2026-09-29)
+
+**SEEN:** the auditor's mechanism was stale — since 2026-09-28 every row already gets a line ("EVERY ROW SPEAKS") — but a normal-door
+filing's line read "filed · stash · 2 looks" as if tiers did not apply to it. **FIX:** the line says the gate that admitted
+it beside the looks ("gate passed on 2") and that the tier is UNKNOWN (the evidence table has not judged it — not WATCHED); a
+receipt keeps its own words. HEART: the cited-frame law (+1 case, 1 red-proof).
+
+### REG-1473 - THE TOMBSTONE GUARD DROPPED HIS OWN RECORD, SO EVERY LOST PICTURE WAS "UNDATED" AND THE ROW STAYED RED (round-5 review HIGH, 2026-09-29)
+
+**SEEN (reproduced read-only on his ledger + shelf):** vault_evidence._tombstone_times asked reel_retention._tombstone_path(root),
+which names tv/reel_tombstones.json (his file, 137 KB, 21 of 21 losses dated in it) — then kept only candidates under
+dirname(root) = tv/frames. His file sits one level up: filtered, `_tombstone_times` -> None, picture_losses: 21 undated, 0
+baseline, and the row was permanently MISSING again with the FALSE sentence "no tombstone dates the loss — when is UNKNOWN".
+The law was green because its fixture wrote the record INSIDE the shelf; his tree never does. [[gate-blind-to-unexercised-input]]
+**FIX:** the resolver's answer is trusted (it already answers a fixture root with a file inside the fixture's own tree); the one
+refusal kept is the ImportError fallback — a root OUTSIDE rr.HERE's tree is never dated by a record INSIDE it (his tombstones).
+The shelf's own tree is still asked first. Path containment is realpath + case-folded (never a bare startswith).
+HEART: test_the_vault_heart_says_what_the_reset_and_the_tiers_did — test_his_layout_the_tombstones_beside_the_module_date_the_shelf_under_frames_hist
+(a fixture in HIS layout: <tv>/reel_tombstones.json, shelf <tv>/frames/hist, rr.HERE repointed, TV_HIST unset),
+test_a_fixture_shelf_is_never_dated_by_a_record_outside_its_tree (the ImportError answer, driven); 2 red-proofs (the old guard
+restored → his layout undated; the fixture refusal dropped → a fixture dated by his file).
+
+### REG-1474 - L-4 TURNED REAL GAME NAMES INTO PERMANENT, SILENT REFUSALS: SPIRIT, HELLMOUTH, A BARE WORLDSTONE SHARD (round-5 review HIGH, 2026-09-29)
+
+**SEEN (reproduced on the real name lists through the real resolver slice):** a bare "Spirit" (both siblings runewords) and a bare
+"Hellmouth" (the drop tables spell ONE unique two ways: "Hellmouth" and "Hellmouth (gloves)") were REFUSED under every kind —
+the "settle by kind" tap could never reach them; the TV live door (window.__tvLiveW = {lane, by, sessions}) and the inbox
+accept (a hand witness) pass no kind, so bare Worldstone Shard, Crescent Moon, Aldur's Watchtower and Griswold's Legacy were
+refused there too. Nothing surfaced it (x.vault=false, vaultWhy on a log row): a 'wait' with no ask. And the L-1 law's premise
+(a bare Worldstone Shard resolves to and is owned as "(any)") was exactly what the real register refused — two fixes in one round
+contradicting each other on the page, invisible because the harness stub register skipped the gate. [[two-fixes-broke-each-other]]
+**FIX:** window._vaultNameAmbiguity — ambiguity is about DIFFERENT items, not spellings: (1) every sibling ONE kind and the bare
+name itself a sibling (Hellmouth) → not ambiguous, the bare name is the item; (2) every sibling one kind and the bare name not a
+sibling (Spirit) → ONE registrable item, settled to the bare name with `baseUnknown` (the receipt says "which base is UNKNOWN");
+(3) a "<stem> (any)" sibling (Worldstone Shard, the set names) → settled to the "(any)" bucket the resolver already answers;
+(4) only siblings of DIFFERENT kinds (Crescent Moon: runeword vs amulet) are refused without the read's kind — and the refusal
+is SURFACED: window._vaultHoldAmbiguous holds the read in the Chronicle inbox (d2r_chronicleInbox, once per name) naming the
+candidates, and the ledger row says ask:'which'. _aicIsGrailName is UNKNOWN only for a name the rule cannot settle. The harness
+stub register every owned-door law drives now carries the register's REAL gate (test_every_owned_door_writes_provenance:
+__AMB_GATE__, cut from the page). HEART: test_carried_loot_is_decided_by_owned_and_lands_in_order L4 — test_a_same_kind_pair_is_one_item_with_its_base_unknown_and_a_spelling_is_not_ambiguous,
+test_the_any_bucket_is_the_kind_unknown_answer, test_the_real_register_head_on_the_kind_less_doors_files_the_names_and_refuses_only_crescent_moon
+(the REAL register head, cut whole, on the TV live and hand witness shapes; the inbox hold driven), the register/AI-checker
+source case widened; 7 red-proofs.
+
+### REG-1475 - THE RESET-HOLD JOINT CRIED WOLF: ITS TWO SIDES ASKED TWO FILTERS (round-5 review MED, 2026-09-29)
+
+**SEEN (reproduced on a fixture board fed to both sides, the doctor side real):** corroborate's `a-reset-hold-is-not-a-register-prompt`
+LEFT counted every reset-held stash row the gate passes; RIGHT (the doctor) reached its reset-held bucket only after arm 3's
+pre-filters (an ITEM row, not filed under its canonical name, worth registering, not locked, routable). A held Sunder charm
+(shared stash: no mule) and a held "Ber Rune" (a tally row) were counted left, skipped right: DISAGREE, left 3, right 1, over a
+doctor that said OK. [[the-obvious-fix-cried-wolf]] **FIX:** the arm-3 row filter is ONE predicate, console_doctor.arm3_row_class
+(-> None | 'no-mule' | 'route-unknown' | 'reset-held' | 'unfiled'), with _arm3_defaults for its three predicates; the verdict and
+the joint's LEFT both ask it — the LEFT with the backup snapshot's mule map and lane locks, the RIGHT with the live board's. What
+stays independent is the RECORD each side reads. HEART: test_the_vault_provenance_row_can_go_red —
+test_the_reset_hold_joint_agrees_over_a_healthy_board_with_shared_stash_and_tally_rows (the REAL _vault_provenance_counts over a
+stubbed board read, a shared-stash and a tally held row, both directions); 5 red-proofs re-pointed to the predicate.
+
+### REG-1476 - THREE OF TEN LAWS SHIPPED RED: A RECEIPT THAT NEVER SAID IT WAS PERSISTED, ANCHORS THAT BLANKED THEIR OWN STRINGS, A FIELD READ AFTER ITS ROW WAS GONE (round-5 review MED, 2026-09-29)
+
+**SEEN:** the round-4 builder reported "laws written, not yet run" (the push gate forbade tests); the reviewer ran them: the new law
+had 2 errors + 2 failures, the reset law 2 failures, the heart law 1. Four instruments and one product defect: (a) _vaultResetPersist
+set `R.persisted = true` AFTER JSON.stringify(R), so the STORED receipt never said it was persisted (product); (b) three source-guard
+cases read the page through P._code_only, which blanks comments AND string literals, so anchors holding 'un-tick',
+'mule-map-unreadable', 'ambiguous' could never match [[source-reading-guard]]; (c) one case read row('Stormshield').lastAt AFTER the
+drop had taken the receipt away (the code was right); (d) rank 9 made R.ok null for a full reset whose plan is unread, and the reset
+law still asserted true; (e) the heart law asserted 'never rebuilds' while the code said "(nothing is rebuilt by that door)".
+**FIX:** persisted is set before the receipt is serialised; the three source cases read raw source bounded by their landmarks and
+anchor on CALL shapes; lastAt is read before the drop; the reset law asserts ok None + planWhy "could not be read" + touched []
+(the rank-9 rule); the phrase is "Reset assignments never rebuilds · kept stores unchanged" in vault_evidence and the doctor alike.
+HEART: every one of the ten laws now RUN, green (this entry's evidence is the run log, not a claim).
+
+### REG-1477 - M-3 ROUTED HIGH-VOLUME SIGNALS INTO A 20-DEEP RING BUILT FOR CARD CLICKS, SO HIS EARLIER REMOVALS WERE EVICTED (round-5 review MED, 2026-09-29)
+
+**SEEN (the class is arithmetic on the ring):** vaultRemove pushes one batch per call and _vrWrite keeps log.slice(-20); M-3 made
+each un-tick and each TV-thrown name its own batch, so a sweep of 20 un-ticks or one session's throws evicted his earlier card-click
+batches — with them the undo and REG-1391's "his removal outranks every older read". The TV's 'tv-unvault' batch was also stamped
+Date.now() with no proof frame and counted as his word. **FIX:** (1) every removal that is his word is ALSO noted per name in
+d2r_vaultRemovedAt ({canon key: {at, lane, frame, ts}}, forked in _LP_FORKED beside the ring, never evicted, only moves forward) by
+window._vaultRemovalNote — the owned door's rule, keyed as the backfill keys (the register's resolution, then the vault fold);
+_removedAfter and the backfill read it beside the ring, and an unreadable record is UNKNOWN (the read waits). (2) window._removalIsHisWord
+is the ONE rule: the cleanse and the backfill undo never; a 'tv-unvault' batch only with its proof frame. (3) window.tvVaultUnregisterMany
+takes the TV read's WHOLE thrown list as one batch with proof {frame, at = the frame's own f_<epoch-ms> stamp}; the TV door calls it;
+a bare tvVaultUnregister (no frame) still un-owns but blocks no replay. HEART: the new law's R-5 class — 
+test_a_removal_the_ring_evicted_still_blocks_the_older_read_and_the_backfill (a card-click removal, 25 un-ticks, ring 20, the
+replay 'not-held', the backfill 'removed-by-him', a newer pick-up his again), test_an_unreadable_per_name_record_is_unknown_and_the_read_waits,
+test_the_per_name_record_forks_like_the_ring, M3's test_the_tv_hands_one_batch_per_read_with_its_frame_as_proof and
+test_a_tv_unvault_with_no_frame_un_owns_but_outranks_no_older_read; 8 red-proofs.
+
+### REG-1478 - THE TWO ENDS OF RANK 1 DISAGREED ABOUT null: AN UNREADABLE BOARD WAS JUDGED BY THE FRAME MATH (round-5 review MED, 2026-09-29)
+
+**SEEN:** _vaultRecordedFilings answers null when a store would not read, and _vaultAskRebuildPlan POSTed {recorded: null};
+vault_evidence._recorded_filings read None as "the caller did not say" and fell back to the frame-surplus keep — the audit's own
+defect, through the unreadable door — while REG-1467 claimed "an unreadable recorded is UNKNOWN". The False arm was reachable only
+from a shape the page never sends. [[the-unjoined-end]] **FIX:** the page sends `false` for a board it could not read (null stays
+"not said" — undefined); `false` is the unreadable arm in Python: UNKNOWN, nothing rebuilt, recordedBy None. HEART:
+test_a_reset_keeps_the_retro_rows_filed — test_a_board_the_page_could_not_read_is_unknown_not_the_frame_math (POST recorded:false
+through the real handler; recorded:null is still the frame math) and test_a_reset_whose_witness_store_would_not_read_says_so_to_the_plan
+(node: d2r_vaultProv throws on read → the ask carries false); 2 red-proofs.
+
+### REG-1479 - THREE LOWS FROM THE ROUND-5 REVIEW: THE UN-TICK DELETED THE FILING, A LABEL THE ROW DENIED, A LOWER BOUND CALLED EXACT (2026-09-29)
+
+**(1) the un-tick and the mule filing** — see REG-1462's ruling: keepFiling keeps it; a plain removal still takes it (new-law case
+test_the_un_tick_keeps_the_mule_filing_and_a_plain_removal_takes_it, 1 red-proof). **(2) recordedBy label drift** — plan_from_ledger
+said 'board' while a tier-less board filing's row said 'frames' (every normal-door filing, per rank 10): _retro_row now takes
+board_filed and the row says 'board (no tier)' with a sentence that names both facts ("filed on the board with no tier; the frame
+math counts it ..."); the retro-keep law's Horadric Cube assertion moved with it (1 red-proof). **(3) KEEP_LANDED_MS** — the commit
+time is a LOWER BOUND for when the keep reached his machine (he pulled it later); the row's words say so (vault_evidence.KEEP_LANDED_WHY
+in the after-keep sentence) instead of pretending the constant exact (heart-law case test_a_loss_after_the_keep_says_the_commit_time_is_a_lower_bound,
+1 red-proof). **(4) SEEN ON THE CAPTURED PIXELS, not by the reviewer — a fresh board's empty stores read as a change.** The
+rank-9 status line captured for this round said "⚠ a reset must never change d2r_magicFinds, d2r_copies, d2r_multiKeep,
+d2r_unknownReads — it did" on a board that had never held those keys: the full reset's own persistOwned() writes '{}' / '[]'
+where no key was (multiKeep's default is not even empty), and the keep check read null -> '{...}' as a change (the reset law's
+harness seeds every store, so it never saw a fresh one — [[gate-blind-to-unexercised-input]]). A store absent before and present
+after is MATERIALISED: the runner names it apart (R.materialised, "wrote where no store existed (the page's own defaults, not a
+change to your data)"), the persisted digest keeps 'absent' -> the new digest, and vault_evidence.keeps_diff names it apart so
+the doctor's row says the same — never hidden, never "it did"; a store that will not READ is still UNKNOWN. HEART: reset law
+test_a_fresh_board_s_empty_stores_are_not_a_change (the doctor's row read off the same persisted receipt; +3 red-proofs), heart
+law test_a_store_the_reset_materialised_is_named_never_read_as_a_change (+1 red-proof).
 
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 
@@ -865,6 +1118,190 @@ proofs across the lanes - that same shape - and was taken out before anything ra
     one-viewport passes so a tile proof does not render the keyboard pass.
 **LAW:** test_a_push_proof_runs_only_where_its_defect_shows (18 cases, fixtures only - no browser; 17 red-proofs; with
 REG-1442 / REG-1443: 22 cases, 24 red-proofs).
+
+### REG-1390 - A RECLOSE REPLAYED AN OLDER SESSION'S DROP AND UN-OWNED LOOT A NEWER SESSION CARRIES (H-1, review of 20c0df1e, 2026-09-29)
+
+**SEEN (reproduced on 20c0df1e, driven on 090ace9a):** window._sightingsRoute's drop branch and window._carriedLeave never
+compared the drop's time with the look that owns the item. The closer loop recloses old reels on every kaiVer bump, every
+incomplete seal and every POST /api/kai_reclose, and kaiChroniclePropose routes every settled name through
+window._liveReadRoute again - so an OLDER session's pick-up-look-drop (the SHIPPED register's heldTs/latestTs pair) was
+replayed as a leave against a Harlequin Crest a NEWER session had picked up: gone from owned, gone from the strip, a
+carried-left batch in the journal. A plain older floor label did the same, and so did a drop that carried no time at all.
+**FIX:** a drop leaves only what it POSTDATES. _carriedLeave weighs the drop's own time against the LATEST look on the
+receipt (_ownedSinceMs: ts, at, lastAt, every look); a later drop leaves with its frame as before; an older one is
+recorded once per frame on the receipt as history (pastDrops: frame, time, place, session) and is never a leave; a drop or
+a receipt with no time cannot be put in order and changes nothing (UNKNOWN, said). HEART:
+test_carried_loot_holds_its_time_and_its_name H1 (6 of its 8 cases, incl. the register premise and the newer-drop
+baseline; 3 red-proofs); test_every_owned_door_writes_provenance's §31.2 leave fixture now dates its reads (it had none - a timeless
+drop is exactly the case that may no longer leave).
+
+### REG-1391 - A REPLAYED OLDER PICK-UP BROUGHT BACK AN ITEM THAT LEFT ON A NEWER DROP, OR THAT HE REMOVED (H-1 swept, 2026-09-29)
+
+**SEEN (the mirror of REG-1390, found while fixing it, driven on 090ace9a):** after a NEWER drop took Magefist out, the
+next reclose replayed the older session's plain pick-up and the live route owned it again as carried - "leaves on a drop"
+held only until the next reclose. The same for a stash read older than his own removal (card-click). The backfill already
+kept his removals out; the live route and the auto-accept door did not. **FIX:** window._readRoute - the one decision the
+live route, the backfill and the auto-accept door all ask - weighs a holding read against his last word
+(window._removedAfter): a read OLDER than a removal of the same item (the carried-left batch's own drop time, else the
+moment he removed it; keyed through the vault's one fold) routes not-held and says why; a read LATER than it is a new
+pick-up and owns it again; an unreadable journal or an undated read beside a removal waits (UNKNOWN). The seed cleanse's
+and the backfill undo's own batches are not his word about the item and never block a read. **LIMIT, said:** the removal
+journal is a 20-deep ring (_VR_RING); a removal pushed out of it no longer outranks an older replay. HEART: H1 of the same
+law (2 cases, 2 red-proofs).
+
+### REG-1392 - THE VAULT'S ONE FOLD MERGED ITEMS THAT ONLY THEIR SUFFIX TELLS APART (M-2, 2026-09-29)
+
+**SEEN (reproduced, driven over the board's own name lists on 090ace9a):** window._vaultCanonName dropped a trailing
+"(...)" unconditionally, so Spirit (shield) / Spirit (sword), Crescent Moon / Crescent Moon (amulet), Aldur's Watchtower
+(any) / (Druid), Griswold's Legacy (any) / (Pala), the five Worldstone Shard kinds and Hellmouth / Hellmouth (gloves)
+each became ONE key: the backfill blocked Crescent Moon (amulet) on a removal of the runeword, wrote the sword's row as the
+shield's receipt, skipped the Northern shard on a removal of the Eastern one, and decided Aldur's (any) and (Druid) as one
+group. Swept: tvVaultRegister filed the runeword Crescent Moon as Crescent Moon (amulet) (d2rItemLookup's own stem fold).
+**FIX:** the fold drops the suffix only when the stem it leaves names ONE known item (ITEMS, RUNEWORDS, ITEM_SETS names and
+pieces, WS_SHARDS_HUB) - d2rItemLookup's "ambiguity is not a match". MEASURED why not the brief's literal "keep the suffix
+when the exact name is in ITEMS": ITEMS is built from the boss drop tables, so Spirit (shield)/(sword) are not in it and
+Harlequin Crest (Shako) is - that reading keeps the Spirit pair merged and splits Harlequin Crest from its own (Shako)
+spelling, reopening REG-1385. The register never hands a name that is one of several known items sharing its stem to the
+stem lookup (window._vaultDistinctName); a case variant still resolves key to key. No name list on the page = the old
+fold. HEART: test_carried_loot_holds_its_time_and_its_name M2 (5 cases incl. the premise that every pair is the board's
+own and a joins baseline, 2 red-proofs); test_control V2286 unchanged (the fold is still _cnV's own first line).
+
+### REG-1393 - AN ITEM A DOOR OWNS WAS MADE DROPPABLE LOOT BY THE NEXT INVENTORY READ (M-3, 2026-09-29)
+
+**SEEN (reproduced, driven on 090ace9a for every door the board names):** REG-1381 let an inventory read mark a receipt
+carried when "nothing on it says where it is" - and that null state is exactly what every door that is not a live read
+writes. Driven on 090ace9a with a plain receipt from each of the 19 _SRC_SAY doors, 18 were re-marked carried and
+un-owned (every door but his own tick, which REG-1381 already held). So an item those doors own became carried on the next inventory read and a same-named floor
+label un-owned it. A name owned before receipts existed (no receipt at all) went the same way. **FIX:** carried is decided
+ONCE, by the read that made the item owned - one line in _ownedProvWrite: a read is carried only when nothing stands for
+the name yet and it was not already owned (_ownedAdd now writes the receipt BEFORE it adds the name, so the write sees
+`owned` as it stood). A standing receipt, whoever wrote it, is never re-marked - the later read joins it as a look, which
+is all it proves. A fresh pick-up is still carried and still leaves on a later drop. HEART: M3 of the same law (5 cases: all
+19 doors, a pre-receipt name, a standing receipt merged directly, the fresh baseline; 2 red-proofs);
+test_carried_loot_keeps_its_order's H2 red-proof re-anchored (the line it tampered is gone; it now puts the fill back).
+
+### REG-1394 - AN UNREADABLE FILING STORE READ AS "0 CARRIED" AND COUNTED CARRIED LOOT "STILL LOOSE" (L-4, 2026-09-29)
+
+**SEEN:** with d2r_muleAssign unparseable every receipt's state is 'unknown', so _carriedNames returned [] - the strip went
+away, the population line dropped the carried figure and counted that loot among "N still loose". **FIX:** _carriedNames
+answers null (UNKNOWN) when the filings will not read, as it already did for d2r_vaultProv; the strip renders one row that
+says it cannot tell (window.CARRIED_UNKNOWN); the population line is one builder (window._vaultPopHtml) that says
+"carried UNKNOWN · N not filed (how many of them are in your hands is UNKNOWN ...)"; renderVault hands the UNKNOWN to both.
+Rendered on real pixels at 375/901/1280 (evid_r4_after_unknown_*.png). HEART: L4 of the same law (4 cases, 4 red-proofs).
+
+### REG-1395 - THE CORNER TRAY PAINTED OVER THE CARRIED CHIPS' MAGNIFIER, AND THE DOCK'S ✕ (L-5, 2026-09-29)
+
+**SEEN (real pixels, one headless Chrome):** the v704 tray parks the compass and the "?" at right:12px, 44px wide, with a
+ring and a glow beyond. The carried grid ended 44px from the edge at 375 (48 at 901 and 1280), so as the strip scrolled
+past them every chip's magnifier slid under them: at 375 the magnifier spanned x 303..321 with the tray at 319..363
+(evid_r4_before_carried_underfab_375x812.png: the compass over Bul-Kathos', the "?" over Crown of Ages); 2px short of it at
+901 and 1280, inside its glow. Swept: the unsorted dock's ✕ sat under the tray at 375 the same way. **FIX:** the carried
+grid reserves 24px and the dock 24px more on their right - every magnifier and ✕ at least 64px from the edge, the page's
+own tray band (v1798 / v2221). Measured after, every carried chip scrolled beside BOTH tray buttons at 375/901/1280: 16/16
+hit-test to their own magnifier, gap 22 / 26 / 26 px; dock ✕ gap 22 / 26 / 219 px (evid_r4_after_carried_*.png). HEART:
+L5 of the same law (2 cases pinning the cascade's last padding-right, 2 red-proofs); the pixels are the proof.
+
+### REG-1380 - THE "ONE-TIME" SEED CLEANSE RAN ON EVERY LOAD AND TOOK HIS CARRIED FINDS, UNJOURNALED (H1, review of bd976210, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** the grail floor's v677 "one-time vault cleanse" had no stamp - its only guard was the
+floor's own clause - so it ran on EVERY owner load and deleted every owned _GRAIL_SEED / _UNI_EXTRA name with no
+d2r_muleAssign row. Carried loot is never mule-filed (§31.2), so every carried FOUND unique left owned on the next reload;
+nothing reached the removal journal, the receipt still said carried:true, and the strip lost it (it lists owned names
+only). Driven through the board's own slice on bd976210: a carried Harlequin Crest, a worn Arachnid Mesh, a landed
+Nagelring, a hand-ticked Gheed's Wager and a lane-locked Magefist all vanished on the first load, journal empty.
+**FIX:** the floor ARMS window._seedCleanse (the owned-prov door); it runs at load once the lock, the route and the
+removal door exist, and on the owner console only after the MAIN ledger answered (unanswered = UNKNOWN, nothing removed,
+no stamp). One-time per world (d2r_seedCleanse, in _LP_FORKED). It takes only residue - no filing, no d2r_vaultProv row
+of any kind, no §29 lock, not the shared stash (REG-1280 kept) - through window.vaultRemove (lane seed-cleanse: dated,
+listed, undoable), and the found ledger keeps each name. HEART: test_carried_loot_keeps_its_order H1 (5 cases, 4
+red-proofs); test_a_shared_stash_item_survives_the_vault_cleanse re-pointed at the door (4 cases, 2 red-proofs).
+
+### REG-1381 - "CARRIED" WAS A FIELD ANYONE COULD FILL, SO A FLOOR LABEL UN-OWNED STASHED AND WORN GEAR (H2, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** _ownedProvWrite's _FILL list held 'carried', and a non-carried receipt writes
+carried:null, so the FIRST inventory read of a stashed, filed or worn item's name copied true over null; a same-named
+floor label then un-owned it through _carriedLeave AND deleted its mule filing. Driven: stash (filed uni-armor) ->
+inventory read -> floor label = gone and unfiled; worn + lane-locked Arachnid Mesh -> inventory read -> floor label = gone.
+**FIX:** carried is a STATE with an order, decided by _stateOf (filed > locked > worn > landed > carried > hand > null):
+an inventory read marks a receipt carried only when nothing on it says where the item is; _carriedLeave acts only on
+state 'carried' (never landed, filed, worn, locked or hand-ticked) and so never reaches a mule filing; the strip lists only
+state 'carried', and so do the receipt words and the evidence card (a row written before the state order that says
+carried but is filed / locked / worn is not shown as carried). HEART: test_carried_loot_keeps_its_order H2 (3 cases incl.
+a baseline that a real drop still leaves, 2 red-proofs).
+
+### REG-1382 - PICK IT UP, LOOK, DROP IT: THE BOARD OWNED IT (H3, his v2346 case, 2026-09-28)
+
+**SEEN (reproduced on bd976210):** control_app._kai_compile_register kept the earliest and the best HOLDING sighting;
+a LATER floor sighting ranks 0 and was thrown away, so the board routed on the inventory look ('carried') and owned a
+pick-up-look-drop - his v2346 words, "picked it up, identified it ... thrown back out to the ground". **FIX:** the register
+also keeps the LATEST sighting that places the item (latestLoc/latestScene/latestFrame/latestTs, one tuple - a Chronicle
+page or an unknown place never becomes the latest and cannot hide a drop); the console's builder and kaiChroniclePropose
+carry it; the board reads first/held/latest in TIME ORDER through ONE function (window._sightingsRoute): held then a later
+ground/vendor/trade look is a DROP (not owned; an item already owned as carried leaves with the drop's own frame), ground
+then a later inventory look is carried, a pair with no time waits. The auto-accept door asks the same route. HEART:
+test_carried_loot_keeps_its_order H3 (5 cases, driven through the SHIPPED register, 3 red-proofs).
+
+### REG-1383 - A NAME PLACED IN HIS INVENTORY INSIDE A 'LOOT' FRAME WAS READ AS DROPPED (M1, 2026-09-28)
+
+**SEEN:** window._vaultHoldingRoute checked the frame's scene (loot / vendor / trade) BEFORE the reader's per-name place,
+so inventory-in-a-loot-frame answered not-held + leave. **FIX:** the per-name place decides; the scene speaks only when
+the reader gave none (a Chronicle page still overrules, §28). The register ranks the same way, and a law drives both on
+16 (place, scene) pairs and requires them to agree (control_app._kai_sighting_leaves + the held rank vs the board).
+HEART: test_carried_loot_keeps_its_order M1 (2 cases, 2 red-proofs - one per side).
+
+### REG-1384 - THE ONE-TIME BACKFILL OWNED PICK-UP-LOOK-DROP LOOT AS CARRIED (M2, 2026-09-28)
+
+**SEEN:** _ownedProvBackfill replayed each ledger row on its own, so a historical inventory read became owned carried
+loot even where a later floor read of the same item said he let it go (the measured shapes: Storm Emblem, Cloudy Sphere,
+a Small Charm of Good Luck, five set pieces). **FIX:** the rows of one item (every spelling the fold joins) are read
+together - each row's first, held and latest sightings - through window._sightingsRoute, the SAME function the live route
+asks; drops are listed on the backfill's receipt (rc.dropped). HEART: test_carried_loot_keeps_its_order M2 (3 cases incl.
+the reverse-order baseline and a no-copy pin, 1 red-proof).
+
+### REG-1385 - A NAME HE REMOVED CAME BACK THROUGH THE BACKFILL UNDER ANOTHER SPELLING (M3, 2026-09-28)
+
+**SEEN:** the backfill keyed d2r_vaultRemoved and owned.has() by the exact string, so a removal of "Tal Rasha's Horadric
+Crest" did not stop "Tal Rasha’s Horadric Crest" (curly) from being filed, and a lower-case ledger row of an owned item
+minted a second vault item. **FIX:** both are keyed through the vault's ONE canonical fold - tvVaultRegister's _cnV, moved
+beside the owned door as window._vaultCanonName and asked by the register itself; an owned item gets its receipt under the
+spelling it is owned by. HEART: test_carried_loot_keeps_its_order M3 (2 cases, 1 red-proof).
+
+### REG-1386 - THE CARRIED STRIP'S PER-CHARACTER LAYOUT IMPLIED A CHARACTER NOTHING PRODUCES (M4, 2026-09-28)
+
+**SEEN:** the register and the propose items carry no character and nothing supplies meta.character, so every carried
+receipt in production has character: null - yet the strip was built as a per-character layout. **FIX:** one builder
+(window._carriedStripHtml): a named character keeps its own row (for #54), and everything unattributed is ONE row that
+says "character UNKNOWN — the reader does not name the character yet (login/char-select read is #54)"; the receipt keeps
+its character field. HEART: test_carried_loot_keeps_its_order M4 (2 cases, driven from the shipped register, 1 red-proof).
+
+### REG-1387 - AN EVIDENCE CARD'S PICTURE IS SHIELDED ONLY WHILE IT IS AMONG THE 2,000 NEWEST READ FRAMES (L1, NOT FIXED - SAID)
+
+**SEEN:** the card cites receipt frameIds from the BOARD's d2r_vaultProv, which the console cannot read; the recorder's
+shield is the newest 2,000 journal frame ids plus the evidence authority's citations (tv_diablo._journal_frame_ids /
+_reel_evidence). An older receipt's frame, cited by neither, can be reaped under the disk floor. **NOT FIXED, BY THE
+BRIEF:** shielding the board's receipts would need a store the console does not have, and no new store was allowed. The
+limit is now SAID beside the cap and beside _vaultEvidencePicture; the card already says "picture not on this machine —
+<the console's reason>" in words and never draws a broken image (test_every_owned_door_writes_provenance pins that).
+
+### REG-1388 - THE CARRIED WORDS PROMISED A VENDOR / TRADE LEAVE, AND 'carried' HAD NO PILL (L2 + L3, 2026-09-28)
+
+**SEEN:** (L2) names_loc accepts only equipped|inventory|stash|floor and no scene says vendor or trade, so a vendor/trade
+leave can never fire - while the strip and card implied it could. (L3) tvVaultRegister records status 'carried' and
+_CH_PILL_MAP had no pill for it; the pill census was blind twice (a 700-char window that never reached the TV register's
+status, and a regex that saw only literal statuses, not a ternary chain). **FIX:** every carried surface (route why,
+register refusal, evidence card, strip rule) says it leaves on a drop and that vendor/trade reads are not supported yet;
+the route's vendor/trade branch stays ready. Swept with it: the empty dock beside a carried strip said "every owned item
+has a home — the vault is in perfect order" about loot still in his hands; it now says "nothing loose — what you carry
+lands when it is seen in a stash tab or on a mule". 'carried' has its pill; the census reads each call to its real closing
+paren and every slug a status expression can yield. HEART: test_carried_loot_keeps_its_order L2 (3 cases, 2 red-proofs);
+test_sets_base_index TestEveryLedgerStatusHasAPill (1 red-proof).
+
+### REG-1389 - THE CARRIED CHIP CUT ITS NAME AND ITS TIME EVEN AT 2000px (L4, 2026-09-28)
+
+**SEEN:** "Harlequin Crest (S…", "seen 28 Sep 1…" at every width - one nowrap line, ellipsis on both, 270px tracks.
+**FIX:** name and last-seen time stack in one column (.vcar-text) and wrap; no carried-chip rule ellipsises; the grid
+track is min(270px, 100%). Verified on real pixels at 375x812, 1280x800 and 2000x1300 (evid_r3_*.png). HEART:
+test_carried_loot_keeps_its_order L4 (2 cases, 1 red-proof).
 
 ### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
 

@@ -2462,12 +2462,10 @@ def _film_loop():
                         hist_dir = HIST_DIR
                         import shutil as _shu2
                         if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
-                            _yc = (time.time() - 900.0) * 1000
-                            ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
-                                        and int(f[2:-4]) < _yc)
-                            for dead in ff[:600]:
-                                try: os.remove(os.path.join(hist_dir, dead))
-                                except Exception: pass
+                            # 2026-09-28 — (b) it used to delete up to 600 loose frames here with NO evidence
+                            # check; now it spares every read-bearing and every cited frame, refuses when the
+                            # authority cannot answer, and records what it took. See _reap_loose_film.
+                            _reap_loose_film(hist_dir)
                 except Exception:
                     pass
                 # Retina polish for live stage (after archive so SIM never starves)
@@ -3204,6 +3202,10 @@ _WACC_STATE = {"sess": None, "mtime": None}
 def _witness_protected_sessions():
     """Sessions a vault witness still references. -> set | None (None = COULD NOT ASK)
 
+    ⚠ 2026-09-28 — NO LONGER THE REAPER'S AUTHORITY. It asks vault_accum.json alone, and on that day the reel
+    reaper took a reel chron_evidence cites. The reaper asks _reel_evidence() now (frame_authority's witness
+    index + chron_evidence); this stays for the laws that pin its UNKNOWN-is-not-empty contract.
+
     ⚠ None IS NOT AN EMPTY SET, and the caller must treat it as "refuse to reap". An unreadable
     ledger means we do not know what is cited, and deleting footage on the strength of a question
     we could not ask is the whole failure this guards. [[unknown-stays-unknown]]
@@ -3260,25 +3262,7 @@ def _test_pinned_reels():
         return None
 
 
-def _reap_victim(candidates, cited, pinned):
-    """Which reel the disk floor may take, oldest first. -> (reel | None, took_a_pinned_reel)
-
-    ⚠ 2026-09-28 — MEASURED on his Mac: at 02:43 this reaper took reel_s_1785708285647_38665 and
-    reel_s_1786385768689_67392, the two oldest on a shelf of 20, and BOTH were on the blessed list the retention
-    planner never touches; a gate that proves itself on one of them now reads UNPROVABLE on his machine. A reel a
-    vault witness cites is never taken (unchanged). Among the rest, the oldest reel no law pins goes first; a
-    pinned reel goes only when nothing else may, because a full disk stops recording, which is worse."""
-    pinned = pinned or set()
-    free = [c for c in (candidates or []) if (c[5:] if c.startswith("reel_") else c) not in (cited or set())]
-    for c in free:
-        if c not in pinned:
-            return c, False
-    if free:
-        return free[0], True
-    return None, False
-
-
-def _reap_record(reel, frames, removed, shelf):
+def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=None, kept=None, spared=None):
     """A durable line for every emergency reel deletion. -> None
 
     ⚠⚠ THIS IS NOT THE TOMBSTONE STORE, ON PURPOSE. `reel_retention._tombstone` is the ONE writer
@@ -3292,8 +3276,15 @@ def _reap_record(reel, frames, removed, shelf):
         path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(HIST_DIR))),
                             "reel_reaps.jsonl")
         row = {"ts": int(time.time() * 1000), "reel": str(reel), "frames": int(frames),
-               "removed": bool(removed), "shelfBefore": int(shelf), "by": "recorder-disk-floor",
+               "removed": bool(removed), "shelfBefore": int(shelf), "by": str(by),
                "agentVer": VERSION, "minFreeGB": MIN_FREE_GB}
+        # 2026-09-28 — WHICH frames, by name (bounded), so 'who took this picture' has an answer
+        if names is not None:
+            row["names"] = [str(x) for x in list(names)[:1200]]
+        if kept is not None:
+            row["kept"] = [str(x) for x in list(kept)[:1200]]
+        if spared is not None:
+            row["spared"] = int(spared)
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     except Exception:
@@ -3354,6 +3345,13 @@ def _journal_frame_ids():
             pass
         _JFID_STATE["path"], _JFID_STATE["ids"] = JOURNAL, ids
     ids = _JFID_STATE["ids"]
+    # ⚠ L1 (review of bd976210) — THE SHIELD IS THE NEWEST 2,000 READ FRAMES, AND THAT IS A KNOWN LIMIT, NOT A PROMISE.
+    # The board's evidence card cites receipt frameIds from d2r_vaultProv — the BOARD's store, which this process cannot
+    # read. What it CAN see is this journal (capped below) and the evidence authority (_reel_evidence: the witness index
+    # + chron_evidence's receipts). So a receipt's frame older than the newest 2,000 journal ids, and cited by neither,
+    # can still be reaped under the disk floor. The card then says "picture not on this machine — <who took it>" in
+    # words (picture_status / reel_reaps.jsonl), never a broken image. Shielding the board's receipts here would need a
+    # store the console does not have, and the brief ruled out building one. REG-1387. [[unknown-stays-unknown]]
     PROTECT_CAP = max(200, int(os.environ.get("TV_PROTECT_CAP", "2000") or 2000))
     if len(ids) > PROTECT_CAP:
         def _fid_ms(x):
@@ -3370,6 +3368,185 @@ def _journal_frame_ids():
     return set(ids)
 
 
+def _reel_evidence(hist_dir=None):
+    """2026-09-28 — WHICH PICTURES ARE EVIDENCE, asked of the ONE authority. -> dict | None
+
+    {"sessions": the sessions frame_authority's witness index names, "frames": every cited frame by file name
+     (witness frames, the WATCHED/PROVEN/HARDENED citations, chron_evidence's receipts), "reels": the reels
+     chron_evidence cites}. None = COULD NOT ASK (a ledger exists and will not read) — every caller refuses to
+    delete on None. The disk-floor reaper used to ask only vault_accum.json's witness sessions, and on
+    2026-09-28 it took a reel chron_evidence cites. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    ⚠ ROOTED ON THE SHELF, the same derivation as _witness_protected_sessions and _reap_record, so a fixture
+    shelf asks its own ledgers and never his. [[feedback-fixtures-never-touch-live-data]]
+    """
+    hist_dir = hist_dir or HIST_DIR
+    root = os.path.dirname(os.path.dirname(os.path.abspath(hist_dir)))
+    try:
+        import frame_authority as _fa
+        wi = _fa.witness_index(root)
+    except Exception:
+        return None
+    if not isinstance(wi, dict) or not wi.get("ok") or wi.get("cited") is None:
+        return None
+    # ⚠ M1 (review of 77d8d8b5, reproduced) — NO DURABLE STORE AT ALL IS NOT "NOTHING IS CITED". witness_index says ok
+    # over a shelf where neither vault ledger exists (an absent store is a measurement of nothing), and its own
+    # `haveIndex` exists for exactly this: without anything that COULD name a witness, "not a witness" is unprovable,
+    # and frame_authority's rule is to err toward keeping. A deleter asks this, so it answers COULD NOT ASK.
+    if not wi.get("haveIndex"):
+        return None
+    frames = set(os.path.basename(str(f)) for f in (wi.get("frames") or ()))
+    frames |= set(os.path.basename(str(f)) for f in (wi.get("cited") or ()))
+    sessions = set(str(s) for s in (wi.get("sessions") or ()))
+    try:
+        import reel_retention as _rr
+        rows, _why = _rr.evidence_rows_at(root)
+    except Exception:
+        return None
+    if rows is None:
+        return None
+    reels = set()
+    for r in rows:
+        fid = str(r.get("frameId") or "").replace("\\", "/")
+        b = fid.rsplit("/", 1)[-1]
+        if b:
+            frames.add(b if b.endswith(".jpg") else b + ".jpg")
+        rl = str(r.get("reel") or (fid.split("/")[0] if "/" in fid else "") or "")
+        if rl:
+            reels.add(rl if rl.startswith("reel_") else "reel_" + rl)
+    # M1 — AND THE PICTURES A READ WAS TAKEN FROM. _reap_loose_film and the read eviction already spare the journal's
+    # frames; the reel pick did not, so a partial release could take the very frame a read named. The journal's ids
+    # come in both shapes (a bare f_<ms>.jpg and reel_<sid>/f_<ms>.jpg), so the reels it names are kept too.
+    try:
+        reads = set(str(x) for x in (_journal_frame_ids() or ()))
+    except Exception:
+        return None
+    read_reels = set(x.split("/", 1)[0] for x in reads if "/" in x and x.startswith("reel_"))
+    return {"sessions": sessions, "frames": frames, "reels": reels, "reads": reads, "readReels": read_reels}
+
+
+def _reel_reap_pick(hist_dir, candidates, ev, pinned=None):
+    """2026-09-28 — (c) the disk-floor reel reaper's choice, oldest first. -> dict | None
+
+    A reel holding a CITED picture keeps those files and releases the rest (reel_retention.release_uncited's
+    shape — the reel directory stays with its evidence in it). A reel whose session or reel id is cited but
+    whose cited picture is not one of its files is kept WHOLE: which picture matters cannot be told, so none
+    goes. A reel nothing cites may go whole. A reel that already holds nothing but evidence is skipped. An
+    unreadable reel is never taken. `candidates` must already exclude the two newest.
+
+    REG-1361 (merged from main, 2026-09-28) — a reel a law pins (`pinned`, test_reel_refs.json 'accepted') is asked
+    only after every unpinned one, oldest first within each; a pinned reel still goes when nothing else may, because a
+    full disk stops recording. None = the pin list could not be read = plain oldest-first. The answer says "pinned"."""
+    pinned = pinned or set()
+    order = [c for c in candidates if c not in pinned] + [c for c in candidates if c in pinned]
+    for cand in order:
+        sid = cand[5:] if cand.startswith("reel_") else cand
+        path = os.path.join(hist_dir, cand)
+        try:
+            jpgs = sorted(f for f in os.listdir(path) if f.endswith(".jpg"))
+        except OSError:
+            continue
+        cited = [f for f in jpgs if f in ev["frames"]]
+        # M1 — a frame a READ was taken from is kept like a cited one: by its own name, or by its reel-relative path
+        reads = ev.get("reads") or set()
+        named_here = set(x.split("/", 1)[1] for x in reads if x.startswith(cand + "/"))
+        read_kept = [f for f in jpgs if (f in named_here or f in reads) and f not in cited]
+        keep = cited + read_kept
+        if keep:
+            _keep = set(keep)
+            gone = [f for f in jpgs if f not in _keep]
+            if not gone:
+                continue
+            return {"reel": cand, "mode": "partial", "gone": gone, "kept": sorted(keep), "frames": len(jpgs),
+                    "pinned": cand in pinned}
+        if sid in ev["sessions"] or cand in ev["reels"]:
+            continue
+        # M1 — NAMED BUT ABSENT: the journal names a picture of THIS reel that is not among its files, so which
+        # picture matters cannot be told — the reel is kept whole, exactly like a reel cited by its session.
+        if named_here or cand in (ev.get("readReels") or set()):
+            continue
+        return {"reel": cand, "mode": "whole", "gone": jpgs, "kept": [], "frames": len(jpgs), "pinned": cand in pinned}
+    return None
+
+
+def _reap_loose_film(hist_dir, now_s=None, limit=600, young_s=900.0):
+    """2026-09-28 — (b) THE IN-LOOP FLOOR REAPER, and it asks now. -> {"removed", "spared", "refused"}
+
+    Under MIN_FREE_GB, every 120 s, it deleted up to 600 loose f_*.jpg older than 15 minutes with NO evidence
+    check — while the eviction beside it already protected _journal_frame_ids(). Measured 2026-09-28: the reads
+    of String of Ears and seven Chronicle items (02:32-02:42) left no picture; the session's reel began at 02:44.
+    Now: a frame the journal names (a read was taken from it) or the evidence authority cites is SPARED; when
+    the authority cannot answer, NOTHING is deleted and it says so; every frame it takes is recorded by name in
+    reel_reaps.jsonl so the doctor can say who took a picture. [[unknown-stays-unknown]]"""
+    now_s = now_s or time.time()
+    ev = _reel_evidence(hist_dir)
+    if ev is None:
+        _dbg("loose-film reap REFUSED: the evidence authority would not answer, so whether any loose frame "
+             "is cited is UNKNOWN — nothing deleted, the disk stays tight")
+        return {"removed": 0, "spared": 0, "refused": "the evidence authority would not answer"}
+    try:
+        protected = set(_journal_frame_ids()) | set(ev["frames"])
+    except Exception as _e:
+        _dbg("loose-film reap REFUSED: the journal shield would not load (%s)" % str(_e)[:80])
+        return {"removed": 0, "spared": 0, "refused": "the journal shield would not load"}
+    cut = (now_s - young_s) * 1000
+    ff = []
+    for f in os.listdir(hist_dir):
+        if not (f.startswith("f_") and f.endswith(".jpg")):
+            continue
+        try:
+            ms = int(f[2:-4])
+        except ValueError:
+            continue          # an unparseable stamp is not a frame this reaper may judge
+        if ms < cut:
+            ff.append(f)
+    ff.sort()
+    removed, spared = [], 0
+    for dead in ff:
+        if len(removed) >= limit:
+            break
+        if dead in protected:
+            spared += 1
+            continue
+        try:
+            os.remove(os.path.join(hist_dir, dead))
+            removed.append(dead)
+        except OSError:
+            pass
+    if removed or spared:
+        _reap_record("loose", len(removed), bool(removed), -1, by="recorder-loose-floor", names=removed,
+                     spared=spared)
+        _dbg("loose-film reap took %d frame(s), spared %d read-bearing or cited" % (len(removed), spared))
+    return {"removed": len(removed), "spared": spared, "refused": None}
+
+
+def _read_picture_floor(hist_dir):
+    """2026-09-28 — (a) may a read's picture be written now, and how big? -> (mode, why, free_gb)
+
+    mode 'full' (the disk is healthy, or it cannot be measured — then behave exactly as before), 'small'
+    (under MIN_FREE_GB: the read still keeps its picture, downscaled, inside a per-hour budget), 'refuse'
+    (below the hard floor, or the budget is spent — the refusal is recorded so the doctor can say the picture
+    was never written, and why)."""
+    try:
+        import read_pictures as _rp
+        import shutil as _shp
+        free = _shp.disk_usage(hist_dir).free / 1e9
+    except Exception:
+        return ("full", "", None)
+    if free < _rp.HARD_FLOOR_GB:
+        return ("refuse", "hard-floor", free)
+    if free >= MIN_FREE_GB:
+        return ("full", "", free)
+    spent = _rp.budget_spent_mb(hist_dir)
+    # L2 (review of 77d8d8b5) — a budget record that will not read is "budget UNKNOWN", never "nothing spent": the
+    # budget exists to stop floor-time pictures eating the last gigabytes, and an unread record would lift it.
+    if spent is None:
+        return ("refuse", "budget-unknown", free)
+    if spent >= _rp.FLOOR_BUDGET_MB_PER_HOUR:
+        return ("refuse", "floor-budget-spent", free)
+    return ("small", "", free)
+
+
 def archive_read_frame(src_path, n, ts_ms=None):
     """v735 — snapshot the settled screen into frames/hist/{n}_{ts}.jpg (~1920 JPEG).
     Returns frame id string for /frame?id=… so each history row can reopen what the AI saw.
@@ -3383,58 +3560,94 @@ def archive_read_frame(src_path, n, ts_ms=None):
     fid = "%d_%d" % (int(n), int(ts_ms))
     try:
         _establish_footage()
-        dest = os.path.join(HIST_DIR, fid + ".jpg")
-        src = os.path.abspath(src_path) if src_path else ""
-        ok = False
-        if src and os.path.isfile(src):
-            # Prefer full capture → HIST_MAX_PX JPEG for human eyes (AI path stays 1568 via _readable_frame)
-            if src.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")):
-                ok = _to_jpeg(src, dest, max_px=HIST_MAX_PX, quality=82)
-            if not ok:
-                # portable fallback #1: the vision JPEG (already converted+downscaled)
-                jp = os.path.join(FRAMES, "read.jpg")
-                if _is_real_jpeg(jp):
-                    import shutil
-                    shutil.copy2(jp, dest)
-                    ok = _is_real_jpeg(dest)
-            if not ok:
-                # portable fallback #2: capture film eye (always real JPEG from capture_win)
-                eye = os.path.join(FRAMES, "eye.jpg")
-                if _is_real_jpeg(eye):
-                    import shutil
-                    shutil.copy2(eye, dest)
-                    ok = _is_real_jpeg(dest)
-            if not ok:
-                # portable fallback #3: live.png → JPEG convert (Windows capture twin)
-                png = os.path.join(FRAMES, "live.png")
-                if os.path.isfile(png):
-                    ok = _to_jpeg(png, dest, max_px=HIST_MAX_PX, quality=82)
-            if not ok:
-                # last resort: raw copy ONLY if source is already JPEG; never plant BMP as .jpg
-                if _is_real_jpeg(src):
-                    try:
+        # 2026-09-28 — (a) THE READER HOLDS THE FRAME IT READ, SO THIS IS WHERE ITS PICTURE IS KEPT. Under the
+        # disk floor the film stops ("disk-full") but a read still keeps its picture, small and inside a budget;
+        # below the hard floor it does not, and the refusal is RECORDED — never a silent missing picture.
+        _pmode, _pwhy, _pfree = _read_picture_floor(HIST_DIR)
+        # ⚠ M2 (review of 77d8d8b5, reproduced) — A REFUSED PICTURE MAY NOT SKIP THE SHEDDING. This returned "" before
+        # the eviction/reap block, so once free space sat under the hard floor (or the hour's budget was spent) every read
+        # was refused AND nothing was ever shed again: the one state that most needs space was the one that never freed
+        # any. Only the picture WRITE is refused now; the eviction and the reel reaper below still run, under the same
+        # evidence shield. [[the-unjoined-end]]
+        _out = fid
+        if _pmode == "refuse":
+            try:
+                import read_pictures as _rpr
+                _rpr.record_refusal(HIST_DIR, fid, _pwhy, _pfree, SESSION_ID)
+            except Exception:
+                pass
+            _out = ""
+        if _out:
+            _px, _pq = (HIST_MAX_PX, 82)
+            if _pmode == "small":
+                try:
+                    import read_pictures as _rps
+                    _px, _pq = (_rps.FLOOR_MAX_PX, _rps.FLOOR_JPEG_Q)
+                except Exception:
+                    pass
+            dest = os.path.join(HIST_DIR, fid + ".jpg")
+            src = os.path.abspath(src_path) if src_path else ""
+            ok = False
+            if src and os.path.isfile(src):
+                # Prefer full capture → HIST_MAX_PX JPEG for human eyes (AI path stays 1568 via _readable_frame)
+                if src.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")):
+                    ok = _to_jpeg(src, dest, max_px=_px, quality=_pq)
+                if not ok:
+                    # portable fallback #1: the vision JPEG (already converted+downscaled)
+                    jp = os.path.join(FRAMES, "read.jpg")
+                    if _is_real_jpeg(jp):
                         import shutil
-                        shutil.copy2(src, dest)
+                        shutil.copy2(jp, dest)
                         ok = _is_real_jpeg(dest)
-                    except Exception:
-                        ok = False
-                elif src.lower().endswith(".png") and os.path.isfile(src):
-                    # PNG body behind .jpg name still renders in browsers (legacy v755.3)
-                    try:
+                if not ok:
+                    # portable fallback #2: capture film eye (always real JPEG from capture_win)
+                    eye = os.path.join(FRAMES, "eye.jpg")
+                    if _is_real_jpeg(eye):
                         import shutil
-                        shutil.copy2(src, dest)
-                        ok = os.path.isfile(dest) and os.path.getsize(dest) > 32
-                    except Exception:
-                        ok = False
-        if not ok:
-            return ""
+                        shutil.copy2(eye, dest)
+                        ok = _is_real_jpeg(dest)
+                if not ok:
+                    # portable fallback #3: live.png → JPEG convert (Windows capture twin)
+                    png = os.path.join(FRAMES, "live.png")
+                    if os.path.isfile(png):
+                        ok = _to_jpeg(png, dest, max_px=_px, quality=_pq)
+                if not ok:
+                    # last resort: raw copy ONLY if source is already JPEG; never plant BMP as .jpg
+                    if _is_real_jpeg(src):
+                        try:
+                            import shutil
+                            shutil.copy2(src, dest)
+                            ok = _is_real_jpeg(dest)
+                        except Exception:
+                            ok = False
+                    elif src.lower().endswith(".png") and os.path.isfile(src):
+                        # PNG body behind .jpg name still renders in browsers (legacy v755.3)
+                        try:
+                            import shutil
+                            shutil.copy2(src, dest)
+                            ok = os.path.isfile(dest) and os.path.getsize(dest) > 32
+                        except Exception:
+                            ok = False
+            if not ok:
+                return ""
+            if _pmode == "small":
+                # the budget's own ledger: what a floor-time picture cost, so the next one can be refused honestly
+                try:
+                    import read_pictures as _rpb
+                    _mb = os.path.getsize(dest) / 1e6
+                    with open(os.path.join(_rpb.root_of(HIST_DIR), _rpb.REFUSALS), "a", encoding="utf-8") as _fhb:
+                        _fhb.write(json.dumps({"ts": int(time.time() * 1000), "frameId": fid, "why": "saved-small",
+                                               "mb": round(_mb, 3), "freeGb": round(float(_pfree or 0), 2),
+                                               "session": SESSION_ID}) + "\n")
+                except Exception:
+                    pass
         # v877 (army #6) — the eviction below only ever ACTS when free < MIN_FREE_GB; skip the
         # whole 30k-file listing + mtime sort + journal-shield load when the disk is healthy.
         try:
             import shutil as _shq
             if _shq.disk_usage(HIST_DIR).free / 1e9 >= MIN_FREE_GB \
                     and time.time() < globals().get("_ORPHAN_DUE", 0.0):
-                return fid   # healthy disk + orphans swept recently → skip the 30k-file walk
+                return _out   # healthy disk + orphans swept recently → skip the 30k-file walk
             globals()["_ORPHAN_DUE"] = time.time() + 600.0   # full sweep at most every 10min
         except Exception:
             pass
@@ -3466,6 +3679,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
             # footage first (oldest→newest), then oldest UNPROTECTED reads. Every frame that
             # fits on disk LIVES. Journal-named frames stay shielded.
             doomed = set()
+            _shield, _ev_spared = set(protected), 0     # H2 — widened with the cited frames once the authority answers
             unprotected = [f for f in read_files if os.path.basename(f) not in protected]
             try:
                 import shutil as _shu
@@ -3495,8 +3709,12 @@ def archive_read_frame(src_path, n, ts_ms=None):
                 # THE EMERGENCY IS KEPT. A full disk stops recording entirely, which is worse than
                 # losing a reel — so this still reaps, it simply refuses to reap EVIDENCE, and it
                 # says what it did either way.
+                _ev = None      # H2 — asked once, below; None = COULD NOT ASK, and every shed under it refuses
                 try:
-                    _cited = _witness_protected_sessions()
+                    # 2026-09-28 — (c) THE ONE AUTHORITY, not one ledger. It asked vault_accum.json's witness
+                    # sessions only, and took reel_s_1786385768689_67392, whose frames chron_evidence cites.
+                    # _reel_evidence = frame_authority.witness_index (sessions · frames · cited) + chron_evidence.
+                    _ev = _reel_evidence()
                     _all = [d2 for d2 in os.listdir(HIST_DIR) if d2.startswith("reel_")]
                     # ⚠⚠ THE REEL'S OWN CLOCK, and an UNREADABLE clock sorts LAST, not first.
                     # `_reel_capture_ms` answers 0 when a name carries no 13-digit stamp, and a
@@ -3506,34 +3724,47 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     # way: unknown never jumps the queue, in either direction.
                     _all.sort(key=lambda _r: (_reel_capture_ms(_r) == 0, _reel_capture_ms(_r)))
                     if len(_all) > 2 and not foot_files:   # loose pool empty → a whole reel may go
-                        if _cited is None:
+                        if _ev is None:
                             # ⚠ COULD NOT ASK is not "nothing is cited". Refuse and be loud.
-                            _dbg("reel-reap REFUSED: the vault ledger would not read, so whether "
-                                 "any reel is still cited as evidence is UNKNOWN")
+                            _dbg("reel-reap REFUSED: the evidence authority (frame_authority's witness "
+                                 "index and chron_evidence) would not answer, so whether any reel holds "
+                                 "evidence is UNKNOWN")
                         else:
-                            # never the two newest; never a cited reel; a reel a law pins only when nothing else may go
-                            _victim, _took_pin = _reap_victim(_all[:-2], _cited, _test_pinned_reels())
-                            if _took_pin:
+                            # never the two newest; never a cited picture; a reel a law pins (test_reel_refs.json)
+                            # only when nothing else may go (REG-1361) - one chooser, the evidence-aware pick
+                            _pick = _reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())
+                            if _pick is not None and _pick.get("pinned"):
                                 _dbg("reel-reap: every reel it may take is pinned by a law - taking the oldest "
                                      "pinned one, because a full disk stops recording")
-                            if _victim is None:
+                            if _pick is None:
                                 _dbg("reel-reap found NOTHING it may take: %d reel(s), every "
-                                     "candidate is cited by a vault witness or is one of the two "
-                                     "newest. Disk stays tight; no evidence was destroyed."
+                                     "candidate holds only cited pictures, is cited whole, or is one of "
+                                     "the two newest. Disk stays tight; no evidence was destroyed."
                                      % len(_all))
-                            else:
+                            elif _pick["mode"] == "whole":
                                 import shutil as _shr
-                                _vp = os.path.join(HIST_DIR, _victim)
-                                _n = 0
-                                try:
-                                    _n = len([f for f in os.listdir(_vp) if f.endswith(".jpg")])
-                                except OSError:
-                                    _n = -1              # -1 = unmeasured, never a confident 0
+                                _vp = os.path.join(HIST_DIR, _pick["reel"])
+                                _n = _pick["frames"]
                                 _shr.rmtree(_vp, ignore_errors=True)
                                 _gone = not os.path.exists(_vp)
-                                _reap_record(_victim, _n, _gone, len(_all))
+                                _reap_record(_pick["reel"], _n, _gone, len(_all), names=_pick["gone"])
                                 _dbg("reel-reap took %s (%s frame(s)) under the disk floor; "
-                                     "removed=%s" % (_victim, _n, _gone))
+                                     "removed=%s" % (_pick["reel"], _n, _gone))
+                            else:
+                                # the evidence pictures STAY; the rest of the reel goes — the shape
+                                # reel_retention.release_uncited uses when retention releases a reel
+                                _vp = os.path.join(HIST_DIR, _pick["reel"])
+                                _took = []
+                                for _f in _pick["gone"]:
+                                    try:
+                                        os.remove(os.path.join(_vp, _f))
+                                        _took.append(_f)
+                                    except OSError:
+                                        _dbg("reel-reap could not release %s/%s" % (_pick["reel"], _f))
+                                _reap_record(_pick["reel"], len(_took), bool(_took), len(_all),
+                                             names=_took, kept=_pick["kept"])
+                                _dbg("reel-reap released %d frame(s) of %s and KEPT its %d cited picture(s)"
+                                     % (len(_took), _pick["reel"], len(_pick["kept"])))
                 except Exception as _e:
                     # ⚠ NOT `pass`. A reaper that fails silently is indistinguishable from one
                     # that had nothing to do, and that ambiguity is how this went unseen.
@@ -3551,19 +3782,43 @@ def archive_read_frame(src_path, n, ts_ms=None):
                         return os.path.getmtime(_f) < _young_cut
                     except Exception:
                         return True
-                need = (MIN_FREE_GB - free_gb) * 1e9
-                freed = 0
-                for f in [x for x in foot_files if _is_old(x)] + [x for x in unprotected if _is_old(x)]:
-                    if freed >= need:
-                        break
-                    freed += _size_all(f)
-                    doomed.add(f)
+                # ⚠⚠ H2 (review of 77d8d8b5, reproduced) — THIS SHED WAS THE THIRD DELETER AND IT NEVER ASKED.
+                # (b) and (c) above were taught to spare a read-bearing or cited picture; this loop, one screen below
+                # them, still took loose f_*.jpg under the floor on age alone — and the belt beneath it EXEMPTED f_
+                # names from its own journal check, so a frame chron_evidence cites could go here and nothing said so.
+                # Now it asks the SAME shield _reap_loose_film asks (the journal's read frames | the evidence
+                # authority's cited frames); an authority that cannot answer sheds NOTHING (None = refuse, never
+                # "nothing is cited"); and what it takes is recorded by name, so the doctor can say who took a picture.
+                # [[the-unjoined-end]] [[unknown-stays-unknown]]
+                if _ev is None:
+                    _dbg("read-eviction REFUSED: the evidence authority would not answer, so whether any loose "
+                         "picture is cited is UNKNOWN — nothing shed, the disk stays tight")
+                else:
+                    _shield = set(protected) | set(_ev.get("frames") or ())
+                    need = (MIN_FREE_GB - free_gb) * 1e9
+                    freed = 0
+                    for f in [x for x in foot_files if _is_old(x)] + [x for x in unprotected if _is_old(x)]:
+                        if freed >= need:
+                            break
+                        if os.path.basename(f) in _shield:
+                            _ev_spared += 1
+                            continue
+                        freed += _size_all(f)
+                        doomed.add(f)
+            _ev_took = []
             for old in doomed:
-                if os.path.basename(old) in protected and not os.path.basename(old).startswith("f_"):
-                    continue  # belt: never unlink a journaled AI frame
+                if os.path.basename(old) in _shield:
+                    continue  # belt: never unlink a read-bearing or cited picture — f_ names included (H2)
                 for f in [old] + _twins(old):
                     try: os.remove(f)
                     except Exception: pass
+                if not os.path.exists(old):
+                    _ev_took.append(os.path.basename(old))
+            if _ev_took or _ev_spared:
+                _reap_record("loose", len(_ev_took), bool(_ev_took), -1, by="recorder-read-eviction",
+                             names=_ev_took, spared=_ev_spared)
+                _dbg("read-eviction took %d picture(s) under the floor, spared %d read-bearing or cited"
+                     % (len(_ev_took), _ev_spared))
             # orphan derivatives (source already gone) die too
             keep = {os.path.basename(f) for f in files if f not in doomed}
             keep |= protected
@@ -3574,7 +3829,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
                         except Exception: pass
         except Exception:
             pass
-        return fid
+        return _out
     except Exception:
         return ""
 

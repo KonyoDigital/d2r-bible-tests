@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 """REG-1280 (#165) — A SHARED-STASH ITEM SURVIVES THE VAULT CLEANSE.
 
-The seed floor's "one-time vault cleanse" (v677, it runs on every owner load) deletes every _GRAIL_SEED /
-_UNI_EXTRA name that sits in `owned` with no mule filing - the residue the v659-v676 floors left when
-they wrote ledger names into the physical vault. A shared-stash item is never filed to a mule: the
-shared stash has no mule, and tvVaultRegister('Bone Break') answers mule:null ("unsorted") by design.
-Bone Break is also a _GRAIL_SEED name, so the cleanse deleted it on the next load.
+The seed floor's "one-time vault cleanse" (v677) deletes every _GRAIL_SEED / _UNI_EXTRA name that sits in `owned` with
+no mule filing - the residue the v659-v676 floors left when they wrote ledger names into the physical vault. A
+shared-stash item is never filed to a mule: the shared stash has no mule, and tvVaultRegister('Bone Break') answers
+mule:null ("unsorted") by design. Bone Break is also a _GRAIL_SEED name, so the cleanse deleted it on the next load.
 
-MEASURED on a real page (fresh floored board, automation world): registered Bone Break and Black
-Cleft, reloaded - Bone Break gone, Black Cleft (no seed name) kept. After the fix both survive. Found
-because v2208's reload case went red the moment REG-1275 let the floor run on a fresh board.
+MEASURED on a real page (fresh floored board, automation world): registered Bone Break and Black Cleft, reloaded - Bone
+Break gone, Black Cleft (no seed name) kept. After the fix both survive. Found because v2208's reload case went red the
+moment REG-1275 let the floor run on a fresh board.
 
-  · DRIVEN (node, the SHIPPED cleanse statement cut from bible.html, with the SHIPPED _SHARED_KEEP):
-    an unfiled shared-stash seed name is KEPT; an unfiled plain seed name is still STRIPPED (the cleanse
-    keeps its job); a filed seed name is kept; a name in no seed is untouched.
+⚠ H1 (review of bd976210) MOVED THE CLEANSE. It ran on every load as a bare statement in the grail floor; it is
+window._seedCleanse now (the ⟦OWNED PROV⟧ door), armed by the floor and run once per world at load, taking only true
+residue and journaling every removal (test_carried_loot_keeps_its_order drives that whole path). This law keeps its own
+job on the new door, with the SHIPPED keep pattern handed over exactly as the floor hands it:
+
+  · DRIVEN (node, the shipped door cut from bible.html by its markers, the shipped _SHARED_KEEP): an unfiled
+    shared-stash seed name is KEPT; an unfiled plain seed name with no receipt is still STRIPPED (the cleanse keeps its
+    job); a filed seed name is kept; a name in no seed is untouched.
 RED_PROOF below.
 """
 import io
@@ -21,9 +25,7 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
-import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -39,9 +41,30 @@ except Exception:
 import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
 _fx_tmp.contain()
 
+import test_every_owned_door_writes_provenance as P  # noqa: E402 — the ONE harness for the owned door
+
 NODE = shutil.which("node")
-START = "        Object.keys(_GRAIL_SEED).concat(Object.keys(typeof _UNI_EXTRA!=='undefined'?_UNI_EXTRA:{})).forEach(function(n){"
-END = "        });\n"
+
+PROG = r"""
+var window = globalThis, STORE = {}, REMOVED = [];
+window.LSR = { getItem: function(k){ return Object.prototype.hasOwnProperty.call(STORE, k) ? STORE[k] : null; },
+               setItem: function(k, v){ STORE[k] = String(v); }, removeItem: function(k){ delete STORE[k]; } };
+window.D2R_BUILD = { id: 'vTEST' }; window.D2R_PROFILE = 'main';
+console.info = function(){};
+var owned = new Set(%(owned)s);
+%(lanes)s
+%(furn)s
+%(region)s
+window._laneLockWhy = function(){ return null; };
+window.vaultRemove = function(names, opts){
+  var took = []; names.forEach(function(n){ if (owned.has(n)){ owned['delete'](n); took.push(n); } });
+  REMOVED.push({ names: took, lane: opts && opts.lane }); return { removed: took, ts: 1 };
+};
+STORE['d2r_muleAssign'] = JSON.stringify(%(filed)s);
+var _GRAIL_SEED = { 'Bone Break': 'Jul 1', 'Harlequin Crest': 'Jul 2', 'Crown of Ages': 'Jul 3' };
+var r = window._seedCleanse({ names: Object.keys(_GRAIL_SEED), keep: %(keep)s, seed: _GRAIL_SEED, mainLedger: 'absent' });
+process.stdout.write(JSON.stringify({ owned: Array.from(owned).sort(), r: r, removed: REMOVED }));
+"""
 
 
 def _bible():
@@ -49,39 +72,29 @@ def _bible():
         return f.read()
 
 
-def _pieces(src):
-    """The shipped cleanse statement and the shipped _SHARED_KEEP regex. -> (statement, regex literal)"""
-    assert src.count(START) == 1, "the cleanse statement is not where this law looks (%d)" % src.count(START)
-    i = src.index(START)
-    j = src.index(END, i) + len(END)
+def _keep(src):
     m = re.search(r"var _SHARED_KEEP = (/.+?/i);", src)
     assert m, "the shipped _SHARED_KEEP regex is gone"
-    return src[i:j], m.group(1)
+    return m.group(1)
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class ASharedStashItemSurvivesTheVaultCleanse(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.stmt, cls.keep = _pieces(_bible())
+    def test_the_floor_hands_the_cleanse_the_shipped_keep_pattern(self):
+        """The join: the grail floor arms the door WITH _SHARED_KEEP — a door with the rule, never handed it, keeps
+        nothing."""
+        s = _bible()
+        self.assertEqual(1, s.count("keep: _SHARED_KEEP, seed: _GRAIL_SEED });"),
+                         "the grail floor no longer hands the shared-stash pattern to the seed cleanse")
 
     def _run(self, owned, filed):
-        seed = {"Bone Break": "Jul 1", "Harlequin Crest": "Jul 2", "Crown of Ages": "Jul 3"}
-        js = ("var _GRAIL_SEED = %s; var _UNI_EXTRA = {};\n"
-              "var owned = new Set(%s); var _ma = %s; var _gfl = {}; var _gch = false, _gflCh = false;\n"
-              "var _SHARED_KEEP = %s; var window = {};\n%s\n"
-              "console.log(JSON.stringify([...owned].sort()));"
-              % (json.dumps(seed), json.dumps(owned), json.dumps(filed), self.keep, self.stmt))
-        d = tempfile.mkdtemp(prefix="cleanse_law_")
-        f = os.path.join(d, "t.js")
-        with io.open(f, "w", encoding="utf-8") as fh:
-            fh.write(js)
-        r = subprocess.run([NODE, f], capture_output=True, text=True, timeout=60)
-        shutil.rmtree(d, ignore_errors=True)
-        if r.returncode != 0:
-            raise AssertionError("the shipped cleanse would not execute - UNKNOWN, not passing: %s" % r.stderr[:300])
-        return json.loads(r.stdout.strip().splitlines()[-1])
+        s = _bible()
+        out = P._node(PROG % {"owned": json.dumps(owned), "filed": json.dumps(filed), "keep": _keep(s),
+                              "lanes": P._lanes(s), "furn": P._between(s, P.FURN_FROM, P.FURN_TO),
+                              "region": P.owned_prov_region(s)}, "cleanse")
+        self.assertTrue(out["r"].get("ran"), "the cleanse refused to run — UNKNOWN, not passing: %r" % out["r"])
+        return out["owned"]
 
     def test_an_unfiled_shared_stash_seed_name_is_kept(self):
         self.assertIn("Bone Break", self._run(["Bone Break"], {}),
@@ -104,8 +117,15 @@ RED_PROOF = [
     {
         "why": "REG-1280 - the cleanse forgets the shared stash again: a registered Bone Break is deleted on the next load",
         "file": "bible.html",
-        "find": "          if (owned.has(n) && !_ma[n] && !_SHARED_KEEP.test(n)) { owned.delete(n);",
-        "replace": "          if (owned.has(n) && !_ma[n]) { owned.delete(n);",
+        "find": "      if (keep && keep.test(nm)){ spared[nm] = 'the shared stash (never muled)'; return; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1280 - the grail floor stops handing the shared-stash pattern to the cleanse",
+        "file": "bible.html",
+        "find": "keep: _SHARED_KEEP, seed: _GRAIL_SEED });",
+        "replace": "keep: null, seed: _GRAIL_SEED });",
         "matches": 1,
     },
 ]

@@ -103,6 +103,7 @@ function snap(){ return JSON.parse(JSON.stringify(STORE)); }
                prov: prov, status: STATUS.length ? STATUS[STATUS.length - 1] : '',
                confirm: CONFIRMS[0] || '',
                receipt: window._vaultLastReset || null,
+               persisted: STORE['d2r_vaultLastReset'] || null,
                keptSame: before['d2r_setPieces'] === STORE['d2r_setPieces']
                       && before['d2r_foundLog'] === STORE['d2r_foundLog']
                       && before['d2r_rwMade'] === STORE['d2r_rwMade']
@@ -271,6 +272,37 @@ class AResetRefilesOnlyWhatThePlanSays(unittest.TestCase):
         self.assertIn("rebuilt UNKNOWN", bad["status"])
         self.assertNotIn("rebuilt 0", bad["status"])
         self.assertEqual(json.dumps(["Tal Rasha Armor"]), bad["sets"])
+        # #41 rank 9 — R.ok is decided AFTER the rebuild: an unread plan is UNKNOWN (null), never the clean prefix,
+        # and planWhy has a reader
+        self.assertIsNone(bad["receipt"].get("ok"), "an unread plan still wore ok:true: %r" % bad["receipt"])
+        self.assertIn("could not be read", bad["status"], "planWhy is written and read by nothing: %s" % bad["status"])
+
+    def test_held_is_split_and_the_receipt_is_persisted_for_the_doctor(self):
+        """#41 rank 9 + rank 2: held mixes WATCHED rows with rows whose counts could not be read — said apart; and the
+        receipt the runner wrote lands in d2r_vaultLastReset, which the doctor's reset row (registered with no
+        arguments) reads through the board read: the JOIN, driven end to end."""
+        full = self.out["full"]
+        self.assertIs(True, full["receipt"].get("ok"), full["receipt"])
+        self.assertEqual((2, 1), (full["receipt"].get("heldWatched"), full["receipt"].get("heldUnknown")))
+        self.assertEqual(HELD, full["receipt"].get("heldNames"))
+        self.assertIn("held 3 (2 WATCHED · 1 UNKNOWN)", full["status"])
+        saved = json.loads(full["persisted"] or "null")
+        self.assertIsInstance(saved, dict, "the reset left no persisted receipt")
+        self.assertEqual("vaultClearHistory", saved["door"])
+        self.assertEqual(BACK, saved["rebuilt"])
+        self.assertIn("d2r_setPieces", saved["keepsBefore"])
+        self.assertEqual(saved["keepsBefore"]["d2r_setPieces"], saved["keepsAfter"]["d2r_setPieces"])
+        import console_doctor as CD
+        real = CD._board_read
+        CD._board_read = lambda: {"ok": True, "fullStores": {"d2r_vaultLastReset": full["persisted"]}}
+        try:
+            st, why = CD._check_the_vault_reset()
+        finally:
+            CD._board_read = real
+        self.assertEqual(CD.OK, st, "the doctor could not read the receipt the shipped reset persisted: %s" % why)
+        self.assertIn("rebuilt 4", why)
+        self.assertIn("refused 0", why)
+        self.assertIn(saved["at"][:19], why, "the row does not carry the reset's own time")
 
 
 if __name__ == "__main__":
@@ -311,9 +343,30 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        "why": "#41 rank 9 - R.ok is decided before the rebuild again, so an unread plan wears the clean prefix",
+        "file": "bible.html",
+        "find": "      if (Array.isArray(R.rebuiltFailed) && R.rebuiltFailed.length) R.ok = false;\n      else if (R.rebuilt === null && R.ok === true) R.ok = null;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 9 - held counts UNKNOWN-tier rows as WATCHED again",
+        "file": "bible.html",
+        "find": "      R.heldWatched = plan.held.filter(function(h){ return h && h.tier === 'WATCHED'; }).length;\n",
+        "replace": "      R.heldWatched = plan.held.length;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 2 - the reset stops persisting its receipt, so the doctor's row can never read one",
+        "file": "bible.html",
+        "find": "    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); }\n",
+        "replace": "    try { }\n",
+        "matches": 1,
+    },
+    {
         "why": "the console route answers a private list instead of the evidence plan",
         "file": "control_app.py",
-        "find": "    return VE.plan_from_ledger(p)\n",
+        "find": "    return VE.plan_from_ledger(p, recorded=recorded)\n",
         "replace": (
             "    return {\"ok\": True, \"rebuilt\": [{\"name\": \"War Traveler\", \"tier\": \"PROVEN\", "
             "\"why\": \"PROVEN\", \"locked\": False, \"bound\": 1, \"successes\": 12, \"trials\": 12}], "

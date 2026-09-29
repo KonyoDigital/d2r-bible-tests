@@ -18470,7 +18470,15 @@ class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
         # it is not, it is where a brace inside a string or comment closed the count early. When
         # two methods disagree by 2x the extent is UNKNOWN, and 30,000 honest characters beat a
         # boundary that claims to be the function and is not. [[unknown-stays-unknown]]
-        body = text[start:start + 30000]
+        # ⚠ 2026-09-28 — AND THE 30,000 WINDOW WAS ITSELF A GUESS WITH 16 CHARACTERS OF HEADROOM. MEASURED: the only
+        # CODE occurrence of 'lane-off' sat at 29,984 of 30,000 (the other, at 29,110, is inside a comment the strip
+        # below removes). Adding one 25-character field to a row above (scene, the L1 fix of the review of 77d8d8b5)
+        # pushed the code occurrence to 30,009 and the case went red on correct code. Bounded now by the next TOP-LEVEL
+        # definition (column 0), which no brace inside a string or comment can close early — measured 45,024 characters.
+        # [[source-reading-guard]] §3
+        end = text.find("\nwindow._sessionPinGet = function(", start)
+        assert end > start, "the vaultAccumApply window's end anchor moved — the extent is UNKNOWN"
+        body = text[start:end]
         body = re.sub(r"/\*.{0,8000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
         return body
@@ -38430,26 +38438,32 @@ class TestV2343AReelIsATimelineNotABagOfFrames(unittest.TestCase):
         self.assertIn("CHRONICLE", why)
         self.assertIn("checklist", why)
 
-    def test_INVENTORY_ALONE_is_holding_and_not_owning(self):
-        """v2343 mapped inventory -> a container lane. That was my mistake and he caught it.
+    def test_AN_OPEN_INVENTORY_is_not_a_place_and_carried_loot_needs_its_own(self):
+        """⚠ §31.2 (his ruling, 2026-09-28, HANDOFF §31) SUPERSEDES v2346 / REG-426 for inventory LOOT.
 
-        "when the inventory alone is open its just INVENTORY its not necessarily stashing it just
-        yet.. it could have picked it up identified it for the CHRONICLE item and then thrown back
-        out to the ground if its worthless"; "only when its in STASH while both templates windows
-        are open... thats when we start usually stashing stuff"; "not until physically it is
-        registered in the vault and has its slot identity pinpointed".
+        His words: "Owned right away" + "maybe needs a logic between them both" — loot in the
+        inventory's FREE space counts as OWNED immediately, CARRIED on that character's strip (not
+        locked); it LANDS when next seen in a stash tab or on a mule; it LEAVES only on a real signal
+        (dropped on the floor again, a vendor or trade window), never on absence. v2346's "holding is
+        not owning" no longer governs that loot — the board's route (_vaultHoldingRoute) now answers
+        'carried' for a name the READER placed in the inventory.
 
-        MEASURED, and his rule is visible in his own footage: inventory segments are 4 visits and
-        12 SECONDS total; stash segments are 13 visits and 235 seconds. A glance versus stashing.
-        The 8 names this wrongly granted were Storm Emblem, Cloudy Sphere, Small Charm of Good Luck
-        and five set pieces — precisely the pick-up-look-drop kind.
+        WHAT STILL HOLDS, and why this pin keeps its assertion: v2346's own evidence was that an
+        open inventory panel is a GLANCE (4 visits, 12 seconds, against 235 seconds of stashing) and
+        the 8 names it wrongly granted were pick-up-look-drop items. With the inventory open the
+        left half of the screen is the ground, so a TIMELINE moment cannot say whether a name sat in
+        his inventory, on his doll, or on the floor beside him. The timeline still grants no vault
+        lane; carried ownership comes from the reader's per-name place, never from the panel.
         """
         import reel_segments as rs
         rows = [{"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "inventory"},
                 {"lane": "deep", "sessionId": "s1", "captureTs": 2000, "scene": "inventory"}]
         lane, why = rs.lane_at(rs.segments(rows), "s1", 1500)
-        self.assertIsNone(lane, "an item seen while ONLY the inventory was open was treated as owned")
-        self.assertIn("holding, not owning", why)
+        self.assertIsNone(lane, "an open inventory PANEL was granted a vault lane — a panel is not a place")
+        self.assertIn("§31.2", why, "the refusal does not cite the ruling that now governs inventory loot")
+        self.assertIn("CARRIED", why, "the refusal does not say inventory loot is carried (his §31.2 ruling)")
+        self.assertIn("per-name place", why, "the refusal does not say what DOES make an item carried")
+        self.assertNotIn("holding, not owning", why, "the superseded v2346 wording is still being said")
 
     def test_the_inventory_still_teaches_what_is_permanently_his(self):
         """Two lanes, two purposes: the vault asks 'does he own this', the lock learner asks 'is
@@ -38555,6 +38569,9 @@ class TestV2343bTheVaultPredicateIsAWhitelist(unittest.TestCase):
         src = self._src()
         lanes = _between(self, src, "window._VAULT_LANES = [", "];", min_len=20,
                          what="the vault lane whitelist")
+        # ⚠ §31.2 (his ruling, 2026-09-28): inventory LOOT is now OWNED right away — CARRIED, decided by the route
+        # (_vaultHoldingRoute answers 'carried'), never FILED. This list is the places an item may be filed from, so
+        # `inventory` stays off it; what follows is the v2346 reasoning it superseded, kept as the record.
         # ⚠ `inventory` IS ON THIS LIST OF NEVERS, and v2343 had it the other way round. Konyo:
         # "when the inventory alone is open its just INVENTORY its not necessarily stashing it
         # just yet.. it could have picked it up identified it for the CHRONICLE item and then
@@ -38576,23 +38593,31 @@ class TestV2343bTheVaultPredicateIsAWhitelist(unittest.TestCase):
                          "it as a location prints 'read in kai, which is not a container'")
 
     def test_the_cross_block_call_fails_CLOSED_rather_than_throwing(self):
+        """L1 (review of 77d8d8b5): the doors ask the ROUTE across the block boundary now, and still fail closed."""
         src = self._src()
-        self.assertIn("(typeof window._vaultMayClaim === 'function')", src,
-                      "the chronicle door calls the predicate unguarded across a script-block "
+        self.assertIn("(typeof window._vaultHoldingRoute === 'function')", src,
+                      "the chronicle door calls the route unguarded across a script-block "
                       "boundary; if the defining block ever throws, this raises a TypeError "
                       "inside the try and the CHRONICLE write dies with it")
 
     def test_the_predicate_and_its_callers_agree_on_the_name(self):
         """A predicate nobody calls, or a call to a predicate that is not defined, is the same
-        defect wearing two faces. [[the-unjoined-error]]"""
+        defect wearing two faces. [[the-unjoined-error]]
+
+        ⚠ L1 (review of 77d8d8b5, reproduced): six doors asked the bare predicate on `loc` alone, so a Chronicle-page
+        row with a place on it could file through a sibling door while the live route refused it (§28). The point of
+        extracting the rule stands — every door asks the SAME one — and the one they ask is now the ROUTE (place +
+        scene), which alone asks the predicate. test_every_owned_door_writes_provenance censuses it as code."""
         import re
         src = self._src()
         self.assertEqual(src.count("window._vaultMayClaim = function"), 1,
                          "the predicate is defined more than once — last definition wins")
+        self.assertEqual(src.count("window._vaultHoldingRoute = function"), 1,
+                         "the route is defined more than once — last definition wins")
         calls = len(re.findall(r"window\._vaultMayClaim\(", src))
-        self.assertGreaterEqual(calls, 2,
-                                "only %d door asks the predicate; the point of extracting it was "
-                                "that every door asks the same one" % calls)
+        self.assertEqual(calls, 1, "%d places ask the bare predicate; only the route may (L1)" % calls)
+        doors = len(re.findall(r"window\._vaultHoldingRoute\(", src))
+        self.assertGreaterEqual(doors, 6, "only %d doors ask the route; every door asks the same one" % doors)
 
 
 
@@ -39522,9 +39547,10 @@ class TestV2353OneAdmissionDoorForEveryReader(unittest.TestCase):
         # and matching only that failed on correct code as readily as on sabotaged code.
         assigns = _re.findall(r"_vaultOk\s*=\s*([^;\n]+)", blk)
         self.assertTrue(assigns, "the handoff no longer computes a vault verdict at all")
-        self.assertTrue(any("_vaultMayClaim(" in a for a in assigns),
+        # L1 (review of 77d8d8b5) — the shared door every other reader asks is the ROUTE (place + scene)
+        self.assertTrue(any("_vaultHoldingRoute(" in a for a in assigns),
                         "none of the handoff's vaultOk assignments come from the shared "
-                        "predicate every other door asks; found %r" % [a.strip()[:40] for a in assigns])
+                        "route every other door asks; found %r" % [a.strip()[:40] for a in assigns])
         self.assertTrue(any(a.strip().startswith("null") for a in assigns),
                         "vaultOk must start as null (NOT ESTABLISHED) so an absent location "
                         "never reads as a refusal")

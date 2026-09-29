@@ -105,6 +105,136 @@ class TheVaultProvenanceRowCanGoRed(unittest.TestCase):
         self.assertEqual(D.OK, st2, "a vault whose only unfiled rows can never be filed read %s: %s" % (st2, why2))
         self.assertNotIn("press register", why2, "the row advises a press that can never file anything: %s" % why2)
 
+    def test_arm_3_a_row_his_reset_held_is_said_beside_never_as_press_register(self):
+        """#41 rank 1 — the row told him to press register for 11 stash rows the reset's Wilson plan had just HELD, which
+        would undo the hold. A reset-held row is reported beside (held by his reset, the 2-look door would file it),
+        never counted as a gap; a row the reset did not hold is still the gap it was."""
+        accum = [{"name": "Nagelring", "lane": "stash", "witnesses": TWO},
+                 {"name": "Windforce", "lane": "stash", "witnesses": TWO}]
+        held = {"Nagelring": "held by your reset at 2026-09-29T07:00:00Z"}
+        st, why, c = D.vault_provenance_verdict({}, {}, {}, accum, {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED,
+                                                reset_held=held)
+        self.assertEqual(D.MISSING, st, "BASELINE: Windforce is still a gap: %s" % why)
+        self.assertEqual((1, 1), (c["gatePassingUnfiled"], c["gatePassingResetHeld"]), why)
+        self.assertEqual(["Nagelring"], c["gatePassingResetHeldNames"])
+        self.assertIn("(first: Windforce)", why)
+        self.assertIn("held by your reset", why)
+        st2, why2, c2 = D.vault_provenance_verdict({}, {}, {}, accum[:1], {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED,
+                                                   reset_held=held)
+        self.assertEqual(D.OK, st2, "a vault whose only unfiled row his reset held read %s: %s" % (st2, why2))
+        self.assertNotIn("press register", why2, "the row still prompts a press that would undo his reset's hold: %s" % why2)
+        self.assertIn("Nagelring", why2)
+        st3, why3, c3 = D.vault_provenance_verdict({}, {}, {}, accum[:1], {"runs": 1, "banked": 0}, locked_fn=NOBODY_LOCKED)
+        self.assertEqual(D.MISSING, st3, "BASELINE: with no reset receipt the same row is the gap it always was")
+
+    def test_the_row_reads_the_reset_receipt_off_the_same_board_read(self):
+        real = D._board_read
+        try:
+            rec = {"door": "vaultClearHistory", "at": "2026-09-29T07:00:00Z", "heldNames": ["Nagelring"]}
+            D._board_read = lambda: {"ok": True, "fullStores": {"d2r_muleAssign": "{}", "d2r_vaultProv": "{}",
+                                                                 "d2r_vaultLastReset": json.dumps(rec)}}
+            st, why, c = D._vault_provenance_counts()
+            self.assertIsInstance(c, dict, why)
+            self.assertIsNotNone(c.get("gatePassingResetHeld"), "the counts carry no reset-held figure: %r" % c)
+        finally:
+            D._board_read = real
+
+    def test_the_reset_hold_joint_is_registered_and_reads_two_records(self):
+        """The corroborator's `a-reset-hold-is-not-a-register-prompt`: LEFT the backup lane's snapshot of the reset receipt
+        plus the live gate, RIGHT the doctor's own verdict — driven on fixtures, both directions."""
+        import tempfile, shutil, os as _os
+        names = [b()[0] for b in C.BUILDERS]
+        self.assertIn("a-reset-hold-is-not-a-register-prompt", names)
+        tmp = tempfile.mkdtemp(prefix="reset-hold-joint-")
+        env = {k: _os.environ.get(k) for k in ("TV_VAULT_LEDGER", "TV_LEDGER_BACKUP_DIR")}
+        real = D._vault_provenance_counts
+        try:
+            ledger = _os.path.join(tmp, "vault_accum.json")
+            with open(ledger, "w", encoding="utf-8") as fh:
+                json.dump({"owned": [{"name": "Nagelring", "lane": "stash", "witnesses": TWO},
+                                     {"name": "Windforce", "lane": "stash", "witnesses": TWO}]}, fh)
+            bdir = _os.path.join(tmp, "backups")
+            _os.makedirs(bdir)
+            rec = {"door": "vaultClearHistory", "at": "2026-09-29T07:00:00Z", "heldNames": ["Nagelring"]}
+            with open(_os.path.join(bdir, "ledger_2026-09-29_070100.json"), "w", encoding="utf-8") as fh:
+                json.dump({"allStores": {"d2r_vaultLastReset": json.dumps(rec), "d2r_muleAssign": "{}"}}, fh)
+            _os.environ["TV_VAULT_LEDGER"], _os.environ["TV_LEDGER_BACKUP_DIR"] = ledger, bdir
+            inv = [b for b in C.BUILDERS if b()[0] == "a-reset-hold-is-not-a-register-prompt"][0]
+            D._vault_provenance_counts = lambda: (D.OK, "", {"gatePassingResetHeld": 1})
+            row = C.check_one(inv)
+            self.assertEqual(C.AGREE, row["state"], row)
+            self.assertEqual((1, 1), (row["left"]["value"], row["right"]["value"]))
+            D._vault_provenance_counts = lambda: (D.MISSING, "press register", {"gatePassingResetHeld": 0})
+            row2 = C.check_one(inv)
+            self.assertEqual(C.DISAGREE, row2["state"], "a doctor that prompted register for a reset-held row was not caught")
+            D._vault_provenance_counts = lambda: (D.UNKNOWN, "no console", None)
+            self.assertEqual(C.UNKNOWN, C.check_one(inv)["state"])
+        finally:
+            D._vault_provenance_counts = real
+            for k, v in env.items():
+                if v is None:
+                    _os.environ.pop(k, None)
+                else:
+                    _os.environ[k] = v
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_reset_hold_joint_agrees_over_a_healthy_board_with_shared_stash_and_tally_rows(self):
+        """Round-5 review (MED, reproduced): LEFT counted every reset-held stash row the gate passes, RIGHT only after arm 3's
+        pre-filters — a held Sunder charm (shared stash, no mule) and a rune tally row were counted left and skipped right:
+        DISAGREE (3 vs 1) over a healthy board. Both sides now ask console_doctor.arm3_row_class; driven here with the REAL
+        _vault_provenance_counts over a stubbed board read, both directions."""
+        import tempfile, shutil, os as _os
+        from unittest import mock
+        import control_app as CA
+        import main_character as MC
+        tmp = tempfile.mkdtemp(prefix="reset-hold-real-")
+        env = {k: _os.environ.get(k) for k in ("TV_VAULT_LEDGER", "TV_LEDGER_BACKUP_DIR")}
+        real_read, real_counts = D._board_read, D._vault_provenance_counts
+        try:
+            ledger = _os.path.join(tmp, "vault_accum.json")
+            rows = [{"name": "Nagelring", "lane": "stash", "kind": "item", "witnesses": TWO},
+                    {"name": "Cold Rupture", "lane": "stash", "kind": "item", "witnesses": TWO},    # a Sunder charm: shared stash, no mule
+                    {"name": "Ber Rune", "lane": "stash", "kind": "rune", "witnesses": TWO},         # a tally row, never a filing
+                    {"name": "Windforce", "lane": "stash", "kind": "item", "witnesses": TWO}]       # gate-passing, NOT held
+            with open(ledger, "w", encoding="utf-8") as fh:
+                json.dump({"owned": rows}, fh)
+            bdir = _os.path.join(tmp, "backups")
+            _os.makedirs(bdir)
+            rec = {"door": "vaultClearHistory", "at": "2026-09-29T07:00:00Z", "heldNames": ["Nagelring", "Cold Rupture", "Ber Rune"]}
+            board = {"d2r_vaultLastReset": json.dumps(rec), "d2r_muleAssign": "{}", "d2r_vaultProv": "{}", "d2r_laneLock": "{}"}
+            with open(_os.path.join(bdir, "ledger_2026-09-29_070100.json"), "w", encoding="utf-8") as fh:
+                json.dump({"allStores": board}, fh)
+            _os.environ["TV_VAULT_LEDGER"], _os.environ["TV_LEDGER_BACKUP_DIR"] = ledger, bdir
+            feeder = _os.path.join(tmp, "feeder.json")
+            with open(feeder, "w", encoding="utf-8") as fh:
+                json.dump({"runs": 1, "banked": 0}, fh)
+            D._board_read = lambda: {"ok": True, "fullStores": board}     # the SAME board on both sides; the doctor side is REAL
+            inv = [b for b in C.BUILDERS if b()[0] == "a-reset-hold-is-not-a-register-prompt"][0]
+            with mock.patch.object(CA, "VAULT_LEDGER_PATH", ledger), mock.patch.object(CA, "_rnf_path", lambda: feeder), \
+                    mock.patch.object(MC, "locks_payload", lambda: {"ok": True, "locked": [{"name": "Gore Rider"}], "tracked": 3}):
+                st, why, counts = D._vault_provenance_counts()
+                self.assertEqual(D.MISSING, st, "PREMISE: the un-held Windforce is a real gap: %s" % why)
+                self.assertEqual((1, 1, 1), (counts["gatePassingResetHeld"], counts["gatePassingNoMule"], counts["gatePassingUnfiled"]), counts)
+                self.assertEqual(["Nagelring"], counts["gatePassingResetHeldNames"])
+                row = C.check_one(inv)
+                self.assertEqual(C.AGREE, row["state"], "the joint cried wolf over a healthy board: left %r right %r — %s"
+                                 % (row["left"]["value"], row["right"]["value"], row.get("why")))
+                self.assertEqual((1, 1), (row["left"]["value"], row["right"]["value"]))
+                # the other direction: a doctor that lost its held bucket (the sabotage) is caught by the same joint
+                D._vault_provenance_counts = lambda: (D.MISSING, "press register", {"gatePassingResetHeld": 0})
+                try:
+                    self.assertEqual(C.DISAGREE, C.check_one(inv)["state"])
+                finally:
+                    D._vault_provenance_counts = real_counts
+        finally:
+            D._board_read, D._vault_provenance_counts = real_read, real_counts
+            for k, v in env.items():
+                if v is None:
+                    _os.environ.pop(k, None)
+                else:
+                    _os.environ[k] = v
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_an_unreadable_route_is_unknown_never_a_gap(self):
         blind = lambda n: (None, n)
         st, why, c = D.vault_provenance_verdict({}, {}, {}, [{"name": "Nagelring", "lane": "stash", "witnesses": TWO}],
@@ -182,22 +312,22 @@ RED_PROOF = [
     {
         "why": "#246 W7 - arm 3 goes blind: a gate-passing stash row left unfiled is never reported",
         "file": "console_doctor.py",
-        "find": "        if gv.get(\"pass\"):\n            gate_unfiled.append(nm)\n",
-        "replace": "        if False:\n            gate_unfiled.append(nm)\n",
+        "find": "    return \"unfiled\"\n\n\ndef _arm3_defaults(",
+        "replace": "    return None\n\n\ndef _arm3_defaults(",
         "matches": 1,
     },
     {
         "why": "#246 review - arm 3 counts a shared-stash row (no mule exists for it) as a gap again",
         "file": "console_doctor.py",
-        "find": "        if gv.get(\"pass\") and routable is False:\n",
-        "replace": "        if False:\n",
+        "find": "    if routable is False:\n        return \"no-mule\"",
+        "replace": "    if False:\n        return \"no-mule\"",
         "matches": 1,
     },
     {
         "why": "#246 review - arm 3 misses a set piece the lane filed under its slot-suffixed name again",
         "file": "console_doctor.py",
-        "find": "        if canon in assign:\n            continue",
-        "replace": "        if False:\n            continue",
+        "find": "    if canon in assign:\n        return None",
+        "replace": "    if False:\n        return None",
         "matches": 1,
     },
     {
@@ -212,6 +342,20 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    (\"vault provenance\", _check_vault_provenance),\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 1 - a row his reset held is counted as a gap again, so the doctor prompts a press that would undo the hold",
+        "file": "console_doctor.py",
+        "find": "    if nm in held_by_reset or canon in held_by_reset:\n        return \"reset-held\"",
+        "replace": "    if False:\n        return \"reset-held\"",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 1 - the joint's backup side counts every gate-passing row, held or not, so a doctor that prompts register agrees with it",
+        "file": "corroborate.py",
+        "find": "            if cd.arm3_row_class(r, assign, route_fn, locked_fn, gate_fn, held) == \"reset-held\":\n",
+        "replace": "            if cd.arm3_row_class(r, assign, route_fn, locked_fn, gate_fn, held) in (\"reset-held\", \"unfiled\"):\n",
         "matches": 1,
     },
 ]

@@ -255,6 +255,9 @@ test('a vault write that FAILED never reports success', async ({ page }) => {
     /* #246 — the vault half now runs only when he asks for it (vault:true) AND the sighting was in a
        container; the container gate is opened here so the FAILURE path of the door is what is graded */
     (window as any)._vaultMayClaim = () => true;
+    /* L1 (the review of 77d8d8b5) — the doors ask the ONE route (place + scene) now, never the bare predicate, so the
+       gate this case opens is the route; the failure path of the register is still what is graded */
+    (window as any)._vaultHoldingRoute = () => ({ route: 'vault', why: 'the gate is opened so the door failure is graded' });
     (window as any).tvVaultRegister = () => ({ ok: false, why: 'the locker is full' });
     const a = (window as any).kaiChronicleAccept("Andariel's Visage", { vault: true });
     (window as any).tvVaultRegister = () => { throw new Error('door jammed'); };

@@ -60,7 +60,18 @@ STORE['d2r_vaultProv'] = JSON.stringify({
   Gone: {
     tier: 'PROVEN', successes: 2, trials: 2, sessions: ['g0'],
     looks: [{ id: 'g0', frame: 'gone.jpg', conf: 0.9, released: true, crop: 'crops/gone.jpg' }]
-  }
+  },
+  Rebuilt: {
+    tier: 'WATCHED', successes: 1, trials: 1, sessions: ['s_1'], source: 'stash', by: 'evidence',
+    looks: [{ id: 's_1#0', frame: 'f_1787508821310.jpg', conf: 0.9 }]
+  },
+  Normal: {
+    mule: 'uni-armor', source: 'stash', by: 'reader', at: '2026-09-28T12:00:00Z',
+    looks: [{ id: 's_a', frame: 'f_1787508821311.jpg', conf: 0.9 }, { id: 's_b', frame: 'f_1787508821312.jpg', conf: 0.88 }],
+    gate: { pass: true, why: 'corroborated across 2 looks', looks: 2 }
+  },
+  Receipt: { kind: 'owned', source: 'kai-register', looks: [{ id: 's_r', frame: 'f_1.jpg', conf: 0.9 }] },
+  NoSession: { tier: 'PROVEN', successes: 12, trials: 12, looks: [{ id: null, frame: 'orphan.jpg', conf: 0.9 }] }
 });
 var line = window._vaultEvidenceLine('Shako');
 var first = window._vaultOpenEvidence('Shako', 0);
@@ -68,9 +79,13 @@ var second = window._vaultEvidenceStep(1);
 var missing = window._vaultEvidenceStep(1);
 var released = window._vaultOpenEvidence('Gone', 0);
 var btn = window._vaultEvidenceBtn('Shako');
+var rebuilt = window._vaultOpenEvidence('Rebuilt', 0);
+var orphan = window._vaultOpenEvidence('NoSession', 0);
+var srcOf = window._vaultLookSrc({ frame: 'f_1.jpg', session: 'reel_s_9#3' });
 process.stdout.write(JSON.stringify({
   line: line, first: first, second: second, missing: missing, released: released,
-  opened: OPENED, btn: btn
+  opened: OPENED, btn: btn, rebuilt: rebuilt, orphan: orphan, srcOf: srcOf,
+  lines: { normal: window._vaultEvidenceLine('Normal'), receipt: window._vaultEvidenceLine('Receipt') }
 }));
 """
 
@@ -201,6 +216,51 @@ class ACitedFrameStaysAndTheLineOpensIt(unittest.TestCase):
         self.assertIn("PROVEN 12/12", out["btn"])
         self.assertIn("window._vaultOpenEvidence", out["btn"])
 
+    @unittest.skipIf(NODE is None, "node is absent — the evidence line was not driven")
+    def test_the_click_names_the_reel_the_picture_lives_in(self):
+        """#41 rank 3 (reproduced: 0 of 109 cited pictures reachable): every banked evidence frame lives at
+        hist/reel_<session>/<frame>, the lightbox was handed the bare id, and every click opened 'frame missing'. The
+        click now passes the exact path (the rebuild's visit id 's_1#0' loses its bucket), and that path resolves through
+        the console's own hist server against a fixture shelf holding the real f_<ms>.jpg naming."""
+        out = _drive()
+        self.assertEqual("tv/frames/hist/reel_s0/cited.jpg", out["opened"][0]["src"], "the click carries no reel path (v3182 again)")
+        self.assertEqual("tv/frames/hist/reel_s_1/f_1787508821310.jpg", out["rebuilt"]["src"], "the visit id's #bucket was not stripped")
+        self.assertEqual(out["rebuilt"]["src"], [o for o in out["opened"] if o["id"] == "f_1787508821310.jpg"][0]["src"])
+        self.assertIsNone(out["orphan"]["src"], "a look with no session was given a reel it does not name")
+        self.assertEqual("tv/frames/hist/reel_s_9/f_1.jpg", out["srcOf"])
+        # the JOIN: '/hist/' + the path the chain derives, served by control_app's own path join
+        import control_app as CA
+        hist = os.path.join(self.tmp, "hist2")
+        os.makedirs(os.path.join(hist, "reel_s_1"))
+        with io.open(os.path.join(hist, "reel_s_1", "f_1787508821310.jpg"), "wb") as fh:
+            fh.write(b"JPEGBYTES")
+        rel = out["rebuilt"]["src"][len("tv/frames/hist/"):]
+        h = CA.Handler.__new__(CA.Handler)
+        got = {}
+        h.path = "/hist/" + rel
+        h._json = lambda code, obj: got.update(code=code, body=obj)
+        h.send_response = lambda code: got.update(code=code)
+        h.send_header = lambda k, v: None
+        h.end_headers = lambda: None
+        h.wfile = io.BytesIO()
+        real = CA.HIST_DIR
+        CA.HIST_DIR = hist
+        try:
+            h._serve_hist(rel)
+        finally:
+            CA.HIST_DIR = real
+        self.assertEqual(200, got.get("code"), "the hist server did not resolve the path the click carries: %r" % got)
+        self.assertEqual(b"JPEGBYTES", h.wfile.getvalue())
+
+    @unittest.skipIf(NODE is None, "node is absent — the evidence line was not driven")
+    def test_a_witnessed_filing_says_its_gate_and_that_its_tier_is_unknown(self):
+        """#41 rank 10: the normal door's row carries looks and its gate, never a tier; its line read as if tiers did not
+        apply. It now says the gate beside the looks and that the tier is UNKNOWN; a receipt keeps its own words."""
+        out = _drive()
+        # (this harness cuts the evidence line alone, so `who` is the raw source; on the page it is _ownedProvSourceSay's words)
+        self.assertEqual("filed · stash · 2 looks · gate passed on 2 · tier UNKNOWN", out["lines"]["normal"])
+        self.assertEqual("kai-register · 1 look", out["lines"]["receipt"], "a receipt's line must not claim a tier or a gate")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -234,6 +294,27 @@ RED_PROOF = [
         "file": "reel_retention.py",
         "find": "            rec[\"kept\"] = c[\"kept\"]\n",
         "replace": "            rec[\"why\"] = c.get(\"why\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 3 - the click hands the lightbox the bare frame id again, so every evidence picture opens 'frame missing'",
+        "file": "bible.html",
+        "find": "    var srcL = window._vaultLookSrc(look);\n",
+        "replace": "    var srcL = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 3 - the visit id's #bucket is not stripped, so the reel path names a directory that does not exist",
+        "file": "bible.html",
+        "find": "    var s = sid.replace(/#\\d+$/, '').replace(/^reel_/, '');\n",
+        "replace": "    var s = sid.replace(/^reel_/, '');\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 10 - a witnessed filing's line stops saying its tier is UNKNOWN",
+        "file": "bible.html",
+        "find": "      + ' · tier UNKNOWN';\n",
+        "replace": "      + '';\n",
         "matches": 1,
     },
 ]
