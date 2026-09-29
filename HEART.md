@@ -36,3 +36,20 @@ may not fall without a human saying why in `heart_floor.json`.
 - `theatre`
 - `vault-body`
 - `win-ctl`
+
+## The board — `bible.html`
+
+The page the console runs in its window: the builder, the 👤 Characters tab, the mule
+window and the Vault paint their surfaces here. Same unit (an `id`), same watchers, its own
+ratchet under `board` in `heart_floor.json`. Before 2026-09-29 this page was not mapped at
+all, so its surfaces could be neither watched nor unwatched — only unsaid.
+
+| | |
+|---|---|
+| surfaces the board paints | **513** |
+| of those, watched | **1** |
+| coverage | **0.2%** |
+
+### Watched on the board
+
+- `vault-moved-note`
