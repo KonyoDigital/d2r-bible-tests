@@ -1667,7 +1667,13 @@ def _env_clean(sim=False, door=""):
 
 
 _BR_CACHE = {"ping": False, "st": None, "ts": 0.0, "st_ts": 0.0}
-_PID_CACHE = {"pid": None, "ts": 0.0}
+#: `gen` — REG-1510 (review of v3524): every seed bumps it, so a port scan that was already in flight when the
+#: console started or stopped the agent can tell that its answer is older than the seed. See _pid_cached.
+_PID_CACHE = {"pid": None, "ts": 0.0, "gen": 0}
+#: REG-1510 — makes the scan's "commit only if nothing seeded meanwhile" one step: the check and the write happen
+#: under it, and so does every seed. Held for a few dict operations and NEVER across the port scan or another lock,
+#: so no status read ever waits on it for longer than that. A plain Lock: nothing inside it takes it again.
+_PID_CACHE_LOCK = threading.Lock()
 
 
 def _pid_cache_seed(pid):
@@ -1675,21 +1681,53 @@ def _pid_cache_seed(pid):
     OLD state for up to 10 s. MEASURED 2026-09-29 (v3523 pre-flight): under load, a SIM agent that was up read
     DEAD six seconds after it answered - the cache held a None scanned while it was still booting, and every
     status read that lost the lock race believed it. The spawn knows the pid; it tells the cache."""
-    _PID_CACHE["pid"] = int(pid) if pid else None
-    _PID_CACHE["ts"] = time.time() if pid else 0.0
+    with _PID_CACHE_LOCK:
+        _PID_CACHE["gen"] += 1
+        _PID_CACHE["pid"] = int(pid) if pid else None
+        _PID_CACHE["ts"] = time.time() if pid else 0.0
 
 
 def _pid_cached():
     """v872 — the status poll must NEVER pay an lsof subprocess. Prefer the tracked child;
-    fall back to a port scan at most every 10s."""
+    fall back to a port scan at most every 10s.
+
+    ⚠⚠ REG-1510 (review of v3524, both reproduced before this was written):
+    1. A SCAN IN FLIGHT MUST NOT OVERWRITE A NEWER SEED. The read checks `ts`, runs the port scan with no lock
+       held (lsof: slow under exactly the load #78 is about), then writes. start_agent seeds while holding `_lock`,
+       which is when a status read is refused the lock and scans - so the seed of pid P landed DURING the scan, and
+       the scan then wrote back the None it saw before P was listening, stamped with a ts that still counted as
+       fresh. The review measured cache {pid: None} at age 0.60 s after a seed of 424242, and the next contended
+       `_agent_alive()` read a live agent DEAD for the rest of the 10 s. Comparing `ts` is not enough: a stop's
+       seed(None) writes ts=0.0, the same value a never-scanned cache already holds, so that race reads unchanged.
+       The generation counter moves on every seed, so a scan commits only if none landed while it ran.
+    2. A HANDLE WE HOLD AND KNOW IS DEAD OUTRANKS THE CACHE ABOUT ITS OWN PID. With the lock acquired and
+       `_agent_proc.poll()` already reporting an exit, this used to fall straight to the cache - which since #78
+       holds the spawn's seed of that very pid. The review measured a fake handle with poll()=1 and nothing listening
+       read alive=False unseeded and alive=True seeded, for the rest of the seed's 10 s (a crash 4 s after start
+       reads ON AIR for 6 s, and the relaunch guard's `_mode_live and _alive` refuses). The cached pid is dropped
+       only when it IS the dead handle's pid, and the port is scanned again as it was before #78 - so a different
+       agent still listening on the port (an orphan, a stranger) still reads alive, and start_agent's own
+       "hard-stop anything on the bridge" decision is not handed a false dead. One scan per crash, then the fresh
+       answer is cached like any other. A read refused the lock cannot see the handle and still trusts the seed:
+       that is the degraded path the seed exists for."""
+    dead = None
     with _lock_briefly("pid_cached") as _got:
-        if _got and _agent_proc is not None and _agent_proc.poll() is None:
-            return int(_agent_proc.pid)
+        if _got and _agent_proc is not None:
+            if _agent_proc.poll() is None:
+                return int(_agent_proc.pid)
+            dead = int(_agent_proc.pid)
     now = time.time()
-    if now - _PID_CACHE["ts"] > 10.0:
-        _PID_CACHE["pid"] = _port_listener_pid()
-        _PID_CACHE["ts"] = now
-    return _PID_CACHE["pid"]
+    with _PID_CACHE_LOCK:
+        gen, pid, ts = _PID_CACHE["gen"], _PID_CACHE["pid"], _PID_CACHE["ts"]
+    if now - ts <= 10.0 and (dead is None or pid != dead):
+        return pid
+    scanned = _port_listener_pid()
+    with _PID_CACHE_LOCK:
+        if _PID_CACHE["gen"] == gen:
+            _PID_CACHE["pid"] = scanned
+            _PID_CACHE["ts"] = now
+        # else a start/stop seeded while the scan ran: it knows better than a scan that began before it
+        return _PID_CACHE["pid"]
 
 
 # ── v1597 BEACON HONESTY ─────────────────────────────────────────────────────
