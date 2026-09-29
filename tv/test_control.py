@@ -45716,11 +45716,42 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
     HERE = os.path.dirname(os.path.abspath(__file__))
     BUGS = os.path.join(os.path.dirname(HERE), "BUGS.md")
 
-    def test_no_reg_number_heads_two_entries(self):
+    # ⚠⚠ REG-1513 (review of v3524) — THIS WAS `^##\s+`, AND FOR 428 ENTRIES IT GRADED NOTHING.
+    # The third '#' of a `### REG-NNN` heading is not whitespace, so every `###` entry — every one
+    # from REG-1400 on — was invisible to the law it was filed under. MEASURED on 743529cb, the
+    # merge before the renumber: REG-1460..1463 each headed TWO `###` entries (main's and the
+    # evidence route's), and this law passed; the collision was found by hand. At c6a87a04 it
+    # still passed while `### REG-587` headed two entries. EVERY heading level is a declaration:
+    # BUGS.md uses `##` (936) and `###` (428) today, and a law that reads one level of a file that
+    # uses two is a sample, not a verdict. [[regression-guard]] [[zero-needs-a-denominator]]
+    HEAD = re.compile(r"^#+\s+(REG-\d+)\b", re.M)
+
+    # ⚠⚠ A DECLARED FLOOR, AND IT EXISTS BECAUSE THIS GUARD FOUND A BACKLOG ON ITS FIRST RUN.
+    # I wrote it for ONE duplicate (REG-363) and it returned TWENTY-SEVEN. Failing outright
+    # would ship a gate that is red from birth on defects nobody is fixing today, and a gate
+    # that is always red carries exactly as much information as one that is always green —
+    # this repo has already paid that bill with 149-red TV DIABLO gating nothing.
+    #
+    # ⚠ AND THE FLOOR IS NOT AN EXEMPTION. Every number is listed, so nothing hides behind a
+    # count; the moment a 28th appears this fails and names it. Renumbering the backlog is its
+    # own task: 27 entries, each needing an inbound-citation sweep before it moves.
+    # REG-1513: widening HEAD to `###` added exactly ONE — REG-587, whose second heading was the
+    # same entry's original text quoted for the record; that heading is now bold prose, so the
+    # floor did not grow. [[regression-guard]] [[unknown-stays-unknown]]
+    KNOWN = [
+        "REG-002", "REG-083", "REG-084", "REG-085", "REG-086", "REG-087", "REG-127",
+        "REG-180", "REG-203", "REG-204", "REG-205", "REG-349", "REG-352", "REG-353",
+        "REG-354", "REG-355", "REG-356", "REG-357", "REG-358", "REG-359", "REG-360",
+        "REG-361", "REG-362", "REG-364", "REG-365", "REG-366", "REG-615",
+    ]
+
+    def _bugs(self):
         with open(self.BUGS, encoding="utf-8") as fh:
-            src = fh.read()
+            return fh.read()
+
+    def _grade_headings(self, src):
         # Only HEADINGS declare a REG; a mention in prose is a citation, not a second definition.
-        heads = re.findall(r"^##\s+(REG-\d+)\b", src, re.M)
+        heads = self.HEAD.findall(src)
         # DENOMINATOR — if the heading pattern ever stops matching, "0 duplicates" would be a lie
         # that reads exactly like success. [[zero-needs-a-denominator]]
         self.assertGreater(len(heads), 200,
@@ -45733,38 +45764,123 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
             seen.add(h)
         found = sorted(set(dupes))
 
-        # ⚠⚠ A DECLARED FLOOR, AND IT EXISTS BECAUSE THIS GUARD FOUND A BACKLOG ON ITS FIRST RUN.
-        # I wrote it for ONE duplicate (REG-363) and it returned TWENTY-SEVEN. Failing outright
-        # would ship a gate that is red from birth on defects nobody is fixing today, and a gate
-        # that is always red carries exactly as much information as one that is always green —
-        # this repo has already paid that bill with 149-red TV DIABLO gating nothing.
-        #
-        # ⚠ AND THE FLOOR IS NOT AN EXEMPTION. Every number is listed, so nothing hides behind a
-        # count; the moment a 28th appears this fails and names it. Renumbering the backlog is its
-        # own task: 27 entries, each needing an inbound-citation sweep before it moves.
-        # [[regression-guard]] [[unknown-stays-unknown]]
-        KNOWN = [
-            "REG-002", "REG-083", "REG-084", "REG-085", "REG-086", "REG-087", "REG-127",
-            "REG-180", "REG-203", "REG-204", "REG-205", "REG-349", "REG-352", "REG-353",
-            "REG-354", "REG-355", "REG-356", "REG-357", "REG-358", "REG-359", "REG-360",
-            "REG-361", "REG-362", "REG-364", "REG-365", "REG-366", "REG-615",
-        ]
-        fresh = [h for h in found if h not in KNOWN]
+        fresh = [h for h in found if h not in self.KNOWN]
         self.assertEqual(
             fresh, [],
             "these REG numbers head more than one entry, so every citation of them is ambiguous: "
             "%s. Renumber the LATER entry to a free number — the earlier one has held its number "
-            "longest, so existing citations keep landing where they did." % fresh)
+            "longest, so existing citations keep landing where they did. (If the second heading "
+            "is the SAME entry quoted for the record, it is prose: un-head it, as REG-587's was.)"
+            % fresh)
 
         # AND THE FLOOR MUST ONLY EVER FALL. A number that got fixed has to leave the list, or the
         # list becomes a place duplicates go to be forgotten.
-        healed = [k for k in KNOWN if k not in found]
+        healed = [k for k in self.KNOWN if k not in found]
         self.assertEqual(
             healed, [],
             "these are on the known-duplicates floor but are no longer duplicated: %s. Remove them "
             "from KNOWN — a floor that keeps names it no longer needs stops being a measurement."
             % healed)
 
+    def test_no_reg_number_heads_two_entries(self):
+        self._grade_headings(self._bugs())
+
+    def test_a_duplicate_at_the_third_level_is_seen(self):
+        """REG-1513 — DRIVEN: the real grader over the real file plus a planted `###` pair.
+
+        The case the old pattern could not see, in the exact shape that reached the v3524 merge:
+        two `###` headings sharing a number. And the cross-level pair (`##` beside `###`), which is
+        what a renumber into a file that mixes levels produces. Planted in memory — BUGS.md is
+        read, never written."""
+        real = self._bugs()
+        for tag, plant in (("###+###", "\n### REG-99001 - planted\nx\n\n### REG-99001 - planted again\ny\n"),
+                           ("##+###", "\n## REG-99002 - planted\nx\n\n### REG-99002 - planted again\ny\n")):
+            num = re.search(r"REG-\d+", plant).group(0)
+            with self.assertRaises(AssertionError, msg="%s: a %s duplicate passed" % (tag, num)) as cm:
+                self._grade_headings(real + plant)
+            self.assertIn(num, str(cm.exception),
+                          "%s: refused for the wrong reason: %s" % (tag, str(cm.exception)[:240]))
+
+    # ── a renumbered route's citations ─────────────────────────────────────────────────────────
+    # REG-1513 (review of v3524) — c6a87a04 renumbered the evidence route's REG-1460..1463 to
+    # REG-1505..1508 because main had taken those numbers, and left two citations INSIDE the route
+    # naming the old ones: REG-1507 said "the receipt, REG-1460" (main's REG-1460 is the orphan-lsof
+    # entry) and REG-1479 said "see REG-1462's ruling" (main's REG-1462 is the fleet footer). A
+    # renumber that moves the headings and not the route's own citations sends every one of them to
+    # a different bug — the ambiguity the renumber existed to remove. The renumber NOTE is the
+    # declaration: "REG-a..b were filed as REG-c..d" names the mapping, "The route's other entries,
+    # REG-x..y, kept their numbers" names the rest of the route. Inside any of those entries an
+    # old number can only mean the route's own entry, because the route was written before main's
+    # entries existed; OUTSIDE them it is main's and is left alone. [[label-outlived-referent]]
+    RENUMBERED = re.compile(r"REG-(\d+)\.\.(\d+) were filed as REG-(\d+)\.\.(\d+)")
+    ROUTE_KEPT = re.compile(r"other entries, REG-(\d+)\.\.(\d+), kept their numbers")
+
+    def _stale_route_citations(self, src):
+        """-> (routes, stale, unseen): each renumber note's (old, route), every route entry citing an
+        old number, and every route number the note declares that heads no entry this law can read."""
+        routes, stale, unseen = [], [], []
+        # a note is a blockquote; its wrapped lines are joined before any pattern reads it
+        for b in re.finditer(r"(?:^>[^\n]*(?:\n|$))+", src, re.M):
+            note = " ".join(l[1:].strip() for l in b.group(0).splitlines())
+            m = self.RENUMBERED.search(note)
+            if not m:
+                continue
+            new = set(range(int(m.group(1)), int(m.group(2)) + 1))
+            old = set(range(int(m.group(3)), int(m.group(4)) + 1))
+            k = self.ROUTE_KEPT.search(note)
+            route = new | (set(range(int(k.group(1)), int(k.group(2)) + 1)) if k else set())
+            routes.append((sorted(old), sorted(route)))
+            # every entry of the route, bounded by the NEXT heading of any level (never a window)
+            graded = set()
+            for h in self.HEAD.finditer(src):
+                if int(h.group(1)[4:]) not in route:
+                    continue
+                graded.add(int(h.group(1)[4:]))
+                nxt = re.compile(r"^#+\s", re.M).search(src, h.end())
+                body = src[h.end():nxt.start() if nxt else len(src)]
+                for c in re.finditer(r"REG-(\d+)\b", body):
+                    if int(c.group(1)) in old:
+                        stale.append("%s cites %s" % (h.group(1), c.group(0)))
+            # DENOMINATOR per note: a route entry this law cannot find as a heading is one whose
+            # citations it never read — the `##`-only pattern would have found none of these.
+            unseen += ["REG-%d" % n for n in sorted(route - graded)]
+        return routes, stale, unseen
+
+    def test_a_renumbered_route_cites_its_own_new_numbers(self):
+        routes, stale, unseen = self._stale_route_citations(self._bugs())
+        # DENOMINATOR — a parser that finds no note checks nothing and passes. [[zero-needs-a-denominator]]
+        self.assertTrue(routes, "no 'REG-a..b were filed as REG-c..d' note was found in BUGS.md — the "
+                                "evidence route's renumber note is gone or reworded, so this checks nothing")
+        self.assertEqual(unseen, [], "a renumber note declares these route entries and no heading this law "
+                                     "can read holds them, so their citations were never checked: %s" % unseen)
+        self.assertEqual(
+            stale, [],
+            "an entry of a renumbered route still cites a number the route gave up: %s. Main holds that "
+            "number now, so the citation lands on a different bug. Cite the route's NEW number (the note "
+            "above the renumbered entries gives the mapping)." % stale)
+
+    def test_the_route_citation_check_is_driven_both_ways(self):
+        """REG-1513 — DRIVEN over planted text: a route entry citing an old number is caught in a
+        renumbered entry AND in a kept one; the new number passes; a non-route entry's citation of
+        the same old number (main's own, e.g. main's REG-1462 citing REG-1461) is never touched."""
+        note = ("> REG-9105..9106 were filed as REG-9100..9101 on the x branch; renumbered at the\n"
+                "> merge. The route's other entries,\n> REG-9102..9103, kept their numbers.\n\n")
+        def entry(n, text):
+            return "### REG-%d - planted\n\n%s\n\n" % (n, text)
+        main_side = entry(9101, "main's own entry, citing its sibling REG-9100.")
+        cases = (
+            ("renumbered entry cites old", entry(9105, "see REG-9100."), ["REG-9105 cites REG-9100"]),
+            ("kept entry cites old", entry(9103, "see REG-9101's ruling."), ["REG-9103 cites REG-9101"]),
+            ("kept entry cites new", entry(9103, "see REG-9106's ruling."), []),
+            ("route entry cites a number outside the map", entry(9102, "see REG-9107."), []),
+        )
+        for tag, body, want in cases:
+            routes, stale, unseen = self._stale_route_citations(note + main_side + body)
+            self.assertEqual(routes, [([9100, 9101], [9102, 9103, 9105, 9106])],
+                             "%s: the note was not parsed across its wrapped lines" % tag)
+            self.assertEqual(stale, want, "%s: expected %r, got %r" % (tag, want, stale))
+            # one planted entry per case, so three of the four declared route numbers head nothing
+            self.assertEqual(len(unseen), 3, "%s: the per-note denominator miscounted: %r" % (tag, unseen))
 
 RED_PROOF = [
     {
@@ -45779,6 +45895,36 @@ RED_PROOF = [
         "file": 'control_app.py',
         "find": '_kai_write_report_atomic(_pp_path, _pp_next)',
         "replace": 'open(_pp_path, "w").write(_pp_next)',
+        "matches": 1,
+    },
+    {
+        "why": "REG-1513 (review of v3524) - the REG-uniqueness heading pattern goes back to `^##\\s+`, which cannot "
+               "match `### REG-NNN` (the third '#' is not whitespace): 428 entries, every one from REG-1400 on, "
+               "unread. It is how REG-1460..1463 heading two entries each reached the v3524 merge green, and "
+               "how `### REG-587` sat duplicated unflagged. test_a_duplicate_at_the_third_level_is_seen plants a "
+               "`###` pair and a `##`+`###` pair and goes red; the route law's per-note denominator goes red too.",
+        "file": "test_control.py",
+        "find": 'HEAD = re.compile(r"^#+\\s+(REG-\\d+)\\b", re.M)',
+        "replace": 'HEAD = re.compile(r"^##\\s+(REG-\\d+)\\b", re.M)',
+        "matches": 1,
+    },
+    {
+        "why": "REG-1513 - REG-587's original text, quoted for the record under its correction, is a HEADING again, "
+               "so REG-587 heads two entries and every citation of it is ambiguous - the duplicate the widened "
+               "pattern found on its first run.",
+        "file": "BUGS.md",
+        "find": "\n**REG-587 — text sitting on text, the class the render gate cannot see** — ",
+        "replace": "\n### REG-587 — text sitting on text, the class the render gate cannot see\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1513 - REG-1479 (a kept entry of the evidence route) cites REG-1462 again for the un-tick's "
+               "keepFiling ruling. The route's REG-1462 is REG-1507 since c6a87a04; main's REG-1462 is the fleet "
+               "compare footer, so the citation lands on a different bug. Red only if the law reads the note's "
+               "'other entries ... kept their numbers' clause, not just the four renumbered headings.",
+        "file": "BUGS.md",
+        "find": "see REG-1507's ruling: keepFiling keeps it",
+        "replace": "see REG-1462's ruling: keepFiling keeps it",
         "matches": 1,
     },
 ]

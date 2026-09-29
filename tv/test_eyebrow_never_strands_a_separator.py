@@ -57,23 +57,30 @@ UI = os.path.join(HERE, "control_ui.html")
 NBSP = u" "
 
 
-def _eyebrow_literals():
-    """Every JS string literal that builds an `.hh-eye` line, bound at BOTH ends.
+def _eyebrow_spans(src):
+    """(start, end) of every `.hh-eye` builder in `src` — the ONE place the region is bounded.
 
     ⚠ Anchored on the opening `<div class="hh-eye"` and closed at the `</div>` that ends it, so
     this never reads a fixed window past the region — [[source-reading-guard]], which cost this
     repo four false readings in one day. A concatenation is followed across `+` joins because the
     eyebrow is assembled from three or four pieces and the separator lives in the middle piece.
+    Shared by the law and by the red-proof scope check below, so the two can never disagree about
+    where an eyebrow ends. [[copy-drift]]
     """
-    src = io.open(UI, encoding="utf-8").read()
     out = []
     for m in re.finditer(r'<div class="hh-eye">', src):
         end = src.find("</div>", m.end())
         if end < 0:
             raise AssertionError("GUARD CANNOT GRADE: an .hh-eye div is never closed at char %d"
                                  % m.start())
-        out.append(src[m.start():end])
+        out.append((m.start(), end))
     return out
+
+
+def _eyebrow_literals():
+    """Every JS string literal that builds an `.hh-eye` line, bound at BOTH ends."""
+    src = io.open(UI, encoding="utf-8").read()
+    return [src[a:b] for a, b in _eyebrow_spans(src)]
 
 
 class EyebrowNeverStrandsASeparator(unittest.TestCase):
@@ -177,14 +184,70 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
             "and a 302px box at 375, so nowrap loses the end of the sentence at both."
         )
 
+    def test_its_red_proof_tampers_the_eyebrows_and_nothing_else(self):
+        """REG-1513 — THE PROOF'S ANCHOR WAS A SPELLING, NOT A PLACE, AND ANOTHER BRANCH SPELLED IT TOO.
+
+        MEASURED on v3524: the proof below anchored on the bare escape-then-dot and declared 4
+        matches — the two sites in each of the two `.hh-eye` builders. river-alarm's REG-1462 fleet
+        compare footer (bb31d730) then glued ITS dots on both sides with the same escape, and the
+        anchor count went 4 -> 7 with the extra 3 at the footer. The census refused the push on the
+        count (7 vs 4), which is the loud half. The quiet half is the tempting repair — declare 7 —
+        after which the census is green and the tamper also rewrites three separators this law does
+        not grade: a proof whose sabotage reaches past its law's subject can go red for a reason
+        that is not the law's. [[sabotage-is-usually-the-wrong-one]] [[source-reading-guard]]
+
+        So this DRIVES the real declaration over the real file: every occurrence of each proof's
+        `find` in control_ui.html must lie inside an eyebrow span from `_eyebrow_spans` (the same
+        bounds the law grades), and the declared `matches` must equal the in-eyebrow count.
+        """
+        src = io.open(UI, encoding="utf-8").read()
+        spans = _eyebrow_spans(src)
+        graded = 0
+        for i, pr in enumerate(RED_PROOF):
+            if os.path.basename(str(pr.get("file") or "")) != os.path.basename(UI):
+                continue          # a proof on this law's own file is scoped by its own find
+            graded += 1
+            find = str(pr.get("find") or "")
+            hits = [m.start() for m in re.finditer(re.escape(find), src)]
+            outside = [src.count("\n", 0, h) + 1 for h in hits
+                       if not any(a <= h < b for a, b in spans)]
+            self.assertEqual(
+                outside, [],
+                "RED_PROOF[%d]'s find %r also matches control_ui.html OUTSIDE every .hh-eye builder, "
+                "at line(s) %s. Its tamper would rewrite code this law does not grade, so a red run "
+                "is no longer evidence about the eyebrow. Narrow the anchor to the eyebrow's own "
+                "form; do not raise `matches` to swallow the new sites." % (i, find, outside))
+            self.assertEqual(
+                len(hits), pr.get("matches"),
+                "RED_PROOF[%d] declares %r match(es) and its find occurs %d time(s), all inside the "
+                "eyebrows — one of the two is wrong" % (i, pr.get("matches"), len(hits)))
+        # DENOMINATOR — a loop over zero proofs would pass by grading nothing.
+        # [[zero-needs-a-denominator]]
+        self.assertGreater(graded, 0, "no RED_PROOF targets control_ui.html, so this checked nothing")
+
 
 RED_PROOF = [
     {
-        'why': 'The gate\'s whole reason for existing is that the eyebrow separators must be bound to the word BEFORE them so the browser has no break opportunity there — two independent cold reads reported "· OF 383" alone on a line. The fix as shipped is the six-character JS escape \xa0 immediately before each \'·\' inside the two `<div class="hh-eye">` builders in tv/control_ui.html. This tamper turns that escape into   (a plain space) at all four sites, which is exactly the pre-fix defect: the DOM gets an ordinary space, the break opportunity comes back, and a wrapped line can begin with a bare separator. It deletes the REAL THING — not a comment, not a message string, not a constant shared with the law: the ESCAPES tuple lives in the test file and is untouched, and the sibling law\'s `of\xa0` bindings are untouched, so exactly one law moves. The anchor deliberately omits the leading backslash so it survives JSON escaping literally, and   is still valid JS, so the tamper reproduces the bug rather than breaking the syntax.  MEASURED: untampered OK — Ran 4 tests in 0.038s, 0 failures (test_the_guard_can_actually_see_the_eyebrows, test; tampered (all 4) FAILED (failures=1) — Ran 4 tests; test_no_separator_can_begin_a_wrapped_line raised Asser; reddened law test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsASeparator.t; ALONE FAILS ALONE — fresh process, `python3 -m unittest test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsAS.',
+        'why': 'The gate\'s whole reason for existing is that the eyebrow separators must be bound to the word BEFORE them so the browser has no break opportunity there — two independent cold reads reported "· OF 383" alone on a line. The fix as shipped is the six-character JS escape \xa0 immediately before each \'·\' inside the two `<div class="hh-eye">` builders in tv/control_ui.html. This tamper turns that escape into   (a plain space) at all four sites, which is exactly the pre-fix defect: the DOM gets an ordinary space, the break opportunity comes back, and a wrapped line can begin with a bare separator. It deletes the REAL THING — not a comment, not a message string, not a constant shared with the law: the ESCAPES tuple lives in the test file and is untouched, and the sibling law\'s `of\xa0` bindings are untouched, so exactly one law moves. The anchor deliberately omits the leading backslash so it survives JSON escaping literally, and   is still valid JS, so the tamper reproduces the bug rather than breaking the syntax.  MEASURED: untampered OK — Ran 4 tests in 0.038s, 0 failures (test_the_guard_can_actually_see_the_eyebrows, test; tampered (all 4) FAILED (failures=1) — Ran 4 tests; test_no_separator_can_begin_a_wrapped_line raised Asser; reddened law test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsASeparator.t; ALONE FAILS ALONE — fresh process, `python3 -m unittest test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsAS.'
+               ' REG-1513 (review of v3524): THE TRAILING SPACE IS THE SCOPE. The eyebrow binds each dot to the word BEFORE it and '
+               'leaves an ordinary space after it (escape, dot, space); river-alarm\'s REG-1462 fleet compare footer glues its dots '
+               'on BOTH sides (escape, dot, escape). The bare escape-then-dot anchor matched both - 4 on main, 7 after bb31d730 - so '
+               'the census refused the push, and declaring 7 would have tampered three separators this law does not grade. With the '
+               'space it matches the four eyebrow sites exactly (control_ui.html 23639/23641/23871/23872) and none of the footer\'s; '
+               'test_its_red_proof_tampers_the_eyebrows_and_nothing_else pins that every match lies inside an .hh-eye span.',
         'file': 'control_ui.html',
-        'find': 'u00a0·',
-        'replace': 'u0020·',
+        'find': 'u00a0· ',
+        'replace': 'u0020· ',
         'matches': 4,
+    },
+    {
+        'why': 'REG-1513 - the proof above goes back to the bare escape-then-dot anchor that also matched the REG-1462 fleet '
+               'footer (7 sites where 4 are the law\'s): its tamper reaches code the eyebrow law does not grade. The find is '
+               'written with a \\u00b7 escape so this declaration is not a second occurrence of its own anchor.',
+        'file': 'test_eyebrow_never_strands_a_separator.py',
+        'find': "'find': 'u00a0\u00b7 ',",
+        'replace': "'find': 'u00a0\u00b7',",
+        'matches': 1,
     },
 ]
 

@@ -7,6 +7,42 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
+
+**Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:
+- **HIGH - the push would be refused.** `test_eyebrow_never_strands_a_separator`'s red-proof anchored on the bare
+  escape-then-dot and declared 4 matches (the two `.hh-eye` builders). river-alarm's REG-1462 fleet compare footer
+  (bb31d730) glued its dots on BOTH sides with the same escape, so the count went 4 -> 7 and the red-proof census
+  (`test_every_declared_red_proof_is_well_formed`, which hooks/pre-push runs at top level) failed: "matches 7 time(s),
+  it declares 4". Declaring 7 would have been green and wrong - the tamper would also rewrite three separators the
+  eyebrow law does not grade. **Fix:** the anchor carries the eyebrow's own trailing plain space (escape, dot, space;
+  the footer is escape, dot, escape) - exactly the 4 eyebrow sites, 23639/23641/23871/23872. **Law:** new
+  `test_its_red_proof_tampers_the_eyebrows_and_nothing_else` drives the real RED_PROOF over the real file: every
+  match must lie inside an `.hh-eye` span (the law's own bounds, now one helper `_eyebrow_spans`) and `matches` must
+  equal that count. RED on the old anchor, naming lines 26016/26021/26023.
+- **LOW - two citations pointed at unrelated bugs.** c6a87a04 renumbered the evidence route's headings to
+  REG-1505..1508 and left REG-1507's "the receipt, REG-1460" (main's REG-1460 is orphan lsof) and REG-1479's
+  "REG-1462's ruling" (main's REG-1462 is the fleet footer). **Fix:** -> REG-1505 and REG-1507; the renumber note now
+  also declares the route's kept entries (REG-1464..1479). Main's own citations of REG-1460..1463 (REG-1462 citing
+  REG-1461, the code comments) mean main's entries and were left alone. **Law:** test_control
+  `test_a_renumbered_route_cites_its_own_new_numbers` parses the note (mapping + kept range), reads every route entry
+  to the next heading, and fails on an old number cited inside the route; a per-note denominator fails when a
+  declared route entry heads nothing it can read. Driven both ways over planted text
+  (`test_the_route_citation_check_is_driven_both_ways`); RED on the real file before the fix, naming exactly the two.
+- **LOW, pre-existing on main - the REG-uniqueness law never read a `###` heading.** `^##\s+` cannot match
+  `### REG-NNN` (the third '#' is not whitespace), so 428 entries - every one from REG-1400 on - were ungraded; that
+  is how REG-1460..1463 each headed two entries at the merge and passed. **Fix:** `HEAD = ^#+\s+`, every level.
+  Its first run found one more duplicate, REG-587: NOT two bugs - the second heading was the same entry's original
+  v2605 text, quoted under its v2607 correction. Renumbering it would have given one bug two numbers, so the quoted
+  heading became bold prose with a one-line note, and the KNOWN floor did not grow. **Law:** new
+  `test_a_duplicate_at_the_third_level_is_seen` plants a `###` pair and a `##`+`###` pair into the real text and
+  drives the real grader (refactored to `_grade_headings`).
+
+**Red-proofs, each applied, run RED, restored byte-for-byte (git diff clean):** eyebrow [0] narrowed (4 matches, RED
+on test_no_separator_can_begin_a_wrapped_line) and eyebrow [1] (the old bare anchor back - RED on the scope case);
+test_control [1] (`^##` back - RED on 3 cases), [2] (REG-587's quoted heading a heading again - RED), [3] (REG-1479's
+old citation back - RED). REG-1507's old citation was also applied by hand and went RED.
+
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 
 **Found** by pre-flighting `run_gates.py` (687 gates, the two suites excluded, 39 min) before v3523 push #6 - the
@@ -423,7 +459,9 @@ the walker. Measured on both hooks: anchors stage depth 0, prove call depth 1, E
 **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py` (7 cases, 8 red-proofs) - reads the hook's own
 stage order through the anchors law's shell walker, pins every stage and bound, runs `bash -n`.
 > REG-1505..1508 were filed as REG-1460..1463 on the evidence-fix branch; those numbers were taken on main by the
-> time it merged (v3524), so they were renumbered at the merge. The entries are otherwise unchanged.
+> time it merged (v3524), so they were renumbered at the merge. The route's other entries, REG-1464..1479, kept their
+> numbers. Inside the route an old number can only mean the route's own entry (it was written before main's existed):
+> REG-1513 moved the two citations the renumber missed (in REG-1507 and REG-1479). The entries are otherwise unchanged.
 
 ### REG-1505 - A RECEIPT THAT OUTLIVED ITS NAME STOPPED A REAL PICK-UP FROM BEING CARRIED (M-1, review of 7cded0c1, 2026-09-29)
 
@@ -450,7 +488,7 @@ backwards. HEART: M2 (4 cases, 2 red-proofs).
 
 **SEEN:** vaultClearUnsorted ("Delete unsorted"), vaultDropMenuImport ("These look like a chronicle page"), tvVaultUnregister (the
 TV unvault) and toggleOwned's unique un-tick each did `owned.delete(name)` with no d2r_vaultRemoved batch (the un-tick also left
-the receipt, REG-1460). REG-1391's "his removal outranks every older read" cannot see a removal it never recorded: the next
+the receipt, REG-1505). REG-1391's "his removal outranks every older read" cannot see a removal it never recorded: the next
 reclose replayed the same older read and owned the name again. **FIX:** every un-own goes through window.vaultRemove — dated,
 journaled, undoable — under its own lane (clear-unsorted, menu-import, tv-unvault, un-tick); the un-tick falls back to
 owned.delete + _ownedProvForget only when the door is not on the page. HEART: M3 (4 cases: three doors driven through the REAL
@@ -661,7 +699,7 @@ through the real handler; recorded:null is still the frame math) and test_a_rese
 
 ### REG-1479 - THREE LOWS FROM THE ROUND-5 REVIEW: THE UN-TICK DELETED THE FILING, A LABEL THE ROW DENIED, A LOWER BOUND CALLED EXACT (2026-09-29)
 
-**(1) the un-tick and the mule filing** — see REG-1462's ruling: keepFiling keeps it; a plain removal still takes it (new-law case
+**(1) the un-tick and the mule filing** — see REG-1507's ruling: keepFiling keeps it; a plain removal still takes it (new-law case
 test_the_un_tick_keeps_the_mule_filing_and_a_plain_removal_takes_it, 1 red-proof). **(2) recordedBy label drift** — plan_from_ledger
 said 'board' while a tier-less board filing's row said 'frames' (every normal-door filing, per rank 10): _retro_row now takes
 board_filed and the row says 'board (no tier)' with a sentence that names both facts ("filed on the board with no tier; the frame
@@ -6846,7 +6884,7 @@ saw. Baseline rewritten to 3 / 0 / 0 / 0. [[feedback-verify-not-proxy]]
 
 **The original entry, kept for the record:**
 
-### REG-587 — text sitting on text, the class the render gate cannot see
+**REG-587 — text sitting on text, the class the render gate cannot see** — its original heading, quoted, not re-declared: the same entry as above, un-headed by REG-1513 so the REG-uniqueness law does not read it as a second REG-587.
 **2026-09-04 · v2605**
 
 `render_check` measures whether an element is **CLIPPED**, **OFF-SCREEN** or **COVERED**. None of
