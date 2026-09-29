@@ -1633,7 +1633,7 @@ class _VerdictCache(object):
         inputs = sorted(set(base) | {tgt})
         h = hashlib.sha256(b"heart2 P3 key v1\0")
         h.update(str(filename).encode("utf-8", "replace") + b"\0")
-        h.update(_canon(pr).encode("utf-8", "replace") + b"\0")
+        h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
         h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
         rels = []
         for p in inputs:
@@ -1738,7 +1738,7 @@ def _declares_widths(proofs):
     return any(isinstance(pr, dict) and "widths" in pr for pr in (proofs or []))
 
 
-def _canon(pr):
+def _proof_key(pr):
     """#42 — one red-proof as a comparable string: two entries are the same declaration exactly when these agree."""
     return json.dumps(pr, sort_keys=True, default=str)
 
@@ -1759,14 +1759,14 @@ def push_order(have, base_proofs=None, changed=None, anchor_off=None):
     order, rank, counts = {}, {}, {"anchor": 0, "entry": 0, "target": 0}
     for pos, (name, filename, proofs) in enumerate(have):
         base = None if base_proofs is None else base_proofs.get(filename)
-        seen = None if base is None else set(_canon(x) for x in base)
+        seen = None if base is None else set(_proof_key(x) for x in base)
         scores = []
         for i, pr in enumerate(proofs or []):
             sc = 0
             if anchor_off is not None and anchor_off(pr):
                 sc += 4
                 counts["anchor"] += 1
-            if seen is not None and _canon(pr) not in seen:
+            if seen is not None and _proof_key(pr) not in seen:
                 sc += 2
                 counts["entry"] += 1
             tgt = _proof_target_rel(pr)

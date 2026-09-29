@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
+
+**Found** by pre-flighting `run_gates.py` (687 gates, the two suites excluded, 39 min) before v3523 push #6 - the
+pre-push gate is a subset, and v3522's CI was green, so every one of these would have reached CI after the publish:
+- `test_resolver_ratchet`: #42 P2 added `heart2._canon`, a JSON key for one red-proof - not a name resolver, but
+  exactly the shape the ratchet counts. **Renamed `_proof_key`** (4 sites, no external caller, no anchor quotes it).
+- `test_the_gate_set_shards_cleanly`: the cost table covered 94.8% of 689 gates (< 95%) - 36 gates were new since
+  it was measured. **Added at their seconds from this run**, as the 2026-09-27 refresh did; on the 651 gates both
+  sources share, local/CI is 1.09 (median), so the shards stay balanced.
+- `test_the_mule_window_fits_at_every_width`: `st 2000x1300 mp-eq` read **6 px low** (194 vs 188) under load and
+  exact alone - the same 6 px on the same panel as the v3513 CI flake. The one font wait ran at boot; a face is only
+  fetched when a view first USES it, so opening the stash could start a load after "loaded". **`_open` now waits
+  for `document.fonts.status == "loaded"` (bounded 5 s) after every view change.** 23/23 alone after the fix.
+- `test_button_matrix`: 'SIM → reads grow or bridge stays: reads=0' under load, 18 s green alone. NOT a v3523
+  regression (its agent diff touches capture, not liveness). The suspected path - `_pid_cached`'s 10 s port-scan
+  cache answering None for a just-started agent while `_lock` is contended - is PRE-EXISTING (v877) and is filed as
+  its own task with a driven law owed, not patched blind here.
+
 ### REG-1463 - THE CHEAP-SUBSET TIMING GATE MEASURED THE UNMEMOIZED PLAN THE CONSOLE NEVER RUNS (2026-09-29)
 
 **Found** when v3523 push #5 was REFUSED at 129 min: `test_the_cheap_subset_is_actually_CHEAP` 9,093 ms > 9,000.

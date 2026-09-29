@@ -413,6 +413,17 @@ OPEN_AS = r"""(function(m, v){ window.vaultCloseCard(); window.openMuleCard(m);
 def _open(t, view="equip", mule=None):
     t.ev(OPEN_AS % (json.dumps(mule or MULE), json.dumps(view)))
     time.sleep(0.35)
+    # ⚠ 2026-09-29 — THE FONT WAIT AT BOOT IS NOT ENOUGH. A face is only fetched when a view first USES it, so the
+    # stash-in-front view can start a font load the moment it opens, after the one wait in _measure() said "loaded".
+    # MEASURED: the v3523 pre-flight read 'st 2000x1300 mp-eq' 6 px low (194 vs 188) inside a 39-min gate run under
+    # load, and exact when the law ran alone - the same 6 px on the same panel as the v3513 CI flake above. Bounded (5 s).
+    for _ in range(20):
+        try:
+            if t.ev("document.fonts.status") == "loaded":
+                break
+        except Exception:
+            pass
+        time.sleep(0.25)
 
 
 def _tile(t, k):
