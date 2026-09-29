@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1445 - NO WINDOWS PC COULD LOAD ITS OWN GATES, SO EVERY LOCK THERE STAYED SHUT (2026-09-29)
+
+**Found** measuring why the ALT's river never reaches TOMBSTONE (#50): 76 reels at EMPTY never ROUTED,
+25 at PRINTER never sealed, both since 09-27. `self_arming.may("reel.route")` on the ALT answered
+*"the heart has never run here… UNKNOWN fails CLOSED"*. The heart census is per-machine and the Mac's
+cannot speak for Windows: at the same clean commit (562b1687) the ALT's gate fingerprint was `2d9eff1d`
+against the Mac's `56b2a8c3`, because **`run_gates.py` imports `fcntl` at top level** (since v1751,
+2026-08-17) and would not import on Windows at all - `heart2.gate_files()` saw ZERO gates there. With
+fcntl stubbed the ALT lists 679 gates (Mac 678), and a one-law trial prove on the ALT showed the
+river-outlet law BLIND there (green through its own sabotage) while it goes red on the Mac. His ruling:
+every PC proves itself.
+
+**Fix:** fcntl and msvcrt are both imported under `try/except ImportError`; `_lock_nb()` takes the
+per-tree lock with `msvcrt.locking(LK_NBLCK)` on Windows, on a byte far past the holder's text so a
+refused run can still read who holds the tree. The sweep found a sibling: `soak_test.py` imported
+`resource` (unused) - dropped.
+
+**Law:** `tv/test_the_gates_load_on_windows.py` - run_gates + heart2 imported in a child python where
+`import fcntl` raises, gate count > 100; the msvcrt path driven with a recording msvcrt (non-blocking,
+past the text, holder named on refusal); an AST sweep refusing any bare top-level import of a
+Unix-only module in `tv/`. 2 red-proofs, both seen RED by hand.
+
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 
 v3523's push was refused TWICE at the render gate (95 and 98 minutes in) on `shelf-cards`: "the panel could not be

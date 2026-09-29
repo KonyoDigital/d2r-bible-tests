@@ -3,7 +3,7 @@
 assert the night-run invariants: the process survives, RSS stays bounded, the journal stays
 line-valid JSON, and core threads keep breathing. CI runs it via tv-soak.yml (dispatch/cron);
 locally: TV_SOAK_MINUTES=2 python3 tv/soak_test.py for a quick pass."""
-import json, os, resource, signal, subprocess, sys, tempfile, time
+import json, os, signal, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MINUTES = float(os.environ.get("TV_SOAK_MINUTES", "30") or 30)

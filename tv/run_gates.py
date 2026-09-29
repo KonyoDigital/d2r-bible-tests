@@ -31,7 +31,20 @@ from __future__ import annotations
 import argparse
 import shutil
 import atexit
-import fcntl
+# ⚠⚠ 2026-09-29 (#50) — fcntl IS UNIX-ONLY, AND A TOP-LEVEL IMPORT OF IT MADE THIS WHOLE MODULE
+# UNIMPORTABLE ON WINDOWS. MEASURED on the ALT at v3522: `run_gates will not import: No module
+# named 'fcntl'`, so heart2.gate_files() saw ZERO gates there, the gate fingerprint covered only
+# heart2.py, and no Windows PC could ever prove its own instruments - every self-arming lock
+# (reel.route, vault.sweep_start, ...) stayed shut and the river never reached TOMBSTONE.
+# The one caller is the per-tree lock below, which now uses msvcrt on Windows.
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:  # everywhere but Windows
+    msvcrt = None
 import glob
 import os
 import re
@@ -177,6 +190,14 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_the_gates_load_on_windows", [sys.executable,
+         os.path.join(HERE, "test_the_gates_load_on_windows.py")], 180,
+         why="REG-1445 - run_gates imported fcntl (Unix-only) at top level, so on every Windows PC it would not "
+             "import, heart2 saw ZERO gates, no census could ever speak for that machine's instruments, and every "
+             "self-arming lock stayed shut: the ALT held 76 reels at EMPTY and 25 at PRINTER since 09-27. The lock "
+             "now uses msvcrt there (past the holder's text, so a refusal can still name who holds the tree); an AST "
+             "sweep refuses any bare top-level import of a Unix-only module in tv/. Child python with fcntl absent. "
+             "2 red-proofs"),
     Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
          os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
          why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "
@@ -8254,6 +8275,30 @@ def run(only=None, live_watch=True, live_writer=None):
 _LOCK_FH = None
 
 
+def _lock_nb(fh):
+    """Take an exclusive, non-blocking lock on `fh`, or raise OSError. Both platforms release it when
+    the process exits.
+
+    ⚠ ON WINDOWS THE LOCKED BYTE LIES FAR PAST THE TEXT, on purpose. msvcrt locks a byte RANGE and a
+    locked range cannot be READ by another process - so locking byte 0 would make the refused run's
+    `fh.read()` (which names the holder) raise instead of saying who has the tree. Windows allows a
+    lock beyond end-of-file, so the holder's line stays readable.
+    """
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return
+    if msvcrt is not None:
+        fd = fh.fileno()
+        here = os.lseek(fd, 0, os.SEEK_CUR)
+        os.lseek(fd, 1 << 30, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        finally:
+            os.lseek(fd, here, os.SEEK_SET)
+        return
+    raise OSError("this platform offers neither fcntl nor msvcrt, so the tree cannot be locked")
+
+
 def _claim_the_tree():
     """Take the per-tree gate lock, or explain who has it. Returns None on success, else a message."""
     global _LOCK_FH
@@ -8267,7 +8312,7 @@ def _claim_the_tree():
     path = os.path.join(tempfile.gettempdir(), "d2r_gates_%s.lock" % safe)
     fh = open(path, "a+")
     try:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_nb(fh)
     except OSError:
         fh.seek(0)
         who = (fh.read() or "").strip() or "an unnamed run"
