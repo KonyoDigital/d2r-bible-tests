@@ -117,12 +117,28 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         self.assertEqual(RG.main(["run_gates.py", "--shard", "3/2"]), 2,
                          "a malformed --shard did not answer exit 2 (NO GATE RAN)")
 
+    def test_an_only_name_the_registry_does_not_have_is_refused(self):
+        """2026-09-29 - a zsh `--only $G` handed 34 names as ONE argument; it matched nothing and the run printed
+        '0 gate(s) passed', exit 0. A check that never happened is not a pass."""
+        real = RG.GATES[0].name
+        self.assertEqual(RG.main(["run_gates.py", "--only", real + " " + RG.GATES[1].name]), 2,
+                         "names glued into one argument ran nothing and still answered as if it passed")
+        self.assertEqual(RG.main(["run_gates.py", "--only", real, "no_such_gate_anywhere"]), 2,
+                         "one unknown name among real ones was dropped silently")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - an --only name the registry does not have runs nothing and answers '0 gate(s) passed', exit 0",
+        "file": "tv/run_gates.py",
+        "find": "        if _unknown:\n            print(\"⛔ REFUSED — --only names %d gate(s) this registry does not have",
+        "replace": "        if False:\n            print(\"⛔ REFUSED — --only names %d gate(s) this registry does not have",
+        "matches": 1,
+    },
     {
         "why": "2026-09-25 - a gate registered twice (the interrupted edit that shipped in dc0cae95) goes unseen again",
         "file": "run_gates.py",

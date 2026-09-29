@@ -8619,6 +8619,16 @@ def main(argv):
         print("── SHARD %d/%d: %d of %d gates (balanced on %s) ──"
               % (_k, _n, len(only), len(GATES), _cost_table()[1]))
 
+    # ⚠ 2026-09-29 — A NAME THIS REGISTRY DOES NOT HAVE RUNS NOTHING, AND NOTHING IS NOT A PASS. A zsh `--only $G` handed
+    # 34 names as ONE argument; it matched no gate and the run printed "✅ 0 gate(s) passed" with exit 0 - a green over a
+    # check that never happened, the night v3523 was being cleared for push. Every unknown name refuses, like --shard's.
+    if a.only:
+        _known = set(g.name for g in GATES)
+        _unknown = [n for n in a.only if n not in _known]
+        if _unknown:
+            print("⛔ REFUSED — --only names %d gate(s) this registry does not have (%s); NO gate ran"
+                  % (len(_unknown), ", ".join(repr(x[:60]) for x in _unknown[:4])))
+            return 2
     busy = _claim_the_tree()
     if busy:
         print("⛔ REFUSED — %s" % busy)
