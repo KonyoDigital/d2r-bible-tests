@@ -22,7 +22,21 @@ directory) runs every push and says why; only PROVEN is stored and only a stored
 the SANDBOX before and after the run (a tree that moved under a proof banks nothing); the plain `--prove` path, run_gates
 and CI never open it; `HEART2_PROVE_CACHE=0` runs everything. **Its reach:** a file reached by a computed path is outside
 the key (name it in PROOF_NEEDS); the prover's own records (.heart2.json, this cache, .render_verdict.json) are the one
-named exclusion. **Law:** `tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py` (15 cases, 11 red-proofs).
+named exclusion. **The second eye on the first cut, all fixed the same day:** (1) a cache hit stamped the census
+(`verdictAt`) with THIS run's clock - a retried push with ~40 cached laws would read 40 gates "just now" when their proofs
+ran an hour earlier, the exact defect control_app's `oldestProofMs` was built against; a gate standing on reused proofs
+is now stamped with the OLDEST provedAt among them, said on the run, and a stored PROVEN with no readable provedAt is
+never reused. (2) A law that LISTS A DIRECTORY ITSELF (os.listdir / os.walk / glob / Path.iterdir - 57 of 628 red-proof
+laws) has an input no byte key can name; it is unkeyable, said with the call and line, and runs every push - the law file
+only, never the closure (heart2, run_gates and control_app all list directories). A listing reached through the closure
+stays outside the key, stated. (3) `key_for` raising would have made a proof BLIND and refused the push; the cache's own
+failure now costs a re-prove (unkeyable before the run, "moved" after), never a verdict. (4) The instruments law admitted
+the cache write on a token its window only reached as the refusal MESSAGE's argument; the guard now sits directly above
+the write and the token is the guard expression. (5) Surfaced by the key: a worktree's `.git` POINTER FILE reached the
+sandbox through `make_sandbox`'s `cp -c -R` of `PROOF_NEEDS ../.git` (safe_copy itself already drops a file named
+.git - the second eye's site was wrong, its observation right); a `.git` file is now left out, said, and the gate that
+declared it reads UNPROVABLE in a worktree sandbox. **Law:** `tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py`
+(18 cases, 17 red-proofs) + `test_the_sandbox_holds_no_door_to_another_checkout` in the instruments law.
 **Not done:** the census itself (`gatesFingerprint`, read by the lock's `_heart_says_watched`) still keys gate files
 only - widening it would close his console's locks on every edit to control_app.py until a full prove runs.
 
@@ -36,9 +50,23 @@ tv/render_coverage.json or art/ - no tv/*.py - never rendered, while its own v27
 change to the verdict. **Fix (#42 P5):** `hooks/pre-push` runs the render gate (byte for byte: trigger, port, temporary
 profile, 353 s bound, crest-loudness, kill-by-pid) right after the cheap stages and before the proving stage, at top
 level. Nothing removed, no bound moved. **Before/after, same clocks:** a render refusal landed at ~95 min; it now lands
-at ~5 min (cheap stages 9 s + render ~4-6 min). **Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py`
-(6 cases, 5 red-proofs) - reads the hook's own stage order through the anchors law's shell walker, pins every stage and
-bound, runs `bash -n`.
+at ~5 min (cheap stages 9 s + render ~4-6 min). **And the console demos, the same day (second eye):** v3523 push #3
+was refused by console-demos at 113m13s, 26 s after render passed at 112m47s - a 25-second stage (DEMOS 15/16,
+j7_shelfStory, on a console the hook itself said ran code older than control_app.py) paid for behind 96 minutes of
+proofs; the demos refused 2 of 13 pushes over 2026-09-27..29. Both call sites (his console; the headless console the gate
+starts when :17772 is silent) now run right after the render gate and before the proving stage, byte for byte, at top
+level - and the same hole closed: inside the lane, a push changing only tv/control_ui.html or tv/demo_console.mjs (the
+files its own trigger names) never ran the demos. A demo refusal now lands at ~5-6 min instead of ~113.
+**And the move found a green that lied:** the anchors law's column-0 shell walker (`_walk`, six named cuts) read the
+python program embedded in the demos block (`python3 -c '... if not f.get("known"): ...'`) as a shell `if` (+1) and
+the lone `)` closing the `SMOKE_SPECS=(` array as a group close with no opener (-1) - two errors that cancelled, so the
+hook "balanced to 0" and every stage between them read one level too deep. Sitting after every stage, the python `if`
+never mattered; moved ahead of the anchor census, it made the census read as nested. Seventh cut: a quote opened on an
+earlier line carries across lines (bash's fresh context inside `$( )` included) and a line inside it has no grammar; an
+array opener counts. Both halves driven apart in the anchors law and pinned as red-proofs by the P5 law, which imports
+the walker. Measured on both hooks: anchors stage depth 0, prove call depth 1, EOF depth 0, no quote open at EOF.
+**Law:** `tv/test_the_render_gate_runs_before_the_proving_stage.py` (7 cases, 8 red-proofs) - reads the hook's own
+stage order through the anchors law's shell walker, pins every stage and bound, runs `bash -n`.
 
 ### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
 

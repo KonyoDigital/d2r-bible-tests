@@ -15,6 +15,14 @@ runs every push and is never cached. Only PROVEN is stored and only a stored PRO
 SANDBOX (the exact tree proved), before and after the run - a tree that moved under a proof banks nothing. The plain
 --prove path, run_gates and CI never open it: the verdict of record is always a run.
 
+THE SECOND EYE ON THE FIRST CUT (2026-09-29) added four rules, each pinned below: a REUSED proof keeps the time it was
+MEASURED - the census stamps a gate standing on cached proofs with the oldest provedAt among them, never this run's
+clock (the first cut stamped every hit "now", the defect control_app's oldestProofMs was built against); a law that
+LISTS A DIRECTORY ITSELF (os.listdir / os.walk / glob / Path.iterdir) has an input no byte key can name and is never
+cached - the law file only, never the closure; the cache's OWN failure (key_for raising) costs a re-prove and never a
+verdict; and a stored PROVEN with no readable provedAt is not reused, because a verdict nobody can date cannot keep its
+age.
+
 EVERYTHING HERE IS A FIXTURE: a throwaway repo copy holding a ten-line law, its helper, its subject and a bible.html; the
 cache file lives beside them. No browser starts, the real tree is never copied, nothing of his is read or written -
 except the cases that READ the real registry, .gitignore and the CI workflows, because that is where the wiring lives.
@@ -28,6 +36,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -110,9 +119,10 @@ class _Tree(object):
         return os.path.join(repo, "tv"), root
 
 
-def _push_run(tree, proofs, cache_path, env=None):
+def _push_run(tree, proofs, cache_path, env=None, hold=None):
     """The REAL push-time path over the fixture tree, with a _VerdictCache opened on `cache_path` the way one push opens
-    it (None: no cache, every proof runs). -> (results, per_proof, stopped, runs logged, lines said)"""
+    it (None: no cache, every proof runs). -> (results, per_proof, stopped, runs logged, lines said)
+    `hold` (a list) receives the cache object, for the cases that read what it measured."""
     fd, log = tempfile.mkstemp(prefix="p3log.")
     os.close(fd)
     said, stopped = [], []
@@ -120,6 +130,8 @@ def _push_run(tree, proofs, cache_path, env=None):
     kw.update(env or {})
     try:
         cache = H._VerdictCache(path=cache_path, say=said.append) if cache_path else None
+        if hold is not None:
+            hold.append(cache)
         with _Env(**kw), _Patch(make_sandbox=tree.make, _push_facts=_no_facts):
             results, per = H._prove_push([(_GATE, _FILE, proofs)], said.append, stopped, cache=cache)
         with io.open(log, encoding="utf-8") as fh:
@@ -136,15 +148,23 @@ class _Case(unittest.TestCase):
     """One fixture tree and one cache file per case; a fresh _VerdictCache per 'push' (each push opens the file anew)."""
 
     def setUp(self):
-        self.tree = _Tree()
+        self.trees = []
+        self.tree = self.fresh_tree()
         self.dir = tempfile.mkdtemp(prefix="p3cache.")
         self.cache_path = os.path.join(self.dir, ".heart2_cache.json")
         self.said = []
 
     def tearDown(self):
         shutil.rmtree(self.dir, ignore_errors=True)
-        for r in self.tree.made:
-            shutil.rmtree(r, ignore_errors=True)
+        for t in self.trees:
+            for r in t.made:
+                shutil.rmtree(r, ignore_errors=True)
+
+    def fresh_tree(self):
+        """A new fixture tree, remembered so tearDown removes every sandbox it made (a replaced tree leaked its dirs)."""
+        self.tree = _Tree()
+        self.trees.append(self.tree)
+        return self.tree
 
     def entries(self):
         if not os.path.exists(self.cache_path):
@@ -236,7 +256,7 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
             self.assertTrue(any("not cacheable" in l and "helper_lazy.py will not parse" in l for l in said),
                             "the reason it cannot be cached is not said: %s" % said)
             self.assertTrue(any("1 not cacheable" in l for l in said), "PRINT THE DENOMINATOR: %s" % said[-2:])
-        self.tree = _Tree()
+        self.fresh_tree()
         self.tree.files["tv/" + _FILE] = _LAW + "\nPROOF_NEEDS = ['needs_dir']\n"
         self.tree.files["tv/needs_dir/x.txt"] = "x\n"
         for what in ("first", "second"):
@@ -249,7 +269,7 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         """★ only PROVEN is a shortcut: a BLIND (declared where the defect never shows) and an INVALID (a rotted anchor)
         bank nothing, and the next push finds them again"""
         for pr, verdict in ((_proof(widths=["375x812"]), H.BLIND), (_proof(find="absent"), H.INVALID)):
-            self.tree = _Tree()
+            self.fresh_tree()
             for what in ("first", "second"):
                 results, per, stopped, runs, said = self.push([pr])
                 self.assertEqual(results, {_GATE: verdict}, "%s push: %s" % (what, "\n".join(said)))
@@ -267,6 +287,125 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         results, per, stopped, runs, said = self.push()
         self.assertRan(runs, said, "a non-PROVEN entry under the right key")
         self.assertEqual(self.entries()[key]["verdict"], H.PROVEN, "the run's PROVEN did not replace the stray entry")
+        # (second eye) a PROVEN nobody can DATE is not a shortcut either: it could not keep its age in the census
+        ent = self.entries()
+        ent[key]["provedAt"] = "yesterday"
+        with io.open(self.cache_path, "w", encoding="utf-8") as fh:
+            json.dump({"entries": ent}, fh)
+        results, per, stopped, runs, said = self.push()
+        self.assertRan(runs, said, "a PROVEN with no readable provedAt")
+        self.assertIsInstance(self.entries()[key]["provedAt"], int, "the re-proof did not restore a dated entry")
+
+    def test_a_cached_verdict_keeps_its_measured_time_in_the_census(self):
+        """★ (second eye on the first cut) a hit is a verdict from an EARLIER run over the same bytes: the cache reports
+        the gate's oldest reused provedAt, says so, and _write_state stamps verdictAt with THAT time - never this run's
+        clock; a run that reused nothing stamps now; a stamp can never lie in the future; a gate the run did not judge
+        takes none. The first cut stamped every hit "now" - the defect control_app's oldestProofMs exists to expose."""
+        hold = []
+        results, per, stopped, runs, said = _push_run(self.tree, [_proof()], self.cache_path, hold=hold)
+        self.assertRan(runs, said, "cold push")
+        self.assertEqual(hold[0].measured, {}, "a cold push reused nothing, yet the map says %s" % hold[0].measured)
+        proved_at = list(self.entries().values())[0]["provedAt"]
+        time.sleep(0.01)
+        before = int(time.time() * 1000)
+        self.assertLess(proved_at, before, "PREMISE: the entry was proved before the warm push started")
+        hold = []
+        results, per, stopped, runs, said = _push_run(self.tree, [_proof()], self.cache_path, hold=hold)
+        self.assertReused(runs, results, said, "warm push")
+        self.assertEqual(hold[0].measured, {_GATE: proved_at},
+                         "the warm push does not report the time its reused proof was measured: %s" % hold[0].measured)
+        self.assertTrue(any("keeps the age each was MEASURED at" in l and "never this run's clock" in l for l in said),
+                        "the census rule is not said: %s" % said[-3:])
+        state = os.path.join(self.dir, ".heart2.json")
+
+        def census():
+            with io.open(state, encoding="utf-8") as fh:
+                return json.load(fh)["verdictAt"]
+
+        with _Patch(STATE=state, gate_files=lambda say=None: [(_GATE, _FILE)], red_proofs_in=lambda f: [_proof()],
+                    pixel_gates=lambda gates, unk=None: set(), gates_fingerprint=lambda gates: "fixture",
+                    surface_verdict=lambda: {}):
+            H._write_state({_GATE: H.PROVEN}, measured={_GATE: proved_at})
+            self.assertEqual(census()[_GATE], proved_at,
+                             "verdictAt was stamped with this run's clock, not the time the proof was measured")
+            H._write_state({_GATE: H.PROVEN})
+            self.assertGreaterEqual(census()[_GATE], before, "a run that reused nothing did not stamp now")
+            H._write_state({_GATE: H.PROVEN}, measured={_GATE: proved_at + 10 ** 9, "unjudged": proved_at})
+            got = census()
+            self.assertLessEqual(got[_GATE], int(time.time() * 1000), "a stamp landed in the future")
+            self.assertNotIn("unjudged", got, "a gate this run never judged took a stamp from the map")
+
+    def test_a_law_that_lists_a_directory_itself_is_never_cached(self):
+        """★ (second eye) a law calling os.listdir / os.walk / glob.glob / Path.rglob / iterdir reads whatever is THERE
+        at run time - a law file added between two pushes over otherwise identical bytes could turn it red - so it is
+        unkeyable, said with the call and its line, runs every push and banks nothing. The LAW FILE ONLY: a closure
+        module listing a directory keeps the law cacheable (heart2, run_gates and control_app all list directories).
+        And the receiver decides, never the bare name: ast.walk is a walk over a syntax tree."""
+        self.tree.files["tv/" + _FILE] = _LAW.replace(
+            "here = os.path.dirname", "listed = os.listdir(os.path.dirname(os.path.abspath(__file__)))\n"
+                                      "here = os.path.dirname", 1)
+        for what in ("first", "second"):
+            results, per, stopped, runs, said = self.push()
+            self.assertRan(runs, said, "a law that lists a directory, %s push" % what)
+            self.assertEqual(results, {_GATE: H.PROVEN}, "\n".join(said))
+            self.assertEqual(self.entries(), {}, "a law that lists a directory itself was banked")
+            self.assertTrue(any("not cacheable" in l and "lists a directory itself (os.listdir at line" in l
+                                for l in said), "the reason is not said with the call and its line: %s" % said)
+        self.assertIsNone(H._lists_a_directory(ast.parse(
+            "import ast\nfor n in ast.walk(t):\n    pass\nx = walk(1)\ny = os.path.exists('.')\n")),
+            "ast.walk, a bare walk() or os.path.exists read as a directory listing")
+        for src, want in (("import os\nos.walk('.')\n", "os.walk"), ("import os as _o\n_o.scandir('.')\n", "os.scandir"),
+                          ("import glob as _g\n_g.glob('*')\n", "glob.glob"), ("from glob import iglob\niglob('*')\n",
+                                                                               "glob.iglob"),
+                          ("from os import listdir as ld\nld('.')\n", "os.listdir"),
+                          ("from pathlib import Path\nfor p in Path('.').rglob('*'):\n    pass\n", "rglob()"),
+                          ("p.iterdir()\n", "iterdir()"), ("Path(x).glob('*.py')\n", "glob()")):
+            got = H._lists_a_directory(ast.parse(src))
+            self.assertEqual(got and got[0], want, "%r -> %r" % (src, got))
+        self.fresh_tree()
+        self.tree.files["tv/helper_p3.py"] = ("import os\nSALT = 1\n"
+                                              "NAMES = os.listdir(os.path.dirname(os.path.abspath(__file__)))\n")
+        self.push()
+        results, per, stopped, runs, said = self.push()
+        self.assertReused(runs, results, said, "a CLOSURE module lists a directory (the law does not)")
+
+    def test_the_caches_own_failure_never_changes_a_verdict(self):
+        """★ (second eye) key_for raising BEFORE the run: UNKEYABLE, said with the exception, the proof runs; raising
+        AFTER the run: the tree is read as MOVED, nothing banked - and both times the verdict is the run's and the
+        push is not refused. A cache may cost a re-prove, never a verdict."""
+
+        def boom(path, memo=None):
+            raise RuntimeError("a pathological digest")
+
+        with _Patch(_sha_file=boom):
+            results, per, stopped, runs, said = self.push()
+        self.assertRan(runs, said, "the key raised before the run")
+        self.assertEqual((results, stopped), ({_GATE: H.PROVEN}, []),
+                         "the cache's own exception changed the verdict or refused the push:\n%s" % "\n".join(said))
+        self.assertEqual(self.entries(), {}, "a proof whose key raised was banked")
+        self.assertTrue(any("not cacheable" in l and "taking its key raised RuntimeError" in l for l in said), said)
+        self.assertTrue(any("1 not cacheable" in l for l in said), "PRINT THE DENOMINATOR: %s" % said[-1:])
+        real_key, seen = H._VerdictCache.key_for, [0]
+
+        def flaky(self_, *a, **k):
+            seen[0] += 1
+            if seen[0] == 2:                      # the first key_for (before the run) works; the second raises
+                raise ValueError("relpath across volumes")
+            return real_key(self_, *a, **k)
+
+        H._VerdictCache.key_for = flaky
+        try:
+            results, per, stopped, runs, said = self.push()
+        finally:
+            H._VerdictCache.key_for = real_key
+        self.assertEqual(seen[0], 2, "PREMISE: key_for was not called before and after the run")
+        self.assertRan(runs, said, "the key raised after the run")
+        self.assertEqual((results, stopped), ({_GATE: H.PROVEN}, []),
+                         "an exception after the run changed the verdict or refused the push:\n%s" % "\n".join(said))
+        self.assertEqual(self.entries(), {}, "banked although the key could not be taken again")
+        self.assertTrue(any("moved under this proof" in l and "could not be taken again: ValueError" in l
+                            for l in said), said)
+        self.assertTrue(any("1 moved under their proof" in l for l in said), "PRINT THE DENOMINATOR: %s" % said[-1:])
 
     def test_an_unreadable_cache_reruns_everything_says_so_and_is_rewritten(self):
         """★ garbage on disk is UNREADABLE (said), never 'empty and quiet'; the first PROVEN rewrites it"""
@@ -320,7 +459,7 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
 
         with _Patch(gate_files=lambda say=None: [(_GATE, _FILE)], red_proofs_in=lambda f: [_proof()],
                     red_proof_unreadable=lambda f: False, _prove_push=fake_push, _prove_gates=fake_gates,
-                    _write_state=lambda r: None, CACHE=self.cache_path):
+                    _write_state=lambda r, measured=None: None, CACHE=self.cache_path):
             with _Env(HEART2_PROVE_CACHE=None):
                 H.prove(only={_GATE}, say=self.said.append, push=True, stopped=[])
                 H.prove(only={_GATE}, say=self.said.append)
@@ -503,6 +642,49 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": "    if str(os.environ.get(\"HEART2_PROVE_CACHE\", \"1\")).strip().lower() in (\"0\", \"no\", \"off\", \"false\"):\n",
         "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the census stamps a gate standing on reused proofs with THIS run's clock - forty gates read 'just now' "
+               "on a retried push whose proofs ran an hour ago",
+        "file": "heart2.py",
+        "find": "        if _n in (results or {}) and isinstance(_ms, (int, float)) and not isinstance(_ms, bool):\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the run never folds its hits into the per-gate measured time, so prove() hands the census nothing",
+        "file": "heart2.py",
+        "find": "            if results.get(_gn) == PROVEN:\n                _ages[_gn] = min(_ages[_gn], _ms) if _gn in _ages else _ms\n",
+        "replace": "            if False:\n                _ages[_gn] = min(_ages[_gn], _ms) if _gn in _ages else _ms\n",
+        "matches": 1,
+    },
+    {
+        "why": "a law that lists a directory itself is cached under a key that cannot name what it reads",
+        "file": "heart2.py",
+        "find": "        if p == law and lists:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "the cache's own exception before the run is recorded BLIND and refuses the push",
+        "file": "heart2.py",
+        "find": "        try:\n            key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)\n        except Exception as _ke:\n            key, rels, kwhy = None, [], \"taking its key raised %s (%s)\" % (type(_ke).__name__, str(_ke)[:80])\n",
+        "replace": "        key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)\n",
+        "matches": 1,
+    },
+    {
+        "why": "the cache's own exception after the run turns a proof that just came back PROVEN into a BLIND refusal",
+        "file": "heart2.py",
+        "find": "        try:\n            again, rels2, _w2 = cache.key_for(sandbox, name, filename, pr)\n        except Exception as _ke:\n            again, _how = None, \"its key could not be taken again: %s\" % type(_ke).__name__\n",
+        "replace": "        again, rels2, _w2 = cache.key_for(sandbox, name, filename, pr)\n",
+        "matches": 1,
+    },
+    {
+        "why": "a stored PROVEN with no readable provedAt is reused - a verdict nobody can date reaches the census",
+        "file": "heart2.py",
+        "find": "        if not (isinstance(e, dict) and isinstance(e.get(\"provedAt\"), (int, float))\n                and not isinstance(e.get(\"provedAt\"), bool)):\n            return None\n",
+        "replace": "        if False:\n            return None\n",
         "matches": 1,
     },
 ]

@@ -354,7 +354,7 @@ class TheLikeliestFailureRunsFirstAndStopsTheRun(unittest.TestCase):
 
         with _Patch(gate_files=lambda say=None: [("g", "test_g.py")],
                     red_proofs_in=lambda f: [_proof(), _proof()], red_proof_unreadable=lambda f: False,
-                    _prove_push=stopped_run, _write_state=wrote.append):
+                    _prove_push=stopped_run, _write_state=lambda r, measured=None: wrote.append(r)):
             got = H.prove(only={"g"}, say=_quiet, push=True, stopped=[])
         self.assertEqual((got, wrote), ({}, []), "a stopped run with nothing judged wrote the census: %s" % wrote)
 

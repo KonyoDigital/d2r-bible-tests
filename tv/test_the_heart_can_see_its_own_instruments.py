@@ -371,13 +371,69 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             # (_track_sandbox is handed mkdtemp's path), never into his tree; test_a_killed_prover_leaves_no_sandbox
             # drives it and checks the stamp lands in that root
             # #42 P3 — the verdict CACHE is heart2's own record beside STATE (gitignored, per machine); its writer
-            # refuses any path not named like CACHE, in code, so the token here is the refusal and not a comment.
+            # refuses any path not named like CACHE. The token is the GUARD EXPRESSION itself, which sits directly
+            # above the write inside this window - the first cut matched `basename(CACHE)`, which this window only
+            # reached as the refusal MESSAGE's format argument, the guard being eight lines up (second eye).
             # test_a_proven_verdict_is_reused_only_on_identical_bytes drives that refusal.
             ok = (("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
-                  or ("basename(CACHE)" in ctx))
+                  or ("os.path.basename(self.path) != os.path.basename(CACHE)" in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))
+
+    def test_the_sandbox_holds_no_door_to_another_checkout(self):
+        """★ (second eye, through the #42 P3 key) a linked worktree's `.git` is a one-line POINTER FILE naming the main
+        checkout's git dir; brought into a sandbox by a `PROOF_NEEDS ../.git`, every git command a law runs there
+        reads - and could write - the real worktree's index and HEAD. make_sandbox now leaves a `.git` FILE out and
+        says so (the gate that declared it reads UNPROVABLE there); a `.git` DIRECTORY, a real history, is not refused
+        - the baseline that shows the case can tell the two apart. safe_copy itself already drops a file named .git."""
+        import tempfile
+        import shutil
+        d = tempfile.mkdtemp(prefix="heart2door.")
+        try:
+            fake = os.path.join(d, "repo")
+            os.makedirs(os.path.join(fake, "tv"))
+            with io.open(os.path.join(fake, "tv", "control_app.py"), "w", encoding="utf-8") as fh:
+                fh.write("# fixture\n")
+            with io.open(os.path.join(fake, "tv", "t_needs_git.py"), "w", encoding="utf-8") as fh:
+                fh.write("PROOF_NEEDS = ['../.git']\n")
+            real = (heart2.REPO, heart2.gate_files)
+
+            def build(git_is):
+                if os.path.isdir(os.path.join(fake, ".git")):
+                    shutil.rmtree(os.path.join(fake, ".git"))
+                elif os.path.exists(os.path.join(fake, ".git")):
+                    os.remove(os.path.join(fake, ".git"))
+                if git_is == "file":
+                    with io.open(os.path.join(fake, ".git"), "w", encoding="utf-8") as fh:
+                        fh.write("gitdir: %s\n" % os.path.join(d, "elsewhere", ".git", "worktrees", "x"))
+                else:
+                    os.makedirs(os.path.join(fake, ".git"))
+                    with io.open(os.path.join(fake, ".git", "HEAD"), "w", encoding="utf-8") as fh:
+                        fh.write("ref: refs/heads/main\n")
+                said = []
+                heart2.REPO = fake
+                heart2.gate_files = lambda say=None: [("t_needs_git", os.path.join(fake, "tv", "t_needs_git.py"))]
+                try:
+                    tv, root = heart2.make_sandbox(say=said.append)
+                finally:
+                    heart2.REPO, heart2.gate_files = real
+                self.assertIsNotNone(root, "PREMISE: the fixture sandbox was not built: %s" % said)
+                try:
+                    return os.path.exists(os.path.join(root, "repo", ".git")), said
+                finally:
+                    heart2._drop_sandbox(root)
+
+            present, said = build("file")
+            self.assertFalse(present, "a worktree's .git POINTER FILE was cloned into the sandbox - a door to the real "
+                                      "checkout's index and HEAD")
+            self.assertTrue(any("worktree POINTER" in l and "UNPROVABLE" in l for l in said),
+                            "the refusal is silent: %s" % said)
+            present, said = build("dir")
+            self.assertFalse(any("worktree POINTER" in l for l in said),
+                             "BASELINE: a .git DIRECTORY (a real history) was refused as a pointer: %s" % said)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
     def test_a_proof_may_not_tamper_outside_the_sandbox(self):
         """⚠⚠ THE SANDBOX WAS A CLAIM WITH NO CODE BEHIND IT. os.path.join DISCARDS its prefix
@@ -589,6 +645,13 @@ RED_PROOF = [
     "file": "control_ui.html",
     "find": "_hrtEsc(_iAge + _iPart + _iDenom",
     "replace": "_hrtEsc(''",
+    "matches": 1,
+}, {
+    "why": "#42 P3 second eye — a worktree's .git POINTER FILE is cloned into the sandbox again: a door to the real "
+           "checkout's index and HEAD (test_the_sandbox_holds_no_door_to_another_checkout)",
+    "file": "heart2.py",
+    "find": '        if os.path.isfile(_s) and os.path.basename(_s) == ".git":\n',
+    "replace": '        if False:\n',
     "matches": 1,
 }, {
     "why": "v3476 — only the FIRST RED_PROOF assignment judged: an unreadable second one hides",

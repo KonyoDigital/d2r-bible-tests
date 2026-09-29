@@ -513,173 +513,18 @@ if [ "$_px_touched" = "1" ]; then
   echo "pre-push: [$(_pp_el)] ✅ the page was rendered and looked at."
 fi
 
-# ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
-# A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause
-# it targeted, and the law stayed GREEN — it had been asserting phrases that occur three times
-# elsewhere in the file, so unrelated sites satisfied it and it never pinned its own branch. It was
-# caught only because `heart2.py --prove` happened to be run BY HAND. Nothing in this hook ran it.
-#
-# ⚠ ONLY THE GATES WHOSE TEST FILE IS IN THIS PUSH. Proving all 435 would add minutes to a gate
-# that already runs 12-20, and the laws at risk are the ones just written or edited.
-#
-# ⚠ THE ASYMMETRY IS DELIBERATE: it FAILS OPEN when it cannot work out which gates changed (a skip,
-# announced as a skip, never as a pass) and FAILS CLOSED on an actual BLIND or INVALID verdict. A
-# hook that blocks his push over its own confusion is one that gets bypassed.
-# ⚠ v3293 — FOUR HOLES THE CROSS-FAMILY EYE FOUND IN v3292'S FIRST CUT, all real:
-#   · `@{push}` is not always resolvable (detached HEAD, no upstream, odd remote name). The old
-#     `2>/dev/null || true` turned that into a SILENT no-check. A skip must announce itself.
-#   · a DELETED test file still resolved to a gate name, so removing a test would have blocked the
-#     push over a proof for a file that is gone. Only files still on disk are considered.
-#   · gate names were interpolated unvalidated. They stay unquoted on purpose — word-splitting is
-#     what passes several names as several arguments — so the NAMES are validated instead.
-#   · the temp log was never removed.
-_chg_tests=""
-if git rev-parse --verify --quiet '@{push}' >/dev/null 2>&1; then
-  _chg_tests="$(git diff --name-only '@{push}..' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
-elif git rev-parse --verify --quiet 'origin/main' >/dev/null 2>&1; then
-  _chg_tests="$(git diff --name-only 'origin/main..HEAD' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
-else
-  echo "pre-push: [$(_pp_el)] ⚠ neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
-  echo "          and no red-proof was exercised. THIS IS A SKIP, NOT A PASS."
-fi
-# a test file deleted in this push has no law left to prove — drop it before deriving gates
-_chg_live=""
-for _f in $_chg_tests; do
-  [ -f "$REPO/$_f" ] && _chg_live="$_chg_live $_f"
-done
-if [ -n "$_chg_live" ]; then
-  _gates="$(python3 - $_chg_live <<'PYGATE' 2>/dev/null || true
-import sys, os, re
-sys.path.insert(0, "tv")
-try:
-    import run_gates
-except Exception:
-    sys.exit(0)
-changed = {os.path.basename(p) for p in sys.argv[1:]}
-SAFE = re.compile(r"^[A-Za-z0-9_.-]+$")       # a name that is safe to pass as a bare argument
-out = []
-for g in run_gates.GATES:
-    for part in (getattr(g, "argv", None) or []):
-        if os.path.basename(str(part)) in changed:
-            if SAFE.match(str(g.name or "")):
-                out.append(g.name)
-            break
-print(" ".join(sorted(set(out))))
-PYGATE
-)"
-  if [ -z "$_gates" ]; then
-    echo "pre-push: [$(_pp_el)] ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
-    echo "          exercised. THIS IS A SKIP, NOT A PASS."
-  else
-    _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
-    # #42 — --push, and ONLY on this call: a red-proof that declares the widths its defect shows at runs its clean and
-    # tampered runs only there (one that declares none runs at every width); the proofs likeliest to fail run first
-    # and the run STOPS at the first BLIND / INVALID / clean-run red; a gate that starts a browser is proved one at a
-    # time. A declared width that stays green is BLIND and refuses exactly as before. The full sweep stays run_gates'
-    # and CI's - neither ever sets TV_LAW_WIDTHS (test_a_push_proof_runs_only_where_its_defect_shows).
-    if python3 "$REPO/tv/heart2.py" --prove $_gates --push > "$_prove_log" 2>&1; then
-      echo "pre-push: [$(_pp_el)] ✅ every changed law demonstrated it can still go red."
-      rm -f "$_prove_log"
-    else
-      echo "pre-push: [$(_pp_el)] ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
-      echo "          Reproduce: python3 tv/heart2.py --prove $_gates"
-      echo "          ── last 24 lines ───────────────────────────────────────────"
-      tail -24 "$_prove_log" | sed 's/^/          /'
-      echo "          ────────────────────────────────────────────────────────────"
-      echo "          A law that cannot go red is not a law. BLIND means the sabotage ran and the"
-      echo "          law stayed green; INVALID means the anchor matched nothing, so the proof"
-      echo "          changed no byte. Both report coverage they do not provide."
-      rm -f "$_prove_log"
-      exit 1
-    fi
-  fi
-fi
-
-# ══ v3469 — EVERY PUSH CHECKS EVERY RED-PROOF ANCHOR, NOT ONLY THE CHANGED LAWS' ════════════════
-# The block above re-proves a law only when its TEST file is in the push. A proof lives in one test
-# file and anchors on a line in ANOTHER, so an ordinary edit to that line never names the proof —
-# and it silently changes nothing while the law reads as proven. FOUR on 2026-09-24 (v3455, v3456,
-# v3462, v3464 — REG-1163). The census case knew every one; it never ran here. ~5s.
-# ⚠ Its reach: an anchor that matches NOTHING (INVALID). A proof that still matches and no longer
-# turns red (BLIND) needs a full `heart2 --prove`. ⚠ TOP LEVEL ON PURPOSE — inside the changed-
-# tests block it would skip exactly the pushes that edit only the code a proof pins.
-if ! gate_run "red-proof anchors" "python3 tv/test_the_heart_can_see_its_own_instruments.py TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed" 120 -- \
-     python3 "$REPO/tv/test_the_heart_can_see_its_own_instruments.py" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then
-  echo "          ↑ a red-proof's anchor no longer matches the file it tampers — usually an ordinary"
-  echo "            edit to a line ANOTHER gate's proof pins (REG-1163). Re-anchor it to the SAME"
-  echo "            property; never delete the proof to get green."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ every declared red-proof still matches its anchor."
-
-if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
-  echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
-  echo "            actually does. Fix it, or say why it is now correct, then push again."
-  exit 1
-fi
-
-if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
-     python3 "$REPO/visual_lock_invariant.py"; then
-  echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ visual-lock intact."
-
-# v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
-# BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
-# what that human saw), and bible.html's BOSS_PORTRAIT map must serve exactly those files. Mephisto
-# shipped as a blue soulstone and Diablo as a leather book for seven weeks (v269 → v1636) with every
-# automated check green — the path resolved, naturalWidth was > 0 — so this gate exists because "it
-# loads" was never evidence that it is the right picture.
-#
-# It is here because REG-130: the script had ZERO callers. It passed its own tests and guarded
-# nothing. A checker nobody has watched fail from its wired path is not known to be a gate.
-if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list to see what each depicts)" 120 -- \
-     python3 "$REPO/art/verify_boss_portraits.py"; then
-  echo "          ↑ a boss thumbnail is not the picture a human blessed, or bible.html and the"
-  echo "            manifest disagree. OPEN the image before re-blessing any hash."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
-
-# v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
-# no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
-if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
-  echo "pre-push: [$(_pp_el)] tv/ python touched — running the agent+control suites…"
-  if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
-    exit 1
-  fi
-  # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
-  # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
-  # those two numbers does not catch a hung suite - it blocks every push he makes while he
-  # is playing, which is most of them, and the message says HUNG when nothing hung.
-  # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
-  # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
-  if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
-    exit 1
-  fi
-  # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
-  # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
-  # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
-  if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
-    exit 1
-  fi
-  # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
-  # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
-  # straight out of control_app.py and execs it, so v1830 adding the reader stamp to a seal broke it
-  # instantly — and nothing local said a word, because tv-tests.yml is the only thing that runs it.
-  # v1830..v1838 all shipped over a red gate nobody was looking at.
-  # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
-  # fast. [[feedback-ci-verdict-before-seal]]
-  if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
-       python3 "$REPO/tv/test_chronicle_retro.py"; then
-    exit 1
-  fi
-  if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
-       python3 "$REPO/tv/test_chronicle_seal.py"; then
-    exit 1
-  fi
-  echo "pre-push: [$(_pp_el)] ✅ tv suites green."
+# ══ #42 P5 (second eye) — THE CONSOLE DEMOS RUN RIGHT AFTER THE RENDER GATE, BEFORE THE PROVING STAGE ═════════════
+# MEASURED 2026-09-29 on the v3523 push (#3): render ✅ at 112m47s, console-demos ❌ at 113m13s - a 25-second stage
+# (DEMOS 15/16, j7_shelfStory, on a :17772 console the hook itself said was running code OLDER than control_app.py)
+# paid for behind 96 minutes of proofs. It refused 2 of 13 pushes over 2026-09-27..29 (3519 #3 at 16m42s, v3523 #3);
+# the render gate refused 4. The argument that moved the render gate moves this one: the stages likeliest to refuse
+# run first, so a refusal costs minutes, not the whole gate.
+# ⚠ A MOVE, NOT A CHANGE. The block below is the v938.6 / v2120 / 2026-09-16 console-demos gate byte for byte - its
+# two-space indentation included, because the python3 -c program embedded in it depends on it: the trigger, the
+# freshness question, the gate on his console, the headless console it starts when :17772 is silent, the by-pid stop,
+# the loud skip. Nothing removed, no bound moved. ⚠ AND THE SAME HOLE CLOSED: it sat inside the `tv/ python touched`
+# lane, so a push changing only tv/control_ui.html or tv/demo_console.mjs - the very files its trigger names - never
+# ran the demos at all. At top level the trigger alone decides. Law: test_the_render_gate_runs_before_the_proving_stage.
   # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the
   # demonstration journeys must pass. App down → skip with a note (never block on an environment
   # the push didn't break). Konyo's "full test system" law.
@@ -872,6 +717,175 @@ else:
              done | wc -l | tr -d ' ')
     echo "pre-push: [$(_pp_el)] ⏭  console demos not run — tv/control_ui.html is unchanged (${_since} commit(s) since it last was)."
   fi
+
+
+# ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
+# A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause
+# it targeted, and the law stayed GREEN — it had been asserting phrases that occur three times
+# elsewhere in the file, so unrelated sites satisfied it and it never pinned its own branch. It was
+# caught only because `heart2.py --prove` happened to be run BY HAND. Nothing in this hook ran it.
+#
+# ⚠ ONLY THE GATES WHOSE TEST FILE IS IN THIS PUSH. Proving all 435 would add minutes to a gate
+# that already runs 12-20, and the laws at risk are the ones just written or edited.
+#
+# ⚠ THE ASYMMETRY IS DELIBERATE: it FAILS OPEN when it cannot work out which gates changed (a skip,
+# announced as a skip, never as a pass) and FAILS CLOSED on an actual BLIND or INVALID verdict. A
+# hook that blocks his push over its own confusion is one that gets bypassed.
+# ⚠ v3293 — FOUR HOLES THE CROSS-FAMILY EYE FOUND IN v3292'S FIRST CUT, all real:
+#   · `@{push}` is not always resolvable (detached HEAD, no upstream, odd remote name). The old
+#     `2>/dev/null || true` turned that into a SILENT no-check. A skip must announce itself.
+#   · a DELETED test file still resolved to a gate name, so removing a test would have blocked the
+#     push over a proof for a file that is gone. Only files still on disk are considered.
+#   · gate names were interpolated unvalidated. They stay unquoted on purpose — word-splitting is
+#     what passes several names as several arguments — so the NAMES are validated instead.
+#   · the temp log was never removed.
+_chg_tests=""
+if git rev-parse --verify --quiet '@{push}' >/dev/null 2>&1; then
+  _chg_tests="$(git diff --name-only '@{push}..' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
+elif git rev-parse --verify --quiet 'origin/main' >/dev/null 2>&1; then
+  _chg_tests="$(git diff --name-only 'origin/main..HEAD' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
+else
+  echo "pre-push: [$(_pp_el)] ⚠ neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
+  echo "          and no red-proof was exercised. THIS IS A SKIP, NOT A PASS."
+fi
+# a test file deleted in this push has no law left to prove — drop it before deriving gates
+_chg_live=""
+for _f in $_chg_tests; do
+  [ -f "$REPO/$_f" ] && _chg_live="$_chg_live $_f"
+done
+if [ -n "$_chg_live" ]; then
+  _gates="$(python3 - $_chg_live <<'PYGATE' 2>/dev/null || true
+import sys, os, re
+sys.path.insert(0, "tv")
+try:
+    import run_gates
+except Exception:
+    sys.exit(0)
+changed = {os.path.basename(p) for p in sys.argv[1:]}
+SAFE = re.compile(r"^[A-Za-z0-9_.-]+$")       # a name that is safe to pass as a bare argument
+out = []
+for g in run_gates.GATES:
+    for part in (getattr(g, "argv", None) or []):
+        if os.path.basename(str(part)) in changed:
+            if SAFE.match(str(g.name or "")):
+                out.append(g.name)
+            break
+print(" ".join(sorted(set(out))))
+PYGATE
+)"
+  if [ -z "$_gates" ]; then
+    echo "pre-push: [$(_pp_el)] ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
+    echo "          exercised. THIS IS A SKIP, NOT A PASS."
+  else
+    _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
+    # #42 — --push, and ONLY on this call: a red-proof that declares the widths its defect shows at runs its clean and
+    # tampered runs only there (one that declares none runs at every width); the proofs likeliest to fail run first
+    # and the run STOPS at the first BLIND / INVALID / clean-run red; a gate that starts a browser is proved one at a
+    # time. A declared width that stays green is BLIND and refuses exactly as before. The full sweep stays run_gates'
+    # and CI's - neither ever sets TV_LAW_WIDTHS (test_a_push_proof_runs_only_where_its_defect_shows).
+    if python3 "$REPO/tv/heart2.py" --prove $_gates --push > "$_prove_log" 2>&1; then
+      echo "pre-push: [$(_pp_el)] ✅ every changed law demonstrated it can still go red."
+      rm -f "$_prove_log"
+    else
+      echo "pre-push: [$(_pp_el)] ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
+      echo "          Reproduce: python3 tv/heart2.py --prove $_gates"
+      echo "          ── last 24 lines ───────────────────────────────────────────"
+      tail -24 "$_prove_log" | sed 's/^/          /'
+      echo "          ────────────────────────────────────────────────────────────"
+      echo "          A law that cannot go red is not a law. BLIND means the sabotage ran and the"
+      echo "          law stayed green; INVALID means the anchor matched nothing, so the proof"
+      echo "          changed no byte. Both report coverage they do not provide."
+      rm -f "$_prove_log"
+      exit 1
+    fi
+  fi
+fi
+
+# ══ v3469 — EVERY PUSH CHECKS EVERY RED-PROOF ANCHOR, NOT ONLY THE CHANGED LAWS' ════════════════
+# The block above re-proves a law only when its TEST file is in the push. A proof lives in one test
+# file and anchors on a line in ANOTHER, so an ordinary edit to that line never names the proof —
+# and it silently changes nothing while the law reads as proven. FOUR on 2026-09-24 (v3455, v3456,
+# v3462, v3464 — REG-1163). The census case knew every one; it never ran here. ~5s.
+# ⚠ Its reach: an anchor that matches NOTHING (INVALID). A proof that still matches and no longer
+# turns red (BLIND) needs a full `heart2 --prove`. ⚠ TOP LEVEL ON PURPOSE — inside the changed-
+# tests block it would skip exactly the pushes that edit only the code a proof pins.
+if ! gate_run "red-proof anchors" "python3 tv/test_the_heart_can_see_its_own_instruments.py TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed" 120 -- \
+     python3 "$REPO/tv/test_the_heart_can_see_its_own_instruments.py" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then
+  echo "          ↑ a red-proof's anchor no longer matches the file it tampers — usually an ordinary"
+  echo "            edit to a line ANOTHER gate's proof pins (REG-1163). Re-anchor it to the SAME"
+  echo "            property; never delete the proof to get green."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ every declared red-proof still matches its anchor."
+
+if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
+  echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
+  echo "            actually does. Fix it, or say why it is now correct, then push again."
+  exit 1
+fi
+
+if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
+     python3 "$REPO/visual_lock_invariant.py"; then
+  echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ visual-lock intact."
+
+# v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
+# BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
+# what that human saw), and bible.html's BOSS_PORTRAIT map must serve exactly those files. Mephisto
+# shipped as a blue soulstone and Diablo as a leather book for seven weeks (v269 → v1636) with every
+# automated check green — the path resolved, naturalWidth was > 0 — so this gate exists because "it
+# loads" was never evidence that it is the right picture.
+#
+# It is here because REG-130: the script had ZERO callers. It passed its own tests and guarded
+# nothing. A checker nobody has watched fail from its wired path is not known to be a gate.
+if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list to see what each depicts)" 120 -- \
+     python3 "$REPO/art/verify_boss_portraits.py"; then
+  echo "          ↑ a boss thumbnail is not the picture a human blessed, or bible.html and the"
+  echo "            manifest disagree. OPEN the image before re-blessing any hash."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
+
+# v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
+# no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
+if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
+  echo "pre-push: [$(_pp_el)] tv/ python touched — running the agent+control suites…"
+  if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
+    exit 1
+  fi
+  # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
+  # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
+  # those two numbers does not catch a hung suite - it blocks every push he makes while he
+  # is playing, which is most of them, and the message says HUNG when nothing hung.
+  # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
+  # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
+  if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
+    exit 1
+  fi
+  # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
+  # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
+  # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
+  if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
+    exit 1
+  fi
+  # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
+  # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
+  # straight out of control_app.py and execs it, so v1830 adding the reader stamp to a seal broke it
+  # instantly — and nothing local said a word, because tv-tests.yml is the only thing that runs it.
+  # v1830..v1838 all shipped over a red gate nobody was looking at.
+  # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
+  # fast. [[feedback-ci-verdict-before-seal]]
+  if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
+       python3 "$REPO/tv/test_chronicle_retro.py"; then
+    exit 1
+  fi
+  if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
+       python3 "$REPO/tv/test_chronicle_seal.py"; then
+    exit 1
+  fi
+  echo "pre-push: [$(_pp_el)] ✅ tv suites green."
 fi
 cd "$REPO" || exit 1
 

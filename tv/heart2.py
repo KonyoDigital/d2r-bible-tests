@@ -765,7 +765,8 @@ def proof_needs_in(filename):
     if not os.path.isfile(p) or not p.endswith(".py"):
         return []
     try:
-        tree = ast.parse(io.open(p, encoding="utf-8", errors="replace").read())
+        with io.open(p, encoding="utf-8", errors="replace") as _fh:      # closed: this ran ~700 times per prove unclosed
+            tree = ast.parse(_fh.read())
     except Exception:
         return None
     for node in tree.body:
@@ -969,6 +970,18 @@ def make_sandbox(say=print):
         if not os.path.exists(_s):
             say("  a gate declares PROOF_NEEDS %r and it is not on this machine — that gate stays "
                 "UNPROVABLE here, which is the honest verdict" % _need)
+            continue
+        if os.path.isfile(_s) and os.path.basename(_s) == ".git":
+            # ⚠ A `.git` FILE IS A POINTER INTO ANOTHER CHECKOUT, NOT A HISTORY. In a linked worktree `.git` is one
+            # line - `gitdir: <the main checkout's .git/worktrees/...>` - and cloned into the sandbox it makes every
+            # git command a law runs there read, and could make it WRITE, that real worktree's index and HEAD (found
+            # by the second eye through the #42 P3 key, which listed `.git` among a law's inputs: a stable string,
+            # but a door). safe_copy already drops a file named .git; this is the one copier that brought it. A
+            # sandbox holds no door to the real repo: the need stays out, said, and the gate that declared it reads
+            # UNPROVABLE here. Where .git is a directory (his main checkout, where the push runs) the clone is a
+            # full private copy, exactly as before. [[feedback-fixtures-never-touch-live-data]]
+            say("  PROOF_NEEDS %r is a worktree POINTER (a file naming another checkout's git dir), not a history "
+                "- not brought across, so the gate that declared it stays UNPROVABLE in this sandbox" % _need)
             continue
         _d = os.path.normpath(os.path.join(dest, "tv", _need))
         if not (_d + os.sep).startswith(os.path.normpath(dest) + os.sep):
@@ -1361,6 +1374,20 @@ class _PushRun(object):
 #   shortcuts - and only a stored PROVEN is ever reused, whatever else lands in the file.
 # ⚠ ITS REACH, STATED: a file the law reaches by a COMPUTED path (an env var, a join of variables) is outside the key -
 #   the same floor pixel_gates states for imports, one level down. A law about such a file names it in PROOF_NEEDS.
+#   AND A LAW THAT LISTS A DIRECTORY ITSELF HAS AN INPUT NO BYTE KEY CAN NAME (second eye on the first cut): a law
+#   calling os.listdir / os.walk / os.scandir / glob.glob / Path.glob / rglob / iterdir reads whatever is THERE at run
+#   time - a law file added or removed between two pushes over otherwise identical bytes could turn it red - so such a
+#   law is UNKEYABLE, said once, and runs every push (57 of 628 red-proof laws on 2026-09-29). The LAW FILE ONLY is
+#   scanned: heart2, run_gates and control_app all list directories, and scanning the closure would make every heart
+#   law unkeyable. A listing reached THROUGH the closure (gate_files() and the like) is outside the key - stated, not
+#   solved; the anchors gate runs at every push regardless.
+# ⚠ A REUSED PROOF KEEPS THE TIME IT WAS MEASURED. A hit is a verdict from an EARLIER run over the same bytes, so the
+#   census stamps that gate with the OLDEST provedAt among its reused proofs (verdictAt), never this run's clock - the
+#   first cut stamped every hit "now", the exact defect control_app's oldestProofMs was built against. [[stale-reading]]
+#   A stored PROVEN with no readable provedAt is not reused: a verdict nobody can age cannot keep its age.
+# ⚠ THE CACHE MAY COST A RE-PROVE, NEVER A VERDICT. Its own bookkeeping raising (a RecursionError from ast.parse on a
+#   pathological module, a relpath across volumes, anything unforeseen) makes the proof unkeyable before the run and
+#   "moved" after it; the verdict the run produced stands either way.
 # ⚠ PUSH TIME ONLY. prove(push=True) - hooks/pre-push's `--prove NAMES --push` - is the only opener; _prove_push takes
 #   the cache as a parameter and every other caller (the plain --prove path, run_gates, CI, a law driving _prove_push
 #   with a fixture) hands none and runs every proof. The file is per machine, gitignored, beside .heart2.json.
@@ -1426,6 +1453,47 @@ def _named_files(tree, sandbox, repo):
     return out
 
 
+#: the calls that LIST A DIRECTORY, by the module that owns them. The receiver decides, never the bare name:
+#: `ast.walk` is a walk over a syntax tree and 195 laws call it (measured 2026-09-29); `os.walk` lists a directory.
+_LISTS_OS = frozenset(("listdir", "scandir", "walk"))
+_LISTS_GLOB = frozenset(("glob", "iglob"))
+_LISTS_PATH = frozenset(("glob", "rglob", "iterdir"))     # pathlib's, on any receiver that is not a module alias
+
+
+def _lists_a_directory(tree):
+    """The FIRST call in `tree` that lists a directory -> ("os.listdir", line) | None.
+
+    Reads the module's own imports so `import glob as _g; _g.glob(...)` and `from os import listdir` count and a
+    helper that happens to be named `walk` does not. Over-inclusion (a method named `glob` on some other object)
+    costs one re-prove per push, never a stale PROVEN - the only error this may make on purpose. Its reach: a
+    directory listed through a subprocess (`ls`, `find`, `git ls-files`) is outside it."""
+    mods, froms = {"os": "os", "glob": "glob"}, {}
+    for x in ast.walk(tree):
+        if isinstance(x, ast.Import):
+            for a in x.names:
+                if a.name in ("os", "glob"):
+                    mods[a.asname or a.name] = a.name
+        elif isinstance(x, ast.ImportFrom) and x.module in ("os", "glob"):
+            for a in x.names:
+                froms[a.asname or a.name] = (x.module, a.name)
+    hits = []
+    for x in ast.walk(tree):
+        if not isinstance(x, ast.Call):
+            continue
+        f = x.func
+        if isinstance(f, ast.Attribute):
+            recv = mods.get(f.value.id) if isinstance(f.value, ast.Name) else None
+            if (recv == "os" and f.attr in _LISTS_OS) or (recv == "glob" and f.attr in _LISTS_GLOB):
+                hits.append(("%s.%s" % (recv, f.attr), x.lineno))
+            elif recv is None and f.attr in _LISTS_PATH:
+                hits.append(("%s()" % f.attr, x.lineno))
+        elif isinstance(f, ast.Name) and f.id in froms:
+            m, n = froms[f.id]
+            if (m == "os" and n in _LISTS_OS) or (m == "glob" and n in _LISTS_GLOB):
+                hits.append(("%s.%s" % (m, n), x.lineno))
+    return min(hits, key=lambda h: h[1]) if hits else None
+
+
 def law_inputs(sandbox, filename, proofs, parsed=None):
     """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
 
@@ -1460,7 +1528,7 @@ def law_inputs(sandbox, filename, proofs, parsed=None):
         except OSError:
             mk = None
         if parsed is not None and mk is not None and mk in parsed:
-            names, named = parsed[mk]
+            names, named, lists = parsed[mk]
         else:
             src = _read_text(p)
             if src is None:
@@ -1469,9 +1537,14 @@ def law_inputs(sandbox, filename, proofs, parsed=None):
                 tree = ast.parse(src)
             except (SyntaxError, ValueError):
                 return sorted(inputs), "%s will not parse" % os.path.relpath(p, repo)
-            names, named = _imported_names(tree), _named_files(tree, sandbox, repo)
+            names, named, lists = _imported_names(tree), _named_files(tree, sandbox, repo), _lists_a_directory(tree)
             if parsed is not None and mk is not None:
-                parsed[mk] = (names, named)
+                parsed[mk] = (names, named, lists)
+        # the floor: a law that lists a directory ITSELF reads what is there at run time - no byte key can name that.
+        # Only the law file is asked (the closure lists directories everywhere; see the block comment above).
+        if p == law and lists:
+            return sorted(inputs), ("the law lists a directory itself (%s at line %d) - what it reads is decided at "
+                                    "run time, so no byte key can name it" % lists)
         inputs.add(p)
         for dep in names & set(local):
             stack.append(local[dep])
@@ -1530,6 +1603,8 @@ class _VerdictCache(object):
         self.hits = self.misses = self.stores = self.unkeyable = self.moved = 0
         self.dirty = False               # stores since the last flush - written per GATE, not per proof
         self._said = set()               # (gate, why): an unkeyable law's reason is said once, not once per proof
+        self.reused = {}                 # (gate, proof) -> provedAt ms of the entry a hit served, this run
+        self.measured = {}               # gate -> the OLDEST provedAt among its reused proofs; the census stamp
         ent, why = _load_cache(self.path)
         self.readable = why is None
         if not self.readable:
@@ -1582,10 +1657,19 @@ class _VerdictCache(object):
         if first:
             self.say(line)
 
+    def reused_at(self, name, idx, ms):
+        """Record that proof `idx` of `name` was served from an entry measured at `ms` (epoch ms)."""
+        with self.lock:
+            self.reused[(name, idx)] = ms
+
     def lookup(self, key):
-        """The stored entry for `key`, only when it says PROVEN; anything else in the file is not a shortcut."""
+        """The stored entry for `key`, only when it says PROVEN and carries a readable provedAt; anything else in the
+        file is not a shortcut. A verdict nobody can date cannot keep its age in the census, so it is re-proved."""
         with self.lock:
             e = self.entries.get(key)
+        if not (isinstance(e, dict) and isinstance(e.get("provedAt"), (int, float))
+                and not isinstance(e.get("provedAt"), bool)):
+            return None
         return e if isinstance(e, dict) and e.get("verdict") == PROVEN else None
 
     def store(self, key, entry):
@@ -1603,16 +1687,18 @@ class _VerdictCache(object):
         with self.lock:
             if not self.dirty:
                 return False
-            if os.path.basename(self.path) != os.path.basename(CACHE):
-                # ⛔ IT NEVER EDITS A GUARD: the only file this object may write is one named like CACHE - the real
-                # one beside .heart2.json, or a law's fixture copy of it. Any other path is refused, and said.
-                self.say("  #42 P3 CACHE: refusing to write %s - a verdict cache is only ever named %s"
-                         % (self.path, os.path.basename(CACHE)))
-                return False
             body = {"_why": "#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of every "
                             "byte each depends on (tv/heart2.py law_inputs). Per machine, never committed.",
                     "entries": self.entries}
             tmp = self.path + ".tmp"
+            # ⛔ IT NEVER EDITS A GUARD: the only file this object may write is one named like CACHE - the real one
+            # beside .heart2.json, or a law's fixture copy of it. Any other path is refused, and said. The refusal sits
+            # DIRECTLY above the write because the instruments law admits this write on the guard expression, read
+            # from the lines just before the open - the first cut left it eight lines up, outside that window.
+            if os.path.basename(self.path) != os.path.basename(CACHE):
+                self.say("  #42 P3 CACHE: refusing to write %s - a verdict cache is only ever named %s"
+                         % (self.path, os.path.basename(CACHE)))
+                return False
             try:
                 with io.open(tmp, "w", encoding="utf-8") as fh:
                     json.dump(body, fh, sort_keys=True)
@@ -1772,7 +1858,14 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
     key = None
     if cache is not None:
         label = "%s[%d]" % (name, idx)
-        key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)
+        # ⚠ THE CACHE MAY COST A RE-PROVE, NEVER A VERDICT. key_for raising here (a RecursionError from ast.parse on a
+        # pathological module, a relpath across volumes, anything unforeseen) would have been recorded BLIND by
+        # _prove_gate_push and refused the push over the cache's own bookkeeping. Caught: UNKEYABLE, said, and the
+        # proof runs exactly as it would with no cache at all.
+        try:
+            key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)
+        except Exception as _ke:
+            key, rels, kwhy = None, [], "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
         if key is None:
             cache.count("unkeyable")
             cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; every proof of this law runs on "
@@ -1781,6 +1874,8 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             hit = cache.lookup(key)
             if hit is not None:
                 cache.count("hits")
+                # the census keeps the age this proof was MEASURED at, never this run's clock [[stale-reading]]
+                cache.reused_at(name, idx, hit["provedAt"])
                 say("     %-52s %s (cached %s: %d byte-identical input(s), proved %s ago%s - not re-run)"
                     % (label, PROVEN, key[:8], len(hit.get("inputs") or rels), _age_say(hit.get("provedAt")),
                        (" at %s" % hit["at"]) if hit.get("at") else ""))
@@ -1789,22 +1884,32 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
     v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
     if key is not None and v == PROVEN:
         # ⚠ KEYED AGAIN AFTER THE RUN: the tamper wrote and restored the target, and a law may write beside itself; a key
-        # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie
-        again, rels2, _w2 = cache.key_for(sandbox, name, filename, pr)
+        # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie.
+        # And the same rule as above: a key that cannot be taken again is a tree that moved - PROVEN stands.
+        _how = "its key changed while it ran"
+        try:
+            again, rels2, _w2 = cache.key_for(sandbox, name, filename, pr)
+        except Exception as _ke:
+            again, _how = None, "its key could not be taken again: %s" % type(_ke).__name__
         if again == key:
-            import law_widths as _LW
             try:
-                _at = _LW.declared(pr)
-            except ValueError:
-                _at = None
-            cache.store(key, {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
-                              "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
-                              "target": str(pr.get("file") or ""), "inputs": rels})
-            cache.count("stores")
+                import law_widths as _LW
+                try:
+                    _at = _LW.declared(pr)
+                except ValueError:
+                    _at = None
+                cache.store(key, {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
+                                  "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
+                                  "target": str(pr.get("file") or ""), "inputs": rels})
+                cache.count("stores")
+            except Exception as _se:
+                cache.count("moved")
+                say("     %-52s   ↳ #42 P3: could not be banked (%s) - PROVEN stands, nothing is banked"
+                    % ("%s[%d]" % (name, idx), type(_se).__name__))
         else:
             cache.count("moved")
-            say("     %-52s   ↳ #42 P3: the tree moved under this proof (its key changed while it ran) - PROVEN stands, "
-                "nothing is banked" % ("%s[%d]" % (name, idx)))
+            say("     %-52s   ↳ #42 P3: the tree moved under this proof (%s) - PROVEN stands, "
+                "nothing is banked" % ("%s[%d]" % (name, idx), _how))
     return v
 
 
@@ -1914,6 +2019,19 @@ def _prove_push(have, say, stopped=None, cache=None):
         return None, None
     not_run = sorted(n for n, v in results.items() if v == NOT_RUN)
     results = dict((n, v) for n, v in results.items() if v != NOT_RUN)
+    if cache is not None:
+        # ⚠ A REUSED PROOF KEEPS THE TIME IT WAS MEASURED. A PROVEN gate standing on any cached proof is only as fresh
+        # as the OLDEST of them (a proof that ran now is newer than any entry), so the census stamps that gate with
+        # that time and not this run's clock. Only PROVEN: a BLIND / INVALID / UNPROVABLE came from a proof that RAN.
+        # prove() reads cache.measured and hands it to _write_state. [[stale-reading]] [[inherited-claim-is-not-evidence]]
+        _ages = {}
+        for (_gn, _i), _ms in list(cache.reused.items()):
+            if results.get(_gn) == PROVEN:
+                _ages[_gn] = min(_ages[_gn], _ms) if _gn in _ages else _ms
+        cache.measured = _ages
+        if _ages:
+            say("  #42 P3 CACHE: %d gate(s) stand on reused proofs, so the census keeps the age each was MEASURED at "
+                "(oldest %s ago), never this run's clock" % (len(_ages), _age_say(min(_ages.values()))))
     if run.first:
         _n, _i, _v, _why = run.first
         _unrun = sum(1 for _p in per_proof.values() for x in _p if x is None)
@@ -2120,10 +2238,13 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None):
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
+    _ages = {}
     if push:
         # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time,
         # and (P3) a PROVEN reused only over byte-identical inputs - the cache is opened HERE and nowhere else
-        results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say))
+        _cache = open_cache(say)
+        results, per_proof = _prove_push(have, say, stopped, cache=_cache)
+        _ages = dict(getattr(_cache, "measured", None) or {})     # gate -> oldest provedAt among its reused proofs
         if results is not None and not results:
             # ⚠ A STOP BEFORE ANY GATE WAS JUDGED TO THE END IS NOT AN EMPTY RUN. _write_state reads an empty result as a
             # FULL run that proved nothing and would wipe every standing proof (provedGates, blind) - so nothing is
@@ -2139,11 +2260,11 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None):
     # answers": a faster prove that flips ONE verdict is a broken gate, not a speedup.
     if detail is not None:
         detail.update(per_proof)
-    _write_state(results)
+    _write_state(results, measured=_ages)
     return results
 
 
-def _write_state(results):
+def _write_state(results, measured=None):
     """⚠ THE JOIN. Without this the whole loop is plumbing with no tap: `--prove` would measure
     beautifully and `_heart2_census()` in control_app.py would read an absent file and report
     UNKNOWN for ever, so the heart could never carry what the proving loop learned. This repo's
@@ -2225,6 +2346,15 @@ def _write_state(results):
     _seen = dict(prior.get("verdictAt") or {})
     for _n in (results or {}):
         _seen[_n] = _now_ms
+    # ⚠ #42 P3 — A GATE THAT STANDS ON REUSED PROOFS WAS NOT MEASURED NOW. `measured` (gate -> epoch ms) is the oldest
+    # provedAt among the cached proofs a push-time run reused for that gate; stamping it `_now_ms` would make 40 gates
+    # read "just now" on a retried push when their proofs ran an hour or a day earlier - the defect the comment beside
+    # oldestProofMs in control_app.py records, re-introduced one level down (second eye on the first cut). The stamp
+    # can never be later than now, and a gate this run did not judge takes no stamp from the map.
+    # [[stale-reading]] [[inherited-claim-is-not-evidence]]
+    for _n, _ms in (measured or {}).items():
+        if _n in (results or {}) and isinstance(_ms, (int, float)) and not isinstance(_ms, bool):
+            _seen[_n] = min(_now_ms, int(_ms))
     _seen = {k: v for k, v in _seen.items() if k in _known}   # a gate that is gone keeps no stamp
     out.update({
         "proved": len(_proved),

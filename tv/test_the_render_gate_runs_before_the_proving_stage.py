@@ -12,7 +12,14 @@ THIS LAW READS THE HOOK'S OWN STAGE ORDER, not a string count: the shell walker 
 judged from those. It also pins that the move removed nothing: every stage the hook ran before P5 still runs, with the
 bound it had, and `bash -n` still accepts the file. And it pins the second thing the move bought: the render block sits
 at TOP LEVEL, no longer inside the `tv/ python touched` lane where a push changing only tv/render_coverage.json or art/
-never rendered at all. [[regression-guard]] [[the-unjoined-end]] RED_PROOF below.
+never rendered at all.
+
+THE SECOND EYE ON P5 (2026-09-29): the very log P5 cites was refused by console-demos at 113m13s, 26 s after the render
+gate passed - a 25-second stage paid for behind 96 minutes of proofs; it refused 2 of 13 pushes over 2026-09-27..29. So
+both console-demos call sites (his console, and the console the gate starts when :17772 is silent) now run right after
+the render gate and before the proving stage, byte for byte, at top level - the same move, the same hole closed (inside
+the lane, a push changing only tv/control_ui.html or tv/demo_console.mjs - the files its own trigger names - never ran
+the demos). [[regression-guard]] [[the-unjoined-end]] RED_PROOF below.
 """
 import io
 import os
@@ -98,6 +105,30 @@ class TheRenderGateRunsBeforeTheProvingStage(unittest.TestCase):
         self.assertGreaterEqual(prove[0][3], 1, "BASELINE: the prove call inside the changed-tests block read as top "
                                                 "level, so this walker cannot tell nested from not")
 
+    def test_the_console_demos_run_after_render_and_before_the_proving_stage(self):
+        """★ (second eye on P5) EVERY console-demos call site precedes the prove call and follows the render gate, and
+        the demos' trigger `_demo_touched=0` sits at depth 0 - the trigger alone decides, not the tv/ python lane"""
+        st = _stages(_lines())
+        demos = [s for s in st if s[0] == "console-demos"]
+        prove = [s for s in st if s[0] == "heart2 --prove --push"]
+        render = [s for s in st if s[0] == "render"]
+        self.assertEqual(len(prove), 1, "PREMISE: the hook runs heart2 --prove %d times: %s" % (len(prove), st))
+        self.assertEqual(len(render), 1, "PREMISE: the hook runs the render gate %d times" % len(render))
+        self.assertGreaterEqual(len(demos), 2, "PREMISE: the console demos lost a call site: %s" % demos)
+        late = [s for s in demos if s[2] > prove[0][2]]
+        self.assertEqual(late, [], "console-demos site(s) at line(s) %s run AFTER the proving stage (line %d): a demo "
+                                   "refusal costs the whole proving stage again, as it did on v3523 push #3 at 113m13s"
+                         % ([s[2] + 1 for s in late], prove[0][2] + 1))
+        self.assertLess(render[0][2], min(s[2] for s in demos),
+                        "the demos run before the render gate: the picture is looked at first, then the journeys")
+        lines = _lines()
+        trig = [i for i, l in enumerate(lines) if _code(l).strip() == "_demo_touched=0"]
+        self.assertEqual(len(trig), 1, "PREMISE: the demos trigger `_demo_touched=0` is not exactly once in the hook")
+        self.assertEqual(_walk(lines, trig[0])[0], 0,
+                         "the console-demos block sits inside another block (depth %d): a push changing only "
+                         "tv/control_ui.html or tv/demo_console.mjs - the files its own trigger names - would never "
+                         "run the demos" % _walk(lines, trig[0])[0])
+
     def test_the_cheap_stages_still_come_first(self):
         """render runs AFTER the cheap stages (version-stamp, second-eye, blueprint, heart) - it does not jump them"""
         st = _stages(_lines())
@@ -166,6 +197,33 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\n\nexit 0\n',
         "replace": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\nfi\n\nexit 0\n',
+        "matches": 1,
+    },
+    {
+        "why": "a console-demos site is put back AFTER the proving stage (at the very end): a demo refusal again costs "
+               "the whole proving stage, and the order case must see it",
+        "file": "hooks/pre-push",
+        "find": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\n\nexit 0\n',
+        "replace": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\ngate_run "console-demos" '
+                   '"node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs" || true\n\nexit 0\n',
+        "matches": 1,
+    },
+    {
+        # the walker is this law's instrument (imported from the anchors law), so its two halves are pinned here:
+        # with either one undone the hook no longer balances, and the whole-hook case says so
+        "why": "the walker's seventh cut undone (a quoted -c program's column-0 `if` counts again): the demos block "
+               "now sits ahead of every later stage, so each reads one level too deep and the hook does not balance",
+        "file": "test_every_push_checks_every_proof_anchor.py",
+        "find": '    return ("" if started_inside else "".join(out).rstrip()), q, stack\n',
+        "replace": '    return "".join(out).rstrip(), q, stack\n',
+        "matches": 1,
+    },
+    {
+        "why": "the array opener is not counted: the lone `)` closing SMOKE_SPECS=( reads as a group close and the "
+               "hook ends at depth -1",
+        "file": "test_every_push_checks_every_proof_anchor.py",
+        "find": '              or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=\\($", code)):\n',
+        "replace": '              or False):\n',
         "matches": 1,
     },
 ]
