@@ -358,8 +358,8 @@ def funnel():
     if not rungs:
         return _unknown("UNKNOWN, not a split ladder — %s" % (lwhy or "no ladder was found"))
     if not rows:
-        return _unknown("UNKNOWN, not an empty shelf — %s"
-                        % (rwhy or "no reel reached this probe and nothing said why"), rungs)
+        import unknown_shelf as _us
+        return _unknown(_us.not_an_empty_shelf(rwhy), rungs)
 
     by_idx, by_stage, unknown, occupancy = {}, {}, 0, {}
     for r in rows:

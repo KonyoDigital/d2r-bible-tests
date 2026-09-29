@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1504 - "UNKNOWN, NOT AN EMPTY SHELF" THREE TIMES IN ONE SENTENCE (#77, 2026-09-29)
+
+**Seen** in BLUEPRINT.md generated on a worktree with no footage: `UNKNOWN — UNKNOWN, not an empty shelf — printer.stream()
+could not answer: UNKNOWN, not an empty shelf — UNKNOWN, not an empty shelf — no reel reached this probe`. Five readers
+(reel_river, per_reel_routes, one_funnel, printer, reel_router) each prefixed the phrase to a reason that, one layer down,
+already carried it; the blueprint added its own `UNKNOWN — `. The reason was right and the stutter buried it.
+**Fix:** `tv/unknown_shelf.py` - `not_an_empty_shelf(why)` leads with the phrase only when the reason does not already say
+UNKNOWN, and `says_unknown` does the same for the blueprint's header. The same regeneration now says it once. Law
+`test_the_shelf_says_unknown_once` (nested like the readers; the five parsed by ast), 2 red-proofs RED.
+
 ### REG-1503 - A LIVE AGENT READ DEAD BECAUSE A LOCK WAS BUSY (#78, 2026-09-29)
 
 **Found** by the v3523 pre-flight: `test_button_matrix` 'SIM -> reads grow or bridge stays: reads=0' inside a 39-min gate

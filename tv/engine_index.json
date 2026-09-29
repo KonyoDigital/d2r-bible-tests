@@ -2041,6 +2041,15 @@
     "purpose": "Stamps firstUnknownTs/lastAttemptTs/unknownCount onto UNKNOWN health rows so a 5-minute and a 45-hour unknown stop rendering alike.",
     "territory": "heart-organs"
   },
+  "unknown_shelf.py": {
+    "entryPoints": [
+      "not_an_empty_shelf",
+      "says_unknown"
+    ],
+    "gotcha": "Leads with 'UNKNOWN, not an empty shelf — ' only when the reason does not already say UNKNOWN - five readers (reel_river, per_reel_routes, one_funnel, printer, reel_router) nest, and each used to prefix it, so one reason read three times. An empty reason becomes the default sentence, never an empty one.",
+    "purpose": "#77 - the ONE place the river's readers say 'UNKNOWN, not an empty shelf', so a reason passed up five layers says it once.",
+    "territory": "river-reels"
+  },
   "vault_apply_crossfamily.py": {
     "entryPoints": [
       "prove()",

@@ -196,6 +196,11 @@ GATES = [
              "the lock race asked a 10 s port-scan cache holding a None from before the agent listened, and nothing "
              "told the cache the agent had started. Every start/stop now seeds it; driven with _lock held by another "
              "thread, every assignment site checked per block by ast. 3 red-proofs"),
+    Gate("test_the_shelf_says_unknown_once", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_says_unknown_once.py")], 30,
+         why="REG-1504 (#77) - the blueprint's river line said 'UNKNOWN, not an empty shelf' three times: five readers "
+             "each prefixed it to a reason that already carried it. One helper now leads with it only when the "
+             "reason does not say UNKNOWN; the readers are parsed so none builds the literal prefix again. 2 red-proofs"),
     Gate("test_one_capture_per_console", [sys.executable,
          os.path.join(HERE, "test_one_capture_per_console.py")], 120,
          why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "

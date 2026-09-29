@@ -554,7 +554,8 @@ def route(hist=None, path=None):
     rep = {"ok": False, "stations": list(STATIONS), "owes": dict(OWES),
            "reels": [], "counts": {}, "unknown": 0, "shelf": 0, "why": why}
     if ev is None:
-        rep["why"] = "UNKNOWN, not an empty shelf — %s" % why
+        import unknown_shelf as _us
+        rep["why"] = _us.not_an_empty_shelf(why, "the walk did not answer and said nothing")
         # ⚠ v2817 — THE CLOSURE COUNT DOES NOT DEPEND ON THE WALK, so it is published here too.
         # The first cut attached `closed` only to the success path, and a consumer that asked
         # "what has closed out?" while the walk was UNKNOWN got no key at all — which reads as

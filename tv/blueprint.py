@@ -611,7 +611,7 @@ def render():
     A("## THE RIVER — every reel from the door to the far end")
     A("")
     if not rv or rv.get("why"):
-        A("⚠ UNKNOWN — %s" % ((rv or {}).get("why") or "the river could not be read"))
+        A("⚠ " + __import__("unknown_shelf").says_unknown((rv or {}).get("why") or "the river could not be read"))
     else:
         A("Stations, in `reel_router.STATIONS` order (the router owns them; this quotes it):")
         A("")
@@ -636,7 +636,7 @@ def render():
     A("## THE PRINTER — one door, one stream, out the other end")
     A("")
     if not pr or pr.get("why"):
-        A("⚠ UNKNOWN — %s" % ((pr or {}).get("why") or "the printer could not be read"))
+        A("⚠ " + __import__("unknown_shelf").says_unknown((pr or {}).get("why") or "the printer could not be read"))
     else:
         A("`tv/printer.py` follows every reel through the stations and QUOTES each owner; it")
         A("re-derives nothing, and it **prints nothing and deletes nothing** — it is a report.")
@@ -651,7 +651,7 @@ def render():
     A("## GROSS vs STRIPPED — how much of the footage actually carries a panel")
     A("")
     if not ss or ss.get("why"):
-        A("⚠ UNKNOWN — %s" % ((ss or {}).get("why") or "the triage store could not be read"))
+        A("⚠ " + __import__("unknown_shelf").says_unknown((ss or {}).get("why") or "the triage store could not be read"))
     else:
         A("`retro_triage` records, per reel, which frames CARRY a panel (`panelFrames`). That is the")
         A("stripped set; the reel folder is the gross one.")
