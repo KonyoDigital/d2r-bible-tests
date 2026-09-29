@@ -25,6 +25,150 @@ a healthy 9.6 GB archive read as 45% rotted three times in one evening.
 """
 
 import os
+import threading
+import time
+
+# ── REG-1412 (#66) — THE CONSOLE PATH, AND WHAT IT MAY REMEMBER ────────────────────────────────────
+# MEASURED on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames), 2026-09-29 01:25-01:45, right after
+# v3522 landed: /api/river timed out at 90 s while THREE threads (tvd-retro-triage, tvd-eagle-watch and an
+# HTTP request) were each inside Index.__init__ at the same moment, each re-listing every folder of the shelf
+# from scratch. Only ONE of those folders was moving - the live shadow reel. A sealed reel's folder cannot
+# change without its own mtime moving, so re-listing it answers a question already answered.
+#
+# ⚠ ONLY A CONSOLE REMEMBERS. control_app.main() calls mark_console_path() at boot. Everywhere else - every
+# law, the gate, CI, a CLI run - lists exactly as before: a law may repoint, age (os.utime) or monkeypatch
+# anything, and a cache cannot key on a monkeypatch. An input you cannot key on means no memo for that path.
+_CONSOLE = {"on": False}
+
+
+def mark_console_path(on=True):
+    """This process IS a console (control_app.main() at boot). -> None. Off everywhere else."""
+    _CONSOLE["on"] = bool(on)
+
+
+def on_console_path():
+    """Is this process a console? -> bool (False unless control_app.main() said so)."""
+    return bool(_CONSOLE["on"])
+
+
+#: A folder whose mtime (or, on POSIX, change time) is younger than this is MOVING: its listing is never kept.
+#: 3 s covers the coarsest clock that stamps these folders (FAT's 2 s; NTFS is stamped from a ~15.6 ms
+#: clock) - a second change inside one tick leaves the stamp unchanged, so a folder is trusted only once it
+#: has been still for longer than any tick. The same rule git calls "racily clean".
+RACY_S = 3.0
+_LISTINGS = {}                  # absolute folder -> (folder key, entries)
+_LISTINGS_MAX = 4096            # a bound, not a policy: past it the memory is simply dropped
+_LIST_LOCK = threading.Lock()
+#: what the per-folder memory did in this process - read by the law and by the measurement
+LIST_STATS = {"listed": 0, "served": 0, "kept": 0, "moving": 0, "builds": 0}
+
+
+def folder_key(st):
+    """The identity of a folder's CONTENTS as the file system stamps it. -> tuple
+
+    mtime and (POSIX) ctime move on every create, delete and rename inside the folder; ino/dev change if the
+    folder is replaced; size/nlink are extra witnesses where the platform fills them. On Windows st_ctime is
+    the creation time, which is still an identity witness."""
+    return (st.st_mtime_ns, getattr(st, "st_ctime_ns", 0), st.st_ino, st.st_dev, st.st_size, st.st_nlink)
+
+
+def still(st, now_ns=None):
+    """Has this path been still for RACY_S? -> bool. A stamp in the future is not still."""
+    now_ns = time.time_ns() if now_ns is None else now_ns
+    newest = max(st.st_mtime_ns, getattr(st, "st_ctime_ns", 0))
+    return now_ns - newest >= int(RACY_S * 1e9)
+
+
+def _scan(folder):
+    """One folder, listed once. -> tuple of (name, kind, size) | None when it cannot be listed.
+
+    kind: 'd' a folder to walk into, 'l' a symlinked folder (never entered, as os.walk does not), 'f' a file
+    (and anything whose type cannot be read, as before). size: from the listing, None when it cannot be read.
+    ⚠ 2026-09-28 — ONE LISTING PER FOLDER, NEVER ONE STAT PER FILE: on Windows the listing already carries each
+    file's size, so DirEntry.stat() costs nothing (REG-1360, 34,143 nt.stat calls on his ALT)."""
+    try:
+        with os.scandir(folder) as it:
+            entries = list(it)
+    except OSError:
+        return None
+    out = []
+    for e in entries:
+        try:
+            is_dir = e.is_dir()
+        except OSError:
+            is_dir = False
+        if is_dir:
+            try:
+                if not e.is_symlink():
+                    out.append((e.name, "d", None))
+                else:
+                    out.append((e.name, "l", None))
+            except OSError:
+                out.append((e.name, "?", None))
+            continue
+        try:
+            size = e.stat().st_size
+        except OSError:
+            size = None
+        out.append((e.name, "f", size))
+    return tuple(out)
+
+
+def listing(folder):
+    """A folder's entries -> tuple of (name, kind, size) | None. The one listing Index and _dir_mb share.
+
+    Off the console path: a fresh listing, always - exactly what the walk did before.
+    On the console path: a listing is KEPT only when the folder had been still for RACY_S before it was read,
+    was not changed while it was read (its key is taken again after), and holds no `*.tmp` (a write in flight -
+    every writer into a reel folder writes a .tmp and os.replace()s it, and a frame is created whole). It is
+    SERVED only while the folder's key (folder_key) is identical. So the key covers: which names are in the
+    folder and whether each is a file or a folder. It does NOT cover a file rewritten IN PLACE in a folder that
+    has been still for RACY_S - nothing in this tree writes a reel folder that way (frames are created whole,
+    index.json and kai_report.json go through .tmp + os.replace), and such a file's SIZE would be the only
+    thing out of date. A folder that cannot be stat'd is listed fresh and never kept."""
+    if not _CONSOLE["on"]:
+        return _scan(folder)
+    try:
+        st = os.stat(folder)
+    except OSError:
+        with _LIST_LOCK:
+            _LISTINGS.pop(folder, None)
+        return _scan(folder)
+    key = folder_key(st)
+    with _LIST_LOCK:
+        hit = _LISTINGS.get(folder)
+        if hit is not None and hit[0] == key:
+            LIST_STATS["served"] += 1
+            return hit[1]
+    got = _scan(folder)
+    with _LIST_LOCK:
+        LIST_STATS["listed"] += 1
+    if got is None:
+        return None
+    keep = still(st) and not any(n.endswith(".tmp") for n, _k, _s in got)
+    if keep:
+        try:
+            keep = folder_key(os.stat(folder)) == key
+        except OSError:
+            keep = False
+    with _LIST_LOCK:
+        if keep:
+            if len(_LISTINGS) >= _LISTINGS_MAX:
+                _LISTINGS.clear()
+            _LISTINGS[folder] = (key, got)
+            LIST_STATS["kept"] += 1
+        else:
+            _LISTINGS.pop(folder, None)
+            LIST_STATS["moving"] += 1
+    return got
+
+
+def _forget_listings():
+    """Drop every kept listing (a law's clean slate). -> None"""
+    with _LIST_LOCK:
+        _LISTINGS.clear()
+        for k in LIST_STATS:
+            LIST_STATS[k] = 0
 
 # a plausible capture epoch in ms: 2001-09-09 .. 2033-05-18. Wide on purpose - this rejects a
 # reel's random suffix (5 digits) and an index (1-2 digits), not a real timestamp.
@@ -103,36 +247,30 @@ class Index(object):
         # DirEntry.stat() costs nothing; the relative path is the folder's prefix plus the name. Same walk
         # order as os.walk(topdown) - a folder's files, then its subfolders in listing order - and a symlinked
         # folder is not entered, as os.walk does not.
+        # ⚠ REG-1412 — the listing comes from listing(), which on a CONSOLE serves a still folder's last
+        # listing instead of reading it again (see its docstring for exactly what its key covers).
+        with _LIST_LOCK:
+            LIST_STATS["builds"] += 1
         todo = [(root, "")]
         while todo:
             here, prefix = todo.pop()
-            try:
-                with os.scandir(here) as it:
-                    entries = list(it)
-            except OSError:
+            entries = listing(here)
+            if entries is None:
                 continue
             sub = []
-            for e in entries:
-                try:
-                    is_dir = e.is_dir()
-                except OSError:
-                    is_dir = False
-                if is_dir:
-                    try:
-                        if not e.is_symlink():
-                            sub.append((os.path.join(here, e.name), prefix + e.name + "/"))
-                    except OSError:
-                        pass
+            for name, kind, size in entries:
+                if kind == "d":
+                    sub.append((os.path.join(here, name), prefix + name + "/"))
                     continue
-                full = os.path.join(here, e.name)
-                rel = (prefix + e.name).replace("\\", "/")
+                if kind != "f":
+                    continue
+                full = os.path.join(here, name)
+                rel = (prefix + name).replace("\\", "/")
                 self.by_path[rel] = full
                 self.by_stem.setdefault(stem_of(rel), []).append(rel)
                 self.files += 1
-                try:
-                    self.bytes += e.stat().st_size
-                except OSError:
-                    pass
+                if size is not None:
+                    self.bytes += size
             todo.extend(reversed(sub))
 
     def resolve(self, frame_ref):

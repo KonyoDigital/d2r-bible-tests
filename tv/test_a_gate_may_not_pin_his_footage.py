@@ -66,7 +66,9 @@ class TestAGateMayNotPinHisFootage(unittest.TestCase):
 
     def test_no_test_names_a_real_reel_that_is_not_blessed(self):
         """★ THE LAW. A new real reel id in a test freezes that footage — so it must be on purpose."""
-        found = set(fa.test_referenced_reels() or [])
+        # exact=True: on a console the fixture set IS this ratchet (REG-1410), and a ratchet graded against
+        # itself can never find anything new - this law must always read what the tests actually name
+        found = set(fa.test_referenced_reels(exact=True) or [])
         real = {r for r in found if not SYNTHETIC.search(r)}
         new = sorted(real - self.accepted)
         self.assertEqual(

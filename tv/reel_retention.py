@@ -42,6 +42,7 @@ import glob
 import os
 import shutil
 import sys
+import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -166,32 +167,24 @@ def lookup_either_way(store, reel):
 def _dir_mb(path):
     """A reel's size in MB. One listing per folder, never one stat per file: on Windows the listing already
     carries each size, and a per-file getsize here and in frame_ref.Index was most of the 33 s his ALT took
-    to answer /api/river (2026-09-28). A symlinked folder is not entered, as os.walk does not."""
+    to answer /api/river (2026-09-28). A symlinked folder is not entered, as os.walk does not.
+
+    REG-1412 — the listing is frame_ref.listing(), the SAME one the frame index walks, so on a console a still
+    reel's folder is read once and not again until it changes (its docstring says exactly what that covers)."""
+    import frame_ref as _fr
     total = 0
     todo = [path]
     while todo:
         here = todo.pop()
-        try:
-            with os.scandir(here) as it:
-                entries = list(it)
-        except OSError:
+        entries = _fr.listing(here)
+        if entries is None:
             continue
-        for e in entries:
-            try:
-                is_dir = e.is_dir()
-            except OSError:
-                is_dir = False
-            if is_dir:
-                try:
-                    if not e.is_symlink():
-                        todo.append(os.path.join(here, e.name))
-                except OSError:
-                    pass
+        for name, kind, size in entries:
+            if kind == "d":
+                todo.append(os.path.join(here, name))
                 continue
-            try:
-                total += e.stat().st_size
-            except OSError:
-                pass
+            if kind == "f" and size is not None:
+                total += size
     return total / (1024.0 * 1024.0)
 
 
@@ -624,21 +617,279 @@ def proof_reels(hist_dir):
                   "nothing on disk (already lost); %s" % (len(held), unresolved, why))
 
 
-def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
+def _resolve_hist(hist_dir):
+    """The footage tree plan() reads: the caller's, else this machine's (machine_tree), else HERE/frames/hist.
+    ONE rule, asked by plan() and by its fingerprint, so the two cannot name different trees."""
+    if hist_dir:
+        return hist_dir
+    try:
+        import machine_tree as _mt
+        hist = _mt.footage_hist()
+    except Exception:
+        hist = None
+    if not hist:
+        hist = os.path.join(HERE, "frames", "hist")
+    return hist
+
+
+# ── REG-1411 (#66) — ONE PLAN, SHARED, UNTIL ONE OF ITS INPUTS MOVES ──────────────────────────────────────
+# MEASURED on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522 landed: /api/river
+# timed out at 90 s while THREE threads were inside frame_ref.Index.__init__ at the same moment - tvd-retro-triage
+# (river_stamp.run -> reel_router.route -> printer.stream -> reel_story.story -> plan), tvd-eagle-watch
+# (health_engine -> lane_health.owed_counts -> control_app._vault_owed_reels -> plan) and an HTTP request
+# (heart_state -> printer.stream -> ... -> plan). plan() is called from ~62 places and remembered nothing, so every
+# lane rebuilt the whole frame index and the proof set from scratch, concurrently, over footage that had not moved.
+# Measured on an ALT-shaped fixture here (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once):
+# 153.6 s cold after a ship, 4.6 s warm, 4 index builds and 268 folder listings per round.
+_NO_MEMO = object()
+_PLAN_MEMO = {}                 # key -> (fingerprint, snapshot)
+_PLAN_FLIGHTS = {}              # key -> {"fp", "done", "result"}: the computation other callers may join
+_PLAN_MEMO_MAX = 16
+_JOIN_WAIT_S = 300.0            # a joiner never waits longer than this on another thread's computation
+_PLAN_LOCK = threading.Lock()
+_IN_PLAN = threading.local()
+#: runs = executions of plan()'s body; served/joined = answers that ran nothing; moving/unkeyed/off/alone =
+#: calls that computed their own answer and shared it with nobody (see _plan_shared)
+PLAN_STATS = {"runs": 0, "served": 0, "joined": 0, "led": 0, "moving": 0, "unkeyed": 0, "off": 0,
+              "alone": 0}
+
+
+class _Unkeyable(Exception):
+    """An input plan() reads that the fingerprint cannot key. -> no memo for that call."""
+
+
+class _Moving(Exception):
+    """An input changed less than frame_ref.RACY_S ago. -> computed fresh, never kept, never shared."""
+
+
+def plan_input_files(hist_dir=None):
+    """Every FILE plan() reads besides the footage tree, enumerated from the code. -> [absolute path]
+
+        chronicle_swept.json, vault_swept.json   _pick(): the HERE copy and the hist copy of each
+        reel_tombstones.json                      _tombstone_path(hist): the remnant filter
+        vault_accum.json, vault_seen.json         frame_authority.DURABLE_STORES under HERE: _durable_sessions,
+                                                  witness_index(HERE).haveIndex, vault_evidence.cited_frames
+        retro_triage.json                         retro_triage._store_path(): _proven_empty,
+                                                  _no_chronicle_to_find, _panels_never_banked
+        chron_evidence.json                       tv_diablo._fixture_root(HERE): proof_reels -> _evidence_rows
+        test_reel_refs.json                       frame_authority.RATCHET_PATH: the fixture set on a console
+    Constants (MIN_PAGES, RULES, vault_retro's surfaces and conf floor) are code, fixed for a process's life."""
+    hist = _resolve_hist(hist_dir)
+    import frame_authority as _fa
+    import retro_triage as _rt
+    out = [os.path.join(HERE, "chronicle_swept.json"), os.path.join(hist, "chronicle_swept.json"),
+           os.path.join(HERE, "vault_swept.json"), os.path.join(hist, "vault_swept.json"),
+           _tombstone_path(hist)]
+    out += [os.path.join(HERE, fn) for fn in _fa.DURABLE_STORES]
+    out.append(_rt._store_path())
+    try:
+        import tv_diablo as _tvd
+        _root = _tvd._fixture_root(HERE)
+    except ImportError:
+        _root = HERE
+    out.append(os.path.join(_root, "chron_evidence.json"))
+    out.append(_fa.RATCHET_PATH)
+    return out
+
+
+def _still_file(path, now_ns):
+    """A file's key, None when absent (absence is a measurement). Raises _Moving / _Unkeyable."""
+    import frame_ref as _fr
+    try:
+        st = os.stat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except OSError as e:
+        raise _Unkeyable("%s: %s" % (type(e).__name__, path))
+    if not _fr.still(st, now_ns):
+        raise _Moving(path)
+    return (st.st_mtime_ns, getattr(st, "st_ctime_ns", 0), st.st_size, st.st_ino, st.st_dev)
+
+
+def plan_fingerprint(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
+    """-> (key, fingerprint) for a plan() call, or raises _Moving / _Unkeyable.
+
+    KEY: the footage tree (as resolved, and absolute), HERE, TV_HIST, free_mb, keep_recent - and _pick's ORDER
+    (HERE's copy of a ledger first, or hist's), but only while BOTH copies of chronicle_swept or vault_swept are
+    present: with one copy the order cannot change the answer, so plan() and plan(<that same tree>) - the eagle's
+    call shape and reel_story's - share one computation. FINGERPRINT - what the answer depends on, and nothing is
+    left to a guess:
+      · every file in plan_input_files(): (mtime, ctime, size, inode, device), or absent;
+      · the footage tree: hist's own folder key (which names are in it - reels and loose frames alike, the index
+        resolves both), then EVERY folder the frame index and _dir_mb walk beneath it, each by its folder key,
+        found from its kept listing (frame_ref.listing), and each reel's index.json (_vault_lane_owes).
+    Any input changed less than frame_ref.RACY_S ago raises _Moving: a second change inside one clock tick can
+    leave a stamp unchanged, so a moving input is never trusted. A reel folder that is a symlink, a store that
+    cannot be stat'd, or a tree that cannot be listed raises _Unkeyable: no memo for that path."""
+    import frame_ref as _fr
+    hist = _resolve_hist(hist_dir)
+    now = time.time_ns()
+    parts = [(p, _still_file(p, now)) for p in plan_input_files(hist_dir)]
+    _present = dict(parts)
+    _both = any(_present.get(os.path.join(HERE, fn)) is not None and _present.get(os.path.join(hist, fn)) is not None
+                for fn in ("chronicle_swept.json", "vault_swept.json"))
+    _order = (bool(hist_dir) or bool(os.environ.get("TV_HIST"))) if _both else None
+    try:
+        key = (hist, os.path.abspath(hist), HERE, os.environ.get("TV_HIST") or "", _order, free_mb, keep_recent)
+        hash(key)
+    except Exception:
+        raise _Unkeyable("the arguments cannot be keyed")
+    try:
+        st = os.stat(hist)
+    except OSError:
+        raise _Unkeyable("no footage tree to key")        # plan answers that one cheaply anyway
+    if not _fr.still(st, now):
+        raise _Moving(hist)
+    parts.append((hist, _fr.folder_key(st)))
+    top = _fr.listing(hist)
+    if top is None:
+        raise _Unkeyable("the footage tree cannot be listed")
+    todo = []
+    for name, kind, _size in top:
+        if kind == "d":
+            todo.append(os.path.join(hist, name))
+            if name.startswith("reel_"):
+                ix = os.path.join(hist, name, "index.json")
+                parts.append((ix, _still_file(ix, now)))
+        elif kind != "f" and name.startswith("reel_"):
+            # _dir_mb follows a symlinked reel and the index does not: one input, two readings - no memo
+            raise _Unkeyable("reel folder %s is a symlink or cannot be typed" % name)
+    while todo:
+        d = todo.pop()
+        try:
+            st = os.stat(d)
+        except OSError:
+            raise _Unkeyable("a folder vanished while it was keyed")
+        if not _fr.still(st, now):
+            raise _Moving(d)
+        parts.append((d, _fr.folder_key(st)))
+        sub = _fr.listing(d)
+        if sub is None:
+            raise _Unkeyable("a folder cannot be listed")
+        todo.extend(os.path.join(d, n) for n, k, _s in sub if k == "d")
+    return key, tuple(parts)
+
+
+def _plan_count(field):
+    with _PLAN_LOCK:
+        PLAN_STATS[field] += 1
+
+
+def _plan_shared(hist_dir, free_mb, keep_recent):
+    """plan()'s answer without running it, when that is PROVABLY the answer it would compute. -> dict | _NO_MEMO
+
+    ON THE CONSOLE PATH ONLY (frame_ref.on_console_path(), set by control_app.main()); anywhere else a law may
+    monkeypatch what plan() calls, and a memo cannot key on a monkeypatch. _NO_MEMO means "run plan() yourself".
+      · SERVED  the last answer for this key, while plan_fingerprint() is identical - nothing it reads has moved.
+      · JOINED  a computation already running for this key, started on the SAME fingerprint this caller sees; it
+                is handed over only if the fingerprint taken again AFTER it finished is still identical.
+      · otherwise the caller LEADS: it computes, and its answer is kept and shared only on that same condition.
+    Every answer handed out is a deep copy - no caller can edit what another is served. An exception is never
+    shared (a joiner then computes its own). An input moving, or one that cannot be keyed, computes fresh."""
+    try:
+        import frame_ref as _fr
+        if not _fr.on_console_path():
+            _plan_count("off")
+            return _NO_MEMO
+    except Exception:
+        return _NO_MEMO
+    if getattr(_IN_PLAN, "on", False):
+        # a plan() asked from INSIDE a computation this thread leads would wait on itself for ever
+        _plan_count("alone")
+        return _NO_MEMO
+    import copy
+    for _attempt in range(3):
+        try:
+            key, fp = plan_fingerprint(hist_dir, free_mb, keep_recent)
+        except _Moving:
+            _plan_count("moving")
+            return _NO_MEMO
+        except Exception:
+            _plan_count("unkeyed")
+            return _NO_MEMO
+        with _PLAN_LOCK:
+            m = _PLAN_MEMO.get(key)
+            if m is not None and m[0] == fp:
+                PLAN_STATS["served"] += 1
+                role, snap = "served", m[1]
+            else:
+                fl = _PLAN_FLIGHTS.get(key)
+                if fl is None:
+                    fl = {"fp": fp, "done": threading.Event(), "result": _NO_MEMO}
+                    _PLAN_FLIGHTS[key] = fl
+                    role = "lead"
+                elif fl["fp"] == fp:
+                    role = "join"
+                else:
+                    PLAN_STATS["alone"] += 1
+                    role = "alone"
+        if role == "served":
+            return copy.deepcopy(snap)
+        if role == "alone":
+            return _NO_MEMO
+        if role == "lead":
+            res = _NO_MEMO
+            _IN_PLAN.on = True
+            try:
+                res = plan(hist_dir, free_mb, keep_recent, _fresh=True)
+            finally:
+                _IN_PLAN.on = False
+                same = False
+                if res is not _NO_MEMO:
+                    try:
+                        same = plan_fingerprint(hist_dir, free_mb, keep_recent) == (key, fp)
+                    except Exception:
+                        same = False
+                with _PLAN_LOCK:
+                    PLAN_STATS["led"] += 1
+                    if _PLAN_FLIGHTS.get(key) is fl:
+                        del _PLAN_FLIGHTS[key]
+                    if same:
+                        snap = copy.deepcopy(res)
+                        fl["result"] = snap
+                        if len(_PLAN_MEMO) >= _PLAN_MEMO_MAX:
+                            _PLAN_MEMO.clear()
+                        _PLAN_MEMO[key] = (fp, snap)
+                    else:
+                        _PLAN_MEMO.pop(key, None)
+                    fl["done"].set()
+            return res
+        if not fl["done"].wait(_JOIN_WAIT_S):
+            # the computation this caller joined has not finished in _JOIN_WAIT_S (a hung disk, a stuck store):
+            # waiting on someone else's hang is worse than computing, so this caller computes its own
+            _plan_count("alone")
+            return _NO_MEMO
+        if fl["result"] is not _NO_MEMO:
+            _plan_count("joined")
+            return copy.deepcopy(fl["result"])
+        # the leader raised, or its inputs moved while it ran: ask again from the top
+    _plan_count("alone")
+    return _NO_MEMO
+
+
+def _forget_plans():
+    """Drop every kept plan and zero the counters (a law's clean slate). -> None"""
+    with _PLAN_LOCK:
+        _PLAN_MEMO.clear()
+        for k in PLAN_STATS:
+            PLAN_STATS[k] = 0
+
+
+def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
     """What may go, oldest first, and WHY every other reel stays. Writes nothing.
 
     free_mb: stop once this much has been selected. None = report every eligible reel.
+
+    REG-1411 — on a CONSOLE, a call with the same arguments as one already running JOINS it, and a finished answer
+    is SERVED again until one of its inputs moves: plan_fingerprint() names every one of them, and _plan_shared
+    says exactly when an answer may be handed over. `_fresh=True` computes, always (the leader's own call).
     """
-    if hist_dir:
-        hist = hist_dir
-    else:
-        try:
-            import machine_tree as _mt
-            hist = _mt.footage_hist()
-        except Exception:
-            hist = None
-        if not hist:
-            hist = os.path.join(HERE, "frames", "hist")
+    if not _fresh:
+        _shared = _plan_shared(hist_dir, free_mb, keep_recent)
+        if _shared is not _NO_MEMO:
+            return _shared
+    _plan_count("runs")
+    hist = _resolve_hist(hist_dir)
     unreadable = []
 
     def _pick(fn):
@@ -1051,6 +1302,18 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                      "every reel is recent, unread, or still owed to a lane."))}
 
 
+def _on_path():
+    """HERE on sys.path ONCE. -> None
+
+    ⚠⚠ REG-1413 — `sys.path.insert(0, HERE)` ran inside _tombstone_path on EVERY call, and plan() asks it on
+    every run (twice on his live tree, once per fixture), so a console grew sys.path by one or two entries per
+    plan, for ever. MEASURED 2026-09-29: +50 entries over 50 calls; a failed import then walks every entry and
+    stats each one - 1.1 ms with 6 entries, 15.9 ms with 1,000, 153 ms with 10,000 on the Mac, and a stat is
+    dearer on Windows."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+
+
 def _tombstone_path(hist=None):
     """v2080 — RESOLVE AT CALL TIME, NOT AT IMPORT.
 
@@ -1084,7 +1347,7 @@ def _tombstone_path(hist=None):
         # written four times tonight as h.startswith(root + os.sep), and on Windows that is a coin
         # flip". His Windows machine is the other half of this project. [[copy-drift]]
         try:
-            sys.path.insert(0, HERE)
+            _on_path()
             from tv_diablo import _under as _is_under
         except Exception:
             _is_under = None
@@ -1097,7 +1360,7 @@ def _tombstone_path(hist=None):
             except Exception:
                 pass
     try:
-        sys.path.insert(0, HERE)
+        _on_path()
         import tv_diablo as _tvd
         return os.path.join(_tvd._fixture_root(HERE), "reel_tombstones.json")
         # ⚠⚠ v2788 — NARROWED FROM `except Exception`. A blanket catch here also swallowed a

@@ -39444,6 +39444,17 @@ def main():
         _bv = "?"
     print("\U0001f680 CONSOLE BOOT %s pid=%d %s"
           % (_bv, os.getpid(), time.strftime("%Y-%m-%dT%H:%M:%S")), flush=True)
+    # ⚠⚠ REG-1410..1412 (#66) — THIS PROCESS IS A CONSOLE, SAID ONCE, BEFORE ANY LANE OR REQUEST CAN ASK.
+    # MEASURED on his ALT right after v3522: 11 s /api/status then timeouts while tvd-eagle-watch tokenized every
+    # tv/*.py, then 90 s /api/river while three threads each re-listed ~21,000 frames. On the console path the
+    # fixture set is the committed ratchet, a still reel folder is listed once, and reel_retention.plan() is
+    # shared and remembered until one of its inputs moves. Laws, the gate and CI never set this.
+    try:
+        import frame_ref as _fr_console
+        _fr_console.mark_console_path(True)
+    except Exception as _cp_e:
+        print("⚠ the console path could not be marked (%s) - plans are computed fresh, every call"
+              % type(_cp_e).__name__, flush=True)
     # ⚠⚠ #225 — WRITE IT DOWN BEFORE ANYTHING CAN EXIT QUIETLY. The Windows ALT console died relaunching
     # into v3419 with NO trace (pythonw drops stdout). The boot log is a file, written before the mutex
     # and bind checks; an uncaught exception lands there too; and on Windows — where os.execv starts a

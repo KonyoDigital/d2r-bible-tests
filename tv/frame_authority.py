@@ -736,9 +736,41 @@ def test_referenced_reels_nowait():
     return set(last) if last is not None else None
 
 
-def test_referenced_reels(repo=None):
+#: REG-1410 (#66) — the committed ratchet: every REAL reel id the suite is allowed to name.
+#: test_a_gate_may_not_pin_his_footage keeps it a SUPERSET of what the exact scan finds, on every push.
+RATCHET_PATH = os.path.join(HERE, "test_reel_refs.json")
+
+
+def ratchet_reels():
+    """The ratchet's `accepted` ids. -> set | None (None = it could not be read - never an empty answer)."""
+    try:
+        with open(RATCHET_PATH, encoding="utf-8") as fh:
+            blob = json.load(fh)
+    except Exception:
+        return None
+    acc = blob.get("accepted") if isinstance(blob, dict) else None
+    if not isinstance(acc, list) or not all(isinstance(x, str) for x in acc):
+        return None
+    return set(acc)
+
+
+def test_referenced_reels(repo=None, exact=False):
     """Reel ids the TEST SUITE opens by name. A reel a test reads is a FIXTURE, whatever the ledgers
     say about it.
+
+    ⚠⚠ REG-1410 (#66) — A CONSOLE DOES NOT TOKENIZE THE TEST SUITE. MEASURED on his ALT (Windows +
+    Boosteroid) for ~15 minutes after v3522 landed: /api/status took 11 s and then timed out, and a
+    py-spy dump showed ONE hot thread, tvd-eagle-watch, holding the GIL in _executable_only -> tokenize
+    over every tv/*.py, reached through reel_retention.plan(). The key below changes on EVERY ship, so
+    every ship paid it again (9 s on the Mac in REG-1284, 20.6 s measured here on 2026-09-29, minutes
+    on the ALT). On the CONSOLE PATH (frame_ref.mark_console_path(), set by control_app.main()) the set
+    is the committed ratchet, tv/test_reel_refs.json `accepted` - which the gate keeps a superset of
+    every real id this scan finds, so it holds at least what the scan would. Synthetic 2017-epoch ids
+    are not in it and pin no footage by construction.
+    The exact scan stays for the gate, CI, a CLI, `repo=` and `exact=True` (test_a_gate_may_not_pin_his_footage
+    asks exact=True: graded against the ratchet itself it would be blind). A ratchet that will not read
+    is UNKNOWN, not empty: the console then pays the exact scan rather than hold nothing.
+    [[unknown-stays-unknown]]
 
     v2069 — MEASURED, after the fact, on a prune I had already run. Six reels were deleted as
     "sealed by both lanes, has given up its information" and THREE of them were named by
@@ -765,6 +797,17 @@ def test_referenced_reels(repo=None):
     test SYNTHESISES a reel name rather than pointing at footage on disk.
     """
     import re
+    if not exact and repo is None:
+        try:
+            import frame_ref as _fr_cp
+            _console = _fr_cp.on_console_path()
+        except Exception:
+            _console = False
+        if _console:
+            _rat = ratchet_reels()
+            if _rat is not None:
+                return _rat
+            # the ratchet will not read -> fall through to the exact scan, never to an empty set
     root = repo or os.path.dirname(HERE)
     # plan() asks this for every run and the suite file alone is ~0.9 MB — 28 ms a call, which is
     # nothing once and 2.8 s across a hundred plans. Keyed on the files' (size, mtime) so an edited
