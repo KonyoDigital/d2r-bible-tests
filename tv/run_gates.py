@@ -8141,6 +8141,43 @@ GATES = [
              "same dict on /api/status (evidenceTiers), cached by the ledger's mtime, an unreadable ledger never "
              "remembered as an answer. Driven over a temp ledger; nothing writes it. 12 cases, 5 red-proofs",
          skip_ok=()),
+    Gate("test_a_dangling_main_and_a_set_without_slots_read_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_dangling_main_and_a_set_without_slots_read_unknown.py")], 120,
+         needs_app=False,
+         why="#41 rank 20 (REG-1534, 2026-09-29) — the 👤 Characters tab says UNKNOWN, never 'no MAIN' or '0 worn'. A "
+             "d2r_cbMain that names no saved build drew exactly like no MAIN set (no badge, nothing else), and a set "
+             "with no slots object counted as 0 worn. Driven in the SHIPPED chars-tab-js block in node (the same "
+             "stand-in as the Characters-tab law): a dangling MAIN opens the list with a data-state='main-dangling' "
+             "note naming the id, no card wears the badge, the cards still render, and window._charsList (what the "
+             "mule window asks) carries mainDangling; a MAIN that names a build and no MAIN at all stay quiet; a set "
+             "without a slots object reads 'items UNKNOWN', an empty slots object is a measured 0, a set missing only "
+             "swap/inv still counts its slots; a read never writes. 3 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_the_mule_picker_refuses_while_the_builder_is_open",
+         [sys.executable, os.path.join(HERE, "test_the_mule_picker_refuses_while_the_builder_is_open.py")], 120,
+         needs_app=False,
+         why="#41 rank 21 (REG-1535, 2026-09-29) — the REVERSE door: a mule picker opened over the OPEN Character "
+             "Builder walked in (_cbHostOpen overwrote st.pick with a 'mule' host; the builder is not focus-trapped, so "
+             "a keyboard reaches the mule window behind it). Reproduced in node first. Now, while html.cb-lock is on, "
+             "window._cbHostOpen refuses (false), the host is not on for a slot or an inventory cell, "
+             "window._cbHostRefusedWhy names the builder, and the host draws no second #cb-modal; the same call before "
+             "the builder opens and after it closes opens the host and says nothing. The mule window's own _mpHostSync "
+             "and _mpPick (cut from bible.html, stubs at the seams) keep the slot picked and write the reason into "
+             "_mpPickErr, the string the picker footer prints; once the builder closes the same pick opens the host "
+             "and clears it. 2 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_an_unreadable_database_draws_an_unknown_picture",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_database_draws_an_unknown_picture.py")], 120,
+         needs_app=False,
+         why="#41 rank 24 (REG-1536, 2026-09-29) — when the builder's CB_DB will not parse, the art rule fell back to "
+             "the item's OWN name (return b ? b[0] : (it ? it[1] : e.name)), and both mule callers did '|| p.n' / "
+             "': e.name' — the wrong picture #248 fixed, exactly when the database is unreadable. Now _cbArtName "
+             "answers NULL, window._cbArtUnknown draws a glyph marked data-art='unknown' carrying DB_ERR's own "
+             "sentence, the mule slot (_mpSlotArt, in the mule window's own span) and the inventory tile draw that "
+             "glyph, and the builder's doll says UNKNOWN. Positive control on the real database: a runeword draws its "
+             "BASE, a unique its own name. Driven in node with the database block broken by the fixture. 3 cases, "
+             "4 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

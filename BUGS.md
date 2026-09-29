@@ -7,6 +7,49 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1536 - AN UNREADABLE BUILDER DATABASE DREW THE ITEM'S OWN NAME - THE WRONG PICTURE #248 FIXED, BACK EXACTLY WHEN THE DATABASE FAILS (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 24: `_cbArtName` returned `b ? b[0] : (it ? it[1] : (e && e.name)
+|| '?')`, and both mule callers did `|| p.n` / `: e.name` - so when the ⟦CB_DB⟧ block will not parse (`DB_ERR` set, `DB`
+null) every runeword, crafted, magic and rare item drew whatever its OWN name resolves to (his 2026-09-27 screenshot: "Last
+Wish Thunder Maul" drew a SWORD), with no mark that the picture was a guess. **Fix:** `_cbArtName` answers `null` when
+`_cbDb()` is null; `window._cbArtUnknown(size)` draws a glyph marked `data-art="unknown"` whose title carries DB_ERR's own
+sentence; `_cbArt(null)` draws it; the mule slot goes through one helper `_mpSlotArt` (in the mule window's own span - the
+first cut put it beside `art()` OUTSIDE the span the mule laws cut, and six of them refused with "would not run") and the
+inventory tile reads the null (`_anUnk`) and draws the same glyph. The builder's doll already said UNKNOWN as a whole. **Law:**
+`test_an_unreadable_database_draws_an_unknown_picture` - node, the database block broken by the fixture; positive control on
+the real database (a runeword draws its BASE, a unique its own name). **Red-proofs, each applied, run RED, restored
+byte-for-byte:** the null answer removed; the glyph's mark and reason removed; the slot drawing `e.name` on null; the tile's
+`|| p.n` back.
+
+### REG-1535 - A MULE PICKER OPENED OVER THE OPEN CHARACTER BUILDER WALKED IN AND TOOK ITS PICKER STATE (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 21: the Characters room refuses a delete while `html.cb-lock` is on
+(#245 review), but the mule host did not - `_cbHostOpen` overwrote `st.pick` with a `'mule'` host, and the builder is not
+focus-trapped, so a keyboard reaches the mule window behind it. The audit said "not driven, so whether it reproduces is
+UNKNOWN"; reproduced in node first (the host opened and `_cbHostOn('head')` read true under the open builder). **Fix:** while
+`html.cb-lock` is on, `window._cbHostOpen` refuses (false), sets `window._cbHostRefusedWhy` ("the Character Builder is open -
+close it (Esc) before choosing an item for a mule") and draws no second `#cb-modal`; the mule window's `_mpHostSync` and
+`_mpInvHostOpen` read the return - a slot pick keeps `_mpPickAt` (so the picker footer is on screen) and writes the reason into
+`_mpPickErr`, the string that footer prints; an inventory cell lets the cell go. **Law:**
+`test_the_mule_picker_refuses_while_the_builder_is_open` - the builder block plus the mule window's own `_mpHostSync` and
+`_mpPick` cut from bible.html, stubs only at the seams; before / under / after the builder; a keyboard pick (Enter on a slot
+runs `_mpPick`) reaches the same refusal. **Red-proofs, each RED and restored:** the door walks in again; the door refuses but
+says nothing; the mule window ignores the refusal.
+
+### REG-1534 - A DANGLING MAIN READ AS "NO MAIN", AND A SET WITHOUT SLOTS COUNTED AS 0 WORN (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 20: `_mainOf` returned null for a `d2r_cbMain` that names no saved
+build, so the room drew no badge and nothing else - the same picture as a MAIN never set; `_count` added nothing for a set
+without a `slots` object and still returned a number, so a build whose set could not be counted read "0 items · 0 worn".
+**Fix:** `_mainDangling(all)` names the dangling id; the list opens with a `data-state="main-dangling"` note ("MAIN points at
+a build that is gone (id) - which character is your MAIN is UNKNOWN"); `window._charsList` (what the mule window's bind list
+asks) carries `mainDangling`; `_count` returns null (UNKNOWN) when a set has no slots object - swap and inv may still be
+absent on an older set. **Law:** `test_a_dangling_main_and_a_set_without_slots_read_unknown` - the shipped chars-tab-js block
+in node over the Characters-tab law's own stand-in; the two honest states (a MAIN that names a build, no MAIN at all) stay
+quiet; a read never writes. **Red-proofs, each RED and restored:** the slots requirement removed; the note never drawn; the
+reader's `mainDangling` pinned to null.
+
 ### REG-1533 - THE EVIDENCE TIERS HAD NO LANE: 15 WATCHED ITEMS WAITED FOR LOOKS AND NOTHING SAID ON / WORKED / LASTTS / OWED (2026-09-29)
 
 **Found** by the #41 (#256) heart audit, verified list rank 19: "No lane reports on, worked, lastTs or owed for the tiers.
