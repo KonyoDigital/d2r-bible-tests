@@ -190,6 +190,14 @@ GATES = [
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
              "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+    Gate("test_the_fleet_says_where_a_river_is_stuck", [sys.executable,
+         os.path.join(HERE, "test_the_fleet_says_where_a_river_is_stuck.py")], 120,
+         why="REG-1461 - the ALT held 76 reels at EMPTY and 25 at PRINTER for two days and nothing on any screen "
+             "said so; his ask: see every PC's river from his own, Dean's included. The beacon now names each "
+             "station whose oldest reel waited > 6 h with the owning lane's reason (from the stamp log, never a "
+             "router pass) and whether that PC proved its instruments; the worker shapes both; the fleet row shows "
+             "a red 'river stuck', the detail the stations and ages. Console, worker and card each driven. "
+             "3 red-proofs"),
     Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
          os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
          why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "

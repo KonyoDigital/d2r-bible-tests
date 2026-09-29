@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1461 - A PC'S RIVER COULD STALL FOR DAYS AND NO SCREEN WOULD SAY SO (2026-09-29)
+
+**Found** on the ALT (#50): 76 reels at EMPTY and 25 at PRINTER since 09-27, found only by SSH; Dean's PC has
+no SSH. His ask: see Dean's river from his own console (#74, step 1 of the fleet river). **Fix:** the beacon's
+`system.river` gains `stuck` - each station a reel is meant to LEAVE whose oldest reel has waited > 6 h, with
+its count, age and the OWNING lane's own last reason (route lane / vault lane / triage lane) - read from the
+river's stamp log (one file, never a router pass), and `heart` - that PC's self-prove census and blind count.
+CAPTURE never alarms (it waits on a capture change by design). The worker admits both, shaped and scrubbed;
+the fleet row shows a red "river stuck" with the reasons in its hover, the detail box two new lines (stuck /
+proved). An older build reads UNKNOWN on both - never "flowing". **Law:** `test_the_fleet_says_where_a_river_
+is_stuck.py` - console, worker and card each driven; 3 red-proofs RED. The rendered-card law now counts five
+UNKNOWN lines for an older build.
+
 ### REG-1460 - TWO ORPHAN-ATTRIBUTION CASES DEPENDED ON THE HOST'S lsof (2026-09-29)
 
 **Found** on the ALT: `test_orphans_say_whose_they_are` red - "a process running this repo's own code was

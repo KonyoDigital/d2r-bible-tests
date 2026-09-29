@@ -13925,6 +13925,84 @@ def _river_for_wire(now_ms=None):
         out["triage"] = _triage_for_wire()
     except Exception as e:
         out["triage"] = {"ok": False, "why": "the triage lane could not be read (%s)" % type(e).__name__}
+    # #74 (REG-1461) — which stations are not draining, and whether this PC has proved its own instruments
+    try:
+        out["stuck"] = _river_stuck_for_wire(now)
+    except Exception:
+        out["stuck"] = None
+    _sp = dict(_SELF_PROVE)
+    out["heart"] = {"census": _sp.get("census"), "key": _sp.get("key"),
+                    "blind": (len(_sp.get("blind") or []) if _sp.get("blind") is not None else None)}
+    return out
+
+
+#: #74 (REG-1461) — a station whose OLDEST reel has waited this long is STUCK, and the fleet card says so.
+RIVER_STUCK_AFTER_S = 6 * 3600
+#: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
+#: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
+_RIVER_OWNER = {"TRIAGE": "triage", "EMPTY": "route", "JOIN": "route", "STATION": "reader",
+                "PRINTER": "vault", "INTAKE": "survey"}
+
+
+def _river_stuck_why(station):
+    """The OWNING lane's own last word on why a station is not draining. -> str (never raises)"""
+    lane = _RIVER_OWNER.get(station)
+    try:
+        if lane == "route":
+            w = str((_ROUTE_LANE or {}).get("why") or "")
+            return ("route lane: " + w) if w else "the route lane has not run since this console started"
+        if lane == "vault":
+            v = _vault_autoread_state_cached() or {}
+            owed, reads = v.get("owed"), v.get("reads")
+            return ("vault lane: owes %s, %s read(s) on record%s"
+                    % ("UNKNOWN" if owed is None else owed, "UNKNOWN" if reads is None else reads,
+                       (" - " + str(v.get("owedWhy"))) if v.get("owedWhy") else ""))
+        if lane == "triage":
+            t = _triage_for_wire() or {}
+            return "triage lane: " + str(t.get("lastWhy") or t.get("lastKey") or t.get("why") or "no word")
+    except Exception as e:
+        return "the %s lane could not be asked (%s)" % (lane or "owning", type(e).__name__)
+    return "no lane has moved these on"
+
+
+def _river_stuck_for_wire(now_ms=None, _rows=None):
+    """#74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THIS PC, AND WHY. -> list | None
+
+    His ask 2026-09-29, after the ALT was found with 76 reels at EMPTY and 25 at PRINTER for two days and
+    NOTHING on any screen said so: see every console's river from his own, "so for deans pc it will do the
+    same". Read from the river's own stamp log (the time each reel ARRIVED at its current station) - one
+    file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
+    oldest first; [] is measured-and-flowing; None is an unreadable log (UNKNOWN, never "flowing")."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    try:
+        if _rows is None:
+            import river_stamp as _rvs
+            rep = _rvs.rows()
+            if not rep.get("ok"):
+                return None
+            _rows = rep.get("rows") or []
+    except Exception:
+        return None
+    last = {}
+    for r in _rows:
+        last[str(r.get("reel"))] = r
+    by = {}
+    for r in last.values():
+        st = str(r.get("station"))
+        if st not in _RIVER_OWNER:
+            continue
+        try:
+            age = max(0.0, (now - int(r.get("at"))) / 1000.0)
+        except (TypeError, ValueError):
+            continue
+        if age < RIVER_STUCK_AFTER_S:
+            continue
+        e = by.setdefault(st, {"station": st, "n": 0, "oldestS": 0})
+        e["n"] += 1
+        e["oldestS"] = max(e["oldestS"], int(age))
+    out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
+    for e in out:
+        e["why"] = _river_stuck_why(e["station"])[:200]
     return out
 
 

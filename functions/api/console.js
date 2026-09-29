@@ -373,6 +373,29 @@ export async function onRequestPost(context) {
           }
         }
         out.river = { lanes: lanes, ageS: num(rv.ageS, DAY400), why: txt(rv.why, 200), triage: tri };
+        /* #74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THAT PC, AND WHY; AND WHETHER IT HAS PROVED ITSELF.
+           His ask 2026-09-29: see Dean's river from his own console. Shaped like everything above: station keys
+           from the router's vocabulary, counts and ages clamped, the lane's sentence capped and scrubbed. `stuck`
+           null (the console could not read its stamp log) stays null - never an empty "flowing" list; absent
+           stays absent, so an older console stores exactly what it stored before. */
+        if (Array.isArray(rv.stuck)) {
+          out.river.stuck = rv.stuck.slice(0, 6).map(function (e) {
+            if (!e || typeof e !== 'object') return null;
+            const st = String(e.station || '');
+            if (!/^[A-Z][A-Z_]{0,23}$/.test(st)) return null;
+            return { station: st, n: whole(e.n, 100000), oldestS: num(e.oldestS, DAY400), why: txt(e.why, 200) };
+          }).filter(Boolean);
+        } else if (rv.stuck === null) {
+          out.river.stuck = null;
+        }
+        if (rv.heart && typeof rv.heart === 'object') {
+          const hc = String(rv.heart.census == null ? '' : rv.heart.census);
+          out.river.heart = {
+            census: ['current', 'stale', 'missing', 'unreadable', 'unknown'].indexOf(hc) >= 0 ? hc : null,
+            key: key(rv.heart.key),
+            blind: whole(rv.heart.blind, 10000),
+          };
+        }
       }
       return out;
     })(body.system),
