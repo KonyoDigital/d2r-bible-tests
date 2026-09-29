@@ -102,6 +102,15 @@ as `selfProve` in /api/status, and has a doctor row naming any BLIND instrument 
 recording spawn, `tree_state` on a real temporary git repo, the process probe, heart2 driven as Windows.
 6 red-proofs, all seen RED by hand (the 6th: an update during a proof is not a failure).
 
+**Second eye (Grok CLI, cold) on `decide`/`tick` - 3 real, fixed, red-proved; the rest rejected with
+reasons:** a save that failed right after a spawn made the next tick forget the running proof and start
+a SECOND prover (the pid is now also held in-process); `tick` promised never to raise but a corrupted
+memory file raised on every tick (now wrapped, every conversion defensive); a NaN load reading passed
+the idle check (now UNKNOWN). Rejected: pid 0 / a failure time of 0 / "installed with local commits" -
+states this code never produces (`tree_state` answers `dev` for an unpushed commit). The review of
+`_bring_across` and the Windows tree lock timed out THREE times (3.2-30 KB prompts) - those two are
+UNAUDITED by a second eye, and are covered only by their laws and red-proofs. 9 red-proofs, all RED.
+
 ### REG-1446 - A REEL AT PRINTER WAITED FOR A SEAL NOTHING WOULD WRITE (2026-09-29)
 
 **Found** on the ALT (#50): 25 reels at PRINTER ("N name(s) read and the session carries no seal")

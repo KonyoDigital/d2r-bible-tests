@@ -125,6 +125,39 @@ class TheTickEndToEnd(unittest.TestCase):
                                                 "backoff instead of proving the new gates")
         self.assertEqual(r["key"], "start")
 
+    def test_a_lost_save_never_starts_a_second_prover(self):
+        """second eye: if saving fails right after a spawn, the next tick must still know a proof runs."""
+        from unittest import mock
+        alive = {"pid": None}
+
+        def _spawn_live(log_path):
+            self.spawned.append(log_path)
+            alive["pid"] = 4_242_424
+            return 4_242_424
+        SP._STARTED["pid"] = None
+        with mock.patch.object(SP, "save", side_effect=OSError("disk full")), \
+                mock.patch.object(SP, "pid_alive", lambda pid: pid == alive["pid"]):
+            SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
+                    spawn_fn=_spawn_live, env={})
+            r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
+                        spawn_fn=_spawn_live, env={})
+        SP._STARTED["pid"] = None
+        self.assertEqual(len(self.spawned), 1, "a failed save made the lane forget its running proof and "
+                                               "start a second one - a runaway every ten minutes")
+        self.assertEqual(r["key"], "running")
+
+    def test_a_corrupt_memory_or_load_never_raises_and_never_starts(self):
+        io.open(self.path, "w", encoding="utf-8").write(json.dumps({"worked": "x", "pid": 999_999_1,
+                                                                    "lastFailAt": "bad"}))
+        r = SP.tick(now_s=1000.0, busy=float("nan"), tree=INSTALLED, census=CURRENT, path=self.path,
+                    spawn_fn=self._spawn, env={})
+        self.assertEqual(self.spawned, [])
+        self.assertIn("key", r)
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, float("nan"), {}, 1.0)["key"], "load-unknown",
+                         "a NaN load reading passed the idle check")
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, "5", {}, 1.0)["start"], True)
+        self.assertEqual(SP.decide(STALE, INSTALLED, None, "junk", {}, 1.0)["key"], "load-unknown")
+
     def test_an_unreadable_memory_is_unknown_and_starts_nothing(self):
         io.open(self.path, "w", encoding="utf-8").write("{not json")
         r = SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.path,
@@ -205,6 +238,27 @@ class TheConsoleAsks(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "2026-09-29 (second eye) - a failed save after a spawn makes the lane start a second prover",
+        "file": "tv/self_prove.py",
+        "find": "            _STARTED[\"pid\"] = mem[\"pid\"]\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (second eye) - a NaN load reading passes the idle check",
+        "file": "tv/self_prove.py",
+        "find": "    if busy_pct is None or busy_pct != busy_pct:",
+        "replace": "    if busy_pct is None:",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (second eye) - a corrupt lane memory makes every tick raise into the rescue loop",
+        "file": "tv/self_prove.py",
+        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env)\n    except Exception as e:\n",
+        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env)\n    except ZeroDivisionError as e:\n",
+        "matches": 1,
+    },
+    {
         "why": "2026-09-29 - an update during a proof is booked as a failure and the new gates wait 3 hours",
         "file": "tv/self_prove.py",
         "find": "        elif mem.get(\"startedFor\") and census.get(\"fingerprint\") != mem.get(\"startedFor\"):\n",
@@ -228,8 +282,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - a prover that failed is restarted every ten minutes, all day",
         "file": "tv/self_prove.py",
-        "find": "            and now_s - float(last_fail) < RETRY_AFTER_FAIL_S:\n",
-        "replace": "            and now_s - float(last_fail) < 0:\n",
+        "find": "            and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
+        "replace": "            and now_s - last_fail < 0:\n",
         "matches": 1,
     },
     {

@@ -197,8 +197,9 @@ GATES = [
              "PC answered 'the heart has never run here' and every self-arming lock stayed shut. An INSTALLED "
              "console (clean, at origin) with an absent or stale census now proves itself in the background - "
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
-             "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. "
-             "6 red-proofs"),
+             "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
+             "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "
+             "9 red-proofs"),
     Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
          os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
          why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "

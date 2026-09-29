@@ -210,13 +210,20 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True):
     if kind != "installed":
         return {"start": False, "key": "dev" if kind == "dev" else "tree-unknown",
                 "why": "not proving here: %s" % twhy}
-    last_fail = mem.get("lastFailAt")
-    if last_fail and mem.get("lastFailFingerprint") == (census or {}).get("fingerprint") \
-            and now_s - float(last_fail) < RETRY_AFTER_FAIL_S:
+    try:
+        last_fail = float(mem.get("lastFailAt")) if mem.get("lastFailAt") is not None else None
+    except (TypeError, ValueError):
+        last_fail = now_s                                  # an unreadable failure time backs off, never races
+    if last_fail is not None and mem.get("lastFailFingerprint") == (census or {}).get("fingerprint") \
+            and now_s - last_fail < RETRY_AFTER_FAIL_S:
         return {"start": False, "key": "backoff",
                 "why": "the last proof for these gates ended without a census (%s); retrying after %d h"
                        % (mem.get("lastFailWhy") or "?", RETRY_AFTER_FAIL_S // 3600)}
-    if busy_pct is None:
+    try:
+        busy_pct = None if busy_pct is None else float(busy_pct)
+    except (TypeError, ValueError):
+        busy_pct = None
+    if busy_pct is None or busy_pct != busy_pct:          # None, junk, or NaN: UNKNOWN, never idle
         return {"start": False, "key": "load-unknown",
                 "why": "how busy this machine is could not be measured - a proof is not started on a guess"}
     if busy_pct >= MAX_BUSY_TO_START:
@@ -254,20 +261,46 @@ def spawn(log_path, python=None, workers=1, popen=None):
     return p.pid
 
 
+#: ⚠ second eye (Grok, 2026-09-29): the pid of a proof THIS process started, kept in memory too. If saving
+#: the lane's store failed right after a spawn, the next tick read no pid and started a SECOND prover - and
+#: another every ten minutes after that. The store is the record; this is the backstop.
+_STARTED = {"pid": None}
+
+
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None):
-    """One pass of the lane. Never raises. -> the lane's status in the shared vocabulary."""
+    """One pass of the lane. NEVER raises - it runs inside the rescue loop that also watches whether the
+    console can still answer its own port. -> the lane's status in the shared vocabulary."""
+    try:
+        return _tick(now_s, busy, tree, census, path, spawn_fn, env)
+    except Exception as e:
+        return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
+                "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
+
+
+def _int(v):
+    try:
+        return int(v or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _tick(now_s, busy, tree, census, path, spawn_fn, env):
     now_s = time.time() if now_s is None else now_s
     mem = load(path)
     if mem.get("unreadable"):
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "store-unreadable",
                 "say": "the self-prove lane's memory would not read (%s) - UNKNOWN" % mem["unreadable"]}
     census = census_state() if census is None else census
+    if not isinstance(census, dict):
+        census = {"state": "unknown", "why": "the census reading was not a record"}
     pid = mem.get("pid")
+    if not pid and _STARTED["pid"] and pid_alive(_STARTED["pid"]):
+        pid = _STARTED["pid"]                              # the store lost it; this process did not
     running = pid if (pid and pid_alive(pid)) else None
     if pid and not running:
         # the proof we started has ended: did it leave a current census?
         if census.get("state") == "current":
-            mem.update(worked=int(mem.get("worked") or 0) + 1, lastTs=int(now_s * 1000),
+            mem.update(worked=_int(mem.get("worked")) + 1, lastTs=int(now_s * 1000),
                        lastOk=census.get("why"))
         elif mem.get("startedFor") and census.get("fingerprint") != mem.get("startedFor"):
             # the console UPDATED while it proved: the proof spoke for the old gates. Not a failure -
@@ -286,9 +319,10 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
         try:
             log_path = _store_path(path) + ".log"
             mem["pid"] = (spawn_fn or spawn)(log_path)
+            _STARTED["pid"] = mem["pid"]
             mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
-            mem["runs"] = int(mem.get("runs") or 0) + 1
+            mem["runs"] = _int(mem.get("runs")) + 1
         except Exception as e:
             d = {"start": False, "key": "spawn-failed", "why": "the prover would not start (%s)" % type(e).__name__}
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailWhy=d["why"])
@@ -298,7 +332,7 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
     except Exception:
         pass
     st = census.get("state")
-    return {"on": on, "worked": int(mem.get("worked") or 0), "lastTs": mem.get("lastTs"),
+    return {"on": on, "worked": _int(mem.get("worked")), "lastTs": mem.get("lastTs"),
             "owed": (0 if st == "current" else (None if st == "unknown" else 1)),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
             "running": bool(mem.get("pid"))}
