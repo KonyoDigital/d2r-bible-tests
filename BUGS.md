@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1456 - THE ANCESTOR-WALK LAW COULD ONLY TELL SPELLINGS APART BY CASE, WHICH WINDOWS ERASES (2026-09-29)
+
+**Found** by the Windows inventory: `test_agent[1]` BLIND - the sabotage `samefile(cur, b)` -> `cur == b`
+stayed green. Its "any volume" case told the two spellings apart only by CASE, and on Windows
+`_under`'s normcase fallback lowercases both, so the broken walk was rescued. **Fix:** a case whose two
+spellings differ by a LINK (`…/tvlink/…` is `…/tv`), which no normcase reconciles and only the
+filesystem (stubbed as samefile would answer) can see. The proof is RED with the new case on every OS.
+
 ### REG-1455 - A MISSING OWNER CLAIM HID HIS POPULATED BOARD, AND FROZE HIS CONSOLE ON OLD CODE (2026-09-29)
 
 **Found** chasing why his Mac console ran 10-hour-old server code under a push gate: `drift_may_relaunch`

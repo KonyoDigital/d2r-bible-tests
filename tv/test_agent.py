@@ -3765,6 +3765,27 @@ class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):
             self.assertFalse(tv._under("/elsewhere/hist", "/vol/tv"),
                              "premise: a path outside the tree must stay outside")
 
+    def test_a_LINKED_ancestor_is_his_tree_on_ANY_volume(self):
+        """#50 (REG-1456) - the case above could not go red on WINDOWS: its only difference between the two
+        spellings is CASE, and on Windows `_under`'s normcase fallback lowercases both, so the sabotaged
+        walk (`cur == b`) was rescued and the proof read BLIND on the ALT. A LINK is the spelling
+        difference no normcase can reconcile and only the filesystem can see - `tvlink` IS `tv` - so this
+        judges the walk on every OS. The stubbed filesystem answers for the link the way samefile would."""
+        import tv_diablo as tv
+        import unittest.mock as _mock
+
+        def _canon(x):
+            return os.path.normcase(os.path.normpath(x)).replace("tvlink", "tv")
+        _same = lambda p, q: _canon(p) == _canon(q)
+        root = os.path.join(os.sep, "vol", "tv")
+        linked = os.path.join(os.sep, "vol", "tvlink", "frames", "hist")
+        with _mock.patch("os.path.exists", lambda p: True), _mock.patch("os.path.samefile", _same):
+            self.assertTrue(tv._under(linked, root),
+                            "a path reached through a LINK to his tree was called a fixture - the "
+                            "ancestor walk compared spellings instead of asking the filesystem")
+            self.assertFalse(tv._under(os.path.join(os.sep, "vol", "other", "hist"), root),
+                             "premise: a path outside the tree must stay outside")
+
     def test_his_real_hist_is_his_tree(self):
         if not os.path.isdir(self.hist):
             self.skipTest("his frames dir is not on this machine")
