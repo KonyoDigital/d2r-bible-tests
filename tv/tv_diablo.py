@@ -42,6 +42,10 @@ try:
     _win_quiet.install()
 except Exception:
     pass
+# #83 (REG-1515) — THE CHILD SUPERVISOR. Every warm reader and the OCR worker is spawned and ended through one
+# door that ends the role's previous tree first (Windows: a Job Object with KILL_ON_JOB_CLOSE; POSIX: its own
+# session + killpg) and refuses a SECONDARY worker while free RAM is under a floor. See tv/child_guard.py.
+import child_guard as _child_guard
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -4196,18 +4200,30 @@ def _pipe_write_by(proc, data, deadline):
         return False
 
 
-def _bury_worker(p):
+def _bury_worker(p, role=None):
     """Kill a worker whose write never landed and close its pipes OFF the caller's thread.
 
     stop() closes stdin on the caller's thread, and closing a stream another thread is still
     blocked writing to waits on that writer's lock - so a child whose pipe outlives it (a
-    grandchild holding the read end) would move the hang into stop() instead of ending it."""
+    grandchild holding the read end) would move the hang into stop() instead of ending it.
+
+    #83 — with a `role`, the door ends the WHOLE tree first (job / process group) and forgets the
+    role: `p.kill()` alone ended a deaf claude's head and left its node helpers - the very grandchild
+    holding the read end that the paragraph above is about. The wait below still reaps the head."""
     if not p:
         return
-    try:
-        p.kill()
-    except Exception:
-        pass
+    ended = False
+    if role:
+        try:
+            _child_guard.end(role, proc=p, wait_s=0)
+            ended = True
+        except Exception:
+            ended = False
+    if not ended:
+        try:
+            p.kill()
+        except Exception:
+            pass
 
     def _bury(pr):
         try:
@@ -4227,11 +4243,39 @@ def _bury_worker(p):
         pass
 
 
+_VISION_ROLE_N = [0]     # #83 — each VisionWorker without a name takes the next "vision-r<n>" role
+
+
+def _stop_worker_process(role, p, wait_s=2.0):
+    """#83 — ONE stop for both worker classes. The door ends the WHOLE tree (job / process group), waits `wait_s`
+    for it, and hands a survivor to a reaper thread; then the pipes are closed.
+
+    v2352's lesson lives inside the door now: a swallowed wait() timeout was a zombie for ever (20 <defunct>
+    children after 20 h, measured), and the block that fixed it existed TWICE, in two worker classes, and both
+    leaked. [[copy-drift]] — one routine, one home."""
+    try:
+        _child_guard.end(role, proc=p, wait_s=wait_s)
+    except Exception:
+        pass
+    for stream in (p.stdin, p.stdout, p.stderr):
+        try:
+            if stream:
+                stream.close()
+        except Exception:
+            pass
+
+
 class VisionWorker:
-    def __init__(self, model=None):
+    def __init__(self, model=None, role=None):
         # v720.1 — lock: warm thread + settle-read must never interleave on one stream
         self.model = model or FAST_MODEL
         self.p = None; self.q = None; self.turns = 0; self.lock = threading.Lock()
+        # #83 — the ROLE this worker's claude holds at the child_guard door: one process per role, ever. The pool's
+        # readers are vision-r0..vision-r<n>; the stall-drain reader names itself vision-stall.
+        if role is None:
+            role = "vision-r%d" % _VISION_ROLE_N[0]
+            _VISION_ROLE_N[0] += 1
+        self.role = role
     def _spawn(self):
         import queue
         env, stripped = _claude_env()
@@ -4241,7 +4285,9 @@ class VisionWorker:
         hist = os.path.join(FRAMES, "hist")
         if os.path.isdir(hist):
             add.append(hist)
-        self.p = subprocess.Popen(
+        # #83 — through the door: the role's previous claude (and every helper it spawned) is ended first, the new
+        # one leads its own session (POSIX) or job (Windows), and the record says which pid this role holds.
+        self.p = _child_guard.spawn(self.role,
             _claude_lean_args(self.model, stream=True, add_dirs=add),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, encoding="utf-8", errors="replace", bufsize=1, env=env, cwd=_VISION_CWD,
@@ -4259,31 +4305,7 @@ class VisionWorker:
         self.p = None
         if not p:
             return
-        try:
-            if p.poll() is None:
-                p.kill()
-            try:
-                p.wait(timeout=2)
-            except Exception:
-                # v2352 — A SWALLOWED wait() TIMEOUT IS A ZOMBIE FOR EVER. If the child has not
-                # died 2s after SIGKILL (uninterruptible IO, a stuck read), this used to `pass`
-                # and nothing ever collected the exit status again. Hand it to a thread that
-                # waits without a deadline: the caller keeps its 2s bound and the kernel still
-                # gets its wait(). Measured on his console: 20 <defunct> children after 20h.
-                # ⚠ THIS BLOCK EXISTS TWICE, in two different worker classes, and both leaked.
-                try:
-                    threading.Thread(target=(lambda pr: pr.wait()), args=(p,), daemon=True,
-                                     name="reap-warm-child").start()
-                except Exception:
-                    pass
-            for stream in (p.stdin, p.stdout, p.stderr):
-                try:
-                    if stream:
-                        stream.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        _stop_worker_process(self.role, p)
     def ask(self, prompt, timeout=75):
         """one turn → the result text, or None (caller falls back to one-shot). Serialized."""
         blocked = _sub_budget_check("warm")
@@ -4302,7 +4324,7 @@ class VisionWorker:
                 deadline = time.monotonic() + timeout
                 if not _pipe_write_by(self.p, json.dumps(msg) + "\n", deadline):
                     p, self.p = self.p, None
-                    _bury_worker(p)     # not draining its input - never reuse it
+                    _bury_worker(p, role=self.role)     # not draining its input - never reuse it; #83 the whole tree
                     return None
                 # v1200 — monotonic, not wall-clock: this deadline is the LITERAL enforcement of
                 # LIVE_READ_TIMEOUT_S, the Master Brain law rounds 1-4 all protected from other
@@ -4377,6 +4399,12 @@ else:
     POOL_N = 1
 ORDER_HOLD_MS = max(5000, int(os.environ.get("TV_ORDER_HOLD_MS", "20000" if not ROBOT_MODE else "45000") or 20000))
 _WORKERS = [_WORKER] + [VisionWorker() for _ in range(max(0, POOL_N - 1))]
+# #83 — tell the door how many live readers this agent may hold, so the console's census (which reads this
+# agent's ledger) grades vision against POOL_N and not against the default ceiling of one.
+try:
+    _child_guard.expect("vision", 0, POOL_N)
+except Exception:
+    pass
 _pool_lock = threading.Lock()
 _pool_free = list(range(POOL_N))   # reader ids currently idle
 _in_flight = {}                    # job_id -> {readerId, captureTs, sig, origin, startedAt}
@@ -4493,8 +4521,38 @@ def _stall_worker():
     with the live reader pool, so a hung live subprocess can't also silence this one."""
     global _STALL_WORKER
     if _STALL_WORKER is None:
-        _STALL_WORKER = VisionWorker()
+        _STALL_WORKER = VisionWorker(role="vision-stall")
     return _STALL_WORKER
+
+
+#: #83 — the stall reader's releases: how many times it let its claude go after a sweep, and when.
+_STALL_RELEASE = {"n": 0, "lastTs": None, "say": "the stall reader has not swept yet"}
+
+
+def _stall_worker_release(worker=None):
+    """#83 — MEMORY-AWARE: after each stall-drain sweep the dedicated reader lets its claude process go instead of
+    staying warm. -> True when a process was ended.
+
+    A warm `claude -p` is ~400 MB (measured on his PC), and the stall reader is a SAFETY NET that fires once in a
+    long while - keeping it warm between sweeps was ~400 MB held for nothing beside the live pool's own reader(s),
+    on the machine where dwm.exe died of memory exhaustion (REG-1502). The next sweep pays a cold start (~6-16 s)
+    against a backlog that by definition has already waited STALL_DRAIN_S; the sweep still fires, it does not
+    fire warm. ask() re-spawns on its own (`self.p is None`), so nothing else needs to know."""
+    w = worker if worker is not None else globals().get("_STALL_WORKER")
+    if w is None or getattr(w, "p", None) is None:
+        return False
+    try:
+        w.stop()
+    except Exception:
+        return False
+    _STALL_RELEASE["n"] = int(_STALL_RELEASE.get("n") or 0) + 1
+    _STALL_RELEASE["lastTs"] = int(time.time() * 1000)
+    _STALL_RELEASE["say"] = "the stall reader released its claude after sweep #%d (memory)" % _STALL_RELEASE["n"]
+    try:
+        ev("cap", _STALL_RELEASE["say"])
+    except Exception:
+        pass
+    return True
 
 
 def _live_stall_ms():
@@ -4508,7 +4566,7 @@ def _live_stall_ms():
 
 
 def _stall_drain_decision(backlog_len, in_flight_n, pool_n, stall_ms, stall_busy,
-                           enabled=True, threshold_ms=None):
+                           enabled=True, threshold_ms=None, ram_ok=True):
     """PURE decision (Grok P1-4 pin target) — fire the parallel stall-drain sweep only when:
       • the feature is enabled;
       • the backlog actually has something piling up (backlog_len > 0);
@@ -4516,7 +4574,11 @@ def _stall_drain_decision(backlog_len, in_flight_n, pool_n, stall_ms, stall_busy
         '< POOL_N' idle-gap sweep already covers it, no need for a second worker;
       • the oldest in-flight read has been running >= threshold_ms — a genuine stall, not an
         ordinary 9-15s named read;
-      • no stall-sweep is already running (bounded to exactly one parallel sweep at a time).
+      • no stall-sweep is already running (bounded to exactly one parallel sweep at a time);
+      • #83 — `ram_ok`: free RAM clears the floor (child_guard.secondary_spawn_allowed). A bool, or a
+        callable asked LAST so the meter is only read once every other gate has opened - this runs on
+        every busy tick. The stall reader is a second ~400 MB claude; it does not start into the memory
+        pressure that killed dwm.exe.
     """
     if not enabled:
         return False
@@ -4527,7 +4589,13 @@ def _stall_drain_decision(backlog_len, in_flight_n, pool_n, stall_ms, stall_busy
     if in_flight_n < pool_n:
         return False
     thr = (STALL_DRAIN_S * 1000.0) if threshold_ms is None else float(threshold_ms)
-    return float(stall_ms) >= thr
+    if float(stall_ms) < thr:
+        return False
+    if callable(ram_ok):
+        ram_ok = ram_ok()
+    if not ram_ok:
+        return False
+    return True
 
 
 def _stall_drain_ready():
@@ -4539,6 +4607,7 @@ def _stall_drain_ready():
         stall_ms=_live_stall_ms(),
         stall_busy=globals().get("_STALL_BUSY", False),
         enabled=os.environ.get("TV_STALL_DRAIN", "1") != "0",
+        ram_ok=lambda: _child_guard.secondary_spawn_allowed()[0],      # #83 — asked last, cached 5 s
     )
 
 
@@ -5094,7 +5163,17 @@ class OcrWorker:
             if not cmd:
                 self.ok = False
                 return False
-            self.p = subprocess.Popen(
+            # #83 — a SECONDARY worker never starts into memory pressure: under the floor the fast lane stays
+            # off for this ask (deep lane only) and says why once; ask() tries again on its next call.
+            _ram_ok, _ram_why = _child_guard.secondary_spawn_allowed()
+            if not _ram_ok:
+                self.ok = False
+                if not globals().get("_OCR_RAM_SAID"):
+                    globals()["_OCR_RAM_SAID"] = True
+                    ev("cap", "ocr worker not started: " + _ram_why)
+                return False
+            globals()["_OCR_RAM_SAID"] = False
+            self.p = _child_guard.spawn("ocr",
                 cmd,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, encoding="utf-8", errors="replace", bufsize=1)
@@ -5120,38 +5199,11 @@ class OcrWorker:
         self.ok = False
         if not p:
             return
-        try:
-            if p.poll() is None:
-                # ⚠ #224 — NO `quit\n` WRITE HERE ANY MORE. It had no deadline and was overridden by the
-                # kill on the very next line, so it bought nothing and could hang the caller on a full
-                # pipe — and the caller is now every os.execv relaunch (exec_hygiene.quiesce_before_exec).
-                # The kill is the stop; the wait below collects it.
-                try:
-                    p.kill()
-                except Exception:
-                    pass
-            try:
-                p.wait(timeout=2)
-            except Exception:
-                # v2352 — A SWALLOWED wait() TIMEOUT IS A ZOMBIE FOR EVER. If the child has not
-                # died 2s after SIGKILL (uninterruptible IO, a stuck read), this used to `pass`
-                # and nothing ever collected the exit status again. Hand it to a thread that
-                # waits without a deadline: the caller keeps its 2s bound and the kernel still
-                # gets its wait(). Measured on his console: 20 <defunct> children after 20h.
-                # ⚠ THIS BLOCK EXISTS TWICE, in two different worker classes, and both leaked.
-                try:
-                    threading.Thread(target=(lambda pr: pr.wait()), args=(p,), daemon=True,
-                                     name="reap-warm-child").start()
-                except Exception:
-                    pass
-            for stream in (p.stdin, p.stdout, p.stderr):
-                try:
-                    if stream:
-                        stream.close()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # ⚠ #224 — NO `quit\n` WRITE HERE ANY MORE. It had no deadline and was overridden by the kill on the
+        # very next line, so it bought nothing and could hang the caller on a full pipe — and the caller is now
+        # every os.execv relaunch (exec_hygiene.quiesce_before_exec). The kill is the stop; the door collects it.
+        # #83 — the same stop as VisionWorker's (v2352's block existed twice and both leaked): one routine.
+        _stop_worker_process("ocr", p)
 
     def read(self, path, timeout=1.2):
         """Return {ms, lines, confs, mode} or None. Never raises into the scan loop."""
@@ -5170,7 +5222,7 @@ class OcrWorker:
                 deadline = time.monotonic() + timeout
                 if not _pipe_write_by(self.p, ap + "\n", deadline):
                     p, self.p = self.p, None
-                    _bury_worker(p)     # not draining its input - never reuse it
+                    _bury_worker(p, role="ocr")     # not draining its input - never reuse it; #83 the whole tree
                     return None
                 while time.monotonic() < deadline:
                     try:
@@ -7782,6 +7834,7 @@ def main():
                     _VISION_BUSY = len(_in_flight) >= 1
                 if rid_override is not None:
                     globals()["_STALL_BUSY"] = False
+                    _stall_worker_release()     # #83 — the stall reader lets its ~400 MB claude go after each sweep
                 _AP["mode"] = "drive"
                 beat("watching", 0.0)
                 try:

@@ -2363,5 +2363,19 @@
     "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
     "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
     "territory": "vault"
+  },
+  "child_guard.py": {
+    "entryPoints": [
+      "spawn",
+      "end",
+      "census",
+      "watchdog_tick",
+      "free_ram_mb",
+      "secondary_spawn_allowed",
+      "status"
+    ],
+    "gotcha": "spawn(role, argv) ENDS the role's previous tree first (verified by pid + creation time; a reused pid is dropped, never killed) and waits a bounded END_WAIT_S - a role holds one process, ever. Windows children go into a Job Object with KILL_ON_JOB_CLOSE (ctypes), POSIX children lead their own session (killpg); the Mac AGENT must not come through it (v779, the Screen Recording TCC chain). The birth reader never spawns a subprocess (sysctl / /proc / GetProcessTimes): a `ps` here was counted as a capture by every console law that stubs subprocess.Popen. UNKNOWN free RAM never refuses a spawn.",
+    "purpose": "#83 (REG-1515) the child supervisor: one spawn door per role (capture, vision readers, the stall reader, OCR) that ends the previous instance's whole tree before starting the next, a per-parent ledger so a restarted console ends its dead predecessor's children, a rescue-loop watchdog for unrecorded processes of known roles, a census by family for the doctor's one_of_each row, and the memory floor under which no secondary worker starts.",
+    "territory": "heart-organs"
   }
 }

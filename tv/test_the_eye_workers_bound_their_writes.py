@@ -236,8 +236,10 @@ RED_PROOF = [
     {
         "why": "REG-1300 - a dropped deaf worker is left running: one leaked child per wedge",
         "file": "tv_diablo.py",
-        "find": "    try:\n        p.kill()\n    except Exception:\n        pass\n\n    def _bury(pr):\n",
-        "replace": "    try:\n        pass\n    except Exception:\n        pass\n\n    def _bury(pr):\n",
+        # #83 - a buried worker now goes through the child_guard door (the whole tree); the tamper skips the door
+        # AND marks it ended, so the head's own kill is skipped too - the worker is dropped and left running
+        "find": "            _child_guard.end(role, proc=p, wait_s=0)\n            ended = True\n",
+        "replace": "            ended = True\n",
         "matches": 1,
     },
 ]

@@ -56,6 +56,7 @@ except Exception:
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import control_app as ca  # noqa: E402
+import child_guard as _cg  # noqa: E402  - #83: the spawn door the capture now goes through
 
 
 class _FakeProc(object):
@@ -100,8 +101,17 @@ class _World(unittest.TestCase):
         self.log = io.StringIO()
         self.saved = (ca._capture_proc, dict(ca._CAP_STOP), dict(ca._CAP_SWEEP))
         ca._capture_proc = None
+        # #83 — the door remembers the capture the PREVIOUS case spawned (a fake whose poll() says alive for ever),
+        # and would end it - through the unstubbed taskkill, which the patched Popen then counts as a spawn. Each
+        # case starts with an empty door and its own ledger dir; never the process's real one.
+        self.cg_saved = (_cg.LEDGER_DIR, dict(_cg._LIVE))
+        _cg._LIVE.clear()
+        _cg.LEDGER_DIR = os.path.join(self.d, "child_guard")
 
     def tearDown(self):
+        _cg._LIVE.clear()
+        _cg._LIVE.update(self.cg_saved[1])
+        _cg.LEDGER_DIR = self.cg_saved[0]
         ca._capture_proc = self.saved[0]
         ca._CAP_STOP.clear()
         ca._CAP_STOP.update(self.saved[1])
