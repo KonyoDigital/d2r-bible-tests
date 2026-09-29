@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1502 - FIVE CAPTURE SCRIPTS AT ONCE: DWM DIED OF MEMORY EXHAUSTION AND TOOK HIS BOOSTEROID WITH IT (2026-09-29)
+
+**His report:** *"my boosteroid app keeps crashing on me! something is related to the console i think"*.
+**Measured on the ALT over SSH, 15:18:** Boosteroid restarted 3 min earlier; RAM free 690 MB of 7.9 GB; Windows logged
+a low-virtual-memory condition every ~5 min since 14:14; `dwm.exe` crashed 8 times since 14:21 with `0xc00001ad`
+(fatal memory exhaustion); Boosteroid hung (14:51, AppHangB1) and crashed (15:15). Running: **five** `capture_win.ps1`
+- four children of one console (10:23, 10:44, 14:31, 14:42) and one from the day before (22,052 s CPU) - each
+PrintWindow-ing the Boosteroid window every 400 ms; the console itself was already gone. Also running: MY OWN
+`heart_full.py` Windows inventory from 10:27 (see the memory note - a separate safeguard).
+**Why the console leaked them:** `_stop_capture` ran `taskkill` and threw its result away, then deleted the pid file,
+so a kill that did not land left a capture nothing remembered; `_start_capture`'s "already running?" check and its
+pid write were not atomic; and Windows does not end a dead console's children.
+**Fix (every PC, Dean's included, on its next update):**
+- `capture_win.ps1` polices itself: the console's pid file is its LEASE - it leaves within ~2 s when the lease is
+  withdrawn (stop), handed to another pid (a newer capture), or its console (`TV_CONSOLE_PID`) is gone. Driven on the
+  ALT's Windows PowerShell 5.1: 7/7.
+- the spawn is one at a time (`_CAP_START_LOCK`); `taskkill` is bounded (15 s); a stop checks its kill landed and says
+  so on `/api/status` (`captureStop`) and the log.
+- once per boot a Windows console ends the capture scripts of THIS checkout whose console is gone (the old script has
+  no lease) - never one whose console lives, never its own; an unreadable process table ends nothing (UNKNOWN).
+- doctor row `one_capture`. Law `test_one_capture_per_console` - 9 cases (the PowerShell one runs where PowerShell
+  exists), 5 red-proofs all seen RED.
+
 ### REG-1501 - THE RESTORE HINT OFFERED ONE BACKUP FOR TWO DROPS THAT FELL AGAINST DIFFERENT ONES (2026-09-29)
 
 **Found** by the second eye (Grok CLI) on v3519 `11c3e2f5`, posted to #231 at 15:00 IDT. The doctor row 'a ledger store

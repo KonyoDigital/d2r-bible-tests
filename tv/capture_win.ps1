@@ -506,8 +506,43 @@ if ($mode -eq 'off' -or $mode -eq 'none') {
   exit 0
 }
 
+# REG-1502 - ONE CAPTURE PER CONSOLE, ENFORCED BY THE CAPTURE ITSELF. MEASURED 2026-09-29 on the ALT: FIVE of these
+# ran at once - four children of one console (started 10:23, 10:44, 14:31, 14:42) and one from the day before -
+# each PrintWindow-ing his Boosteroid window every 400 ms. dwm.exe died of memory exhaustion (0xc00001ad) eight
+# times in an hour and took Boosteroid with it. The console's stop is a taskkill whose result nobody read, so a kill
+# that did not land left a capture nobody remembered. So the script no longer trusts anyone to stop it: the console's
+# pid file is its LEASE. It leaves when the lease is withdrawn (stop), handed to another pid (a newer capture), or
+# when the console that started it is gone (a crash leaves a lease nobody will withdraw).
+$leasePath = Join-Path $here 'control_capture.pid'
+$consolePid = 0
+try { if ($env:TV_CONSOLE_PID) { $consolePid = [int]$env:TV_CONSOLE_PID } } catch { $consolePid = 0 }
+$bornAt = [DateTime]::UtcNow
+function Get-LeaseVerdict([string]$leaseFile, [int]$myPid, [int]$parentPid, [double]$ageS, [double]$graceS) {
+  # -> $null to keep filming, or the reason to leave. UNKNOWN (an unreadable lease) is never a reason to leave.
+  if ($parentPid -gt 0) {
+    $par = Get-Process -Id $parentPid -ErrorAction SilentlyContinue
+    if (-not $par) { return "the console that started me (pid $parentPid) is gone" }
+  }
+  if ($ageS -lt $graceS) { return $null }      # the console writes the lease just after it spawns us
+  if (-not (Test-Path -LiteralPath $leaseFile)) { return 'the console withdrew my lease (it stopped the capture)' }
+  $raw = $null
+  try { $raw = ([System.IO.File]::ReadAllText($leaseFile)).Trim() } catch { return $null }
+  $holder = 0
+  if (-not [int]::TryParse($raw, [ref]$holder)) { return $null }
+  if ($holder -ne $myPid) { return "a newer capture holds the lease (pid $holder)" }
+  return $null
+}
+
 while ($true) {
   $loopN++
+  if (($loopN % 5) -eq 1) {
+    $why = Get-LeaseVerdict $leasePath $PID $consolePid (([DateTime]::UtcNow - $bornAt).TotalSeconds) 15
+    if ($why) {
+      Write-Host ("  capture pid $PID leaving: " + $why)
+      Write-Stage ("left:" + $why)
+      exit 0
+    }
+  }
   try {
     Set-Content -LiteralPath (Join-Path $frames 'capture_heartbeat.txt') -Value ("n={0} t={1}" -f $loopN, [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -Encoding UTF8
   } catch {}
