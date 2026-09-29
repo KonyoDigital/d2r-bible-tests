@@ -84,6 +84,12 @@ def _no_comments(src):
 
 UI_CODE = _no_comments(UI)
 
+#: the one-river flow's opening line (REG-1480): the window is the console's, with a fallback the
+#: river law pins to reel_retention.KEEP_RECENT. The 8 it replaced was his 2026-09-15 ruling; 16 is
+#: his 2026-09-29 one, and neither number is typed into this law.
+RIVER_LINE = ("var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) "
+              "? SHELF_RIVER_KEEP : ")
+
 
 class TheRiverReadsAsFourLanes(unittest.TestCase):
 
@@ -193,7 +199,12 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
                              "river: 'all these anyways need to end up unified in one section'. "
                              "If that is being reversed deliberately, retire this law in the same "
                              "commit rather than leaving it to fail." % gone)
-        self.assertIn("var RIVER_KEEP = 8;", blk,
+        # 2026-09-29 (REG-1433 / REG-1480) — the flow's window used to be the literal 8 of his
+        # 2026-09-15 ruling ("only the last 8 sessions stay"); it is now the console's
+        # (reel_retention.KEEP_RECENT, 16: "instead of 8 last reels it reads 16"), read off
+        # /api/river with a fallback the river law pins. This law asks only that the ONE flow
+        # exists, in the shape that reads the console's window.
+        self.assertIn(RIVER_LINE, blk,
                       "the one-river flow is gone and nothing replaced it")
         print("no per-station section builder; the single river flow is present")
 
@@ -213,7 +224,7 @@ RED_PROOF = [
                'exist and the per-station section builder must not come back. Deleting the flow '
                'must turn the gate red',
         "file": 'control_ui.html',
-        "find": 'var RIVER_KEEP = 8;',
+        "find": "var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) ? SHELF_RIVER_KEEP : 16;",
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

@@ -96,6 +96,11 @@ function hostTabs(){ var h = modalHtml() || '', re = /role="tab" class="cb-tab( 
   while ((m = re.exec(h))) o.push(m[4] + (m[1] ? '*' : '') + (m[2] ? '(off)' : '')); return o; }
 function listIds(){ var h = modalHtml() || '', re = /class="cb-opt cb-c-[a-z]+" data-id="([^"]+)"/g, m, o = []; while ((m = re.exec(h))) o.push(unesc(m[1])); return o; }
 function itemId(n, q){ var h = null; window._cbDb().it.forEach(function(x){ if (x[1] === n && (!q || x[2] === q)) h = x[0]; }); return h; }
+/* #41 rank 6 — the art the DOLL's slot drew: the aria-label of the .d2art-wrap INSIDE the slot button (artOr's stub
+   names the art it was asked for). Read off the slot's own markup, never off _cbArtName, which is the half already proven. */
+function slotArt(slot){ var h = box.innerHTML, i = h.indexOf('data-slot="' + slot + '"'); if (i < 0) return null;
+  var b = h.slice(h.lastIndexOf('<button', i), h.indexOf('</button>', i)), a = /d2art-wrap[^>]*aria-label="([^"]*)"/.exec(b);
+  return a ? unesc(a[1]) : null; }
 function slotEl(slot, name){
   var art = { getAttribute: function(k){ return k === 'aria-label' ? name : null; } };
   var el = { nodeType: 1, getAttribute: function(k){ return k === 'data-slot' ? slot : null; }, hasAttribute: function(){ return false; },
@@ -410,7 +415,55 @@ class AMainLockedItemNeverLandsOnAMule(unittest.TestCase):
         self.assertIsNone(out["eq"], "a refused locker pick still wrote d2r_muleEquip")
 
 
+@unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
+class TheDollDrawsTheBase(unittest.TestCase):
+    """#41 rank 6 (2026-09-29, REG-1482) — HALF OF #248 WAS UNGUARDED. `_cbArtName` was proven in isolation
+    (test_a_runeword_draws_its_base_and_a_unique_its_own_art) while the DOLL's own call site — the mule slot's
+    `art(... _cbArtName(e) ...)` in openMuleCard — was driven by no law: the auditor's scratch sabotage replaced it
+    with `e.name` and 11 node gates stayed green, so a runeword on the doll could draw its own name again (his
+    Last Wish sword, 2026-09-27) with every gate green. This places Last Wish from the database on a Thunder
+    Maul in a mule's right hand through the shipped picker, renders the mule card, and reads the art THE SLOT drew.
+    A unique beside it keeps its own art, so a fix that drew every slot as its base would fail here too."""
+
+    def test_a_runeword_on_the_dolls_slot_draws_its_base_and_a_unique_its_own_art(self):
+        out = _drive("""
+          var d = window._cbDb(), tm = null; Object.keys(d.b).forEach(function(c){ if (d.b[c][0] === 'Thunder Maul') tm = c; });
+          out.tm = tm;
+          window.openMuleCard('uni-armor'); window._mpPick('rarm'); window._cbQt('r');
+          out.chose = window._cbChoose(itemId('Last Wish', 'r')); out.tab = st().pick && st().pick.tab;
+          out.based = window._cbPickBase(tm);
+          out.rec = (eq()['uni-armor'] || {}).setI ? (eq()['uni-armor'].setI.rarm || null) : null;
+          window._mpPick(null);
+          out.rwArt = slotArt('rarm'); out.rwSay = (slotSay('rarm') || {}).say || '';
+          window._mpPick('head'); window._cbQt('u'); out.choseUni = window._cbChoose(itemId('Harlequin Crest', 'u'));
+          window._mpPick(null);
+          out.uniArt = slotArt('head');""")
+        # the fixture reached the doll — a case that cannot place the runeword measures nothing
+        self.assertTrue(out["tm"], "the fixture found no Thunder Maul base in CB_DB")
+        self.assertIs(out["chose"], True, "Last Wish was not offered for the right hand")
+        self.assertEqual(out["tab"], "base", "a runeword pick did not wait on its Base tab")
+        self.assertIs(out["based"], True, "Thunder Maul was refused as Last Wish's base")
+        r = out["rec"] or {}
+        self.assertEqual((r.get("name"), r.get("base"), r.get("q")), ("Last Wish", out["tm"], "r"),
+                         "the mule's right hand does not hold Last Wish on a Thunder Maul: %r" % (out["rec"],))
+        self.assertIn("Last Wish", out["rwSay"], "the slot's own label does not name the runeword")
+        # ★ the doll's call site: the picture is the BASE's, the name stays the runeword's
+        self.assertEqual(out["rwArt"], "Thunder Maul",
+                         "the doll drew %r for Last Wish on a Thunder Maul — the runeword's own name again, "
+                         "his 2026-09-27 sword. _cbArtName is right and the slot is not asking it." % out["rwArt"])
+        self.assertIs(out["choseUni"], True, "Harlequin Crest was not offered for the helm")
+        self.assertEqual(out["uniArt"], "Harlequin Crest", "a unique on the doll lost its own art")
+
+
 RED_PROOF = [
+    {
+        "why": "#41 rank 6 (REG-1482) - the DOLL's call site stops asking _cbArtName: a runeword on the doll draws its "
+               "own name's art again (his Last Wish sword) while the name function stays proven",
+        "file": "bible.html",
+        "find": "(e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name",
+        "replace": "e.name",
+        "matches": 1,
+    },
     {
         "why": "#248 - a runeword draws its own name's art again (Last Wish on a Thunder Maul: a sword)",
         "file": "bible.html",

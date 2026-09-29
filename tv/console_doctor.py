@@ -843,6 +843,7 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         bdir = bdir or _ca._LEDGER_BACKUP_DIR
         drops_path = drops_path or _ca._ledger_drops_path()
         _load = _ca.ledger_drops_load
+        import ledger_restore as _LR      # REG-1481 — which stores are hand-made, and their door
     except Exception as e:
         return UNKNOWN, ("the console's drop watcher will not import (%s), so whether a ledger "
                          "store dropped is UNKNOWN" % str(e)[:60])
@@ -895,8 +896,15 @@ def _check_no_ledger_store_dropped_unseen(bdir=None, drops_path=None, now=None):
         # "take every store from that one file" - a door that puts back none of what fell. The chronicle plan is
         # named only when a dropped store actually goes through it; a store with its own door leads with that door.
         _own_doors = ("owned", "rwMade", "gameFound")
-        _via_plan = [e for e in open_eps if e.get("store") not in _own_doors]
+        # REG-1481 — a hand-made store (his builds, his placements) has no API door at all; the FILE is
+        # the door, and sending him to the chronicle plan for it would put back none of what fell.
+        _hand = [e for e in open_eps if e.get("store") in _LR.HAND_MADE]
+        _via_plan = [e for e in open_eps if e.get("store") not in _own_doors and e.get("store") not in _LR.HAND_MADE]
         doors = []
+        for _e in _hand:
+            doors.append("RESTORE %s by hand: %s — the file is %s"
+                         % (_e.get("store"), _LR.HAND_MADE_DOOR.get(_e.get("store"), "no door is declared for it"),
+                            _e.get("beforeFile")))
         if _via_plan:
             doors.append("RESTORE: POST /api/ledger_restore_plan to see it, then /api/ledger_restore_apply "
                          "{\"confirm\": true} — the plan reads %s from the last backup BEFORE the drop (add "

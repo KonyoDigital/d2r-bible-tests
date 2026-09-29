@@ -64,7 +64,10 @@ class TheShelfShowsTheMouth(unittest.TestCase):
     def test_the_guard_can_find_the_river_section_builder(self):
         """⚠ A law that cannot find its subject passes having examined nothing."""
         # v3185 — the per-station section builder was replaced by the single river flow.
-        self.assertIn("var RIVER_KEEP = 8;", CODE,
+        # 2026-09-29 (REG-1480) — its window was the literal 8 of his 2026-09-15 ruling; it now reads
+        # the console's (reel_retention.KEEP_RECENT = 16, "instead of 8 last reels it reads 16") with
+        # a fallback the river law pins. This anchor is the line's SHAPE, never its number.
+        self.assertIn("var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number'", CODE,
                       "the river builder is gone or renamed — fix this guard first")
         self.assertIn("var _mouthHasRows = SHELF_MOUTH", CODE,
                       "the mouth no longer decides whether the ledger has rows to speak of")

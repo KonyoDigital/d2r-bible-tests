@@ -25109,7 +25109,16 @@ def _ledger_snapshot_once(force=False):
         if n < int(_want or 0):
             return (None, "%s came back truncated (%d of %s) - a partial ledger is not a backup"
                           % (k, n, _want))
-    if not force and _LEDGER_BACKUP_STATE.get("counts") == counts:
+    # REG-1481 (#41 rank 5) — HIS HAND-MADE STORES CHANGE WITHOUT THE LEDGER COUNTS MOVING. This compared
+    # the board's ledger counts alone, so a build wiped between two snapshots with nothing found in between
+    # produced NO snapshot — and the drop watcher only judges snapshots. Their counts ride beside the
+    # ledger's; a module that cannot be asked leaves them None on both sides, which changes nothing.
+    try:
+        import ledger_restore as _LRh
+        _hm = _LRh.hand_made_counts(got.get("fullStores"))
+    except Exception:
+        _hm = None
+    if not force and _LEDGER_BACKUP_STATE.get("counts") == counts and _LEDGER_BACKUP_STATE.get("handMade") == _hm:
         return (None, "unchanged since the last snapshot (%s)" % json.dumps(counts))
     try:
         if not os.path.isdir(_LEDGER_BACKUP_DIR):
@@ -25136,6 +25145,7 @@ def _ledger_snapshot_once(force=False):
                       fh, indent=1, ensure_ascii=False)
         _LEDGER_BACKUP_STATE["last"] = stamp
         _LEDGER_BACKUP_STATE["counts"] = counts
+        _LEDGER_BACKUP_STATE["handMade"] = _hm
         _LEDGER_BACKUP_STATE["writes"] = int(_LEDGER_BACKUP_STATE.get("writes") or 0) + 1
         _LEDGER_BACKUP_STATE["why"] = "wrote %s" % os.path.basename(out)
         try:
@@ -27793,6 +27803,26 @@ def _river_labels():
         return _rr.labels() if hasattr(_rr, "labels") else {}
     except Exception:
         return {}
+
+
+def _river_keep():
+    """The shelf's river window — reel_retention.KEEP_RECENT, published so the page never re-types it. -> int | None
+
+    2026-09-29 (REG-1480). His ruling (REG-1433): "instead of 8 last reels it reads 16". Three modules moved to 16
+    and THE SHELF's own `RIVER_KEEP = 8` did not, because nothing joined the page to the one source. /api/river now
+    carries this as `riverKeep`; control_ui.html reads it and keeps only a fallback, which a law pins to the same
+    constant. The CONSTANT, not keep_recent_for(): the shelf is a VIEW cap by his ruling, and the deleting pass's
+    under-pressure narrowing is retention's business, reported in the same header as "closed out".
+
+    ⚠ NEVER RAISES. None = the module could not be asked, which the page reads as UNKNOWN and answers with the
+    fallback — a route that dies because one number is unavailable would blank the whole river. [[unknown-stays-unknown]]
+    """
+    try:
+        import reel_retention as _rr
+        k = int(_rr.KEEP_RECENT)
+        return k if k >= 1 else None
+    except Exception:
+        return None
 
 
 def _river_vocab_facts():
@@ -38191,6 +38221,9 @@ class Handler(BaseHTTPRequestHandler):
                     # reel's position still comes only from its own reading evidence, and the mouth
                     # comes from the record of what retention actually did.
                     "mouth": river_mouth(),
+                    # REG-1480 — the river's window (reel_retention.KEEP_RECENT), so THE SHELF's FIFO
+                    # cap is the console's number and never a literal in the page. [[copy-drift]]
+                    "riverKeep": _river_keep(),
                     # ⚠ v3279 — THE RECONCILIATION TRAVELS WITH THE NUMBERS IT RECONCILES.
                     # v3278 built `reel_census` and joined it to the DOCTOR, which supervises it —
                     # but the confusion he reported ("Shelf shows 13, disk holds 20") happens ON
