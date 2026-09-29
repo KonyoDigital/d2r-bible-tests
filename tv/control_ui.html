@@ -20519,7 +20519,11 @@ window._lockMark = function(isOpen, px, label){
       if (!ev) return;
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;      /* Cmd/Ctrl+W must still close */
       if (ev.isComposing || ev.keyCode === 229) return;        /* mid-IME composition */
-      var k = ev.key; if (!k || k.toLowerCase() !== 'w') return;
+      /* 2026-09-29 — THE PHYSICAL KEY TOO. He types with a Hebrew layout on as often as not (his own messages
+         arrive half in Hebrew keys), and on that layout the W key's `key` is an apostrophe - so "W is
+         regressing again" was a shortcut that only ever listened for the English letter. `code` is the key's
+         place on the board, whatever layout is on. */
+      var k = ev.key; if (!k || (k.toLowerCase() !== 'w' && ev.code !== 'KeyW')) return;
       var t = ev.target || {};
       var tag = (t.tagName || '').toUpperCase();
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
