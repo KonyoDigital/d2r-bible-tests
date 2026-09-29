@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1444 - THE RENDER GATE'S SHELF PROOF COUNTED THE CARDS THE RIVER HID (2026-09-29)
+
+v3523's push was refused TWICE at the render gate (95 and 98 minutes in) on `shelf-cards`: "the panel could not be
+ACTIVATED after 30s ... cards found=34 PAINTED=16". The arrival proof counted every `.shc-hero, .shc-sess` in the grid,
+including the cards the river pushed out with `data-river-out` + `display:none` - a 0x0 rect forever - so the proof
+could never pass once the river had marked any card. It slipped through before only because the river marked late;
+alt-speed made plan() fast (REG-1411) and the marks now landed inside the 30 s window every time. The target's own
+`sel` already excluded them; the arrival proof now counts the same population. Standalone: green at all 6 widths.
+**Still open (next push):** the shelf's visible river is `RIVER_KEEP = 8` in control_ui.html - a FOURTH copy of the
+window that REG-1433's 16 did not reach, pinned by four laws written for the old "8" ruling.
+
 ### REG-1441 - THE SHELF SAID "NO REFUSAL" OVER A LANE WHOSE LAST TICK WAS ONE (2026-09-29)
 
 Found by the second eye on 60d4e07e (v3522's screens merge). `_shTriageLine` set a state for lastKey playing /

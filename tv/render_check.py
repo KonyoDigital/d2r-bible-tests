@@ -2505,7 +2505,14 @@ TARGETS = {
                [[the-unjoined-end]] [[label-outlived-referent]] */
             var _grid = ov.querySelector('.sh-grid');
             if (!_grid) return false;
-            var _cards = _grid.querySelectorAll('.shc-hero, .shc-sess');
+            /* ⚠ 2026-09-29 — ONLY THE CARDS THE RIVER KEPT. The river hides the ones it pushed out with
+               data-river-out + display:none, so their rect is 0x0 FOREVER: counting them made this proof
+               impossible whenever the river had marked any card - v3523's push was refused twice at 30s with
+               "cards found=34 PAINTED=16". It used to slip through only because the river marked late; once
+               plan() got fast the marks landed inside the window every time. `sel` above already excludes them;
+               this is the same population. */
+            var _cards = _grid.querySelectorAll('.sh-card:not([data-river-out]) .shc-hero, '
+                                              + '.sh-card:not([data-river-out]) .shc-sess');
             if (_cards.length < 1) return false;
             /* ⚠ PROVE IT FROM THE RECT. A grid can exist with zero-size children while the list
                is still being built, and a zero-size node reports zero clipping — the v2666 scar. */
