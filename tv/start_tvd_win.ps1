@@ -164,6 +164,13 @@ try {
 # v1444/v1445 - ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
 if (Test-TvdControlUp) {
   Write-TvdLaunchLog 'control already up - focusing; skip pull/spawn'
+  # 2026-09-29 - X now HIDES the console (it keeps recording in the background). A cross-process ShowWindow does
+  # not reliably un-hide a WinForms window (v1460), so the running console is asked to show ITSELF first; the
+  # focus below then raises it. Plain ASCII on purpose: this file is read by Windows PowerShell 5.
+  try {
+    $front = Invoke-RestMethod -Uri 'http://127.0.0.1:17772/api/window' -Method Post -ContentType 'application/json' -Body '{"do":"front","from":"win-launcher"}' -TimeoutSec 4
+    Write-TvdLaunchLog ("asked the running console forward: ok={0}" -f $front.ok)
+  } catch { Write-TvdLaunchLog ("front request: {0}" -f $_) }
   [void](Focus-TvdWindow)
   if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
   return

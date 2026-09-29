@@ -4721,7 +4721,7 @@ def _win_frame(win):
         return None
 
 
-def window_action(what):
+def window_action(what, by="api-window"):
     """minimise / restore / toggle fullscreen on the console's own window. -> dict
 
     ⚠⚠ v3271 — WINDOWS AND LINUX HAD NO WAY OUT OF FULLSCREEN, AND THIS IS THE SECOND REPORT.
@@ -4758,10 +4758,15 @@ def window_action(what):
     # must never touch his window: a supervisor that minimises the thing it supervises is a
     # worse defect than the one it was watching for. It is accepted HERE, beside the real
     # actions, so the bad-name refusal keeps being judged before the environment.
-    if _name != "frame" and _name not in _ACTS:
+    if _name != "frame" and _name not in _ACTS and _name not in ("background", "front"):
         return {"ok": False, "did": None,
-                "why": "%r is not a window action — minimize, restore, fullscreen or frame"
-                       % what}
+                "why": "%r is not a window action — minimize, restore, fullscreen, background, front "
+                       "or frame" % what}
+    # 2026-09-29 — the background service: ✕ / Esc send the window here, the launchers bring it back.
+    if _name == "background":
+        return console_to_background(by)
+    if _name == "front":
+        return console_to_front(by)
     _fn = _ACTS.get(_name)
     win = globals().get("_MAIN_WIN")
     if win is None:
@@ -4816,6 +4821,338 @@ def window_action(what):
                 out["why"] = ("left fullscreen, but Window.move raised %s - the window stays where Windows "
                               "put it" % type(e).__name__)
     return out
+
+
+# ⚠⚠ 2026-09-29 — THE CONSOLE IS A BACKGROUND SERVICE; THE WINDOW IS ONLY A VIEW OF IT.
+#
+# Konyo: *"make sure after the console is up and running there is a default ON true for shadow reader
+# and tooltips pass on and background service running with the console hidden always by design ... that
+# way sessions are always working and running based on games and sessions being done regardless if the
+# console is on or not."*
+#
+# ✕ used to END everything: v935.8 made closing the window stop ON AIR ("exiting the console must stop ON
+# AIR"), so a closed window meant no shadow reel, no triage, no drain - the sessions he plays with the
+# console shut were never filmed. His new ruling supersedes that one: ✕ and Esc now send the console to
+# the BACKGROUND and every lane keeps running. A REAL quit is still one click away (⏻ quit in the console,
+# /api/quit with a `from`), and TV_CLOSE_EXITS=1 restores the old ✕.
+#
+# ⚠ COMPLETELY HIDDEN - his second word on it, 2026-09-29 02:55, with a screenshot of a window left on his
+# screen: "make sure this thing and window is completely hidden". No window, no taskbar button, and on the Mac
+# no Dock icon (the app turns into an accessory while hidden - a Dock icon whose click shows nothing is a dead
+# icon). v1460 removed a hide() fallback for exactly that reason - "the Desktop icon then did nothing forever"
+# - so the way back is BUILT, not hoped for: GET /api/window says "background", the Desktop icon (Mac
+# launcher, Windows launcher) and a second launch POST {do: front} to the running console, which shows its own
+# window in-process. A cross-process ShowWindow does not reliably un-hide a WinForms window (v1460's own
+# note), and the launcher only replaces the console when that request is NOT answered.
+#
+# ⚠ macOS: a fullscreen window is taken OUT of fullscreen before it is hidden (an ordered-out fullscreen window
+# can leave an empty Space) and goes back to fullscreen when it returns. MEASURED 2026-09-29 on his MacBook: a
+# fullscreen window's frame is 1470x887 on a 1470x956 screen (the notch), so frame-vs-screen reads False; and
+# pywebview's `is_fullscreen` flag goes stale the moment the green traffic light is used. The truth is the
+# window's own style mask (NSWindowStyleMaskFullScreen), read on the main thread. [[verify-not-proxy]]
+_BACKGROUND = {"on": False, "since": None, "by": None, "wasFullscreen": None}
+
+
+def close_means_background(exit_requested=None, window_only=False, env=None):
+    """What ✕ does. -> (background: bool, why). Pure - judged without a window."""
+    env = os.environ if env is None else env
+    if exit_requested:
+        return False, ("a real quit was asked for (%s) - the whole console stops, recording included"
+                       % str(exit_requested)[:60])
+    if window_only:
+        return False, ("this window is a second view attached to another console - closing it closes only "
+                       "this view, and the console that owns the lanes keeps running")
+    if str(env.get("TV_CLOSE_EXITS") or "").strip().lower() not in ("", "0", "false", "no", "off"):
+        return False, ("TV_CLOSE_EXITS is set in this console's environment, so ✕ quits everything as it "
+                       "did before 2026-09-29")
+    return True, ("✕ sends the console to the background - the shadow reader, triage and drain keep "
+                  "running; ⏻ quit is what stops them")
+
+
+def _mac_fullscreen_bit(win, timeout=1.0):
+    """macOS only: the window's own NSWindowStyleMaskFullScreen bit, read ON THE MAIN THREAD (AppKit's
+    thread - the same AppHelper.callAfter route pywebview uses for every call it makes). -> True / False /
+    None when it could not be asked in `timeout` seconds. A read; it never changes the window."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        from PyObjCTools import AppHelper
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        nsw = getattr(inst, "window", None)
+        if nsw is None:
+            return None
+        box, ev = {}, threading.Event()
+
+        def _read():
+            try:
+                box["mask"] = int(nsw.styleMask())
+            except Exception:
+                pass
+            ev.set()
+        AppHelper.callAfter(_read)
+        if not ev.wait(timeout) or "mask" not in box:
+            return None
+        return bool(box["mask"] & (1 << 14))
+    except Exception:
+        return None
+
+
+def _mac_set_dock_icon(show):
+    """macOS only: an app with its window hidden drops out of the Dock (Accessory policy) and comes back into
+    it when the window returns (Regular) - the same NSApplication call pywebview makes when it starts, on the
+    main thread. -> True when it was asked."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        import AppKit
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(AppKit.NSApplication.sharedApplication().setActivationPolicy_, 0 if show else 1)
+        return True
+    except Exception:
+        return False
+
+
+def _win_is_fullscreen(win, screens=None):
+    """Is the window fullscreen RIGHT NOW? -> True / False / None (UNKNOWN). Never raises.
+
+    macOS: the window's own style bit (see _mac_fullscreen_bit - frame and flag both lie there). Windows:
+    pywebview's flag, because its toggle (the W button) is the only way into fullscreen on that platform.
+    Last resort: a frame that fills one of the screens."""
+    bit = _mac_fullscreen_bit(win)
+    if bit is not None:
+        return bit
+    try:
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        flag = getattr(inst, "is_fullscreen", None)
+        if flag is not None:
+            return bool(flag)
+    except Exception:
+        pass
+    fr = _win_frame(win)
+    if fr is not None:
+        try:
+            if screens is None:
+                import webview as _wv
+                screens = [(int(s.width), int(s.height)) for s in (_wv.screens or [])]
+            if screens:
+                return any(abs(fr[0] - w) <= 2 and abs(fr[1] - h) <= 2 for (w, h) in screens)
+        except Exception:
+            pass
+    return None
+
+
+def _win_sync_fullscreen_flag(win, actual):
+    """Tell pywebview what the window really is before asking it to toggle. Its toggle picks the macOS
+    collection behaviour FROM this flag, so a flag the green button left stale makes the next toggle ask for
+    the wrong thing. A plain attribute write on pywebview's own object - no call into AppKit or WinForms."""
+    if actual is None:
+        return False
+    try:
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        if inst is not None and hasattr(inst, "is_fullscreen"):
+            inst.is_fullscreen = bool(actual)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def window_mode_payload():
+    """How the console's window stands, for the status route, the launchers and the doctor. -> dict"""
+    if globals().get("_WINDOW_ONLY"):
+        mode = "window-only"
+    elif globals().get("_MAIN_WIN") is None:
+        mode = "headless"
+    elif _BACKGROUND.get("on"):
+        mode = "background"
+    else:
+        mode = "front"
+    say = {
+        "background": ("minimized since %s (%s) - the service is running; the Dock / taskbar brings it back"
+                       if _BACKGROUND.get("by") == "minimized" else
+                       "hidden since %s (%s) - the service is running; the Desktop icon brings it back") % (
+                          time.strftime("%H:%M", time.localtime((_BACKGROUND.get("since") or 0) / 1000.0))
+                          if _BACKGROUND.get("since") else "?", _BACKGROUND.get("by") or "?"),
+        "front": "the window is up",
+        "headless": "no native window on this console (headless or --no-open)",
+        "window-only": "a second view attached to another console",
+    }[mode]
+    return {"ok": True, "mode": mode, "since": _BACKGROUND.get("since") if mode == "background" else None,
+            "by": _BACKGROUND.get("by") if mode == "background" else None,
+            "wasFullscreen": _BACKGROUND.get("wasFullscreen"), "say": say}
+
+
+def _mark_background(by, was_fullscreen=None):
+    _BACKGROUND.update(on=True, since=int(time.time() * 1000), by=str(by or "?")[:80],
+                       wasFullscreen=was_fullscreen)
+
+
+def console_to_background(by="window-close", sleep=time.sleep):
+    """Send the window to the background; every lane keeps running. -> honest receipt, never raises."""
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
+                                               "--no-open) - it already runs as a background service"}
+    fs = _win_is_fullscreen(win)
+    _mark_background(by, was_fullscreen=fs)
+    did = []
+    try:
+        if fs and sys.platform == "darwin":
+            _win_sync_fullscreen_flag(win, True)
+            win.toggle_fullscreen()
+            did.append("left-fullscreen")
+            for _ in range(15):                    # the exit animation, ~1 s; never more than 3 s
+                sleep(0.2)
+                if _win_is_fullscreen(win) is False:
+                    break
+            sleep(0.5)                             # let the animation settle before the window goes
+        win.hide()
+        did.append("hidden")
+        if _mac_set_dock_icon(False):
+            did.append("no-dock-icon")
+    except Exception as e:
+        return {"ok": False, "did": did, "why": "hiding the window raised %s" % type(e).__name__}
+    try:
+        print("📺 the console is HIDDEN (%s) - it keeps running: shadow reader, triage and drain carry on. "
+              "The Desktop icon brings it back; ⏻ quit stops everything." % by, flush=True)
+    except Exception:
+        pass
+    return {"ok": True, "did": did, "why": ""}
+
+
+def console_to_front(by="launcher", sleep=time.sleep):
+    """Bring a backgrounded window back, fullscreen again if that is how it left. -> receipt, never raises."""
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
+                                               "--no-open), so there is nothing to bring forward"}
+    did = []
+    was_fs = _BACKGROUND.get("wasFullscreen")
+    try:
+        if _mac_set_dock_icon(True):
+            did.append("dock-icon")
+        win.show()                                 # in-process: Show()+Activate() / makeKeyAndOrderFront
+        did.append("shown")
+        if IS_WIN:
+            # a window HE minimized comes back through SW_RESTORE, which returns a fullscreen (borderless,
+            # maximized) form to fullscreen; pywebview's restore() would force Normal - a borderless half-window
+            _win_focus_existing_console()
+        else:
+            win.restore()                          # deminiaturize - harmless on a window that was not minimized
+        _BACKGROUND.update(on=False, since=None, by=None)
+        _refullscreen_after_restore(win, was_fs, sleep=sleep, did=did)
+    except Exception as e:
+        return {"ok": False, "did": did, "why": "bringing the window forward raised %s" % type(e).__name__}
+    return {"ok": True, "did": did, "why": "", "by": str(by)[:60]}
+
+
+def _refullscreen_after_restore(win, was_fs, sleep=time.sleep, did=None):
+    """A window that LEFT fullscreen to go to the background goes back to fullscreen when it returns."""
+    if not was_fs or globals().get("_RE_FULLSCREEN_BUSY"):
+        return False
+    globals()["_RE_FULLSCREEN_BUSY"] = True
+    try:
+        sleep(0.6)                                  # let the restore animation land first
+        if _win_is_fullscreen(win) is False:
+            _win_sync_fullscreen_flag(win, False)
+            win.toggle_fullscreen()
+            if did is not None:
+                did.append("fullscreen-again")
+            return True
+        return False
+    finally:
+        globals()["_RE_FULLSCREEN_BUSY"] = False
+
+
+def _on_console_window_closing():
+    """pywebview's `closing` handler. Returning False CANCELS the close (pywebview 6: `events.closing.set()`
+    answers True when any handler returned False). -> bool: may the window close?"""
+    bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
+    if not bg:
+        _request_console_exit("window-closing")
+        return True
+    try:
+        _BG_SPAWN(lambda: console_to_background("window-close"))
+    except Exception:
+        # the background move could not even be scheduled: better a closed console he can relaunch than
+        # a ✕ that silently does nothing
+        _request_console_exit("window-closing")
+        return True
+    return False
+
+
+def quiet_relaunch_reason(already=None, background=None):
+    """Why the NEXT image should open minimized and unfocused, or None. -> str | None. Pure.
+
+    An earlier reason (the shadow-reel relaunch sets its own) is kept; a backgrounded console adds one of its
+    own, so an update that lands while the window is down never pops it up over his game."""
+    if already:
+        return already
+    bg = background or {}
+    if bg.get("on"):
+        return "the console was in the background (%s) - an update keeps it there" % (bg.get("by") or "?")
+    return None
+
+
+def ask_running_console_front(port, who, timeout=4.0, _urlopen=None):
+    """Ask the console already serving `port` to bring its window forward. -> {"ok", "why", ...}. Never raises.
+    `_urlopen` is the seam a law drives without a live console."""
+    import urllib.request as _ur
+    _open = _urlopen or _ur.urlopen
+    try:
+        req = _ur.Request("http://127.0.0.1:%d/api/window" % int(port),
+                          data=json.dumps({"do": "front", "from": str(who)[:60]}).encode("utf-8"),
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with _open(req, timeout=timeout) as r:
+            j = json.loads(r.read().decode("utf-8") or "{}")
+        return j if isinstance(j, dict) else {"ok": False, "why": "the console answered something that is not a dict"}
+    except Exception as e:
+        return {"ok": False, "why": "the running console could not be asked (%s)" % type(e).__name__}
+
+
+def hidden_relaunch_env(background, env, argv):
+    """Before an os.execv: a HIDDEN window relaunches hidden (TV_START_HIDDEN); a window he brought forward
+    relaunches shown, even if this console was first started with --background - argv crosses os.execv, so the
+    flag is dropped here (every exec site builds its argv from sys.argv AFTER _before_exec returns). A window HE
+    minimized is not hidden and relaunches as the quiet path decides. Mutates `env` / `argv`; -> the hidden reason
+    or None."""
+    bg = background or {}
+    if bg.get("on") and bg.get("by") != "minimized":
+        env["TV_START_HIDDEN"] = "the console was hidden (%s)" % (bg.get("by") or "?")
+        return env["TV_START_HIDDEN"]
+    env.pop("TV_START_HIDDEN", None)
+    while "--background" in argv:
+        argv.remove("--background")
+    return None
+
+
+def _bg_spawn_thread(fn):
+    """Off the UI thread: the close handler must return at once, and the macOS fullscreen exit animates."""
+    threading.Thread(target=fn, daemon=True, name="tvd-to-background").start()
+
+
+_BG_SPAWN = _bg_spawn_thread
+
+
+def _on_console_minimized():
+    """The OS minimized the window (his minimize button, or ours). That IS the background."""
+    if not _BACKGROUND.get("on"):
+        _mark_background("minimized", was_fullscreen=False)
+
+
+def _on_console_restored():
+    """The OS restored the window (a Dock / taskbar click). Clear the background and, if the window left
+    fullscreen to get there, go back to fullscreen."""
+    if not _BACKGROUND.get("on"):
+        return
+    was_fs = _BACKGROUND.get("wasFullscreen")
+    _BACKGROUND.update(on=False, since=None, by=None)
+    win = globals().get("_MAIN_WIN")
+    if win is not None and was_fs:
+        try:
+            _BG_SPAWN(lambda: _refullscreen_after_restore(win, was_fs))
+        except Exception:
+            pass
 
 
 def _mark_window_gone(reason=""):
@@ -4891,6 +5228,10 @@ def _request_console_exit(reason="quit", hard_delay=None):
     _FORCE_EXIT_ARMED (not _arm_force_exit's return value — that is False on the
     idempotent second call, which is a success, not a failure). Callers that do not
     care may keep ignoring the return."""
+    # 2026-09-29 — SAY THAT A REAL EXIT WAS ASKED FOR, BEFORE ANYTHING ELSE. ✕ now sends the console to the
+    # background (close_means_background); destroy() below fires the same `closing` event, and this is how
+    # that handler knows to let the window go instead of minimizing it.
+    globals()["_EXIT_REQUESTED"] = str(reason or "quit")[:60]
     win = globals().get("_MAIN_WIN")
     errs = []
     marked = False
@@ -6971,9 +7312,24 @@ def _control_window_kwargs(url):
     globals()["_QUIET_BOOT"] = _quiet
     if _quiet:
         kwargs.update(minimized=True, focus=False)
+        # 2026-09-29 — a window born minimized is in the BACKGROUND from its first second, and when it comes
+        # back it goes to the fullscreen he likes unless TV_WINDOWED asked otherwise.
+        _mark_background("quiet relaunch: %s" % str(_quiet)[:60], was_fullscreen=not _windowed)
         print("   quiet relaunch - %s: the console opens minimized and does not take focus" % _quiet,
               flush=True)
-    if not _windowed and not _quiet:
+    # 2026-09-29 — A HIDDEN CONSOLE COMES BACK HIDDEN. His words: "a one time update to the newer version should
+    # keep it backgrounded" and "completely hidden". TV_START_HIDDEN crosses os.execv from _before_exec when the
+    # window was hidden; `--background` is the same start for a launch that should never show (a sign-in start).
+    # Hidden wins over minimized, and no fullscreen at creation - pywebview would enter fullscreen, which shows it.
+    _hidden = os.environ.pop("TV_START_HIDDEN", None) or ("a --background launch" if "--background" in sys.argv
+                                                          else None)
+    globals()["_HIDDEN_BOOT"] = _hidden
+    if _hidden:
+        kwargs.pop("minimized", None)
+        kwargs.update(hidden=True, focus=False)
+        _mark_background("started hidden: %s" % str(_hidden)[:60], was_fullscreen=not _windowed)
+        print("   started HIDDEN (%s) - the service runs; the Desktop icon brings the window" % _hidden, flush=True)
+    if not _windowed and not _quiet and not _hidden:
         kwargs["fullscreen"] = True
         # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
         # the macOS title bar he reported ("this TV diablo banner on top is now here when it
@@ -7138,6 +7494,11 @@ def open_control_window():
             background_color="#070605",
         )
 
+    # 2026-09-29 — a console STARTED hidden (a hidden relaunch, --background) leaves the Dock too. Queued on the
+    # main thread; it runs as soon as the app's run loop does.
+    if globals().get("_HIDDEN_BOOT"):
+        _mac_set_dock_icon(False)
+
     # v935.8 / v1410 / v1420 — window ✕ UX:
     #   v1410: mark gone FIRST + async stop (no UI-thread stop_agent → hang reports)
     #   v1420: ALSO arm hard os._exit deadline — Cocoa often never returns webview.start()
@@ -7145,13 +7506,19 @@ def open_control_window():
     try:
         win = globals().get("_MAIN_WIN")
         if win is not None and hasattr(win, "events"):
-            def _on_win_closing():
-                _request_console_exit("window-closing")
-                return True  # allow close (pywebview may honor this on some backends)
+            # 2026-09-29 — ✕ SENDS THE CONSOLE TO THE BACKGROUND (see close_means_background). The
+            # handler answers False to CANCEL the close and minimizes instead; a real quit (⏻ quit,
+            # /api/quit, TV_CLOSE_EXITS=1, a window-only view) still closes and exits exactly as before.
+            _on_win_closing = _on_console_window_closing
             def _on_win_closed():
                 _request_console_exit("window-closed")
             try:
                 win.events.closing += _on_win_closing
+            except Exception:
+                pass
+            try:
+                win.events.minimized += _on_console_minimized
+                win.events.restored += _on_console_restored
             except Exception:
                 pass
             try:
@@ -16464,6 +16831,11 @@ def _reap_inherited_at_boot(posix=None):
 def _before_exec(where):
     """#224 — stop the warm workers this image holds, so os.execv leaves no <defunct> child behind.
 
+    2026-09-29 — AND A BACKGROUNDED CONSOLE COMES BACK BACKGROUNDED. Every os.execv site passes through
+    here, so this is where an update relaunch learns that the window was in the background: the new image
+    opens minimized and unfocused (TV_QUIET_RELAUNCH) instead of fullscreen over his game. His words: "a one
+    time update to the newer version should keep it backgrounded".
+
     ⚠⚠ MEASURED: 35 <defunct> `ocr_mac` children under his console, exactly one per in-place relaunch
     — the warm tv_diablo OCR worker was alive at every exec and the new image could not wait() it.
     Every os.execv site calls this first (a guard pins that); it never blocks the relaunch, and it
@@ -16484,6 +16856,10 @@ def _before_exec(where):
         _wr.boot_log("relaunch-exec", where=where)
     except Exception:
         pass
+    _q = quiet_relaunch_reason(os.environ.get("TV_QUIET_RELAUNCH"), _BACKGROUND)
+    if _q:
+        os.environ["TV_QUIET_RELAUNCH"] = _q
+    hidden_relaunch_env(_BACKGROUND, os.environ, sys.argv)
 
 
 def _exec_relaunch_now():
@@ -16654,7 +17030,10 @@ def _console_rescue_loop():
             # unjoined-end this check was written to close, one layer up.
             # [[the-unjoined-end]] [[plumbing-with-no-tap]]
             _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
-            if _UI_BLANK_TICK[0] % 6 == 0:
+            _bg_now = bool(_BACKGROUND.get("on"))
+            # 2026-09-29 — a minimized window has no pixels to judge; asking would record BLANK for a console
+            # that is working in the background, and a BLANK verdict is what arms the pixel rescue below.
+            if _UI_BLANK_TICK[0] % 6 == 0 and not _bg_now:
                 _pixel_blank_report()
             # v3301 — THE GREEN LIGHT, on a thread that already exists and is already
             # instrumented. Adding a 22nd thread to a roster that can only see 11 is the
@@ -16666,7 +17045,7 @@ def _console_rescue_loop():
             win = globals().get("_MAIN_WIN")
             if win is None:
                 continue
-            due, why = ui_rescue_due(capture_live=_capture_is_live())
+            due, why = ui_rescue_due(capture_live=_capture_is_live(), backgrounded=_bg_now)
             if not due:
                 # ⚠⚠ v2627 — ASK THE PIXELS WHEN NOTHING ELSE WILL, AND ONLY REPORT.
                 # His fault, measured 2026-09-04: a window drawing 185 BLANK frames reports
@@ -16916,13 +17295,19 @@ def _console_rescue_loop():
                 pass
 
 
-def ui_rescue_due(now=None, capture_live=False):
+def ui_rescue_due(now=None, capture_live=False, backgrounded=False):
     """Should the window be reloaded? Returns (True, why) or (False, why-not).
 
     Kept separate from the thread that acts on it so the decision can be tested without a
     window, a timer, or a wedged page. A rescue rule nobody can exercise is a rule nobody
     knows the shape of. [[feedback-blind-fixture-green-gate]]"""
     now = time.time() if now is None else now
+    # 2026-09-29 — A BACKGROUNDED CONSOLE IS NOT A BROKEN ONE. Minimized on purpose (✕ / Esc), its page stops
+    # painting and stops beating exactly as a frozen one would; reloading it would disturb a service that is
+    # working. Nothing on screen means nothing to rescue.
+    if backgrounded:
+        return False, ("the console is in the background by design - its page is not on screen, so a quiet "
+                       "page is expected and there is nothing to rescue")
     age = ui_beat_age()
     if age is None:
         return False, "no console has ever checked in - nothing to rescue"
@@ -34391,6 +34776,8 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
+        # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
+        "window": window_mode_payload(),
         "ver": "v3522",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
@@ -35337,6 +35724,11 @@ def doctor_payload():
         "Restart TV DIABLO — this console rebuilds every missing reel index at boot. Standalone: "
         "`python3 tv/reel_repair.py` to survey, `--apply` to rebuild (idempotent, never "
         "overwrites a usable index)."))
+
+    # ── WINDOW — 2026-09-29: the window is only a view of the service. A backgrounded console is HEALTHY,
+    # and this row says so in words, with the way back - otherwise "where did my console go" has no answer.
+    _wm = window_mode_payload()
+    checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")
@@ -37622,6 +38014,12 @@ class Handler(BaseHTTPRequestHandler):
             # [[unknown-stays-unknown]]
             self._json(200, _meter_state())
             return
+        if path == "/api/window":
+            # 2026-09-29 — how the window stands (front / background / headless / window-only). The Mac
+            # launcher reads this BEFORE it would kill anything on :17772: a backgrounded console is brought
+            # forward, never replaced - replacing it would stop the reel it is filming.
+            self._json(200, window_mode_payload())
+            return
         if path == "/api/shadow":
             # v2000 — WHAT THE WIDGET READS. Three separate facts, never averaged into one lamp:
             #   on        what HE chose (absent file = ON, the default since v932)
@@ -39082,12 +39480,13 @@ class Handler(BaseHTTPRequestHandler):
             # v3271 — HIS WINDOW, HIS CALL, ON EVERY PLATFORM. See window_action() for why this
             # exists: fullscreen is the default he likes, and on Windows/Linux it took the
             # titlebar with it, leaving no minimise and no way back to a window.
-            _wact = ""
+            _wact, _wby = "", ""
             try:
                 _wact = str((body or {}).get("do") or "") if isinstance(body, dict) else ""
+                _wby = str((body or {}).get("from") or "").strip()[:60] if isinstance(body, dict) else ""
             except Exception:
-                _wact = ""
-            self._json(200, window_action(_wact))
+                _wact, _wby = "", ""
+            self._json(200, window_action(_wact, by=(_wby or "api-window:UNATTRIBUTED")))
             return
 
         if path == "/api/quit":
@@ -39533,6 +39932,13 @@ def main():
             # reclaimed — fall through as PRIMARY (do not return)
         else:
             # v781 — a REAL window already exists → refuse a second one, point at the existing.
+            # 2026-09-29 — AND BRING IT FORWARD. With ✕ now sending the console to the background, "use the
+            # existing window" pointed at a window he could not see. Ask the running console to come to the
+            # front first; the notification below only fires when it could not.
+            if ask_running_console_front(CONTROL_PORT, "second-launch").get("ok"):
+                print("TV DIABLO is already running on :%d - brought its window to the front." % CONTROL_PORT,
+                      flush=True)
+                sys.exit(0)
             print(
                 f"TV DIABLO window is already open on :{CONTROL_PORT} — not opening a second one.\n"
                 f"   Use the existing window (or STOP/quit it first).\n   ({e})"
