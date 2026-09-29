@@ -26617,6 +26617,23 @@ def ledger3_sessions(journal_rows, limit=200):
     return _l3.sessions(journal_rows, limit=limit)
 
 
+def _ledger3_unparsed_query(field, exc):
+    """REG-1556 — a query a ledger3 door could not read is UNKNOWN, never a default dressed as the ask. -> dict
+
+    The record door swallowed a parse failure to "" and then answered "no session id given" — the caller
+    DID name a reel; the list door turned ?limit=abc into 200 rows as if he had asked for 200. Both now
+    say what could not be read and answer nothing else. [[unknown-stays-unknown]]
+    """
+    import ledger3 as _l3
+    if field == "limit":
+        return {"ok": False, "v": _l3.V, "sessions": [], "total": None, "shown": 0,
+                "why": "?limit= could not be read as a number (%s) — say how many, or leave it out for 200"
+                       % type(exc).__name__}
+    return {"ok": False, "v": _l3.V,
+            "why": "the query string could not be parsed (%s) — which reel was asked for is UNKNOWN, not "
+                   "'no id given'" % type(exc).__name__}
+
+
 def tombstone_view(limit=300):
     """The reel-release history. -> dict. Reads one file, writes nothing, deletes nothing.
 
@@ -39552,8 +39569,11 @@ class Handler(BaseHTTPRequestHandler):
                 import urllib.parse as _up_l3
                 _q_l3 = _up_l3.parse_qs(_up_l3.urlparse(self.path).query or "")
                 _lim_l3 = int((_q_l3.get("limit") or ["200"])[0])
-            except Exception:
-                _lim_l3 = 200
+            except Exception as _e_l3:
+                # REG-1556 — ?limit=abc became 200 rows. A cap that could not be read is refused with the
+                # ask, never answered in full as if he had asked for 200.
+                self._json(200, _ledger3_unparsed_query("limit", _e_l3))
+                return
             try:
                 _jr = self._load_journal_cached()
             except Exception:
@@ -39569,8 +39589,11 @@ class Handler(BaseHTTPRequestHandler):
                 import urllib.parse as _up_l3
                 _q_l3 = _up_l3.parse_qs(_up_l3.urlparse(self.path).query or "")
                 _sid_l3 = (_q_l3.get("id") or [""])[0]
-            except Exception:
-                _sid_l3 = ""
+            except Exception as _e_l3:
+                # REG-1556 — this swallowed to "" and the door then said "no session id given": a query
+                # that would not parse is UNKNOWN, and the caller DID name a reel. Say which.
+                self._json(200, _ledger3_unparsed_query("id", _e_l3))
+                return
             try:
                 _jr = self._load_journal_cached()
             except Exception:

@@ -331,8 +331,49 @@ class TheRecordOverFixtureStores(unittest.TestCase):
         self.assertFalse(L3.census(_stores(self.root, hist=os.path.join(self.root, "nope")))["ok"])
 
 
-class TheRouteServesIt(unittest.TestCase):
-    """The two GET doors, driven through the real handler with every path authority on the temp root."""
+    def test_a_reel_released_in_passes_keeps_every_pass_and_the_latest_act_wins(self):
+        """REG-1557 - MEASURED 2026-09-30 on his ledger, read-only: 3 of the 29 reels on his shelf carry
+        tombstones, 14 rows between them, every row with a `kept` list (the drain releases FRAMES and leaves
+        the evidence stills), one reel alone with FOUR rows - 65, 14, 14, 14 stills before each pass, 13 kept.
+        A tombstone is a release EVENT. reel_custody's rule for the same store: the LAST row wins, the count
+        beside it."""
+        kept = ["f_1.jpg"]
+        rows = [{"reel": "reel_" + A, "session": A, "mb": 15.1, "pages": 0, "frames": 65, "kept": kept,
+                 "why": "read (0 pages) and sealed by BOTH lanes", "deletedTs": 1790000300000},
+                {"reel": "reel_" + A, "session": A, "mb": 3.2, "pages": 0, "frames": 14, "kept": kept,
+                 "why": "read (0 pages) and sealed by BOTH lanes", "deletedTs": 1790000400000}]
+        rec = L3.session_record(A, _stores(self.root, tombstones=rows))
+        self.assertTrue(rec["ok"], rec)
+        self.assertEqual(rec["tombstone"]["deletedTs"], 1790000400000)     # the latest act, never the first
+        self.assertEqual(rec["releases"], {"n": 2, "lastTs": 1790000400000,
+                                           "released": (65 - 1) + (14 - 1), "kept": 1})
+        film = rec["film"]
+        self.assertEqual((film["frames"], film["onShelf"], film["sealed"]), (2, True, True))
+        self.assertEqual(film["released"], rec["releases"])
+        self.assertIn("2 release pass(es) took 77 frame(s)", film["why"])
+        self.assertIn("kept 1", film["why"])
+        for k in ("shelf", "tombstone"):
+            self.assertIn(k, rec["knownBy"])
+        # the folder gone after two passes: the film is the LAST pass's account, the pass count beside it
+        rows_d = [dict(r, reel="reel_" + D, session=D) for r in rows]
+        recd = L3.session_record(D, _stores(self.root, tombstones=rows_d))
+        self.assertEqual((recd["film"]["frames"], recd["film"]["onShelf"], recd["film"]["releases"]), (14, False, 2))
+        self.assertIn("released (2 pass(es))", recd["film"]["why"])
+        self.assertEqual(recd["releases"]["n"], 2)
+        # a pass whose frame count nobody took leaves `released` UNKNOWN, never a partial sum
+        rows_u = [dict(rows[0]), dict(rows[1], frames=None)]
+        recu = L3.session_record(A, _stores(self.root, tombstones=rows_u))
+        self.assertIsNone(recu["releases"]["released"])
+        self.assertEqual(recu["releases"]["n"], 2)
+        self.assertIn("UNKNOWN", recu["film"]["why"])
+        # no tombstone at all: the record says none, and the film carries no release key
+        plain = L3.session_record(A, _stores(self.root))
+        self.assertIsNone(plain["releases"])
+        self.assertNotIn("released", plain["film"])
+
+
+class _RouteWorld(unittest.TestCase):
+    """The doors' world: the real handler, in-process, with every path authority on the temp root."""
 
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="ledger3-route-")
@@ -377,6 +418,10 @@ class TheRouteServesIt(unittest.TestCase):
         h.do_GET()
         self.assertEqual(len(got), 1, "PREMISE: the route did not answer exactly once")
         return got[0]
+
+
+class TheRouteServesIt(_RouteWorld):
+    """The two GET doors, driven through the real handler with every path authority on the temp root."""
 
     def test_the_record_door_answers_by_id_never_by_position(self):
         code, rec = self._get("/api/ledger3/session?id=" + A)
@@ -456,6 +501,42 @@ class TheRouteServesIt(unittest.TestCase):
         self.assertIn("ledger3 sessions", cd.WATCHES)
 
 
+class TheDoorsSayUnknownNotNothing(_RouteWorld):
+    """REG-1556 - a query a door could not read is UNKNOWN, never a default it dressed as the ask.
+
+    Found by swallow_census --check on the merged branch (control_app.py 28 -> 29): the record door swallowed
+    a parse failure to "" and answered "no session id given" to a caller who HAD named a reel; the list door
+    turned ?limit=abc into 200 rows as if he had asked for 200."""
+
+    def test_a_query_that_will_not_parse_is_unknown_never_no_id_given(self):
+        import urllib.parse as _up
+
+        def _torn(*a, **k):
+            raise ValueError("torn query")
+        with mock.patch.object(_up, "parse_qs", _torn):
+            code, rec = self._get("/api/ledger3/session?id=" + A)
+        self.assertEqual(code, 200)
+        self.assertFalse(rec["ok"], rec)
+        self.assertIn("could not be parsed", rec["why"])
+        self.assertIn("UNKNOWN", rec["why"])
+        self.assertIn("ValueError", rec["why"])
+        self.assertNotIn("no session id given", rec["why"])
+        # PREMISE: the same ask answers once the query parses
+        self.assertTrue(self._get("/api/ledger3/session?id=" + A)[1]["ok"])
+
+    def test_a_limit_that_is_not_a_number_is_refused_never_answered_in_full(self):
+        code, ls = self._get("/api/ledger3/sessions?limit=abc")
+        self.assertEqual(code, 200)
+        self.assertFalse(ls["ok"], ls)
+        self.assertIsNone(ls["total"])
+        self.assertEqual(ls["sessions"], [])
+        self.assertIn("?limit=", ls["why"])
+        self.assertIn("ValueError", ls["why"])
+        # PREMISE: a number is honoured, and no limit means the default
+        self.assertEqual(self._get("/api/ledger3/sessions?limit=1")[1]["shown"], 1)
+        self.assertTrue(self._get("/api/ledger3/sessions")[1]["ok"])
+
+
 RED_PROOF = [
     {
         "why": "the chronicle side compares the raw reel string, so a sighting under the other spelling is not this reel's",
@@ -532,6 +613,41 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    if got.get(\"noTrail\"):\n        return MISSING, (\"%d sealed reel(s) on the shelf have NO journal rows",
         "replace": "    if False:\n        return MISSING, (\"%d sealed reel(s) on the shelf have NO journal rows",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1556 - the record door swallows an unparseable query to '' again and answers 'no session id given'",
+        "file": "control_app.py",
+        "find": "                self._json(200, _ledger3_unparsed_query(\"id\", _e_l3))\n                return\n",
+        "replace": "                _sid_l3 = \"\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1556 - the list door answers ?limit=abc in full again, as if he had asked for 200",
+        "file": "control_app.py",
+        "find": "                self._json(200, _ledger3_unparsed_query(\"limit\", _e_l3))\n                return\n",
+        "replace": "                _lim_l3 = 200\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1557 - the FIRST tombstone row wins again, so a reel released in passes shows its oldest act",
+        "file": "ledger3.py",
+        "find": "    tomb = tombs[-1] if tombs else None\n",
+        "replace": "    tomb = tombs[0] if tombs else None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1557 - the film on the shelf hides the release passes again",
+        "file": "ledger3.py",
+        "find": "        if rel:\n            out[\"released\"] = rel\n",
+        "replace": "        if False:\n            out[\"released\"] = rel\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1557 - a pass nobody counted is skipped and the rest summed as the total",
+        "file": "ledger3.py",
+        "find": "            released = None          # a pass nobody counted: UNKNOWN, never a partial sum\n            break\n",
+        "replace": "            continue\n",
         "matches": 1,
     },
 ]

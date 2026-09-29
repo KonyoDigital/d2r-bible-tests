@@ -8208,7 +8208,13 @@ GATES = [
              "is listed apart, never counted as named; an unreadable side is UNKNOWN, never 0; a session no store "
              "knows is refused, never an empty record. The doctor's 'ledger3 sessions' row (PERIODIC) names a "
              "sealed reel on the shelf whose journal rows rotated out — a trail that cannot be drawn for footage "
-             "he still has. 13 cases over temp stores, the real handler driven in-process, 11 red-proofs",
+             "he still has. w26 skeptic (REG-1556, REG-1557, 2026-09-30): the two doors say UNKNOWN for a "
+             "query they could not read (never '' -> 'no id given', never ?limit=abc -> 200 rows), and a "
+             "tombstone is a release EVENT - measured 3 of his 29 shelf reels carry them, 14 rows between "
+             "them, every row with a `kept` list, one reel alone four rows - so every pass is kept, the "
+             "LATEST act wins (reel_custody's "
+             "rule for the same store), the film says what the passes took and an uncounted pass leaves the "
+             "total UNKNOWN. 16 cases over temp stores, the real handler driven in-process, 16 red-proofs",
          skip_ok=()),
 ]
 

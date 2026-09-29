@@ -50,7 +50,7 @@ will move.
 | the shelf | `HIST_DIR` (`TV_HIST`) | `reel_<sid>/f_*.jpg`, `index.json`, `kai_report.json` (sealed = the report exists) |
 | the river stamps | `river_stamp` (fixture root) | `{reel, station, from, by, why, at}` per hop |
 | the structural survey | `retro_triage.load()` | per reel: `panels`, `frames`, `kinds`, `full`, `ts` |
-| the tombstones | `control_app.tombstone_view` (reel_retention's path) | `{reel, session, mb, pages, frames, why, deletedTs}` |
+| the tombstones | `control_app.tombstone_view` (reel_retention's path) | `{reel, session, mb, pages, frames, why, deletedTs}` + `kept[]` on a frame-level pass; ONE ROW PER PASS - a reel released in passes has several (REG-1557: measured 3 of 29 shelf reels, 14 rows, one reel four then six) |
 | the board's own stores (later slices) | bible.html, read only through the board's door | `d2r_vaultProv`, `d2r_foundEvidence`, `d2r_chronicleInboxLog`, `d2r_tvdTallyLog`, `d2r_grailUnfound`, `foundLog` |
 | `board_tally.json` | `board_tally_merge` | per PC/route: `sets` / `uniques` / `runewords` `{have, total}`, `drops[]` |
 | `shadow_ledger.json` | `shadow_ledger` | per name: where the Wilson and live gates split |
@@ -83,10 +83,11 @@ record.
     readers: {"grok-subscription-cli": n, "ocr-mac": n, "lane:verify": n, …},   // WHO read it
     intakeShots, registered, door, ver, span },
   readers: <journal.readers>|null,
-  film:    {frames, onShelf, sealed, why}     // the shelf, or the tombstone's account, or UNKNOWN with why
+  film:    {frames, onShelf, sealed, why, released?}   // the shelf (+ what the passes took), or the LAST pass's account, or UNKNOWN with why
   station: {current, hops, why}               // river_stamp's own history; hops null = stamps unreadable
   survey:  {panels, frames, full, ts}|null    // retro_triage; null with a why in `unknown` when unreadable
-  tombstone: {reel, session, mb, pages, frames, why, deletedTs}|null,
+  tombstone: {reel, session, mb, pages, frames, why, deletedTs, kept?}|null,   // the LATEST act (reel_custody's rule)
+  releases: {n, lastTs, released, kept}|null,   // every pass counted; `released` null when a pass nobody counted
   items: [ {                                  // ONE ROW PER NAME, the union of the three stores
     key, name,
     journal: { reads, frames[], firstTs, lastTs, lanes[], readBy[],   // who read THIS name
@@ -132,7 +133,7 @@ has can lose its trail; UNKNOWN when the ring or the shelf cannot be read; OK ca
 | WHERE on the frame (cell/slot) | `cell` read by `vault_evidence._measure`, written by nothing; 0 of 10,318 chronicle sightings carry `loc` | #55 P2 pixel spots write `cell`; `_stamp_sighting_locs` at merge |
 | the CHARACTER | no store stamps it | #54 / #55 P1 save truth |
 | which TALLY moved ±1 for a name | `d2r_tvdTallyLog` holds `sid\|frameId\|kind:key\|±` and trims at 2000 against its own "forever" | the board writes an untrimmed per-name tick receipt |
-| what a RELEASED reel routed | tombstones list no names, no kept frames | an append-only `reel_routes.jsonl` written at seal (§8 P2) |
+| what a RELEASED reel routed | tombstones list no names (a frame-level pass lists what it `kept`, never what it routed) | an append-only `reel_routes.jsonl` written at seal (§8 P2) |
 | a test id on a session | 0 journal keys tie a session to a scenario | `test_runs.jsonl` (§6) |
 
 ---

@@ -7,6 +7,45 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1557 - A TOMBSTONE IS A RELEASE EVENT, NOT A GRAVE: THE RECORD TOOK THE FIRST ROW AND THE FILM HID THE PASSES (2026-09-30)
+
+**Found** by the w26 skeptic driving the merged REG-1541 record over his real stores, read-only: **3 of the 29 reels
+on his shelf carry tombstones - 14 rows between them, and every one of those rows carries a `kept` list** (the
+frame-level drain releases frames and leaves the evidence stills in the folder); one reel alone carried **four** rows -
+65, 14, 14, 14 stills before each pass, 13 kept every time - and **six** an hour later, the drain re-tombstoning it
+on every pass. (The skeptic's own first write-up said "14 of 29 reels": the count was rows, not reels - the count is
+the tell, and it was re-measured before it was written down here.) `ledger3._tombstone_of` returned the FIRST matching row and dropped the rest, and `_film`,
+finding the folder still on the shelf, said "13 film still(s) on the shelf" as if nothing had ever been taken - the
+release history he asked the ledger to keep (*"so when they get pruned they continue to exist on record"*) was in
+the store and not in the record. reel_custody (REG-1544, the day before) had already carved the rule for this store:
+*the LAST row wins the lookup (it is the latest act), and the count of rows per reel is kept beside it so a second
+removal is never folded into the first* - two readers of one file with two rules is the drift copy-drift names.
+**Fix** (`tv/ledger3.py`): `_tombstones_of` keeps every row in file order; `tombstone` is the latest act with
+`releases {n, lastTs, released, kept}` beside it (`released` = Σ frames − len(kept) per pass, from
+`reel_retention._tombstone`'s own meaning of `frames`: what the folder held before that pass); the film on the shelf
+says "N release pass(es) took M frame(s); the drain kept K", a folder that is gone reads the last pass with the pass
+count, and a pass whose frames nobody counted leaves `released` UNKNOWN - never a partial sum dressed as a total.
+**Law:** `tv/test_a_session_says_what_it_yielded.py::TheRecordOverFixtureStores::test_a_reel_released_in_passes_keeps_every_pass_and_the_latest_act_wins`
+- two passes with `kept` over the shelf reel, the same two over a released one, an uncounted pass, and no tombstone at
+all. **Red-proofs, each seen RED by heart2 --prove:** the first row wins again · the shelf film hides the passes · an
+uncounted pass is skipped and the rest summed.
+
+### REG-1556 - THE LEDGER3 DOORS DRESSED A QUERY THEY COULD NOT READ AS THE ASK: "" BECAME "NO ID GIVEN", ?limit=abc BECAME 200 ROWS (2026-09-30)
+
+**Found** by `python3 tv/swallow_census.py --check` on the merged REG-1541 branch: `tv/control_app.py` 28 -> 29, the
+new site at the record door's `except Exception: _sid_l3 = ""` - a query that would not parse became the empty id,
+and the door then answered "no session id given - ?id=<sessionId or reel folder>" to a caller who HAD named a reel.
+The sibling one door up did the same in a shape the census does not count: `?limit=abc` became `_lim_l3 = 200` and
+the list was answered in full as if he had asked for 200. A failed read is UNKNOWN, never a default that reads as a
+measurement. **Fix** (`tv/control_app.py`): one helper, `_ledger3_unparsed_query(field, exc)`, and both doors answer
+it and return - the record door says the query could not be parsed and which reel was asked for is UNKNOWN (naming
+the exception, never "no id given"); the list door refuses an unreadable `?limit=` with the ask (`total: None`, no
+rows), and a number or no limit answers as before. **Law:**
+`tv/test_a_session_says_what_it_yielded.py::TheDoorsSayUnknownNotNothing` (2) - the real handler in-process, a
+`parse_qs` that raises, `?limit=abc`, and the premise that the same asks answer once they parse. **Red-proofs, each
+seen RED by heart2 --prove:** the record door swallows to "" again · the list door answers ?limit=abc in full again.
+`swallow_census --check` holds again at the baseline.
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter

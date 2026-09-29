@@ -310,9 +310,21 @@ def _vault_side(vault_doc, key):
 
 
 # ── the film, the station, the survey, the tombstone ─────────────────────────────────────────
-def _film(hist, key, tombstone):
-    """Frames on the shelf for this reel, or why there are none. Never a 0 for 'did not look'."""
+def _film(hist, key, tombs):
+    """Frames on the shelf for this reel, or why there are none. Never a 0 for 'did not look'.
+
+    `tombs` is EVERY tombstone row for this reel, in file order (REG-1557). MEASURED 2026-09-30 on his
+    ledger, read-only: 3 of the 29 reels on his shelf carry tombstones - 14 rows between them, every
+    row with a `kept` list - the drain releases FRAMES and leaves the evidence stills behind, so a
+    tombstone is a release EVENT and the folder stays on the shelf; one reel alone carried FOUR rows
+    (65, 14, 14, 14 stills before each pass, 13 kept every time) and six an hour later. The first cut
+    took the first row and, with the folder still there, said "13 film still(s) on the shelf" as if
+    nothing had ever been taken. The film now carries the passes beside the stills, and a folder that is gone reads the
+    LAST pass - the latest act, reel_custody's rule for the same store - with the pass count beside
+    it, never folded into the first. [[copy-drift]] [[unknown-stays-unknown]]
+    """
     reel = "reel_" + key
+    rel = _releases(tombs)
     if not hist:
         return {"frames": None, "onShelf": None, "why": "no shelf was named, so the film is UNKNOWN"}
     rd = os.path.join(hist, reel)
@@ -323,11 +335,19 @@ def _film(hist, key, tombstone):
             return {"frames": None, "onShelf": True,
                     "why": "the reel folder is on the shelf but could not be listed (%s)" % type(e).__name__}
         sealed = os.path.isfile(os.path.join(rd, "kai_report.json"))
-        return {"frames": n, "onShelf": True, "sealed": sealed,
-                "why": "%d film still(s) on the shelf%s" % (n, "" if sealed else " - not sealed yet")}
-    if tombstone:
-        return {"frames": tombstone.get("frames"), "onShelf": False,
-                "why": "released: %s" % str(tombstone.get("why") or "no reason recorded")[:160]}
+        out = {"frames": n, "onShelf": True, "sealed": sealed,
+               "why": "%d film still(s) on the shelf%s" % (n, "" if sealed else " - not sealed yet")}
+        if rel:
+            out["released"] = rel
+            out["why"] += (" - %d release pass(es) took %s frame(s); the drain kept %s"
+                           % (rel["n"],
+                              "UNKNOWN (a pass nobody counted)" if rel["released"] is None else rel["released"],
+                              "UNKNOWN" if rel["kept"] is None else "%d" % rel["kept"]))
+        return out
+    if tombs:
+        last = tombs[-1]
+        return {"frames": last.get("frames"), "onShelf": False, "releases": rel["n"],
+                "why": "released (%d pass(es)): %s" % (rel["n"], str(last.get("why") or "no reason recorded")[:160])}
     return {"frames": None, "onShelf": False,
             "why": "no reel folder on the shelf and no tombstone - whether it was ever filmed is UNKNOWN"}
 
@@ -366,15 +386,42 @@ def _survey(triage, key):
             "ts": row.get("ts")}, None
 
 
-def _tombstone_of(tombstones, key):
+def _tombstones_of(tombstones, key):
+    """EVERY tombstone row for this reel, in file order - the order the acts happened. [] for none.
+
+    REG-1557: the first cut returned the FIRST match and dropped the rest. reel_custody, reading the
+    same store, keeps every row and lets the LAST one win the lookup; so does this. [[copy-drift]]
+    """
     if not isinstance(tombstones, list):
+        return []
+    return [t for t in tombstones
+            if isinstance(t, dict) and reel_key(t.get("reel") or t.get("session")) == key]
+
+
+def _releases(tombs):
+    """What the drain's passes took from this reel, across every row. None when there are none.
+
+    -> {n, lastTs, released, kept}. A row's `frames` is what the folder HELD before that pass
+    (reel_retention._tombstone counts the folder, then deletes) and `kept` is what the pass left, so
+    one pass released frames - len(kept). A pass whose count nobody took (frames None) leaves
+    `released` UNKNOWN - never a partial sum dressed as a total. `kept` is the LAST pass's keepers,
+    None when no pass recorded any. [[unknown-stays-unknown]]
+    """
+    if not tombs:
         return None
-    for t in tombstones:
-        if not isinstance(t, dict):
-            continue
-        if reel_key(t.get("reel") or t.get("session")) == key:
-            return t
-    return None
+    released = 0
+    for t in tombs:
+        f = t.get("frames")
+        if isinstance(f, bool) or not isinstance(f, int):
+            released = None          # a pass nobody counted: UNKNOWN, never a partial sum
+            break
+        released += max(0, f - len(t.get("kept") or []))
+    kept = None
+    for t in reversed(tombs):
+        if isinstance(t.get("kept"), list):
+            kept = len(t["kept"])
+            break
+    return {"n": len(tombs), "lastTs": tombs[-1].get("deletedTs"), "released": released, "kept": kept}
 
 
 # ── the record ───────────────────────────────────────────────────────────────────────────────
@@ -403,8 +450,11 @@ def session_record(sid, stores):
     rows = session_rows(journal, key)
     if journal is None:
         unknown.append("the journal could not be read, so the reader's trail for this reel is UNKNOWN")
-    tomb = _tombstone_of(stores.get("tombstones"), key)
-    film = _film(stores.get("hist"), key, tomb)
+    tombs = _tombstones_of(stores.get("tombstones"), key)
+    # REG-1557 - the LATEST act wins and the pass count rides beside it (reel_custody's rule)
+    tomb = tombs[-1] if tombs else None
+    releases = _releases(tombs)
+    film = _film(stores.get("hist"), key, tombs)
     if rows:
         jside, jitems = _journal_side(rows)
     else:
@@ -487,7 +537,7 @@ def session_record(sid, stores):
         "span": (jside or {}).get("span"),
         "journal": jside,
         "readers": (jside or {}).get("readers"),
-        "film": film, "station": station, "survey": survey, "tombstone": tomb,
+        "film": film, "station": station, "survey": survey, "tombstone": tomb, "releases": releases,
         "items": items, "yield": yield_, "evidenceFrames": frames,
         "agreement": agreement,
         "knownBy": known_by, "unknown": unknown,
