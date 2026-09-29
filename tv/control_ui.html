@@ -25979,17 +25979,19 @@ function escC(s) {
          they are absent and `| 0` turned three unknowns into three confident zeros — two numbers
          for one thing on one card, which is the defect this console has had to correct more than
          any other. Known figures when known, an em-dash when not. [[label-outlived-referent]] */
+      /* each dot is glued on BOTH sides (\u00a0), so a wrap can never leave one at a line's start or end -
+         Grok's cold look at 375px, 2026-09-29, the same class as REG-1441 [[REG-1462]] */
       + '<div class="fx-foot">'
       + (j.ok ? ((j.mineN | 0) + ' / ' + _fxDen(j) + ' yours')
               : (_yoursN + ' / ' + _fxDen(j) + ' yours'))
-      + ' · '
+      + '\u00a0·\u00a0'
       + (j.ok ? ((j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs')
               : (typeof j.theirHave === 'number'
                    ? (j.theirHave + ' / ' + (j.theirTotal || _fxDen(j)) + ' theirs (count only)')
                    : '\u2014 theirs'))
-      + ' · '
+      + '\u00a0·\u00a0'
       + (j.ok ? ((j.both | 0) + ' shared') : '\u2014 shared')
-      + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
+      + '<span class="fx-age">\u00a0·\u00a0your list ' + escC(age(j.mineAt))
       + ', theirs ' + escC(age(j.theirAt)) + '</span></div></div></div>';
     } catch (err) {
       box.innerHTML = '<div class="fxr-win">' + head

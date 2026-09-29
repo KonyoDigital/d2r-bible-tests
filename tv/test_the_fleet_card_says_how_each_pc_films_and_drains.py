@@ -411,7 +411,9 @@ READ = r"""(function(){ var l = document.getElementById('fleet-list'); if (!l) r
   var rows = [].map.call(l.querySelectorAll('.fleet-row'), function(r){
     var sys = r.querySelector('.fleet-sys:not(.fleet-former)'), fm = r.querySelector('.fleet-former');
     var spill = [].filter.call(r.querySelectorAll('.fleet-sys .fs-l'), function(e){ var b = e.getBoundingClientRect(); return b.width > 0 && b.right > lr.right + 0.5; }).length;
+    var chip = r.querySelector('.fleet-riverstuck'), cb = chip ? chip.getBoundingClientRect() : null;
     return { name: (r.querySelector('b') || {}).textContent || '', sys: sys ? sys.innerText.replace(/ /g, ' ') : null,
+             stuck: !!chip, stuckSpill: !!(cb && cb.width > 0 && cb.right > lr.right + 0.5),
              former: fm ? fm.innerText : null, spill: spill, h: sys ? sys.getBoundingClientRect().height : 0 }; });
   return JSON.stringify({ rows: rows, sw: [l.scrollWidth, l.clientWidth], w: lr.width }); })()"""
 
@@ -421,7 +423,7 @@ WRAP_WIDTHS = ((375, 812), (1280, 800))
 #: every rendered LINE of every fact row (films / river / triage / formerly), rebuilt from each character's own rect - the
 #: key hangs in the indent and is left out; a line is the characters whose tops agree within 3px
 LINES = r"""(function(){ var out = [];
-  [].forEach.call(document.querySelectorAll('#fleet-xref .fx-sys .fs-l'), function(l){
+  [].forEach.call(document.querySelectorAll('#fleet-xref .fx-sys .fs-l, #fleet-xref .fx-foot'), function(l){
     var ch = [], tw = document.createTreeWalker(l, NodeFilter.SHOW_TEXT), n;
     while ((n = tw.nextNode())){
       if (n.parentElement && n.parentElement.closest('.fs-k')) continue;
@@ -454,12 +456,19 @@ def _fixture():
                  "system": {"tree": "ok", "reels": 9,
                             "capture": {"route": "native", "ageS": 95.0, "why": "", "source": "finder"},
                             "river": {"lanes": {"TRIAGE": 2, "PRINTER": 3, "CAPTURE": 4, "TOMBSTONE": 1}, "ageS": 120.0,
-                                      "why": "", "triage": dict(TRI_OK, lastTs=now - 90000)}}},
+                                      "why": "", "triage": dict(TRI_OK, lastTs=now - 90000),
+                                      "stuck": [], "heart": {"census": "current", "key": "current", "blind": 0}}}},
                 {"nickname": "ALT", "machine": "box-b", "ver": "v3521", "mode": "live", "t": iso(20),
                  "system": {"tree": "ok", "reels": 10,
                             "capture": {"route": "boosteroid", "ageS": 12.0, "why": "", "source": "capture-half"},
                             "river": {"lanes": {"TRIAGE": 7, "PRINTER": 1, "TOMBSTONE": 2}, "ageS": 300.0, "why": "",
-                                      "triage": dict(TRI_OK, lastKey="cpu-shadow", backlog=7, sinceLastS=10800.0)}}}],
+                                      "triage": dict(TRI_OK, lastKey="cpu-shadow", backlog=7, sinceLastS=10800.0),
+                                      # #74 (REG-1461) - the ALT's real shape on 2026-09-29, found only by SSH
+                                      "stuck": [{"station": "EMPTY", "n": 76, "oldestS": 40 * 3600.0,
+                                                 "why": "route lane: reel.route is LOCKED - the heart has never run here"},
+                                                {"station": "PRINTER", "n": 25, "oldestS": 38 * 3600.0,
+                                                 "why": "vault lane: owes 0, 0 read(s) on record"}],
+                                      "heart": {"census": "missing", "key": "busy", "blind": None}}}}],
             "offline": [
                 {"nickname": "Wife PC", "machine": "box-c", "ver": "v3401", "mode": "idle", "t": iso(5 * 86400),
                  "system": {"tree": "ok", "reels": 3}}]}
@@ -548,6 +557,17 @@ class TheShippedCardDrawsIt(unittest.TestCase):
                 if bx.get("sw") and bx["sw"][0] > bx["sw"][1] + 1:
                     bad.append("%dx%d %s: the page scrolls sideways with the box open %s" % (w, h, nm, bx["sw"]))
             k, a, wp = boxes.get("Konyo") or {}, boxes.get("ALT") or {}, boxes.get("Wife PC") or {}
+            # #74 (REG-1461) - the stuck river on the ROW (one red word) and in the BOX (stations, ages, proof)
+            _rows = dict((row["name"], row) for row in m["rows"])
+            if not (_rows.get("ALT") or {}).get("stuck"):
+                bad.append("%dx%d ALT row: its river has been stuck 40 h and the row does not say so" % (w, h))
+            if (_rows.get("ALT") or {}).get("stuckSpill"):
+                bad.append("%dx%d ALT row: 'river stuck' runs past the list's right edge" % (w, h))
+            if (_rows.get("Konyo") or {}).get("stuck"):
+                bad.append("%dx%d Konyo row: a draining river grew an alarm" % (w, h))
+            for want in ("EMPTY 76 for", "PRINTER 25 for", "never proved on this PC"):
+                if want not in (a.get("sys") or ""):
+                    bad.append("%dx%d ALT box: no %r (%r)" % (w, h, want, a.get("sys")))
             if "native" not in (k.get("sys") or "") or "walking" not in (k.get("sys") or ""):
                 bad.append("%dx%d Konyo box: %r" % (w, h, k.get("sys")))
             if "formerly cursor" not in (k.get("former") or ""):
@@ -584,6 +604,13 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 (REG-1462) - the compare footer's age separator is breakable again, and at 375 its second line starts with a lone middot (Grok's cold look)",
+        "file": "tv/control_ui.html",
+        "find": "'<span class=\"fx-age\">\\u00a0·\\u00a0your list '",
+        "replace": "'<span class=\"fx-age\"> · your list '",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - the fleet row renders films / river / triage upfront again (his 'only if clicked on')",
         "file": "control_ui.html",

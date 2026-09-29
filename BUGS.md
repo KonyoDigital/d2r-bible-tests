@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1462 - THE FLEET COMPARE FOOTER STRANDED A MIDDOT AT PHONE WIDTH (2026-09-29)
+
+**Found** by the Grok CLI's COLD look at the REG-1461 screenshots (it was not told what to look for): at 375 px
+the compare box footer's second line read "· your list unknown, theirs unknown" - the REG-1377/1441 class,
+in a place those fixes never reached. **Fix:** every footer separator is glued on BOTH sides (\u00a0·\u00a0),
+so a wrap can only fall inside a fact. **Law:** the rendered-card law's line reader now covers the footer; its
+red-proof (the age separator made breakable again) reproduces Grok's exact line at 375 and is RED.
+Also in the same look, NOT defects of this change and left as found: the green presence dot beside a red
+"river stuck" (presence, not health), ON AIR vs OFF AIR in the header (the fixture), the triage facts sharing
+one line at 1280 (pre-existing).
+
 ### REG-1461 - A PC'S RIVER COULD STALL FOR DAYS AND NO SCREEN WOULD SAY SO (2026-09-29)
 
 **Found** on the ALT (#50): 76 reels at EMPTY and 25 at PRINTER since 09-27, found only by SSH; Dean's PC has
