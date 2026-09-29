@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1548 - A STALE READING WIPED 16 SET PIECES HE FOUND AFTER IT, AND NOTHING KNEW WHEN ANY PIECE ARRIVED (2026-09-29)
+
+**Found** by Konyo on his Mac after the guest-world recovery (REG-1455 relaunch, 20:51): F·Sets read 118/135
+where he holds everything but Cow King's. Measured on copies of his store: at 20:44 `d2r_setPieces` held 133;
+at 20:51 it held 118, and `d2r_setRepairRemoved` named exactly the 16 that left - all "the game's own
+Remaining page still lists this as missing (read 2026-08-21)". The 02:54 store rewrite had dropped the
+one-shot flags (`d2r_v1925RemainingRepairApplied`, `d2r_setRepair*`), so the Aug-21 boot repair ran again
+and removed every listed piece he had not re-ticked BY HAND - but these came back through reads and syncs,
+never a hand tick, and no store recorded when any piece had arrived. The only newer truth was his 20:44
+ledger. **Restored 21:04** (console quit, store backed up to ~/d2r_session_carry/store_backups/, 134 written,
+the 16 marked kept, the flag set): the page reads 134/135 - finish Cow King's.
+
+**Fix (bible.html):** `window.LSR.setItem` - the one door LS/LSx/LSR are - now stamps each piece's FIRST
+appearance (`d2r_setPiecesSince`) and, on any shrink, keeps the list as it was with what left and when
+(`d2r_setPiecesHistory`, newest 20), both routed to the same world as the pieces. The AUTO boot repair
+removes a listed piece only when a stamp PROVES it predates `readAt`; newer or UNKNOWN stays and is reported
+(`newerThanReading`). A hand-run repair still acts. Konyo: *"make sure the ledger is restoring from the last
+and most recent refreshed and updated last read.. we should be having a history of this in ledger to go by"*.
+
+**Law:** `tv/test_the_sets_ledger_keeps_its_history.py` - drives the real LSR IIFE in node (8 cases); 4
+red-proofs, all PROVEN. CI: `tests/v1938_remaining_repair_outcome.spec.ts` seeds pre-reading stamps (the
+old cases still land 116) and a new case proves newer/unknown pieces survive while older ones go.
+
+### REG-1547 - THE MAC LAUNCHER LAUNCHED NOTHING WHEN THE CONSOLE WAS DOWN (2026-09-29)
+
+**Found** relaunching his console for REG-1548: `bash -x tv/start_tvd_mac.sh` stopped at the REG-1514 call
+`_tvd_why=$(python3 launcher_decide.py ...)`. The script runs under `set -euo pipefail`, and that command
+exits 1 for "replace it" (console down, stale or windowless), so the assignment ENDED the script - the
+Desktop icon did nothing whenever the console was not already up. REG-1514's law drove `launcher_decide.py`,
+never the shell that calls it. **Fix:** `_tvd_rc=0; _tvd_why=$(...) || _tvd_rc=$?`. **Law:** a case in
+`test_the_launcher_brings_a_running_console_forward.py` cuts the REAL block from the script and runs it with
+the same flags against a fake decide (rc 1 reaches the launch, rc 0 ends it); red-proof PROVEN.
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

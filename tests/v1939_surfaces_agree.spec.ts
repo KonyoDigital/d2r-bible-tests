@@ -53,6 +53,8 @@ test('★★★ every surface printing a set-piece count shows the SAME one, on 
       const names: string[] = [];
       (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
       localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+      /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
+      localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(names.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
       localStorage.removeItem('d2r_setRepairAt');
       localStorage.removeItem('d2r_setRepairRemoved');
       localStorage.setItem('d2r_grailUnfound', '{}');

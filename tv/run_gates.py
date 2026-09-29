@@ -216,7 +216,15 @@ GATES = [
          why="REG-1514 - the second eye on 4e22a57a: a Desktop double-click on a Mac console whose window was UP fell "
              "through to the kill of :17772 and replaced a healthy console (and its session). tv/launcher_decide.py "
              "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
-             "ephemeral port. 3 red-proofs"),
+             "ephemeral port. 3 red-proofs. v3525 - and the SHELL block that calls it, run for real under "
+             "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. 4 red-proofs"),
+    Gate("test_the_sets_ledger_keeps_its_history", [sys.executable,
+         os.path.join(HERE, "test_the_sets_ledger_keeps_its_history.py")], 60,
+         why="REG-1548 - 2026-09-29 his Mac store lost its one-shot flags, the Aug-21 set repair re-ran and took 16 "
+             "pieces found weeks later (133 -> 118), and nothing recorded when any piece arrived. LSR (the one door) "
+             "now stamps each piece's first appearance and keeps a dated history of every shrink (newest 20, same "
+             "world as the pieces); the boot repair removes only what a stamp proves predates the reading. Driven "
+             "in node over the real LSR IIFE; the page decision is driven on CI (v1938 spec). 4 red-proofs"),
     Gate("test_one_capture_per_console", [sys.executable,
          os.path.join(HERE, "test_one_capture_per_console.py")], 120,
          why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "

@@ -40,6 +40,8 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
          a repair that never ran. [[feedback_blind_fixture_green_gate]] */
       await page.evaluate((all: string[]) => {
         localStorage.setItem('d2r_setPieces', JSON.stringify(all));
+        /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
+        localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(all.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
         localStorage.removeItem('d2r_setRepairAt');
         localStorage.removeItem('d2r_setRepairRemoved');
         localStorage.setItem('d2r_grailUnfound', '{}');
@@ -87,6 +89,8 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
         const names: string[] = [];
         (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
         localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+        /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
+        localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(names.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
         localStorage.removeItem('d2r_setRepairAt');
         localStorage.removeItem('d2r_setRepairRemoved');
         localStorage.setItem('d2r_grailUnfound', '{}');
@@ -140,6 +144,8 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
         const names: string[] = [];
         (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
         localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+        /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
+        localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(names.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
         localStorage.removeItem('d2r_setRepairAt');
         localStorage.removeItem('d2r_setRepairRemoved');
         localStorage.setItem('d2r_grailUnfound', '{}');
@@ -199,6 +205,8 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
       const seeded = miss.filter((n) => (w._SET_SEED || {})[n]);
       const pick = seeded[0] || miss[0];
       localStorage.setItem('d2r_setPieces', JSON.stringify(names));           // everything ticked
+      /* v3525 (REG-1548) — the reading may only remove what PROVABLY predates it: this ledger is stamped as held since before Aug 21. */
+      localStorage.setItem('d2r_setPiecesSince', JSON.stringify(Object.fromEntries(names.map((n: string) => [n, Date.parse('2026-08-01T00:00:00Z')]))));
       localStorage.setItem('d2r_setRepairAt', (w._SET_MISSING || {}).readAt || 'x');  // ...and ALREADY stamped
       localStorage.removeItem('d2r_setRepairKept');
       localStorage.removeItem('d2r_setRepairRemoved');
@@ -229,4 +237,38 @@ test.describe('v1938 — the remaining-repair lands on 116/135 and stays there',
       (JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]).includes(n), target);
     expect(survived, 'the repair overruled a piece he had explicitly ticked back').toBe(true);
   });
+
+  test('★★★ v3525 — a piece that arrived AFTER the reading, or on an UNKNOWN date, is never removed by it',
+    async ({ page }) => {
+      /* REG-1548, measured on his Mac 2026-09-29 20:51: the Aug-21 reading re-ran after his store lost its
+         flags and took 16 pieces he found weeks later. Only a stamp that PREDATES readAt lets the boot repair act. */
+      await page.goto(URL);
+      await page.waitForTimeout(1400);
+      const r = await page.evaluate(() => {
+        const w: any = window;
+        const names: string[] = [];
+        (w.__allSets() || []).forEach((s: any) => (s.pieces || []).forEach((p: string) => names.push(p)));
+        const missing: string[] = ((w._SET_MISSING || {}).names || []);
+        const since: any = {};
+        names.forEach((n) => { since[n] = Date.parse('2026-08-01T00:00:00Z'); });
+        missing.slice(0, 5).forEach((n) => { since[n] = Date.parse('2026-09-20T00:00:00Z'); });  // found AFTER the reading
+        missing.slice(5, 9).forEach((n) => { delete since[n]; });                                // arrival UNKNOWN
+        localStorage.setItem('d2r_setPieces', JSON.stringify(names));
+        localStorage.setItem('d2r_setPiecesSince', JSON.stringify(since));
+        localStorage.removeItem('d2r_setRepairAt');
+        localStorage.removeItem('d2r_setRepairRemoved');
+        localStorage.removeItem('d2r_setRepairKept');
+        localStorage.removeItem('d2r_v1925RemainingRepairApplied');
+        return { newer: missing.slice(0, 5), unknown: missing.slice(5, 9), older: missing.slice(9) };
+      });
+      await page.reload();
+      await page.waitForTimeout(1600);
+      const after = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_setPieces') || '[]') as string[]);
+      expect(r.newer.filter((n) => !after.includes(n)), 'a piece found after the reading was taken by it').toEqual([]);
+      expect(r.unknown.filter((n) => !after.includes(n)), 'an UNKNOWN arrival lost to a stale reading').toEqual([]);
+      expect(r.older.filter((n) => after.includes(n)), 'a piece that predates the reading was not corrected').toEqual([]);
+      const hist = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_setPiecesHistory') || '[]'));
+      expect(hist.length, 'the shrink left no dated history to restore from').toBeGreaterThan(0);
+      expect(hist[hist.length - 1].removed.sort(), 'the history names exactly what left').toEqual([...r.older].sort());
+    });
 });

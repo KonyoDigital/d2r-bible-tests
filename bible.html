@@ -4352,11 +4352,50 @@ window.LSR = (function(){
     }
     return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? window._D2R_LPFX + k : k;
   }
+  /* ⚠⚠ v3525 (REG-1548) — THE SETS LEDGER KEEPS ITS OWN DATED HISTORY, AT THE ONE DOOR EVERY WRITER USES.
+     2026-09-29 20:51 his Mac store came back without its one-shot flags (the 02:54 rewrite), the Aug-21 boot
+     repair ran again, and 16 pieces he had found since vanished — and NOTHING recorded when any piece had
+     arrived, so nothing could say "this is newer than that reading". Konyo: "make sure the ledger is restoring
+     from the last and most recent refreshed and updated last read.. we should be having a history of this in
+     ledger to go by". So every write of d2r_setPieces through LSR (LS/LSx/LSR are this object) now:
+       · stamps the FIRST time each piece appears (d2r_setPiecesSince {name: ms}) — the repair asks it;
+       · on any shrink, keeps the list as it WAS, dated, with what left (d2r_setPiecesHistory, newest 20) —
+         a restore takes the newest row, never an older reading.
+     Both live in the SAME world as the pieces (the prefix d2r_setPieces routes to), so a guest's history can
+     never be read as his. Never throws into the write it rides on. [[unknown-stays-unknown]] */
+  function _spSide(name){ var kk = key('d2r_setPieces'); return kk.slice(0, kk.length - 'd2r_setPieces'.length) + name; }
+  function _spHistory(v){
+    var prev, next;
+    try { prev = JSON.parse(RAW.getItem(key('d2r_setPieces')) || '[]'); } catch(e){ prev = []; }
+    try { next = JSON.parse(v || '[]'); } catch(e){ return; }
+    if (!Array.isArray(prev)) prev = [];
+    if (!Array.isArray(next)) return;
+    var now = Date.now(), inNext = {}, inPrev = {};
+    next.forEach(function(n){ inNext[n] = 1; });
+    prev.forEach(function(n){ inPrev[n] = 1; });
+    var since = {};
+    try { since = JSON.parse(RAW.getItem(_spSide('d2r_setPiecesSince')) || '{}') || {}; } catch(e){ since = {}; }
+    var stamped = false;
+    next.forEach(function(n){ if (!inPrev[n] && !since[n]){ since[n] = now; stamped = true; } });
+    if (stamped) RAW.setItem(_spSide('d2r_setPiecesSince'), JSON.stringify(since));
+    var gone = prev.filter(function(n){ return !inNext[n]; });
+    if (!gone.length) return;
+    var h = [];
+    try { h = JSON.parse(RAW.getItem(_spSide('d2r_setPiecesHistory')) || '[]') || []; } catch(e){ h = []; }
+    if (!Array.isArray(h)) h = [];
+    h.push({ ts: now, at: new Date(now).toISOString(), before: prev.length, after: next.length,
+             removed: gone, pieces: prev });
+    if (h.length > 20) h = h.slice(h.length - 20);
+    RAW.setItem(_spSide('d2r_setPiecesHistory'), JSON.stringify(h));
+  }
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
-    setItem:    function(k,v){ return RAW.setItem(key(k), v); },
+    setItem:    function(k,v){
+      if (k === 'd2r_setPieces'){ try { _spHistory(v); } catch(e){} }
+      return RAW.setItem(key(k), v);
+    },
     removeItem: function(k){ return RAW.removeItem(key(k)); },
-    raw: RAW, key: key
+    raw: RAW, key: key, spSide: _spSide
   };
 })();
 // v1478 — THE ROUTE, PUBLISHED. The console (tv/control_ui.html) shares this origin and reads the
@@ -51172,6 +51211,8 @@ function renderJournal(){
     try { _repairSuppressed = window.LSR.getItem('d2r_v1925RemainingRepairApplied') === '1'; } catch(e){}
     var _repairKept = {};
     try { _repairKept = JSON.parse(window.LSR.getItem('d2r_setRepairKept') || '{}') || {}; } catch(e){}
+    var _spSince = {}, _readAtMs = Date.parse(readAt) || 0;
+    try { _spSince = JSON.parse(window.LSR.raw.getItem(window.LSR.spSide('d2r_setPiecesSince')) || '{}') || {}; } catch(e){ _spSince = {}; }
     /* v1938 — THE FLAG HAS TO STOP THE WHOLE BOOT REPAIR, NOT ONE OF ITS TWO BRANCHES.
        v1937 gated only the `missing[n]` branch. The OTHER branch — "not a set piece in this game" —
        kept running under suppression, so v949's merge fixture (which seeds two set pieces with
@@ -51229,6 +51270,18 @@ function renderJournal(){
          the game's page for good. A name NOT in there that reappeared did not come back by his
          hand, so the repair corrects it, on this load and every load, which is what "self-healing"
          has to mean if the stamp can ever be wrong. [[the-unjoined-end]] [[label-outlived-referent]] */
+      /* v3525 (REG-1548) — A READING MAY ONLY REMOVE WHAT IT IS NEWER THAN. The boot repair used to remove any
+         listed piece he had not re-ticked by hand, on every load, for ever — so pieces that came back through a
+         chronicle read or a sync (never a hand tick) were taken again, and when a store lost this repair's flags
+         the Aug-21 reading wiped 16 pieces found weeks after it. On the AUTO run a piece goes only when
+         d2r_setPiecesSince PROVES it arrived before readAt; newer, or UNKNOWN (no stamp), stays and is reported.
+         A hand-run repair is his deliberate act and still acts. */
+      if (missing[n] && !_repairKept[n] && !_repairSuppressed && opts.auto
+          && !(_spSince[n] && _readAtMs && _spSince[n] < _readAtMs)){
+        (out.newerThanReading = out.newerThanReading || []).push(n);
+        keep.push(n);
+        return;
+      }
       if (missing[n] && !_repairKept[n] && !_repairSuppressed){
         out.removed.push({ name: n, why: 'the game\u2019s own Remaining page still lists this as '
           + 'missing (read ' + ((window._SET_MISSING || {}).readAt || 'recently') + ')' });
