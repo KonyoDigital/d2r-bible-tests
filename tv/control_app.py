@@ -17210,7 +17210,8 @@ def self_probe_verdict(strikes, kind, act_after=SELF_PROBE_STRIKES):
 def _self_probe_tick(port=None, probe=None, relaunch=None, now_ms=None):
     """One self-probe, its verdict, and the cure when it is due. -> the state. Never raises into the loop."""
     try:
-        r = (probe or server_self_probe)(CONTROL_PORT if port is None else port)
+        _port = CONTROL_PORT if port is None else port
+        r = probe(_port) if probe is not None else server_self_probe(_port)
     except Exception as e:
         r = {"kind": "error", "ms": None, "why": type(e).__name__}
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)

@@ -29,6 +29,15 @@ import os
 import sys
 import unittest
 
+# SIZED FROM THE WINDOW: more recent rows than the newest KEEP_RECENT, so that hold is never what does the work.
+# A literal 12 was 8 + 4 and went red when his window became 16 (2026-09-29, REG-1433).
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from reel_retention import KEEP_RECENT as _KEEP_FLOOR
+except Exception:
+    _KEEP_FLOOR = 16
+_NEWER = _KEEP_FLOOR + 4
+
 from console_safe import enable as _console_safe_enable
 
 _console_safe_enable()
@@ -51,7 +60,7 @@ class TestARowThatIsTheOnlyTraceIsNeverReleased(unittest.TestCase):
         self._real = JR._banked_reels
         self.addCleanup(lambda: setattr(JR, "_banked_reels", self._real))
         # ⚠ enough dated rows that the "newest 8" hold cannot be what is doing the work
-        self.filler = [_row("s_filler_%03d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        self.filler = [_row("s_filler_%03d" % i, 1_800_000_000_000 + i) for i in range(_NEWER)]
 
     def _plan(self, extra, banked):
         JR._banked_reels = lambda: banked
