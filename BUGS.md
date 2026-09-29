@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
+
+**Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter
+being fed: the Mac console's own `.subscription_budget.json` holds 33 Claude calls today (16:25-17:33) and none
+since, the ALT's holds 3. The Grok lane was: on the ALT, 1,258 G5 reads in 24 h (one per ~70 s, 52 in the last
+hour), and each `grok -p` imported Claude Code's MCP servers from `~/.claude.json` (`grok inspect`:
+`chrome-devtools (stdio) ~/.claude.json [claude]`), so every read ran `npx -y chrome-devtools-mcp@latest` and
+opened a whole Chrome - 7 processes, 418 MB - on an 8 GB box with 346 MB free while Boosteroid ran, plus 72
+Claude skills in a call whose only tool is read_file. On the Mac the same read loaded 81 skills and 7 Claude
+hooks. The Chromes were reaped when each read ended (no orphan pile-up) - it was churn, back to back. And every
+read left its Grok session directory: 2,642 (932 MB) on the ALT, 3,802 (4.87 GB, removed today) on the Mac.
+
+**Fix (tv/g5_grok_eyes.py):** a frame read keeps `GROK_HOME` = his real Grok home (login + config untouched) and
+points `HOME`/`USERPROFILE` at an empty stand-in, so Grok finds nothing to import. The compat switches are read
+from `$GROK_HOME/config.toml` only - a project `.grok/config.toml` and the `GROK_CONFIG` overlays were both
+measured NOT to reach them. Measured: MCP 1 -> 0, hooks 7 -> 0, skills 81 -> 33 (ALT 72 -> 22); a live read on
+the ALT answered in 4 s, started no Chrome and wrote nothing to the stand-in. `grok login` stays in his real
+environment. `_cleanup` also removes the one Grok session directory the read minted, matched by its unique
+`tvd-g5-` name. `_STATS["read_env"]` says lean or plain (and why).
+
+**Law:** `TestV3525AReadDoesNotLoadHisOtherTools` in `tv/test_g5_grok_eyes.py` drives `g5_vision_read` with a
+fake grok that records its env and mints the session directory; 3 new red-proofs, all PROVEN.
+
 ### REG-1548 - A STALE READING WIPED 16 SET PIECES HE FOUND AFTER IT, AND NOTHING KNEW WHEN ANY PIECE ARRIVED (2026-09-29)
 
 **Found** by Konyo on his Mac after the guest-world recovery (REG-1455 relaunch, 20:51): F·Sets read 118/135

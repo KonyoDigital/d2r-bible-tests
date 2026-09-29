@@ -46,6 +46,27 @@ RED_PROOF = [
         "replace": "_HEART2_TAMPERED_",
         "matches": 1,
     },
+    {
+        "why": "2026-09-29 (REG-1549) - the frame read runs in his real HOME again and imports Claude's MCP servers",
+        "file": "tv/g5_grok_eyes.py",
+        "find": "    env, stripped = _grok_env(lean=True)\n",
+        "replace": "    env, stripped = _grok_env()\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1549) - the lean env keeps his HOME, so the imports come back",
+        "file": "tv/g5_grok_eyes.py",
+        "find": "            env[\"HOME\"] = h\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 (REG-1549) - a read leaves its Grok session directory behind (4.7 GB on the Mac)",
+        "file": "tv/g5_grok_eyes.py",
+        "find": "                if base in name:\n                    shutil.rmtree(os.path.join(sd, name), ignore_errors=True)\n",
+        "replace": "                if base in name:\n                    pass\n",
+        "matches": 1,
+    },
 ]
 
 def setUpModule():
@@ -518,6 +539,84 @@ class TestBothLanesSeeTheSamePixels(unittest.TestCase):
         with open(cc.__file__, encoding="utf-8") as fh:
             self.assertIn("chronicle_template", fh.read(),
                           "the shared crop invented its own band instead of using the measured one")
+
+
+class TestV3525AReadDoesNotLoadHisOtherTools(unittest.TestCase):
+    """REG-1549 — measured on his ALT 2026-09-29: every frame read imported Claude Code's MCP servers and started
+    a whole Chrome (npx chrome-devtools-mcp, 7 processes, 418 MB) plus 72 skills, ~1,258 times a day, and left
+    one Grok session directory behind per read (932 MB there, 4.7 GB on the Mac). DRIVEN through the real
+    g5_vision_read with subprocess.run replaced by a fake grok that records the env it was given and mints
+    the session directory the real CLI would."""
+
+    def setUp(self):
+        self._env = os.environ.copy()
+        os.environ.pop("TV_G5_GROK_EYES", None)
+        self._td = tempfile.mkdtemp()
+        self._grok_home = os.path.join(self._td, "his-grok-home")
+        os.makedirs(os.path.join(self._grok_home, "sessions", "his-own-session"))
+        os.environ["GROK_HOME"] = self._grok_home          # never his real ~/.grok
+        self._p_state = mock.patch.object(g5, "_STATE_FILE", os.path.join(self._td, "s.state"))
+        self._p_budget = mock.patch.object(g5, "_BUDGET_PATH", os.path.join(self._td, "b.json"))
+        self._p_state.start()
+        self._p_budget.start()
+        self._img = os.path.join(self._td, "f.jpg")
+        with open(self._img, "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xd9")
+        self.seen = {}
+
+    def tearDown(self):
+        self._p_state.stop()
+        self._p_budget.stop()
+        os.environ.clear()
+        os.environ.update(self._env)
+        shutil.rmtree(self._td, ignore_errors=True)
+        if g5._LEAN_HOME:                                   # the stand-in HOME the reads made
+            shutil.rmtree(g5._LEAN_HOME, ignore_errors=True)
+            g5._LEAN_HOME = None
+
+    def _fake_run(self, argv, **kw):
+        self.seen["env"] = dict(kw.get("env") or {})
+        self.seen["cwd"] = kw.get("cwd")
+        # the real CLI keeps one session directory per cwd, named after the encoded path
+        enc = str(kw.get("cwd")).replace("/", "%2F").replace("\\", "%5C").replace(":", "%3A")
+        os.makedirs(os.path.join(self._grok_home, "sessions", enc), exist_ok=True)
+        self.seen["session"] = enc
+
+        class R:
+            returncode = 0
+            stdout = '{"names":["Test"],"scene":"loot","conf":0.8,"area":"","tz":[]}'
+            stderr = ""
+        return R()
+
+    def _read(self):
+        with mock.patch.object(g5, "has_subscription", return_value=True):
+            with mock.patch.object(g5, "_grok_bin", return_value="/fake/grok"):
+                with mock.patch.object(g5.subprocess, "run", side_effect=self._fake_run):
+                    return g5.g5_vision_read(self._img, force=True)
+
+    def test_the_read_keeps_his_grok_home_but_not_his_home(self):
+        out = self._read()
+        self.assertEqual(out["names"], ["Test"])
+        env = self.seen["env"]
+        self.assertEqual(env.get("GROK_HOME"), self._grok_home, "the read lost his Grok login/config")
+        self.assertNotEqual(env.get("HOME"), self._env.get("HOME"),
+                            "the read ran in his real HOME, so Grok imports Claude/Cursor MCP servers, skills and hooks")
+        self.assertTrue(os.path.isdir(env.get("HOME")) and not os.listdir(env.get("HOME")),
+                        "the stand-in HOME is not an empty directory")
+        if os.name == "nt":
+            self.assertEqual(env.get("USERPROFILE"), env.get("HOME"))
+        self.assertEqual("lean", g5._STATS.get("read_env"))
+
+    def test_signing_in_keeps_his_real_home(self):
+        env, _ = g5._grok_env()
+        self.assertEqual(env.get("HOME"), os.environ.get("HOME"))
+        self.assertNotIn("tvd-g5-home-", str(env.get("HOME")))
+
+    def test_the_read_removes_only_its_own_session_directory(self):
+        self._read()
+        sess = os.listdir(os.path.join(self._grok_home, "sessions"))
+        self.assertNotIn(self.seen["session"], sess, "the read left its Grok session directory behind")
+        self.assertIn("his-own-session", sess, "the cleanup touched a session that was not the read's")
 
 
 if __name__ == "__main__":

@@ -309,10 +309,51 @@ def _key():
     return "subscription" if has_subscription() else ""
 
 
-def _grok_env():
-    """Env for grok -p: SuperGrok OIDC only — strip API tokens like Claude lane does."""
+def _real_grok_home():
+    """His Grok home — config, login, sessions. Resolved from THIS process's env, never the child's."""
+    return os.environ.get("GROK_HOME") or os.path.join(os.path.expanduser("~"), ".grok")
+
+
+_LEAN_HOME = None
+
+
+def _lean_home():
+    """An empty directory to stand in for HOME during a frame read. Created once per process."""
+    global _LEAN_HOME
+    if not (_LEAN_HOME and os.path.isdir(_LEAN_HOME)):
+        _LEAN_HOME = tempfile.mkdtemp(prefix="tvd-g5-home-")
+    return _LEAN_HOME
+
+
+def _grok_env(lean=False):
+    """Env for grok -p: SuperGrok OIDC only — strip API tokens like Claude lane does.
+
+    ⚠⚠ v3525 (REG-1549) — A FRAME READ DOES NOT LOAD HIS OTHER TOOLS' CONFIG. The Grok CLI imports Claude
+    Code's and Cursor's MCP servers, skills and hooks by default (`[compat.claude] mcps/skills/hooks`,
+    discovered under HOME). MEASURED on his ALT 2026-09-29 22:17: every read (1,258 in 24 h, one every
+    ~70 s) started `npx -y chrome-devtools-mcp@latest` from ~/.claude.json and with it a whole Chrome - 7
+    processes, 418 MB, on an 8 GB box with 346 MB free while Boosteroid ran - and loaded 72 skills into a
+    call whose only tool is read_file. On the Mac the same call loaded 81 skills and 7 Claude hooks. Those
+    compat switches are read from $GROK_HOME/config.toml only (a project .grok/config.toml and the
+    GROK_CONFIG overlays were both measured NOT to reach them), so a read keeps GROK_HOME = his real home
+    (his login, his config, untouched) and points HOME / USERPROFILE at an empty directory: nothing to
+    import. Measured with `grok inspect`: MCP 1 -> 0, hooks 7 -> 0, skills 81 -> 33 (ALT 72 -> 22), and a
+    live read answered in 4 s with no Chrome started and nothing written to the stand-in home.
+    `grok login` is NOT lean: signing in is his, in his real home.
+    """
     env = os.environ.copy()
     stripped = [k for k in _API_STRIP if env.pop(k, None) is not None]
+    if lean:
+        try:
+            env["GROK_HOME"] = _real_grok_home()     # resolved BEFORE HOME moves - his login stays his
+            h = _lean_home()
+            env["HOME"] = h
+            if os.name == "nt":
+                env["USERPROFILE"] = h
+            _STATS["read_env"] = "lean"
+        except Exception as e:
+            # the read still works on the plain env - heavier, and said so rather than hidden
+            _STATS["read_env"] = "plain - the lean home could not be made (%s: %s)" % (type(e).__name__, e)
     return env, stripped
 
 
@@ -912,7 +953,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
 
     # Work in throwaway cwd so monorepo project rules don't load
     work = tempfile.mkdtemp(prefix="tvd-g5-")
-    env, stripped = _grok_env()
+    env, stripped = _grok_env(lean=True)
     _log_auth_once(stripped)
 
     # Prefer adding image dir for tools
@@ -1102,6 +1143,19 @@ def g5_shadow_log(claude_result, grok_result, image_path="", picture=None, shown
 def _cleanup(work):
     try:
         shutil.rmtree(work, ignore_errors=True)
+    except Exception:
+        pass
+    # v3525 (REG-1549) — and the Grok session directory this read minted. Grok keeps one per cwd, and every
+    # read has its own throwaway cwd, so they were never reused and never removed: 3,749 of them (4.7 GB) on
+    # his Mac, 2,642 (932 MB) on the ALT. Matched by this read's unique tvd-g5- name only, so none of his
+    # own sessions can match.
+    try:
+        base = os.path.basename(str(work).rstrip("/\\"))
+        sd = os.path.join(_real_grok_home(), "sessions")
+        if base.startswith("tvd-g5-") and len(base) > len("tvd-g5-") and os.path.isdir(sd):
+            for name in os.listdir(sd):
+                if base in name:
+                    shutil.rmtree(os.path.join(sd, name), ignore_errors=True)
     except Exception:
         pass
 
