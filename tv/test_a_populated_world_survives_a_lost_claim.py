@@ -265,7 +265,53 @@ class APopulatedWorldSurvivesALostClaim(unittest.TestCase):
         self.assertTrue(_run({}, webdriver="true", protocol="'file:'")["owner"])
 
 
+@unittest.skipIf(shutil.which("node") is None, "node is absent — UNMEASURED, not passing")
+class AMissingClaimIsRecoveredLikeAMismatchedOne(unittest.TestCase):
+    """#50 (REG-1455) — 2026-09-29, his store lost `d2r_ownerClaim` AND `d2r_installId` together; with no
+    claim at all v2776's recovery never ran (it lives inside `if (claim)`), and from ~03:13 his board
+    showed an empty guest world ("Runewords 0/99") beside 280 finds and 133 set pieces in the bare keys.
+    The console's drift guard then refused every auto-relaunch onto new code."""
+
+    def test_his_state_no_claim_and_a_populated_world_is_HIS(self):
+        r = _run(dict(POPULATED), install="1d4afc43")
+        self.assertTrue(r["owner"], "a browser whose claim is MISSING and whose owner-only keys hold a "
+                                    "world rendered as an empty stranger's board")
+        self.assertEqual(r["claimAfter"], "*", "the recovery did not re-pin to '*' (%r)" % r["claimAfter"])
+        self.assertEqual((r["recovered"] or {}).get("why"), "claim missing",
+                         "the recovery left no trace of WHY it fired")
+
+    def test_no_claim_and_no_world_stays_a_GUEST_and_writes_nothing(self):
+        """⛔ the property: Dean's browser, a fresh install, every headless probe - no bare keys."""
+        r = _run({}, install="1d4afc43")
+        self.assertFalse(r["owner"], "an EMPTY unclaimed browser resolved as OWNER - a ledger leak")
+        self.assertEqual(r["wrote"], {}, "an unclaimed empty browser wrote a claim")
+        r = _run({"d2r_owned": "[]", "d2r_foundLog": json.dumps({"": 1})}, install="1d4afc43")
+        self.assertFalse(r["owner"], "empty containers or blanks recovered a world that is not there")
+
+    def test_never_under_automation(self):
+        """The specs that play the stranger (`d2r_testGuest`) must stay reachable: Playwright always
+        sets navigator.webdriver, so an automated browser with seeded bare keys and no claim keeps the
+        behaviour it had - over http it is a guest, and nothing is written."""
+        r = _run(dict(POPULATED), install="1d4afc43", webdriver="true", protocol="'http:'")
+        self.assertFalse(r["owner"], "the missing-claim recovery fired under automation")
+        self.assertEqual(r["wrote"], {}, "an automated browser had a claim written into it")
+
+
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - a MISSING claim is not recovered: his populated board renders as an empty guest (REG-1455)",
+        "file": "bible.html",
+        "find": "    if (!claim && _human) {\n",
+        "replace": "    if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-09-29 - the missing-claim recovery fires under automation and hides the stranger path",
+        "file": "bible.html",
+        "find": "    try { _human = navigator.webdriver !== true; } catch(e){}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         'why': 'The gate slices the real `window._D2R_OWNER = (function(){` IIFE out of bible.html and executes it in node, so the source it protects is bible.html, not any test fixture. Inside that block the claim-recovery counter decides whether a browser holding a mismatched `d2r_ownerClaim` still owns a populated world, by counting real ENTRIES in the four bare world keys. `Array.isArray(_p)` is the actual v2779 fix that gates the array-walking branch: it is what stops a bare JSON string from being walked. The tamper puts back the exact shipped defect it replaced — the duck-typed `_p && _p.length != null` — and a string passes that test because a string has `.length` and is indexable, so `JSON.parse(\'"abc"\')` gets walked character by character and counts 3 entries. Three letters then recover a world that does not exist and hand ownership to a browser that never had one. This is executable code inside the declaration the law reads, not a comment, not a message string, and not a constant shared with the assertion side: the test builds its own store in python and only ever reads the block\'s `owner` verdict, so nothing moves on both sides at once. Removing it reddens exactly one law and leaves the other thirteen green, including the entry counts in `test_his_REAL_STORE_SHAPES_still_recover`, which is what shows the anchor is the string branch specifically and not the counter as a whole.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law test_a_JSON_STRING_counts_its_CHARACTERS_and_must_not; that law ALONE FAILED (failures=1) — python3 -m unittest test_a_populated_world_survives_a_lost_claim.APopulatedWorldSurvivesALostClaim.',
         'file': 'bible.html',

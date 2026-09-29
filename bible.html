@@ -3940,6 +3940,66 @@ window._D2R_INSTALL = (function(){
   } catch(e){ return ''; }
 })();
 window._D2R_OWNER = (function(){
+  /* The bare-world probe, ONE definition, asked by BOTH the mismatched-claim and the MISSING-claim
+     recovery below (#50, REG-1455). How many real entries this browser holds under the BARE
+     (owner-only) keys: only a browser that was once the owner can have written them. */
+  function _d2rBareWorldEntries(){
+    var _hasWorld = 0;
+    var _probe = ['d2r_owned', 'd2r_foundLog', 'd2r_setPieces', 'd2r_rwMade'];
+    for (var _i = 0; _i < _probe.length; _i++) {
+      var _raw = null;
+      try { _raw = window.localStorage.getItem(_probe[_i]); } catch(e){}
+      if (!_raw) continue;
+      try {
+        /* ⚠ v2777 — COUNT ENTRIES THAT ARE ACTUALLY SOMETHING. A cross-family review asked what
+           inputs make this non-zero without a real world behind them. Measured, six of its
+           seven cases already counted 0 — `[]`, `{}`, `0`, `null`, non-JSON and a bare number
+           are all handled by the guards below. But `["",""]` counted 2: an array of blanks,
+           which is what a half-failed write leaves behind, would have recovered a world that is
+           not there. Blank entries are not a world. [[zero-needs-a-denominator]] */
+        var _p = JSON.parse(_raw);
+        var _n = 0;
+        /* ⚠⚠ v2779 — `_p.length != null` WAS TRUE FOR A STRING, AND A STRING IS INDEXABLE.
+           A real cross-family review (the first one this session whose prompt actually carried
+           the code — see .second_eye.jsonl) found it: `JSON.parse('"abc"')` is the STRING
+           "abc", it has `.length`, so the array branch walked its CHARACTERS and counted 3.
+           Any one of these four keys holding a bare JSON string would have recovered a world
+           out of nothing but its letters. Measured in node before and after: 3 -> 0.
+           `Array.isArray` is the whole fix for that half. [[grok-second-eye]]
+
+           The second half: the element test only asked "does this stringify to something?", so
+           `[0]`, `[false]` and `[{}]` each counted 1 — `String(false)` is "false" and
+           `String({})` is "[object Object]". None of those is an item name.
+
+           ⚠ WHY THIS TIGHTENING CANNOT EMPTY HIS BOARD, which is the direction that actually
+           hurt him. Measured against his real backed-up world, not assumed:
+               d2r_owned     list  169 · all str · 0 blank
+               d2r_foundLog  dict  429 · all str values · 0 falsy · 0 blank keys
+               d2r_setPieces list  125 · all str · 0 blank
+               d2r_rwMade    dict   99 · all str values · 0 falsy · 0 blank keys
+           822 entries, every one still counted. And an object ELEMENT is still admitted on
+           having any own key, so an older `[{name:...}]` shape cannot read as empty either —
+           a false zero here is what showed him a populated board as a stranger's empty one.
+           [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+        if (Array.isArray(_p)) {
+          for (var _j = 0; _j < _p.length; _j++) {
+            var _el = _p[_j];
+            if (typeof _el === 'string') { if (_el.trim()) _n++; }
+            else if (_el && typeof _el === 'object') { if (Object.keys(_el).length) _n++; }
+          }
+        } else if (_p && typeof _p === 'object') {
+          var _ks = Object.keys(_p);
+          for (var _k = 0; _k < _ks.length; _k++) {
+            /* JSON.parse defines a literal "__proto__" as an OWN property, so Object.keys
+               lists it — one crafted key would otherwise be a whole world by itself. */
+            if (_ks[_k] !== '__proto__' && String(_ks[_k]).trim()) _n++;
+          }
+        }
+        if (_n > 0) _hasWorld += _n;
+      } catch(e){}
+    }
+    return _hasWorld;
+  }
   try {
     var claim = window.localStorage.getItem('d2r_ownerClaim');
     if (claim === '*') return true;                    // documented rollback escape hatch (section 4)
@@ -3973,60 +4033,7 @@ window._D2R_OWNER = (function(){
          him today and break him again on the next re-mint — the same trap, re-armed. '*' is the
          documented escape hatch above and is immune to id churn. Once is enough. */
       try {
-        var _hasWorld = 0;
-        var _probe = ['d2r_owned', 'd2r_foundLog', 'd2r_setPieces', 'd2r_rwMade'];
-        for (var _i = 0; _i < _probe.length; _i++) {
-          var _raw = null;
-          try { _raw = window.localStorage.getItem(_probe[_i]); } catch(e){}
-          if (!_raw) continue;
-          try {
-            /* ⚠ v2777 — COUNT ENTRIES THAT ARE ACTUALLY SOMETHING. A cross-family review asked what
-               inputs make this non-zero without a real world behind them. Measured, six of its
-               seven cases already counted 0 — `[]`, `{}`, `0`, `null`, non-JSON and a bare number
-               are all handled by the guards below. But `["",""]` counted 2: an array of blanks,
-               which is what a half-failed write leaves behind, would have recovered a world that is
-               not there. Blank entries are not a world. [[zero-needs-a-denominator]] */
-            var _p = JSON.parse(_raw);
-            var _n = 0;
-            /* ⚠⚠ v2779 — `_p.length != null` WAS TRUE FOR A STRING, AND A STRING IS INDEXABLE.
-               A real cross-family review (the first one this session whose prompt actually carried
-               the code — see .second_eye.jsonl) found it: `JSON.parse('"abc"')` is the STRING
-               "abc", it has `.length`, so the array branch walked its CHARACTERS and counted 3.
-               Any one of these four keys holding a bare JSON string would have recovered a world
-               out of nothing but its letters. Measured in node before and after: 3 -> 0.
-               `Array.isArray` is the whole fix for that half. [[grok-second-eye]]
-
-               The second half: the element test only asked "does this stringify to something?", so
-               `[0]`, `[false]` and `[{}]` each counted 1 — `String(false)` is "false" and
-               `String({})` is "[object Object]". None of those is an item name.
-
-               ⚠ WHY THIS TIGHTENING CANNOT EMPTY HIS BOARD, which is the direction that actually
-               hurt him. Measured against his real backed-up world, not assumed:
-                   d2r_owned     list  169 · all str · 0 blank
-                   d2r_foundLog  dict  429 · all str values · 0 falsy · 0 blank keys
-                   d2r_setPieces list  125 · all str · 0 blank
-                   d2r_rwMade    dict   99 · all str values · 0 falsy · 0 blank keys
-               822 entries, every one still counted. And an object ELEMENT is still admitted on
-               having any own key, so an older `[{name:...}]` shape cannot read as empty either —
-               a false zero here is what showed him a populated board as a stranger's empty one.
-               [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
-            if (Array.isArray(_p)) {
-              for (var _j = 0; _j < _p.length; _j++) {
-                var _el = _p[_j];
-                if (typeof _el === 'string') { if (_el.trim()) _n++; }
-                else if (_el && typeof _el === 'object') { if (Object.keys(_el).length) _n++; }
-              }
-            } else if (_p && typeof _p === 'object') {
-              var _ks = Object.keys(_p);
-              for (var _k = 0; _k < _ks.length; _k++) {
-                /* JSON.parse defines a literal "__proto__" as an OWN property, so Object.keys
-                   lists it — one crafted key would otherwise be a whole world by itself. */
-                if (_ks[_k] !== '__proto__' && String(_ks[_k]).trim()) _n++;
-              }
-            }
-            if (_n > 0) _hasWorld += _n;
-          } catch(e){}
-        }
+        var _hasWorld = _d2rBareWorldEntries();
         if (_hasWorld > 0) {
           /* SAY SO. A silent recovery is how nobody learns the id churned. */
           try {
@@ -4043,6 +4050,37 @@ window._D2R_OWNER = (function(){
         }
       } catch(e){}
       return false;
+    }
+    /* ⚠⚠ #50 (REG-1455) — A MISSING CLAIM IS THE SAME QUESTION AS A MISMATCHED ONE. v2776 above recovers a
+       populated world when the claim stopped MATCHING a re-minted install id - and only then, because it
+       sits inside `if (claim)`. On 2026-09-29 his store lost `d2r_ownerClaim` AND `d2r_installId`
+       together (the WebKit store was rewritten ~02:54, the console went deaf at 03:05): no claim at all,
+       so the recovery never ran, a fresh id was minted, and from ~03:13 his board rendered an EMPTY guest
+       world ("Runewords 0/99") beside his real one - 280 finds, 133 set pieces, untouched in the bare
+       keys. The console's own drift guard then refused every auto-relaunch onto new code, which is how
+       it came to run 10-hour-old server code under a push gate.
+       ⛔ SAME PROPERTY AS v2776, AND IT HOLDS FOR THE SAME REASON: a guest never writes a bare key, so bare
+       entries mean THIS browser was once the owner. Dean's browser, a fresh install, and every headless
+       probe have none, so this cannot fire there. It recovers only what this browser already wrote,
+       re-pins to '*' (immune to id churn), and SAYS SO. Never under automation - the specs that play the
+       stranger (`d2r_testGuest`, below) stay reachable, and Playwright always sets navigator.webdriver. */
+    var _human = true;
+    try { _human = navigator.webdriver !== true; } catch(e){}
+    if (!claim && _human) {
+      var _bare = 0;
+      try { _bare = _d2rBareWorldEntries(); } catch(e){ _bare = 0; }
+      if (_bare > 0) {
+        try {
+          window.__d2rClaimRecovered = { was: null, install: window._D2R_INSTALL || null,
+                                         entries: _bare, at: Date.now(), why: 'claim missing' };
+          window.localStorage.setItem('d2r_ownerClaim', '*');
+        } catch(e){}
+        try {
+          console.warn('[d2r] no owner claim at all, but this browser already holds a world of ' + _bare
+                     + ' entries under the owner-only keys - recovering it and pinning the claim to "*".');
+        } catch(e){}
+        return true;
+      }
     }
     // AUTOMATION ONLY. An automated browser on a file:// copy is the test suite: 105 spec files
     // address the BARE keys, and Playwright cannot seed a claim into a file:// origin

@@ -7,6 +7,27 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1455 - A MISSING OWNER CLAIM HID HIS POPULATED BOARD, AND FROZE HIS CONSOLE ON OLD CODE (2026-09-29)
+
+**Found** chasing why his Mac console ran 10-hour-old server code under a push gate: `drift_may_relaunch`
+refused with *"the board is in an UNCLAIMED guest world (pfx='I·1d4afc43·')"*. Read on a COPY of his
+WebKit store: `d2r_ownerClaim` and `d2r_installId` both gone (the store folder was rewritten at 02:54;
+the console went deaf at 03:05), a fresh id `1d4afc43` minted at ~03:13, and since then his board has
+rendered an EMPTY guest world ("Runewords 0/99") while 280 finds / 133 set pieces / his owned records sat
+untouched in the bare keys. The 15 guest keys hold only derived caches. v2776 already recovers a
+populated world when the claim stops MATCHING - but it lives inside `if (claim)`, so a claim that is
+MISSING never reached it.
+
+**Fix (bible.html):** the bare-world probe is now ONE function `_d2rBareWorldEntries()` asked by both
+paths; with NO claim, a real browser (never under `navigator.webdriver`) holding a populated owner-only
+world re-pins the claim to `*`, records `__d2rClaimRecovered {why: 'claim missing'}` and warns. Same
+property as v2776: a guest never writes a bare key, so it cannot fire in Dean's browser, a fresh
+install or a headless probe. **Replayed on the copy of his real store: owner, '*', 518 entries.**
+
+**Law:** 3 cases added to `test_a_populated_world_survives_a_lost_claim.py` (his state; empty and blank
+worlds stay guest and write nothing; never under automation). 2 red-proofs, both RED; v2776's own proof
+still RED after the refactor.
+
 ### REG-1454 - A BACKGROUND PROOF ON A SLOWER PC USED THE MAC'S DEADLINES (2026-09-29)
 
 **Found** by the Windows inventory: `test_screen_parity` UNPROVABLE on all four proofs - *"timed out after
