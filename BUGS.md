@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1453 - A LAW THAT COULD ONLY GO RED WHERE THE LOCKS WERE ALREADY OPEN: A DEADLOCK ON EVERY NEW PC (2026-09-29)
+
+**Found** by the Windows inventory on the ALT: `test_lock_state_asked[0]` and `[1]` BLIND - green through
+their own sabotage (a restored "the lock is SHUT" comment). The law flagged a SHUT claim only when
+`may()` answered True on the machine running it. On his Mac the locks are open, so it goes red; on a PC
+that has not proved itself every lock is shut, the claim agrees, the law is BLIND - and since REG-1447 a
+BLIND instrument keeps every lock on that PC shut. The locks could never open because the law could
+never go red because the locks were shut.
+
+**Fix:** a SHUT claim is flagged on every machine: a lock opens by itself, so the claim is stale the
+moment it does - the law's own failure message already said so. OPEN claims are still judged against
+the live lock. Verified both ways: with `may()` forced shut (a never-proved PC) the tree is clean and
+both red-proofs go RED; on his Mac, live, both go RED.
+
 ### REG-1452 - THE UNREADABLE-STORE LAW COULD NOT MAKE A FILE UNREADABLE ON WINDOWS (2026-09-29)
 
 **Found** on the ALT: `a mode-000 file opened successfully` - chmod on Windows only toggles read-only, so
