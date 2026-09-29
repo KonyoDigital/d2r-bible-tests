@@ -1719,8 +1719,10 @@ RED_PROOF = [
         "matches": 1,
         "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone
     },
-    # ⚠ RETIRED 2026-09-28 (v3522 push gate, 22:29): the proof above set .cb-sv to flex-wrap:nowrap and the law
-    # stayed GREEN at every width - BLIND. Since REG-1376 a CAPPED row is display:block (the cap on its own line),
+    # ⚠ RETIRED 2026-09-28 (v3522 push gate, 22:29): the proof that stood HERE - "a value's RANGE chip and cap may not
+    # wrap under its number", which set .cb-sv to flex-wrap:nowrap - was removed because the law stayed GREEN at every
+    # width through it - BLIND. (Not the stat-row proof just above: that one turns .cb-st-r from a grid row into a
+    # wrapping flex line, goes red, and stands.) Since REG-1376 a CAPPED row is display:block (the cap on its own line),
     # which overrides the flex wrap, and its own proof (".cb-sv:has(> em.cb-cap)" -> off) goes red for it; an
     # UNCAPPED row measured no overflow with nowrap at any of the law's widths, so the wrap is no longer
     # load-bearing. A sabotage of a rule that holds nothing up proves nothing. [[feedback-blind-fixture-green-gate]]

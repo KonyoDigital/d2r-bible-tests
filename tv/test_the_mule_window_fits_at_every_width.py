@@ -1394,9 +1394,12 @@ RED_PROOF = [
         "find": ".mp:not(.mp-stack) .mp-stats{max-height:calc(100vh - 30px - 312*var(--u))}\n",
         "replace": "",
         "matches": 1,
-        # #42 measured 2026-09-29: red at 1280x695 alone (his console's fit); the first probe's red at 1280x800 was
-        # test_at_1280_the_fixed_panels' 6px font-reflow flake, not this defect - the push-time run caught it BLIND
-        "widths": ["1280x695"],
+        # #42 re-measured 2026-09-29, this proof alone, one Chrome: at 1280x800 the clean run is green (15.2 s) and the
+        # tampered run red (13.8 s) in test_at_1280_the_fixed_panels_are_their_rects_times_the_unit on the defect
+        # itself - mp-stats 485.3 px tall -> 662.5 px, STATS running under the glass - not the 6 px reflow flake that
+        # misled proof 13's probe. (The first push-time run stopped at 13 and never reached this proof.) It is also red
+        # at 1280x695 alone, the declaration it carried before.
+        "widths": ["1280x800"],
     },
     {
         "why": "#174 v-B2 - the lock badge covers a small tile's centre again (1280 inventory), so pressing the ring unlocks it",

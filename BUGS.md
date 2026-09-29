@@ -7,6 +7,41 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1443 - A BLIND LINE READ A DECLARED RESTRICTION'S SKIPS AS THE LAW OPTING OUT (#42 review, 2026-09-29)
+
+**SEEN (adversarial review of #42):** under a push-time proof's declared widths a width law skips every case measured at
+other viewports BY DESIGN, so a BLIND tampered run ends `OK (skipped=12)`. blind_reason did not know a restriction was in
+force and said "some laws opted out... Both jobs, not one" - or, when every case skipped, "Fix the SKIP" - sending the
+reader to delete skipTests when the work is the declaration. **FIX:** `blind_reason(why, matches, tail, widths=None)`;
+_prove_one hands it the proof's own restriction. Under one, the skips are named as the declaration's ("N of M law(s)
+SKIPPED under the proof's DECLARED restriction to 1280x800 - ... not the law opting out"), and a run where every case
+skipped says the declaration measured nothing - re-measure where the defect shows. With no restriction every sentence is
+unchanged (test_a_blind_verdict_names_the_skip, 12 OK). **LAW:** test_a_push_proof_runs_only_where_its_defect_shows -
+test_a_declared_restriction_skip_never_reads_as_the_law_opting_out (with its unrestricted baseline), and the wrong-
+declaration case now checks the live BLIND line (the fixture law skips one case under a restriction); 2 red-proofs.
+
+### REG-1442 - THE ONE-BROWSER LOCK SAW ONLY A GATE'S OWN IMPORTS, SO A GATE STARTING CHROME THROUGH A HELPER RAN BESIDE A WIDTH LAW (#42 review, 2026-09-29)
+
+**SEEN (adversarial review of #42):** _prove_push built its lock set from pixel_gates() - render_check / playwright
+imported by the gate FILE itself - plus the gates that declare widths. test_the_rails_fold_is_a_chevron_not_a_dot does
+`import test_the_character_builder_fits_at_every_width as FT; RC = FT.RC` and calls RC._chrome_up(): outside the set, so
+at push time it could start a second Chrome in another lane while the lock said one. MEASURED over the registry: the
+one-file read finds 21 browser gates, the import closure 36 - 15 reach the renderer only through a helper (organ_matrix,
+test_control, ci_sim, coldread, overlap_ratchet, the builder's width law, test_found_ever_never_files_to_a_mule).
+**FIX:** heart2.browser_gates() - the transitive import closure over tv/*.py by AST: every `import` / `from` anywhere in a
+file (a lazy import starts the same browser), `from tv import x`, and a literal `__import__` / `importlib.import_module`,
+followed through every name that is a module in tv/; a gate is in the set when any module it reaches imports
+render_check or playwright. Each file is parsed at most once per call (~4.3 s for all 680 gates; a push hands it only the
+gates it proves). UNKNOWN GOES UNDER THE LOCK: a gate whose file or any helper cannot be read or parsed, or a tv/ that
+cannot be listed, is in the set and named (over-inclusion costs time, never a second Chrome); an ABSENT gate file runs
+nothing and is left out. pixel_gates() and the census's pixelTotal are unchanged (a documented floor). **LAW:**
+test_a_push_proof_runs_only_where_its_defect_shows - test_a_gate_that_reaches_the_renderer_through_helpers_holds_the_lock
+(fixture tv/ in a temp dir: one helper, two helpers, a lazy import, a literal import_module and playwright through a
+helper are IN; a gate importing neither - through an import cycle and a prose mention - is OUT; an unparseable helper and
+an unlistable tv/ are IN and named; PREMISE: pixel_gates sees only the direct one),
+test_the_real_rails_fold_law_is_in_the_lock_set, test_the_push_run_locks_what_the_closure_finds (the join, read from the
+running _PushRun); 5 red-proofs.
+
 ### REG-1400 - A PUSH THAT TOUCHED A WIDTH LAW RE-RENDERED EVERY VIEWPORT FOR EVERY RED-PROOF, AND FINISHED A 159-MINUTE RUN AFTER ITS ONE BLIND PROOF (#42, 2026-09-29)
 
 **SEEN (his order 2026-09-28: "do #42 right after v3522 lands"):** the v3522 push gate took ~2h50m. heart2 gives each lane its
@@ -29,22 +64,36 @@ proofs across the lanes - that same shape - and was taken out before anything ra
     clean-run red, printed at once and again as the last lines the hook's tail shows. Every proof not reached is NOT RUN:
     never banked (an empty result is never written over the census), never PROVEN, and the exit is 1. With no failure every
     proof still runs.
-  · ONE BROWSER AT A TIME: a gate that imports render_check / playwright or declares widths holds one lock while it is
-    proved, whatever the lane count; every other gate keeps its lane.
+  · ONE BROWSER AT A TIME: a gate whose import graph reaches render_check / playwright (any number of helpers deep -
+    REG-1442; the first cut read the gate's own imports only) or that declares widths holds one lock while it is proved,
+    whatever the lane count; every other gate keeps its lane. So a push touching BOTH width laws proves them BACK TO BACK
+    under that one lock, never side by side: ~66 min (the builder's 39.9 + the mule's 25.7 measured below, added).
   · run_gates.run() scrubs TV_LAW_WIDTHS before its first gate, heart2's _run_gate removes it from every run it did not
     restrict itself, no CI workflow names it: the full sweep stays the verdict of record.
-**MEASURED (his Mac, one Chrome, HEART2_PROVE_WORKERS=1, load 6-30 from other sessions):**
-  · BEFORE - the builder law's proofs at every width through heart2's own per-proof path: 5 timed (indices 0/10/20/30/40)
-    = 1032 s, 206 s a proof; x41 = ~141 min EXTRAPOLATED. One full run of each law: builder 98 s, mule 110 s.
+**MEASURED (his Mac, one Chrome, HEART2_PROVE_WORKERS=1, load 6-30 from other sessions - 6-82 while the BEFORE sample ran):**
+  · BEFORE - THE BASELINE IS ~105 min, MEASURED: the v3522 push's builder thread (one lane, all 41 proofs at every width).
+    The ~141 min this entry and its fix commit first gave was EXTRAPOLATED - 5 proofs timed (indices 0/10/20/30/40 =
+    1032 s, 206 s a proof) x41, under load 6-82 from other sessions - and is not the baseline (corrected after the
+    adversarial review). One full run of each law: builder 98 s, mule 110 s.
   · AFTER - `heart2.py --prove test_the_character_builder_fits_at_every_width --push`: 41/41 PROVEN at their declared
-    viewports in 2395 s (39.9 min), exit 0. Per proof: 1280x800 39 s (19 proofs), 375x812 58 s (5), 1024x768 32 s (1),
+    viewports in 2395 s (39.9 min, against the ~105 min measured), exit 0. Per proof: 1280x800 39 s (19 proofs), 375x812 58 s (5), 1024x768 32 s (1),
     2000x1300 83 s (16 - the keyboard, pointer, hover and tile passes all run at 2000, and they are 55% of the time).
   · FAIL CLOSED, SEEN LIVE: the first push-time run of the mule law stopped at proof 13 after 779 s, BLIND at its
     declared 1280x800, exit 1 - the one-viewport probe that "measured" 1280x800 had gone red on
     test_at_1280_the_fixed_panels' 6px font-reflow flake, not on the hover defect. Re-measured alone: red at 1280x695 in
-    its own test (proof 18 had the same flake; also 1280x695). A wrong declaration read BLIND, never PROVEN.
+    its own test. A wrong declaration read BLIND, never PROVEN. ⚠ Proof 18 was moved to 1280x695 in the same breath with
+    the reason "the same flake" - FALSE, found by the adversarial review: that run stopped at 13 and never reached 18,
+    and 18's red at 1280x800 is its own defect (PROOF 18 RE-MEASURED below).
   · MULE AFTER (13 and 18 re-declared): `--prove test_the_mule_window_fits_at_every_width --push` 25/25 PROVEN in 1540 s
-    (25.7 min), exit 0. Before, not timed proof by proof: one full run is 108-135 s, so ~25 x 2 x 110 s = ~92 min.
+    (25.7 min), exit 0 - with 18 then at 1280x695. Before, not timed proof by proof: one full run is 108-135 s, so
+    ~25 x 2 x 110 s = ~92 min.
+  · PROOF 18 RE-MEASURED (after the review; alone, one Chrome, a sandbox copy, TV_LAW_WIDTHS=1280x800): clean GREEN in
+    15.2 s (23 tests, 12 skipped by the restriction); tampered RED in 13.8 s in
+    test_at_1280_the_fixed_panels_are_their_rects_times_the_unit - "mp-stats [958.2, 284.7, 273.8, 485.3], measured
+    [958.2, 284.7, 273.8, 662.5]": STATS 177 px taller, running under the glass - the defect itself, not the 6 px
+    EQUIPMENT reflow. Re-declared at 1280x800, where a run costs ~14 s. Re-proved through heart2's own push-time
+    path (_prove_push_one, index 18, one Chrome): PROVEN at 1280x800 in 26.2 s. NOT re-run: the full mule `--push`
+    (~26 min) - a full gate run held a browser on the main checkout; the other 24 proofs did not change.
   · FAIL FAST, LIVE ON THE REAL BUILDER LAW: proof 40's declaration set to 1280x800 (measured GREEN there alone) in the
     working tree, the push base at HEAD (the one stand-in: this branch has no @{push}, so a driver mapped it to HEAD). The
     run ranked "1 entr(ies) new or changed" first, read it BLIND at 42.2 s, stopped, said "40 of 41 proof(s) NOT RUN" last,
@@ -54,7 +103,8 @@ proofs across the lanes - that same shape - and was taken out before anything ra
     twice per proof. The measured levers left: one clean run per (gate, widths) when the sandbox is byte-identical (P3's
     verdict cache) - ~22 min projected for the builder from the per-run times above; and splitting 2000x1300's
     one-viewport passes so a tile proof does not render the keyboard pass.
-**LAW:** test_a_push_proof_runs_only_where_its_defect_shows (18 cases, fixtures only - no browser; 17 red-proofs).
+**LAW:** test_a_push_proof_runs_only_where_its_defect_shows (18 cases, fixtures only - no browser; 17 red-proofs; with
+REG-1442 / REG-1443: 22 cases, 24 red-proofs).
 
 ### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
 

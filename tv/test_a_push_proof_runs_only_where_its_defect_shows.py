@@ -17,14 +17,17 @@ Attempt 1 of the same push ran 159 min and was refused on ONE blind proof that a
     origin/main, a proof whose tampered file changed) and STOPS at the first BLIND / INVALID / clean-run red, printing
     it at once - every proof it did not reach is NOT RUN, never banked, and the exit is 1;
   · proves a gate that starts a browser ONE AT A TIME whatever the lane count (four parallel Chrome lanes drove his Mac
-    to load 100 on 2026-09-28).
+    to load 100 on 2026-09-28) - and "starts a browser" is its IMPORT CLOSURE (REG-1442): a gate that reaches
+    render_check / playwright through any number of helpers holds the lock, as test_the_rails_fold_is_a_chevron_not_a_dot
+    does through the builder's width law; a helper nobody can parse puts its gates under the lock, named;
+  · names a declared-restriction skip in a BLIND line as the declaration's, never as the law opting out (REG-1443).
 Without the flag nothing changes, and run_gates / CI never set the variable, so the full sweep stays the verdict of
 record.
 
 EVERYTHING HERE IS A FIXTURE: a throwaway sandbox holding a ten-line "width law" whose defect shows at ONE viewport, and
 stub provers for the ordering / stop / browser cases. No browser starts, the real tree is never copied, nothing of his
-is read or written - except the last cases, which READ the real registry (hooks/pre-push, run_gates.py, the workflows,
-the width laws' declarations) because that is where the wiring lives.
+is read or written - except the cases that READ the real registry (hooks/pre-push, run_gates.py, the workflows, the
+width laws' declarations, the rails fold law's imports) because that is where the wiring lives.
 [[regression-guard]] [[unknown-stays-unknown]] [[the-unjoined-end]] [[zero-needs-a-denominator]]
 RED_PROOF below.
 """
@@ -63,9 +66,10 @@ with io.open(os.path.join(here, "subject.txt"), encoding="utf-8") as fh:
 with io.open(os.environ["H42_LOG"], "a", encoding="utf-8") as fh:
     fh.write("%s|%s\n" % (raw if raw is not None else "ALL", "tampered" if "BROKEN" in subject else "clean"))
 red = ("BROKEN" in subject and "1280x800" in measured) or "99x99" in measured
-print("Ran 1 test in 0.001s")
+# two cases, as a width law has many: under a restriction the one measured at the other viewport is a declared SKIP
+print("Ran 2 tests in 0.001s")
 print("")
-print("FAILED (failures=1)" if red else "OK")
+print("FAILED (failures=1)" if red else ("OK (skipped=1)" if raw is not None else "OK"))
 sys.exit(1 if red else 0)
 '''
 _GATE, _FILE = "h42-fixture-law", "t_h42_law.py"
@@ -187,6 +191,11 @@ class APushProofRunsOnlyWhereItsDefectShows(unittest.TestCase):
         self.assertEqual(results, {_GATE: H.BLIND}, "a declaration where the defect does not show read %s:\n%s" % (results, "\n".join(said)))
         self.assertEqual([s[:3] for s in stopped], [(_GATE, 0, H.BLIND)], "the blind proof did not stop and refuse the run")
         self.assertTrue(any("#42" in l and "DECLARED widths" in l for l in said), "the BLIND line does not name the declaration: %s" % said)
+        blind = [l for l in said if "stayed GREEN through its own defeat" in l]
+        self.assertEqual(len(blind), 1, "PREMISE: no single BLIND line was said: %s" % said)
+        self.assertIn("DECLARED restriction to 375x812", blind[0],
+                      "the restricted run's skip is not named as the declaration's: %s" % blind[0])
+        self.assertNotIn("Both jobs", blind[0], "a declared-restriction skip read as the law opting out: %s" % blind[0])
 
     def test_an_unprovable_at_its_widths_is_reproved_at_every_width_and_that_verdict_stands(self):
         """the fixture is red untampered at 99x99: a sample that cannot judge the proof hands it to the full law, whose
@@ -390,6 +399,95 @@ class OneBrowserAtATime(unittest.TestCase):
         _stub_run(_have(2, 2, widths=False), stub, lanes=2)
         self.assertTrue(overlaps(stub.spans, "gate-0", "gate-1"),
                         "PREMISE: two plain gates did not overlap in two lanes, so the case above measured nothing")
+
+    #: fixture tv/ for the closure: name -> source. render_check here is a stub; nothing in it ever runs.
+    _TREE = {
+        "render_check.py": "CHROME = '/nowhere'\n",
+        "helper_one.py": "import render_check as RC\n",
+        "helper_two.py": "import helper_one\n",
+        "helper_pw.py": "from playwright.sync_api import sync_playwright\n",
+        "helper_plain.py": "import json\nimport os\n",
+        "cyc_a.py": "import cyc_b\n",
+        "cyc_b.py": "import cyc_a\nimport helper_plain\n",
+        "helper_broken.py": "def (:\n",
+        "t_direct.py": "import render_check\n",
+        "t_one.py": "import helper_one as H1\nRC = H1.RC\n",
+        "t_two.py": "import helper_two\n",
+        "t_pw.py": "from helper_pw import sync_playwright\n",
+        "t_lazy.py": "def later():\n    import helper_one\n",
+        "t_dyn.py": "import importlib\nM = importlib.import_module('helper_two')\n",
+        "t_plain.py": "import json\nimport helper_plain\nimport cyc_a\nNOTE = 'render_check is only named here'\n",
+        "t_unk.py": "import helper_broken\n",
+    }
+
+    def test_a_gate_that_reaches_the_renderer_through_helpers_holds_the_lock(self):
+        """★ the lock set is the IMPORT CLOSURE: a gate reaching render_check / playwright through one helper, through two,
+        lazily inside a function, or by a literal import_module is in it; a gate importing neither (through a cycle and a
+        prose mention of the name) is not; a helper nobody can parse is UNKNOWN and goes under the lock, named"""
+        d = tempfile.mkdtemp(prefix="h42graph.")
+        try:
+            for name, text in self._TREE.items():
+                with io.open(os.path.join(d, name), "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            gates = [(f[:-3], f) for f in sorted(self._TREE) if f.startswith("t_")]
+            direct = H.pixel_gates([(n, os.path.join(d, f)) for n, f in gates])
+            self.assertEqual(direct, {"t_direct"},
+                             "PREMISE: the one-file read should see only the direct import, or this measured nothing: %s"
+                             % sorted(direct))
+            unk = []
+            # t_gone.py is never written: an ABSENT gate runs nothing, so it is neither locked nor unknown
+            got = H.browser_gates(gates + [("t_gone", "t_gone.py")], tv_dir=d, unclassified=unk)
+            # a tv/ nobody can LIST is not an empty tree: the gate's helpers are unknown, so it is locked and named
+            unk2 = []
+            blind = H.browser_gates([("t_one", os.path.join(d, "t_one.py"))], tv_dir=os.path.join(d, "unlistable"),
+                                    unclassified=unk2)
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(got, {"t_direct", "t_one", "t_two", "t_pw", "t_lazy", "t_dyn", "t_unk"},
+                         "the lock set is not the import closure: %s" % sorted(got))
+        self.assertEqual(unk, ["t_unk"], "a gate whose helper cannot be parsed was not NAMED as unknown: %s" % unk)
+        self.assertEqual((blind, unk2), ({"t_one"}, ["t_one"]),
+                         "a tv/ that could not be listed read as a tree with no helpers: the gate left the lock")
+
+    def test_the_real_rails_fold_law_is_in_the_lock_set(self):
+        """★ the review's own example: it starts Chrome as FT.RC._chrome_up() through the builder's width law"""
+        got = H.browser_gates([("rails", "test_the_rails_fold_is_a_chevron_not_a_dot.py")])
+        self.assertEqual(got, {"rails"}, "test_the_rails_fold_is_a_chevron_not_a_dot is not under the one-browser lock")
+
+    def test_the_push_run_locks_what_the_closure_finds(self):
+        """★ the join: _prove_push hands the CLOSURE to the lock - the real rails fold law is held by it, and this law
+        (heart2, law_widths, no browser anywhere under it) keeps its lane"""
+        seen = []
+
+        def stub(sandbox, name, filename, pr, idx, say, why):
+            seen.append(set(H._PUSH.browser))
+            return H.PROVEN
+
+        pr = {"file": "subject.txt", "find": "x", "replace": "y", "matches": 1}
+        _stub_run([("rails", "test_the_rails_fold_is_a_chevron_not_a_dot.py", [pr]),
+                   ("plain", os.path.basename(__file__), [pr])], stub)
+        self.assertTrue(seen, "PREMISE: the stub prover was never called")
+        self.assertIn("rails", seen[0], "the push-time lock does not hold a gate that starts Chrome through a helper")
+        self.assertNotIn("plain", seen[0], "a gate that reaches no browser was put under the lock: %s" % seen[0])
+
+    def test_a_declared_restriction_skip_never_reads_as_the_law_opting_out(self):
+        """★ under a DECLARED restriction a width law skips every case measured elsewhere by design: the BLIND line names
+        those skips as the restriction's and points at the declaration - never "some laws opted out" / "fix the SKIP".
+        Without a restriction the same tail reads exactly as it always did (the baseline)"""
+        tail = "Ran 23 tests in 15.0s | OK (skipped=12)"
+        plain = H.blind_reason("w", 1, tail)
+        self.assertIn("Both jobs", plain, "PREMISE: the unrestricted mixed-skip sentence changed - re-anchor this case")
+        got = H.blind_reason("w", 1, tail, widths=((1280, 800),))
+        self.assertIn("12 of 23 law(s) SKIPPED under the proof's DECLARED restriction to 1280x800", got, got)
+        for wrong in ("Both jobs", "opted out", "Fix the SKIP"):
+            self.assertNotIn(wrong, got, "a declared-restriction skip read as the law opting out: %s" % got)
+        every = H.blind_reason("w", 1, "Ran 5 tests in 1.0s | OK (skipped=5)", widths=((375, 812),))
+        self.assertIn("ALL 5 law(s) SKIPPED under the proof's DECLARED restriction to 375x812", every, every)
+        self.assertIn("the declaration measured nothing", every, every)
+        self.assertNotIn("Fix the SKIP", every, every)
+        self.assertEqual(H.blind_reason("w", 1, "Ran 5 tests | OK", widths=((375, 812),)),
+                         H.blind_reason("w", 1, "Ran 5 tests | OK"), "a restricted run with NO skip grew a skip clause")
 
 
 # ── the restriction itself, and where it may never reach ─────────────────────────────────────────────────────────
@@ -607,6 +705,57 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": "    if python3 \"$REPO/tv/heart2.py\" --prove $_gates --push > \"$_prove_log\" 2>&1; then\n",
         "replace": "    if python3 \"$REPO/tv/heart2.py\" --prove $_gates > \"$_prove_log\" 2>&1; then\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1442 - the lock set stops at the gate's own imports: a gate that starts Chrome through a helper (the "
+               "rails fold law, through the builder's width law) runs a second browser beside a width law",
+        "file": "heart2.py",
+        "find": "                stack.append((dep, None))\n",
+        "replace": "                pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1442 - _prove_push builds its lock from the one-file read again, not the import closure",
+        "file": "heart2.py",
+        "find": "    browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_unk) | set(\n",
+        "replace": "    browser = pixel_gates([(n, f) for n, f, _p in have]) | set(\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1442 - a helper nobody can parse reads as 'no browser': its gates leave the lock and nobody is told",
+        "file": "heart2.py",
+        "find": "                verdict = \"unknown\"\n",
+        "replace": "                verdict = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1442 - a tv/ that cannot be listed reads as a tree with no helpers: every helper-reached browser "
+               "leaves the lock",
+        "file": "heart2.py",
+        "find": "        seen, stack, verdict = set(), [(start, path)], (False if local is not None else \"unknown\")\n",
+        "replace": "        seen, stack, verdict = set(), [(start, path)], False\n        local = local or set()\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1442 - a literal importlib.import_module / __import__ of a helper is not followed",
+        "file": "heart2.py",
+        "find": "            if called in (\"__import__\", \"import_module\"):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1443 - a BLIND line reads a declared-restriction skip as the law opting out ('fix the SKIP')",
+        "file": "heart2.py",
+        "find": "    if widths:\n        import law_widths as _LW\n        _at = _LW.label(widths)\n",
+        "replace": "    if False:\n        import law_widths as _LW\n        _at = _LW.label(widths)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1443 - the prover never hands its restriction to blind_reason, so the fix is correct and unreachable",
+        "file": "heart2.py",
+        "find": "blind_reason(pr.get(\"why\"), got, tail2, widths=widths)",
+        "replace": "blind_reason(pr.get(\"why\"), got, tail2)",
         "matches": 1,
     },
     {

@@ -447,6 +447,103 @@ def pixel_gates(gates=None, unclassified=None):
     return out
 
 
+#: #42 — what starts a browser: the harness module in tv/ and the one package outside it.
+_RENDERERS = ("render_check", "playwright")
+
+
+def _imported_names(tree):
+    """#42 — every top-level module name one parsed file can import. -> set[str]
+
+    `import a.b` / `from a.b import c` anywhere in the file (a lazy import inside a function starts the same browser the
+    day that function runs), `from tv import x` as x, and `__import__("x")` / `importlib.import_module("x")` when the
+    name is a literal. A name built at run time is not seen - the same floor pixel_gates states, one level down."""
+    out = set()
+    for x in ast.walk(tree):
+        if isinstance(x, ast.Import):
+            for a in x.names:
+                out.add(a.name.split(".")[0])
+        elif isinstance(x, ast.ImportFrom) and x.module:
+            head = x.module.split(".")[0]
+            out.add(head)
+            if head == "tv":
+                out.update(a.name.split(".")[0] for a in x.names)
+        elif (isinstance(x, ast.Call) and x.args and isinstance(x.args[0], ast.Constant)
+              and isinstance(x.args[0].value, str)):
+            fn = x.func
+            called = fn.id if isinstance(fn, ast.Name) else fn.attr if isinstance(fn, ast.Attribute) else None
+            if called in ("__import__", "import_module"):
+                out.add(x.args[0].value.split(".")[0])
+    return out
+
+
+def browser_gates(gates=None, tv_dir=None, unclassified=None):
+    """#42 — the gates whose IMPORT GRAPH reaches a browser (render_check / playwright), however many helpers deep.
+    -> set[str]
+
+    ⚠ pixel_gates READS ONE FILE, AND THE ONE-BROWSER LOCK WAS BUILT ON IT. It answers "does this gate import the
+    harness itself", which misses a gate that reaches it through a helper - test_the_rails_fold_is_a_chevron_not_a_dot
+    does `import test_the_character_builder_fits_at_every_width as FT; RC = FT.RC` and calls RC._chrome_up(), so at push
+    time it could start a second Chrome beside a width law while the lock said one. Found by the adversarial review of
+    #42. The lock set is the CLOSURE: follow every name the gate imports that is a module in tv/ (tv/<name>.py), then
+    every name those import, and so on; the gate is in the set when any of them imports render_check or playwright.
+
+    ⚠ UNKNOWN GOES UNDER THE LOCK. A gate - or a helper anywhere in its closure - that cannot be read or parsed may
+    reach a browser and nobody can say it does not: it is in the set (the safe side costs time, never a second Chrome)
+    and its name goes into `unclassified`. Over-inclusion is the only error this may make on purpose.
+
+    CACHED PER RUN: each tv/ file is parsed at most once per call, however many gates share it, and only the files some
+    gate actually reaches are parsed. `tv_dir` lets the law build its fixture modules in a temp dir. [[the-unjoined-end]]
+    [[unknown-stays-unknown]]"""
+    d = tv_dir or HERE
+    _unk = unclassified if unclassified is not None else []
+    try:
+        local = set(f[:-3] for f in os.listdir(d) if f.endswith(".py"))
+    except OSError:
+        # ⚠ NOT an empty tree: read as "no helpers" it would follow nothing and let every helper-reached browser out of
+        # the lock. Nobody can say what the gates import, so each one is UNKNOWN below - locked and named.
+        local = None
+    parsed = {}                       # module -> set of names it imports | None (unreadable / unparseable)
+
+    def _names(mod, path=None):
+        if mod not in parsed:
+            src = _read_text(path or os.path.join(d, mod + ".py"))
+            try:
+                parsed[mod] = None if src is None else _imported_names(ast.parse(src))
+            except (SyntaxError, ValueError):      # ValueError: a NUL byte in the source - unparseable all the same
+                parsed[mod] = None                  # UNKNOWN, never "imports nothing": the caller locks it and names it
+        return parsed[mod]
+
+    out = set()
+    for n, f in (gates if gates is not None else gate_files()):
+        path = f if os.path.isabs(f) else os.path.join(d, f)
+        if not os.path.exists(path):
+            # ABSENT is not UNREADABLE: a gate file that is not there runs nothing, so it starts no browser (and its
+            # proof is refused on its own line: "the gate file is not in the sandbox"). Every helper followed below
+            # exists - they come from the directory listing.
+            continue
+        start = os.path.basename(path)[:-3] if path.endswith(".py") else os.path.basename(path)
+        seen, stack, verdict = set(), [(start, path)], (False if local is not None else "unknown")
+        while stack and not verdict:
+            mod, p = stack.pop()
+            if mod in seen:
+                continue
+            seen.add(mod)
+            names = _names(mod, p)
+            if names is None:
+                verdict = "unknown"
+                break
+            if names & set(_RENDERERS):
+                verdict = True
+                break
+            for dep in names & local:
+                stack.append((dep, None))
+        if verdict:
+            out.add(n)
+            if verdict == "unknown":
+                _unk.append(n)
+    return out
+
+
 def _read_text(path):
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
@@ -902,8 +999,13 @@ def make_sandbox(say=print):
     return tv, root
 
 
-def blind_reason(why, matches, tail):
+def blind_reason(why, matches, tail, widths=None):
     """The sentence a BLIND verdict prints. -> str
+
+    #42 — `widths` is the restriction a push-time proof DECLARED (None everywhere else). Under it a width law skips every
+    case measured at other viewports BY DESIGN, so its `skipped=N` is the declaration's doing, never the law opting out:
+    those skips are named as the restriction's, and the work they point at is the declaration, not a skipTest. Without
+    it every sentence below reads exactly as it did. Found by the adversarial review of #42. [[unknown-stays-unknown]]
 
     ⚠⚠ v2866 — A SKIP IS NOT A PASS, AND THE BLIND LINE COULD NOT TELL THEM APART.
     `test_the_lock_derives_from_the_heart[1]` came back BLIND and shipped that way in v2865's own
@@ -923,6 +1025,17 @@ def blind_reason(why, matches, tail):
     n_skipped = int(_sk.group(1)) if _sk else 0
     if not n_skipped:
         return _base
+    if widths:
+        import law_widths as _LW
+        _at = _LW.label(widths)
+        _of = int(_rn.group(1)) if _rn else None
+        if _of is not None and _of <= n_skipped:
+            return (_base + "  ⚠ ALL %d law(s) SKIPPED under the proof's DECLARED restriction to %s: no case of this law "
+                            "measures there, so the declaration measured nothing - re-measure where the defect shows "
+                            "(the skips are the restriction's, not the law opting out)." % (_of, _at))
+        return (_base + "  (%d%s law(s) SKIPPED under the proof's DECLARED restriction to %s - cases measured at other "
+                        "viewports skip there by design, not the law opting out; the ones that ran at %s stayed green.)"
+                % (n_skipped, (" of %d" % _of) if _of is not None else "", _at, _at))
     if _rn is None:
         return (_base + "  ⚠ %d law(s) SKIPPED and the run did not say how many it ran (%s), so "
                         "whether the tamper was judged AT ALL is UNKNOWN."
@@ -1186,9 +1299,10 @@ class _LaneSay(object):
 #      changed - and the run STOPS at the first BLIND / INVALID / clean-run red, printed the moment it is found. Every
 #      proof it did not reach is NOT RUN: never banked, never PROVEN, and the exit is non-zero - a stop is a refusal,
 #      never a pass. With no failure every proof still runs.
-#   3. ONE BROWSER AT A TIME: a gate that starts a browser (it imports render_check / playwright, or declares widths)
-#      holds ONE lock while it is proved, whatever the lane count - four parallel Chrome lanes drove his Mac to load 100
-#      on 2026-09-28. Every other gate keeps its lane.
+#   3. ONE BROWSER AT A TIME: a gate that starts a browser (its import graph reaches render_check / playwright through
+#      any number of helpers - browser_gates(), not pixel_gates()' one file - or it declares widths) holds ONE lock
+#      while it is proved, whatever the lane count - four parallel Chrome lanes drove his Mac to load 100 on 2026-09-28.
+#      Every other gate keeps its lane.
 # The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
 NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
 _PUSH = None            # the running push-time context (_PushRun) while prove(push=True) runs; None otherwise
@@ -1417,10 +1531,16 @@ def _prove_push(have, say, stopped=None):
         "tampered file changed; the run stops at the first BLIND / INVALID / clean-run red."
         % (counts["anchor"], counts["entry"], base or "an UNKNOWN base (neither @{push} nor origin/main resolves - "
            "nothing ranks as changed)", counts["target"]))
-    browser = pixel_gates([(n, f) for n, f, _p in have]) | set(n for n, _f, p in have if _declares_widths(p))
+    # the import CLOSURE, not the gate's own imports: a gate that starts Chrome through a helper holds the lock too
+    _unk = []
+    browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_unk) | set(
+        n for n, _f, p in have if _declares_widths(p))
     if browser:
-        say("  #42 ONE BROWSER AT A TIME: %d gate(s) start a browser and are proved one after another: %s"
-            % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
+        say("  #42 ONE BROWSER AT A TIME: %d gate(s) reach a browser through their imports (any depth) and are proved "
+            "one after another: %s" % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
+    if _unk:
+        say("  #42 ⚠ %d gate(s) import a file nobody could read or parse, so whether they start a browser is UNKNOWN - "
+            "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
     by = dict((n, (n, f, p)) for n, f, p in have)
     run = _PushRun(order, browser)
     _prev, _PUSH = _PUSH, run
@@ -1972,7 +2092,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
         say("     %-52s %s — tampered run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail2))
         return UNPROVABLE
     if ok_tampered:
-        say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2)))
+        say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2, widths=widths)))
         if widths:
             say("     %-52s   ↳ #42: GREEN at its DECLARED widths %s - the declaration is wrong (or the law is blind "
                 "there); either way it proves nothing and the push refuses. Re-measure where the defect shows."
@@ -2311,6 +2431,12 @@ def prove_exit_code(results):
     the tamper — a fact about the working tree, which the suite is the organ to report. Failing it
     here would make this tool red for something it did not find, and a tool that is red for
     somebody else's reason is one you learn to ignore.
+
+    ⚠ #42 — THE ONE EXCEPTION IS --push, AND IT IS NOT DECIDED HERE. In `--prove --push` (hooks/pre-push's run) an
+    UNPROVABLE whose law was ALREADY RED untampered STOPS the run, like a BLIND or an INVALID, and main() then exits 1 on
+    the stop even though this function returns 0 for that UNPROVABLE: every proof after the stop was never run, and
+    exit 0 would pass them unseen. So at push time a clean-run red REFUSES the push. An UNPROVABLE that could not judge
+    at all (a deadline, a missing file) does not stop the run and is still named and not failed, push or not.
 
     Extracted from main() so it can be exercised with fixtures: a decision that can only be
     reached by building a sandbox is a decision nothing will ever test.
