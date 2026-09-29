@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1454 - A BACKGROUND PROOF ON A SLOWER PC USED THE MAC'S DEADLINES (2026-09-29)
+
+**Found** by the Windows inventory: `test_screen_parity` UNPROVABLE on all four proofs - *"timed out after
+120s"* - while the same law passes in a plain copy on the ALT. The ALT proves at BELOW_NORMAL priority
+beside a console that is filming. The deadline is the prover's patience, not the law (heart2 already
+widens it x2 for its own parallel lanes). **Fix:** `heart2._deadline_scale()` honours
+`HEART2_DEADLINE_SCALE` (>= 1, capped at 8, junk ignored and said); the self-prove lane asks for 4.
+**Law:** two cases in `test_every_pc_proves_itself.py`; red-proof seen RED.
+
 ### REG-1453 - A LAW THAT COULD ONLY GO RED WHERE THE LOCKS WERE ALREADY OPEN: A DEADLOCK ON EVERY NEW PC (2026-09-29)
 
 **Found** by the Windows inventory on the ALT: `test_lock_state_asked[0]` and `[1]` BLIND - green through

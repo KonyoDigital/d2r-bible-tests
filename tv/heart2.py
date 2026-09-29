@@ -1272,6 +1272,28 @@ LANE_DISK_FLOOR_MB = 4096     # the same floor safe_copy itself refuses to copy 
 # had, and a genuinely hung gate still gives up — at 2x a bounded budget, never never.
 LANE_DEADLINE_SCALE = 2
 DEADLINE_SCALE = 1            # what _prove_one actually multiplies in; set by _prove_gates
+#: ⚠⚠ #50 (REG-1454) — A BACKGROUND PROOF ON A SLOWER PC IS THE SAME CASE AS A BUSY LANE. On the ALT the
+#: self-prove lane runs this at BELOW_NORMAL priority beside a console that is filming, and
+#: `test_screen_parity` timed out at its 120 s on every proof - UNPROVABLE - while the same law passes in a
+#: plain copy there given time. The deadline is this prover's patience, not the law, so the caller that
+#: KNOWS it is running slow says so: heart2 reads HEART2_DEADLINE_SCALE (a number >= 1, capped at 8; junk
+#: is ignored and said). A genuinely hung gate still gives up, at most 8x a bounded budget.
+DEADLINE_SCALE_MAX = 8
+
+
+def _deadline_scale(n_lanes, env=None, say=None):
+    """The factor every gate's registered timeout is multiplied by in this run. -> int >= 1"""
+    base = LANE_DEADLINE_SCALE if n_lanes > 1 else 1
+    raw = (env if env is not None else os.environ).get("HEART2_DEADLINE_SCALE")
+    if not raw:
+        return base
+    try:
+        asked = int(float(raw))
+    except (TypeError, ValueError):
+        if say:
+            say("  HEART2_DEADLINE_SCALE=%r is not a number - ignored" % raw)
+        return base
+    return max(base, min(DEADLINE_SCALE_MAX, max(1, asked)))
 
 
 def prove_workers(n_gates=None, say=None):
@@ -1758,7 +1780,7 @@ def _prove_gates(have, say=print, workers=None):
     # keeps it. A dial that does not spring back is a dial nobody set. [[label-outlived-referent]]
     global DEADLINE_SCALE
     _prev_scale = DEADLINE_SCALE
-    DEADLINE_SCALE = LANE_DEADLINE_SCALE if n > 1 else 1
+    DEADLINE_SCALE = _deadline_scale(n, say=say)
     try:
         if n == 1:
             _prove_lane(1, work, out, lock, say, built, buffered=False)

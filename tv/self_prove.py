@@ -240,7 +240,10 @@ def spawn(log_path, python=None, workers=1, popen=None):
         cand = py[:-len("pythonw.exe")] + "python.exe"   # pythonw has no stdout for the prover's log
         if os.path.exists(cand):
             py = cand
-    env = dict(os.environ, HEART2_PROVE_WORKERS=str(int(workers)), PYTHONIOENCODING="utf-8")
+    # HEART2_DEADLINE_SCALE (REG-1454): this proof runs below everything he does, on whatever PC this is, so
+    # every gate gets 4x its registered patience - measured on the ALT, a 120 s law timed out every time.
+    env = dict(os.environ, HEART2_PROVE_WORKERS=str(int(workers)), PYTHONIOENCODING="utf-8",
+               HEART2_DEADLINE_SCALE="4")
     kw = {"cwd": HERE, "env": env, "stdin": subprocess.DEVNULL}
     if IS_WIN:
         kw["creationflags"] = _BELOW_NORMAL | _CREATE_NO_WINDOW

@@ -227,6 +227,34 @@ class TheProcessProbeIsSafe(unittest.TestCase):
         self.assertEqual((got, asked), (True, [4242]), "the Windows answer did not come from the safe probe")
 
 
+class ABackgroundProofIsPatient(unittest.TestCase):
+    """REG-1454 - on the ALT a 120 s law timed out on every background proof (BELOW_NORMAL, console filming)."""
+
+    def test_the_heart_honours_the_patience_it_is_given_and_bounds_it(self):
+        import heart2
+        self.assertEqual(heart2._deadline_scale(1, env={}), 1, "the default single-lane deadline moved")
+        self.assertEqual(heart2._deadline_scale(4, env={}), heart2.LANE_DEADLINE_SCALE)
+        self.assertEqual(heart2._deadline_scale(1, env={"HEART2_DEADLINE_SCALE": "4"}), 4,
+                         "the patience a background caller asked for was ignored")
+        self.assertEqual(heart2._deadline_scale(1, env={"HEART2_DEADLINE_SCALE": "999"}),
+                         heart2.DEADLINE_SCALE_MAX, "an unbounded deadline would let a hung gate hang forever")
+        self.assertEqual(heart2._deadline_scale(1, env={"HEART2_DEADLINE_SCALE": "junk"}), 1)
+
+    def test_the_lane_asks_for_it(self):
+        seen = {}
+
+        class _P(object):
+            pid = 4242
+
+        def _popen(cmd, **kw):
+            seen.update(kw.get("env") or {})
+            return _P()
+        d = tempfile.mkdtemp(prefix="self_prove_spawn_")
+        SP.spawn(os.path.join(d, "log"), python=sys.executable, popen=_popen)
+        self.assertEqual(seen.get("HEART2_DEADLINE_SCALE"), "4",
+                         "the background prover runs with the Mac's deadlines on a slower, busier PC")
+
+
 class TheConsoleAsks(unittest.TestCase):
 
     def test_the_rescue_loop_ticks_the_lane_and_status_publishes_it(self):
@@ -237,6 +265,13 @@ class TheConsoleAsks(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-29 - the heart ignores the patience a background proof asks for (REG-1454)",
+        "file": "tv/heart2.py",
+        "find": "    raw = (env if env is not None else os.environ).get(\"HEART2_DEADLINE_SCALE\")\n",
+        "replace": "    raw = None\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 (second eye) - a failed save after a spawn makes the lane start a second prover",
         "file": "tv/self_prove.py",
