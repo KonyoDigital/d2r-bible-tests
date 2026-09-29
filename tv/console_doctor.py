@@ -4571,6 +4571,11 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
     ⚠ UNKNOWN when the plan cannot run, UNMEASURED on a console that has never filmed, and UNKNOWN
     again when the newest reading is older than `stoppedAfter` periods — a stale reading may not
     certify the drain, and whether the LOOP is alive is lane_liveness's question, not this row's.
+    ⚠ #84 (REG-1517) — BLOCKED is the river holding reels older than the newest keep window
+    UPSTREAM of the mouth (the drain's `upstream` reading, from the river's own positions). This
+    row goes MISSING when the longest-waiting one has sat past the console's declared bar (6 h),
+    OK inside it, and UNKNOWN when the wait cannot be read — a CLEAR that only counted the mouth
+    read OK over the ALT's 110 blocked reels.
     [[heart-first]] [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
     """
     _stw = _get("/api/status") or {}
@@ -4615,6 +4620,27 @@ def _check_the_retention_drain_is_draining(*_a, **_k):
                                               / 3600000.0)))
     if state == "STOPPED":
         return MISSING, str(dr.get("why") or "the drain has stopped") + _tail
+    if state == "BLOCKED":
+        # #84 (REG-1517) — reels older than the newest keep window are waiting UPSTREAM of the mouth
+        # (the ALT: EMPTY 91 / PRINTER 33 behind a closed reel.route lock, and this row read OK over
+        # a CLEAR that counted only the mouth). The wait is the river's own arrival stamp for the
+        # longest-waiting blocked reel (`upstream.oldestS`), held against the bar the console
+        # declared (`upstream.afterS`, its RIVER_STUCK_AFTER_S) — never a clock this doctor keeps,
+        # which a relaunch would reset. A wait that cannot be read is UNKNOWN, never a pass.
+        _up = dr.get("upstream") if isinstance(dr.get("upstream"), dict) else {}
+        _oldest, _after = _up.get("oldestS"), _up.get("afterS")
+        _num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
+        if not (_num(_oldest) and _num(_after) and _after > 0):
+            return UNKNOWN, (str(dr.get("why") or "reels are blocked upstream") +
+                             " — how long they have waited could not be read (oldestS %r, bar %r), "
+                             "so whether this is a stall is UNKNOWN" % (_oldest, _after) + _tail)
+        if float(_oldest) > float(_after):
+            return MISSING, (str(dr.get("why") or "reels are blocked upstream") +
+                             " — the longest wait is %.1fh, past the %.0fh bar"
+                             % (float(_oldest) / 3600.0, float(_after) / 3600.0) + _tail)
+        return OK, (str(dr.get("why") or "reels are blocked upstream") +
+                    " — the longest wait is %.1fh, inside the %.0fh bar; this row goes MISSING past it"
+                    % (float(_oldest) / 3600.0, float(_after) / 3600.0) + _tail)
     if state in ("CLEAR", "OWED", "DORMANT", "DEFERRED"):
         return OK, str(dr.get("why") or state) + _tail
     return UNKNOWN, str(dr.get("why") or "the drain's state is UNKNOWN") + _tail

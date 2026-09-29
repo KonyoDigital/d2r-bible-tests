@@ -37,6 +37,13 @@ fixture worlds, with a pinned clock and a pinned disk, counting which directorie
      stopped drain, UNKNOWN when the plan cannot run, UNMEASURED on a console that never filmed;
   5. a deleter that REFUSES (its lock holds) is said as a refusal, never as "freed 0 MB".
 
+⚠ #84 (REG-1517) — the world's reels are PLACED ON ITS RIVER as they are made (finished -> ROUTED,
+unsealed -> PRINTER), because the drain now reads the river's own positions beside the mouth: a
+mouth that drained with an unsealed reel older than the newest KEEP_RECENT still at PRINTER is
+BLOCKED / owed 1, not CLEAR / owed 0 — the ALT's defect in miniature, and this world always had it.
+A world nobody stamped would read UNKNOWN (a floor), never CLEAR. The river's own law is
+test_the_drain_names_what_is_blocked_upstream.
+
 ⚠ No reel id is written literally in this file: a real-looking id in test source makes retention
 hold that footage as a fixture (test_no_pinned_footage). Ids are minted from a 2017 stamp.
 ⚠ Nothing here touches his tree: TV_HIST, rr.HERE and ca.HERE all point at a scratch world, and the
@@ -122,13 +129,25 @@ class _World(object):
         self._write(os.path.join(self.root, "vault_accum.json"), {"owned": []})
         self._write(os.path.join(self.root, "vault_seen.json"), {"rows": []})
 
+    @property
+    def river(self):
+        """Where this world's river remembers its reels: river_stamp._store_path() under TV_HIST=hist.
+        #84 (REG-1517) — the drain reads the river's own positions now, so a world whose reels were
+        never stamped reads UNKNOWN (a floor), never CLEAR; every reel here is placed as it is made."""
+        return os.path.join(self.hist, "river_stamp.jsonl")
+
     @staticmethod
     def _write(p, blob):
         with io.open(p, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(blob))
 
-    def add(self, sealed=True, at_ms=None):
-        """A reel that was filmed, read (pages>0) and — unless `sealed` is False — vault-sealed."""
+    def add(self, sealed=True, at_ms=None, station=None, stamp_at=None):
+        """A reel that was filmed, read (pages>0) and — unless `sealed` is False — vault-sealed.
+
+        Its river position is stamped as it is made: a finished reel at ROUTED (the mouth — the
+        extraction contract is satisfied), an unsealed one at PRINTER ("the names were read; the
+        session carries no seal"), or `station` when a law needs the ALT's shape. `stamp_at` is the
+        arrival time the river records (default: when the reel was filmed)."""
         at_ms = at_ms if at_ms is not None else BASE_MS + (len(self.names) + 1000) * HOUR_MS
         nm = "reel_s_%d_%d" % (at_ms, 100 + len(self.names))
         d = os.path.join(self.hist, nm)
@@ -139,6 +158,10 @@ class _World(object):
         self.chron[nm] = {"pages": 9}
         if sealed:
             self.vault[nm] = {"rows": 0}
+        import river_stamp as _rs
+        st = _rs.stamp(nm, station or ("ROUTED" if sealed else "PRINTER"), by="fixture:world",
+                       at=(stamp_at if stamp_at is not None else at_ms), path=self.river)
+        self.tc.assertTrue(st.get("wrote"), "the world could not place its reel on the river: %r" % st)
         return nm
 
     def write_ledgers(self):
@@ -275,8 +298,11 @@ class TheRiverDrainsFifoAndKeepsTheNewest(_Base):
         self.assertEqual(len(self.w.tombstones()), len(tomb_one),
                          "a second pass wrote more tombstones")
         self.assertFalse((r2 or {}).get("removed"), "a second pass reported removing something")
-        self.assertEqual(st2["drain"]["state"], "CLEAR", st2["drain"])
-        self.assertEqual(st2["drain"]["owed"], 0)
+        # #84 (REG-1517) — the mouth is drained, and the unsealed reel older than the newest
+        # KEEP_RECENT is still waiting at PRINTER: that is BLOCKED, owed 1, never CLEAR
+        self.assertEqual(st2["drain"]["state"], "BLOCKED", st2["drain"])
+        self.assertEqual(st2["drain"]["owed"], 1)
+        self.assertEqual(st2["drain"]["owedAtMouth"], 0, "the mouth itself owes nothing")
 
     def test_every_path_resolves_from_THIS_consoles_own_tree(self):
         """Claim 3 — per console. The deleter's record, the per-pass series and the drain's
@@ -308,8 +334,13 @@ class TheRiverDrainsFifoAndKeepsTheNewest(_Base):
         dr = st.get("drain") or {}
         for k in ("on", "worked", "lastTs", "owed"):
             self.assertIn(k, dr, "the drain does not answer %r" % k)
-        self.assertEqual(dr["state"], "CLEAR", dr)
-        self.assertEqual(dr["owed"], 0, "a drained river still reports reels owed")
+        # #84 (REG-1517) — this world is the ALT in miniature: the four finished reels drained and
+        # ONE unsealed reel older than the newest KEEP_RECENT still waits at PRINTER. Before the fix
+        # this read CLEAR / owed 0 ("nothing is owed") over that reel.
+        self.assertEqual(dr["state"], "BLOCKED", dr)
+        self.assertEqual(dr["owed"], 1, "the unsealed reel waiting at PRINTER is not owed")
+        self.assertEqual(dr["owedAtMouth"], 0, "a drained mouth still reports reels owed")
+        self.assertIn("waiting at PRINTER 1", dr.get("why") or "", dr)
         self.assertEqual(dr["worked"], 4, "worked is not the deleter's own lifetime record")
         self.assertIsNotNone(dr["lastTs"], "a deleter that just released has no lastTs")
         rows = self.w.series()
@@ -625,6 +656,10 @@ class TheDrainArithmetic(unittest.TestCase):
     """The pure half — reel_retention.drain_state over hand-built series rows."""
 
     def _st(self, rows, **kw):
+        # #84 (REG-1517) — a MEASURED-EMPTY river beside the mouth; a mouth read with no river is
+        # UNKNOWN, never CLEAR, and test_the_drain_names_what_is_blocked_upstream drives that half
+        kw.setdefault("upstream", RR.blocked_upstream({}, {"ok": True, "candidates": [], "kept": []},
+                                                      now_ms=BASE_MS))
         return RR.drain_state(rows, beat={"works": 7, "lastWorkAt": BASE_MS}, now_ms=BASE_MS, **kw)
 
     def test_the_bar_is_exactly_the_constant(self):

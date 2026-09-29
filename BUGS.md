@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1517 - THE DRAIN'S GREEN THAT LIES: "NOTHING IS OWED" OVER 110 REELS THAT NEVER REACHED THE MOUTH (2026-09-29)
+
+**Measured on the ALT** (#84): 126 reels, river EMPTY 91 / PRINTER 33 - all unsealed, the `reel.route` lock CLOSED
+("the heart has never run here") - and `retention.drain` said `{state: CLEAR, owed: 0, why: "drained - every reel that
+cleared every bar and is older than the newest 16 has been released; nothing is owed"}`, with the doctor's
+`retention drain` row OK over it. `reel_retention.drain_owed()` counts the plan's CANDIDATES; a reel held at EMPTY or
+PRINTER is not a candidate; so the drain counted only the reels that had reached ITS stage and called the other 110
+nothing. Every word of CLEAR was true of the mouth and false of the river - [[heart-first]] §2, "on is not working",
+in the deleter's own vocabulary: "nothing owed at my stage" read as "nothing owed".
+
+**Fix:**
+- `river_stamp.last_stamps()` - the ONE reader of each reel's last stamp row (station AND arrival time);
+  `positions()` is now a projection of it, so the drain and the fleet's stuck alarm read the same walk.
+- `reel_retention.blocked_upstream(last, plan, upstream, why_of, keep_recent, after_s)` - the river's own last
+  stamps (QUOTED, never a router pass, never re-derived) against THIS pass's plan: every reel older than the newest
+  keep window (the plan's own `recent_shield`, pulled out of plan() so the two cannot drift) at a station a lane owns
+  is counted, per station, with the owning lane's own last word for the "behind <lock/reason>" half:
+  `blocked upstream: N reel(s) older than the newest 16 are waiting at EMPTY 77, PRINTER 33 behind EMPTY: route lane:
+  reel.route is LOCKED - ...; PRINTER: vault lane: ...`. The newest window and the suite's `test-fixture` reels are
+  never counted; CAPTURE (waits on a capture change by design, REG-340 - the console's `_RIVER_OWNER` rule) and the
+  mouth (ROUTED) are reported BESIDE `n`; a reel the river never placed (or stamped UNKNOWN) makes `n` a FLOOR;
+  `oldestS` is the longest wait from the river's own arrival stamp - never a process clock, which his ~30-minute
+  relaunches would reset; `afterS` carries the console's bar for the doctor.
+- `drain_state(..., upstream=)` - `n > 0` is **BLOCKED** with `owed = n + the mouth's own` (`owedAtMouth` kept
+  beside it); STOPPED stays STOPPED (a deleter stalled on what DID reach it is the worse fact); a measured-empty
+  river keeps CLEAR with the measurement in the sentence; a river that was NOT READ, could not be read, or is a floor
+  of 0 turns CLEAR into **UNKNOWN - never CLEAR**. `control_app._retention_drain` reads the river and hands the
+  pass's plan and keep window through at every main-path site.
+- `console_doctor._check_the_retention_drain_is_draining` - BLOCKED goes **MISSING** when `oldestS` is past the
+  console's declared bar (`RIVER_STUCK_AFTER_S`, 6 h), OK inside it, UNKNOWN when the wait or the bar cannot be read.
+- `test_the_river_drains_every_pass`'s world now places its reels on its river as it makes them (finished -> ROUTED,
+  unsealed -> PRINTER): its two CLEAR / owed 0 cases were the ALT's defect in miniature - a drained mouth with one
+  unsealed reel older than the newest 16 still at PRINTER - and read BLOCKED / owed 1 now.
+
+**Law:** new `test_the_drain_names_what_is_blocked_upstream` (18 cases) - the pure reading over the ALT's shape, the
+drain's verdict, the SHIPPED `_retention_once` on a temp shelf of twenty unsealed reels the river places at EMPTY
+behind the closed lock (BLOCKED, owed 4, the lock named, nothing deleted, the river read from that console's own
+tree, an unreadable store UNKNOWN on the wire), and the doctor over the wire (MISSING past the bar, OK inside it,
+UNKNOWN unread). **Red-proofs, each applied, run RED, restored byte-for-byte:** the BLOCKED branch off (6 RED), a
+floor of 0 reading CLEAR (1 RED), the console passing `upstream=None` (5 RED), the console declaring no bar (3 RED),
+the doctor blind to BLOCKED (3 RED).
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

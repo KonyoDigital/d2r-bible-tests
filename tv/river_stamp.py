@@ -327,6 +327,27 @@ def stamp(reel, station, by, why=None, at=None, path=None, observed=False):
     return out
 
 
+def last_stamps(path=None):
+    """Each reel's LAST stamp row — its station AND when it arrived there. -> (dict reel -> row, why) | (None, why)
+
+    #84 (REG-1517) — the ONE reader of "where is each reel now" for every consumer that also needs
+    to know HOW LONG it has been there: `positions()` is a projection of this (station only), and the
+    drain's blocked-upstream reading takes the row's `at` as the arrival time at that station. Two
+    walks of the same rows to answer the two questions is the copy-drift this file's own docstring
+    is built against, so both come off this one walk. [[copy-drift]]
+    ⚠ None is UNKNOWN (the store would not read), never an empty river; a store that does not exist
+    yet is measured-and-empty and answers {}. The rows are file order, so the last one per reel is
+    the reel's current position — the append order is the history (see rows()).
+    """
+    rep = rows(path)
+    if not rep["ok"]:
+        return None, "UNKNOWN, not an empty river — %s" % rep["why"]
+    last = {}
+    for r in rep["rows"]:
+        last[str(r.get("reel"))] = r
+    return last, rep["why"]
+
+
 def positions(path=None):
     """Where each reel was LAST stamped. -> (dict reel -> station, why) | (None, why)
 
@@ -334,15 +355,12 @@ def positions(path=None):
     cannot afford a router pass each time (1.7 s for 25 reels on his Mac, under load; the ALT holds
     102). It is the same fact `census()` counts, handed back per reel rather than per station.
     ⚠ None is UNKNOWN (the store would not read), never an empty river; a store that does not exist
-    yet is measured-and-empty and answers {}.
+    yet is measured-and-empty and answers {}. A projection of last_stamps() — one walk, two shapes.
     """
-    rep = rows(path)
-    if not rep["ok"]:
-        return None, "UNKNOWN, not an empty river — %s" % rep["why"]
-    last = {}
-    for r in rep["rows"]:
-        last[str(r.get("reel"))] = str(r.get("station"))
-    return last, rep["why"]
+    last, why = last_stamps(path)
+    if last is None:
+        return None, why
+    return dict((reel, str(r.get("station"))) for reel, r in last.items()), why
 
 
 def census(path=None):

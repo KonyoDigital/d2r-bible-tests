@@ -636,6 +636,20 @@ def proof_reels(hist_dir):
                   "nothing on disk (already lost); %s" % (len(held), unresolved, why))
 
 
+def recent_shield(reels, keep_recent=KEEP_RECENT):
+    """The newest `keep_recent` PARSEABLE reels — the ones kept whatever the ledgers say. -> set
+
+    #84 (REG-1517) — pulled out of plan() so the drain's blocked-upstream reading shields exactly the
+    reels the plan shields. REG-571's rule travels with it: an unparseable name keeps its inf sort
+    key (last to be deleted) and cannot stand in the shield for a real reel. `reels` may arrive in
+    any order; the sort is by the epoch in the name, the same key plan() orders by.
+    """
+    if not keep_recent:
+        return set()
+    parseable = sorted((r for r in reels if _reel_ts(r) != float("inf")), key=_reel_ts)
+    return set(parseable[-int(keep_recent):])
+
+
 def keep_recent_for(free_gb, floor_gb):
     """How many of the newest reels the deleting pass must keep, given the disk. -> int. Pure.
 
@@ -1157,8 +1171,9 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
     if keep_recent is not None and keep_recent < 0:
         raise ValueError("keep_recent must be >= 0, got %r — a negative window silently drops "
                          "the recent shield entirely rather than shrinking it" % (keep_recent,))
-    _parseable = [r for r in reels if _reel_ts(r) != float("inf")]
-    recent = set(_parseable[-keep_recent:]) if keep_recent else set()
+    # #84 (REG-1517) — ONE spelling of "the newest keep_recent": the drain's blocked-upstream reading
+    # asks the same question of the same names, and a second sort there is how the two would drift.
+    recent = recent_shield(reels, keep_recent)
     try:
         import frame_authority as _fa
         _fixtures = _fa.test_referenced_reels()
@@ -1776,6 +1791,145 @@ DRAIN_STOPPED_AFTER_PASSES = 3
 #: The drain's states. UNKNOWN is a first-class answer and never renders as CLEAR.
 DRAIN_CLEAR, DRAIN_OWED, DRAIN_STOPPED, DRAIN_DORMANT, DRAIN_DEFERRED, DRAIN_UNKNOWN = (
     "CLEAR", "OWED", "STOPPED", "DORMANT", "DEFERRED", "UNKNOWN")
+#: #84 (REG-1517) — and BLOCKED: reels older than the newest KEEP_RECENT are waiting UPSTREAM of the
+#: mouth, at a station a lane is meant to move them out of. The deleter may owe nothing at its own
+#: stage and the river still not be draining; CLEAR was saying the first and being read as the second.
+DRAIN_BLOCKED = "BLOCKED"
+
+
+def blocked_upstream(last, plan, upstream=None, why_of=None, keep_recent=KEEP_RECENT, now_ms=None,
+                     after_s=None, river_why=None):
+    """WHAT THE DRAIN CANNOT SEE FROM ITS OWN STAGE — reels older than the newest `keep_recent` that
+    are still waiting UPSTREAM of the mouth, read from the river's own positions. -> dict
+
+    #84 (REG-1517) — MEASURED ON THE ALT, 2026-09-29: 126 reels, river EMPTY 91 / PRINTER 33 (all
+    unsealed, `reel.route` CLOSED — "the heart has never run here"), and retention.drain said
+    {state: CLEAR, owed: 0, why: "drained — every reel that cleared every bar ... nothing is owed"}.
+    drain_owed() counts the plan's CANDIDATES, and a reel held at EMPTY or PRINTER is not one — so
+    the drain counted only the reels that had reached ITS stage and called the other 110 nothing.
+    Every word of CLEAR was true of the mouth and false of the river. [[heart-first]] §2: on is not
+    working, and "nothing owed at my stage" is not "nothing owed".
+
+    `last`      river_stamp.last_stamps(): reel -> its last stamp row (`station`, `at`). None = the
+                store would not read = UNKNOWN, never an empty river. THE POSITION IS QUOTED FROM
+                HERE AND NEVER RE-DERIVED — the router is the authority on where a reel is, the
+                stamp store is its record, and a second derivation here would be [[copy-drift]].
+    `plan`      THIS pass's plan(): candidates + kept are the shelf, and a `test-fixture` tag names
+                a reel pinned by the suite, which waits on no lane and is never counted.
+    `upstream`  the stations a LANE is meant to move a reel out of. The console passes its own
+                _RIVER_OWNER keys — CAPTURE is not among them because it waits on a capture change
+                by design (REG-340) and is never an alarm; those reels are counted BESIDE `n` in
+                `byDesign`, never inside it. None = every station before ROUTED, no exemption.
+    `why_of`    station -> the owning lane's own last word (control_app._river_stuck_why), quoted
+                for the "behind <lock/reason>" half of the sentence. None = no reason available.
+    `after_s`   the bar the doctor holds `oldestS` against (control_app.RIVER_STUCK_AFTER_S);
+                carried as `afterS` so the row never hardcodes it. None = no bar declared.
+
+    -> n None      the river or the shelf could not be read — UNKNOWN, never 0
+       n 0         MEASURED: nothing older than the shield waits at an owned station
+       complete    False when an older reel has no readable position (`unplaced`: never stamped;
+                   `unknown`: stamped UNKNOWN), so `n` is a FLOOR and a 0 is not a CLEAR
+       oldestS     how long the longest-waiting blocked reel has sat at its station, from the
+                   river's own arrival stamp — never from when this process first noticed: his
+                   console relaunches every ~30 min and a process clock would restart with it.
+                   [[stale-reading]]
+    """
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    keep = int(keep_recent) if isinstance(keep_recent, int) and not isinstance(keep_recent, bool) \
+        and keep_recent >= 0 else KEEP_RECENT
+    out = {"n": None, "stations": {}, "oldestS": None, "afterS": after_s, "byDesign": {},
+           "unplaced": None, "unknown": None, "atMouth": None, "older": None, "keepRecent": keep,
+           "complete": None, "reasons": {}, "why": ""}
+    try:
+        import reel_router as _rt
+        order = list(_rt.STATIONS)
+    except Exception as e:
+        out["why"] = ("reel_router would not import (%s), so which stations are upstream of the "
+                      "mouth is UNKNOWN" % type(e).__name__)
+        return out
+    if "ROUTED" not in order:
+        out["why"] = "reel_router.STATIONS names no ROUTED station, so where the mouth is is UNKNOWN"
+        return out
+    before_mouth = order[:order.index("ROUTED")]
+    owned = tuple(upstream) if upstream is not None else tuple(before_mouth)
+    if last is None:
+        out["why"] = ("the river could not be read%s, so whether reels wait upstream is UNKNOWN — "
+                      "never 'nothing is owed'"
+                      % ((" — " + str(river_why)[:160]) if river_why else ""))
+        return out
+    if not isinstance(plan, dict) or not plan.get("ok"):
+        out["why"] = ("the shelf could not be planned this pass, so which reels are older than the "
+                      "newest %d is UNKNOWN" % keep)
+        return out
+    cands, kept = plan.get("candidates"), plan.get("kept")
+    if not isinstance(cands, list) or not isinstance(kept, list):
+        out["why"] = "the plan carries no reel lists, so which reels are on the shelf is UNKNOWN"
+        return out
+    shelf = [str(x.get("reel")) for x in cands + kept if isinstance(x, dict) and x.get("reel")]
+    pinned = set(str(x.get("reel")) for x in kept
+                 if isinstance(x, dict) and x.get("reel") and x.get("tag") == "test-fixture")
+    shield = recent_shield(shelf, keep)
+    older = [r for r in shelf if r not in shield and r not in pinned]
+    stations, by_design = {}, {}
+    unplaced = unknown = at_mouth = 0
+    oldest = None
+    for reel in older:
+        row = last.get(reel)
+        if not isinstance(row, dict):
+            unplaced += 1                      # the walk has never placed it: not a position
+            continue
+        st = str(row.get("station"))
+        if st == "UNKNOWN":
+            unknown += 1                       # walked and could not be placed: still not a position
+        elif st in owned:
+            stations[st] = stations.get(st, 0) + 1
+            at = row.get("at")
+            if isinstance(at, (int, float)) and not isinstance(at, bool):
+                age = max(0, int((now_ms - int(at)) / 1000))
+                oldest = age if oldest is None else max(oldest, age)
+        elif st in before_mouth:
+            by_design[st] = by_design.get(st, 0) + 1
+        else:
+            at_mouth += 1                      # ROUTED (the deleter's own stage) or TOMBSTONE
+    ordered = dict((s, stations[s]) for s in order if s in stations)
+    reasons = {}
+    for s in ordered:
+        if why_of is None:
+            continue
+        try:
+            w = str(why_of(s) or "")
+        except Exception as e:
+            w = "the owning lane could not be asked (%s)" % type(e).__name__
+        if w:
+            reasons[s] = w[:200]
+    n = sum(ordered.values())
+    complete = (unplaced == 0 and unknown == 0)
+    out.update({"n": n, "stations": ordered, "oldestS": oldest,
+                "byDesign": dict((s, by_design[s]) for s in order if s in by_design),
+                "unplaced": unplaced, "unknown": unknown, "atMouth": at_mouth, "older": len(older),
+                "complete": complete, "reasons": reasons})
+    _tails = []
+    if not complete:
+        _tails.append("%d older reel(s) have no readable position in the river (%d never stamped, "
+                      "%d stamped UNKNOWN), so this count is a FLOOR"
+                      % (unplaced + unknown, unplaced, unknown))
+    if by_design:
+        _tails.append("%s wait by design (not an alarm)"
+                      % ", ".join("%s %d" % (s, c) for s, c in out["byDesign"].items()))
+    tail = ("; " + "; ".join(_tails)) if _tails else ""
+    if n > 0:
+        out["why"] = ("blocked upstream: %d reel(s) older than the newest %d are waiting at %s behind %s%s"
+                      % (n, keep, ", ".join("%s %d" % (s, c) for s, c in ordered.items()),
+                         ("; ".join("%s: %s" % (s, w) for s, w in reasons.items()) if reasons
+                          else "a reason no lane has given"),
+                         tail))
+    elif not complete:
+        out["why"] = ("whether reels older than the newest %d wait upstream is UNKNOWN — %s — never "
+                      "'nothing is owed'" % (keep, _tails[0]))
+    else:
+        out["why"] = ("nothing older than the newest %d waits upstream of the mouth — measured over "
+                      "%d older reel(s) on the river%s" % (keep, len(older), tail))
+    return out
 
 
 def drain_owed(p):
@@ -1804,8 +1958,61 @@ def _drain_count(v):
 
 
 def drain_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_ms=None,
-                every_s=None):
+                every_s=None, upstream=None):
     """THE RETENTION LANE IN THE SHARED VOCABULARY — on / worked / lastTs / owed. -> dict
+
+    Two readings, one row: `_mouth_state` is what the DELETER owes at its own stage (the per-pass
+    series), and `upstream` is what the RIVER holds above it (blocked_upstream). #84 (REG-1517):
+    the first alone said CLEAR over 110 reels that had never reached the mouth, so
+      · upstream n > 0        -> BLOCKED (STOPPED stays STOPPED — a deleter that stalled on what
+                                 DID reach it is the worse fact), owed = mouth + upstream
+      · upstream n 0, complete-> the mouth's verdict stands, with the measurement beside it
+      · upstream None / a floor of 0 / not asked -> CLEAR degrades to UNKNOWN, never stays CLEAR:
+                                 "nothing owed at the mouth" cannot certify the river unread
+    The mouth's own count is kept beside the total as `owedAtMouth`. [[unknown-stays-unknown]]
+    """
+    out = _mouth_state(rows, beat=beat, on=on, stop_why=stop_why, unknown_why=unknown_why,
+                       now_ms=now_ms, every_s=every_s)
+    out["upstream"] = upstream if isinstance(upstream, dict) else None
+    out["owedAtMouth"] = out["owed"]
+    mouth_state, mouth_why = out["state"], out["why"]
+    up = out["upstream"]
+    n = up.get("n") if up else None
+    if up is None or n is None:
+        unread = (str(up.get("why") or "the river's upstream reading is empty") if up else
+                  "the river was not read, so whether reels wait upstream is UNKNOWN")
+        if mouth_state == DRAIN_CLEAR:
+            out["state"], out["owed"] = DRAIN_UNKNOWN, None
+            out["why"] = "the deleter owes nothing at the mouth, but %s — never CLEAR" % unread
+        else:
+            out["why"] = "%s · %s" % (mouth_why, unread)
+        return out
+    if n > 0:
+        mouth = out["owed"]
+        out["owed"] = n + mouth if _drain_count(mouth) is not None else n
+        if mouth_state == DRAIN_STOPPED:
+            out["why"] = "%s · and %s" % (mouth_why, up.get("why"))
+            return out
+        out["state"] = DRAIN_BLOCKED
+        mouth_say = ("the deleter itself owes nothing — every reel that reached the mouth has been "
+                     "released" if mouth_state == DRAIN_CLEAR else
+                     "at the mouth: %s — %s" % (mouth_state, mouth_why))
+        out["why"] = "%s · %s" % (up.get("why"), mouth_say)
+        return out
+    if not up.get("complete"):
+        if mouth_state == DRAIN_CLEAR:
+            out["state"], out["owed"] = DRAIN_UNKNOWN, None
+            out["why"] = "the deleter owes nothing at the mouth, but %s" % up.get("why")
+        else:
+            out["why"] = "%s · %s" % (mouth_why, up.get("why"))
+        return out
+    out["why"] = "%s · %s" % (mouth_why, up.get("why"))
+    return out
+
+
+def _mouth_state(rows, beat=None, on=True, stop_why=None, unknown_why=None, now_ms=None,
+                 every_s=None):
+    """WHAT THE DELETER OWES AT ITS OWN STAGE — the pure walk of the per-pass series. -> dict
 
     `rows` is the console's own per-pass series (disk_history.jsonl, oldest first): each pass writes
     one row carrying `owed` BEFORE it acts, and — only when the deleter actually ran — one row

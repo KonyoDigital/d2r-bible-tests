@@ -23967,7 +23967,7 @@ def _retention_deferred(why):
     return None
 
 
-def _retention_drain(stop_why=None, unknown_why=None):
+def _retention_drain(stop_why=None, unknown_why=None, plan=None, keep_recent=None):
     """THE RETENTION LANE IN THE SHARED SUPERVISION VOCABULARY. -> dict (on/worked/lastTs/owed)
 
     Konyo, 2026-09-27: reels must go through the river FIFO and be "allproeprly getting delted after
@@ -23977,9 +23977,17 @@ def _retention_drain(stop_why=None, unknown_why=None):
         owed / passes   this console's own per-pass series (disk_history), which survives a relaunch
         worked / lastTs shelf_driver.lane_beat("deleter") — the ONE reading of the tombstone ledger
         on              _PRUNE_SAFE_TO_RUN, the arming flag the deleter lane already declares
+        upstream        #84 (REG-1517) — river_stamp.last_stamps() (the river's OWN positions, never
+                        a router pass and never re-derived) against THIS pass's plan, so a reel older
+                        than the newest keep_recent that never reached the mouth is counted BLOCKED
+                        with the owning lane's own reason (_river_stuck_why), not called "nothing
+                        owed". Measured on the ALT: EMPTY 91 / PRINTER 33 behind a closed reel.route
+                        lock, and the drain said CLEAR. `plan` None (an early return before the
+                        plan ran) is an UNKNOWN upstream, never an empty one.
 
     ⚠ EVERY PATH RESOLVES FROM THIS CONSOLE'S OWN TREE (TV_HIST / HERE), never another machine's:
-    the series via _disk_history_path(), the ledger via reel_retention._tombstone_path().
+    the series via _disk_history_path(), the ledger via reel_retention._tombstone_path(), the river
+    via river_stamp._store_path().
     ⚠ It never raises, and a part it cannot read is UNKNOWN in its own field, never a zero.
     """
     try:
@@ -23998,10 +24006,25 @@ def _retention_drain(stop_why=None, unknown_why=None):
         _rows = _disk_history_tail(8 * _rr_dr.DRAIN_STOPPED_AFTER_PASSES)
     except Exception:
         _rows = None
+    # #84 (REG-1517) — the river's own positions, one file read (the same read the fleet's stuck
+    # alarm makes), against this pass's plan. A store that will not read is None -> UNKNOWN upstream.
+    try:
+        import river_stamp as _rvs_dr
+        _last, _lwhy = _rvs_dr.last_stamps()
+    except Exception as e:
+        _last, _lwhy = None, "the stamp store could not be asked (%s)" % type(e).__name__
+    try:
+        _up = _rr_dr.blocked_upstream(
+            _last, plan, upstream=tuple(_RIVER_OWNER), why_of=_river_stuck_why,
+            keep_recent=(keep_recent if keep_recent is not None else _rr_dr.KEEP_RECENT),
+            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy)
+    except Exception as e:
+        _up = {"n": None, "why": ("the upstream reading raised %s, so what waits above the mouth "
+                                  "is UNKNOWN" % type(e).__name__)}
     try:
         return _rr_dr.drain_state(_rows, beat=_beat, on=bool(_PRUNE_SAFE_TO_RUN),
                                   stop_why=stop_why, unknown_why=unknown_why,
-                                  every_s=_RETENTION_EVERY_S)
+                                  every_s=_RETENTION_EVERY_S, upstream=_up)
     except Exception as e:
         return {"on": None, "worked": None, "lastTs": None, "owed": None, "passesOwed": None,
                 "state": "UNKNOWN", "at": int(time.time() * 1000), "everyS": _RETENTION_EVERY_S,
@@ -24319,7 +24342,7 @@ def _retention_once():
             "diskTrend": disk_delta(24),
             "diskTrendSay": disk_delta_say(24)}
     if p.get("unreadable"):
-        _dr = _retention_drain(unknown_why=_drain_unknown)
+        _dr = _retention_drain(unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="HELD — %s will not parse. Nothing is deleted while "
                                              "the ledgers cannot be read."
@@ -24348,7 +24371,7 @@ def _retention_once():
     # /api/on still refuses to record. That branch is untouched.
     _above_floor = free_gb >= ON_AIR_FLOOR_GB
     if _above_floor and not cands:
-        _dr = _retention_drain(unknown_why=_drain_unknown)
+        _dr = _retention_drain(unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
             _owed = _chron_owed_count()
             _extra = (_owed - len(waiting)) if isinstance(_owed, int) else 0
@@ -24362,7 +24385,7 @@ def _retention_once():
                                    drain=_dr))
         return None
     if not cands:
-        _dr = _retention_drain(unknown_why=_drain_unknown)
+        _dr = _retention_drain(unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base,
                 say="%.1fGB free, BELOW the %.0fGB floor — and nothing is eligible. %s; "
@@ -24385,7 +24408,7 @@ def _retention_once():
                                     pruned_mb=None)
             except Exception:
                 pass
-        _dr = _retention_drain(stop_why=why, unknown_why=_drain_unknown)
+        _dr = _retention_drain(stop_why=why, unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but %s"
                                              % (free_gb, len(cands), why),
@@ -24430,7 +24453,7 @@ def _retention_once():
     if _refused or not isinstance(r, dict):
         _rwhy = (str(r.get("why") or "no reason given") if isinstance(r, dict)
                  else "the deleter returned nothing readable")
-        _dr = _retention_drain(stop_why=_rwhy, unknown_why=_drain_unknown)
+        _dr = _retention_drain(stop_why=_rwhy, unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but the deleter "
                                              "refused: %s" % (free_gb, len(cands), _rwhy[:160]),
@@ -24441,7 +24464,7 @@ def _retention_once():
         stop_why=(("%d reel(s) could not be removed: %s"
                    % (len(_failed_now), ", ".join(map(str, _failed_now[:3]))))
                   if _failed_now else None),
-        unknown_why=_drain_unknown)
+        unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
     with _PRUNE_LOCK:
         _RETENTION.update(dict(base, freedMb=round(r.get("freedMb") or 0, 1),
                                removed=list(r.get("removed") or []),
