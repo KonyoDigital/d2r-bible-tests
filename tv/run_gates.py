@@ -209,6 +209,12 @@ GATES = [
          why="REG-1504 (#77) - the blueprint's river line said 'UNKNOWN, not an empty shelf' three times: five readers "
              "each prefixed it to a reason that already carried it. One helper now leads with it only when the "
              "reason does not say UNKNOWN; the readers are parsed so none builds the literal prefix again. 2 red-proofs"),
+    Gate("test_the_launcher_brings_a_running_console_forward", [sys.executable,
+         os.path.join(HERE, "test_the_launcher_brings_a_running_console_forward.py")], 60,
+         why="REG-1514 - the second eye on 4e22a57a: a Desktop double-click on a Mac console whose window was UP fell "
+             "through to the kill of :17772 and replaced a healthy console (and its session). tv/launcher_decide.py "
+             "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
+             "ephemeral port. 3 red-proofs"),
     Gate("test_one_capture_per_console", [sys.executable,
          os.path.join(HERE, "test_one_capture_per_console.py")], 120,
          why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "

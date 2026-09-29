@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1514 - A DOUBLE-CLICK REPLACED A HEALTHY MAC CONSOLE; A HIDE THAT FAILED STILL CLAIMED "BACKGROUND" (2026-09-29)
+
+**Found** by the second eye (Grok CLI) on v3523's bg-service merge `4e22a57a` (#231), two defects:
+- `tv/start_tvd_mac.sh` asked a console forward only when its window was BACKGROUNDED; a window that was simply UP fell
+  through to the soft-kill of :17772, so a Desktop double-click replaced a running console and any session it was
+  filming (the Windows launcher only brings it forward). **Fix:** one decision, `tv/launcher_decide.py`: a console on
+  current code with a window (front or background) is asked forward and the launch ends; stale (v1379.1's reason for
+  the kill), headless, window-only, silent, or one that will not come forward (v1460) is replaced as before.
+- `console_to_background` sets the background mark BEFORE the hide; a hide that raised left it set, so `/api/window`
+  said "background" and the UI rescue and pixel check skipped a window still on screen. **Fix:** the mark is withdrawn
+  unless the window really went.
+Laws: `test_the_launcher_brings_a_running_console_forward` (7 cases against a fake console on an ephemeral port, 3
+red-proofs) and `test_closing_the_window_keeps_the_console_running` (+2 cases; its launcher check now pins the
+decision before the kill; 18 red-proofs, all RED).
+
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 
 **Found** by pre-flighting `run_gates.py` (687 gates, the two suites excluded, 39 min) before v3523 push #6 - the
