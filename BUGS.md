@@ -238,6 +238,69 @@ tree, an unreadable store UNKNOWN on the wire), and the doctor over the wire (MI
 UNKNOWN unread). **Red-proofs, each applied, run RED, restored byte-for-byte:** the BLOCKED branch off (6 RED), a
 floor of 0 reading CLEAR (1 RED), the console passing `upstream=None` (5 RED), the console declaring no bar (3 RED),
 the doctor blind to BLOCKED (3 RED).
+### REG-1522 - THE DOLL WAS MEASURED AND NEVER ASKED, THE GEAR HAD NO OWNER, AND THE HOURLY REELS OF ONE GAME WERE STRANGERS (#54, 2026-09-29)
+
+**Found** by measuring before building #54 ("equipped items pixel-exact per character"):
+- `slot_identity.EQUIP_SLOTS` (six doll slots measured in v2375/v2376) and `worn_slot_of` had **zero callers**
+  outside their own law - the geometry was calibrated and joined to nothing. [[the-unjoined-end]]
+- `main_character` learns WHICH names are his gear (Wilson over sightings) with no slot, no pixels and no
+  character: one ledger for whoever is logged in. REG-340 stands - `character` appeared in **zero** journal rows,
+  and the film cannot name him during play.
+- the hourly shadow rollover (2026-09-27) cuts one evening into N reels ~2 s apart, and nothing joined them back:
+  no surface could say two reels were one game.
+**Fix:** new `tv/equipped_ledger.py` (pure stdlib + slot_identity; store `equipped_ledger.json` under
+`tv_diablo._fixture_root`, so a fixture world never touches his). Every `names_loc: equipped` read of a SEALED
+reel is filed under the character read from a `char-select` row: per doll slot the item, the slot's box in THAT
+frame's pixels (the measured fractions scaled; the JPEG size read from its SOF header with no Pillow - the ALT has
+none, #227), the frame and per-frame sightings; the four UNMEASURED slots and a frame off the calibrated aspect
+band (his 1280x756 fixture) keep item+frame and carry `box: null` with the reason. A login row is ALWAYS a
+game-session boundary. A reel that opens with no login continues the previous session only across
+`ROLLOVER_GAP_MS` (90 s - the watcher's relook 2 s + period 20 s + a ~8 s stop, x3 slack; the law pins it between
+that sum and five minutes) and inherits the character as `carried`, with the join and its gap written on the
+session; any longer gap files the worn items in `unattributed` with a denominator, never under the last character
+seen. The reader's slot WORD (`names_slot`) and the frame point's GEOMETRY (`names_xy` -> `worn_slot_of`) are the
+corroborator pair: agreement is `reader+geometry`, a disagreement is a CONFLICT that leaves the item `unplaced`
+with both answers, either alone answers alone. A worn item with no slot evidence is `unplaced` with the reason.
+Ingest is idempotent (a reel already in the ledger is never filed twice; sightings count frames).
+**Honest limit, and it is his call:** READ_PROMPT is NOT changed. Asking the model for the login name means
+bumping `PROMPT_VER`, and `control_app._chron_seal_current` voids every zero-page chronicle seal on a PROMPT_VER
+change - a paid re-sweep of his reels. Until he rules, `_parse_read` ACCEPTS the fields (REG-1523) and `characters`
+stays empty by design: every worn read lands in `unattributed` with its why, and the doctor row says so out loud.
+**Law:** `test_equipped_items_are_pixel_exact_per_character.py` - 36 cases, all driven over a throwaway journal and
+frames copied from the committed fixture packs (short-run 1280x832 in band, pack-stash-001 1280x756 out of band).
+13 red-proofs, each seen RED for its own reason and restored byte-exact: the chain rule, the login naming him, the
+conflict rule, the login-scene-only rule, the unmeasured-slot refusal, owed-UNKNOWN-never-0, idempotence, the
+parse scene, the parse character rule, the seal nudge, the doctor registration, the doctor MISSING branch, and the
+ten-slot vocabulary.
+
+### REG-1523 - THE LOGIN SCREEN HAD NO SCENE WORD, SO THE ONE NAME ON SCREEN WENT NOWHERE (#54, 2026-09-29)
+
+**Found:** `_parse_read` clamped any scene outside its seven-word tuple to `gameplay`, so a login / character-select
+frame - the one screen that prints the character's name (REG-340) - could never be told apart from play, and a
+`character` the model printed was dropped on the floor. **Fix:** `char-select` joins the scene tuple; `character` is
+kept ONLY on that scene (on any other scene it is text from elsewhere - a merc, chat, a player - and is dropped
+with `not-a-login-scene` in the audit); `names_slot` is validated against the doll's own vocabulary
+(`slot_identity.DOLL_SLOTS` - the six measured plus the four refused, one tuple owned by the geometry, never a
+second list typed in the parser) and `names_xy` as a two-number point, every drop audited. The journal row carries
+`names_slot` / `names_xy` always and `character` only when the parse kept one, so 10,000 rows of play do not carry
+an empty key that reads like a character nobody named. READ_PROMPT unchanged (see REG-1522). **Law:** the parse is
+driven with real JSON strings in the #54 law; two red-proofs on tv_diablo.py (the tuple, the scene-only rule) and one
+on slot_identity.py (the vocabulary).
+
+### REG-1524 - A LEDGER FILED AT NO SEAL IS A STORE NOBODY WRITES; A LANE WITH NO ROW IS ONE NOBODY WATCHES (#54, 2026-09-29)
+
+**Found:** the first cut of equipped_ledger could compute everything and would have been reached by nothing - the
+`save_tv_accounts` shape, a writer with zero callers. **Fix:** `control_app._equipped_ledger_nudge()` is called from
+`after_session_ended`, the ONE place every door (ON AIR, MINI, shadow, the hourly rollover) shares; it reads the
+journal through `_journal_ring()` (a fixture's TV_SESSIONS is honoured) and the frames through HIST_DIR, never
+raises into the seal, and its receipt rides `out["nudged"]` with `ok` None for UNKNOWN. The doctor row
+`equipped ledger files every seal` reads `equipped_ledger.contract()` - on / worked (lifetime reels ingested, from
+the store) / lastTs / owed (sealed reels not in the ledger; None when no journal or the store cannot be read, never
+0) - and says MISSING when a seal older than ten minutes is owed (the nudge is synchronous at seal, so that is a
+stopped lane), UNKNOWN when nothing reads, OK otherwise with the count and the by-design note that `characters` is
+empty until READ_PROMPT asks. **Law:** the join is asked of the compiler (`after_session_ended.__code__.co_names`
+names the nudge), the nudge is driven through the console's own resolvers over a fixture reel, and the doctor row is
+driven to MISSING, OK and UNKNOWN; red-proofs on the call, the CHECKS entry and the MISSING branch.
 
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
