@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1559 - THE DOCTOR JUDGED THE NEWEST SEAL OF ALL REELS, SO A LANE FAILING AT EVERY SEAL READ OK FOR AS LONG AS REELS KEPT SEALING (#54 skeptic, 2026-09-30)
+
+**Found** refuting REG-1524's doctor row by driving it on the pre-fix code: two sealed reels, both owed, sealed
+61 min and 1 min before the ask -> `ok`. The MISSING branch read `contract()["newestSealTs"]` - the newest seal
+among ALL reels, ingested or not - so every fresh seal hid the hour-old owed one beside it, which is exactly the
+stopped-lane case the row exists to catch (a store that will not write fails at every seal, and shadow reels seal
+hourly). A second gap in the same branch: an owed reel whose seal row carries no readable time fell through to OK.
+**Fix:** `equipped_ledger.contract()` adds `oldestOwedSealTs` (the min over OWED seals with a known stamp) and
+`owedUndated`; the doctor says MISSING when the OLDEST owed seal is past the grace ("2 sealed reel(s) are not in
+the equipped ledger and the oldest of them sealed 61 min ago"), UNKNOWN when reels are owed and none carries a
+readable seal time, and prints the undated count on the lane line. Also found while landing the branch: it had not
+regenerated BLUEPRINT.md (`test_the_blueprint_cannot_go_stale` RED on the merged tree, 2 failures) - regenerated.
+**Law:** `TestTheDoctorJudgesTheOldestOwedSeal` in `test_equipped_items_are_pixel_exact_per_character.py` (the
+contract names the oldest owed seal and clears it after ingest; MISSING with the newest seal fresh; UNKNOWN with
+every owed seal undated); 2 red-proofs (min -> max in the contract, the UNKNOWN branch returning OK), each applied,
+RED, restored byte-for-byte; REG-1524's own MISSING proof re-anchored to the new line and re-proven.
+
+### REG-1558 - FOUR FAILED READS WORE A MEASURED EMPTY, A BAD STAMP WORE 1970, AND THE ROW CARRIED THE LIE ONE FRAME UP (#54 skeptic, 2026-09-30)
+
+**Found** verifying w25-equipped (#54, REG-1522..1524) before landing it: `python3 tv/swallow_census.py --check`
+rose 69 -> 73. Measured by driving: in `tv_diablo._parse_read` the #54 except arms handed back `character = ""`,
+`names_slot = {}`, `names_xy = {}` and `_doll = ()` - a parse that RAISED reading as "no name / no slot words / no
+points / every slot word invalid"; `emit_deep_read` wrote `rd.get("names_slot") or {}` onto the journal row, so even
+an honest None became `{}` one frame up; and `equipped_ledger._ts()` returned 0 on a missing or unreadable stamp -
+driven on a seal row with no `ts`, the reel read `t0: 0, t1: 0, sealedTs: 0`, was filed as sealed in 1970, and an
+undated worn sighting was stamped 0. The fourth census hit was a site nobody changed: the census reads the
+pre-existing `names_loc = {}` arm as a checked sentinel only while the `return` that carries it sits within three
+statements, and the #54 block inserted under it pushed that return out of the window.
+**Fix:** each arm says None with a `parse-raised` (or `slot-vocabulary-unavailable`, with the count) audit entry;
+`emit_deep_read` carries `names_slot` / `names_xy` AS PARSED ({} = the read named none, None = UNKNOWN) and writes
+`character: null` on a login row whose name could not be read; `equipped_ledger.worn_from_row` says "it is UNKNOWN
+whether there was any: the read's slot words / points were never parsed" for a None or pre-#54 row instead of "no
+slot word"; `_ts()` is None for a missing, unparseable, zero or boolean stamp (`captureTs` the second source),
+`_newest()` takes the max over KNOWN stamps only, `reels_from_rows` splits `sealed` (a session_end row exists) from
+`sealedTs` (its stamp, possibly UNKNOWN) so an undated seal still seals and is still owed, a gap that cannot be
+measured NEVER chains ("cannot be measured (this reel's first row is undated)"), and a slot record's `ts` /
+`firstTs` / `lastTs` are None, never 0. The #54 parse block now sits ABOVE names_loc's, so the untouched site reads
+as it did. Census: 69 -> 69, held.
+**Law:** 6 new cases in `test_equipped_items_are_pixel_exact_per_character.py` (45 in all): `_parse_read` driven
+with `slot_identity` made unimportable (None + the audit; measured again once it is back), `emit_deep_read` driven
+the way test_agent drives it (None / absent key -> null, {} -> {}, a login with no name -> `character: null`, a play
+row carries no key), `worn_from_row` over a None row and a keyless row, `_ts` over eight shapes, an undated seal row
+(sealed, ingested, stamps None) and the unmeasurable gap (unattributed with its why). 6 red-proofs, each applied,
+RED, restored byte-for-byte; `heart2 --prove` 21/21 PROVEN on the landed tree.
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter

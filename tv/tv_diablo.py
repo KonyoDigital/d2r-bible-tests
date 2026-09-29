@@ -5842,18 +5842,6 @@ def _parse_read(out):
                                               "why": "looks-like-a-timestamp"})
     except Exception:
         found_at, dropped_by = {}, {}
-    names_loc = {}
-    try:
-        raw_loc = j.get("names_loc") or {}
-        if isinstance(raw_loc, dict):
-            for k2, v2 in list(raw_loc.items())[:60]:
-                v2 = str(v2).strip().lower()
-                if v2 in ("equipped", "inventory", "stash", "floor"):
-                    names_loc[str(k2).strip()] = v2
-                else:
-                    _audit["dropped"].append({"field": "names_loc." + str(k2)[:30], "from": v2[:20], "why": "invalid-loc"})
-    except Exception:
-        names_loc = {}
     # ══ #54 — WHO IS WEARING IT, AND IN WHICH SLOT ═══════════════════════════════════════════════
     # REG-340 measured that the character's name is not on screen in play; it IS on the login /
     # character-select screen, and that screen had no scene word, so the classifier clamped it to
@@ -5867,6 +5855,14 @@ def _parse_read(out):
     # READ_PROMPT: asking the model for these fields means bumping PROMPT_VER, which voids every
     # zero-page chronicle seal (control_app._chron_seal_current) — his call, REG-1522.
     # [[unknown-stays-unknown]] [[copy-drift]]
+    # ⚠ REG-1558 — THE EXCEPT ARMS SAY UNKNOWN, NEVER A MEASURED EMPTY. A parse that raised did not
+    # find "no character" / "no slot words" / "no points": it found nothing, and a caller reading ""
+    # or {} cannot tell those apart. None is the honest answer, the audit says why, and every caller
+    # (emit_deep_read -> the journal row -> equipped_ledger.worn_from_row) carries it as UNKNOWN.
+    # The swallow census ratchets exactly this shape. This block sits ABOVE names_loc on purpose:
+    # the census reads names_loc's `{}` arm as a checked sentinel only while the return that carries
+    # it is within three statements, and #54's first cut, inserted below it, pushed that return out
+    # of the window (a census +1 on a site nobody changed). [[unknown-stays-unknown]]
     character = ""
     try:
         _ch = j.get("character")
@@ -5875,8 +5871,9 @@ def _parse_read(out):
         elif _ch not in (None, "", {}, []):
             _audit["dropped"].append({"field": "character", "from": str(_ch)[:20],
                                       "why": ("not-a-login-scene" if scene != "char-select" else "not-a-name")})
-    except Exception:
-        character = ""
+    except Exception as _e_ch:
+        _audit["dropped"].append({"field": "character", "why": "parse-raised", "err": type(_e_ch).__name__})
+        character = None            # UNKNOWN — not "" (no name), which a login row would read as measured
     names_slot = {}
     try:
         raw_slot = j.get("names_slot") or {}
@@ -5885,16 +5882,23 @@ def _parse_read(out):
                 import slot_identity as _SI_slots
                 _doll = _SI_slots.DOLL_SLOTS
             except Exception:
-                _doll = ()
-                _audit["dropped"].append({"field": "names_slot", "why": "slot-vocabulary-unavailable"})
-            for k5, v5 in list(raw_slot.items())[:60]:
-                v5 = str(v5).strip().lower()
-                if v5 in _doll:
-                    names_slot[str(k5).strip()] = v5
-                else:
-                    _audit["dropped"].append({"field": "names_slot." + str(k5)[:30], "from": v5[:20], "why": "invalid-slot"})
-    except Exception:
-        names_slot = {}
+                _doll = None
+            if _doll is None:
+                # the vocabulary is what a slot word MEANS; with none, no word can be checked, so the
+                # whole field is UNKNOWN — not {} ("the reader named no slots"), which is what it read as
+                _audit["dropped"].append({"field": "names_slot", "why": "slot-vocabulary-unavailable",
+                                          "count": len(raw_slot)})
+                names_slot = None
+            else:
+                for k5, v5 in list(raw_slot.items())[:60]:
+                    v5 = str(v5).strip().lower()
+                    if v5 in _doll:
+                        names_slot[str(k5).strip()] = v5
+                    else:
+                        _audit["dropped"].append({"field": "names_slot." + str(k5)[:30], "from": v5[:20], "why": "invalid-slot"})
+    except Exception as _e_sl:
+        _audit["dropped"].append({"field": "names_slot", "why": "parse-raised", "err": type(_e_sl).__name__})
+        names_slot = None
     names_xy = {}
     try:
         raw_xy = j.get("names_xy") or {}
@@ -5907,8 +5911,21 @@ def _parse_read(out):
                 except (TypeError, ValueError):
                     pass
                 _audit["dropped"].append({"field": "names_xy." + str(k6)[:30], "from": str(v6)[:20], "why": "not-a-point"})
+    except Exception as _e_xy:
+        _audit["dropped"].append({"field": "names_xy", "why": "parse-raised", "err": type(_e_xy).__name__})
+        names_xy = None
+    names_loc = {}
+    try:
+        raw_loc = j.get("names_loc") or {}
+        if isinstance(raw_loc, dict):
+            for k2, v2 in list(raw_loc.items())[:60]:
+                v2 = str(v2).strip().lower()
+                if v2 in ("equipped", "inventory", "stash", "floor"):
+                    names_loc[str(k2).strip()] = v2
+                else:
+                    _audit["dropped"].append({"field": "names_loc." + str(k2)[:30], "from": v2[:20], "why": "invalid-loc"})
     except Exception:
-        names_xy = {}
+        names_loc = {}
     # v946.5 (Konyo: "was the Diadem read 3 socketed?") — capture the socket count per item.
     # name -> N (1..6). Read from the tooltip's 'Socketed (N)' line, never guessed from base type.
     sockets = {}
@@ -8708,8 +8725,12 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
-        "names_slot": rd.get("names_slot") or {},  # #54 — per-name doll slot (the reader's word)
-        "names_xy": rd.get("names_xy") or {},      # #54 — per-name frame point (the geometry's evidence)
+        # #54 / REG-1558 — per-name doll slot (the reader's word) and frame point (the geometry's
+        # evidence), carried AS PARSED: {} is "the read named none", None is UNKNOWN (the parse
+        # raised, the vocabulary was unavailable, or this read never went through _parse_read).
+        # An `or {}` here would turn UNKNOWN back into a measured empty one frame up.
+        "names_slot": rd.get("names_slot"),
+        "names_xy": rd.get("names_xy"),
         # v948 — session sticky split (full names kept for vision truth; new/echo for boards)
         "names_new": names_new,
         "names_echo": names_echo,
@@ -8780,6 +8801,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     # character nobody named. equipped_ledger.character_of_row is the one reader of this key.
     if rd.get("character"):
         rec["character"] = rd.get("character")
+    elif rd.get("scene") == "char-select" and "character" in rd and rd.get("character") is None:
+        rec["character"] = None   # REG-1558 — a login row whose name the parse could not read: UNKNOWN, on the row
     _journal(rec)
     with _state_lock:
         st = _load()

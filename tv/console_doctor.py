@@ -8269,15 +8269,24 @@ def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
     except Exception as e:
         return UNKNOWN, "the equipped ledger's contract raised %s — UNKNOWN, not idle" % type(e).__name__
     lane = "lane: on=%s worked=%s lastTs=%s owed=%s" % (c.get("on"), c.get("worked"), c.get("lastTs"), c.get("owed"))
+    if c.get("owedUndated"):
+        lane += " (%d owed reel(s) carry no seal time)" % c["owedUndated"]
     if c.get("owed") is None:
         return UNKNOWN, "%s — %s" % (str(c.get("say") or "")[:160], lane)
     now = float(now_ms if now_ms is not None else time.time() * 1000.0)
-    newest = c.get("newestSealTs")
-    if c["owed"] > 0 and isinstance(newest, (int, float)) and (now - float(newest)) > _EQUIPPED_OWED_GRACE_MS:
-        return MISSING, ("%d sealed reel(s) are not in the equipped ledger and the newest seal is %.0f min "
-                         "old — the nudge at seal (after_session_ended -> _equipped_ledger_nudge) did not "
-                         "run; `python3 tv/equipped_ledger.py --ingest <journal> <hist>` files them. %s"
-                         % (c["owed"], (now - float(newest)) / 60000.0, lane))
+    if c["owed"] > 0:
+        # REG-1559 — THE OLDEST OWED SEAL DECIDES. The first cut read the NEWEST seal of ALL reels, so a
+        # lane that failed at every seal read OK for as long as reels kept sealing: each fresh seal hid
+        # the hour-old one beside it. Driven: two owed reels, 61 min and 1 min old -> MISSING.
+        oldest = c.get("oldestOwedSealTs")
+        if not isinstance(oldest, (int, float)):
+            return UNKNOWN, ("%d sealed reel(s) are owed and none of them carries a readable seal time, so "
+                             "whether the nudge is late is UNKNOWN — not idle. %s" % (c["owed"], lane))
+        if (now - float(oldest)) > _EQUIPPED_OWED_GRACE_MS:
+            return MISSING, ("%d sealed reel(s) are not in the equipped ledger and the oldest of them sealed "
+                             "%.0f min ago — the nudge at seal (after_session_ended -> _equipped_ledger_nudge) "
+                             "did not file it; `python3 tv/equipped_ledger.py --ingest <journal> <hist>` files "
+                             "them. %s" % (c["owed"], (now - float(oldest)) / 60000.0, lane))
     tail = ("" if c.get("characters") else
             " · no character on record is EXPECTED until READ_PROMPT asks the login screen for the name (REG-1522)")
     return OK, "%s%s · %s" % (str(c.get("say") or "")[:160], tail, lane)

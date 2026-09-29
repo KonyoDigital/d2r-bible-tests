@@ -27,8 +27,16 @@ scratch world before anything imports, and the store path is patched to that wor
  14. after_session_ended reaches the nudge (compiler-level: co_names), and the nudge files the reel
      through the console's own journal ring and HIST_DIR
  15. the doctor row: OK, MISSING when an old seal is owed, UNKNOWN when nothing can be read; registered
+ 16. REG-1558 — UNKNOWN stays UNKNOWN: the parse's failure arms say None (never "" / {}), the journal row
+     carries names_slot / names_xy AS PARSED (never `or {}`), a login row whose name could not be read
+     says None, a row whose slot words were never parsed says so, and a row with no readable stamp is
+     None — never epoch 0: it still seals its reel, it never chains on a guessed clock, and it never
+     stamps a slot as seen in 1970
+ 17. REG-1559 — the doctor judges the OLDEST owed seal: two owed reels, 61 min and 1 min old, are
+     MISSING (the first cut read the newest seal of all reels and said OK); owed reels with no readable
+     seal time are UNKNOWN, not OK
 
-RED_PROOF below: 13 tampers, each seen red by applying it, running this file and restoring byte-exact.
+RED_PROOF below: 21 tampers, each seen red by applying it, running this file and restoring byte-exact.
 [[feedback-fixtures-never-touch-live-data]] [[heart-first]] [[unknown-stays-unknown]]
 """
 import io
@@ -101,11 +109,41 @@ RED_PROOF = [
      "replace": "", "matches": 1},
     {"why": "the doctor says MISSING when an old seal is owed; without it a stopped lane reads OK forever",
      "file": "console_doctor.py",
-     "find": 'if c["owed"] > 0 and isinstance(newest, (int, float)) and (now - float(newest)) > _EQUIPPED_OWED_GRACE_MS:',
-     "replace": "if False:", "matches": 1},
+     "find": "        if (now - float(oldest)) > _EQUIPPED_OWED_GRACE_MS:",
+     "replace": "        if False:", "matches": 1},
     {"why": "the doll vocabulary is the six measured slots PLUS the four refused — a helm is a slot the reader may name",
      "file": "slot_identity.py", "find": "DOLL_SLOTS = tuple(sorted(EQUIP_SLOTS)) + UNMEASURED_SLOTS",
      "replace": "DOLL_SLOTS = tuple(sorted(EQUIP_SLOTS))", "matches": 1},
+    # ── REG-1558 / REG-1559 — the skeptic's fixes: UNKNOWN stays UNKNOWN all the way to the doctor ──
+    {"why": "REG-1558: a row with no readable stamp is UNKNOWN (None), never epoch 0 — a 0 sorts it before everything "
+            "and stamps a slot record as seen in 1970",
+     "file": "equipped_ledger.py", "find": "        if t > 0:\n            return t\n    return None",
+     "replace": "        if t > 0:\n            return t\n    return 0", "matches": 1},
+    {"why": "REG-1558: SEALED is a fact about the rows; an undated seal row must not read as 'still rolling'",
+     "file": "equipped_ledger.py", "find": '        if not reel["sealed"]:', "replace": '        if reel["sealedTs"] is None:',
+     "matches": 1},
+    {"why": "REG-1558: a gap nobody can measure never chains — chaining on a guessed clock files gear under the previous character",
+     "file": "equipped_ledger.py", "find": '                    if seal is None or reel["t0"] is None:',
+     "replace": "                    if False:", "matches": 1},
+    {"why": "REG-1558: a read whose slot words were never parsed says so; reading None as 'no slot word' is a measured empty "
+            "nobody measured",
+     "file": "equipped_ledger.py",
+     "find": "    words_unknown, points_unknown = not isinstance(words_raw, dict), not isinstance(points_raw, dict)",
+     "replace": "    words_unknown, points_unknown = False, False", "matches": 1},
+    {"why": "REG-1558: the parse says UNKNOWN (None) when the slot vocabulary is unavailable — {} reads as 'the reader named no slots'",
+     "file": "tv_diablo.py", "find": "                _doll = None\n            if _doll is None:",
+     "replace": "                _doll = ()\n            if _doll is None:", "matches": 1},
+    {"why": "REG-1558: the journal row carries names_slot AS PARSED; `or {}` turns UNKNOWN back into a measured empty one frame up",
+     "file": "tv_diablo.py", "find": '        "names_slot": rd.get("names_slot"),',
+     "replace": '        "names_slot": rd.get("names_slot") or {},', "matches": 1},
+    {"why": "REG-1559: the doctor judges the OLDEST owed seal; judged by the newest, a lane failing at every seal reads OK forever",
+     "file": "equipped_ledger.py", "find": '    out["oldestOwedSealTs"] = (min(t for _s, t in owed if t is not None)',
+     "replace": '    out["oldestOwedSealTs"] = (max(t for _s, t in owed if t is not None)', "matches": 1},
+    {"why": "REG-1559: owed reels with no readable seal time are UNKNOWN, not OK",
+     "file": "console_doctor.py",
+     "find": '            return UNKNOWN, ("%d sealed reel(s) are owed and none of them carries a readable seal time, so "',
+     "replace": '            return OK, ("%d sealed reel(s) are owed and none of them carries a readable seal time, so "',
+     "matches": 1},
 ]
 
 SID_A, SID_B, SID_C = "s_1790000000000_fxa", "s_1790003700000_fxb", "s_1790009000000_fxc"
@@ -127,7 +165,10 @@ def _seal(sid, ts):
 
 
 def _worn(sid, ts, frame, item, slot=None, xy=None):
-    r = _row(sid, ts, "inventory", frame, names=[item], names_loc={item: "equipped"})
+    # a real deep-read row ALWAYS carries names_slot / names_xy (emit_deep_read writes them as parsed):
+    # {} is "the read named none". A row without the keys is a row from before #54 — see the
+    # never-parsed case in TestTheWordAndTheGeometryCorroborate (REG-1558).
+    r = _row(sid, ts, "inventory", frame, names=[item], names_loc={item: "equipped"}, names_slot={}, names_xy={})
     if slot:
         r["names_slot"] = {item: slot}
     if xy:
@@ -171,6 +212,18 @@ class _World(unittest.TestCase):
         d, why = E.load(self.store)
         self.assertIsNotNone(d, why)
         return r, d
+
+    def doctor(self, journals, now_ms):
+        """The doctor row driven over THIS world's journal ring and frames, the console's resolvers patched."""
+        import console_doctor as CD
+        import control_app as CA
+        orig_ring, orig_hist = CA._journal_ring, CA.HIST_DIR
+        CA._journal_ring = lambda _j=journals: list(_j)
+        CA.HIST_DIR = self.hist
+        try:
+            return CD._check_the_equipped_ledger_files_every_sealed_reel(now_ms=now_ms)
+        finally:
+            CA._journal_ring, CA.HIST_DIR = orig_ring, orig_hist
 
 
 class TestTheBoxIsTheMeasuredSlotInThatFramesPixels(unittest.TestCase):
@@ -428,6 +481,24 @@ class TestTheWordAndTheGeometryCorroborate(_World):
         self.assertIn("no slot word and no point", rec["unplaced"]["War Traveler"]["why"])
         self.assertEqual(rec["unplaced"]["War Traveler"]["sightings"], 1)
 
+    def test_a_read_whose_slot_words_were_never_parsed_says_so_instead_of_no_slot_word(self):
+        """REG-1558 — None (the parse raised / the vocabulary was unavailable) and an absent key (a row
+        from before #54) are UNKNOWN; {} is a measured 'none'. Reading them alike is a lie nobody measured."""
+        f1 = "f_%d" % (T0 + 60000)
+        self.frame(SID_A, f1)
+        r_none = _worn(SID_A, T0 + 60000, f1, "War Traveler")
+        r_none["names_slot"], r_none["names_xy"] = None, None
+        r_absent = _worn(SID_A, T0 + 70000, f1, "Gore Rider")
+        del r_absent["names_slot"], r_absent["names_xy"]
+        rows = [_row(SID_A, T0, "char-select", character="Konyo"), r_none, r_absent, _seal(SID_A, T0 + 120000)]
+        _r, d = self.ingest(rows)
+        un = d["characters"]["Konyo"]["unplaced"]
+        for item in ("War Traveler", "Gore Rider"):
+            self.assertIn("UNKNOWN whether there was any", un[item]["why"], item)
+            self.assertIn("slot words were never parsed", un[item]["why"], item)
+            self.assertIn("points were never parsed", un[item]["why"], item)
+            self.assertNotIn("carried no slot word", un[item]["why"], item)
+
 
 class TestIngestIsIdempotentAndCountsFrames(_World):
 
@@ -550,8 +621,9 @@ class TestTheReaderKeepsTheLoginAndTheSlot(unittest.TestCase):
         with io.open(TV.__file__.replace(".pyc", ".py"), encoding="utf-8") as fh:
             src = fh.read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-        self.assertEqual(code.count('"names_slot": rd.get("names_slot") or {},'), 1)
-        self.assertEqual(code.count('"names_xy": rd.get("names_xy") or {},'), 1)
+        # REG-1558 — AS PARSED, never `or {}`: the driven twin is TestUnknownStaysUnknownInTheReader
+        self.assertEqual(code.count('"names_slot": rd.get("names_slot"),'), 1)
+        self.assertEqual(code.count('"names_xy": rd.get("names_xy"),'), 1)
         self.assertEqual(code.count('rec["character"] = rd.get("character")'), 1)
 
 
@@ -583,35 +655,24 @@ class TestTheSealReachesTheLedger(_World):
 
 class TestTheDoctorRow(_World):
 
-    def _doctor(self, journals, now_ms):
-        import console_doctor as CD
-        import control_app as CA
-        orig_ring, orig_hist = CA._journal_ring, CA.HIST_DIR
-        CA._journal_ring = lambda _j=journals: list(_j)
-        CA.HIST_DIR = self.hist
-        try:
-            return CD._check_the_equipped_ledger_files_every_sealed_reel(now_ms=now_ms)
-        finally:
-            CA._journal_ring, CA.HIST_DIR = orig_ring, orig_hist
-
     def test_missing_when_an_old_seal_is_owed_ok_once_filed_unknown_when_nothing_reads(self):
         import console_doctor as CD
         f1 = "f_%d" % (T0 + 60000)
         self.frame(SID_A, f1)
         self.write([_row(SID_A, T0, "char-select", character="Konyo"),
                     _worn(SID_A, T0 + 60000, f1, "Chains of Honor", slot="torso"), _seal(SID_A, T0 + 120000)])
-        state, why = self._doctor([self.journal], now_ms=T0 + 120000 + 20 * 60000)
+        state, why = self.doctor([self.journal], now_ms=T0 + 120000 + 20 * 60000)
         self.assertEqual(state, CD.MISSING, why)
         self.assertIn("1 sealed reel(s)", why)
         self.assertIn("owed=1", why)
-        state, why = self._doctor([self.journal], now_ms=T0 + 125000)   # sealed 5 s ago: inside the grace
+        state, why = self.doctor([self.journal], now_ms=T0 + 125000)   # sealed 5 s ago: inside the grace
         self.assertEqual(state, CD.OK, why)
         E.ingest([self.journal], self.hist)
-        state, why = self._doctor([self.journal], now_ms=T0 + 120000 + 20 * 60000)
+        state, why = self.doctor([self.journal], now_ms=T0 + 120000 + 20 * 60000)
         self.assertEqual(state, CD.OK, why)
         self.assertIn("1 character(s)", why)
         self.assertIn("owed=0", why)
-        state, why = self._doctor([os.path.join(self.d, "nope.jsonl")], now_ms=T0)
+        state, why = self.doctor([os.path.join(self.d, "nope.jsonl")], now_ms=T0)
         self.assertEqual(state, CD.UNKNOWN, why)
         self.assertIn("owed=None", why)
 
@@ -619,6 +680,144 @@ class TestTheDoctorRow(_World):
         import console_doctor as CD
         names = [n for n, _fn in CD.CHECKS]
         self.assertIn("equipped ledger files every seal", names)
+
+
+class TestTheDoctorJudgesTheOldestOwedSeal(_World):
+    """REG-1559 — MEASURED on the first cut with two owed reels, 61 min and 1 min old: OK. It read the
+    NEWEST seal of ALL reels, so a lane failing at every seal read OK for as long as reels kept sealing —
+    each fresh seal hid the hour-old one beside it. The OLDEST owed seal is the age that says 'late'."""
+
+    def _two_owed(self):
+        self.write([_seal(SID_A, T0), _seal(SID_B, T0 + 3600000)])
+        return [self.journal]
+
+    def test_the_contract_names_the_oldest_owed_seal(self):
+        j = self._two_owed()
+        c = E.contract(j)
+        self.assertEqual((c["owed"], c["newestSealTs"], c["oldestOwedSealTs"], c["owedUndated"]),
+                         (2, T0 + 3600000, T0, 0))
+        self.assertEqual(c["sealedNotIngested"], [SID_A, SID_B])
+        E.ingest(j, self.hist)
+        c2 = E.contract(j)
+        self.assertEqual((c2["owed"], c2["oldestOwedSealTs"], c2["newestSealTs"]), (0, None, T0 + 3600000))
+
+    def test_missing_when_the_oldest_owed_seal_is_old_even_though_the_newest_is_fresh(self):
+        import console_doctor as CD
+        state, why = self.doctor(self._two_owed(), now_ms=T0 + 3600000 + 60000)
+        self.assertEqual(state, CD.MISSING, why)
+        self.assertIn("2 sealed reel(s)", why)
+        self.assertIn("oldest of them sealed 61 min ago", why)
+
+    def test_unknown_when_no_owed_seal_carries_a_readable_time(self):
+        import console_doctor as CD
+        self.write([_seal(SID_A, None)])
+        state, why = self.doctor([self.journal], now_ms=T0)
+        self.assertEqual(state, CD.UNKNOWN, why)
+        self.assertIn("none of them carries a readable seal time", why)
+        self.assertIn("owed=1 (1 owed reel(s) carry no seal time)", why)
+
+
+class TestAnUndatedRowIsUnknownNeverEpochZero(_World):
+    """REG-1558 — _ts() returned 0 on a missing or unreadable stamp: the row sorted before everything,
+    a seal row without a stamp read as 'still rolling' (never filed, never owed), and a slot record was
+    stamped as seen in 1970. [[stale-reading]] §3"""
+
+    def test_ts_is_none_for_a_missing_bad_or_zero_stamp_and_falls_back_to_capture_ts(self):
+        self.assertIsNone(E._ts({}))
+        self.assertIsNone(E._ts({"ts": "abc"}))
+        self.assertIsNone(E._ts({"ts": 0}))
+        self.assertIsNone(E._ts({"ts": None, "captureTs": ""}))
+        self.assertIsNone(E._ts({"ts": True}))
+        self.assertIsNone(E._ts("not a row"))
+        self.assertEqual(E._ts({"ts": "abc", "captureTs": 5}), 5)
+        self.assertEqual(E._ts({"ts": T0, "captureTs": 1}), T0)
+        self.assertIsNone(E._newest(None, None))
+        self.assertEqual(E._newest(None, 7, 3), 7)
+
+    def test_an_undated_seal_row_still_seals_the_reel_and_an_undated_sighting_has_no_stamp(self):
+        f1 = "f_%d" % (T0 + 60000)
+        self.frame(SID_A, f1)
+        rows = [_row(SID_A, T0, "char-select", character="Konyo"),
+                _worn(SID_A, "abc", f1, "Chains of Honor", slot="torso"),      # its clock is unreadable
+                _seal(SID_A, None)]                                              # its seal row carries no stamp
+        reels = E.reels_from_rows([r for r in rows])
+        self.assertEqual((reels[0]["sealed"], reels[0]["sealedTs"], reels[0]["t0"], reels[0]["t1"]),
+                         (True, None, T0, T0), "sealed is a fact about the rows; t0/t1 are the KNOWN stamps")
+        r, d = self.ingest(rows, now_ms=T0 + 130000)
+        self.assertTrue(r["ok"], r["why"])
+        self.assertEqual((r["ingested"], r["rolling"]), ([SID_A], []))
+        torso = d["characters"]["Konyo"]["slots"]["torso"]
+        self.assertEqual(torso["item"], "Chains of Honor")
+        self.assertIsNone(torso["ts"], "an undated sighting is UNKNOWN, never 0 (1970)")
+        self.assertIsNone(torso["firstTs"])
+        self.assertIsNone(d["characters"]["Konyo"]["lastTs"])
+        c = E.contract([self.journal])
+        self.assertEqual((c["owed"], c["owedUndated"]), (0, 0))
+
+    def test_a_gap_nobody_can_measure_never_chains(self):
+        fa, fb = "f_%d" % (T0 + 60000), "f_%d" % (T0 + 3700000)
+        self.frame(SID_A, fa)
+        self.frame(SID_B, fb)
+        rows = [_row(SID_A, T0, "char-select", character="Konyo"),
+                _worn(SID_A, T0 + 60000, fa, "Chains of Honor", slot="torso"), _seal(SID_A, T0 + 120000),
+                _worn(SID_B, "abc", fb, "Mara's Kaleidoscope", slot="amulet"),   # reel B: no readable clock at all
+                _seal(SID_B, None)]
+        r, d = self.ingest(rows)
+        self.assertEqual(sorted(r["ingested"]), sorted([SID_A, SID_B]))
+        rec = d["characters"]["Konyo"]
+        self.assertNotIn("amulet", rec["slots"], "B's gap is UNKNOWN — its gear is not his by adjacency")
+        self.assertEqual(rec["reels"], [SID_A])
+        self.assertEqual(d["unattributed"]["reads"], 1)
+        self.assertIn("cannot be measured", d["unattributed"]["why"])
+        self.assertIn("undated", d["unattributed"]["why"])
+        self.assertIn("g_%s_nologin" % SID_B, d["gameSessions"])
+
+
+class TestUnknownStaysUnknownInTheReader(unittest.TestCase):
+    """REG-1558 — the parse's failure arms and the journal row say None, never a measured empty."""
+
+    def test_an_unavailable_slot_vocabulary_makes_names_slot_unknown_not_empty(self):
+        import tv_diablo as TV
+        raw = '{"scene":"inventory","names":["Shako"],"names_loc":{"Shako":"equipped"},"names_slot":{"Shako":"helm"}}'
+        saved = sys.modules.get("slot_identity")
+        sys.modules["slot_identity"] = None          # `import slot_identity` now raises ImportError
+        try:
+            r = TV._parse_read(raw)
+        finally:
+            if saved is not None:
+                sys.modules["slot_identity"] = saved
+            else:
+                sys.modules.pop("slot_identity", None)
+        self.assertIsNone(r["names_slot"], "no vocabulary -> UNKNOWN, not {} ('the reader named no slots')")
+        drops = [d for d in r["_parse_audit"]["dropped"] if d.get("field") == "names_slot"]
+        self.assertEqual([d["why"] for d in drops], ["slot-vocabulary-unavailable"])
+        self.assertEqual(drops[0]["count"], 1)
+        self.assertEqual(TV._parse_read(raw)["names_slot"], {"Shako": "helm"}, "with the vocabulary back it is measured")
+
+    def test_the_journal_row_carries_unknown_slot_words_as_null_never_as_empty(self):
+        """emit_deep_read driven the way test_agent drives it — STATE/JOURNAL swapped to a scratch dir."""
+        import tv_diablo as TV
+        old_state, old_j = TV.STATE, TV.JOURNAL
+        d = tempfile.mkdtemp(prefix="equipped-emit-")
+        TV.STATE, TV.JOURNAL = os.path.join(d, "state.json"), os.path.join(d, "j.jsonl")
+        try:
+            base = {"area": "Harrogath", "scene": "inventory", "names": [], "tz": [], "conf": 0.9, "ms": 1}
+            rec_unknown = TV.emit_deep_read(dict(base, names_slot=None, names_xy=None), n=1, frame_id="")
+            rec_absent = TV.emit_deep_read(dict(base), n=2, frame_id="")
+            rec_empty = TV.emit_deep_read(dict(base, names_slot={}, names_xy={}), n=3, frame_id="")
+            rec_login = TV.emit_deep_read(dict(base, scene="char-select", character=None), n=4, frame_id="")
+            rec_named = TV.emit_deep_read(dict(base, scene="char-select", character="Konyo"), n=5, frame_id="")
+        finally:
+            TV.STATE, TV.JOURNAL = old_state, old_j
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertIsNone(rec_unknown["names_slot"])
+        self.assertIsNone(rec_unknown["names_xy"])
+        self.assertIsNone(rec_absent["names_slot"], "a read that never went through the parse measured nothing")
+        self.assertEqual((rec_empty["names_slot"], rec_empty["names_xy"]), ({}, {}))
+        self.assertIn("character", rec_login)
+        self.assertIsNone(rec_login["character"], "a login row whose name could not be read says UNKNOWN on the row")
+        self.assertEqual(rec_named["character"], "Konyo")
+        self.assertNotIn("character", rec_empty, "a play row carries no character key at all")
 
 
 if __name__ == "__main__":

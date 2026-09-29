@@ -190,7 +190,10 @@ GATES = [
              "_equipped_ledger_nudge) files through the console's own journal ring; the doctor row says MISSING "
              "when an old seal is owed and UNKNOWN when nothing reads; on/worked/lastTs/owed with owed never 0 "
              "for UNKNOWN. READ_PROMPT is NOT changed (a PROMPT_VER bump voids zero-page seals - his call). "
-             "Fixture frames and a throwaway journal only. 13 red-proofs"),
+             "REG-1558: the parse's failure arms, the journal row, a row with no readable stamp and a read whose "
+             "slot words were never parsed all say UNKNOWN (None), never a measured empty or epoch 0; REG-1559: "
+             "the doctor judges the OLDEST owed seal, not the newest seal of all reels. "
+             "Fixture frames and a throwaway journal only. 21 red-proofs"),
     Gate("test_the_doctor_times_each_check", [sys.executable,
                                     os.path.join(HERE, "test_the_doctor_times_each_check.py")], 60,
          why="v3404c — cd.run() took >8 min while 93 checks timed standalone ~24s, and nothing "

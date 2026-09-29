@@ -192,10 +192,39 @@ def slot_box(slot, frame_w, frame_h):
 
 # ── rows ───────────────────────────────────────────────────────────────────────────────────────────────
 def _ts(row):
-    try:
-        return int(row.get("ts") or row.get("captureTs") or 0)
-    except (TypeError, ValueError):
-        return 0
+    """The row's own millisecond stamp. -> int | None
+
+    REG-1558 — None means the row carries no readable stamp: UNKNOWN, never epoch 0. A 0 here sorted
+    an undatable row before everything, chained it to nothing, and stamped a slot record as seen in
+    1970 — a failed read wearing a measurement. `ts` first (the capture clock), else `captureTs`;
+    an unparseable or non-positive value is skipped, not coerced. [[stale-reading]] §3
+    [[unknown-stays-unknown]]
+    """
+    if not isinstance(row, dict):
+        return None
+    for k in ("ts", "captureTs"):
+        v = row.get(k)
+        if v is None or v == "" or isinstance(v, bool):
+            continue
+        try:
+            t = int(v)
+        except (TypeError, ValueError):
+            continue
+        if t > 0:
+            return t
+    return None
+
+
+def _newest(*stamps):
+    """max over the KNOWN stamps; None when none is known — never 0 for 'nobody knows'."""
+    known = [int(s) for s in stamps if isinstance(s, (int, float)) and not isinstance(s, bool)]
+    return max(known) if known else None
+
+
+def _sort_key(row):
+    """Dated rows by time; undated rows after them, in file order (the sort is stable)."""
+    t = _ts(row)
+    return (1, 0) if t is None else (0, t)
 
 
 def character_of_row(row):
@@ -250,7 +279,11 @@ def read_rows(journals):
 
 
 def reels_from_rows(rows):
-    """Group rows by reel. -> [reel], sorted by first row; each {sid, t0, t1, door, sealedTs, rows}"""
+    """Group rows by reel. -> [reel], sorted by first row; each {sid, t0, t1, door, sealed, sealedTs, rows}
+
+    t0 / t1 are the first and last KNOWN stamps (None when no row is dated). `sealed` is a fact about
+    the rows — a session_end row exists — and `sealedTs` is that row's stamp, which may be UNKNOWN.
+    """
     by = {}
     for r in rows:
         sid = str(r.get("sessionId") or "")
@@ -259,16 +292,20 @@ def reels_from_rows(rows):
         by.setdefault(sid, []).append(r)
     out = []
     for sid, rs in by.items():
-        rs.sort(key=_ts)
+        rs.sort(key=_sort_key)
         door = None
         for r in rs:
             if r.get("door"):
                 door = str(r.get("door"))
                 break                       # first writer wins — the door that opened it (reel_door)
-        sealed = [_ts(r) for r in rs if str(r.get("scene") or "") == "session_end"]
-        out.append({"sid": sid, "t0": _ts(rs[0]), "t1": _ts(rs[-1]), "door": door,
-                    "sealedTs": (max(sealed) if sealed else None), "rows": rs})
-    out.sort(key=lambda x: (x["t0"], x["sid"]))
+        # REG-1558 — SEALED and WHEN are two facts. Folding them into one field made an undated seal
+        # row read as "still rolling", so that reel was never filed and never owed.
+        seal_rows = [r for r in rs if str(r.get("scene") or "") == "session_end"]
+        dated = [t for t in (_ts(r) for r in rs) if t is not None]
+        out.append({"sid": sid, "t0": (dated[0] if dated else None), "t1": (dated[-1] if dated else None),
+                    "door": door, "sealed": bool(seal_rows),
+                    "sealedTs": _newest(*[_ts(r) for r in seal_rows]), "rows": rs})
+    out.sort(key=lambda x: ((1, 0, x["sid"]) if x["t0"] is None else (0, x["t0"], x["sid"])))
     return out
 
 
@@ -293,7 +330,9 @@ def char_spans(reel):
             cur = {"t0": _ts(r), "t1": _ts(r), "character": None, "via": None, "loginFrame": None,
                    "rows": []}
         cur["rows"].append(r)
-        cur["t1"] = max(cur["t1"], _ts(r))
+        if cur["t0"] is None:
+            cur["t0"] = _ts(r)              # an undated opener: the span starts at its first KNOWN row
+        cur["t1"] = _newest(cur["t1"], _ts(r))
     if cur is not None and (cur["rows"] or cur["via"]):
         spans.append(cur)
     return spans
@@ -313,34 +352,43 @@ def game_sessions(reels, gap_ms=None):
         spans = char_spans(reel)
         for i, sp in enumerate(spans):
             if sp["via"] == "char-select":
-                cur = {"id": "g_%s_%d" % (reel["sid"], sp["t0"]), "character": sp["character"],
+                cur = {"id": "g_%s_%s" % (reel["sid"], "undated" if sp["t0"] is None else sp["t0"]),
+                       "character": sp["character"],
                        "characterVia": "char-select", "reels": [reel["sid"]], "spans": 1,
                        "t0": sp["t0"], "t1": sp["t1"], "joins": []}
                 sessions.append(cur)
                 sp["carried"] = None
             else:
                 # the reel's pre-login span: continue the previous session across a rollover gap only
-                joined = False
+                joined, gap_why = False, None
                 if i == 0 and cur is not None and prev_reel is not None:
                     seal = prev_reel["sealedTs"] if prev_reel["sealedTs"] is not None else prev_reel["t1"]
-                    g = reel["t0"] - int(seal)
-                    if 0 <= g <= gap:
-                        cur["reels"].append(reel["sid"])
-                        cur["spans"] += 1
-                        cur["t1"] = max(cur["t1"], sp["t1"])
-                        cur["joins"].append({"from": prev_reel["sid"], "to": reel["sid"], "gapMs": g,
-                                             "doors": [prev_reel["door"], reel["door"]]})
-                        sp["character"] = cur["character"]
-                        sp["carried"] = ("carried from %s across a %d s gap" % (prev_reel["sid"], g // 1000)
-                                         if cur["character"] else None)
-                        joined = True
+                    if seal is None or reel["t0"] is None:
+                        # REG-1558 — a gap nobody can measure is not a rollover-sized gap. Chaining on a
+                        # guessed clock would file this reel's gear under the previous character.
+                        gap_why = ("the gap from %s cannot be measured (%s is undated), so nothing chains"
+                                   % (prev_reel["sid"],
+                                      "the previous reel" if seal is None else "this reel's first row"))
+                    else:
+                        g = reel["t0"] - int(seal)
+                        if 0 <= g <= gap:
+                            cur["reels"].append(reel["sid"])
+                            cur["spans"] += 1
+                            cur["t1"] = _newest(cur["t1"], sp["t1"])
+                            cur["joins"].append({"from": prev_reel["sid"], "to": reel["sid"], "gapMs": g,
+                                                 "doors": [prev_reel["door"], reel["door"]]})
+                            sp["character"] = cur["character"]
+                            sp["carried"] = ("carried from %s across a %d s gap" % (prev_reel["sid"], g // 1000)
+                                             if cur["character"] else None)
+                            joined = True
+                        elif g < 0:
+                            gap_why = ("this reel starts %s s before %s sealed — overlapping reels do not chain"
+                                       % ((-g) // 1000, prev_reel["sid"]))
+                        else:
+                            gap_why = ("the gap from %s (%s s) is longer than a rollover (%d s)"
+                                       % (prev_reel["sid"], g // 1000, gap // 1000))
                 if not joined:
-                    why = ("no login in this reel and no rollover-sized gap to a previous reel"
-                           if prev_reel is None or cur is None else
-                           "no login in this reel and the gap from %s (%s s) is longer than a rollover (%d s)"
-                           % (prev_reel["sid"],
-                              (reel["t0"] - int(prev_reel["sealedTs"] if prev_reel["sealedTs"] is not None
-                                                else prev_reel["t1"])) // 1000, gap // 1000))
+                    why = "no login in this reel and " + (gap_why or "no rollover-sized gap to a previous reel")
                     cur = {"id": "g_%s_nologin" % reel["sid"], "character": None, "characterVia": None,
                            "reels": [reel["sid"]], "spans": 1, "t0": sp["t0"], "t1": sp["t1"],
                            "joins": [], "why": why}
@@ -363,8 +411,12 @@ def worn_from_row(row, hist_dir):
     loc = row.get("names_loc") or {}
     if not isinstance(loc, dict):
         return out
-    words = row.get("names_slot") if isinstance(row.get("names_slot"), dict) else {}
-    points = row.get("names_xy") if isinstance(row.get("names_xy"), dict) else {}
+    # REG-1558 — {} is "the read named none"; None (or a row from before #54) is UNKNOWN: nobody
+    # parsed slot words / points for this read. Those are different facts and each gets its reason.
+    words_raw, points_raw = row.get("names_slot"), row.get("names_xy")
+    words = words_raw if isinstance(words_raw, dict) else {}
+    points = points_raw if isinstance(points_raw, dict) else {}
+    words_unknown, points_unknown = not isinstance(words_raw, dict), not isinstance(points_raw, dict)
     fid, sid = row.get("frameId"), row.get("sessionId")
     size, size_why = (frame_size(hist_dir, sid, fid) if fid else (None, "the row names no frame"))
     for name, where in loc.items():
@@ -405,8 +457,14 @@ def worn_from_row(row, hist_dir):
             slot, by, why = geo, "geometry", "the point alone, in a measured box"
         else:
             slot, by = None, None
-            why = ("the read carried no slot word and no point" if pt is None
-                   else "the point alone, and it answers nothing: %s" % geo_why)
+            if pt is not None:
+                why = "the point alone, and it answers nothing: %s" % geo_why
+            elif words_unknown or points_unknown:
+                why = ("no slot evidence, and it is UNKNOWN whether there was any: %s" % " and ".join(
+                    w for w, u in (("the read's slot words were never parsed", words_unknown),
+                                   ("the read's points were never parsed", points_unknown)) if u))
+            else:
+                why = "the read carried no slot word and no point"
         box, box_why = (None, None)
         if slot:
             if size is None:
@@ -469,7 +527,7 @@ def _file_worn(char_rec, w, sid, gid):
                 frames.append(fid)
                 del frames[:-_FRAMES_KEPT]
                 cur["sightings"] = int(cur.get("sightings") or 0) + 1
-            cur["ts"] = max(int(cur.get("ts") or 0), int(w["ts"] or 0))
+            cur["ts"] = _newest(cur.get("ts"), w["ts"])
             if w["box"] is not None:
                 cur["box"], cur["boxWhy"], cur["frameSize"] = w["box"], None, w["frameSize"]
             elif cur.get("box") is None:
@@ -493,13 +551,13 @@ def _file_worn(char_rec, w, sid, gid):
             cur["frames"].append(fid)
             del cur["frames"][:-_FRAMES_KEPT]
             cur["sightings"] = int(cur.get("sightings") or 0) + 1
-        cur["why"], cur["lastTs"], cur["reel"] = w["why"], max(int(cur.get("lastTs") or 0), int(w["ts"] or 0)), sid
+        cur["why"], cur["lastTs"], cur["reel"] = w["why"], _newest(cur.get("lastTs"), w["ts"]), sid
         un[w["item"]] = cur
     for key, val in (("reels", sid), ("gameSessions", gid)):
         lst = char_rec.setdefault(key, [])
         if val and val not in lst:
             lst.append(val)
-    char_rec["lastTs"] = max(int(char_rec.get("lastTs") or 0), int(w["ts"] or 0))
+    char_rec["lastTs"] = _newest(char_rec.get("lastTs"), w["ts"])
 
 
 def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None):
@@ -525,7 +583,7 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None):
     done = set(d["lane"].get("ingested") or [])
     ingested, rolling, filed, unatt = [], [], 0, 0
     for reel in reels:
-        if reel["sealedTs"] is None:
+        if not reel["sealed"]:
             rolling.append(reel["sid"])
             continue
         if reel["sid"] in done:
@@ -584,14 +642,17 @@ def contract(journals=None, store=None, now_ms=None):
     lastTs   when it last filed something; None = never
     owed     sealed reels in the journal not yet in the ledger; None when the journal or the store cannot
              be read — UNKNOWN is never 0. [[heart-first]] §3 §7
+    oldestOwedSealTs  the OLDEST owed seal's stamp — the age that says whether the lane is late (REG-1559);
+             None when nothing is owed or no owed seal carries a readable time. owedUndated counts the latter.
     """
     d, why = load(store)
     if d is None:
         return {"on": True, "worked": None, "lastTs": None, "owed": None, "newestSealTs": None,
-                "sealedNotIngested": None, "say": why}
+                "oldestOwedSealTs": None, "owedUndated": None, "sealedNotIngested": None, "say": why}
     lane = d.get("lane") or {}
     out = {"on": True, "worked": int(lane.get("worked") or 0), "lastTs": lane.get("lastTs"),
-           "owed": None, "newestSealTs": None, "sealedNotIngested": None,
+           "owed": None, "newestSealTs": None, "oldestOwedSealTs": None, "owedUndated": None,
+           "sealedNotIngested": None,
            "characters": len(d.get("characters") or {}),
            "placed": sum(len(c.get("slots") or {}) for c in (d.get("characters") or {}).values()),
            "unplaced": sum(len(c.get("unplaced") or {}) for c in (d.get("characters") or {}).values()),
@@ -604,10 +665,15 @@ def contract(journals=None, store=None, now_ms=None):
         out["say"] = "no journal could be read, so what is owed is UNKNOWN — not zero"
         return out
     done = set(lane.get("ingested") or [])
-    sealed = [(r["sid"], r["sealedTs"]) for r in reels_from_rows(rows) if r["sealedTs"] is not None]
-    owed = [sid for sid, _t in sealed if sid not in done]
-    out["owed"], out["sealedNotIngested"] = len(owed), owed
-    out["newestSealTs"] = max([t for _s, t in sealed] or [0]) or None
+    sealed = [(r["sid"], r["sealedTs"]) for r in reels_from_rows(rows) if r["sealed"]]
+    owed = [(sid, t) for sid, t in sealed if sid not in done]
+    out["owed"], out["sealedNotIngested"] = len(owed), [sid for sid, _t in owed]
+    out["newestSealTs"] = _newest(*[t for _s, t in sealed])
+    # REG-1559 — the age that says whether the lane is LATE is the OLDEST owed seal's, never the
+    # newest seal of all reels: a lane failing at every seal keeps a fresh newest seal forever.
+    out["oldestOwedSealTs"] = (min(t for _s, t in owed if t is not None)
+                               if any(t is not None for _s, t in owed) else None)
+    out["owedUndated"] = sum(1 for _s, t in owed if t is None)
     out["say"] = say(d, owed=len(owed))
     return out
 
