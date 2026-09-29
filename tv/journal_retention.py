@@ -74,7 +74,7 @@ except Exception:
 try:
     from reel_retention import KEEP_RECENT
 except Exception:
-    KEEP_RECENT = 8
+    KEEP_RECENT = 16
 
 #: the only state that proves the information was taken before the film went
 EXTRACTED = "retired"

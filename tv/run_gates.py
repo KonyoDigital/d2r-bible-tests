@@ -171,6 +171,23 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
+         os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
+         why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "
+             "read 'unreachable', THE SHELF would not open, W did nothing. He found it from four screenshots; nothing "
+             "in the console did, because every watchdog it has talks over that port. It now asks its own port once a "
+             "minute; three refusals relaunch it (never while a sweep or mini is in flight, never twice in ten "
+             "minutes), and a slow answer never counts. Real loopback sockets. 5 red-proofs"),
+    Gate("test_closing_the_window_keeps_the_console_running", [sys.executable,
+         os.path.join(HERE, "test_closing_the_window_keeps_the_console_running.py")], 60,
+         why="REG-1430 - his words: 'background service running with the console hidden always by design ... "
+             "sessions are always working and running ... regardless if the console is on or not. a one time "
+             "update to the newer version should keep it backgrounded'. ✕ used to END everything (v935.8), so "
+             "a session played with the window shut was never filmed. ✕ / Esc now HIDE it completely ('make sure "
+             "this thing and window is completely hidden') and every lane keeps running; ⏻ quit still quits. "
+             "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
+             "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
+             "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434). 18 red-proofs"),
     Gate("test_quit_attribution", [sys.executable,
                                    os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
          why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "

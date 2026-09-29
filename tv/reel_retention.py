@@ -46,7 +46,16 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-KEEP_RECENT = 8          # never touch the newest EIGHT, whatever the ledgers say
+KEEP_RECENT = 16         # never touch the newest SIXTEEN, whatever the ledgers say
+#: ⚠⚠ 2026-09-29 — 8 -> 16 ON HIS INSTRUCTION: *"8 sessions 8 hours long? if its less than 8 double the amount
+#: to 16 reels.. FIFO same style just that instead of 8 last reels it reads 16"*. MEASURED that night: a full
+#: hour of shadow reel is 344-506 MB on his Mac (1440x904 JPEG, ~145 KB, one a second) and 50-62 MB on the ALT,
+#: so eight hours is ~3-4 GB - under his 8 GB line - and the floor doubles.
+#: ⚠ AND IT MUST NEVER COST HIM RECORDING. Sixteen full hours is ~8 GB on the Mac, which had 14 GB free, and
+#: below ON_AIR_FLOOR_GB the console refuses to film. So the deleting pass asks keep_recent_for(): under the
+#: floor the window narrows to the old eight and the oldest EXTRACTED reels beyond it go first. Eligibility is
+#: unchanged - nothing unread ever goes - only the count floor bends. [[heart-first]]
+KEEP_RECENT_UNDER_PRESSURE = 8
 #: ⚠⚠ v2875 — 5 -> 8 ON HIS INSTRUCTION, 2026-09-10: *"okay make it last 8"*, after he
 #: asked whether the prune was working and the measurement said it never had. He also ruled
 #: that the extraction precondition STAYS (*"reswept and then delete and retired"*), so this
@@ -622,6 +631,20 @@ def proof_reels(hist_dir):
             held.add(seg)
     return held, ("%d reel(s) hold the proof of a named claim; %d cited frame(s) resolve to "
                   "nothing on disk (already lost); %s" % (len(held), unresolved, why))
+
+
+def keep_recent_for(free_gb, floor_gb):
+    """How many of the newest reels the deleting pass must keep, given the disk. -> int. Pure.
+
+    His sixteen while the disk can afford them; the old eight when free space is under the recording floor,
+    so holding the extra hours never stops the console from filming the next one. An UNKNOWN reading keeps
+    the full sixteen - a deleter that cannot see the disk must not act as if it were full."""
+    try:
+        if free_gb is not None and floor_gb is not None and float(free_gb) < float(floor_gb):
+            return KEEP_RECENT_UNDER_PRESSURE
+    except (TypeError, ValueError):
+        pass
+    return KEEP_RECENT
 
 
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):

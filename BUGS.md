@@ -7,6 +7,82 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1435 - HIS CONSOLE WENT DEAF FOR NOBODY BUT HIM TO NOTICE (2026-09-29)
+
+**What he saw, ~03:05:** the fleet "unreachable", THE SHELF not opening, W doing nothing, TV·D "Control server
+unreachable". **Measured:** pid up 24 h, window up, :17772 in LISTEN with an empty queue (0/0/5) - every request
+accepted then RESET, no Python error logged, a native `sample` showed the server thread idle in poll() (kept in
+d2r_session_carry). Relaunched by hand (03:13) and healthy. **The defect we can fix:** every watchdog the console has
+talks to it over that same port, so a deaf console is invisible to itself. It now asks its own port once a minute on
+the rescue loop's tick; three refusals/resets in a row record `console-server-deaf` and relaunch it through
+`_exec_relaunch_soon` (which still refuses mid-sweep / mid-mini), never twice in ten minutes; a timeout neither counts
+nor clears (the ALT stalls for minutes - slow is not deaf). `/api/status` carries `selfProbe`. **Still open:** why the
+server went deaf. **Law:** `tv/test_a_deaf_console_relaunches_itself.py` (10 cases on real loopback sockets, 5 red-proofs).
+
+### REG-1434 - THE FIRST BEACON LEFT BEFORE THE WINDOW: HIS ROW READ "konyo-3 · no native window" OVER HIS WINDOW (2026-09-29)
+
+**What he saw, 03:21, after his console was relaunched:** *"suddenly in fleet my name changed and says i have no
+window"* - the row read `konyo-3 · this console has no native window (headless or --no-open) ... relaunch it WITH a
+window`. **Measured:** one console on :17772 (the windowed one), and by 00:22Z its row read `Konyo`, masks present,
+no maskWhy. The `boot` beacon fires in the first second - before the window, the board and the install identity are
+up - and the next one is 240 s away. **Fix:** a console started to open a window sends its first beacon once the
+window is on screen (bounded at 60 s, never for a headless one), and a console whose window is still opening says so
+instead of "relaunch it WITH a window". Law cases + 2 red-proofs in test_closing_the_window_keeps_the_console_running.
+
+### REG-1433 - THE SHELF KEEPS THE NEWEST 16 REELS, NOT 8 - AND NEVER AT THE COST OF RECORDING (2026-09-29)
+
+**His words:** *"8 sessions 8 hours long? if its less than 8 double the amount to 16 reels.. FIFO same style just
+that instead of 8 last reels it reads 16"*. **Measured that night:** a full hour of shadow reel is 344-506 MB on his
+Mac (1440x904 JPEG screenshots, ~145 KB each, one per ~1.0 s - median gap 1.01 s, p90 1.27 s) and 50-62 MB on the
+ALT (~55 KB, one per ~3.5 s). Eight hours is ~3-4 GB on the Mac - under his 8 GB line - so the FIFO floor doubles:
+`KEEP_RECENT` 8 -> 16 in reel_retention, frame_authority and journal_retention (the floor law pins them equal).
+**The guard:** sixteen full hours is ~8 GB on the Mac (14 GB free that night), and below `ON_AIR_FLOOR_GB` the
+console refuses to film. So the deleting pass asks `reel_retention.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)`:
+under the floor it keeps the old eight and the oldest EXTRACTED reels beyond them go first; an unreadable disk keeps
+all sixteen. Eligibility is untouched - nothing unread ever goes. The frame stripper never narrows, which is the
+safe direction (no reel is left gutted of its frames).
+**Laws:** test_the_two_keep_floors_agree (16 + the pressure rule, 4 red-proofs); the river-drain pressure case now
+expects every finished reel beyond the newest 8 to go below the floor; the journal fixture is sized from the
+constant; two anchors re-aimed (fullscreen guard, the retention plan call).
+
+### REG-1430 - CLOSING THE WINDOW STOPPED THE WHOLE CONSOLE, SO SESSIONS PLAYED WITH IT SHUT WERE NEVER FILMED (2026-09-29)
+
+**His ask:** *"make sure after the console is up and running there is a default ON true for shadow reader and
+tooltips pass on and background service running with the console hidden always by design ... that way sessions
+are always working and running based on games and sessions being done regardless if the console is on or not. a
+one time update to the newer version should keep it backgrounded"* - then, at 02:55: *"make sure this thing and
+window is completely hidden"*.
+
+**Measured before the change:** the shadow reader and the tooltip pass (one switch, `/api/shadow`) were already
+ON on the Mac and the ALT (`on: true, recording: true` on both). What stopped the sessions was the WINDOW: ✕ and
+Esc called `_request_console_exit` (v935.8 "exiting the console must stop ON AIR"), so the process, the shadow
+reel, triage and drain all ended with it. On the Mac the launcher also KILLED whatever held :17772 on every
+double-click. And the Mac supervisor has stood down since 2026-09-01 (a headless console holds no Screen
+Recording), so nothing brought a shut console back.
+
+**Fix:** ✕ and Esc HIDE the console completely - no window, no taskbar button, and on the Mac no Dock icon (the
+app turns into an accessory while hidden). Every lane keeps running. v1460 removed a hide() fallback because a
+hidden window was unreachable ("the Desktop icon then did nothing forever"), so the way back is built: GET
+/api/window says "background", the Desktop icon (Mac and Windows launchers) and a second launch POST
+`{do: front}` and the console shows ITSELF in-process; the Mac launcher replaces it only when that request is not
+answered. macOS leaves fullscreen before hiding and returns to fullscreen; MEASURED on his MacBook, a fullscreen
+window's frame is 1470x887 on a 1470x956 screen and pywebview's flag goes stale after the green traffic light, so
+fullscreen is read from the window's own style bit on the main thread. Windows comes back with Show + SW_RESTORE,
+never pywebview's restore() (it forces a fullscreen form to Normal). The rescue watchdog holds while hidden; an
+update relaunch while hidden opens minimized and unfocused (TV_QUIET_RELAUNCH through `_before_exec`, which every
+os.execv passes). A real quit is ⏻ quit (two-click, names itself `quit-button`), /api/quit with a `from`, or
+TV_CLOSE_EXITS=1. The doctor has a `console_window` row.
+
+**Verified on a real window (before his correction):** windowed, ✕ was cancelled and the OS minimized event
+fired, front restored it, a real quit closed it. Fullscreen FAILED under the first cut - the frame measure read
+"not fullscreen", macOS ignored the minimize, and the console said "background" while it stayed on screen - which
+is what moved the measure to the style bit. Those test windows appeared on his screen; no more on-screen tests.
+
+**Not done here, and why:** starting the console at LOGIN on either machine (a LaunchAgent / Startup entry) -
+that is a change to how his machines boot, so it is offered, not installed. Page-side intakes that run in the
+board's JavaScript behave as they already do while he plays with the console behind the game.
+
+**Law:** `tv/test_closing_the_window_keeps_the_console_running.py` (21 cases, 18 red-proofs). A hidden console also RELAUNCHES hidden (TV_START_HIDDEN across os.execv), and `--background` starts one hidden for a sign-in launch.
 ### REG-1431 - THE FLEET ROWS PRINTED EVERY PC'S FILMS / RIVER / TRIAGE UPFRONT (2026-09-29)
 
 **His words:** *"i dont want it rendering to me all this here upfront. only if clicked on or something like a

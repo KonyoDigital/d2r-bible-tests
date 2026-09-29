@@ -8413,6 +8413,21 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
                 <small id="sadv-auto-say">a new build on disk restarts this window · never mid-film, never into a changed world</small></span>
             </div>
           </div>
+          <!-- 2026-09-29 — ⤓ THE CONSOLE IS A BACKGROUND SERVICE. His words: "background service running with the
+               console hidden always by design ... sessions are always working and running ... regardless if the
+               console is on or not", then "make sure this thing and window is completely hidden". ✕ and Esc used to
+               QUIT, which stopped the shadow reader with the window; now they HIDE it completely (no window, no
+               taskbar button, no Dock icon) and every lane keeps going. The Desktop icon brings it back. A STATEMENT, not a switch -
+               the same idiom as auto-relaunch above - because the way out is a real control (⏻ quit, below),
+               not a toggle that decides what ✕ means. -->
+          <div class="adv-sec-h adv-sec-h-rest">⤓ WHEN YOU CLOSE THE WINDOW</div>
+          <div class="shadow-adv" id="bg-service-adv">
+            <div class="shadow-adv-fixed" id="sadv-bg-fixed">
+              <span class="shadow-adv-ic">⤓</span>
+              <span class="shadow-adv-t"><b>Keeps running in the background</b>
+                <small id="sadv-bg-say">✕ or Esc hides the console completely · the shadow reader, triage and drain keep going · the Desktop icon brings it back · ⏻ quit stops everything</small></span>
+            </div>
+          </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
             <!-- v2638 — HIS CALL, 2026-09-05: "DARK SEAL BRIDGE all dont need to be buttons
@@ -8430,6 +8445,7 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
             <button class="util-btn" id="btn-stop" type="button" hidden style="display:none" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" hidden style="display:none" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
+            <button class="util-btn" id="btn-quit" type="button" title="QUIT COMPLETELY - stops the shadow reader and seals any rolling reel. ✕ and Esc only hide the console, which keeps recording in the background.">⏻ quit</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
             <!-- v2350c — the lamp above was labelled "mini" and this one "MINI": two controls
                  differing only in CASE, side by side in the same strip, one of which drives his
@@ -20317,6 +20333,30 @@ window._lockMark = function(isOpen, px, label){
     };
   })();
 
+  /* 2026-09-29 — ⏻ QUIT, THE ONE CONTROL THAT STOPS THE SERVICE. ✕ and Esc now send the console to the
+     background, so quitting became a thing he has to be able to do on purpose - and it confirms in place,
+     like relaunch, because it stops the recording too. It names itself to /api/quit (v3262). */
+  (function(){
+    var _armed = false, _t = null;
+    var b = $('btn-quit');
+    if (!b) return;
+    b.onclick = function(){
+      if (!_armed){
+        _armed = true;
+        b.textContent = '\u23fb sure? recording stops too';
+        _t = setTimeout(function(){ _armed = false; b.textContent = '\u23fb quit'; }, 4000);
+        return;
+      }
+      clearTimeout(_t); _armed = false;
+      b.textContent = '\u23fb quitting\u2026';
+      b.disabled = true;
+      try {
+        fetch(API + '/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                   body: JSON.stringify({ from: 'quit-button' }) }).catch(function(){});
+      } catch (_q) {}
+    };
+  })();
+
   // v2059 — the ledger-repair taps. Both routes existed since v2052 with no caller at all.
   $('btn-repair').onclick = function(){
     var box = $('repair-box'); if (!box) return;
@@ -22346,10 +22386,11 @@ window._lockMark = function(isOpen, px, label){
     if (e.key === 'Escape') window._escOverlayAtPress = _consoleOverlayOpen();
   }, true);
 
-  // v1420 — Esc on the EMPTY console homepage = quit the native app.
+  // v1420 — Esc on the EMPTY console homepage = leave the console — same as ✕.
   // Capture-phase overlay handlers (theatre / shell / chronicle / forensics / …) run first
-  // and stopPropagation. If nothing claimed Esc, user means "leave the console" — same as ✕.
-  // Hits /api/quit which arms the Mac force-exit deadline (no more Force Quit).
+  // and stopPropagation. If nothing claimed Esc, user means "leave the console".
+  // 2026-09-29 (REG-1430) — leaving no longer quits: it HIDES the console and every lane keeps running.
+  // ⏻ quit is the deliberate exit (it hits /api/quit, which arms the Mac force-exit deadline).
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (e.defaultPrevented) return;
@@ -22374,14 +22415,14 @@ window._lockMark = function(isOpen, px, label){
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (typeof toast === 'function') toast('Leaving console…');
+      if (typeof toast === 'function') toast('Leaving console - it keeps recording, hidden. The Desktop icon brings it back; ⏻ quit stops it.');
     } catch (_t) {}
     try {
-      /* v3262 — NAME YOURSELF. An unattributed quit is recorded as UNATTRIBUTED, which is
-         itself the finding: this is the only caller in the page, so an UNATTRIBUTED line in
-         his log means something ELSE killed the console. */
-      fetch('/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                           body: JSON.stringify({ from: 'escape-empty-stack' }) })
+      /* 2026-09-29 — Esc is "same as ✕", and ✕ now sends the console to the BACKGROUND instead of quitting:
+         his ruling that the sessions keep working whether the console is up or not. A real quit is ⏻ quit.
+         v3262's rule still holds - the caller names itself. */
+      fetch('/api/window', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({ do: 'background', from: 'escape-empty-stack' }) })
         .catch(function(){});
     } catch (_f) {}
   }, false);
