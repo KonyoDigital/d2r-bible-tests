@@ -1076,11 +1076,27 @@ def fleet_pull():
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
         out["before"] = (before.stdout or "").strip()
+        # #64 — THE IN-APP DOOR MEETS THE SAME ABANDONED LOCK THE LANE DOES, so it asks the SAME
+        # function, before the pull and again when git's error names index.lock (one retry, only
+        # after a clearing). The decision is recorded on the lane's record, not a second store.
+        _lk = _clear_stale_git_lock(REPO)
+        _pull_note_lock(_lk)
         r = _git_run(
             ["git", "pull", "--ff-only"],
             cwd=REPO, capture_output=True, text=True, timeout=180,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
+        if r.returncode != 0 and _names_index_lock(r):
+            _lk = _clear_stale_git_lock(REPO)
+            _pull_note_lock(_lk)
+            if _lk.get("cleared"):
+                r = _git_run(
+                    ["git", "pull", "--ff-only"],
+                    cwd=REPO, capture_output=True, text=True, timeout=180,
+                    creationflags=_WIN_CREATE if IS_WIN else 0,
+                )
+        if _lk.get("present") is not False and _lk.get("say") and _lk.get("path"):
+            out["lock"] = _lk.get("say")
         after = _git_run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
@@ -1088,7 +1104,9 @@ def fleet_pull():
         )
         out["after"] = (after.stdout or "").strip()
         if r.returncode != 0:
-            out["msg"] = ((r.stderr or r.stdout or "git pull failed").strip().splitlines() or [""])[-1][:160]
+            out["msg"] = ((_git_err_line(r, 160)
+                           or ((r.stdout or "git pull failed").strip().splitlines() or [""])[-1][:160])
+                          + _lock_left_words(_lk))
             return out
         out["ok"] = True
         out["pulled"] = bool(out["before"] and out["after"] and out["before"] != out["after"])
@@ -1577,6 +1595,14 @@ def _env_clean(sim=False, door=""):
         env["TV_STUB"] = "1"
     else:
         env.pop("TV_STUB", None)
+    # ⚠ #63 — A TV_STUB CONSOLE'S LIVE AGENT NEVER READS THE REAL SCREEN EITHER. MEASURED 2026-09-29: a
+    # harness console (TV_STUB=1 in ITS environment) that presses ON AIR spawns an agent with TV_STUB
+    # popped (the line above), so that agent ran the REAL capture path — on his Mac it filmed whatever
+    # game window was up and read it, and test_roundtrip_sim's verdict followed his screen. It gets
+    # TV_CAPTURE=off, the door #236 already proved never touches a window, so his Mac behaves like CI's
+    # runner (no screen, no frames). TV_STUB_REAL_CAPTURE=1 on the console is the one explicit way back.
+    if not sim and _stub_never_films(False):
+        env["TV_CAPTURE"] = "off"
     # ⚠⚠ v2772 — THE CHILD'S LAST WORDS WERE BEING DESTROYED, WHICH IS WHY EVERY CAPTURE FAILURE
     # HAS BEEN UNDIAGNOSABLE. The agent is spawned with `stdout=_log_fp` (a FILE, not a tty), so
     # Python block-buffers it — and the agent exits through `os._exit()`, which skips the flush.
@@ -3353,6 +3379,13 @@ def _pull_report():
     if fl.get("dirty"):
         return {"can": False, "behind": fl.get("behind"),
                 "why": "local tracked edits — a fast-forward would not be safe here"}
+    # ⚠ #64 — THE LANE'S OWN FAILURES OUTRANK THE CACHED ORIGIN VIEW. For eleven hours his ALT's
+    # beacon said "N commits behind and clear to pull" while every pull there failed on an abandoned
+    # index.lock: this read only fleet_origin_status(), which can see how far behind a machine is and
+    # never whether its pulls WORK. Past the lane's bar it is refused, with the reason.
+    _failing = _pull_failing_words()
+    if _failing:
+        return {"can": False, "behind": fl.get("behind"), "why": _failing}
     n = fl.get("behind")
     if not n:
         return {"can": True, "behind": 0, "why": "level with origin"}
@@ -4072,10 +4105,35 @@ def _capture_off(env=None):
     return (str((env or os.environ).get("TV_CAPTURE") or "")).strip().lower() in ("off", "none")
 
 
+def _stub_never_films(sim=False, env=None):
+    """#63 — must an agent started with this `sim` flag stay off the real screen? -> bool
+
+    True for a stub agent (sim, or TV_STUB in the environment it gets) unless TV_STUB_REAL_CAPTURE=1
+    says otherwise, explicitly. The SAME rule tv_diablo._stub_capture_only() applies inside the agent;
+    this is the console's half of it (which agents it hands TV_CAPTURE=off, and whether the Windows
+    capture half is started at all). [[copy-drift]] — both read the same two variables, nothing else.
+    """
+    e = os.environ if env is None else env
+    if str(e.get("TV_STUB_REAL_CAPTURE") or "").strip() == "1":
+        return False
+    return bool(sim or e.get("TV_STUB"))
+
+
 def _start_capture(env, log_fp):
     """Windows only: hidden capture_win.ps1 loop."""
     global _capture_proc
     if not IS_WIN:
+        return None
+    # ⚠ #63 — A STUB AGENT'S CAPTURE HALF IS NOT STARTED. On Windows the SCREEN is read by this
+    # script, not by the agent (which only consumes the files it drops), so this is where a SIM/stub
+    # agent would film his real desktop. Said in the log, never silent; TV_STUB_REAL_CAPTURE=1 restores it.
+    if _stub_never_films(env=env) and not _capture_off(env):
+        try:
+            log_fp.write("capture_win.ps1 NOT started: a TV_STUB agent never reads the real screen "
+                         "(TV_STUB_REAL_CAPTURE=1 to film it)\n")
+            log_fp.flush()
+        except Exception:
+            pass
         return None
     # REG-1272 — the second eye on cb6690d3 (grok-4.7, #231 5824107955), confirmed here: under
     # TV_CAPTURE=off the script exits 0 before any grab (REG-1252), and the lamp below read every exit
@@ -4165,6 +4223,12 @@ def _capture_health():
         return ""
     if _capture_off():
         # REG-1272 — off is a SETTING, not a death: nothing to restart, and never DEAD.
+        _CAP_RESTART_N = 0
+        _CAP_RESTART_TS = 0.0
+        return "OFF"
+    # #63 — a stub agent's capture half is never started (and a TV_STUB console's live agent runs
+    # with TV_CAPTURE=off): the same rule as REG-1272, so it is not a death to restart five times.
+    if _stub_never_films(sim=(_agent_mode == "sim")):
         _CAP_RESTART_N = 0
         _CAP_RESTART_TS = 0.0
         return "OFF"
@@ -19990,7 +20054,268 @@ def drift_state():
 
 _PULL = {"checked": None, "on": None, "worked": 0, "lastTs": None,
          "before": None, "after": None, "pulled": None, "owed": None,
-         "say": "nobody has looked yet"}
+         "say": "nobody has looked yet",
+         # #64 — the lane's own record of HOW its last attempt ended, and since when it has been failing.
+         # outcome: None (nobody tried) | pulled | level | failed | dirty | off | unknown (not a checkout).
+         "outcome": None, "failSince": None, "failures": 0, "lastErr": None,
+         # the last stale-lock decision, and the last clearing kept as its own receipt
+         "lock": None, "lockCleared": None}
+
+#: ⚠⚠ #64 — MEASURED 2026-09-29 ON HIS ALT: `.git/index.lock` dated 2026-09-28 14:09, 0 bytes, and no
+#: git process running. Every automatic pull after that failed with "Unable to create ... index.lock:
+#: File exists", so the ALT sat on v3521 for 11 h. _pull_once RECORDED the failure in _PULL.say
+#: ("the fast-forward did not succeed ... UNKNOWN, NOT up to date") and NOTHING read it: no doctor row,
+#: no fleet field, and nothing cleared the lock. A lock git abandons (a SIGKILLed or crashed git) is
+#: sticky: git never removes it, so one crash wedged every later update. [[the-unjoined-end]]
+#: An EMPTY lock this old with no git running is abandoned; anything else is left, and why is said.
+#: Read at CALL time so a law can move it.
+_GIT_LOCK_STALE_S = 600
+#: #64 — how long the lane may fail before it is a finding. ONE bar, published with the lane
+#: (pull_state()["failBarS"]), so the doctor row and the fleet beacon cannot disagree about it.
+_PULL_FAIL_MISSING_S = 3600
+
+
+def _git_dir_of(repo):
+    """The directory a checkout keeps its index (and index.lock) in. -> path | None
+
+    A plain checkout's `.git` is that directory. A worktree's `.git` is a FILE whose first line
+    names it ("gitdir: ..."), so joining ".git" there would judge a path that never holds the lock.
+    """
+    g = os.path.join(repo, ".git")
+    if os.path.isdir(g):
+        return g
+    try:
+        with open(g, encoding="utf-8") as fh:
+            first = fh.read(4096).strip()
+    except OSError:
+        return None
+    if not first.startswith("gitdir:"):
+        return None
+    rest = first[len("gitdir:"):].strip()
+    p = rest.splitlines()[0].strip() if rest else ""
+    if not p:
+        return None
+    return p if os.path.isabs(p) else os.path.normpath(os.path.join(repo, p))
+
+
+def _git_running_here():
+    """Is ANY git process running on this machine right now? -> (True | False | None, how)
+
+    ⚠ THREE ANSWERS, AND ONLY False LICENSES REMOVING A LOCK. None is "the probe could not answer"
+    (no pgrep, a timeout, a snapshot that would not walk) and must never read as "nothing running" —
+    a check that cannot answer does not remove. [[unknown-stays-unknown]]
+
+    ⚠ WINDOWS ASKS THE PROCESS TABLE, NOT tasklist.exe. tasklist hangs under D2R load (v1414) and is
+    a console child besides; tv_diablo._win_process_names() is the Toolhelp32 snapshot the triage
+    lane already trusts, and it spawns nothing, so no window can open on top of his game. The real
+    git binary this codebase runs is mingw64's git.exe (git_quiet), and helpers are git-*.exe.
+    Mac/Linux: `pgrep -x git` — exit 0 a match, 1 none, anything else unknown.
+    """
+    if IS_WIN:
+        try:
+            import tv_diablo as _tvd
+            procs = _tvd._win_process_names()
+        except Exception as e:
+            return None, "the process snapshot would not run (%s)" % type(e).__name__
+        if not isinstance(procs, dict) or not procs:
+            return None, "a Toolhelp32 process snapshot could not be taken"
+        hits = sorted(int(pid) for pid, n in procs.items()
+                      if str(n or "").lower() == "git.exe"
+                      or (str(n or "").lower().startswith("git-") and str(n or "").lower().endswith(".exe")))
+        if hits:
+            return True, ("a Toolhelp32 snapshot lists git (pid %s)"
+                          % ", ".join(str(p) for p in hits[:4]))
+        return False, "a Toolhelp32 snapshot of %d processes lists no git" % len(procs)
+    try:
+        r = subprocess.run(["pgrep", "-x", "git"], capture_output=True, text=True, timeout=5)
+    except Exception as e:
+        return None, "pgrep could not run (%s)" % type(e).__name__
+    if r.returncode == 0:
+        pids = " ".join((r.stdout or "").split()[:4])
+        return True, "pgrep -x git found pid %s" % (pids or "?")
+    if r.returncode == 1:
+        return False, "pgrep -x git found none"
+    return None, "pgrep -x git exited %d" % r.returncode
+
+
+def _clear_stale_git_lock(repo=None, now=None):
+    """#64 — REMOVE .git/index.lock ONLY WHEN IT IS PROVABLY ABANDONED, AND SAY WHAT WAS DECIDED. -> dict
+
+    Abandoned means ALL of: it exists, it is EMPTY (a git writing a new index fills its lock, so a
+    non-empty one may be live work and is never removed), it is older than _GIT_LOCK_STALE_S (a
+    young one may belong to a git that is mid-operation), and no git process is running on this
+    machine (asked, and answered False — an unanswerable probe leaves it). It is re-read just before
+    removal, so a lock that changed while it was being judged is left.
+
+    Returns {at, present, cleared, lockMtime, bytes, ageS, path, say}. `present` None = the lock
+    could not be read (left). `say` is a sentence either way — a lock LEFT is said with its reason,
+    because a lane that silently declines is the same defect as one that silently fails.
+    """
+    now = time.time() if now is None else float(now)
+    out = {"at": int(now * 1000), "present": None, "cleared": False, "lockMtime": None,
+           "bytes": None, "ageS": None, "path": None, "say": ""}
+    gd = _git_dir_of(repo or REPO)
+    if not gd:
+        out["say"] = "no git directory was found here, so there is no lock to judge"
+        return out
+    lk = os.path.join(gd, "index.lock")
+    out["path"] = lk
+    try:
+        st = os.stat(lk)
+    except FileNotFoundError:
+        out["present"] = False
+        out["say"] = "no index.lock"
+        return out
+    except OSError as e:
+        out["say"] = "index.lock could not be read (%s), so it was LEFT" % type(e).__name__
+        return out
+    out["present"] = True
+    out["bytes"] = int(st.st_size)
+    out["lockMtime"] = int(st.st_mtime * 1000)
+    age = now - st.st_mtime
+    out["ageS"] = round(age, 1)
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))
+    if st.st_size != 0:
+        out["say"] = ("left the git lock from %s: it holds %d bytes, and a git writing a new index "
+                      "fills its lock, so a non-empty lock is never removed" % (when, st.st_size))
+        return out
+    if age < float(_GIT_LOCK_STALE_S):
+        out["say"] = ("left the git lock from %s: it is only %ds old (the bar is %ds), so a git may "
+                      "still be mid-operation" % (when, max(0, int(age)), int(_GIT_LOCK_STALE_S)))
+        return out
+    running, how = _git_running_here()
+    if running is None:
+        out["say"] = ("left the git lock from %s: whether a git process is running here could not be "
+                      "asked (%s), and a check that cannot answer never removes it" % (when, how))
+        return out
+    if running:
+        out["say"] = ("left the git lock from %s: a git process is running on this machine (%s) and "
+                      "may own it" % (when, how))
+        return out
+    try:
+        st2 = os.stat(lk)
+        if st2.st_size != 0 or st2.st_mtime != st.st_mtime:
+            out["say"] = "left the git lock from %s: it changed while it was being judged" % when
+            return out
+        os.remove(lk)
+    except FileNotFoundError:
+        out["present"] = False
+        out["say"] = "the git lock from %s was gone before it could be removed" % when
+        return out
+    except OSError as e:
+        out["say"] = "left the git lock from %s: removing it failed (%s)" % (when, type(e).__name__)
+        return out
+    out["cleared"] = True
+    out["say"] = ("cleared a stale git lock: index.lock from %s, 0 bytes, %s old, with no git "
+                  "process running (%s)" % (when, _ago_words(age), how))
+    try:
+        print("  git: %s" % out["say"], flush=True)
+    except Exception:
+        pass
+    return out
+
+
+def _pull_note_lock(lk):
+    """Put one stale-lock decision on the lane's record. -> None
+
+    A clearing is ALSO kept as its own receipt (`lockCleared`), so a later pass that finds no lock
+    cannot erase the fact that one was removed, when, and how old it was.
+    """
+    if not isinstance(lk, dict):
+        return
+    with _PRUNE_LOCK:
+        _PULL["lock"] = None if lk.get("present") is False else dict(lk)
+        if lk.get("cleared"):
+            _PULL["lockCleared"] = {"at": lk.get("at"), "lockMtime": lk.get("lockMtime"),
+                                    "say": lk.get("say")}
+
+
+def _pull_outcome(now_ms, outcome, err=None):
+    """How an attempt ended, and the failure clock. Caller holds _PRUNE_LOCK. -> None
+
+    `failSince` is the first failed attempt since the last one that worked; a success, or the lane
+    standing down on purpose (off, dirty), stops the clock. `unknown` (not a checkout) leaves it.
+    """
+    _PULL["outcome"] = outcome
+    if outcome == "failed":
+        _PULL["failures"] = int(_PULL.get("failures") or 0) + 1
+        if not _PULL.get("failSince"):
+            _PULL["failSince"] = now_ms
+        _PULL["lastErr"] = (str(err)[:160] if err else _PULL.get("lastErr"))
+    elif outcome in ("pulled", "level", "off", "dirty"):
+        _PULL["failures"] = 0
+        _PULL["failSince"] = None
+        _PULL["lastErr"] = None
+
+
+def _git_err_line(r, width=200):
+    """The line of git's output that NAMES the failure. -> str
+
+    ⚠ MEASURED (git 2.50.1): a held lock prints "error: Unable to create '.../index.lock': File
+    exists." FIRST and five lines of advice after it, ending "remove the file manually to continue."
+    Taking the LAST line published the advice as the reason. The error/fatal line wins; otherwise
+    the last line, as before.
+    """
+    lines = [l.strip() for l in (str(getattr(r, "stderr", "") or "")).strip().splitlines() if l.strip()]
+    for l in lines:
+        if l.lower().startswith(("error:", "fatal:")):
+            return l[:width]
+    return (lines[-1] if lines else "")[:width]
+
+
+def _names_index_lock(r):
+    """Did this git failure say the index lock was in the way? -> bool"""
+    return "index.lock" in (str(getattr(r, "stderr", "") or "") + str(getattr(r, "stdout", "") or ""))
+
+
+def _lock_left_words(lk):
+    """A lock that was judged and LEFT, as a clause a failure sentence can carry. -> str"""
+    if isinstance(lk, dict) and lk.get("present") is not False and not lk.get("cleared") and lk.get("say") \
+            and lk.get("path"):
+        return " · " + str(lk.get("say"))
+    return ""
+
+
+def pull_state():
+    """The auto-pull lane's own record, as /api/status publishes it. Reads a dict; changes nothing.
+
+    ⚠ #64 — THIS IS THE READER _PULL NEVER HAD. The lane wrote its failures for months and nothing
+    read them. It is published over the wire ON PURPOSE: the console runs as `__main__`, so a doctor
+    that did `import control_app` would get a SECOND copy of this module whose _PULL says "nobody
+    has looked yet" forever (measured: the imported copy is a different object). [[the-unjoined-end]]
+    """
+    with _PRUNE_LOCK:
+        out = dict(_PULL)
+        for k in ("lock", "lockCleared"):
+            if isinstance(out.get(k), dict):
+                out[k] = dict(out[k])
+    out["failBarS"] = int(_PULL_FAIL_MISSING_S)
+    out["now"] = int(time.time() * 1000)
+    return out
+
+
+def _pull_failing_words(now_ms=None):
+    """The lane has failed for longer than the bar -> a sentence for the fleet; otherwise None.
+
+    #64 — the fleet beacon's `pull` said "N commits behind and clear to pull" off the cached origin
+    view for eleven hours while every pull on the ALT failed. The worker keeps pull.why (160 chars),
+    so the finding rides there — no new beacon field for a fixed-key worker to drop.
+    """
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    with _PRUNE_LOCK:
+        oc, since, err, n = (_PULL.get("outcome"), _PULL.get("failSince"), _PULL.get("lastErr"),
+                             int(_PULL.get("failures") or 0))
+    if oc != "failed" or not isinstance(since, (int, float)):
+        return None
+    fail_s = (now_ms - since) / 1000.0
+    if fail_s <= float(_PULL_FAIL_MISSING_S):
+        return None
+    # the worker keeps 160 chars: a quoted absolute path (a whole drive path ending .git/index.lock) is cut to
+    # its last name so the part that names the cause survives the clamp
+    err = re.sub(r"'[^']*[\\/]([^\\/']+)'", r"'\1'", str(err or "no reason recorded"))
+    return ("auto-pull FAILING %s (%d tries, since %s): %s"
+            % (_ago_words(fail_s), n, time.strftime("%m-%d %H:%M", time.localtime(since / 1000.0)),
+               err))[:160]
 
 
 def _pull_once():
@@ -20016,18 +20341,31 @@ def _pull_once():
     an unguarded pull would land on top of whatever is being edited. Tracked modifications mean
     this lane stands down and says so. TV_NO_AUTO_PULL still turns it off entirely, the same
     switch both launchers honour.
+
+    ⚠⚠ #64 — A LOCK A CRASHED GIT LEFT BEHIND WEDGED EVERY LATER PULL, FOR 11 HOURS. MEASURED
+    2026-09-29 on his ALT: .git/index.lock from 14:09 the day before, 0 bytes, no git running;
+    every fast-forward since failed "Unable to create ... index.lock: File exists" and the ALT sat
+    on v3521. This lane RECORDED it and nothing read it or cleared it. Now, before the fetch AND
+    again when git's own error names index.lock, _clear_stale_git_lock() removes an EMPTY lock
+    older than _GIT_LOCK_STALE_S when no git process runs here — and leaves any other lock, saying
+    why. Every attempt also records how it ended (`outcome`) and since when the lane has been
+    failing (`failSince`), which pull_state() publishes on /api/status for the doctor row
+    'this checkout can update' and _pull_report() carries to the fleet. [[the-unjoined-end]]
     """
     now = int(time.time() * 1000)
 
     def _set(**kw):
         with _PRUNE_LOCK:
             _PULL.update(dict({"checked": now}, **kw))
+            _pull_outcome(now, kw.get("outcome"), kw.get("err"))
+            _PULL.pop("err", None)
 
     if os.environ.get("TV_NO_AUTO_PULL"):
-        _set(on=False, say="auto-pull is switched off here by TV_NO_AUTO_PULL")
+        _set(on=False, outcome="off", say="auto-pull is switched off here by TV_NO_AUTO_PULL")
         return None
     if not os.path.isdir(os.path.join(REPO, ".git")):
-        _set(on=None, say="this tree is not a git checkout, so whether it is current is UNKNOWN")
+        _set(on=None, outcome="unknown",
+             say="this tree is not a git checkout, so whether it is current is UNKNOWN")
         return None
     try:
         # ⚠⚠ v3409 — EXIT 128 WITH EMPTY STDOUT IS NOT A CLEAN TREE. `git status` fails that way on
@@ -20037,20 +20375,25 @@ def _pull_once():
         _st = _git_run(["git", "status", "--porcelain", "--untracked-files=no"],
                        cwd=REPO, capture_output=True, text=True, timeout=20)
         if _st.returncode != 0:
-            _set(on=True, say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
-                               "this lane does not pull over a tree it cannot see"
-                               % (_st.returncode,
-                                  ((_st.stderr or "").strip().splitlines() or [""])[-1][:90])))
+            _set(on=True, outcome="failed", err=_git_err_line(_st),
+                 say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
+                      "this lane does not pull over a tree it cannot see"
+                      % (_st.returncode, _git_err_line(_st))))
             return None
         _dirty = (_st.stdout or "").strip()
     except Exception as e:
-        _set(on=True, say="could not read the working tree (%s), so this is UNMEASURED - not clean"
-                          % type(e).__name__)
+        _set(on=True, outcome="failed", err="could not read the working tree (%s)" % type(e).__name__,
+             say="could not read the working tree (%s), so this is UNMEASURED - not clean"
+                 % type(e).__name__)
         return None
     if _dirty:
-        _set(on=True, say=("local tracked edits are present, so this machine is NOT auto-pulling - "
-                           "commit or stash them to rejoin the fleet"))
+        _set(on=True, outcome="dirty",
+             say=("local tracked edits are present, so this machine is NOT auto-pulling - "
+                  "commit or stash them to rejoin the fleet"))
         return False
+    # #64 — BEFORE THE FETCH: a lock an earlier git abandoned is judged here, once per attempt.
+    _lock = _clear_stale_git_lock(REPO)
+    _pull_note_lock(_lock)
     try:
         before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                            cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
@@ -20067,25 +20410,36 @@ def _pull_once():
                 (["git", "fetch", "origin", "main", "--quiet"], 45, "the fetch"),
                 (["git", "merge", "--ff-only", "origin/main"], 45, "the fast-forward")):
             _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
+            # #64 — AND WHEN GIT ITSELF NAMES THE LOCK: judge it again (it may have appeared after
+            # the check above), and retry this one step ONCE if it was cleared.
+            if _r.returncode != 0 and _names_index_lock(_r):
+                _lock = _clear_stale_git_lock(REPO)
+                _pull_note_lock(_lock)
+                if _lock.get("cleared"):
+                    _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
             if _r.returncode != 0:
                 _set(on=True, before=before, after=None, pulled=None,
-                     say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date"
-                          % (_what, _r.returncode,
-                             ((_r.stderr or "").strip().splitlines() or [""])[-1][:90])))
+                     outcome="failed", err=_git_err_line(_r),
+                     say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date%s"
+                          % (_what, _r.returncode, _git_err_line(_r), _lock_left_words(_lock))))
                 return None
         after = (_git_run(["git", "rev-parse", "--short", "HEAD"],
                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
     except Exception as e:
         _set(on=True, before=None, after=None, pulled=None,
+             outcome="failed", err="the pull did not complete (%s)" % type(e).__name__,
              say="the pull did not complete (%s) - UNKNOWN, not up to date" % type(e).__name__)
         return None
     moved = bool(before and after and before != after)
+    _cleared = (" (after %s)" % _lock.get("say")) if _lock.get("cleared") else ""
     with _PRUNE_LOCK:
         _PULL.update({"checked": now, "on": True, "before": before, "after": after,
                       "pulled": moved, "lastTs": now,
                       "worked": int(_PULL.get("worked") or 0) + (1 if moved else 0),
-                      "say": (("fleet update: %s -> %s" % (before, after)) if moved
-                              else "already level with origin/main at %s" % (after or "?"))})
+                      "say": ((("fleet update: %s -> %s" % (before, after)) if moved
+                               else "already level with origin/main at %s" % (after or "?"))
+                              + _cleared)})
+        _pull_outcome(now, "pulled" if moved else "level")
     return moved
 
 
@@ -34407,6 +34761,10 @@ def status_payload():
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": _t("prune", prune_stats),
         "drift": _t("drift", drift_state),   # v2072 — running vs disk, so a five-ship-behind window says so
+        # #64 — the auto-pull lane's own record (how its last attempt ended, since when it has failed,
+        # the last stale-lock decision). The doctor row 'this checkout can update' reads THIS key over
+        # the wire, because an `import control_app` beside a `__main__` console is a second copy.
+        "pullLane": _t("pullLane", pull_state),
         "eagle": _t("eagle", eagle_state),   # v2078 — the watchdog's last look at the running system
         # v2438 — THE LOCKS, ON THE SURFACE THE CONSOLE ALREADY POLLS. The eagle is on-demand and
         # slow ("the sub-doctors take a moment"); a lock badge that has to wait for it would be
@@ -35165,7 +35523,8 @@ def doctor_payload():
         h = _capture_health()
         checks.append(_chk(
             "capture_proc", h in ("", "LINKED", "RESTARTED", "OFF"), "warn",
-            ("off by setting (TV_CAPTURE=off) - nothing is filmed" if h == "OFF" else (h or "idle (agent off)")),
+            ("off by setting (TV_CAPTURE=off, or a TV_STUB agent) - nothing is filmed" if h == "OFF"
+             else (h or "idle (agent off)")),
             "Press RESTART; if it recurs, check capture_win.ps1 and the D2R window"))
 
     # 7b) v1418 fleet — same GitHub main for Mac + Windows (never silently drift)

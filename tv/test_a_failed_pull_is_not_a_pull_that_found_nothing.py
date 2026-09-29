@@ -56,10 +56,29 @@ def _drive_pull(plan):
         return plan.get(key, _R(0, ""))
 
     ca._git_run = _fake
+    # #64 — _pull_once now judges .git/index.lock before the fetch. These cases stub git and run
+    # against the REAL tree's path, so the lock judge is stubbed too: a law must never remove a lock
+    # from his checkout. [[feedback-fixtures-never-touch-live-data]]
+    real_lock = ca._clear_stale_git_lock
+    ca._clear_stale_git_lock = lambda repo=None, now=None: {"present": False, "cleared": False,
+                                                            "say": "no index.lock (stubbed)"}
+    # ⚠ AND THE TREE IS A FIXTURE TOO. These cases ran against the real REPO, so they were only ever
+    # green where REPO/.git is a DIRECTORY: in a git worktree (.git is a file) and in heart2's
+    # sandbox (safe_copy drops .git) three of them read "not a git checkout" and went red on the host,
+    # not the code. git is stubbed, so a temp dir holding an empty .git/ is all the lane can look at.
+    import shutil as _sh
+    import tempfile as _tf
+    real_repo = ca.REPO
+    fake = _tf.mkdtemp(prefix="tvd-failedpull-")
+    os.makedirs(os.path.join(fake, ".git"))
+    ca.REPO = fake
     try:
         out = ca._pull_once()
     finally:
         ca._git_run = real
+        ca._clear_stale_git_lock = real_lock
+        ca.REPO = real_repo
+        _sh.rmtree(fake, ignore_errors=True)
     return out, dict(ca._PULL), seen
 
 

@@ -2299,6 +2299,23 @@ def _capture_is_off():
     return (os.environ.get("TV_CAPTURE") or "").strip().lower() in ("off", "none")
 
 
+def _stub_capture_only():
+    '''#63 - A TV_STUB AGENT NEVER READS THE REAL SCREEN. -> True when this agent must synthesize its frames.
+
+    MEASURED 2026-09-28: under TV_STUB the live loop tried the REAL capture_mac(frame) FIRST and fell
+    back to capture_stub_synth only when that FAILED - so on his Mac, where Screen Recording is granted,
+    a stub agent filmed and OCR'd whatever was on his screen, and a harness verdict depended on it.
+    His words: "make sure nothing is running on my pc for nothing". Stub means synthetic frames now,
+    on the live loop, the farewell look and the film thread alike; TV_STUB_REAL_CAPTURE=1 is the one
+    explicit way back to the old behaviour (real capture first, synthetic on failure).
+    Windows' screen is read by the capture half (capture_win.ps1), which control_app no longer starts
+    for a stub agent; WATCH_MODE here still consumes FILES from TV_FRAMES_DIR, which is how replay.py
+    feeds recorded truth to a stub agent, so that door is deliberately untouched.'''
+    if (os.environ.get("TV_STUB_REAL_CAPTURE") or "").strip() == "1":
+        return False
+    return bool(os.environ.get("TV_STUB"))
+
+
 def _film_loop():
     """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -2333,6 +2350,11 @@ def _film_loop():
             # whole display into the harness sandbox. Off means this console never reads the screen, in any
             # mode, WATCH_MODE included.
             if _capture_is_off() or (_CAP_TARGET or {}).get("mode") == "off":
+                time.sleep(1.5)
+                continue
+            # #63 — and a stub agent (without TV_STUB_REAL_CAPTURE=1) never films the real screen either,
+            # even with a window pinned. Its own statement, so the capture-off guard above keeps its shape.
+            if _stub_capture_only():
                 time.sleep(1.5)
                 continue
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
@@ -7660,7 +7682,20 @@ def main():
                 _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
                 time.sleep(3.0)   # DORMANT — no full-screen capture while there is no game
                 continue
-        if WATCH_MODE:
+        if _stub_capture_only() and not WATCH_MODE:
+            # #63 — A STUB AGENT NEVER CALLS capture_mac. It used to try the REAL grab first and use
+            # these synthetic frames only when that failed, so with Screen Recording granted a TV_STUB
+            # agent filmed + OCR'd his real desktop (see _stub_capture_only). TV_STUB_REAL_CAPTURE=1
+            # restores the old order through the branch below.
+            if not capture_stub_synth(frame):
+                time.sleep(0.2)
+                continue
+            if not globals().get("_STUB_CAP_WARNED"):
+                globals()["_STUB_CAP_WARNED"] = True
+                ev("cap", "SIM synthetic frames — a TV_STUB agent never reads the real screen "
+                          "(TV_STUB_REAL_CAPTURE=1 to film it)")
+                print("  📺 SIM: synthetic frames — a TV_STUB agent never reads the real screen")
+        elif WATCH_MODE:
             # v784 — Windows capture half reports pin status via cap_target.json
             _refresh_cap_target_from_disk()
             f = newest_watched_frame()
@@ -8436,6 +8471,12 @@ def farewell_read(force_frame=None):
                 elif not os.path.isfile(frame):
                     ev("cap", "farewell: no watch frame")
                     print("  👋 farewell: no frame available — skipping")
+                    return None
+            elif _stub_capture_only():
+                # #63 — a stub agent's last look is synthetic too; it never grabs the real screen
+                if not capture_stub_synth(frame):
+                    ev("cap", "farewell: synthetic frame could not be written")
+                    print("  👋 farewell: synthetic frame could not be written — skipping")
                     return None
             else:
                 if not capture_mac(frame):
