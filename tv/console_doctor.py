@@ -8187,6 +8187,53 @@ def _check_this_machine_can_get_a_second_opinion():
 PILLOW_BOOT = None
 
 
+#: #54 — a sealed reel the equipped ledger has not filed within this long of its seal means the nudge
+#: at seal did not run; the nudge is synchronous inside after_session_ended, so ten minutes is not jitter.
+_EQUIPPED_OWED_GRACE_MS = 10 * 60 * 1000
+
+
+def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
+    """#54 — WHAT HE WEARS, PER CHARACTER, IS FILED AT EVERY SEAL — and this asks whether it still is.
+
+    Reads equipped_ledger.contract() over the console's own journal ring and store: `owed` is the
+    sealed reels not yet in the ledger. A lane that runs at seal and owes a reel sealed more than
+    _EQUIPPED_OWED_GRACE_MS ago has stopped. UNKNOWN when the journal or the store cannot be read —
+    an empty ledger with no journal is not a clean one. [[heart-first]] [[zero-needs-a-denominator]]
+
+    ⚠ It says out loud that `characters` is empty BY DESIGN until READ_PROMPT asks for the login
+    name (REG-1522): an empty ledger is expected today, and a row that read it as a fault would be
+    furniture within the week.
+    """
+    try:
+        import equipped_ledger as _el
+    except Exception as e:
+        return UNKNOWN, ("equipped_ledger will not import (%s), so whether his gear is being filed is "
+                         "UNKNOWN" % type(e).__name__)
+    try:
+        import control_app as _ca
+        journals, hist = _ca._journal_ring(), _ca.HIST_DIR
+    except Exception as e:
+        return UNKNOWN, ("the console's journal ring could not be resolved (%s), so what the equipped "
+                         "ledger owes is UNKNOWN" % type(e).__name__)
+    try:
+        c = _el.contract(journals, now_ms=now_ms)
+    except Exception as e:
+        return UNKNOWN, "the equipped ledger's contract raised %s — UNKNOWN, not idle" % type(e).__name__
+    lane = "lane: on=%s worked=%s lastTs=%s owed=%s" % (c.get("on"), c.get("worked"), c.get("lastTs"), c.get("owed"))
+    if c.get("owed") is None:
+        return UNKNOWN, "%s — %s" % (str(c.get("say") or "")[:160], lane)
+    now = float(now_ms if now_ms is not None else time.time() * 1000.0)
+    newest = c.get("newestSealTs")
+    if c["owed"] > 0 and isinstance(newest, (int, float)) and (now - float(newest)) > _EQUIPPED_OWED_GRACE_MS:
+        return MISSING, ("%d sealed reel(s) are not in the equipped ledger and the newest seal is %.0f min "
+                         "old — the nudge at seal (after_session_ended -> _equipped_ledger_nudge) did not "
+                         "run; `python3 tv/equipped_ledger.py --ingest <journal> <hist>` files them. %s"
+                         % (c["owed"], (now - float(newest)) / 60000.0, lane))
+    tail = ("" if c.get("characters") else
+            " · no character on record is EXPECTED until READ_PROMPT asks the login screen for the name (REG-1522)")
+    return OK, "%s%s · %s" % (str(c.get("say") or "")[:160], tail, lane)
+
+
 def _check_this_machine_can_decode_a_frame():
     """#227 — CAN THIS MACHINE READ THE FRAMES IT FILMS?
 
@@ -9434,6 +9481,8 @@ CHECKS = [
     ("this machine can get a second opinion", _check_this_machine_can_get_a_second_opinion),
     # #227 — per MACHINE: the ALT had no Pillow, so every frame it filmed was unreadable, silently
     ("this machine can decode a frame", _check_this_machine_can_decode_a_frame),
+    # #54 — what he wears, per character, filed at every seal; owes the reels the seal nudge missed.
+    ("equipped ledger files every seal", _check_the_equipped_ledger_files_every_sealed_reel),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.
@@ -9808,7 +9857,11 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "nothing we started is a corpse",
             # v3422 - it enumerates the whole scratch root (110,447 entries when
             # found). A population that moves over DAYS does not need a ten-minute beat.
-            "our scratch is collected")
+            "our scratch is collected",
+            # #54 — it parses the whole journal ring (his live file plus five rotated
+            # generations) to count sealed reels the ledger owes, and the ledger only moves at
+            # a SEAL. A reel seals once an hour; an hourly look loses nothing.
+            "equipped ledger files every seal")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 

@@ -5999,6 +5999,27 @@ def _reel_sweep_indexes(hist=None, why="boot"):
 
 
 
+def _equipped_ledger_nudge():
+    """#54 — file the sealed reel's worn items under the character that logged in. -> receipt dict
+
+    The ONE caller is after_session_ended, so every door (ON AIR, MINI, shadow, the hourly rollover)
+    reaches it through the one place they share. It reads the journal ring through the one resolver
+    (_journal_ring — a fixture's TV_SESSIONS is honoured) and the reel's frames through HIST_DIR, and
+    it never raises into the seal: a ledger that cannot be written is a receipt that says so.
+    ok None means UNKNOWN — no journal readable, or the store unreadable — and nothing was filed.
+    [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    try:
+        import equipped_ledger as _el
+    except Exception as e:
+        return {"ok": None, "why": "equipped_ledger will not import (%s) — nothing filed, UNKNOWN"
+                                   % type(e).__name__}
+    try:
+        return _el.ingest(_journal_ring(), HIST_DIR)
+    except Exception as e:
+        return {"ok": False, "why": "the equipped ledger raised %s: %s" % (type(e).__name__, str(e)[:80])}
+
+
 def _last_session_produced_names():
     """v2316 — did the most recent session yield ANY named read? -> True / False / None.
 
@@ -6086,6 +6107,13 @@ def after_session_ended(why="a session ended"):
         out["nudged"].append({"lane": "vault", "r": (r or {}).get("why")})
     except Exception as e:
         out["nudged"].append({"lane": "vault", "r": "tick raised: %s" % str(e)[:80]})
+    # #54 — AND WHAT HE WAS WEARING, filed under who logged in, joined to the previous hourly reel
+    # when the rollover cut them apart. Free (no model call); it reads rows already paid for.
+    try:
+        _eq = _equipped_ledger_nudge()
+        out["nudged"].append({"lane": "equipped", "r": (_eq or {}).get("why"), "ok": (_eq or {}).get("ok")})
+    except Exception as e:
+        out["nudged"].append({"lane": "equipped", "r": "nudge raised: %s" % str(e)[:80], "ok": False})
     try:
         n = _chron_owed_count()
         out["owed"] = n if isinstance(n, int) else None

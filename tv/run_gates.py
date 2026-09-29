@@ -172,6 +172,25 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_equipped_items_are_pixel_exact_per_character", [sys.executable,
+         os.path.join(HERE, "test_equipped_items_are_pixel_exact_per_character.py")], 180,
+         why="#54 (REG-1522..1524) - EQUIPPED ITEMS PIXEL-EXACT PER CHARACTER. Measured before it was built: "
+             "slot_identity's six measured doll boxes had ZERO callers outside their own law, `character` "
+             "appeared in ZERO journal rows (REG-340 stands: the name is only on the login screen), and the "
+             "hourly shadow rollover cut one evening into reels nothing joined back. equipped_ledger files "
+             "every worn item (names_loc equipped) under the character read from a char-select row, with the "
+             "slot, that slot's box in THAT frame's pixels (JPEG size read stdlib, the four unmeasured slots and "
+             "an off-band frame REFUSED with the reason), the frame and per-frame sightings; a reel with no login "
+             "inherits the character across a rollover-sized gap (ROLLOVER_GAP_MS, pinned against the watcher's "
+             "own constants) and the two reels share one game session with the join written down; a longer gap "
+             "or a login is a boundary and worn items land in `unattributed` with a denominator. The reader's slot "
+             "WORD and the frame point's GEOMETRY corroborate; a disagreement is a CONFLICT that leaves the item "
+             "unplaced with both answers. _parse_read keeps `char-select`, `character` (login scene only), "
+             "`names_slot` (the doll's own vocabulary) and `names_xy`; the seal nudge (after_session_ended -> "
+             "_equipped_ledger_nudge) files through the console's own journal ring; the doctor row says MISSING "
+             "when an old seal is owed and UNKNOWN when nothing reads; on/worked/lastTs/owed with owed never 0 "
+             "for UNKNOWN. READ_PROMPT is NOT changed (a PROMPT_VER bump voids zero-page seals - his call). "
+             "Fixture frames and a throwaway journal only. 13 red-proofs"),
     Gate("test_the_doctor_times_each_check", [sys.executable,
                                     os.path.join(HERE, "test_the_doctor_times_each_check.py")], 60,
          why="v3404c — cd.run() took >8 min while 93 checks timed standalone ~24s, and nothing "

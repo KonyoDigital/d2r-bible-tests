@@ -5793,7 +5793,7 @@ def _parse_read(out):
         _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})
     _scene_raw = str(j.get("scene", "gameplay")).lower()
     scene = _scene_raw
-    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition", "chronicle"):
+    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition", "chronicle", "char-select"):
         _audit["normalized"].append({"field": "scene", "from": _scene_raw, "to": "gameplay", "why": "unknown-scene-clamp"})
         scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
     _tz_raw = j.get("tz")
@@ -5854,6 +5854,61 @@ def _parse_read(out):
                     _audit["dropped"].append({"field": "names_loc." + str(k2)[:30], "from": v2[:20], "why": "invalid-loc"})
     except Exception:
         names_loc = {}
+    # ══ #54 — WHO IS WEARING IT, AND IN WHICH SLOT ═══════════════════════════════════════════════
+    # REG-340 measured that the character's name is not on screen in play; it IS on the login /
+    # character-select screen, and that screen had no scene word, so the classifier clamped it to
+    # `gameplay` and the name it printed went nowhere. `char-select` is now a scene the parse keeps,
+    # and a `character` is kept ONLY on that scene — on any other scene it is text the model saw
+    # somewhere else (a merc, chat, another player) and is dropped with its reason.
+    # `names_slot` (name -> doll slot) and `names_xy` (name -> [x, y] in frame pixels) are the two
+    # independent answers equipped_ledger corroborates; the slot vocabulary is the doll's own
+    # (slot_identity.DOLL_SLOTS), never a second list typed here. An unknown slot word is dropped,
+    # a point that is not two numbers is dropped, and every drop is in the audit. Nothing here changes
+    # READ_PROMPT: asking the model for these fields means bumping PROMPT_VER, which voids every
+    # zero-page chronicle seal (control_app._chron_seal_current) — his call, REG-1522.
+    # [[unknown-stays-unknown]] [[copy-drift]]
+    character = ""
+    try:
+        _ch = j.get("character")
+        if scene == "char-select" and isinstance(_ch, str) and _ch.strip():
+            character = _ch.strip()[:32]
+        elif _ch not in (None, "", {}, []):
+            _audit["dropped"].append({"field": "character", "from": str(_ch)[:20],
+                                      "why": ("not-a-login-scene" if scene != "char-select" else "not-a-name")})
+    except Exception:
+        character = ""
+    names_slot = {}
+    try:
+        raw_slot = j.get("names_slot") or {}
+        if isinstance(raw_slot, dict):
+            try:
+                import slot_identity as _SI_slots
+                _doll = _SI_slots.DOLL_SLOTS
+            except Exception:
+                _doll = ()
+                _audit["dropped"].append({"field": "names_slot", "why": "slot-vocabulary-unavailable"})
+            for k5, v5 in list(raw_slot.items())[:60]:
+                v5 = str(v5).strip().lower()
+                if v5 in _doll:
+                    names_slot[str(k5).strip()] = v5
+                else:
+                    _audit["dropped"].append({"field": "names_slot." + str(k5)[:30], "from": v5[:20], "why": "invalid-slot"})
+    except Exception:
+        names_slot = {}
+    names_xy = {}
+    try:
+        raw_xy = j.get("names_xy") or {}
+        if isinstance(raw_xy, dict):
+            for k6, v6 in list(raw_xy.items())[:60]:
+                try:
+                    if isinstance(v6, (list, tuple)) and len(v6) == 2:
+                        names_xy[str(k6).strip()] = [float(v6[0]), float(v6[1])]
+                        continue
+                except (TypeError, ValueError):
+                    pass
+                _audit["dropped"].append({"field": "names_xy." + str(k6)[:30], "from": str(v6)[:20], "why": "not-a-point"})
+    except Exception:
+        names_xy = {}
     # v946.5 (Konyo: "was the Diadem read 3 socketed?") — capture the socket count per item.
     # name -> N (1..6). Read from the tooltip's 'Socketed (N)' line, never guessed from base type.
     sockets = {}
@@ -5877,6 +5932,9 @@ def _parse_read(out):
             "chronicleTab": chron_tab,   # v1512 — WHICH ledger; "" when unsure, never a guess
             "discovered": discovered,
             "names_loc": names_loc,
+            "character": character,        # #54 — the login screen's name; "" everywhere else
+            "names_slot": names_slot,      # #54 — name -> doll slot, the reader's word
+            "names_xy": names_xy,          # #54 — name -> [x, y] frame point, the geometry's evidence
             "sockets": sockets,
             "chronicleSort": chron_sort,   # v1818 — newest|oldest|other|""
             "foundAt": found_at,           # v1818 — name -> the row's own First Found stamp
@@ -8650,6 +8708,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
+        "names_slot": rd.get("names_slot") or {},  # #54 — per-name doll slot (the reader's word)
+        "names_xy": rd.get("names_xy") or {},      # #54 — per-name frame point (the geometry's evidence)
         # v948 — session sticky split (full names kept for vision truth; new/echo for boards)
         "names_new": names_new,
         "names_echo": names_echo,
@@ -8715,6 +8775,11 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     if (rd.get("scene") or "") == "transition":
         rec["transition_from"] = LAST_AREA
         rec["note"] = transition_note(LAST_AREA, n)
+    # #54 — THE LOGIN ROW CARRIES THE NAME. Written only when the parse kept one (a char-select scene
+    # with a readable name), so 10,000 rows of play do not carry an empty key that reads like a
+    # character nobody named. equipped_ledger.character_of_row is the one reader of this key.
+    if rd.get("character"):
+        rec["character"] = rd.get("character")
     _journal(rec)
     with _state_lock:
         st = _load()
