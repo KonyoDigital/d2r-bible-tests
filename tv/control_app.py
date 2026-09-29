@@ -35380,7 +35380,7 @@ def status_payload():
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
         "selfProbe": dict(_SELF_PROBE),
-        "ver": "v3522",
+        "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
