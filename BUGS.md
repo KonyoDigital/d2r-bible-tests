@@ -204,6 +204,132 @@ records a store that could not be read or would not parse; every write to d2r_mu
 module goes through one guard that refuses to write over unread bytes (they are kept, and the refusal is logged); the
 picker says UNKNOWN. Five mule laws now cut the shipped guard with their slices (EQ._guard). **LAW:**
 test_a_corrupt_mule_store_is_never_overwritten (5 cases, 2 red-proofs PROVEN).
+### REG-1440 - THE RATCHET IS AS NEW AS ITS LAST COMMIT: A LAW NOT YET RATCHETED IS HELD BY THE SCAN, NOT BY A CONSOLE (2026-09-29, docs)
+
+**SEEN (the adversarial review of alt-speed):** on the console path the fixture set is the committed ratchet
+(REG-1410). A law written in a working tree that names a real reel, and is not yet in tv/test_reel_refs.json, is
+held by the exact scan (the gate, CI, a CLI) but not by a console reading the ratchet, until the ratchet is edited
+to accept it. **FIX (docs only):** the gap is stated in frame_authority.test_referenced_reels' REG-1410 paragraph.
+test_a_gate_may_not_pin_his_footage asks exact=True and refuses any real id the ratchet lacks, so it closes at
+push; between the write and that push a console on that tree can offer the reel for release. **LAW:** the ratchet
+law (unchanged).
+
+### REG-1439 - A CONSOLE WHOSE RATCHET WOULD NOT READ KEPT ITS PLAN OVER FILES ITS KEY DID NOT COVER (2026-09-29)
+
+**SEEN (the adversarial review of alt-speed):** an unreadable ratchet falls back to the exact scan (REG-1410 -
+UNKNOWN is not empty), and that scan reads tv/*.py and tests/*. plan_fingerprint() keyed the ratchet FILE but not
+those, so a kept plan outlived an edited test: a test that began naming a reel left the console offering it for
+release. Reproduced at 8b5ecd0a: `(runs, served) == (1, 1)` - kept and served while the fixture set came from the
+scan. **FIX:** plan_fingerprint raises _Unkeyable when on_console_path() and frame_authority.ratchet_reels() is
+None: no plan is kept, every call computes. **LAW:** test_a_plan_is_computed_once
+TheConsoleNeverTokenizes.test_an_unreadable_ratchet_keys_no_plan (+ red-proof, PROVEN).
+
+### REG-1438 - HIST'S OWN FOLDER KEY DECIDES A PROOF HOLD, AND NOTHING PINNED IT (2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, probe_loose.py):** a loose hist/f_<ms>.jpg whose STEM a citation names
+decides where that citation resolves: to the loose copy (the reel no longer holds the proof -> eligible) or, once
+it is folded or pruned, to the reel (holds-proof). Adding or removing it moves ONLY hist's own folder key. The
+fingerprint had that line; no law would have gone red without it. **FIX:** none needed in the code - the line is
+now named (REG-1438 comment) and pinned. **LAW:** test_a_plan_is_computed_once EveryInputMovesTheAnswer gains two
+moves - a loose frame whose stem a citation names lands at hist root, then leaves - each must recompute and equal a
+from-scratch plan; red-proof on `parts.append((hist, _fr.folder_key(st)))`, PROVEN.
+
+### REG-1437 - WHILE HE FILMS, EVERY plan() CALLER COMPUTED ALONE (#66, 2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, measure_filming.py):** the footage writer drops a loose hist/f_<ms>.jpg
+about once a second while D2R runs, so hist's stamp is never RACY_S still, plan_fingerprint raised _Moving on every
+call, and every caller computed alone - REG-1411's concurrent index walks, for as long as he plays. **FIX:**
+reel_retention._plan_wave. A remembered answer is still never served while an input moves, but concurrent callers
+share ONE computation: with nothing running a caller computes at once; with a computation running (it began before
+this call, so it may have read the world before it) the caller joins the NEXT wave, which starts only after the
+running one finishes, and every caller that arrived meanwhile shares that run. No caller is handed an answer older
+than its call. Keyed on the call's question (tree, HERE, TV_HIST, _pick order, free_mb, keep_recent) - not on what
+the files hold. MEASURED: on the ALT-shaped fixture (30 reels, 21,205 files; per round 3 plan() callers + reel_story.story at once, a loose frame landing every 1 s): each FILMING round was 4 runs, 4 index builds, 0.26-0.31 s at 8b5ecd0a and is 2 runs (the one a caller starts at once + ONE shared wave), 2 builds, 0.12-0.18 s now, 0 served, every round's verdicts identical to the still shelf's; COLD 0.38 s / 1 build / 0 tokenized, unchanged-world 0.01 s. **LAW:** test_a_plan_is_computed_once
+WhileHeFilmsCallersStillShareOneRun (a writer drops a loose frame every 0.2 s; 5 concurrent callers -> fewer runs
+than callers, each answer equal to a from-scratch plan taken after its call began; +2 red-proofs, PROVEN).
+
+### REG-1436 - THE BOOT BANNER TOKENIZED THE SUITE BEFORE THE CONSOLE PATH WAS MARKED (#66, 2026-09-29)
+
+**SEEN (the adversarial review of alt-speed, boot_order_probe.py):** control_app.main() asked status_payload() for
+the boot banner BEFORE frame_ref.mark_console_path(True). status_payload kicks the tvd-vault-autoread refresh ->
+_vault_owed_reels -> reel_retention.plan() -> frame_authority.test_referenced_reels(), which with the console path
+unmarked is the exact tokenize scan over every tv/*.py - the post-ship stall REG-1410 fixed, once per ship, at
+boot. The law only asked whether main()'s co_names held `mark_console_path`, which stays true with the mark one line
+late. Reproduced at 8b5ecd0a: main() asked `_reap_inherited_at_boot` and `status_payload` before the mark.
+**FIX:** mark_console_path(True) is main()'s FIRST statement (it spawns nothing, so it may precede the #224 reap).
+**LAW:** test_a_plan_is_computed_once TheConsoleIsMarkedBeforeItAsksAnything DRIVES main() on a fixture shelf with
+its boot prefix stubbed (status_payload's stub asks _vault_owed_reels(<hist>) on the calling thread; the exact scan
+points at a one-file repo and is counted; a BaseException halts main() before it binds, opens or spawns) and
+asserts every boot step saw the console marked and nothing was tokenized. Replaces the co_names check. Red-proof:
+the mark moved after status_payload(), PROVEN.
+
+### REG-1414 - A RATCHET LAW GRADED AGAINST THE RATCHET CAN NEVER GO RED (2026-09-29)
+
+**SEEN (while building REG-1410):** test_a_gate_may_not_pin_his_footage asks `test_referenced_reels()` for the reel
+ids the suite names and fails on any real id missing from tv/test_reel_refs.json. REG-1410 makes a CONSOLE answer
+that same question FROM the ratchet - so any caller in a console-path process asking it would compare the ratchet
+with itself, `found - accepted` would be empty by construction, and the law would stay green over a new pin.
+**FIX:** the law asks `test_referenced_reels(exact=True)`, which always tokenizes, on every venue; `repo=` also
+always scans. **LAW:** test_a_plan_is_computed_once (TheJoints reads the ratchet law's own call; TheConsoleNever
+Tokenizes drives exact=True on the console path and proves it scans).
+
+### REG-1413 - EVERY plan() GREW sys.path BY ONE ENTRY, FOR EVER (2026-09-29)
+
+**SEEN:** reel_retention._tombstone_path ran `sys.path.insert(0, HERE)` on every call, and plan() calls it on every
+run (twice on his live tree), so a console's sys.path grew by one or two entries per plan for the life of the
+process. MEASURED: +50 entries over 50 calls. A failed import walks every entry and stats each: 1.1 ms with 6
+entries, 15.9 ms with 1,000, 153 ms with 10,000 on the Mac - and a stat costs more on Windows. **FIX:** `_on_path()`
+inserts HERE once. 89 other production modules still insert at function level; they are not on the plan() path
+and were not swept here (each needs its own look). **LAW:** none of its own - the plan fingerprint calls
+_tombstone_path on every call, so this rode along with REG-1411.
+
+### REG-1412 - THE FRAME INDEX RE-LISTED EVERY SEALED REEL, ON EVERY BUILD, IN EVERY LANE (2026-09-29)
+
+**SEEN:** on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522, /api/river timed out at
+90 s while py-spy showed THREE threads - tvd-retro-triage, tvd-eagle-watch and an HTTP request - each inside
+frame_ref.Index.__init__ at the same moment, each re-listing every folder of the shelf. Only one folder was moving:
+the live shadow reel. **FIX:** frame_ref.listing() is the one folder listing Index and reel_retention._dir_mb share.
+On the CONSOLE PATH (control_app.main marks it) a folder's listing is kept by its own stamp (mtime, ctime, inode,
+device, size, nlink) and served while that stamp is identical; it is kept only when the folder had been still for
+RACY_S (3 s - FAT stamps in 2 s, NTFS from a ~15.6 ms clock), did not change while it was read, and holds no *.tmp.
+reel_router._captured_ms (a whole-shelf walk per route(), on the triage thread's stack) reads the same listing. Off
+the console path nothing is kept: laws, the gate and CI list exactly as before. The three REG-1360 red-proofs
+were re-aimed at the shared listing and re-PROVEN. MEASURED on an ALT-shaped fixture: 268 folder listings per round
+of 4 callers -> 0 on an unchanged shelf, and only the live reel's folder when a frame lands. **LAW:**
+test_a_plan_is_computed_once, test_a_frame_index_lists_each_folder_once.
+
+### REG-1411 - plan() WAS REBUILT FROM SCRATCH BY EVERY LANE, CONCURRENTLY, OVER FOOTAGE THAT HAD NOT MOVED (2026-09-29)
+
+**SEEN:** the same /api/river timeout: reel_retention.plan() is called from ~62 places (printer.stream ->
+reel_story.story, lane_health.owed_counts -> control_app._vault_owed_reels, heart_state, river_stamp.run ...) and
+remembered nothing, so every lane rebuilt the frame index and the proof set from scratch at the same moment.
+**FIX:** on the console path plan() is SINGLE-FLIGHT and REMEMBERED. A caller whose arguments and fingerprint match
+a running computation joins it; a finished answer is served until plan_fingerprint() moves - every file plan()
+reads (both copies of chronicle_swept/vault_swept, the tombstone, the durable witness stores, the triage store,
+chron_evidence, the ratchet), the hist folder's stamp, every folder under it and each reel's index.json. An answer
+is kept or shared only if the fingerprint taken again after it finished is identical; any input that moved less
+than RACY_S ago is computed fresh and never kept; an input that cannot be keyed (a symlinked reel, an unstattable
+store) means no memo. Every answer handed out is a deep copy; an exception is never shared. plan() (reel_story) and
+plan(<the same tree>) (_vault_owed_reels) share one key while each ledger has ONE copy - _pick's HERE-or-hist order
+can only change the answer when both copies exist, and then the order is keyed. While a reel is filming its folder is
+always moving, so callers then compute separately - cheaply, over kept listings. MEASURED on an
+ALT-shaped fixture (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once): v3522 warm 4.6 s / 4 index
+builds; now 1 computation + 3 joined, 0.02 s served when unchanged, and all five rounds' plans byte-identical to
+v3522's. **LAW:** test_a_plan_is_computed_once (a DIFFERENTIAL over 12 moves of every input: each recomputed and
+equal to a from-scratch plan).
+
+### REG-1410 - HIS CONSOLE TOKENIZED THE WHOLE TEST SUITE AFTER EVERY SHIP (#66, 2026-09-29)
+
+**SEEN:** on his ALT for ~15 minutes after v3522 landed, /api/status took 11 s and then timed out; py-spy showed ONE
+hot thread, tvd-eagle-watch, holding the GIL in frame_authority.test_referenced_reels -> _executable_only ->
+tokenize over every tv/*.py (plus tests/), reached through reel_templates -> reel_river -> reel_story ->
+reel_retention.plan. The scan's key is every test file's (size, mtime), so every ship moved it (REG-1284 measured
+9 s on the Mac; 20.6 s here on 2026-09-29; minutes on the ALT). On an ALT-shaped fixture, 4 concurrent callers each
+ran it: 7,232 files tokenized, 114-154 s. **FIX:** on the console path the fixture set is the committed ratchet
+(tv/test_reel_refs.json `accepted`), which test_a_gate_may_not_pin_his_footage keeps a SUPERSET of every real id
+the scan finds (39 = 39 today); synthetic 2017 ids pin no footage. A ratchet that will not read is UNKNOWN, not
+empty - the console then pays the exact scan. The gate, CI, a CLI, `repo=` and `exact=True` scan exactly as before.
+MEASURED: 0 files tokenized, cold round 0.69 s. **LAW:** test_a_plan_is_computed_once.
 
 ### REG-1365 - A LAW OPENED HIS REAL CONSOLE WINDOW AND WAS REPLACED BY IT (2026-09-28)
 

@@ -40425,6 +40425,31 @@ def _win_focus_existing_console():
 
 
 def main():
+    # ⚠⚠ REG-1436 (#66) — THIS PROCESS IS A CONSOLE, SAID FIRST, BEFORE IT ASKS ANYTHING (REG-1410..1412).
+    # MEASURED on his ALT right after v3522: 11 s /api/status then timeouts while tvd-eagle-watch tokenized every
+    # tv/*.py, then 90 s /api/river while three threads each re-listed ~21,000 frames. On the console path the
+    # fixture set is the committed ratchet, a still reel folder is listed once, and reel_retention.plan() is
+    # shared and remembered until one of its inputs moves. Laws, the gate and CI never set this.
+    # ⚠ FIRST, NOT "BEFORE ANY LANE": the adversarial review of alt-speed found the mark too late. The boot
+    # banner below asks status_payload(), which kicks the tvd-vault-autoread refresh -> _vault_owed_reels ->
+    # reel_retention.plan() -> frame_authority.test_referenced_reels() - and with the console path not yet
+    # marked that is the exact tokenize scan over every tv/*.py: the post-ship stall itself, once per ship, at
+    # boot. Marking spawns nothing, so it may precede the #224 reap. Proven by DRIVING main() under stubs
+    # (test_a_plan_is_computed_once.TheConsoleIsMarkedBeforeItAsksAnything), not by reading its names.
+    try:
+        import frame_ref as _fr_console
+        _fr_console.mark_console_path(True)
+    except Exception as _cp_e:
+        print("⚠ the console path could not be marked (%s) - plans are computed fresh, every call"
+              % type(_cp_e).__name__, flush=True)
+    # ⚠⚠ #224 — before this image SPAWNS anything: the children present now were inherited from the image
+    # os.execv replaced, and only this image can ever wait() them. Reaped BY PID — a blanket waitpid(-1) would
+    # steal the exit status of our own Popen children. (status_payload() below spawns git.)
+    _reap_inherited_at_boot()
+    try:
+        _bv = (status_payload() or {}).get("ver") or "?"
+    except Exception:
+        _bv = "?"
     # ⚠ v2182 — A BOOT MARKER, so a log-reading check can ask about THIS RUN.
     # console_doctor's hunt-economy eye reads the tail of control_app.log, and the tail spans
     # hours across many process lifetimes. Right after the v2176 fix landed it still reported
@@ -40438,14 +40463,6 @@ def main():
     # which is the one place that owns it. Two guards (TestNoFunctionLoadsAnUndefinedName and
     # TestV2010NoCallIntoANameThatIsNotThere) caught my first attempt reaching for a module-level
     # VERSION, which lives in tv_diablo.py and has never existed here. [[copy-drift]]
-    # ⚠⚠ #224 — FIRST, before this image spawns anything: the children present now were inherited
-    # from the image os.execv replaced, and only this image can ever wait() them. Reaped BY PID —
-    # a blanket waitpid(-1) would steal the exit status of our own Popen children.
-    _reap_inherited_at_boot()
-    try:
-        _bv = (status_payload() or {}).get("ver") or "?"
-    except Exception:
-        _bv = "?"
     print("\U0001f680 CONSOLE BOOT %s pid=%d %s"
           % (_bv, os.getpid(), time.strftime("%Y-%m-%dT%H:%M:%S")), flush=True)
     # ⚠⚠ #225 — WRITE IT DOWN BEFORE ANYTHING CAN EXIT QUIETLY. The Windows ALT console died relaunching
