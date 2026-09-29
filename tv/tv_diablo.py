@@ -4451,6 +4451,15 @@ def _toolhelp_d2r_state():
     would call that local play and starve triage there again. A cloud stream runs no D2R.exe here.
     None = the snapshot could not be taken or walked (no ctypes.windll, a refused snapshot): UNKNOWN,
     which a caller must never read as "not running". [[unknown-stays-unknown]] [[copy-drift]]"""
+    return _toolhelp_any(lambda n: n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""))
+
+
+def _toolhelp_any(pred):
+    """Windows: ONE Toolhelp32 snapshot - does any running exe's lowercased name satisfy `pred`? -> True | False | None
+
+    REG-1502 — the walk _toolhelp_d2r_state always did, with the name test handed in, so the self-prove lane can ask
+    "is he playing - the game OR a cloud client streaming it" through the same snapshot instead of a second copy.
+    None = UNKNOWN (no ctypes.windll, a refused or empty snapshot). [[copy-drift]]"""
     try:
         import ctypes
         from ctypes import wintypes
@@ -4479,7 +4488,7 @@ def _toolhelp_d2r_state():
                 return None           # a snapshot with no first process was not a look
             while True:
                 n = (pe.szExeFile or "").lower()
-                if n in ("d2r.exe",) or n.startswith("d2r") or "diabloii" in n.replace(" ", ""):
+                if pred(n):
                     return True
                 if not k32.Process32NextW(snap, ctypes.byref(pe)):
                     break

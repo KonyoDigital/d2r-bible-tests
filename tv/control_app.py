@@ -1670,6 +1670,15 @@ _BR_CACHE = {"ping": False, "st": None, "ts": 0.0, "st_ts": 0.0}
 _PID_CACHE = {"pid": None, "ts": 0.0}
 
 
+def _pid_cache_seed(pid):
+    """#78 — the console just started (pid) or stopped (None) the agent: the port-scan cache below speaks for the
+    OLD state for up to 10 s. MEASURED 2026-09-29 (v3523 pre-flight): under load, a SIM agent that was up read
+    DEAD six seconds after it answered - the cache held a None scanned while it was still booting, and every
+    status read that lost the lock race believed it. The spawn knows the pid; it tells the cache."""
+    _PID_CACHE["pid"] = int(pid) if pid else None
+    _PID_CACHE["ts"] = time.time() if pid else 0.0
+
+
 def _pid_cached():
     """v872 — the status poll must NEVER pay an lsof subprocess. Prefer the tracked child;
     fall back to a port scan at most every 10s."""
@@ -4085,6 +4094,7 @@ def _kill_pid(pid, force=False):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=_WIN_CREATE,
+                timeout=15,          # REG-1502 — an unbounded taskkill under load held the stop forever
             )
         except Exception:
             pass
@@ -4221,6 +4231,15 @@ def _start_capture(env, log_fp):
         log_fp.write("!! capture_win.ps1 missing — Windows ON will have no frames\n")
         log_fp.flush()
         return None
+    # REG-1502 — ONE SPAWN AT A TIME. The check below and the pid write at the end were not atomic, so two callers
+    # (a session start and the health lamp's restart) could each see no capture and each start one; the second
+    # pid write orphaned the first. Measured on the ALT 2026-09-29: five captures alive at once.
+    with _CAP_START_LOCK:
+        return _start_capture_locked(env, log_fp)
+
+
+def _start_capture_locked(env, log_fp):
+    global _capture_proc
     # already running?
     old = _read_pid(CAP_PID_PATH)
     if old and _pid_alive(old):
@@ -4230,6 +4249,9 @@ def _start_capture(env, log_fp):
         # for Hebrew/spaces USERPROFILE. CREATE_NO_WINDOW so Desktop launch stays quiet.
         env2 = dict(env or os.environ)
         env2.setdefault("TV_CAPTURE", os.environ.get("TV_CAPTURE") or "auto")
+        # REG-1502 — the capture leaves by itself when THIS console is gone (capture_win.ps1 Get-LeaseVerdict): a
+        # crashed console leaves a lease nobody will withdraw, and Windows does not end a dead parent's children.
+        env2["TV_CONSOLE_PID"] = str(os.getpid())
         _capture_proc = subprocess.Popen(
             [
                 "powershell.exe",
@@ -4273,6 +4295,7 @@ def _start_capture(env, log_fp):
         return None
 
 
+_CAP_START_LOCK = threading.Lock()   # REG-1502 — one capture spawn at a time
 _CAP_RESTART_N = 0
 _CAP_RESTART_TS = 0.0
 _CAP_RESTART_MAX = 5          # v1412 — cousin Windows: capture_win can die; restart more than once
@@ -4343,6 +4366,9 @@ def _capture_health():
     return "DEAD"
 
 
+_CAP_STOP = {"survived": 0, "last": None}   # REG-1502 — kills that did not land, said on /api/status
+
+
 def _stop_capture():
     global _capture_proc
     pid = None
@@ -4359,6 +4385,107 @@ def _stop_capture():
             os.remove(CAP_PID_PATH)
     except Exception:
         pass
+    # REG-1502 — THE KILL IS CHECKED, NOT ASSUMED. taskkill's result was thrown away, so a kill that did not land
+    # left a capture running that nothing remembered - the next session started another beside it. Withdrawing the
+    # lease above is what makes a survivor leave by itself (capture_win.ps1 reads it every ~2 s); this says so.
+    if pid and _pid_alive(pid):
+        _CAP_STOP["survived"] = int(_CAP_STOP.get("survived") or 0) + 1
+        _CAP_STOP["last"] = {"pid": int(pid), "ts": int(time.time() * 1000),
+                             "say": "capture pid %d outlived its kill - its lease is withdrawn, so it leaves by itself "
+                                    "within ~2 s" % int(pid)}
+        try:
+            if _log_fp:
+                _log_fp.write("!! " + _CAP_STOP["last"]["say"] + "\n")
+                _log_fp.flush()
+        except Exception:
+            pass
+
+
+# REG-1502 — THE ORPHANS A PREVIOUS CONSOLE LEFT. The lease in capture_win.ps1 makes every capture started from
+# now on leave by itself; the captures ALREADY running on a PC were started by the old script, which has no lease
+# and never leaves. Measured 2026-09-29 on the ALT: five, the oldest from the day before, 22,052 s of CPU. So once
+# per boot, a Windows console asks the process table for capture scripts of THIS checkout and ends each one whose
+# console is gone. It never touches one whose parent lives (another console's), and never its own.
+_CAP_SWEEP = {"ran": None, "found": None, "killed": [], "kept": [], "failed": [], "say": "not asked yet"}
+CAPTURE_SWEEP_TICK = 2          # the rescue loop's 2nd tick: ~20 s after boot, off the boot path
+
+
+def orphan_captures(rows, mine, alive):
+    """rows [(pid, parent_pid)] of capture scripts of this checkout; mine = pids this console owns; alive(pid) -> bool.
+    -> (to_end, kept) — a capture is ended only when it is not ours AND its parent is gone. Pure."""
+    end, kept = [], []
+    for pid, ppid in rows:
+        if pid in mine:
+            kept.append((pid, "this console's own capture"))
+        elif ppid and alive(ppid):
+            kept.append((pid, "its console (pid %s) is alive" % ppid))
+        else:
+            end.append(pid)
+    return end, kept
+
+
+def _capture_rows(timeout=30):
+    """[(pid, parent_pid)] of powershell processes running THIS checkout's capture_win.ps1, or None = UNKNOWN."""
+    ps = ("$t = '%s'; Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | "
+          "Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($t, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | "
+          "ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.ParentProcessId }" % CAPTURE_PS1.replace("'", "''"))
+    try:
+        out = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
+                             capture_output=True, text=True, timeout=timeout, creationflags=_WIN_CREATE)
+    except Exception:
+        return None
+    if out.returncode != 0:
+        return None
+    rows = []
+    for line in (out.stdout or "").splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            rows.append((int(parts[0]), int(parts[1])))
+    return rows
+
+
+def _sweep_orphan_captures(rows_fn=None, kill=None, alive=None, now_ms=None):
+    """One boot-time sweep. -> the state. Windows only; never raises."""
+    if not IS_WIN and rows_fn is None:
+        _CAP_SWEEP.update(say="not a Windows console - the Mac's agent is its own camera")
+        return dict(_CAP_SWEEP)
+    alive = alive or _pid_alive
+    kill = kill or (lambda pid: _kill_pid(pid, force=True))
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    rows = (rows_fn or _capture_rows)()
+    if rows is None:
+        _CAP_SWEEP.update(ran=now, found=None, killed=[], kept=[], failed=[],
+                          say="UNKNOWN - the process table could not be asked; nothing was ended")
+        return dict(_CAP_SWEEP)
+    mine = set()
+    try:
+        if _capture_proc is not None and _capture_proc.poll() is None:
+            mine.add(int(_capture_proc.pid))
+    except Exception:
+        pass
+    _own = _read_pid(CAP_PID_PATH)
+    if _own:
+        mine.add(int(_own))
+    end, kept = orphan_captures(rows, mine, alive)
+    killed, failed = [], []
+    for pid in end:
+        try:
+            kill(pid)
+        except Exception:
+            pass
+        (failed if alive(pid) else killed).append(pid)
+    _CAP_SWEEP.update(ran=now, found=len(rows), killed=killed, kept=[k for k, _w in kept], failed=failed,
+                      say=("%d capture script(s) of this checkout: ended %d orphan(s)%s, kept %d"
+                           % (len(rows), len(killed), (" - %d would NOT end: %s" % (len(failed), failed)) if failed else "",
+                              len(kept))))
+    if killed or failed:
+        try:
+            if _log_fp:
+                _log_fp.write("🧹 capture sweep: " + _CAP_SWEEP["say"] + "\n")
+                _log_fp.flush()
+        except Exception:
+            pass
+    return dict(_CAP_SWEEP)
 
 
 def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
@@ -4565,6 +4692,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
 
         try:
             _agent_proc = subprocess.Popen(**popen_kw)
+            _pid_cache_seed(_agent_proc.pid)
         except Exception as e:
             _agent_mode = "off"
             _log_fp.write("!! Popen failed: %s\n" % e)
@@ -4616,6 +4744,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
                     pass
             _agent_mode = "off"
             _agent_proc = None
+            _pid_cache_seed(None)
         tail = ""
         try:
             with open(LOG_PATH, "rb") as _lf:
@@ -4819,6 +4948,7 @@ def _force_kill_all_agents(reason=""):
     with _lock:
         _agent_proc = None
         _agent_mode = "off"
+        _pid_cache_seed(None)
     _stop_inflight = False
     _BOARD_OPENED = False
     try:
@@ -5953,6 +6083,7 @@ def stop_agent(farewell=True):
                 except Exception:
                     pass
             _agent_proc = None
+            _pid_cache_seed(None)
             _agent_mode = "off"
         try:
             if os.path.isfile(PID_PATH):
@@ -17386,6 +17517,8 @@ def _console_rescue_loop():
                 _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
             if _SELF_PROBE["tick"] == SHELF_PREWARM_TICK:
                 _prewarm_shelf()            # REG-1459 — his first SHELF click is served warm
+            if _SELF_PROBE["tick"] == CAPTURE_SWEEP_TICK:
+                _sweep_orphan_captures()    # REG-1502 — end the captures a previous console left running
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -35583,7 +35716,7 @@ def status_payload():
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
-        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM),
+        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         "ver": "v3523",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
@@ -36541,6 +36674,21 @@ def doctor_payload():
     _wm = window_mode_payload()
     checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
 
+    # ── ONE CAPTURE PER CONSOLE — REG-1502. Five capture scripts once ran at once on the ALT and dwm.exe died of
+    # memory exhaustion under them, taking Boosteroid with it. MISSING when an orphan would not end or a kill did not
+    # land; UNKNOWN when the table could not be asked. It reads the boot sweep and the stop's receipt - it starts nothing.
+    _cs, _cst = dict(_CAP_SWEEP), dict(_CAP_STOP)
+    _c_bad = bool(_cs.get("failed")) or int(_cst.get("survived") or 0) > 0
+    checks.append(_chk(
+        "one_capture", not _c_bad, "warn",
+        "capture scripts: %s%s" % (_cs.get("say") or "not asked yet",
+                                   (" · %d stop(s) whose kill did not land - last: %s"
+                                    % (int(_cst.get("survived") or 0), ((_cst.get("last") or {}).get("say") or "")))
+                                   if int(_cst.get("survived") or 0) else ""),
+        None if not _c_bad else
+        "Every capture started by this version leaves by itself within ~2 s of losing its lease or its console. "
+        "One that would not end: Task Manager -> Details -> the powershell.exe running tv\\capture_win.ps1 -> End task."))
+
     # ── SELF-PROVE — #50 (REG-1447): has THIS PC proved its own instruments? Every self-arming lock (the
     # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76
     # reels at EMPTY for two days with nothing on any screen. It reads the lane's LAST tick and never
@@ -36548,7 +36696,8 @@ def doctor_payload():
     _spv = dict(_SELF_PROVE)
     _sp_key = _spv.get("key")
     _sp_blind = list(_spv.get("blind") or [])
-    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy") and not _sp_blind)
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
+                        "playing", "stood-aside", "low-memory") and not _sp_blind)   # REG-1502: deferring to his game is healthy
     checks.append(_chk(
         "self_prove", _sp_ok, "warn",
         ("self-prove: census %s - %s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",

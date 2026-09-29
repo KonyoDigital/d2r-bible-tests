@@ -465,9 +465,9 @@ def stream(reel=None):
         if isinstance(src.get("river"), dict) and not src["river"].get("ok"):
             _river_why = str(src["river"].get("why") or "")
         _bits = [b for b in (_river_why, "; ".join(whys)) if b]
-        return _unknown(tombstoned=tomb_census, why="UNKNOWN, not an empty shelf — %s"
-                        % ("; ".join(_bits) if _bits else
-                           "no owner answered and none said why"))
+        import unknown_shelf as _us
+        return _unknown(tombstoned=tomb_census,
+                        why=_us.not_an_empty_shelf("; ".join(_bits), "no owner answered and none said why"))
 
     reach = src.get("reach") or {}
     reach_state = reach.get("state") or "UNKNOWN"

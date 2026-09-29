@@ -116,8 +116,7 @@ def river(reel=None, rows=None):
                 "clean": {"byReelDoor": 0, "byFrameContract": 0, "byBoth": 0, "walked": 0,
                           "notYetAtReelDoor": 0, "byFrameRefused": 0, "byFrameUnasked": 0,
                           "why": "nothing was walked, so neither door was asked"},
-                "why": ("UNKNOWN, not an empty shelf — %s"
-                        % (why or "no reel reached this probe and nothing said why"))}
+                "why": __import__("unknown_shelf").not_an_empty_shelf(why)}
     seals, FA, seal_why = _seals()
     out, gaps, nameless = [], [], 0
     for r in rows:

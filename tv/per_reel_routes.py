@@ -102,8 +102,8 @@ def routes(rows=None):
         except Exception as e:
             return _unknown("reel_story would not import (%s)" % str(e)[:80])
     if not rows:
-        return _unknown("UNKNOWN, not an empty shelf — %s"
-                        % (why or "no reel reached this probe and nothing said why"))
+        import unknown_shelf as _us
+        return _unknown(_us.not_an_empty_shelf(why))
 
     out, by_decider = [], {}
     content_routes, policy_routes = {}, {}

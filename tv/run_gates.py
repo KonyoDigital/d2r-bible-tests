@@ -198,6 +198,24 @@ GATES = [
              "router pass) and whether that PC proved its instruments; the worker shapes both; the fleet row shows "
              "a red 'river stuck', the detail the stations and ages. Console, worker and card each driven. "
              "3 red-proofs"),
+    Gate("test_a_live_agent_never_reads_dead_under_contention", [sys.executable,
+         os.path.join(HERE, "test_a_live_agent_never_reads_dead_under_contention.py")], 60,
+         why="REG-1503 (#78) - under load a live SIM agent read DEAD 6 s after it answered: a status read that lost "
+             "the lock race asked a 10 s port-scan cache holding a None from before the agent listened, and nothing "
+             "told the cache the agent had started. Every start/stop now seeds it; driven with _lock held by another "
+             "thread, every assignment site checked per block by ast. 3 red-proofs"),
+    Gate("test_the_shelf_says_unknown_once", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_says_unknown_once.py")], 30,
+         why="REG-1504 (#77) - the blueprint's river line said 'UNKNOWN, not an empty shelf' three times: five readers "
+             "each prefixed it to a reason that already carried it. One helper now leads with it only when the "
+             "reason does not say UNKNOWN; the readers are parsed so none builds the literal prefix again. 2 red-proofs"),
+    Gate("test_one_capture_per_console", [sys.executable,
+         os.path.join(HERE, "test_one_capture_per_console.py")], 120,
+         why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "
+             "the stream every 400 ms, and dwm.exe died of memory exhaustion eight times in an hour. The spawn is now "
+             "one at a time, the capture is told its console, a stop checks its kill landed, a boot sweep ends only "
+             "orphans, and the capture leaves by itself when its lease or console is gone (real PowerShell where "
+             "one exists). 5 red-proofs"),
     Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
          os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
          why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "

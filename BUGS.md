@@ -48,6 +48,68 @@ the fleet row shows a red "river stuck" with the reasons in its hover, the detai
 proved). An older build reads UNKNOWN on both - never "flowing". **Law:** `test_the_fleet_says_where_a_river_
 is_stuck.py` - console, worker and card each driven; 3 red-proofs RED. The rendered-card law now counts five
 UNKNOWN lines for an older build.
+### REG-1504 - "UNKNOWN, NOT AN EMPTY SHELF" THREE TIMES IN ONE SENTENCE (#77, 2026-09-29)
+
+**Seen** in BLUEPRINT.md generated on a worktree with no footage: `UNKNOWN — UNKNOWN, not an empty shelf — printer.stream()
+could not answer: UNKNOWN, not an empty shelf — UNKNOWN, not an empty shelf — no reel reached this probe`. Five readers
+(reel_river, per_reel_routes, one_funnel, printer, reel_router) each prefixed the phrase to a reason that, one layer down,
+already carried it; the blueprint added its own `UNKNOWN — `. The reason was right and the stutter buried it.
+**Fix:** `tv/unknown_shelf.py` - `not_an_empty_shelf(why)` leads with the phrase only when the reason does not already say
+UNKNOWN, and `says_unknown` does the same for the blueprint's header. The same regeneration now says it once. Law
+`test_the_shelf_says_unknown_once` (nested like the readers; the five parsed by ast), 2 red-proofs RED.
+
+### REG-1503 - A LIVE AGENT READ DEAD BECAUSE A LOCK WAS BUSY (#78, 2026-09-29)
+
+**Found** by the v3523 pre-flight: `test_button_matrix` 'SIM -> reads grow or bridge stays: reads=0' inside a 39-min gate
+run, 18 s green alone. `status_payload`'s bridge needs `_agent_alive()`, which trusts the child handle only when it gets
+`_lock` quickly and otherwise asks `_pid_cached()` - whose 10 s port-scan cache could hold a None scanned while the agent
+was still booting. Nothing told the cache the agent had started (it was written only inside `_pid_cached`), so a live
+agent read 'off' until the cache aged out: the v872 "STANDBY keeps jumping" shape, under game load on his screen.
+**Fix:** `_pid_cache_seed(pid)` at the spawn and `_pid_cache_seed(None)` at every clear. Law
+`test_a_live_agent_never_reads_dead_under_contention`: `_lock` held from another thread, a stale None planted, the real
+`_agent_alive()` asked; every `_agent_proc` assignment must be followed by a seed IN ITS OWN BLOCK (ast) - a first,
+per-function version stayed GREEN with the spawn's seed removed, because the same function seeds on its failure path.
+3 red-proofs, all RED.
+
+### REG-1502 - FIVE CAPTURE SCRIPTS AT ONCE: DWM DIED OF MEMORY EXHAUSTION AND TOOK HIS BOOSTEROID WITH IT (2026-09-29)
+
+**His report:** *"my boosteroid app keeps crashing on me! something is related to the console i think"*.
+**Measured on the ALT over SSH, 15:18:** Boosteroid restarted 3 min earlier; RAM free 690 MB of 7.9 GB; Windows logged
+a low-virtual-memory condition every ~5 min since 14:14; `dwm.exe` crashed 8 times since 14:21 with `0xc00001ad`
+(fatal memory exhaustion); Boosteroid hung (14:51, AppHangB1) and crashed (15:15). Running: **five** `capture_win.ps1`
+- four children of one console (10:23, 10:44, 14:31, 14:42) and one from the day before (22,052 s CPU) - each
+PrintWindow-ing the Boosteroid window every 400 ms; the console itself was already gone. Also running: MY OWN
+`heart_full.py` Windows inventory from 10:27 (see the memory note - a separate safeguard).
+**Why the console leaked them:** `_stop_capture` ran `taskkill` and threw its result away, then deleted the pid file,
+so a kill that did not land left a capture nothing remembered; `_start_capture`'s "already running?" check and its
+pid write were not atomic; and Windows does not end a dead console's children.
+**Fix (every PC, Dean's included, on its next update):**
+- `capture_win.ps1` polices itself: the console's pid file is its LEASE - it leaves within ~2 s when the lease is
+  withdrawn (stop), handed to another pid (a newer capture), or its console (`TV_CONSOLE_PID`) is gone. Driven on the
+  ALT's Windows PowerShell 5.1: 7/7.
+- the spawn is one at a time (`_CAP_START_LOCK`); `taskkill` is bounded (15 s); a stop checks its kill landed and says
+  so on `/api/status` (`captureStop`) and the log.
+- once per boot a Windows console ends the capture scripts of THIS checkout whose console is gone (the old script has
+  no lease) - never one whose console lives, never its own; an unreadable process table ends nothing (UNKNOWN).
+- **the self-prove lane (#50) never runs beside his game:** a proof never STARTS while he plays (D2R.exe or a cloud
+  client - Boosteroid, GeForce NOW - whose CPU footprint the idle gate cannot see) or under 2 GB free, and a
+  RUNNING proof stands aside (its tree ended, not booked as a failure) when he starts playing or free memory drops
+  under 1 GB; UNKNOWN never starts one and never kills one. The play probe shares tv_diablo's one Toolhelp32 walk
+  (`_toolhelp_any`). `test_every_pc_proves_itself` +7 cases, 4 red-proofs - and its catch-all red-proof, found
+  GREEN at HEAD (no case ever made the tick raise), now has a case that does.
+- doctor row `one_capture`. Law `test_one_capture_per_console` - 9 cases (the PowerShell one runs where PowerShell
+  exists), 5 red-proofs all seen RED.
+
+### REG-1501 - THE RESTORE HINT OFFERED ONE BACKUP FOR TWO DROPS THAT FELL AGAINST DIFFERENT ONES (2026-09-29)
+
+**Found** by the second eye (Grok CLI) on v3519 `11c3e2f5`, posted to #231 at 15:00 IDT. The doctor row 'a ledger store
+dropped' told him to add `"file": <first open drop's beforeFile>` "to take every store from that one file". A named file
+wins OUTRIGHT in `ledger_restore.plan` (every store from it; `_sources_after_drops` never runs), so when setPieces fell
+against 11:00's backup and foundLog against 13:00's, the hint would have put foundLog back from 11:00 - losing what it
+gained in between. **Reproduced** through the real snapshot writer and the real drop watcher before the fix.
+**Fix:** the one-file shortcut is offered only when every plan-routed drop fell against the SAME backup; otherwise the
+row names each before-file and says not to add "file". Law: `test_the_backup_lane_survives_a_loss` +2 cases, 1
+red-proof (seen RED on the exact defect).
 
 ### REG-1460 - TWO ORPHAN-ATTRIBUTION CASES DEPENDED ON THE HOST'S lsof (2026-09-29)
 
