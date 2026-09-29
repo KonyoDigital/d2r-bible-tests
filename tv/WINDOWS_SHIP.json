@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3523",
+  "ver": "v3524",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3523: Closing the console hides it completely and the shadow reader, triage and drain keep running; the Desktop icon brings it back and quit stops everything. The shelf keeps the newest 16 reels and gives way to 8 only when the Mac disk is under the recording floor. A console that cannot answer its own port relaunches itself. The fleet rows are calm and a click opens how each PC films and drains. W windows the console on a Hebrew keyboard. An unreadable mule store is never overwritten. The ALT no longer stalls after an update. A stale git lock heals itself. Pushes prove each width law only where its defect shows and stop at the first blind proof.",
+  "note": "v3524: one capture per console (lease + boot sweep), every PC proves itself game-aware, the river says UNKNOWN once, a running console is brought forward, the ALT flow + evidence route round 5",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
