@@ -40,20 +40,52 @@ INVOCATION = ('test_the_heart_can_see_its_own_instruments.py" '
               'TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed')
 
 
-def _code(line):
-    """The line with its shell COMMENT removed — quote-aware. v3471: a `#` starts a comment only
-    outside quotes and at the start of a word; `split("#")` cut `echo "#"` in half (eye on v3469)."""
-    q, out = None, []
-    for i, ch in enumerate(line):
+def _scan(line, q=None, stack=None):
+    """One line through the shell scanner, CONTINUING a quote opened on an earlier line. -> (code, q, stack)
+
+    `code` is the line with its comment removed when the line starts outside any quote; a line that starts INSIDE
+    a quote carries no column-0 grammar and answers "" - its characters only advance the quote state. `$(` opens a
+    fresh quoting context (bash does, and _heredoc_tag already knew), remembered on `stack` and restored at its `)`.
+
+    ⚠ THE SEVENTH CUT, and the first found by a MOVE rather than by the eye (2026-09-29, #42 P5's second round). The
+    console-demos block embeds a `python3 -c '...'` program whose `if not f.get("known"):` sits at column 0, and the
+    per-line scanner read it as a shell `if` (+1). The hook still balanced to 0, because the lone `)` that closes the
+    `SMOKE_SPECS=(` array was counted as a group close with no opener (-1): TWO ERRORS, CANCELLING - measured on the
+    v3523 hook at its lines 765 and 909. Moving the demos block ahead of the anchor census separated them, and the
+    census read as nested. Both are fixed here, each driven below, and neither may be fixed alone."""
+    started_inside = q is not None
+    stack = list(stack or ())
+    out, i = [], 0
+    while i < len(line):
+        ch = line[i]
+        if line.startswith("$(", i) and q != "'":
+            # bash opens a fresh quoting context here EVEN INSIDE double quotes (`x="$(python3 -c '...')"`), so the
+            # outer quote is remembered and comes back at the `)` that closes it; inside single quotes it is text
+            stack.append(q)
+            q = None
+            out.append(ch)
+            out.append("(")
+            i += 2
+            continue
         if q:
-            if ch == q and (q == "'" or line[i - 1] != "\\"):
+            if ch == q and (q == "'" or i == 0 or line[i - 1] != "\\"):
                 q = None
         elif ch in ("'", '"'):
             q = ch
+        elif ch == ")" and stack:
+            q = stack.pop()
         elif ch == "#" and (i == 0 or line[i - 1].isspace()):
             break
         out.append(ch)
-    return "".join(out).rstrip()
+        i += 1
+    return ("" if started_inside else "".join(out).rstrip()), q, stack
+
+
+def _code(line):
+    """The line with its shell COMMENT removed — quote-aware. v3471: a `#` starts a comment only
+    outside quotes and at the start of a word; `split("#")` cut `echo "#"` in half (eye on v3469).
+    ONE scanner: this is _scan with no quote carried in. [[copy-drift]]"""
+    return _scan(line)[0]
 
 
 _HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
@@ -91,7 +123,7 @@ def _walk(lines, stop=None):
     v3469 (a `<<` inside quotes froze the counter; `{ }` bodies at column 0 were not counted; a `#`
     inside quotes was read as a comment). The walk now reports its own blindness: a heredoc that never
     terminates, or a file that does not balance to depth 0, is the counter failing — said loudly."""
-    depth, tag = 0, None
+    depth, tag, q, stack = 0, None, None, []
     for n, l in enumerate(lines):
         if stop is not None and n >= stop:
             break
@@ -99,7 +131,7 @@ def _walk(lines, stop=None):
             if l.strip() == tag:
                 tag = None
             continue
-        code = _code(l)
+        code, q, stack = _scan(l, q, stack)      # "" for a line inside a quote opened earlier: no grammar
         t = _heredoc_tag(code)
         if t:
             tag = t
@@ -108,8 +140,9 @@ def _walk(lines, stop=None):
             depth += 1
         elif re.match(r"^(fi|done|esac)\b", code):
             depth -= 1
-        elif re.match(r"^[A-Za-z_][A-Za-z0-9_]*\(\)\s*\{$", code) or code in ("{", "("):
-            depth += 1                                   # a function body or group at column 0
+        elif (re.match(r"^[A-Za-z_][A-Za-z0-9_]*\(\)\s*\{$", code) or code in ("{", "(")
+              or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=\($", code)):
+            depth += 1                                   # a function body, group or ARRAY opened at column 0
         elif code in ("}", ")"):
             depth -= 1
     return depth, tag
@@ -129,7 +162,8 @@ def _call_block(lines, i):
 class EveryPushChecksEveryProofAnchor(unittest.TestCase):
 
     def _lines(self):
-        return io.open(HOOK, encoding="utf-8").read().split("\n")
+        with io.open(HOOK, encoding="utf-8") as fh:
+            return fh.read().split("\n")
 
     def test_the_hook_EXECUTES_the_anchor_census(self):
         lines = self._lines()
@@ -153,6 +187,18 @@ class EveryPushChecksEveryProofAnchor(unittest.TestCase):
         self.assertEqual(_walk(["f() {", "  if x; then", "  fi", "}"])[0], 0)
         self.assertEqual(_walk(["f() {", "if ! gate_run \"x\" y -- z; then"], stop=1)[0], 1,
                          "a call inside a column-0 function body read as top level")
+        # the seventh cut (2026-09-29), both halves driven, and driven APART so they cannot cancel again:
+        prog = ['x="$(curl -s x | python3 -c \'', 'import sys', 'if not f.get("known"):', '    print("a")',
+                'elif f.get("stale"):', '    print("b")', '\' 2>/dev/null || echo "u")"', 'if y; then', 'fi']
+        self.assertEqual(_walk(prog, stop=7)[0], 0,
+                         "a python `if` at column 0 inside a quoted -c program read as a shell `if`")
+        self.assertEqual(_walk(prog)[0], 0, "the program's closing line did not restore the quote state")
+        arr = ["ARR=(", "  a", "  b", ")", "if y; then", "fi"]
+        self.assertEqual(_walk(arr, stop=3)[0], 1, "an array opened at column 0 was not counted")
+        self.assertEqual(_walk(arr, stop=4)[0], 0, "the array's closing `)` did not balance its opener")
+        self.assertEqual(_walk(arr)[0], 0)
+        self.assertEqual(_scan('x="$(python3 - <<\'T\' 2>/dev/null || true')[1], None,
+                         "a quote inside $( ) leaked past the line - bash opens a fresh context there")
 
     def test_the_counter_can_see_the_whole_hook(self):
         """The instrument proves it is not blind before its verdict is believed."""

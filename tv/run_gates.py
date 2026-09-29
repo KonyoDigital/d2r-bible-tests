@@ -7522,6 +7522,39 @@ GATES = [
              "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
              "Fixtures only - no browser. 18 cases, 17 red-proofs",
          skip_ok=()),
+    Gate("test_a_proven_verdict_is_reused_only_on_identical_bytes",
+         [sys.executable, os.path.join(HERE, "test_a_proven_verdict_is_reused_only_on_identical_bytes.py")], 180,
+         needs_app=False,
+         why="#42 P3 (REG-1499) - his order 2026-09-28: 'this is CRITICAL we need to optimize clock time'. MEASURED "
+             "2026-09-29 on the v3523 push: the render gate refused at minute 95, twice, and every retry re-proved the "
+             "same ~40 changed laws (~83 min) over a tree that had not changed by one byte - three times. heart2 --prove "
+             "--push now banks a PROVEN under a key that digests EVERY byte the proof can depend on - the law, its import "
+             "closure (browser_gates' AST walk), every file a literal in that closure names, the tampered target (#41 "
+             "rank 8: PROVEN was keyed to the gate file alone, so an edit to the SUBJECT could make a proof BLIND while "
+             "the census read proven), PROOF_NEEDS files, the entry, the spec and the prover - and reuses it only when "
+             "the key is identical. A miss runs; an unkeyable law runs every push; only PROVEN is stored and only a stored "
+             "PROVEN is reused; the key is taken from the sandbox before AND after the run; the plain --prove path, "
+             "run_gates and CI never open it. Per machine, gitignored, beside .heart2.json. The second eye added: a "
+             "reused proof keeps the time it was MEASURED in the census (never this run's clock); a law that lists a "
+             "directory itself is unkeyable; the cache's own failure costs a re-prove, never a verdict; an undated "
+             "PROVEN is not reused. Fixtures only - no browser. 18 cases, 17 red-proofs",
+         skip_ok=()),
+    Gate("test_the_render_gate_runs_before_the_proving_stage",
+         [sys.executable, os.path.join(HERE, "test_the_render_gate_runs_before_the_proving_stage.py")], 120,
+         needs_app=False,
+         why="#42 P5 (REG-1498) - MEASURED 2026-09-29 on the v3523 push: every cheap stage green by 0m09s, ~83 min of "
+             "proofs and both python suites green, then the render gate REFUSED at 94m53s (and ~98m on the retry) on a "
+             "shelf proof that passed alone minutes later - the whole proving stage paid twice to learn what a 5-minute "
+             "render says first. Render refused 3 of 9 pushes over 2026-09-26..28: it is the stage most likely to refuse, "
+             "so hooks/pre-push runs it right after the cheap stages, before the proving stage, at TOP LEVEL (it sat "
+             "textually inside the tv/ python lane since v2297, so a push changing only tv/render_coverage.json or art/ "
+             "never rendered). This law reads the hook's own stage order through the anchors law's shell walker - never "
+             "a string count - pins that every stage and its bound survived the move, and runs bash -n. The second eye "
+             "moved the console demos the same way (v3523 push #3 was refused by them at 113m13s, 26 s after render "
+             "passed): both call sites run after render and before the proving stage, at top level - and the move "
+             "exposed two cancelling errors in the shell walker (a quoted python program's column-0 if; an uncounted "
+             "array opener), fixed and pinned here. 7 cases, 8 red-proofs",
+         skip_ok=()),
     Gate("test_a_host_dependency_is_not_always_an_attribute",
          [sys.executable, os.path.join(HERE, "test_a_host_dependency_is_not_always_an_attribute.py")], 120,
          needs_app=False,
