@@ -81,14 +81,15 @@ def _ledger():
     ]}
 
 
-def _served_plan(path):
-    """The body POST /api/vault_rebuild_plan answers, from the real handler, as JSON bytes."""
+def _served_plan(path, body=b"{}"):
+    """The body POST /api/vault_rebuild_plan answers, from the real handler, as JSON bytes.
+    `body` is what the board POSTs — since #41 rank 1 the reset sends {recorded: its own filings}."""
     import control_app as CA
     got = {}
     h = CA.Handler.__new__(CA.Handler)
     h.path = "/api/vault_rebuild_plan"
-    h.headers = {"Content-Length": "2"}
-    h.rfile = io.BytesIO(b"{}")
+    h.headers = {"Content-Length": str(len(body))}
+    h.rfile = io.BytesIO(body)
     h._json = lambda code, obj: got.update(code=code, body=json.dumps(obj))
     with mock.patch.object(CA, "VAULT_LEDGER_PATH", path):
         h.do_POST()
@@ -98,9 +99,10 @@ def _served_plan(path):
 BODY = r"""
 var PLAN = __PLAN__;
 var location = { hostname: '127.0.0.1' };
-var FETCHES = [], ASKED = [], RESULT = {};
-globalThis.fetch = function(url){
+var FETCHES = [], ASKED = [], RESULT = {}, BODIES = [];
+globalThis.fetch = function(url, opt){
   FETCHES.push(String(url));
+  BODIES.push(opt && opt.body ? JSON.parse(opt.body) : null);
   return Promise.resolve({ ok: true, json: function(){ return Promise.resolve(PLAN); } });
 };
 var _doorFile = window.vaultFile;
@@ -132,8 +134,9 @@ function take(){
   var out = { fetches: FETCHES.slice(), asked: ASKED.slice(), result: JSON.parse(JSON.stringify(RESULT)),
               assign: JSON.parse(JSON.stringify(assign)), owned: Array.from(owned), prov: prov,
               status: STATUS.length ? STATUS[STATUS.length - 1] : '',
-              rebuiltFailed: (window._vaultLastReset && window._vaultLastReset.rebuiltFailed) || null };
-  FETCHES.length = 0; ASKED.length = 0; RESULT = {};
+              rebuiltFailed: (window._vaultLastReset && window._vaultLastReset.rebuiltFailed) || null,
+              bodies: BODIES.slice(), recorded: (window._vaultLastReset && window._vaultLastReset.recorded) || null };
+  FETCHES.length = 0; ASKED.length = 0; RESULT = {}; BODIES.length = 0;
   return out;
 }
 (async function(){
@@ -248,6 +251,81 @@ class TheShippedResetKeepsThemFiled(unittest.TestCase):
 
     def test_the_next_reset_keeps_them_filed_too(self):
         self._filed("second")
+
+    def test_the_reset_asks_the_plan_with_the_filings_the_board_held_before_its_clears(self):
+        """#41 rank 1: the ask carried '{}', so the plan derived 'filed before' from surplus frames. The reset now reads
+        its own filings BEFORE the clears (the mule map's names, the witness rows' tiers) and POSTs them as `recorded`."""
+        first = self.out["first"]
+        self.assertEqual(1, len(first["bodies"]), first["bodies"])
+        rec = (first["bodies"][0] or {}).get("recorded")
+        self.assertEqual({"Radiance": "HARDENED", "Horadric Cube": "HARDENED"}, rec,
+                         "the ask does not carry the board's own filings (read before the clears): %r" % (rec,))
+        self.assertEqual(rec, first["recorded"], "the receipt does not keep what was posted")
+        second = self.out["second"]
+        rec2 = (second["bodies"][0] or {}).get("recorded")
+        self.assertEqual({"Radiance": "WATCHED", "Horadric Cube": "WATCHED", "Shako": "PROVEN"}, rec2,
+                         "the second reset did not post what the first one filed back")
+
+
+class TheKeepIsPromisedOnlyToARowTheBoardHeld(unittest.TestCase):
+    """#41 rank 1 (2026-09-29): with the board's filings in hand, the plan keeps a retro row filed only where the board
+    had filed it. His board has held nothing since his 09-27 reset — a plan asked by that board holds Radiance and the
+    Cube like any WATCHED row instead of promising keepFiled on the 1-look bar. Without `recorded` the frame math still
+    decides, as before, and the plan says which."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="retro-recorded-")
+        cls.path = os.path.join(cls.tmp, "vault_accum.json")
+        cls.blob = json.dumps(_ledger()).encode("utf-8")
+        with io.open(cls.path, "wb") as fh:
+            fh.write(cls.blob)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _plan(self, body):
+        got = _served_plan(self.path, body=json.dumps(body).encode("utf-8"))
+        self.assertEqual(200, got.get("code"), got)
+        return json.loads(got["body"])
+
+    def test_an_empty_board_holds_the_retro_rows_and_files_only_what_is_proven(self):
+        plan = self._plan({"recorded": {}})
+        self.assertTrue(plan["ok"], plan.get("why"))
+        self.assertEqual("board", plan["recordedBy"])
+        self.assertEqual(["Shako"], [r["name"] for r in plan["rebuilt"]], "a board that holds nothing was promised keepFiled retro rows")
+        held = dict((r["name"], r) for r in plan["held"])
+        for name in FLAGGED:
+            self.assertIn(name, held, "%s was rebuilt for a board that never filed it" % name)
+            self.assertEqual("below the proven bar", held[name]["why"])
+            self.assertNotIn("flag", held[name])
+        self.assertEqual([], plan["retro"]["names"])
+
+    def test_a_board_that_filed_them_keeps_them_and_the_recorded_tier_is_the_one_compared(self):
+        plan = self._plan({"recorded": {"Radiance": "HARDENED", "Horadric Cube": "filed"}})
+        by = dict((r["name"], r) for r in plan["rebuilt"])
+        for name in FLAGGED:
+            self.assertIn(name, by, "%s was filed on this board and is no longer kept" % name)
+            self.assertIs(True, by[name]["keepFiled"])
+            self.assertEqual("retro: WATCHED", by[name]["flag"])
+        rows = dict((r["name"], r) for r in plan["retro"]["rows"])
+        self.assertEqual(("HARDENED", "board"), (rows["Radiance"]["recordedTier"], rows["Radiance"]["recordedBy"]),
+                         "the board's own recorded tier is not the one compared")
+        self.assertEqual("frames", rows["Horadric Cube"]["recordedBy"], "a filing with no tier falls back to the frame math for its recorded tier")
+
+    def test_without_recorded_the_frame_math_still_decides_and_says_so(self):
+        plan = self._plan({})
+        self.assertEqual("frames", plan["recordedBy"])
+        self.assertEqual(set(FLAGGED), set(plan["retro"]["names"]))
+        unread = self._plan({"recorded": "not a map"})
+        self.assertFalse(unread["ok"], "an unreadable `recorded` was read as an empty board")
+        self.assertIn("UNKNOWN", unread["why"])
+        self.assertEqual([], unread["rebuilt"])
+
+    def test_the_route_wrote_nothing(self):
+        with io.open(self.path, "rb") as fh:
+            self.assertEqual(self.blob, fh.read(), "serving the plan wrote the witness ledger")
 
 
 ONE_VISIT = "Arkaine's Valor"
@@ -471,6 +549,27 @@ RED_PROOF = [
         "file": "vault_evidence.py",
         "find": "        elif got[\"tier\"] == WATCHED and not kept and not retro:\n",
         "replace": "        elif got[\"tier\"] == WATCHED and not kept:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 1 - the plan flags a retro row the board never filed, so an empty board is promised keepFiled again",
+        "file": "vault_evidence.py",
+        "find": "            flagged = (_retro_row(name, measured, held_tiers.get(name))\n                       if (held_names is None or name in held_names) else None)\n",
+        "replace": "            flagged = _retro_row(name, measured)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 1 - the reset stops reading its own filings before the clears, so the ask carries nothing",
+        "file": "../bible.html",
+        "find": "    R.recorded = _vaultRecordedFilings();\n",
+        "replace": "    R.recorded = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 1 - the route drops the board's filings from the ask, so the frame math decides for every board",
+        "file": "control_app.py",
+        "find": "            self._json(200, vault_rebuild_plan(recorded=body.get(\"recorded\") if isinstance(body, dict) else None))\n",
+        "replace": "            self._json(200, vault_rebuild_plan())\n",
         "matches": 1,
     },
     {

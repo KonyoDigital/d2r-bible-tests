@@ -2382,7 +2382,7 @@ def _vault_route_fn():
 
 
 def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked_fn=None, gate_fn=None,
-                             route_fn=None, main_state=None):
+                             route_fn=None, main_state=None, reset_held=None):
     """#246 W7 — THE HEART OF THE ONE DOOR: does every mule filing carry its witness? -> (status, why, counts)
 
     PURE — every input is handed in, so a law can drive each arm with a fixture and a sabotage.
@@ -2398,6 +2398,14 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
       4. the unattended feeder: banked vs runs  — reported beside, never the verdict alone
       route_fn    route(name) -> (routable, canonical) — _vault_route_fn() when not handed in
       main_state  main_character.locks_payload(), or None when the caller did not measure it
+      reset_held  #41 rank 1 (2026-09-29): {name: why} — the rows the last full reset's evidence plan HELD (its
+                  persisted receipt, d2r_vaultLastReset.heldNames), or None when no receipt could be read
+
+    #41 rank 1 — A ROW HIS RESET HELD IS NOT A "PRESS REGISTER" PROMPT. Arm 3 told him to press register for
+    rows that cleared the 2-look door while the reset's Wilson plan had just HELD them (under 10 visits) — advice
+    that would undo the hold. Two admission bars, one vault: the row now says both facts beside, never as a gap
+    ("held by your reset ... the 2-look door would file them on register"), and the joint
+    `a-reset-hold-is-not-a-register-prompt` (corroborate) keeps that count honest.
 
     #246 review — arm 3 counts only rows the lane COULD file: a shared-stash name has no mule (the door refuses
     it 'no-home', so "press register" was advice that could never work) and is reported beside, never as a
@@ -2426,7 +2434,8 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         if ok:
             in_mule.append((n, h, why))
     gate_unfiled, gate_known = [], accum_rows is not None
-    gate_no_mule, gate_route_unknown = [], []
+    gate_no_mule, gate_route_unknown, gate_reset_held = [], [], []
+    held_by_reset = reset_held if isinstance(reset_held, dict) else {}
     for r in (accum_rows or []):
         if not isinstance(r, dict):
             continue
@@ -2453,6 +2462,9 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         if gv.get("pass") and routable is None:
             gate_route_unknown.append(nm)    # the rule could not be read: UNKNOWN, never counted either way
             continue
+        if gv.get("pass") and (nm in held_by_reset or canon in held_by_reset):
+            gate_reset_held.append(nm)       # rank 1: his reset's plan held it — said beside, never a gap
+            continue
         if gv.get("pass"):
             gate_unfiled.append(nm)
     # what the MAIN arm could see at all: the ledger's locks and every 3-session lane lock
@@ -2475,6 +2487,8 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
               "gatePassingUnfiled": (len(gate_unfiled) if gate_known else None),
               "gatePassingNoMule": (len(gate_no_mule) if gate_known else None),
               "gatePassingRouteUnknown": (len(gate_route_unknown) if gate_known else None),
+              "gatePassingResetHeld": (len(gate_reset_held) if gate_known else None),
+              "gatePassingResetHeldNames": (list(gate_reset_held) if gate_known else None),
               "mainLedgerLocks": main_locks, "laneLocks": lane_locks,
               "feederRuns": runs, "feederBanked": banked}
     parts, bad = [], False
@@ -2491,6 +2505,11 @@ def vault_provenance_verdict(assign, prov, lane_lock, accum_rows, feeder, locked
         bad = True
         parts.append("%d stash row(s) clear today's gate and are NOT filed (first: %s) — press register on "
                      "the vault card and the witnessed lane files them" % (len(gate_unfiled), ", ".join(gate_unfiled[:3])))
+    if gate_reset_held:
+        parts.append("%d gate-passing stash row(s) are held by your reset's evidence plan (under the Wilson bar: %s) — "
+                     "the 2-look door would file them on register; held by your reset, not a gap (first: %s)"
+                     % (len(gate_reset_held), str(held_by_reset.get(gate_reset_held[0]) or "WATCHED")[:60],
+                        ", ".join(gate_reset_held[:3])))
     if gate_no_mule:
         parts.append("%d gate-passing stash row(s) belong in the shared stash — no mule exists for them, so they "
                      "are not a gap (first: %s)" % (len(gate_no_mule), ", ".join(gate_no_mule[:3])))
@@ -2532,17 +2551,55 @@ def _evidence_ledger_path():
     return os.environ.get("TV_VAULT_LEDGER") or os.path.join(HERE, "vault_accum.json")
 
 
+def _last_reset_receipt():
+    """#41 rank 2 — the last reset's receipt, off the board's persisted d2r_vaultLastReset through the ONE board read.
+    -> (receipt, before, after) | ("no-console", why) | ("none", why) | ("unreadable", why)"""
+    got = _board_read()
+    if not got:
+        return "no-console", ("the console did not answer — nobody asked the board, so no reset receipt could be read: "
+                              "cleared, rebuilt and held are UNKNOWN, not 0")
+    if got.get("ok") is False:
+        return "no-console", ("the board refused the read (%s), so no reset receipt could be read: cleared, rebuilt and held "
+                              "are UNKNOWN, not 0" % str(got.get("why"))[:90])
+    fs = got.get("fullStores")
+    if not isinstance(fs, dict):
+        return "no-console", ("the board read carried no stores, so no reset receipt could be read: cleared, rebuilt and held "
+                              "are UNKNOWN, not 0")
+    raw = fs.get("d2r_vaultLastReset")
+    if raw is None:
+        return "none", ("this board holds no reset receipt (d2r_vaultLastReset) — no reset has run here since receipts "
+                        "were persisted, so cleared, rebuilt and held are UNKNOWN, not 0")
+    try:
+        rec = raw if isinstance(raw, dict) else json.loads(raw)
+    except Exception:
+        return "unreadable", "the board's reset receipt would not parse — UNKNOWN, not 0"
+    if not isinstance(rec, dict):
+        return "unreadable", "the board's reset receipt is not a receipt — UNKNOWN, not 0"
+    before, after = rec.get("keepsBefore"), rec.get("keepsAfter")
+    return rec, (before if isinstance(before, dict) else None), (after if isinstance(after, dict) else None)
+
+
 def _check_the_vault_reset(receipt=None, before=None, after=None):
     """The last vault reset: cleared, kept, rebuilt, held.
 
-    No receipt has been handed to this console unless the caller passes one. That is UNKNOWN,
-    not a report of 0 rebuilt. A kept store whose bytes changed is named.
+    #41 rank 2 (2026-09-29): registered with no arguments, this row could never read a receipt — it
+    was permanently UNKNOWN while two comments said it read one, and his real 09-27 reset left no
+    trace. With no arguments it now reads the receipt the reset PERSISTS (d2r_vaultLastReset, with a
+    digest of every kept store before the clears and after the rebuild) through the shared board
+    read, and carries the reset's own time. No console, no receipt, or one that will not parse is
+    UNKNOWN, not a report of 0 rebuilt. A kept store whose digest changed is named.
     """
+    at = None
     if receipt is None and before is None and after is None:
-        return UNKNOWN, ("no reset receipt has been handed to this console, so cleared, "
-                         "rebuilt and held are UNKNOWN, not 0")
+        got0 = _last_reset_receipt()
+        if isinstance(got0[0], str):
+            return UNKNOWN, got0[1]
+        receipt, before, after = got0
+        at = receipt.get("at")
     import vault_evidence as _ve
     got = _ve.reset_receipt(receipt, before, after)
+    if at:
+        got = dict(got, why=("reset at %s (%s door) · " % (at, receipt.get("door") or "?")) + str(got.get("why") or ""))
     if got.get("rebuilt") is None or got.get("held") is None:
         return UNKNOWN, got.get("why") or "the reset receipt could not be read"
     if got.get("touched") or got.get("unknown"):
@@ -2578,14 +2635,33 @@ def _check_the_evidence_tiers(path=None, root=None):
         return UNKNOWN, got.get("why") or "the evidence tiers could not be read"
     if got.get("disagree"):
         return MISSING, got.get("why") or "the tier table and the witness ledger disagree"
-    pics = _ve.pictures_gone(path if path is not None else _evidence_ledger_path(), root)
+    # ══ #41 rank 4 (2026-09-29) — A LOSS NOTHING CAN REPAIR IS NOT A RED THAT HIDES THE NEXT ONE ═══
+    # This returned MISSING with a 180-character frame list the moment any cited picture was gone —
+    # before the tier counts and the retro flags were ever printed. On his shelf 21 of 29 cited frames
+    # went with 13 reels drained between 08-30 and 09-10, BEFORE the keep landed (vault_evidence.
+    # KEEP_LANDED_MS), so the row was red for ever, the whole Ledger 3.0 report never reached the
+    # eagle, and a new loss would have hidden inside it. Now every gone frame is dated by its reel's
+    # tombstone: gone before the keep is BASELINE (said beside an OK, with the count); gone after it is
+    # MISSING and names the item it stands on; a loss no tombstone dates is MISSING as UNKNOWN-when.
+    # The counts, the tiers and the retro flags are always printed. [[unknown-stays-unknown]]
+    pics = _ve.picture_losses(path if path is not None else _evidence_ledger_path(), root)
+    bad_pics = None
     if pics.get("n") is None:
         pic = "evidence links whose picture is gone: UNKNOWN"
     elif pics["n"]:
-        return MISSING, ("evidence links whose picture is gone: %s"
-                         % ", ".join(pics.get("gone") or [])[:180])
+        after, undated, base = pics.get("after") or [], pics.get("undated") or [], pics.get("baseline") or []
+        pic = "pictures gone %d of cited %d" % (pics["n"], pics.get("cited") or 0)
+        if base:
+            pic += " (%d before the keep landed — a baseline nothing can repair)" % len(base)
+        if after:
+            bad_pics = "%d cited picture(s) lost AFTER the keep landed: %s" % (
+                len(after), "; ".join("%s (%s, reel %s)" % (r["item"], r["frame"], r.get("reel") or "?") for r in after[:4]))
+        if undated:
+            bad_pics = ((bad_pics + "; ") if bad_pics else "") + (
+                "%d cited picture(s) gone and no tombstone dates the loss — when is UNKNOWN: %s" % (
+                    len(undated), "; ".join("%s (%s)" % (r["item"], r["frame"]) for r in undated[:4])))
     else:
-        pic = "evidence links whose picture is gone: 0"
+        pic = "pictures gone 0 of cited %d" % (pics.get("cited") or 0)
     if got.get("retro") is None:
         retro = "retro flags: UNKNOWN"
     elif got["retro"]:
@@ -2598,23 +2674,32 @@ def _check_the_evidence_tiers(path=None, root=None):
             retro += ("; %d of them held — no visit saw it (%s)" % (len(_rheld), ", ".join(_rheld[:4])))
     else:
         retro = "retro flags 0"
-    return OK, ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · "
-                "unreadable %d · %s · %s"
-                % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
+    line = ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s · %s"
+            % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
+    if bad_pics:
+        return MISSING, bad_pics + " · " + line
+    return OK, line
 
 
 def _check_vault_provenance():
     """#246 W7 — 'vault provenance': the one door, watched. Reads the board ONCE (the shared tick read),
     the stash ledger and the feeder's store; judges with vault_provenance_verdict. UNKNOWN when the board
     cannot be asked — never OK on a board nobody read."""
+    st, why, _c = _vault_provenance_counts()
+    return st, why
+
+
+def _vault_provenance_counts():
+    """The 'vault provenance' row with its counts: (status, why, counts | None). #41 rank 1 — the corroborator's
+    `a-reset-hold-is-not-a-register-prompt` reads the counts off this very verdict (the doctor's side of the joint)."""
     got = _board_read()
     if not got:
-        return UNKNOWN, "the console did not answer — nobody asked the board, so nothing is known"
+        return UNKNOWN, "the console did not answer — nobody asked the board, so nothing is known", None
     if got.get("ok") is False:
-        return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
+        return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90], None
     fs = got.get("fullStores")
     if not isinstance(fs, dict):
-        return UNKNOWN, "the board read carried no stores, so its mule map could not be judged"
+        return UNKNOWN, "the board read carried no stores, so its mule map could not be judged", None
 
     def _j(k, dflt):
         v = fs.get(k)
@@ -2628,7 +2713,12 @@ def _check_vault_provenance():
             return None
     assign, prov, lane = _j("d2r_muleAssign", {}), _j("d2r_vaultProv", {}), _j("d2r_laneLock", {})
     if assign is None or prov is None:
-        return UNKNOWN, "the board's mule map or its witness store would not parse — UNKNOWN, not clean"
+        return UNKNOWN, "the board's mule map or its witness store would not parse — UNKNOWN, not clean", None
+    # #41 rank 1 — the rows his last full reset HELD, off its persisted receipt (the same board read)
+    reset_held = None
+    _rc = _j("d2r_vaultLastReset", None)
+    if isinstance(_rc, dict) and _rc.get("door") == "vaultClearHistory" and isinstance(_rc.get("heldNames"), list):
+        reset_held = {str(n): "held by your reset at %s" % (_rc.get("at") or "?") for n in _rc["heldNames"] if n}
     rows = None
     try:
         import control_app as _ca
@@ -2655,8 +2745,9 @@ def _check_vault_provenance():
     except Exception as e:
         main_state = {"ok": False, "locked": None,
                       "why": "main_character would not answer (%s) — nothing is known about MAIN gear" % type(e).__name__}
-    st, why, _counts = vault_provenance_verdict(assign, prov, lane, rows, feeder, main_state=main_state)
-    return st, why
+    st, why, _counts = vault_provenance_verdict(assign, prov, lane, rows, feeder, main_state=main_state,
+                                                reset_held=reset_held)
+    return st, why, _counts
 
 
 def _row_says_who(row):

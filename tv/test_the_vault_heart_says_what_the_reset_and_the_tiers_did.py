@@ -160,12 +160,26 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertEqual(0, got["proven"])
         self.assertEqual(0, got["hardened"])
 
+    def _board(self, stores):
+        """The no-argument row reads the board through the shared read — stubbed here, never his console."""
+        real = CD._board_read
+        CD._board_read = (lambda: None) if stores is None else (lambda: {"ok": True, "fullStores": stores})
+        try:
+            return CD._check_the_vault_reset()
+        finally:
+            CD._board_read = real
+
     def test_a_missing_receipt_is_unknown_and_a_changed_store_is_named(self):
-        st, why = CD._check_the_vault_reset()
+        st, why = self._board(None)
         self.assertEqual(CD.UNKNOWN, st, why)
         self.assertIn("UNKNOWN", why)
         self.assertIn("not 0", why)
         self.assertNotIn("rebuilt 0", why)
+        # #41 rank 2 — a board that holds no receipt is UNKNOWN too, never "rebuilt 0"
+        st0, why0 = self._board({"d2r_owned": "[]"})
+        self.assertEqual(CD.UNKNOWN, st0, why0)
+        self.assertIn("no reset receipt", why0)
+        self.assertNotIn("rebuilt 0", why0)
         same = {"d2r_setPieces": b"[1]", "d2r_foundLog": b"{}"}
         clean = VE.reset_receipt({"rebuilt": ["Shako"], "held": ["War Traveler"], "touched": [],
                                   "rebuiltFailed": []},
@@ -219,6 +233,77 @@ class TheVaultHeartSaysWhatTheResetAndTheTiersDid(unittest.TestCase):
         self.assertEqual(CD.OK, st3, why3)
         self.assertIn("refused 0", why3)
 
+    def test_the_no_argument_row_reads_the_receipt_the_reset_persisted(self):
+        """#41 rank 2: registered with no arguments, the row read nothing and was UNKNOWN for ever. It now reads the
+        board's d2r_vaultLastReset (the shape bible.html's _vaultResetPersist writes: the receipt plus a digest of every
+        kept store before the clears and after the rebuild) through the shared board read, and carries the reset's time."""
+        rec = {"door": "vaultClearHistory", "at": "2026-09-29T07:00:00.000Z", "cleared": {"assign": 3}, "failed": [],
+               "kept": {}, "touched": [], "unknown": [], "ok": True, "rebuilt": ["Shako"], "held": 1, "rebuiltFailed": [],
+               "keepsBefore": {"d2r_setPieces": "3:abc", "d2r_foundLog": "2:def"},
+               "keepsAfter": {"d2r_setPieces": "3:abc", "d2r_foundLog": "2:def"}}
+        st, why = self._board({"d2r_vaultLastReset": json.dumps(rec)})
+        self.assertEqual(CD.OK, st, why)
+        self.assertIn("refused 0", why)
+        self.assertIn("2026-09-29T07:00:00", why, "the row does not carry the reset's own time")
+        # a kept store whose digest moved during the rebuild is named — MISSING, never intact
+        dirty = dict(rec, keepsAfter={"d2r_setPieces": "0:0", "d2r_foundLog": "2:def"})
+        st2, why2 = self._board({"d2r_vaultLastReset": json.dumps(dirty)})
+        self.assertEqual(CD.MISSING, st2, why2)
+        self.assertIn("d2r_setPieces", why2)
+        # a refusal the door recorded is named off the persisted receipt
+        refused = dict(rec, rebuiltFailed=[{"name": "Arkaine's Valor", "refused": "witness", "why": "only 1 qualifying look"}])
+        st3, why3 = self._board({"d2r_vaultLastReset": json.dumps(refused)})
+        self.assertEqual(CD.MISSING, st3, why3)
+        self.assertIn("Arkaine's Valor", why3)
+        # a receipt that will not parse is UNKNOWN, not 0
+        st4, why4 = self._board({"d2r_vaultLastReset": "{not json"})
+        self.assertEqual(CD.UNKNOWN, st4, why4)
+        self.assertIn("not 0", why4)
+        # Reset assignments never rebuilds: its receipt is judged on the kept stores alone, never "rebuilt UNKNOWN" for ever
+        assign_door = {"door": "vaultReset", "at": "2026-09-29T07:30:00.000Z", "keepsBefore": {"d2r_setPieces": "3:abc"},
+                       "keepsAfter": {"d2r_setPieces": "3:abc"}}
+        st5, why5 = self._board({"d2r_vaultLastReset": json.dumps(assign_door)})
+        self.assertEqual(CD.OK, st5, why5)
+        self.assertIn("never rebuilds", why5)
+
+    def _stones(self, rows):
+        with io.open(os.path.join(self.shelf, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
+            json.dump({"reels": rows}, fh)
+
+    def test_a_loss_before_the_keep_is_baseline_and_a_loss_after_it_is_missing_and_named(self):
+        """#41 rank 4: the row was permanently MISSING on picture losses nothing can repair (21 of 29 cited frames went with
+        reels drained before the keep landed), and the whole Ledger 3.0 report hid inside that red. Now every gone frame is
+        dated by its reel's tombstone against vault_evidence.KEEP_LANDED_MS: before = baseline beside an OK, after = MISSING
+        naming the item; the tiers and the retro flags are always printed."""
+        before, after = VE.KEEP_LANDED_MS - 3600000, VE.KEEP_LANDED_MS + 3600000
+        self._stones([{"reel": "reel_s00", "deletedTs": before}, {"reel": "reel_sR1", "deletedTs": after}])
+        os.remove(os.path.join(self.shelf, "cited.jpg"))
+        os.remove(os.path.join(self.shelf, "watch.jpg"))
+        st, why = CD._check_the_evidence_tiers(path=self.ledger, root=self.shelf)
+        self.assertEqual(CD.OK, st, "two pictures lost BEFORE the keep landed kept the row red: %s" % why)
+        self.assertIn("pictures gone 2 of cited 4", why)
+        self.assertIn("2 before the keep landed", why)
+        self.assertIn("retro flags 1 (Radiance)", why, "the retro flags no longer reach the eagle beside a baseline loss")
+        self.assertIn("WATCHED 2 · PROVEN 1 · HARDENED 1", why)
+        losses = VE.picture_losses(self.ledger, self.shelf)
+        self.assertEqual(["cited.jpg", "watch.jpg"], sorted(r["frame"] for r in losses["baseline"]))
+        self.assertEqual([], losses["after"])
+        os.remove(os.path.join(self.shelf, "still.jpg"))
+        st2, why2 = CD._check_the_evidence_tiers(path=self.ledger, root=self.shelf)
+        self.assertEqual(CD.MISSING, st2, "a picture lost AFTER the keep landed did not go red: %s" % why2)
+        self.assertIn("lost AFTER the keep landed", why2)
+        self.assertIn("Radiance (still.jpg", why2, "the loss does not name the item it stands on")
+        self.assertIn("retro flags 1 (Radiance)", why2, "the red hid the rest of the report again")
+        self.assertIn("pictures gone 3 of cited 4", why2)
+
+    def test_a_loss_no_tombstone_dates_is_unknown_when_and_red(self):
+        os.remove(os.path.join(self.shelf, "hard.jpg"))
+        st, why = CD._check_the_evidence_tiers(path=self.ledger, root=self.shelf)
+        self.assertEqual(CD.MISSING, st, why)
+        self.assertIn("no tombstone dates the loss", why)
+        self.assertIn("Arachnid Mesh (hard.jpg)", why)
+        self.assertIn("WATCHED 2 · PROVEN 1 · HARDENED 1", why)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -256,8 +341,36 @@ RED_PROOF = [
     {
         "why": "no reset receipt is reported as rebuilt 0",
         "file": "console_doctor.py",
-        "find": "        return UNKNOWN, (\"no reset receipt has been handed to this console, so cleared, \"\n                         \"rebuilt and held are UNKNOWN, not 0\")\n",
-        "replace": "        return OK, (\"rebuilt 0 · held 0\")\n",
+        "find": "        if isinstance(got0[0], str):\n            return UNKNOWN, got0[1]\n",
+        "replace": "        if isinstance(got0[0], str):\n            return OK, \"rebuilt 0 · held 0\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 2 - the no-argument row stops reading the persisted receipt, so it is UNKNOWN for ever again",
+        "file": "console_doctor.py",
+        "find": "        got0 = _last_reset_receipt()\n",
+        "replace": "        got0 = (\"none\", \"no reset receipt has been handed to this console, so cleared, rebuilt and held are UNKNOWN, not 0\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 4 - every gone picture is treated as lost after the keep, so a baseline loss keeps the row red for ever",
+        "file": "vault_evidence.py",
+        "find": "        elif ts < landed:\n            baseline.append(row)\n",
+        "replace": "        elif False:\n            baseline.append(row)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 4 - a picture lost AFTER the keep landed no longer turns the row red",
+        "file": "console_doctor.py",
+        "find": "    if bad_pics:\n        return MISSING, bad_pics + \" · \" + line\n",
+        "replace": "    if False:\n        return MISSING, bad_pics + \" · \" + line\n",
+        "matches": 1,
+    },
+    {
+        "why": "#41 rank 4 - a loss no tombstone dates is folded into the baseline instead of said UNKNOWN-when",
+        "file": "vault_evidence.py",
+        "find": "        if ts is None:\n            undated.append(row)\n",
+        "replace": "        if ts is None:\n            baseline.append(row)\n",
         "matches": 1,
     },
     {

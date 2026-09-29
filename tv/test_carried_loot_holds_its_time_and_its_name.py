@@ -238,13 +238,14 @@ section('m3', function(){
   var lf = LIVE({ name: 'Shako', loc: 'floor', scene: 'loot', frameId: 'lg2', sessionId: 's_lg', firstSeenTs: T0 + 300 });
   OUT.m3legacy = { owned: owned.has('Shako'), carried: (prov()['Shako'] || {}).carried === true, floor: lf.route, removed: REMOVED.length };
   // a door's receipt that outlived its name in `owned` (d2r_owned rewritten by a restore / an un-seed): the read that owns the
-  // name again MERGES into that receipt — and the merge itself never re-marks it (the second guard, driven on its own)
+  // name again is a PICK-UP (M-1, review of 7cded0c1): `owned` decides, the stale receipt is history, and the later drop leaves
   reset({ Shako: { kind: 'owned', source: 'ledger-restore', by: 'the un-seed undo', ts: T0 + 100, looks: [] } }, []);
   LIVE({ name: 'Shako', loc: 'inventory', scene: 'inventory', frameId: 'st1', sessionId: 's_st', firstSeenTs: T0 + 200 });
   var stRow = prov()['Shako'] || {};
   var sf = LIVE({ name: 'Shako', loc: 'floor', scene: 'loot', frameId: 'st2', sessionId: 's_st', firstSeenTs: T0 + 300 });
   OUT.m3stale = { owned: owned.has('Shako'), carried: stRow.carried === true, source: stRow.source || null,
-                  merged: (stRow.looks || []).map(function(k){ return k && k.frame; }), floor: sf.route, removed: REMOVED.length };
+                  merged: (stRow.looks || []).map(function(k){ return k && k.frame; }), floor: sf.route, removed: REMOVED.length,
+                  past: (stRow.pastReceipts || []).map(function(r){ return r && r.source; }) };
   // BASELINE — a fresh pick-up is still carried, and a later drop still leaves
   reset({}, []);
   var fp = LIVE({ name: 'Shako', loc: 'inventory', scene: 'inventory', frameId: 'b1', sessionId: 's_b', firstSeenTs: T0 + 200 });
@@ -429,13 +430,17 @@ class M3CarriedIsDecidedOnce(unittest.TestCase):
         self.assertFalse(o["carried"])
         self.assertEqual(0, o["removed"])
 
-    def test_the_merge_never_re_marks_a_standing_receipt(self):
+    def test_a_pick_up_over_a_receipt_that_outlived_its_name_is_carried(self):
+        """M-1 (review of 7cded0c1, reproduced) re-pointed this case: the round-4 cut asserted the defect — a receipt a door
+        left behind when the name left `owned` stopped the next real pick-up from being carried, so the later real drop
+        never left. `owned` decides; the stale receipt is kept as history; the drop leaves."""
         o = sec("m3stale")
-        self.assertEqual(("ledger-restore", ["st1"]), (o["source"], o["merged"]),
-                         "PREMISE: the read must MERGE into the door's standing receipt (as a look)")
-        self.assertFalse(o["carried"], "the merge re-marked a door's standing receipt carried (M-3)")
-        self.assertTrue(o["owned"], "a same-named floor label un-owned an item a door's receipt stands for")
-        self.assertEqual(0, o["removed"])
+        self.assertEqual(("kai-register", ["st1"], ["ledger-restore"]), (o["source"], o["merged"], o["past"]),
+                         "the pick-up did not start a fresh receipt with the stale one as history")
+        self.assertTrue(o["carried"], "a receipt that outlived its name stopped a real pick-up from being carried (M-1)")
+        self.assertEqual("left", o["floor"], "the later real drop did not leave")
+        self.assertFalse(o["owned"])
+        self.assertEqual(1, o["removed"])
 
     def test_baseline_a_fresh_pick_up_is_still_carried_and_still_leaves(self):
         o = sec("m3base")
@@ -551,13 +556,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "M-3: a receipt with no place is re-marked carried by a later inventory read again (the round-3 rule)",
      "file": "bible.html",
-     "find": "    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;\n",
+     "find": "    if (fresh.carried === true && owned.has(nm)) fresh.carried = null;\n",
      "replace": "    if (fresh.carried === true && cur && cur.kind === 'owned' && cur.carried !== true && _stateOf(nm, cur).state === null){ cur.carried = true; }\n",
      "matches": 1},
     {"why": "M-3: a name owned before this read (no receipt) is made carried loot by it",
      "file": "bible.html",
-     "find": "    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;\n",
+     "find": "    if (fresh.carried === true && owned.has(nm)) fresh.carried = null;\n",
      "replace": "    if (fresh.carried === true && cur) fresh.carried = null;\n",
+     "matches": 1},
+    {"why": "M-1 (round 5): a receipt that outlived its name stops a real pick-up from being carried again",
+     "file": "bible.html",
+     "find": "    if (fresh.carried === true && owned.has(nm)) fresh.carried = null;\n",
+     "replace": "    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;\n",
      "matches": 1},
     {"why": "L-4: an unreadable d2r_muleAssign reads as an empty strip again",
      "file": "bible.html",

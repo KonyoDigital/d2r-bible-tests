@@ -2273,7 +2273,107 @@ def _inv_a_tier_stands_on_the_looks_the_gate_counts():
             "of those, items the live gate sees TRIALS_PROVEN+ looks for", right, "==")
 
 
-BUILDERS = (_inv_a_tier_stands_on_the_looks_the_gate_counts,
+def _inv_a_reset_hold_is_not_a_register_prompt():
+    """#41 rank 1 (2026-09-29) — A ROW HIS RESET HELD IS NEVER TURNED INTO A "PRESS REGISTER" PROMPT.
+
+    One vault, three admission bars, nothing pairing them: Wilson 0.722 over 10 visits (the reset's
+    rebuild), 2 looks at the normal door, 1 look for a keepFiled retro row. The heart's own 'vault
+    provenance' row (arm 3) told him to press register for stash rows that cleared the 2-look gate —
+    11 of the 13 on his real ledger were rows the reset's plan had just HELD, so the advice would undo
+    the hold. Since #41 the doctor reports a reset-held row beside, never as a gap; this joint keeps
+    that true against a record the doctor does not read.
+
+    THE TWO SIDES:
+      LEFT   names the last full reset's receipt says its plan HELD, as the BACKUP LANE snapshotted
+             them on disk (ledger_*.json allStores.d2r_vaultLastReset.heldNames), that the LIVE
+             2-look gate (vault_retro.gate) passes as unfiled stash rows of the witness ledger
+      RIGHT  of the stash rows the doctor judged, the ones its verdict counted as
+             gatePassingResetHeld — off the LIVE board read (console_doctor._vault_provenance_counts)
+    Independent by RECORD: the left reads the backup lane's snapshot on disk and asks the gate itself;
+    the right is the doctor's own verdict over the live board. `==`, per name count: a reset-held row
+    the gate passes that the doctor did not report as held is a row it prompted him to register.
+
+    UNKNOWN when no backup carries a receipt, the ledger cannot be read, or the console did not
+    answer — never 0. A backup older than the live board's reset reads as a disagreement, which is
+    the honest state until the backup lane catches up. [[unknown-stays-unknown]]
+    """
+    def _ledger():
+        return os.environ.get("TV_VAULT_LEDGER") or os.path.join(HERE, "vault_accum.json")
+
+    def _newest_backup():
+        import glob as _g
+        d = os.environ.get("TV_LEDGER_BACKUP_DIR") or os.path.join(os.path.expanduser("~"), "d2r_ledger_backups")
+        try:
+            files = sorted(_g.glob(os.path.join(d, "ledger_*.json")))
+        except Exception:
+            return None
+        return files[-1] if files else None
+
+    def left():
+        import vault_retro as vr
+        p = _newest_backup()
+        if not p:
+            return None
+        try:
+            with io.open(p, encoding="utf-8") as fh:
+                snap = json.load(fh)
+        except Exception:
+            return None
+        stores = snap.get("allStores") if isinstance(snap, dict) else None
+        if not isinstance(stores, dict):
+            return None
+        raw = stores.get("d2r_vaultLastReset")
+        try:
+            rec = raw if isinstance(raw, dict) else (json.loads(raw) if isinstance(raw, str) else None)
+        except Exception:
+            return None
+        if not isinstance(rec, dict) or rec.get("door") != "vaultClearHistory":
+            return None
+        held = {str(n) for n in (rec.get("heldNames") or []) if n}
+        rawA = stores.get("d2r_muleAssign")
+        try:
+            assign = rawA if isinstance(rawA, dict) else (json.loads(rawA) if isinstance(rawA, str) else {})
+        except Exception:
+            return None
+        try:
+            with io.open(_ledger(), encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except Exception:
+            return None
+        rows = (doc.get("result") or {}).get("owned") if isinstance(doc.get("result"), dict) else doc.get("owned")
+        if not isinstance(rows, list):
+            return None
+        n = 0
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            nm = str(r.get("name") or "").strip()
+            if not nm or nm not in held or str(r.get("lane") or "").lower() != "stash" or nm in (assign or {}):
+                continue
+            if vr.gate(r.get("witnesses") or []).get("pass"):
+                n += 1
+        return n
+
+    def right():
+        import console_doctor as cd
+        st, why, counts = cd._vault_provenance_counts()
+        if not isinstance(counts, dict):
+            return None
+        v = counts.get("gatePassingResetHeld")
+        return int(v) if isinstance(v, int) else None
+
+    return ("a-reset-hold-is-not-a-register-prompt",
+            "every stash row the last full reset's plan held that clears the 2-look gate is reported by the "
+            "doctor as held by that reset, never as a row to press register for",
+            "drop the `nm in held_by_reset` continue in console_doctor.vault_provenance_verdict, so a reset-held "
+            "row counts as gate-passing-unfiled again — the doctor's held count falls to 0 while the backup's "
+            "receipt still names them",
+            "backup lane: reset-held names the live gate passes unfiled", left,
+            "the doctor's verdict: gate-passing rows counted as reset-held", right, "==")
+
+
+BUILDERS = (_inv_a_reset_hold_is_not_a_register_prompt,
+            _inv_a_tier_stands_on_the_looks_the_gate_counts,
             _inv_the_router_and_the_shelf_count_the_SAME_reels,
             _inv_a_tombstone_is_never_ahead_of_extraction,
             _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it,
@@ -2370,10 +2470,11 @@ NO_JOINT_YET = {
     # went red on CI. Both were one source, said so rather than claimed covered. 'evidence tiers'
     # got its joint on 2026-09-28 (a-tier-stands-on-its-looks) and moved to COVERED_BY.
     'vault reset receipt':
-        "the row reads the receipt the reset runner writes (window._vaultLastReset: cleared / kept / touched / unknown), and "
-        "the runner is also what compared the kept stores before and after — one writer describing its own act. An "
-        "independent second source would be a ledger backup taken just before the reset diffed against the store after it; "
-        "the backup lane holds those snapshots but no joint reads them against a receipt yet.",
+        "the row reads the receipt the reset runner PERSISTS (d2r_vaultLastReset, #41 rank 2 — before that it read nothing: "
+        "registered with no arguments, it was UNKNOWN for ever): cleared / kept / touched / unknown / refused, with the "
+        "runner's own digest of every kept store before the clears and after the rebuild — one writer describing its own "
+        "act. An independent second source would be a ledger backup taken just before the reset diffed against the store "
+        "after it; the backup lane holds those snapshots but no joint reads them against a receipt yet.",
     # 2026-09-28 — the triage starvation row.
     'triage starved':
         "the row pairs two things the serving console publishes on /api/river — reel_router's TRIAGE "
@@ -2639,7 +2740,9 @@ NO_JOINT_YET = {
     'vault provenance': 'the row compares the board mule map and its d2r_vaultProv witness rows against the '
                         'console gate verdicts on vault_accum and the MAIN ledger; a truly independent second '
                         'source would be the game listing what each mule holds, which it never writes anywhere '
-                        'this console can read.',
+                        'this console can read. (#41 rank 1: arm 3\'s reset-held subset alone has a joint — '
+                        'a-reset-hold-is-not-a-register-prompt, against the backup lane\'s snapshot of the '
+                        'reset receipt — which does not cover the other three arms.)',
     'character sheet data': 'the row re-derives the CHAR_PROPS block from the install and compares it; a real second '
                           'source would be the game reporting a character sheet itself (its own resistances and '
                           'totals), which it never writes anywhere this console can read.',

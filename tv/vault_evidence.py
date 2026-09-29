@@ -459,11 +459,50 @@ def retro_plan(path, recorded=None):
     return _retro_answer(rows, "board" if board is not None else "frames", unjudged)
 
 
-def plan_from_ledger(path):
+def _recorded_filings(recorded):
+    """The board's own filings, as the reset hands them in. -> (names, tiers) | None (not handed in) | False (unreadable).
+
+    #41 rank 1 (2026-09-29): {name: tier | 'filed'} from the board (window._vaultRecordedFilings — the mule map's
+    names and their witness rows' tiers, read BEFORE the reset's clears), or [{name, tier}]. A name whose value is
+    not a tier is still a FILING (tier unknown), so the retro rule may keep it. None means the caller did not say
+    (the frame math decides, as before); a shape that cannot be read is False, never an empty board.
+    """
+    if recorded is None:
+        return None
+    if isinstance(recorded, dict):
+        pairs = list(recorded.items())
+    elif isinstance(recorded, list):
+        pairs = [(r.get("name"), r) for r in recorded if isinstance(r, dict)]
+    else:
+        return False
+    names, tiers = set(), {}
+    for name, val in pairs:
+        if not name:
+            continue
+        names.add(str(name))
+        t = val.get("tier") if isinstance(val, dict) else val
+        if isinstance(t, str) and t.strip().upper() in _TIER_RANK:
+            tiers[str(name)] = t.strip().upper()
+    return names, tiers
+
+
+def plan_from_ledger(path, recorded=None):
     """Read one witness ledger and ask rebuild_plan. Never writes the file.
 
     `path` is the caller's file. This does not know where his ledger lives, and a path that
     cannot be read is UNKNOWN — rebuilt stays empty and ok is false, which is not "nothing proven".
+
+    ══ #41 rank 1 (2026-09-29) — THE RETRO KEEP IS PROMISED ONLY TO A ROW THE BOARD HELD ══════════
+    One vault had three admission bars and nothing paired them: Wilson 0.722 over 10 visits here, 2
+    looks at the normal door, 1 look for a keepFiled retro row — and the retro flag was derived from
+    surplus FRAMES, never from what the board had actually filed. His board has held nothing since his
+    09-27 reset (every backup: d2r_muleAssign {} and d2r_vaultProv {}), and this still promised
+    keepFiled for Radiance and the Horadric Cube ("kept filed by his ruling (§34.2)") on the 1-look
+    bar. §34.2 keeps a row FILED because it was filed before; a board that never filed it has nothing
+    to keep. `recorded` is the board's own filings (see _recorded_filings): with it, a name the board
+    did not hold is judged on its honest tier and HELD like any WATCHED row; the recorded tier, when
+    the board wrote one, is the tier compared against. Without it (None) the frame math decides, as it
+    always did — and `recordedBy` says which. An unreadable `recorded` is UNKNOWN: nothing is rebuilt.
 
     ⚠ THE RETRO FLAG IS NOT STORED ANYWHERE — it is RECOMPUTED on every reset from the frame
     surplus: _retro_row compares what the frame math would file (one success per witness ROW)
@@ -488,6 +527,11 @@ def plan_from_ledger(path):
     floor = _conf_floor()
     if floor is None:
         return _unread()
+    board = _recorded_filings(recorded)
+    if board is False:
+        return _unread("the board's recorded filings could not be read, so which rows it held is UNKNOWN — "
+                       "nothing is rebuilt and nothing is called empty")
+    held_names, held_tiers = (board if board is not None else (None, {}))
     items, filing, retro = [], {}, []
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
@@ -497,7 +541,9 @@ def plan_from_ledger(path):
                      "cells": [], "sessions": [], "witness": None}
         else:
             successes, trials, sessions, cells, witness_sessions, _frames = measured
-            flagged = _retro_row(name, measured)
+            # rank 1 — a row the board never filed is never flagged retro (nothing to keep filed)
+            flagged = (_retro_row(name, measured, held_tiers.get(name))
+                       if (held_names is None or name in held_names) else None)
             item = {"name": name, "successes": successes, "trials": trials,
                     "equipped": _equipped_of(rows), "kind": _kind_of(rows)}
             if flagged:
@@ -541,7 +587,8 @@ def plan_from_ledger(path):
     # The retro flags ride on the plan the console already serves (POST /api/vault_rebuild_plan),
     # read from these same bytes: here as the summary, and on each flagged row of `rebuilt` — the
     # field the board's reset actually files from. [[the-unjoined-end]]
-    plan["retro"] = _retro_answer(retro, "frames")
+    plan["retro"] = _retro_answer(retro, "board" if held_names is not None else "frames")
+    plan["recordedBy"] = "board" if held_names is not None else "frames"
     return plan
 
 
@@ -577,6 +624,9 @@ def cited_frames(path):
     if floor is None:
         return {"ok": False, "frames": None, "why": _UNREAD}
     found, seen = [], set()
+    # #41 rank 4 — beside the bare list: which REEL each cited frame lives in and which ITEMS stand on
+    # it, so a loss can be dated by the reel's tombstone and named by the item (never a bare filename)
+    reels, items = {}, {}
     for name, rows in _group(doc["owned"]):
         measured = _measure(rows, floor)
         if measured is None:
@@ -587,7 +637,15 @@ def cited_frames(path):
             continue
         for shot in shots:
             base = os.path.basename(str(shot.get("frame") or ""))
-            if not base or base in seen:
+            if not base:
+                continue
+            items.setdefault(base, [])
+            if name not in items[base]:
+                items[base].append(name)
+            sess = str(shot.get("session") or "").strip()
+            if sess and base not in reels:
+                reels[base] = sess
+            if base in seen:
                 continue
             seen.add(base)
             found.append(base)
@@ -597,7 +655,7 @@ def cited_frames(path):
                 return {"ok": False, "frames": None, "why": _UNREAD}
     except Exception:
         return {"ok": False, "frames": None, "why": _UNREAD}
-    return {"ok": True, "frames": found, "why": ""}
+    return {"ok": True, "frames": found, "reels": reels, "items": items, "why": ""}
 
 
 def _load_owned(path):
@@ -700,7 +758,95 @@ def pictures_gone(path, root):
                 "why": ("the picture shelf could not be read, so how many evidence links are "
                         "broken is UNKNOWN")}
     gone = [f for f in cited["frames"] if f not in present]
-    return {"ok": True, "gone": gone, "n": len(gone), "cited": len(cited["frames"]), "why": ""}
+    return {"ok": True, "gone": gone, "n": len(gone), "cited": len(cited["frames"]),
+            "reels": {f: cited.get("reels", {}).get(f) for f in gone},
+            "items": {f: cited.get("items", {}).get(f) or [] for f in gone}, "why": ""}
+
+
+# ══ #41 rank 4 — WHEN A CITED PICTURE WENT, AGAINST WHEN THE KEEP LANDED ═══════════════════════════
+# The keep (release_uncited holding a cited frame when its reel is drained, called by apply_plan) landed
+# in c45c5840 on 2026-09-28 07:37:19Z. A picture that was gone before that moment was lost by a drain
+# nothing could have stopped — it is BASELINE, reported beside an OK, never a red that hides the next
+# loss. A picture gone AFTER it is a loss the keep should have prevented: MISSING, naming the item it
+# stands on. A loss no tombstone dates cannot be put on either side and is said UNKNOWN-when — red,
+# because an unexplained loss is not a baseline. [[unknown-stays-unknown]] [[stale-reading]]
+KEEP_LANDED_MS = 1790581039000
+
+
+def _tombstone_times(root):
+    """{session: deletedTs} from the reel tombstones beside `root`, or None when there are none to read."""
+    try:
+        import reel_retention as _rr
+        cands = [_rr._tombstone_path(root), os.path.join(root, "reel_tombstones.json"),
+                 os.path.join(os.path.dirname(os.path.realpath(root)), "reel_tombstones.json")]
+    except Exception:
+        cands = [os.path.join(root, "reel_tombstones.json")]
+    for p in cands:
+        if not p or not os.path.isfile(p):
+            continue
+        try:
+            with io.open(p, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except Exception:
+            return None
+        rows = doc.get("reels") if isinstance(doc, dict) else None
+        if not isinstance(rows, list):
+            return None
+        out = {}
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            reel = str(r.get("reel") or "")
+            sess = reel[len("reel_"):] if reel.startswith("reel_") else reel
+            ts = r.get("deletedTs")
+            if sess and isinstance(ts, (int, float)) and not isinstance(ts, bool):
+                out[sess] = max(int(ts), out.get(sess, 0))
+        return out
+    return None
+
+
+def picture_losses(path, root, landed_ms=None):
+    """pictures_gone, dated. -> {ok, n, cited, gone, baseline:[..], after:[{frame,item,reel,deletedTs}], undated:[..], why}
+
+    `n` / `cited` are pictures_gone's; the split is by each gone frame's reel tombstone against
+    `landed_ms` (KEEP_LANDED_MS). A shelf not opened, or unreadable, is UNKNOWN as before.
+    """
+    got = pictures_gone(path, root)
+    if got.get("n") is None:
+        return dict(got, baseline=None, after=None, undated=None)
+    landed = KEEP_LANDED_MS if landed_ms is None else landed_ms
+    stones = _tombstone_times(root) if got["n"] else {}
+    baseline, after, undated = [], [], []
+    for f in got["gone"]:
+        sess = (got.get("reels") or {}).get(f)
+        names = (got.get("items") or {}).get(f) or []
+        ts = (stones or {}).get(_bare_session(sess)) if sess else None
+        row = {"frame": f, "item": ", ".join(names) or "an item the ledger does not name", "reel": sess, "deletedTs": ts}
+        if ts is None:
+            undated.append(row)
+        elif ts < landed:
+            baseline.append(row)
+        else:
+            after.append(row)
+    return dict(got, baseline=baseline, after=after, undated=undated)
+
+
+def _bare_session(sess):
+    s = str(sess or "")
+    s = s[len("reel_"):] if s.startswith("reel_") else s
+    return s.split("#", 1)[0]
+
+
+def keeps_diff(before, after):
+    """Which kept stores changed between two digest maps, and which could not be compared. -> (touched, unknown)"""
+    touched, unknown = [], []
+    for key in sorted(set(before) | set(after)):
+        if key not in before or key not in after:
+            unknown.append(key)
+            continue
+        if before[key] != after[key]:
+            touched.append(key)
+    return touched, unknown
 
 
 def _refusals(receipt):
@@ -765,15 +911,18 @@ def reset_receipt(receipt, before, after):
 
     rebuilt_n, held_n = _n("rebuilt"), _n("held")
     refused_n, refused_rows = _refusals(receipt)
-    touched, unknown = [], []
-    for key in sorted(set(before) | set(after)):
-        if key not in before or key not in after:
-            unknown.append(key)
-            continue
-        if before[key] != after[key]:
-            touched.append(key)
+    touched, unknown = keeps_diff(before, after)
     base = {"rebuilt": rebuilt_n, "held": held_n, "touched": touched, "unknown": unknown,
             "refused": refused_n, "refusedRows": refused_rows}
+    # #41 rank 2 — "Reset assignments" (door vaultReset) never rebuilds: rebuilt / held are NOT APPLICABLE to it, not
+    # UNKNOWN, so its receipt is judged on the kept stores alone and never reads as "rebuilt is UNKNOWN" for ever
+    if receipt.get("door") == "vaultReset":
+        base = dict(base, rebuilt=None, held=None, refused=None, notApplicable="rebuilt / held (Reset assignments never rebuilds)")
+        if unknown:
+            return dict(base, ok=False, why="a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown))
+        if touched:
+            return dict(base, ok=False, why="a reset must never change %s — it did" % ", ".join(touched))
+        return dict(base, ok=True, why="Reset assignments · kept stores unchanged (nothing is rebuilt by that door)")
     if rebuilt_n is None or held_n is None:
         return dict(base, ok=False, why="rebuilt is UNKNOWN, not 0" if rebuilt_n is None
                     else "held is UNKNOWN, not 0")

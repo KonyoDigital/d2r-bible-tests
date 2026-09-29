@@ -4230,6 +4230,9 @@ window._LP_FORKED = new Set([
      on LADDER it starts empty, which is correct because ladder never had those removals.
      [[ladder-doctrine]] [[the-unjoined-end]] */
   'd2r_vaultRemoved',
+  /* #41 rank 2 — the last vault reset's receipt (window._vaultLastReset, persisted so the doctor's reset row can read it
+     through the board read). A reset clears d2r_owned and d2r_muleAssign, both in this set, so its record forks as they do. */
+  'd2r_vaultLastReset',
   'd2r_unseedBackup', 'd2r_unseedReport', 'd2r_unseedRestoreReport',
   /* #174 v-B2 - the character builder: a build is per-account state (Main and Ladder hold different characters),
      so it forks like d2r_muleEquip. */
@@ -18915,16 +18918,24 @@ try {
   window._ownedProvIsFiling = function(row){
     return !!row && typeof row === 'object' && !Array.isArray(row) && row.kind !== 'owned';
   };
-  function _receipt(rec, ts){
-    var fr = _str(rec.frameId || rec.frame), sid = _str(rec.sessionId || rec.session);
-    var out = { kind: 'owned', source: _str(rec.source), by: _str(rec.by), at: _iso(ts), ts: ts,
+  /* ⚠ L-2 (review of 7cded0c1, reproduced) — A TIME THE READ DID NOT CARRY IS NOT ITS TIME. This stamped every receipt
+     with the wall clock when the read carried none, and H-1 then weighed real drops against that stamp: a framed look
+     with no time, joined to carried loot, made every later drop processed after it (a reclose, a late seal) "OLDER", so
+     the item never left — and the "receipt with no time → UNKNOWN" branch could never be reached. Now `at` / `ts` and
+     the look's `at` are the READ's own time or null; `tsMeasured` says which; `recordedAt` keeps the clock beside them,
+     labelled as the moment of writing. A receipt written before this field carries no flag and is read as it was
+     written (it cannot be told apart, so it is not re-dated). [[stale-reading]] [[unknown-stays-unknown]] */
+  function _receipt(rec, ts, measured){
+    var fr = _str(rec.frameId || rec.frame), sid = _str(rec.sessionId || rec.session), m = (measured !== false);
+    var out = { kind: 'owned', source: _str(rec.source), by: _str(rec.by), at: m ? _iso(ts) : null, ts: m ? ts : null,
+                tsMeasured: m, recordedAt: _iso(ts),
                 sessionId: sid, frameId: fr, frame: fr, loc: _str(rec.loc), scene: _str(rec.scene),
                 conf: _num(rec.conf), readTier: _str(rec.readTier), where: _str(rec.where), via: _str(rec.via),
                 tier: _str(rec.tier), successes: _num(rec.successes), trials: _num(rec.trials),
                 /* §31.2 — loot seen in the inventory's free space is OWNED and CARRIED (not locked) by the character
                    the read was taken on; null = not carried / not said. The character is the read's own, never guessed. */
                 carried: (rec.carried === true) ? true : null, character: _str(rec.character),
-                looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: _iso(ts), loc: _str(rec.loc), scene: _str(rec.scene) }] : [],
+                looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: m ? _iso(ts) : null, loc: _str(rec.loc), scene: _str(rec.scene) }] : [],
                 ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null };
     out.seen = out.looks.length;
     return out;
@@ -18934,6 +18945,19 @@ try {
      its name — and a same-named floor label then un-owned it AND deleted its mule filing. _stateOf decides it now. */
   var _FILL = ['by', 'sessionId', 'frameId', 'frame', 'loc', 'scene', 'conf', 'readTier', 'where', 'via', 'tier', 'successes', 'trials',
                'character'];
+  function _hasFrame(list, fr){ return Array.isArray(list) && list.some(function(d){ return d && d.frame === fr; }); }
+  /* ⚠ L-1 (review of 7cded0c1, reproduced) — THE NAME THE REGISTER OWNS. Removals and leaves were matched on the READ's name,
+     but the register owns the RESOLVED one: a read of "Harlequin Crest" is owned as "Harlequin Crest (Shako)", "Worldstone
+     Shard" as "Worldstone Shard (any)" — and since M-2 the fold keeps "(any)" apart from the bare stem, so a removal of the
+     owned name no longer blocked the bare read (the backfill re-filed it), and a drop of "Harlequin Crest" never left the
+     "(Shako)" he carried. The read's name goes through the register's own resolution (window._vaultResolveName, the ONE
+     slice tvVaultRegister files by) before a removal, a leave or a backfill group is keyed. No register on this page (a
+     harness, an early call) = the name itself, never a guess. -> the resolved name | the name */
+  function _regName(nm){
+    var n = String(nm == null ? '' : nm).trim();
+    if (!n || typeof window._vaultResolveName !== 'function') return n;
+    try { var r = window._vaultResolveName(n); return (typeof r === 'string' && r) ? r : n; } catch (e) { return n; }
+  }
   /* §31.2 — does this look LAND carried loot? A place he keeps things (a stash tab, a mule, worn ...), asked of the ONE
      route — never of the predicate directly, so there is one answer to "is this a holding place". */
   function _landsCarried(loc){
@@ -19010,16 +19034,17 @@ try {
        kinds. -> {full: {folded name: 1}, stems: {stem: {folded name: 1}}} | null (no list on this page) */
     known: function(){
       var src = [];
-      try { if (typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)) ITEMS.forEach(function(i){ if (i && i.n) src.push(i.n); }); } catch (e) {}
-      try { if (typeof RUNEWORDS !== 'undefined' && Array.isArray(RUNEWORDS)) RUNEWORDS.forEach(function(r){ if (r && r.n) src.push(r.n); }); } catch (e) {}
+      try { if (typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)) ITEMS.forEach(function(i){ if (i && i.n) src.push([i.n, 'unique']); }); } catch (e) {}
+      try { if (typeof RUNEWORDS !== 'undefined' && Array.isArray(RUNEWORDS)) RUNEWORDS.forEach(function(r){ if (r && r.n) src.push([r.n, 'runeword']); }); } catch (e) {}
       try { if (typeof ITEM_SETS !== 'undefined' && Array.isArray(ITEM_SETS)) ITEM_SETS.forEach(function(s){
-        if (!s) return; if (s.name) src.push(s.name); (Array.isArray(s.pieces) ? s.pieces : []).forEach(function(p){ if (p) src.push(p); }); }); } catch (e) {}
-      try { if (typeof WS_SHARDS_HUB !== 'undefined' && Array.isArray(WS_SHARDS_HUB)) WS_SHARDS_HUB.forEach(function(w){ if (w && w.n) src.push(w.n); }); } catch (e) {}
+        if (!s) return; if (s.name) src.push([s.name, 'set']); (Array.isArray(s.pieces) ? s.pieces : []).forEach(function(p){ if (p) src.push([p, 'set']); }); }); } catch (e) {}
+      try { if (typeof WS_SHARDS_HUB !== 'undefined' && Array.isArray(WS_SHARDS_HUB)) WS_SHARDS_HUB.forEach(function(w){ if (w && w.n) src.push([w.n, 'shard']); }); } catch (e) {}
       if (!src.length) return null;
       if (_CN.list && src.length === _CN.n) return _CN.list;
-      var full = {}, stems = {};
-      src.forEach(function(nm){ var f = _CN.whole(nm); if (!f) return; full[f] = 1; var st = _CN.stem(f); (stems[st] = stems[st] || {})[f] = 1; });
-      _CN.list = { full: full, stems: stems }; _CN.n = src.length;
+      var full = {}, stems = {}, kinds = {}, names = {};
+      src.forEach(function(p){ var f = _CN.whole(p[0]); if (!f) return; full[f] = 1; kinds[f] = kinds[f] || p[1]; names[f] = names[f] || String(p[0]);
+        var st = _CN.stem(f); (stems[st] = stems[st] || {})[f] = 1; });
+      _CN.list = { full: full, stems: stems, kinds: kinds, names: names }; _CN.n = src.length;
       return _CN.list;
     },
     /* does this stem name more than one known item? -> true | false (no list = false: the old fold) */
@@ -19037,6 +19062,33 @@ try {
     var f = _CN.whole(x), K = _CN.known();
     return !!(K && K.full[f] && _CN.ambiguous(_CN.stem(f)));
   };
+  /* ⚠ L-4 (review of 7cded0c1, reproduced) — A BARE NAME SEVERAL KNOWN ITEMS SHARE IS NOT A MATCH. M-2 stopped the register
+     folding the runeword Crescent Moon into the amulet, and the reviewer showed the other edge: in the game the unique
+     amulet is ALSO named "Crescent Moon", so a bare read of the amulet on a door that calls the register directly (the
+     TV live read, a stash sweep, his hand) was filed as the runeword, and one item became two tiles beside an existing
+     "Crescent Moon (amulet)". The same shape for a bare "Spirit" (shield / sword) and "Hellmouth" (/ gloves). So a name
+     that IS its own stem, when that stem names more than one known item, is AMBIGUOUS: the register refuses it and says
+     which items it could be, the live route waits — unless the read says what kind of thing it read (`hint.kind`:
+     'runeword' | 'unique' | 'set' | 'shard', the ledger row's own store), which settles it when exactly one candidate
+     is of that kind. d2rItemLookup's "AMBIGUITY IS NOT A MATCH", applied one step earlier. [[unknown-stays-unknown]]
+     -> null (not ambiguous) | {name, among, settled?, why} */
+  window._vaultNameAmbiguity = function(x, hint){
+    var f = _CN.whole(x), K = _CN.known();
+    if (!K || !f) return null;
+    var st = _CN.stem(f);
+    if (st !== f) return null;
+    var sib = K.stems[st];
+    if (!sib || Object.keys(sib).length < 2) return null;
+    var among = Object.keys(sib).sort();
+    var kind = (hint && typeof hint === 'object' && hint.kind) ? String(hint.kind).toLowerCase() : '';
+    if (kind){
+      var ofKind = among.filter(function(n){ return K.kinds[n] === kind; });
+      if (ofKind.length === 1) return { name: String(x), among: among, settled: K.names[ofKind[0]] || ofKind[0], kind: kind,
+                                         why: '"' + x + '" names ' + among.length + ' known items, settled by the read’s kind (' + kind + ')' };
+    }
+    return { name: String(x), among: among, settled: null,
+             why: '"' + x + '" names ' + among.length + ' known items (' + among.join(', ') + ') — ambiguity is not a match, so it waits for a read that says which' };
+  };
   window._ownedProvWrite = function(name, rec){
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return { ok: false, why: 'no name' };
@@ -19051,32 +19103,63 @@ try {
       return { ok: true, mode: 'restored', row: all[nm] };
     }
     if (!_str(rec.source)) return { ok: false, why: 'a provenance row must say who or what filed it — none was given, so none was invented' };
-    var ts = _ms(rec.ts) || _ms(rec.at) || Date.now();
-    var fresh = _receipt(rec, ts);
+    var tsM = _ms(rec.ts) || _ms(rec.at);
+    var fresh = _receipt(rec, tsM || Date.now(), tsM != null);
     /* ⚠ M-3 (review of 20c0df1e, reproduced) — CARRIED IS DECIDED ONCE, BY THE READ THAT MADE THE ITEM OWNED. H2 still let a
        later inventory read turn a receipt with no place (state null, "nothing on it says where it is") into carried loot —
        and that is exactly what every door that is not a live read writes: the AI checker's keep, a ledger restore, a photo
        or folder read, a Chronicle apply, a .d2s read, the backfill (18 of the 19 doors the board names, driven). An item
        one of those doors owns was re-marked carried by the next inventory read, and a same-named label on the ground then
        un-owned it; a name owned before receipts existed (no receipt at all) went the same way. So a read is CARRIED only
-       when it is the one that makes the item his: nothing stands for the name yet and it was not already owned (the door
-       below writes the receipt BEFORE it adds the name, so `owned` here is the set as it stood). A standing receipt,
-       whoever wrote it, is never re-marked: the later read joins it as a look (below), which is all it proves. */
-    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;
+       when it is the one that makes the item his: it was not already owned (the door below writes the receipt BEFORE it
+       adds the name, so `owned` here is the set as it stood). A standing receipt for an OWNED name is never re-marked: the
+       later read joins it as a look (below), which is all it proves.
+       ⚠ M-1 (review of 7cded0c1, reproduced) — AND `owned` DECIDES, NOT A RECEIPT THAT OUTLIVED ITS NAME. The M-3 line also
+       read `cur` — so a receipt left behind by a door that un-owned the name without it (the unique card's un-tick, the
+       menu-page import, a rewritten d2r_owned) stopped the NEXT pick-up of that name from being carried, and his real
+       drop after it never left: the v2346 item stayed owned. A pick-up of a name he does NOT own is a pick-up. The stale
+       receipt is kept beside the new one as history (pastReceipts), never as the thing that decides. */
+    if (fresh.carried === true && owned.has(nm)) fresh.carried = null;
     if (cur && typeof cur === 'object' && !Array.isArray(cur)){
       if (cur.kind !== 'owned'){
         if (cur.ownedBy || rec.onFiling === 'keep') return { ok: true, mode: 'kept', row: cur };
         cur.ownedBy = fresh; all[nm] = cur; _write(all);
         return { ok: true, mode: 'kept-filing', row: cur };
       }
-      var ch = false;
+      if (fresh.carried === true && !owned.has(nm)){
+        var pastR = Array.isArray(cur.pastReceipts) ? cur.pastReceipts : [], oldR = Object.assign({}, cur);
+        delete oldR.pastReceipts;
+        fresh.pastReceipts = pastR.concat([oldR]).slice(-LOOKS_CAP);
+        all[nm] = fresh; _write(all);
+        return { ok: true, mode: 'renewed', row: fresh };
+      }
+      var ch = false, landing = null;
       /* §31.2 — CARRIED LOOT LANDS. A carried receipt next seen in a stash tab / on a mule / worn is carried no more:
-         the landing is recorded with its look (where, when, which frame), and the strip lets it go. */
+         the landing is recorded with its look (where, when, which frame), and the strip lets it go.
+         ⚠ M-2 (review of 7cded0c1, reproduced) — A LANDING HAS THE SAME TIME ORDER AS A DROP (H-1). A reclose replayed an
+         OLDER session's stash / mule / worn sighting onto carried loot a NEWER session picked up, and this landed it at
+         that older look — so his later real drop never left ("yours is landed"), and a worn one would have LOCKED it
+         (§29). A holding look lands only what it POSTDATES (weighed against the latest look on the receipt, exactly as a
+         drop is); an older one joins as history (pastLandings) and never lands; a look or a receipt with no time cannot
+         be put in order and changes nothing (UNKNOWN, said on the receipt as unorderedLandings). */
       if (cur.carried === true && fresh.carried !== true && _landsCarried(fresh.loc)){
-        cur.carried = false;
-        cur.landed = { at: fresh.at, ts: fresh.ts, loc: fresh.loc, scene: fresh.scene, frame: fresh.frameId, session: fresh.sessionId };
-        cur.loc = fresh.loc; if (fresh.scene) cur.scene = fresh.scene;
-        ch = true;
+        var landT = _ms(fresh.ts), ownT0 = _ownedSinceMs(cur), lrow = { at: fresh.at, ts: fresh.ts, loc: fresh.loc, scene: fresh.scene,
+                                                                           frame: fresh.frameId, session: fresh.sessionId };
+        if (landT == null || ownT0 == null){
+          landing = 'unknown-order';
+          lrow.why = (landT == null ? 'this look' : 'the look that owns it') + ' carries no time — which came first is UNKNOWN, so it does not land';
+          if (!_hasFrame(cur.unorderedLandings, fresh.frameId)){ cur.unorderedLandings = (cur.unorderedLandings || []).concat([lrow]).slice(-LOOKS_CAP); ch = true; }
+        } else if (landT <= ownT0){
+          landing = 'history';
+          lrow.why = 'older than the look that owns it (' + _iso(ownT0) + ') — never a landing';
+          if (!_hasFrame(cur.pastLandings, fresh.frameId)){ cur.pastLandings = (cur.pastLandings || []).concat([lrow]).slice(-LOOKS_CAP); ch = true; }
+        } else {
+          landing = 'landed';
+          cur.carried = false;
+          cur.landed = lrow;
+          cur.loc = fresh.loc; if (fresh.scene) cur.scene = fresh.scene;
+          ch = true;
+        }
       }
       /* ⚠ H2 — an inventory read never marks a landed, worn, filed, locked or hand-ticked receipt CARRIED (a read cannot
          prove it left the stash — it stays landed); since M-3 it never re-marks a standing receipt at all — the one line
@@ -19087,10 +19170,12 @@ try {
       if (lk && !looks.some(function(l){ return l && l.frame === lk.frame; })){
         cur.looks = looks.concat([lk]).slice(-LOOKS_CAP);
         cur.seen = ((typeof cur.seen === 'number') ? cur.seen : looks.length) + 1;
-        cur.lastAt = lk.at; ch = true;
+        /* M-2 — the last look is the LATEST look: an older replayed one never moves "last seen" backwards */
+        if (lk.at && (_ms(cur.lastAt) == null || _ms(lk.at) > _ms(cur.lastAt))) cur.lastAt = lk.at;
+        ch = true;
       }
       if (ch){ all[nm] = cur; _write(all); }
-      return { ok: true, mode: ch ? 'merged' : 'kept', row: cur };
+      return { ok: true, mode: ch ? 'merged' : 'kept', row: cur, landing: landing };
     }
     all[nm] = fresh; _write(all);
     return { ok: true, mode: 'written', row: fresh };
@@ -19302,14 +19387,16 @@ try {
      carries no time beside a removal — which came first is UNKNOWN) */
   var _RM_NOT_HIS_WORD = { 'seed-cleanse': 1, 'backfill-undo': 1 };
   window._removedAfter = function(name, ts){
-    var key = _cnV(name);
-    if (!key) return null;
+    /* L-1 — the read's name AND the name the register owns it as: a removal journaled under either is his word about it */
+    var keys = {}, k0 = _cnV(name), k1 = _cnV(_regName(name));
+    if (k0) keys[k0] = 1; if (k1) keys[k1] = 1;
+    if (!k0 && !k1) return null;
     var log = _bfJson('d2r_vaultRemoved', []);
     if (!Array.isArray(log)) return { unknown: 'the removal journal would not read — whether you removed it after this read is UNKNOWN' };
     var t = _ms(ts), last = null;
     log.forEach(function(b){
       if (!b || typeof b !== 'object' || _RM_NOT_HIS_WORD[String(b.lane || '')]) return;
-      if (!(Array.isArray(b.names) ? b.names : []).some(function(n){ return _cnV(n) === key; })) return;
+      if (!(Array.isArray(b.names) ? b.names : []).some(function(n){ return keys[_cnV(n)] === 1; })) return;
       var at = _ms(b.proof && b.proof.at) || _ms(b.ts);
       if (at == null) return;
       if (!last || at > last.at) last = { at: at, lane: String(b.lane || 'manual'), frame: (b.proof && b.proof.frame) || null };
@@ -19417,7 +19504,9 @@ try {
   }
   window._carriedLeave = function(name, h, row){
     var nm = String(name == null ? '' : name).trim();
-    if (!nm || !owned.has(nm)) return null;
+    if (!nm) return null;
+    /* L-1 — a drop read as "Harlequin Crest" leaves the "(Shako)" he carries: the name the register owns it as */
+    if (!owned.has(nm)){ var rnm = _regName(nm); if (rnm === nm || !owned.has(rnm)) return null; nm = rnm; }
     var all = _read(), r = all ? all[nm] : null;
     if (!r || r.kind !== 'owned') return null;
     h = h || {}; row = row || {};
@@ -19486,8 +19575,10 @@ try {
     if (typeof window.tvVaultRegister !== 'function'){
       out.route = 'wait'; out.why = 'the vault register is not on this page — UNKNOWN, nothing filed'; return out;
     }
+    /* L-4 — what KIND of thing the row says it read (its own store), so a bare name several known items share can be settled */
+    var kindH = row.kind ? String(row.kind) : (row.store === 'rwMade' ? 'runeword' : (row.store === 'foundLog' ? 'unique' : (row.store === 'setPieces' ? 'set' : null)));
     var wit = { lane: String(h.loc).trim().toLowerCase(), by: String(row.source || 'kai-register'),
-                door: row.door || null, scene: h.scene || null, tier: row.tier || null,
+                door: row.door || null, scene: h.scene || null, tier: row.tier || null, kind: kindH,
                 at: h.ts || row.firstSeenTs || row.ts || null,
                 carried: v.route === 'carried', character: row.character || null,
                 sessions: [{ session: String(row.sessionId || ''), frame: String(h.frame || '') || null,
@@ -19572,7 +19663,9 @@ try {
        the exact string, so a name he removed came back when the ledger spelled it with a curly apostrophe or another case.
        Both are keyed through the vault's own canonical fold now (window._vaultCanonName — tvVaultRegister's _cnV), so the
        replay and the door that files agree on what one item is. [[copy-drift]] [[d2r-curly-apostrophe-class]] */
-    var _cf = window._vaultCanonName;
+    /* L-1 — keyed by the name the REGISTER owns (its own resolution), then folded: a bare "Worldstone Shard" row is the
+       "(any)" he removed or owns, never a third item beside it */
+    var _cf = function(n){ return window._vaultCanonName(_regName(n)); };
     var _rmAt = {};
     _rmLog.forEach(function(b){ (b && Array.isArray(b.names) ? b.names : []).forEach(function(n){
       var k = _cf(n); if (!k) return;
@@ -19845,6 +19938,16 @@ try {
     var n = function(v){ return '<b>' + (+v || 0) + '</b>'; }, sep = ' <span class="vp-sep">\u00b7</span> ';
     var bits = [n(p.owned) + ' owned'];
     if (p.shared) bits.push(n(p.shared) + ' in the shared stash <i>(never muled)</i>');
+    /* ⚠ L-3 (review of 7cded0c1, reproduced) — WITH THE MULE MAP UNREADABLE, "FILED" AND "NOT FILED" ARE UNKNOWN TOO. The line
+       said "0 filed to mules · 13 not filed" from the same store that would not read (his evid_r4 picture read exactly
+       that beside "carried UNKNOWN"). filed:null = the map would not read: neither figure is counted against it, and the
+       sorter waits (vaultAutoAssign refuses while the map is unreadable; saveA never writes over it). [[unknown-stays-unknown]] */
+    if (p.filed === null){
+      bits.push('filed to mules <b>UNKNOWN</b>');
+      bits.push('carried <b>UNKNOWN</b>');
+      bits.push('not filed <b>UNKNOWN</b> <i>(the mule map would not read — nothing is counted against it, and Auto-Sort waits)</i>');
+      return bits.join(sep);
+    }
     bits.push(n(p.filed) + ' filed to mules');
     if (p.carried === null){
       bits.push('carried <b>UNKNOWN</b>');
@@ -24560,7 +24663,16 @@ function toggleOwned(name, prov) {
     wasOwned = _gFound(name);
     try {
       const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
-      if (wasOwned){ delete fl[name]; if (owned.has(name)){ owned.delete(name); persist(); }
+      if (wasOwned){ delete fl[name];
+        /* M-3 (review of 7cded0c1, reproduced) — THE UN-TICK IS HIS WORD ABOUT THE ITEM. It deleted the name from `owned`
+           with no journal row and no receipt drop, so the next reclose replayed the older read that produced the wrong tick
+           and owned it again, and the receipt it left behind blocked a later real pick-up from being carried (M-1). Through
+           the removal door: dated, journaled, undoable — a replayed older read never brings it back. */
+        if (owned.has(name)){
+          var _vrUT = null;
+          try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
+          if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }
+        }
         /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
            delete d2r_gameFound, because "the reason he un-ticks is usually that the READ WAS WRONG, so
            the date belongs to a different item entirely. Left behind, it re-attaches itself the moment
@@ -38862,9 +38974,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           });
         } catch(e){}
         /* a cross-block call: the builder lives in the ⟦OWNED PROV⟧ door, and its absence is said, never a blank line */
+        /* L-3 — the mule map that would not read (load() recorded it) makes filed / not filed UNKNOWN, never 0 / N */
+        var _asgUnread = (typeof window._muleStoreUnread === 'function') ? window._muleStoreUnread(AK) : null;
         _pEl.innerHTML = (typeof window._vaultPopHtml === 'function')
-          ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: _filed,
-                                   carried: _carUnknown ? null : _carried.length, loose: unsorted.length, sp: _sp })
+          ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: _asgUnread ? null : _filed,
+                                   carried: _carUnknown ? null : _carried.length, loose: _asgUnread ? null : unsorted.length, sp: _sp })
           : 'the population line is UNKNOWN — its builder (window._vaultPopHtml) is not on this page';
       }
     } catch(e){}
@@ -39574,7 +39688,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* 2026-09-28 — EVERY ROW SPEAKS, not only a tiered one: who filed it and its tally of looks. */
     var n = Array.isArray(r.looks) ? r.looks.length : 0;
     var who = (typeof window._ownedProvSourceSay === 'function') ? window._ownedProvSourceSay(r.source) : String(r.source || 'UNKNOWN');
-    return (r.kind === 'owned' ? '' : 'filed · ') + who + ' · ' + (n ? (n + ' look' + (n === 1 ? '' : 's')) : 'no picture recorded');
+    var tally = n ? (n + ' look' + (n === 1 ? '' : 's')) : 'no picture recorded';
+    if (r.kind === 'owned') return who + ' · ' + tally;
+    /* #41 rank 10 — A WITNESSED FILING SAYS ITS GATE AND THAT ITS TIER IS UNKNOWN. The normal door's row carries looks and
+       the gate that admitted it, never a tier (only the reset rebuild writes one); a line that said only "2 looks" read as
+       if tiers did not apply to it. Now: the gate rides beside the looks, and the tier is said UNKNOWN — the evidence
+       table has not judged this row, which is not the same as WATCHED. [[unknown-stays-unknown]] */
+    var g = (r.gate && typeof r.gate === 'object') ? r.gate : null;
+    return 'filed · ' + who + ' · ' + tally
+      + (g ? (' · gate ' + (g.pass === true ? 'passed' : 'held') + ((typeof g.looks === 'number') ? ' on ' + g.looks : '')) : '')
+      + ' · tier UNKNOWN';
+  };
+  /* #41 rank 3 (reproduced: 0 of 109 cited pictures reachable) — WHERE A LOOK'S PICTURE LIVES. Every banked evidence frame
+     sits one directory down, at hist/reel_<session>/<frame>; the lightbox was handed the bare frame id, the bridge refuses
+     any "/" in an id and the archive leg joins hist/<id>.jpg — so every click opened "frame missing" (the v3182 defect,
+     back). The rebuild stores a look's id as its VISIT ("s_…#0"), so the bucket suffix is stripped; a look with no session
+     has no reel to name and gets no src (the old chain still runs). -> 'tv/frames/hist/reel_<sid>/<frame>' | null */
+  window._vaultLookSrc = function(look){
+    var fr = look && look.frame ? String(look.frame) : '', sid = look && look.session ? String(look.session) : '';
+    if (!fr || !sid) return null;
+    var s = sid.replace(/#\d+$/, '').replace(/^reel_/, '');
+    if (!s || /[\/\\]/.test(s) || /[\/\\]/.test(fr)) return null;
+    return 'tv/frames/hist/reel_' + s + '/' + fr;
   };
   window._vaultEvidenceLooks = function(name){
     var nm = String(name == null ? '' : name).trim();
@@ -39629,6 +39764,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         m.who = ps || say(r.source);
       }
       m.at = r.at || null; m.when = _evWhen(r.ts || r.at);
+      /* L-2 — a read that carried no time: the moment it was WRITTEN is said as such, never as when it was seen */
+      if (!m.when && r.tsMeasured === false && r.recordedAt) m.when = 'seen at an UNKNOWN time · recorded ' + (_evWhen(r.recordedAt) || r.recordedAt);
       var loc = r.loc || (r.kind !== 'owned' ? r.source : null);
       m.seen = loc ? ((loc === 'equipped' ? 'worn (equipped)' : 'in your ' + loc) + (r.scene ? ' · screen: ' + r.scene : ''))
                    : (r.scene ? 'screen: ' + r.scene + ' · place UNKNOWN' : null);
@@ -39696,7 +39833,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      frames and the evidence authority's citations (tv_diablo._journal_frame_ids / _reel_evidence), not these. So an
      old receipt's frame may have been reaped under the disk floor: the panel says "picture not on this machine" with
      the console's reason, never a broken image. REG-1387. */
-  window._vaultEvidencePicture = function(frameId, done){
+  window._vaultEvidencePicture = function(frameId, done, src){
     var id = String(frameId == null ? '' : frameId).trim(), fin = false;
     var end = function(p){ if (!fin){ fin = true; try { done(p); } catch (e) {} } };
     if (!id) return end({ state: 'none', say: 'no picture was recorded with this read' });
@@ -39714,7 +39851,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         end({ state: 'unknown', frame: id, say: 'picture not on this machine — why is UNKNOWN (the console did not say)' });
       }).catch(function(){ clearTimeout(kill); end({ state: 'unknown', frame: id, say: 'picture not on this machine — why is UNKNOWN (the console did not answer)' }); });
     };
-    var chain = []; try { chain = (typeof window._tvdFrameChain === 'function') ? (window._tvdFrameChain(id) || []) : []; } catch (e) { chain = []; }
+    /* rank 3 — the panel's off-screen probe walks the SAME chain the lightbox will, reel path first */
+    var chain = []; try { chain = (typeof window._tvdFrameChain === 'function') ? (window._tvdFrameChain(id, src || null) || []) : []; } catch (e) { chain = []; }
     if (!chain.length || typeof Image !== 'function') return ask();
     var i = 0, img = new Image();
     var guard = setTimeout(function(){ img.onload = img.onerror = null; ask(); }, 8000);
@@ -39741,7 +39879,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (window.__vevTicket !== ticket) return;
       var box = host.querySelector('.vev-pic');
       if (box) box.outerHTML = window._vaultEvidencePicHtml(m, pic);
-    });
+    }, window._vaultLookSrc(first));
     return m;
   };
   window._vaultEvidenceClose = function(){
@@ -39778,8 +39916,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: !!look.crop, frame: look.crop || null, say: 'frame released — crop kept', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
     }
     if (!look.frame) return { ok: false, frame: null, say: 'picture missing: UNKNOWN', title: 'picture missing: UNKNOWN · ' + title, ids: looks.map(function(k){ return k.frame || null; }) };
-    if (typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.frame, { title: title });
-    return { ok: true, frame: look.frame, say: '', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
+    var srcL = window._vaultLookSrc(look);
+    if (typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.frame, srcL ? { title: title, src: srcL } : { title: title });
+    return { ok: true, frame: look.frame, src: srcL, say: '', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
   };
   window._vaultOpenEvidence = function(name, index){
     var nm = String(name == null ? '' : name).trim();
@@ -39816,9 +39955,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      dock is for), but the MULE MAP moves only through window.vaultFile, and only when `witness` passes. A
      call with no witness registers and files NOTHING — this function filed 112 Chronicle names on
      2026-08-28 with no container behind any of them, and that vault was carried forward for a month. */
-  window.tvVaultRegister = function(name, witness){
-    try {
-      name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+  /* ⚠ L-1 (review of 7cded0c1) — THE ONE NAME RESOLUTION, published. It was tvVaultRegister's private slice, so the owned
+     door's removal / leave / backfill keys (which must agree with what the register FILES a read as) could not ask it.
+     Byte for byte the register's own lines; the register calls it and so does window._regName in the owned door.
+     -> the name the register would file `name` as (a string, never null) */
+  window._vaultResolveName = function(name){
+    name = String(name == null ? '' : name).trim(); if (!name) return name;
       // v792 (R3 pick 3) — ONE identity across both engines: resolve to the same canonical
       // key the chronicle uses (suffix-tolerant ITEMS match + canonical set-piece name), so
       // 'Harlequin Crest' and 'Harlequin Crest (Shako)' are never two vault tiles.
@@ -39858,6 +40000,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_pV && _pV.piece) name = _pV.piece;
         }
       } catch(e){}
+    return name;
+  };
+  window.tvVaultRegister = function(name, witness){
+    try {
+      name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      /* L-4 — a bare name several known items share is refused (or settled by the read's kind), never filed as one of them */
+      var _ambV = (typeof window._vaultNameAmbiguity === 'function')
+        ? window._vaultNameAmbiguity(name, { kind: (witness && typeof witness === 'object') ? witness.kind : null }) : null;
+      if (_ambV && !_ambV.settled) return { ok:false, refused:'ambiguous', among:_ambV.among, why:_ambV.why };
+      if (_ambV && _ambV.settled) name = _ambV.settled;
+      name = window._vaultResolveName(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
       /* 2026-09-28 — THE READ THAT BROUGHT THE NAME IS ITS RECEIPT: who handed it over, where it was seen, the
          session and frame of its one look. No witness at all = the TV register itself, and nothing else claimed. */
@@ -40262,6 +40415,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.tvVaultUnregister = function(name){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false };
+      /* M-3 (review of 7cded0c1) — a name the board holds leaves through the journaled door (the TV saw it thrown: a real
+         signal, dated, undoable); a filing residue for a name it does not hold is dropped as before */
+      if (owned.has(name)){ try { window.vaultRemove([name], { lane: 'tv-unvault', quiet: true, why: 'the TV saw it thrown' }); } catch(e){} }
       try { owned.delete(name); } catch(e){}
       try { delete assign[name]; } catch(e){}
       try { _provDrop(name); } catch(e){}
@@ -40868,6 +41024,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!nm || nm.length < 3) return null;
     var _cn = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
     var qn = _cn(nm);
+    /* L-4 (review of 7cded0c1) — the register's rule, one step upstream: a bare name several known items share (Crescent
+       Moon the runeword beside Crescent Moon (amulet); Spirit; Hellmouth) is not turned into whichever one the codex holds
+       by the case-insensitive loop below. It is UNKNOWN, said (null), and the inbox holds it for his eye. */
+    try { if (typeof window._vaultNameAmbiguity === 'function' && window._vaultNameAmbiguity(nm)) return null; } catch(eA){}
     // inventory-only grails (always keep, never toss)
     if (/^(annihilus|hellfire torch|gheed'?s fortune)$/i.test(nm)) return { name: nm, rarity: 'unique', via: 'keep-inv' };
     try {
@@ -41659,6 +41819,11 @@ window._laneLockRelease = function(name){
 };
 
 window.vaultAutoAssign = function(){
+    /* L-3 (review of 7cded0c1) — THE SORTER WAITS WHILE THE MULE MAP WILL NOT READ. Sorting over a map load() could not
+       parse would file against an empty {} and then ask saveA to write it (saveA refuses, but the in-memory map would
+       still say the filings exist). UNKNOWN is said, and nothing is sorted. [[unknown-stays-unknown]] */
+    var _unreadA = (typeof window._muleStoreUnread === 'function') ? window._muleStoreUnread(AK) : null;
+    if (_unreadA){ status('⚠ the mule map ' + _unreadA + ' — nothing was sorted, and nothing will be written over it'); return { filed: 0, refused: 'mule-map-unreadable', why: _unreadA }; }
     var n=0, suggested=0, suggestedRows=[];
     function _log(name, status, sg){
       try {
@@ -41723,8 +41888,11 @@ window.vaultAutoAssign = function(){
     var unsorted = ownedPool().filter(function(name){ return !assign[name] && !isSharedStash(name); });
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
-    unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
-    try { _provDrop(unsorted); } catch(e){}
+    /* ⚠ M-3 (review of 7cded0c1, reproduced) — HIS DELETE IS HIS WORD, SO IT GOES THROUGH THE JOURNALED DOOR. This took the
+       names out of `owned` beside the removal journal, so the next reclose (every kaiVer bump, POST /api/kai_reclose)
+       replayed the same older read and owned them again — REG-1391's "his removal outranks every older read" could not see
+       a removal it never recorded. Dated, listed, undoable, like every other removal on this board. */
+    try { window.vaultRemove(unsorted, { lane: 'clear-unsorted', quiet: true, why: 'Delete unsorted — the dock button' }); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
@@ -41799,11 +41967,10 @@ window.vaultAutoAssign = function(){
         + '\n\nThey are in alphabetical order, which a stash never is. Mule assignments are '
         + 'untouched.'))) { v.armed = false; renderVault(); return; }
     var n = 0;
-    names.forEach(function(name){
-      if (assign[name]) return;              /* already filed in a mule — his hand put it there */
-      try { owned.delete(name); n++; } catch(e){}
-      delete assign[name];
-    });
+    /* M-3 (review of 7cded0c1) — through the journaled door (see vaultClearUnsorted): a replayed older read never re-owns them */
+    var takeM = names.filter(function(name){ return !assign[name]; });   /* already filed in a mule — his hand put it there */
+    try { var vrM = window.vaultRemove(takeM, { lane: 'menu-import', quiet: true, why: 'These look like a chronicle page — taken out of owned' });
+          n = (vrM && vrM.removed) ? vrM.removed.length : 0; } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     try { window._repaintOwned(); } catch(e){}
     status('\ud83d\udcd6 removed ' + n + ' menu-read name(s) from owned');
@@ -45940,6 +46107,46 @@ function renderJournal(){
     if (v && typeof v === 'object') return Object.keys(v).length;
     return null;
   }
+  /* #41 rank 1 — WHAT THE BOARD HELD GOING INTO A RESET, read BEFORE the clears. His ruling §34.2 keeps a retro row FILED
+     because it was filed before; the plan was asked with '{}' and derived "filed before" from surplus FRAMES, so a board
+     that held nothing (every backup since his 09-27 reset) was promised keepFiled for Radiance and the Cube on the 1-look
+     bar. The reset now hands the plan its own filings: the mule map's names and their witness rows' tiers.
+     -> {name: tier | 'filed'} | null (a store would not read — UNKNOWN, and the plan is told nothing rather than a guess) */
+  function _vaultRecordedFilings(){
+    var rawA = _vResetRead(AK), rawP = _vResetRead(PROV_KEY);
+    if (rawA === undefined || rawP === undefined) return null;
+    var a = {}, p = {};
+    try { a = rawA ? JSON.parse(rawA) : {}; p = rawP ? JSON.parse(rawP) : {}; } catch (e) { return null; }
+    if (!a || typeof a !== 'object' || Array.isArray(a) || !p || typeof p !== 'object' || Array.isArray(p)) return null;
+    var out = {};
+    Object.keys(a).forEach(function(k){ if (a[k] && a[k] !== '__throwout') out[k] = 'filed'; });
+    Object.keys(p).forEach(function(k){ var r = p[k]; if (!r || typeof r !== 'object' || r.kind === 'owned') return;
+      out[k] = (typeof r.tier === 'string' && r.tier) ? r.tier : (out[k] || 'filed'); });
+    return out;
+  }
+  /* #41 rank 2 — THE RECEIPT IS PERSISTED. window._vaultLastReset lived in the page only: the doctor's 'vault reset receipt'
+     row (registered with no arguments) could never read one, his 09-27 reset left no trace, and two comments said the row
+     read it. Now the receipt lands in d2r_vaultLastReset (forked like the stores it clears, _LP_FORKED) with a digest of
+     every kept store before the clears and after the rebuild, and the row reads it through the ONE board read. */
+  var RESET_RECEIPT_KEY = 'd2r_vaultLastReset';
+  function _vDigest(raw){
+    if (raw === undefined) return undefined;
+    if (raw === null) return 'absent';
+    var h = 5381, s = String(raw);
+    for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return s.length + ':' + h.toString(16);
+  }
+  function _vaultResetPersist(R, before){
+    var S = _VAULT_RESET_SCOPE;
+    R.keepsBefore = {}; R.keepsAfter = {};
+    S.keeps.forEach(function(k){
+      var b = _vDigest(before[k.store]), a = _vDigest(_vResetRead(k.store));
+      if (b !== undefined) R.keepsBefore[k.store] = b;
+      if (a !== undefined) R.keepsAfter[k.store] = a;
+    });
+    try { window.LSR.setItem(RESET_RECEIPT_KEY, JSON.stringify(R)); R.persisted = true; }
+    catch (e) { R.persisted = false; }
+  }
   /* the ONE runner. A door names itself; the scope says what that door may clear. The receipt is
      window._vaultLastReset: {door, at, cleared{part: count before | true}, failed[], kept{store: count},
      touched[], unknown[], ok} — ok is true only when every keep store was re-read and none changed, false when
@@ -45951,6 +46158,7 @@ function renderJournal(){
     if (!parts){ R.ok = false; R.failed.push('no such reset door: ' + door); return R; }
     var before = {};
     S.keeps.forEach(function(k){ before[k.store] = _vResetRead(k.store); R.kept[k.store] = _vResetCount(before[k.store]); });
+    R.recorded = _vaultRecordedFilings();
     parts.forEach(function(p){ var c = S.clears[p]; if (c.store) R.cleared[p] = _vResetCount(_vResetRead(c.store)); });
     parts.forEach(function(p){ var c = S.clears[p]; if (c.later) return; try { c.clear(); } catch(e){ R.failed.push(p); } });
     S.keeps.forEach(function(k){
@@ -45969,6 +46177,14 @@ function renderJournal(){
         R.planWhy = 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty';
       }
     }
+    /* #41 rank 9 — R.ok IS DECIDED AFTER THE REBUILD TOO. It was set above, before _vaultRefileFromPlan, so a reset whose
+       plan was unread or whose rows the door refused still wore the clean 🧹 prefix. A refusal is false; an unread plan
+       is UNKNOWN (null), never true. */
+    if (R.door === 'vaultClearHistory'){
+      if (Array.isArray(R.rebuiltFailed) && R.rebuiltFailed.length) R.ok = false;
+      else if (R.rebuilt === null && R.ok === true) R.ok = null;
+    }
+    _vaultResetPersist(R, before);
     try { console.info('[vault reset] ' + JSON.stringify(R)); } catch(e){}
     return R;
   }
@@ -45976,10 +46192,10 @@ function renderJournal(){
      that plan named, through window.vaultFile. No plan (the public site, a console that did not
      answer) is UNKNOWN — nothing is filed back and the status does not say the vault was empty.
      The witness ledger is not a store this runner writes. */
-  async function _vaultAskRebuildPlan(){
+  async function _vaultAskRebuildPlan(recorded){
     var unread = { ok: false, rebuilt: [], held: [], why: 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty' };
     try {
-      if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence();
+      if (typeof window._vaultPlanFromEvidence === 'function') return await window._vaultPlanFromEvidence(recorded);
     } catch (e) { return unread; }
     var host = '';
     try { host = (window.location) ? String(window.location.hostname || '') : ''; }
@@ -45990,7 +46206,9 @@ function renderJournal(){
     try { ctl = new AbortController(); } catch (e3) { ctl = null; }
     try {
       timer = setTimeout(function(){ try { if (ctl) ctl.abort(); } catch (e4) {} }, 4000);
-      var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' };
+      /* rank 1 — the board's own filings ride with the ask; null = they could not be read (the plan is told so) */
+      var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recorded: (recorded && typeof recorded === 'object') ? recorded : null }) };
       if (ctl) opt.signal = ctl.signal;
       var res = await fetch('http://127.0.0.1:17772/api/vault_rebuild_plan', opt);
       if (!res || !res.ok) return unread;
@@ -46002,12 +46220,19 @@ function renderJournal(){
   async function _vaultRefileFromPlan(R){
     if (!R || R.door !== 'vaultClearHistory') return;
     R.rebuilt = null; R.held = null; R.planWhy = '';
-    var plan = await _vaultAskRebuildPlan();
+    var plan = await _vaultAskRebuildPlan(R.recorded);
     if (!plan || plan.ok !== true || !Array.isArray(plan.rebuilt)) {
       R.planWhy = (plan && plan.why) || 'the witness ledger could not be read, so nothing is rebuilt and nothing is called empty';
       return;
     }
     R.held = Array.isArray(plan.held) ? plan.held.length : null;
+    /* rank 9 — held is split: a WATCHED row (under the bar) and an UNKNOWN one (its counts could not be read) are not one
+       number; the names ride on the receipt so the doctor can tell a reset-held row from an unfiled one */
+    if (Array.isArray(plan.held)){
+      R.heldWatched = plan.held.filter(function(h){ return h && h.tier === 'WATCHED'; }).length;
+      R.heldUnknown = plan.held.filter(function(h){ return h && h.tier == null; }).length;
+      R.heldNames = plan.held.map(function(h){ return h && h.name ? String(h.name) : null; }).filter(Boolean);
+    }
     var names = [], failed = [], rows = plan.rebuilt;
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -46020,7 +46245,8 @@ function renderJournal(){
       if (filed && filed.ok) names.push(String(row.name));
       /* Ledger fix round 2, finding B — EVERY REFUSAL IS SAID. This pushed a bare name that nothing read, so a plan row the
          door refused fell silently between "rebuilt" and "held". It now carries the door's own code and reason; the status
-         line names it (_vaultResetSay) and the doctor's reset row reads it (vault_evidence.reset_receipt). */
+         line names it (_vaultResetSay) and the doctor's reset row reads it off the persisted receipt (d2r_vaultLastReset,
+         through the board read — vault_evidence.reset_receipt). */
       else failed.push({ name: String(row.name), refused: (filed && filed.refused) ? String(filed.refused) : (threw ? 'error' : 'no-answer'),
                          why: (filed && filed.why) ? String(filed.why) : (threw ? ('the door threw: ' + threw) : 'the door did not answer') });
     }
@@ -46062,8 +46288,11 @@ function renderJournal(){
     if (R.touched.length) bits.push('⚠ a reset must never change ' + R.touched.join(', ') + ' — it did');
     if (R.unknown.length) bits.push('could not re-read ' + R.unknown.join(', ') + ' — UNKNOWN, not confirmed intact');
     if (R.door === 'vaultClearHistory') {
-      if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read');
-      else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN'));
+      /* rank 9 — planWhy has a reader: an unread plan says why; held says how many were WATCHED and how many UNKNOWN */
+      if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read' + (R.planWhy ? ' (' + R.planWhy + ')' : ''));
+      else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN')
+                     + ((typeof R.heldWatched === 'number' && typeof R.heldUnknown === 'number')
+                        ? ' (' + R.heldWatched + ' WATCHED · ' + R.heldUnknown + ' UNKNOWN)' : ''));
       var rf = Array.isArray(R.rebuiltFailed) ? R.rebuiltFailed : [];
       if (rf.length) bits.push('⚠ ' + rf.length + ' could not be re-filed: ' + rf.slice(0, 6).map(function(f){
           return (f && f.name ? f.name : String(f)) + ' (' + ((f && (f.why || f.refused)) || 'no reason') + ')';

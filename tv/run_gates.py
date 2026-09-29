@@ -7026,7 +7026,25 @@ GATES = [
              "amulet. M-3 carried is decided once, by the read that made the item owned: no door's item (all 19 the board "
              "names) and no pre-receipt name becomes droppable loot. L-4 an unreadable d2r_muleAssign is UNKNOWN on the "
              "strip and the population line, never '0 carried' / 'still loose'. L-5 the carried grid and the dock reserve "
-             "the corner tray's band (pixels at 375/901/1280). 24 cases, 15 red-proofs."),
+             "the corner tray's band (pixels at 375/901/1280). Round 5 (M-1) re-pointed the stale-receipt case: `owned` "
+             "decides carried, a receipt that outlived its name is history. 24 cases, 16 red-proofs."),
+    Gate("test_carried_loot_is_decided_by_owned_and_lands_in_order",
+         [sys.executable, os.path.join(HERE, "test_carried_loot_is_decided_by_owned_and_lands_in_order.py")], 120,
+         why="2026-09-29 - the review of 7cded0c1 (vault evidence route, round 5), his §31 / §29 rulings, each reproduced. "
+             "M-1 a receipt a door left behind when it un-owned the name stopped the next real pick-up from being carried, so "
+             "his later real drop never left: `owned` decides carried, the stale receipt is kept as history. M-2 a reclose "
+             "replayed an OLDER stash / worn sighting onto carried loot a NEWER session picked up and LANDED it there (a worn "
+             "one would have locked it): a holding look lands only what it postdates, an older one is history, an undated one "
+             "is UNKNOWN. M-3 'Delete unsorted', the menu-page import, the TV unvault and the unique card's un-tick took names "
+             "out beside the removal journal, so the next reclose re-owned what he deleted: every un-own goes through the "
+             "journaled door (three driven through the REAL door, the un-tick pinned as code). L-1 removals and leaves were "
+             "matched on the read's name while the register owns the resolved one (Worldstone Shard vs (any), Harlequin Crest "
+             "vs (Shako)): the read's name goes through the ONE published resolution slice first. L-2 an undated read was "
+             "stamped with the wall clock and real drops were then 'OLDER': its time is null, tsMeasured false, recordedAt "
+             "beside it, and UNKNOWN is said. L-3 with the mule map unreadable the line said '0 filed · N not filed': both "
+             "UNKNOWN, and Auto-Sort waits. L-4 a bare name several known items share (Crescent Moon the runeword beside the "
+             "amulet; Spirit; Hellmouth) was filed as one of them: ambiguity is not a match - refused, or settled by the "
+             "read's kind, in the register and the AI checker alike. 22 cases, 15 red-proofs."),
     Gate("test_a_still_screen_is_one_look",
          [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
          why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "

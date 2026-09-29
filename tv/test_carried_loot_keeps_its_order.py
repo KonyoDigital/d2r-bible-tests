@@ -681,7 +681,7 @@ RED_PROOF = [
     {"why": "H2: carried is a field to fill again — an inventory read re-marks a stashed / worn item carried (the re-mark "
             "is gone since the review of 20c0df1e, M-3: carried is decided once; this puts the fill back where it stood)",
      "file": "bible.html",
-     "find": "    if (fresh.carried === true && (cur || owned.has(nm))) fresh.carried = null;\n",
+     "find": "    if (fresh.carried === true && owned.has(nm)) fresh.carried = null;\n",
      "replace": "    if (fresh.carried === true && cur && cur.kind === 'owned' && cur.carried !== true){ cur.carried = true; }\n",
      "matches": 1},
     {"why": "H2: a same-named floor label takes out an item that is not carried (landed / filed / worn / locked / hand)",
@@ -721,7 +721,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "M3: the backfill keys removals and owned names by the exact string again",
      "file": "bible.html",
-     "find": "    var _cf = window._vaultCanonName;\n",
+     "find": "    var _cf = function(n){ return window._vaultCanonName(_regName(n)); };\n",
      "replace": "    var _cf = function(x){ return String(x == null ? '' : x); };\n",
      "matches": 1},
     {"why": "M4: the strip implies it knows the character — the plain UNKNOWN sentence is gone",

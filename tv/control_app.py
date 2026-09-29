@@ -26377,16 +26377,20 @@ def vault_proven_names(min_witnesses=2):
                     % (len(proven), len(rows), int(min_witnesses)))}
 
 
-def vault_rebuild_plan(path=None):
+def vault_rebuild_plan(path=None, recorded=None):
     """Which cleared marks a full reset files back. Reads the witness ledger. Never writes it.
 
     The bar is vault_evidence.rebuild_plan. This function does not keep a second one. An
     unreadable ledger comes back ok:false — not an empty rebuilt list the board could show as
     "nothing proven".
+
+    #41 rank 1 (2026-09-29): `recorded` is the board's own filings ({name: tier | 'filed'}), read by
+    the reset BEFORE its clears and POSTed with the ask, so a retro row is kept filed only where the
+    board had filed it. None = the board did not say (the frame math decides, as before).
     """
     import vault_evidence as VE
     p = path if path else VAULT_LEDGER_PATH
-    return VE.plan_from_ledger(p)
+    return VE.plan_from_ledger(p, recorded=recorded)
 
 
 def vault_ledger_view():
@@ -39346,7 +39350,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/vault_rebuild_plan":
             # READS ONLY. The board's full reset asks which cleared marks come back, then files
             # them itself through window.vaultFile. This does not write the witness ledger.
-            self._json(200, vault_rebuild_plan())
+            # #41 rank 1 — the board's own filings ride with the ask (body.recorded), so the retro
+            # keep is promised only to a row the board held; absent, the frame math decides as before.
+            self._json(200, vault_rebuild_plan(recorded=body.get("recorded") if isinstance(body, dict) else None))
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason

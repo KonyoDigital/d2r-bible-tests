@@ -70,6 +70,8 @@ SCOPE_STORES = {"assign": "d2r_muleAssign", "prov": "d2r_vaultProv",
                 "journal": "d2r_intakeLog", "seen": "d2r_intakeSeen",
                 "owned": "d2r_owned"}
 FOLDER_IDB = "d2r_vault_fs/shotdir"
+#: #41 rank 2 — the reset persists its receipt here (the runner's own record; the doctor's reset row reads it)
+RECEIPT_KEY = "d2r_vaultLastReset"
 DOORS = {"vaultReset": ["assign", "prov"],
          "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder", "owned"]}
 #: what no reset may ever touch. d2r_owned is cleared by the FULL door only (his ruling 2026-09-27).
@@ -303,7 +305,8 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
 
     def test_reset_assignments_clears_only_the_filings(self):
         r = self.o["reset"]
-        allowed = ("d2r_muleAssign", "d2r_vaultProv")
+        # #41 rank 2 — the reset's own receipt (d2r_vaultLastReset) is the runner's record of its act, not his data
+        allowed = ("d2r_muleAssign", "d2r_vaultProv", RECEIPT_KEY)
         self.assertEqual([], _changed(r["before"]["store"], r["after"]["store"], allowed),
                          "Reset assignments changed a store outside its scope")
         self.assertEqual("{}", r["after"]["store"].get("d2r_muleAssign"), "the mule assignments were not cleared")
@@ -319,10 +322,17 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         self.assertEqual(134, rc["kept"]["d2r_setPieces"])
         self.assertNotIn("d2r_owned", rc.get("cleared") or {}, "Reset assignments cleared the owned list")
         self.assertEqual(r["before"]["store"].get("d2r_owned"), r["after"]["store"].get("d2r_owned"))
+        # #41 rank 2 — the receipt is persisted, with a digest of every kept store before and after
+        saved = json.loads(r["after"]["store"].get(RECEIPT_KEY) or "null")
+        self.assertIsInstance(saved, dict, "the reset left no persisted receipt for the doctor to read")
+        self.assertEqual("vaultReset", saved.get("door"))
+        self.assertTrue(saved.get("persisted"))
+        self.assertIn("d2r_setPieces", saved.get("keepsBefore") or {})
+        self.assertEqual(saved["keepsBefore"]["d2r_setPieces"], saved["keepsAfter"]["d2r_setPieces"])
 
     def test_the_vault_reset_clears_only_the_mules_and_the_intake_records(self):
         f = self.o["full"]
-        allowed = tuple(SCOPE_STORES.values())
+        allowed = tuple(SCOPE_STORES.values()) + (RECEIPT_KEY,)
         self.assertEqual([], _changed(f["before"]["store"], f["after"]["store"], allowed),
                          "the vault reset changed a store outside its scope - his sets, uniques, chronicle or stashes")
         a = f["after"]["store"]
@@ -386,6 +396,9 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
         u = self.o["unknown"]
         rc = u["receipt"] or {}
         self.assertIn("d2r_setPieces", rc.get("unknown") or [], "an unreadable kept store was not called UNKNOWN: %r" % rc)
+        # rank 2 — the persisted digest leaves an unreadable store OUT (the doctor reads absence as UNKNOWN, never intact)
+        self.assertNotIn("d2r_setPieces", rc.get("keepsBefore") or {})
+        self.assertIn("d2r_foundLog", rc.get("keepsBefore") or {})
         self.assertIsNone(rc.get("ok"), "a reset that could not re-read a kept store claimed ok=%r" % rc.get("ok"))
         self.assertIsNone(rc["kept"]["d2r_setPieces"], "an unreadable store was counted as a number")
         st = u["status"] or ""
