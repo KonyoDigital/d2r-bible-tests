@@ -70,6 +70,35 @@ _NO_SHELF = ("this shelf holds no reels, so nothing about reel STATIONS could be
              "— a skip is NOT a pass. Run against a shelf (TV_HIST) to exercise these laws.")
 
 
+#: ⚠⚠ 2026-09-29 (#50, REG-1449) — A SHELF OF ITS OWN, BECAUSE THE HOST'S SHELF WAS THE FIXTURE AGAIN.
+#: These laws took whatever reel `route()` found on the machine. In heart2's sandbox (frames are never
+#: copied) that was ONE reel of his - brought across only because another gate declares it in
+#: PROOF_NEEDS - so on his Mac the laws ran and the sabotage went red, while on the ALT, on Dean's PC and
+#: on CI the shelf was empty, every law SKIPPED, and the proof read BLIND. Now that every PC proves
+#: itself (REG-1447), a BLIND instrument shuts every lock on that PC. The router's own docstring names
+#: the supported seam: patch `_evidence`. One reel per station, built from EVIDENCE_FIELDS alone - the
+#: same inputs `_station_of` reads on his real shelf - and two at EMPTY so FIFO has an order to check.
+_SHELF = {
+    "reel_s_1788700000101_11": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
+    "reel_s_1788700000102_12": {"sealed": False, "names": 0, "surveyed": True, "worthReading": False},  # EMPTY
+    "reel_s_1788700000103_13": {"sealed": True, "names": 0, "surveyed": True, "worthReading": True},    # CAPTURE
+    "reel_s_1788700000104_14": {"sealed": False, "names": 0, "surveyed": True, "worthReading": True},   # STATION
+    "reel_s_1788700000105_15": {"sealed": False, "names": 3, "surveyed": True, "worthReading": True},   # PRINTER
+}
+_REAL_EVIDENCE = None
+
+
+def setUpModule():
+    global _REAL_EVIDENCE
+    _REAL_EVIDENCE = RR._evidence
+    RR._evidence = lambda hist=None: ({k: dict(v) for k, v in _SHELF.items()}, "the law's own shelf")
+
+
+def tearDownModule():
+    if _REAL_EVIDENCE is not None:
+        RR._evidence = _REAL_EVIDENCE
+
+
 def _row(reel, station, kind="actor", by="lane:route", seq=1):
     return {"at": 1788700000000 + seq, "seq": seq, "reel": reel, "station": station,
             "from": None, "by": by, "byKind": kind, "why": "fixture"}
@@ -379,7 +408,14 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         """★ `assert_independent_of_retention`'s docstring warns the coupling could return "one
         function upstream". The overlay put a real station decision into `route()`, which the guard
         was not watching at all."""
-        ok, findings = RR.assert_independent_of_retention()
+        # the guard reads the SOURCE of the real evidence builder - hand it the production one, not the
+        # law's own shelf (REG-1449)
+        _shelf = RR._evidence
+        RR._evidence = _REAL_EVIDENCE or _shelf
+        try:
+            ok, findings = RR.assert_independent_of_retention()
+        finally:
+            RR._evidence = _shelf
         self.assertTrue(ok, "the retention guard is red: %r" % findings)
         rsrc = io.open(os.path.join(HERE, "reel_router.py"), encoding="utf-8").read()
         i = rsrc.find("def assert_independent_of_retention")

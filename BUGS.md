@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1449 - THE RIVER-OUTLET LAW'S SHELF WAS WHATEVER THE HOST HAD, SO IT WAS BLIND OFF HIS MAC (2026-09-29)
+
+**Found** by the one-law trial prove on the ALT (#50): `test_the_river_has_an_outlet[0]` BLIND - green
+through its own sabotage - while it goes red on his Mac. Its laws took a reel from `route()` on the
+machine's own shelf and skipped when there was none. heart2's sandbox never copies frames, so on his Mac
+the only reel present was one of HIS, brought in because another gate lists it in PROOF_NEEDS; on the
+ALT, on Dean's PC and on CI the shelf was empty and every law skipped. The law's own comment already
+named the host-machine fixture; the fix it chose (skip loudly) is honest on CI and fatal once every PC
+proves itself (REG-1447), because one BLIND instrument shuts every lock on that PC.
+
+**Fix:** the law brings its own shelf through the seam the router documents - `reel_router._evidence`
+patched for the module with one reel per station built from EVIDENCE_FIELDS alone (two at EMPTY, so the
+FIFO case has an order); the retention guard, which reads the SOURCE of the production builder, is
+handed the real one. 18 cases, 0 skips in a tree with no footage at all; both red-proofs seen RED.
+
 ### REG-1448 - THE PROVER COULD NOT HAND ITS SANDBOX ANYTHING ON WINDOWS, SO LAWS SKIPPED INTO "BLIND" (2026-09-29)
 
 **Found** by the full Windows inventory on the ALT: `PROOF_NEEDS '../.git' could not be brought across:
