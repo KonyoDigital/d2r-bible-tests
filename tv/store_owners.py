@@ -47,6 +47,9 @@ STORES = {
         "owner": "retro_triage",
         "holds": "per-reel structural verdict: frames, panels, kinds",
         "readers": {
+            "reel_custody":  "READS it through end_routes.sources() to name the station a reel stands at in its\n"
+                             "                              custody record, and names the file in its station labels.\n"
+                             "                              Read-only (REG-1544): writes, moves and deletes nothing",
             "blueprint":     "v2794 — reads `panelFrames` per reel to print the PRINTER section of\n"
                              "                              BLUEPRINT.md: how much of the film actually carried a panel.\n"
                              "                              READ-ONLY and it degrades honestly — absent, unreadable and\n"
@@ -84,6 +87,9 @@ STORES = {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            "reel_custody":  "READS it through end_routes.sources() to name the station a reel stands at in its\n"
+                             "                              custody record, and names the file in its station labels.\n"
+                             "                              Read-only (REG-1544): writes, moves and deletes nothing",
             # v2844 — the render harness WRITES this, and that is deliberate rather than a second
             # authority: the TOMBSTONE lane on the river strip has nothing to draw unless closed-out
             # rows exist, so the target seeds a synthetic ledger. ⚠ IT WRITES INTO THE RENDER
@@ -197,6 +203,9 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "reel_custody":  "READS it through end_routes.sources() to name the station a reel stands at in its\n"
+                             "                              custody record, and names the file in its station labels.\n"
+                             "                              Read-only (REG-1544): writes, moves and deletes nothing",
             "vault_bank":    "v3171 — reads this store beside vault_accum to answer how many sweeps\n"
                              "                              actually took something (45 swept, 36 silent when measured).\n"
                              "                              Read-only, and the ONE reader of the pair",

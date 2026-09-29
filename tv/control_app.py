@@ -32624,7 +32624,7 @@ def evidence_for(name, ledger=None):
             # vault_evidence.stand (the same tier() and _measure the plan and census use).
             # UNKNOWN is said as such on the line, never dressed as a colour or a tier.
             out.update(extra)
-            _say_r = _VE_RARITY_SAY.get(extra.get("rarity")) if extra.get("rarity") else None
+            _say_r = _ve_rarity_say().get(extra.get("rarity")) if extra.get("rarity") else None
             _t = extra.get("tier")
             out["say"] += " — %s · tier %s (vault witness ledger)" % (
                 _say_r or "rarity UNKNOWN",
@@ -32641,8 +32641,14 @@ def evidence_for(name, ledger=None):
                    "ledger holds no look at it either"}
 
 
-_VE_RARITY_SAY = {"unique": "unique", "set": "set", "gold": "rare (gold)", "blue": "magic (blue)",
-                  "white": "white"}
+def _ve_rarity_say():
+    """The words for what an item IS — vault_evidence.RARITY_SAY, the one table (a copy here drifted by
+    construction; the w25 skeptic named it). {} when the engine cannot load: the line then says no colour."""
+    try:
+        import vault_evidence as _VEm
+        return _VEm.RARITY_SAY
+    except Exception:
+        return {}
 
 
 def _evidence_sources(name, prop, ledger=None):

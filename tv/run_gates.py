@@ -7056,7 +7056,7 @@ GATES = [
              "quality vote for a rolled name; a tie or a blank is UNKNOWN, never white), every plan row carries it, "
              "tier_census splits the same count by rarity, the doctor's line says the tally, the reset receipt's "
              "rebuiltByRarity is read (absent = UNKNOWN), and /api/evidence answers a vault-only name from the witness "
-             "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). 8 red-proofs."),
+             "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). 9 red-proofs."),
     Gate("test_a_proven_rare_comes_back_to_the_magic_and_rare_locker",
          [sys.executable, os.path.join(HERE, "test_a_proven_rare_comes_back_to_the_magic_and_rare_locker.py")], 120,
          why="REG-1520 (#51) - the board half, driven in node over a plan the real route served: a proven rare or magic "
@@ -8174,7 +8174,7 @@ GATES = [
              "store records is none yet, not nowhere; the census caps rows DRAWN and never a count; the console "
              "serves /api/custody (one reel, or the census) and hands in the journal only when it read cleanly; the "
              "doctor row 'reel custody' says MISSING with its denominators and UNKNOWN naming the unreadable file. "
-             "14 cases over a temp world laid out where each owner's own resolver says, 4 red-proofs",
+             "17 cases over a temp world laid out where each owner's own resolver says, 4 red-proofs",
          skip_ok=()),
 ]
 

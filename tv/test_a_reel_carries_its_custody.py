@@ -36,6 +36,8 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 try:
     from console_safe import enable as _enable
     _enable()
