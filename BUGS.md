@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1460 - TWO ORPHAN-ATTRIBUTION CASES DEPENDED ON THE HOST'S lsof (2026-09-29)
+
+**Found** on the ALT: `test_orphans_say_whose_they_are` red - "a process running this repo's own code was
+not attributed to us" and "an unattributable process was given a definite answer". `_attribute` asks the
+port witness first, through lsof; on his Mac lsof answers "no port" for a fake pid, on Windows there is no
+lsof, the port is UNKNOWN and the rule fails closed to NEVER MINE - correct for the rule, wrong premise
+for cases written about the OTHER two witnesses. **Fix:** those two cases hold the port answer at "no port
+of his"; the fail-closed port rule is untouched and keeps its own case. Its red-proof is still RED.
+
 ### REG-1459 - THE FIRST SHELF CLICK AFTER A START PAID AN 11-SECOND COLD BUILD (2026-09-29)
 
 **His report:** *"the SHELF when clicked its not opening the section for me"*. **Measured** right after

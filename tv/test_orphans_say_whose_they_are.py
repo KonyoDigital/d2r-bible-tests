@@ -77,9 +77,19 @@ class OrphansSayWhoseTheyAre(unittest.TestCase):
             self.assertIsNot(own, True, "%s was attributed to us" % cmd)
             self.assertTrue(why, "the attribution carries no reason")
 
+    def _no_port(self):
+        """#50 (REG-1460) - THE PORT WITNESS, HELD STILL. `_attribute` asks `holds_his_port` FIRST, through
+        lsof. On his Mac lsof answers "no port" for a pid that does not exist, so these cases reached the
+        witnesses they are named for; on Windows there is no lsof, the port is UNKNOWN, the rule fails
+        closed to "NEVER MINE" (correctly), and both cases went red on the ALT for a reason that is not
+        theirs. The fail-closed rule keeps its own case; these hold the port answer at "no port of his"."""
+        from unittest import mock
+        return mock.patch.object(MO, "holds_his_port", lambda pid: (False, "holds no port of his"))
+
     def test_a_process_naming_THIS_TREE_is_ours(self):
-        own, why = MO._attribute("99999",
-                                 "python3 %s/control_app.py --open" % HERE)
+        with self._no_port():
+            own, why = MO._attribute("99999",
+                                     "python3 %s/control_app.py --open" % HERE)
         self.assertTrue(own, "a process running this repo's own code was not attributed to us")
         self.assertIn("tree", why)
 
@@ -87,7 +97,8 @@ class OrphansSayWhoseTheyAre(unittest.TestCase):
         """⚠ THE DISTINCTION THE WHOLE FIX RESTS ON. False would mean 'measured, not ours' — a
         claim nothing here can make. None means nobody can say, and today's real 52-minute runaway
         was exactly that: no ledger row, no tree path, no port."""
-        own, why = MO._attribute("99999", "python3 -c import io,re;s=io.open('x')")
+        with self._no_port():
+            own, why = MO._attribute("99999", "python3 -c import io,re;s=io.open('x')")
         self.assertIsNone(own, "an unattributable process was given a definite answer")
         self.assertIn("nothing can say whose it is", why)
 
