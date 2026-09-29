@@ -2735,6 +2735,41 @@ def _check_the_evidence_tiers(path=None, root=None):
     return OK, line
 
 
+def _check_the_ledger3_trail_can_be_drawn():
+    """ledger3 — can the per-session extraction record be drawn for every sealed reel on the shelf?
+
+    2026-09-29 (#58, Ledger 3.0 first slice). The record (tv/ledger3.py, GET /api/ledger3/session)
+    joins the journal ring, the chronicle book, the vault witness ledger, the shelf, the river
+    stamps, the survey and the tombstones for ONE reel. The link that breaks silently is the
+    JOURNAL: the ring rotates by size while the shelf drains by count, so a sealed reel can still
+    sit on the shelf with its reader's rows gone — footage he still has whose trail cannot be
+    drawn. That is MISSING, named per reel. An unreadable journal or shelf is UNKNOWN, never
+    "0 trails". The row also prints the agreement census — the reader's names against the vault
+    sweep's witnesses, side by side, never averaged — so a sweep that stops witnessing what the
+    reader names shows up here before it shows up as an empty vault. [[unknown-stays-unknown]]
+
+    PERIODIC on merit: it reads the whole ring and joins ~32 reels (measured 0.40 s on his shelf,
+    read-only, 2026-09-29) and the cheap tick already sits at 8.9 s of its 9 s budget; its answer
+    moves only as the ring rotates or the shelf drains, so hourly loses nothing.
+    """
+    import control_app as _ca
+    import ledger3 as _l3
+    stores = _ca._ledger3_stores()
+    got = _l3.census(stores)
+    if not got.get("ok"):
+        return UNKNOWN, got.get("why") or "the extraction record could not be drawn — UNKNOWN"
+    ag = got.get("agreement") or {}
+    line = ("%s · reader-vs-vault names: both %s · reader only %s · vault only %s"
+            % (got.get("why"), ag.get("both"), ag.get("journalOnly"), ag.get("vaultOnly")))
+    if stores.get("unknown"):
+        line += " · UNKNOWN sides: " + "; ".join(str(u)[:90] for u in stores["unknown"][:3])
+    if got.get("noTrail"):
+        return MISSING, ("%d sealed reel(s) on the shelf have NO journal rows — the trail for footage he "
+                         "still has cannot be drawn (%s) · %s"
+                         % (len(got["noTrail"]), ", ".join(got["noTrail"][:4]), line))
+    return OK, line
+
+
 def _check_vault_provenance():
     """#246 W7 — 'vault provenance': the one door, watched. Reads the board ONCE (the shared tick read),
     the stash ledger and the feeder's store; judges with vault_provenance_verdict. UNKNOWN when the board
@@ -9563,6 +9598,9 @@ CHECKS = [
     ("reel custody", _check_reel_custody),
     ("vault reset receipt", _check_the_vault_reset),
     ("evidence tiers", _check_the_evidence_tiers),
+    # 2026-09-29 (#58) — Ledger 3.0: a sealed reel on the shelf whose reader rows rotated out of the
+    # ring is a trail that cannot be drawn for footage he still has. PERIODIC (see its docstring).
+    ("ledger3 sessions", _check_the_ledger3_trail_can_be_drawn),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
     ("item facts captured", _check_the_item_facts_are_reaching_the_row),
@@ -9794,6 +9832,9 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # 2026-09-28 — the same /api/river GET, for the same reason. Its bar is THREE HOURS, so
             # an hourly look loses nothing, and the every-tick subset pays no 2-4 s river read.
             "triage starved",
+            # 2026-09-29 (#58) — reads the whole journal ring and joins ~32 reels (0.40 s measured on
+            # his shelf); the ring rotates and the shelf drains on the hour scale, so hourly loses nothing.
+            "ledger3 sessions",
             # ⚠⚠ v3462 — THIS ROW SHELLS OUT TO `gh` AND WAS ON THE EVERY-TICK ROSTER.
             # A stalled gh would stall the whole doctor tick — which runs at every console
             # BOOT and on the ten-minute watchdog — so a GitHub hiccup could hold up his
@@ -10305,6 +10346,9 @@ WATCHES = {
     # own; both reach him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault reset receipt":         (),
     "evidence tiers":              (),
+    # 2026-09-29 (#58) — the Ledger 3.0 record is served on GET /api/ledger3/session and has no
+    # console element yet (the 📒 room is a later slice). Empty tuple as a DECLARATION, not an omission.
+    "ledger3 sessions":            (),
     # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
     # omission: it reaches him through the eagle line, not through an element of its own.
     "fault evidence":              (),
