@@ -4238,8 +4238,9 @@ def _stub_never_films(sim=False, env=None):
     return bool(sim or e.get("TV_STUB"))
 
 
-def _start_capture(env, log_fp):
-    """Windows only: hidden capture_win.ps1 loop."""
+def _start_capture(env, log_fp, wanted=None):
+    """Windows only: hidden capture_win.ps1 loop. `wanted` -> bool is asked UNDER the spawn lock (REG-1509): the
+    lamp's restart passes one, so a session that ended while the restart waited for the lock gets no capture."""
     global _capture_proc
     if not IS_WIN:
         return None
@@ -4273,7 +4274,39 @@ def _start_capture(env, log_fp):
     # (a session start and the health lamp's restart) could each see no capture and each start one; the second
     # pid write orphaned the first. Measured on the ALT 2026-09-29: five captures alive at once.
     with _CAP_START_LOCK:
+        # REG-1509 — THE RESTART ASKS AGAIN, INSIDE THE LOCK. The review of v3524 drove it in-process: the lamp read
+        # 'live', End Session then killed the capture and withdrew its lease, and the lamp's spawn landed AFTER that -
+        # capture B held a valid lease of its own and filmed with no session (30/30 threaded trials). The lamp's
+        # 'is a session on?' was asked before it waited; this asks it after, where no stop can slip in between.
+        if wanted is not None and not wanted():
+            try:
+                log_fp.write("capture_win.ps1 NOT restarted: the session ended while the lamp was restarting it\n")
+                log_fp.flush()
+            except Exception:
+                pass
+            return None
         return _start_capture_locked(env, log_fp)
+
+
+def _lower_capture_priority(pid):
+    """v1441 — BelowNormal so D2R + console UI keep the cores. Never raises.
+
+    REG-1509 — its own function so a law can stub it. It OPENS A REAL PROCESS BY PID, and the review of v3524 read
+    that the spawn law ran it unmocked against a fake pid 7001 on Windows - where a pid's low two bits are ignored on
+    lookup, so 7001 opens pid 7000, which can be his game. An odd fake pid is therefore NOT safe on its own."""
+    try:
+        import psutil  # optional
+        psutil.Process(pid).nice(psutil.BELOW_NORMAL_PRIORITY_CLASS if IS_WIN else 10)
+    except Exception:
+        try:
+            import ctypes
+            handle = ctypes.windll.kernel32.OpenProcess(0x0200 | 0x0400, False, int(pid))
+            if handle:
+                # BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
+                ctypes.windll.kernel32.SetPriorityClass(handle, 0x00004000)
+                ctypes.windll.kernel32.CloseHandle(handle)
+        except Exception:
+            pass
 
 
 def _start_capture_locked(env, log_fp):
@@ -4309,20 +4342,7 @@ def _start_capture_locked(env, log_fp):
             stdin=subprocess.DEVNULL,
             creationflags=_WIN_CREATE,
         )
-        # v1441 — BelowNormal so D2R + console UI keep the cores
-        try:
-            import psutil  # optional
-            psutil.Process(_capture_proc.pid).nice(psutil.BELOW_NORMAL_PRIORITY_CLASS if IS_WIN else 10)
-        except Exception:
-            try:
-                import ctypes
-                handle = ctypes.windll.kernel32.OpenProcess(0x0200 | 0x0400, False, int(_capture_proc.pid))
-                if handle:
-                    # BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
-                    ctypes.windll.kernel32.SetPriorityClass(handle, 0x00004000)
-                    ctypes.windll.kernel32.CloseHandle(handle)
-            except Exception:
-                pass
+        _lower_capture_priority(_capture_proc.pid)     # v1441 — BelowNormal so D2R + console UI keep the cores
         _write_pid(CAP_PID_PATH, _capture_proc.pid)
         log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid} file={CAPTURE_PS1}\n")
         log_fp.flush()
@@ -4338,6 +4358,13 @@ _CAP_RESTART_N = 0
 _CAP_RESTART_TS = 0.0
 _CAP_RESTART_MAX = 5          # v1412 — cousin Windows: capture_win can die; restart more than once
 _CAP_RESTART_COOLDOWN_S = 8.0
+
+
+def _capture_wanted():
+    """REG-1509 — does a session still want its capture? -> bool. The lamp's restart asks it under the spawn lock
+    (_start_capture `wanted`). Reads two globals, takes NO lock: the spawn lock is held while it runs, and a spawn
+    that waited on `_lock` there could deadlock a stop that holds `_lock` and waits at the spawn barrier."""
+    return _agent_mode in ("live", "sim") and not _stop_inflight
 
 
 def _capture_health():
@@ -4393,7 +4420,9 @@ def _capture_health():
                 pass
             with _lock:
                 globals()["_capture_proc"] = None
-            _start_capture(_env_clean(sim=(_agent_mode == "sim")), _log_fp)
+            _start_capture(_env_clean(sim=(_agent_mode == "sim")), _log_fp, wanted=_capture_wanted)
+            if not _capture_wanted():
+                return ""       # REG-1509 — the session ended while the lamp restarted it: nothing started, nothing DEAD
             return "RESTARTED"
         except Exception as e:
             try:
@@ -4405,10 +4434,39 @@ def _capture_health():
 
 
 _CAP_STOP = {"survived": 0, "last": None}   # REG-1502 — kills that did not land, said on /api/status
+#: REG-1509 — how long a killed capture is given to die before it counts as a survivor. taskkill /F issues
+#: TerminateProcess, which is ASYNCHRONOUS, and a capture blocked inside PrintWindow can still read STILL_ACTIVE
+#: microseconds after taskkill returns. The review of v3524 read the check running with no wait at all, so a kill
+#: that landed a moment late was counted as one that did not land - and the doctor row warned for the rest of the
+#: console's life about a pid that was gone. ~3 s: longer than a slow kill, short enough for End Session.
+CAP_KILL_SETTLE_S = 3.0
+
+
+def _gone_within(pid, alive, within_s, step_s=0.1):
+    """Poll alive(pid) until it says no or within_s passes. -> True once the pid is gone, False if it outlived the
+    wait. The first answer is taken at once, so a kill that already landed costs no wait."""
+    deadline = time.time() + max(0.0, float(within_s))
+    while True:
+        try:
+            if not alive(pid):
+                return True
+        except Exception:
+            return False        # could not ask: never claimed gone
+        if time.time() >= deadline:
+            return False
+        time.sleep(step_s)
 
 
 def _stop_capture():
     global _capture_proc
+    # REG-1509 — THE SPAWN BARRIER. A restart the lamp began before this stop may be inside the spawn lock right now,
+    # between its Popen and its lease write. Without this the stop read the pid file before that write, killed
+    # nothing, and the new capture wrote a valid lease AFTER the stop withdrew the old one. Taking the lock (and
+    # releasing it at once) lets an in-flight spawn finish, so the pid read below IS that capture and it is killed.
+    # Any spawn that starts after this point asks _capture_wanted() under the same lock, and the callers have
+    # already set the mode off. The lock is never held while waiting on `_lock`.
+    with _CAP_START_LOCK:
+        pass
     pid = None
     with _lock:
         if _capture_proc is not None and _capture_proc.poll() is None:
@@ -4426,7 +4484,7 @@ def _stop_capture():
     # REG-1502 — THE KILL IS CHECKED, NOT ASSUMED. taskkill's result was thrown away, so a kill that did not land
     # left a capture running that nothing remembered - the next session started another beside it. Withdrawing the
     # lease above is what makes a survivor leave by itself (capture_win.ps1 reads it every ~2 s); this says so.
-    if pid and _pid_alive(pid):
+    if pid and not _gone_within(pid, _pid_alive, CAP_KILL_SETTLE_S):
         _CAP_STOP["survived"] = int(_CAP_STOP.get("survived") or 0) + 1
         _CAP_STOP["last"] = {"pid": int(pid), "ts": int(time.time() * 1000),
                              "say": "capture pid %d outlived its kill - its lease is withdrawn, so it leaves by itself "
@@ -4449,40 +4507,91 @@ CAPTURE_SWEEP_TICK = 2          # the rescue loop's 2nd tick: ~20 s after boot, 
 
 
 def orphan_captures(rows, mine, alive):
-    """rows [(pid, parent_pid)] of capture scripts of this checkout; mine = pids this console owns; alive(pid) -> bool.
-    -> (to_end, kept) — a capture is ended only when it is not ours AND its parent is gone. Pure."""
+    """rows [(pid, parent_pid[, born_ms, parent_born_ms])] of capture scripts of this checkout; mine = pids this console
+    owns; alive(pid) -> bool. -> (to_end, kept) — a capture is ended only when it is not ours AND its parent is gone.
+    A birth time of None/0 is UNKNOWN and decides nothing. Pure.
+
+    REG-1509 — A PARENT BORN AFTER ITS CHILD IS NOT ITS PARENT. Windows reuses pids: the review of v3524 read a day-old
+    orphan whose dead console's pid 5432 now belonged to a browser renderer - alive(5432) said yes, and the one sweep
+    of the boot kept the orphan for good. A parent always starts before its child, so a 'parent' whose creation time
+    is later than the capture's is a stranger holding a reused pid, and the console is gone."""
     end, kept = [], []
-    for pid, ppid in rows:
+    for row in rows:
+        pid, ppid = row[0], row[1]
+        born = row[2] if len(row) > 2 else None
+        pborn = row[3] if len(row) > 3 else None
+        reused = bool(born and pborn and pborn > born)
         if pid in mine:
             kept.append((pid, "this console's own capture"))
-        elif ppid and alive(ppid):
+        elif ppid and alive(ppid) and not reused:
             kept.append((pid, "its console (pid %s) is alive" % ppid))
         else:
             end.append(pid)
     return end, kept
 
 
-def _capture_rows(timeout=30):
-    """[(pid, parent_pid)] of powershell processes running THIS checkout's capture_win.ps1, or None = UNKNOWN."""
-    ps = ("$t = '%s'; Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | "
-          "Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($t, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | "
-          "ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.ParentProcessId }" % CAPTURE_PS1.replace("'", "''"))
-    try:
-        out = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
-                             capture_output=True, text=True, timeout=timeout, creationflags=_WIN_CREATE)
-    except Exception:
-        return None
-    if out.returncode != 0:
-        return None
+def _capture_query_ps(ps1_path):
+    """The PowerShell that lists the capture scripts of one checkout. -> str (one -Command line)
+
+    Prints '<pid> <parent pid> <born ms> <parent born ms>' per capture, epoch ms from Win32_Process CreationDate;
+    0 = could not be read (a parent that is gone has no row). REG-1509, two corrections from the review of v3524:
+      · `$_.ProcessId -ne $PID` - this query runs as powershell.exe and its OWN -Command text holds the script path,
+        so it matched itself: found and kept were always one too high, and his one real capture read as two;
+      · the birth times, so orphan_captures can tell a live console from a stranger holding its reused pid."""
+    return ("$t = '%s'; Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | "
+            "Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and "
+            "$_.CommandLine.IndexOf($t, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | "
+            "ForEach-Object { $c = $_; $born = 0; $pborn = 0; "
+            "try { if ($c.CreationDate) { $born = ([DateTimeOffset]$c.CreationDate).ToUnixTimeMilliseconds() } } catch {}; "
+            "try { $par = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $c.ParentProcessId); "
+            "if ($par -and $par.CreationDate) { $pborn = ([DateTimeOffset]$par.CreationDate).ToUnixTimeMilliseconds() } } "
+            "catch {}; '{0} {1} {2} {3}' -f $c.ProcessId, $c.ParentProcessId, $born, $pborn }"
+            % ps1_path.replace("'", "''"))
+
+
+def _parse_capture_rows(text, self_pid=None):
+    """The query's stdout -> [(pid, parent_pid, born_ms | None, parent_born_ms | None)]. A row whose pid is the query's
+    own (self_pid) is dropped - the same self-match `$_.ProcessId -ne $PID` drops inside PowerShell, said twice so a
+    Mac can prove it. Lines that are not 2 or 4 numbers are not rows."""
     rows = []
-    for line in (out.stdout or "").splitlines():
+    for line in (text or "").splitlines():
         parts = line.split()
-        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-            rows.append((int(parts[0]), int(parts[1])))
+        if len(parts) not in (2, 4) or not all(x.isdigit() for x in parts):
+            continue
+        pid = int(parts[0])
+        if self_pid is not None and pid == int(self_pid):
+            continue
+        born = (int(parts[2]) or None) if len(parts) == 4 else None
+        pborn = (int(parts[3]) or None) if len(parts) == 4 else None
+        rows.append((pid, int(parts[1]), born, pborn))
     return rows
 
 
-def _sweep_orphan_captures(rows_fn=None, kill=None, alive=None, now_ms=None):
+def _capture_rows(timeout=30):
+    """[(pid, parent_pid, born_ms, parent_born_ms)] of powershell processes running THIS checkout's capture_win.ps1,
+    or None = UNKNOWN. Popen, not run: the query's own pid is needed to leave it out (REG-1509)."""
+    try:
+        proc = subprocess.Popen(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                                 _capture_query_ps(CAPTURE_PS1)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                                text=True, creationflags=_WIN_CREATE)
+    except Exception:
+        return None
+    try:
+        out, _err = proc.communicate(timeout=timeout)
+    except Exception:
+        try:
+            proc.kill()
+            proc.communicate(timeout=5)
+        except Exception:
+            pass
+        return None
+    if proc.returncode != 0:
+        return None
+    return _parse_capture_rows(out, self_pid=proc.pid)
+
+
+def _sweep_orphan_captures(rows_fn=None, kill=None, alive=None, now_ms=None, settle_s=None):
     """One boot-time sweep. -> the state. Windows only; never raises."""
     if not IS_WIN and rows_fn is None:
         _CAP_SWEEP.update(say="not a Windows console - the Mac's agent is its own camera")
@@ -4511,7 +4620,11 @@ def _sweep_orphan_captures(rows_fn=None, kill=None, alive=None, now_ms=None):
             kill(pid)
         except Exception:
             pass
-        (failed if alive(pid) else killed).append(pid)
+    # REG-1509 — the sibling of the stop's check: TerminateProcess is asynchronous, so each kill gets the same bounded
+    # wait before it is called one that did not land (a 'failed' pid kept the doctor row warning forever).
+    _settle_by = time.time() + (CAP_KILL_SETTLE_S if settle_s is None else float(settle_s))
+    for pid in end:
+        (killed if _gone_within(pid, alive, max(0.0, _settle_by - time.time())) else failed).append(pid)
     _CAP_SWEEP.update(ran=now, found=len(rows), killed=killed, kept=[k for k, _w in kept], failed=failed,
                       say=("%d capture script(s) of this checkout: ended %d orphan(s)%s, kept %d"
                            % (len(rows), len(killed), (" - %d would NOT end: %s" % (len(failed), failed)) if failed else "",
@@ -4981,6 +5094,8 @@ def _force_kill_all_agents(reason=""):
         time.sleep(0.4)
     except Exception:
         pass
+    with _lock:
+        _agent_mode = "off"         # REG-1509 — before the capture stops, or the lamp restarts it behind the stop
     try: _stop_capture()
     except Exception: pass
     with _lock:
@@ -6111,7 +6226,11 @@ def stop_agent(farewell=True):
                 _kill_pid(pid, force=True)
             time.sleep(0.2)
 
-        # always stop Windows capture with the agent
+        # always stop Windows capture with the agent. REG-1509 — THE MODE ENDS FIRST. The capture was stopped while
+        # the mode still read 'live', so a status poll that landed in between ran the lamp, found no capture, and
+        # restarted one AFTER the stop - an unowned capture holding its own valid lease, filming with no session.
+        with _lock:
+            _agent_mode = "off"
         _stop_capture()
 
         with _lock:
@@ -36452,6 +36571,51 @@ def _chk(cid, ok, severity, detail, fix=None):
     return d
 
 
+def _one_capture_check(alive=None):
+    """The doctor's one_capture row — REG-1502. -> _chk dict. It reads the boot sweep and the stop's receipt; it starts
+    nothing and ends nothing. alive(pid) -> bool (default _pid_alive).
+
+    WARN while an orphan that would not end, or the last capture whose kill did not land, is STILL ALIVE; WARN UNKNOWN
+    when the sweep ran and could not ask the process table. REG-1509, the review of v3524: (a) an UNKNOWN sweep read OK,
+    so under the incident's own conditions (memory pressure, a busy WMI) the orphans survived the console's life behind
+    a green row; (b) a survivor warned FOREVER - the count was never cleared, so the row kept sending him to Task
+    Manager for a pid that had left 2 s later, exactly as its own message promised. A sweep that never ran (a Mac, or
+    the first ~20 s of a Windows boot) is not a fault and stays OK."""
+    alive = alive or _pid_alive
+    _cs, _cst = dict(_CAP_SWEEP), dict(_CAP_STOP)
+
+    def _alive(p):
+        try:
+            return bool(p) and bool(alive(int(p)))
+        except Exception:
+            return True             # could not ask: never claimed gone
+    _failed_live = [p for p in (_cs.get("failed") or []) if _alive(p)]
+    _surv = int(_cst.get("survived") or 0)
+    _last = _cst.get("last") or {}
+    _surv_live = bool(_surv) and _alive(_last.get("pid"))
+    _unknown = _cs.get("ran") is not None and _cs.get("found") is None
+    _c_bad = bool(_failed_live) or _surv_live or _unknown
+    _say = _cs.get("say") or "not asked yet"
+    if _unknown and "UNKNOWN" not in _say:
+        _say = "UNKNOWN - " + _say
+    if _cs.get("failed") and not _failed_live:
+        _say += " (each has since left)"
+    if _surv:
+        _say += (" · %d stop(s) whose kill did not land - last: %s" % (_surv, _last.get("say") or "")
+                 if _surv_live else
+                 " · %d stop(s) whose kill did not land at once - the last (pid %s) has since left"
+                 % (_surv, _last.get("pid")))
+    if _unknown and not (_failed_live or _surv_live):
+        fix = ("The boot sweep could not ask Windows which capture scripts are running (WMI busy or slow), so an "
+               "orphan from an older console may still be filming. Restart TV DIABLO to ask again, or look in Task "
+               "Manager -> Details for more than one powershell.exe running tv\\capture_win.ps1.")
+    else:
+        fix = ("Every capture started by this version leaves by itself within ~2 s of losing its lease or its console. "
+               "One that would not end: Task Manager -> Details -> the powershell.exe running tv\\capture_win.ps1 -> "
+               "End task.")
+    return _chk("one_capture", not _c_bad, "warn", "capture scripts: %s" % _say, None if not _c_bad else fix)
+
+
 def farmgate_payload():
     """GET /api/farmgate (v924, Grok FARM GATE): the ONE-BUTTON acceptance-day preflight.
     Read-only except ONE cheap subscription-lane CLI ping (the only check the default doctor
@@ -36897,19 +37061,8 @@ def doctor_payload():
     checks.append(_chk("console_window", True, "warn", "window: %s - %s" % (_wm["mode"], _wm["say"])))
 
     # ── ONE CAPTURE PER CONSOLE — REG-1502. Five capture scripts once ran at once on the ALT and dwm.exe died of
-    # memory exhaustion under them, taking Boosteroid with it. MISSING when an orphan would not end or a kill did not
-    # land; UNKNOWN when the table could not be asked. It reads the boot sweep and the stop's receipt - it starts nothing.
-    _cs, _cst = dict(_CAP_SWEEP), dict(_CAP_STOP)
-    _c_bad = bool(_cs.get("failed")) or int(_cst.get("survived") or 0) > 0
-    checks.append(_chk(
-        "one_capture", not _c_bad, "warn",
-        "capture scripts: %s%s" % (_cs.get("say") or "not asked yet",
-                                   (" · %d stop(s) whose kill did not land - last: %s"
-                                    % (int(_cst.get("survived") or 0), ((_cst.get("last") or {}).get("say") or "")))
-                                   if int(_cst.get("survived") or 0) else ""),
-        None if not _c_bad else
-        "Every capture started by this version leaves by itself within ~2 s of losing its lease or its console. "
-        "One that would not end: Task Manager -> Details -> the powershell.exe running tv\\capture_win.ps1 -> End task."))
+    # memory exhaustion under them, taking Boosteroid with it. See _one_capture_check.
+    checks.append(_one_capture_check())
 
     # ── SELF-PROVE — #50 (REG-1447): has THIS PC proved its own instruments? Every self-arming lock (the
     # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76

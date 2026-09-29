@@ -517,11 +517,24 @@ $leasePath = Join-Path $here 'control_capture.pid'
 $consolePid = 0
 try { if ($env:TV_CONSOLE_PID) { $consolePid = [int]$env:TV_CONSOLE_PID } } catch { $consolePid = 0 }
 $bornAt = [DateTime]::UtcNow
-function Get-LeaseVerdict([string]$leaseFile, [int]$myPid, [int]$parentPid, [double]$ageS, [double]$graceS) {
+# REG-1509 - this capture's own start, for the pid-reuse test below. $null when it cannot be read (the test is skipped).
+$myStart = $null
+try { $myStart = (Get-Process -Id $PID -ErrorAction Stop).StartTime } catch { $myStart = $null }
+function Get-LeaseVerdict([string]$leaseFile, [int]$myPid, [int]$parentPid, [double]$ageS, [double]$graceS, $myStart = $null) {
   # -> $null to keep filming, or the reason to leave. UNKNOWN (an unreadable lease) is never a reason to leave.
   if ($parentPid -gt 0) {
     $par = Get-Process -Id $parentPid -ErrorAction SilentlyContinue
     if (-not $par) { return "the console that started me (pid $parentPid) is gone" }
+    # REG-1509 - Windows reuses pids. A process holding my console's pid that STARTED AFTER ME is not the console
+    # that started me: that console is gone and a stranger has its number (the review of v3524). A start time that
+    # cannot be read decides nothing.
+    if ($myStart) {
+      $parStart = $null
+      try { $parStart = $par.StartTime } catch { $parStart = $null }
+      if ($parStart -and ($parStart -gt $myStart)) {
+        return "the console that started me is gone (pid $parentPid now belongs to a process started after me)"
+      }
+    }
   }
   if ($ageS -lt $graceS) { return $null }      # the console writes the lease just after it spawns us
   if (-not (Test-Path -LiteralPath $leaseFile)) { return 'the console withdrew my lease (it stopped the capture)' }
@@ -536,7 +549,7 @@ function Get-LeaseVerdict([string]$leaseFile, [int]$myPid, [int]$parentPid, [dou
 while ($true) {
   $loopN++
   if (($loopN % 5) -eq 1) {
-    $why = Get-LeaseVerdict $leasePath $PID $consolePid (([DateTime]::UtcNow - $bornAt).TotalSeconds) 15
+    $why = Get-LeaseVerdict $leasePath $PID $consolePid (([DateTime]::UtcNow - $bornAt).TotalSeconds) 15 $myStart
     if ($why) {
       Write-Host ("  capture pid $PID leaving: " + $why)
       Write-Stage ("left:" + $why)

@@ -97,6 +97,42 @@ and once seeded (must pass). **8 new red-proofs, all seen RED**: the `gen` compa
 `ts` instead of `gen`, the lock replaced by `contextlib.nullcontext()`, the dead-handle condition dropped, the ast
 check reverted to Name-only, its Subscript branch, its tuple branch, and its tuple-spawn detection. The seed-body
 proof moved with the new indentation. All 11 were seen RED, and each file was restored byte for byte.
+### REG-1509 - END SESSION AND THE CAPTURE LAMP RACED: A RESTARTED CAPTURE FILMED WITH NO SESSION (2026-09-29)
+
+**Found** by the review of v3524 (capture-lease, d0821829), and the lead finding reproduced by a verifier in-process
+with the Windows edges faked: 30/30 threaded trials left a capture holding its OWN valid lease after End Session.
+- **The race.** `stop_agent` and `_force_kill_all_agents` stopped the capture while `_agent_mode` still read `live`;
+  a status poll in that gap ran `_capture_health`, found no capture and restarted one AFTER the stop. Its lease was
+  its own and its console alive, so nothing ever ended it. **Fix, three parts:** both stops set the mode off under
+  `_lock` BEFORE `_stop_capture()`; `_start_capture(..., wanted=)` asks `_capture_wanted()` (mode live/sim and no
+  stop in flight) UNDER `_CAP_START_LOCK`, and the lamp's restart passes it; `_stop_capture` opens with a barrier
+  (`with _CAP_START_LOCK: pass`) so an in-flight spawn finishes, and the pid it then reads IS that capture. The
+  spawn lock is never held while waiting on `_lock`.
+- **The sweep counted itself.** Its query runs as powershell.exe and its `-Command` text holds the script path, so
+  found/kept were one too high. **Fix:** `$_.ProcessId -ne $PID` in the query, and Python drops the query's own pid
+  (now `Popen`, so the pid is known) - said twice so a Mac can prove it.
+- **A reused console pid read as the console alive.** **Fix:** the query prints each capture's and its parent's
+  `Win32_Process` CreationDate; `orphan_captures` treats a parent born AFTER its capture as gone. In
+  `capture_win.ps1`, `Get-LeaseVerdict` takes an optional `$myStart` (read once from its own process) and leaves
+  when the parent's StartTime is later; the 7 existing PowerShell cases call it unchanged.
+- **The doctor row.** An UNKNOWN sweep (ran, found None) read OK - now it warns UNKNOWN with a restart-to-ask fix; a
+  sweep that never ran (a Mac, the first ~20 s of a boot) stays OK. A stop survivor warned forever - now the row
+  warns only while the last survivor (or a sweep orphan that would not end) is still alive. Extracted as
+  `_one_capture_check()` so a law drives it.
+- **The kill was judged at once.** `CAP_KILL_SETTLE_S = 3.0`: the stop, and its sibling in the boot sweep, poll
+  `_gone_within` before calling a kill one that did not land (TerminateProcess is asynchronous).
+- **The law touched real pids.** Its spawn ran the unmocked priority code on fake pid 7001; on Windows a pid's low
+  two bits are ignored on lookup, so that opened pid 7000 - an odd fake pid alone is NOT safe. The step is now
+  `_lower_capture_priority()`, stubbed in the law, and a trap psutil proves no priority call leaves it.
+  `test_a_scratch_console_never_films_his_screen`'s `_start_capture` stub now takes `wanted=None`.
+
+**Law:** `tv/test_one_capture_per_console.py`, 27 cases (2 PowerShell-only, skipped on a Mac). The race is replayed
+through the real `stop_agent` / `_force_kill_all_agents` / `_capture_health` / `_start_capture` / `_stop_capture` in
+all three orders - a poll right after the capture stops, a lamp that read `live` before the whole stop, and a spawn
+in flight when the stop begins - each ending with no capture alive and no lease file. **19 RED_PROOFs, each seen
+RED** by applying it, running the law and restoring byte-for-byte (the 5 REG-1502 proofs re-anchored). Not seen
+here: the two PowerShell cases (Get-LeaseVerdict's start-time test, the query against a stubbed Get-CimInstance) -
+they run on CI's pwsh and on Windows.
 
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 
