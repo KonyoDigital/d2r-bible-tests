@@ -64,6 +64,39 @@ on disk opened), counting the phrase in what each RETURNS; the ast walk now flag
 test back (4 tests RED), the router's f-string prefix (3 RED, incl. the driven chain at count 2), the printer
 concatenating the prefix (2 RED), reel_river returning the bare reason (1 RED - only a driven case can see it), plus
 REG-1504's two, re-anchored (3 RED each).
+### REG-1510 - THE PID SEED COULD BE UNDONE BY A SCAN ALREADY IN FLIGHT, AND IT KEPT A CRASHED CHILD ALIVE FOR 10 S (2026-09-29)
+
+**Found** by the review of v3524 (cluster pid-cache, commit 97e33238 = REG-1503). Each was reproduced before it was fixed:
+- **A scan in flight overwrote the seed.** `_pid_cached` checked `ts`, ran the port scan with no lock held (lsof, slow
+  under the same load #78 is about), then wrote. `start_agent` seeds while it holds `_lock`, which is exactly when a
+  status read is refused the lock and scans. The seed of P landed during the scan, and the scan then wrote back the None
+  it saw before P was listening, with a ts that still counted as fresh. Verifier, with real threads: cache `{pid: None}`
+  at age 0.60 s after a seed of 424242, and the next contended `_agent_alive()` read the live agent DEAD. The stop has
+  the mirror race: a scan that saw the old listener undoes the stop's `seed(None)`. Comparing `ts` does not catch that
+  one, because `seed(None)` writes 0.0, which is also what a never-scanned cache holds.
+- **A crashed child read alive for the rest of the seed's 10 s.** With the lock acquired and `_agent_proc.poll()`
+  already reporting an exit, `_pid_cached` fell to the cache, which held the spawn's seed of that same pid. A handle
+  with poll()=1 and nothing listening read alive=False unseeded and alive=True seeded.
+- **The ast check was blind** to `globals()["_agent_proc"] = ...` (the form `control_app.py` already uses for
+  `_agent_mode` and `_capture_proc`) and to tuple unpacking. There is no current miss: all 4 in-function sites are
+  plain Name assignments.
+
+**Fix** (`tv/control_app.py`): the cache gets a `gen` that every seed bumps. A scan commits only if `gen` has not
+changed since it started, otherwise it returns the seed's answer. The compare and the write happen under
+`_PID_CACHE_LOCK`, and so does every seed. The lock is held only for dict operations, never across the scan. With
+the lock acquired, a handle whose poll() reports an exit makes a cached pid equal to its own pid stale: the port is
+scanned again, the way it was before #78. So a stranger still listening on the port still reads alive, and it costs
+one scan per crash, not one per poll. A read refused the lock still trusts the seed, which is the degraded path the
+seed exists for.
+**Law** `test_a_live_agent_never_reads_dead_under_contention` grew from 4 cases to 10. Five of the new cases fail on
+v3524. The sixth, the ast shapes, fails against the old check. The new cases are: a real holder thread that seeds
+DURING a refused read's scan, for both the spawn and the stop (the stop starts from ts=0.0); a seed that preempts the
+read between its compare and its write; an exited handle with nothing on the port (reads dead, 1 scan); an exited
+handle with a stranger on the port (reads alive, 1 scan); and six assignment shapes, each once bare (must be flagged)
+and once seeded (must pass). **8 new red-proofs, all seen RED**: the `gen` compare replaced by `True`, the compare on
+`ts` instead of `gen`, the lock replaced by `contextlib.nullcontext()`, the dead-handle condition dropped, the ast
+check reverted to Name-only, its Subscript branch, its tuple branch, and its tuple-spawn detection. The seed-body
+proof moved with the new indentation. All 11 were seen RED, and each file was restored byte for byte.
 
 ### REG-1500 - THE FULL GATE SET FOUND FOUR REDS THE PRE-PUSH GATE NEVER RUNS (2026-09-29)
 
