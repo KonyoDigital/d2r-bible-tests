@@ -18055,6 +18055,21 @@ function _artRarity(name){
     // "Cryptic Axe" etc. wasn't synced to white like socketed-base EXTRA_ITEMS already were. (Konyo: "label
     // them as such so the mule vault manager and everything else is synced.") Runs LAST so it never
     // overrides a unique/set/rune/runeword that happens to share a base word.
+    /* #51 — A NAME NOTHING ABOVE COULD PLACE IS WHAT ITS EVIDENCE SAW. A magic or rare keeper the reset rebuilt
+       from the vault witness ledger carries its rarity on its witness row (vaultFile's rebuild branch stores the
+       plan row's `rarity`, which vault_evidence.rarity_of read off its own looks). The ledger's words are blue /
+       gold; this resolver's are magic / rare. A row with no rarity (an older filing — UNKNOWN) paints nothing
+       here: the base fallback below may still say 'basic', and a rolled name it cannot place stays uncoloured,
+       never gold. Asked through window._vaultProvAll, which the ⟦#246 VAULTFILE⟧ block publishes from a later
+       script — asked at call time, never assumed present. Before the base fallback on purpose: a rare whose read
+       name is its base ("Ring") is rare by its looks, not white by its word. */
+    if (!r && typeof window !== 'undefined' && typeof window._vaultProvAll === 'function'){
+      try {
+        var _pvr = window._vaultProvAll()[name];
+        var _pq = (_pvr && typeof _pvr === 'object' && typeof _pvr.rarity === 'string') ? _pvr.rarity : '';
+        r = ({ blue: 'magic', gold: 'rare', unique: 'unique', set: 'set', white: 'basic' })[_pq] || '';
+      } catch(e){}
+    }
     if (!r && typeof _baseCats === 'function'){
       try {
         var _bn = (typeof _artSlotClean === 'function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/, '');
@@ -39528,7 +39543,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
     } catch (e) { return {}; }
   }
-  function _provWrite(all){ window.LSR.setItem(PROV_KEY, JSON.stringify(all)); }
+  function _provWrite(all){
+    window.LSR.setItem(PROV_KEY, JSON.stringify(all));
+    /* #51 — a witness row can carry a rarity the name colour resolver (_artRarity) reads; its cache is per name and
+       would keep a pre-filing '' for ever, so a write here empties it. A store write is rare; a repaint is cheap. */
+    try { if (typeof _ARTRARITY_CACHE === 'object' && _ARTRARITY_CACHE) Object.keys(_ARTRARITY_CACHE).forEach(function(k){ delete _ARTRARITY_CACHE[k]; }); } catch (e) {}
+  }
   /* a filing taken OUT takes its witness row with it — a row left behind would re-file what he removed */
   function _provDrop(names){
     var all = _provAll(), n = 0;
@@ -39710,11 +39730,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (tierN !== 'PROVEN' && tierN !== 'HARDENED' && whyN !== 'kept kind' && !retroN)
         return { ok: false, refused: 'plan', why: nm + ' is not proven, so a reset does not file it back' };
       var keptHome = (pr.home === '__keep' || pr.equipped === true || whyN === 'kept kind');
-      var home = keptHome ? '__keep' : (opts.mule || null);
+      /* #51 — A MAGIC (blue) OR RARE (gold) ROW THE EVIDENCE PROVED GOES TO THE MAGIC & RARE LOCKER. The plan row
+         carries what the item IS (vault_evidence.rarity_of: what its own looks saw, in the ledger's words blue / gold).
+         With no home named, a rolled name used to fall to suggestMule, whose last line routes a name nothing
+         recognises to the weapons mule — a proven rare ring filed under UNI-WEAPONS. The locker is asked for by its
+         id and must exist on this roster; without it the door refuses as no-home, in words, never a guess. A row
+         whose rarity is UNKNOWN (null) is routed exactly as before. */
+      var rarR = (pr.rarity === 'blue' || pr.rarity === 'gold') ? String(pr.rarity) : '';
+      var home = keptHome ? '__keep' : (opts.mule || (rarR && _vHomeOk('magic-rare') ? 'magic-rare' : null));
       var w = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
       if (!keptHome){
         var wcR = window._vaultWitnessCheck(w, retroN ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN);
         if (!wcR.ok) return { ok: false, refused: wcR.main ? 'main' : 'witness', why: wcR.why };
+        if (!home && rarR) return { ok: false, refused: 'no-home',
+          why: nm + ' is ' + (rarR === 'gold' ? 'rare (gold)' : 'magic (blue)') + ' by its looks and this board has no MAGIC & RARE locker (magic-rare) to file it into' };
         if (!home){ var sgR = null; try { sgR = suggestMule(nm); } catch (e) { sgR = null; } home = sgR ? sgR.id : null; }
         if (!_vHomeOk(home) || home === '__keep') return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
       }
@@ -39741,6 +39770,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         tier: tierN || null,
         successes: (typeof pr.successes === 'number') ? pr.successes : null,
         trials: (typeof pr.trials === 'number') ? pr.trials : null,
+        /* #51 — what the item IS, as its looks read it; the name colour resolver (_artRarity) paints a rolled name
+           from this row, so a rebuilt rare is yellow and a magic blue on every vault surface. null = UNKNOWN. */
+        rarity: (typeof pr.rarity === 'string' && pr.rarity) ? pr.rarity : null,
         locked: pr.locked === true,
         cells: Array.isArray(pr.cells) ? pr.cells : [],
         evidence: whyN
@@ -46474,7 +46506,7 @@ function renderJournal(){
       R.heldUnknown = plan.held.filter(function(h){ return h && h.tier == null; }).length;
       R.heldNames = plan.held.map(function(h){ return h && h.name ? String(h.name) : null; }).filter(Boolean);
     }
-    var names = [], failed = [], rows = plan.rebuilt;
+    var names = [], failed = [], rows = plan.rebuilt, byRar = {};
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       if (!row || !row.name) continue;
@@ -46483,7 +46515,14 @@ function renderJournal(){
         if (typeof window.vaultFile !== 'function') throw new Error('no door');
         filed = window.vaultFile(row.name, row.witness || null, { rebuild: true, plan: row, mule: row.home || null });
       } catch (e6) { filed = null; threw = String((e6 && e6.message) || e6 || 'the door threw'); }
-      if (filed && filed.ok) names.push(String(row.name));
+      if (filed && filed.ok){
+        names.push(String(row.name));
+        /* #51 — the tally by what each rebuilt item IS (the plan row's rarity: unique · set · gold · blue · white),
+           a row the plan could not place counted under 'unknown', never folded into a colour. The status line says
+           it and the doctor's reset row reads it off the persisted receipt (vault_evidence.reset_receipt). */
+        var rk = (typeof row.rarity === 'string' && row.rarity) ? row.rarity : 'unknown';
+        byRar[rk] = (byRar[rk] || 0) + 1;
+      }
       /* Ledger fix round 2, finding B — EVERY REFUSAL IS SAID. This pushed a bare name that nothing read, so a plan row the
          door refused fell silently between "rebuilt" and "held". It now carries the door's own code and reason; the status
          line names it (_vaultResetSay) and the doctor's reset row reads it off the persisted receipt (d2r_vaultLastReset,
@@ -46493,6 +46532,16 @@ function renderJournal(){
     }
     R.rebuilt = names;
     R.rebuiltFailed = failed;
+    R.rebuiltByRarity = byRar;
+  }
+  /* #51 — the rebuilt tally in his words, from the receipt's rebuiltByRarity. Absent (an older receipt) says nothing
+     rather than "0 of each". Keyed on the ledger's vocabulary (vault_evidence.RARITY_SAY says the same words). */
+  var _V_RAR_SAY = { unique: 'unique', set: 'set', gold: 'rare (gold)', blue: 'magic (blue)', white: 'white', unknown: 'rarity UNKNOWN' };
+  function _vRarSay(t){
+    if (!t || typeof t !== 'object' || Array.isArray(t)) return '';
+    var ks = ['unique', 'set', 'gold', 'blue', 'white', 'unknown'].filter(function(k){ return t[k]; });
+    Object.keys(t).forEach(function(k){ if (ks.indexOf(k) < 0 && t[k]) ks.push(k); });
+    return ks.length ? ' (' + ks.map(function(k){ return t[k] + ' ' + (_V_RAR_SAY[k] || k); }).join(' · ') + ')' : '';
   }
   /* the words — the title, the confirm and the status line all read the scope, so they cannot drift from it */
   function _vaultResetWords(door, R){
@@ -46532,7 +46581,7 @@ function renderJournal(){
     if (R.door === 'vaultClearHistory') {
       /* rank 9 — planWhy has a reader: an unread plan says why; held says how many were WATCHED and how many UNKNOWN */
       if (!Array.isArray(R.rebuilt)) bits.push('rebuilt UNKNOWN — the witness ledger was not read' + (R.planWhy ? ' (' + R.planWhy + ')' : ''));
-      else bits.push('rebuilt ' + R.rebuilt.length + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN')
+      else bits.push('rebuilt ' + R.rebuilt.length + _vRarSay(R.rebuiltByRarity) + ' · held ' + (typeof R.held === 'number' ? R.held : 'UNKNOWN')
                      + ((typeof R.heldWatched === 'number' && typeof R.heldUnknown === 'number')
                         ? ' (' + R.heldWatched + ' WATCHED · ' + R.heldUnknown + ' UNKNOWN)' : ''));
       var rf = Array.isArray(R.rebuiltFailed) ? R.rebuiltFailed : [];

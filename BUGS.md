@@ -74,6 +74,71 @@ ratchet, 41 > 40), [4] v1520's premise dropped (+ the ratchet). ⚠ Browser suit
 **Routine I must confirm** the four edited specs; the eval bypass and the seeded cell are reasoned from bible.html, not
 run here. Pre-existing and NOT touched: the red-proof census reports `test_every_pc_proves_itself[34]` matching 0 times
 in `tv/control_app.py` - 0 at the v3524 integration's HEAD too.
+### REG-1521 - THE v3524 UNION MOVED A TUPLE UNDER REG-1511'S RED-PROOF, SO THE CENSUS REFUSED EVERY PUSH FROM THE INTEGRATION (2026-09-29)
+
+**Found** by the sweep after #51 (the push's own `test_every_declared_red_proof_is_well_formed`, run on the v3524
+integration before any of #51's edits: `test_every_pc_proves_itself[34]: the tamper matches 0 time(s)`). Attributed by
+delta: the anchor `"playing", "stood-aside", "low-memory", "aside-cooldown")` counts 0 at HEAD too — the union put
+`"running-unverified"` inside that tuple (control_app.py, the doctor's healthy self-prove keys) after REG-1511's proof
+was written. REG-1513's class, one merge later: a proof that changes nothing proves nothing, and the census that guards
+that refuses the push. **Fix:** the anchor is the tuple as the tree holds it; the tamper still drops only
+`aside-cooldown`. Seen RED through its own law (`test_every_pc_proves_itself`, proof 34 applied, run, restored
+byte-for-byte). The census now reads 2,813 red-proofs, all well formed.
+
+### REG-1520 - A PROVEN RARE CAME BACK FROM A RESET INTO THE WEAPONS MULE, PAINTED UNIQUE GOLD, AND THE RECEIPT SAID "REBUILT 4" (2026-09-29)
+
+**Found** building #51 (his ask 2026-09-28: magic and rare items get the evidence chain uniques have), by driving the
+SHIPPED reset and door in node over a plan the real route served (never a browser, never his stores):
+- a plan row for a rolled name reached `vaultFile`'s rebuild branch with no home, so the door asked `suggestMule` —
+  whose last line routes a name nothing recognises to the weapons mule. A rare ring twelve visits had proven was filed
+  under UNI-ARMOR (the law's stub; UNI-WEAPONS on his board);
+- the witness row it wrote carried no rarity, so `_artRarity` — the ONE name-colour resolver — had nothing to paint a
+  rolled name with, and the locker cell fell to `_qStyle`'s 'unique' fallback: a rare in unique gold, the exact colour
+  defect `test_a_name_takes_its_colour_from_its_rarity` exists for;
+- the status line and the persisted receipt said "rebuilt 4" and nothing about what the four were.
+**Fix (bible.html):** the rebuild branch reads the plan row's `rarity` (REG-1519): a blue/gold row with no home named is
+filed into the MAGIC & RARE locker (`magic-rare`, asked for by id — a board without it is refused `no-home` in words,
+never guessed into a mule); the witness row carries `rarity`; `_artRarity` asks the witness row for a name nothing
+above could place (before the base fallback, so a rare read by its base word is rare, not white) and `_provWrite`
+empties its per-name cache so a '' held before the filing does not outlive it; `_vaultRefileFromPlan` writes
+`rebuiltByRarity` on the receipt and `_vaultResetSay` says it ("rebuilt 4 (1 unique · 1 rare (gold) · 1 magic (blue)
+· 1 rarity UNKNOWN)"). A row of UNKNOWN rarity routes exactly as before. **Law:** new
+`test_a_proven_rare_comes_back_to_the_magic_and_rare_locker` (registered): the served plan carries rarity on every
+row; in node the shipped reset files the rare and the magic into `magic-rare`, the unique and the UNKNOWN row where
+`suggestMule` sends them, the WATCHED rare stays held; the witness rows carry gold/blue/null; `_artRarity` paints
+rare/magic and leaves a blank uncoloured, after having cached '' before the reset; the status line and the receipt
+tally by rarity and `vault_evidence.reset_receipt` reads the SAME receipt to the same words; with no locker both are
+refused in words, on the receipt, never filed. 6 red-proofs, each applied, RED, restored byte-for-byte.
+`test_a_reset_refiles_only_what_the_plan_says[1]` re-anchored to the line as it now reads (same tamper), re-proven RED.
+
+### REG-1519 - THE TIER TABLE READ NO LOOK'S QUALITY AND THE EVIDENCE ROUTE READ ONLY THE CHRONICLE BOOKS, SO A MAGIC OR RARE ITEM HAD NO TIER, NO TALLY AND NO PICTURE (2026-09-29)
+
+**Found** building #51 — his ask 2026-09-28: "MAGIC (blue) + RARE (gold) ITEMS GET THE SAME EVIDENCE CHAIN AS UNIQUES:
+witnessed looks, Wilson tiers, rebuild after a reset, clickable evidence pictures, tallies". MEASURED on a fixture
+ledger shaped like his (every look carries `quality` since v3369 — `vault_retro.normalize_item` puts it on the
+sighting, `_witness_rows` banks it): `vault_evidence` grouped rows by NAME and read none of it, so a plan row, the
+census and the doctor's line could not say what an item IS; `evidence_for` (`GET /api/evidence`) read the two chronicle
+books and nothing else, so the board's evidence click on a rolled-name keeper answered "nothing banked for this name"
+while its looks (frame, reel, conf, quality, crop) sat in `vault_accum.json`, the store the tier table proves it from.
+Two halves built, never joined; and the rarity fact was persisted once and re-derived nowhere.
+**Fix (one logic, not a copy):** `vault_evidence.rarity_of(name, rows)` is the ONE resolver — the roster names a
+unique or set piece (`item_identity._rosters`, borrowed; a name on both a unique and a runeword roster is not decided
+by it), a rolled name is what its looks SAW (each witness's `quality` through `vault_retro._quality_of`: magic->blue,
+rare->gold, by majority), a tie is UNKNOWN with the votes beside it (never averaged), no roster and no vote is UNKNOWN
+(never white). Every plan row (rebuilt and held) carries `rarity` / `rarityBy`; `tier_census` splits the SAME count
+into `byRarity` (+ `rarityUnknown`), and the doctor's evidence-tiers row says "by rarity: unique W0/P1/H0 · rare (gold)
+W1/P1/H0 · magic (blue) W1/P0/H0 · rarity UNKNOWN 3"; `reset_receipt` reads the receipt's `rebuiltByRarity` (absent =
+UNKNOWN, never 0 of each) and the reset row says it; `vault_proven_names` rows carry `rarity`; `evidence_for` walks its
+sources in order through `_evidence_sources` — the chronicle books first (their lookup moved verbatim), then the vault
+witness ledger, whose looks are re-spelled into the route's ONE shape (`reel` = the reel DIRECTORY the board's click
+opens, `frame`, `lane`, `conf`, with `witness`, `quality`, `crop`, `saw` beside them) and judged by
+`vault_evidence.stand` (the same `tier()` and `_measure`); the sentence says "rare (gold) · tier PROVEN 12/12 by
+visits". An empty chronicle ledger no longer ends the search; an unreadable vault ledger is UNKNOWN, never "nothing
+banked"; `ledger="vault"` asks the vault alone. **Law:** new `test_a_rare_item_stands_on_the_same_looks_as_a_unique`
+(registered): drives the resolver, the plan, the census (with the corroboration that the buckets add up to the census's
+own counts), the doctor line, the receipt, the proven-names route and the evidence route on a temp ledger that is
+byte-identical after. 9 red-proofs, each applied, RED, restored byte-for-byte.
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

@@ -320,8 +320,9 @@ RED_PROOF = [
     {
         "why": "the reset files the held rows too, so a watched item comes back",
         "file": "bible.html",
-        "find": "    var names = [], failed = [], rows = plan.rebuilt;\n",
-        "replace": "    var names = [], failed = [], rows = plan.rebuilt.concat(plan.held || []);\n",
+        # #51 (REG-1520) - the line now also opens the by-rarity tally; the tamper is the same: file the held rows too
+        "find": "    var names = [], failed = [], rows = plan.rebuilt, byRar = {};\n",
+        "replace": "    var names = [], failed = [], rows = plan.rebuilt.concat(plan.held || []), byRar = {};\n",
         "matches": 1,
     },
     {
