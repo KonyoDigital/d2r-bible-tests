@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1533 - THE EVIDENCE TIERS HAD NO LANE: 15 WATCHED ITEMS WAITED FOR LOOKS AND NOTHING SAID ON / WORKED / LASTTS / OWED (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 19: "No lane reports on, worked, lastTs or owed for the tiers.
+15 WATCHED items waiting for looks are published nowhere, and the only reader is a row stuck MISSING (rank 4)." A grep of
+lane_census.py for vault_evidence / tier / retro found nothing; `WATCHES['evidence tiers']` is `()`. The doctor row printed
+the three counts and stopped: WHICH items wait, how many looks each still needs, and whether any look has landed lately
+reached no surface. **Fix:** `vault_evidence.tiers_watch(path)` — the tiers as a lane in the shared vocabulary: `owed` =
+the WATCHED count with a row per item naming its gap to the bar (looks short of the 10-look floor, or the Wilson bound
+under 0.722 once the floor is met); `worked` = LIFETIME items that EARNED PROVEN/HARDENED by visits, read off the durable
+ledger so a restart cannot forget it; `lastTs` = the newest LOOK's own `ts` (or the owned row's `lastSeenTs`), never the
+file's mtime and never the clock — a compaction is not a look. UNKNOWN is never 0: an unreadable ledger leaves every field
+None; a row that cannot be measured makes `owed` None and `owedAtLeast` says what WAS counted. The 'evidence tiers' doctor
+row now carries the owed clause with the names and the age of the newest look (`_tiers_lane_clause`); `control_app.
+evidence_tiers_state()` publishes the same dict on `/api/status` as `evidenceTiers`, cached by the ledger's mtime (an
+unreadable ledger is never remembered as an answer). **Law:** `test_the_evidence_tiers_lane_says_what_it_owes` — 12 cases
+over a temp ledger (a 30 h-old newest look reads ~30 h, never "just now"; nothing writes the ledger). **Red-proofs, each
+applied, run RED, restored byte-for-byte (git diff clean):** owed claimed with an unmeasured row; lastTs from the clock;
+an earned tier not counted as work; the eagle line without the owed clause; the console cache never re-reading a changed
+ledger. Open question for him, carried from the audit and NOT decided here: whether an unattended WATCHED -> PROVEN
+re-file is wanted once an item earns its looks. The lane only reports; it files nothing.
+
+Also fixed on the way: `test_every_pc_proves_itself` RED_PROOF[34] anchored on the tuple BEFORE the v3524 integration
+added `"running-unverified"` (0 matches) — the red-proof census hooks/pre-push runs at top level was red on the base.
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

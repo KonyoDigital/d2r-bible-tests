@@ -25665,6 +25665,41 @@ def ledger_backup_state():
     return dict(_LEDGER_BACKUP_STATE)
 
 
+# ── #41 rank 19 (2026-09-29) — THE EVIDENCE TIERS, AS A LANE THE HEART CAN ASK ──────────────────
+# No lane reported on / worked / lastTs / owed for the tiers: 15 WATCHED items waited for looks and
+# were published nowhere, and the only reader was a doctor row stuck MISSING (rank 4). This quotes
+# vault_evidence.tiers_watch — the ONE reader; the 'evidence tiers' doctor row prints the same dict —
+# on the surface the console already polls. Cached by the ledger's mtime, because this runs on every
+# status poll and the tiering walks the whole witness ledger; a mtime that has not moved is the same
+# ledger, and a mtime that cannot be read is UNKNOWN, never a remembered answer. [[heart-first]]
+_EVIDENCE_TIERS_CACHE = {"key": None, "lane": None}
+
+
+def evidence_tiers_state():
+    """The tiers lane in the shared vocabulary: on / worked / lastTs / owed (+ waiting, say). -> dict
+
+    `worked` is lifetime (items that EARNED PROVEN/HARDENED by visits, read off the durable ledger).
+    `lastTs` is the newest LOOK's own time, never this poll's clock. `owed` None = UNKNOWN (a row
+    could not be measured), and `owedAtLeast` then carries what was counted. [[unknown-stays-unknown]]
+    """
+    try:
+        import vault_evidence as _ve
+        path = VAULT_LEDGER_PATH
+        try:
+            key = (path, os.path.getmtime(path))
+        except Exception:
+            key = None
+        if key is None or _EVIDENCE_TIERS_CACHE["key"] != key:
+            lane = _ve.tiers_watch(path)
+            # only a READ ledger is worth remembering: an unreadable one is re-asked next poll
+            _EVIDENCE_TIERS_CACHE.update({"key": key if lane.get("on") is not None else None, "lane": lane})
+        return dict(_EVIDENCE_TIERS_CACHE["lane"])
+    except Exception as e:
+        return {"on": None, "worked": None, "lastTs": None, "owed": None, "owedAtLeast": None,
+                "unknownRows": None, "waiting": None,
+                "say": "the tiers lane could not be read (%s)" % type(e).__name__}
+
+
 def _ledger_snapshot_once(force=False):
     """One snapshot. Returns (wrote_path_or_None, why). Never raises, never writes an empty ledger."""
     try:
@@ -36094,6 +36129,8 @@ def status_payload():
         "retention": _t("retention", retention_state),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": _t("ledgerBackup", ledger_backup_state),
+        # #41 rank 19 — the evidence tiers as a lane: what they owe him in looks, and when a look last landed.
+        "evidenceTiers": _t("evidenceTiers", evidence_tiers_state),
         # v2053 — what the space warden has reclaimed, so the disk is a number he can see.
         "warden": _t("warden", warden_state),
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.

@@ -970,8 +970,10 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1511) - the doctor warns through every stand-aside cooldown",
         "file": "tv/control_app.py",
-        "find": "\"playing\", \"stood-aside\", \"low-memory\", \"aside-cooldown\")",
-        "replace": "\"playing\", \"stood-aside\", \"low-memory\")",
+        # the v3524 integration added "running-unverified" to this tuple and left the anchor on the old
+        # spelling: 0 matches, the census (test_every_declared_red_proof_is_well_formed) red at the push door
+        "find": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\", \"aside-cooldown\")",
+        "replace": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\")",
         "matches": 1,
     },
 ]

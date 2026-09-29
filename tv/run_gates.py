@@ -8127,6 +8127,20 @@ GATES = [
              "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
              "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
          skip_ok=()),
+    Gate("test_the_evidence_tiers_lane_says_what_it_owes",
+         [sys.executable, os.path.join(HERE, "test_the_evidence_tiers_lane_says_what_it_owes.py")], 120,
+         needs_app=False,
+         why="#41 rank 19 (REG-1533, 2026-09-29) — the evidence tiers are a LANE in the shared vocabulary. No lane "
+             "reported on / worked / lastTs / owed for the tiers: 15 WATCHED items waited for looks and were published "
+             "nowhere. vault_evidence.tiers_watch: owed = the WATCHED count with each item's gap to the bar (looks short "
+             "of the 10-look floor, or the Wilson bound under it), worked = LIFETIME items that EARNED PROVEN/HARDENED "
+             "by visits (read off the durable ledger), lastTs = the newest LOOK's own time (never the file's mtime or "
+             "the clock). UNKNOWN is never 0: an unreadable ledger leaves every field None; a row that cannot be "
+             "measured makes owed None and says what WAS counted. The 'evidence tiers' doctor row carries the owed "
+             "clause and the age of the newest look on the eagle line; control_app.evidence_tiers_state publishes the "
+             "same dict on /api/status (evidenceTiers), cached by the ledger's mtime, an unreadable ledger never "
+             "remembered as an answer. Driven over a temp ledger; nothing writes it. 12 cases, 5 red-proofs",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

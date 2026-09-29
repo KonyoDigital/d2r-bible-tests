@@ -2724,9 +2724,34 @@ def _check_the_evidence_tiers(path=None, root=None):
         retro = "retro flags 0"
     line = ("tiers by visit, never frame: WATCHED %d · PROVEN %d · HARDENED %d · unreadable %d · %s · %s"
             % (got["watched"], got["proven"], got["hardened"], got["unknown"], retro, pic))
+    # ══ #41 rank 19 (2026-09-29) — WHAT THE TIERS OWE, AND WHEN A LOOK LAST LANDED, ON THE EAGLE LINE ══
+    # The counts above said 15 WATCHED and stopped: which items, how many looks each still needs, and
+    # whether any look has landed lately were published nowhere. This is the lane's owed and lastTs
+    # (vault_evidence.tiers_watch — the ONE reader; control_app.evidence_tiers_state quotes the same
+    # dict). The age is measured from the newest LOOK the ledger carries, never from this tick.
+    line += " · " + _tiers_lane_clause(_ve.tiers_watch(path if path is not None else _evidence_ledger_path()))
     if bad_pics:
         return MISSING, bad_pics + " · " + line
     return OK, line
+
+
+def _tiers_lane_clause(lane):
+    """The owed / last-look half of the 'evidence tiers' row, from the lane's own dict. -> str
+
+    `lastTs` is the newest look's own time, so the age is the age of the EVIDENCE; None reads UNKNOWN,
+    never "just now". `owed` None (a row could not be measured) says UNKNOWN and what was counted.
+    [[stale-reading]] [[unknown-stays-unknown]]"""
+    if not isinstance(lane, dict) or lane.get("on") is None:
+        return "owed UNKNOWN · last look UNKNOWN (%s)" % str((lane or {}).get("say") or "the lane could not be read")[:120]
+    say = str(lane.get("say") or "")
+    head = say.split(" · last look")[0] if say else "owed UNKNOWN"
+    ts = lane.get("lastTs")
+    if isinstance(ts, (int, float)) and not isinstance(ts, bool):
+        age_h = max(0.0, (time.time() * 1000.0 - float(ts)) / 3600000.0)
+        last = "last look %.1fh ago" % age_h
+    else:
+        last = "last look UNKNOWN (no look carries a time)"
+    return head + " · " + last
 
 
 def _check_vault_provenance():
