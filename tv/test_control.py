@@ -18104,7 +18104,11 @@ class TestV2012TheLauncherDoesNotRaceItself(unittest.TestCase):
         e.pop("TV_FORCE_PORT", None)
         if env:
             e.update(env)
-        r = subprocess.run(["bash", sh, str(port), str(grace)], capture_output=True, text=True,
+        import posix_shell as _PS   # REG-1642 - a real POSIX bash; on a Windows PC `bash` is the WSL launcher
+        _bash = _PS.bash()
+        if _bash is None:
+            self.skipTest("no real POSIX bash on this PC - the launcher guard is UNMEASURED, not passing")
+        r = subprocess.run([_bash, sh, str(port), str(grace)], capture_output=True, text=True,
                            timeout=30, env=e)
         return (r.stdout or "").strip()
 

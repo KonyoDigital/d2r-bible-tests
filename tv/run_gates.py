@@ -8689,6 +8689,17 @@ GATES = [
              "faulthandler was registered with chain=True, which after the dump restores SIGUSR1's previous action "
              "and re-raises it, and that action is the default one: terminate. A child imports the real module, "
              "parks a worker thread, signals itself, and must live to print ALIVE with every thread's stack."),
+    Gate("test_a_shell_law_without_a_real_bash_is_unmeasured",
+         [sys.executable, os.path.join(HERE, "test_a_shell_law_without_a_real_bash_is_unmeasured.py")], 240,
+         needs_app=False,
+         why="REG-1642 (2026-10-01, the v3535 cross-family eye, both halves reproduced) - after REG-1632 the "
+             "browser-adoption law's no-bash skip sat on the resolver's class, so with no bash its four hook cases "
+             "crashed with FileNotFoundError while the shell-free resolver cases were skipped; and every caller ran "
+             "`bash() or \"bash\"`, which on a Windows PC with no real bash runs the WSL launcher and reads RED. The "
+             "sibling sweep found two more laws running a bare `bash` (the hook's syntax check, the launcher guard). "
+             "Driven twice in children: with no bash every shell case is SKIPPED as unmeasured and the resolver "
+             "cases still run; with a launcher named `bash` first on PATH every shell case runs the resolver's "
+             "bash and passes."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

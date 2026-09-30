@@ -789,6 +789,12 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         pid = mem.get("pid") or _STARTED.get("pid")
         if not pid:
             return None
+        # REG-1643 (the v3535 cross-family eye) - "is a proof still running" asks WHO, not only whether some process
+        # holds the number: Windows hands an ended prover's pid to the next process, so pid_alive() alone kept this
+        # fast path reading a stranger as the prover and the ended slice waited for the 10-minute tick - the tick and
+        # the kill both ask is_ours(). No recorded birth (a store from before REG-1511) keeps the old answer; the
+        # tick then treats a live one as running-unverified.
+        birth = mem.get("pidBirth") if mem.get("pid") else _STARTED.get("birth")
         # REG-1625 - CONSECUTIVE, NOT ONE A TICK. MEASURED on the ALT 2026-09-30: its first slice (40 gates) took about a
         # minute, then the lane waited out the rest of its 10-minute tick - 663 owed gates would have needed ~3 hours of
         # game-off time. A slice that has ENDED is booked now, and the tick starts the next one if the PC is still idle
@@ -796,7 +802,8 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         # REG-1628 - AND IT IS HANDED THE LOAD PROBE THE LANE'S OWN TICK USES. MEASURED on the ALT on v3534: slices still
         # started only on the 10-minute tick (23:13:24, then 23:23:32). This call booked the ended slice and then decide()
         # met busy=None - "load-unknown", never started on a guess - so the next slice waited for the tick after all.
-        if not pid_alive(pid):
+        alive = is_ours(pid, birth) if birth is not None else pid_alive(pid)
+        if not alive:
             return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)

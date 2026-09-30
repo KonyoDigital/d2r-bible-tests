@@ -75,7 +75,11 @@ def _stages(lines):
 class TheRenderGateRunsBeforeTheProvingStage(unittest.TestCase):
 
     def test_bash_accepts_the_hook(self):
-        r = subprocess.run(["bash", "-n", HOOK], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30)
+        import posix_shell as _PS   # REG-1642 - a real POSIX bash; on a Windows PC `bash` is the WSL launcher
+        _bash = _PS.bash()
+        if _bash is None:
+            self.skipTest("no real POSIX bash on this PC - the hook's syntax is UNMEASURED, not passing")
+        r = subprocess.run([_bash, "-n", HOOK], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30)
         self.assertEqual(r.returncode, 0, "bash -n refuses the hook:\n%s" % r.stdout.decode("utf-8", "replace")[-600:])
 
     def test_the_walker_sees_the_whole_hook(self):

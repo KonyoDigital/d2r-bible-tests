@@ -20,7 +20,6 @@ RED_PROOF below.
 import io
 import os
 import re
-import shutil
 import socket
 import subprocess
 import sys
@@ -39,8 +38,13 @@ except Exception:
 HOOK = os.path.join(ROOT, "hooks", "pre-push")
 
 import posix_shell as PS  # noqa: E402
-#: REG-1632 - a real POSIX bash (never the WSL launcher on a Windows PC); "bash" when none, so the run says UNKNOWN
-_BASH = PS.bash() or "bash"
+#: REG-1632 - a real POSIX bash (never the WSL launcher on a Windows PC).
+#: REG-1642 - None when this PC has none, and every case that RUNS the hook's snippet is then skipped as unmeasured.
+#: The old `or "bash"` ran whatever `bash` names - on a Windows PC the WSL launcher, which runs nothing, so the law
+#: read RED there; with no bash at all it raised FileNotFoundError. (The v3535 cross-family eye, 2026-10-01.)
+_BASH = PS.bash()
+_NEEDS_BASH = unittest.skipIf(_BASH is None, "no real POSIX bash on this PC (the WSL launcher is not one) - "
+                                             "this case is UNMEASURED, not passing")
 
 
 def _hook():
@@ -110,9 +114,6 @@ def _full_window():
     raise unittest.SkipTest("no window of 41 free ports found - UNMEASURED, not passing")
 
 
-@unittest.skipIf(shutil.which("bash") is None,
-                 "bash absent - this law is UNMEASURED, not passing")
-
 class TheLawsBashIsAPosixBash(unittest.TestCase):
     """REG-1632 - posix_shell.bash(), driven with the ALT's measured PATH (the WSL launcher first, Git's bash on disk)."""
 
@@ -133,12 +134,15 @@ class TheLawsBashIsAPosixBash(unittest.TestCase):
         self.assertEqual(self._win(r"C:\msys64\usr\bin\bash.exe"), r"C:\msys64\usr\bin\bash.exe")
         self.assertEqual(PS.bash(which={"bash": "/bin/bash"}.get, platform="darwin"), "/bin/bash")
 
+
 class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
 
+    @_NEEDS_BASH
     def test_premise_with_nothing_held_the_first_port_is_chosen(self):
         p = _free_block()
         self.assertEqual(_choose(p), p)
 
+    @_NEEDS_BASH
     def test_a_held_port_is_skipped(self):
         p = _free_block()
         held = socket.socket()
@@ -152,6 +156,7 @@ class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
         self.assertNotEqual(got, p, "the gate chose a port something else is listening on - it would adopt that browser")
         self.assertGreater(got, p)
 
+    @_NEEDS_BASH
     def test_a_full_window_refuses_and_never_adopts(self):
         """REG-1278 - every port in the window answers: the gate must REFUSE, never fall back to the
         start port it just proved taken (the cross-family eye on #231 found that fallback)."""
@@ -170,6 +175,7 @@ class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
         self.assertNotIn("CHOSEN=", r.stdout, "a port was exported although none was free")
         self.assertIn("ALL answer", r.stdout + r.stderr, "the refusal does not say why")
 
+    @_NEEDS_BASH
     def test_never_his_ports(self):
         self.assertGreaterEqual(_choose(9222), 9224, "the gate may never choose his Chrome (9222) or TradingView (9223)")
 

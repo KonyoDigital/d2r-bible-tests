@@ -147,7 +147,10 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
                 "import sys\nprint('fake decide')\nsys.exit(%d)\n" % rc)
             script = "set -euo pipefail\nHERE=%s\n%s\necho REACHED-THE-LAUNCH\n" % (d, block)
             import posix_shell as _PS   # REG-1632 - a real POSIX bash, never the WSL launcher
-            r = subprocess.run([_PS.bash() or "bash", "-c", script], capture_output=True, text=True, timeout=30)
+            _bash = _PS.bash()
+            if _bash is None:           # REG-1642 - never whatever `bash` names (the WSL launcher runs nothing)
+                self.skipTest("no real POSIX bash on this PC - the launcher block is UNMEASURED, not passing")
+            r = subprocess.run([_bash, "-c", script], capture_output=True, text=True, timeout=30)
             return r
         finally:
             import shutil

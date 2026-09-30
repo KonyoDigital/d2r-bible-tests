@@ -405,6 +405,47 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1644 - HEART2 READ AN UNREADABLE PROOF_NEEDS AS "NEEDS NOTHING" (the v3535 eye, 2026-10-01)
+
+`proof_needs_in()` answers None when a gate's declaration cannot be read (the file will not parse, or PROOF_NEEDS is
+not a literal) and `[]` only when it truly declares none. `make_sandbox` and `law_inputs` both branch on None;
+`_prove_one`'s REG-1626 door did `if _needs:`, so an unreadable declaration went to the clean run - and with its
+subject absent every law skips, the run exits 0 and the gate is filed BLIND, the lock-shut outcome REG-1626 ended for
+the readable shape. **Measured:** 0 of 753 gate files hit it today - latent, fixed before it bites. **Now** None is
+UNPROVABLE here with its reason, and nothing runs. Law: `tv/test_every_pc_can_finish_its_own_proof.py`, a
+non-literal PROOF_NEEDS fixture; red-proof RED.
+
+### REG-1643 - THE FAST PATH READ A STRANGER HOLDING AN ENDED PROVER'S PID AS THE PROVER (the v3535 eye, 2026-10-01)
+
+`self_prove.guard()` (the 10 s path that books an ended slice and chains the next, REG-1625/1628) decided "a proof
+is still running" with `pid_alive()` only. Windows hands an ended prover's pid to the next process, so a reused pid
+read as the prover: the guard returned without booking, and the ended slice waited for the 10-minute tick - which,
+like the kill, asks `is_ours()` (pid AND the birth recorded at spawn). **Now** the guard asks `is_ours()` whenever a
+birth was recorded; a store from before REG-1511 (no birth) keeps the old answer and the tick still treats a live one
+as running-unverified. **Measured on the ALT tonight, and honestly:** the 13-minute idle stretch observed at 01:27-01:40
+was NOT this - a slice stood aside at 01:09:21 (302 MB free while he signed in) and the 30-minute stand-aside cooldown
+ran to 01:39:21; the next slice started at 01:40:28. The defect is real by reading and pinned by a law; a live
+reuse was not observed. Law: `tv/test_a_proof_yields_the_moment_the_game_starts.py` - the real guard and tick with a
+stranger on the old pid (alive, another birth) start the next slice at once; a live pid with no recorded birth is left
+alone. The REG-1624 fixture now says its prover IS ours (its birth), and REG-1625's red-proof is re-anchored. 9
+red-proofs RED.
+
+### REG-1642 - A SHELL LAW ON A PC WITH NO REAL BASH CRASHED OR READ RED INSTEAD OF UNMEASURED (the v3535 eye, 2026-10-01)
+
+The v3535 cross-family look (81,983 chars) named two halves of one defect in REG-1632's own change, both reproduced.
+**One:** `test_the_gate_never_adopts_a_browser_it_did_not_start`'s `skipIf(bash absent)` sat on the WRONG class after
+REG-1632 inserted the resolver's class under it - measured with no bash on PATH: the three resolver cases (which need
+no shell) SKIPPED, the four hook cases ERRORED with FileNotFoundError. **Two:** every caller ran
+`posix_shell.bash() or "bash"`; `bash()` answers None when the PC has no real POSIX bash, and `or "bash"` then ran
+whatever `bash` names - on a Windows PC the WSL launcher, which runs nothing, so the law read RED there, the exact
+lock-shut outcome REG-1632 existed to end. **The sibling sweep** found two laws that never asked the resolver at all:
+`test_the_render_gate_runs_before_the_proving_stage` (`bash -n` on the hook - in the ALT's live proving slice tonight)
+and test_control's launcher guard. **Now** every shell case asks the resolver and is SKIPPED as UNMEASURED when it
+answers None; the skip sits on the cases that run a shell, not the class. Law:
+`tv/test_a_shell_law_without_a_real_bash_is_unmeasured.py` - driven in children twice: with no bash (empty PATH, no
+Program Files) all 9 shell cases skip as unmeasured and the resolver cases still run; with a launcher named `bash` first
+on PATH (it prints the WSL message and exits 1) all 9 run the resolver's bash and pass. 6 red-proofs RED.
+
 ### REG-1641 - ASKING HIS CONSOLE FOR ITS STACKS KILLED IT (2026-10-01)
 
 control_app registers faulthandler on SIGUSR1 so a wedged console can name the frame that holds its lock

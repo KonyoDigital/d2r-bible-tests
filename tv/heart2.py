@@ -2722,6 +2722,16 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     # which shuts every lock on that PC for good, over a law about data it will never hold. A PC can only prove what
     # it has; this one says it did not, and why, and asks no run to say otherwise. [[unknown-stays-unknown]]
     _needs = proof_needs_in(filename)
+    # REG-1644 (the v3535 cross-family eye) - None is "its PROOF_NEEDS could not be read", never "it needs nothing":
+    # make_sandbox and law_inputs both branch on it and this door did not, so a gate with an unreadable declaration went
+    # to its clean run, and with its subject absent every law skipped, the run exited 0 and it was filed BLIND - the
+    # lock-shut outcome REG-1626 ended for the readable shape. MEASURED 2026-10-01: 0 of 753 gate files hit it today.
+    if _needs is None:
+        say("     %-52s %s — its PROOF_NEEDS cannot be read, so whether its subject is on this PC is UNKNOWN: "
+            "nothing is graded on a guess" % (label, UNPROVABLE))
+        if why is not None:
+            why["needsUnreadable"] = True
+        return UNPROVABLE
     if _needs:
         _gone = [n for n in _needs if not os.path.exists(os.path.normpath(os.path.join(sandbox, n)))]
         if _gone:

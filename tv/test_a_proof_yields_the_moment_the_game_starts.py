@@ -51,6 +51,10 @@ import self_prove as SP  # noqa: E402
 import control_app as ca  # noqa: E402
 
 RED_PROOF = [
+    {"why": "REG-1643 - the fast path reads a stranger holding the ended prover's pid as the prover again",
+     "file": "self_prove.py",
+     "find": "        alive = is_ours(pid, birth) if birth is not None else pid_alive(pid)\n",
+     "replace": "        alive = pid_alive(pid)\n", "matches": 1},
     {"why": "REG-1624 - the guard never stands a running proof aside: it waits for the 10-minute tick",
      "file": "self_prove.py",
      "find": "        aside, _why = stand_aside(play_now, free_now)\n        if not aside:\n            return None\n",
@@ -69,7 +73,7 @@ RED_PROOF = [
      "replace": "MIN_FREE_MB_TO_START = 2048\n", "matches": 1},
     {"why": "REG-1625 - an ended slice waits out the 10-minute tick: slices are not consecutive",
      "file": "self_prove.py",
-     "find": "        if not pid_alive(pid):\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
+     "find": "        if not alive:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
      "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
      "matches": 1},
     {"why": "REG-1628 - the guard's chained tick is not handed the load probe: load-unknown, the next slice waits",
@@ -131,10 +135,12 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
     def _running(self):
         with io.open(self.store, "w", encoding="utf-8") as fh:
             json.dump({"pid": 4242, "pidBirth": 1234.5, "startedFor": "fp"}, fh)
-        # the fake prover is alive unless a case says it ended
-        p = mock.patch.object(SP, "pid_alive", lambda pid: True)
-        p.start()
-        self.addCleanup(p.stop)
+        # the fake prover is alive unless a case says it ended - and it IS ours: its birth is the one recorded at spawn
+        # (REG-1643: the guard asks who holds the pid, so a fixture that only says "something is alive" is a stranger)
+        for name, fake in (("pid_alive", lambda pid: True), ("proc_birth", lambda pid: 1234.5 if pid == 4242 else None)):
+            p = mock.patch.object(SP, name, fake)
+            p.start()
+            self.addCleanup(p.stop)
 
     def _tick(self, **kw):
         self.ticks.append(kw)
@@ -250,6 +256,26 @@ class TheNextSliceStartsTheMomentOneEnds(unittest.TestCase):
     def test_an_unmeasured_load_is_never_read_as_idle(self):
         self.assertEqual(self._guard(None).get("key"), "load-unknown")
         self.assertEqual(self.spawned, [])
+
+    def test_a_reused_pid_is_not_our_prover(self):
+        """REG-1643 (the v3535 cross-family eye) - the ended prover's pid now names a STRANGER (alive, another birth).
+        The fast path must see the slice ended, as the tick and the kill do, and start the next one at once."""
+        with mock.patch.object(SP, "pid_alive", lambda pid: pid in (self.OLD, self.NEW)), \
+                mock.patch.object(SP, "proc_birth", lambda pid: 77.0 if pid == self.NEW else 999.0):
+            r = self._guard(5.0)
+        self.assertEqual(len(self.spawned), 1, "a stranger holding the ended prover's pid was read as the prover, so "
+                                               "the next slice waits for the 10-minute tick: %r" % (r,))
+        mem = SP.load(self.store)
+        self.assertEqual((mem.get("pid"), mem.get("slices")), (self.NEW, 1))
+
+    def test_a_live_pid_with_no_recorded_birth_is_left_alone(self):
+        """a store from before REG-1511: no birth to check - the fast path keeps the old answer and starts nothing"""
+        with io.open(self.store, "w", encoding="utf-8") as fh:
+            json.dump({"pid": self.OLD, "startedFor": "fp", "sliceGates": ["gate_a"]}, fh)
+        with mock.patch.object(SP, "pid_alive", lambda pid: pid in (self.OLD, self.NEW)):
+            r = self._guard(5.0)
+        self.assertIsNone(r)
+        self.assertEqual(self.spawned, [], "a second prover started beside a live one whose identity is unknown")
 
 
 class AProofStartsWhenTheGameIsOffAndMemoryAllows(unittest.TestCase):

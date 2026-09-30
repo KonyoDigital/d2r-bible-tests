@@ -46,6 +46,10 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        if _gone:\n",
      "replace": "        if False:\n", "matches": 1},
+    {"why": "REG-1644 - an unreadable PROOF_NEEDS goes to the clean run again and can be filed BLIND",
+     "file": "heart2.py",
+     "find": "    if _needs is None:\n",
+     "replace": "    if False:\n", "matches": 1},
 ]
 
 
@@ -121,6 +125,17 @@ class AGateWhoseSubjectIsNotHereIsUnprovableHere(unittest.TestCase):
         os.makedirs(os.path.join(self.sandbox, "frames", "hist", "reel_nowhere"))
         v, _why = self._prove()
         self.assertEqual(len(self.ran), 1, "a subject that IS here no longer reaches its clean run")
+
+    def test_an_unreadable_declaration_is_unprovable_never_a_clean_run(self):
+        """REG-1644 (the v3535 eye) - a PROOF_NEEDS that is not a literal cannot be read: UNKNOWN, never "needs nothing"."""
+        with io.open(self.law, "w", encoding="utf-8") as fh:
+            fh.write('import os\nPROOF_NEEDS = [os.path.join("frames", "hist", "reel_nowhere")]\n')
+        self.assertIsNone(H2.proof_needs_in(self.law), "PREMISE: the fixture's declaration was readable after all")
+        v, why = self._prove()
+        self.assertEqual(v, H2.UNPROVABLE, "an unreadable PROOF_NEEDS was graded as if it needed nothing")
+        self.assertEqual(self.ran, [], "a gate whose needs could not be read went to its clean run")
+        self.assertTrue(why.get("needsUnreadable"))
+        self.assertIn("cannot be read", " ".join(self.said))
 
 
 if __name__ == "__main__":
