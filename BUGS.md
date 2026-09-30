@@ -378,6 +378,21 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1594 - A PUSH WAS REFUSED BECAUSE THE DEMOS RAN 7 s AFTER HIS CONSOLE RE-EXEC'D ONTO THE PUSHED CODE (#42c, 2026-09-30)
+
+**Measured** on v3526's push #1: the fast-forward of main put new code on disk, his console's version-drift lane re-exec'd
+onto it at 10:18:15, and the pre-push console demos ran 7 s later - j7_shelfStory timed out against a console still
+booting, and a green tree was refused (16/16 once settled; push #2 landed).
+
+**Fixed:** `tv/console_settle.py`, called by the hook right before the demos when a console answers: it waits, bounded at
+360 s (past the drift lane's 300 s check), while the console runs older code than the file on disk and its relaunch is
+not held, relaunched under 30 s ago, or reports its engine not ready. A held relaunch, no answer or the bound all go on -
+the demos decide, and nothing here refuses a push.
+
+**Guards:** `tv/test_the_push_waits_for_a_settling_console.py` (gate of the same name) - the verdicts, the wait through a
+re-exec plus its settle on a fake clock, the bound, a settled console costing nothing, and the hook asking before the
+demos; 10 cases, 3 red-proofs seen red.
+
 ### REG-1593 - A GATE RUN IN A WORKTREE CALLED ITS OWN LEAKS "SUSPECTS" BECAUSE HIS CONSOLE WAS UP (#94, 2026-09-30)
 
 **Measured** on the v3526 integration run (REG-1583): run_gates watches the live-state files of the tree it runs in,

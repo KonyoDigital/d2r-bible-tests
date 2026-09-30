@@ -8436,6 +8436,13 @@ GATES = [
              "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
              "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
              "UNKNOWN never drawn lit or shut)."),
+    Gate("test_the_push_waits_for_a_settling_console",
+         [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
+         needs_app=False,
+         why="#42c (REG-1594, 2026-09-30) - v3526 push #1 was REFUSED on a green tree: the fast-forward put new code on "
+             "disk, his console re-exec'd onto it, and the demos ran 7 s later. Pins console_settle's verdict (older "
+             "code waits unless its relaunch is held, a fresh re-exec settles, engine-not-ready waits, no answer goes "
+             "on), the bounded wait, and the hook asking BEFORE the demos. Fixture statuses and a fake clock only."),
     Gate("test_a_move_in_a_tree_no_console_runs_from_is_a_verdict",
          [sys.executable, os.path.join(HERE, "test_a_move_in_a_tree_no_console_runs_from_is_a_verdict.py")], 60,
          needs_app=False,

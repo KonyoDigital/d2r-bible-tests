@@ -572,6 +572,12 @@ fi
     _demo_touched=1
   fi
   if [ "$_demo_touched" = "1" ]; then
+    # #42c — LET HIS CONSOLE FINISH MOVING ONTO THE PUSHED CODE FIRST. v3526 push #1 was REFUSED: the fast-forward put
+    # new code on disk, the console's drift lane re-exec'd onto it, and the demos ran 7 s later against a console still
+    # booting (16/16 once settled). Bounded at 360 s, and it never refuses a push by itself - the demos decide.
+    if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
+      echo "pre-push: [$(_pp_el)] $(python3 "$REPO/tv/console_settle.py" --wait 360 --min-age 30 2>/dev/null || echo 'console settle: UNKNOWN - the helper did not run')"
+    fi
     # ⚠⚠ THE DEMOS DRIVE THE CONSOLE THAT IS ALREADY RUNNING, AND PYTHON DOES NOT RELOAD.
     # `demo_console.mjs` hits :17772 — his live console — whose `control_app` module was imported
     # when that process started. `control_ui.html` is re-read from disk per request, so a page
