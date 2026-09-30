@@ -1,15 +1,21 @@
 {
-  "_why": "HEART coverage ratchet \u2014 it may only RISE. A fall means a surface this console used to watch is no longer watched, which in a green run reads exactly like clean.",
+  "_why": "HEART coverage ratchet \u2014 it may only RISE. A fall means a surface this console used to watch is no longer watched, which in a green run reads exactly like clean. A surface is watched only where a watcher's CODE names it whole (REG-1555): the floor of 17 blessed on 2026-09-29 counted 13 names that stood only in comments, docstrings or inside a longer id, and was lowered to the measured count on 2026-09-30 for that reason.",
+  "board": {
+    "names": [
+      "vault-moved-note"
+    ],
+    "surfaces": 513,
+    "watched": 1
+  },
   "names": [
-    "bug",
     "clock",
     "hero",
     "phase",
     "sadv-sha",
     "sadv-tip",
     "stage",
-    "theatre"
+    "th-shelf-x"
   ],
-  "surfaces": 354,
-  "watched": 8
+  "surfaces": 366,
+  "watched": 7
 }

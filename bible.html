@@ -10175,6 +10175,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-del{margin-left:auto;color:var(--text-muted)}
 #tab-chars .chx-del.chx-armed{color:#fff;border-color:rgba(255,85,85,.85);background:rgba(255,85,85,.22)}
 #tab-chars .chx-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px 18px;border-radius:12px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-muted);font-size:var(--fs-body)}
+#tab-chars .chx-note{grid-column:1/-1;padding:10px 14px;border-radius:10px;border:1px dashed var(--border-light);background:var(--surface);font-size:var(--fs-body)}   /* #41 rank 20 - the dangling-MAIN note spans the grid like the empty state; --fs-body is the board's defined token (test_control's CSS-var law refused --fs-small) */
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
@@ -10250,6 +10251,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      rewritten here: a read never writes. */
   function _mainRaw(){ try { return window.LSR.getItem(K_MAIN); } catch (e) { return null; } }
   function _mainOf(all){ var m = _mainRaw(); return (m != null && own.call(all, m)) ? m : null; }
+  /* #41 rank 20 - a MAIN that points at a build that is GONE is not the same as no MAIN set, and the room used to draw
+     both the same way (no badge). -> the dangling id, or null when the pointer is empty or names a saved build. */
+  function _mainDangling(all){ var m = _mainRaw(); return (m != null && m !== '' && !own.call(all, m)) ? String(m) : null; }
+  function _mainNote(gone){
+    return gone ? '<div class="chx-note chx-unk" data-state="main-dangling" role="status">MAIN points at a build that is gone ('
+      + esc(gone) + ') — which character is your MAIN is UNKNOWN. Set as MAIN on a card below to say.</div>' : '';
+  }
 
   /* -> {worn, inv, sets} or null (UNKNOWN) - the same three places the builder's own Existing Items reads: every set's
      slots, its weapon swap, its inventory */
@@ -10259,6 +10267,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     for (var i = 0; i < b.sets.length; i++){
       var s = b.sets[i];
       if (!s || typeof s !== 'object') return null;
+      /* #41 rank 20 - a set with no slots object is not "0 worn": nothing could be counted, so the build reads UNKNOWN.
+         (swap and inv may be absent on an older set and count as nothing; the slots object is what a set IS.) */
+      if (!s.slots || typeof s.slots !== 'object') return null;
       [s.slots, s.swap].forEach(function(o){ if (o && typeof o === 'object') Object.keys(o).forEach(function(k){ if (o[k]) worn++; }); });
       if (Array.isArray(s.inv)) s.inv.forEach(function(e){ if (e) inv++; });
     }
@@ -10393,7 +10404,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       return true;
     }
     var mainId = _mainOf(r.all);
-    list.innerHTML = _order(r.all, mainId).map(function(id){ return _card(id, r.all[id], id === mainId); }).join('');
+    list.innerHTML = _mainNote(_mainDangling(r.all))
+      + _order(r.all, mainId).map(function(id){ return _card(id, r.all[id], id === mainId); }).join('');
     return true;
   }
   window.renderCharsTab = _render;
@@ -10404,7 +10416,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   window._charsList = function(){
     var r = _read(); if (!r.ok) return { ok: false, why: r.why };
     var mainId = _mainOf(r.all);
-    return { ok: true, rows: _order(r.all, mainId).map(function(id){
+    /* #41 rank 20 - mainDangling: the id a MAIN pointer names when no saved build carries it (null otherwise), so a
+       room asking here can say UNKNOWN instead of "no MAIN" */
+    return { ok: true, mainDangling: _mainDangling(r.all), rows: _order(r.all, mainId).map(function(id){
       var b = (r.all[id] && typeof r.all[id] === 'object') ? r.all[id] : {}, lvl = +b.level;
       return { id: id, name: b.name || 'Unnamed build', cls: b.cls || null, level: (lvl >= 1 && lvl <= 99) ? (lvl | 0) : null, main: id === mainId };
     }) };
@@ -42428,13 +42442,14 @@ window.vaultAutoAssign = function(){
         var _dsay = _nm + ' (' + p.w + '×' + p.h + ') — placed by hand from the item database at ' + _spot(p)
           + '. Drag it; a green footprint of its size, inside this inventory, is the only drop that moves it'
           + '. Click (or Enter) for its tooltip, to replace it or remove it; Delete removes it';
-        var _an = p.n;   // #248: a runeword draws its BASE - asked here, when the tile is drawn, never by the loader
-        try { if (p.id && typeof window._cbArtName === 'function') _an = window._cbArtName({ id: p.id, base: p.base, name: p.n }) || p.n; } catch (x) { _an = p.n; }
+        var _an = p.n, _anUnk = false;   // #248: a runeword draws its BASE - asked here, when the tile is drawn, never by the loader
+        /* #41 rank 24 - null from the builder means its database would not parse: the picture is UNKNOWN, never p.n */
+        try { if (p.id && typeof window._cbArtName === 'function'){ var _ar = window._cbArtName({ id: p.id, base: p.base, name: p.n }); if (_ar === null) _anUnk = true; else _an = _ar || p.n; } } catch (x) { _an = p.n; }
         return '<div class="vd-item vd-db' + (_vr ? ' vd-r-' + _vr : '') + (_add && _add.sel === p.dbkey ? ' vd-db-on' : '') + '" style="left:' + (3 + p.x * (cell + 2)) + 'px;top:' + (3 + p.y * (cell + 2)) + 'px;width:' + (p.w * cell + (p.w - 1) * 2) + 'px;height:' + (p.h * cell + (p.h - 1) * 2) + 'px"'
           + ' data-dbkey="' + esc(p.dbkey) + '" data-n="' + esc(_nm) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="db-' + esc(p.dbkey) + '"'
           + ' tabindex="0" role="button" aria-label="' + esc(_dsay) + '"' + (_add && _add.sel === p.dbkey ? ' aria-pressed="true"' : '')
           + ' onclick="window._mpInvTile(\'' + jsArg(p.dbkey) + '\')" onkeydown="window._mpInvTileKey(event,\'' + jsArg(p.dbkey) + '\')">'
-          + art(_an, '◆', p.w > 1 && p.h > 1 ? '' : 'sm') + '</div>';
+          + (_anUnk ? window._cbArtUnknown(p.w > 1 && p.h > 1 ? '' : 'sm') : art(_an, '◆', p.w > 1 && p.h > 1 ? '' : 'sm')) + '</div>';
       }
       var _mv = !!(opt && p.key != null);
       var _prov = ''; try { _prov = window._vaultProvSay ? window._vaultProvSay(p.n) : ''; } catch (e) { _prov = ''; }
@@ -43583,12 +43598,21 @@ window.vaultAutoAssign = function(){
     _mpPickErr = r.ok ? '' : r.why;
     return r;
   }
+  /* #41 rank 24 - a worn slot's picture: the builder's art name (a database pick draws its BASE, #248). NULL from the
+     builder means its database would not parse: the slot draws the UNKNOWN glyph, never the item's own name. Lives in
+     the mule window's own span (the laws cut it between _MULE_COPY_CAP and the v210 re-pack), beside its one caller. */
+  function _mpSlotArt(e, glyph){
+    var n = (e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name;
+    return n === null ? window._cbArtUnknown('lg') : art(n, glyph, 'lg');
+  }
   function _mpHostSync(){
     if (typeof window._cbHostOpen !== 'function') return;          // the builder's block is not on this page: the locker list alone
     if (_mpInvAt && openMuleId){ _mpInvHostOpen(); return; }      // #174 v-B5 — an inventory cell holds the picker
     if (!_mpPickAt || !openMuleId){ window._cbHostClose(); return; }
     var at = _mpPickAt, m = muleById(openMuleId);
-    window._cbHostOpen({
+    /* #41 rank 21 - the door can REFUSE (the builder is open): the picker panel then carries the reason in its footer
+       instead of drawing an empty host. The slot stays picked, so the footer is on screen. */
+    if (!window._cbHostOpen({
       slot: at.slot, set: at.set, mule: m ? m.name : String(openMuleId),
       /* READ WHERE IT WRITES: _mpHostWrite writes _mpPickAt.set, so Edit reads that set too (#174 v-B4 review) */
       cur: function(){ return _mpPickAt ? window._mpCbEntryAt(_mpPickAt.slot, _mpPickAt.set) : null; },
@@ -43598,7 +43622,7 @@ window.vaultAutoAssign = function(){
         if (openMuleId) window.openMuleCard(openMuleId);
       },
       close: function(){ window._mpPick(null); }
-    });
+    })){ _mpPickErr = window._cbHostRefusedWhy || 'the picker could not open'; }
   }
   /* ── #174 v-B5 — THE INVENTORY'S PICKER: ONE PICKER, A THIRD PLACE IT OPENS. An empty cell (or a tile he placed from
      the database) opens the builder's picker in the mule host with kind 'inv': Select lists what an inventory takes -
@@ -43645,7 +43669,8 @@ window.vaultAutoAssign = function(){
   }
   function _mpInvHostOpen(){
     var at = _mpInvAt, m = muleById(openMuleId);
-    window._cbHostOpen({
+    /* #41 rank 21 - a refused door (the builder is open) lets the cell go and keeps the reason */
+    if (!window._cbHostOpen({
       kind: 'inv', cell: [at.x, at.y], mule: m ? m.name : String(openMuleId),
       where: 'Inventory · col ' + (at.x + 1) + ' · row ' + (at.y + 1) + (_muleTotalPages > 1 ? ' · Mule ' + (at.page + 1) : ''),
       cur: function(){ return (_mpInvAt && _mpInvAt.key) ? window._mpInvCbEntry(_mpInvAt.key) : null; },
@@ -43657,7 +43682,7 @@ window.vaultAutoAssign = function(){
         if (openMuleId) window.openMuleCard(openMuleId);
       },
       close: function(){ window._mpInvCell(null); }
-    });
+    })){ _mpPickErr = window._cbHostRefusedWhy || 'the picker could not open'; _mpInvAt = null; }
   }
   /* an EMPTY cell of the inventory on screen: the picker opens for it. (null closes it, focus back on its cell.) A cell a
      tile covers is not empty - refused, nothing opens. Without the builder's block there is no picker: false. */
@@ -43830,11 +43855,14 @@ window.vaultAutoAssign = function(){
   /* -> {ok, why, rows: [{src: 'build'|'main', id, name, cls, level, main, declared}]} - ok false = the builds are
      UNKNOWN (said); the MAIN he named is still listed then */
   function _mpBindChars(){
-    var out = { ok: true, why: '', rows: [] }, r = null;
+    var out = { ok: true, why: '', rows: [], mainDangling: null }, r = null;
     if (typeof window._charsList !== 'function') r = { ok: false, why: 'the 👤 Characters tab is not loaded on this page, so its builds could not be asked' };
     else { try { r = window._charsList(); } catch (e){ r = { ok: false, why: 'the builds could not be read (' + (e && e.message || e) + ')' }; } }
     if (!r || !r.ok || !Array.isArray(r.rows)){ out.ok = false; out.why = (r && r.why) || 'the builds could not be read'; }
     else r.rows.forEach(function(x){ out.rows.push({ src: 'build', id: String(x.id), name: String(x.name), cls: x.cls || null, level: x.level || null, main: !!x.main, declared: false }); });
+    /* #41 rank 20 review (REG-1554) - the reader's own word on a MAIN that names no saved build. It was written by the
+       Characters room and read by nobody: this list marked no row ★ MAIN and said nothing, exactly like no MAIN set. */
+    if (out.ok) out.mainDangling = r.mainDangling == null ? null : String(r.mainDangling);
     var mc = null;
     try { mc = typeof window.mainCharacter === 'function' ? window.mainCharacter() : null; } catch (e){ mc = null; }
     if (mc && mc.name){
@@ -43871,6 +43899,8 @@ window.vaultAutoAssign = function(){
     if (!open) return { btn: btn, list: say };
     var L = _mpBindChars(), cur = m.boundChar || null, h = '';
     if (!L.ok) h += '<div class="mp-bind-none mp-bind-bad" data-state="unknown">Your builds could not be read — UNKNOWN (' + esc(L.why) + '). None of them can be bound until they read again.</div>';
+    /* #41 rank 20 review (REG-1554) - a dangling MAIN is SAID here too, above the rows none of which wears ★ MAIN */
+    if (L.ok && L.mainDangling) h += '<div class="mp-bind-none" data-state="main-dangling" role="status">MAIN points at a build that is gone (' + esc(L.mainDangling) + ') — which character is your MAIN is <b>UNKNOWN</b>. Set as MAIN on a card in the 👤 Characters tab.</div>';
     L.rows.forEach(function(x, i){
       var on = !!cur && cur.src === x.src && String(cur.src === 'build' ? cur.id : cur.name) === x.id;
       h += '<button type="button" class="mp-bind-o' + (on ? ' on' : '') + '" data-fk="bind-' + i + '" data-src="' + x.src + '" data-id="' + esc(x.id) + '" aria-pressed="' + on + '"'
@@ -44186,7 +44216,7 @@ window.vaultAutoAssign = function(){
       return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+(_mpPickAt && _mpPickAt.slot === s[0] ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
         + ' data-fk="slot-'+s[0]+'" onclick="window._mpPick(\''+s[0]+'\')" oncontextmenu="return window._mpCtx(event,\''+s[0]+'\')" onkeydown="window._mpSlotKey(event,\''+s[0]+'\')"'
         + (e ? '' : ' title="'+esc(say)+'"') + ' aria-label="'+esc(say)+'">'
-        + (e ? art((e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name, s[1], 'lg') : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'   /* #248: a database pick draws its base */
+        + (e ? _mpSlotArt(e, s[1]) : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'   /* #248: a database pick draws its base · #41 rank 24: UNKNOWN when the database cannot be read */
         + (e ? '<button type="button" class="mp-unq" data-fk="unq-'+s[0]+'" style="left:'+D(s[3] + s[5] - 11)+';top:'+D(s[4])+'"'
              + ' onclick="window._mpUnequip(\''+s[0]+'\')" title="unequip '+esc(e.name)+' (right-click the slot does the same)"'
              + ' aria-label="unequip the '+s[2]+'">✕</button>' : '');
@@ -56665,15 +56695,25 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   };
 
   /* ── RENDER ──────────────────────────────────────────────────────────────────────────────────────────────── */
+  /* #41 rank 24 - the picture when the database cannot be read: a glyph MARKED UNKNOWN carrying DB_ERR, never the item's
+     own name (which is the wrong picture #248 fixed - a runeword's own name resolves to some other item's art). The
+     builder's doll already says UNKNOWN as a whole; this is the per-item glyph the mule window draws in the same case. */
+  window._cbArtUnknown = function(size){
+    return '<span class="d2art-wrap ' + (size || 'lg') + ' d2art-failed cb-art-unknown" data-art="unknown" title="'
+      + esc('picture UNKNOWN — ' + (DB_ERR || 'the builder database could not be read')) + '"><span class="d2art-fallback">?</span></span>';
+  };
   function _cbArt(name, size){
+    if (name === null) return window._cbArtUnknown(size);
     var fb = '<span>' + esc(String(name || '?').split(/\s+/).slice(0, 2).join(' ')) + '</span>';
     try { if (typeof artOr === 'function') return artOr(name, fb, size || 'lg'); } catch (e) {}
     return '<span class="d2art-wrap ' + (size || 'lg') + ' d2art-failed"><span class="d2art-fallback">' + fb + '</span></span>';
   }
   /* #248 (his screenshot 2026-09-27: "Last Wish Thunder Maul" drew a SWORD) - the picture is the BASE's for everything the
      game draws as its base: a runeword, a crafted, magic or rare item, a plain base. Only a unique or a set item has a
-     graphic of its own. The name picked here is the one artOr looks up; the mule doll asks the same function. */
+     graphic of its own. The name picked here is the one artOr looks up; the mule doll asks the same function.
+     -> the name to draw, or NULL when the database cannot be read (#41 rank 24): a caller draws _cbArtUnknown then. */
   function _cbArtName(e){
+    if (!_cbDb()) return null;
     var it = e && _cbItem(e.id), own = !!(it && (it[2] === 'u' || it[2] === 's'));
     if (own) return it[1];
     var b = e && _cbBase(e.base);
@@ -58076,10 +58116,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
              active: 0, notes: '', stash: [], host: 'mule' };
   }
   function _cbClvl(b){ if (!b) return 0; return b.level == null ? null : (b.level | 0); }
+  /* #41 rank 21 - why the last _cbHostOpen refused ('' when it opened). The mule window prints it in its picker's footer. */
+  var CB_HOST_BUSY_WHY = 'the Character Builder is open — close it (Esc) before choosing an item for a mule';
+  window._cbHostRefusedWhy = '';
   window._cbHostOpen = function(ctx){
     /* #174 v-B5 — or an INVENTORY cell: ctx.kind 'inv', ctx.cell [x, y], ctx.fits(w, h) (what the list may offer there) */
     var _inv = !!(ctx && ctx.kind === 'inv' && ctx.cell && ctx.cell.length === 2);
     if (!ctx || !(ctx.slot || _inv) || typeof ctx.write !== 'function' || typeof ctx.render !== 'function') return false;
+    /* #41 rank 21 - THE REVERSE DOOR. The Characters room refuses a delete while html.cb-lock is on (#245 review), but a
+       mule picker opened over the OPEN builder walked straight in: st.pick was overwritten with a 'mule' host, so the
+       builder's own picker state was gone and two #cb-modal owners were live at once. The builder is not focus-trapped,
+       so a keyboard reaches the mule window behind it. While the builder is open the host door refuses and says why. */
+    if (document.documentElement.classList.contains('cb-lock')){ window._cbHostRefusedWhy = CB_HOST_BUSY_WHY; return false; }
+    window._cbHostRefusedWhy = '';
     _cbDb();
     st.host = ctx; st.hostErr = ''; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
     st.pick = { host: 'mule', kind: _inv ? 'inv' : 'slot', slot: _inv ? CB_MINV : ctx.slot, cell: _inv ? [ctx.cell[0] | 0, ctx.cell[1] | 0] : null,

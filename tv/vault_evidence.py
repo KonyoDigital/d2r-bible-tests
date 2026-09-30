@@ -913,6 +913,113 @@ def rarity_tally_say(by_rarity):
     return "by rarity: " + (" · ".join(bits) if bits else "none") + " · rarity UNKNOWN %d" % n_unk
 
 
+def _look_ts(look):
+    """A look's own time in ms, or None. A bool is not a time; a string nobody typed is not either."""
+    ts = look.get("ts") if isinstance(look, dict) else None
+    if isinstance(ts, bool) or not isinstance(ts, (int, float)) or ts <= 0:
+        return None
+    return int(ts)
+
+
+def _newest_look_ts(rows):
+    """The newest time any look in `rows` carries, or None when no look carries one.
+
+    Read off the LOOKS (each sighting's `ts`, stamped by the sweep at vault_retro's re-look
+    loop) and the owned row's own `lastSeenTs`, which the sweep folds from the same sightings.
+    Never the file's mtime and never the clock: a ledger rewritten by a compaction is not a
+    new look, and the moment this was asked is not the moment anything was seen.
+    [[stale-reading]]
+    """
+    newest = None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        cands = [_look_ts({"ts": row.get("lastSeenTs")})]
+        raw = row.get("witnesses") if "witnesses" in row else row.get("looks")
+        if isinstance(raw, list):
+            cands += [_look_ts(look) for look in raw]
+        for ts in cands:
+            if ts is not None and (newest is None or ts > newest):
+                newest = ts
+    return newest
+
+
+def tiers_watch(path):
+    """#41 rank 19 (2026-09-29) — THE TIERS AS A LANE, in the shared supervision vocabulary. -> dict
+
+    Nothing reported on / worked / lastTs / owed for the evidence tiers: 15 WATCHED items sat
+    waiting for looks and were published nowhere, and the only reader was a doctor row that was
+    stuck MISSING (rank 4). The heart cannot ask a lane it cannot find, so this is the lane:
+
+      on        True when the witness ledger reads and vault_retro can judge a look (the tiering
+                is a pure function of the ledger, so it can run) — None when it cannot
+      worked    LIFETIME: items that EARNED PROVEN or HARDENED by visits. Read off the durable
+                ledger, never a per-process counter, so a restart cannot make it forget
+      lastTs    the newest time any look carries (ms) — None when no look carries one. The
+                ledger's mtime and the clock are NOT this (a compaction is not a look)
+      owed      WATCHED items waiting for looks: a MEASUREMENT (0 when the ledger reads and
+                nothing waits). None when any row could not be measured — then `owedAtLeast`
+                carries what WAS counted and `unknownRows` how many could not be
+      waiting   one row per WATCHED item: name, successes, trials, bound, needLooks (looks still
+                short of the TRIALS_PROVEN floor), barGap (how far the Wilson bound sits under
+                WILSON_BAR once the floor is met, else None), why (the gap in his words)
+      say       the eagle-line sentence, or the reason nothing is known
+
+    UNKNOWN is never 0: an unreadable ledger leaves every count None. [[heart-first]]
+    [[unknown-stays-unknown]]
+    """
+    unread = {"on": None, "worked": None, "lastTs": None, "owed": None, "owedAtLeast": None,
+              "unknownRows": None, "waiting": None, "say": _UNREAD}
+    doc = _load_owned(path)
+    if doc is None:
+        return unread
+    floor = _conf_floor()
+    if floor is None:
+        return dict(unread, say="vault_retro could not be read, so no look can be judged — the tiers are UNKNOWN")
+    worked, unknown, waiting = 0, 0, []
+    for name, rows in _group(doc["owned"]):
+        measured = _measure(rows, floor)
+        if measured is None:
+            unknown += 1
+            continue
+        got = tier(measured[0], measured[1])
+        if got["tier"] is None:
+            unknown += 1
+            continue
+        if got["tier"] in (PROVEN, HARDENED):
+            worked += 1
+            continue
+        n, k, bound = got["trials"], got["successes"], got["bound"]
+        need = max(0, TRIALS_PROVEN - n)
+        gap = None
+        if need == 0 and isinstance(bound, (int, float)):
+            gap = round(max(0.0, WILSON_BAR - float(bound)), 3)
+        if need:
+            why = "%d/%d looks, %d more to the %d-look floor" % (k, n, need, TRIALS_PROVEN)
+        else:
+            why = "%d/%d looks, bound %.3f under the %.3f bar — needs clean looks" % (k, n, bound, WILSON_BAR)
+        waiting.append({"name": name, "successes": k, "trials": n, "bound": bound,
+                        "needLooks": need, "barGap": gap, "why": why})
+    last = _newest_look_ts(doc["owned"])
+    owed = len(waiting) if unknown == 0 else None
+    if owed is None:
+        head = ("owed UNKNOWN — %d row(s) could not be measured; at least %d WATCHED waiting for looks"
+                % (unknown, len(waiting)))
+    elif owed:
+        head = "owed %d WATCHED waiting for looks" % owed
+    else:
+        head = "owed 0 — no item is waiting for looks"
+    if waiting:
+        head += " (" + "; ".join("%s %s" % (w["name"], w["why"]) for w in waiting[:4])
+        if len(waiting) > 4:
+            head += "; +%d more" % (len(waiting) - 4)
+        head += ")"
+    return {"on": True, "worked": worked, "lastTs": last, "owed": owed,
+            "owedAtLeast": len(waiting), "unknownRows": unknown, "waiting": waiting,
+            "say": head + (" · last look UNKNOWN (no look carries a time)" if last is None
+                           else " · last look at %d" % last)}
+
+
 def pictures_gone(path, root):
     """Cited frames that are not on the shelf. Never writes.
 

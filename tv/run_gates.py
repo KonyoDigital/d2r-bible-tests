@@ -7909,7 +7909,7 @@ GATES = [
              "keyboard delete keeps focus (armed -> Undo -> the restored card), one double-click is not a delete, Undo "
              "is byte-identical in ANY order, nothing is deleted under the open planner and the planner says when its "
              "build is gone (UNKNOWN when unreadable), and app context's row starts where a scroll reaches. "
-             "15 cases, 25 red-proofs",
+             "16 cases, 26 red-proofs",
          skip_ok=()),
     Gate("test_the_character_builder_is_their_builder",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,
@@ -8241,6 +8241,109 @@ GATES = [
              "serves /api/custody (one reel, or the census) and hands in the journal only when it read cleanly; the "
              "doctor row 'reel custody' says MISSING with its denominators and UNKNOWN naming the unreadable file. "
              "17 cases over a temp world laid out where each owner's own resolver says, 4 red-proofs",
+         skip_ok=()),
+    Gate("test_the_evidence_tiers_lane_says_what_it_owes",
+         [sys.executable, os.path.join(HERE, "test_the_evidence_tiers_lane_says_what_it_owes.py")], 120,
+         needs_app=False,
+         why="#41 rank 19 (REG-1533, 2026-09-29) — the evidence tiers are a LANE in the shared vocabulary. No lane "
+             "reported on / worked / lastTs / owed for the tiers: 15 WATCHED items waited for looks and were published "
+             "nowhere. vault_evidence.tiers_watch: owed = the WATCHED count with each item's gap to the bar (looks short "
+             "of the 10-look floor, or the Wilson bound under it), worked = LIFETIME items that EARNED PROVEN/HARDENED "
+             "by visits (read off the durable ledger), lastTs = the newest LOOK's own time (never the file's mtime or "
+             "the clock). UNKNOWN is never 0: an unreadable ledger leaves every field None; a row that cannot be "
+             "measured makes owed None and says what WAS counted. The 'evidence tiers' doctor row carries the owed "
+             "clause and the age of the newest look on the eagle line; control_app.evidence_tiers_state publishes the "
+             "same dict on /api/status (evidenceTiers), cached by the ledger's mtime, an unreadable ledger never "
+             "remembered as an answer. Driven over a temp ledger; nothing writes it. 12 cases, 5 red-proofs",
+         skip_ok=()),
+    Gate("test_a_dangling_main_and_a_set_without_slots_read_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_dangling_main_and_a_set_without_slots_read_unknown.py")], 120,
+         needs_app=False,
+         why="#41 rank 20 (REG-1534, 2026-09-29) — the 👤 Characters tab says UNKNOWN, never 'no MAIN' or '0 worn'. A "
+             "d2r_cbMain that names no saved build drew exactly like no MAIN set (no badge, nothing else), and a set "
+             "with no slots object counted as 0 worn. Driven in the SHIPPED chars-tab-js block in node (the same "
+             "stand-in as the Characters-tab law): a dangling MAIN opens the list with a data-state='main-dangling' "
+             "note naming the id, no card wears the badge, the cards still render, and window._charsList (what the "
+             "mule window asks) carries mainDangling; a MAIN that names a build and no MAIN at all stay quiet; a set "
+             "without a slots object reads 'items UNKNOWN', an empty slots object is a measured 0, a set missing only "
+             "swap/inv still counts its slots; a read never writes. 3 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_the_mule_picker_refuses_while_the_builder_is_open",
+         [sys.executable, os.path.join(HERE, "test_the_mule_picker_refuses_while_the_builder_is_open.py")], 120,
+         needs_app=False,
+         why="#41 rank 21 (REG-1535, 2026-09-29) — the REVERSE door: a mule picker opened over the OPEN Character "
+             "Builder walked in (_cbHostOpen overwrote st.pick with a 'mule' host; the builder is not focus-trapped, so "
+             "a keyboard reaches the mule window behind it). Reproduced in node first. Now, while html.cb-lock is on, "
+             "window._cbHostOpen refuses (false), the host is not on for a slot or an inventory cell, "
+             "window._cbHostRefusedWhy names the builder, and the host draws no second #cb-modal; the same call before "
+             "the builder opens and after it closes opens the host and says nothing. The mule window's own _mpHostSync "
+             "and _mpPick (cut from bible.html, stubs at the seams) keep the slot picked and write the reason into "
+             "_mpPickErr, the string the picker footer prints; once the builder closes the same pick opens the host "
+             "and clears it. 2 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_an_unreadable_database_draws_an_unknown_picture",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_database_draws_an_unknown_picture.py")], 120,
+         needs_app=False,
+         why="#41 rank 24 (REG-1536, 2026-09-29) — when the builder's CB_DB will not parse, the art rule fell back to "
+             "the item's OWN name (return b ? b[0] : (it ? it[1] : e.name)), and both mule callers did '|| p.n' / "
+             "': e.name' — the wrong picture #248 fixed, exactly when the database is unreadable. Now _cbArtName "
+             "answers NULL, window._cbArtUnknown draws a glyph marked data-art='unknown' carrying DB_ERR's own "
+             "sentence, the mule slot (_mpSlotArt, in the mule window's own span) and the inventory tile draw that "
+             "glyph, and the builder's doll says UNKNOWN. Positive control on the real database: a runeword draws its "
+             "BASE, a unique its own name. Driven in node with the database block broken by the fixture. 3 cases, "
+             "4 red-proofs",
+         skip_ok=()),
+    Gate("test_the_console_header_has_nine_doors_on_one_row",
+         [sys.executable, os.path.join(HERE, "test_the_console_header_has_nine_doors_on_one_row.py")], 60,
+         needs_app=False,
+         why="#41 rank 23 (REG-1537, 2026-09-29) — J10's nine doors and its no-silent-scroll rule as a python law the "
+             "heart can count. J10 (demo_console.mjs) measures the header strip against the live console only and "
+             "heart2 classifies python gates alone, so a missing door had no RED_PROOF anywhere. The strip's nine .ht "
+             "buttons — session forge crafts funi fsets tools chars vault tvd — each with a label, 👤 Characters between "
+             "Tools and the Vault (his 2026-09-27 ruling), HTML comments stripped (the nav's own comment names tabs in "
+             "prose); J10's `if (r.tabs !== N)` constant is read out of the mjs and must equal the markup's count (two "
+             "sources); the base-level .head-tabs declarations are folded in source order (last wins, @media rules "
+             "left out, CSS comments stripped) and overflow-x auto|scroll with scrollbar-width none may not stand "
+             "(#66). The pixel ROW count stays J10's. 6 cases, 3 red-proofs",
+         skip_ok=()),
+    Gate("test_the_heart_map_covers_the_board",
+         [sys.executable, os.path.join(HERE, "test_the_heart_map_covers_the_board.py")], 120,
+         needs_app=False,
+         why="#41 rank 25 (REG-1538, 2026-09-29) — heart_map read control_ui.html ONLY, so bible.html's builder, "
+             "Characters and mule surfaces (513 ids, 81 of them cb-*/chars-*/mp-*/vault-*) could never be counted as "
+             "watched or unwatched: HEART.md said nothing about them and read like a map that had checked them. The "
+             "board is now a second page (PAGES), measured by the console's own rule, with its own table in HEART.md "
+             "and its own ratchet under 'board' in heart_floor.json: --check refuses a floor with no board entry "
+             "(never measured is UNKNOWN), refuses a fall naming the surface, and an unreadable bible.html is a "
+             "refusal naming bible.html — never a board table of zeros. The console's figures are unchanged. 6 cases, "
+             "4 red-proofs",
+         skip_ok=()),
+    Gate("test_the_locker_list_says_when_the_main_is_gone",
+         [sys.executable, os.path.join(HERE, "test_the_locker_list_says_when_the_main_is_gone.py")], 120,
+         needs_app=False,
+         why="#41 rank 20 review (REG-1554, 2026-09-30) — the ONE room that asks the Characters room's reader "
+             "(the mule window's locker list, _mpBindChars) copied its rows and never read the mainDangling the "
+             "rank-20 fix taught the reader to carry, so under a d2r_cbMain naming no saved build the list marked "
+             "no row ★ MAIN and said nothing — exactly like no MAIN set, the defect rank 20 named, standing in the "
+             "second room behind a field written and never read. Now _mpBindChars carries the reader's word and "
+             "the open list says it above the rows (data-state='main-dangling', naming the id, UNKNOWN); a MAIN "
+             "that names a build and no MAIN at all stay quiet; the rows still list every build and a bind still "
+             "works. Driven in node over the shipped mule window + the Characters room's reader (the edit-panel "
+             "law's stand-in, one copy). 3 cases, 2 red-proofs",
+         skip_ok=()),
+    Gate("test_the_heart_map_reads_code_not_prose",
+         [sys.executable, os.path.join(HERE, "test_the_heart_map_reads_code_not_prose.py")], 120,
+         needs_app=False,
+         why="REG-1555 (2026-09-30) — heart_map counted a surface as WATCHED when any watcher's TEXT contained its "
+             "name: `i in blob` over the four files as written. Measured on the tree that blessed a console floor "
+             "of 17: nine of the seventeen stood only in comments and docstrings (heart-chip in the very comment "
+             "recording its REMOVAL from WATCHES 'because it could never match') and th-shelf only inside "
+             "th-shelf-x — 13 of 17, banked by the ratchet as watched. Now comments go by the tokenizer, "
+             "docstrings by the parser, a name counts only where it stands WHOLE in code (one _seen rule for every "
+             "page), and a watcher that does not parse is named MISSING rather than read as prose. The floor was "
+             "lowered to the measured 7 with the reason in heart_floor.json's own _why. Driven over a planted page "
+             "and watcher through heart_map._read, plus the real tree corroborated by an independent word-boundary "
+             "reading. 4 cases, 4 red-proofs",
          skip_ok=()),
 ]
 

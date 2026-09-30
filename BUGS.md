@@ -110,6 +110,44 @@ asserts every status ask goes to :17999 and never carries 17772, and a board wit
 and reads UNKNOWN. `test_a_vault_item_and_a_read_say_where_they_came_from` asserts the shipped ask line exactly once
 and the by-name form absent. **Red-proofs, seen RED:** the by-name fetch back (both laws); the origin guard dropped
 (`|| his console`).
+### REG-1555 - THE HEART MAP READ PROSE AS WATCHING: 13 OF THE CONSOLE'S 17 "WATCHED" SURFACES WERE NAMED ONLY IN COMMENTS, DOCSTRINGS OR INSIDE A LONGER ID (2026-09-30)
+
+**Found** by the skeptic pass over #41 rank 25 (REG-1538), which had extended `tv/heart_map.py` to the board and blessed
+the console floor 8 -> 17 "as measured". The measurement was `i in blob` over the four watcher files AS WRITTEN — comments
+and docstrings included — so a surface read WATCHED when a comment mentioned it, and a short id read WATCHED when a longer
+one contained it. Measured on that tree: nine of the seventeen (`bug`, `heart-chip`, `sh-stationbar`, `sigil`,
+`stage-hold`, `th-shelfov`, `theatre`, `vault-body`, `win-ctl`) stood in NO watcher's code — `heart-chip` in the very
+`console_doctor.py` comment recording that it had been REMOVED from WATCHES "because it could never match" — and `th-shelf`
+only inside `th-shelf-x`. Thirteen of seventeen, banked by the ratchet as watched: the organ that exists to say a surface
+is unwatched said WATCHED for a name a comment had just declared unwatchable. **Fix:** `_code_only()` blanks comments by
+the tokenizer and docstrings by the parser (line count kept; a watcher that does not parse is named MISSING, never read as
+prose); `_seen()` is the ONE rule for every page — a name counts only where it stands WHOLE in a watcher's code, the same
+shape as an id; `measure()` and `measure_pages()` both call it; HEART.md's own text says the rule. The ratchet was SEEN
+RED first: `--check` against the floor of 17 refused "HEART coverage FELL 17 -> 7: bug, heart-chip, sh-stationbar, sigil,
+stage-hold, th-shelf, th-shelfov, theatre …"; then the floor was lowered to the measured 7 (board 1 of 513, unchanged:
+`vault-moved-note` is named in code) with the reason written into `heart_floor.json`'s own `_why`. **Law:**
+`test_the_heart_map_reads_code_not_prose` — a planted page and a planted watcher through `heart_map._read` (code names
+`planted-code` and `planted-prefix-x`, a comment names `planted-comment`, three docstrings name `planted-doc`: seen is
+exactly the two the code names, on both pages), a watcher that does not parse is MISSING with seen withheld, the stripper
+keeps the line count and ordinary strings, and the real tree is corroborated by an independent word-boundary reading of
+the same code-only text (with `heart-chip` asked of the code, never pinned). **Red-proofs, each RED and restored:** comments
+read as code again; docstrings read as code again; the substring match back; a non-parsing watcher read as prose.
+
+### REG-1554 - THE LOCKER'S CHARACTER LIST NEVER READ THE `mainDangling` RANK 20 TAUGHT THE READER TO CARRY (2026-09-30)
+
+**Found** by the skeptic pass over #41 rank 20 (REG-1534): the Characters room learned to say a dangling MAIN and its reader
+`window._charsList` learned to carry `mainDangling` "so a room asking here can say UNKNOWN instead of 'no MAIN'" — and the
+one room that asks, the mule window's locker list (`_mpBindChars`, #253), copied `rows` and never read it. Measured on the
+branch: under a `d2r_cbMain` naming no saved build the list marked no row ★ MAIN and said nothing, exactly like no MAIN set
+— rank 20's defect standing in the second room, behind a field written and never read (the rank-20 law's third red-proof
+even says "so the mule window cannot say UNKNOWN", describing a join that did not exist). **Fix:** `_mpBindChars` carries
+the reader's word (`mainDangling`, null when the builds could not be read); the open list draws a note above the rows
+(`data-state="main-dangling"`, naming the id, UNKNOWN, pointing at the 👤 Characters tab); a MAIN that names a build and no
+MAIN at all stay quiet; the rows still list every build and a bind still works. No new CSS: the note wears the list's own
+`mp-bind-none`. **Law:** `test_the_locker_list_says_when_the_main_is_gone` — 3 cases in node over the SHIPPED mule window +
+the Characters room's reader (the edit-panel law's stand-in, one copy): the dangling MAIN said and marking nothing, the two
+honest states quiet, and the two join sites graded by their exact expressions (a comment cannot carry an assignment).
+**Red-proofs, each RED and restored:** the list stops carrying the reader's field; the field is carried and never drawn.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
@@ -528,6 +566,105 @@ max) ▸", no UNKNOWN in the box), then the same runeword re-based to a code not
 aria-label, no 'sockets max', no '(0'; the box's UNKNOWN row directly under the name), a runeword with no base at all,
 and a unique on an unrecorded base (the fixed select). **Red-proofs, each applied, run RED, restored byte-for-byte:**
 the control printing the code and 0 again; the box's base line silent again; the UNKNOWN line in the grey class - 3 of 3.
+### REG-1538 - THE HEART MAP NEVER READ THE BOARD: 513 SURFACES OF bible.html WERE NEITHER WATCHED NOR UNWATCHED, ONLY UNSAID (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 25: `tv/heart_map.py` read `control_ui.html` only
+(`ui = _read("control_ui.html")`), so the builder, the 👤 Characters tab, the mule window and the Vault - 513 ids on the
+board, 81 of them `cb-*` / `chars-*` / `mp-*` / `vault-*` - could never be counted as watched OR unwatched. HEART.md said
+nothing about them, which reads exactly like a map that had checked them. **Fix:** `PAGES` names both pages; `_read`
+resolves the board at the repo root; `measure_pages()` measures every page by the console's own rule (the console's
+`measure()` is unchanged, as are its figures: 17 of 366); `render()` adds "## The board - bible.html" with its own table
+(513 painted, 1 watched, `vault-moved-note`) and refuses when EITHER page cannot be read, naming the page; `--check`
+ratchets the board under `board` in `heart_floor.json` - no board entry is UNKNOWN and refused, a fall names the surface;
+`--bless` writes both. Blessed on this tree (console floor rose 8 -> 17 as measured; board 1). **Law:**
+`test_the_heart_map_covers_the_board` - 6 cases over the real tree and stand-ins (writes routed to a temp dir).
+**Red-proofs, each RED and restored:** the board leaves PAGES; the board looked for in tv/; the unblessed-board refusal
+skipped; the board's fall no longer refusing. Sibling noted, NOT changed: the console's "watched" is a substring match, and
+`th-shelf` counts as watched only because `th-shelf-x` / `th-shelfov` are named - a word-boundary rule would read 16, not 17.
+
+### REG-1537 - J10'S NINE DOORS AND ITS SILENT-SCROLL RULE HAD NO PYTHON LAW, AND THE CHARACTERS GATE'S LABEL WAS A COUNT NOBODY COUNTED (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 23: J10 (`tv/demo_console.mjs`) measures the header strip
+against the live console only and heart2 classifies python gates alone, so the nine doors and the #66 rule (overflow-x
+auto with scrollbar-width none makes a tab vanish silently) had no RED_PROOF anywhere; and the Characters-tab gate's `why`
+still said "15 cases, 25 red-proofs" while an AST count of the file gives 16 and 26. **Fix:** `test_the_console_header_has_
+nine_doors_on_one_row` - the strip's nine `.ht` buttons in order (session · forge · crafts · funi · fsets · tools · chars ·
+vault · tvd), each labelled, 👤 Characters between Tools and the Vault, HTML comments stripped first (the nav's own comment
+names tabs in prose; a planted commented-out button is proven not to count); J10's `if (r.tabs !== N)` constant read out
+of the mjs must equal the markup's count (two sources - a new tab moves both on purpose); the base-level `.head-tabs`
+declarations folded in source order, last wins, @media rules and CSS comments left out, and the silent pair may not stand.
+The pixel ROW count stays J10's. The label now reads 16 / 26. **Red-proofs, each RED and restored:** the Crafts door removed
+(eight doors; J10's 9 disagrees); the v2099 `overflow-x: visible` override dropped (the silent pair stands); J10 told 8.
+Sweep finding, NOT fixed here (51 edits across gates other builders own): a count of every `why` ending "N cases, M
+red-proofs" against the AST of its law finds 51 of 130 stale - the label is prose nobody re-counts.
+
+### REG-1536 - AN UNREADABLE BUILDER DATABASE DREW THE ITEM'S OWN NAME - THE WRONG PICTURE #248 FIXED, BACK EXACTLY WHEN THE DATABASE FAILS (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 24: `_cbArtName` returned `b ? b[0] : (it ? it[1] : (e && e.name)
+|| '?')`, and both mule callers did `|| p.n` / `: e.name` - so when the ⟦CB_DB⟧ block will not parse (`DB_ERR` set, `DB`
+null) every runeword, crafted, magic and rare item drew whatever its OWN name resolves to (his 2026-09-27 screenshot: "Last
+Wish Thunder Maul" drew a SWORD), with no mark that the picture was a guess. **Fix:** `_cbArtName` answers `null` when
+`_cbDb()` is null; `window._cbArtUnknown(size)` draws a glyph marked `data-art="unknown"` whose title carries DB_ERR's own
+sentence; `_cbArt(null)` draws it; the mule slot goes through one helper `_mpSlotArt` (in the mule window's own span - the
+first cut put it beside `art()` OUTSIDE the span the mule laws cut, and six of them refused with "would not run") and the
+inventory tile reads the null (`_anUnk`) and draws the same glyph. The builder's doll already said UNKNOWN as a whole. **Law:**
+`test_an_unreadable_database_draws_an_unknown_picture` - node, the database block broken by the fixture; positive control on
+the real database (a runeword draws its BASE, a unique its own name). **Red-proofs, each applied, run RED, restored
+byte-for-byte:** the null answer removed; the glyph's mark and reason removed; the slot drawing `e.name` on null; the tile's
+`|| p.n` back.
+
+### REG-1535 - A MULE PICKER OPENED OVER THE OPEN CHARACTER BUILDER WALKED IN AND TOOK ITS PICKER STATE (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 21: the Characters room refuses a delete while `html.cb-lock` is on
+(#245 review), but the mule host did not - `_cbHostOpen` overwrote `st.pick` with a `'mule'` host, and the builder is not
+focus-trapped, so a keyboard reaches the mule window behind it. The audit said "not driven, so whether it reproduces is
+UNKNOWN"; reproduced in node first (the host opened and `_cbHostOn('head')` read true under the open builder). **Fix:** while
+`html.cb-lock` is on, `window._cbHostOpen` refuses (false), sets `window._cbHostRefusedWhy` ("the Character Builder is open -
+close it (Esc) before choosing an item for a mule") and draws no second `#cb-modal`; the mule window's `_mpHostSync` and
+`_mpInvHostOpen` read the return - a slot pick keeps `_mpPickAt` (so the picker footer is on screen) and writes the reason into
+`_mpPickErr`, the string that footer prints; an inventory cell lets the cell go. **Law:**
+`test_the_mule_picker_refuses_while_the_builder_is_open` - the builder block plus the mule window's own `_mpHostSync` and
+`_mpPick` cut from bible.html, stubs only at the seams; before / under / after the builder; a keyboard pick (Enter on a slot
+runs `_mpPick`) reaches the same refusal. **Red-proofs, each RED and restored:** the door walks in again; the door refuses but
+says nothing; the mule window ignores the refusal.
+
+### REG-1534 - A DANGLING MAIN READ AS "NO MAIN", AND A SET WITHOUT SLOTS COUNTED AS 0 WORN (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 20: `_mainOf` returned null for a `d2r_cbMain` that names no saved
+build, so the room drew no badge and nothing else - the same picture as a MAIN never set; `_count` added nothing for a set
+without a `slots` object and still returned a number, so a build whose set could not be counted read "0 items · 0 worn".
+**Fix:** `_mainDangling(all)` names the dangling id; the list opens with a `data-state="main-dangling"` note ("MAIN points at
+a build that is gone (id) - which character is your MAIN is UNKNOWN"); `window._charsList` (what the mule window's bind list
+asks) carries `mainDangling`; `_count` returns null (UNKNOWN) when a set has no slots object - swap and inv may still be
+absent on an older set. **Law:** `test_a_dangling_main_and_a_set_without_slots_read_unknown` - the shipped chars-tab-js block
+in node over the Characters-tab law's own stand-in; the two honest states (a MAIN that names a build, no MAIN at all) stay
+quiet; a read never writes. **Red-proofs, each RED and restored:** the slots requirement removed; the note never drawn; the
+reader's `mainDangling` pinned to null.
+
+### REG-1533 - THE EVIDENCE TIERS HAD NO LANE: 15 WATCHED ITEMS WAITED FOR LOOKS AND NOTHING SAID ON / WORKED / LASTTS / OWED (2026-09-29)
+
+**Found** by the #41 (#256) heart audit, verified list rank 19: "No lane reports on, worked, lastTs or owed for the tiers.
+15 WATCHED items waiting for looks are published nowhere, and the only reader is a row stuck MISSING (rank 4)." A grep of
+lane_census.py for vault_evidence / tier / retro found nothing; `WATCHES['evidence tiers']` is `()`. The doctor row printed
+the three counts and stopped: WHICH items wait, how many looks each still needs, and whether any look has landed lately
+reached no surface. **Fix:** `vault_evidence.tiers_watch(path)` — the tiers as a lane in the shared vocabulary: `owed` =
+the WATCHED count with a row per item naming its gap to the bar (looks short of the 10-look floor, or the Wilson bound
+under 0.722 once the floor is met); `worked` = LIFETIME items that EARNED PROVEN/HARDENED by visits, read off the durable
+ledger so a restart cannot forget it; `lastTs` = the newest LOOK's own `ts` (or the owned row's `lastSeenTs`), never the
+file's mtime and never the clock — a compaction is not a look. UNKNOWN is never 0: an unreadable ledger leaves every field
+None; a row that cannot be measured makes `owed` None and `owedAtLeast` says what WAS counted. The 'evidence tiers' doctor
+row now carries the owed clause with the names and the age of the newest look (`_tiers_lane_clause`); `control_app.
+evidence_tiers_state()` publishes the same dict on `/api/status` as `evidenceTiers`, cached by the ledger's mtime (an
+unreadable ledger is never remembered as an answer). **Law:** `test_the_evidence_tiers_lane_says_what_it_owes` — 12 cases
+over a temp ledger (a 30 h-old newest look reads ~30 h, never "just now"; nothing writes the ledger). **Red-proofs, each
+applied, run RED, restored byte-for-byte (git diff clean):** owed claimed with an unmeasured row; lastTs from the clock;
+an earned tier not counted as work; the eagle line without the owed clause; the console cache never re-reading a changed
+ledger. Open question for him, carried from the audit and NOT decided here: whether an unattended WATCHED -> PROVEN
+re-file is wanted once an item earns its looks. The lane only reports; it files nothing.
+
+Also fixed on the way: `test_every_pc_proves_itself` RED_PROOF[34] anchored on the tuple BEFORE the v3524 integration
+added `"running-unverified"` (0 matches) — the red-proof census hooks/pre-push runs at top level was red on the base.
+
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:
