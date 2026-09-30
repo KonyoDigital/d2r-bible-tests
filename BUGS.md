@@ -405,6 +405,27 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1633 - A LAW PINNED ON HIS MAC'S NAMES FAILED ON THE ALT, WHICH NEVER SAW THEM (2026-09-30)
+
+**Measured on the ALT, the law run by hand:** `test_the_auto_door_says_why_it_holds_a_name` failed one case - "Crescent
+Moon is neither held nor in the manual lane - it vanished". The ALT's journal ring is real; it never sighted Crescent
+Moon, which is his Mac's find. Every personal surface is per-PC (his rule), so on the ALT the case is UNMEASURED, not a
+loss. **Now** whether this venue ever sighted the name is asked of the same evidence the lane splits - never of the
+lane's own answer - so a name the lane loses after sighting it still fails. Measured both ways: on the Mac's live data
+(114 names, Crescent Moon among them) the case runs and passes; where the name was never seen it says so and skips.
+The gate's three red-proofs target fixture cases, so no proof loses its eyes.
+
+### REG-1632 - EVERY SHELL LAW READ ALREADY RED ON WINDOWS: `bash` THERE IS THE WSL LAUNCHER (2026-09-30)
+
+**Measured on the ALT:** `bash` on its PATH is `C:\WINDOWS\system32\bash.exe`, the WSL launcher - with no distribution
+installed it prints "Windows Subsystem for Linux has no installed distributions" in UTF-16 and runs nothing. So
+`test_the_gate_never_adopts_a_browser_it_did_not_start` failed 4 of 6 ("the hook's port snippet did not run") and read
+ALREADY RED in the ALT's census. The PC has a real bash - Git for Windows ships one beside the git it pulls with - and
+run by hand it chose the port correctly (`CHOSEN=9224`, bash's own /dev/tcp). **Now** `tv/posix_shell.bash()` is the
+one resolver: PATH's bash unless it is the launcher under the Windows directory, then Git's own bash, else None (a law
+then says UNKNOWN). The three shell laws use it (the port chooser, the launcher block, the push-line clock); the
+resolver's own cases run the ALT's measured PATH on any host. 4 red-proofs RED.
+
 ### REG-1631 - A TIMEOUT LIT "SIGN IN" AND A BYTE COUNT SAID THE GROK BALANCE WAS GONE (the Grok CLI look at v3534, 2026-09-30)
 
 The Grok refusal needles were SUBSTRINGS: `"401" in last_error`, `"402" in last_error`, `"insufficient" in last_error`.

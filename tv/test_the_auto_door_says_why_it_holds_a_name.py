@@ -92,7 +92,16 @@ class TheAutoDoorSaysWhyItHoldsAName(unittest.TestCase):
         if _ring == []:
             self.skipTest("UNMEASURED, not a pass: this venue has no journal ring, and this case is "
                           "pinned on his real names")
-        sp = RNL.split()
+        # REG-1633 - PINNED ON HIS MAC'S NAMES, and every personal surface is per-PC (his rule, 2026-09-27). MEASURED on
+        # the ALT: its journal ring is real, it simply never sighted Crescent Moon, and the case failed "it vanished" -
+        # which read ALREADY RED there and left the gate unprovable on that PC. Whether THIS venue ever saw the name is
+        # asked of the same evidence the lane splits (never of the lane's own answer), so a name the lane LOSES after
+        # sighting it still fails below.
+        ev, _ewhy = RNL.evidence()
+        if isinstance(ev, dict) and "Crescent Moon" not in ev:
+            self.skipTest("UNMEASURED, not a pass: this venue's journal never sighted Crescent Moon - the case is pinned "
+                          "on his Mac's real names")
+        sp = RNL.split(evidence_by_name=ev) if isinstance(ev, dict) else RNL.split()
         if not (isinstance(sp, dict) and sp.get("ok")):
             self.fail("the lane could not measure: %s" % str((sp or {}).get("why"))[:100])
         if sp.get("autoHeld") is None:

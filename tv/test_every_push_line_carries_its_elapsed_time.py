@@ -64,7 +64,8 @@ class EveryPushLineIsTimed(unittest.TestCase):
         src = _hook()
         m = re.search(r"^_PP_T0=\$SECONDS\n(_pp_el\(\) \{[^\n]*\}\n)", src, re.M)
         self.assertIsNotNone(m, "the hook no longer defines _PP_T0 and _pp_el where they are read")
-        out = subprocess.run(["bash", "-c", m.group(1) + "_PP_T0=$((SECONDS - 125)); _pp_el"],
+        import posix_shell as _PS   # REG-1632 - a real POSIX bash, never the WSL launcher
+        out = subprocess.run([_PS.bash() or "bash", "-c", m.group(1) + "_PP_T0=$((SECONDS - 125)); _pp_el"],
                              capture_output=True, universal_newlines=True, timeout=20).stdout
         self.assertIn(out.strip(), ("2m05s", "2m06s"),
                       "125 seconds after the hook started, its own stamp printed %r" % out)

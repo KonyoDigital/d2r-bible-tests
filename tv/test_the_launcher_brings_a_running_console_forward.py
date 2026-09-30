@@ -146,7 +146,8 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
             io.open(os.path.join(d, "launcher_decide.py"), "w", encoding="utf-8").write(
                 "import sys\nprint('fake decide')\nsys.exit(%d)\n" % rc)
             script = "set -euo pipefail\nHERE=%s\n%s\necho REACHED-THE-LAUNCH\n" % (d, block)
-            r = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+            import posix_shell as _PS   # REG-1632 - a real POSIX bash, never the WSL launcher
+            r = subprocess.run([_PS.bash() or "bash", "-c", script], capture_output=True, text=True, timeout=30)
             return r
         finally:
             import shutil

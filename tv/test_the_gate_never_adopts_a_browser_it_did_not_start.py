@@ -38,6 +38,10 @@ except Exception:
 
 HOOK = os.path.join(ROOT, "hooks", "pre-push")
 
+import posix_shell as PS  # noqa: E402
+#: REG-1632 - a real POSIX bash (never the WSL launcher on a Windows PC); "bash" when none, so the run says UNKNOWN
+_BASH = PS.bash() or "bash"
+
 
 def _hook():
     with io.open(HOOK, encoding="utf-8") as f:
@@ -54,7 +58,7 @@ def _snippet():
 def _choose(from_port):
     script = _snippet() + '\necho "CHOSEN=$TV_RENDER_PORT"\n'
     env = dict(os.environ, TV_RENDER_PORT_FROM=str(from_port))
-    r = subprocess.run(["bash", "-c", "set -u\n" + script], capture_output=True, text=True, timeout=60, env=env)
+    r = subprocess.run([_BASH, "-c", "set -u\n" + script], capture_output=True, text=True, timeout=60, env=env)
     if r.returncode != 0:
         raise AssertionError("the hook's port snippet did not run - UNKNOWN, not passing: %s" % r.stderr[:400])
     m = re.search(r"CHOSEN=(\d+)", r.stdout)
@@ -108,6 +112,27 @@ def _full_window():
 
 @unittest.skipIf(shutil.which("bash") is None,
                  "bash absent - this law is UNMEASURED, not passing")
+
+class TheLawsBashIsAPosixBash(unittest.TestCase):
+    """REG-1632 - posix_shell.bash(), driven with the ALT's measured PATH (the WSL launcher first, Git's bash on disk)."""
+
+    GIT_BASH = r"C:\Program Files\Git\bin\bash.exe"
+
+    def _win(self, on_path, files=()):
+        return PS.bash(which={"bash": on_path, "git": r"C:\Program Files\Git\cmd\git.exe"}.get,
+                       isfile=lambda q: q in files, platform="win32", env={"SystemRoot": r"C:\WINDOWS"})
+
+    def test_the_wsl_launcher_is_never_the_answer(self):
+        self.assertEqual(self._win(r"C:\WINDOWS\system32\bash.exe", {self.GIT_BASH}), self.GIT_BASH,
+                         "the ALT's PATH names the WSL launcher first - the law must run Git's bash instead")
+
+    def test_no_real_bash_is_none_never_the_launcher(self):
+        self.assertIsNone(self._win(r"C:\WINDOWS\system32\bash.exe"), "a launcher that runs nothing was handed back")
+
+    def test_a_real_bash_on_path_is_kept(self):
+        self.assertEqual(self._win(r"C:\msys64\usr\bin\bash.exe"), r"C:\msys64\usr\bin\bash.exe")
+        self.assertEqual(PS.bash(which={"bash": "/bin/bash"}.get, platform="darwin"), "/bin/bash")
+
 class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
 
     def test_premise_with_nothing_held_the_first_port_is_chosen(self):
@@ -134,7 +159,7 @@ class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
         try:
             script = _snippet() + '\necho "CHOSEN=$TV_RENDER_PORT"\n'
             env = dict(os.environ, TV_RENDER_PORT_FROM=str(base))
-            r = subprocess.run(["bash", "-c", "set -u\n_pp_el() { echo 0m00s; }\n" + script],
+            r = subprocess.run([_BASH, "-c", "set -u\n_pp_el() { echo 0m00s; }\n" + script],
                                capture_output=True, text=True, timeout=120, env=env)
         finally:
             for h in held:
@@ -189,4 +214,8 @@ RED_PROOF = [
         "replace": "  if ! curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version; then\n",
         "matches": 1,
     },
+    {"why": "REG-1632 - the WSL launcher is taken for bash again: every shell law on a Windows PC reads ALREADY RED",
+     "file": "posix_shell.py",
+     "find": "    return p.startswith(r + \"\\\\\")\n",
+     "replace": "    return False\n", "matches": 1},
 ]
