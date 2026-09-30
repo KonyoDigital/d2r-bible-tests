@@ -343,8 +343,10 @@ class TheCharactersTabIsManualAndSeparate(unittest.TestCase):
         self.assertIn('data-tab="chars"', blk, "app context hides every tab it does not re-show by name")
         what = re.search(r'id="chars-what">([^<]*)<', s)
         self.assertIsNotNone(what, "the line saying what this tab is and is not is gone")
-        for words in ("Your own builds, made by hand.", "mules and auto-sort are separate",
-                      "nothing the readers vault ever lands here"):
+        # #103 (his ruling 2026-09-30) - the room now also shows the characters his reels learned, in their own section;
+        # the Vault's separation is unchanged: nothing a reader VAULTS lands here
+        for words in ("Your characters in game, learned from this console's reels", "the builds you make by hand",
+                      "mules and auto-sort are separate", "nothing the readers vault ever lands here"):
             self.assertIn(words, what.group(1))
         out = _run(r"""
           seed('bSORC');

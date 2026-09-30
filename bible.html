@@ -10127,7 +10127,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <span class="tvf-emblem chx-emblem" aria-hidden="true">👤</span>
     <div class="chx-headtxt">
       <div class="chx-title">Characters</div>
-      <div class="chx-sub" id="chars-what">Your own builds, made by hand. The Vault's mules and auto-sort are separate — nothing the readers vault ever lands here.</div>
+      <div class="chx-sub" id="chars-what">Your characters in game, learned from this console's reels — and the builds you make by hand. The Vault's mules and auto-sort are separate — nothing the readers vault ever lands here.</div>
       <div class="chx-meta">Kept on this device, per account (Main and Ladder hold their own) · rides 💾 Backup &amp; Share</div>
     </div>
     <button type="button" class="chx-btn chx-new" id="chars-new" onclick="window._charsNew()">+ New character</button>
@@ -10194,7 +10194,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-empty.chx-bad{border-style:solid;border-color:rgba(255,85,85,.5)}
 /* at phone width the floating help / compass orbs sit over the right edge of the page, so a Delete pushed to the far
    right would pass under them (a second-eye read at 375 found it covered to "Del"); the three actions sit together. */
-@media (max-width:760px){#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.42)}#tab-chars .chx-list{grid-template-columns:1fr}#tab-chars .chx-sec-list{grid-template-columns:1fr}#tab-chars .chx-new{align-self:flex-start}#tab-chars .chx-del{margin-left:0}}
+@media (max-width:760px){#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.42)}#tab-chars .chx-list{grid-template-columns:1fr}#tab-chars .chx-sec-list{grid-template-columns:1fr}#tab-chars .chx-sec-h{padding-right:52px}#tab-chars .chx-new{align-self:flex-start}#tab-chars .chx-del{margin-left:0}}
 </style>
 <script id="chars-tab-js">
 /* #245 — 👤 CHARACTERS: THE MANUAL SIDE, AND THE LINE BETWEEN IT AND THE VAULT.
