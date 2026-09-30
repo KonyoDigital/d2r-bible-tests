@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3527",
+  "ver": "v3528",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3527: The heart audit is finished: rank 22 (the picker census, fixed against its reviewer before it shipped) and rank 26 (the mule filing gate re-proved). Claude reads every frame on every PC; Grok is only the + GROK layer when switched on, and nothing can put it first again. The fleet shows a shadow eye per PC: lit when its shadow reader runs even with the game closed, gold with a glint while it reads, hollow when on but stopped, shut when off, dashed when unknown. The lean Grok home is emptied before every read.",
+  "note": "v3528: A PC he plays on proves its heart census a slice at a time between his games, so the river locks can open on the ALT. A move in a tree no console runs from is a verdict. The push waits for his console to finish moving onto the pushed code before the demos. The v3526 CI reds are fixed: the Linux phantom capture spawn, the reachability scan (77.7 s to 2.5 s), six Playwright specs. The tooltip receipt keeps UNKNOWN after a loss, the character learner stops at its hourly cap instead of walking past unread frames, and the picker census and the gear ledger are never committed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
