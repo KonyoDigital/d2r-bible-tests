@@ -8616,6 +8616,31 @@ def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
     return OK, "%s%s · %s" % (str(c.get("say") or "")[:160], tail, lane)
 
 
+def _check_this_machines_reader_can_read():
+    """#105 (REG-1604) — CAN THIS PC'S READER READ? MEASURED 2026-09-30 on his ALT: its Claude CLI was signed out
+    ("Failed to authenticate: OAuth session expired and could not be refreshed"), every frame it filmed for hours was
+    read as nothing, and no surface said so - the log line carried no reason and every doctor row read fine.
+
+    One measure, control_app._reader_health (the lamps under the corner chip ask the same one): the newest Claude read
+    in the last 2 h decides. MISSING when it failed - with the reader's own words, and the sign-in step when the words
+    are a sign-in failure; OK when it returned; UNKNOWN when nothing was read to judge (not reading is not "fine").
+    Grok's lamp is said beside it. [[heart-first]] [[unknown-stays-unknown]]"""
+    try:
+        import control_app as _ca
+        h = _ca._reader_health()
+    except Exception as e:
+        return UNKNOWN, ("the reader's health could not be measured (%s), so whether this PC can read is UNKNOWN - "
+                         "not fine" % type(e).__name__)
+    c = (h or {}).get("claude") or {}
+    g = (h or {}).get("grok") or {}
+    tail = " · Grok: %s" % (g.get("why") or g.get("state") or "UNKNOWN")
+    if c.get("state") == "off":
+        return MISSING, "%s (%s failed, %s returned in 2 h)%s" % (c.get("why"), c.get("failed"), c.get("ok"), tail)
+    if c.get("state") == "on":
+        return OK, "%s%s" % (c.get("why"), tail)
+    return UNKNOWN, "%s%s" % (c.get("why") or "no Claude read to judge on this PC", tail)
+
+
 def _check_this_machine_can_decode_a_frame():
     """#227 — CAN THIS MACHINE READ THE FRAMES IT FILMS?
 
@@ -9863,6 +9888,8 @@ CHECKS = [
     ("this machine can get a second opinion", _check_this_machine_can_get_a_second_opinion),
     # #227 — per MACHINE: the ALT had no Pillow, so every frame it filmed was unreadable, silently
     ("this machine can decode a frame", _check_this_machine_can_decode_a_frame),
+    # #105 (REG-1604) — per MACHINE: the ALT's Claude was signed out and read nothing for hours, silently.
+    ("this machine's reader can read", _check_this_machines_reader_can_read),
     # #54 — what he wears, per character, filed at every seal; owes the reels the seal nudge missed.
     ("equipped ledger files every seal", _check_the_equipped_ledger_files_every_sealed_reel),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
@@ -10573,6 +10600,9 @@ WATCHES = {
     "this machine can get a second opinion": (),
     # #227 — DECLARED, NOT OMITTED. It decodes a BMP in memory; no element of its own.
     "this machine can decode a frame": (),
+    # #105 — DECLARED, NOT OMITTED. It reads the journal tail through _reader_health; its element is the lamps under
+    # the corner chip (#reader-lamps), which the same measure paints.
+    "this machine's reader can read": (),
     # v3410 — DECLARED, NOT OMITTED. It compares two module paths; no element of its own.
     "the door and the writers agree": (),
     # v3413 — DECLARED, NOT OMITTED. It compares a generated file against git; no element.

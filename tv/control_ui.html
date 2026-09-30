@@ -7655,10 +7655,28 @@ body[data-origin="shadow"] #stage img.live { visibility: hidden !important; }
 body[data-origin="shadow"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); }
 body[data-origin="shadow"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
 body[data-origin="shadow"] #stage-hold { display: none !important; }
-/* The reader is on and no hand session is up. Same steady green as a shadow reel.
-   The pulsing dot stays the hand session's. */
-body[data-shadow="armed"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); animation: none; }
-body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
+/* A shadow reel ROLLING: the steady green ONLINE light. The pulsing dot stays the hand session's. */
+body[data-shadow="recording"] .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); animation: none; }
+body[data-shadow="recording"] .live-bug .dot { background: var(--mint); animation: none !important; opacity: 1; }
+/* REG-1604, his ruling 2026-09-30 - the switch ON with nothing rolling is NOT green: a dim, hollow ARMED chip. */
+body[data-shadow="armed"] .live-bug { color: var(--text-dim); border-color: rgba(140,122,104,.45); border-style: dashed; animation: none; }
+body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-dim); animation: none !important; opacity: 1; }
+/* #105 (REG-1604) - THE TWO READERS, LIGHTS ON / LIGHTS OFF, under the corner chip. His words: "a button showing
+   this like if synced or not under the toggle button for each - claude for primary and the shadow for grok ...
+   lights on lights off style ... so we know that they are connected". */
+.head-right { flex-direction: column; align-items: flex-end; gap: 5px; }
+.reader-lamps { display: flex; gap: 6px; }
+.reader-lamps .rl { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 6px; border-radius: 999px;
+  border: 1px solid rgba(140,122,104,.35); font: var(--fw-semibold, 600) 10.5px/1.4 var(--mono, monospace);
+  letter-spacing: .08em; color: var(--text-dim); background: rgba(0,0,0,.25); white-space: nowrap; cursor: help; }
+.reader-lamps .rl b { font-weight: 400; letter-spacing: .02em; opacity: .75; }
+.reader-lamps .rl i { width: 8px; height: 8px; border-radius: 50%; background: #1d1813; box-shadow: inset 0 0 0 1px rgba(140,122,104,.5); }
+.reader-lamps .rl[data-lamp="on"] { color: var(--mint); border-color: rgba(143,230,160,.55); }
+.reader-lamps .rl[data-lamp="on"] i { background: var(--mint); box-shadow: 0 0 6px rgba(143,230,160,.9), 0 0 12px rgba(143,230,160,.45); }
+.reader-lamps .rl[data-lamp="off"] { color: var(--text-dim); }
+.reader-lamps .rl[data-lamp="off"][data-fault="1"] { color: #e88a7a; border-color: rgba(232,138,122,.6); }
+.reader-lamps .rl[data-lamp="off"][data-fault="1"] i { box-shadow: inset 0 0 0 1.5px #e88a7a; }
+.reader-lamps .rl[data-lamp="unknown"] i { background: transparent; box-shadow: inset 0 0 0 1px rgba(140,122,104,.5); border: 1px dashed rgba(140,122,104,.6); }
 </style>
 <body data-state="off">
   <div class="shell">
@@ -7732,6 +7750,10 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
       </div>
       <div class="head-right">
         <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
+        <div class="reader-lamps" id="reader-lamps" role="group" aria-label="readers on this PC">
+          <span class="rl" id="rl-claude" data-lamp="unknown" title="Claude (primary reader): not measured yet"><i></i>CLAUDE <b>primary</b></span>
+          <span class="rl" id="rl-grok" data-lamp="unknown" title="Grok (shadow layer): not measured yet"><i></i>GROK <b>shadow</b></span>
+        </div>
       </div>
     </header>
 
@@ -10306,12 +10328,19 @@ window._lockMark = function(isOpen, px, label){
        The server now says who asked (v2362); the console stops presenting them identically. */
     try { document.body.setAttribute('data-origin', _shadowRun ? 'shadow' : String(st.origin || '')); } catch(e){}
     /* Armed reader, no hand session: the corner is the steady green ONLINE light.
-       A session he started keeps the ON AIR chip and is not marked armed. */
-    try { document.body.setAttribute('data-shadow', (_shadowArmed && !on && !stopping) ? 'armed' : ''); } catch(e){}
+       A session he started keeps the ON AIR chip and is not marked armed.
+       ⚠ 2026-09-30 (REG-1604) HIS RULING, replacing the above: "should be green when its recording.. not simply
+       when its toggled on". GREEN ONLINE is a shadow reel actually rolling; the switch on with nothing rolling
+       is the dim ARMED chip - he was reading green while no game was on and nothing was being recorded. */
+    var _shadowRec = _shadowRun && !stopping;
+    try { document.body.setAttribute('data-shadow', _shadowRec ? 'recording' : ((_shadowArmed && !on && !stopping) ? 'armed' : '')); } catch(e){}
+    try { $('bug').title = _shadowRec ? 'recording - the shadow reader is filming the game'
+                         : ((_shadowArmed && !on && !stopping) ? 'armed - the shadow reader is on and waiting for the game; nothing is being recorded' : ''); } catch(e){}
+    try { if (typeof window._paintReaderLamps === 'function') window._paintReaderLamps(st.readers); } catch(e){}   // a call across script blocks goes through window (the dead-render scar)
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
-    $('bug-txt').textContent = (_shadowRun || (_shadowArmed && !on && !stopping)) ? 'ONLINE'
+    $('bug-txt').textContent = _shadowRec ? 'ONLINE' : (_shadowArmed && !on && !stopping) ? 'ARMED'
       : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
@@ -28331,6 +28360,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     function p2(n) { return (n < 10 ? '0' : '') + n; }
     return h ? (h + ':' + p2(m) + ':' + p2(sec)) : (m + ':' + p2(sec));
   }
+
+  /* #105 (REG-1604) - paint the two reader lamps from /api/status `readers` (control_app._reader_health). A lamp
+     never guesses: no answer is UNKNOWN (dashed), a failure that is a sign-in says so and wears the fault ring. */
+  function _paintReaderLamps(rd) {
+    [['claude', 'Claude (primary reader)'], ['grok', 'Grok (shadow layer)']].forEach(function (p) {
+      var el = document.getElementById('rl-' + p[0]);
+      if (!el) return;
+      var L = (rd && typeof rd === 'object') ? rd[p[0]] : null;
+      var state = (L && (L.state === 'on' || L.state === 'off')) ? L.state : 'unknown';
+      el.setAttribute('data-lamp', state);
+      el.setAttribute('data-fault', (state === 'off' && L && (L.needsLogin || /failed|cannot/i.test(String(L.why || '')))) ? '1' : '0');
+      el.title = p[1] + ': ' + (state === 'on' ? 'CONNECTED' : state === 'off' ? 'NOT CONNECTED' : 'UNKNOWN')
+               + (L && L.why ? ' - ' + L.why : (rd ? '' : ' - the console did not say'));
+    });
+  }
+  window._paintReaderLamps = _paintReaderLamps;
 
   function _swmAgo(ms) {
     if (!ms) return null;

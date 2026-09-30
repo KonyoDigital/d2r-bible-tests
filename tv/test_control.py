@@ -10331,6 +10331,34 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
         self.assertIn("NOT counted", str(out.get("why") or ""))
 
 
+    def test_a_machine_wide_lock_never_retires_the_reel(self):
+        """REG-1602 - MEASURED 2026-09-30 on his Mac: v3528's re-exec left the heart census stale (the gate
+        files changed), vault.sweep_start refused every start with 'is LOCKED', and each refusal was counted
+        against the REEL - 11 of his newest reels retired with the false 'never wrote a result'."""
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "locked": True,
+                                                      "why": "vault.sweep_start is LOCKED — the heart census is STALE"}
+        for _ in range(4):
+            out = self.ca.chronicle_autoreel_tick()
+            self.assertTrue(out.get("triesUnchanged"), "a machine-wide lock burned the reel's try: %r" % out)
+        self.assertNotIn(self.rid, self.ca._chron_reels_retired(),
+                         "the reel was RETIRED for a lock that had nothing to do with it")
+        self.assertEqual(self.ca._CHRON_AUTOREAD["tries"].get(self.rid, 0), 0)
+        self.assertIn("LOCKED on this machine", str(out.get("why") or ""))
+
+    def test_the_sweep_door_says_its_lock_is_a_lock(self):
+        """the flag, not the prose: the door itself marks a self-arming refusal `locked`"""
+        import self_arming
+        orig = self_arming.may
+        self_arming.may = lambda name: (False, "the heart census is STALE (fixture)")
+        try:
+            r = self._start0(limit=1, reel_id=self.rid)
+        finally:
+            self_arming.may = orig
+        self.assertFalse(r.get("ok"))
+        self.assertTrue(r.get("locked"), "the sweep door refused on its lock without saying it was a lock: %r" % r)
+        self.assertIn("is LOCKED", r.get("why", ""))
+
+
 class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
     """v1762 — the reels sweep themselves, under a cap that makes the bill predictable.
 
@@ -40152,22 +40180,26 @@ class TestV2362TheRingAndWhoStartedTheReel(unittest.TestCase):
                          "the shadow rule targets the stage but does not suppress it: %r" % decls)
         self.assertIn("st.isShadow", ui, "the console never reads the server's isShadow flag")
 
-    def test_an_armed_reader_is_the_green_corner_and_a_hand_session_is_not(self):
-        """Konyo: the tooltip pass is on with the shadow reader, hidden the same way, and the
-        only light is the green corner. A session he starts himself still reads ON AIR."""
+    def test_the_corner_is_green_only_while_a_shadow_reel_records(self):
+        """Konyo, earlier: the only light is the green corner. REPLACED 2026-09-30 (REG-1604) by his ruling: "should
+        be green when its recording.. not simply when its toggled on" - he read green ONLINE with no game on and
+        nothing being recorded. GREEN ONLINE = a shadow reel rolling; the switch on with nothing rolling = a dim
+        ARMED chip; a session he started himself still reads ON AIR."""
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
-        self.assertIn("(_shadowArmed && !on && !stopping) ? 'armed'", ui,
-                      "the corner is not tied to the armed reader")
-        self.assertIn('body[data-shadow="armed"] .live-bug', ui)
+        self.assertIn("_shadowRec ? 'recording' : ((_shadowArmed && !on && !stopping) ? 'armed' : '')", ui,
+                      "the corner no longer tells recording from armed")
+        self.assertIn("var _shadowRec = _shadowRun && !stopping;", ui)
         import re as _re
-        dot = _re.search(r'body\[data-shadow="armed"\] \.live-bug \.dot \{([^}]*)\}', ui)
-        self.assertIsNotNone(dot, "the armed reader does not colour the corner dot")
-        self.assertIn("var(--mint)", dot.group(1))
-        self.assertIn("animation: none", dot.group(1),
-                      "the armed corner pulses like a hand session")
-        # The chip text already chooses ONLINE for an armed reader with no hand session.
-        self.assertIn("(_shadowArmed && !on && !stopping)) ? 'ONLINE'", ui)
+        rec = _re.search(r'body\[data-shadow="recording"\] \.live-bug \.dot \{([^}]*)\}', ui)
+        self.assertIsNotNone(rec, "a recording shadow reel does not colour the corner dot")
+        self.assertIn("var(--mint)", rec.group(1))
+        self.assertIn("animation: none", rec.group(1), "the recording corner pulses like a hand session")
+        armed = _re.search(r'body\[data-shadow="armed"\] \.live-bug \{([^}]*)\}', ui)
+        self.assertIsNotNone(armed)
+        self.assertNotIn("var(--mint)", armed.group(1),
+                         "the ARMED corner is green again - green while nothing records is what he refused")
+        self.assertIn("_shadowRec ? 'ONLINE' : (_shadowArmed && !on && !stopping) ? 'ARMED'", ui)
 
 
 
@@ -45938,6 +45970,22 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
             self.assertEqual(len(unseen), 3, "%s: the per-note denominator miscounted: %r" % (tag, unseen))
 
 RED_PROOF = [
+    {
+        "why": "REG-1602 - the sweep door refuses on its self-arming lock without saying it is a lock, so the "
+               "auto-sweep reads the machine-wide refusal as the reel's own failure",
+        "file": "tv/control_app.py",
+        "find": 'return {"ok": False, "locked": True, "why": "vault.sweep_start is LOCKED \u2014 %s" % _sw_why}',
+        "replace": 'return {"ok": False, "why": "vault.sweep_start is LOCKED \u2014 %s" % _sw_why}',
+        "matches": 1,
+    },
+    {
+        "why": "REG-1602 - the auto-sweep counts a machine-wide lock against the reel and retires it (11 of his "
+               "newest reels, minutes after v3528's re-exec)",
+        "file": "tv/control_app.py",
+        "find": '            if isinstance(r, dict) and r.get("locked"):\n                return {"ok": False, "triesUnchanged": True, "attempt": tries, "locked": True,',
+        "replace": '            if False:\n                return {"ok": False, "triesUnchanged": True, "attempt": tries, "locked": True,',
+        "matches": 1,
+    },
     {
         "why": "v2890 — the tamper replaces an ATOMIC report write with `open(path, \"w\").write(...)`, "
                "which TRUNCATES the file before the value on the right is computed. That is the exact "

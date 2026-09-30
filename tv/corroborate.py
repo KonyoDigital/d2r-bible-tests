@@ -2609,6 +2609,11 @@ NO_JOINT_YET = {
         "against the pass that planned them, and every reader that could count them asks the same "
         "reel_retention.plan() — a joint over it would be one number wearing two names.",
     # #227
+    # #105
+    "this machine's reader can read":
+        "the row reads the reader's OWN journal rows (did its newest read return) through control_app._reader_health, "
+        "which also paints the lamps - one source. The independent second source is an actual probe call answering "
+        "(the one a sign-in check would make); no joint spends that call yet.",
     'this machine can decode a frame':
         "the row round-trips a BMP through Pillow in memory; a second source would be a real frame this machine filmed decoding in the reader, which only happens when it films.",
     # #228

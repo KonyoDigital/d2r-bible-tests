@@ -363,8 +363,8 @@ RED_PROOF = [
     {
         "why": "#103 - a learned character with no build vanishes from the room",
         "file": "bible.html",
-        "find": ".join('') : _ghost(g.t);\n",
-        "replace": ".join('') : '';\n",
+        "find": ".join('') : _ghost(g.t); };\n",
+        "replace": ".join('') : ''; };\n",
         "matches": 1,
     },
     {
@@ -405,8 +405,8 @@ RED_PROOF = [
     {
         "why": "#103 - the tick drops what the reader said about the list",
         "file": "tv/char_select.py",
-        "find": "\"frames\": [os.path.basename(p)], \"partial\": partial_of(raw)})",
-        "replace": "\"frames\": [os.path.basename(p)]})",
+        "find": "\"frames\": [os.path.basename(p)], \"partial\": partial_of(raw),\n",
+        "replace": "\"frames\": [os.path.basename(p)],\n",
         "matches": 1,
     },
     {

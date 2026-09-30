@@ -405,6 +405,47 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1604 - EACH READER SAYS WHETHER IT IS CONNECTED, AND THE CORNER IS GREEN ONLY WHILE IT RECORDS (#105, 2026-09-30)
+
+**His words:** *"should be green when its recording.. not simply when its toggled on"* and *"a button showing this like if
+synced or not under the toggle button for each - defaulted claude for primary and the shadow for grok - lights on lights
+off style - so we know that they are connected"*.
+
+**Was:** the corner chip read green ONLINE whenever the shadow switch was on, game or no game; and nothing anywhere said
+whether a PC's reader could read - the ALT read nothing for hours (REG-1603) under a green chip and a clean doctor.
+
+**Now:** green ONLINE only while a shadow reel is rolling; the switch on with nothing rolling is a dim, dashed ARMED chip.
+Under it, two lamps - CLAUDE primary, GROK shadow - lights on when connected, off when not (a fault ring and the reader's
+own words, with the /login step when it is a sign-in), dashed when UNKNOWN. One measure, `_reader_health` (Claude's newest
+read in 2 h decides; Grok from its lane's switch, install and sign-in), carried on /api/status and asked by the new doctor
+row "this machine's reader can read". Law: `tv/test_each_reader_says_whether_it_is_connected.py` (11 cases, 9 red-proofs)
++ test_control's corner case rewritten to the new ruling.
+
+### REG-1603 - A READ THAT DID NOT HAPPEN SEALED EVERY SHADOW REEL AS "THE LAUNCHER" - A DAY OF HOLES ON THE ALT (#105, 2026-09-30)
+
+**Measured over SSH on his ALT:** 137 reels in 26 h, median 2.7-4.4 min, each followed by a 2.2-min hole. Its Claude CLI
+was signed out; every read failed and was journalled as the fallback row (scene "gameplay", mode "empty", nothing in it,
+the failure only in `raw`), with a black loading frame (scene "transition", mode "near-black") between them. The bare-
+Boosteroid check counted those as three looks with no D2R HUD word -> "the launcher, not the game" -> the reel sealed and
+the watcher waited 120 s. The fragments predate v3527 (the Grok reads before it were blank too). And the log said only
+"claude exit 1": the CLI prints its reason on stdout and a stdin warning on stderr.
+
+**Now:** a failed read (`readFailed`, or mode empty) and a near-black loading frame are not looks (UNKNOWN, never the
+launcher); the deep-read row carries `readFailed` + `readErr` (the reader's first line); the failure line carries stdout's
+reason when stderr has none. Law: `tv/test_a_bare_boosteroid_window_must_show_the_hud.py` (+3 cases on the ALT's exact rows,
++2 red-proofs).
+
+### REG-1602 - A MACHINE-WIDE LOCK RETIRED 11 OF HIS NEWEST REELS (2026-09-30)
+
+**Measured on his Mac:** v3528's re-exec changed the gate files, the heart census went stale, and `vault.sweep_start`
+refused every start ("is LOCKED - the heart census is STALE"). The auto-sweep exempts only `busy` (another lane holding
+the lock), so each refusal was counted against the REEL, and two ticks later the reel was RETIRED with the false "the
+sweep started but never wrote a result" - 11 of them, today's included, "retired 11 - no unswept reel".
+
+**Now:** the door's lock refusal carries `locked: True`; the reel path and the visit path give the try back on it. The 11
+come back through the existing boot repair (`_chron_unretire_never_read`: the false reason AND no durable read record) at
+the next console start. Law: test_control's TestV2201ARefusedSweepDoesNotBurnTheReel (+2 cases, +2 red-proofs, seen RED).
+
 ### REG-1601 - A SESSION IS BOUND TO THE CHARACTER HE ENTERED IT WITH, AND ROUTED DOWN (#103 step B, 2026-09-30)
 
 **His words:** *"a sessions character selection then moving forward.. scenarios future wise are obviously linked to

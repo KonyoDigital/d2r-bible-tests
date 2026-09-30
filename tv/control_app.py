@@ -247,6 +247,138 @@ def _journal_ring():
     stem = live[:-6] if live.endswith(".jsonl") else live
     return [stem + ".%d.jsonl" % g for g in range(5, 0, -1)] + [live]
 
+#: #105 - how far back a reader's own reads say whether it is connected, and how long an answer is kept
+_READER_WINDOW_MS = 2 * 3600 * 1000
+_READER_CACHE_S = 30.0
+_READER_CACHE = {"at": 0.0, "val": None}
+_READER_AUTH_WORDS = ("authenticate", "oauth", "login", "log in", "not logged", "unauthorized", "401")
+
+
+def _reader_family(row):
+    """'claude' | 'grok' | None - which reader wrote this journal row, by the model tag it stamped."""
+    m = str((row or {}).get("model") or "").lower()
+    if "grok" in m:
+        return "grok"
+    if m in ("sonnet", "haiku", "opus") or m.startswith("claude"):
+        return "claude"
+    return None
+
+
+def _journal_tail_rows(max_bytes=600000):
+    """The newest rows of the live journal (the one resolver), parsed. None when it cannot be read - UNKNOWN, never
+    an empty journal (a caller would read "no reads" off an unreadable file)."""
+    rows = []
+    try:
+        p = _journal_path()
+        size = os.path.getsize(p)
+        with open(p, "rb") as fh:
+            fh.seek(max(0, size - max_bytes))
+            for ln in fh.read().splitlines():
+                try:
+                    r = json.loads(ln)
+                except Exception:
+                    continue
+                if isinstance(r, dict):
+                    rows.append(r)
+    except Exception:
+        return None
+    return rows
+
+
+def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True):
+    """#105 (REG-1604) — IS EACH READER CONNECTED ON THIS PC? -> {claude: lamp, grok: lamp}
+
+    Konyo, 2026-09-30, after his ALT filmed a day and read nothing: "a button showing this like if synced or
+    not ... defaulted claude for primary and the shadow for grok ... lights on lights off style ... so we know
+    that they are connected". MEASURED that afternoon: the ALT's Claude CLI was signed out ("Failed to
+    authenticate: OAuth session expired and could not be refreshed"), every read failed, and nothing on any
+    surface said so - the log line carried no reason.
+
+    lamp = {state: on | off | unknown, why, needsLogin, ok, failed, lastOkTs, lastFailTs}
+      CLAUDE - from its own deep reads in the journal over the last 2 h: the NEWEST read decides (on when it
+               returned, off when it failed, with the reader's own first line); no read in the window is
+               UNKNOWN, never on and never off.
+      GROK   - from its lane's own status: switched off, not installed or not signed in is OFF with that
+               reason; otherwise ON, the ok/error counts said beside it (a timeout is not a disconnection).
+    Cached _READER_CACHE_S: /api/status is polled and the journal tail is read at most twice a minute.
+    [[unknown-stays-unknown]] [[heart-first]]"""
+    now = float(now_ms if now_ms is not None else time.time() * 1000)
+    if use_cache and rows is None and g5 is None:
+        _c = _READER_CACHE
+        if _c.get("val") is not None and time.time() - float(_c.get("at") or 0) < _READER_CACHE_S:
+            return _c["val"]
+    _unreadable = False
+    if rows is None:
+        rows = _journal_tail_rows()
+        if rows is None:
+            _unreadable, rows = True, []
+    out = {}
+    # ── Claude: its own reads say whether it can read
+    mine = []
+    for r in rows:
+        if r.get("lane") != "deep" or _reader_family(r) != "claude":
+            continue
+        try:
+            ts = int(r.get("completedTs") or r.get("ts") or 0)
+        except (TypeError, ValueError):
+            continue
+        if ts and now - ts <= _READER_WINDOW_MS:
+            mine.append((ts, r))
+    mine.sort(key=lambda x: x[0])
+    failed = [(t, r) for t, r in mine if r.get("readFailed") or r.get("mode") == "empty"]
+    good = [(t, r) for t, r in mine if not (r.get("readFailed") or r.get("mode") == "empty")]
+    lamp = {"ok": len(good), "failed": len(failed), "lastOkTs": (good[-1][0] if good else None),
+            "lastFailTs": (failed[-1][0] if failed else None), "needsLogin": False}
+    if not mine:
+        lamp.update(state="unknown", why=("the journal could not be read, so whether Claude can read is UNKNOWN"
+                                          if _unreadable else
+                                          "no Claude read in the last 2 h on this PC - whether it can read is UNKNOWN"))
+    else:
+        last_t, last = mine[-1]
+        if last.get("readFailed") or last.get("mode") == "empty":
+            _why = str(last.get("readErr") or "").strip()
+            if not _why:
+                for ln in str(last.get("raw") or "").splitlines():
+                    if ln.strip():
+                        _why = ln.strip()[:200]
+                        break
+            _why = _why or "the read returned nothing"
+            lamp["needsLogin"] = any(w in _why.lower() for w in _READER_AUTH_WORDS)
+            lamp.update(state="off", why=("Claude cannot sign in on this PC: %s - open PowerShell or a terminal, "
+                                          "run `claude`, type /login" % _why) if lamp["needsLogin"]
+                        else ("Claude's last read on this PC failed: %s" % _why))
+        else:
+            lamp.update(state="on", why="Claude read on this PC %d min ago (%d ok, %d failed in 2 h)"
+                        % (max(0, int((now - last_t) / 60000)), len(good), len(failed)))
+    out["claude"] = lamp
+    # ── Grok: its lane's own status
+    try:
+        g = g5 if g5 is not None else _g5_status()
+    except Exception as e:
+        g = None
+        gwhy = "the Grok lane's status could not be read (%s) - UNKNOWN" % type(e).__name__
+    st = (g or {}).get("stats") or {}
+    glamp = {"ok": st.get("ok"), "failed": st.get("errors"), "lastOkTs": None,
+             "lastFailTs": st.get("last_error_ts"), "needsLogin": bool((g or {}).get("needsLogin"))}
+    if not isinstance(g, dict):
+        glamp.update(state="unknown", why=gwhy)
+    elif (g.get("mode") == "off") or (g.get("on") is False):
+        glamp.update(state="off", why="the + GROK layer is switched off on this PC")
+    elif g.get("needsInstall") or g.get("cliInstalled") is False:
+        glamp.update(state="off", why="Grok is not installed on this PC")
+    elif g.get("needsLogin"):
+        glamp.update(state="off", why="Grok is not signed in on this PC")
+    else:
+        _n_ok, _n_err = st.get("ok"), st.get("errors")
+        glamp.update(state="on", why="Grok is on (%s) - %s ok, %s errors%s" % (
+            g.get("mode") or "?", _n_ok if _n_ok is not None else "?", _n_err if _n_err is not None else "?",
+            (" - last error: %s" % st.get("last_error")) if st.get("last_error") else ""))
+    out["grok"] = glamp
+    if use_cache and g5 is None:
+        _READER_CACHE.update(at=time.time(), val=out)
+    return out
+
+
 CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
 AGENT_PORT = int(os.environ.get("TV_PORT", "17771"))
 def _log_root():
@@ -19639,6 +19771,15 @@ def chronicle_autoread_tick():
                     "why": "the sweep started but never wrote a result"}
         _CHRON_AUTOREAD["tries"][str(ts)] = tries
         r = chronicle_sweep_start(visit=ts)
+        if isinstance(r, dict) and not r.get("ok") and r.get("locked"):
+            # REG-1602 - a machine-wide lock is not this visit's failure: the counted try is given back
+            if tries - 1 > 0:
+                _CHRON_AUTOREAD["tries"][str(ts)] = tries - 1
+            else:
+                _CHRON_AUTOREAD["tries"].pop(str(ts), None)
+            return {"ok": False, "triesUnchanged": True, "locked": True,
+                    "why": "the sweep door is LOCKED on this machine, so the visit's try was NOT counted: %s"
+                           % str(r.get("why") or "")[:160]}
         if not (isinstance(r, dict) and r.get("ok")):
             why = (isinstance(r, dict) and r.get("why")) or str(r)
             if tries >= _CHRON_AUTOREAD_MAX_TRIES:
@@ -20229,6 +20370,13 @@ def chronicle_autoreel_tick():
             if _lock_held:
                 return {"ok": False, "triesUnchanged": True, "attempt": tries,
                         "why": "the lock is held by another lane, so the try was NOT counted: %s"
+                               % _rwhy}
+            # REG-1602 - the sweep DOOR is locked for the whole machine (self_arming: the census is
+            # stale or missing). Provably not about this reel, and it clears when the PC re-proves, so
+            # the try is not counted and the reel is never retired for it.
+            if isinstance(r, dict) and r.get("locked"):
+                return {"ok": False, "triesUnchanged": True, "attempt": tries, "locked": True,
+                        "why": "the sweep door is LOCKED on this machine, so the try was NOT counted: %s"
                                % _rwhy}
             _CHRON_AUTOREAD["tries"][rid] = tries   # anything else might be the reel — it counts
             _chron_autoread_save()
@@ -34522,7 +34670,13 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
             _sw_ok, _sw_why = False, ("the lock could not be read (%s), which is UNKNOWN and "
                                       "fails closed" % type(_sw_e).__name__)
         if not _sw_ok:
-            return {"ok": False, "why": "vault.sweep_start is LOCKED — %s" % _sw_why}
+            # 2026-09-30 (REG-1602) - `locked` names a MACHINE-WIDE refusal (the heart census is stale or
+            # missing - every update that changes a gate file makes it so until the PC re-proves), never
+            # anything about the reel asked for. Without it the auto-sweep counted the refusal as the reel's
+            # own failure and, two ticks later, RETIRED the reel: measured on his Mac minutes after v3528's
+            # re-exec, 11 of his newest reels retired with the false "the sweep started but never wrote a
+            # result". Not the `busy` shape (that is retried as contention) - its own flag.
+            return {"ok": False, "locked": True, "why": "vault.sweep_start is LOCKED — %s" % _sw_why}
         try:
             lanes = _chron_lanes()
         except Exception as _lane_e:
@@ -36854,6 +37008,9 @@ def status_payload():
         # The page uses this to stay awake (ONLINE) without painting a session.
         # timed like its neighbours (test_the_status_breakdown_covers_what_it_bills): it reads the shadow file
         "shadowOn": _t("shadowOn", lambda: (lambda s: s.get("on") if isinstance(s, dict) else None)(_shadow_state())),
+        # #105 (REG-1604) - is each reader CONNECTED on this PC, measured from what it just did (the lamps
+        # under the corner chip and the doctor row both ask _reader_health; cached 30 s)
+        "readers": _t("readers", _reader_health),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "stopping": bool(_stop_inflight),

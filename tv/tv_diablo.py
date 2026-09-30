@@ -1286,14 +1286,30 @@ def label_is_bare_boosteroid(label):
     return bool(parts) and all(p == "boosteroid" for p in parts)
 
 
+def _first_line(text):
+    """The first non-empty line of a reader's words, trimmed - '' when there is none."""
+    for ln in str(text or "").splitlines():
+        if ln.strip():
+            return ln.strip()[:200]
+    return ""
+
+
 def _is_content_read(row):
     """A vision read of the frame, not a skip, a kai row, or an intake row.
 
-    Strings count. A dict counts only when its scene is one the HUD reader emits.
+    Strings count. A dict counts only when its scene is one the HUD reader emits - AND a reader actually
+    read it. REG-1603, MEASURED 2026-09-30 on his ALT: Claude was signed out ("Failed to authenticate: OAuth
+    session expired"), every read failed and was journalled as the fallback row - scene "gameplay", mode
+    "empty", nothing in it - and a black loading frame the local lane labels "transition" sat between them.
+    Three of those read as "the Boosteroid launcher, not the game", so every shadow reel was sealed after a
+    few minutes and the next opened 120 s later: a day of 2-4-min reels with 2-min holes. A read that did not
+    happen is UNKNOWN, never a look that saw no HUD. [[unknown-stays-unknown]]
     """
     if isinstance(row, str):
         return bool(row.strip())
     if not isinstance(row, dict) or row.get("kind") == "skip":
+        return False
+    if row.get("readFailed") or row.get("mode") in ("empty", "near-black"):
         return False
     return str(row.get("scene") or "") in _HUD_SCENES
 
@@ -6654,7 +6670,16 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
     out = (r.stdout or "").strip()
     a, b = out.find("{"), out.rfind("}")
     if a < 0 or b <= a:
-        err = (r.stderr or "").strip()[:160]
+        err = (r.stderr or "").strip()
+        # REG-1603 - the CLI prints its REASON on stdout ("Failed to authenticate: OAuth session expired and
+        # could not be refreshed") and only a stdin warning on stderr, so the log said "claude exit 1" with no
+        # reason for hours on his ALT. The first stdout line is the reason when stderr carries none.
+        if (not err or err.startswith("Warning: no stdin data")) and out:
+            err = _first_line(out) or err
+        err = err[:160]
+        # this read's own words (empty when it printed none) - never the previous read's, which the deep-read row
+        # would otherwise carry as this failure's readErr
+        globals()["_LAST_RAW"] = str(out)[:2048]
         ev("cap", f"vision returned no JSON ({model} exit {r.returncode})" + (f": {err}" if err else ""))
         journal_skip("parse-null", f"{model} exit {r.returncode}")   # v880 A2.8
         if r.returncode != 0:
@@ -8796,6 +8821,10 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "names": names, "n": n, "area": rd.get("area") or "",
         "scene": rd.get("scene") or "gameplay", "tz": rd.get("tz", []), "ms": vision_ms,
         "mode": rd.get("mode", ""), "lane": "deep", "model": model_tag, "conf": rd.get("conf"),
+        # REG-1603 - a read that did not happen says so, with the reader's own first line, instead of passing
+        # for an empty "gameplay" look (the ALT: "Failed to authenticate: OAuth session expired ...")
+        **({"readFailed": True, "readErr": _first_line(raw if raw is not None else globals().get("_LAST_RAW", ""))
+            or "the reader returned nothing"} if rd.get("mode") == "empty" and not farewell else {}),
         "intent": intent, "stashTab": stash_tab, "frameId": frame_id, "sessionId": SESSION_ID,
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),

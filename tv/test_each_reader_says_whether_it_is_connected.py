@@ -1,0 +1,233 @@
+# -*- coding: utf-8 -*-
+"""#105 (REG-1604) — EACH READER SAYS WHETHER IT IS CONNECTED, LIGHTS ON OR LIGHTS OFF.
+
+MEASURED 2026-09-30 on his ALT: its Claude CLI was signed out ("Failed to authenticate: OAuth session expired and could
+not be refreshed"). Since v3527 made Claude the reader, every frame it filmed for hours was read as nothing - and no
+surface said so: the log line was "claude exit 1" with no reason, every doctor row read fine, and the corner chip was
+green because the switch was on.
+
+His words: "a button showing this like if synced or not under the toggle button for each - defaulted claude for primary
+and the shadow for grok - lights on lights off style - so we know that they are connected".
+
+  · ONE MEASURE, control_app._reader_health: Claude's NEWEST read in the last 2 h decides (on when it returned, off when
+    it failed - with the reader's own words, and the sign-in step when the words are a sign-in failure); no read in the
+    window is UNKNOWN. Grok: switched off / not installed / not signed in is OFF with that reason, else ON with its
+    counts (a timeout is not a disconnection).
+  · /api/status carries it; the page paints two lamps under the corner chip from it (a lamp never guesses: no answer is
+    UNKNOWN); the doctor row "this machine's reader can read" asks the same measure.
+Fixture rows and a stub lane status only - his journal is never read here. [[heart-first]] [[unknown-stays-unknown]]
+"""
+import io
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+
+_WORLD = tempfile.mkdtemp(prefix="reader_lamps_")
+os.environ["TV_HIST"] = _WORLD
+os.environ["TV_SESSIONS"] = os.path.join(_WORLD, "sessions.jsonl")
+
+import control_app as ca  # noqa: E402
+import console_doctor as cd  # noqa: E402
+
+NOW = 1790780000000
+NODE = shutil.which("node")
+
+ALT_FAILED = {"lane": "deep", "scene": "gameplay", "mode": "empty", "names": [], "area": "", "conf": None,
+              "model": "sonnet", "raw": "Failed to authenticate: OAuth session expired and could not be refreshed"}
+GOOD = {"lane": "deep", "scene": "gameplay", "mode": "vision", "names": ["Shako"], "area": "Cold Plains", "conf": 0.9,
+        "model": "sonnet"}
+G5_ON = {"mode": "shadow", "on": True, "cliInstalled": True, "needsLogin": False,
+         "stats": {"ok": 3004, "errors": 3155, "last_error": "grok -p timeout 140s"}}
+
+
+def _at(row, mins_ago):
+    r = dict(row)
+    r["ts"] = r["completedTs"] = NOW - int(mins_ago * 60000)
+    return r
+
+
+def _health(rows, g5=G5_ON):
+    return ca._reader_health(now_ms=NOW, rows=rows, g5=g5, use_cache=False)
+
+
+class ClaudeSaysWhatItJustDid(unittest.TestCase):
+
+    def test_the_alts_signed_out_reads_are_lights_off_with_the_sign_in_step(self):
+        h = _health([_at(GOOD, 90), _at(ALT_FAILED, 3), _at(ALT_FAILED, 1)])["claude"]
+        self.assertEqual(h["state"], "off", "a signed-out Claude read as connected: %r" % h)
+        self.assertTrue(h["needsLogin"], "a sign-in failure was not recognised as one")
+        self.assertIn("OAuth session expired", h["why"])
+        self.assertIn("/login", h["why"], "the lamp does not say how to fix it")
+        self.assertEqual((h["ok"], h["failed"]), (1, 2))
+
+    def test_a_read_that_returned_is_lights_on(self):
+        h = _health([_at(ALT_FAILED, 30), _at(GOOD, 2)])["claude"]
+        self.assertEqual(h["state"], "on", "the NEWEST read returned, yet the lamp is %r" % h)
+
+    def test_a_failure_that_is_not_a_sign_in_says_its_own_words(self):
+        timeout = dict(ALT_FAILED, raw="claude timed out after 120 s")
+        h = _health([_at(GOOD, 20), _at(timeout, 1)])["claude"]
+        self.assertEqual(h["state"], "off")
+        self.assertFalse(h["needsLogin"], "a timeout was sent to /login")
+        self.assertIn("timed out", h["why"])
+
+    def test_no_read_is_unknown_never_on_and_never_off(self):
+        self.assertEqual(_health([])["claude"]["state"], "unknown")
+        old = _health([_at(ALT_FAILED, 180), _at(GOOD, 200)])["claude"]
+        self.assertEqual(old["state"], "unknown", "reads older than the window decided today's lamp: %r" % old)
+
+    def test_an_unreadable_journal_is_unknown_and_says_so(self):
+        orig = ca._journal_tail_rows
+        ca._journal_tail_rows = lambda max_bytes=600000: None
+        try:
+            h = ca._reader_health(now_ms=NOW, g5=G5_ON, use_cache=False)["claude"]
+        finally:
+            ca._journal_tail_rows = orig
+        self.assertEqual(h["state"], "unknown")
+        self.assertIn("could not be read", h["why"], "an unreadable journal read as 'no reads'")
+
+    def test_a_grok_row_is_not_claudes(self):
+        g = dict(GOOD, model="grok-subscription-cli")
+        self.assertEqual(_health([_at(g, 1)])["claude"]["state"], "unknown")
+
+
+class GrokSaysItsLanesState(unittest.TestCase):
+
+    def test_switched_off_not_installed_and_signed_out_are_lights_off(self):
+        self.assertEqual(_health([], g5={"mode": "off", "on": False})["grok"]["state"], "off")
+        self.assertIn("switched off", _health([], g5={"mode": "off"})["grok"]["why"])
+        self.assertIn("not installed", _health([], g5=dict(G5_ON, cliInstalled=False))["grok"]["why"])
+        self.assertIn("not signed in", _health([], g5=dict(G5_ON, needsLogin=True))["grok"]["why"])
+
+    def test_a_working_lane_is_lights_on_with_its_counts(self):
+        g = _health([])["grok"]
+        self.assertEqual(g["state"], "on")
+        self.assertIn("3004 ok", g["why"])
+        self.assertIn("timeout", g["why"], "the lane's last error is hidden behind a green lamp")
+
+
+class TheDoctorAsksTheSameMeasure(unittest.TestCase):
+
+    def _row(self, h):
+        orig = ca._reader_health
+        ca._reader_health = lambda **kw: h
+        try:
+            return cd._check_this_machines_reader_can_read()
+        finally:
+            ca._reader_health = orig
+
+    def test_off_is_missing_on_is_ok_nothing_is_unknown(self):
+        self.assertEqual(self._row(_health([_at(ALT_FAILED, 1)]))[0], cd.MISSING)
+        self.assertIn("/login", self._row(_health([_at(ALT_FAILED, 1)]))[1])
+        self.assertEqual(self._row(_health([_at(GOOD, 1)]))[0], cd.OK)
+        self.assertEqual(self._row(_health([]))[0], cd.UNKNOWN)
+
+    def test_the_row_is_registered(self):
+        names = [n for n, _f in cd.CHECKS] if hasattr(cd, "CHECKS") else None
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        self.assertIn('("this machine\'s reader can read", _check_this_machines_reader_can_read)', src)
+        if names is not None:
+            self.assertIn("this machine's reader can read", names)
+
+
+class ThePageLightsTheLamps(unittest.TestCase):
+
+    def test_status_carries_the_measure_and_the_page_asks_it(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertIn('"readers": _t("readers", _reader_health),', src)
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("window._paintReaderLamps(st.readers)", ui, "the status poll never paints the lamps")
+        self.assertIn('id="rl-claude"', ui)
+        self.assertIn('id="rl-grok"', ui)
+
+    @unittest.skipUnless(NODE, "node drives the page's own painter")
+    def test_the_painter_lights_what_it_is_told_and_guesses_nothing(self):
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        a = ui.index("  function _paintReaderLamps(rd) {")
+        b = ui.index("  window._paintReaderLamps = _paintReaderLamps;", a)
+        fn = ui[a:b]
+        prog = r"""
+var ELS = {};
+function El(){ this.attrs = {}; this.title = ''; }
+El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
+var document = { getElementById: function(id){ return ELS[id] || (ELS[id] = new El()); } };
+var window = {};
+""" + fn + r"""
+var out = {};
+function snap(){ return { c: [ELS['rl-claude'].attrs['data-lamp'], ELS['rl-claude'].attrs['data-fault'], ELS['rl-claude'].title],
+                          g: [ELS['rl-grok'].attrs['data-lamp'], ELS['rl-grok'].attrs['data-fault'], ELS['rl-grok'].title] }; }
+_paintReaderLamps(RD1); out.one = snap();
+_paintReaderLamps(null); out.none = snap();
+process.stdout.write(JSON.stringify(out));
+"""
+        rd1 = _health([_at(ALT_FAILED, 1)])
+        prog = prog.replace("RD1", json.dumps(rd1))
+        r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        o = json.loads(r.stdout)
+        self.assertEqual(o["one"]["c"][:2], ["off", "1"], "a signed-out Claude did not light OFF with its fault ring")
+        self.assertIn("NOT CONNECTED", o["one"]["c"][2])
+        self.assertIn("/login", o["one"]["c"][2])
+        self.assertEqual(o["one"]["g"][0], "on")
+        self.assertEqual([o["none"]["c"][0], o["none"]["g"][0]], ["unknown", "unknown"],
+                         "no answer from the console lit a lamp")
+
+
+RED_PROOF = [
+    {"why": "#105 - a failed newest read lights Claude ON (the ALT's signed-out day, green)",
+     "file": "tv/control_app.py",
+     "find": "        if last.get(\"readFailed\") or last.get(\"mode\") == \"empty\":\n            _why = str(last.get(\"readErr\") or \"\").strip()\n",
+     "replace": "        if False:\n            _why = str(last.get(\"readErr\") or \"\").strip()\n", "matches": 1},
+    {"why": "#105 - a sign-in failure is not recognised, so the lamp never says /login",
+     "file": "tv/control_app.py",
+     "find": "            lamp[\"needsLogin\"] = any(w in _why.lower() for w in _READER_AUTH_WORDS)\n",
+     "replace": "            lamp[\"needsLogin\"] = False\n", "matches": 1},
+    {"why": "#105 - reads older than the window decide today's lamp",
+     "file": "tv/control_app.py",
+     "find": "        if ts and now - ts <= _READER_WINDOW_MS:\n",
+     "replace": "        if ts:\n", "matches": 1},
+    {"why": "#105 - no read at all lights a lamp instead of UNKNOWN",
+     "file": "tv/control_app.py",
+     "find": "        lamp.update(state=\"unknown\", why=(\"the journal could not be read, so whether Claude can read is UNKNOWN\"\n",
+     "replace": "        lamp.update(state=\"on\", why=(\"the journal could not be read, so whether Claude can read is UNKNOWN\"\n",
+     "matches": 1},
+    {"why": "#105 - a switched-off Grok layer reads as connected",
+     "file": "tv/control_app.py",
+     "find": "    elif (g.get(\"mode\") == \"off\") or (g.get(\"on\") is False):\n",
+     "replace": "    elif False:\n", "matches": 1},
+    {"why": "#105 - the doctor calls a reader that cannot read fine",
+     "file": "tv/console_doctor.py",
+     "find": "        return MISSING, \"%s (%s failed, %s returned in 2 h)%s\" % (c.get(\"why\"), c.get(\"failed\"), c.get(\"ok\"), tail)\n",
+     "replace": "        return OK, \"%s (%s failed, %s returned in 2 h)%s\" % (c.get(\"why\"), c.get(\"failed\"), c.get(\"ok\"), tail)\n",
+     "matches": 1},
+    {"why": "#105 - the painter guesses: every lamp lights ON whatever it is told",
+     "file": "tv/control_ui.html",
+     "find": "      var state = (L && (L.state === 'on' || L.state === 'off')) ? L.state : 'unknown';\n",
+     "replace": "      var state = 'on';\n", "matches": 1},
+    {"why": "#105 - /api/status stops carrying the measure (the lamps go dark for good)",
+     "file": "tv/control_app.py",
+     "find": "        \"readers\": _t(\"readers\", _reader_health),\n",
+     "replace": "", "matches": 1},
+    {"why": "#105 - the status poll stops painting the lamps (the unjoined end)",
+     "file": "tv/control_ui.html",
+     "find": "window._paintReaderLamps(st.readers)",
+     "replace": "window._paintReaderLampsX(st.readers)", "matches": 1},
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

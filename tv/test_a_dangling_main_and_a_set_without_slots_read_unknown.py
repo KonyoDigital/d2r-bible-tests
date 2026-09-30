@@ -102,7 +102,7 @@ RED_PROOF = [
     {
         "why": "#41 rank 20 - the dangling-MAIN note is never drawn: a dangling MAIN reads like no MAIN",
         "file": "../bible.html",
-        "find": "    list.innerHTML = _mainNote(_mainDangling(r.all))\n      + ",
+        "find": "    list.innerHTML = _mainNote(_mainDangling(r.all)) + ",
         "replace": "    list.innerHTML = ",
         "matches": 1,
     },

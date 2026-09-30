@@ -520,8 +520,8 @@ RED_PROOF = [
     {
         "why": "#98 seen on pixels - the refusal is said only in the header, ~600 px above a locker lower on the page",
         "file": "bible.html",
-        "find": "      if (at){\n        var pop = document.createElement('div');\n",
-        "replace": "      if (false){\n        var pop = document.createElement('div');\n",
+        "find": "      if (at){\n        /* seen on pixels: his hover had opened the item's art card (#arttip, z 9999) over the words - it steps aside */\n",
+        "replace": "      if (false){\n        /* seen on pixels: his hover had opened the item's art card (#arttip, z 9999) over the words - it steps aside */\n",
         "matches": 1,
     },
     {

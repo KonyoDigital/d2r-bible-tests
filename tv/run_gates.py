@@ -8466,6 +8466,17 @@ GATES = [
              "has not walked WAITS (6 h bound; frames gone never wait; another world's learner is never asked); the "
              "doctor says waiting, not late; the console's learner nudges the gear ledger when it has news. 15 cases, "
              "15 red-proofs"),
+    Gate("test_each_reader_says_whether_it_is_connected", [sys.executable,
+         os.path.join(HERE, "test_each_reader_says_whether_it_is_connected.py")], 120,
+         needs_app=False,
+         why="#105 (REG-1604) - MEASURED 2026-09-30: the ALT's Claude was signed out ('Failed to authenticate: OAuth "
+             "session expired'), every frame it filmed for hours was read as nothing, and no surface said so. His words: "
+             "'a button showing this like if synced or not under the toggle ... claude for primary and the shadow for "
+             "grok ... lights on lights off ... so we know that they are connected'. One measure (_reader_health): "
+             "Claude's newest read in 2 h decides - off with its own words and the /login step on a sign-in failure, "
+             "UNKNOWN with no read; Grok off when switched off / not installed / signed out, else on with its counts. "
+             "/api/status carries it, the page paints two lamps from it (driven in node - no answer is UNKNOWN), the "
+             "doctor row 'this machine\'s reader can read' asks the same one. 11 cases, 9 red-proofs"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,

@@ -90,6 +90,38 @@ class TheFirstReadsCarryTheHud(unittest.TestCase):
         self.assertIs(tv.first_reads_show_d2r_hud(rows, words=_words()), True)
         self.assertIsNone(tv.first_reads_show_d2r_hud(rows[:3], words=_words()))
 
+    # REG-1603 - MEASURED 2026-09-30 on his ALT: Claude signed out, every read failed and was journalled as the
+    # fallback row; a black loading frame sat between them. Three of those sealed every shadow reel as "the
+    # launcher" for a day (2-4-min reels, 2-min holes). These are the rows, as his journal holds them.
+    ALT_FAILED = {"lane": "deep", "scene": "gameplay", "mode": "empty", "names": [], "area": "", "conf": None,
+                  "model": "sonnet", "raw": "Failed to authenticate: OAuth session expired and could not be refreshed"}
+    ALT_BLACK = {"lane": "known", "scene": "transition", "mode": "near-black", "names": [], "area": "",
+                 "note": "loading \u2014 next area coming"}
+
+    def test_a_read_that_did_not_happen_is_not_a_look(self):
+        rows = [self.ALT_FAILED, self.ALT_BLACK, self.ALT_FAILED, self.ALT_FAILED]
+        self.assertIsNone(tv.first_reads_show_d2r_hud(rows, words=_words()),
+                          "failed reads and a black loading frame were taken as three looks that saw no HUD - "
+                          "the launcher verdict that sealed every ALT reel")
+        flagged = dict(self.ALT_FAILED, mode="vision", readFailed=True)
+        self.assertIsNone(tv.first_reads_show_d2r_hud([flagged] * 3, words=_words()))
+
+    def test_real_launcher_reads_still_decide_around_a_failed_one(self):
+        rows = [LAUNCH[0], self.ALT_FAILED, LAUNCH[1], self.ALT_BLACK, LAUNCH[2]]
+        self.assertIs(tv.first_reads_show_d2r_hud(rows, words=_words()), False,
+                      "three REAL launcher reads stopped being the launcher because a failed one sat between them")
+        self.assertIsNone(tv.first_reads_show_d2r_hud([LAUNCH[0], self.ALT_BLACK, LAUNCH[1]], words=_words()),
+                          "a black loading frame was counted as the third look - two reads are not yet the launcher")
+
+    def test_the_failed_read_row_says_it_failed_and_why(self):
+        """the deep-read row the ALT journalled for a failed read now carries readFailed + the reader's words"""
+        src = io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read()
+        i = src.index("def emit_deep_read(")
+        blk = src[i:i + 12000]
+        self.assertIn('{"readFailed": True, "readErr": _first_line(', blk)
+        self.assertEqual(tv._first_line("\n  Failed to authenticate: OAuth session expired\nmore"),
+                         "Failed to authenticate: OAuth session expired")
+
     def test_only_boosteroid_is_the_bare_label(self):
         self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid"))
         self.assertTrue(tv.label_is_bare_boosteroid("Boosteroid · Boosteroid · Boosteroid"))
@@ -285,6 +317,20 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1603 - a read that failed (the ALT's signed-out Claude) counts as a look that saw no HUD again",
+        "file": "tv_diablo.py",
+        "find": '    if row.get("readFailed") or row.get("mode") in ("empty", "near-black"):\n        return False\n',
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1603 - a near-black loading frame counts as a look again",
+        "file": "tv_diablo.py",
+        "find": '    if row.get("readFailed") or row.get("mode") in ("empty", "near-black"):\n',
+        "replace": '    if row.get("readFailed") or row.get("mode") in ("empty",):\n',
+        "matches": 1,
+    },
     {
         "why": "a bare Boosteroid window starts a shadow reel when the first reads show no D2R HUD word",
         "file": "control_app.py",
