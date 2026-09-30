@@ -34,6 +34,7 @@ import hashlib
 import json
 import re as _re
 import os
+import atexit
 import shutil
 import subprocess
 import tempfile
@@ -323,14 +324,39 @@ _LEAN_HOME = None
 
 
 def _lean_home():
-    """An empty directory to stand in for HOME during a frame read - ONE fixed directory, never a new temp dir
-    per process (a production mkdtemp with no cleanup is a scratch-dir leak; nothing is ever written into it:
-    measured, a live read left it empty)."""
+    """An EMPTY directory to stand in for HOME during a frame read - ONE fixed directory (a production mkdtemp per
+    process with no cleanup is a scratch-dir leak), and EMPTIED before every use.
+
+    ⚠ v3526 second eye (Grok CLI, 2026-09-30), reproduced before fixing: the fixed path was only ever MADE, never
+    checked - makedirs(exist_ok=True) hands back a directory that already holds files, so one stray .claude.json /
+    .grok / hooks file left there by a grok child, a crash or any other process of this user would be imported by
+    EVERY later lean read: REG-1549's Chrome-per-read back, silently. So every call checks it: a symlink at the path is
+    replaced by a real directory, anything inside is removed (nothing of his ever lives here - it is a stand-in HOME
+    this module owns), and a directory that cannot be emptied is abandoned for a fresh mkdtemp removed at exit, with
+    the reason in _STATS["lean_home"] - heavier, and said."""
     global _LEAN_HOME
-    if not (_LEAN_HOME and os.path.isdir(_LEAN_HOME)):
-        _LEAN_HOME = os.path.join(tempfile.gettempdir(), "tvd-g5-home")
-        os.makedirs(_LEAN_HOME, exist_ok=True)
-    return _LEAN_HOME
+    p = os.path.join(tempfile.gettempdir(), "tvd-g5-home")
+    try:
+        if os.path.islink(p):
+            os.unlink(p)
+        os.makedirs(p, exist_ok=True)
+        for n in os.listdir(p):
+            q = os.path.join(p, n)
+            if os.path.isdir(q) and not os.path.islink(q):
+                shutil.rmtree(q)
+            else:
+                os.unlink(q)
+        if os.listdir(p):
+            raise OSError("the stand-in home would not empty")
+        _LEAN_HOME = p
+        _STATS["lean_home"] = "fixed stand-in, emptied before the read"
+        return p
+    except Exception as e:
+        d = tempfile.mkdtemp(prefix="tvd-g5-home-")
+        atexit.register(shutil.rmtree, d, True)
+        _LEAN_HOME = d
+        _STATS["lean_home"] = "a fresh stand-in - the fixed one could not be emptied (%s: %s)" % (type(e).__name__, e)
+        return d
 
 
 def _grok_env(lean=False):

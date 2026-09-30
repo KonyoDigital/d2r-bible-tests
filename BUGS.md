@@ -378,6 +378,17 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1587 - THE v3526 SECOND EYE'S FINDINGS, EACH MEASURED BEFORE ANYTHING CHANGED (2026-09-30)
+
+`second_eye_run.py v3526` (Grok CLI over c6944e08..0ba7a5ce, 37 commits, 16,110 chars sent - the eye itself names
+what it was not shown). Every finding was put to a measurement first:
+
+| finding | measured | outcome |
+|---|---|---|
+| HIGH: the reset laws set a script-local `var location`, `_consoleOrigin` reads `window.location`, so the refile path they assert is unreachable | the origin in `test_a_proven_rare_comes_back_to_the_magic_and_rare_locker` and `test_a_reset_keeps_the_retro_rows_filed` pointed at `http://example.com` → 4 and 5+2 cases went RED; restored byte-identical | **NOT REPRODUCED** - the var reaches `_consoleOrigin` in the harness; the laws are sensitive to it |
+| MEDIUM: `_lean_home` pins one fixed dir via `makedirs(exist_ok=True)` and never checks it is empty | read the code: a stray `.claude.json` / hooks dir / planted symlink at `tvd-g5-home` would reach every later lean frame read (REG-1549's Chrome-per-read back) | **FIXED** - emptied before every use, a symlink is replaced (never deleted through), an unemptiable dir falls back to a fresh mkdtemp removed at exit and is said; law case + 2 red-proofs PROVEN |
+| NOT SHOWN: bible.html, control_app.py, test_control.py hunks exceeded the payload | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+
 ### REG-1586 - CLAUDE READS EVERY FRAME; GROK IS ONLY THE + GROK LAYER, AND ONLY WHEN SWITCHED ON (2026-09-30)
 
 **His ruling:** *"make sure the subscription CLI is using claude and not grok.. grok is just an extra layer if toggled

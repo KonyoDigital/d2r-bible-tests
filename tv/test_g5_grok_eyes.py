@@ -67,6 +67,20 @@ RED_PROOF = [
         "replace": "                if base in name:\n                    pass\n",
         "matches": 1,
     },
+    {
+        "why": "v3526 second eye - the stand-in HOME is made but never emptied, so a stray .claude.json reaches every lean read",
+        "file": "g5_grok_eyes.py",
+        "find": "        for n in os.listdir(p):\n            q = os.path.join(p, n)\n            if os.path.isdir(q) and not os.path.islink(q):\n                shutil.rmtree(q)\n            else:\n                os.unlink(q)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3526 second eye - a symlink planted at the stand-in's fixed name becomes the read's HOME",
+        "file": "g5_grok_eyes.py",
+        "find": "        if os.path.islink(p):\n            os.unlink(p)\n",
+        "replace": "",
+        "matches": 1,
+    },
 ]
 
 def setUpModule():
@@ -609,6 +623,34 @@ class TestV3525AReadDoesNotLoadHisOtherTools(unittest.TestCase):
         if os.name == "nt":
             self.assertEqual(env.get("USERPROFILE"), env.get("HOME"))
         self.assertEqual("lean", g5._STATS.get("read_env"))
+
+    def test_a_stray_file_in_the_stand_in_home_never_reaches_a_read(self):
+        """v3526 second eye, reproduced: the fixed stand-in was made once and never checked, so anything left in it was
+        imported by every later lean read. Plant a .claude.json, a hooks dir and a symlink; the next read's HOME must be
+        empty and a real directory."""
+        td = tempfile.mkdtemp(prefix="g5_leanhome_")
+        self.addCleanup(shutil.rmtree, td, True)
+        with mock.patch.object(g5.tempfile, "gettempdir", lambda: td):
+            home = g5._lean_home()
+            with open(os.path.join(home, ".claude.json"), "w") as fh:
+                fh.write('{"mcpServers": {"chrome-devtools": {"command": "npx"}}}')
+            os.makedirs(os.path.join(home, ".claude", "hooks"))
+            again = g5._lean_home()
+            self.assertEqual(again, home)
+            self.assertEqual(os.listdir(again), [], "a stray file in the stand-in home would be imported by the read")
+            # a symlink planted at the fixed name, pointing at SOMEONE ELSE's folder: the read must not use it as HOME,
+            # and emptying the stand-in must never delete through it
+            other = tempfile.mkdtemp(prefix="g5_other_")
+            self.addCleanup(shutil.rmtree, other, True)
+            with open(os.path.join(other, "keep.json"), "w") as fh:
+                fh.write("{}")
+            shutil.rmtree(home)
+            os.symlink(other, home)
+            third = g5._lean_home()
+            self.assertFalse(os.path.islink(third), "the read's HOME is a symlink someone else chose")
+            self.assertEqual(os.listdir(third), [])
+            self.assertTrue(os.path.exists(os.path.join(other, "keep.json")),
+                            "emptying the stand-in deleted files THROUGH a planted symlink")
 
     def test_signing_in_keeps_his_real_home(self):
         env, _ = g5._grok_env()

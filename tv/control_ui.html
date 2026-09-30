@@ -6631,7 +6631,8 @@
   .fleet-eye { flex: none; font-size: var(--fs-2xs); line-height: 1; }
   /* #93 — THE SHADOW EYE. His ask (2026-09-30): "like glowing eye for the shadow reader to be on or off ... that way we
      know if its working too". One eye per PC, INSIDE the name cell (no new grid child, so no row law moves), drawn only
-     from that PC's own report:
+     from that PC's own report. It LEADS the name (measured 2026-09-30: after the name, a long one like "Konyo ALT TEST"
+     wrapped and left the eye alone on the next line):
        lit   ON and its watcher alive - a slow ember glow; the game may be closed, it waits in the shadows
        live  ON, alive and a reel rolling - the same eye, brighter and quicker
        idle  ON but NOT working (its watcher stopped, or no text reader on that PC) - open, amber rim, no glow
@@ -6639,7 +6640,7 @@
        unk   offline / an older build / not stamped yet - a dashed outline: UNKNOWN is never drawn lit or shut
      ⚠ THE GLOW NEVER ANIMATES OPACITY: every state is fully visible at rest and the animation only breathes the glow,
      so a paused animation cannot leave an invisible eye (the paused-fade-in scar). Reduced motion stops it. */
-  .fleet-shadow { display: inline-block; margin-left: 6px; line-height: 0; vertical-align: -0.12em; cursor: help; }
+  .fleet-shadow { display: inline-block; margin-right: 6px; line-height: 0; vertical-align: -0.12em; cursor: help; }
   .fleet-shadow svg { width: 1.3em; height: .8em; overflow: visible; display: block; }
   .fleet-shadow .sh-lid { fill: #0d0907; stroke: #6b5a48; stroke-width: 1.4; }
   .fleet-shadow .sh-iris { fill: #4a3526; }
@@ -25692,7 +25693,7 @@ function escC(s) {
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
-          + '<b>' + escC(nameFor) + _fleetShadowEye(m, online) + '</b>'
+          + '<b>' + _fleetShadowEye(m, online) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
           + _fleetStuckChip(m)
           + _fleetPickerChip(m)
