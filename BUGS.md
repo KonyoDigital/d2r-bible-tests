@@ -148,6 +148,44 @@ MAIN at all stay quiet; the rows still list every build and a bind still works. 
 the Characters room's reader (the edit-panel law's stand-in, one copy): the dangling MAIN said and marking nothing, the two
 honest states quiet, and the two join sites graded by their exact expressions (a comment cannot carry an assignment).
 **Red-proofs, each RED and restored:** the list stops carrying the reader's field; the field is carried and never drawn.
+### REG-1557 - A TOMBSTONE IS A RELEASE EVENT, NOT A GRAVE: THE RECORD TOOK THE FIRST ROW AND THE FILM HID THE PASSES (2026-09-30)
+
+**Found** by the w26 skeptic driving the merged REG-1541 record over his real stores, read-only: **3 of the 29 reels
+on his shelf carry tombstones - 14 rows between them, and every one of those rows carries a `kept` list** (the
+frame-level drain releases frames and leaves the evidence stills in the folder); one reel alone carried **four** rows -
+65, 14, 14, 14 stills before each pass, 13 kept every time - and **six** an hour later, the drain re-tombstoning it
+on every pass. (The skeptic's own first write-up said "14 of 29 reels": the count was rows, not reels - the count is
+the tell, and it was re-measured before it was written down here.) `ledger3._tombstone_of` returned the FIRST matching row and dropped the rest, and `_film`,
+finding the folder still on the shelf, said "13 film still(s) on the shelf" as if nothing had ever been taken - the
+release history he asked the ledger to keep (*"so when they get pruned they continue to exist on record"*) was in
+the store and not in the record. reel_custody (REG-1544, the day before) had already carved the rule for this store:
+*the LAST row wins the lookup (it is the latest act), and the count of rows per reel is kept beside it so a second
+removal is never folded into the first* - two readers of one file with two rules is the drift copy-drift names.
+**Fix** (`tv/ledger3.py`): `_tombstones_of` keeps every row in file order; `tombstone` is the latest act with
+`releases {n, lastTs, released, kept}` beside it (`released` = Σ frames − len(kept) per pass, from
+`reel_retention._tombstone`'s own meaning of `frames`: what the folder held before that pass); the film on the shelf
+says "N release pass(es) took M frame(s); the drain kept K", a folder that is gone reads the last pass with the pass
+count, and a pass whose frames nobody counted leaves `released` UNKNOWN - never a partial sum dressed as a total.
+**Law:** `tv/test_a_session_says_what_it_yielded.py::TheRecordOverFixtureStores::test_a_reel_released_in_passes_keeps_every_pass_and_the_latest_act_wins`
+- two passes with `kept` over the shelf reel, the same two over a released one, an uncounted pass, and no tombstone at
+all. **Red-proofs, each seen RED by heart2 --prove:** the first row wins again · the shelf film hides the passes · an
+uncounted pass is skipped and the rest summed.
+
+### REG-1556 - THE LEDGER3 DOORS DRESSED A QUERY THEY COULD NOT READ AS THE ASK: "" BECAME "NO ID GIVEN", ?limit=abc BECAME 200 ROWS (2026-09-30)
+
+**Found** by `python3 tv/swallow_census.py --check` on the merged REG-1541 branch: `tv/control_app.py` 28 -> 29, the
+new site at the record door's `except Exception: _sid_l3 = ""` - a query that would not parse became the empty id,
+and the door then answered "no session id given - ?id=<sessionId or reel folder>" to a caller who HAD named a reel.
+The sibling one door up did the same in a shape the census does not count: `?limit=abc` became `_lim_l3 = 200` and
+the list was answered in full as if he had asked for 200. A failed read is UNKNOWN, never a default that reads as a
+measurement. **Fix** (`tv/control_app.py`): one helper, `_ledger3_unparsed_query(field, exc)`, and both doors answer
+it and return - the record door says the query could not be parsed and which reel was asked for is UNKNOWN (naming
+the exception, never "no id given"); the list door refuses an unreadable `?limit=` with the ask (`total: None`, no
+rows), and a number or no limit answers as before. **Law:**
+`tv/test_a_session_says_what_it_yielded.py::TheDoorsSayUnknownNotNothing` (2) - the real handler in-process, a
+`parse_qs` that raises, `?limit=abc`, and the premise that the same asks answer once they parse. **Red-proofs, each
+seen RED by heart2 --prove:** the record door swallows to "" again · the list door answers ?limit=abc in full again.
+`swallow_census --check` holds again at the baseline.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
@@ -664,6 +702,57 @@ re-file is wanted once an item earns its looks. The lane only reports; it files 
 
 Also fixed on the way: `test_every_pc_proves_itself` RED_PROOF[34] anchored on the tuple BEFORE the v3524 integration
 added `"running-unverified"` (0 matches) — the red-proof census hooks/pre-push runs at top level was red on the base.
+
+### REG-1541 - NO DOOR ANSWERED "WHAT DID REEL X YIELD" - THE PER-SESSION EXTRACTION RECORD (2026-09-29)
+
+**Found** while designing #58 Ledger 3.0 (his §33 order: *"the extraction and tallying and counting and proof of
+ledgers to all need that same visual rendering so i can see that it was tallied properly and counted correctly. and
+where it was seen"*), measured read-only on his stores: `/api/session` is keyed by POSITION (`n=`), so the same
+reel changes address every time a reel lands; `/api/forensics?sid=` answers nothing once the reel folder is released;
+the river stamps carry `"26 name(s) read"` - a COUNT, never the names; and the three stores that know one reel spell it
+three ways (the journal's `sessionId`, the chronicle's `reel` - under BOTH `s_…` and `reel_s_…`, 3,914 of 8,517
+sightings the same row twice - and the vault's `session`). Nothing joined them, so "what did this session bank, who
+read it, on which frames, where was it seen" had no answer anywhere. **FIX:** new `tv/ledger3.py` assembles the
+record from the stores AS OBJECTS - it opens no file and names no store; `control_app._ledger3_stores` loads the
+journal ring, the chronicle book, the vault ledger, the shelf, the river stamps, the survey and the tombstones through
+its own path authorities (one loader for the two doors AND the doctor row, so the eagle grades the record he sees).
+Every key is borrowed: `chronicle_retro._reel_key` (one reel, two spellings), `item_identity.vault_key` +
+`trace_spine.name_key` (one name), `vault_retro.look_id` folded by `_fold_bare_sessions` (one VISIT per trial, his
+§34.2), `vault_evidence.tier`, `chronicle_retro.witnesses`. Served on `GET /api/ledger3/session?id=` (by ID, either
+spelling) and `GET /api/ledger3/sessions` (newest first, `?limit=`, `total` beside `shown`). An unreadable side is
+None with a sentence in `unknown`, never 0 (the first cut let an unreadable river stamp store answer through
+`station` only and never reached `unknown` - caught by the law, fixed); a session no store knows is `ok:false`,
+never an empty record. Measured on his Mac read-only: one record 10-24 ms, the list 0.04 s over 365 sessions. **Law:**
+`tv/test_a_session_says_what_it_yielded.py` - 13 cases over temp stores, the real `Handler.do_GET` driven in-process
+with `HIST_DIR`, `VAULT_LEDGER_PATH`, `_CHRON_EVIDENCE_PATH`, `replay.JOURNAL` and `TV_HIST` on the temp root; 11
+red-proofs, each seen RED and restored byte-for-byte. Design: `LEDGER3_DESIGN.md`.
+
+### REG-1542 - THE READER'S JOURNAL CARRIES OCR JUNK AS NAMES, AND A COUNT THAT READS THEM IS A LIE (2026-09-29)
+
+**Found** by running the first record over his real journal (read-only): reel `s_…17492` reported **36 names**, and
+the first four were `-Your Gamlng Rlg Is Readyl` (4 reads, `ocr-mac`), `.Your Gamlng Rlg Is Readyl`, `Your Gamlng
+Rlg Is Readyl`, `THE WARLe` - the OCR lane journals what it saw as `names`, flagged `provisional: true`, and the
+reader-vs-vault agreement then listed 841 "names the vault never witnessed" across 32 reels, 1 on both sides. A count
+that reads provisional OCR as named makes every yield and every agreement worthless. **FIX:** a name every read of
+which was provisional is `provisional: true` on its row, counted in `yield.provisional`, never in `yield.named`; one
+real (deep) read or a sealed-register entry clears it; the agreement compares NAMED journal names only and says how
+many it left out. **Law:** same file, `test_one_reel_says_what_it_yielded_who_read_it_and_where` +
+`test_the_vault_side_counts_visits_never_frames`; red-proof `it["provisional"] = False` unconditionally -> RED.
+
+### REG-1543 - A SEALED REEL ON THE SHELF WHOSE JOURNAL ROWS ARE GONE IS A TRAIL NOBODY CAN DRAW (2026-09-29)
+
+**Found** while giving the record its heart: the journal ring rotates by SIZE (5 generations) and the shelf drains by
+COUNT (the 16-reel FIFO), so nothing stops a sealed reel from sitting on the shelf after its reader's rows have
+rotated out - footage he still has, whose extraction record can no longer say who read what. No row watched it.
+**FIX:** doctor row `ledger3 sessions` (`console_doctor._check_the_ledger3_trail_can_be_drawn`) runs
+`ledger3.census` over the newest 32 shelf reels through the same `_ledger3_stores` loader: MISSING names each sealed
+reel with no journal rows; UNKNOWN when the ring or the shelf cannot be read (never "0 trails"); OK prints trails and
+the reader-vs-vault agreement counts side by side. PERIODIC on merit: 0.40 s measured on his 32-reel shelf while the
+cheap tick already sits at 8.9 of its 9 s budget, and the answer moves on the hour scale. Declared in `WATCHES` as
+`()` (no element yet - the 📒 room is a later slice) and explained in `corroborate.NO_JOINT_YET` (the agreement IS two
+engines, but not a registered builder yet). Today on his Mac, read-only: 32 of 32 shelf reels have a trail. **Law:**
+same file, `test_the_doctor_row_names_the_sealed_reel_whose_trail_is_gone` + `test_the_census_names_the_sealed_reel…`;
+red-proofs `if False:` at the row's MISSING branch and at the census's `elif sealed` -> both RED.
 
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 

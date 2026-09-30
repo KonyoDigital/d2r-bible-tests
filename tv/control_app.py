@@ -26622,6 +26622,114 @@ def _vault_store_read(path):
 _TOMBSTONE_SESSION_RE = re.compile(r"^s_\d{13}_\d+$")
 
 
+# ══ 2026-09-29 (#58, LEDGER 3.0 first slice) — THE PER-SESSION EXTRACTION RECORD, READ-ONLY ═══════
+# His order (handoff §33): "the extraction and tallying and counting and proof of ledgers to all need
+# that same visual rendering so i can see that it was tallied properly and counted correctly. and
+# where it was seen". The design (LEDGER3_DESIGN.md) measured that NO door answered "what did reel X
+# yield": /api/session is keyed by POSITION (n=), /api/forensics dies once the reel is released, the
+# stamps carry a COUNT of names and never the names, and the three stores that know spell one reel
+# three ways (sessionId / reel / session). These two GETs are that door. They assemble the record in
+# tv/ledger3.py from the stores this module already resolves — nothing is copied, nothing is written.
+def _ledger3_stores(journal_rows=None):
+    """The stores ledger3 reads, loaded through THIS module's own path authorities. -> dict
+
+    ⚠ ONE LOADER, TWO CALLERS: the two GET doors and the doctor's 'ledger3 sessions' row both come
+    here, so the record the eagle grades is the record he sees. A second loader in console_doctor
+    would be the drift [[copy-drift]] names. Every side that cannot be read is None WITH a sentence
+    in `unknown`; an absent file and an unreadable one are said apart. [[unknown-stays-unknown]]
+    """
+    out = {"journal": None, "chron": None, "vault": None, "hist": HIST_DIR,
+           "stamps": None, "triage": None, "tombstones": None, "unknown": []}
+    if journal_rows is not None:
+        out["journal"] = journal_rows
+    else:
+        try:
+            if HERE not in sys.path:
+                sys.path.insert(0, HERE)
+            import replay as _rp
+            out["journal"] = _rp.load_journal()
+        except Exception as e:
+            out["unknown"].append("the journal ring could not be read (%s) — the reader's trail is UNKNOWN"
+                                  % type(e).__name__)
+    try:
+        _book = _chron_evidence_load()           # {} when no book was ever banked: nothing, measured
+        out["chron"] = _book if isinstance(_book, dict) else None
+        if out["chron"] is None:
+            out["unknown"].append("the chronicle book is not a book — its side is UNKNOWN")
+    except Exception as e:
+        out["unknown"].append("the chronicle book would not parse (%s) — UNKNOWN, never empty"
+                              % type(e).__name__)
+    try:
+        import vault_evidence as _ve
+        if not os.path.isfile(VAULT_LEDGER_PATH):
+            out["unknown"].append("no vault witness ledger on this machine yet — measured absent, so "
+                                  "the vault side of every record is UNKNOWN")
+        else:
+            out["vault"] = _ve._load_owned(VAULT_LEDGER_PATH)
+            if out["vault"] is None:
+                out["unknown"].append("the vault witness ledger would not parse — UNKNOWN, never empty")
+    except Exception as e:
+        out["unknown"].append("vault_evidence could not be read (%s)" % type(e).__name__)
+    try:
+        import river_stamp as _rs
+        _rep = _rs.rows()
+        if _rep.get("ok"):
+            out["stamps"] = _rep
+        else:
+            out["unknown"].append("the river stamps could not be read: %s" % str(_rep.get("why") or "")[:120])
+    except Exception as e:
+        out["unknown"].append("river_stamp could not be read (%s)" % type(e).__name__)
+    try:
+        import retro_triage as _rt
+        _tri, _tri_ok = _rt.load()
+        if _tri_ok:
+            out["triage"] = _tri
+        else:
+            out["unknown"].append("the structural survey could not be read — panels/frames are UNKNOWN")
+    except Exception as e:
+        out["unknown"].append("retro_triage could not be read (%s)" % type(e).__name__)
+    try:
+        _tv = tombstone_view(limit=1000000)
+        if _tv.get("ok"):
+            out["tombstones"] = _tv.get("rows") or []
+        else:
+            out["unknown"].append("the tombstones could not be read: %s" % str(_tv.get("why") or "")[:120])
+    except Exception as e:
+        out["unknown"].append("tombstone_view could not be asked (%s)" % type(e).__name__)
+    return out
+
+
+def ledger3_session(sid, journal_rows=None):
+    """GET /api/ledger3/session?id=<session> — one reel's extraction record. -> dict"""
+    import ledger3 as _l3
+    if not str(sid or "").strip():
+        return {"ok": False, "v": _l3.V, "why": "no session id given — ?id=<sessionId or reel folder>"}
+    return _l3.session_record(sid, _ledger3_stores(journal_rows))
+
+
+def ledger3_sessions(journal_rows, limit=200):
+    """GET /api/ledger3/sessions — every journalled session, newest first, cheap rows. -> dict"""
+    import ledger3 as _l3
+    return _l3.sessions(journal_rows, limit=limit)
+
+
+def _ledger3_unparsed_query(field, exc):
+    """REG-1556 — a query a ledger3 door could not read is UNKNOWN, never a default dressed as the ask. -> dict
+
+    The record door swallowed a parse failure to "" and then answered "no session id given" — the caller
+    DID name a reel; the list door turned ?limit=abc into 200 rows as if he had asked for 200. Both now
+    say what could not be read and answer nothing else. [[unknown-stays-unknown]]
+    """
+    import ledger3 as _l3
+    if field == "limit":
+        return {"ok": False, "v": _l3.V, "sessions": [], "total": None, "shown": 0,
+                "why": "?limit= could not be read as a number (%s) — say how many, or leave it out for 200"
+                       % type(exc).__name__}
+    return {"ok": False, "v": _l3.V,
+            "why": "the query string could not be parsed (%s) — which reel was asked for is UNKNOWN, not "
+                   "'no id given'" % type(exc).__name__}
+
+
 def tombstone_view(limit=300):
     """The reel-release history. -> dict. Reads one file, writes nothing, deletes nothing.
 
@@ -39637,6 +39745,48 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path == "/api/ledger3/sessions":
+            # 2026-09-29 (#58) — LEDGER 3.0's list door: every journalled reel, newest first, as
+            # cheap rows (who read it, what it named, how the reader routed it). Read-only.
+            # ⚠ EXACT MATCH, and placed BELOW /api/sessions: the older `startswith("/api/session")`
+            # branch further down would otherwise never see these, but neither can it steal them —
+            # "/api/ledger3/…" does not start with "/api/session". The v2026 shadowing hazard
+            # (a new branch above an old one stealing its requests) was checked, not assumed.
+            try:
+                import urllib.parse as _up_l3
+                _q_l3 = _up_l3.parse_qs(_up_l3.urlparse(self.path).query or "")
+                _lim_l3 = int((_q_l3.get("limit") or ["200"])[0])
+            except Exception as _e_l3:
+                # REG-1556 — ?limit=abc became 200 rows. A cap that could not be read is refused with the
+                # ask, never answered in full as if he had asked for 200.
+                self._json(200, _ledger3_unparsed_query("limit", _e_l3))
+                return
+            try:
+                _jr = self._load_journal_cached()
+            except Exception:
+                _jr = None                     # UNKNOWN: the list says so, never an empty shelf
+            self._json(200, ledger3_sessions(_jr, limit=_lim_l3))
+            return
+        if path == "/api/ledger3/session":
+            # 2026-09-29 (#58) — LEDGER 3.0's record door: ONE reel by its ID (never its position),
+            # joined across the journal, the chronicle book, the vault ledger, the shelf, the river
+            # stamps, the survey and the tombstones. ⚠ The id is read from the RAW self.path — `path`
+            # is query-stripped (the v2164 trap that left /api/evidence answering "no name given").
+            try:
+                import urllib.parse as _up_l3
+                _q_l3 = _up_l3.parse_qs(_up_l3.urlparse(self.path).query or "")
+                _sid_l3 = (_q_l3.get("id") or [""])[0]
+            except Exception as _e_l3:
+                # REG-1556 — this swallowed to "" and the door then said "no session id given": a query
+                # that would not parse is UNKNOWN, and the caller DID name a reel. Say which.
+                self._json(200, _ledger3_unparsed_query("id", _e_l3))
+                return
+            try:
+                _jr = self._load_journal_cached()
+            except Exception:
+                _jr = None
+            self._json(200, ledger3_session(_sid_l3, journal_rows=_jr))
             return
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_status":
