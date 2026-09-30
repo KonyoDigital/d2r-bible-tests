@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3532",
+  "ver": "v3533",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3532: Fleet rows keep each PC name whole with its warnings on their own line. River stuck now counts only reels still on that PC shelf: on the Mac 21 of 27 were deleted reels or test fixtures. A PC that has never proved its gates says what its prover waits for. The Vault tab padlock sits on the tab edge, clear of its label.",
+  "note": "v3533: A reel removed by a deleter now leaves the river: it is stamped as closed out from the record that deleter kept, and the heart goes red on any reel that vanished with no record at all. Two browser checks now measure the world they really run in.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
