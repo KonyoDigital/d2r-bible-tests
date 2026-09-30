@@ -173,6 +173,9 @@ class AFailedCloseConfirmsNothing(_Reels):
             if ts == self.LAST and how == "refused":
                 self.reads.append(ts)
                 return None
+            if ts == self.LAST and how == "whole-empty":
+                self.reads.append(ts)
+                return {"screen": "character-select", "partial": False, "selected": None, "chars": []}
             if ts == self.LAST and how == "no-highlight":
                 self.reads.append(ts)
                 return {"screen": "character-select", "partial": False, "selected": None,
@@ -202,6 +205,11 @@ class AFailedCloseConfirmsNothing(_Reels):
 
     def test_a_close_that_saw_no_highlighted_row(self):
         self._unconfirmed("no-highlight")
+
+    def test_a_close_that_saw_a_whole_list_of_nobody(self):
+        # the Grok CLI look at v3534: this path was untested. A whole list that shows nobody names no row - the session
+        # stays unconfirmed (never filed under the arrival guess), and the close is a LOOK (REG-1620), so the wait ends
+        self._unconfirmed("whole-empty")
 
     def test_a_close_that_named_the_row_still_decides(self):
         # the same visit, read to its end: the closing read's own name is the login (and agreeing with arrival is fine)

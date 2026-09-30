@@ -111,6 +111,10 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "        lamp[\"signInOpen\"] = bool(_csi.watching()) and lamp.get(\"state\") != \"on\"\n",
      "replace": "        lamp[\"signInOpen\"] = bool(_csi.watching())\n", "matches": 1},
+    {"why": "REG-1636 - a sign-in check whose thread never started keeps `busy` for good: the CLAUDE lamp never asks again",
+     "file": "control_app.py",
+     "find": "        except Exception as e:\n            _CLAUDE_AUTH[\"busy\"] = False\n",
+     "replace": "        except Exception as e:\n            pass\n", "matches": 1},
     {"why": "REG-1631 - a status code is a substring again: a timeout of 1401 ms reads as a revoked sign-in",
      "file": "g5_grok_eyes.py",
      "find": "    return _re.compile(r\"(?<![\\w.])%s(?![\\w.])(?!\\s*(?:ms|s|secs?|seconds?|bytes?|[kmg]i?b)\\b)\" % n)\n",
@@ -318,6 +322,22 @@ class ClaudeHasItsOwnDisconnectLogic(unittest.TestCase):
         self._ask(1000.0, True, {"loggedIn": False}, {"loggedIn": False, "why": "still out"})
         self.assertEqual(ca._READER_CACHE["at"], 123.0, "an unchanged answer dropped the cache")
 
+    def test_a_check_that_never_started_is_not_still_running(self):
+        """REG-1636 - a worker whose start raised left `busy` True for good: the lamp never asked the CLI again."""
+        ca._CLAUDE_AUTH.update(at=0.0, val={"loggedIn": True, "why": "signed in"}, busy=False)
+
+        def no_thread(_f):
+            raise RuntimeError("can't start new thread")
+        with mock.patch.object(ca, "_find_claude_bin", lambda: "/fake/claude"):
+            ca._claude_auth_state(now=5000.0, _thread=no_thread, _watching=lambda _n: False)
+        self.assertFalse(ca._CLAUDE_AUTH["busy"], "a check that never started still reads as running")
+        self.assertIn("RuntimeError", ca._CLAUDE_AUTH.get("startFailed") or "")
+        asked = []
+        with mock.patch.object(ca, "_find_claude_bin", lambda: "/fake/claude"):
+            ca._claude_auth_state(now=5000.0 + ca.CLAUDE_AUTH_EVERY_S + 1, _probe=lambda b: asked.append(b) or {"loggedIn": True},
+                                  _thread=lambda f: f(), _watching=lambda _n: False)
+        self.assertEqual(asked, ["/fake/claude"], "the lamp never asked again after a start that failed")
+
     def test_the_watch_window(self):
         saved = dict(CS._PROC)
         try:
@@ -467,8 +487,14 @@ class TheRelaunchRefusalNeverAlerts(unittest.TestCase):
         ui = _read(UI)
         a = ui.index("  function toast(msg, ms){")
         b = ui.index("\n  }\n", a) + len("\n  }\n")
-        self.assertTrue(ui[b:b + 400].lstrip().startswith("// REG-1618"), ui[b:b + 200])
-        self.assertIn("window.toast = toast;", ui[b:b + 400])
+        # both ends are real boundaries (the function's close, the assignment itself), never a guessed length: between
+        # them only comment lines may sit - any code there (an IIFE's close above all) moves it out of toast's scope
+        c = ui.index("window.toast = toast;", b)
+        between = [ln.strip() for ln in ui[b:c].split("\n") if ln.strip()]
+        self.assertTrue(between and between[0].startswith("// REG-1618"), "the assignment's reason is not beside it")
+        self.assertTrue(all(ln.startswith("//") for ln in between),
+                        "code sits between toast and its window assignment: %r" % [ln for ln in between if not ln.startswith("//")][:3])
+        self.assertEqual(ui[ui.rfind("\n", 0, c) + 1:c], "  ", "the assignment is not at toast's own indentation")
 
 
 if __name__ == "__main__":

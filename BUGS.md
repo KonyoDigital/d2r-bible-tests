@@ -405,6 +405,30 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1636 - A SIGN-IN CHECK WHOSE THREAD NEVER STARTED LEFT THE CLAUDE LAMP ASKING NOTHING, FOR GOOD (the Grok CLI look at v3534, 2026-09-30)
+
+`_claude_auth_state` sets `busy` BEFORE its worker starts; a `Thread.start()` that raises (no thread to be had - the
+8 GB ALT under load is where that happens) left `busy` True for good, and the CLAUDE lamp never asked the CLI again.
+The eye asked the question with the start outside the shown hunk; the code answered it. **Now** a start that raises
+resets `busy` and records `startFailed`; the next poll after the cadence asks again. The eye's other questions on the
+same look read fine on the code: `status()` gives UNKNOWN (never "signed out") for a non-zero exit or empty stdout,
+`start()` records its process under `_LOCK`, and `claude_login` checks the Origin before it spawns. Its first finding
+(an empty character-select close) is the rule REG-1619 states - a close that names no row confirms nothing - and was
+only untested: `test_a_close_that_saw_a_whole_list_of_nobody` now pins it (unconfirmed, and the close still ends the
+wait, REG-1620). Laws: `tv/test_each_lamp_links_its_own_reader.py`, the login law; every red-proof RED.
+
+### REG-1635 - THREE CORPUS LAWS WENT RED ON CI FOR v3534, NONE RUN BY THE PUSH GATE (2026-09-30)
+
+CI's agent-suite runs every registered gate; the push gate runs a subset. v3534's new laws tripped three corpus laws:
+`test_no_new_home_path_is_published` (a `/Users/x/...` fake CLI path in the sign-in law - now `/opt/claude/bin/claude`),
+`test_a_source_window_must_reach_its_subject` (three `ui[b:b + 400]` windows in the lamp law pushed the count 44 -> 47 -
+the case now anchors both ends: the function's close and the assignment itself, with only comment lines between) and
+`test_a_gate_names_its_subject_by_importing_it` (**measured** over 667 gates: `console_safe` 96%, `control_app` 26% - the
+joined laws drive the console more every week - past the 0.25 infrastructure cut, so control_app lost its place as a
+subject). The cut is now the middle of the measured gap (0.5), and the law measures the gap on every run through
+`heart2_candidates.import_shares()` instead of trusting the comment's numbers; a new red-proof puts the cut one step
+above the widest subject and goes RED. The lesson is in memory: run the fast gate set before a push, not only the hook.
+
 ### REG-1634 - TWO VAULT GATES WERE BLIND ON EVERY PC WITHOUT HIS VAULT DATA (2026-09-30)
 
 **Measured on the ALT's own census:** `test_the_vault_proposal_is_watched[2]` and `test_the_vault_receipt_is_watched[1]`

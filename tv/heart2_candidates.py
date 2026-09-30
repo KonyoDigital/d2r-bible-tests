@@ -47,9 +47,15 @@ def _read(p):
 
 #: Modules imported by more than this fraction of the gate corpus are INFRASTRUCTURE, not any one
 #: gate's subject. Measured 2026-09-09 over 264 gates: `console_safe` 95%, then a cliff to
-#: `control_app` 21% and down. The threshold sits in the gap, and it is computed rather than
-#: hardcoded so a module that becomes ubiquitous later is excluded without anyone noticing it did.
-INFRA_SHARE = 0.25
+#: `control_app` 21% and down, and the cut was set at a quarter.
+#: REG-1635 - RE-MEASURED 2026-09-30 over 667 gates (CI went red on it): `console_safe` 96%, then
+#: `control_app` 26% - the joined laws drive the console more every week - then 15% and down. A cut
+#: at a quarter had fallen INTO the subjects: control_app was filed as infrastructure and every gate
+#: that drives it lost its subject. The cut now sits at the middle of the gap, and the law measures
+#: the gap on every run (import_shares) instead of trusting the numbers in this comment.
+INFRA_SHARE = 0.5
+
+_INFRA_SHARES = {}
 
 _INFRA_CACHE = {}
 
@@ -134,8 +140,18 @@ def infrastructure(here):
     # ⚠ A CORPUS TOO SMALL TO RANK IS NOT A CORPUS WITH NO INFRASTRUCTURE. Below 20 gates the
     # share is noise, so nothing is excluded and every candidate has to survive --prove anyway.
     infra = set() if total < 20 else {m for m, k in counts.items() if k > total * INFRA_SHARE}
+    _INFRA_SHARES[here] = {m: k / float(total) for m, k in counts.items()} if total >= 20 else {}
     _INFRA_CACHE[here] = infra
     return infra
+
+
+def import_shares(here):
+    """REG-1635 - the measured share of the gate corpus importing each local module. -> {module: share}
+
+    What infrastructure() cut at INFRA_SHARE, kept so the law can check the cut still sits in the gap it
+    claims ({} for a corpus too small to rank, where nothing is cut)."""
+    infrastructure(here)
+    return dict(_INFRA_SHARES.get(here) or {})
 
 
 def target_files(tree, here):

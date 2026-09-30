@@ -114,9 +114,9 @@ class TheCliIsAskedAndDriven(unittest.TestCase):
     def test_the_command_is_fixed_per_os(self):
         argv, how = CS.command("C:\\u\\claude.exe", "win32")
         self.assertEqual((argv, how), (["C:\\u\\claude.exe", "auth", "login"], "window"))
-        argv, how = CS.command("/Users/x/.local/bin/claude", "darwin")
+        argv, how = CS.command("/opt/claude/bin/claude", "darwin")
         self.assertEqual(argv[0], "osascript")
-        self.assertIn("'/Users/x/.local/bin/claude' auth login", " ".join(argv))
+        self.assertIn("'/opt/claude/bin/claude' auth login", " ".join(argv))
         argv, why = CS.command("/usr/bin/claude", "linux")
         self.assertIsNone(argv)
         self.assertIn("claude auth login", why, "a PC with no window is not told what to type")

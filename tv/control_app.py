@@ -323,10 +323,17 @@ def _claude_auth_state(now=None, _probe=None, _thread=None, _watching=None):
                 _new = _CLAUDE_AUTH.get("val")
                 if (_prev or {}).get("loggedIn") != (_new or {}).get("loggedIn"):
                     _READER_CACHE["at"] = 0.0      # REG-1618: signed in / out just changed - repaint, do not wait 30 s
-        if _thread is not None:
-            _thread(_go)
-        else:
-            threading.Thread(target=_go, daemon=True, name="tvd-claude-auth").start()
+        # REG-1636 - the Grok CLI look at v3534 asked it, and it held: `busy` is set BEFORE the worker starts, so a start
+        # that raises (no thread to be had - the 8 GB ALT under load) left it True for good and the CLAUDE lamp never
+        # asked again. A check that never started is not one still running; the next poll after the cadence tries again.
+        try:
+            if _thread is not None:
+                _thread(_go)
+            else:
+                threading.Thread(target=_go, daemon=True, name="tvd-claude-auth").start()
+        except Exception as e:
+            _CLAUDE_AUTH["busy"] = False
+            _CLAUDE_AUTH["startFailed"] = "%s at %d" % (type(e).__name__, int(now))
     return _CLAUDE_AUTH["val"]
 
 

@@ -16,10 +16,14 @@ coverage while demonstrating nothing about the law, because every gate importing
 together. A proof that reddens for a reason unrelated to its own subject is the most convincing
 kind of green that means nothing. [[feedback-blind-fixture-green-gate]]
 
-So infrastructure is EXCLUDED, and the threshold is COMPUTED rather than hardcoded — measured over
-264 gates the distribution is `console_safe` 95%, then a cliff to `control_app` 21% and down, so
-`INFRA_SHARE = 0.25` sits in the gap. A module that becomes ubiquitous later is excluded without
-anyone noticing it did. [[zero-needs-a-denominator]]
+So infrastructure is EXCLUDED, and the share is COMPUTED over the corpus rather than hardcoded per module -
+measured over 264 gates the distribution was `console_safe` 95%, then a cliff to `control_app` 21% and down,
+and the cut sat at a quarter. A module that becomes ubiquitous later is excluded without anyone noticing it
+did. [[zero-needs-a-denominator]]
+
+REG-1635 - AND A SUBJECT THAT GROWS CAN CLIMB INTO THE CUT. Re-measured 2026-09-30 over 667 gates (CI red on
+v3534): `console_safe` 96%, `control_app` 26% - past the quarter, filed as infrastructure. The cut is now the
+middle of the gap, and the gap is MEASURED on every run (HC.import_shares), never read from a comment.
 """
 import io
 import os
@@ -92,12 +96,18 @@ class InfrastructureIsNotASubject(unittest.TestCase):
                              % (real, HC.INFRA_SHARE))
 
     def test_the_threshold_sits_in_the_measured_gap(self):
-        self.assertGreater(HC.INFRA_SHARE, 0.21,
-                           "the threshold is at or below control_app's ~21%% share, so real "
-                           "subjects are being excluded")
-        self.assertLess(HC.INFRA_SHARE, 0.95,
-                        "the threshold is above console_safe's ~95%% share, so the one module that "
-                        "must be excluded is not")
+        """REG-1635 - measured, never recalled: the widest real subject sits well below the cut, and
+        console_safe (the one module that must be excluded) above it."""
+        sh = HC.import_shares(HERE)
+        self.assertTrue(sh, "the corpus shares could not be measured - the gap is UNKNOWN, not passing")
+        self.assertGreater(sh.get("console_safe", 0.0), HC.INFRA_SHARE,
+                           "console_safe's measured share (%.2f) is at or below the cut %.2f, so the one module "
+                           "that must be excluded is not" % (sh.get("console_safe", 0.0), HC.INFRA_SHARE))
+        widest = max(s for m, s in sh.items() if m != "console_safe")
+        self.assertLess(widest, HC.INFRA_SHARE - 0.1,
+                        "the widest real subject's measured share (%.2f) is within ten points of the cut %.2f - "
+                        "the next law that drives it files it as infrastructure (control_app, CI red on v3534)"
+                        % (widest, HC.INFRA_SHARE))
 
     def test_a_tiny_corpus_excludes_nothing(self):
         """A share measured over 3 files is noise, not a finding."""
@@ -193,11 +203,19 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a threshold below control_app's measured 21% share sweeps real subjects into the "
+        "why": "a threshold below control_app's measured share sweeps real subjects into the "
                "infrastructure set and silently shrinks what can ever be proven",
         "file": "heart2_candidates.py",
-        "find": "INFRA_SHARE = 0.25",
-        "replace": "INFRA_SHARE = 0.05",
+        "find": "INFRA_SHARE = 0.5\n",
+        "replace": "INFRA_SHARE = 0.05\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1635 - a cut one step above the widest subject: it is swept up the next time a law drives it "
+               "(exactly how control_app, at 26%, fell under the old quarter)",
+        "file": "heart2_candidates.py",
+        "find": "INFRA_SHARE = 0.5\n",
+        "replace": "INFRA_SHARE = 0.27\n",
         "matches": 1,
     },
 ]
