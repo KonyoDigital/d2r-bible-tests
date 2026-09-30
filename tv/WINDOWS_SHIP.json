@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3529",
+  "ver": "v3530",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3529: A hardened filing is locked until he releases it: the lock shows on the vault, a refusal is said at the cell he tried, and a release clears it. The character builder is personal to each console: it offers only the characters its own reels learned, in two sections - In game, proving toward hardened like the vault, and Simulation builds, where adding a character works as before.",
+  "note": "v3530: A session is bound to the character he entered it with: the char-select read names the highlighted row, and everything after it routes to that character, like the printer. A read that failed is no longer a look: a signed-out reader no longer seals every shadow reel as the launcher, and the log says why. Under the corner chip, CLAUDE and GROK lamps say whether each reader can read on this PC, and the corner is green only while a shadow reel records. A machine-wide lock no longer retires reels.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
