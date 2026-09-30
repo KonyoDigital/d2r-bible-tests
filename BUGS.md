@@ -405,6 +405,37 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1596 - THE HARDENED LOCK, REBUILT AGAINST ITS 13 FINDINGS AND MADE VISIBLE (#98, #41 rank 17, 2026-09-30)
+
+**His ruling (2026-09-30), on "Shift releases it, or drop the lock?":** *"whatever is logical. i trust you. just make it
+visually known"*. So: a HARDENED filing stays where the evidence put it; his hand moves it only with Shift held on the
+drop or on the cell's ✕; an unreadable witness store is UNKNOWN and never releases; and the lock is SEEN.
+
+**What the rebuild closes** (REG-1562's first build, 941993f5, was held out of v3527 by its verifier; each finding below
+is driven by `test_a_hardened_filing_is_locked_until_he_releases_it` on the shipped doors in node):
+| # | the verifier drove | now |
+|---|---|---|
+| 1 | UNKNOWN + Shift filed the item and REPLACED the unreadable store with one row | refused `prov-unreadable` on every door, bytes untouched (test 13) |
+| 2 | `unlockedFrom` written for a lock nobody could read | written only when the release was actually written (test 15) |
+| 3 | `vaultUnassign` answered `unlocked:true` while its release had failed | `unlocked` reports what the release did; a failed release refuses (tests 13, 9) |
+| 4 | a same-locker drop recorded "you filed it here yourself" over a 21/21 evidence row | the door's `already, locked` is an answer, never a filing (test 14) |
+| 5 | a deleted mule's locked row was replaced by a plain drop | the lock is asked whether or not the name is filed; Shift re-files it (test 15) |
+| 6 | a hand witness naming no locker was refused as a move | it moves nothing and answers `already` (test 16) |
+| 7 | the mule window and the vault audit dropped the door's refusal | both say it in the banner (test 17, test 20) |
+| 8 | Shift on the SAME locker spent the release and demoted 21 looks | a same-locker drop is not a move: the row stands, still locked (test 14) |
+| 9 | the witness store parsed twice per cell per render | parsed once per change of the store (test 18) |
+| 10 | Shift on a real drag never exercised on pixels | measured in a headless page with a real Shift drag before ship (see below) |
+| 11 | rank 26 not re-proven by that verifier | shipped re-proven in v3527 |
+| 12 | BLUEPRINT's LIVE line came from a worktree | regenerated from his checkout's file at the bump |
+| 13 | no surface counted locks; refusals lived 4.2 s on the status line | the header chip "🔒 N locked · M released", the cell's 🔒 and gold ring, a banner that stays 9 s, and the item shakes (test 19) |
+
+**Visible, by design:** every locked cell wears 🔒 in its free bottom-right corner and a thin gold ring; hovering the 🔒
+says the tier, the looks and the release ("hold Shift while you drop it on another locker, or Shift+click ✕"); the vault
+header counts the locks; a refused drop shakes the item and says why in a banner; an unreadable store shows 🔒 ? on the
+chip and on the cell. Reduced-motion users get no shake.
+
+**Guards:** `tv/test_a_hardened_filing_is_locked_until_he_releases_it.py` - 20 cases (8 new), 20 red-proofs (9 new, 4
+re-aimed at the rewritten guards), each tamper seen red by hand.
 
 ### REG-1595 - THE CHARACTER READER'S HOURLY CAP SKIPPED EVERY VISIT AFTER IT FOR GOOD (#231 5909410674, 2026-09-30)
 

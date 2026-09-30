@@ -64,6 +64,8 @@ VR_END = "  /* the heart and the console read the journal through here"
 REMOVE_START = "  window.vaultRemove = function(names, opts){"
 REMOVE_END = "  /* The reverse of exactly one batch"
 RESTORE_START = "  window.vaultRestoreLast = function(){"
+AUDIT_START = "  function _vaultAuditApply(f){"
+AUDIT_END = "  function _vaultAuditPersist(){"
 
 
 def _src():
@@ -178,6 +180,62 @@ OUT.evidence = { removed: window.vaultRemove(['Arachnid Mesh'], { lane: 'tv-unva
 OUT.evidence.restored = window.vaultRestoreLast();
 OUT.evidence.mapBack = map(); OUT.evidence.rowBack = row('Arachnid Mesh');
 OUT.evidence.lockBack = window._vaultHardLock('Arachnid Mesh');
+/* ── #98 (his ruling 2026-09-30: "whatever is logical... just make it visually known") — the verifier's findings ── */
+var CHRON = []; window.kaiChronicleRecord = function(x){ CHRON.push(x); };
+var ELS = {};
+function _el(){ var cl = {}; return { hidden: true, textContent: '', className: '', title: '', _cl: cl,
+  classList: { add: function(c){ cl[c] = 1; }, remove: function(c){ delete cl[c]; } } }; }
+ELS['vault-lock-chip'] = _el(); ELS['vault-lock-alert'] = _el();
+document.getElementById = function(id){ return ELS[id] || null; };
+document.querySelectorAll = function(){ return []; };
+/* P1 — UNKNOWN + Shift: nothing filed, nothing released, the unreadable bytes untouched */
+seed();
+STORE['d2r_vaultProv'] = '{ not json';
+OUT.p1 = { hand: window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-small', unlock: true }),
+           x: window.vaultUnassign('Arachnid Mesh', { unlock: true }),
+           move: window.vaultFile('Arachnid Mesh', null, { move: true, mule: 'uni-small', by: 'hand', unlock: true }),
+           store: STORE['d2r_vaultProv'], map: map() };
+/* P4 + P8 — a re-drop on the SAME locker, without and with Shift: an answer, never a filing */
+seed(); CHRON.length = 0; STATUS.length = 0;
+assignItem('Arachnid Mesh', 'uni-armor');
+assignItem('Arachnid Mesh', 'uni-armor', { unlock: true });
+OUT.p48 = { chron: CHRON.slice(), status: STATUS.slice(), row: row('Arachnid Mesh'),
+            lock: window._vaultHardLock('Arachnid Mesh'), map: map() };
+/* P5 — the locker is gone (a deleted mule keeps the witness row, mule:null) and the row is still locked */
+seed();
+delete assign['Arachnid Mesh'];
+var _pr5 = prov(); _pr5['Arachnid Mesh'].mule = null; STORE['d2r_vaultProv'] = JSON.stringify(_pr5);
+OUT.p5 = { plain: window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-small' }) };
+OUT.p5.rowAfterPlain = row('Arachnid Mesh'); OUT.p5.mapAfterPlain = map();
+OUT.p5.shift = window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-small', unlock: true });
+OUT.p5.rowAfterShift = row('Arachnid Mesh'); OUT.p5.mapAfterShift = map();
+/* P6 — a hand witness that names no locker moves nothing (the router says uni-armor, the row is locked in uni-small) */
+seed();
+rebuild('Stormshield', 'HARDENED', 30, 30, 'uni-small');
+OUT.p6 = { r: window.vaultFile('Stormshield', HAND(), {}), map: map(), row: row('Stormshield') };
+/* P7 — the vault audit's fix says the lock's refusal instead of dropping it */
+seed(); STATUS.length = 0; ELS['vault-lock-alert'] = _el();
+OUT.p7 = { applied: _vaultAuditApply({ fixable: true, kind: 'misroute', item: 'Arachnid Mesh', to: 'uni-small' }),
+           alert: { hidden: ELS['vault-lock-alert'].hidden, text: ELS['vault-lock-alert'].textContent }, map: map() };
+/* P9 — one parse of the witness store per CHANGE, not one per cell */
+seed();
+var _jp = JSON.parse, _np = 0; JSON.parse = function(){ _np++; return _jp.apply(JSON, arguments); };
+for (var _i = 0; _i < 25; _i++) window._vaultHardLock('Arachnid Mesh');
+var _np25 = _np;
+STORE['d2r_vaultProv'] = STORE['d2r_vaultProv'] + ' ';
+window._vaultHardLock('Arachnid Mesh');
+JSON.parse = _jp;
+OUT.p9 = { parsesFor25: _np25, afterChange: _np - _np25 };
+/* THE SURFACE — the chip counts the locks, a refused drop is said in the banner, UNKNOWN reads 🔒 ? */
+seed(); ELS['vault-lock-alert'] = _el(); ELS['vault-lock-chip'] = _el();
+window._vaultLockChip();
+OUT.surface = { chip: { hidden: ELS['vault-lock-chip'].hidden, text: ELS['vault-lock-chip'].textContent,
+                        title: ELS['vault-lock-chip'].title } };
+assignItem('Arachnid Mesh', 'uni-small');
+OUT.surface.alert = { hidden: ELS['vault-lock-alert'].hidden, text: ELS['vault-lock-alert'].textContent };
+STORE['d2r_vaultProv'] = '{ not json';
+window._vaultLockChip();
+OUT.surface.chipUnknown = { hidden: ELS['vault-lock-chip'].hidden, text: ELS['vault-lock-chip'].textContent };
 process.stdout.write(JSON.stringify(OUT));
 """
 
@@ -185,6 +243,7 @@ process.stdout.write(JSON.stringify(OUT));
 def _drive():
     s = _src()
     prog = (FILE.HARNESS + EXTRA + FILE._say_line(s) + FILE._door(s)
+            + "var magicFinds = {}, unknownReads = new Set();\n" + _span(s, AUDIT_START, AUDIT_END)
             + _fn(s, UNASSIGN_START) + _span(s, ASSIGN_START, ASSIGN_END) + ASSIGN_END
             + _span(s, VR_START, VR_END) + _span(s, REMOVE_START, REMOVE_END) + _fn(s, RESTORE_START) + BODY)
     r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=120)
@@ -329,7 +388,143 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
         self.assertEqual(1, code.count(fwd), "assignItem does not hand the release to the door (%d)" % code.count(fwd))
 
 
+    # ── #98 (his ruling 2026-09-30: "whatever is logical. i trust you. just make it visually known") ──────────────────
+    def test_13_unknown_never_releases_even_with_shift(self):
+        p = self.out["p1"]
+        self.assertEqual((p["hand"]["ok"], p["hand"].get("refused")), (False, "prov-unreadable"),
+                         "Shift on an unreadable witness store filed the item: %s" % p["hand"])
+        self.assertEqual((p["x"]["ok"], p["x"].get("refused")), (False, "prov-unreadable"),
+                         "Shift+✕ on an unreadable witness store answered %s" % p["x"])
+        self.assertFalse(p["move"]["ok"])
+        self.assertEqual(p["store"], "{ not json", "a release under UNKNOWN wrote over the unreadable witness store")
+        self.assertEqual(p["map"].get("Arachnid Mesh"), "uni-armor", "a filing moved or was deleted on UNKNOWN")
+
+    def test_14_a_same_locker_redrop_is_an_answer_not_a_filing(self):
+        p = self.out["p48"]
+        self.assertEqual([c for c in p["chron"] if c.get("status") == "filed-by-hand"], [],
+                         "a drop on the locker it already sits in went on the record as 'you filed it here yourself'")
+        self.assertEqual(p["row"]["source"], "stash", "the 21/21 evidence row was replaced by a hand row")
+        self.assertIs(p["row"]["locked"], True, "Shift on the SAME locker spent the release: %s" % p["row"])
+        self.assertIsNotNone(p["lock"])
+        self.assertTrue(any("locked here" in x for x in p["status"]), p["status"])
+
+    def test_15_a_locked_row_whose_locker_is_gone_still_refuses_and_shift_refiles_it(self):
+        p = self.out["p5"]
+        self.assertEqual((p["plain"]["ok"], p["plain"].get("refused")), (False, "hardened"),
+                         "a plain drop replaced the evidence row of a locked item whose mule was deleted: %s" % p["plain"])
+        self.assertIn("is gone", p["plain"]["why"])
+        self.assertEqual(p["rowAfterPlain"]["source"], "stash")
+        self.assertNotIn("Arachnid Mesh", p["mapAfterPlain"])
+        self.assertTrue(p["shift"]["ok"], p["shift"])
+        self.assertEqual(p["mapAfterShift"].get("Arachnid Mesh"), "uni-small")
+        self.assertEqual((p["rowAfterShift"].get("unlockedFrom") or {}).get("tier"), "HARDENED",
+                         "the release his Shift made is not on the row that replaced the evidence")
+
+    def test_16_a_hand_witness_that_names_no_locker_moves_nothing(self):
+        p = self.out["p6"]
+        self.assertEqual((p["r"]["ok"], p["r"].get("mode")), (True, "already"),
+                         "a hand witness that named no locker was refused as a move: %s" % p["r"])
+        self.assertEqual(p["map"].get("Stormshield"), "uni-small")
+
+    def test_17_the_audits_refused_fix_is_said(self):
+        p = self.out["p7"]
+        self.assertFalse(p["applied"])
+        self.assertFalse(p["alert"]["hidden"], "the vault audit's fix was refused by the lock and nothing said so")
+        self.assertIn("not applied", p["alert"]["text"])
+        self.assertEqual(p["map"].get("Arachnid Mesh"), "uni-armor")
+
+    def test_18_the_witness_store_is_parsed_once_per_change(self):
+        p = self.out["p9"]
+        self.assertLessEqual(p["parsesFor25"], 1, "25 lock reads of an unchanged store parsed it %d times" % p["parsesFor25"])
+        self.assertEqual(p["afterChange"], 1, "a changed store was not re-read")
+
+    def test_19_the_lock_is_counted_and_a_refusal_is_said_where_he_looks(self):
+        sf = self.out["surface"]
+        self.assertEqual((sf["chip"]["hidden"], sf["chip"]["text"]), (False, "\U0001f512 1 locked"), sf["chip"])
+        self.assertIn("Shift", sf["chip"]["title"])
+        self.assertFalse(sf["alert"]["hidden"], "a refused drop was said only on the status line")
+        self.assertIn("Shift", sf["alert"]["text"])
+        self.assertIn("Arachnid Mesh", sf["alert"]["text"])
+        self.assertEqual(sf["chipUnknown"]["text"], "\U0001f512 ?", "an unreadable store must read UNKNOWN on the chip")
+
+    def test_20_the_cell_wears_the_lock_and_the_header_holds_the_chip(self):
+        """The render half, read in the source (the pixels are looked at by hand and by the Grok eye): the cell's class
+        carries the lock, its badge sits before the ✕, both surfaces exist, and every render refreshes the chip."""
+        s = _code_only(_src())
+        self.assertIn("(cl.approx ? ' vmc-approx' : '') + _lockCls + '\" style=", s)
+        self.assertIn("+ _lockTag\n          + '<button class=\"vm-unassign vm-cell-x\"", s)
+        self.assertIn('id="vault-lock-chip"', _src())
+        self.assertIn('id="vault-lock-alert" role="alert"', _src())
+        self.assertIn("if (window._vaultLockChip) window._vaultLockChip();", s)
+        mp = _span(_src(), "  function _mpEqWrite(all){", "\n  }\n")
+        self.assertIn("var _vfM = window.vaultFile(", mp)
+        self.assertIn("window._vaultLockSay(e.name,", mp, "the mule window drops the door's refusal again")
+
+
 RED_PROOF = [
+    {
+        "why": "#98 P1 - UNKNOWN is checked only as a refusal reason again: Shift on an unreadable store reaches the release",
+        "file": "bible.html",
+        "find": "      if (lkH && lkH.unknown)\n        return { ok: false, refused: 'prov-unreadable', lock: lkH, why: _hardLockWhy(nm, lkH, 'moved') };\n",
+        "replace": "      if (false)\n        return { ok: false, refused: 'prov-unreadable', lock: lkH, why: _hardLockWhy(nm, lkH, 'moved') };\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P5 - the lock is asked only while the name is filed: a deleted mule's locked row is replaced by a plain drop",
+        "file": "bible.html",
+        "find": "    if (hand){\n      lkH = _hardLock(nm);\n",
+        "replace": "    if (hand && assign[nm] != null){\n      lkH = _hardLock(nm);\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P6 - a hand witness that names no locker is refused as a move again",
+        "file": "bible.html",
+        "find": "        if (assign[nm] != null && !opts.mule)\n          return { ok: true, mode: 'already', mule: assign[nm], locked: true,\n",
+        "replace": "        if (false)\n          return { ok: true, mode: 'already', mule: assign[nm], locked: true,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P4 - his drop records 'you filed it here yourself' over a locked evidence row again",
+        "file": "bible.html",
+        "find": "    if (_vf.mode === 'already' && _vf.locked){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return; }",
+        "replace": "    if (false){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return; }",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P1/P3 - Shift+✕ on an unreadable store is let through to the release again",
+        "file": "bible.html",
+        "find": "    if (lkU && (lkU.unknown || opts.unlock !== true)){\n",
+        "replace": "    if (lkU && opts.unlock !== true){\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P9 - every lock read parses the whole witness store again",
+        "file": "bible.html",
+        "find": "    if (raw === _hlMemo.raw) return _hlMemo.all;\n",
+        "replace": "    if (false) return _hlMemo.all;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 - a refusal is said only on the 4.2 s status line again: the banner never shows",
+        "file": "bible.html",
+        "find": "      if (box){\n        box.textContent = msg; box.hidden = false;\n",
+        "replace": "      if (false){\n        box.textContent = msg; box.hidden = false;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 P7 - the vault audit drops the lock's refusal again",
+        "file": "bible.html",
+        "find": "        if (!_mv0.ok){ if ((_mv0.refused === 'hardened' || _mv0.refused === 'prov-unreadable') && window._vaultLockSay)\n",
+        "replace": "        if (!_mv0.ok){ if (false && window._vaultLockSay)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 - the header chip stops counting the locks",
+        "file": "bible.html",
+        "find": "    el.textContent = '🔒 ' + c.locked + ' locked' + (c.released ? ' · ' + c.released + ' released' : '');\n",
+        "replace": "    el.textContent = '';\n",
+        "matches": 1,
+    },
     {
         "why": "#41 rank 17 - the reader answers null for every row: the lock is a label again",
         "file": "bible.html",
@@ -340,22 +535,22 @@ RED_PROOF = [
     {
         "why": "#41 rank 17 - the machine's move takes a HARDENED row again",
         "file": "bible.html",
-        "find": "if (lkM && opts.unlock !== true) return",
-        "replace": "if (false && lkM && opts.unlock !== true) return",
+        "find": "if (lkM && (lkM.unknown || opts.unlock !== true)) return",
+        "replace": "if (false && lkM && (lkM.unknown || opts.unlock !== true)) return",
         "matches": 1,
     },
     {
         "why": "#41 rank 17 - his drag to another locker takes a HARDENED row again",
         "file": "bible.html",
-        "find": "if (lkH && opts.unlock !== true){",
-        "replace": "if (false && lkH && opts.unlock !== true){",
+        "find": "        if (opts.unlock !== true)\n          return { ok: false, refused: 'hardened', lock: lkH,",
+        "replace": "        if (false)\n          return { ok: false, refused: 'hardened', lock: lkH,",
         "matches": 1,
     },
     {
         "why": "#41 rank 17 - a same-locker re-drop is refused outright instead of leaving the evidence row standing",
         "file": "bible.html",
-        "find": "if (assign[nm] === home && !lkH.unknown)",
-        "replace": "if (false && assign[nm] === home && !lkH.unknown)",
+        "find": "        if (assign[nm] === home)\n          return { ok: true, mode: 'already', mule: home, locked: true,",
+        "replace": "        if (false)\n          return { ok: true, mode: 'already', mule: home, locked: true,",
         "matches": 1,
     },
     {
@@ -368,8 +563,8 @@ RED_PROOF = [
     {
         "why": "#41 rank 17 - the cell ✕ unfiles a HARDENED row again",
         "file": "bible.html",
-        "find": "if (lkU && opts.unlock !== true){",
-        "replace": "if (false && lkU && opts.unlock !== true){",
+        "find": "    if (lkU && (lkU.unknown || opts.unlock !== true)){\n",
+        "replace": "    if (false && lkU && (lkU.unknown || opts.unlock !== true)){\n",
         "matches": 1,
     },
     {
