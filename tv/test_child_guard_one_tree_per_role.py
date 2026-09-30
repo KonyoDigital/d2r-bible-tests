@@ -290,6 +290,66 @@ class AReusedPidIsNeverOurs(_World):
         self.assertIsNone(cg.record_of("ocr"))
 
 
+class TheBirthReaderStartsNoProcess(unittest.TestCase):
+    """2026-09-30 - reading a pid's birth must never START a process. Every console law stubs subprocess.Popen and
+    counts its calls as capture spawns, so a `ps` inside the door's birth read is a phantom second capture. On Linux
+    the reader fell through to `ps` for any pid /proc does not list - every fake pid a law hands the door - and
+    test_one_capture_per_console + test_a_stub_agent_never_films_his_screen went red on CI only (his Mac reads birth
+    through sysctl and starts nothing)."""
+
+    def _count_popen(self):
+        calls = []
+        real = subprocess.Popen
+
+        def popen(*a, **k):
+            calls.append(a[0] if a else k.get("args"))
+            return real(*a, **k)
+        return calls, popen
+
+    def test_linux_with_proc_reads_a_missing_pid_as_unknown_and_starts_nothing(self):
+        calls, popen = self._count_popen()
+        missing = "/proc/%d/stat" % 9990031
+
+        def fake_open(path, *a, **k):
+            if path == missing:
+                raise FileNotFoundError(path)
+            raise AssertionError("the reader opened %r" % (path,))
+        with mock.patch.object(cg.sys, "platform", "linux"), \
+                mock.patch.object(cg.os.path, "isdir", lambda d: d == "/proc"), \
+                mock.patch.object(cg, "open", fake_open, create=True), \
+                mock.patch.object(cg.subprocess, "Popen", popen):
+            got = cg._birth_posix(9990031)
+        self.assertIsNone(got, "a pid /proc does not list has no birth - UNKNOWN, never a guess")
+        self.assertEqual([], calls, "the birth read STARTED a process %s - a console law counts it as a second "
+                                    "capture" % calls)
+
+    def test_linux_with_proc_reads_the_birth_from_proc(self):
+        calls, popen = self._count_popen()
+        files = {"/proc/9990032/stat": "9990032 (powershell) S " + " ".join(["0"] * 18) + " 4200 0 0\n",
+                 "/proc/stat": "cpu  1 2 3\nbtime 1700000000\n"}
+
+        def fake_open(path, *a, **k):
+            if path in files:
+                return io.StringIO(files[path])
+            raise FileNotFoundError(path)
+        with mock.patch.object(cg.sys, "platform", "linux"), \
+                mock.patch.object(cg.os.path, "isdir", lambda d: d == "/proc"), \
+                mock.patch.object(cg, "open", fake_open, create=True), \
+                mock.patch.object(cg.os, "sysconf", lambda k: 100), \
+                mock.patch.object(cg.subprocess, "Popen", popen):
+            got = cg._birth_posix(9990032)
+        self.assertEqual(1700000042, got, "starttime 4200 ticks at 100 Hz after btime 1700000000")
+        self.assertEqual([], calls)
+
+    def test_this_machines_reader_starts_nothing_for_a_pid_that_does_not_exist(self):
+        calls, popen = self._count_popen()
+        with mock.patch.object(cg.subprocess, "Popen", popen):
+            got = cg._birth_default(99999999)
+        self.assertIsNone(got)
+        if sys.platform == "darwin" or os.path.isdir("/proc") or cg.IS_WIN:
+            self.assertEqual([], calls, "this machine's birth reader started %s" % calls)
+
+
 # ── 3. the Windows job object ────────────────────────────────────────────────────────────────────────────────
 
 class _FakeKernel32(object):
@@ -1153,6 +1213,13 @@ class APostExecvConsoleAdoptsItsPreviousLife(_World):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-30 - with /proc, a pid it does not list falls through to `ps` again: a console law counts that as a second capture (CI red, his Mac green)",
+        "file": "tv/child_guard.py",
+        "find": "        except Exception:\n            pass\n        return None\n    try:\n",
+        "replace": "        except Exception:\n            pass\n    try:\n",
+        "matches": 1,
+    },
     {
         "why": "#83 - POSIX: the child no longer leads its own session, so a restart kills the head and the grandchild survives",
         "file": "tv/child_guard.py",

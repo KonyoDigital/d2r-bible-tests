@@ -199,8 +199,13 @@ def _birth_posix(pid):
     so a DST step between two LIVES of this console reads as 'not ours', which is the safe direction). None = UNKNOWN."""
     if sys.platform == "darwin":
         return _birth_darwin(pid)
-    try:
-        if os.path.isdir("/proc"):
+    if os.path.isdir("/proc"):
+        # ⚠ 2026-09-30 — WITH /proc, A PID IT DOES NOT LIST HAS NO BIRTH: None, and never `ps`. This fell through to the
+        # `ps` below for any pid /proc could not answer - on CI (Linux) that is every fake pid a console law hands the
+        # door, and `ps` runs through the subprocess Popen those laws stub, so it was counted as a SECOND capture:
+        # test_one_capture_per_console and test_a_stub_agent_never_films_his_screen red on CI only, green on his Mac,
+        # whose reader (sysctl) starts no process. The same trap _birth_darwin's docstring names.
+        try:
             with open("/proc/%d/stat" % int(pid)) as fh:
                 stat = fh.read()
             start_ticks = int(stat.rsplit(")", 1)[1].split()[19])
@@ -212,8 +217,9 @@ def _birth_posix(pid):
             hz = os.sysconf("SC_CLK_TCK")
             if btime is not None and hz:
                 return int(btime + start_ticks / float(hz))
-    except Exception:
-        pass
+        except Exception:
+            pass
+        return None
     try:
         out = subprocess.run(["ps", "-p", str(int(pid)), "-o", "lstart="], capture_output=True, text=True,
                              encoding="utf-8", errors="replace", timeout=5).stdout.strip()
