@@ -396,6 +396,25 @@ class AReelCarriesItsCustody(unittest.TestCase):
             shutil.rmtree(empty, ignore_errors=True)
 
 
+class TheDoctorNamesTheFirstPastTheCap(unittest.TestCase):
+    """v3526 (#231 second eye on v3525): the doctor named "the first" contradicted reel from the census ROWS, which
+    stop at the draw cap (1000) while `contradicted` counts every reel — so past the cap it said 'first: ?'."""
+
+    def test_the_first_contradiction_is_named_past_the_draw_cap(self):
+        names = ["reel_s_%04d" % i for i in range(1200)]
+
+        def fake(nm, src=None, reads=None, plan=None, list_frames=False):
+            return {"current": "SHELF", "entered": None, "never": [], "unknown": [], "journey": {},
+                    "contradictions": ([{"kind": "shelf-and-tomb"}] if nm == names[-1] else [])}
+        src = {"shelf": names, "tombByReel": {}, "ledgerState": "ok", "unreadable": [], "absent": [],
+               "tombRowsByReel": {}, "tombNameless": 0}
+        with mock.patch.object(RC, "custody", fake):
+            state, why = RC.doctor(src=src)
+        self.assertEqual(state, RC.MISSING, why)
+        self.assertIn("first: reel_s_1199 (shelf-and-tomb)", why)
+        self.assertNotIn("first: ?", why)
+
+
 class TheConsoleServesTheCustody(unittest.TestCase):
 
     def setUp(self):
@@ -489,6 +508,13 @@ class TheRowIsOnTheHeart(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "v3526 - the doctor names the first contradiction from the capped rows again ('first: ?')",
+        "file": "tv/reel_custody.py",
+        "find": "        first = c.get(\"firstContradicted\") or next((r for r in c[\"rows\"] if r[\"contradictions\"]), None)\n",
+        "replace": "        first = next((r for r in c[\"rows\"] if r[\"contradictions\"]), None)\n",
+        "matches": 1,
+    },
     {
         "why": "dropping the claim check lets a tombstone that names seals the stores never wrote pass as clean",
         "file": "reel_custody.py",

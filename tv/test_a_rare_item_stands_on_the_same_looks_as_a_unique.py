@@ -135,6 +135,26 @@ class ARareItemStandsOnTheSameLooksAsAUnique(unittest.TestCase):
         self.assertNotEqual("white", blank["rarity"])
         self.assertIn("UNKNOWN", blank["why"])
 
+    def test_a_vote_is_a_visit_never_a_frame(self):
+        """v3526 (#231 second eye on v3525, reproduced): one blue visit and one gold visit whose screen was banked as
+        TWO frames read "gold 2, blue 1" -> gold. The tier beside it counts visits; so does the vote now."""
+        two = [{"name": "Grim Bite", "witnesses": [
+            {"witness": "s1#0", "quality": "magic", "conf": 0.9},
+            {"witness": "s2#0", "quality": "rare", "conf": 0.9},
+            {"witness": "s2#0", "quality": "rare", "conf": 0.9}]}]
+        r = VE.rarity_of("Grim Bite", two)
+        self.assertEqual({"blue": 1, "gold": 1}, r["votes"], "a still screen held for two frames voted twice")
+        self.assertIsNone(r["rarity"], "two visits that disagree were called %r" % r["rarity"])
+        folded = [{"name": "Grim Bite", "witnesses": [
+            {"session": "s1", "quality": "rare"}, {"witness": "s1#0", "quality": "rare"},
+            {"witness": "s2#0", "quality": "magic"}]}]
+        self.assertEqual({"gold": 1, "blue": 1}, VE.rarity_of("Grim Bite", folded)["votes"],
+                         "a bare prior and its own bucket are ONE visit (vault_retro's fold)")
+        more = [{"name": "Grim Bite", "witnesses": [
+            {"witness": "s1#0", "quality": "rare"}, {"witness": "s2#0", "quality": "rare"},
+            {"witness": "s3#0", "quality": "magic"}]}]
+        self.assertEqual("gold", VE.rarity_of("Grim Bite", more)["rarity"], "gold on two visits against one blue")
+
     def test_every_plan_row_carries_its_rarity_rebuilt_or_held(self):
         plan = VE.plan_from_ledger(self.ledger)
         self.assertTrue(plan["ok"], plan.get("why"))
@@ -203,7 +223,21 @@ class ARareItemStandsOnTheSameLooksAsAUnique(unittest.TestCase):
         self.assertIn("rebuilt by rarity UNKNOWN", older["why"])
         bad = VE.reset_receipt({"rebuilt": ["Doom Grip"], "held": [], "rebuiltFailed": [],
                                 "rebuiltByRarity": {"gold": True, "blue": -1, "unique": 2}}, same, dict(same))
-        self.assertEqual({"unique": 2}, bad["byRarity"], "a bool or a negative count was read as a count")
+        # v3526 (#231 second eye on v3525): a tally holding an unreadable count is UNKNOWN whole — dropping the bad
+        # counts and keeping the rest printed a SHORTER tally as if it were all of it
+        self.assertIsNone(bad["byRarity"], "a tally with a bool or a negative count was read as a shorter tally")
+        self.assertIn("rebuilt by rarity UNKNOWN", bad["why"])
+        four = ["Doom Grip", "Grim Bite", "Jade Ring of Frost", "Harlequin Crest"]
+        empty = VE.reset_receipt({"rebuilt": four, "held": [], "rebuiltFailed": [], "rebuiltByRarity": {}},
+                                 same, dict(same))
+        self.assertNotIn("rebuilt by rarity: none", empty["why"], "four rebuilt and an empty tally read as a measured none")
+        self.assertIn("rebuilt by rarity UNKNOWN (the receipt tallies none of the 4 rebuilt)", empty["why"])
+        nothing = VE.reset_receipt({"rebuilt": [], "held": [], "rebuiltFailed": [], "rebuiltByRarity": {}},
+                                   same, dict(same))
+        self.assertIn("rebuilt by rarity: none", nothing["why"], "nothing rebuilt IS a measured none")
+        part = VE.reset_receipt({"rebuilt": four, "held": [], "rebuiltFailed": [], "rebuiltByRarity": {"gold": 1}},
+                                same, dict(same))
+        self.assertIn("the tally covers 1 of the 4 rebuilt; the rest is UNKNOWN", part["why"])
 
     # ── tally -> route ────────────────────────────────────────────────────────────────────────
 
@@ -282,8 +316,49 @@ class ARareItemStandsOnTheSameLooksAsAUnique(unittest.TestCase):
         self.assertFalse(absent["ok"])
         self.assertNotIn("UNKNOWN", absent["why"], "an absent ledger (nothing swept here) was called unreadable")
 
+    def test_a_present_row_whose_looks_will_not_read_is_unknown_never_nothing_banked(self):
+        """v3526 (#231 second eye on v3525): the row was skipped and, with nothing else left, the route said
+        'nothing banked' while the tier path called the same row UNKNOWN."""
+        with io.open(self.ledger, "w", encoding="utf-8") as fh:
+            json.dump({"owned": [{"name": "Unread Thing", "witnesses": 4}]}, fh)
+        got = self._route("Unread Thing")
+        self.assertIn("UNKNOWN", got["why"], got)
+        self.assertNotIn("nothing banked for this name", got["why"], "a present, unreadable row was called nothing banked")
+        with io.open(self.ledger, "w", encoding="utf-8") as fh:
+            json.dump({"owned": [{"name": "Unread Thing", "witnesses": []}]}, fh)
+        none = self._route("Unread Thing")
+        self.assertNotIn("UNKNOWN", none["why"], "a row with an EMPTY look list is a measured none, not UNKNOWN")
+
 
 RED_PROOF = [
+    {
+        "why": "v3526 - a present row whose looks will not read answers 'nothing banked' again",
+        "file": "tv/control_app.py",
+        "find": "    if not sightings:\n        if torn:\n",
+        "replace": "    if not sightings:\n        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3526 - an unreadable count is dropped again and the rest reads as the whole tally",
+        "file": "tv/vault_evidence.py",
+        "find": "        if isinstance(v, bool) or not isinstance(v, int) or v < 0:\n            return None\n        out[str(k)] = v\n",
+        "replace": "        if isinstance(v, bool) or not isinstance(v, int) or v < 0:\n            continue\n        out[str(k)] = v\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3526 - an empty tally beside a rebuild reads as a measured 'none' again",
+        "file": "tv/vault_evidence.py",
+        "find": "        if rebuilt_n == 0:\n            return \"rebuilt by rarity: none\"\n",
+        "replace": "        if True:\n            return \"rebuilt by rarity: none\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3526 - a frame votes again: a still screen banked twice outvotes a whole visit",
+        "file": "tv/vault_evidence.py",
+        "find": "            for q in by_visit[v]:\n                votes[q] = votes.get(q, 0) + 1\n",
+        "replace": "            for q in by_visit[v]:\n                votes[q] = votes.get(q, 0) + sum(1 for row in (rows or []) if isinstance(row, dict) for lk in (row.get(\"witnesses\") or []) if isinstance(lk, dict) and _visit_of(lk) == v and qual(lk.get(\"quality\")) == q)\n",
+        "matches": 1,
+    },
     {
         "why": "#51 - the looks no longer say what a rolled name is, so every rare and magic row reads rarity UNKNOWN",
         "file": "vault_evidence.py",

@@ -339,13 +339,26 @@ def last_stamps(path=None):
     yet is measured-and-empty and answers {}. The rows are file order, so the last one per reel is
     the reel's current position — the append order is the history (see rows()).
     """
+    got = last_stamps_read(path)
+    return got["last"], got["why"]
+
+
+def last_stamps_read(path=None):
+    """last_stamps() WITH the count of lines that would not parse. -> {last, why, unparsed}
+
+    v3526 (#231 second eye on v3525) — rows() makes every count a FLOOR when a line is torn, but the pair
+    last_stamps() hands back carried that only as prose, and blocked_upstream() read `river_why` only when the
+    river was None. A readable store whose NEWEST line was the torn one still answered a dict, so the drain
+    could say CLEAR while that line was a reel's move back to PRINTER. The count travels as a number now, so
+    the one consumer that must not call a floor a total can see it. [[the-unjoined-end]]
+    """
     rep = rows(path)
     if not rep["ok"]:
-        return None, "UNKNOWN, not an empty river — %s" % rep["why"]
+        return {"last": None, "why": "UNKNOWN, not an empty river — %s" % rep["why"], "unparsed": None}
     last = {}
     for r in rep["rows"]:
         last[str(r.get("reel"))] = r
-    return last, rep["why"]
+    return {"last": last, "why": rep["why"], "unparsed": int(rep.get("unparsed") or 0)}
 
 
 def positions(path=None):

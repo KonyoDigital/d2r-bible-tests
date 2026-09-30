@@ -378,6 +378,24 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1582 - THE v3525 SECOND EYE'S FINDINGS, EACH REPRODUCED BEFORE IT WAS FIXED (2026-09-30)
+
+`second_eye_run.py v3525 --base 47a5ac37` (Grok CLI, covers 47a5ac37..c6944e08) plus two per-commit looks on #231
+(5900983092, 5900983108). Each was reproduced first; one was already fixed in what shipped:
+
+| finding | reproduced | fix |
+|---|---|---|
+| (H) `vault_evidence.rarity_of` voted per FRAME | one blue visit + one gold visit banked as two frames -> "gold 2, blue 1" -> gold | a vote is a VISIT (vault_retro's own fold; a bare prior is its bucket): 1-1, UNKNOWN |
+| (M) a torn newest line in the river's stamp record | `last_stamps` returned a dict and `blocked_upstream` read `river_why` only when the river was None | `river_stamp.last_stamps_read` carries `unparsed` as a number; any torn line makes every position a FLOOR - never CLEAR, and BLOCKED says so |
+| (M) `_rebuilt_by_rarity` -> `{}` read as "rebuilt by rarity: none" | four rebuilt, empty tally -> "none"; a bool/negative count dropped and the rest printed as the whole tally | an unreadable count makes the tally UNKNOWN; empty beside a rebuild is UNKNOWN; a partial tally names its coverage |
+| (M) `_vault_evidence_for` skipped an unreadable row | `{"witnesses": 4}` -> None -> "nothing banked for this name" while the tier path said UNKNOWN | a present row whose looks will not read is UNKNOWN, said; beside readable looks it is counted as a floor |
+| (L) `reel_custody.doctor` named "first: ?" past the 1000-row draw cap | 1,200 reels, the only contradiction on the last -> "first: ?" | `census()` keeps the first contradicted reel over ALL reels |
+| (L) `_lean_home` mkdtemp never removed | NOT REPRODUCED in what shipped - 04d08ed3 already uses one fixed directory (the look stopped at c6944e08) | none needed |
+| cosmetic: two gate descriptions miscounted | 8 vs 9 red-proofs, 14 vs 17 cases | descriptions now carry the laws' real counts |
+
+**Guards:** `test_a_rare_item_stands_on_the_same_looks_as_a_unique` (14 cases, 13 red-proofs),
+`test_the_drain_names_what_is_blocked_upstream` (20 cases, 7), `test_a_reel_carries_its_custody` (18 cases, 5) - every
+new rule with its own red-proof.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 

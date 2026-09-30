@@ -576,6 +576,31 @@ def commit_for(version):
 #: and re-asking it could only ever answer the same. `--base REV` widens the look to every change between
 #: REV and the bound commit (`git diff REV sha`), and the row says so; without it nothing changes.
 REVIEW_BASE = None
+#: ⚠⚠ v3526 (#42) — AND WITHOUT --base EVERY VERSION WAS LOOKED AT THROUGH ITS BUMP ALONE. v3523, v3524 and v3525 each
+#: came back cannot-tell on their first ask (a bump commit is version strings), and a re-ask only gambles on the same
+#: keyhole. v3525 with `--base 47a5ac37` returned FIVE findings, four of them real. So the default look is now the
+#: version's own range — from the commit that shipped the version before it — and `--bump-only` keeps the old keyhole.
+BUMP_ONLY = False
+
+
+def _default_base(version, sha):
+    """The commit that shipped the PREVIOUS version, when it is an ancestor of `sha`. -> (sha | None, why)."""
+    try:
+        n = int(str(version)[1:])
+    except (TypeError, ValueError):
+        return None, "the version is not vNNNN, so the version before it is UNKNOWN"
+    prev = "v%d" % (n - 1)
+    psha, pwhy = commit_for(prev)
+    if not psha:
+        return None, "the commit that shipped %s was not found (%s)" % (prev, pwhy)
+    _full, _fw = _sh(["git", "rev-parse", "--verify", "%s^{commit}" % psha], timeout=30)
+    if not _full:
+        return None, "%s's commit %s does not resolve (%s)" % (prev, psha, _fw)
+    psha = _full.strip()
+    _anc, _aw = _sh(["git", "merge-base", "--is-ancestor", psha, sha], timeout=30)
+    if _anc is None:
+        return None, "%s's commit %s is not an ancestor of %s (%s)" % (prev, psha[:8], sha[:8], _aw)
+    return psha, "%s..%s — every change since %s shipped" % (psha[:8], sha[:8], prev)
 
 
 def _first_parent_of_merge(sha):
@@ -1857,6 +1882,16 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
     return True
 
 
+def _run_with_base(base, version, sha, dry, prompt_out, answer_in, answer_model):
+    """run_one with REVIEW_BASE set for THIS look only (a --backlog pass gives every version its own range)."""
+    global REVIEW_BASE
+    REVIEW_BASE = base
+    try:
+        return run_one(version, dry=dry, prompt_out=prompt_out, answer_in=answer_in, answer_model=answer_model)
+    finally:
+        REVIEW_BASE = None
+
+
 def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""):
     version = SEL.norm_version(version)
     sha, why = commit_for(version)
@@ -1869,6 +1904,12 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
             print("  %s: --base %s is not an ancestor of %s - NOT asked (%s)"
                   % (version, REVIEW_BASE, sha[:8], _aw))
             return False
+    elif not BUMP_ONLY:
+        _db, _dwhy = _default_base(version, sha)
+        if _db:
+            print("  %s: the look covers the version's range, %s" % (version, _dwhy))
+            return _run_with_base(_db, version, sha, dry, prompt_out, answer_in, answer_model)
+        print("  %s: the look is the bound commit alone — %s" % (version, _dwhy))
     prompt, dropped, absent, reach, stripped = payload_for(sha)
     if prompt is None:
         print("  %s: cannot build the payload — %s" % (version, dropped))
@@ -1967,7 +2008,12 @@ def main(argv):
                     help="the model that produced --answer-in, when the answer does not say")
     ap.add_argument("--base", help="widen the look to every change from this commit to the version's "
                                    "bound commit (a batch whose code landed before its stamp)")
+    ap.add_argument("--bump-only", action="store_true",
+                    help="look at the bound commit alone (the pre-v3526 keyhole); the default is the version's range")
     a = ap.parse_args(argv)
+    if a.bump_only:
+        global BUMP_ONLY
+        BUMP_ONLY = True
     if a.base:
         global REVIEW_BASE
         _full, _bw = _sh(["git", "rev-parse", "--verify", "%s^{commit}" % a.base], timeout=30)
