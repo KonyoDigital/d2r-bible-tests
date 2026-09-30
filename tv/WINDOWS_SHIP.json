@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3525",
+  "ver": "v3526",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3525: a Grok frame read no longer starts a Chrome or loads the Claude setup, the sets ledger keeps a dated history and a stale reading removes only what it predates, the launcher launches when the console is down, magic/rare evidence, reel custody, the drain names what is blocked upstream",
+  "note": "v3526: Sets and Sessions read ONE hunt clock for every piece (Hooves about 40h, Hell about 79h, one spelling, no more Hell Hell). Characters are learned from the reels character-select screen after two sightings and fill the builder, level-1 mules grouped. Heart audit ranks 11-21 and 23-25. The v3525 second-eye findings fixed. The child supervisor keeps one process tree per role. Test fixtures can no longer write his gear ledger or his roster.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
