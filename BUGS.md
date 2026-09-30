@@ -405,6 +405,15 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1629 - A WHY THE LAW COULD NOT READ WAS SCORED CLEAN (the #231 eye on v3531 88ece312, 2026-09-30)
+
+`test_a_gate_says_what_it_guards_not_how_many._whys()` turned a why that `ast.literal_eval` could not read into the
+STRING `"<unreadable why>"` - which the typed-count search then found clean, and which counted toward the 500 whys the
+census requires. **Reproduced:** a why rewritten as `"... %d cases" % 12` (a count typed through a format string) left
+the old law GREEN. **Now** an unreadable why is a sentinel object, never a string: it is not counted as read, and
+`test_every_why_can_be_read` names it and fails - UNKNOWN is said, never passed. The same sabotage is RED on the new
+law, for that case. Both red-proofs RED.
+
 ### REG-1628 - AN ENDED SLICE WAS BOOKED AT ONCE, AND THE NEXT ONE STILL WAITED FOR THE 10-MINUTE TICK (2026-09-30)
 
 **Measured on the ALT, live on v3534** (its console restarted onto af82ff37 at 23:07:59): slices still started only on

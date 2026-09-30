@@ -9,6 +9,9 @@ red-proofs it runs; the AST counts the cases); a sentence cannot keep up with a 
 
 The law: no Gate(...) why in run_gates.py states a number of cases or red-proofs. Parsed, never grepped - a grep over
 this file would match this very rule's text in its own why. [[source-reading-guard]] [[label-outlived-referent]]
+The #231 eye on v3531 (88ece312): an unreadable why was the STRING "<unreadable why>" - searched, found clean, and
+counted toward the 500 whys the census requires. A why this law cannot read is one it cannot judge, so it is UNKNOWN,
+named, and fails; a count typed through a format string is exactly the why it would have waved through.
 RED_PROOF below.
 """
 import ast
@@ -36,7 +39,17 @@ RED_PROOF = [
         "replace": "             \"layer merely switched off), the click box says both lamps in words. 12 cases, 10 red-proofs\"),\n",
         "matches": 1,
     },
+    {
+        "why": "#231 on v3531 - a count typed through a format string: the law cannot read the why and scores it clean",
+        "file": "run_gates.py",
+        "find": "             \"layer merely switched off), the click box says both lamps in words.\"),\n",
+        "replace": "             \"layer merely switched off), the click box says both lamps in words. %d cases\" % 12),\n",
+        "matches": 1,
+    },
 ]
+
+#: a why this law could not read - UNKNOWN, never a string that can be searched and found clean
+_UNREADABLE = object()
 
 
 def _whys():
@@ -53,7 +66,7 @@ def _whys():
                     try:
                         why = ast.literal_eval(kw.value)
                     except Exception:
-                        why = "<unreadable why>"
+                        why = _UNREADABLE
             out.append((name, why))
     return out
 
@@ -66,6 +79,14 @@ class AGateSaysWhatItGuardsNotHowMany(unittest.TestCase):
                                            "judging a fragment" % len(rows))
         self.assertGreater(sum(1 for _n, w in rows if isinstance(w, str) and w.strip()), 500,
                            "almost no gate carries a why - this law would pass having read nothing")
+
+    def test_every_why_can_be_read(self):
+        """A why that is not plain text (a format string, a join, a name) cannot be searched for a typed count - the
+        #231 eye found such a why was scored clean. UNKNOWN is said by name and fails; it is never a pass."""
+        rows = _whys()
+        unread = [name for name, why in rows if why is _UNREADABLE]
+        self.assertEqual(unread, [], "%d gate why(s) are not plain text, so whether they type a count is UNKNOWN - "
+                                     "write them as sentences: %s" % (len(unread), unread[:12]))
 
     def test_no_why_types_a_count(self):
         typed = []
