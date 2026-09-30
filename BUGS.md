@@ -405,6 +405,31 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1600 - THE BUILDER, IN HIS TWO SECTIONS: WHAT HE HAS IN GAME, AND WHAT HE TRIES (#103 step A, 2026-09-30)
+
+**His words:** *"this is specifically for the characters that are known by the console and are legit my character.. so
+they slowly prove themselves from reels sessions and harden same way as vault.... this is an area to create and test
+other builds like simulation style.. so the add character and everything stays as is.. just maybe segregated like with a
+section for each so its known that those are the characters ingame we have"*.
+
+**Was:** one flat list - the reels' learned characters as templates beside every saved build, with nothing saying which
+were real characters and which were experiments, and no measure of how sure the console was of a character.
+
+**Now:** `char_select.proof` gives every learned character the VAULT's tier - its looks (character-select visits that
+read it) over its trials (visits since it first appeared), through `vault_evidence.tier` itself: WATCHED under 10,
+PROVEN at 10, HARDENED at 20, and a character the screen stops showing falls back. `/api/chars_learned` carries it and
+the vault's bars. One page rule, `_cbSections`, sorts every build: made from a learned character (`from`) or carrying
+its name -> IN GAME under it; everything else -> SIMULATION. The 👤 Characters room paints ⚔ In-game characters (the
+learned ones, their builds as their cards with the proof on them, a dashed "Plan a build" card for one with none) above
+🧪 Simulation builds (the cards as they were; + New character untouched); the planner's Build list says the same three
+groups. A console that has not answered is UNKNOWN in the in-game section - never "none" - and every build then stands
+in simulation. Law: `tv/test_the_builder_keeps_in_game_apart_from_simulation.py` (15 cases, 10 red-proofs, each seen RED).
+
+**Still owed (#103 steps B/C):** a session's character-select binding everything after it to that character (his "same
+logic getting routed down", the printer's way) - `equipped_ledger.game_sessions` already carries a login across the
+hourly reels, but its input (the reader's `character`) is empty (REG-1522); then the in-game build filling itself from
+the witnessed equipped items, each slot proving and hardening the same way.
+
 ### REG-1599 - EVERY CONSOLE'S BUILDER OPENED ON HIS CHARACTER: THE PAGE SHIPPED HIS TYPED ROSTER (2026-09-30)
 
 **His words:** *"how is it possible that grokbots console has my character build rendering? ... is it using my

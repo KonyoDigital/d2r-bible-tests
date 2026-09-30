@@ -279,9 +279,62 @@ def record(d, visit_id, rows, meta=None):
     return d
 
 
+def _visit_ts(vid, v):
+    """A visit's time: the ts its reads stored, else the one its id carries ("reel#ts"). None when neither says."""
+    ts = (v or {}).get("ts") if isinstance(v, dict) else None
+    if isinstance(ts, (int, float)) and not isinstance(ts, bool):
+        return int(ts)
+    try:
+        return int(str(vid).rsplit("#", 1)[1])
+    except (IndexError, ValueError):
+        return None
+
+
+def tier_bars():
+    """The vault's bars, read from the vault's own module: {proven, hardened, wilson}, or None when it cannot load."""
+    try:
+        import vault_evidence as _ve
+        return {"proven": _ve.TRIALS_PROVEN, "hardened": _ve.TRIALS_HARDENED, "wilson": _ve.WILSON_BAR}
+    except Exception:
+        return None
+
+
+def proof(d, c):
+    """#103 — HOW FAR A CHARACTER HAS PROVEN ITSELF, THE WAY THE VAULT'S FILINGS DO. Konyo, 2026-09-30: "they slowly
+    prove themselves from reels sessions and harden same way as vault".
+
+    A LOOK is one visit to the character-select screen that read a roster (a refused read is no look). A character's
+    TRIALS are the looks since it first appeared; its SUCCESSES are the looks that read it. The tier is
+    vault_evidence.tier - the vault's own function, bars and Wilson bound, CALLED and never copied: WATCHED under 10
+    looks, PROVEN at 10, HARDENED at 20. A character the screen stops showing (deleted in game) falls back as its
+    misses pile up. -> {tier, looks, trials, bound, why}; tier None is UNKNOWN, never WATCHED."""
+    first = c.get("firstTs") if isinstance(c, dict) else None
+    looks = len((c or {}).get("visitLevel") or {}) if isinstance(c, dict) else 0
+    if not isinstance(first, (int, float)) or isinstance(first, bool):
+        return {"tier": None, "looks": looks, "trials": None, "bound": None,
+                "why": "when it first appeared is not recorded, so its looks cannot be counted - UNKNOWN"}
+    trials = 0
+    for vid, v in (d.get("visits") or {}).items():
+        ts = _visit_ts(vid, v)
+        if ts is None:
+            return {"tier": None, "looks": looks, "trials": None, "bound": None,
+                    "why": "a visit carries no time, so the looks since it appeared cannot be counted - UNKNOWN"}
+        if ts >= int(first):
+            trials += 1
+    try:
+        import vault_evidence as _ve
+        got = _ve.tier(looks, trials)
+    except Exception as e:
+        return {"tier": None, "looks": looks, "trials": trials, "bound": None,
+                "why": "the vault's tier could not be asked (%s) - UNKNOWN" % type(e).__name__}
+    b = got.get("bound")
+    return {"tier": got.get("tier"), "looks": looks, "trials": trials,
+            "bound": round(b, 3) if isinstance(b, float) else None, "why": got.get("why") or ""}
+
+
 def learned(d, min_visits=MIN_VISITS):
     """The characters the reels have witnessed enough: [{name, key, cls, level, pendingLevel, visits, title,
-    lastTs}], highest level first. None when the ledger is UNKNOWN."""
+    lastTs, tier, looks, trials, bound}], highest level first. None when the ledger is UNKNOWN."""
     if d is None:
         return None
     out = []
@@ -300,9 +353,11 @@ def learned(d, min_visits=MIN_VISITS):
         level = seen[min_visits - 1] if len(seen) >= min_visits else None
         pending = seen[0] if seen and (level is None or seen[0] > level) else None
         titles = c.get("titles") or {}
+        p = proof(d, c)
         out.append({"name": c.get("name"), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
                     "visits": len(visits), "title": (max(titles, key=titles.get) if titles else None),
-                    "lastTs": c.get("lastTs")})
+                    "lastTs": c.get("lastTs"), "tier": p["tier"], "looks": p["looks"], "trials": p["trials"],
+                    "bound": p["bound"], "tierWhy": p["why"]})
     out.sort(key=lambda r: (-(r["level"] or 0), str(r["name"]).lower()))
     return out
 

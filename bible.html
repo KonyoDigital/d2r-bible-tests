@@ -10176,13 +10176,25 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-del.chx-armed{color:#fff;border-color:rgba(255,85,85,.85);background:rgba(255,85,85,.22)}
 #tab-chars .chx-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px 18px;border-radius:12px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-muted);font-size:var(--fs-body)}
 #tab-chars .chx-note{grid-column:1/-1;padding:10px 14px;border-radius:10px;border:1px dashed var(--border-light);background:var(--surface);font-size:var(--fs-body)}   /* #41 rank 20 - the dangling-MAIN note spans the grid like the empty state; --fs-body is the board's defined token (test_control's CSS-var law refused --fs-small) */
+#tab-chars .chx-sec{grid-column:1/-1;display:flex;flex-direction:column;gap:10px;min-width:0}   /* #103 - in game / simulation */
+#tab-chars .chx-sec + .chx-sec{margin-top:10px}
+#tab-chars .chx-sec-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-bottom:6px;border-bottom:1px solid var(--border-light)}
+#tab-chars .chx-sec-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
+#tab-chars .chx-sec-s{font-size:var(--fs-meta);color:var(--text-dim);min-width:0}
+#tab-chars .chx-sec-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#tab-chars .chx-sec-empty{grid-column:1/-1;padding:12px 14px;border-radius:10px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-dim);font-size:var(--fs-body)}
+#tab-chars .chx-ghost{border-style:dashed;background:var(--surface)}
+#tab-chars .chx-proof{font-size:var(--fs-meta);padding:3px 8px;border-radius:7px;border:1px solid var(--border-light);color:var(--text-dim);align-self:flex-start;max-width:100%}
+#tab-chars .chx-proof[data-tier="HARDENED"]{border-color:rgba(240,192,96,.6);color:var(--chx-gold)}
+#tab-chars .chx-proof[data-tier="PROVEN"]{border-color:rgba(111,192,111,.55);color:var(--norm)}
+#tab-chars .chx-proof[data-tier="WATCHED"]{border-color:rgba(111,184,232,.5);color:var(--acc-intel)}
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
 #tab-chars .chx-empty.chx-bad{border-style:solid;border-color:rgba(255,85,85,.5)}
 /* at phone width the floating help / compass orbs sit over the right edge of the page, so a Delete pushed to the far
    right would pass under them (a second-eye read at 375 found it covered to "Del"); the three actions sit together. */
-@media (max-width:760px){#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.42)}#tab-chars .chx-list{grid-template-columns:1fr}#tab-chars .chx-new{align-self:flex-start}#tab-chars .chx-del{margin-left:0}}
+@media (max-width:760px){#tab-chars{--fs-chx-title:calc(var(--fs-display)*1.42)}#tab-chars .chx-list{grid-template-columns:1fr}#tab-chars .chx-sec-list{grid-template-columns:1fr}#tab-chars .chx-new{align-self:flex-start}#tab-chars .chx-del{margin-left:0}}
 </style>
 <script id="chars-tab-js">
 /* #245 — 👤 CHARACTERS: THE MANUAL SIDE, AND THE LINE BETWEEN IT AND THE VAULT.
@@ -10295,7 +10307,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     });
   }
 
-  function _card(id, b, isMain){
+  function _card(id, b, isMain, t){
     b = (b && typeof b === 'object') ? b : {};
     var n = _count(b), when = _ago(b.at), lvl = +b.level, total = n ? n.worn + n.inv : 0;
     var cls = b.cls ? esc(b.cls) : '<span class="chx-unk">class UNKNOWN</span>';
@@ -10310,6 +10322,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       +   '<div class="chx-id"><div class="chx-name" title="' + esc(b.name || id) + '">' + esc(b.name || 'Unnamed build') + '</div>'
       +   '<div class="chx-cls">' + cls + ' · ' + lv + '</div></div>'
       +   (isMain ? '<span class="chx-badge" data-main="1">★ MAIN</span>' : '') + '</div>'
+      + (t ? _proof(t) : '')
       + '<div class="chx-facts">' + facts + '</div>'
       + '<div class="chx-when"' + (when ? ' title="' + esc(new Date(b.at).toString()) + '"' : '') + '>'
       +   (when ? 'changed ' + esc(when) : '<span class="chx-unk">last change UNKNOWN</span>') + '</div>'
@@ -10404,11 +10417,75 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       return true;
     }
     var mainId = _mainOf(r.all);
-    list.innerHTML = _mainNote(_mainDangling(r.all))
-      + _order(r.all, mainId).map(function(id){ return _card(id, r.all[id], id === mainId); }).join('');
+    list.innerHTML = _mainNote(_mainDangling(r.all)) + _sections(r.all, _order(r.all, mainId), mainId);
     return true;
   }
-  window.renderCharsTab = _render;
+  /* #103 — THE ROOM IN HIS TWO SECTIONS. Konyo, 2026-09-30: "segregated like with a section for each so its known that
+     those are the characters ingame we have" - and "this is an area to create and test other builds like simulation
+     style.. so the add character and everything stays as is". IN GAME: every character THIS console's reels learned,
+     wearing the vault's tier; its saved builds are its cards, and one with no build yet is a dashed card that plans one.
+     SIMULATION: every other build, exactly the cards they were, and + New character adds one. Which section a build is
+     in is the planner's rule (window._cbSections), asked - never a second copy of it. A console that has not answered
+     makes the in-game section UNKNOWN, never "none", and every build then stands in simulation, where it always was. */
+  function _bars(){
+    var L = (typeof window._cbLearnedNow === 'function') ? window._cbLearnedNow() : null;
+    var b = L && L.tierBars;
+    return (b && typeof b.proven === 'number' && typeof b.hardened === 'number') ? b : null;
+  }
+  function _proof(t){
+    var say = (typeof window._cbTierSay === 'function') ? window._cbTierSay(t) : 'tier UNKNOWN';
+    var lv = t.level ? ' · the reels saw level ' + (t.level | 0) + (t.pendingLevel ? ' (' + (t.pendingLevel | 0) + ' waits for one more look)' : '') : '';
+    var seen = _ago(t.lastTs);
+    return '<div class="chx-proof" data-tier="' + esc(t.tier || 'UNKNOWN') + '">' + esc(say) + esc(lv)
+      + (seen ? '<span class="chx-proof-when"> · last seen ' + esc(seen) + '</span>' : '') + '</div>';
+  }
+  function _ghost(t){
+    return '<article class="chx-card chx-ghost" data-learned="' + esc(t.key) + '">'
+      + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(t.cls || '?').charAt(0)) + '</span>'
+      +   '<div class="chx-id"><div class="chx-name" title="' + esc(t.name) + '">' + esc(t.name) + '</div>'
+      +   '<div class="chx-cls">' + (t.cls ? esc(t.cls) : '<span class="chx-unk">class UNKNOWN</span>') + ' · '
+      +     (t.level ? 'level ' + (t.level | 0) : '<span class="chx-unk">level UNKNOWN</span>') + (t.title ? ' · ' + esc(t.title) : '') + '</div></div></div>'
+      + _proof(t)
+      + '<div class="chx-when">no build saved for this character yet</div>'
+      + '<div class="chx-acts"><button type="button" class="chx-btn chx-open" data-act="plan" data-for="' + esc(t.key) + '" onclick="window._charsPlan(' + arg(t.key) + ')">Plan a build</button></div>'
+      + '</article>';
+  }
+  function _sections(all, order, mainId){
+    var S = (typeof window._cbSections === 'function') ? window._cbSections(all, order) : null;
+    if (!S) S = { state: 'unknown', why: 'the Character Builder is not on this page', ingame: [], mules: [], sim: order };
+    var bars = _bars();
+    var ladder = bars ? '👁 WATCHED → ✓ PROVEN at ' + bars.proven + ' looks → 🔒 HARDENED at ' + bars.hardened
+                      : '👁 WATCHED → ✓ PROVEN → 🔒 HARDENED, on the Vault\'s own bars';
+    var ing = S.ingame.concat(S.mules), cards = '';
+    ing.forEach(function(g){
+      cards += g.ids.length ? g.ids.map(function(id){ return _card(id, all[id], id === mainId, g.t); }).join('') : _ghost(g.t);
+    });
+    if (!ing.length) cards = '<div class="chx-sec-empty" data-state="' + esc(S.state) + '">' + (S.state === 'unknown'
+      ? 'Which characters you have in game is UNKNOWN here — ' + esc(S.why) + '.'
+      : 'None yet. A character joins here once this console\'s reels have seen your character-select screen twice, then proves itself look by look.') + '</div>';
+    var sim = S.sim.map(function(id){ return _card(id, all[id], id === mainId); }).join('');
+    if (!S.sim.length) sim = '<div class="chx-sec-empty" data-state="empty">No simulation builds. + New character makes one to try things out.</div>';
+    return '<section class="chx-sec" data-sec="ingame" aria-label="In-game characters">'
+      +   '<div class="chx-sec-h"><span class="chx-sec-t">⚔ In-game characters</span><span class="chx-sec-s">seen on this console\'s reels · each proves itself the way the Vault\'s filings do: ' + ladder + '</span></div>'
+      +   '<div class="chx-sec-list">' + cards + '</div></section>'
+      + '<section class="chx-sec" data-sec="sim" aria-label="Simulation builds">'
+      +   '<div class="chx-sec-h"><span class="chx-sec-t">🧪 Simulation builds</span><span class="chx-sec-s">builds you make by hand to try things out · + New character adds one</span></div>'
+      +   '<div class="chx-sec-list">' + sim + '</div></section>';
+  }
+  window.renderCharsTab = function(){
+    var ok = _render();
+    /* ask this console what its reels learned; the room repaints when it answers */
+    try { if (typeof window._cbLearnedFetch === 'function') window._cbLearnedFetch(function(){ _render(); }); } catch (e) {}
+    return ok;
+  };
+  /* #103 — a learned character with no build yet: the planner opens on a draft of it (class and level as the reels
+     saw them), saved the moment he changes it - the same template path the planner's own list takes */
+  window._charsPlan = function(key){
+    if (!_builder()){ _say('The Character Builder is not on this page.'); return false; }
+    var ok = window.openCharBuilder();
+    if (ok && typeof window._cbPickBuild === 'function') window._cbPickBuild('tpl:' + String(key));
+    return !!ok;
+  };
   /* #253 - THE ONE READER ANOTHER ROOM ASKS. The mule window's character-bind list shows these builds, and it asks HERE,
      so the MAIN-first order, a MAIN that names no saved build marking nothing, and UNKNOWN on a store that cannot be
      read are this room's own answers - never a second copy of them. READ-ONLY, like every read in this block.
@@ -56405,7 +56482,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         } else {
           out.push({ key: 'seen:' + _cbFold(L.name), name: L.name, cls: cls, level: L.level || null,
                      words: (L.cls || '') + (L.level ? ' ' + L.level : ''), strengths: [], weaknesses: [],
-                     seen: L.visits | 0, pendingLevel: L.pendingLevel || null });
+                     seen: L.visits | 0, pendingLevel: L.pendingLevel || null,
+                     tier: L.tier || null, looks: (typeof L.looks === 'number') ? L.looks : null,
+                     trials: (typeof L.trials === 'number') ? L.trials : null, title: L.title || null,
+                     lastTs: (typeof L.lastTs === 'number') ? L.lastTs : null });
         }
       });
     } catch (e) {}
@@ -56413,6 +56493,49 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbTemplates = _cbTemplates;
   window._cbTypedTemplates = _cbTypedTemplates;
+  /* #103 — TWO SECTIONS: THE CHARACTERS HE HAS IN GAME, AND THE BUILDS HE TRIES THINGS WITH. Konyo, 2026-09-30: "this is
+     specifically for the characters that are known by the console and are legit my character.. so they slowly prove
+     themselves from reels sessions and harden same way as vault.... this is an area to create and test other builds like
+     simulation style.. so the add character and everything stays as is.. just segregated with a section for each so its
+     known that those are the characters ingame we have".
+     IN-GAME = what THIS console's reels learned (_cbTemplates), each wearing the vault's tier; a saved build belongs to
+     one when it was made from it (b.from) or carries its name, folded the way the learner folds. SIMULATION = every
+     other saved build, and + New build is exactly what it was. ONE rule, asked by the planner's Build list and by the
+     👤 Characters room, so the two can never sort a build differently. Level-1 learned characters are the mules group,
+     as before. Nothing here writes. -> {state: 'ok'|'none'|'unknown', why, ingame: [{t, ids}], mules: [{t, ids}],
+     sim: [ids]}; ids in each list keep the order they were handed in (the caller's MAIN-first order). */
+  function _cbSections(all, ids){
+    all = (all && typeof all === 'object') ? all : {};
+    ids = Array.isArray(ids) ? ids : Object.keys(all);
+    var tpls = _cbTemplates(), state, why = '';
+    if (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) state = tpls.length ? 'ok' : 'none';
+    else {
+      state = 'unknown';
+      why = !_cbLearned ? 'no console has answered this page yet' : 'this console\'s character ledger could not be read';
+    }
+    var groups = tpls.map(function(t){ return { t: t, ids: [] }; }), sim = [];
+    ids.forEach(function(id){
+      var b = all[id] || {}, fk = _cbFold(b.name), g = null;
+      groups.forEach(function(x){ if (!g && (b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))) g = x; });
+      if (g) g.ids.push(id); else sim.push(id);
+    });
+    return { state: state, why: why,
+             ingame: groups.filter(function(g){ return !(g.t.key.indexOf('seen:') === 0 && g.t.level === 1); }),
+             mules: groups.filter(function(g){ return g.t.key.indexOf('seen:') === 0 && g.t.level === 1; }),
+             sim: sim };
+  }
+  window._cbSections = _cbSections;
+  /* the tier as the room and the planner say it, from the vault's words (vault_evidence.tier via /api/chars_learned) */
+  function _cbTierSay(t){
+    if (!t) return '';
+    var n = (typeof t.looks === 'number' && typeof t.trials === 'number') ? t.looks + ' of ' + t.trials + ' looks' : 'looks UNKNOWN';
+    if (t.tier === 'HARDENED') return '🔒 HARDENED · ' + n;
+    if (t.tier === 'PROVEN') return '✓ PROVEN · ' + n;
+    if (t.tier === 'WATCHED') return '👁 WATCHED · ' + n;
+    return 'tier UNKNOWN';
+  }
+  window._cbTierSay = _cbTierSay;
+  window._cbLearnedNow = function(){ return _cbLearned; };
 
   var st = { open: false, bid: null, draft: null, view: 'equip', diff: 'hell', quests: true, sq: '',
              pick: null, stash: null, newb: null, drag: null, held: null, say: '', sayBad: false, filtOpen: false };
@@ -57143,26 +57266,32 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbWin(){ return document.getElementById('cb-win'); }
 
   function _cbHeader(b){
-    var d = _cbDb(), all = _cbAll(), ids = Object.keys(all), tpls = _cbTemplates();
+    var d = _cbDb(), all = _cbAll(), ids = Object.keys(all);
     var sel = '<select class="cb-sel" id="cb-build" aria-label="build" onchange="window._cbPickBuild(this.value)">';
     if (st.draft) sel += '<option value="__draft" selected>' + esc(st.draft.name) + ' (not saved yet)</option>';
     /* #245 — the MAIN build (d2r_cbMain, set in the 👤 Characters tab) leads the list, marked; the rest stay newest
-       first. A MAIN that names no saved build marks nothing. */
+       first. A MAIN that names no saved build marks nothing. #103 - it leads ITS section now: in game, or simulation. */
     var mainId = null; try { mainId = window.LSR.getItem('d2r_cbMain'); } catch (e) {}
     if (mainId != null && !Object.prototype.hasOwnProperty.call(all, mainId)) mainId = null;
-    ids.sort(function(a, c){ return (a === mainId ? -1 : c === mainId ? 1 : 0) || ((all[c].at || 0) - (all[a].at || 0)); }).forEach(function(id){
-      var x = all[id]; sel += '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + (id === mainId ? '★ MAIN · ' : '') + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
-    });
-    var _lrn = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars.length : null;
-    /* #91 — a LEARNED level-1 character is almost always a mule (MEASURED on his reels: 10 of the first 12 learned
+    var order = ids.sort(function(a, c){ return (a === mainId ? -1 : c === mainId ? 1 : 0) || ((all[c].at || 0) - (all[a].at || 0)); });
+    var _bopt = function(id){
+      var x = all[id]; return '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + (id === mainId ? '★ MAIN · ' : '') + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
+    };
+    /* #103 — THE LIST IN HIS TWO SECTIONS (_cbSections: one rule, shared with the 👤 Characters room). IN GAME: each
+       character this console's reels learned, wearing the vault's tier; the saved builds made from it stand in its place,
+       and one with none is offered as a template ("not saved yet"). SIMULATION: every other build, and + New build.
+       #91 — a LEARNED level-1 character is almost always a mule (MEASURED on his reels: 10 of the first 12 learned
        were level 1 — Armor, Crafter, Runewords …). They are his characters, so they are listed, but in their own
-       group at the end, so the build list leads with the characters he plays. A TYPED row is never moved. */
-    var _opt = function(t){ return '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.seen ? ' · seen ' + t.seen + '×' + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') : '') + '</option>'; };
-    var _mules = tpls.filter(function(t){ return t.key.indexOf('seen:') === 0 && t.level === 1; });
-    sel += '<optgroup label="From your characters (class + level)' + (_lrn ? ' · ' + _lrn + ' learned from your reels' : '') + '">';
-    tpls.forEach(function(t){ if (_mules.indexOf(t) < 0) sel += _opt(t); });
-    if (_mules.length) { sel += '</optgroup><optgroup label="Level 1 — mules? (' + _mules.length + ', seen on your reels)">'; _mules.forEach(function(t){ sel += _opt(t); }); }
-    sel += '</optgroup><option value="__new">+ New build…</option></select>';
+       group after the ones he plays. */
+    var S = _cbSections(all, order);
+    var _opt = function(t){ return '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') + ' · ' + esc(_cbTierSay(t)) + ' · not saved yet</option>'; };
+    var _grp = function(g){ return g.ids.length ? g.ids.map(_bopt).join('') : _opt(g.t); };
+    sel += '<optgroup label="⚔ In game — ' + esc(S.state === 'ok' ? S.ingame.length + ' seen on this console\'s reels' : S.state === 'none' ? 'none seen on this console\'s reels yet' : 'UNKNOWN: ' + S.why) + '">';
+    S.ingame.forEach(function(g){ sel += _grp(g); });
+    if (!S.ingame.length) sel += '<option value="__none" disabled>' + (S.state === 'unknown' ? 'which characters you have in game is UNKNOWN here' : 'they join once the reels see your character-select screen twice') + '</option>';
+    sel += '</optgroup>';
+    if (S.mules.length) { sel += '<optgroup label="Level 1 — mules? (' + S.mules.length + ', seen on your reels)">'; S.mules.forEach(function(g){ sel += _grp(g); }); sel += '</optgroup>'; }
+    sel += '<optgroup label="🧪 Simulation builds (' + S.sim.length + ')">' + S.sim.map(_bopt).join('') + '<option value="__new">+ New build…</option></optgroup></select>';
     var ci = _cbClsIx(b.cls);
     var cls = '<select class="cb-sel" id="cb-cls" aria-label="class" onchange="window._cbSetField(\'cls\', this.value)">'
       + (ci < 0 ? '<option value="" selected>class UNKNOWN</option>' : '')
@@ -58143,7 +58272,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* ── ACTIONS ─────────────────────────────────────────────────────────────────────────────────────────────── */
   window._cbPickBuild = function(v){
     if (v === '__new'){ window._cbOpenNew(); return; }
-    if (v === '__draft') return;
+    if (v === '__draft' || v === '__none') return;
     if (v.indexOf('tpl:') === 0){
       var t = null; _cbTemplates().forEach(function(x){ if (x.key === v.slice(4)) t = x; });
       if (t){ st.draft = _cbNewBuild(t.name, t.cls, t.level || 1, t.key); st.bid = null; }

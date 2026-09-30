@@ -40094,7 +40094,7 @@ class Handler(BaseHTTPRequestHandler):
                 import char_select as _cs
                 _d = _cs.load()
                 self._json(200, {"ok": _d is not None, "chars": _cs.learned(_d), "status": _cs.status(),
-                                 "minVisits": _cs.MIN_VISITS})
+                                 "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars()})
             except Exception as e:
                 self._json(200, {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__})
             return

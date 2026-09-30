@@ -1,0 +1,340 @@
+# -*- coding: utf-8 -*-
+"""#103 — THE CHARACTERS HE HAS IN GAME, AND THE BUILDS HE TRIES THINGS WITH, IN TWO SECTIONS.
+
+Konyo, 2026-09-30: "this is specifically for the characters that are known by the console and are legit my character..
+so they slowly prove themselves from reels sessions and harden same way as vault.... this is an area to create and test
+other builds like simulation style.. so the add character and everything stays as is.. just maybe segregated like with a
+section for each so its known that those are the characters ingame we have".
+
+What this law holds, each piece driven through the SHIPPED code (never re-typed here):
+  · THE TIER IS THE VAULT'S. tv/char_select.proof counts a character's LOOKS (character-select visits that read it) over
+    its TRIALS (visits since it first appeared) and asks vault_evidence.tier - WATCHED under 10, PROVEN at 10, HARDENED
+    at 20, and a character the screen stops showing falls back. A visit with no time is UNKNOWN, never a guess, and
+    char_select defines no bars of its own (one source).
+  · ONE RULE SORTS A BUILD (window._cbSections): made from a learned character (b.from) or carrying its name, folded the
+    way the learner folds -> in game, under that character; anything else -> simulation. Level-1 learned characters are
+    the mules group. A console that has not answered is UNKNOWN - never "none" - and every build stands in simulation.
+  · THE 👤 CHARACTERS ROOM paints two sections, in-game first: a character with builds shows them as its cards, each
+    wearing its proof; one with none is a dashed card whose "Plan a build" opens the planner on a draft of it (nothing
+    written until he changes it). Simulation is the cards they always were, MAIN first; + New character is untouched.
+  · THE PLANNER'S BUILD LIST says the same sections: ⚔ In game (the learned characters, their builds in their place, a
+    character with none offered as "not saved yet" with its tier), the mules group, 🧪 Simulation builds + New build.
+The room's harness is test_the_characters_tab_is_manual_and_separate's own (imported, not copied), with a console answer
+fed through the page's real /api/chars_learned fetch. [[the-unjoined-end]] [[unknown-stays-unknown]] [[copy-drift]]
+"""
+import ast
+import io
+import json
+import os
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+import char_select as CS  # noqa: E402
+import test_the_characters_tab_is_manual_and_separate as ROOM  # noqa: E402
+
+NODE = ROOM.NODE
+
+# the console behind the page, as its fetch sees it: answered synchronously so the harness reads the result in one pass
+CONSOLE = r"""
+var location = { protocol: 'http:', search: '', hash: '', href: 'http://127.0.0.1:17999/', pathname: '/' };
+var LEARNED_ANSWER = null, FETCHED = [];
+function _syncThen(v){ return { then: function(f){ var r; try { r = f(v); } catch (e) { r = undefined; } return _syncThen(r); },
+                                catch: function(){ return this; } }; }
+function fetch(url){ FETCHED.push(String(url));
+  if (LEARNED_ANSWER === 'FAIL') return { then: function(){ return this; }, catch: function(f){ f(new Error('down')); return this; } };
+  return _syncThen({ ok: true, json: function(){ return LEARNED_ANSWER; } }); }
+"""
+
+ROSTER = r"""
+var ROSTER = { ok: true, tierBars: { proven: 10, hardened: 20, wilson: 0.722 }, chars: [
+  { name: 'HAMMERDIN', cls: 'Paladin', level: 92, pendingLevel: null, visits: 22, tier: 'HARDENED', looks: 22, trials: 22,
+    title: 'Patriarch', lastTs: NOW - 3600000 },
+  { name: 'Frostnova', cls: 'Sorceress', level: 71, pendingLevel: 72, visits: 11, tier: 'PROVEN', looks: 11, trials: 11,
+    title: null, lastTs: NOW - 7200000 },
+  { name: 'Mulebox', cls: 'Sorceress', level: 1, pendingLevel: null, visits: 3, tier: 'WATCHED', looks: 3, trials: 3,
+    title: null, lastTs: NOW - 86400000 } ] };
+function secHtml(k){ var m = new RegExp('<section class="chx-sec" data-sec="' + k + '"[^>]*>([\\s\\S]*?)</section>').exec(ELS['chars-list']._html); return m ? m[1] : null; }
+function secIds(k){ var h = secHtml(k) || '', out = [], re = /data-build="([^"]*)"/g, m; while ((m = re.exec(h))) out.push(decode(m[1])); return out; }
+function ghosts(k){ var h = secHtml(k) || '', out = [], re = /data-learned="([^"]*)"/g, m; while ((m = re.exec(h))) out.push(decode(m[1])); return out; }
+function groups(){
+  var sel = /<select class="cb-sel" id="cb-build"[^>]*>([\s\S]*?)<\/select>/.exec(ELS['cb-win']._html); if (!sel) return null;
+  var out = [], re = /<optgroup label="([^"]*)">([\s\S]*?)<\/optgroup>/g, m;
+  while ((m = re.exec(sel[1]))){
+    var opts = [], ore = /<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g, o;
+    while ((o = ore.exec(m[2]))) opts.push([decode(o[1]), decode(o[2])]);
+    out.push({ label: decode(m[1]), opts: opts });
+  }
+  return out;
+}
+"""
+
+
+def _run(body):
+    return ROOM._run(ROSTER + body, raw_patch=CONSOLE)
+
+
+@unittest.skipIf(NODE is None, "node is not on this machine")
+class TheRoomHasTwoSections(unittest.TestCase):
+
+    def test_in_game_holds_the_learned_characters_and_their_builds(self):
+        out = _run(r"""
+          seed(null); LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          OUT.order = (ELS['chars-list']._html.match(/data-sec="(\w+)"/g) || []);
+          OUT.ing = secIds('ingame'); OUT.sim = secIds('sim'); OUT.gIng = ghosts('ingame'); OUT.gSim = ghosts('sim');
+          OUT.ham = card('bHAM') ? card('bHAM').html : null;
+          OUT.frost = (/<article class="chx-card chx-ghost" data-learned="seen:frostnova">([\s\S]*?)<\/article>/.exec(secHtml('ingame') || '') || [])[1] || null;
+          OUT.head = /chx-sec-s">([^<]*)</.exec(secHtml('ingame') || '');
+          OUT.head = OUT.head ? decode(OUT.head[1]) : null;
+          OUT.fetched = FETCHED.slice();
+        """)
+        self.assertEqual(out["order"], ['data-sec="ingame"', 'data-sec="sim"'], "the room is not two sections, in game first")
+        self.assertEqual(out["ing"], ["bHAM"], "a build carrying a learned character's name is not under that character")
+        self.assertEqual(out["sim"], ["bSORC", "bDRU"], "the simulation section is not every other build, newest first")
+        self.assertEqual(out["gIng"], ["seen:frostnova", "seen:mulebox"],
+                         "a learned character with no build must stand as its own card, the played ones before the mules")
+        self.assertEqual(out["gSim"], [])
+        self.assertIn('data-tier="HARDENED"', out["ham"])
+        self.assertIn("🔒 HARDENED · 22 of 22 looks", out["ham"], "the in-game card does not wear the vault's tier")
+        self.assertIsNotNone(out["frost"], "Frostnova's card is gone")
+        self.assertIn("✓ PROVEN · 11 of 11 looks", out["frost"])
+        self.assertIn("72 waits for one more look", out["frost"], "a level only one look saw was shown as his level")
+        self.assertIn("PROVEN at 10 looks", out["head"])
+        self.assertIn("HARDENED at 20", out["head"], "the section does not say the vault's bars: %r" % out["head"])
+        self.assertIn("/api/chars_learned", out["fetched"], "the room never asked its console what the reels learned")
+
+    def test_a_build_made_from_a_learned_character_is_its_card(self):
+        out = _run(r"""
+          seed(null);
+          var all = JSON.parse(RAW['d2r_charBuilds']);
+          all.bFROST = b('Frost plan', 'Sorceress', 70, NOW - 60000, [set1()]); all.bFROST.from = 'seen:frostnova';
+          RAW['d2r_charBuilds'] = JSON.stringify(all);
+          LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          OUT.ing = secIds('ingame'); OUT.gIng = ghosts('ingame'); OUT.sim = secIds('sim');
+        """)
+        self.assertEqual(out["ing"], ["bHAM", "bFROST"], "a build made from a learned character left its section")
+        self.assertEqual(out["gIng"], ["seen:mulebox"], "a character WITH a build still shows as having none")
+        self.assertNotIn("bFROST", out["sim"])
+
+    def test_the_main_leads_its_own_section(self):
+        out = _run(r"""
+          seed('bDRU'); LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          OUT.sim = secIds('sim'); OUT.ing = secIds('ingame'); OUT.badge = card('bDRU').badge;
+        """)
+        self.assertEqual(out["sim"], ["bDRU", "bSORC"], "the MAIN does not lead its section")
+        self.assertTrue(out["badge"])
+        self.assertEqual(out["ing"], ["bHAM"])
+
+    def test_plan_a_build_opens_the_planner_on_that_character_and_writes_nothing(self):
+        out = _run(r"""
+          seed(null); LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          var m = /data-act="plan" data-for="seen:frostnova" onclick="([^"]*)"/.exec(secHtml('ingame') || '');
+          OUT.found = !!m; WRITES.length = 0;
+          OUT.r = m ? (new Function('return (' + decode(m[1]) + ');'))() : null;
+          var d = window._cbState().draft;
+          OUT.draft = d ? [d.name, d.cls, d.level, d.from] : null;
+          OUT.writes = WRITES.map(function(w){ return w[1]; });
+        """)
+        self.assertTrue(out["found"], "the learned character's card has no Plan a build")
+        self.assertTrue(out["r"])
+        self.assertEqual(out["draft"], ["Frostnova", "Sorceress", 71, "seen:frostnova"],
+                         "the planner did not open on a draft of that character, as the reels saw it")
+        self.assertNotIn("d2r_charBuilds", out["writes"], "planning a build wrote a build he never changed")
+
+    def test_no_console_is_unknown_not_none_and_every_build_stays_in_simulation(self):
+        out = _run(r"""
+          seed(null); LEARNED_ANSWER = 'FAIL'; window.renderCharsTab();
+          OUT.ing = secIds('ingame'); OUT.sim = secIds('sim');
+          OUT.empty = /chx-sec-empty" data-state="(\w+)">([^<]*)/.exec(secHtml('ingame') || '');
+          OUT.newOk = !ELS['chars-new'].disabled;
+        """)
+        self.assertEqual(out["ing"], [])
+        self.assertEqual(out["sim"], ["bSORC", "bHAM", "bDRU"], "with no console a build left simulation (newest first)")
+        self.assertIsNotNone(out["empty"])
+        self.assertEqual(out["empty"][1], "unknown", "no answer was read as 'no characters' - it is UNKNOWN")
+        self.assertIn("UNKNOWN", out["empty"][2])
+        self.assertTrue(out["newOk"], "+ New character must stay exactly as it was")
+
+    def test_a_console_that_learned_nothing_says_none_yet(self):
+        out = _run(r"""
+          seed(null); LEARNED_ANSWER = { ok: true, chars: [], tierBars: ROSTER.tierBars }; window.renderCharsTab();
+          OUT.empty = /chx-sec-empty" data-state="(\w+)"/.exec(secHtml('ingame') || '');
+          OUT.sim = secIds('sim');
+        """)
+        self.assertEqual(out["empty"][1], "none")
+        self.assertEqual(out["sim"], ["bSORC", "bHAM", "bDRU"])
+
+
+@unittest.skipIf(NODE is None, "node is not on this machine")
+class ThePlannersListSaysTheSameSections(unittest.TestCase):
+
+    def test_in_game_mules_then_simulation_with_new_build(self):
+        out = _run(r"""
+          seed('bSORC'); LEARNED_ANSWER = ROSTER; window._cbLearnedFetch(); window.openCharBuilder('bHAM');
+          OUT.g = groups();
+        """)
+        g = out["g"]
+        self.assertIsNotNone(g, "the planner's build list is gone")
+        self.assertEqual([x["label"].split(" (")[0] for x in g],
+                         ["⚔ In game — 2 seen on this console's reels", "Level 1 — mules?", "🧪 Simulation builds"])
+        self.assertEqual(g[0]["label"], "⚔ In game — 2 seen on this console's reels")
+        self.assertEqual([v for v, _ in g[0]["opts"]], ["bHAM", "tpl:seen:frostnova"],
+                         "in game must list each learned character's build in its place, or the character itself")
+        self.assertIn("✓ PROVEN · 11 of 11 looks", g[0]["opts"][1][1])
+        self.assertIn("not saved yet", g[0]["opts"][1][1])
+        self.assertEqual([v for v, _ in g[1]["opts"]], ["tpl:seen:mulebox"])
+        self.assertEqual([v for v, _ in g[2]["opts"]], ["bSORC", "bDRU", "__new"],
+                         "simulation must be every other build, MAIN first, and + New build")
+        self.assertTrue(g[2]["opts"][0][1].startswith("★ MAIN · Blizz Sorc"))
+
+    def test_an_unanswered_console_is_unknown_in_the_list_too(self):
+        out = _run(r"""
+          seed(null); window.openCharBuilder('bHAM'); OUT.g = groups();
+        """)
+        g = out["g"]
+        self.assertTrue(g[0]["label"].startswith("⚔ In game — UNKNOWN"), g[0]["label"])
+        self.assertEqual([v for v, _ in g[-1]["opts"]], ["bSORC", "bHAM", "bDRU", "__new"])
+
+
+def _ledger(visits):
+    """a ledger built by the learner's own record(): visits = [(ts, [names])], each name read Paladin level 80"""
+    d = CS._empty()
+    for ts, names in visits:
+        vid = "reel_x#%d" % ts
+        CS.record(d, vid, [{"name": n, "key": CS._fold(n), "cls": "Paladin", "level": 80, "title": None}
+                           for n in names], {"reel": "reel_x", "ts": ts})
+    return d
+
+
+class TheTierIsTheVaults(unittest.TestCase):
+
+    def _tier(self, d, name):
+        return CS.proof(d, d["chars"][CS._fold(name)])
+
+    def test_it_proves_itself_look_by_look(self):
+        for n, want in ((9, "WATCHED"), (10, "PROVEN"), (19, "PROVEN"), (20, "HARDENED")):
+            d = _ledger([(1000 * (i + 1), ["Hammerdin"]) for i in range(n)])
+            got = self._tier(d, "Hammerdin")
+            self.assertEqual((got["tier"], got["looks"], got["trials"]), (want, n, n), "%d looks: %r" % (n, got))
+
+    def test_a_character_the_screen_stops_showing_falls_back(self):
+        d = _ledger([(1000 * (i + 1), ["Hammerdin", "Gone"] if i < 20 else ["Hammerdin"]) for i in range(40)])
+        gone = self._tier(d, "Gone")
+        self.assertEqual((gone["looks"], gone["trials"]), (20, 40))
+        self.assertEqual(gone["tier"], "WATCHED", "a character missing from half its looks stayed HARDENED: %r" % gone)
+        self.assertEqual(self._tier(d, "Hammerdin")["tier"], "HARDENED")
+
+    def test_only_the_looks_since_it_appeared_are_its_trials(self):
+        d = _ledger([(1000 * (i + 1), ["Hammerdin"] + (["Newbie"] if i >= 25 else [])) for i in range(35)])
+        new = self._tier(d, "Newbie")
+        self.assertEqual((new["looks"], new["trials"], new["tier"]), (10, 10, "PROVEN"),
+                         "the looks before it existed were counted against it: %r" % new)
+
+    def test_a_visit_with_no_time_is_unknown(self):
+        d = _ledger([(1000 * (i + 1), ["Hammerdin"]) for i in range(12)])
+        d["visits"]["a-visit-with-no-time"] = {"reads": 1, "rows": 1}
+        got = self._tier(d, "Hammerdin")
+        self.assertIsNone(got["tier"], "a visit with no time was counted anyway: %r" % got)
+        self.assertIn("UNKNOWN", got["why"])
+
+    def test_learned_carries_the_tier(self):
+        d = _ledger([(1000 * (i + 1), ["Hammerdin"]) for i in range(20)])
+        row = [r for r in CS.learned(d) if r["name"] == "Hammerdin"][0]
+        self.assertEqual((row["tier"], row["looks"], row["trials"]), ("HARDENED", 20, 20))
+        self.assertEqual(CS.tier_bars(), {"proven": 10, "hardened": 20, "wilson": 0.722})
+
+    def test_one_source_the_vaults_function_and_no_bars_of_its_own(self):
+        tree = ast.parse(io.open(os.path.join(HERE, "char_select.py"), encoding="utf-8").read())
+        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                 and n.func.attr == "tier" and getattr(n.func.value, "id", None) == "_ve"]
+        self.assertEqual(len(calls), 1, "char_select no longer asks vault_evidence.tier")
+        own = [t.id for n in ast.walk(tree) if isinstance(n, ast.Assign) for t in n.targets
+               if isinstance(t, ast.Name) and ("TRIALS" in t.id or "WILSON" in t.id)]
+        self.assertEqual(own, [], "char_select carries its own copy of the vault's bars: %s" % own)
+
+    def test_the_route_hands_the_page_the_bars(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.index('if path == "/api/chars_learned":')
+        self.assertIn('"tierBars": _cs.tier_bars()', src[i:i + 1400], "/api/chars_learned stopped carrying the bars")
+
+
+RED_PROOF = [
+    {
+        "why": "#103 - a build carrying a learned character's name is no longer under that character",
+        "file": "bible.html",
+        "find": "(b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))",
+        "replace": "(b.from === x.t.key || false)",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a build made from a learned character is no longer its card",
+        "file": "bible.html",
+        "find": "(b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))",
+        "replace": "(false || (fk && fk === _cbFold(x.t.name)))",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the room goes back to one flat list",
+        "file": "bible.html",
+        "find": "    list.innerHTML = _mainNote(_mainDangling(r.all)) + _sections(r.all, _order(r.all, mainId), mainId);\n",
+        "replace": "    list.innerHTML = _mainNote(_mainDangling(r.all)) + _order(r.all, mainId).map(function(id){ return _card(id, r.all[id], id === mainId); }).join('');\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a console that has not answered reads as one that learned nothing",
+        "file": "bible.html",
+        "find": "      state = 'unknown';\n",
+        "replace": "      state = 'none';\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a learned character with no build vanishes from the room",
+        "file": "bible.html",
+        "find": ".join('') : _ghost(g.t);\n",
+        "replace": ".join('') : '';\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the planner's simulation group lists the in-game builds too",
+        "file": "bible.html",
+        "find": ")\">' + S.sim.map(_bopt).join('') + '<option value=\"__new\">",
+        "replace": ")\">' + order.map(_bopt).join('') + '<option value=\"__new\">",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a HARDENED character is said as PROVEN",
+        "file": "bible.html",
+        "find": "    if (t.tier === 'HARDENED') return '🔒 HARDENED · ' + n;\n",
+        "replace": "    if (t.tier === 'HARDENED') return '✓ PROVEN · ' + n;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the looks before a character existed count against it",
+        "file": "tv/char_select.py",
+        "find": "        if ts >= int(first):\n",
+        "replace": "        if True:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a visit with no time is skipped instead of making the tier UNKNOWN",
+        "file": "tv/char_select.py",
+        "find": "        if ts is None:\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"bound\": None,\n",
+        "replace": "        if ts is None:\n            continue\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"bound\": None,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the room stops asking its console what the reels learned",
+        "file": "bible.html",
+        "find": "    try { if (typeof window._cbLearnedFetch === 'function') window._cbLearnedFetch(function(){ _render(); }); } catch (e) {}\n",
+        "replace": "",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

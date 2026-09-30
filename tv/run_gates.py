@@ -8444,6 +8444,16 @@ GATES = [
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
              "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
+    Gate("test_the_builder_keeps_in_game_apart_from_simulation", [sys.executable,
+         os.path.join(HERE, "test_the_builder_keeps_in_game_apart_from_simulation.py")], 90,
+         needs_app=False,
+         why="#103 - 2026-09-30 his ask: the builder in two sections - the characters he has IN GAME ('known by the "
+             "console and are legit my character.. they slowly prove themselves from reels sessions and harden same way "
+             "as vault') and SIMULATION builds ('the add character and everything stays as is'). char_select.proof asks "
+             "vault_evidence.tier (looks since it appeared: WATCHED <10, PROVEN 10, HARDENED 20; a character the screen "
+             "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
+             "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
+             "shipped room + planner in node through the page's own /api/chars_learned fetch. 15 cases, 10 red-proofs"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,
