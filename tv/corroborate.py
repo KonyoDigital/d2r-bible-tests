@@ -2540,6 +2540,10 @@ COVERED_BY = {
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
     # #54 (v3526 integration) — the equipped lane's own row: one source today, said so rather than claimed covered.
+    'picker census':
+        "the row reads each PC's own page counting its picker's list function against its own type table - two halves "
+        "of ONE page's count, handed over by that page. An independent second source would be the picker actually "
+        "opened on that PC (a pixel count of its Base Items rows on film) - no such joint yet (REG-1584).",
     'equipped ledger files every seal':
         "the row reads equipped_ledger.contract() — the lane's own store against the journal ring the same console "
         "writes, so a lane that files and a row that checks it read one writer's two halves. An independent second "

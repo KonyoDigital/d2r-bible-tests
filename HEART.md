@@ -16,7 +16,7 @@ may not fall without a human saying why in `heart_floor.json`.
 
 | | |
 |---|---|
-| surfaces the console paints | **366** |
+| surfaces the console paints | **365** |
 | of those, watched | **8** |
 | coverage | **2.2%** |
 

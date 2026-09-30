@@ -574,10 +574,11 @@ class TheShippedCardDrawsIt(unittest.TestCase):
                 bad.append("%dx%d Konyo box: no 'formerly cursor' line (%r)" % (w, h, k.get("former")))
             if "Boosteroid" not in (a.get("sys") or "") or "TRIAGE 7" not in (a.get("sys") or ""):
                 bad.append("%dx%d ALT box: %r" % (w, h, a.get("sys")))
-            # #74 (REG-1461) - FIVE lines now: films, river, triage, and whether its river is STUCK and whether
-            # that PC has PROVED its instruments. An older build knows none of them, so all five say UNKNOWN.
-            if (wp.get("sys") or "").count("UNKNOWN") != 5:
-                bad.append("%dx%d Wife PC box (an older build): not five UNKNOWNs (%r)" % (w, h, wp.get("sys")))
+            # #74 (REG-1461) - FIVE lines, then SIX: films, river, triage, whether its river is STUCK, whether that PC
+            # has PROVED its instruments, and (#41 rank 22, REG-1564) what its character PICKER offers. An older build
+            # knows none of them, so all six say UNKNOWN.
+            if (wp.get("sys") or "").count("UNKNOWN") != 6:
+                bad.append("%dx%d Wife PC box (an older build): not six UNKNOWNs (%r)" % (w, h, wp.get("sys")))
             if m["sw"][0] > m["sw"][1] + 1:
                 bad.append("%dx%d the fleet list scrolls sideways %s" % (w, h, m["sw"]))
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))

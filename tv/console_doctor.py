@@ -10698,6 +10698,10 @@ WATCHES = {
     # #54 — reads the equipped ledger against the console's own journal ring (equipped_ledger.contract); it owns no
     # element of its own and reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "equipped ledger files every seal": (),
+    # #41 rank 22 (REG-1564/1584) — reads the fleet roster cache and this console's banked census (_picker_for_wire);
+    # it owns no loop of its own and reaches him through the fleet card's picker line and the row's word.
+    # Empty tuple as a DECLARATION, not an omission.
+    "picker census": (),
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),

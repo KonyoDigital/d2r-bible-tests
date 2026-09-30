@@ -1,11 +1,11 @@
 {
   "_why": "RANK 1 is a ratchet: it may fall, never rise. Regenerate with swallow_census.py --write-baseline after a DELIBERATE reduction, and name the sites you fixed in the commit.",
   "counts": {
-    "handlers": 3275,
-    "ok": 332,
-    "rank1": 69,
-    "rank2": 1207,
-    "rank3": 1667,
+    "handlers": 4375,
+    "ok": 462,
+    "rank1": 68,
+    "rank2": 1528,
+    "rank3": 2317,
     "unparsed": 0
   },
   "rank1ByFile": {
@@ -33,7 +33,7 @@
     "tv/test_roundtrip_sim.py": 1,
     "tv/test_the_board_hands_its_stores_over.py": 1,
     "tv/tooltip_find.py": 2,
-    "tv/tv_diablo.py": 12,
+    "tv/tv_diablo.py": 11,
     "tv/vault_retro.py": 1
   }
 }
