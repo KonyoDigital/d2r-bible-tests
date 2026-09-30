@@ -226,6 +226,23 @@ class OneTickOverAReelStore(unittest.TestCase):
         self.assertEqual(r["reads"], C.READS_PER_HOUR)
         self.assertIn("hourly read cap", C.load()["stats"]["lastWhy"])
 
+    def test_the_hourly_cap_leaves_the_unread_visit_owed_and_the_next_hour_reads_it(self):
+        """#231 5909410674 (second eye on 8d420bba): the cursor was stepped BEFORE the cap check, so once the cap held the
+        loop walked every later frame and reel without reading and saved those cursors - a character-select visit found
+        after the cap fell out of owed() for good. The cap is a rate: the frame it stops on waits for the next hour."""
+        base = 1790000000000
+        self._reel("reel_s_1", [(base + v * 600000 + i * 1000, True) for v in range(8) for i in range(2)])
+        self._reel("reel_s_0", [(base - 900000 + i * 1000, True) for i in range(2)])     # an older reel, never reached
+        r = self._tick()
+        self.assertEqual(r["reads"], C.READS_PER_HOUR)
+        d = C.load()
+        self.assertLess(d["reels"]["reel_s_1"]["pos"], 16, "the cap walked the cursor past visits it never read")
+        self.assertNotIn("reel_s_0", [k for k, v in d["reels"].items() if int(v.get("pos") or 0) > 0],
+                         "the cap stepped through a whole later reel without reading it")
+        self.assertGreater(C.owed(d, self.hist), 0, "an unread character-select visit dropped out of owed()")
+        later = self._tick(now=1000000.0 + 3601)       # _tick's clock, an hour on
+        self.assertGreater(later["reads"], 0, "the next hour did not read the visits the cap held back")
+
     def test_the_budget_stops_it_and_the_next_tick_resumes(self):
         base = 1790000000000
         self._reel("reel_s_1", [(base + i * 1000, False) for i in range(40)])
@@ -384,6 +401,13 @@ class AFixtureWorldKeepsItsOwnRoster(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#231 5909410674 - the hourly cap walks the cursor past every later frame and reel unread again",
+        "file": "char_select.py",
+        "find": "                    rs[\"pos\"] = i - SAMPLE_EVERY\n                    break\n",
+        "replace": "                    continue\n",
+        "matches": 1,
+    },
     {
         "why": "#91 - one visit teaches a character (the witness rule he asked for is gone)",
         "file": "tv/char_select.py",

@@ -367,8 +367,12 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 if op["reads"] >= MAX_READS_PER_VISIT:
                     continue
                 if len(st["readTs"]) >= READS_PER_HOUR:
+                    # #231 5909410674 — THE CAP IS A RATE, SO IT STOPS THE SCAN ON THIS FRAME. It used to `continue`
+                    # after the cursor had stepped past it, walking every later frame and reel unread and saving those
+                    # cursors: a visit found after the cap fell out of owed() for good. The frame waits for the hour.
                     why = "hourly read cap (%d) reached" % READS_PER_HOUR
-                    continue
+                    rs["pos"] = i - SAMPLE_EVERY
+                    break
                 crop = panel_crop(p, work)
                 if not crop:
                     continue
@@ -385,7 +389,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 if rows:
                     record(d, op["id"], rows, {"reel": name, "ts": ts, "reader": "vision",
                                                "frames": [os.path.basename(p)]})
-            if why == "tick budget spent":
+            if why == "tick budget spent" or why.startswith("hourly read cap"):
                 break
     finally:
         shutil.rmtree(work, ignore_errors=True)   # the crops are throwaway; a nested dir must not strand it

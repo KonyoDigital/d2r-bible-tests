@@ -378,6 +378,21 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1595 - THE CHARACTER READER'S HOURLY CAP SKIPPED EVERY VISIT AFTER IT FOR GOOD (#231 5909410674, 2026-09-30)
+
+**Found by** the Grok code seat on 8d420bba; **reproduced before anything changed**: a reel of 8 character-select visits
+plus an older reel, READS_PER_HOUR 8 - the tick read 8 and left the cursor at 16 of 16. `char_select.tick()` stepped
+`pos` BEFORE the hourly-cap check and then `continue`d, so once the cap held it walked every later frame and reel without
+reading and saved those cursors; `owed()` counts only frames past `pos`, so a visit found after the cap dropped out of it
+and was never read, even after the hour's window aged out.
+
+**Fixed:** the cap stops the scan on the frame it could not read (`pos` stays on it) and ends the tick; the next tick in
+a later hour reads it. The per-visit read limit still steps on - a visit with enough reads has nothing owed.
+
+**Guards:** `test_characters_learn_from_the_reels` - new case: after the cap the cursor stays short of the unread
+visits, the older reel is untouched, `owed()` stays above 0, and an hour later the held visits are read; 1 red-proof
+(the old `continue`), seen red.
+
 ### REG-1594 - A PUSH WAS REFUSED BECAUSE THE DEMOS RAN 7 s AFTER HIS CONSOLE RE-EXEC'D ONTO THE PUSHED CODE (#42c, 2026-09-30)
 
 **Measured** on v3526's push #1: the fast-forward of main put new code on disk, his console's version-drift lane re-exec'd
