@@ -200,13 +200,15 @@ class ThePlannersListSaysTheSameSections(unittest.TestCase):
         self.assertEqual([v for v, _ in g[-1]["opts"]], ["bSORC", "bHAM", "bDRU", "__new"])
 
 
-def _ledger(visits):
-    """a ledger built by the learner's own record(): visits = [(ts, [names])], each name read Paladin level 80"""
+def _ledger(visits, partial=False):
+    """a ledger built by the learner's own record(): visits = [(ts, [names])] or [(ts, [names], partial)], each name
+    read Paladin level 80; `partial` is what the reader said about the list (False = it saw the whole list)"""
     d = CS._empty()
-    for ts, names in visits:
+    for v in visits:
+        ts, names = v[0], v[1]
         vid = "reel_x#%d" % ts
         CS.record(d, vid, [{"name": n, "key": CS._fold(n), "cls": "Paladin", "level": 80, "title": None}
-                           for n in names], {"reel": "reel_x", "ts": ts})
+                           for n in names], {"reel": "reel_x", "ts": ts, "partial": v[2] if len(v) > 2 else partial})
     return d
 
 
@@ -234,12 +236,57 @@ class TheTierIsTheVaults(unittest.TestCase):
         self.assertEqual((new["looks"], new["trials"], new["tier"]), (10, 10, "PROVEN"),
                          "the looks before it existed were counted against it: %r" % new)
 
+    def test_a_cut_off_list_is_no_evidence_against_a_character(self):
+        # MEASURED on his: 9 rows of 13 characters - a character scrolled out of view was not deleted
+        for later in (True, None):
+            d = _ledger([(1000 * (i + 1), ["Hammerdin", "Scrolled"] if i < 20 else ["Hammerdin"], False if i < 20 else later)
+                         for i in range(40)])
+            got = self._tier(d, "Scrolled")
+            self.assertEqual((got["looks"], got["trials"], got["misses"], got["tier"]), (20, 20, 0, "HARDENED"),
+                             "a list that was cut off (partial=%r) counted against a character it did not show: %r" % (later, got))
+
+    def test_one_read_that_saw_the_whole_list_makes_the_visit_whole(self):
+        d = CS._empty()
+        row = [{"name": "Hammerdin", "key": "hammerdin", "cls": "Paladin", "level": 80, "title": None}]
+        CS.record(d, "reel_x#1", row, {"ts": 1, "partial": True})
+        CS.record(d, "reel_x#1", row, {"ts": 2, "partial": False})
+        CS.record(d, "reel_x#1", row, {"ts": 3, "partial": None})
+        self.assertIs(d["visits"]["reel_x#1"]["partial"], False, "a later read undid what an earlier one saw whole")
+        CS.record(d, "reel_x#2", row, {"ts": 4, "partial": None})
+        self.assertIsNone(d["visits"]["reel_x#2"]["partial"], "a list nobody described was recorded as described")
+        self.assertEqual([CS.partial_of(x) for x in ({"partial": False}, '{"partial": true}', {"chars": []}, "no json", None)],
+                         [False, True, None, None, None])
+
     def test_a_visit_with_no_time_is_unknown(self):
         d = _ledger([(1000 * (i + 1), ["Hammerdin"]) for i in range(12)])
         d["visits"]["a-visit-with-no-time"] = {"reads": 1, "rows": 1}
         got = self._tier(d, "Hammerdin")
         self.assertIsNone(got["tier"], "a visit with no time was counted anyway: %r" % got)
         self.assertIn("UNKNOWN", got["why"])
+
+    def test_the_tick_records_what_the_reader_said_about_the_list(self):
+        tmp = tempfile.mkdtemp(prefix="cs_partial_")
+        try:
+            hist = os.path.join(tmp, "hist"); rd = os.path.join(hist, "reel_s_1"); os.makedirs(rd)
+            for i in range(2):
+                with open(os.path.join(rd, "f_%d.jpg" % (1790000000000 + i * 1000)), "wb") as f:
+                    f.write(b"cs")
+            os.environ["TV_CHARS_LEARNED"] = os.path.join(tmp, "roster.json")
+            orig = CS.panel_crop
+            CS.panel_crop = lambda p, out: p
+            try:
+                r = CS.tick(root=hist, stats=lambda p: (0.03, 0.36, 0.1, 0.22), now=1000000.0,
+                            reader=lambda crop: {"screen": "character-select", "partial": False,
+                                                 "chars": [{"name": "Testlock", "cls": "Warlock", "level": 88}]})
+            finally:
+                CS.panel_crop = orig
+            self.assertTrue(r["ok"], r)
+            v = list(CS.load()["visits"].values())
+            self.assertEqual([x.get("partial") for x in v], [False], "the tick dropped what the reader said: %r" % v)
+        finally:
+            os.environ.pop("TV_CHARS_LEARNED", None)
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_learned_carries_the_tier(self):
         d = _ledger([(1000 * (i + 1), ["Hammerdin"]) for i in range(20)])
@@ -315,15 +362,36 @@ RED_PROOF = [
     {
         "why": "#103 - the looks before a character existed count against it",
         "file": "tv/char_select.py",
-        "find": "        if ts >= int(first):\n",
-        "replace": "        if True:\n",
+        "find": "        if ts >= int(first) and isinstance(v, dict) and v.get(\"partial\") is False:\n",
+        "replace": "        if isinstance(v, dict) and v.get(\"partial\") is False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - a cut-off list (9 rows of his 13) counts against every character it did not show",
+        "file": "tv/char_select.py",
+        "find": "        if ts >= int(first) and isinstance(v, dict) and v.get(\"partial\") is False:\n",
+        "replace": "        if ts >= int(first):\n",
         "matches": 1,
     },
     {
         "why": "#103 - a visit with no time is skipped instead of making the tier UNKNOWN",
         "file": "tv/char_select.py",
-        "find": "        if ts is None:\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"bound\": None,\n",
-        "replace": "        if ts is None:\n            continue\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"bound\": None,\n",
+        "find": "        if ts is None:\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"misses\": None, \"bound\": None,\n",
+        "replace": "        if ts is None:\n            continue\n            return {\"tier\": None, \"looks\": looks, \"trials\": None, \"misses\": None, \"bound\": None,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the tick drops what the reader said about the list",
+        "file": "tv/char_select.py",
+        "find": "\"frames\": [os.path.basename(p)], \"partial\": partial_of(raw)})",
+        "replace": "\"frames\": [os.path.basename(p)]})",
+        "matches": 1,
+    },
+    {
+        "why": "#103 - the last read of a visit decides whether its list was whole",
+        "file": "tv/char_select.py",
+        "find": "        v[\"partial\"] = False if (p is False or prev is False) else (True if (p is True or prev is True) else None)\n",
+        "replace": "        v[\"partial\"] = p\n",
         "matches": 1,
     },
     {

@@ -211,6 +211,20 @@ def normalize(raw):
     return rows, ("%d rows" % len(rows))
 
 
+def partial_of(raw):
+    """Did the reader see the WHOLE list? -> False (whole), True (cut off / scrolled / a row covered), None (it did not
+    say, or the answer is not an object) - UNKNOWN, which no look may count as a miss."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return None
+    if not isinstance(raw, dict):
+        return None
+    p = raw.get("partial")
+    return p if isinstance(p, bool) else None
+
+
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────────
 def _empty():
     return {"version": 1, "chars": {}, "visits": {}, "reels": {},
@@ -251,6 +265,11 @@ def record(d, visit_id, rows, meta=None):
     v["reads"] = int(v.get("reads") or 0) + 1
     v["rows"] = max(int(v.get("rows") or 0), len(rows or []))
     v.update({k: meta[k] for k in (meta or {}) if k in ("reel", "ts", "tab", "frames", "reader")})
+    if meta and "partial" in meta:
+        # #103 - was the whole list on screen? One read that saw it whole makes the visit complete; a cut-off read
+        # (scrolled, a row covered) makes it partial only while no read saw it whole; nobody said -> None (UNKNOWN)
+        p, prev = meta.get("partial"), v.get("partial")
+        v["partial"] = False if (p is False or prev is False) else (True if (p is True or prev is True) else None)
     for r in rows or []:
         c = d["chars"].setdefault(r["key"], {"name": r["name"], "cls": {}, "visitLevel": {}, "titles": {},
                                              "firstTs": None, "lastTs": None})
@@ -303,32 +322,39 @@ def proof(d, c):
     """#103 — HOW FAR A CHARACTER HAS PROVEN ITSELF, THE WAY THE VAULT'S FILINGS DO. Konyo, 2026-09-30: "they slowly
     prove themselves from reels sessions and harden same way as vault".
 
-    A LOOK is one visit to the character-select screen that read a roster (a refused read is no look). A character's
-    TRIALS are the looks since it first appeared; its SUCCESSES are the looks that read it. The tier is
-    vault_evidence.tier - the vault's own function, bars and Wilson bound, CALLED and never copied: WATCHED under 10
-    looks, PROVEN at 10, HARDENED at 20. A character the screen stops showing (deleted in game) falls back as its
-    misses pile up. -> {tier, looks, trials, bound, why}; tier None is UNKNOWN, never WATCHED."""
+    A LOOK is one visit to the character-select screen that read a roster (a refused read is no look). Its SUCCESSES are
+    the looks that read it. Its TRIALS are those plus its MISSES: looks since it first appeared that saw the WHOLE list
+    (the reader said partial: false) and not this character. A list cut off or scrolled - MEASURED on his: 9 rows of 13
+    characters - is no evidence against a character it did not show, so it is not a trial; nor is a look from before the
+    reader was asked (partial unknown). The tier is vault_evidence.tier - the vault's own function, bars and Wilson
+    bound, CALLED and never copied: WATCHED under 10 looks, PROVEN at 10, HARDENED at 20; a character a whole list stops
+    showing (deleted in game) falls back as its misses pile up. -> {tier, looks, trials, misses, bound, why}; tier None
+    is UNKNOWN, never WATCHED."""
     first = c.get("firstTs") if isinstance(c, dict) else None
     looks = len((c or {}).get("visitLevel") or {}) if isinstance(c, dict) else 0
     if not isinstance(first, (int, float)) or isinstance(first, bool):
-        return {"tier": None, "looks": looks, "trials": None, "bound": None,
+        return {"tier": None, "looks": looks, "trials": None, "misses": None, "bound": None,
                 "why": "when it first appeared is not recorded, so its looks cannot be counted - UNKNOWN"}
-    trials = 0
+    read_it = set((c or {}).get("visitLevel") or {})
+    misses = 0
     for vid, v in (d.get("visits") or {}).items():
+        if vid in read_it:
+            continue
         ts = _visit_ts(vid, v)
         if ts is None:
-            return {"tier": None, "looks": looks, "trials": None, "bound": None,
+            return {"tier": None, "looks": looks, "trials": None, "misses": None, "bound": None,
                     "why": "a visit carries no time, so the looks since it appeared cannot be counted - UNKNOWN"}
-        if ts >= int(first):
-            trials += 1
+        if ts >= int(first) and isinstance(v, dict) and v.get("partial") is False:
+            misses += 1
+    trials = looks + misses
     try:
         import vault_evidence as _ve
         got = _ve.tier(looks, trials)
     except Exception as e:
-        return {"tier": None, "looks": looks, "trials": trials, "bound": None,
+        return {"tier": None, "looks": looks, "trials": trials, "misses": misses, "bound": None,
                 "why": "the vault's tier could not be asked (%s) - UNKNOWN" % type(e).__name__}
     b = got.get("bound")
-    return {"tier": got.get("tier"), "looks": looks, "trials": trials,
+    return {"tier": got.get("tier"), "looks": looks, "trials": trials, "misses": misses,
             "bound": round(b, 3) if isinstance(b, float) else None, "why": got.get("why") or ""}
 
 
@@ -357,7 +383,7 @@ def learned(d, min_visits=MIN_VISITS):
         out.append({"name": c.get("name"), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
                     "visits": len(visits), "title": (max(titles, key=titles.get) if titles else None),
                     "lastTs": c.get("lastTs"), "tier": p["tier"], "looks": p["looks"], "trials": p["trials"],
-                    "bound": p["bound"], "tierWhy": p["why"]})
+                    "misses": p["misses"], "bound": p["bound"], "tierWhy": p["why"]})
     out.sort(key=lambda r: (-(r["level"] or 0), str(r["name"]).lower()))
     return out
 
@@ -443,7 +469,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 reads += 1
                 if rows:
                     record(d, op["id"], rows, {"reel": name, "ts": ts, "reader": "vision",
-                                               "frames": [os.path.basename(p)]})
+                                               "frames": [os.path.basename(p)], "partial": partial_of(raw)})
             if why == "tick budget spent" or why.startswith("hourly read cap"):
                 break
     finally:

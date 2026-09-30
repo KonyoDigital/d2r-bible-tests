@@ -8453,7 +8453,7 @@ GATES = [
              "vault_evidence.tier (looks since it appeared: WATCHED <10, PROVEN 10, HARDENED 20; a character the screen "
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
-             "shipped room + planner in node through the page's own /api/chars_learned fetch. 15 cases, 10 red-proofs"),
+             "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one). 18 cases, 13 red-proofs"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,

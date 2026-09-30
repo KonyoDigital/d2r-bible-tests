@@ -417,13 +417,15 @@ were real characters and which were experiments, and no measure of how sure the 
 
 **Now:** `char_select.proof` gives every learned character the VAULT's tier - its looks (character-select visits that
 read it) over its trials (visits since it first appeared), through `vault_evidence.tier` itself: WATCHED under 10,
-PROVEN at 10, HARDENED at 20, and a character the screen stops showing falls back. `/api/chars_learned` carries it and
+PROVEN at 10, HARDENED at 20. A miss needs a WHOLE list (the reader's `partial: false`, now recorded per visit):
+MEASURED on his Mac, the list shows 9 rows of his 13 characters, so a scrolled-out character is not evidence of a
+deleted one; a character a whole list stops showing falls back. `/api/chars_learned` carries it and
 the vault's bars. One page rule, `_cbSections`, sorts every build: made from a learned character (`from`) or carrying
 its name -> IN GAME under it; everything else -> SIMULATION. The 👤 Characters room paints ⚔ In-game characters (the
 learned ones, their builds as their cards with the proof on them, a dashed "Plan a build" card for one with none) above
 🧪 Simulation builds (the cards as they were; + New character untouched); the planner's Build list says the same three
 groups. A console that has not answered is UNKNOWN in the in-game section - never "none" - and every build then stands
-in simulation. Law: `tv/test_the_builder_keeps_in_game_apart_from_simulation.py` (15 cases, 10 red-proofs, each seen RED).
+in simulation. Law: `tv/test_the_builder_keeps_in_game_apart_from_simulation.py` (18 cases, 13 red-proofs, each seen RED).
 
 **Still owed (#103 steps B/C):** a session's character-select binding everything after it to that character (his "same
 logic getting routed down", the printer's way) - `equipped_ledger.game_sessions` already carries a login across the
