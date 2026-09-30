@@ -11,6 +11,7 @@ ImportError. The Windows launcher installed pywebview on first run and never Pil
     as pywebview, and the installer installs it too (anchored on the pip line, not the word).
 RED_PROOF below.
 """
+import importlib.util
 import io
 import os
 import sys
@@ -26,6 +27,11 @@ except Exception:
     pass
 
 import console_doctor as cd  # noqa: E402
+
+# REG-1630 - `__import__("importlib").util` is not an import: `importlib.util` is an attribute only once SOMETHING
+# imported it. On his Mac something always had; on the ALT's Python 3.12 nothing had, so both decorators raised
+# AttributeError while the class was being defined and the whole law read ALREADY RED on that PC.
+_HAVE_PIL = importlib.util.find_spec("PIL") is not None
 
 
 def _ps1(name):
@@ -50,14 +56,14 @@ class TheRowReadsTheMachine(unittest.TestCase):
         self.assertEqual(state, cd.MISSING, "a machine with no Pillow read: %s" % why)
         self.assertIn("pip install --user Pillow", why)
 
-    @unittest.skipIf(__import__("importlib").util.find_spec("PIL") is None,
+    @unittest.skipIf(not _HAVE_PIL,
                      "Pillow is absent in this venue - the OK half is UNMEASURED here, not passing")
     def test_with_pillow_it_reads_ok_after_a_round_trip(self):
         state, why = cd._check_this_machine_can_decode_a_frame()
         self.assertEqual(state, cd.OK, why)
         self.assertIn("round-tripped a BMP", why)
 
-    @unittest.skipIf(__import__("importlib").util.find_spec("PIL") is None,
+    @unittest.skipIf(not _HAVE_PIL,
                      "Pillow is absent in this venue - UNMEASURED here, not passing")
     def test_a_decoder_that_loses_the_pixels_is_missing(self):
         """An import is not a decode: a reader that hands back the wrong pixels must not read OK."""

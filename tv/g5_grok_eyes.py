@@ -841,14 +841,26 @@ def _stats_flush():
 #: only cure is signing in again, and the GROK lamp and the login button must both say so (they used to read "linked"
 #: and start_login refused to reopen the browser because the file was there). One list, used by both.
 _CRED_REJECT_SAY = "Grok rejected the credentials — sign in again"
-_CRED_REJECT_NEEDLES = ("401", "unauthorized", "invalid api key")
+
+
+def _status_code(n):
+    """REG-1631 — a status code as the far end states it: a WHOLE number, never digits inside a longer one, and never a
+    duration or a size. MEASURED on the substring needles (the Grok CLI look at v3534 pointed at them): "timed out after
+    1401 ms" and a session id holding ...401... both read as a revoked sign-in and lit SIGN IN, and "read 34020 bytes"
+    read as an exhausted balance - which also holds the lane for _HARD_STOP_RETRY_S."""
+    return _re.compile(r"(?<![\w.])%s(?![\w.])(?!\s*(?:ms|s|secs?|seconds?|bytes?|[kmg]i?b)\b)" % n)
+
+
+_CRED_REJECT_NEEDLES = (_status_code("401"), _re.compile(r"unauthori[sz]ed"), _re.compile(r"invalid api key"))
 
 _HARD_STOPS = (
     # each pattern is a refusal the FAR END stated; retrying cannot clear any of them
-    ("402", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
-    ("payment required", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
-    ("balance exhausted", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
-    ("insufficient", "the Grok account has no credit left for this lane"),
+    (_status_code("402"), "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    (_re.compile(r"payment required"), "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    (_re.compile(r"balance exhausted"), "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
+    # REG-1631 — "insufficient" alone is also Windows' own "insufficient system resources" (the 8 GB ALT under load):
+    # only a shortfall of credit is this lane's refusal
+    (_re.compile(r"insufficient[\s_-]*(?:credits?|balance|funds?|quota)"), "the Grok account has no credit left for this lane"),
 ) + tuple((_n, _CRED_REJECT_SAY) for _n in _CRED_REJECT_NEEDLES)
 
 
@@ -878,7 +890,7 @@ def _hard_stop_why(last_error=_LOOK_IT_UP):
     if not blob:
         return ""
     for needle, say in _HARD_STOPS:
-        if needle in blob:
+        if needle.search(blob):
             return say
     return ""
 
@@ -893,7 +905,7 @@ def credentials_rejected(last_error=_LOOK_IT_UP):
     except Exception:
         return False
     blob = str(last_error or "").lower()
-    return bool(blob) and any(n in blob for n in _CRED_REJECT_NEEDLES)
+    return bool(blob) and any(n.search(blob) for n in _CRED_REJECT_NEEDLES)
 
 
 def stats_view():

@@ -18,6 +18,9 @@ Driven, joint by joint, never by grepping prose:
      answering "already authorized" from the file on disk.
   5. CLAUDE's own disconnect logic - while a sign-in he clicked is being finished the CLI is re-asked every 10 s, not
      every 5 min, and a changed answer repaints at once; the lamp says "waiting" meanwhile and never once it is on.
+  6. REG-1631 - a refusal is a STATED code, never digits inside a number: the Grok CLI look at v3534 pointed at the
+     substring needles, and measured, "timed out after 1401 ms" lit SIGN IN and "read 34020 bytes" said the balance was
+     exhausted (and held the lane for half an hour); Windows' "insufficient system resources" read as no credit left.
 Nothing here opens a window, spawns a CLI or touches his files: every spawn is a recorded fake. RED_PROOF below.
 """
 import html.parser
@@ -108,6 +111,14 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "        lamp[\"signInOpen\"] = bool(_csi.watching()) and lamp.get(\"state\") != \"on\"\n",
      "replace": "        lamp[\"signInOpen\"] = bool(_csi.watching())\n", "matches": 1},
+    {"why": "REG-1631 - a status code is a substring again: a timeout of 1401 ms reads as a revoked sign-in",
+     "file": "g5_grok_eyes.py",
+     "find": "    return _re.compile(r\"(?<![\\w.])%s(?![\\w.])(?!\\s*(?:ms|s|secs?|seconds?|bytes?|[kmg]i?b)\\b)\" % n)\n",
+     "replace": "    return _re.compile(r\"%s\" % n)\n", "matches": 1},
+    {"why": "REG-1631 - 'insufficient' alone again: Windows running short of resources reads as no Grok credit",
+     "file": "g5_grok_eyes.py",
+     "find": "(_re.compile(r\"insufficient[\\s_-]*(?:credits?|balance|funds?|quota)\"),",
+     "replace": "(_re.compile(r\"insufficient\"),", "matches": 1},
 ]
 
 
@@ -225,6 +236,30 @@ class TheGrokLaneKnowsARefusedSignInIsNotASignIn(unittest.TestCase):
             st = g5.status()
         self.assertFalse(st["needsLogin"])
         self.assertFalse(st["credentialsRejected"])
+
+
+class ARefusalIsAStatedCodeNotDigitsInANumber(unittest.TestCase):
+    """REG-1631 - both lamps' refusal readers, driven with the shapes the far end states and the shapes it never does."""
+
+    STATED = (("HTTP 401: Unauthorized", "cred"), ("status code: 401", "cred"), ("(401)", "cred"),
+              ("Invalid API key provided", "cred"),
+              ('API error (status 402 Payment Required): Grok Build usage balance exhausted", "http_status": 402}',
+               "balance"),
+              ("insufficient credits on this team", "credit"), ("insufficient_quota", "credit"))
+    NEVER = ("grok CLI timed out after 1401 ms", "reel_s_1790401234567_15732: read failed (exit 1)",
+             "read 34020 bytes then EOF", "waited 401 s for an answer",
+             "The system has insufficient system resources to complete the requested service", "status 429 rate limited")
+
+    def test_a_stated_refusal_is_read(self):
+        for err, kind in self.STATED:
+            said = g5._hard_stop_why(err)
+            self.assertIn(kind if kind != "cred" else "sign in", said, "a stated refusal was not read: %r -> %r" % (err, said))
+            self.assertEqual(g5.credentials_rejected(err), kind == "cred", err)
+
+    def test_digits_inside_a_number_are_never_a_refusal(self):
+        for err in self.NEVER:
+            self.assertFalse(g5.credentials_rejected(err), "SIGN IN lit by a number that merely holds 401: %r" % err)
+            self.assertEqual(g5._hard_stop_why(err), "", "a stated refusal invented from %r" % err)
 
 
 class TheLampNeverFlipsHisSwitch(unittest.TestCase):

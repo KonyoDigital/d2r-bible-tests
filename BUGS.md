@@ -405,6 +405,27 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1631 - A TIMEOUT LIT "SIGN IN" AND A BYTE COUNT SAID THE GROK BALANCE WAS GONE (the Grok CLI look at v3534, 2026-09-30)
+
+The Grok refusal needles were SUBSTRINGS: `"401" in last_error`, `"402" in last_error`, `"insufficient" in last_error`.
+**Reproduced on the shipped code:** `"grok CLI timed out after 1401 ms"` and a session id holding `...401...` both read
+as a revoked sign-in (credentials_rejected True - the GROK lamp and the SIGN IN pill say sign in again);
+`"read 34020 bytes then EOF"` read as an exhausted balance, which also holds the lane for `_HARD_STOP_RETRY_S` (30 min);
+Windows' own "insufficient system resources" (the 8 GB ALT under load) read as "no credit left". The eye pointed at the
+needle list; the measurement found the shapes. **Now** a status code matches only as a whole number that is not a
+duration or a size, and "insufficient" only as a shortfall of credit, balance, funds or quota - the far end's real
+402 text (`status 402 Payment Required ... "http_status": 402`) and every stated 401 still read. Law:
+`tv/test_each_lamp_links_its_own_reader.py` (the refusal shapes it states and the numbers it never does), both new
+red-proofs RED.
+
+### REG-1630 - A LAW CRASHED ON THE ALT BEFORE ANY CASE RAN: `__import__("importlib").util` IS NOT AN IMPORT (2026-09-30)
+
+**Measured on the ALT's own census:** `test_this_machine_can_decode_a_frame` read ALREADY RED untampered on all three
+proofs - `AttributeError: module 'importlib' has no attribute 'util'`. Both `skipIf` decorators called
+`__import__("importlib").util.find_spec("PIL")` while the class was being defined; `importlib.util` is an attribute only
+once something has imported it, which on his Mac something always had and on the ALT's Python 3.12 nothing had. **Now**
+the law imports `importlib.util` and asks once (`_HAVE_PIL`). Swept: every other `importlib.util` use in tv/ imports it.
+
 ### REG-1629 - A WHY THE LAW COULD NOT READ WAS SCORED CLEAN (the #231 eye on v3531 88ece312, 2026-09-30)
 
 `test_a_gate_says_what_it_guards_not_how_many._whys()` turned a why that `ast.literal_eval` could not read into the
