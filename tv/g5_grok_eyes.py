@@ -12,7 +12,12 @@
 # Modes:
 #   off      — instant no-op (default, cousin-safe)
 #   shadow   — Claude still drives ON AIR; Grok also reads & is logged (no replace)
-#   primary  — Grok drives vision reads (Claude-sub gap / future cancel Claude)
+#   primary  — RETIRED 2026-09-30. His ruling: "make sure the subscription CLI is using claude and not grok..
+#              grok is just an extra layer if toggled on.. dean does not use grok.. so it shouldnt need both to work".
+#              MEASURED that morning: his Mac and his ALT were both on primary (linking Grok auto-set it), so Grok
+#              read every frame first - 3,150 of 6,132 calls on the Mac errored, most on a 140 s timeout, before
+#              Claude took the read. Claude is THE reader on every PC; ON means shadow. A saved or requested
+#              "primary" is read as shadow and said so (primaryRetired) - never silently.
 #
 # ┌─ HOW TO REMOVE THE ENTIRE G5 FEATURE (zero behavior change) ──────────────────┐
 # │ 1. delete this file  (tv/g5_grok_eyes.py)                                     │
@@ -379,17 +384,22 @@ def _load_state():
         mode = str(d.get("mode") or "off").strip().lower()
         if mode not in _MODES:
             mode = "off"
+        retired = mode == "primary"
         if d.get("on") and mode == "off":
-            mode = "primary"
-        return {"on": bool(d.get("on")) or mode in ("shadow", "primary"), "mode": mode}
+            mode = "shadow"            # a legacy {"on": true} is the extra layer, never Grok-first (2026-09-30)
+        if retired:
+            mode = "shadow"            # primary is retired: Claude reads, Grok watches beside it
+        return {"on": bool(d.get("on")) or mode == "shadow", "mode": mode, "retired": retired}
     except Exception:
-        return {"on": False, "mode": "off"}
+        return {"on": False, "mode": "off", "retired": False}
 
 
 def _save_state(on, mode):
     mode = str(mode or "off").strip().lower()
     if mode not in _MODES:
         mode = "off"
+    if mode == "primary":
+        mode = "shadow"                # 2026-09-30: nothing writes Grok-first again
     if mode == "off":
         on = False
     else:
@@ -419,7 +429,7 @@ def mode_intent():
     if env in ("shadow", "sh"):
         return "shadow"
     if env in ("1", "on", "true", "yes", "primary", "pri"):
-        return "primary"
+        return "shadow"                # ON is the extra layer; "primary" is retired (2026-09-30)
     st = _load_state()
     if not st["on"]:
         return "off"
@@ -441,7 +451,9 @@ def is_on():
 
 
 def is_primary():
-    return mode() == "primary"
+    """RETIRED 2026-09-30 - always False. Claude is the reader on every PC; Grok, when on, reads beside it (shadow).
+    Kept as a function so every caller that asked still gets an answer, and the answer is the ruling."""
+    return False
 
 
 def is_shadow():
@@ -453,14 +465,25 @@ def set_mode(mode_name, on=None):
     if m in ("0", "false", "no"):
         m = "off"
     if m in ("1", "true", "yes", "on"):
-        m = "primary"
+        m = "shadow"                   # ON is the extra layer; a "primary" request is mapped by _save_state, the one write guard
     if m not in _MODES:
         m = "off"
     return _save_state(m != "off", m)
 
 
 def set_on(on):
-    return set_mode("primary" if on else "off")
+    return set_mode("shadow" if on else "off")
+
+
+def primary_retired_note():
+    """-> the sentence a surface shows when this PC's saved choice still says primary, else ''."""
+    try:
+        if _load_state().get("retired"):
+            return ("this PC was set to Grok-first; that mode is retired (2026-09-30) - Claude reads every frame "
+                    "and Grok reads beside it as the extra layer")
+    except Exception:
+        pass
+    return ""
 
 
 # v1381.2 — no-spam login: one in-flight process; UI only prompts when needsLogin
@@ -570,6 +593,10 @@ def status():
         "power": "grok -p + SuperGrok OIDC login (no API keys)",
         "switch": mode_intent(),
         "mode": mode(),
+        # 2026-09-30 - his ruling, on every status: Claude is the reader, Grok only an extra layer when on
+        "reader": "claude",
+        "readerRule": "Claude reads every frame on every PC; Grok, when on, reads beside it and never replaces it",
+        "primaryRetired": primary_retired_note(),
         # v1501 — SAY IT WHEN INTENT AND REALITY DISAGREE. Konyo had this switched to PRIMARY while
         # the effective mode sat at off, and nothing said so: a lane that never attempts never
         # records an error, so calls/errors/last_error all read clean while the eye was dark. The

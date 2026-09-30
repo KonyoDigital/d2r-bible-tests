@@ -8428,6 +8428,22 @@ GATES = [
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
              "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
+    Gate("test_the_fleet_shows_the_shadow_eye",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
+         needs_app=False,
+         why="#93 (2026-09-30) - his ask: a glowing eye per PC on the fleet so we know the SHADOW READER is on and "
+             "WORKING even after the game is closed. Four joints driven: the console's _shadow_for_wire (his switch, "
+             "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
+             "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
+             "UNKNOWN never drawn lit or shut)."),
+    Gate("test_claude_reads_every_frame",
+         [sys.executable, os.path.join(HERE, "test_claude_reads_every_frame.py")], 180,
+         needs_app=False,
+         why="2026-09-30 - his ruling: Claude reads every frame on every PC; Grok is only an extra layer when "
+             "switched on (Dean has no Grok). MEASURED: his Mac and ALT were on G5 primary (Grok first, 3,150 of "
+             "6,132 Mac calls errored, mostly 140 s timeouts). Pins the switch (ON = shadow, primary retired and "
+             "said), the reader (no Grok-first branch), the console (Claude CLI blocks when missing; login = beside "
+             "Claude; intake asks Claude first) and the page (no Grok-first control)."),
     Gate("test_the_picker_census_reaches_the_fleet",
          [sys.executable, os.path.join(HERE, "test_the_picker_census_reaches_the_fleet.py")], 240,
          needs_app=False,

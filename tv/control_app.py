@@ -37443,29 +37443,20 @@ def farmgate_payload():
     # 2) claude CLI present (v1380.4 deep hunt — same as start_agent)
     env = _env_clean()
     exe = env.get("TV_CLAUDE_BIN") or _find_claude_bin(env.get("PATH"))
-    # ══ GROK EYES (G5) — doctor soft when primary ══
-    _g5_pri = False
-    try:
-        _g5_pri = bool(_G5 is not None and _G5.is_primary())
-    except Exception:
-        _g5_pri = False
-    # ══ END GROK EYES (G5) ══
-    _cli_sev = "warn" if _g5_pri else "block"
-    checks.append(_chk("claude_cli", bool(exe) or _g5_pri, _cli_sev,
-                       (exe or "claude CLI not found on PATH") if not _g5_pri
-                       else (exe or "claude CLI missing — G5 primary covers vision"),
+    # 2026-09-30 — CLAUDE IS THE READER ON EVERY PC (his ruling), so a missing claude CLI BLOCKS everywhere. This row
+    # used to soften to a warning "when G5 primary covers vision"; primary is retired, and Grok - an extra layer when
+    # on, absent on Dean's PC - can never stand in for the reader.
+    checks.append(_chk("claude_cli", bool(exe), "block",
+                       exe or "claude CLI not found on PATH - Claude reads every frame; nothing replaces it",
                        ("irm https://claude.ai/install.ps1 | iex   then: claude  (login once)"
                         if IS_WIN else
-                        "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal")
-                       if not _g5_pri else "G5 primary ON — Claude optional; set mode off to require Claude again"))
+                        "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal")))
 
     # 3) claude AUTH — the one live ping (subscription lane, tiny, hard-capped).
     # v924-R4 (Grok): during ON AIR the live readers already prove the lane — never stack a
     # second `claude -p` on top of a warm pool; the gate belongs BEFORE air.
-    if _g5_pri:
-        checks.append(_chk("claude_auth", True, "warn",
-                           "skipped — G5 Grok Eyes primary is ON (Claude auth optional)"))
-    elif exe and _sock_open(AGENT_PORT):
+    # (2026-09-30: no Grok-primary skip here any more - Claude is the reader on every PC, so its auth is always asked)
+    if exe and _sock_open(AGENT_PORT):
         checks.append(_chk("claude_auth", True, "warn",
                            "skipped during ON AIR — the live readers already prove the lane (press the gate before air next time)"))
     elif exe:
@@ -38253,7 +38244,9 @@ def _intake_dual_runners(here, g5_mode, *, local_on=True):
 
       off      → Claude only (cousin-safe default; pre-G5 behavior)
       shadow   → Claude first, Grok second (failover; Claude leads)
-      primary  → Grok first, Claude second (failover; Grok leads)
+      primary  → RETIRED 2026-09-30, read as shadow: Claude ALWAYS leads. His ruling - "make sure the subscription
+                 CLI is using claude and not grok.. grok is just an extra layer if toggled on" - so no caller, now or
+                 later, can hand this helper a mode that puts Grok first.
 
     Returns list of (lane_label, mjs_path). Empty when local intake disabled.
     """
@@ -38262,12 +38255,10 @@ def _intake_dual_runners(here, g5_mode, *, local_on=True):
     claude = os.path.join(here, "intake_local.mjs")
     grok = os.path.join(here, "intake_grok_sub.mjs")
     mode = (g5_mode or "off").strip().lower()
+    if mode == "primary":
+        mode = "shadow"
     out = []
-    if mode == "primary" and os.path.isfile(grok):
-        out.append(("grok-subscription", grok))
-        if os.path.isfile(claude):
-            out.append(("subscription", claude))
-    elif mode == "shadow":
+    if mode == "shadow":
         if os.path.isfile(claude):
             out.append(("subscription", claude))
         if os.path.isfile(grok):
@@ -40910,7 +40901,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "identity": data})
             return
         if path == "/api/g5_toggle":
-            # {"mode":"off"|"shadow"|"primary"} or {"on":true} → primary
+            # {"mode":"off"|"shadow"} or {"on":true} → shadow. "primary" is RETIRED (2026-09-30): it is saved and read
+            # as shadow - Claude reads every frame, Grok only reads beside it.
             if _G5 is None:
                 self._json(200, {"present": False, "on": False, "mode": "off", "hasKey": False})
                 return
@@ -40933,7 +40925,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/g5_login":
             # v1381.2 — ⚡ Authorize Grok: spawn `grok login --oauth` (browser once).
-            # No-spam: already-authorized / in-flight short-circuit. Optional setPrimary.
+            # No-spam: already-authorized / in-flight short-circuit. Optional setOn (+ GROK beside Claude).
             if _G5 is None:
                 self._json(200, {"ok": False, "present": False, "msg": "G5 module missing"})
                 return
@@ -40942,12 +40934,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json(200, {"ok": False, "msg": str(e)[:160]})
                 return
-            # After auth lands, optional auto-PRIMARY (default true when caller asks)
+            # After auth lands, Grok turns ON as the EXTRA LAYER (shadow) - never Grok-first. 2026-09-30: this line
+            # said set_mode("primary"), so every ⚡ Authorize on an already-linked PC made Grok the reader again; that
+            # is how his Mac and ALT were measured on primary. `setPrimary` is still accepted from an older page and
+            # means the same thing now: + GROK beside Claude.
             if out.get("ok") and (out.get("reason") == "already-authorized"
-                                  or body.get("setPrimary") or body.get("primary")):
+                                  or body.get("setOn") or body.get("setPrimary") or body.get("primary")):
                 try:
                     if out.get("hasSubscription") or out.get("reason") == "already-authorized":
-                        _G5.set_mode("primary")
+                        _G5.set_mode("shadow")
                 except Exception:
                     pass
             st = _g5_status()

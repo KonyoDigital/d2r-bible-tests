@@ -6821,9 +6821,7 @@
   .g5-seg-btn.is-on { background: rgba(185,162,224,.28); color: #f2ebff; font-weight: var(--fw-semibold); }
   .g5-eyes-card[data-mode="shadow"] { border-color: rgba(185,162,224,.55); }
   .g5-eyes-card[data-mode="shadow"] .g5-seg-btn[data-g5="shadow"].is-on { background: rgba(150,120,220,.45); }
-  .g5-eyes-card[data-mode="primary"] { border-color: rgba(240,192,96,.5); }
-  .g5-eyes-card[data-mode="primary"] .g5-seg-btn[data-g5="primary"].is-on {
-    background: rgba(240,192,96,.35); color: #fff4d8; }
+  /* 2026-09-30 - the Grok-first ("primary") position is retired: Claude reads every frame, Grok is the + GROK layer */
   /* v1504 — was 10px at 60% opacity: this line carries the third eye's WHY — "switched to PRIMARY
      but NOT running" lands here. A warning nobody can read is not a warning. */
   .g5-eyes-hint { margin-top: 5px; font-size: var(--fs-2xs); opacity: .78; line-height: var(--lh-normal); }
@@ -8368,9 +8366,8 @@ body[data-shadow="armed"] .live-bug .dot { background: var(--mint); animation: n
                    [[label-outlived-referent]] -->
               <span class="g5-eyes-lab">👁 EYES</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
-                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude subscription intake only (default)">OFF</button>
-                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Dual intake: Claude first, Grok if Claude fails (subscription CLIs)">SHADOW</button>
-                <button type="button" class="g5-seg-btn" data-g5="primary" id="btn-g5-primary" title="Dual intake: Grok first, Claude if Grok fails (SuperGrok login · NO API keys)">PRIMARY</button>
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">OFF</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude still reads every frame; Grok also reads beside it as an extra layer and never replaces Claude (SuperGrok login · NO API keys)">+ GROK</button>
               </span>
               <!-- v1381.2 — ⚡ one-click SuperGrok authorize (browser once; no-spam when already linked) -->
               <button type="button" class="g5-auth-btn" id="btn-g5-auth" title="Install is via TV installer / x.ai CLI. This opens grok login in the browser once per PC. Already authorized = no re-prompt.">⚡ Authorize</button>
@@ -21006,9 +21003,11 @@ window._lockMark = function(isOpen, px, label){
         bits.push('install Grok CLI via TV installer (or: irm https://x.ai/cli/install.ps1 | iex)');
       else if (st.needsLogin || (cli && !authorized && !sub))
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
-      else if (mode === 'off') bits.push('authorized · intake Claude only · dual Grok receiver off');
-      else if (mode === 'shadow') bits.push('dual intake: Claude → Grok failover (subscription CLIs)');
-      else if (mode === 'primary') bits.push('dual intake: Grok → Claude failover (SuperGrok · no API keys)');
+      else if (mode === 'off') bits.push('Claude reads every frame · Grok off');
+      else if (mode === 'shadow') bits.push('Claude reads every frame · + Grok reads beside it (extra layer, never replaces Claude)');
+      /* 2026-09-30 - his ruling: Claude is the reader, Grok only an extra layer. Grok-first ("primary") is retired;
+         a PC whose saved choice still said it is told so here, never silently. */
+      if (st.primaryRetired) bits.push(String(st.primaryRetired));
       if (sub && intent !== mode && intent !== 'off')
         bits.push('effective still ' + mode);
       // v1457 HONESTY (audit): G5 is the MANDATED primary lane here. Its failures were recorded in
@@ -21129,7 +21128,7 @@ window._lockMark = function(isOpen, px, label){
         if (sub || authorized){
           authBtn.textContent = '⚡ Linked';
           authBtn.classList.add('is-ok');
-          authBtn.title = 'Grok authorized on this PC — no re-login. Click to re-check / set PRIMARY.';
+          authBtn.title = 'Grok authorized on this PC — no re-login. Click to re-check and turn + GROK on (Claude still reads every frame).';
           if (_authPoll){ clearInterval(_authPoll); _authPoll = null; }
         } else if (st.loginInflight){
           authBtn.textContent = '⚡ Waiting…';
@@ -21142,7 +21141,7 @@ window._lockMark = function(isOpen, px, label){
         } else {
           authBtn.textContent = '⚡ Authorize';
           authBtn.classList.add('is-need');
-          authBtn.title = 'Opens grok login (browser once). After SuperGrok approve → PRIMARY ready. No spam when linked.';
+          authBtn.title = 'Opens grok login (browser once). After SuperGrok approve → + GROK ready beside Claude. No spam when linked.';
         }
       }
     }
@@ -21178,14 +21177,14 @@ window._lockMark = function(isOpen, px, label){
       try {
         var r = await fetch(API + '/api/g5_login', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ oauth: true, setPrimary: true })
+          body: JSON.stringify({ oauth: true, setOn: true })
         });
         var j = await r.json();
         var st = (j && j.status) || j;
         if (st && st.present !== false) paintG5(st);
         try {
           if (j && j.reason === 'already-authorized')
-            toast('⚡ Grok already linked — PRIMARY ready');
+            toast('⚡ Grok already linked — + GROK on beside Claude');
           else if (j && j.started)
             toast('⚡ browser login opened — authorize SuperGrok once');
           else if (j && j.reason === 'in-flight')
@@ -21209,9 +21208,9 @@ window._lockMark = function(isOpen, px, label){
                 try {
                   await fetch(API + '/api/g5_toggle', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({mode: 'primary'})
+                    body: JSON.stringify({mode: 'shadow'})
                   });
-                  toast('⚡ Grok linked · PRIMARY on');
+                  toast('⚡ Grok linked · + GROK on (Claude still reads every frame)');
                   refreshG5();
                 } catch (e4) {}
               }

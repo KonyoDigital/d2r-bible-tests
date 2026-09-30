@@ -123,9 +123,10 @@ class TestG5OffByDefault(unittest.TestCase):
         self.assertEqual(g5._STATS["calls"], 0)
 
     def test_no_subscription_forces_effective_off(self):
+        # 2026-09-30: a request for the retired Grok-first mode is saved as the extra layer (shadow)
         g5.set_mode("primary")
         with mock.patch.object(g5, "has_subscription", return_value=False):
-            self.assertEqual(g5.mode_intent(), "primary")
+            self.assertEqual(g5.mode_intent(), "shadow")
             self.assertEqual(g5.mode(), "off")
             self.assertFalse(g5.is_on())
 
@@ -255,9 +256,11 @@ class TestDualIntakeReceivers(unittest.TestCase):
         labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "shadow")]
         self.assertEqual(labs, ["subscription", "grok-subscription"])
 
-    def test_primary_grok_then_claude(self):
+    def test_a_primary_request_still_puts_claude_first(self):
+        # 2026-09-30 - his ruling: Claude is the reader, Grok only an extra layer. The retired "primary" is read as
+        # shadow, so no caller can put Grok ahead of Claude.
         labs = [l for l, _ in self.ca._intake_dual_runners(self._td, "primary")]
-        self.assertEqual(labs, ["grok-subscription", "subscription"])
+        self.assertEqual(labs, ["subscription", "grok-subscription"])
 
     def test_local_off_empty(self):
         self.assertEqual(self.ca._intake_dual_runners(self._td, "primary", local_on=False), [])

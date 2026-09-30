@@ -1784,8 +1784,10 @@ class TestV919IntakeLane(unittest.TestCase):
         self.assertEqual(hdrs.get("X-Intake-Lane"), "subscription")
         self.assertIn(b"Shako", body)
 
-    def test_dual_primary_prefers_grok_subscription_lane(self):
-        """v1380.1 — G5 primary: dual receiver tries grok-subscription first."""
+    def test_a_retired_primary_still_asks_claude_first(self):
+        """v1380.1 made G5 primary try grok-subscription first. RETIRED 2026-09-30 by his ruling - "make sure the
+        subscription CLI is using claude and not grok.. grok is just an extra layer if toggled on": a lane that still
+        reports "primary" is read as shadow, so the dual receiver asks the Claude subscription lane FIRST."""
         class _PR:
             returncode = 0
             stdout = json.dumps({"status": 200, "body": '{"found":["Shako"]}',
@@ -1810,10 +1812,11 @@ class TestV919IntakeLane(unittest.TestCase):
             ca.subprocess.run = old
             ca._G5 = old_g5
         self.assertEqual(status, 200)
-        self.assertEqual(hdrs.get("X-Intake-Lane"), "grok-subscription")
+        self.assertEqual(hdrs.get("X-Intake-Lane"), "subscription", "Grok led the intake although it is only the extra layer")
         self.assertIn(b"Shako", body)
         self.assertTrue(seen, "node runner should have been spawned")
-        self.assertIn("intake_grok_sub.mjs", " ".join(str(x) for x in seen[0]))
+        self.assertIn("intake_local.mjs", " ".join(str(x) for x in seen[0]))
+        self.assertNotIn("intake_grok_sub.mjs", " ".join(str(x) for x in seen[0]))
 
     def test_strict_mode_502s_instead_of_website_fallback(self):
         class _PR:

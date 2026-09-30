@@ -7298,41 +7298,16 @@ def claude_read(path, worker=None, out_jpg=None):
         return EMPTY
 
     # ══ GROK EYES (G5) — REMOVABLE ════════════════════════════════════════════
-    # Phase 2: shadow only (Claude result always returned). Phase 3: primary branch.
-    # OFF/missing module → zero behavior change. See tv/G5_GROK_EYES_REMOVAL.md
+    # 2026-09-30 — CLAUDE READS EVERY FRAME. The Grok-first branch that stood here is RETIRED by his ruling:
+    # "make sure the subscription CLI is using claude and not grok.. grok is just an extra layer if toggled on..
+    # dean does not use grok.. so it shouldnt need both to work". Measured that morning: his Mac and ALT were both on
+    # primary, so Grok read first and a failed Grok read (3,150 of 6,132 on the Mac, mostly 140 s timeouts) cost that
+    # long before Claude read the frame. Grok now only reads BESIDE Claude (the shadow jobs below, on their own
+    # thread, never replacing and never delaying the Claude answer). OFF/missing module → zero behaviour change.
     try:
         import g5_grok_eyes as _G5
     except Exception:
         _G5 = None
-    if _G5 is not None:
-        try:
-            if _G5.is_primary():
-                # Phase 3 path — only active when mode=primary + key
-                _g5r = _G5.g5_vision_read(ap, prompt=READ_PROMPT.format(path=ap))
-                if _g5r is not None:
-                    if "intent" not in _g5r or not _g5r.get("intent"):
-                        _g5r["intent"] = _intent_for(_g5r.get("scene"))
-                    _g5r["stashTab"] = _norm_stash_tab(
-                        _g5r.get("stashTab") or _g5r.get("stash_tab"), _g5r.get("scene"))
-                    globals()["_LAST_RAW"] = str(_g5r.get("_raw_txt") or "")[:2048]
-                    return _g5r
-                # v1457 HONESTY (audit): G5 Grok Eyes is Konyo's MANDATED primary vision lane on
-                # this Mac. When it fails, the read silently continued on Claude and the reason —
-                # which g5_grok_eyes already recorded in _STATS["last_error"] ("grok CLI not on
-                # PATH", "grok -p timeout", "no-json from grok -p", …) — never reached the console.
-                # A swallowed failure in the PRIMARY lane reads as "Grok is working". Say WHY.
-                _why = ""
-                try:
-                    _why = str((_G5.status().get("stats") or {}).get("last_error") or "")[:120]
-                except Exception:
-                    _why = ""
-                ev("cap", "⚠ G5 primary vision returned None — Claude fallback"
-                          + (f" · why: {_why}" if _why else " · no reason recorded"))
-        except Exception as _g5e:
-            try:
-                ev("cap", f"⚠ G5 primary failed (Claude fallback): {_g5e}")
-            except Exception:
-                pass
     # ══ END GROK EYES (G5) ════════════════════════════════════════════════════
 
     t0 = time.time()
