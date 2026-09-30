@@ -56369,7 +56369,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     } catch (e) {}
   }
   window._cbLearnedFetch = _cbLearnedFetch;
-  function _cbTemplates(){
+  /* 2026-09-30 — HIS RULE: "thats a personal tool for each individual console". The page's hand-typed CHARS are HIS
+     characters and ship to every PC, so offered as templates they made GrokBot's empty builder open straight onto
+     "Konyolock — Warlock 88" - his build on a console that is not his. A console now OFFERS only what its own reels
+     learned (_cbTemplates); the typed rows survive only as a LOOKUP for a build that already names one (b.from), so a
+     build made from one keeps its notes. Another PC's characters arrive through Fleet 3.0's own section, never here.
+     [[feedback-per-pc-personal-data]] */
+  function _cbTypedTemplates(){
     var out = [];
     try {
       if (typeof CHARS === 'undefined' || !CHARS) return out;
@@ -56382,6 +56388,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
                    strengths: (c.strengths || []).slice(), weaknesses: (c.weaknesses || []).slice() });
       });
     } catch (e) {}
+    return out;
+  }
+  function _cbTemplates(){
+    var out = [];
     try {
       var seen = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars : [];
       seen.forEach(function(L){
@@ -56402,6 +56412,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return out;
   }
   window._cbTemplates = _cbTemplates;
+  window._cbTypedTemplates = _cbTypedTemplates;
 
   var st = { open: false, bid: null, draft: null, view: 'equip', diff: 'hell', quests: true, sq: '',
              pick: null, stash: null, newb: null, drag: null, held: null, say: '', sayBad: false, filtOpen: false };
@@ -57437,7 +57448,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
 
   function _cbLeftHtml(b, s, L){
-    var tpl = null; if (b.from) _cbTemplates().forEach(function(t){ if (t.key === b.from) tpl = t; });
+    var tpl = null; if (b.from) _cbTemplates().concat(_cbTypedTemplates()).forEach(function(t){ if (!tpl && t.key === b.from) tpl = t; });
     var sw = '';
     if (tpl && (tpl.strengths.length || tpl.weaknesses.length)){
       sw = (tpl.strengths.length ? '<div class="cb-sw-k">Strengths</div><ul>' + tpl.strengths.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '')

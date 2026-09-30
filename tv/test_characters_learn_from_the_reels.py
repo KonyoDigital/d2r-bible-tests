@@ -307,7 +307,7 @@ if (a < 0 || b < 0) throw new Error('CUT MISSING');
 const body = s.slice(a, b);
 const out = {};
 const run = new Function('window', 'location', 'fetch', 'CHARS', 'CB_CLASS_ALIAS', 'LEARNED',
-  body + '\n _cbLearned = LEARNED; return _cbTemplates();');
+  body + '\n _cbLearned = LEARNED; return { offered: _cbTemplates(), typed: _cbTypedTemplates() };');
 const CHARS = { testlock: { name: 'Testlock', build: 'Warlock 88', strengths: ['a'], weaknesses: [] },
                 other: { name: 'Otherdin', build: 'Hammerdin 82' } };
 const ALIAS = { warlock: 'Warlock', hammerdin: 'Paladin', paladin: 'Paladin', sorceress: 'Sorceress' };
@@ -337,18 +337,25 @@ class ThePageMergesWhatWasLearned(unittest.TestCase):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
-    def test_no_console_leaves_the_typed_list_exactly(self):
-        self.assertEqual(self.o["typed"], self.o["bad"], "an unreadable answer must change nothing")
-        self.assertEqual([(t["name"], t["level"]) for t in self.o["typed"]], [("Testlock", 88), ("Otherdin", 82)])
-        self.assertTrue(all("seen" not in t for t in self.o["typed"]))
+    # 2026-09-30 — HIS RULE: the builder is "a personal tool for each individual console". The page's hand-typed CHARS
+    # are HIS characters and ship to every PC; offered as templates they opened GrokBot's empty builder onto
+    # "Konyolock — Warlock 88". A console now OFFERS only what its own reels learned; the typed rows are a LOOKUP only.
+    def test_no_console_offers_none_of_the_typed_characters(self):
+        self.assertEqual(self.o["typed"]["offered"], [], "with no console behind the page, his hand-typed characters "
+                                                         "were offered to whoever opened it")
+        self.assertEqual(self.o["bad"]["offered"], [], "an unreadable answer must offer nothing")
 
-    def test_a_typed_character_gains_its_witnessed_level_and_a_new_one_joins(self):
-        m = {t["name"]: t for t in self.o["merged"]}
-        self.assertEqual((m["Testlock"]["level"], m["Testlock"]["seen"], m["Testlock"]["pendingLevel"]), (90, 3, 91))
-        self.assertEqual(m["Testlock"]["key"], "testlock", "the typed row keeps its key and its strengths")
-        self.assertEqual(m["Testlock"]["strengths"], ["a"])
+    def test_the_learned_characters_are_the_list(self):
+        m = {t["name"]: t for t in self.o["merged"]["offered"]}
+        self.assertEqual(sorted(m), ["Mulebox", "TESTLOCK"], "the list is what THIS console's reels saw: %s" % sorted(m))
+        self.assertEqual((m["TESTLOCK"]["level"], m["TESTLOCK"]["seen"], m["TESTLOCK"]["pendingLevel"]), (90, 3, 91))
         self.assertEqual((m["Mulebox"]["key"], m["Mulebox"]["cls"], m["Mulebox"]["level"]), ("seen:mulebox", "Sorceress", 1))
-        self.assertEqual(m["Otherdin"]["level"], 82, "an unseen typed character is left alone")
+        self.assertNotIn("Otherdin", m, "a typed character this console never saw was offered")
+
+    def test_a_typed_character_is_still_a_lookup_for_a_build_that_names_it(self):
+        t = {x["key"]: x for x in self.o["merged"]["typed"]}
+        self.assertEqual((t["testlock"]["name"], t["testlock"]["level"], t["testlock"]["strengths"]), ("Testlock", 88, ["a"]),
+                         "a build made from a typed row lost the notes it came with")
 
 
 class TheConsoleCarriesIt(unittest.TestCase):
@@ -401,6 +408,13 @@ class AFixtureWorldKeepsItsOwnRoster(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-30 his rule - the builder offers his hand-typed characters on every console again (GrokBot's opened on Konyolock)",
+        "file": "bible.html",
+        "find": "  function _cbTemplates(){\n    var out = [];\n",
+        "replace": "  function _cbTemplates(){\n    var out = _cbTypedTemplates();\n",
+        "matches": 1,
+    },
     {
         "why": "#231 5909410674 - the hourly cap walks the cursor past every later frame and reel unread again",
         "file": "char_select.py",

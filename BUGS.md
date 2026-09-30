@@ -405,6 +405,26 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1599 - EVERY CONSOLE'S BUILDER OPENED ON HIS CHARACTER: THE PAGE SHIPPED HIS TYPED ROSTER (2026-09-30)
+
+**His words:** *"how is it possible that grokbots console has my character build rendering? ... is it using my
+profile?"* and the rule: *"the fleet 3.0 should have a section and organized way to reach every profiles data online..
+but not through character build thats a personal tool for each individual console"*.
+
+**Measured:** GrokBot's console is its own install (its own identity, no copy of his store). The builder's templates
+were the page's hand-typed `CHARS` - HIS characters (Konyolock Warlock 88, Konyodin Paladin 82, ...), shipped in the
+page to every PC - and a console with no saved builds opens a draft of the FIRST template (`_cbTemplates()[0]`). So any
+empty builder, anywhere, opened on "Konyolock — Warlock 88". The ALT did not, because it has builds of its own.
+
+**Fixed:** a console now OFFERS only the characters its own reels learned (`_cbTemplates`, from /api/chars_learned);
+the typed rows survive only as a LOOKUP (`_cbTypedTemplates`) for a build that already names one, so his Mac's builds
+keep their notes. With no console and nothing learned, an empty builder opens a blank "New build". Another PC's
+characters belong to Fleet 3.0's own section, never to this tool. The fuller ask - a learned character becomes a build
+by itself, its witnessed equipped items fill the slots and lock by evidence - is task #103.
+
+**Guards:** `test_characters_learn_from_the_reels` - the page's own cut in node: no console offers none of the typed
+characters, the learned characters are the list, a typed row is still a lookup; 1 red-proof, seen red.
+
 ### REG-1596 - THE HARDENED LOCK, REBUILT AGAINST ITS 13 FINDINGS AND MADE VISIBLE (#98, #41 rank 17, 2026-09-30)
 
 **His ruling (2026-09-30), on "Shift releases it, or drop the lock?":** *"whatever is logical. i trust you. just make it
