@@ -285,7 +285,52 @@ def _journal_tail_rows(max_bytes=600000):
     return rows
 
 
-def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True):
+#: REG-1617 — the CLI's own word on its sign-in: asked on a daemon thread, at most every 5 min, never on a request path
+CLAUDE_AUTH_EVERY_S = 300
+_CLAUDE_AUTH = {"at": 0.0, "val": None, "busy": False}
+
+
+def _claude_auth_state(now=None, _probe=None, _thread=None):
+    """The last `claude auth status` answer (None until the first has come back). Starts a refresh when it is older than
+    CLAUDE_AUTH_EVERY_S and none is running - the caller never waits on the CLI. -> dict | None"""
+    now = time.time() if now is None else now
+    if not _CLAUDE_AUTH["busy"] and now - float(_CLAUDE_AUTH["at"] or 0) >= CLAUDE_AUTH_EVERY_S:
+        _CLAUDE_AUTH.update(busy=True, at=now)
+
+        def _go():
+            try:
+                import claude_signin as _csi
+                _CLAUDE_AUTH["val"] = (_probe or _csi.status)(_find_claude_bin())
+            except Exception as e:
+                _CLAUDE_AUTH["val"] = {"loggedIn": None, "method": None,
+                                       "why": "claude auth status raised %s - UNKNOWN" % type(e).__name__}
+            finally:
+                _CLAUDE_AUTH["busy"] = False
+        if _thread is not None:
+            _thread(_go)
+        else:
+            threading.Thread(target=_go, daemon=True, name="tvd-claude-auth").start()
+    return _CLAUDE_AUTH["val"]
+
+
+def claude_login(origin, _start=None, _bin=None):
+    """REG-1617 — HIS SIGN IN BUTTON: open `claude auth login` in a window on THIS PC. -> (http code, dict)
+
+    Only this console's own page may press it (the same Origin rule as board_answer: a web page elsewhere must never
+    be able to pop a sign-in window on his machine). The command is fixed in claude_signin; nothing from the request
+    reaches it. A started sign-in re-arms the CLI probe, so the lamp follows it on the next poll, not in 5 min."""
+    ok_origins = {"http://127.0.0.1:%d" % CONTROL_PORT, "http://localhost:%d" % CONTROL_PORT}
+    if not origin or origin not in ok_origins:
+        return 403, {"ok": False, "started": False, "reason": "origin",
+                     "why": "only this console's own page may open a sign-in (Origin %r)" % (origin,)}
+    import claude_signin as _csi
+    r = (_start or _csi.start)(_bin if _bin is not None else _find_claude_bin())
+    if r.get("started"):
+        _CLAUDE_AUTH["at"] = 0.0
+    return 200, r
+
+
+def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
     """#105 (REG-1604) — IS EACH READER CONNECTED ON THIS PC? -> {claude: lamp, grok: lamp}
 
     Konyo, 2026-09-30, after his ALT filmed a day and read nothing: "a button showing this like if synced or
@@ -303,6 +348,7 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True):
     Cached _READER_CACHE_S: /api/status is polled and the journal tail is read at most twice a minute.
     [[unknown-stays-unknown]] [[heart-first]]"""
     now = float(now_ms if now_ms is not None else time.time() * 1000)
+    _live = rows is None and g5 is None     # REG-1617: only a live call asks the CLI (a law's rows never spawn it)
     if use_cache and rows is None and g5 is None:
         _c = _READER_CACHE
         if _c.get("val") is not None and time.time() - float(_c.get("at") or 0) < _READER_CACHE_S:
@@ -344,12 +390,25 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True):
                         break
             _why = _why or "the read returned nothing"
             lamp["needsLogin"] = any(w in _why.lower() for w in _READER_AUTH_WORDS)
-            lamp.update(state="off", why=("Claude cannot sign in on this PC: %s - open PowerShell or a terminal, "
-                                          "run `claude`, type /login" % _why) if lamp["needsLogin"]
+            lamp.update(state="off", why=("Claude cannot sign in on this PC: %s - press SIGN IN under the lamps, or "
+                                          "run `claude` and type /login" % _why) if lamp["needsLogin"]
                         else ("Claude's last read on this PC failed: %s" % _why))
         else:
             lamp.update(state="on", why="Claude read on this PC %d min ago (%d ok, %d failed in 2 h)"
                         % (max(0, int((now - last_t) / 60000)), len(good), len(failed)))
+    # REG-1617 — AND THE CLI'S OWN WORD ON ITS SIGN-IN, so SIGN IN shows before a read has to fail (a PC that is not
+    # recording reads nothing, and its lamp would sit at UNKNOWN while it is signed out). A read that just SUCCEEDED
+    # outranks it; a probe that cannot answer changes nothing - UNKNOWN is not "signed out".
+    _au = auth if auth is not None else (_claude_auth_state() if _live else None)
+    if isinstance(_au, dict) and _au.get("loggedIn") is False and lamp.get("state") != "on":
+        lamp.update(state="off", needsLogin=True,
+                    why="Claude is signed out on this PC (%s) - press SIGN IN under the lamps, or run `claude` and "
+                        "type /login" % (_au.get("why") or "claude auth status"))
+    try:
+        import claude_signin as _csi
+        lamp["signInOpen"] = bool(_csi.inflight())
+    except Exception:
+        lamp["signInOpen"] = None
     out["claude"] = lamp
     # ── Grok: its lane's own status
     # #108 - the reason exists before the call: a lane that ANSWERS with something other than a dict is UNKNOWN too, and
@@ -40914,6 +40973,11 @@ class Handler(BaseHTTPRequestHandler):
             # ONLY fast-forward, and ONLY on a clean tree: a machine mid-edit keeps its work and
             # is told why it is not updating. Never a merge, never a rebase, never a reset.
             self._json(200, fleet_pull())
+            return
+        if path == "/api/claude_login":
+            # REG-1617 — the SIGN IN button under the lamps (origin-guarded; the command is fixed)
+            _code, _out = claude_login(self.headers.get("Origin"))
+            self._json(_code, _out)
             return
         if path == "/api/ui_alive":
             # v2322 — THE HEARTBEAT THE BACKUP GENERATOR LISTENS FOR. Deliberately the cheapest

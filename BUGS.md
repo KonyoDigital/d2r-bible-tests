@@ -405,6 +405,23 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1617 - A SIGNED-OUT CLAUDE HAD NO WAY BACK IN FROM THE CONSOLE (2026-09-30)
+
+**His ask:** "how do i sign in on the console.. make a button there so i can click within the console.. where we said
+it should render if we are still connected because this happens monthly". **Measured:** his ALT's `claude auth status
+--json` answered `"authMethod": "none"` while every read failed with "OAuth session expired" for a day; the lamp said
+so, and the only fix was a terminal he had to find and type `claude` then `/login` into.
+
+**Now:** a **SIGN IN** pill under the CLAUDE/GROK lamps, shown only while that PC's Claude is signed out. One click
+opens the CLI's own `claude auth login` in a window on that PC; he finishes in the browser, and the lamp follows on the
+next read. The lamp now also learns "signed out" from the CLI itself (`claude auth status`, asked in the background at
+most every 5 min), so the button shows before a read has to fail; a read that just succeeded outranks it; UNKNOWN is
+never "signed out". The route answers only the console's own page (the board's Origin rule) and runs one fixed command,
+one sign-in at a time. On Windows the window is deliberately visible: the console's no-window door (win_quiet,
+REG-1307) would otherwise hide it, and a hidden sign-in would hang. Measured on pixels at 1600/1280/1120/901: the pill
+sits in the header's corner, overlaps nothing, and the tab strip stays one row. Law
+`test_claude_signs_in_from_the_console`, every red-proof seen RED.
+
 ### REG-1616 - TWO CI SPECS MEASURED THE WRONG WORLD, SO THEIR PREMISES FAILED ON EVERY RUN SINCE v3527 (2026-09-30)
 
 **Was:** Routine I red on e79aed53, 93bd7289 and ac2be8d7 with the same two specs. `v1978_vault_set_pieces` asserted

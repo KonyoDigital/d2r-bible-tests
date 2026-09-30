@@ -326,6 +326,16 @@
     "purpose": "Runs the suite with the host things a GitHub runner lacks (his recorded board, his footage) stubbed and names which tests depend on his Mac; green means 'no KNOWN host trap', never 'CI will pass'.",
     "territory": "routines-infra"
   },
+  "claude_signin.py": {
+    "entryPoints": [
+      "status",
+      "command",
+      "start",
+      "inflight"
+    ],
+    "gotcha": "The console hides every child it starts on Windows (win_quiet, REG-1307), and win_quiet still hides a CREATE_NEW_CONSOLE child unless the caller hands in its own STARTUPINFO - so start() passes both, with SW_SHOWNORMAL: a sign-in he pressed for must be SEEN, or a prompt in it hangs for ever. status() None is UNKNOWN (no CLI, no answer, garbage), never 'signed out'. One sign-in in flight at a time; the command is fixed and nothing from the page reaches it.",
+    "purpose": "REG-1617: the SIGN IN button under the CLAUDE/GROK lamps. status() asks `claude auth status --json` for the CLI's own loggedIn; start() opens `claude auth login` in a window on THIS PC (Windows: a visible console; Mac: Terminal) and he finishes in the browser. control_app.claude_login() is the origin-guarded route, _claude_auth_state() the cached background probe that lets the lamp say 'signed out' before a read has to fail."
+  },
   "code_identity.py": {
     "entryPoints": [
       "drift",
@@ -1743,7 +1753,8 @@
       "current",
       "census",
       "last_stamps",
-      "positions"
+      "positions",
+      "close_out"
     ],
     "gotcha": "Append-only means no second mode: the store opens 'a' and never 'w', there is no age-trim, and at _CEILING = 500000 rows it REFUSES the write rather than making room by forgetting the beginning of every journey. `by` is required and an empty one is refused. Re-stamping a reel at the station it is already at writes NOTHING and reports `wrote: False, ok: True` — but a genuine re-entry (PRINTER -> TRIAGE -> PRINTER) is a different fact and is kept.",
     "purpose": "The only store that REMEMBERS a reel's journey: append-only stamps of each station reached, by whom, why. No trim; the ceiling refuses.",

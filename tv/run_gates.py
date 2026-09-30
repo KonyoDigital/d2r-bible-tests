@@ -8636,6 +8636,15 @@ GATES = [
              "a deleter's record is closed out once, one still on the shelf never, one gone with no record is named and "
              "never stamped; dry writes nothing; an unreadable record is UNKNOWN. The heart's corroborator goes red on "
              "an unlogged deletion and agrees once it is logged; the triage tick closes out after its walk."),
+    Gate("test_claude_signs_in_from_the_console",
+         [sys.executable, os.path.join(HERE, "test_claude_signs_in_from_the_console.py")], 60,
+         needs_app=False,
+         why="REG-1617 (2026-09-30) - his ask: 'make a button there so i can click within the console ... this happens "
+             "monthly'. Drives claude_signin: the CLI's own loggedIn (UNKNOWN never reads as signed out), the one fixed "
+             "`claude auth login` in a window he can see - through the console's own no-window door, which would "
+             "otherwise hide it - and one sign-in in flight at a time; the route answers only this console's own page and "
+             "re-arms the probe; the lamp learns 'signed out' from the CLI, a good read outranks it; the header's SIGN IN "
+             "pill shows only for needsLogin and the click posts the route."),
     Gate("test_the_push_waits_for_a_settling_console",
          [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
          needs_app=False,

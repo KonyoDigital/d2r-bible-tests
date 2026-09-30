@@ -7703,6 +7703,13 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
 /* UNKNOWN is a "?", not a lamp: a dashed 7px ring rendered as a GEAR - the Grok CLI, cold on the pixels: "both pills
    show a gear instead of a filled or empty lamp ... UNKNOWN what the gear means". A gear says settings; this says
    nobody measured it. */
+/* REG-1617 - the SIGN IN pill: a third row under the lamps (never wider than the chip above it, so the tab strip keeps
+   every pixel REG-1607 measured), in the lamps' own fault colour, on the type tokens */
+.rl-signin { font: var(--fw-semibold, 600) var(--fs-2xs)/1.3 var(--mono, monospace); letter-spacing: 0; padding: 0 8px;
+             border-radius: 999px; border: 1px solid rgba(232,138,122,.6); color: #e88a7a; background: rgba(232,138,122,.08);
+             cursor: pointer; white-space: nowrap; }
+.rl-signin:hover { background: rgba(232,138,122,.18); }
+.rl-signin[disabled] { opacity: .6; cursor: default; }
 .reader-lamps .rl[data-lamp="unknown"] i { width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
   font-style: normal; line-height: 1; color: var(--text-dim); }
 .reader-lamps .rl[data-lamp="unknown"] i::before { content: "?"; }
@@ -7783,6 +7790,10 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
           <span class="rl" id="rl-claude" data-lamp="unknown" title="Claude (primary reader): not measured yet"><i></i>CLAUDE</span>
           <span class="rl" id="rl-grok" data-lamp="unknown" title="Grok (shadow layer): not measured yet"><i></i>GROK</span>
         </div>
+        <!-- REG-1617 - his "make a button there so i can click within the console": shown only while this PC's Claude
+             is signed out; it opens the CLI's own sign-in on THIS PC and he finishes in the browser -->
+        <button class="rl-signin" id="rl-signin" type="button" hidden onclick="window._claudeSignIn(this)"
+                title="Claude is signed out on this PC - click to open the sign-in">SIGN IN</button>
       </div>
     </header>
 
@@ -28455,8 +28466,42 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       el.title = p[1] + ': ' + (state === 'on' ? 'CONNECTED' : state === 'off' ? 'NOT CONNECTED' : 'UNKNOWN')
                + (L && L.why ? ' - ' + L.why : (rd ? '' : ' - the console did not say'));
     });
+    /* REG-1617 - SIGN IN only while this PC's Claude says it is signed out (needsLogin), never for a read that merely
+       failed and never on UNKNOWN; while a sign-in window is open it says so instead of offering a second one */
+    var sb = document.getElementById('rl-signin');
+    if (sb) {
+      var C = (rd && typeof rd === 'object') ? rd.claude : null;
+      var need = !!(C && C.state === 'off' && C.needsLogin === true);
+      sb.hidden = !need;
+      if (need && !sb.disabled) {
+        sb.textContent = C.signInOpen ? 'SIGNING IN…' : 'SIGN IN';
+        sb.title = C.signInOpen ? 'a sign-in window is open on this PC - finish it in the browser'
+                                : 'Claude is signed out on this PC - click to open the sign-in (you finish it in the browser)';
+      }
+    }
   }
   window._paintReaderLamps = _paintReaderLamps;
+  /* REG-1617 - the click: the console opens `claude auth login` on this PC (POST, same origin); the answer's own words go
+     in the title, and the next status poll repaints the lamp once the sign-in lands */
+  function _claudeSignIn(btn) {
+    btn = btn || document.getElementById('rl-signin');
+    if (btn) { btn.disabled = true; btn.textContent = 'OPENING…'; }
+    return fetch('/api/claude_login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = (j && (j.started || j.reason === 'in-flight')) ? 'SIGNING IN…' : 'SIGN IN';
+          btn.title = (j && j.why) || 'the console gave no answer';
+        }
+        return j;
+      })
+      .catch(function (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'SIGN IN'; btn.title = 'the console did not answer (' + e + ')'; }
+        return null;
+      });
+  }
+  window._claudeSignIn = _claudeSignIn;
 
   function _swmAgo(ms) {
     if (!ms) return null;
