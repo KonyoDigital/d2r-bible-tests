@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3537",
+  "ver": "v3538",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3537: the doctor runs its sweep check in a child process so the vault lamp never freezes; a stack dump never kills the console; a shell law with no real bash says unmeasured; a reused pid is never read as the prover; an unreadable PROOF_NEEDS is never graded",
+  "note": "v3538: the page reports which session dossier is on screen so a visual pass can tell an opened dossier from a shelf tile; an owing vault lane with no recorded tick says why it waits and a raising tick leaves a trace; the doctor child spawns and never forks",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
