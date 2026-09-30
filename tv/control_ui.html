@@ -6645,13 +6645,21 @@
   .fleet-shadow .sh-lid { fill: #0d0907; stroke: #6b5a48; stroke-width: 1.4; }
   .fleet-shadow .sh-iris { fill: #4a3526; }
   .fleet-shadow .sh-pupil { fill: #050303; }
-  .fleet-shadow.st-lit .sh-lid, .fleet-shadow.st-live .sh-lid { stroke: #d2462d; }
-  .fleet-shadow.st-lit .sh-iris { fill: #e0522f; }
-  .fleet-shadow.st-live .sh-iris { fill: #ff6a36; }
+  .fleet-shadow .sh-glint { fill: none; }
+  /* lit = a deep-red ember; live = a bright gold iris WITH a white glint. The Grok eye could not tell the two apart
+     on a still frame when they differed only in shade and breath speed (2026-09-30), so live differs in SHAPE too. */
+  .fleet-shadow.st-lit .sh-lid { stroke: #b8382a; }
+  .fleet-shadow.st-lit .sh-iris { fill: #c93a26; }
+  .fleet-shadow.st-live .sh-lid { stroke: #ffb340; }
+  .fleet-shadow.st-live .sh-iris { fill: #ffa629; }
+  .fleet-shadow.st-live .sh-glint { fill: #fff8e6; }
   .fleet-shadow.st-lit svg { filter: drop-shadow(0 0 3px rgba(255, 84, 46, .8)); animation: fleetShadowBreath 3.4s ease-in-out infinite; }
-  .fleet-shadow.st-live svg { filter: drop-shadow(0 0 5px rgba(255, 106, 54, .95)); animation: fleetShadowBreath 1.7s ease-in-out infinite; }
-  .fleet-shadow.st-idle .sh-lid { stroke: #b8903e; }
-  .fleet-shadow.st-idle .sh-iris { fill: #6a5634; }
+  .fleet-shadow.st-live svg { filter: drop-shadow(0 0 6px rgba(255, 170, 60, 1)); animation: fleetShadowBreath 1.7s ease-in-out infinite; }
+  /* idle = ON but NOT working: a hollow amber outline, iris an empty ring, no pupil - it must never read as "lit but
+     softer" (the Grok eye's words for the first cut, 2026-09-30), because it means the watcher STOPPED */
+  .fleet-shadow.st-idle .sh-lid { fill: none; stroke: #86755a; stroke-dasharray: none; }
+  .fleet-shadow.st-idle .sh-iris { fill: none; stroke: #86755a; stroke-width: 1.2; }
+  .fleet-shadow.st-idle .sh-pupil { fill: none; }
   .fleet-shadow.st-off .sh-shut { fill: none; stroke: #8a8076; stroke-width: 1.6; stroke-linecap: round; }
   .fleet-shadow.st-unk .sh-lid { fill: none; stroke: #6d6a66; stroke-dasharray: 2.2 2; }
   @keyframes fleetShadowBreath {
@@ -24973,7 +24981,8 @@ function escC(s) {
      online; nothing is guessed. Exported so a law can put every state to it. [[unknown-stays-unknown]] */
   var _SH_EYE_OPEN = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
       + '<path class="sh-lid" d="M1.5 7 Q13 -3.5 24.5 7 Q13 17.5 1.5 7 Z"/>'
-      + '<circle class="sh-iris" cx="13" cy="7" r="3.9"/><circle class="sh-pupil" cx="13" cy="7" r="1.5"/></svg>';
+      + '<circle class="sh-iris" cx="13" cy="7" r="3.9"/><circle class="sh-pupil" cx="13" cy="7" r="1.5"/>'
+      + '<circle class="sh-glint" cx="14.3" cy="5.7" r="0.85"/></svg>';
   var _SH_EYE_SHUT = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
       + '<path class="sh-shut" d="M2 6 Q13 14 24 6"/><path class="sh-shut" d="M7 9.4 L5.6 12 M13 10.6 L13 13.4 M19 9.4 L20.4 12"/></svg>';
   var _SH_EYE_UNK = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
