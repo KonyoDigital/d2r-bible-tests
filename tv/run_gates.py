@@ -8454,6 +8454,18 @@ GATES = [
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
              "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such. 18 cases, 15 red-proofs"),
+    Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
+         os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
+         needs_app=False,
+         why="#103 step B (REG-1601) - his words: 'a sessions character selection then moving forward.. scenarios future "
+             "wise are linked to that character.. same logic getting routed down' (the printer). The character-select "
+             "reader is asked which row is HIGHLIGHTED (only a row that read listed counts); a visit that ran past its "
+             "reads gets ONE closing read of its last frame once the scan is past it, inside the hourly cap - so the "
+             "row he pressed Play on decides, not the one he arrived on; each login joins the gear ledger as the row its "
+             "reel splits at (the journal's own sessionId) and the rollover chain carries it; a sealed reel the learner "
+             "has not walked WAITS (6 h bound; frames gone never wait; another world's learner is never asked); the "
+             "doctor says waiting, not late; the console's learner nudges the gear ledger when it has news. 15 cases, "
+             "15 red-proofs"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,

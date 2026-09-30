@@ -60,6 +60,8 @@ LEFT_VAL = (0.17, 0.27)
 VISIT_GAP_S = 90         # candidate frames further apart than this are separate visits
 MIN_VISITS = 2           # "witnessed a few times over"
 MAX_READS_PER_VISIT = 2
+CLOSE_READ_GAP_MS = 3000  # #103 step B: a visit whose last frame came this long after its last read gets ONE more read
+                          # of that last frame - the row highlighted when he pressed Play is the character he entered with
 READS_PER_HOUR = 8       # the paid reader is his subscription; this lane never spends more than this
 TICK_BUDGET_S = 8.0      # wall time one tick may spend scanning (it rides a 45 s loop: <20% of one core, and less
                          # on the ALT, where the game shares an 8 GB box)
@@ -225,6 +227,30 @@ def partial_of(raw):
     return p if isinstance(p, bool) else None
 
 
+def selected_of(raw, rows):
+    """#103 step B — the row the screen shows HIGHLIGHTED: the character the game enters with. -> (name, why)
+
+    Only a name that is one of the rows THIS read listed counts, folded as the learner folds: a highlighted name the list
+    does not carry is a misread, and a guessed character would file his gear under the wrong one. None + why is UNKNOWN."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return None, "the answer is not JSON"
+    if not isinstance(raw, dict):
+        return None, "the answer is not an object"
+    sel = raw.get("selected")
+    if sel is None or (isinstance(sel, str) and not sel.strip()):
+        return None, "the reader saw no highlighted row"
+    name = _clean_name(sel)
+    if not name:
+        return None, "the highlighted name is not a D2R name"
+    for r in rows or []:
+        if r.get("key") == _fold(name):
+            return r["name"], None
+    return None, "the highlighted name %r is not one of the rows this read listed" % name
+
+
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────────
 def _empty():
     return {"version": 1, "chars": {}, "visits": {}, "reels": {},
@@ -265,6 +291,10 @@ def record(d, visit_id, rows, meta=None):
     v["reads"] = int(v.get("reads") or 0) + 1
     v["rows"] = max(int(v.get("rows") or 0), len(rows or []))
     v.update({k: meta[k] for k in (meta or {}) if k in ("reel", "ts", "tab", "frames", "reader")})
+    if meta and meta.get("selected"):
+        sel = v.setdefault("sel", [])
+        sel.append({"ts": meta.get("ts"), "name": meta["selected"], "reader": meta.get("reader")})
+        del sel[:-6]
     if meta and "partial" in meta:
         # #103 - was the whole list on screen? One read that saw it whole makes the visit complete; a cut-off read
         # (scrolled, a row covered) makes it partial only while no read saw it whole; nobody said -> None (UNKNOWN)
@@ -399,6 +429,108 @@ def _frame_ts(p):
     return int(m.group(1)) if m else None
 
 
+def _close_owed(vid, v):
+    """Does this visit still owe a closing read? Its last frame came CLOSE_READ_GAP_MS or more after its last read."""
+    lf = v.get("lastFrame") if isinstance(v, dict) else None
+    if not isinstance(lf, dict) or v.get("closed"):
+        return False
+    return int(lf.get("ts") or 0) - int(v.get("ts") or 0) >= CLOSE_READ_GAP_MS
+
+
+def _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock):
+    """#103 step B — read the LAST frame of every finished visit that ran past its reads, once. -> (n_read, why)
+
+    He may move the cursor before pressing Play; the first reads saw the row the game highlighted on arrival. A visit
+    is finished once the scan has walked VISIT_GAP_S of frame time past its last frame, or its reel is fully walked and
+    that long has passed. Same hourly cap and tick budget as every read; a visit whose last frame is gone is closed
+    with that reason, never read from a guess."""
+    n, why = 0, ""
+    now_ms = int(now_s * 1000)
+    for vid, v in list((d.get("visits") or {}).items()):
+        if not _close_owed(vid, v):
+            continue
+        lf = v["lastFrame"]
+        rs = (d.get("reels") or {}).get(lf.get("reel"))
+        if not isinstance(rs, dict):
+            v["closed"] = "the reel is gone - its last frame cannot be read"
+            continue
+        lts = int(lf.get("ts") or 0)
+        over = (int(rs.get("scannedTs") or 0) - lts > VISIT_GAP_S * 1000
+                or (int(rs.get("pos") or 0) >= int(rs.get("frames") or 0) and now_ms - lts > VISIT_GAP_S * 1000))
+        if not over:
+            continue
+        if clock() - t0 > budget_s:
+            return n, "tick budget spent"
+        if len(st["readTs"]) >= READS_PER_HOUR:
+            return n, "hourly read cap (%d) reached" % READS_PER_HOUR
+        path = os.path.join(root, str(lf.get("reel")), str(lf.get("frame")))
+        crop = panel_crop(path, work) if os.path.exists(path) else None
+        if not crop:
+            v["closed"] = "its last frame could not be opened"
+            continue
+        raw = reader(crop)
+        st["readTs"].append(now_s)
+        rows, rwhy = normalize(raw)
+        if rows is None:
+            st["refused"] = int(st.get("refused") or 0) + 1
+            st["lastWhy"] = "closing read refused: " + rwhy
+            v["closed"] = "refused: " + rwhy[:80]
+            continue
+        st["reads"] = int(st.get("reads") or 0) + 1
+        n += 1
+        if rows:
+            sel, _sw = selected_of(raw, rows)
+            record(d, vid, rows, {"reel": lf.get("reel"), "ts": lts, "reader": "vision-close",
+                                  "frames": [lf.get("frame")], "partial": partial_of(raw), "selected": sel})
+        v["closed"] = "read"
+    return n, why
+
+
+def logins(d):
+    """#103 step B — THE SESSION'S CHARACTER, AS A LOGIN. Konyo: "a sessions character selection then moving forward..
+    scenarios future wise are linked to that character ... same logic getting routed down".
+
+    Every visit whose screen said which row was highlighted -> {reel, sessionId, ts, character, visit, reader}. The LATEST
+    read that named one decides (the closing read, when the visit ran past its first reads). A visit whose closing read
+    is still owed is left out until it is read - its first highlight may not be the character he entered with. The
+    sessionId is the reel's folder without its "reel_" (the journal's own key). None when the ledger is UNKNOWN."""
+    if d is None:
+        return None
+    out = []
+    for vid, v in (d.get("visits") or {}).items():
+        if not isinstance(v, dict) or _close_owed(vid, v):
+            continue
+        sel = [x for x in (v.get("sel") or []) if isinstance(x, dict) and x.get("name")]
+        if not sel:
+            continue
+        best = max(sel, key=lambda x: int(x.get("ts") or 0))
+        reel = str(v.get("reel") or str(vid).split("#")[0])
+        out.append({"reel": reel, "sessionId": reel[5:] if reel.startswith("reel_") else reel,
+                    "ts": int(best.get("ts") or 0) or _visit_ts(vid, v), "character": best["name"],
+                    "visit": vid, "reader": best.get("reader")})
+    out.sort(key=lambda r: (r["ts"] or 0))
+    return out
+
+
+def scanned_reel(d, reel):
+    """#103 step B — has the learner said everything it will say about this reel? -> True / False / None (UNKNOWN)
+
+    The printer's order: the character a session entered with is the TEMPLATE every later station routes by, so the gear
+    ledger files a reel only once this station has spoken for it - every frame on disk walked, no visit in it still
+    owing its closing read."""
+    if d is None:
+        return None
+    rs = (d.get("reels") or {}).get(reel)
+    if not isinstance(rs, dict):
+        return False
+    if int(rs.get("pos") or 0) < int(rs.get("frames") or 0):
+        return False
+    for vid, v in (d.get("visits") or {}).items():
+        if str(vid).split("#")[0] == reel and _close_owed(vid, v):
+            return False
+    return True
+
+
 def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, clock=time.time):
     """One bounded pass: continue scanning the reels (newest first) for candidate frames, read at most
     MAX_READS_PER_VISIT per visit and READS_PER_HOUR in all, fold the answers in, save. Returns a status dict."""
@@ -418,15 +550,19 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     for gone in [k for k in d["reels"] if k not in alive]:
         d["reels"].pop(gone, None)            # the FIFO deleted it; its visits stay in the ledger
     work = tempfile.mkdtemp(prefix="tvd-cs-")
-    scanned = candidates = reads = 0
+    scanned = candidates = reads = closed = 0
+    finished = []
     why = ""
     try:
-        for rd in reels:
+        # #103 step B - a visit that ended in an earlier tick and still owes its closing read goes first
+        closed, why = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
+        for rd in ([] if why else reels):
             name = os.path.basename(rd)
             frames = sorted(glob.glob(os.path.join(rd, "f_*.jpg")))
             rs = d["reels"].setdefault(name, {"pos": 0, "frames": 0, "open": None})
             rs["frames"] = len(frames)
             i = int(rs.get("pos") or 0)
+            pos0 = i
             while i < len(frames):
                 if clock() - t0 > budget_s:
                     why = "tick budget spent"
@@ -435,6 +571,8 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 i += SAMPLE_EVERY
                 rs["pos"] = i
                 scanned += 1
+                # #103 step B - how far in FRAME time the cursor has walked: a visit is over once the scan is past it
+                rs["scannedTs"] = max(int(rs.get("scannedTs") or 0), _frame_ts(p) or 0)
                 hit, _w = looks_like_char_select(stats(p))
                 if not hit:
                     continue
@@ -444,7 +582,12 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 if not op or ts - int(op.get("lastTs") or 0) > VISIT_GAP_S * 1000:
                     op = {"id": "%s#%d" % (name, ts), "firstTs": ts, "lastTs": ts, "reads": 0}
                 op["lastTs"] = ts
+                op["lastFrame"] = os.path.basename(p)
                 rs["open"] = op
+                # #103 step B - the visit's LAST frame on the screen is the row he pressed Play on
+                _vrec = d["visits"].get(op["id"])
+                if isinstance(_vrec, dict):
+                    _vrec["lastFrame"] = {"reel": name, "frame": op["lastFrame"], "ts": ts}
                 if op["reads"] >= MAX_READS_PER_VISIT:
                     continue
                 if len(st["readTs"]) >= READS_PER_HOUR:
@@ -468,10 +611,19 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 st["reads"] = int(st.get("reads") or 0) + 1
                 reads += 1
                 if rows:
+                    sel, _sw = selected_of(raw, rows)
                     record(d, op["id"], rows, {"reel": name, "ts": ts, "reader": "vision",
-                                               "frames": [os.path.basename(p)], "partial": partial_of(raw)})
+                                               "frames": [os.path.basename(p)], "partial": partial_of(raw),
+                                               "selected": sel})
+                    d["visits"][op["id"]]["lastFrame"] = {"reel": name, "frame": os.path.basename(p), "ts": ts}
+            if pos0 < len(frames) <= int(rs.get("pos") or 0):
+                finished.append(name)
             if why == "tick budget spent" or why.startswith("hourly read cap"):
                 break
+        if not why:
+            n_close, cwhy = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
+            closed += n_close
+            why = cwhy or why
     finally:
         shutil.rmtree(work, ignore_errors=True)   # the crops are throwaway; a nested dir must not strand it
     st["frames"] = int(st.get("frames") or 0) + scanned
@@ -479,7 +631,8 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     if why:
         st["lastWhy"] = why
     save(d)
-    return {"ok": True, "scanned": scanned, "candidates": candidates, "reads": reads, "why": why or "scanned"}
+    return {"ok": True, "scanned": scanned, "candidates": candidates, "reads": reads, "closed": closed,
+            "finished": finished, "why": why or "scanned"}
 
 
 def owed(d, root=None):

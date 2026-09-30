@@ -43,6 +43,12 @@ zero-page chronicle seal on a PROMPT_VER change — a paid re-sweep of his reels
 this module's, and it is written in BUGS.md REG-1522. Until then every reel reads UNATTRIBUTED and this
 ledger's `characters` stays empty — an empty store with a reason, not a fabricated one.
 
+✅ #103 STEP B (REG-1601) — THE NAME NOW COMES FROM THE CHARACTER-SELECT LEARNER. tv/char_select.py reads the
+character-select screen on its own lane and, since v3530, which row is HIGHLIGHTED when he enters (a closing read of
+the visit's last frame decides); ingest() joins those logins as the rows char_spans splits at, and a sealed reel waits
+until the learner has walked it (cs_waits, bounded by CS_WAIT_MS). The deep reader's own `character` field stays
+accepted; nothing here asks for it.
+
 ⚠ PURE: stdlib + slot_identity. No console import, so the laws drive it over a throwaway journal and the
 fixture packs' frames. It decides nothing about the vault; it records.
 """
@@ -78,6 +84,11 @@ LANE = "equipped-ledger"
 ROLLOVER_GAP_MS = 90 * 1000
 #: keep this many frame ids per slot record — enough to count sightings, small enough to stay a record
 _FRAMES_KEPT = 40
+#: #103 step B — the longest a sealed reel waits for the character-select learner to walk it before it is filed
+#: without it (and said so): the learner scans on a bounded 45 s tick under an hourly read cap, but a station that
+#: never speaks must not stop this one for ever. [[unknown-stays-unknown]]
+CS_WAIT_MS = 6 * 3600 * 1000
+_UNSET = object()
 _PREVIOUS_KEPT = 8
 _INGESTED_KEPT = 4000
 
@@ -401,6 +412,66 @@ def game_sessions(reels, gap_ms=None):
     return sessions, by_span
 
 
+# ── #103 step B: the character a session entered with, from the character-select learner ─────────────────
+def _char_select_view(hist_dir):
+    """The learner's ledger and its logins, for THIS world only. -> (cs, logins, why)
+
+    cs None = no station order and no logins, with the reason: the learner will not load, its ledger cannot be read, or
+    it reads ANOTHER world's reels (a fixture's hist dir is not his; his logins filed onto a fixture's reels would be
+    the leak REG-1583 was)."""
+    try:
+        import char_select as _cs
+        if os.path.realpath(str(_cs.hist_root())) != os.path.realpath(str(hist_dir)):
+            return None, [], "the character-select learner reads another world's reels"
+        d = _cs.load()
+    except Exception as e:
+        return None, [], "the character-select learner would not load (%s)" % type(e).__name__
+    if d is None:
+        return None, [], "the character-select ledger could not be read - UNKNOWN, so no reel waits on it"
+    return d, (_cs.logins(d) or []), None
+
+
+def login_rows(logins):
+    """Each login the learner read -> the row char_spans already splits a reel at (scene char-select + character).
+
+    Konyo: "a sessions character selection then moving forward.. scenarios future wise are linked to that character".
+    The row lands in its reel by the journal's own key (sessionId) at the frame time of the read that named the
+    highlighted row, so everything after it in that reel - and every rollover reel the chain carries - is his."""
+    out = []
+    for L in logins or []:
+        if not isinstance(L, dict):
+            continue
+        sid, ts, ch = L.get("sessionId"), L.get("ts"), L.get("character")
+        if not sid or not isinstance(ts, (int, float)) or isinstance(ts, bool) or not ch:
+            continue
+        out.append({"sessionId": str(sid), "ts": int(ts), "captureTs": int(ts), "scene": CHAR_SELECT_SCENE,
+                    "character": str(ch), "src": "char_select", "visit": L.get("visit"), "names": []})
+    return out
+
+
+def cs_waits(cs, reel, hist_dir, now_ms):
+    """Must this sealed reel wait for the character-select learner? -> why it waits, or None when it may be filed.
+
+    THE PRINTER'S ORDER: the character a session entered with is the template every later station routes by, so the
+    gear is filed only after that station has spoken for the reel. A reel whose frames are gone can never be walked
+    (no wait); a reel that waited CS_WAIT_MS is filed without it."""
+    if cs is None:
+        return None
+    try:
+        import char_select as _cs
+    except Exception:
+        return None
+    name = "reel_" + str(reel.get("sid"))
+    if not os.path.isdir(os.path.join(str(hist_dir), name)):
+        return None
+    if _cs.scanned_reel(cs, name):
+        return None
+    seal = reel.get("sealedTs") if reel.get("sealedTs") is not None else reel.get("t1")
+    if isinstance(seal, (int, float)) and now_ms - int(seal) > CS_WAIT_MS:
+        return None
+    return "the character-select learner has not walked it yet"
+
+
 # ── one read ───────────────────────────────────────────────────────────────────────────────────────────
 def worn_from_row(row, hist_dir):
     """Every worn item a read names, each with its slot decided by word AND geometry. -> [worn]
@@ -560,13 +631,19 @@ def _file_worn(char_rec, w, sid, gid):
     char_rec["lastTs"] = _newest(char_rec.get("lastTs"), w["ts"])
 
 
-def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None):
+def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNSET, cs=_UNSET):
     """Read the journals, file every worn item of every SEALED reel not yet ingested. -> receipt
 
-    receipt = {ok, why, ingested: [sid], rolling: [sid], filed, unattributed, characters, journal}
-    ok None = UNKNOWN (no journal readable, or the store unreadable) and NOTHING is written.
+    receipt = {ok, why, ingested: [sid], rolling: [sid], waiting: [sid], logins, filed, unattributed, characters,
+    journal}. ok None = UNKNOWN (no journal readable, or the store unreadable) and NOTHING is written.
+    #103 step B: the character-select learner's logins join the journal's rows, and a sealed reel it has not walked
+    yet waits (cs_waits). `logins` / `cs` default to asking the learner of THIS world; pass them to drive it.
     """
     now = int(now_ms if now_ms is not None else time.time() * 1000)
+    if logins is _UNSET or cs is _UNSET:
+        _cs_d, _cs_logins, _cs_why = _char_select_view(hist_dir)
+        logins = _cs_logins if logins is _UNSET else logins
+        cs = _cs_d if cs is _UNSET else cs
     rows, rep = read_rows(journals)
     if not rep["read"]:
         return {"ok": None, "why": "no journal could be read (%d absent, %d unreadable) — the ledger is UNKNOWN, "
@@ -576,17 +653,21 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None):
     if d is None:
         return {"ok": None, "why": why + " — nothing filed over a store that cannot be read",
                 "ingested": [], "rolling": [], "filed": 0, "unattributed": 0, "journal": rep}
-    reels = reels_from_rows(rows)
+    lrows = login_rows(logins)
+    reels = reels_from_rows(rows + lrows)
     sessions, _by = game_sessions(reels, gap_ms=gap_ms)
     for s in sessions:
         d["gameSessions"][s["id"]] = {k: v for k, v in s.items()}
     done = set(d["lane"].get("ingested") or [])
-    ingested, rolling, filed, unatt = [], [], 0, 0
+    ingested, rolling, waiting, filed, unatt = [], [], [], 0, 0
     for reel in reels:
         if not reel["sealed"]:
             rolling.append(reel["sid"])
             continue
         if reel["sid"] in done:
+            continue
+        if cs_waits(cs, reel, hist_dir, now):
+            waiting.append(reel["sid"])
             continue
         for sp in reel.get("spans") or []:
             gid = sp.get("session")
@@ -629,12 +710,16 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None):
            if ingested else "nothing new: every sealed reel in the journal is already in the ledger")
     if rolling:
         why += " · %d reel(s) still rolling, left for their seal" % len(rolling)
-    return {"ok": True, "why": why, "ingested": ingested, "rolling": rolling, "filed": filed,
-            "unattributed": unatt, "characters": sorted(d["characters"]), "journal": rep}
+    if waiting:
+        why += (" · %d sealed reel(s) wait for the character-select learner to walk them (the character a session "
+                "entered with is filed first)" % len(waiting))
+    return {"ok": True, "why": why, "ingested": ingested, "rolling": rolling, "waiting": waiting,
+            "logins": len(lrows), "filed": filed, "unattributed": unatt, "characters": sorted(d["characters"]),
+            "journal": rep}
 
 
 # ── the heart's vocabulary ─────────────────────────────────────────────────────────────────────────────
-def contract(journals=None, store=None, now_ms=None):
+def contract(journals=None, store=None, now_ms=None, hist_dir=None, cs=_UNSET):
     """This lane in the shared supervision vocabulary. -> dict
 
     on       True — it has no switch; it runs at every seal (after_session_ended)
@@ -674,6 +759,19 @@ def contract(journals=None, store=None, now_ms=None):
     out["oldestOwedSealTs"] = (min(t for _s, t in owed if t is not None)
                                if any(t is not None for _s, t in owed) else None)
     out["owedUndated"] = sum(1 for _s, t in owed if t is None)
+    # #103 step B - an owed reel the character-select learner has not walked yet WAITS upstream: that is the printer's
+    # order, not a stopped lane. Asked only with a hist dir (the question needs the reel's frames); UNKNOWN otherwise.
+    out["waitingOnCharSelect"] = None
+    if hist_dir is not None:
+        if cs is _UNSET:
+            cs = _char_select_view(hist_dir)[0]
+        _now = int(now_ms if now_ms is not None else time.time() * 1000)
+        byid = dict((r["sid"], r) for r in reels_from_rows(rows))
+        out["waitingOnCharSelect"] = [sid for sid, _t in owed if sid in byid and cs_waits(cs, byid[sid], hist_dir, _now)]
+        # the lane is LATE only on what it could have filed: the oldest owed seal among the reels NOT waiting upstream
+        _free = [(sid, t) for sid, t in owed if sid not in set(out["waitingOnCharSelect"])]
+        out["oldestNotWaitingSealTs"] = (min(t for _s, t in _free if t is not None)
+                                         if any(t is not None for _s, t in _free) else None)
     out["say"] = say(d, owed=len(owed))
     return out
 

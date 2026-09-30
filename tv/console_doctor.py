@@ -8581,7 +8581,7 @@ def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
         return UNKNOWN, ("the console's journal ring could not be resolved (%s), so what the equipped "
                          "ledger owes is UNKNOWN" % type(e).__name__)
     try:
-        c = _el.contract(journals, now_ms=now_ms)
+        c = _el.contract(journals, now_ms=now_ms, hist_dir=hist)
     except Exception as e:
         return UNKNOWN, "the equipped ledger's contract raised %s — UNKNOWN, not idle" % type(e).__name__
     lane = "lane: on=%s worked=%s lastTs=%s owed=%s" % (c.get("on"), c.get("worked"), c.get("lastTs"), c.get("owed"))
@@ -8590,11 +8590,16 @@ def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
     if c.get("owed") is None:
         return UNKNOWN, "%s — %s" % (str(c.get("say") or "")[:160], lane)
     now = float(now_ms if now_ms is not None else time.time() * 1000.0)
-    if c["owed"] > 0:
+    # #103 step B — a reel that waits for the character-select learner is the printer's order, not a stopped nudge:
+    # it is late only past the wait's own bound (CS_WAIT_MS), and said by name either way.
+    _waiting = set(c.get("waitingOnCharSelect") or [])
+    if _waiting:
+        lane += " · %d owed reel(s) wait for the character-select learner" % len(_waiting)
+    if c["owed"] > len(_waiting):
         # REG-1559 — THE OLDEST OWED SEAL DECIDES. The first cut read the NEWEST seal of ALL reels, so a
         # lane that failed at every seal read OK for as long as reels kept sealing: each fresh seal hid
         # the hour-old one beside it. Driven: two owed reels, 61 min and 1 min old -> MISSING.
-        oldest = c.get("oldestOwedSealTs")
+        oldest = c.get("oldestNotWaitingSealTs") if _waiting else c.get("oldestOwedSealTs")
         if not isinstance(oldest, (int, float)):
             return UNKNOWN, ("%d sealed reel(s) are owed and none of them carries a readable seal time, so "
                              "whether the nudge is late is UNKNOWN — not idle. %s" % (c["owed"], lane))
@@ -8603,8 +8608,11 @@ def _check_the_equipped_ledger_files_every_sealed_reel(now_ms=None):
                              "%.0f min ago — the nudge at seal (after_session_ended -> _equipped_ledger_nudge) "
                              "did not file it; `python3 tv/equipped_ledger.py --ingest <journal> <hist>` files "
                              "them. %s" % (c["owed"], (now - float(oldest)) / 60000.0, lane))
+    # #103 step B (REG-1601): the character a session entered with now comes from the character-select learner, so an
+    # empty book says where the names will come from - not that nothing could ever fill it
     tail = ("" if c.get("characters") else
-            " · no character on record is EXPECTED until READ_PROMPT asks the login screen for the name (REG-1522)")
+            " · no character on record yet: they come from the character-select learner once a session's highlighted "
+            "row is read (REG-1601)")
     return OK, "%s%s · %s" % (str(c.get("say") or "")[:160], tail, lane)
 
 

@@ -405,6 +405,27 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1601 - A SESSION IS BOUND TO THE CHARACTER HE ENTERED IT WITH, AND ROUTED DOWN (#103 step B, 2026-09-30)
+
+**His words:** *"a sessions character selection then moving forward.. scenarios future wise are obviously linked to
+that character meaning templates filters just like the printer.. same logic getting routed down"*.
+
+**Was (two halves, never joined):** `char_select` learned WHO his characters are from the character-select screen;
+`equipped_ledger` already split a reel at a login row and carried that character across the hourly rollover - but its
+logins came from a deep-reader field nobody asks for (REG-1522), so every reel read UNATTRIBUTED.
+
+**Now:** the character-select reader is asked which row is HIGHLIGHTED (the character the game enters with); only a
+name from the rows that same read listed counts. A visit that ran past its first reads gets ONE closing read of its
+last frame (he may move the cursor before pressing Play) - only once the scan is past the visit, inside the hourly cap.
+`char_select.logins()` hands each as a row keyed by the journal's own sessionId; `equipped_ledger.ingest` splits the reel
+there and the rollover chain carries it, so the gear after it is that character's. THE PRINTER'S ORDER: a sealed reel
+the learner has not walked waits (bounded 6 h; frames gone never wait; a learner reading another world's reels is never
+asked), the doctor says waiting rather than late (its late age now counts only the reels that could have been filed -
+the first cut dated the waiting reel and read MISSING, and a case compared against "MISSING" when the doctor's constant
+is lowercase: a vacuous green, both caught by red-proofs that stayed green), and the console's learner nudges the gear
+ledger when it has news. Law: `tv/test_a_session_is_bound_to_the_character_he_entered_with.py` (15 cases, 15
+red-proofs, each seen RED).
+
 ### REG-1600 - THE BUILDER, IN HIS TWO SECTIONS: WHAT HE HAS IN GAME, AND WHAT HE TRIES (#103 step A, 2026-09-30)
 
 **His words:** *"this is specifically for the characters that are known by the console and are legit my character.. so

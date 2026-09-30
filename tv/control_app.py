@@ -30376,6 +30376,14 @@ def _vault_autoread_loop():
                 _csr = _cs.tick()
                 if not _csr.get("ok"):
                     print("   \u26a0 character learner: %s" % str(_csr.get("why"))[:140], flush=True)
+                elif _csr.get("finished") or _csr.get("reads") or _csr.get("closed"):
+                    # #103 step B - THE PRINTER'S ORDER: a sealed reel waits in the gear ledger until this station has
+                    # said which character its session entered with; once it has walked a reel (or read one), the
+                    # next station runs, instead of waiting for the next seal. Only when there is news: reading the
+                    # journal ring every 45 s for nothing would be the poll-slower-than-its-interval scar.
+                    _eqr = _equipped_ledger_nudge()
+                    if isinstance(_eqr, dict) and _eqr.get("ok") is False:
+                        print("   \u26a0 equipped ledger after the learner: %s" % str(_eqr.get("why"))[:140], flush=True)
             except Exception as _cse:
                 print("   \u26a0 character learner raised %s" % type(_cse).__name__, flush=True)
             # v2225 — say it out loud when the lane retires a reel or cannot tell. Silence here is

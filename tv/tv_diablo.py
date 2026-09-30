@@ -7166,12 +7166,14 @@ CHARSEL_READ_PROMPT = (
     "character NAME, under it 'LEVEL <n> <CLASS>', sometimes a title such as SLAYER, CHAMPION, PATRIARCH or "
     "MATRIARCH above the name, and a CREATE NEW button at the bottom), reply with STRICT JSON only:\n"
     '{{"screen":"character-select","tab":"online","chars":[{{"name":"","cls":"","level":0,"title":null}}],'
-    '"partial":false}}\n'
+    '"selected":null,"partial":false}}\n'
     "Rules: the game font draws the letter O as a circle with a cross in it - write it as the letter O. Copy each "
     "NAME letter for letter as shown; never correct or complete a name. cls is one of Amazon, Assassin, Barbarian, "
     "Druid, Necromancer, Paladin, Sorceress, Warlock. A row you cannot read with certainty (covered by the mouse "
     "cursor, cut off, blurred): leave it OUT - never guess. tab is online, offline or unknown. partial is true when "
-    "the list is scrolled, cut off or a row is covered.\n"
+    "the list is scrolled, cut off or a row is covered. selected is the NAME of the one row drawn HIGHLIGHTED - the "
+    "character the game will enter with, its row framed brighter than the others - copied exactly as that row's name; "
+    "null when no row is visibly highlighted or you cannot tell which.\n"
     'If the image is NOT the character selection list, reply {{"screen":"other","chars":[]}}. JSON only, no prose.'
 )
 
