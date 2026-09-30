@@ -8647,6 +8647,14 @@ GATES = [
              "otherwise hide it - and one sign-in in flight at a time; the route answers only this console's own page and "
              "re-arms the probe; the lamp learns 'signed out' from the CLI, a good read outranks it; the header's SIGN IN "
              "pill shows only for needsLogin and the click posts the route."),
+    Gate("test_every_pc_can_finish_its_own_proof",
+         [sys.executable, os.path.join(HERE, "test_every_pc_can_finish_its_own_proof.py")], 60,
+         needs_app=False,
+         why="REG-1626 (2026-09-30) - his directive: the same logic proven on the Mac, the ALT and GrokBot's PC, then "
+             "Dean's with no SSH. A checkout with no tracking branch is judged against origin/main, the ref the "
+             "fleet's own origin view uses (GrokBot's prover said tree-unknown while its pull lane said level with "
+             "origin). A gate whose PROOF_NEEDS subject is not on this PC is UNPROVABLE there and nothing runs - the "
+             "ALT filed a Mac-footage law BLIND, which would keep every lock on that PC shut for good."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

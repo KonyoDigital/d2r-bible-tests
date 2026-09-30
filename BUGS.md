@@ -405,6 +405,22 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1626 - TWO PCs COULD NEVER FINISH PROVING THEMSELVES (2026-09-30)
+
+**His directive:** the same logic proven on the Mac, the ALT and GrokBot's PC - "then it should obviously work for
+dean's PC without needing to SSH". **Measured in the fleet** once the ALT started proving itself:
+- **GrokBot's box** reported pull "level with origin" (fleet_origin_status compares HEAD with `origin/main`) while its
+  prover said `tree-unknown` - `self_prove.tree_state` asked only `@{upstream}`, and that checkout has no tracking
+  branch. It never proved at all. Now a checkout with no upstream is judged against `origin/main`, the fleet's own
+  ref, and its words say so; an upstream, where there is one, still decides.
+- **the ALT** filed `test_chronicle_template` BLIND: its `PROOF_NEEDS` is his hand-read footage, which never leaves
+  his Mac, so all 12 laws skipped, the run exited 0 and the gate read BLIND - and one blind gate keeps `may()` shut on
+  that PC for good. heart2's own comment already said an absent need reads UNPROVABLE; `_prove_one` never did it. Now
+  a gate whose subject is not in the sandbox is UNPROVABLE without running, and says whether the subject is off this
+  PC or only missing from the copy.
+
+Law: `tv/test_every_pc_can_finish_its_own_proof.py`, both sabotages seen RED.
+
 ### REG-1625 - SLICES RAN ONE PER TEN MINUTES, SO AN IDLE PC TOOK HOURS TO PROVE ITSELF (2026-09-30)
 
 **Measured on the ALT** the moment its lane first started (game closed, console relaunched): the first slice, 40

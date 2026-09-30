@@ -2715,6 +2715,24 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
         say("     %-52s %s — %s is not in the sandbox" % (label, UNPROVABLE, tgt_rel or "(no file)"))
         return UNPROVABLE
 
+    # ⚠⚠ REG-1626 — A GATE WHOSE SUBJECT IS NOT ON THIS PC IS UNPROVABLE HERE, NEVER BLIND. The comment beside
+    # proof_inputs() always said so ("absent: the sandbox never brought it, so the gate reads UNPROVABLE there") and
+    # nothing did it: MEASURED on the ALT 2026-09-30, test_chronicle_template's PROOF_NEEDS (his hand-read footage,
+    # which never leaves his Mac) was absent, all 12 laws skipped, the run exited 0, and the gate was filed BLIND -
+    # which shuts every lock on that PC for good, over a law about data it will never hold. A PC can only prove what
+    # it has; this one says it did not, and why, and asks no run to say otherwise. [[unknown-stays-unknown]]
+    _needs = proof_needs_in(filename)
+    if _needs:
+        _gone = [n for n in _needs if not os.path.exists(os.path.normpath(os.path.join(sandbox, n)))]
+        if _gone:
+            _here = os.path.exists(os.path.normpath(os.path.join(REPO, "tv", _gone[0])))
+            say("     %-52s %s — its subject %s is %s (PROOF_NEEDS): nothing to grade here"
+                % (label, UNPROVABLE, _gone[0], "not in the sandbox (it IS on this PC - the copy did not bring it)"
+                   if _here else "not on this PC - it lives only where it was recorded"))
+            if why is not None:
+                why["absentSubject"] = _gone[0]
+            return UNPROVABLE
+
     # 1. CLEAN RUN. A gate that is already red in the sandbox can prove nothing.
     _extra, _to, _script = gate_spec(name)
     # ⚠ THE DEADLINE IS THIS PROVER'S PATIENCE, NOT THE LAW. DEADLINE_SCALE is 1 on the

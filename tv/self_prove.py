@@ -532,14 +532,21 @@ def tree_state(git=None):
         if dirty:
             return "dev", "the tree has local edits - the pre-push gate proves a development tree"
         rc, counts = g("rev-list", "--left-right", "--count", "@{upstream}...HEAD")
+        against = ""
         if rc != 0 or not counts:
-            return "unknown", "this checkout has no upstream to compare with"
+            # REG-1626 - A CHECKOUT WITH NO TRACKING BRANCH IS STILL COMPARED WITH ORIGIN. MEASURED 2026-09-30 in the
+            # fleet: GrokBot's box said pull "level with origin" (fleet_origin_status compares HEAD with origin/main)
+            # while this said tree-unknown and never proved - the same tree judged by two refs. Asked the fleet's ref.
+            rc, counts = g("rev-list", "--left-right", "--count", "origin/main...HEAD")
+            against = " (no tracking branch - compared with origin/main, as the fleet does)"
+            if rc != 0 or not counts:
+                return "unknown", "this checkout has no upstream and no origin/main to compare with"
         behind, ahead = [int(x) for x in counts.split()[:2]]
         if ahead:
-            return "dev", "%d local commit(s) not yet on origin - the pre-push gate proves them" % ahead
+            return "dev", "%d local commit(s) not yet on origin - the pre-push gate proves them%s" % (ahead, against)
         if behind:
-            return "installed", "an installed console %d commit(s) behind origin" % behind
-        return "installed", "an installed console, level with origin"
+            return "installed", "an installed console %d commit(s) behind origin%s" % (behind, against)
+        return "installed", "an installed console, level with origin%s" % against
     except Exception as e:
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
