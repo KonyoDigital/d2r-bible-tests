@@ -469,6 +469,9 @@ export async function onRequestPost(context) {
         offers: whole(p.offers, 100000), holds: whole(p.holds, 100000), all: whole(p.all, 100000),
         ageS: num(p.ageS, 400 * 86400),
         why: txt(p.why, 200),
+        /* true only when THAT PC's board counted and reported a failure - a measured broken picker, not "nothing
+           handed over yet"; a card warns on it instead of folding it into UNKNOWN (h22 verifier, 2026-09-30) */
+        broken: p.ok !== true && p.broken === true,
       };
       if (out.ok && (out.offers === null || out.holds === null || !out.slot)) {
         out.ok = false;
@@ -476,6 +479,21 @@ export async function onRequestPost(context) {
       }
       return out;
     })(body.picker),
+    /* #93 — THE SHADOW READER, FOR THE EYE ON EVERY FLEET ROW. His switch (on), whether that PC can read at all
+       (available), whether a reel is rolling (recording) and whether its watcher is alive (working - that PC's own
+       liveness verdict, decided on its own clock). Shaped like picker: booleans stay true/false/null (null = that PC
+       could not say), the age is clamped, the words capped. Absent stays null, so an older console draws the UNKNOWN
+       eye rather than a guessed one. [[unknown-stays-unknown]] */
+    shadow: (function (s) {
+      if (!s || typeof s !== 'object') return null;
+      const tri = (v) => (v === true ? true : (v === false ? false : null));
+      return {
+        on: s.on === true, available: tri(s.available), recording: s.recording === true, working: tri(s.working),
+        beatAgeS: (typeof s.beatAgeS === 'number' && Number.isFinite(s.beatAgeS) && s.beatAgeS >= 0)
+          ? Math.min(s.beatAgeS, 400 * 86400) : null,
+        why: (typeof s.why === 'string' && s.why.trim()) ? s.why.replace(/\s+/g, ' ').trim().slice(0, 160) : null,
+      };
+    })(body.shadow),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',
@@ -553,6 +571,19 @@ export async function onRequestPost(context) {
   // when the capture really moved — a write per switch, not per heartbeat. The ages (ageS, waitS)
   // are NOT material: they move every beacon, and a reader adds (now - system.asOf) instead.
   const capRoute = (r) => (r && r.system && r.system.capture && r.system.capture.route) || null;
+  // #41 rank 22 — WHAT A PC'S PICKER OFFERS IS PRINTED ON THE PANEL, so a change to it is news (h22 verifier: a
+  // census-only change 45/45 -> 40/45 wrote NOTHING for up to REFRESH_S). The counts, the slot, ok and broken are
+  // compared; its age is not (it moves every beacon; a reader adds now - asOf), exactly as capRoute does.
+  // #93 — whether a PC's shadow reader is on and WORKING is what the fleet's eye shows, so a flip is news; the beat's
+  // age is not (it moves every tick) - that PC decides `working` on its own clock before it posts.
+  const shadowNews = (r) => {
+    const x = r && r.shadow;
+    return (x && typeof x === 'object') ? JSON.stringify([x.on, x.available, x.recording, x.working]) : null;
+  };
+  const pickerNews = (r) => {
+    const p = r && r.picker;
+    return (p && typeof p === 'object') ? JSON.stringify([p.ok, p.slot, p.offers, p.holds, p.broken]) : null;
+  };
   const material = !prev
     || prev.ver !== rec.ver || prev.mode !== rec.mode || prev.event !== rec.event
     || prev.diskVer !== rec.diskVer
@@ -560,6 +591,8 @@ export async function onRequestPost(context) {
     || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
     || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
     || capRoute(prev) !== capRoute(rec)
+    || pickerNews(prev) !== pickerNews(rec)
+    || shadowNews(prev) !== shadowNews(rec)
     || !!(prev.eye && prev.eye.live) !== !!(rec.eye && rec.eye.live);
 
   try {

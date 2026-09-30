@@ -142,6 +142,91 @@ RED_PROOF = [
         "replace": "    if False:\n        return MISSING, (\"on %d PC(s) the character picker does not offer",
         "matches": 1,
     },
+    # ── the h22 verifier's findings, each fix proven to be what the case measures (2026-09-30) ──
+    {
+        "why": "h22 - the card reads a null picker (what the worker stores for an older console) as 'could not count'",
+        "file": "control_ui.html",
+        "find": "    if (pk === undefined || pk === null) {\n",
+        "replace": "    if (pk === undefined) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - a measured broken picker folds into the grey UNKNOWN on the card",
+        "file": "control_ui.html",
+        "find": "    } else if (typeof pk === 'object' && pk.ok !== true && pk.broken === true) {\n",
+        "replace": "    } else if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - the row carries no word for a measured broken picker",
+        "file": "control_ui.html",
+        "find": "    if (pk && pk.ok !== true && pk.broken === true) {\n",
+        "replace": "    if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - his own census is aged by the site record again (a 20 s census printed '10m ago')",
+        "file": "control_ui.html",
+        "find": "      pkF.push(_fleetAgeTxt((typeof pk.at === 'number' && pk.at > 0 && pk.at <= nowMs)\n",
+        "replace": "      pkF.push(_fleetAgeTxt((false)\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - a banked ok:false no longer overlays his row, so the site's older ok:true stands over it",
+        "file": "control_app.py",
+        "find": "    if not isinstance(mine, dict):\n        return 0\n    at = rec.get(\"at\") if isinstance(rec, dict) else None\n",
+        "replace": "    if not isinstance(mine, dict) or not mine.get(\"ok\"):\n        return 0\n    at = rec.get(\"at\") if isinstance(rec, dict) else None\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - his overlaid row loses the census's own clock",
+        "file": "control_app.py",
+        "find": "            pk[\"at\"] = at\n",
+        "replace": "            pk[\"at\"] = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - the wire stops saying a board-reported failure is broken",
+        "file": "control_app.py",
+        "find": "    out[\"broken\"] = rec.get(\"ok\") is False\n",
+        "replace": "    out[\"broken\"] = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - the worker's shaper drops broken on arrival",
+        "file": "functions/api/console.js",
+        "find": "        broken: p.ok !== true && p.broken === true,\n",
+        "replace": "        broken: false,\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - a census-only change is not news again (written up to 15 min late)",
+        "file": "functions/api/console.js",
+        "find": "    || pickerNews(prev) !== pickerNews(rec)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - the doctor folds a measured broken picker into UNKNOWN",
+        "file": "console_doctor.py",
+        "find": "        if pk.get(\"ok\") is not True and pk.get(\"broken\") is True:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - the doctor lets the site's older ok:true stand over his banked broken census",
+        "file": "console_doctor.py",
+        "find": "        if me and isinstance(local, dict) and (local.get(\"ok\") or local.get(\"broken\")) \\\n",
+        "replace": "        if me and isinstance(local, dict) and (local.get(\"ok\")) \\\n",
+        "matches": 1,
+    },
+    {
+        "why": "h22 - a page whose scans all fail returns before handing its census over",
+        "file": "bible.html",
+        "find": "      if (_anyCount) window.LSR.setItem('d2r_tally', JSON.stringify(out));\n",
+        "replace": "      if (!_anyCount) return false;\n      window.LSR.setItem('d2r_tally', JSON.stringify(out));\n",
+        "matches": 1,
+    },
 ]
 
 
@@ -286,6 +371,13 @@ console.log(JSON.stringify({ r: r, sent: SENT, calls: CALLS, tally: JSON.parse(R
         pk = v["sent"][0]["body"].get("picker")
         self.assertEqual((pk or {}).get("ok"), False, "a page without the builder block sent no refusal: %r" % pk)
         self.assertIn("_cbPickerCensus", pk["why"])
+        # h22 verifier: a page whose scans ALL fail still hands its census over - only the local tally write is skipped
+        good_no_counts = good + " window.funiScan = undefined; window.fsetsScan = undefined; delete RAW.d2r_rwMade;"
+        v = self._persist(good_no_counts)
+        self.assertFalse(v["r"], "premise: no scan answered, so nothing was persisted")
+        self.assertIsNone(v["tally"], "a row of nulls landed in the LSR tally")
+        self.assertEqual(len(v["sent"]), 1, "a page whose scans all failed never handed its census over: %r" % v["sent"])
+        self.assertEqual((v["sent"][0]["body"].get("picker") or {}).get("offers"), 45)
         # off disk: nothing is posted and the database is never parsed for it
         v = self._persist(good, protocol="file:")
         self.assertEqual(v["sent"], [], "a file:// page posted a hand-over")
@@ -477,6 +569,28 @@ class TheWorkerKeepsIt(unittest.TestCase):
         self.assertIsNone(rec.get("picker"), "an older console's record grew a census it never sent")
 
 
+    def test_a_census_only_change_is_news_and_broken_rides(self):
+        """h22 verifier, on the real worker: `picker` was not in the MATERIAL list, so a beacon whose only change was the
+        census (45/45 -> 40/45) wrote NOTHING for up to REFRESH_S. The record a first beacon stores is fed back as the
+        prior, so every other field is identical and only the census moves."""
+        body = {"machine": "dean-pc", "nickname": "Dean", "install": "i-dean", "ver": "v3526", "mode": "idle",
+                "event": "hb", "picker": _census(ageS=12.0)}
+        first = CF.run_handler(API, method="POST", body=body)
+        prior = [p for p in first["puts"] if p["name"] == "console:dean-pc"]
+        self.assertEqual(len(prior), 1, "premise: the first beacon stored its record")
+        seed = {"console:dean-pc": json.loads(prior[0]["value"])}   # the harness stringifies seed values itself
+        same = CF.run_handler(API, method="POST", body=dict(body, picker=_census(ageS=30.0)), seed=seed)
+        self.assertEqual([p for p in same["puts"] if p["name"] == "console:dean-pc"], [],
+                         "premise: an unchanged census (only its age moved) is not news")
+        moved = CF.run_handler(API, method="POST", body=dict(body, picker=_census(offers=40, ageS=30.0)), seed=seed)
+        recs = [json.loads(p["value"]) for p in moved["puts"] if p["name"] == "console:dean-pc"]
+        self.assertEqual(len(recs), 1, "a census-only change was not written: %r" % [p["name"] for p in moved["puts"]])
+        self.assertEqual(recs[0]["picker"]["offers"], 40)
+        self.assertIs(_shape({"ok": False, "broken": True, "why": "the builder database would not parse"})["broken"], True,
+                      "the shaper dropped a board-reported failure")
+        self.assertIs(_shape(_census(broken=True))["broken"], False, "an ok census was stored as broken")
+
+
 # ══ JOINT 4 — THE FLEET ═══════════════════════════════════════════════════════════════════════════════════════════
 class TheFleetRelaysEveryPeerAndHisOwnRowReadsTheLocalFile(_Banked):
 
@@ -512,6 +626,21 @@ class TheFleetRelaysEveryPeerAndHisOwnRowReadsTheLocalFile(_Banked):
                          "his own row shows the round trip, not the local file: %r" % mine)
         self.assertTrue(mine.get("localRead"))
         self.assertLess(mine["ageS"], 600.0)
+
+    def test_a_banked_broken_census_overlays_his_row_on_its_own_clock(self):
+        """h22 verifier, driven through the real route: his board handed over ok:false ("the builder database would not
+        parse"), it was banked, and /api/fleet still showed the site's older ok:true 45/45 on his row."""
+        me = socket.gethostname().split(".")[0]
+        at = int(time.time() * 1000) - 5000
+        self._post("/api/board_tally", {"v": 1, "who": self.WHO,
+                                        "picker": {"ok": False, "why": "the builder database would not parse", "at": at}})
+        site_ok = {"ok": True, "slot": "tors", "offers": 45, "holds": 45, "all": 134, "ageS": 700.0, "why": None}
+        got = self._fleet([{"machine": me, "install": "mmmm", "ver": "v1", "picker": site_ok}], [])
+        mine = got["online"][0]["picker"]
+        self.assertIs(mine.get("ok"), False, "the site's older ok:true stood over his banked ok:false: %r" % mine)
+        self.assertIs(mine.get("broken"), True, "a board-reported failure lost its broken flag: %r" % mine)
+        self.assertTrue(mine.get("localRead"))
+        self.assertEqual(mine.get("at"), at, "his row does not carry the census's own clock: %r" % mine)
 
     def test_no_local_census_leaves_the_round_trip_in_place(self):
         me = socket.gethostname().split(".")[0]
@@ -570,12 +699,34 @@ class TheCardPrintsItPerPc(unittest.TestCase):
         p, chip = _ui_parts(_ui_row({"ok": False, "slot": "tors", "offers": None, "holds": None, "why": why}))
         self.assertEqual((p["picker"]["t"], p["picker"]["unk"], p["picker"]["why"]), ("UNKNOWN", True, why), p["picker"])
         self.assertEqual(chip, "")
+        # h22 verifier: the REAL worker stores picker:null for a console older than the field, so null reads "an older
+        # build" - the doctor's words for the same row - never "could not count" (a count nobody attempted)
         p, chip = _ui_parts(_ui_row(None))
-        self.assertEqual((p["picker"]["t"], p["picker"]["unk"]), ("UNKNOWN", True), p["picker"])
+        self.assertEqual((p["picker"]["t"], p["picker"]["unk"]), ("UNKNOWN · an older build", True), p["picker"])
         # an `ok` that arrives without its counts is UNKNOWN, never "offers 0"
         p, chip = _ui_parts(_ui_row({"ok": True, "slot": "tors", "offers": None, "holds": 45}))
         self.assertEqual(p["picker"]["t"], "UNKNOWN", p["picker"])
         self.assertEqual(chip, "")
+
+
+    def test_a_measured_broken_picker_warns_in_its_board_s_words(self):
+        """h22 verifier: ok:false WITH broken (the board counted and the count failed) is the empty-picker symptom - a
+        warn line in the board's own words and a word on the row, never the grey UNKNOWN of 'nothing handed over'."""
+        why = "the builder database would not parse (Unexpected token)"
+        p, chip = _ui_parts(_ui_row({"ok": False, "broken": True, "slot": "tors", "offers": None, "holds": None,
+                                     "why": why}))
+        self.assertTrue(p["picker"]["warn"], "a measured broken picker did not warn: %r" % p["picker"])
+        self.assertFalse(p["picker"]["unk"], "a measured broken picker read UNKNOWN: %r" % p["picker"])
+        self.assertIn(why, p["picker"]["t"])
+        self.assertEqual(chip.strip(), "· picker broken", "the row carries no word for a broken picker: %r" % chip)
+
+    def test_his_own_row_ages_the_census_on_its_own_clock(self):
+        """h22 verifier: his own row carries the board's absolute `at` (read off this disk seconds ago); adding the site
+        record's age to it printed '10m ago' for a 20 s census. The record here is 10 min old, the census 20 s."""
+        pk = {"ok": True, "slot": "tors", "label": "Body Armor", "offers": 45, "holds": 45, "all": 134, "ageS": 20.0,
+              "why": None, "localRead": True, "at": UI_NOW - 20000}
+        p, _chip = _ui_parts(_ui_row(pk, t_ago_s=600))
+        self.assertEqual(p["picker"]["f"][-1], "20s ago", "his census was aged by the site record: %r" % p["picker"]["f"])
 
 
 class TheDoctorRowSaysWhichPcDisagrees(unittest.TestCase):
@@ -628,6 +779,21 @@ class TheDoctorRowSaysWhichPcDisagrees(unittest.TestCase):
         self.assertEqual(st, CD.MISSING, "the local census did not override the round trip: %s" % why)
         st, _why = CD.picker_census_verdict(rows, me=me, local={"ok": False, "why": "not handed over"})
         self.assertEqual(st, CD.OK, "an unbanked local census blanked a row the wire could answer")
+        # h22 verifier: a BANKED ok:false (his board measured it broken) overlays the site's older ok:true
+        st, why = CD.picker_census_verdict(rows, me=me, local={"ok": False, "broken": True,
+                                                                "why": "the builder database would not parse"})
+        self.assertEqual(st, CD.MISSING, "his banked broken census lost to the round trip: %s" % why)
+
+    def test_a_measured_broken_picker_is_missing_naming_it(self):
+        rows = [self._row("Dean", {"ok": True, "slot": "tors", "offers": 45, "holds": 45}),
+                self._row("Laptop", {"ok": False, "broken": True, "why": "the builder database would not parse"})]
+        st, why = CD.picker_census_verdict(rows)
+        self.assertEqual(st, CD.MISSING, "a measured broken picker folded into UNKNOWN: %s" % why)
+        self.assertIn("Laptop", why)
+        self.assertIn("would not parse", why)
+        # the same row WITHOUT broken (nobody measured) stays UNKNOWN - the two are different facts
+        rows[1]["picker"] = {"ok": False, "why": "the board has not handed a picker census over yet"}
+        self.assertEqual(CD.picker_census_verdict(rows)[0], CD.UNKNOWN)
 
     def test_the_row_is_registered_reads_the_cache_and_never_fetches(self):
         names = [n for n, _fn in CD.CHECKS]

@@ -3128,13 +3128,15 @@ def accept_handed_picker(body, who):
 def _picker_for_wire():
     """#41 rank 22 (REG-1564) — WHAT THIS PC'S CHARACTER PICKER OFFERS, FOR THE FLEET. Counts only, read from the
     banked hand-over (board_picker.json) - never a poke at the window he is looking at, never a second derivation.
-    -> {ok, slot, type, label, offers, holds, all, ageS, why}
-    ageS is the census's own age at this post (now - the board's `at`), None when the board stamped none; the worker
+    -> {ok, slot, type, label, offers, holds, all, ageS, why, broken}
+    `broken` is True only when the BOARD itself counted and reported a failure (a banked ok:false with its why - "the
+    builder database would not parse"): a MEASURED broken picker, which a reader must warn about, never the UNKNOWN of
+    "nothing handed over yet" or "the bank will not read" (h22 verifier, 2026-09-30). ageS is the census's own age at this post (now - the board's `at`), None when the board stamped none; the worker
     stamps the record time, so a reader adds (now - asOf) exactly as it does for `system`. No file, or an unreadable
     one, is ok:false with a why - a console that has not been handed a census is not a console whose picker is empty.
     [[stale-reading]] [[unknown-stays-unknown]]"""
     out = {"ok": False, "slot": PICKER_CENSUS_SLOT, "type": None, "label": None,
-           "offers": None, "holds": None, "all": None, "ageS": None, "why": ""}
+           "offers": None, "holds": None, "all": None, "ageS": None, "why": "", "broken": False}
     try:
         rec = board_picker_load()
     except Exception as e:
@@ -3160,6 +3162,7 @@ def _picker_for_wire():
     if isinstance(at, (int, float)) and not isinstance(at, bool) and at > 0:
         out["ageS"] = round(max(0.0, time.time() - float(at) / 1000.0), 1)
     out["ok"] = rec.get("ok") is True and out["offers"] is not None and out["holds"] is not None
+    out["broken"] = rec.get("ok") is False
     if not out["ok"] and not out["why"]:
         out["why"] = "the banked census carries no readable counts"
     return out
@@ -3170,22 +3173,33 @@ def _fleet_overlay_local_picker(fl, me):
 
     #41 rank 22 — the same rule as _fleet_overlay_local_tally (v2760): his own census goes out to the site and comes
     home 60 s cached, while the true one sits in board_picker.json on this disk. ONLY his row; a peer's census is
-    knowable only through the beacon. An absent local file leaves the beacon's copy in place - absent is not zero."""
+    knowable only through the beacon. An absent local file leaves the beacon's copy in place - absent is not zero.
+
+    ⚠ A BANKED ok:false OVERLAYS TOO (h22 verifier, measured through the real route): his board handed over "the
+    builder database would not parse", it was banked, and /api/fleet still showed the site's older ok:true 45/45 on
+    his row - for up to REFRESH_S. Only an absent or unreadable file leaves the beacon's copy; a banked census, ok or
+    broken, is the newest thing this PC knows. It carries the board's absolute `at`, so the card ages it on this
+    machine's clock (the tally overlay's rule) instead of adding the site record's age to an age computed seconds ago."""
     n = 0
     if not isinstance(fl, dict) or not me:
         return 0
     try:
-        mine = _picker_for_wire()
+        rec = board_picker_load()
+        mine = _picker_for_wire() if rec is not None else None
     except Exception:
         return 0
-    if not isinstance(mine, dict) or not mine.get("ok"):
+    if not isinstance(mine, dict):
         return 0
+    at = rec.get("at") if isinstance(rec, dict) else None
+    if not (isinstance(at, (int, float)) and not isinstance(at, bool) and at > 0):
+        at = None
     for grp in ("online", "offline"):
         for row in (fl.get(grp) or []):
             if not isinstance(row, dict) or str(row.get("machine") or "") != str(me):
                 continue
             pk = dict(mine)
             pk["localRead"] = True
+            pk["at"] = at
             row["picker"] = pk
             n += 1
     return n
@@ -3783,6 +3797,8 @@ def _console_beacon(event="hb"):
             # 167 — is the capture eye live on this machine, so THE FLEET can show it.
             # live is a boolean we measured; ageMs None means no frame yet, not 0.
             "eye": _eye_for_wire(),
+            # #93 — the shadow reader for the fleet's eye: on / working even with the game closed
+            "shadow": _shadow_for_wire(),
             # #229 — its OWN system: is its tree established, how many reels on its shelf. Counts only.
             "system": _system_for_wire(),
             # #41 rank 22 (REG-1564) — what THIS PC's character picker offers for the Body Armor slot, beside what
@@ -4835,6 +4851,10 @@ def _sweep_orphan_captures(rows_fn=None, kill=None, alive=None, now_ms=None, set
             pass
     # REG-1509 — the sibling of the stop's check: TerminateProcess is asynchronous, so each kill gets the same bounded
     # wait before it is called one that did not land (a 'failed' pid kept the doctor row warning forever).
+    # ⚠ ONE deadline IS the per-kill wait, because it is taken AFTER every kill was sent: each pid has had the whole
+    # window since ITS kill by the time it is asked, and _gone_within asks once even with 0 s left. MEASURED
+    # 2026-09-30 (#89, a Grok #231 finding re-checked before fixing): 3 pids killed together, 1.0 s window - one that
+    # never dies read failed after the full wait, one dying at 0.95 s still read killed although asked after it.
     _settle_by = time.time() + (CAP_KILL_SETTLE_S if settle_s is None else float(settle_s))
     for pid in end:
         (killed if _gone_within(pid, alive, max(0.0, _settle_by - time.time())) else failed).append(pid)
@@ -14717,6 +14737,42 @@ def _system_for_wire():
     except Exception:
         out["reels"] = None
     return out
+
+
+def _shadow_for_wire():
+    """#93 — THE SHADOW READER, FOR THE FLEET'S EYE. -> {on, available, recording, working, beatAgeS, why} | None
+
+    His ask, 2026-09-30: "a cool design ... so i know and we know that the SHADOW READER/background process is on even
+    after closing the game out. it should still be there in the background in the shadows" - "like glowing eye for the
+    shadow reader to be on or off" - "connects to it visually if on/off.. that way we know if its working too".
+
+    Three facts are _shadow_state's own and stay apart (v2000): `on` his switch, `available` whether local OCR exists,
+    `recording` whether a reel is rolling. `working` is the shadow watcher LANE's liveness verdict, read from
+    lane_liveness (FLOWING = it ticked inside its own bound; LATE = it stopped) - never a second derivation - and None
+    when the lane has not stamped yet (UNKNOWN, not dead). It is decided HERE, on this PC's own clock, because the
+    worker rewrites a peer's record only on news or every 15 min: an age computed at the reader would call a healthy,
+    idle PC dead. A console that cannot read its own switch posts None, and the card draws the UNKNOWN eye.
+    [[heart-first]] [[unknown-stays-unknown]] [[stale-reading]]"""
+    try:
+        st = _shadow_state()
+    except Exception:
+        return None
+    if not isinstance(st, dict):
+        return None
+    working, beat = None, None
+    try:
+        import lane_liveness as _ll
+        row = next((r for r in _ll.rows() if r.get("lane") == "tvd-shadow-watch"), None)
+        if row is not None:
+            beat = row.get("tickAgeS")
+            if row.get("state") == _ll.FLOWING:
+                working = True
+            elif row.get("state") == _ll.LATE:
+                working = False
+    except Exception:
+        working, beat = None, None
+    return {"on": st.get("on") is True, "available": st.get("available"), "recording": st.get("recording") is True,
+            "working": working, "beatAgeS": beat, "why": str(st.get("say") or "")[:160]}
 
 
 def _eye_for_wire():

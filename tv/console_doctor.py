@@ -5022,23 +5022,30 @@ def picker_census_verdict(rows, me=None, local=None):
 
     `rows` are the fleet rows (online + offline) as /api/fleet carries them; `local` is THIS console's own banked
     census (_picker_for_wire), laid over the row named `me` exactly as the card gets it. Three lists, three states:
-      MISSING  any PC whose picker offers other than what its own database holds - named, with both numbers
+      MISSING  any PC whose picker offers other than what its own database holds - named, with both numbers - or
+               whose board MEASURED its picker broken (a banked ok:false with its why: `broken`, h22 verifier)
       UNKNOWN  no PC reported a census, or one has not (an older build, an unreadable database) - named
       OK       every PC agrees, with the numbers
     A PC whose census is ok:false is UNKNOWN with that PC's own why, never a disagreement and never an agreement.
     [[heart-first]] [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]"""
-    agree, differ, unknown = [], [], []
+    agree, differ, unknown, broken = [], [], [], []
     for row in (rows or []):
         if not isinstance(row, dict):
             continue
         name = str(row.get("nickname") or row.get("machine") or "?")
         pk = row.get("picker")
-        if me and local and isinstance(local, dict) and local.get("ok") and str(row.get("machine") or "") == str(me):
+        # his own row takes his BANKED census, ok or broken (h22 verifier: a banked ok:false lost to the site's older
+        # ok:true 45/45 and graded OK); nothing banked leaves the row's copy - absent is not zero
+        if me and isinstance(local, dict) and (local.get("ok") or local.get("broken")) \
+                and str(row.get("machine") or "") == str(me):
             pk = local
         if not isinstance(pk, dict):
             unknown.append("%s (no census reported - an older build)" % name)
             continue
         offers, holds = pk.get("offers"), pk.get("holds")
+        if pk.get("ok") is not True and pk.get("broken") is True:
+            broken.append("%s (%s)" % (name, str(pk.get("why") or "its board reported a failed count")[:90]))
+            continue
         if pk.get("ok") is not True or not isinstance(offers, int) or not isinstance(holds, int) \
                 or isinstance(offers, bool) or isinstance(holds, bool):
             unknown.append("%s (%s)" % (name, str(pk.get("why") or "could not count its picker")[:90]))
@@ -5048,6 +5055,11 @@ def picker_census_verdict(rows, me=None, local=None):
             agree.append("%s %d/%d" % (name, offers, holds))
         else:
             differ.append("%s: picker offers %d base(s) for %s, its database holds %d" % (name, offers, slot, holds))
+    if broken:
+        return MISSING, ("on %d PC(s) the board counted its character picker and the count FAILED - %s. That is a "
+                         "measured broken picker, not a missing report: update and restart that console, then open a "
+                         "Body Armor slot%s" % (len(broken), "; ".join(broken)[:240],
+                                                ("; also: " + "; ".join(differ)[:120]) if differ else ""))
     if differ:
         return MISSING, ("on %d PC(s) the character picker does not offer what that PC's own database holds - %s. "
                          "The picker there is hiding rows (or its rail names a type its tree does not): update and "
@@ -5059,7 +5071,8 @@ def picker_census_verdict(rows, me=None, local=None):
                             (" - the rest agree: " + ", ".join(agree)[:120]) if agree else ""))
     if not agree:
         return UNKNOWN, "no PC is on the roster, so there is no picker to compare with its database"
-    return OK, ("on every PC (%d) the character picker offers exactly what its own database holds for Body Armor: %s"
+    return OK, ("on every PC (%d) the character picker offers exactly what its own database holds for Body Armor: %s "
+                "(the list function answers for that slot; no slot was clicked, and the mule host is not counted)"
                 % (len(agree), ", ".join(agree)[:200]))
 
 

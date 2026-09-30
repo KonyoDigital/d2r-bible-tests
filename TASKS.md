@@ -15,30 +15,37 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-25 (late morning) · 5 active · 1 his ruling · 1 parked · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-30 (10:4x) · 9 in flight · 3 new asks · viewer :17955
 
-> The live surfaces are the viewer (:17955) and the session board (`~/.claude/tasks/session-27691f89`). This section
-> mirrors them. Rewritten 2026-09-25 ~06:00 after the overnight run.
+> The live surfaces are the viewer (:17955) and the session board it reads. This section mirrors them; rewritten
+> 2026-09-30 after his "is the panel list and task list updated". IN PROGRESS carries only what is moving right now.
 
-### ⚙ ACTIVE — work that can move
+### ⚙ IN FLIGHT — moving right now
 
 | # | where it stands |
 |---|---|
-| **#240** | ✅ SHIPPED `3cd6bb26` (REG-1289) - his ALT report "as if im the same person on all three". The fleet rows were always individual; every current console sealed measured=False over SYNCED ledgers, so the card hid their numbers as "never synced". Now per ledger through seal, relay, card and doctor. Waiting on: GrokBot's hover check on `3cd6bb26` (asked on gh #230). |
-| **#141** | ALT parity - console relaunched and seen on real pixels, machine tree 5/5; its one missing doctor row (handoff lanes, a machine that never drains) fixed in `3cd6bb26` (REG-1290). Left: confirm the ALT reads 0 missing once it pulls. |
-| **#60** | ✅ BACKEND DONE 2026-09-25 - the wiring is proven with REAL reads. The vault prompt (vp3368) asks sockets/eth/quality with null-vs-0 spelled out, the sighting carries them (v3369), and two direct reader calls on real frames of reel 39108 returned War Traveler quality=unique, sockets/eth null - honest, because those witnesses carry NO tooltip crop (a bare stash grid cannot show sockets). The facts arrive when a tooltip is filmed: that is the TESTING PHASE (his ruling). ⚠ COST, said plainly: a full-reel sweep on a scratch copy read 236 pages in 40 min and was cut off by my driver's cap before it banked anything - those reads were spent for no stored result. |
-| **#53** | magic/rare - the data IS extracted: `affix_lexicon.json` from his install (magic 269+298 affixes, rare 42+152, 690 bases), and vault_retro tags every read name with it (v3364). Not a roster, not a pixel pass. Unproven: one magic/rare item read END TO END by the vault since. ⏭ HIS RULING 2026-09-25: that proof belongs to the TESTING PHASE - "testing pinpointed scenarios and items lists to test and debug manually each ... once we ship everything we will start testing". Not chased now. |
-| **#169** | second eye on the Grok CLI (his ruling). First: re-measure the CLI's hang on a real payload; then Win 2 = a read-only `git archive` of the reviewed commit as `--cwd`, Win 3 = `--agents` lenses. |
-| **#165** | ✅ DONE 2026-09-25 07:50 — Routine I GREEN on f45d0cff, every shard (slow included). Arc by title: 36 -> 33 -> 26 -> 20 -> 3 -> 0. REG-1275 cleared the empty-fresh-board family; the 13 specs it turned red were fixtures written against the old empty board, each moved to names a floored board really lacks (real-page checked); on the way: REG-1280 (a registered Bone Break vanished from his vault on reload), REG-1284 (the first theatre open after every restart waited 9 s on a test-file scan - v877), and two instrument fixes (v645's suffix rule, the dead-click sweep counting open boxes). |
+| **v3526** | pushing (`0ba7a5ce`), push #2 in the gate: render ✅ demos ✅ proving. Push #1 was REFUSED at 4m07s by one console demo that ran 7 s after his console re-exec'd itself onto v3526 (the fast-forward put it on disk); 16/16 on the settled console. Carries the one hunt clock (REG-1580), characters from the reels (REG-1581), the v3525 second-eye fixes (REG-1582), the heart audit ranks 11-21 + 23-25, the child supervisor, ledger 3.0's first slice, equipped items, and REG-1583 (three new laws fed fixture sightings into his gear ledger - caught by the gate's own live-state watch before any push) |
+| **#256** | heart audit, 26 ranks: 1-10 shipped (v3523/v3524), 11-21 + 23-25 in v3526, **22 + 26 in v3527** (rank 22 fixed against its verifier's 10 findings: law 28/28, 21 red-proofs declared) |
+| **shadow eye** (board #93) | NEW (his ask 09-30): one glowing eye per PC, wired to that PC's shadow reader: lit (on + its watcher alive, even with the game closed), live (reading now), idle (on but not working), shut (off), dashed UNKNOWN (offline / older build). Built in v3527 (law 11/11, 9 red-proofs); pixels + Grok eye next |
+| **v3527** | integrating: rank 26 alone, rank 22 fixed, the shadow eye, #89 closed as NOT REPRODUCED (measured) |
 
-### ⛔ WAITING ON HIM — each a one-line ruling
+### 🆕 ASKED TODAY — queued behind v3527
 
-| # | the question |
+| # | the ask |
 |---|---|
-| **#221** | ✅ CLOSED 2026-09-25 - his ruling "mark them": REG-1287 records the 18 as REG-1277 departures (end-routes coverage 98.9%). Was: DUG (his ruling) and FIXED as REG-1277: the 18 tombstones were his console's own retention lane releasing reels on one live-lane witness while the sweep had extracted 0 rows. Left: `test_end_routes`' real-shelf case is red on his Mac at 94.95% (floor 95%) because those 18 stay unexplained for ever, by his earlier ruling. Keep it red (honest), or name them as REG-1277 departures? |
-| **#172** | ✅ CLOSED 2026-09-25 - his ruling: switching views closes the theatre (REG-1286). Was: NOT a freeze: the seat confirmed the reopened theatre is simply still OPEN (its film stage covers the Vault; a «-back close returns the shelf). Design question: should switching views close the theatre instead of showing its film stage over the view? And is a close control visible to him on the film stage (the seat's OCR found none)? |
-| **#239** | ▶ HIS GO 2026-09-25: "check blueprints and wire just whats needed". Measured: the console already has a claim door (`POST /api/board {claim:true}`, writes the claim inside its OWN window) that NOTHING calls - and it writes '*' without naming a ledger, which the v2692 rule says lets an unnamed store adopt the owner's seed one find later. The wiring is: name the ledger at the claim (as the button does), and fire it only in the console's own window on a store with no claim - never over a machine that once held a populated board (restore, not reseed). Was: one synced identity - DESIGN on the card: a board served in its console's own window is that console's world by construction (a per-boot window token, the claim pinned to the console id, restore-not-reseed on an emptied store); file:// and the public site stay guests. It edits `_D2R_OWNER`, the exact path of the 2026-09-08 "my profile is missing" incident, so it waits for his go and his eyes. |
-| **#173** | ✅ REMOVED 2026-09-25 - his ruling: "remove it ... if we remember I'll tell you". Was: the bridge nobody can name (orig. #32) - both remembered discussing a bridge, neither the two ends; nothing in the tree, handoffs or transcript. |
+| **crafted editor** (board #95) | the builder's crafted-item editor: regular mods (Add Mod, prefixes/suffixes like the maxroll planner), totals the game shows (his crafted caster amulet reads +20% FCR = crafted 5-10 + a regular mod), the doubled "Amulet Amulet" name. GrokBot briefed on #230 to test the panel all-round |
+| **gate verdict** (board #94) | run_gates: a live-state move in a tree no console runs from is a VERDICT, not a suspect (REG-1583's blind spot) |
+| **lock enforcement** | the rank-17 lock ENFORCEMENT (w26 branch 7's 941993f5) rebuilt against its verifier's 13 findings - incl. UNKNOWN + Shift overwriting an unreadable vault store (REG-1420 class) |
+
+### ⏳ WAITING — on the eyes, the ALT, or a verifier re-run
+
+| # | on what |
+|---|---|
+| **w26 branches 9-12** | 10 fleet river-stuck (counts deleted reels; flags retention-held reels), 11 theatre (doctor row ignores the beat's age), 12 doctor (a printed orange verdict read as UNKNOWN), 9 locks (its verifier died) - findings in `~/d2r_session_carry/w26_verify/` |
+| **#174 / vault rulings** | GrokBot's answers to the v3523 ACT (#230 5892384978) |
+| **ALT re-measures** | river extract → tombstone, lean Grok reads start no Chrome, the WebView2 growth |
+
+_The sections below were last reviewed 2026-09-25._
 
 ### 🧪 TESTING PHASE — starts once the wiring/backend queue has shipped (his ruling 2026-09-25)
 

@@ -1,0 +1,297 @@
+# -*- coding: utf-8 -*-
+"""#93 — EVERY PC ON THE FLEET CARRIES A SHADOW EYE, AND THE EYE IS WIRED TO WHETHER ITS READER WORKS.
+
+His ask, 2026-09-30, over a screenshot of the fleet card: "a cool design added to it so i know and we know that the
+SHADOW READER/background process is on even after closing the game out. it should still be there in the background in
+the shadows" - "so a visual like online hidden eye... like glowing eye for the shadow reader to be on or off" -
+"within the fleet that renders and connects to it visually if on/off.. that way we know if its working too".
+
+FOUR JOINTS, each DRIVEN here through the shipped code (never re-implemented):
+  1. THE CONSOLE - _shadow_for_wire(): his switch, local OCR and a reel rolling (_shadow_state, three facts kept apart
+     since v2000) plus whether the shadow watcher is ALIVE - lane_liveness's own verdict for tvd-shadow-watch
+     (FLOWING = working, LATE = stopped, never stamped = UNKNOWN), decided on that PC's own clock.
+  2. THE BEACON - `shadow` rides every beacon beside `eye`.
+  3. THE WORKER - the shaper keeps it (absent stays null) and a flip of on / available / recording / working is news,
+     so a PC whose watcher stops is not left glowing for up to 15 min.
+  4. THE CARD - _fleetShadowEye(row, online): lit (on + alive, the game may be closed) / live (reading now) / idle (on
+     but not working) / off (switched off) / unk (offline, an older build, not stamped). UNKNOWN is never drawn lit or
+     shut. The render gate photographs every state (render_check's fleet stub) and measures `.fleet-shadow` painted.
+[[heart-first]] [[unknown-stays-unknown]] [[the-unjoined-end]] [[stale-reading]]
+RED_PROOF below.
+"""
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
+import control_app as ca  # noqa: E402
+import lane_liveness as LL  # noqa: E402
+import test_console_fleet as CF  # noqa: E402  the real worker handler over an in-memory KV
+import test_the_picker_census_reaches_the_fleet as PK  # noqa: E402  its node runner and cutter, one copy
+from test_the_fleet_card_says_how_each_pc_films_and_drains import _run as _ui_run, NOW as UI_NOW, _iso  # noqa: E402
+
+NODE = PK.NODE
+API = os.path.join(ROOT, "functions", "api", "console.js")
+UI = os.path.join(HERE, "control_ui.html")
+
+PROOF_NEEDS = ["../functions/api/console.js", "../functions/_middleware.js"]
+
+RED_PROOF = [
+    {
+        "why": "#93 - a watcher that ticks inside its bound no longer reads as working",
+        "file": "control_app.py",
+        "find": "            if row.get(\"state\") == _ll.FLOWING:\n                working = True\n",
+        "replace": "            if row.get(\"state\") == _ll.FLOWING:\n                working = False\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - the beacon stops carrying the shadow reader",
+        "file": "control_app.py",
+        "find": "            \"shadow\": _shadow_for_wire(),\n",
+        "replace": "            \"shadow\": None,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - the worker's shaper drops whether the watcher works",
+        "file": "functions/api/console.js",
+        "find": "        on: s.on === true, available: tri(s.available), recording: s.recording === true, working: tri(s.working),\n",
+        "replace": "        on: s.on === true, available: tri(s.available), recording: s.recording === true, working: null,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - a watcher that stops is not news: the eye keeps glowing for up to 15 min",
+        "file": "functions/api/console.js",
+        "find": "    || shadowNews(prev) !== shadowNews(rec)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - an OFFLINE PC keeps its last eye instead of UNKNOWN",
+        "file": "control_ui.html",
+        "find": "    if (!online) {\n      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline",
+        "replace": "    if (false) {\n      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - a switched-OFF reader is drawn open",
+        "file": "control_ui.html",
+        "find": "    } else if (sh.on !== true) {\n",
+        "replace": "    } else if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - a PC with no text reader glows although it cannot watch",
+        "file": "control_ui.html",
+        "find": "    } else if (sh.available === false) {\n",
+        "replace": "    } else if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - an UNKNOWN watcher (not stamped yet) is drawn lit",
+        "file": "control_ui.html",
+        "find": "    } else if (sh.working === true) {\n",
+        "replace": "    } else if (sh.working !== false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "#93 - the row stops drawing the eye beside the name (the helper stays, the join is gone)",
+        "file": "control_ui.html",
+        "find": "          + '<b>' + escC(nameFor) + _fleetShadowEye(m, online) + '</b>'\n",
+        "replace": "          + '<b>' + escC(nameFor) + '</b>'\n",
+        "matches": 1,
+    },
+]
+
+
+def _boom():
+    raise RuntimeError("the switch file went away mid-read")
+
+
+ARMED = {"ok": True, "on": True, "why": "the default", "available": True, "recording": False,
+         "say": "armed - it starts watching when a reel is rolling"}
+
+
+def _wire(state, rows):
+    with mock.patch.object(ca, "_shadow_state", state if callable(state) else (lambda: state)), \
+            mock.patch.object(LL, "rows", lambda now=None: rows):
+        return ca._shadow_for_wire()
+
+
+# ══ JOINT 1 — THE CONSOLE ═════════════════════════════════════════════════════════════════════════════════════════
+class OneSourceOnThisPc(unittest.TestCase):
+
+    def test_on_with_its_watcher_flowing_is_working_even_with_no_reel(self):
+        w = _wire(ARMED, [{"lane": "tvd-shadow-watch", "state": LL.FLOWING, "tickAgeS": 7.0}])
+        self.assertEqual((w["on"], w["available"], w["recording"], w["working"], w["beatAgeS"]),
+                         (True, True, False, True, 7.0), w)
+        self.assertIn("armed", w["why"])
+
+    def test_a_late_watcher_is_stopped_and_an_unstamped_one_is_unknown(self):
+        late = _wire(ARMED, [{"lane": "tvd-shadow-watch", "state": LL.LATE, "tickAgeS": 900.0}])
+        self.assertIs(late["working"], False, late)
+        self.assertEqual(late["beatAgeS"], 900.0)
+        none = _wire(ARMED, [{"lane": "tvd-retention", "state": LL.FLOWING, "tickAgeS": 1.0}])
+        self.assertIsNone(none["working"], "a watcher that never stamped read as %r, not UNKNOWN" % none["working"])
+        unk = _wire(ARMED, [{"lane": "tvd-shadow-watch", "state": LL.UNKNOWN, "tickAgeS": None}])
+        self.assertIsNone(unk["working"])
+
+    def test_his_switch_off_is_off_and_an_unreadable_switch_posts_nothing(self):
+        off = _wire(dict(ARMED, on=False), [{"lane": "tvd-shadow-watch", "state": LL.FLOWING, "tickAgeS": 3.0}])
+        self.assertIs(off["on"], False)
+        self.assertIsNone(_wire(_boom, []), "an unreadable switch posted a guessed shadow state")
+
+
+# ══ JOINT 2 — THE BEACON ══════════════════════════════════════════════════════════════════════════════════════════
+class TheBeaconCarriesIt(unittest.TestCase):
+
+    def test_every_beacon_carries_the_shadow_reader(self):
+        import urllib.request as _ur
+        sent = {}
+
+        def fake_urlopen(req, timeout=None):
+            sent["body"] = json.loads(req.data.decode("utf-8"))
+
+            class R(object):
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *a):
+                    return False
+
+                def read(self):
+                    return b"{}"
+            return R()
+        saved_env = {k: os.environ.pop(k, None) for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON")}
+        bdir = tempfile.mkdtemp(prefix="shadow_beacon_")
+        self.addCleanup(shutil.rmtree, bdir, True)
+        self.addCleanup(setattr, ca, "_BEACON_STATE_PATH", ca._BEACON_STATE_PATH)
+        ca._BEACON_STATE_PATH = os.path.join(bdir, ".tvd_beacon.json")
+        try:
+            with mock.patch.object(_ur, "urlopen", fake_urlopen), \
+                    mock.patch.object(ca, "_shadow_state", lambda: dict(ARMED, recording=True)), \
+                    mock.patch.object(LL, "rows", lambda now=None: [{"lane": "tvd-shadow-watch", "state": LL.FLOWING,
+                                                                     "tickAgeS": 2.0}]):
+                ca._console_beacon("hb")
+        finally:
+            for k, v in saved_env.items():
+                if v is not None:
+                    os.environ[k] = v
+        sh = sent.get("body", {}).get("shadow")
+        self.assertIsInstance(sh, dict, "the beacon carries no shadow reader: %r" % sorted(sent.get("body", {})))
+        self.assertEqual((sh["on"], sh["recording"], sh["working"], sh["beatAgeS"]), (True, True, True, 2.0), sh)
+
+
+# ══ JOINT 3 — THE WORKER ══════════════════════════════════════════════════════════════════════════════════════════
+def _shape(shadow):
+    """The SHIPPED worker shaper for `shadow`, run in node."""
+    with io.open(API, encoding="utf-8") as f:
+        src = f.read()
+    fn = PK._between_once(src, "    shadow: (function (s) {", "    })(body.shadow),") + "    })"
+    fn = "(" + fn[len("    shadow: "):] + ")"
+    return PK._node_json("var shape = %s; console.log(JSON.stringify({ v: shape(%s) }));" % (fn, json.dumps(shadow)))["v"]
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law RUNS the real worker and will not re-implement it")
+class TheWorkerKeepsIt(unittest.TestCase):
+
+    def test_the_shaper_keeps_the_four_facts_and_nulls_what_it_cannot_read(self):
+        v = _shape({"on": True, "available": True, "recording": False, "working": True, "beatAgeS": 7.5,
+                    "why": "armed   - it starts watching"})
+        self.assertEqual((v["on"], v["available"], v["recording"], v["working"], v["beatAgeS"]),
+                         (True, True, False, True, 7.5), v)
+        self.assertEqual(v["why"], "armed - it starts watching")
+        odd = _shape({"on": "yes", "working": "maybe", "available": 1, "beatAgeS": -3})
+        self.assertEqual((odd["on"], odd["working"], odd["available"], odd["beatAgeS"]), (False, None, None, None), odd)
+        self.assertIsNone(_shape(None), "an older console grew a shadow reader it never sent")
+
+    def test_a_watcher_that_stops_is_news(self):
+        body = {"machine": "dean-pc", "nickname": "Dean", "install": "i-dean", "ver": "v3527", "mode": "idle",
+                "event": "hb", "shadow": {"on": True, "available": True, "recording": False, "working": True,
+                                          "beatAgeS": 5.0}}
+        first = CF.run_handler(API, method="POST", body=body)
+        prior = [p for p in first["puts"] if p["name"] == "console:dean-pc"]
+        self.assertEqual(len(prior), 1, "premise: the first beacon stored its record")
+        seed = {"console:dean-pc": json.loads(prior[0]["value"])}   # the harness stringifies seed values itself
+        same = CF.run_handler(API, method="POST", body=dict(body, shadow=dict(body["shadow"], beatAgeS=19.0)), seed=seed)
+        self.assertEqual([p for p in same["puts"] if p["name"] == "console:dean-pc"], [],
+                         "premise: only the beat's age moved, which is not news")
+        stopped = CF.run_handler(API, method="POST", body=dict(body, shadow=dict(body["shadow"], working=False)),
+                                 seed=seed)
+        recs = [json.loads(p["value"]) for p in stopped["puts"] if p["name"] == "console:dean-pc"]
+        self.assertEqual(len(recs), 1, "a stopped watcher was not written - the eye would glow for up to 15 min")
+        self.assertIs(recs[0]["shadow"]["working"], False)
+
+
+# ══ JOINT 4 — THE CARD ════════════════════════════════════════════════════════════════════════════════════════════
+def _eye(shadow, online=True):
+    row = {"nickname": "Box", "machine": "box-1", "ver": "v3527", "t": _iso(UI_NOW - 40000)}
+    if shadow != "absent":
+        row["shadow"] = shadow
+    out = _ui_run("var h = _fleetShadowEye(%s, %s, NOW); OUT.h = h; OUT.text = strip(h);"
+                  "var m = /fleet-shadow st-([a-z]+)/.exec(h); OUT.st = m ? m[1] : null;"
+                  "var t = /title=\"([^\"]*)\"/.exec(h); OUT.title = t ? t[1] : null;"
+                  % (json.dumps(row), "true" if online else "false"))
+    return out
+
+
+LIVE = {"on": True, "available": True, "recording": False, "working": True, "beatAgeS": 6.0, "why": "armed"}
+
+
+@unittest.skipIf(NODE is None, "node is absent - this law RUNS the shipped card helper and will not re-implement it")
+class TheEyeOnEveryRow(unittest.TestCase):
+
+    def test_on_and_working_with_the_game_closed_glows_and_says_background(self):
+        e = _eye(LIVE)
+        self.assertEqual(e["st"], "lit", e)
+        self.assertIn("background", e["title"])
+        self.assertEqual(e["text"], "", "the eye added words to the name cell: %r" % e["text"])
+        self.assertEqual(_eye(dict(LIVE, recording=True))["st"], "live")
+
+    def test_switched_off_is_a_shut_lid(self):
+        e = _eye(dict(LIVE, on=False))
+        self.assertEqual(e["st"], "off", e)
+        self.assertIn("sh-shut", e["h"])
+        self.assertIn("OFF", e["title"])
+
+    def test_on_but_not_working_is_open_and_says_why(self):
+        e = _eye(dict(LIVE, working=False, beatAgeS=1400.0))
+        self.assertEqual(e["st"], "idle", e)
+        self.assertIn("STOPPED", e["title"])
+        self.assertIn("restart", e["title"])
+        n = _eye(dict(LIVE, available=False))
+        self.assertEqual(n["st"], "idle", n)
+        self.assertIn("no local text reader", n["title"])
+
+    def test_unknown_is_never_drawn_lit_or_shut(self):
+        for label, shadow, online in (("offline", LIVE, False), ("older build", "absent", True),
+                                      ("not stamped", dict(LIVE, working=None), True)):
+            e = _eye(shadow, online)
+            self.assertEqual(e["st"], "unk", "%s drew %r: %r" % (label, e["st"], e["title"]))
+            self.assertIn("UNKNOWN", e["title"])
+            self.assertNotIn("sh-iris", e["h"], "%s drew an open, coloured eye" % label)
+
+    def test_the_row_draws_the_eye_inside_the_name_cell(self):
+        """The join. The helper is driven above; this pins that the ROW calls it, inside <b> so no grid child is added
+        (the row laws measure the grid). The render gate measures `.fleet-shadow` painted on every stubbed row."""
+        with io.open(UI, encoding="utf-8") as f:
+            src = f.read()
+        self.assertEqual(src.count("+ '<b>' + escC(nameFor) + _fleetShadowEye(m, online) + '</b>'"), 1,
+                         "the fleet row does not draw the shadow eye beside the name")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

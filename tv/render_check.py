@@ -2015,16 +2015,29 @@ TARGETS = {
               if (String(u).indexOf('/api/fleet') === 0) {
                 // #41 rank 22 (REG-1564) — every state of the picker census in one roster, so the click box's
                 // 'picker offers N bases · database holds M' line and the row's one word are photographed: Dean
-                // agrees, Konyo disagrees (the red word on his row, the warn line in the box), the Wife PC is an
-                // older build (UNKNOWN in words). The payload is stubbed, so this proves the RENDER, not the wire —
-                // the wire is test_the_picker_census_reaches_the_fleet's.
+                // agrees, Konyo disagrees (the red word on his row, the warn line in the box), the Laptop's board
+                // MEASURED its picker broken ("picker broken" on the row, the board's why in the box), the Wife PC is
+                // an older build (UNKNOWN in words). #93 - and every SHADOW EYE state: Dean lit (on, working, game
+                // closed), Konyo live (reading now), the Laptop shut (switched off), Box idle (on, watcher stopped),
+                // the Wife PC unknown (offline). ⚠ h22 verifier: the older build carries picker:null, the state the
+                // REAL worker stores for a console older than the field - an ABSENT key is a state the wire never
+                // produces. The payload is stubbed, so this proves the RENDER, not the wire — the wire is
+                // test_the_picker_census_reaches_the_fleet's.
                 return Promise.resolve(new Response(JSON.stringify({
                   ok: true,
                   online: [{machine:'Dean', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
-                            picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 45, holds: 45, all: 134, ageS: 20, why: null}},
+                            picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 45, holds: 45, all: 134, ageS: 20, why: null},
+                            shadow: {on: true, available: true, recording: false, working: true, beatAgeS: 12, why: 'armed'}},
                            {machine:'Konyo', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
-                            picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 40, holds: 45, all: 130, ageS: 20, why: null}}],
-                  offline: [{machine:'Wife PC', ver:'v2101'}]
+                            picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 40, holds: 45, all: 130, ageS: 20, why: null},
+                            shadow: {on: true, available: true, recording: true, working: true, beatAgeS: 4, why: 'watching'}},
+                           {machine:'Laptop', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
+                            picker: {ok: false, broken: true, slot: 'tors', label: 'Body Armor', offers: null, holds: null, all: null,
+                                     ageS: 20, why: 'the builder database would not parse'},
+                            shadow: {on: false, available: true, recording: false, working: true, beatAgeS: 9, why: 'off'}},
+                           {machine:'Box', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
+                            shadow: {on: true, available: true, recording: false, working: false, beatAgeS: 1400, why: 'armed'}}],
+                  offline: [{machine:'Wife PC', ver:'v2101', picker: null}]
                 }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
               }
               return _f.apply(this, arguments);
@@ -2087,7 +2100,9 @@ TARGETS = {
                "#fleet-xref .fx-name, #fleet-xref .fx-why, "
                # #41 rank 22 — the per-PC lines in the box (films · river · triage · stuck · proved · picker) and
                # the row's one word, so the new line is measured and not merely present
-               "#fleet-xref .fx-sys .fs-l, #fleet-list .fleet-pickerodd",
+               "#fleet-xref .fx-sys .fs-l, #fleet-list .fleet-pickerodd, "
+               # #93 — every row's SHADOW EYE (lit / live / idle / off / unknown in the stub): painted, not merely present
+               "#fleet-list .fleet-shadow",
         "settles": False,
         "warmup": 10.0,
     },

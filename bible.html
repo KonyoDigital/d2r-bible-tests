@@ -51826,8 +51826,13 @@ function renderJournal(){
          over a good one from five minutes ago. */
       /* nothing to say is not the same as zero — and a row of nulls must never land on top of a
          good tally written five minutes ago. */
-      if (!out.sets && !out.uniques && !out.runewords) return false;
-      window.LSR.setItem('d2r_tally', JSON.stringify(out));
+      /* ⚠ h22 verifier (2026-09-30) — THIS WAS A `return false` HERE, BEFORE THE HAND-OVER, so a page whose scans all
+         failed never handed its picker census (or its stores) to the console either, and that PC read "could not
+         count" / "an older build" on the fleet instead of its census's own why. Only the LOCAL tally write is
+         skipped now; the hand-over still goes, and the console refuses a count-less tally ("no readable counts")
+         while banking the census and the stores before and independently of it (accept_handed_picker). */
+      var _anyCount = !!(out.sets || out.uniques || out.runewords);
+      if (_anyCount) window.LSR.setItem('d2r_tally', JSON.stringify(out));
       /* ⚠ v2189 — AND HAND IT TO THE CONSOLE, which is what makes this work on Windows.
          The console reads the Mac's WebKit store off disk; EdgeChromium on Windows keeps
          localStorage in a LevelDB it cannot read at all. This page is served BY the console, so
@@ -51861,7 +51866,7 @@ function renderJournal(){
             body: JSON.stringify(_body) }).catch(function(){});
         }
       } catch(e){}
-      return true;
+      return _anyCount;
     } catch(e){ return false; }
   };
   try {
@@ -57366,9 +57371,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
 
   /* the picker's list rows: names only, in the quality colour, filtered by rail, tab, search and filter */
   function _cbPickRows(){ return _cbRowsFor(st.pick); }
-  /* #41 rank 22 (REG-1564) — THE ROWS FOR A PICK DESCRIPTOR, pure over `p`. The picker hands it st.pick; the census
-     below hands it a descriptor of its own, so it can ask what the picker WOULD list for a slot without opening one
-     (st.pick is never touched and nothing is drawn). One list function, two askers. [[copy-drift]] */
+  /* #41 rank 22 (REG-1564) — THE ROWS FOR A PICK DESCRIPTOR. The picker hands it st.pick; the census below hands it a
+     descriptor of its own, so it can ask what the picker WOULD list for a slot without opening one (st.pick is never
+     touched and nothing is drawn). One list function, two askers. [[copy-drift]]
+     ⚠ NOT PURE OVER `p` (h22 verifier): _cbBuild() reads the open build (st.pick's mule host / st.draft / st.bid) and
+     _cbForSlot applies that build's class and level. For the census's slot (tors) no class-locked type folds in, so the
+     count does not move - but a census for a class-ruled slot would depend on whatever build is open at the tick. */
   function _cbRowsFor(p){
     var b = _cbBuild(), clvl = _cbClvl(b);
     var slot = _cbListSlot(p);

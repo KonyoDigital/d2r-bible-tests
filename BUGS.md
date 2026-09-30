@@ -441,6 +441,11 @@ and no row on any screen carried the number: the picker's offer was measured by 
 list function was reachable only through an open picker (`_cbPickRows` read `st.pick`), so the console could not
 ask what the picker WOULD list without opening one on the window he is looking at.
 
+⚠ **CLAIM SCOPE, corrected by the h22 verifier (2026-09-30).** The census counts the paper doll's Body Armor list
+(`_cbRowsFor` for `tors`, the All tab, rail -1). It never drives the mule host, the "In this locker" tab or
+`_cbMinvOffer`, so during #174 v-B4 itself it would have read 45/45 OK on the ALT. What it measures is that the list
+function answers for that slot, not that a slot's click reaches it: the doctor row's OK is not "the pickers work".
+
 **Fix (four joints, each built with its law):**
 - `bible.html` — `_cbRowsFor(p)` is cut out of `_cbPickRows()` (one list, two askers); `window._cbPickerCensus(slot)`
   is a READ-ONLY census: `offers` = the picker's Base Items rows for the slot counted by driving that list function,

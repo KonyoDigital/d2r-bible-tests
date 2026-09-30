@@ -6629,6 +6629,35 @@
      clamp(13px, 1.0vw, 15px); there is deliberately nothing under it. A raw pixel value
      is how a scale stops being a scale. */
   .fleet-eye { flex: none; font-size: var(--fs-2xs); line-height: 1; }
+  /* #93 — THE SHADOW EYE. His ask (2026-09-30): "like glowing eye for the shadow reader to be on or off ... that way we
+     know if its working too". One eye per PC, INSIDE the name cell (no new grid child, so no row law moves), drawn only
+     from that PC's own report:
+       lit   ON and its watcher alive - a slow ember glow; the game may be closed, it waits in the shadows
+       live  ON, alive and a reel rolling - the same eye, brighter and quicker
+       idle  ON but NOT working (its watcher stopped, or no text reader on that PC) - open, amber rim, no glow
+       off   switched OFF - a closed lid
+       unk   offline / an older build / not stamped yet - a dashed outline: UNKNOWN is never drawn lit or shut
+     ⚠ THE GLOW NEVER ANIMATES OPACITY: every state is fully visible at rest and the animation only breathes the glow,
+     so a paused animation cannot leave an invisible eye (the paused-fade-in scar). Reduced motion stops it. */
+  .fleet-shadow { display: inline-block; margin-left: 6px; line-height: 0; vertical-align: -0.12em; cursor: help; }
+  .fleet-shadow svg { width: 1.3em; height: .8em; overflow: visible; display: block; }
+  .fleet-shadow .sh-lid { fill: #0d0907; stroke: #6b5a48; stroke-width: 1.4; }
+  .fleet-shadow .sh-iris { fill: #4a3526; }
+  .fleet-shadow .sh-pupil { fill: #050303; }
+  .fleet-shadow.st-lit .sh-lid, .fleet-shadow.st-live .sh-lid { stroke: #d2462d; }
+  .fleet-shadow.st-lit .sh-iris { fill: #e0522f; }
+  .fleet-shadow.st-live .sh-iris { fill: #ff6a36; }
+  .fleet-shadow.st-lit svg { filter: drop-shadow(0 0 3px rgba(255, 84, 46, .8)); animation: fleetShadowBreath 3.4s ease-in-out infinite; }
+  .fleet-shadow.st-live svg { filter: drop-shadow(0 0 5px rgba(255, 106, 54, .95)); animation: fleetShadowBreath 1.7s ease-in-out infinite; }
+  .fleet-shadow.st-idle .sh-lid { stroke: #b8903e; }
+  .fleet-shadow.st-idle .sh-iris { fill: #6a5634; }
+  .fleet-shadow.st-off .sh-shut { fill: none; stroke: #8a8076; stroke-width: 1.6; stroke-linecap: round; }
+  .fleet-shadow.st-unk .sh-lid { fill: none; stroke: #6d6a66; stroke-dasharray: 2.2 2; }
+  @keyframes fleetShadowBreath {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 84, 46, .55)); }
+    50%      { filter: drop-shadow(0 0 7px rgba(255, 84, 46, 1)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .fleet-shadow svg { animation: none !important; } }
   /* v2766 — the three states are visibly different, not just different in a tooltip. Live is the
      only one that earns full opacity; a dark eye is dimmed but PRESENT (it exists and is resting);
      an absent lane is dimmer still and loses its colour entirely. */
@@ -24874,10 +24903,20 @@ function escC(s) {
        is UNKNOWN with that console's own why; a console older than the field says so. Each fact is its own item and
        no fact carries a middot (REG-1377). [[the-unjoined-end]] [[unknown-stays-unknown]] */
     var pk = (m && m.picker !== undefined) ? m.picker : undefined;
-    if (pk === undefined) {
+    /* h22 verifier (2026-09-30, the REAL worker driven): a console older than the field is stored as picker:null, not an
+       absent key - so null is "an older build" here too, the doctor's own words for the same row, never "could not
+       count" (a claim about a count that was never attempted). */
+    if (pk === undefined || pk === null) {
       out.push(_fleetPart('picker', ['UNKNOWN', 'an older build'], { unk: true,
                  why: 'this console did not report what its character picker offers (a build older than the field)' }));
-    } else if (!pk || typeof pk !== 'object' || pk.ok !== true
+    } else if (typeof pk === 'object' && pk.ok !== true && pk.broken === true) {
+      /* MEASURED BROKEN: that PC's board counted its picker and reported the failure ("the builder database would not
+         parse") - the very empty-picker-for-days symptom, so it warns with the board's own words instead of folding
+         into UNKNOWN beside "nothing handed over yet" (h22 verifier). */
+      out.push(_fleetPart('picker', ['broken', String(pk.why || 'the board reported a failed count')], { warn: true,
+                 why: 'that PC\u2019s board counted its character picker and the count failed: '
+                      + String(pk.why || 'no reason given') + ' - update and restart that console, then open a Body Armor slot' }));
+    } else if (typeof pk !== 'object' || pk.ok !== true
                || typeof pk.offers !== 'number' || typeof pk.holds !== 'number') {
       out.push(_fleetPart('picker', ['UNKNOWN'], { unk: true,
                  why: (pk && typeof pk === 'object' && pk.why) ? String(pk.why) : 'that console could not count what its picker offers' }));
@@ -24887,7 +24926,10 @@ function escC(s) {
          fact starts at the verb and the line reads "picker offers N bases · database holds M" */
       var pkF = ['offers ' + pk.offers + (pk.offers === 1 ? ' base' : ' bases'), 'database holds ' + pk.holds, pkLab];
       if (typeof pk.all === 'number') pkF.push(pk.all + ' rows on its All tab');
-      pkF.push(_fleetAgeTxt(_fleetAgeNow(pk.ageS, m, nowMs)));
+      /* his own row carries the board's absolute `at` (read off this disk seconds ago): age it on this clock, as the
+         tally overlay does - adding the site record's age to it printed "10m ago" for a 20 s census (h22 verifier) */
+      pkF.push(_fleetAgeTxt((typeof pk.at === 'number' && pk.at > 0 && pk.at <= nowMs)
+                            ? (nowMs - pk.at) / 1000 : _fleetAgeNow(pk.ageS, m, nowMs)));
       out.push(_fleetPart('picker', pkF, { warn: !pkAgree,
                  why: pkAgree
                    ? ('for the ' + pkLab + ' slot that PC\u2019s picker lists every base its own database holds (its list function and its type table agree)')
@@ -24913,6 +24955,10 @@ function escC(s) {
      or when the census is unread (the click box says UNKNOWN in words). Exported so a gate can put every state to it. */
   var _fleetPickerChip = function (m) {
     var pk = (m && m.picker && typeof m.picker === 'object') ? m.picker : null;
+    if (pk && pk.ok !== true && pk.broken === true) {
+      return '<span class="fleet-pickerodd" title="' + escC('the character picker on this PC failed its own count: '
+           + String(pk.why || 'no reason given')) + '"> · picker broken</span>';
+    }
     if (!pk || pk.ok !== true || typeof pk.offers !== 'number' || typeof pk.holds !== 'number') return '';
     if (pk.offers === pk.holds) return '';
     var w = pk.offers < pk.holds ? 'picker short' : 'picker over';
@@ -24922,6 +24968,44 @@ function escC(s) {
   };
   window._fleetPickerChip = _fleetPickerChip;
   window._fleetStuckChip = _fleetStuckChip;
+  /* #93 — THE SHADOW EYE (its CSS above says what each state looks like and why). Its state is read from that PC's
+     own report (`shadow`: on / available / recording / working, decided on that PC's clock) and whether the row is
+     online; nothing is guessed. Exported so a law can put every state to it. [[unknown-stays-unknown]] */
+  var _SH_EYE_OPEN = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
+      + '<path class="sh-lid" d="M1.5 7 Q13 -3.5 24.5 7 Q13 17.5 1.5 7 Z"/>'
+      + '<circle class="sh-iris" cx="13" cy="7" r="3.9"/><circle class="sh-pupil" cx="13" cy="7" r="1.5"/></svg>';
+  var _SH_EYE_SHUT = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
+      + '<path class="sh-shut" d="M2 6 Q13 14 24 6"/><path class="sh-shut" d="M7 9.4 L5.6 12 M13 10.6 L13 13.4 M19 9.4 L20.4 12"/></svg>';
+  var _SH_EYE_UNK = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
+      + '<path class="sh-lid" d="M1.5 7 Q13 -3.5 24.5 7 Q13 17.5 1.5 7 Z"/></svg>';
+  var _fleetShadowEye = function (m, online, nowMs) {
+    var sh = (m && m.shadow && typeof m.shadow === 'object') ? m.shadow : null;
+    var st, tip;
+    if (!online) {
+      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline, so nobody can say whether it runs until it reports again';
+    } else if (!sh) {
+      st = 'unk'; tip = 'shadow reader UNKNOWN - this console does not report it (a build older than the eye)';
+    } else if (sh.on !== true) {
+      st = 'off'; tip = 'shadow reader OFF on this PC - nothing is watched until it is switched back on';
+    } else if (sh.available === false) {
+      st = 'idle'; tip = 'shadow reader switched ON, but this PC has no local text reader, so it cannot watch';
+    } else if (sh.working === true) {
+      st = sh.recording ? 'live' : 'lit';
+      tip = sh.recording ? 'shadow reader ON - watching the game right now'
+                         : 'shadow reader ON - running in the background, waiting for the next game (it stays on with the game closed)';
+    } else if (sh.working === false) {
+      st = 'idle';
+      tip = 'shadow reader switched ON but its watcher has STOPPED'
+          + (typeof sh.beatAgeS === 'number'
+             ? ' (last beat ' + _fleetAgeTxt(_fleetAgeNow(sh.beatAgeS, m, (typeof nowMs === 'number') ? nowMs : Date.now())) + ')' : '')
+          + ' - restart that console';
+    } else {
+      st = 'unk'; tip = 'shadow reader switched ON; whether its watcher runs is UNKNOWN (it has not stamped a beat yet)';
+    }
+    return '<span class="fleet-shadow st-' + st + '" title="' + escC(tip) + '" role="img" aria-label="' + escC(tip) + '">'
+         + (st === 'off' ? _SH_EYE_SHUT : (st === 'unk' ? _SH_EYE_UNK : _SH_EYE_OPEN)) + '</span>';
+  };
+  window._fleetShadowEye = _fleetShadowEye;
   /* A RENAMED HOST'S "formerly" LINE, as facts. REG-1378: its age was _fleetSince's, which answers "just now" for a
      lastSeen it cannot parse and for one in the future - a machine last seen at an unreadable time read as seen this
      minute. Now the card's own rule: an age that cannot be established (absent, unparseable, or after now - a FORMER
@@ -25609,7 +25693,7 @@ function escC(s) {
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
-          + '<b>' + escC(nameFor) + '</b>'
+          + '<b>' + escC(nameFor) + _fleetShadowEye(m, online) + '</b>'
           + _fleetEye(m.eye)
           + _fleetStuckChip(m)
           + _fleetPickerChip(m)
