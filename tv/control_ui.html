@@ -12204,6 +12204,7 @@ window._lockMark = function(isOpen, px, label){
       _recapFlash('dsr-save', '✓ Saved ' + fname);
     } catch(e){ _recapFlash('dsr-save', '⚠ Save failed'); }
   };
+  /* ⟦SESSION DOSSIER BEGIN⟧ */
   function _sessionDossier(n){
     var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
@@ -12214,6 +12215,7 @@ window._lockMark = function(isOpen, px, label){
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
     DOSSIER.n = n; DOSSIER.sid = sm.sessionId || ''; DOSSIER.sm = sm;   // D25 — stable key for notes/naming · D27 — recap source
+    ov.setAttribute('data-n', String(n));   // v3538 — the beat reads WHICH dossier is on screen from the overlay itself
     ov.innerHTML = _dossierHtml(sm);
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){
@@ -12221,6 +12223,7 @@ window._lockMark = function(isOpen, px, label){
       var _sl = ov.querySelector('.dsr-seal'); if (_sl) _sl.classList.add('dss-in');   // D21 — stamp the verdict seal in (CSS handles reduced-motion)
     }
   }
+  /* ⟦SESSION DOSSIER END⟧ */
   // ══ D20 · STAT COUNT-UPS — when the dossier opens, the key numbers tick up from 0 to their value (reads ·
   // frames · named · found · the decision funnel · coverage%). Purely cosmetic: the LAST frame writes the exact
   // original text verbatim, so the truth is never altered. Respects prefers-reduced-motion (no motion at all). ══
@@ -28999,6 +29002,24 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]] */
             raf: (window.__rafTicks || 0),
             theatreOpen: !!(th && !th.hidden),
+            /* v3538 — WHICH SESSION'S DOSSIER IS ON SCREEN, BY NUMBER. GrokBot's rotating visual pass counted a
+               tick as "opened" when the word Session was visible - which the shelf's Best Run tile always shows,
+               so seven of eight ticks never left the shelf and still read as opened. The number comes from the
+               overlay itself (data-n, stamped by _sessionDossier), and only while it is on screen with real size:
+               null = no dossier shown, "UNKNOWN" = the page could not read it. DOM only - the DOSSIER object lives
+               in another script block, and a throw here would silence the whole beat. [[unknown-stays-unknown]] */
+            /* ⟦BEAT DOSSIER BEGIN⟧ */
+            dossier: (function(){
+              try {
+                var o = document.getElementById('th-dossier-ov');
+                if (!o || o.hidden) return null;
+                var r = o.getBoundingClientRect();
+                if (!(r && r.width > 0 && r.height > 0)) return null;
+                var dn = parseInt(o.getAttribute('data-n'), 10);
+                return (dn > 0) ? dn : 'UNKNOWN';
+              } catch (e) { return 'UNKNOWN'; }
+            })(),
+            /* ⟦BEAT DOSSIER END⟧ */
             loaded: !!(window.TH && TH.sessions && TH.sessions.length),
             /* v2336 — IS A PANEL THAT HAS CONTENT ACTUALLY ON SCREEN? Konyo reported the DAILY
                TASK FORCE as "black space" twice while its own tooltip kept working, because the

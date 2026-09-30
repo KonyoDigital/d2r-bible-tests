@@ -8700,6 +8700,15 @@ GATES = [
              "Driven twice in children: with no bash every shell case is SKIPPED as unmeasured and the resolver "
              "cases still run; with a launcher named `bash` first on PATH every shell case runs the resolver's "
              "bash and passes."),
+    Gate("test_the_beat_says_which_dossier_is_on_screen",
+         [sys.executable, os.path.join(HERE, "test_the_beat_says_which_dossier_is_on_screen.py")], 120,
+         needs_app=False,
+         why="REG-1645 (2026-10-01, GrokBot via him) - the rotating visual pass counted a tick as opened when the "
+             "word Session was on screen, which the shelf's Best Run tile always shows (Session 28): seven of eight "
+             "ticks never left the shelf. Nothing the console published said WHICH dossier was showing. The page "
+             "now stamps the dossier overlay with its session number, the beat reads it only while the overlay is "
+             "on screen with real size, and /api/status publishes uiBeat.dossier (number, None, or UNKNOWN). Driven "
+             "on the real page code in node and on the real record -> status path."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

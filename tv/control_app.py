@@ -17184,6 +17184,15 @@ def ui_beat_record(state=None):
         # imports. None means the page did not say — UNKNOWN, never "the same".
         _b = state.get("docVer")
         _UI_BEAT["docVer"] = _b if (isinstance(_b, str) and _b.strip()) else None
+        # v3538 — WHICH SESSION'S DOSSIER IS ON SCREEN, by number (the page reads it off the overlay): a
+        # number, None (no dossier shown) or "UNKNOWN". A page that did not send the key at all predates it -
+        # UNKNOWN, never "none shown". GrokBot's visual pass counts a tick as opened only when this says N.
+        if "dossier" in state:
+            _d = state.get("dossier")
+            _UI_BEAT["dossier"] = (_d if (isinstance(_d, int) and not isinstance(_d, bool) and _d > 0)
+                                   else (None if _d is None else "UNKNOWN"))
+        else:
+            _UI_BEAT["dossier"] = "UNKNOWN"
         # v2393 — the paint witness. Kept here rather than in ui_rescue_due because the strike
         # count is a property of the BEAT SEQUENCE, and the rescue check runs on its own 10s
         # timer that does not line up with the 5s beats.
@@ -37328,6 +37337,9 @@ def status_payload():
                    # the v2457 note below records: shipping a verdict without the number it
                    # derives from lets a supervisor read a conclusion he cannot check.
                    "docVer": _UI_BEAT.get("docVer"),
+                   # v3538 — the session whose dossier is ON SCREEN (a number), None when none is shown,
+                   # "UNKNOWN" when no beat has said. Read it beside ageS: a stale beat is a stale answer.
+                   "dossier": _UI_BEAT.get("dossier", "UNKNOWN"),
                    # ⚠⚠ v2457 — PUBLISHED HERE, AND I ALMOST REPEATED THE EXACT MISTAKE THE v2435
                    # COMMENT TWELVE LINES BELOW IS ABOUT. I recorded the paint witness, added it to
                    # the CF-4 forensic snapshot, and shipped nothing to the surface a supervisor

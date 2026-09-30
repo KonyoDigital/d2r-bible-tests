@@ -405,6 +405,23 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1645 - THE VISUAL PASS COULD NOT TELL AN OPENED DOSSIER FROM A SHELF TILE (GrokBot, 2026-10-01)
+
+GrokBot's rotating visual pass (on its own PC, relayed by him): the route rotated - zone, scroll depth and card index
+changed every tick - and the session that opened did not. The shelf's top tiles are always "Best run · Session 28" and
+"Most reads · Session 28", so every theatre shot said 28 whether or not anything opened; on the last eight ticks seven
+never left the shelf and still counted as opened, because "opened" meant the word Session was on screen. Its click
+list usually held one bad point, so every index hit the same spot; when it did see the row, index 0 was the word
+"session" on the Best Run tile. An older tick opened Session 87, so nothing pins 28 in the code. **The driver is its
+own** (click by session number is its fix); **the console could not answer the verification question at all** -
+`uiBeat.theatreOpen` is a bare boolean and nothing said WHICH dossier was showing. **Now** `_sessionDossier(n)` stamps
+the overlay with its number, the page beat reads it off the overlay only while it is on screen with real size (null =
+none shown, "UNKNOWN" = unreadable - DOM only, since the DOSSIER object lives in another script block and a throw
+would silence the whole beat), and `/api/status` publishes `uiBeat.dossier`. A page that never sent the key reads
+UNKNOWN, never "none shown". Law: `tv/test_the_beat_says_which_dossier_is_on_screen.py` - the real page code in node
+(open 87 -> the beat says 87; rotate 28 -> 87 and back; hidden, zero-size, absent, unnumbered, throwing) and the real
+record -> status path; 5 red-proofs RED. The contract is posted to GrokBot on #230.
+
 ### REG-1644 - HEART2 READ AN UNREADABLE PROOF_NEEDS AS "NEEDS NOTHING" (the v3535 eye, 2026-10-01)
 
 `proof_needs_in()` answers None when a gate's declaration cannot be read (the file will not parse, or PROOF_NEEDS is
