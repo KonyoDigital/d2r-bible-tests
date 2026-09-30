@@ -149,6 +149,50 @@ class TestTheBlueprintNamesTheEngine(unittest.TestCase):
         self.assertEqual(noaim, [], "module(s) with an empty purpose: %s" % noaim)
         print("%d purposes, none empty, none under 5 words" % len(rows))
 
+    def test_every_named_entry_point_still_exists(self):
+        """A LABEL THAT OUTLIVED ITS REFERENT (second eye on v3528's 0ab1034b): console_settle.wait was renamed
+        wait_until_settled and the index went on naming `wait` - a door no reader can walk through. Measured over the
+        whole index that day: 850 named entry points, 4 naming nothing (that one, loose_wires_audit's `main` - it is a
+        script with no main - and two run_gates entries whose typed line numbers had drifted 1500 lines). A named entry
+        must be a def, class or assignment in its module (run_gates may name a registered gate), and no entry types a
+        line number: a number beside a name is the next thing to go stale. CLI lines and route prose are not names and
+        are not judged. [[label-outlived-referent]] [[source-reading-guard]]"""
+        import ast
+        import json
+        import re
+        with io.open(os.path.join(HERE, "engine_index.json"), encoding="utf-8") as fh:
+            idx = json.load(fh)
+        gate_names = set()
+        with io.open(os.path.join(HERE, "run_gates.py"), encoding="utf-8") as fh:
+            for n in ast.walk(ast.parse(fh.read())):
+                if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "Gate" and n.args:
+                    gate_names.add(getattr(n.args[0], "value", None))
+        stale, typed, named = [], [], 0
+        for mod, row in sorted(idx.items()):
+            eps = (row or {}).get("entryPoints") if isinstance(row, dict) else None
+            if not mod.endswith(".py") or not isinstance(eps, list):
+                continue
+            with io.open(os.path.join(HERE, mod), encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
+            names = {n.name for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+            names |= {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)}
+            for e in eps:
+                s = str(e).strip()
+                if re.search(r"\s:\d+\s*$", s):
+                    typed.append("%s: %s" % (mod, s))
+                if re.match(r"^(python3?|tvd|--|-|GET|POST|/)", s) or "\u2190" in s or "->" in s:
+                    continue
+                m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)", s)
+                if not m:
+                    continue
+                named += 1
+                if m.group(1) not in names and not (mod == "run_gates.py" and m.group(1) in gate_names):
+                    stale.append("%s: %s" % (mod, s))
+        self.assertGreater(named, 500, "only %d named entry points were judged - the census read a fragment" % named)
+        self.assertEqual(stale, [], "the engine index names doors its modules no longer have:\n  " + "\n  ".join(stale))
+        self.assertEqual(typed, [], "an entry point types a line number, which drifts the day the file grows:\n  "
+                                    + "\n  ".join(typed))
+
     def test_the_document_is_deterministic(self):
         """Two renders must differ only in their generated-at line, or the pre-push staleness
         check refuses a tree nobody changed."""
@@ -163,6 +207,20 @@ class TestTheBlueprintNamesTheEngine(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "second eye on v3528 - the index names console_settle.wait again, a function the file no longer has",
+        "file": "engine_index.json",
+        "find": "      \"wait_until_settled\",\n",
+        "replace": "      \"wait\",\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - an entry point types a line number again, and drifts the day run_gates grows",
+        "file": "engine_index.json",
+        "find": "      \"test_the_set_pieces_carry_a_real_qlvl\",\n",
+        "replace": "      \"test_the_set_pieces_carry_a_real_qlvl :3407\",\n",
+        "matches": 1,
+    },
     {
         "why": "the drift report is silenced, so a module on disk with no entry is dropped from "
                "the map without a word — the exact silent omission this law exists to prevent",

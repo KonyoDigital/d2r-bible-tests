@@ -405,6 +405,17 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1612 - THE ENGINE INDEX NAMED DOORS ITS MODULES NO LONGER HAD (second eye on v3528, 2026-09-30)
+
+**Was:** v3528 renamed `console_settle.wait` to `wait_until_settled`, and `tv/engine_index.json` went on naming `wait`
+(the second eye on 0ab1034b). Measured over the whole index: of 850 named entry points, 4 named nothing -
+`console_settle.wait`, `loose_wires_audit.main` (it is a script, there is no main) and two run_gates entries - and 41
+entries typed a line number beside the name, 29 of which had already drifted (by up to 1,500 lines).
+
+**Now:** the four point at what exists, every typed line number is gone (a name, never a position), and
+`test_the_blueprint_names_the_engine` grows a case: every named entry point is a def, class or assignment in its
+module (run_gates may name a registered gate), and none types a line number. Both red-proofs seen RED.
+
 ### REG-1611 - /api/river RE-READ ITS WHOLE LEDGER TWICE PER REEL (#109, 2026-09-30)
 
 **Measured on his ALT (SSH, read-only):** 266 reels on the shelf, 145 MB of RAM free, and `/api/river` did not answer

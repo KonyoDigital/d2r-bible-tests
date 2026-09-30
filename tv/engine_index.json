@@ -420,7 +420,7 @@
   },
   "console_settle.py": {
     "entryPoints": [
-      "wait",
+      "wait_until_settled",
       "verdict",
       "read",
       "main"
@@ -444,10 +444,10 @@
   "corroborate.py": {
     "entryPoints": [
       "run() / selftest()",
-      "_inv_the_deleter_is_never_looser_than_the_planner :403",
-      "_inv_the_two_deleters_stay_at_their_own_granularity :468",
-      "_inv_the_deleter_releases_only_what_the_store_declares :656",
-      "_inv_the_two_owned_fields :720"
+      "_inv_the_deleter_is_never_looser_than_the_planner",
+      "_inv_the_two_deleters_stay_at_their_own_granularity",
+      "_inv_the_deleter_releases_only_what_the_store_declares",
+      "_inv_the_two_owned_fields"
     ],
     "gotcha": "Each invariant carries `prove` and selftest() drives every one to RED against synthetic inputs — a corroborator nobody has seen disagree is exactly the green that lies; UNKNOWN is reported as UNKNOWN, never as agreement.",
     "purpose": "THE CORROBORATOR - cross-engine invariants asserting the engines AGREE (the frame deleter never looser than the reel planner, one `owned` against another); it never writes and never averages.",
@@ -674,11 +674,11 @@
   },
   "frame_authority.py": {
     "entryPoints": [
-      "frame_verdict() :347",
-      "plan_frames() :447",
-      "seal_verdict() :240",
-      "seal_releases_frames() :294",
-      "witness_index() :97"
+      "frame_verdict()",
+      "plan_frames()",
+      "seal_verdict()",
+      "seal_releases_frames()",
+      "witness_index()"
     ],
     "gotcha": "It REPORTS rather than acts (:450 'this replaces a deleter that ran automatically'); sig_diff was replaced, not retuned — three frames naming three different grand charms are pairwise 0.00000 apart, so a hover tooltip moves it by literally zero.",
     "purpose": "The ONE deletion authority over his footage - the FRAME deleter asks IS THIS FRAME EVIDENCE, and an unreadable store, unparsable name or missing index all resolve to KEEP.",
@@ -731,11 +731,11 @@
   },
   "g5_grok_eyes.py": {
     "entryPoints": [
-      "g5_vision_read() :809",
-      "g5_chronicle_read() :163",
+      "g5_vision_read()",
+      "g5_chronicle_read()",
       "mode()/set_mode()/is_primary() :362-395",
-      "status() :493",
-      "g5_shadow_log() :1004"
+      "status()",
+      "g5_shadow_log()"
     ],
     "gotcha": "API-style secrets are stripped from the child env on purpose (_API_STRIP) — this is the subscription CLI lane, never api.x.ai; OFF is an instant no-op returning None, and chronicle_doctor treats an unimportable g5 as 'the second eye is unavailable', never as agreement.",
     "purpose": "The second eye's vision lane: `grok -p` on his SuperGrok login, off/shadow/primary, reading the same area/tz/scene/names/names_loc/sockets JSON under an hourly+daily budget.",
@@ -1187,7 +1187,7 @@
   },
   "loose_wires_audit.py": {
     "entryPoints": [
-      "main"
+      "python3 tv/loose_wires_audit.py (a script: it runs at import, there is no main)"
     ],
     "gotcha": "⚠ A REGISTRY ENTRY IS A JOIN. Its first pass counted only ast.Call and reported 310 orphans, flagging every doctor check registered as a table VALUE. Corrected to 73. Some functions are also uncalled ON PURPOSE (control_app._open_board_once is protected by a test) — this tool reports candidates, it does not rule.",
     "purpose": "Re-runnable audit of module-level definitions nothing consumes, counting registry entries and dispatch tables as joins so a registered check is not reported as an orphan.",
@@ -1207,11 +1207,11 @@
   },
   "main_character.py": {
     "entryPoints": [
-      "lane_from_sighting(activity,names_loc) :58",
-      "saw() :121",
-      "is_locked() :170",
-      "equipped() :194",
-      "confidence() :148"
+      "lane_from_sighting(activity,names_loc)",
+      "saw()",
+      "is_locked()",
+      "equipped()",
+      "confidence()"
     ],
     "gotcha": "EQUIPMENT_ALIASES accepts BOTH 'equipment' and 'equipped' because the scene classifier emits neither — accepting one spelling is how a fed learner still pins equip at 0; inventory_law wins outright, so the Horadric Cube is locked at zero sightings.",
     "purpose": "What he WEARS, learned from repeated sightings: names_loc 'equipped' is the only safe equipment signal, and an item locks when wilson_lower(k,n) >= 0.43 over >= 3 sightings.",
@@ -1529,10 +1529,10 @@
   },
   "reel_retention.py": {
     "entryPoints": [
-      "plan() :554",
+      "plan()",
       "apply_plan() :1094 (--apply --yes)",
-      "proof_reels() :502",
-      "_tombstone() :1019",
+      "proof_reels()",
+      "_tombstone()",
       "KEEP_RECENT = 8 (his 2026-09-10 ruling)",
       "blocked_upstream() - the river's last stamps vs the pass's plan: what waits UPSTREAM of the mouth (REG-1517)",
       "drain_state() - the drain in the shared vocabulary; BLOCKED when reels older than the newest window wait upstream"
@@ -1585,11 +1585,11 @@
   },
   "reel_segments.py": {
     "entryPoints": [
-      "segments(rows,gap_ms) :129",
-      "activity_at() :166",
-      "lane_at_graded() :262",
-      "corroborates() :406",
-      "corroborates_chrome() :345"
+      "segments(rows,gap_ms)",
+      "activity_at()",
+      "lane_at_graded()",
+      "corroborates()",
+      "corroborates_chrome()"
     ],
     "gotcha": "No padding by default — +/-30s lifts coverage from 26 to 56 of 84 but 20 of the extra land in 'gameplay', which is an absence of a claim rather than a rebuttal; only DEEP reads carry a scene, so the OCR lane cannot define a segment.",
     "purpose": "A reel is a timeline: deep `scene` reads grouped into activity segments (gameplay/stash/chronicle/town) so a judged name can be asked what was on screen at that moment.",
@@ -1837,9 +1837,9 @@
   },
   "run_gates.py": {
     "entryPoints": [
-      "Gate(name, cmd, timeout, why=, skip_ok=) :59",
-      "test_the_set_pieces_carry_a_real_qlvl :1859",
-      "test_the_missing_wall_shows_the_qlvl :2065"
+      "Gate(name, cmd, timeout, why=, skip_ok=)",
+      "test_the_set_pieces_carry_a_real_qlvl",
+      "test_the_missing_wall_shows_the_qlvl"
     ],
     "gotcha": "A SKIP must be DECLARED IN ADVANCE (skip_ok=) or it counts with the failures — 'loud' was not enough, a gate that skips on every venue has never run at all while the run still exited 0.",
     "purpose": "The gate set in one file, one exit-code verdict: every Gate row carries its law's WHY - the set-piece qlvl provenance among them - plus skip_ok and the no-orphan-suite rule.",
@@ -1884,11 +1884,11 @@
   },
   "second_eye_ledger.py": {
     "entryPoints": [
-      "record() :356",
-      "looked_at() :468",
-      "owes_a_look() :510",
-      "audit() :515",
-      "--check <ver> --gate :604"
+      "record()",
+      "looked_at()",
+      "owes_a_look()",
+      "audit()",
+      "--check <ver> --gate"
     ],
     "gotcha": "`family` is DERIVED from the model id, not asserted — a same-family agent writing plausible strings must not read as a cross-family look; reached=False is recorded, kept, and does NOT satisfy the gate; the .second_eye.jsonl record is untracked runtime state.",
     "purpose": "Which shipped versions the second eye actually LOOKED at - model, family, images and findings per version; hooks/pre-push reads it, and no entry is a refusal rather than a pass.",
@@ -2008,11 +2008,11 @@
   },
   "slot_identity.py": {
     "entryPoints": [
-      "footprint(col,row,w,h,container) :481",
-      "cell_of(point,panel_box,container) :245",
-      "point_of_cell() :276",
-      "panel_box_for() :215",
-      "next_target() :428"
+      "footprint(col,row,w,h,container)",
+      "cell_of(point,panel_box,container)",
+      "point_of_cell()",
+      "panel_box_for()",
+      "next_target()"
     ],
     "gotcha": "GRIDS and the panel boxes are MEASURED pixel constants (inventory origin x1791 y984, cell 86.85px at 2940x1912), not tuning knobs; six equipment slots are REFUSED rather than interpolated, and nothing in this module moves a cursor.",
     "purpose": "SLOT IDENTITY — WHERE an item was seen, not just THAT it was seen: the measured stash/inventory/cube lattice turned into a cell, a slot key and a hover point; footprint() refuses an item overhanging the grid rather than clipping it.",
@@ -2074,11 +2074,11 @@
   },
   "stash_eye.py": {
     "entryPoints": [
-      "lattice_says(dark_cols,frac_gear) :349",
-      "classify_stash_grid() :543",
-      "fuse_tab_signals() :772",
-      "analyze_frame() :940",
-      "tab_from_gem() :441"
+      "lattice_says(dark_cols,frac_gear)",
+      "classify_stash_grid()",
+      "fuse_tab_signals()",
+      "analyze_frame()",
+      "tab_from_gem()"
     ],
     "gotcha": "A dark PICTURE is not a lattice — before the contrast rule a dark scene scored dark_cols 31-40 and satisfied 'grid lattice present' as easily as a real panel (7-14); crops are aspect-pinned to his Mac's range.",
     "purpose": "Is a panel open, and WHICH tab: the dark-gridline lattice (lattice_says), the gem/OCR tab fingerprints and classify_stash_grid, fused into one tab verdict per frame.",
