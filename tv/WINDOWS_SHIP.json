@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3534",
+  "ver": "v3535",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3534: click CLAUDE or GROK to open that readers own sign-in on this PC; each lamp rings once when it drops by itself and never for his own switch; a Grok sign-in the far end refuses reads signed out and reopens the browser; plus four second-eye fixes (a failed close confirms nothing, an empty whole list is a look, the link decides a build, a release hushes only its own refusal)",
+  "note": "v3535: an idle PC proves slice after slice; shell laws run a real bash on Windows; the vault gates prove on every PC; a Grok refusal is a stated code",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
