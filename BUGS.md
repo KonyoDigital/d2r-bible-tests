@@ -405,6 +405,28 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1607 - THE READER LAMPS TOOK THE TAB STRIP'S WIDTH AND SAT UNDER THE TYPE FLOOR (found before it shipped, 2026-09-30)
+
+**Was (REG-1604's first cut, never pushed):** the lamps were two "CLAUDE primary" / "GROK shadow" pills side by side at
+a raw 10.5px. `.head-right` is `flex: none`, so its width comes straight out of the tab strip, which is measured to the
+pixel (his rule: the header holds ONE row). MEASURED with the real tab icons served: the corner went from the chip's
+126px to 231px; at 900 Vault and TV-D fell to a second row; the vault tab's lock sat further onto its own label at
+1000-1600; and `TestV1504TypeFloor` reads `[10.5]` - under the 13px floor. The Grok CLI's first look at the lamp shots
+timed out (an EMPTY seat, not a pass); the squeeze was found on the second probe of the same shots, by me.
+
+**Now:** the lamps are the two NAMES on the floor token (`--fs-2xs`, 13-15px), sized to fit under the chip; the role
+(primary / shadow) is in each lamp's title with the rest of what it says. Measured against v3528 at 900-1600: the same
+number of tab rows at every width, the corner never wider (123-137 vs 126-151), no label or page overflow; the header is
+~10px taller at 960-1120 because the lamps sit UNDER the chip, which is what he asked for, and the shell pane measures
+the topbar's real height (`_shellHeadH`). The type-floor law is the guard (red on the old bytes, green now). An
+unmeasured lamp shows "?" - the Grok CLI, cold on the pixels, read the old dashed 7px ring as a GEAR ("UNKNOWN what
+the gear means"); a gear says settings, this says nobody measured it.
+
+**Not fixed here, and why:** the vault tab's lock overlaps its label by 6-10px at 900-1600 on v3528 too (out of flow
+since v2443, top:1px). Lifting it onto the tab's top edge cleared the label at 1000-1600 but at 900 the brand's
+deliberate clip (v2120, `overflow: hidden` at <=1250) cut it to a sliver - and an invisible lock is the direction v2443
+says this must never fail in. Tracked as its own task, to be fixed against his real window width.
+
 ### REG-1606 - A CONSOLE PATH WITH A SPACE NAMED A TREE THE CONSOLE DOES NOT RUN FROM (second eye on v3528, 2026-09-30)
 
 **Was:** run_gates asked which tree the console on :17772 runs from by splitting its `ps` command line on whitespace, so
