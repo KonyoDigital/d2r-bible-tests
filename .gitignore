@@ -83,6 +83,10 @@ tv/.tvd_beacon.json
 # machine that wrote it, which is the only machine whose lane history it describes.
 tv/.read_names_feeder.json
 tv/.read_names_feeder.json.tmp
+# #41 rank 16 (REG-1560) — the tooltip oracle lane's per-row receipt: a MEASUREMENT of one machine's bible.html
+# at one moment, never a shared record (a status must be what THIS machine's lane decided)
+tv/.tooltip_oracle_receipt.json
+tv/.tor.*
 
 # scratch probes used while debugging — never ship
 _forgecheck.html

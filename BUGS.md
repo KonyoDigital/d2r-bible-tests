@@ -7,6 +7,71 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1561 - THE BUILDER'S NODE STAND-IN LIVED INSIDE A LAW, AND NODE WAS FOUND BY PATH ALONE (2026-09-30)
+
+**Found** while building REG-1560: the only harness that can run the shipped tooltip composition outside a browser
+(the localStorage/document stand-in with its vault and mule spies, the cutters for the ⟦CHARACTER BUILDER JS⟧ and
+⟦CB_DB⟧ blocks and the board pieces they stand on, `_run`) was defined inside
+`tv/test_the_character_builder_is_their_builder.py` and imported by eight sibling laws - so a console lane wanting the
+same composition would have had to import a test module or re-type the harness (copy-drift). And it found node with
+`shutil.which("node")` alone: his console runs under launchd with a bare `/usr/bin:/bin` PATH (the way the G5 lane sat
+dark for weeks), so a lane in the console would have read "node absent" on a Mac whose node is /usr/local/bin/node.
+
+**Fix (tv/cb_node_harness.py):** the harness MOVED verbatim (108 lines, never re-typed) into a production module; the
+builder law re-exports every name (`CB.NODE`, `CB._run`, `CB._src`, `CB._between`, `CB._db`, `CB.HARNESS` ...) so the
+eight importers are untouched. `node_path()` resolves by env (`TV_NODE`), then PATH (`node`, `nodejs`), then the
+known install locations (/usr/local/bin, /opt/homebrew/bin, /opt/local/bin, Program Files, LOCALAPPDATA), and only an
+executable FILE counts - a directory is not node. None stays UNKNOWN to every caller (a declared skip in a law, a
+receipt saying `node absent` in the lane) - never a pass.
+
+**Swept:** `trace_spine.board_would_file` was the one other production resolver (`shutil.which("node")`, PATH
+alone); it now asks `cb_node_harness.node_path()` - one resolver, never two. The laws that only skip on
+`shutil.which("node")` were left alone: a law runs in a shell with a real PATH, the console does not.
+
+**Law:** the builder law (16 cases) and its eight sibling laws (79 cases) re-run green over the re-export, and the
+builder law's 22 red-proofs re-proven after the move; `test_their_tooltip_rows_are_ours` pins the resolver (a
+directory is refused, an executable file in `TV_NODE` wins, PATH second) with one red-proof, PROVEN. The engine
+index and BLUEPRINT carry the module.
+
+### REG-1560 - THE TOOLTIP COMPOSITION HAD NO RUNTIME JOINT: THEIR PLANNER'S ROWS WERE COMPARED ONLY AT PUSH (2026-09-30)
+
+**Found** by the #41 heart audit (rank 16, verified): the character builder's tooltip composition had no runtime
+invariant and no doctor row. Its one independent engine - their planner's in-game tooltip, measured once on headless
+Chrome and frozen as text (`tv/the_tooltip_oracle.json`: 203 rows over 6 runewords) - was compared only by
+`test_the_tooltip_is_the_games_tooltip`, in node, at push time. A console could ship a composition that stopped being
+theirs and nothing on the eagle would say so until the next push; `corroborate.BUILDERS` had no builder entry at all.
+
+**Fix (tv/tooltip_oracle_lane.py + control_app, console_doctor, corroborate, auto_scope, loop_corroborate,
+store_owners):** a roster lane **`tvd-tooltip-oracle`** (`_tooltip_oracle_loop`: a first look 60 s after boot, then
+every 15 min; stamps its beat, leaves its lane trace, declares its scope - forbids delete - and is corroborated by
+loop_corroborate) runs the SHIPPED composition (node over the bible.html on disk, through cb_node_harness) over every
+oracle row and writes a **PER-ROW receipt**: `{runeword, base, agree, why, kinds}` for each row, the bible.html it
+measured (`{id, size, mtimeNs, sha1}`), the node, the oracle's limit, and LIFETIME counters (runs, runsMeasured,
+firstTs; an unreadable previous receipt carries them as None with `countersWhy`, never restarted at zero silently).
+It re-measures only when bible.html's bytes moved or the receipt is 6 h old - one 0.3 s node run per ship, measured.
+The doctor row **'their tooltip rows'** (CHECKS, WATCHES `_tooltip_oracle_loop`, MINE, COVERED_BY) reads the receipt,
+never node: OK names the build, the age and the limit; MISSING names the row that is not theirs, or the row never
+judged; UNKNOWN - never 0, never OK - for no receipt, `node absent` (a PC without node: the Windows box's node is
+UNKNOWN today), a receipt whose sha1 is not the page on disk (stale-reading), a summary in place of rows, an oracle it
+cannot read now. The corroborate joint **'their-tooltip-rows-are-ours'** (BUILDERS): left = their oracle rows counted
+off the fixture file (never through the lane's reader, so a reader that drops a row cannot move both sides), right =
+rows the FRESH receipt measured as ours, relation `==`; None on either side is UNKNOWN. The lane's contract speaks
+on / worked / lastTs / owed (owed None when unknown). The gate `test_the_tooltip_is_the_games_tooltip` now drives the
+same `measure()` / `judge()`, so the gate and the lane share one composition run. Measured on this Mac: 203 of 203
+rows theirs on build v3525; the joint 203 == 203 AGREE and `prove_each` proven; the lane's first tick reads OK.
+
+**THE LIMIT, said in every verdict:** their planner's 203 rows over SIX runewords (Breath of the Dying, Call to Arms,
+Grief, Heart of the Oak, Insight, Spirit), one class, one level, measured once on 2026-09-26. A green here vouches for
+those rows and nothing beyond them.
+
+**Law:** `tv/test_their_tooltip_rows_are_ours.py` - 17 cases: 3 driving node over the real oracle (every row a verdict,
+never a summary; one altered oracle line = that row NOT ours, named, MISSING, owed 1, the joint 203 vs 202 DISAGREE;
+run_once writes, the readers read OK, it re-measures only when owed), 8 over synthetic receipts (no receipt, node
+absent, stale, undatable, a summary, a dropped row, a lying tally, lost counters, a directory offered as node) and 6
+wiring cases over real objects (roster + beat + census, scope, trace, row registered / explained / declared / mine,
+the verdict map and a raise, the corroborator's self-test). 11 red-proofs, all PROVEN by `heart2 --prove`.
+Registered in run_gates (712 gates).
+
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
 **Found** when Konyo asked whether something was looping on the subscription meter. Claude was NOT the meter

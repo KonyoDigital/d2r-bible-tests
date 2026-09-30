@@ -5927,7 +5927,23 @@ GATES = [
              "form. Three differences declared and asserted where they apply: a sword's class line (theirs none), a "
              "blunt base's +50% undead (the game's code - ours UNKNOWN), an untyped IAS roll across two bands (ours "
              "both words; typed at its top, theirs). Annihilus: Keep in Inventory + ONE all-Attributes roll; a unique "
-             "and a set item keep their own lines. 8 cases, 10 red-proofs"),
+             "and a set item keep their own lines. REG-1560: the whole-oracle case drives tooltip_oracle_lane.measure(), "
+             "the SAME composition run and per-row judge the tvd-tooltip-oracle lane runs on the console. 12 cases, "
+             "16 red-proofs"),
+    Gate("test_their_tooltip_rows_are_ours",
+         [sys.executable, os.path.join(HERE, "test_their_tooltip_rows_are_ours.py")], 120,
+         why="#41 rank 16 (REG-1560) - THE RUNTIME JOINT for the builder's tooltip: the tvd-tooltip-oracle lane runs the "
+             "SHIPPED composition (node over the bible.html on disk, through tv/cb_node_harness.py) over their planner's "
+             "oracle on its own cadence and writes a PER-ROW receipt ({runeword, base, agree, why} + the bible.html "
+             "stamp it measured + lifetime counters); the doctor row 'their tooltip rows' and the corroborate joint "
+             "'their-tooltip-rows-are-ours' read that receipt. DRIVEN: measure() over the real oracle in node (every "
+             "row a verdict, never a summary); one altered oracle line = that row NOT theirs, named, MISSING, owed 1; "
+             "a receipt the page has moved from = UNKNOWN (never OK) and the joint's right side None; no receipt = "
+             "UNKNOWN; node absent = a receipt saying so, UNKNOWN, owed None - never 0; a summary in place of rows = "
+             "UNKNOWN; an oracle row the lane never judged = MISSING and the joint parts 203 vs 202; the verdict "
+             "counts ROWS, never the receipt's own tally; the lane is in the roster, stamps its beat, declares its "
+             "scope, leaves its trace, and the row is explained (COVERED_BY) and declared (WATCHES). States the "
+             "oracle's limit (203 rows, 6 runewords) in every verdict. 11 red-proofs"),
     Gate("test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character",
          [sys.executable, os.path.join(HERE, "test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character.py")], 90,
          why="#253 (GrokBot ACT 5854814442, v3517) - (a) the item Edit panel of a white Crowbill said only 'Normal · "

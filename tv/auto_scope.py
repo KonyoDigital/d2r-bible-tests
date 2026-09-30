@@ -168,6 +168,19 @@ LANES = {
         "when": "on a timer",
         "brakes": "it stops a NEW recording rather than making space",
     },
+    # #41 rank 16 (REG-1560)
+    "tvd-tooltip-oracle": {
+        "does": "runs the shipped item tooltip (the builder's composition, in node over the bible.html on disk) "
+                "over their planner's measured tooltip rows and writes down, row by row, whether ours is theirs",
+        "touches": "its own receipt file in this console's world, and its lane trace",
+        "forbids": ["delete"],
+        "never": "bible.html, your ledger, your vault, your reels or your frames - it reads the page and writes "
+                 "only its own receipt",
+        "when": "a minute after boot, then every 15 minutes; it re-measures only when bible.html moved or the "
+                "receipt is six hours old (one node run of about a third of a second per ship)",
+        "brakes": "no node on this machine = a receipt saying so, which every reader takes as UNKNOWN - never "
+                  "0 rows and never agreement; a receipt the page has moved from is UNKNOWN until re-measured",
+    },
 }
 
 
@@ -376,6 +389,7 @@ LANE_FN = {
     "tvd-chron-autoread": "_chron_autoread_loop",
     "tvd-retro-triage": "_retro_triage_loop",
     "tvd-runaway-watch": "_runaway_watch_loop",
+    "tvd-tooltip-oracle": "_tooltip_oracle_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed

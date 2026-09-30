@@ -2382,5 +2382,43 @@
     "gotcha": "It RE-DERIVES NOTHING: the four dict stores come through end_routes.sources (which asks retro_triage and reel_retention for their paths), every keyed-both-ways lookup is reel_retention.lookup_either_way, a seal's meaning is frame_authority.seal_verdict, the journey is river_stamp.history, the door a tombstoned reel left by is end_routes.verdict. A hand is held True / False / None and the three are three: None (the store exists and will not read) never becomes False, and a contradiction is NEVER raised on a None side. The census lists no reel's frames (a listing per reel on every doctor tick is the a_watcher_over_a_growing_folder scar); only the per-reel record does. `reads` and `plan` are handed IN by the caller (the console's journal and reel_retention.plan) — None means not asked, never 'no reads'. MEASURED 2026-09-29 before it existed: 460 tombstones all say 'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE.",
     "purpose": "#55 first slice — ONE reel's chain of custody: which of five hands (recorder, triage, printer, vault, tombstone) hold a record of it, each quoted from the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict each other. Behind /api/custody and the doctor row 'reel custody'.",
     "territory": "river-reels"
+  },
+  "cb_node_harness.py": {
+    "territory": "gates-proofs",
+    "purpose": "The character builder's node stand-in: a localStorage + document harness with spies on the vault and the mules, the cutters that lift the CHARACTER BUILDER JS block, the CB_DB block and the board pieces it stands on out of bible.html between their own anchors, and _run(body) which executes all of it in ONE node process. Moved verbatim out of the builder law (REG-1561) so a production lane can run the shipped tooltip composition; the ten builder laws keep importing it through that law's re-exports.",
+    "entryPoints": [
+      "node_path",
+      "NODE",
+      "_run",
+      "_src",
+      "_between",
+      "_builder_js",
+      "_db_json",
+      "_stage",
+      "_db",
+      "HARNESS"
+    ],
+    "gotcha": "NODE is resolved by env (TV_NODE), then PATH, then the known install locations - his console runs under launchd with a bare PATH, so shutil.which alone reads 'node absent' on a Mac that has node. A candidate counts only as an executable FILE (a directory is not node). None means UNKNOWN to every caller: a declared skip in a law, a receipt saying 'node absent' in the lane - never a pass. _between refuses an anchor that is not unique; the cut for the forked-name set ends at its own ']));' because the old ');' marker once ran on into LSR."
+  },
+  "tooltip_oracle_lane.py": {
+    "territory": "heart-organs",
+    "purpose": "#41 rank 16 (REG-1560): the runtime joint for the character builder's tooltip. Runs the SHIPPED composition (node over the bible.html on disk, through cb_node_harness) over their planner's measured tooltip oracle (203 rows over 6 runewords) on the console's own cadence (the tvd-tooltip-oracle lane) and writes a PER-ROW receipt - {runeword, base, agree, why} per row, the bible.html stamp it measured, the oracle's limit, lifetime counters. verdict() feeds the doctor row 'their tooltip rows', contract() speaks the shared lane vocabulary, and the corroborate joint 'their-tooltip-rows-are-ours' compares the receipt against the oracle file.",
+    "entryPoints": [
+      "measure",
+      "judge",
+      "compose",
+      "oracle_rows",
+      "oracle_limit",
+      "run_once",
+      "verdict",
+      "contract",
+      "read_receipt",
+      "write_receipt",
+      "freshness",
+      "bible_stamp",
+      "HELP",
+      "main"
+    ],
+    "gotcha": "UNKNOWN is never 0 or OK: no receipt, node absent (a PC without node), a receipt whose bible.html sha1 is not the file on disk (stale-reading), a summary in place of rows, or an oracle it cannot read now all read UNKNOWN; a row never judged or not theirs reads MISSING and is NAMED. The gate test_the_tooltip_is_the_games_tooltip drives the SAME measure(), so the gate and the lane share one composition run and one judge. The limit is stated in every verdict: six runewords, one class, one level - a green vouches for those rows and nothing beyond them. It writes only its own receipt (tmp + os.replace) in the lane's world; an unreadable previous receipt carries the counters as None with countersWhy, never restarted at zero silently."
   }
 }

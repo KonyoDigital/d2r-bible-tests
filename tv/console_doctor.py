@@ -3532,6 +3532,12 @@ BY_DESIGN = {
 }
 
 MINE = {
+    # #41 rank 16 (REG-1560) — a row of their planner's tooltip that ours does not compose is my composition
+    # defect, and a receipt the page has moved from is my lane's to re-measure; nothing here is his to rule on.
+    "their tooltip rows":
+        "#41 rank 16 — the tooltip composition is generated from HIS install and judged against their planner's "
+        "measured text; a row that is not theirs, or a stale receipt, is my work. He cannot act on a wrong line "
+        "in a hover box except by trusting it.",
     # ⚠⚠ v3321 — SIX MORE, AND HIS OWN RULING IS WHAT DEMANDS IT. #35: "WAITING ON YOU means
     # action needed FROM HIM RIGHT NOW". MEASURED on his live console 2026-09-18, the panel
     # headed WAITING ON YOU carried EIGHT rows and `owner_of` answered "you" for every one —
@@ -5956,6 +5962,28 @@ def _check_the_builder_database_matches_the_install():
     if code != 0:
         return MISSING, say + " - the picker and every tooltip list last patch's items and ranges"
     return OK, say
+
+
+def _check_their_tooltip_rows_are_ours():
+    """#41 rank 16 (REG-1560) — IS THE SHIPPED TOOLTIP STILL THEIR TOOLTIP, ON THE PAGE ON DISK?
+
+    The one independent engine the character builder has is their planner's in-game tooltip, measured once as text
+    (203 rows over 6 runewords) - and until this row it was compared only by a gate at push time. The
+    tvd-tooltip-oracle lane now runs the shipped composition over that oracle in node on this console's own cadence
+    and writes a PER-ROW receipt; this row reads the receipt and the bible.html on disk, never node.
+    THREE STATES: OK every oracle row judged and theirs (the build, the age and the oracle's limit said) ·
+    MISSING a row never judged or a row that is not theirs, NAMED · UNKNOWN no receipt, node absent (a PC without
+    node), a receipt the page has moved from, a summary in place of rows - never 0, never OK.
+    """
+    try:
+        import tooltip_oracle_lane as _tol
+    except Exception as e:
+        return UNKNOWN, "the tooltip oracle lane will not import: %s" % str(e)[:90]
+    try:
+        st, why = _tol.verdict()
+    except Exception as e:
+        return UNKNOWN, "the lane's verdict raised: %s" % str(e)[:110]
+    return {_tol.OK: OK, _tol.MISSING: MISSING}.get(st, UNKNOWN), why
 
 
 def _check_the_item_vocabulary_can_name_his_loot():
@@ -9553,6 +9581,9 @@ CHECKS = [
     ("save reader tables", _check_the_save_reader_matches_the_install),
     ("character sheet data", _check_the_character_sheet_data_matches_the_install),
     ("builder item data", _check_the_builder_database_matches_the_install),
+    # #41 rank 16 (REG-1560) — the composition against THEIR planner's measured tooltip, off the lane's per-row
+    # receipt. Cheap: a small file and a hash of bible.html; the node run belongs to the lane.
+    ("their tooltip rows", _check_their_tooltip_rows_are_ours),
     # #246 W7 — the one door into the mule map, watched: every filing carries its witness, no MAIN item in
     # a mule, no gate-passing stash row left unfiled, the feeder's banked vs runs.
     ("vault provenance", _check_vault_provenance),
@@ -10290,6 +10321,8 @@ WATCHES = {
     "character sheet data":        (),
     # #174 v-B2 fix round — the builder's CB_DB block, a generated block with no element of its own. DECLARED.
     "builder item data":           (),
+    # #41 rank 16 (REG-1560) — reads the receipt the tvd-tooltip-oracle lane writes; that loop is the vessel it watches.
+    "their tooltip rows":          ("_tooltip_oracle_loop",),
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),
