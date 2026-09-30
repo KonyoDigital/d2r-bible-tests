@@ -404,6 +404,12 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
         lamp.update(state="off", needsLogin=True,
                     why="Claude is signed out on this PC (%s) - press SIGN IN under the lamps, or run `claude` and "
                         "type /login" % (_au.get("why") or "claude auth status"))
+    elif isinstance(_au, dict) and _au.get("loggedIn") is True and lamp.get("state") == "unknown":
+        # his "nothing is showing me the CLAUDE specifically on and off light" (2026-09-30): a PC that has not read
+        # in 2 h sat at "?" while its CLI said signed in. Signed in is connected; the reads still decide once there
+        # are any (a read that FAILED stays off, whatever the sign-in says).
+        lamp.update(state="on", why="Claude is signed in on this PC (%s) - no read in the last 2 h to judge it by"
+                                    % (_au.get("why") or "claude auth status"))
     try:
         import claude_signin as _csi
         lamp["signInOpen"] = bool(_csi.inflight())

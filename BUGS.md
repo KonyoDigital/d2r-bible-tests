@@ -419,8 +419,9 @@ most every 5 min), so the button shows before a read has to fail; a read that ju
 never "signed out". The route answers only the console's own page (the board's Origin rule) and runs one fixed command,
 one sign-in at a time. On Windows the window is deliberately visible: the console's no-window door (win_quiet,
 REG-1307) would otherwise hide it, and a hidden sign-in would hang. Measured on pixels at 1600/1280/1120/901: the pill
-sits in the header's corner, overlaps nothing, and the tab strip stays one row. Law
-`test_claude_signs_in_from_the_console`, every red-proof seen RED.
+sits in the header's corner, overlaps nothing, and the tab strip stays one row.
+
+**And the lamp he could not read, and the button he asked for under Advanced.** His Mac's CLAUDE lamp sat at "?" because it judged only by the last 2 h of reads, while the CLI said signed in ("nothing is showing me the CLAUDE specifically on and off light"): a signed-in PC with no recent read now lights ON; a read that failed still decides. And "a button under advanced where it says linked so its like individual": Claude's own card sits above Grok's in WHICH EYES READ, its twin - ⚡ Linked / ⚡ Sign in / ⚡ Waiting / ⚡ Not reading / ⚡ Claude ? - painted by the same function as the corner lamps; a green Linked opens nothing. The render gate's advanced target now measures it (painted, unclipped, uncovered at every width). Law `test_claude_signs_in_from_the_console`, every red-proof seen RED.
 
 ### REG-1616 - TWO CI SPECS MEASURED THE WRONG WORLD, SO THEIR PREMISES FAILED ON EVERY RUN SINCE v3527 (2026-09-30)
 

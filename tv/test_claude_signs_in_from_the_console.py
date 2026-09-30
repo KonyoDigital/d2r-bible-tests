@@ -58,6 +58,18 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "    if isinstance(_au, dict) and _au.get(\"loggedIn\") is False and lamp.get(\"state\") != \"on\":\n",
      "replace": "    if False:\n", "matches": 1},
+    {"why": "REG-1617 - a signed-in PC that has not read lately sits at '?' again, the light he could not find",
+     "file": "control_app.py",
+     "find": "    elif isinstance(_au, dict) and _au.get(\"loggedIn\") is True and lamp.get(\"state\") == \"unknown\":\n",
+     "replace": "    elif False:\n", "matches": 1},
+    {"why": "REG-1617 - the Advanced twin never says Linked: a signed-in Claude reads as needing a sign-in",
+     "file": "control_ui.html",
+     "find": "        ab.textContent = '\u26a1 Linked'; ab.classList.add('is-ok');\n",
+     "replace": "        ab.textContent = '\u26a1 Sign in'; ab.classList.add('is-need');\n", "matches": 1},
+    {"why": "REG-1617 - clicking a green Linked opens a sign-in anyway",
+     "file": "control_ui.html",
+     "find": "    if (btn && btn.classList && btn.classList.contains && btn.classList.contains('is-ok')) return Promise.resolve(null);\n",
+     "replace": "", "matches": 1},
     {"why": "REG-1617 - the painter never shows SIGN IN",
      "file": "control_ui.html",
      "find": "      sb.hidden = !need;\n",
@@ -170,20 +182,30 @@ class TheConsoleAnswersOnlyItsOwnPage(unittest.TestCase):
             h.do_POST()
         self.assertEqual((got.get("code"), (got.get("obj") or {}).get("started")), (200, True), got)
 
-    def test_the_lamp_learns_signed_out_from_the_cli_and_a_good_read_outranks_it(self):
+    def test_the_lamp_says_on_or_off_from_the_cli_and_the_reads_still_decide(self):
+        """His words, looking at his Mac: "nothing is showing me the CLAUDE specifically on and off light". The lamp sat at
+        "?" whenever no read had happened in 2 h, while the CLI said signed in. Now: signed out -> OFF + SIGN IN; signed in
+        and nothing read -> ON; a read that just succeeded or just FAILED still decides; an UNKNOWN probe changes nothing."""
         ca = self.ca
-        rd = ca._reader_health(rows=[], g5={}, auth={"loggedIn": False, "why": "claude auth status: signed out (none)"})
-        c = rd["claude"]
-        self.assertEqual((c["state"], c["needsLogin"]), ("off", True), c)
-        self.assertIn("SIGN IN", c["why"])
-        self.assertIn("/login", c["why"])
         now = 1790000000000
-        good = [{"lane": "deep", "family": "claude", "reader": "claude", "model": "claude-sonnet", "completedTs": now - 60000}]
-        rd2 = ca._reader_health(now_ms=now, rows=good, g5={}, auth={"loggedIn": False})
-        if rd2["claude"]["state"] == "on":
-            self.assertFalse(rd2["claude"]["needsLogin"], "a read that just succeeded was overruled by the probe")
-        rd3 = ca._reader_health(rows=[], g5={}, auth={"loggedIn": None, "why": "UNKNOWN"})
-        self.assertEqual(rd3["claude"]["state"], "unknown", "an UNKNOWN probe was read as signed out")
+        ok_read = [{"lane": "deep", "model": "claude-sonnet", "completedTs": now - 60000}]
+        bad_read = [{"lane": "deep", "model": "claude-sonnet", "completedTs": now - 60000, "readFailed": True,
+                     "readErr": "the read timed out"}]
+        out = ca._reader_health(now_ms=now, rows=[], g5={}, auth={"loggedIn": False, "why": "claude auth status: signed out (none)"})
+        self.assertEqual((out["claude"]["state"], out["claude"]["needsLogin"]), ("off", True), out["claude"])
+        self.assertIn("SIGN IN", out["claude"]["why"])
+        self.assertIn("/login", out["claude"]["why"])
+        on = ca._reader_health(now_ms=now, rows=[], g5={}, auth={"loggedIn": True, "why": "claude auth status: signed in"})
+        self.assertEqual((on["claude"]["state"], on["claude"]["needsLogin"]), ("on", False),
+                         "a signed-in PC with no recent read still shows '?' instead of ON")
+        self.assertIn("signed in", on["claude"]["why"])
+        good = ca._reader_health(now_ms=now, rows=ok_read, g5={}, auth={"loggedIn": False})
+        self.assertEqual((good["claude"]["state"], good["claude"]["needsLogin"]), ("on", False),
+                         "a read that just succeeded was overruled by the probe")
+        failed = ca._reader_health(now_ms=now, rows=bad_read, g5={}, auth={"loggedIn": True})
+        self.assertEqual(failed["claude"]["state"], "off", "a read that just FAILED was painted ON because the CLI is signed in")
+        unk = ca._reader_health(now_ms=now, rows=[], g5={}, auth={"loggedIn": None, "why": "UNKNOWN"})
+        self.assertEqual(unk["claude"]["state"], "unknown", "an UNKNOWN probe was read as a verdict")
 
     def test_the_probe_runs_off_the_request_path_and_is_not_repeated(self):
         """the thread seam CAPTURES the job instead of running it, so this can see the caller did not wait"""
@@ -236,8 +258,11 @@ class TheHeaderOffersIt(unittest.TestCase):
         b = ui.index("  window._claudeSignIn = _claudeSignIn;", a)
         prog = r"""
 var ELS = {}, POSTS = [];
-function El(){ this.attrs = {}; this.title = ''; this.hidden = true; this.disabled = false; this.textContent = ''; }
+function El(){ this.attrs = {}; this.title = ''; this.hidden = true; this.disabled = false; this.textContent = '';
+  var cls = {}; this.classList = { add: function(c){ cls[c] = 1; }, remove: function(){ for (var i = 0; i < arguments.length; i++) delete cls[arguments[i]]; },
+                                   contains: function(c){ return !!cls[c]; }, list: function(){ return Object.keys(cls).sort(); } }; }
 El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
+El.prototype.getAttribute = function(k){ return (k in this.attrs) ? this.attrs[k] : null; };
 var document = { getElementById: function(id){ return ELS[id] || (ELS[id] = new El()); } };
 var window = {};
 function fetch(u, o){ POSTS.push([u, o && o.method]); return Promise.resolve({ json: function(){ return { ok: true, started: true, why: 'opened' }; } }); }
@@ -249,7 +274,21 @@ _paintReaderLamps({ claude: { state: 'off', needsLogin: true, signInOpen: true }
 _paintReaderLamps({ claude: { state: 'on', needsLogin: false } }); out.on = snap();
 _paintReaderLamps({ claude: { state: 'off', needsLogin: false, why: 'timeout' } }); out.failedRead = snap();
 _paintReaderLamps(null); out.none = snap();
-_claudeSignIn(sb()).then(function(){ out.posts = POSTS; out.after = snap(); process.stdout.write(JSON.stringify(out)); });
+var ab = function(){ return ELS['btn-claude-auth']; };
+function adv(rd){ _paintReaderLamps(rd); return [ab().textContent, ab().classList.list().join(' ')]; }
+out.adv = { on: adv({ claude: { state: 'on', why: 'signed in' } }), out: adv({ claude: { state: 'off', needsLogin: true } }),
+            open: adv({ claude: { state: 'off', needsLogin: true, signInOpen: true } }),
+            failed: adv({ claude: { state: 'off', needsLogin: false, why: 'timeout' } }), none: adv(null) };
+ab().attrs['data-idle'] = '⚡ Sign in'; ab().attrs['data-busy'] = '⚡ Waiting…';
+_paintReaderLamps({ claude: { state: 'on' } });
+_claudeSignIn(ab()).then(function(linkedClick){
+  out.linkedPosts = POSTS.length;
+  _paintReaderLamps({ claude: { state: 'off', needsLogin: true } });
+  return _claudeSignIn(ab());
+}).then(function(){
+  out.advAfter = ab().textContent;
+  return _claudeSignIn(sb());
+}).then(function(){ out.posts = POSTS; out.after = snap(); process.stdout.write(JSON.stringify(out)); });
 """
         r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr[-800:])
@@ -258,7 +297,15 @@ _claudeSignIn(sb()).then(function(){ out.posts = POSTS; out.after = snap(); proc
         self.assertEqual(o["open"], [False, "SIGNING IN…"], "an open sign-in offered a second one")
         for k in ("on", "failedRead", "none"):
             self.assertTrue(o[k][0], "%s showed SIGN IN" % k)
-        self.assertEqual(o["posts"], [["/api/claude_login", "POST"]])
+        # his "a button under advanced where it says linked so its like individual": Claude's own ⚡, the twin of Grok's
+        self.assertEqual(o["adv"]["on"], ["⚡ Linked", "is-ok"], o["adv"])
+        self.assertEqual(o["adv"]["out"], ["⚡ Sign in", "is-need"])
+        self.assertEqual(o["adv"]["open"], ["⚡ Waiting…", "is-busy"])
+        self.assertEqual(o["adv"]["failed"], ["⚡ Not reading", "is-need"])
+        self.assertEqual(o["adv"]["none"], ["⚡ Claude ?", ""], "no answer painted the Advanced button as a state")
+        self.assertEqual(o["linkedPosts"], 0, "clicking a green Linked opened a sign-in")
+        self.assertEqual(o["advAfter"], "⚡ Waiting…", "the Advanced click did not say the sign-in is open")
+        self.assertEqual(o["posts"], [["/api/claude_login", "POST"], ["/api/claude_login", "POST"]])
 
 
 if __name__ == "__main__":

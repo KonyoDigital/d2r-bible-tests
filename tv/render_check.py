@@ -1843,7 +1843,8 @@ TARGETS = {
                "the inline ontoggle fired during parse",
         "seed": """(function(){ try { localStorage.setItem('d2r_advOpen','1'); } catch(e){} return 1; })()""",
         "activate": _adv_activate("g5-eyes-card"),
-        "sel": "#g5-eyes-card",
+        # REG-1617 - and Claude's own link card beside Grok's, painted and unclipped like it
+        "sel": "#g5-eyes-card, #claude-link-card, #btn-claude-auth",
         "settles": False,   # the fleet re-times its "last seen" strings; it never fully stills
         "warmup": 10.0,     # /api/fleet must answer before there is anything to photograph
     },

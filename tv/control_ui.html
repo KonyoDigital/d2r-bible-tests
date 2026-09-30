@@ -8426,6 +8426,17 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
      drawer still opened with nothing in it, which is the complaint v2103 was meant to close.
      The card now exists from the first paint and SAYS what it does not yet know; its own
      UNKNOWN state is the honest resting position, not absence. [[unknown-stays-unknown]] -->
+          <!-- REG-1617 - his "we need a button under advanced where it says linked so its like individual": Claude's own
+               link, the twin of Grok's ⚡ below. Green when this PC's Claude is signed in, amber when it needs a sign-in;
+               painted by _paintReaderLamps from the same /api/status readers as the lamps in the corner, so the two can
+               never disagree -->
+          <div id="claude-link-card" class="g5-eyes-card" data-state="unknown" title="Claude - the primary reader on this PC">
+            <div class="g5-eyes-row">
+              <span class="g5-eyes-lab">🧠 CLAUDE</span>
+              <button type="button" class="g5-auth-btn" id="btn-claude-auth" data-idle="⚡ Sign in" data-busy="⚡ Waiting…"
+                      onclick="window._claudeSignIn(this)" title="Claude on this PC: not measured yet">⚡ Claude ?</button>
+            </div>
+          </div>
           <div id="g5-eyes-card" class="g5-eyes-card" data-state="unknown" title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
             <div class="g5-eyes-row">
               <!-- v2033 — Konyo: "should it really be called Grok Eyes? cuz default is Claude
@@ -28468,9 +28479,32 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     });
     /* REG-1617 - SIGN IN only while this PC's Claude says it is signed out (needsLogin), never for a read that merely
        failed and never on UNKNOWN; while a sign-in window is open it says so instead of offering a second one */
+    var C = (rd && typeof rd === 'object') ? rd.claude : null;
+    /* REG-1617 - Claude's own ⚡ under Advanced, the twin of Grok's: Linked / Sign in / Waiting / Not reading / ? */
+    var ab = document.getElementById('btn-claude-auth');
+    if (ab && ab.classList && !ab.disabled) {
+      var cst = (C && (C.state === 'on' || C.state === 'off')) ? C.state : 'unknown';
+      ab.classList.remove('is-ok', 'is-need', 'is-busy');
+      var card = document.getElementById('claude-link-card');
+      if (card) card.setAttribute('data-state', cst);
+      if (cst === 'on') {
+        ab.textContent = '⚡ Linked'; ab.classList.add('is-ok');
+        ab.title = 'Claude is signed in on this PC - ' + ((C && C.why) || 'connected');
+      } else if (C && C.needsLogin === true) {
+        ab.textContent = C.signInOpen ? '⚡ Waiting…' : '⚡ Sign in';
+        ab.classList.add(C.signInOpen ? 'is-busy' : 'is-need');
+        ab.title = C.signInOpen ? 'a sign-in window is open on this PC - finish it in the browser'
+                                : 'Claude is signed out on this PC - click to open the sign-in (you finish it in the browser)';
+      } else if (cst === 'off') {
+        ab.textContent = '⚡ Not reading'; ab.classList.add('is-need');
+        ab.title = 'Claude could not read on this PC - ' + ((C && C.why) || 'no reason given');
+      } else {
+        ab.textContent = '⚡ Claude ?';
+        ab.title = 'Claude on this PC: ' + ((C && C.why) || 'not measured yet');
+      }
+    }
     var sb = document.getElementById('rl-signin');
     if (sb) {
-      var C = (rd && typeof rd === 'object') ? rd.claude : null;
       var need = !!(C && C.state === 'off' && C.needsLogin === true);
       sb.hidden = !need;
       if (need && !sb.disabled) {
@@ -28485,19 +28519,23 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      in the title, and the next status poll repaints the lamp once the sign-in lands */
   function _claudeSignIn(btn) {
     btn = btn || document.getElementById('rl-signin');
+    /* the Advanced twin: a green Linked is a state, not an invitation - clicking it opens nothing */
+    if (btn && btn.classList && btn.classList.contains && btn.classList.contains('is-ok')) return Promise.resolve(null);
+    var _lab = function (k, dflt) { return (btn && btn.getAttribute && btn.getAttribute(k)) || dflt; };
     if (btn) { btn.disabled = true; btn.textContent = 'OPENING…'; }
     return fetch('/api/claude_login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = (j && (j.started || j.reason === 'in-flight')) ? 'SIGNING IN…' : 'SIGN IN';
+          btn.textContent = (j && (j.started || j.reason === 'in-flight')) ? _lab('data-busy', 'SIGNING IN…')
+                                                                             : _lab('data-idle', 'SIGN IN');
           btn.title = (j && j.why) || 'the console gave no answer';
         }
         return j;
       })
       .catch(function (e) {
-        if (btn) { btn.disabled = false; btn.textContent = 'SIGN IN'; btn.title = 'the console did not answer (' + e + ')'; }
+        if (btn) { btn.disabled = false; btn.textContent = _lab('data-idle', 'SIGN IN'); btn.title = 'the console did not answer (' + e + ')'; }
         return null;
       });
   }
