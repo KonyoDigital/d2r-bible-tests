@@ -236,6 +236,33 @@ OUT.surface.alert = { hidden: ELS['vault-lock-alert'].hidden, text: ELS['vault-l
 STORE['d2r_vaultProv'] = '{ not json';
 window._vaultLockChip();
 OUT.surface.chipUnknown = { hidden: ELS['vault-lock-chip'].hidden, text: ELS['vault-lock-chip'].textContent };
+/* P10 — SEEN ON PIXELS 2026-09-30: the banner sat ~600 px above a locker lower on the page; the refusal is also said AT the
+   cell he acted on (the copy in view), once, and never floats when no copy is in view */
+var BODYKIDS = [], CELLS = [];
+function _cellAt(top){ var cl = {}; return { classList: { add: function(c){ cl[c] = 1; }, remove: function(c){ delete cl[c]; } }, offsetWidth: 63,
+  getBoundingClientRect: function(){ return { top: top, bottom: top + 30, left: 800, right: 863, width: 63, height: 30 }; } }; }
+document.querySelectorAll = function(sel){ return /Arachnid Mesh/.test(sel) ? CELLS : []; };
+document.createElement = function(){ var e = _el(); e.style = {}; e.attrs = {}; e.offsetWidth = 300; e.offsetHeight = 52; e.parentNode = null;
+  e.setAttribute = function(k, v){ e.attrs[k] = String(v); }; return e; };
+document.body = { appendChild: function(e){ e.parentNode = document.body; BODYKIDS.push(e); if (e.id) ELS[e.id] = e; return e; },
+                  removeChild: function(e){ e.parentNode = null; BODYKIDS = BODYKIDS.filter(function(x){ return x !== e; }); if (ELS[e.id] === e) delete ELS[e.id]; } };
+window.innerHeight = 1000; window.innerWidth = 1400; window.scrollX = 0; window.scrollY = 700;
+seed(); CELLS = [_cellAt(-400), _cellAt(560)];
+OUT.p10 = { refused: window.vaultUnassign('Arachnid Mesh') };
+var _pop = ELS['vault-lock-pop'] || null;
+OUT.p10.pops = BODYKIDS.length; OUT.p10.text = _pop ? _pop.textContent : null;
+OUT.p10.top = _pop ? _pop.style.top : null; OUT.p10.left = _pop ? _pop.style.left : null; OUT.p10.aria = _pop ? _pop.attrs['aria-hidden'] : null;
+window.vaultUnassign('Arachnid Mesh');
+OUT.p10.popsAfterTwo = BODYKIDS.length;
+CELLS = [_cellAt(-400)];
+window.vaultUnassign('Arachnid Mesh');
+OUT.p10.popsNoneInView = BODYKIDS.length; OUT.p10.map = map();
+/* P11 — a release takes its own refusal down (seen on pixels: "LOCKED ... Hold Shift" stayed up after Shift released it) */
+seed(); CELLS = [_cellAt(560)]; ELS['vault-lock-alert'] = _el();
+window.vaultUnassign('Arachnid Mesh');
+OUT.p11 = { popBefore: BODYKIDS.length, alertBefore: !ELS['vault-lock-alert'].hidden };
+OUT.p11.released = window.vaultUnassign('Arachnid Mesh', { unlock: true });
+OUT.p11.popAfter = BODYKIDS.length; OUT.p11.alertAfter = !ELS['vault-lock-alert'].hidden; OUT.p11.map = map();
 process.stdout.write(JSON.stringify(OUT));
 """
 
@@ -447,6 +474,27 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
         self.assertIn("Arachnid Mesh", sf["alert"]["text"])
         self.assertEqual(sf["chipUnknown"]["text"], "\U0001f512 ?", "an unreadable store must read UNKNOWN on the chip")
 
+    def test_21_a_refusal_is_said_at_the_cell_he_acted_on(self):
+        """SEEN ON PIXELS 2026-09-30 (headless Chrome, a real ✕ click on a locker lower on the page): the banner and the
+        status line sit in the Vault's header, ~600 px above his view, so the refusal on screen was a 0.9 s shake."""
+        p = self.out["p10"]
+        self.assertEqual(p["map"].get("Arachnid Mesh"), "uni-armor", "the refused ✕ moved the item: %r" % p["map"])
+        self.assertEqual(p["pops"], 1, "a refusal was not said at the cell he acted on")
+        self.assertIn("Shift", p["text"] or "")
+        self.assertIn("Arachnid Mesh", p["text"] or "")
+        self.assertEqual((p["top"], p["left"]), ("1200px", "682px"),
+                         "the bubble is not over the copy of the cell that is IN VIEW: top %r left %r" % (p["top"], p["left"]))
+        self.assertEqual(p["aria"], "true", "the bubble must not be read aloud twice - the banner is the one announced")
+        self.assertEqual(p["popsAfterTwo"], 1, "two refusals left two bubbles")
+        self.assertEqual(p["popsNoneInView"], 0, "with no copy in view a bubble floated over nothing")
+
+    def test_22_a_release_takes_its_own_refusal_down(self):
+        p = self.out["p11"]
+        self.assertEqual((p["popBefore"], p["alertBefore"]), (1, True), "the premise: the plain ✕ was refused, loudly: %r" % p)
+        self.assertNotIn("Arachnid Mesh", p["map"], "Shift+✕ did not release it to the dock")
+        self.assertEqual((p["popAfter"], p["alertAfter"]), (0, False),
+                         "after Shift released it, the refusal still said LOCKED beside it: %r" % p)
+
     def test_20_the_cell_wears_the_lock_and_the_header_holds_the_chip(self):
         """The render half, read in the source (the pixels are looked at by hand and by the Grok eye): the cell's class
         carries the lock, its badge sits before the ✕, both surfaces exist, and every render refreshes the chip."""
@@ -462,6 +510,34 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#98 seen on pixels - after Shift released it, the refusal still says LOCKED beside it for 9 s",
+        "file": "bible.html",
+        "find": "    all[nm] = r; _provWrite(all); _vaultLockHush(nm); return true;\n",
+        "replace": "    all[nm] = r; _provWrite(all); return true;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 seen on pixels - the refusal is said only in the header, ~600 px above a locker lower on the page",
+        "file": "bible.html",
+        "find": "      if (at){\n        var pop = document.createElement('div');\n",
+        "replace": "      if (false){\n        var pop = document.createElement('div');\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 seen on pixels - the bubble floats over a copy of the cell that is out of view",
+        "file": "bible.html",
+        "find": "if (!at && r && r.width > 0 && r.bottom > 0 && r.top < vh) at = { c: c, r: r }; });",
+        "replace": "if (!at && r && r.width > 0) at = { c: c, r: r }; });",
+        "matches": 1,
+    },
+    {
+        "why": "#98 seen on pixels - every refusal adds another bubble",
+        "file": "bible.html",
+        "find": "      if (old && old.parentNode) old.parentNode.removeChild(old);\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "#98 P1 - UNKNOWN is checked only as a refusal reason again: Shift on an unreadable store reaches the release",
         "file": "bible.html",

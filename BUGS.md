@@ -484,6 +484,14 @@ chip and on the cell. Reduced-motion users get no shake.
 **Guards:** `tv/test_a_hardened_filing_is_locked_until_he_releases_it.py` - 20 cases (8 new), 20 red-proofs (9 new, 4
 re-aimed at the rewritten guards), each tamper seen red by hand.
 
+**Seen on real pixels (headless Chrome, real CDP clicks with and without Shift), and fixed:** the refusal banner and the
+status line both sit in the Vault's header, so a refusal on a locker lower on the page was said ~600 px above his view -
+on screen it was a 0.9 s shake. The same words now ride a bubble over the cell he acted on (the copy in view; one at a
+time; aria-hidden, the banner stays the one read aloud), above the item's art card, which steps aside. And after Shift
+released a filing, the refusal said a moment earlier ("... LOCKED ... Hold Shift") stayed up for 9 s beside the released
+item - a release now takes its own item's refusal down. Measured end to end: plain ✕ -> still in UNI-ARMOR, banner +
+bubble + shake; Shift+✕ -> in the dock, refusal gone, chip hidden.
+
 ### REG-1595 - THE CHARACTER READER'S HOURLY CAP SKIPPED EVERY VISIT AFTER IT FOR GOOD (#231 5909410674, 2026-09-30)
 
 **Found by** the Grok code seat on 8d420bba; **reproduced before anything changed**: a reel of 8 character-select visits

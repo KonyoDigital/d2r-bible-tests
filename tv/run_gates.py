@@ -5760,7 +5760,7 @@ GATES = [
              "will not parse reads UNKNOWN and every hand door refuses 'prov-unreadable' rather than reading {} as "
              "unlocked. Evidence lanes stay free: vaultRemove takes a locked filing and vaultRestoreLast brings the row "
              "back lock included. Source half: the mule cell's x and both hand paths (drop, click) carry the Shift "
-             "release, code-only. The SHIPPED doors cut from bible.html and driven in node. 12 cases, 11 red-proofs"),
+             "release, code-only. The SHIPPED doors cut from bible.html and driven in node. seen on real pixels with CDP clicks: the refusal is said AT the cell he acted on (the header banner sat ~600 px above a lower locker) and a release takes its own refusal down. 22 cases, 24 red-proofs"),
     Gate("test_a_one_look_frameless_read_does_not_paint_the_vault_ring",
          [sys.executable, os.path.join(HERE, "test_a_one_look_frameless_read_does_not_paint_the_vault_ring.py")], 90,
          needs_app=False,
@@ -8453,7 +8453,7 @@ GATES = [
              "vault_evidence.tier (looks since it appeared: WATCHED <10, PROVEN 10, HARDENED 20; a character the screen "
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
-             "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one). 18 cases, 13 red-proofs"),
+             "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such. 18 cases, 15 red-proofs"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,

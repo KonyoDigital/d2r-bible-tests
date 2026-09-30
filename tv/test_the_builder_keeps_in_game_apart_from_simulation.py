@@ -52,7 +52,7 @@ function fetch(url){ FETCHED.push(String(url));
 
 ROSTER = r"""
 var ROSTER = { ok: true, tierBars: { proven: 10, hardened: 20, wilson: 0.722 }, chars: [
-  { name: 'HAMMERDIN', cls: 'Paladin', level: 92, pendingLevel: null, visits: 22, tier: 'HARDENED', looks: 22, trials: 22,
+  { name: 'HAMMERDIN', cls: 'Paladin', level: 94, pendingLevel: null, visits: 22, tier: 'HARDENED', looks: 22, trials: 22,
     title: 'Patriarch', lastTs: NOW - 3600000 },
   { name: 'Frostnova', cls: 'Sorceress', level: 71, pendingLevel: 72, visits: 11, tier: 'PROVEN', looks: 11, trials: 11,
     title: null, lastTs: NOW - 7200000 },
@@ -90,7 +90,7 @@ class TheRoomHasTwoSections(unittest.TestCase):
           OUT.frost = (/<article class="chx-card chx-ghost" data-learned="seen:frostnova">([\s\S]*?)<\/article>/.exec(secHtml('ingame') || '') || [])[1] || null;
           OUT.head = /chx-sec-s">([^<]*)</.exec(secHtml('ingame') || '');
           OUT.head = OUT.head ? decode(OUT.head[1]) : null;
-          OUT.fetched = FETCHED.slice();
+          OUT.fetched = FETCHED.slice(); OUT.ingHtml = secHtml('ingame');
         """)
         self.assertEqual(out["order"], ['data-sec="ingame"', 'data-sec="sim"'], "the room is not two sections, in game first")
         self.assertEqual(out["ing"], ["bHAM"], "a build carrying a learned character's name is not under that character")
@@ -100,6 +100,11 @@ class TheRoomHasTwoSections(unittest.TestCase):
         self.assertEqual(out["gSim"], [])
         self.assertIn('data-tier="HARDENED"', out["ham"])
         self.assertIn("🔒 HARDENED · 22 of 22 looks", out["ham"], "the in-game card does not wear the vault's tier")
+        # the Grok eye on pixels: "level 90 ... the reels saw level 92 - the page does not say which is the character's level"
+        self.assertIn("level 94 in game", out["ham"], "an in-game card must lead with the level the reels confirmed")
+        self.assertIn("this build says 92", out["ham"], "the build's own, different level went unsaid")
+        self.assertIn('data-sub="mules"', out["ingHtml"], "the level-1 characters are not said to be mules")
+        self.assertLess(out["ingHtml"].index('data-sub="mules"'), out["ingHtml"].index('data-learned="seen:mulebox"'))
         self.assertIsNotNone(out["frost"], "Frostnova's card is gone")
         self.assertIn("✓ PROVEN · 11 of 11 looks", out["frost"])
         self.assertIn("72 waits for one more look", out["frost"], "a level only one look saw was shown as his level")
@@ -180,8 +185,8 @@ class ThePlannersListSaysTheSameSections(unittest.TestCase):
         g = out["g"]
         self.assertIsNotNone(g, "the planner's build list is gone")
         self.assertEqual([x["label"].split(" (")[0] for x in g],
-                         ["⚔ In game — 2 seen on this console's reels", "Level 1 — mules?", "🧪 Simulation builds"])
-        self.assertEqual(g[0]["label"], "⚔ In game — 2 seen on this console's reels")
+                         ["⚔️ In game — 2 seen on this console's reels", "Level 1 — mules?", "🧪 Simulation builds"])
+        self.assertEqual(g[0]["label"], "⚔️ In game — 2 seen on this console's reels")
         self.assertEqual([v for v, _ in g[0]["opts"]], ["bHAM", "tpl:seen:frostnova"],
                          "in game must list each learned character's build in its place, or the character itself")
         self.assertIn("✓ PROVEN · 11 of 11 looks", g[0]["opts"][1][1])
@@ -196,7 +201,7 @@ class ThePlannersListSaysTheSameSections(unittest.TestCase):
           seed(null); window.openCharBuilder('bHAM'); OUT.g = groups();
         """)
         g = out["g"]
-        self.assertTrue(g[0]["label"].startswith("⚔ In game — UNKNOWN"), g[0]["label"])
+        self.assertTrue(g[0]["label"].startswith("⚔️ In game — UNKNOWN"), g[0]["label"])
         self.assertEqual([v for v, _ in g[-1]["opts"]], ["bSORC", "bHAM", "bDRU", "__new"])
 
 
@@ -310,6 +315,20 @@ class TheTierIsTheVaults(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#103 (Grok eye) - an in-game card leads with the build's level, not the one the reels confirmed",
+        "file": "bible.html",
+        "find": "    if (t && t.level) lv = 'level ' + (t.level | 0) + ' in game'",
+        "replace": "    if (false) lv = 'level ' + (t.level | 0) + ' in game'",
+        "matches": 1,
+    },
+    {
+        "why": "#103 (Grok eye) - the level-1 characters stand among the played ones with nothing saying they are mules",
+        "file": "bible.html",
+        "find": "    if (S.mules.length) cards += '<div class=\"chx-sec-sub\" data-sub=\"mules\">",
+        "replace": "    if (false) cards += '<div class=\"chx-sec-sub\" data-sub=\"mules\">",
+        "matches": 1,
+    },
     {
         "why": "#103 - a build carrying a learned character's name is no longer under that character",
         "file": "bible.html",

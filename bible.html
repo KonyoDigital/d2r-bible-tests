@@ -10182,6 +10182,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-sec-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
 #tab-chars .chx-sec-s{font-size:var(--fs-meta);color:var(--text-dim);min-width:0}
 #tab-chars .chx-sec-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#tab-chars .chx-sec-sub{grid-column:1/-1;font-size:var(--fs-meta);color:var(--text-dim);padding-top:4px}
 #tab-chars .chx-sec-empty{grid-column:1/-1;padding:12px 14px;border-radius:10px;border:1px dashed var(--border-light);background:var(--surface);color:var(--text-dim);font-size:var(--fs-body)}
 #tab-chars .chx-ghost{border-style:dashed;background:var(--surface)}
 #tab-chars .chx-proof{font-size:var(--fs-meta);padding:3px 8px;border-radius:7px;border:1px solid var(--border-light);color:var(--text-dim);align-self:flex-start;max-width:100%}
@@ -10312,6 +10313,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     var n = _count(b), when = _ago(b.at), lvl = +b.level, total = n ? n.worn + n.inv : 0;
     var cls = b.cls ? esc(b.cls) : '<span class="chx-unk">class UNKNOWN</span>';
     var lv = (lvl >= 1 && lvl <= 99) ? 'level ' + (lvl | 0) : '<span class="chx-unk">level UNKNOWN</span>';
+    /* #103 (the Grok eye on pixels, 2026-09-30: "level 90 ... the reels saw level 92 - the page does not say which is the
+       character's level") - on an in-game card the character's level is the one the reels confirmed; the build's own
+       number is said beside it when it differs, as the build's */
+    if (t && t.level) lv = 'level ' + (t.level | 0) + ' in game' + ((lvl >= 1 && lvl <= 99 && (lvl | 0) !== (t.level | 0))
+      ? ' <span class="chx-unk">· this build says ' + (lvl | 0) + '</span>' : '');
     var facts = n
       ? '<span><b>' + total + '</b> item' + (total === 1 ? '' : 's') + '</span><span>' + n.worn + ' worn</span><span>'
         + n.inv + ' in inventory</span><span>' + n.sets + ' set' + (n.sets === 1 ? '' : 's') + '</span>'
@@ -10434,7 +10440,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   }
   function _proof(t){
     var say = (typeof window._cbTierSay === 'function') ? window._cbTierSay(t) : 'tier UNKNOWN';
-    var lv = t.level ? ' · the reels saw level ' + (t.level | 0) + (t.pendingLevel ? ' (' + (t.pendingLevel | 0) + ' waits for one more look)' : '') : '';
+    var lv = t.pendingLevel ? ' · level ' + (t.pendingLevel | 0) + ' waits for one more look' : '';
     var seen = _ago(t.lastTs);
     return '<div class="chx-proof" data-tier="' + esc(t.tier || 'UNKNOWN') + '">' + esc(say) + esc(lv)
       + (seen ? '<span class="chx-proof-when"> · last seen ' + esc(seen) + '</span>' : '') + '</div>';
@@ -10457,16 +10463,20 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     var ladder = bars ? '👁 WATCHED → ✓ PROVEN at ' + bars.proven + ' looks → 🔒 HARDENED at ' + bars.hardened
                       : '👁 WATCHED → ✓ PROVEN → 🔒 HARDENED, on the Vault\'s own bars';
     var ing = S.ingame.concat(S.mules), cards = '';
-    ing.forEach(function(g){
-      cards += g.ids.length ? g.ids.map(function(id){ return _card(id, all[id], id === mainId, g.t); }).join('') : _ghost(g.t);
-    });
+    var _one = function(g){ return g.ids.length ? g.ids.map(function(id){ return _card(id, all[id], id === mainId, g.t); }).join('') : _ghost(g.t); };
+    S.ingame.forEach(function(g){ cards += _one(g); });
+    /* level-1 characters his reels saw are almost always mules (measured: 10 of his first 12) - said as such, in their
+       own row, as the planner's list does (the Grok eye: "the page does not say what Mulebox is") */
+    if (S.mules.length) cards += '<div class="chx-sec-sub" data-sub="mules">Level 1 — mules? ' + S.mules.length
+      + ' seen on your reels. They are in-game characters too; the Vault\'s mule lockers are a separate thing.</div>'
+      + S.mules.map(_one).join('');
     if (!ing.length) cards = '<div class="chx-sec-empty" data-state="' + esc(S.state) + '">' + (S.state === 'unknown'
       ? 'Which characters you have in game is UNKNOWN here — ' + esc(S.why) + '.'
       : 'None yet. A character joins here once this console\'s reels have seen your character-select screen twice, then proves itself look by look.') + '</div>';
     var sim = S.sim.map(function(id){ return _card(id, all[id], id === mainId); }).join('');
     if (!S.sim.length) sim = '<div class="chx-sec-empty" data-state="empty">No simulation builds. + New character makes one to try things out.</div>';
     return '<section class="chx-sec" data-sec="ingame" aria-label="In-game characters">'
-      +   '<div class="chx-sec-h"><span class="chx-sec-t">⚔ In-game characters</span><span class="chx-sec-s">seen on this console\'s reels · each proves itself the way the Vault\'s filings do: ' + ladder + '</span></div>'
+      +   '<div class="chx-sec-h"><span class="chx-sec-t">⚔️ In-game characters</span><span class="chx-sec-s">seen on this console\'s reels · each proves itself the way the Vault\'s filings do: ' + ladder + '</span></div>'
       +   '<div class="chx-sec-list">' + cards + '</div></section>'
       + '<section class="chx-sec" data-sec="sim" aria-label="Simulation builds">'
       +   '<div class="chx-sec-h"><span class="chx-sec-t">🧪 Simulation builds</span><span class="chx-sec-s">builds you make by hand to try things out · + New character adds one</span></div>'
@@ -37201,8 +37211,9 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vault-lock-chip.vlc-unk{color:#ff8a70;border-color:rgba(255,138,112,.5)}
 .vault-lock-alert{margin:6px 0;padding:7px 10px;border:1px solid rgba(240,192,96,.55);border-left:3px solid #f0c060;border-radius:6px;background:rgba(40,28,6,.88);color:#f3dfae;font-size:12px;line-height:1.4}
 .vault-lock-alert.vla-on{animation:vlaIn .25s ease-out}
+.vault-lock-pop{position:absolute;z-index:100003;max-width:340px;padding:7px 10px;border:1px solid rgba(240,192,96,.7);border-left:3px solid #f0c060;border-radius:6px;background:rgba(28,20,6,.96);color:#f3dfae;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.55);pointer-events:none;animation:vlaIn .25s ease-out}   /* #98 - the refusal said AT the cell he acted on */
 @keyframes vlaIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion: reduce){.vm-cell.vmc-lock-shake,.vault-lock-alert.vla-on{animation:none}}
+@media (prefers-reduced-motion: reduce){.vm-cell.vmc-lock-shake,.vault-lock-alert.vla-on,.vault-lock-pop{animation:none}}
 /* 2026-09-28 — the evidence door on every vault surface, and the panel it opens (below the frame lightbox) */
 .vm-cell-ev{position:absolute;left:0;bottom:0;font-size:var(--fs-micro);line-height:var(--lh-none);padding:1px 2px;background:rgba(0,0,0,.55);border:none;border-radius:0 4px 0 5px;color:var(--gold-bright,#f0c060);cursor:pointer;opacity:.55;transition:opacity .12s;z-index:5}
 .vm-cell:hover .vm-cell-ev,.vm-cell-ev:focus-visible{opacity:1}
@@ -39853,7 +39864,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var all = _provAll(), nm = String(name == null ? '' : name).trim(), r = all[nm];
     if (!r || typeof r !== 'object' || r.locked !== true) return false;
     r.locked = false; r.unlockedAt = new Date().toISOString(); r.unlockedBy = 'hand'; r.unlockedWhy = String(why || 'released by hand');
-    all[nm] = r; _provWrite(all); return true;
+    all[nm] = r; _provWrite(all); _vaultLockHush(nm); return true;
   }
   window._vaultHardLock = _hardLock;
   window._vaultHardUnlock = _hardUnlock;
@@ -39900,13 +39911,51 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         clearTimeout(box._vlaT); box._vlaT = setTimeout(function(){ box.hidden = true; }, 9000);
       }
       var sel = '[data-vault-item="' + ((window.CSS && CSS.escape) ? CSS.escape(nm) : String(nm).replace(/"/g, '\\"')) + '"]';
-      Array.prototype.forEach.call(document.querySelectorAll(sel), function(c){
+      var cells = Array.prototype.slice.call(document.querySelectorAll(sel));
+      cells.forEach(function(c){
         c.classList.remove('vmc-lock-shake'); void c.offsetWidth; c.classList.add('vmc-lock-shake');
         setTimeout(function(){ c.classList.remove('vmc-lock-shake'); }, 1200);
       });
+      /* #98, SEEN ON PIXELS 2026-09-30 (headless Chrome, a real ✕ click): the banner above and the status line both sit
+         in the Vault's HEADER, so a refusal on a locker lower on the page was said ~600 px above his view - on screen it
+         was a 0.9 s shake and nothing else. "A refusal he can't miss" means where he is looking: the same words ride a
+         bubble over the cell he acted on (the one in view). aria-hidden - the banner is the one read aloud; one bubble at
+         a time, gone after 6 s. */
+      var old = document.getElementById('vault-lock-pop');
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      var vh = window.innerHeight || 800, vw = window.innerWidth || 1200, at = null;
+      cells.forEach(function(c){ var r = c.getBoundingClientRect ? c.getBoundingClientRect() : null;
+        if (!at && r && r.width > 0 && r.bottom > 0 && r.top < vh) at = { c: c, r: r }; });
+      if (at){
+        /* seen on pixels: his hover had opened the item's art card (#arttip, z 9999) over the words - it steps aside */
+        try { var _tip = document.getElementById('arttip'); if (_tip && _tip.classList) _tip.classList.remove('on'); } catch (e) {}
+        var pop = document.createElement('div');
+        pop.id = 'vault-lock-pop'; pop.className = 'vault-lock-pop'; pop.setAttribute('aria-hidden', 'true');
+        pop.textContent = msg;
+        document.body.appendChild(pop);
+        var w = pop.offsetWidth || 320, h = pop.offsetHeight || 60, r = at.r;
+        var x = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - w - 8));
+        var y = (r.top - h - 8 >= 72) ? r.top - h - 8 : r.bottom + 8;
+        pop.style.left = Math.round(x + (window.scrollX || 0)) + 'px';
+        pop.style.top = Math.round(y + (window.scrollY || 0)) + 'px';
+        clearTimeout(_vaultLockSay._t);
+        _vaultLockSay._t = setTimeout(function(){ if (pop.parentNode) pop.parentNode.removeChild(pop); }, 6000);
+      }
     } catch (e) {}
   }
   window._vaultLockSay = _vaultLockSay;
+  /* #98, SEEN ON PIXELS 2026-09-30: right after Shift released a filing, the refusal said a moment earlier ("... LOCKED in
+     UNI-ARMOR ... Hold Shift") stayed up for up to 9 s beside the released item and contradicted what had just happened.
+     A release takes down its own item's refusal - the bubble and the banner - and nothing else. */
+  function _vaultLockHush(nm){
+    try {
+      var n = String(nm == null ? '' : nm);
+      var pop = document.getElementById('vault-lock-pop');
+      if (pop && pop.parentNode && String(pop.textContent || '').indexOf(n) >= 0) pop.parentNode.removeChild(pop);
+      var box = document.getElementById('vault-lock-alert');
+      if (box && !box.hidden && String(box.textContent || '').indexOf(n) >= 0){ box.hidden = true; clearTimeout(box._vlaT); }
+    } catch (e) {}
+  }
   function _lookConf(e){
     var c = e && e.conf;
     c = (typeof c === 'number') ? c : parseFloat(c);
@@ -57286,7 +57335,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var S = _cbSections(all, order);
     var _opt = function(t){ return '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') + ' · ' + esc(_cbTierSay(t)) + ' · not saved yet</option>'; };
     var _grp = function(g){ return g.ids.length ? g.ids.map(_bopt).join('') : _opt(g.t); };
-    sel += '<optgroup label="⚔ In game — ' + esc(S.state === 'ok' ? S.ingame.length + ' seen on this console\'s reels' : S.state === 'none' ? 'none seen on this console\'s reels yet' : 'UNKNOWN: ' + S.why) + '">';
+    sel += '<optgroup label="⚔️ In game — ' + esc(S.state === 'ok' ? S.ingame.length + ' seen on this console\'s reels' : S.state === 'none' ? 'none seen on this console\'s reels yet' : 'UNKNOWN: ' + S.why) + '">';
     S.ingame.forEach(function(g){ sel += _grp(g); });
     if (!S.ingame.length) sel += '<option value="__none" disabled>' + (S.state === 'unknown' ? 'which characters you have in game is UNKNOWN here' : 'they join once the reels see your character-select screen twice') + '</option>';
     sel += '</optgroup>';
