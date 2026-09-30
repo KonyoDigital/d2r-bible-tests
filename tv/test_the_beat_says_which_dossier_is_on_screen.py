@@ -54,7 +54,9 @@ def _open_fn():
 
 
 def _node(script):
-    r = subprocess.run([NODE, "-e", script], capture_output=True, text=True, encoding="utf-8", errors="replace",
+    # the program travels on STDIN (#242): Linux caps one argv string at 128 KB, and CI would error with no word
+    # about this law the day a cut of the page grows past it
+    r = subprocess.run([NODE, "-"], input=script, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=60)
     if r.returncode != 0:
         raise AssertionError("the page code would not run in node: %s" % r.stderr[-600:])
