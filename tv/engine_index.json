@@ -1380,6 +1380,14 @@
     "purpose": "Sabotage harness that attacks console.pixel_rescue's paint witness with his own measured window states and scores (Wilson) the right for a PIXEL verdict to trigger a window rescue.",
     "territory": "gates-proofs"
   },
+  "posix_shell.py": {
+    "entryPoints": [
+      "bash"
+    ],
+    "gotcha": "On Windows `bash` on PATH is usually C:\\Windows\\System32\\bash.exe - the WSL launcher, which runs nothing without a distribution (measured on the ALT). bash() never returns it; it falls back to Git for Windows' own bash beside the git a PC pulls with, else None - a law then says UNKNOWN, never a pass. Windows paths go through ntpath on every host, so its own cases run on his Mac and on CI.",
+    "purpose": "REG-1632 - the one resolver for a real POSIX bash, used by every law that drives a shell snippet (the pre-push port chooser, the launcher block, the push-line clock), so those laws prove on the ALT too.",
+    "territory": "gates-proofs"
+  },
   "printer.py": {
     "entryPoints": [
       "stream",
