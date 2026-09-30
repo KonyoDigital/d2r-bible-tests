@@ -294,6 +294,50 @@ absent, stale, undatable, a summary, a dropped row, a lying tally, lost counters
 wiring cases over real objects (roster + beat + census, scope, trace, row registered / explained / declared / mine,
 the verdict map and a raise, the corroborator's self-test). 11 red-proofs, all PROVEN by `heart2 --prove`.
 Registered in run_gates (712 gates).
+### REG-1580 - ONE PIECE READ FOUR DIFFERENT HUNT TIMES, AND ITS RUN WAS CALLED "HELL HELL BOVINES" (2026-09-30)
+
+**Found** when Konyo, one set piece from done (Cow King's Hooves), wrote: "the time to hunt is not synced across here
+and the sessions tab... here it says 84hrs. and in sets its like a million hours.. something is bugged i mentioned
+this to you alraedy before... make sure its calliberated too." Measured on the real page (headless Chrome, MF 699,
+every piece ticked but the Hooves), for ONE piece at ONE run:
+
+| surface | printed | why |
+|---|---|---|
+| Sets run row | "expected ~1 every 20030h of running" | kph / per-KILL odds: 1:140,209 is ONE cow, a run kills ~350 |
+| Sets quick win | "1:140.2k ~40h to find" | hoursFor with kills-per-run: right |
+| Sets hero | "best run: Normal TZ Hell Bovines 1:157.5k" | the RAW row, not the MF-adjusted odds; no time |
+| console Sessions | 78.7h in Hell, "faster outside Hell 39.7h" | /api/evrank over the bridge: right (Hell-first is his v1555 ruling) |
+
+The run row was v2285's per-kill defect on the one line v2285 never reached. `_pickSrc` ranked every source on the
+same per-kill rate, so 29 of 148 rows picked a different "best run" on the forges than the console already ranked
+(the grail bridge: The Scourge and Polaris Spear - Pindleskin on the forge, The Pit on the console). The quick-win
+ORDER used the raw odds while its card printed the adjusted ones, `_etaHours` did the same on the grail wall, and a
+tie in hours (Hell vs Hell TZ Cow Level, 78.67h each) went to the first row in the bridge and the higher rate on the
+forge. The label: the cow row of BOSSES is named for its monster, "Hell Bovines", and every source prefixes its
+difficulty.
+
+**Fix (bible.html):** ONE clock and ONE picker. `pickFastest` (beside hoursFor): the source with the shortest
+even-odds hour, kills-per-run aware, a tie to the higher finds-per-hour rate - behind `_pickSrc` AND both console
+bridges (`_writeGrailFarm`, `_writeSetFarm`). `findRate` (runs/h x per-RUN chance) is the only rate a run sums;
+`runHoursFor` gives a run's own hour with hoursFor's whole-run arithmetic, so a one-drop run reads exactly its card.
+Every run row, both heroes and the ops route print it through one spelling (`_fmtHunt`: "~40h to find it" / "~3h to
+find one"), with its assumptions on hover (runs/h, ~kills per run - estimates, printed, not hidden). The Sets hero
+prints the adjusted odds and the hour; every Sets card whose pick is not Hell names the Hell run and hour the
+Sessions tab leads with ("Hell: Cow Level ~79h"); the ~350/run chip is on the Sets cards too. `RUN_NAME` names the
+cow run "Cow Level" (the boss card, rune sources and art keep "Hell Bovines").
+After: hero, run row, quick win and bridge all read ~40h / 1:140.2k, Hell ~79h; 372 of 372 grail rows name the
+same best and Hell run on the forge and the console.
+
+**NOT calibrated, and said so:** the per-location run rates (kph: Pit 45/h, Pindleskin 300/h, cows 6-7/h) and
+kills-per-run (cows 350, Pit 110) are hand-set estimates. His session reads name an area on 21 of 1,740 rows and
+never the Pit or the Cow Level, so nothing measured can replace them yet; the cards now print what each hour
+assumes.
+
+**Guards:** `tv/test_one_hunt_clock.py` (gate `test_one_hunt_clock`) - the engine, the picker, the Sets and Uniques
+run groupings cut from bible.html and driven in node, joined to `control_app._ev_rank`; 10 cases, 6 red-proofs
+PROVEN. `tests/v3526_one_hunt_clock.spec.ts` (CI) drives the real forge and both bridges: one hour, one set of odds,
+one name for the Hooves everywhere, and 0 forge-vs-console naming mismatches across every grail row (the old page
+fails both: run row and hero carry no hour, hero odds 1:157.5k, 2 grail items named differently).
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 

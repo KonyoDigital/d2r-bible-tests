@@ -18804,6 +18804,14 @@ window.renderEndgameRoad = renderEndgameRoad;
    registry only. Every routing consumer reads window.ITEM_REGISTRY; the grid keeps its 322. */
 const ITEM_REGISTRY = {};
 BOSSES.forEach(boss => {
+  /* v3526 — A RUN IS NAMED FOR WHERE HE GOES, NOT FOR WHAT HE KILLS THERE. The cow row of BOSSES is
+     named for its monster, "Hell Bovines", and every source label prefixes its difficulty — so the
+     cow runs read "Hell Hell Bovines" and "Normal TZ Hell Bovines" (his Sessions card, 2026-09-30:
+     "hunt at Hell Hell Bovines"). Only the RUN label changes: the boss card, the rune sources, the
+     art and every match on the monster's name keep "Hell Bovines". Nothing persists this label —
+     d2r_grailFarm / d2r_setFarm are rebuilt from it on every render. (Declared INSIDE this loop:
+     laws cut the registry build from its first two lines, and a name above them is not in the cut.) */
+  const runName = ({ cows: 'Cow Level' })[boss.id] || boss.name;
   boss.dropTable.forEach(d => {
     if (!ITEM_REGISTRY[d.n]) {
       ITEM_REGISTRY[d.n] = {n:d.n,tc:d.tc,qlvl:d.qlvl,tier:d.tier,sources:[]};
@@ -18818,7 +18826,7 @@ BOSSES.forEach(boss => {
       const kphMult = (k === "norm" || k === "normTz") ? 1.2 : (k === "nm" || k === "nmTz") ? 1.1 : 1.0;
       const effKph = Math.round(boss.kph * kphMult);
       if (chance !== null && chance !== undefined) {
-        item.sources.push({boss:`${label} ${boss.name}`,chance,bossId:boss.id,verified:isVer,kph:effKph,diffKey:k});
+        item.sources.push({boss:`${label} ${runName}`,chance,bossId:boss.id,verified:isVer,kph:effKph,diffKey:k});
       } else {
         /* v1722 — A REASON MUST NOT CITE A RULE ITS OWN CELL DISPROVES.
            Two annotations explain an empty cell: `qlvl > mlvl` and `tc > tcMax`. Both were
@@ -18850,7 +18858,7 @@ BOSSES.forEach(boss => {
         const _tcSound = !(boss.dropTable || []).some(o =>
           o !== d && o[k] !== null && o[k] !== undefined && (o.tc || 0) > diff.tcMax);
         if (d.qlvl > 0 && d.qlvl > diff.mlvl && _qlvlSound) blocked = `qlvl ${d.qlvl} > ${label} mlvl ${diff.mlvl}`;
-        else if (d.tc > 0 && d.tc > diff.tcMax && _tcSound) blocked = `TC ${d.tc} > ${label} ${boss.name} TC ${diff.tcMax}`;
+        else if (d.tc > 0 && d.tc > diff.tcMax && _tcSound) blocked = `TC ${d.tc} > ${label} ${runName} TC ${diff.tcMax}`;
         /* v1723 — SUPPRESSING A FALSE REASON MUST NOT DELETE THE FACT.
            v1722 stopped citing `qlvl > mlvl` in cells whose own data breaks that rule, and a row
            with no reason gets NO source entry at all — so the "cannot drop here" marker vanished
@@ -18866,8 +18874,8 @@ BOSSES.forEach(boss => {
            probe_meph_shako lost keys that had been present-and-null). Extending the suppression
            without extending this line would have re-armed that exact regression. */
         else if ((d.qlvl > 0 && d.qlvl > diff.mlvl) || (d.tc > 0 && d.tc > diff.tcMax))
-          blocked = `not in ${label} ${boss.name}'s drop pool`;
-        if (blocked) item.sources.push({boss:`${label} ${boss.name}`,chance:null,blocked,bossId:boss.id,diffKey:k});
+          blocked = `not in ${label} ${runName}'s drop pool`;
+        if (blocked) item.sources.push({boss:`${label} ${runName}`,chance:null,blocked,bossId:boss.id,diffKey:k});
       }
     });
   });
@@ -20828,6 +20836,73 @@ const hoursFor = (chance, conf, kph, kpr) => {
   if (!(pRun > 0) || pRun >= 1) return null;
   return Math.ceil(Math.log(1-conf)/Math.log(1-pRun)) / kph;
 };
+/* ══ v3526 — ONE HUNT CLOCK. A RUN ROW, A PIECE CARD, A HERO AND THE CONSOLE READ THE SAME HOUR ══
+   Konyo, 2026-09-30, on Cow King's Hooves — the one piece left in his sets: "the time to hunt is not
+   synced across here and the sessions tab... here it says 84hrs. and in sets its like a million
+   hours.. something is bugged i mentioned this to you alraedy before... make sure its calliberated".
+
+   Measured on this page (MF 699, 1 player) before the fix, for the SAME piece at the SAME run:
+     Sets run row     "expected ~1 every 20030h of running"   kph / per-KILL odds — no kills-per-run
+     Sets quick win   "1:140.2k ~40h to find"                 hoursFor, kills-per-run — right
+     Sets hero        "1:157.5k"                               the RAW odds, no time at all
+     console Sessions  Hell 78.7h · "faster outside Hell ≈39.7h"  /api/evrank over the bridge — right
+   The run row is v2285's defect on the one line v2285 never reached: 1:140,209 is the chance for ONE
+   cow, a run kills ~350 of them, and dividing per-kill odds by RUNS per hour priced 140,209 cows at
+   seven an hour. _pickSrc ranked every source on the same per-kill rate, so an item that drops in a
+   dense zone AND from a boss had its area run priced up to 350x too slow before any hour was printed.
+
+   findRate — finds per HOUR from one source: runs per hour x the per-RUN chance. The only rate a
+   ranking may sum or compare.
+   runHoursFor — hours to an even chance of AT LEAST ONE of the drops a run can give. Whole runs over
+   the run's per-run miss chance: hoursFor's own arithmetic, so a run with ONE missing drop reads
+   EXACTLY the hour its piece card, the hero and /api/evrank print for it. Rows are
+   {chance (MF/players-adjusted), bossId, kph}. One run is one boss at one difficulty, so its rows
+   share a kph; if they ever do not, or a row is an event percentage hoursFor does not time either,
+   the answer is null (honest-absent) — never an average, never a guess. */
+const findRate = (chance, bossId, kph) => {
+  const p = perRunChance(chance, bossId), k = Number(kph);
+  return (p > 0 && k > 0) ? k * p : 0;
+};
+const runHoursFor = (rows, conf) => {
+  conf = conf || 0.5;
+  if (!rows || !rows.length) return null;
+  const kph = Number(rows[0].kph);
+  if (!(kph > 0)) return null;
+  let logMiss = 0;
+  for (const r of rows) {
+    if (Number(r.kph) !== kph) return null;
+    if (!r.chance || r.chance <= EVENT_PCT_MAX) return null;
+    const p = perRunChance(r.chance, r.bossId);
+    if (!(p > 0) || p >= 1) return null;
+    logMiss += Math.log(1 - p);
+  }
+  if (!(logMiss < 0)) return null;
+  return Math.ceil(Math.log(1 - conf) / logMiss) / kph;
+};
+/* v3526 — ONE PICKER. Every "best run" in this app asks this: both forges' cards and runs (_pickSrc),
+   and the console bridge (d2r_grailFarm / d2r_setFarm -> /api/evrank, the Sessions heroes). It is the
+   source with the SHORTEST even-odds hour (hoursFor, kills-per-run included); a tie goes to the higher
+   finds-per-hour rate, then to the earlier row. The bridge used its own loop — first row wins a tie —
+   so "Hell Cow Level" and "Hell TZ Cow Level" (78.67h each for the Hooves) could be named differently
+   on two tabs for the same hour. adj(s) returns a row's MF/players-adjusted chance. A row whose hour
+   hoursFor cannot give (an event percentage, no kph) sorts after every timed row and returns
+   hours:null — never a guessed hour. */
+const KPH_FALLBACK = 100;   // the bridge's long-standing stand-in; every BOSSES row carries its own kph
+const srcKph = (s) => (s && Number(s.kph) > 0) ? Number(s.kph) : KPH_FALLBACK;
+const pickFastest = (sources, adj) => {
+  let best = null, bestH = Infinity, bestR = -1, bestC = null;
+  for (const s of (sources || [])) {
+    if (!s || s.blocked || s.chance == null) continue;
+    const c = adj ? adj(s) : s.chance;
+    if (c == null || !(c > 0)) continue;
+    const k = srcKph(s);
+    let h = hoursFor(c, 0.5, k, killsPerRun(s.bossId));
+    if (h == null || !isFinite(h)) h = Infinity;
+    const r = findRate(c, s.bossId, k);
+    if (h < bestH || (h === bestH && r > bestR)) { best = s; bestH = h; bestR = r; bestC = c; }
+  }
+  return best ? { s: best, chance: bestC, rate: bestR, hours: (bestH === Infinity ? null : bestH) } : null;
+};
 const fmtHours = h => {
   if (h === null || h === undefined || !isFinite(h)) return "—";
   if (h < 1) return `${Math.round(h*60)}min`;
@@ -20958,16 +21033,13 @@ function _writeGrailFarm(){
          Hell Mephisto at 2.27h — invisible to the Hell bucket, which therefore led with Shadow
          Killer at 3.89h. He asked to finish Hell first and was sent on the 3.9h Hell hunt while a
          2.3h Hell hunt moving the same meter existed and was never named. 42% slower. */
-      var best = null, bestHell = null;
-      (item.sources || []).forEach(function(s){
-        if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
-        var adj = effChance(s.chance, s.bossId, s.diffKey);
-        var hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
-        if (hrs === null) return;
-        if (!best || hrs < best.hours) best = { boss: s.boss, bossId: s.bossId, chance: adj, kph: s.kph || 100, hours: hrs };
-        if (String(s.diffKey || '').indexOf('hell') === 0 && (!bestHell || hrs < bestHell.hours))
-          bestHell = { boss: s.boss, bossId: s.bossId, chance: adj, kph: s.kph || 100, hours: hrs };
-      });
+      /* v3526 — the ONE picker (pickFastest), so the console hero and the forge cards cannot name two
+         different runs for one item — before, a tie between two rows went to whichever came first here
+         and to the higher rate there. */
+      var _adjE = function(s){ return effChance(s.chance, s.bossId, s.diffKey); };
+      var _asBest = function(p){ return (p && p.hours != null) ? { boss: p.s.boss, bossId: p.s.bossId, chance: p.chance, kph: srcKph(p.s), hours: p.hours } : null; };
+      var best = _asBest(pickFastest(item.sources, _adjE));
+      var bestHell = _asBest(pickFastest((item.sources || []).filter(function(s){ return s && String(s.diffKey || '').indexOf('hell') === 0; }), _adjE));
       /* v1651 — THE SOURCE IS A BOSS NAME, NOT AN ITEM. "Hell Mephisto"/"Hell TZ Pindleskin" were
          shipped as bare strings the console had nowhere true to resolve art for — artUrl() is the
          ITEM map and would repeat the exact soulstone-as-Mephisto defect _runBossArt was written to
@@ -21070,14 +21142,11 @@ function _writeSetFarm(){
             return x.tier === 'set' && window._setKey(x.n) === window._setKey(src.setKeyName || st.name); });
           if (agg) _rows.push(agg);
         }
-        _rows.reduce(function(a,x){ return a.concat(x.sources||[]); }, []).forEach(function(z){
-          if (!z.chance || z.blocked) return;
-          if (String(z.diffKey||'').indexOf('hell') !== 0) return;
-          var a2 = effChance(z.chance, z.bossId, z.diffKey);
-          var h2 = hoursFor(a2, 0.5, z.kph || 100, killsPerRun(z.bossId));
-          if (h2 === null) return;
-          if (!bestHell || h2 < bestHell.h) bestHell = { h: h2, boss: z.boss, bossId: z.bossId, chance: a2, kph: z.kph || 100 };
-        });
+        // v3526 — the ONE picker, over the same rows (see pickFastest beside hoursFor)
+        var _hp = pickFastest(_rows.reduce(function(a,x){ return a.concat(x.sources||[]); }, [])
+          .filter(function(z){ return z && String(z.diffKey||'').indexOf('hell') === 0; }),
+          function(z){ return effChance(z.chance, z.bossId, z.diffKey); });
+        if (_hp && _hp.hours != null) bestHell = { h: _hp.hours, boss: _hp.s.boss, bossId: _hp.s.bossId, chance: _hp.chance, kph: srcKph(_hp.s) };
       } catch(e){}
       /* v1651 — SET AGGREGATE ART, SAME FALLBACK CHAIN AS THE DAILY PICK (v1649,
          bible.html:~22279). A set's collective name carries no sprite of its own — measured,
@@ -49346,7 +49415,33 @@ function renderJournal(){
   function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=_flogTime(fl[a]), db=_flogTime(fl[b]); if(da!==db) return db-da; if(fl[a]&&!fl[b]) return -1; if(fl[b]&&!fl[a]) return 1; return a.localeCompare(b); }); }
   // v695 🏓R7 — human-first drop intervals: '~1 every 0.1h' forced mid-session math; under an hour
   // reads in MINUTES ('~1 every 6m'), an hour and up keeps hours. Odds math untouched — display only.
-  function _fuRate(ev){ var h = 1/ev; if (h < 1) return Math.max(1, Math.round(h*60)) + 'm'; if (h < 10) return (Math.round(h*10)/10) + 'h'; return Math.round(h) + 'h'; }
+  /* v3526 — ONE CLOCK, ONE SPELLING. _fuRate printed 1/(Σ kph/per-KILL odds) — a mean interval on a
+     rate that left out kills-per-run — beside cards printing hoursFor's even-odds hour, so one piece
+     read "~1 every 20030h" on its run and "~40h to find" on its card. Every run row now prints the
+     run's own even-odds hour (runHoursFor) through the SAME spelling _ttf uses. A run with one
+     missing drop therefore reads exactly its piece card's hour. */
+  function _fmtHunt(h){
+    if (h === null || h === undefined || !isFinite(h) || h <= 0) return '';
+    return (h < 1) ? Math.max(1, Math.round(h * 60)) + 'm' : (h < 10 ? (Math.round(h * 10) / 10) + 'h' : Math.round(h) + 'h');
+  }
+  window._fmtHunt = _fmtHunt;
+  // the run row's clause: one missing drop -> "~40h to find it", several -> "~3h to find one"
+  function _runClock(r){
+    var t = _fmtHunt(r && r.hours);
+    if (!t) return '';
+    // the hour carries its own assumptions (v2285): runs per hour, and kills per run on an AREA run
+    var kph = r.rows && r.rows[0] && r.rows[0].kph, kpr = (typeof killsPerRun === 'function') ? killsPerRun(r.bossId) : 1;
+    var why = (kph ? kph + ' runs/h' : '') + (kpr > 1 ? (kph ? ' · ' : '') + '~' + kpr + ' kills per run (an estimate — the hour moves with it)' : '');
+    return ' · <b' + (why ? ' title="assumes ' + why + '"' : '') + '>~' + t + '</b> to find ' + ((r.items && r.items.length === 1) ? 'it' : 'one');
+  }
+  window._runClock = _runClock;
+  /* v2285's AREA-RUN chip — one run kills many monsters, and that count is an ESTIMATE, so the hour
+     beside it names it. One spelling for both forges (v3526: the Sets cards never carried it). */
+  function _kprChip(bossId){
+    var n = (typeof killsPerRun === 'function') ? killsPerRun(bossId) : 1;
+    return n > 1 ? '<span class="gf-odds gf-kpr" title="this is an AREA run: one run kills many monsters, so the per-kill odds above are compounded across the run. The count is an estimate — the hour moves with it.">~' + n + '/run</span>' : '';
+  }
+  window._kprChip = _kprChip;
   /* ── v1565 — ONE TIME-TO-FIND, FOR BOTH FORGES ───────────────────────────────────────────────
      Konyo: "for Sets i dont see the items section rendering with time frames for each run... it
      is like that on Uniques already... only the first one on each section is already time frame
@@ -49363,8 +49458,7 @@ function renderJournal(){
     try {
       if (!chance || !kph) return '';
       var h = (typeof hoursFor === 'function') ? hoursFor(chance, 0.5, kph, kpr) : null;
-      if (h === null || !isFinite(h) || h <= 0) return '';
-      return (h < 1) ? Math.max(1, Math.round(h * 60)) + 'm' : (h < 10 ? (Math.round(h * 10) / 10) + 'h' : Math.round(h) + 'h');
+      return _fmtHunt(h);
     } catch (e) { return ''; }
   }
   window._ttf = _ttf;
@@ -49750,8 +49844,11 @@ function renderJournal(){
       var picked = (row && typeof window._pickSrc === 'function') ? window._pickSrc(row.sources, name) : null;
       var sc = (picked && picked.s) || fallbackSrc || null;
       if (!sc || !sc.chance) return null;
-      var h = (typeof hoursFor === 'function')
-            ? hoursFor(sc.chance, 0.5, sc.kph || 100, killsPerRun(sc.bossId)) : null;
+      /* v3526 — the ADJUSTED odds (the pick's own .chance, or _adjC on the fallback), not the raw
+         row: this hour sat on the grail wall beside cards printing the MF/players-adjusted one. */
+      var ch = (picked && picked.s === sc && picked.chance != null) ? picked.chance
+             : ((typeof window._fAdjC === 'function') ? (window._fAdjC(sc, name) || sc.chance) : sc.chance);
+      var h = hoursFor(ch, 0.5, srcKph(sc), killsPerRun(sc.bossId));
       return (h === null || !isFinite(h)) ? null : h;
     } catch(e){ return null; }
   }
@@ -50133,16 +50230,16 @@ function renderJournal(){
   }
   window._fAdjC = _adjC;
   function _pickSrc(sources, name){
-    var best=null, bestR=-1, bestC=null;
-    (sources||[]).forEach(function(s){
-      if(!s || s.blocked || s.chance==null) return;
-      var c=_adjC(s, name);
-      var rate=(s.kph||30)/c;
-      if(rate>bestR){ bestR=rate; best=s; bestC=c; }
-    });
+    /* v3526 — ONE PICKER (pickFastest, beside hoursFor): the source with the SHORTEST even-odds hour —
+       the very figure the item card, the hero and the console's bridge print, kills-per-run included —
+       so no surface can name a different "best run" for one item. It ranked on (kph / per-kill odds),
+       which priced a cow or Pit run up to 350x too slow and let a boss win items an area run finds
+       sooner: measured, 29 of 148 rows picked a different run than the console hero already did. */
+    var p=pickFastest(sources, function(s){ return _adjC(s, name); });
     // .chance = the MF/players-adjusted odds every caller must print; .s.chance stays the raw
     // source row so nothing downstream silently loses the baseline it was calibrated against.
-    return best && { s:best, rate:bestR, chance:bestC, diff:_diffRank(best.diffKey) };
+    // .rate = finds per HOUR (kills-per-run aware) — the only rate a run may sum. .hours = the clock.
+    return p && { s:p.s, rate:p.rate, chance:p.chance, diff:_diffRank(p.s.diffKey), hours:p.hours };
   }
   window._pickSrc = _pickSrc;
   function _bestSrc(it){ return _pickSrc(it && it.sources, it && it.n); }
@@ -50161,8 +50258,8 @@ function renderJournal(){
     var bySrc={};
     missing.forEach(function(x){
       var b=_bestSrc(x); var key=b?b.s.boss:'Anywhere — no verified source yet';
-      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0, diff:-1}); g.items.push(x);
-      if(b){ g.ev+=b.rate; x._bs=b; if(b.diff>g.diff){ g.diff=b.diff; g.diffLabel=_diffLabel(b.diff); } }   // per-run expected missing-unique drops per HOUR (Σ kph/chance) — the true farm metric
+      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0, diff:-1, rows:[]}); g.items.push(x);
+      if(b){ g.ev+=b.rate; g.rows.push({chance:b.chance, bossId:b.s.bossId, kph:srcKph(b.s)}); x._bs=b; if(b.diff>g.diff){ g.diff=b.diff; g.diffLabel=_diffLabel(b.diff); } }   // expected missing-unique finds per HOUR (Σ runs/h × per-RUN chance, v3526) — the true farm metric; .rows feed the run's own clock
     });
     // v1542 / v1549 — HARDEST FIRST, IN THE SORT. Every Hell run comes before every Nightmare one
     // and those before every Normal one; inside a tier the best expected yield still wins. Sorting
@@ -50174,6 +50271,8 @@ function renderJournal(){
     /* v1616 — sort on the SAME adjusted odds the chips print, or the list order and the numbers
        on it can disagree the moment /players makes two bosses shrink by different amounts. */
     runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?(a._bs.chance!=null?a._bs.chance:a._bs.s.chance):9e9), cb=(b._bs?(b._bs.chance!=null?b._bs.chance:b._bs.s.chance):9e9); return ca-cb; }); });
+    // v3526 — every run carries ONE clock: hours to an even chance of finding one of ITS missing drops
+    runs.forEach(function(r){ r.hours = runHoursFor(r.rows); });
     /* v1571 — QUICK WINS SORTED BY QUICKNESS. Konyo: "shouldnt it be from quickest to slowest
        farmed? the slower ones on the bottom and the faster ones on top."
        It sorted by qlvl, so the list read 3.2h, 2.9h, 2.6h, 2.9h — ascending item level, which is
@@ -50881,7 +50980,7 @@ function renderJournal(){
     }
     return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+_runArtThumb(r)+'</div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact"><span class="f-rankpill">'+(i+1)+'</span>Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
-      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+_fuRate(r.ev)+'</b> of running':'')+'</div>'
+      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+_runClock(r)+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
   }
   /* v1716 — "NO VERIFIED SOURCE" WAS BEING SAID ABOUT ITEMS WHOSE SOURCE IS NOT IN DOUBT.
@@ -50918,7 +51017,7 @@ function renderJournal(){
          the hour alone is how 1:140,200 became "13884h to find" and stayed there: a number with a
          hidden denominator cannot be argued with. Shown only when it is not 1, so every boss row
          stays exactly as it was. [[unknown-stays-unknown]] */
-      +(killsPerRun(b.bossId)>1?'<span class="gf-odds gf-kpr" title="this is an AREA run: one run kills many monsters, so the per-kill odds above are compounded across the run. The count is an estimate — the hour moves with it.">~'+killsPerRun(b.bossId)+'/run</span>':'')+'</div>')
+      +_kprChip(b.bossId)+'</div>')
              :_srcNoteHtml(x.n);
     /* v1624 — QUICK WINS still shows the ITEM (his call: "for quick wins we dont touch and leave
        it as is which is the item as the main") — it just stops being an inert picture. */
@@ -51060,7 +51159,7 @@ function renderJournal(){
            (nameLogo), the floating card (data-arttip) and the cursor, and ~100 surfaces use it. This
            line was building `esc(x.n)` by hand, so three real item names sat as flat prose inside a
            hero whose title had just been given the full treatment. */
-        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+_fuRate(top.ev)+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return (window._qArt?window._qArt(x.n):esc(x.n));}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
+        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+_runClock(top)+' — '+top.items.slice(0,3).map(function(x){return (window._qArt?window._qArt(x.n):esc(x.n));}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
         +(F==='runs'
             ? '<button class="f-btn fh-cta" onclick="'+(top.bossId?'window.openBossDetail(\''+top.bossId+'\')':'window.switchTab(\'bosses\')')+'">Open boss card <span class="fh-cta-arw">→</span></button></div>'
             : '<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>'));   /* v695 🏓R7 — on the runs view the old CTA TOGGLED BACK to All (funiSetFilter re-click semantics): a lying arrow on the planning surface */
@@ -51846,6 +51945,31 @@ function renderJournal(){
     } catch(e){ return null; }
   }
   window._pieceSrc = _pieceSrc;
+  /* v3526 — THE PIECE'S HELL HOUR, BY THE SAME CLOCK. The console's Sessions hero leads with the Hell
+     run (his v1555 ruling: "i rather finish off Hell and then the others") and adds "faster outside
+     Hell" when the quickest run is easier. The Sets tab printed only the quickest run — so for Cow
+     King's Hooves one tab said 84h and the other 42h, both right, and neither said why. Every Sets
+     card whose pick is not Hell now names the Hell run and its hour, from _pickSrc over the piece's
+     own Hell rows: the same pick and the same hour the bridge ships to /api/evrank. */
+  function _pieceHellPick(pieceName){
+    try {
+      if (typeof window._regKey!=='function') return null;
+      var row=_pcIdx()[window._regKey(pieceName)];
+      if (!row) return null;
+      var hell=(row.sources||[]).filter(function(z){ return z && String(z.diffKey||'').indexOf('hell')===0; });
+      return _pickSrc(hell, pieceName) || null;
+    } catch(e){ return null; }
+  }
+  window._pieceHellPick = _pieceHellPick;
+  function _hellClock(mp){
+    try {
+      if (!mp || !mp.src || String(mp.src.diffKey||'').indexOf('hell')===0) return '';
+      var hp=_pieceHellPick(mp.name), t=hp && _fmtHunt(hp.hours);
+      if (!t) return '';
+      // the label already starts with "Hell" ("Hell TZ Cow Level") — say it once
+      return '<span class="gf-odds gf-hell" title="the Hell run — what the Sessions tab leads with: '+esc(hp.s.boss)+'">Hell: <b>'+esc(String(hp.s.boss).replace(/^Hell\s+/, ''))+'</b> ~'+t+'</span>';
+    } catch(e){ return ''; }
+  }
   var _fsF='all';
   window.fsetsSetFilter=function(f){ _fsF=(_fsF===f&&f!=='all')?'all':f; window.renderForgeSets(); };
   window.grailTogglePiece=function(el,piece){
@@ -53299,7 +53423,7 @@ function renderJournal(){
           var _bh=''; try { if (bs && bs.s) _bh = _ttf(bs.chance!=null?bs.chance:bs.s.chance, bs.s.kph||30, killsPerRun(bs.s.bossId)); } catch(e){}
           c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
                  bestHours:_bh,
-                 route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
+                 route:(run&&_fmtHunt(run.hours)?('this run finds one of your missing uniques in ~'+_fmtHunt(run.hours)):'') };
           c.pick='🏆 Chronicle · '+c.done+'/'+c.total+' — hunt '+it.n+(boss?(' (best at '+boss+(oddsStr?', '+oddsStr:'')+')'):'')+'; '+c.left+' uniques left';
         } else {
           /* ⚠⚠ #135 — NOTHING LEFT TO HUNT IS NOT THE SAME AS NOTHING TO SAY, and leaving
@@ -53460,9 +53584,15 @@ function renderJournal(){
        It is flagged now so the card can say what it is instead of pretending to be a run. */
     var NO_RUN_KEY = 'No verified farm source yet';
     missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:NO_RUN_KEY;
-      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,diff:-1,noRun:!mp.src}); g.items.push(mp);
-      if(mp.src){ g.ev+=(mp.src.kph||30)/_adjC(mp.src, mp.name);   /* v1616 — MF/players-adjusted, like Uniques */
+      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,diff:-1,noRun:!mp.src,rows:[]}); g.items.push(mp);
+      if(mp.src){ var _ac=_adjC(mp.src, mp.name);   /* v1616 — MF/players-adjusted, like Uniques */
+        /* v3526 — finds per HOUR with kills-per-run (findRate), not kph / per-KILL odds: the old sum
+           printed "~1 every 20030h" for a cow run whose one missing piece its own card timed at 40h. */
+        g.ev+=findRate(_ac, mp.src.bossId, srcKph(mp.src));
+        g.rows.push({chance:_ac, bossId:mp.src.bossId, kph:srcKph(mp.src)});
         var _dr=_diffRank(mp.src.diffKey); if(_dr>g.diff) g.diff=_dr; } });
+    // v3526 — the run's ONE clock, the same arithmetic as each piece card's (runHoursFor)
+    Object.keys(bySrc).forEach(function(k){ var g=bySrc[k]; g.hours=g.noRun?null:runHoursFor(g.rows); });
     // v1564 — the no-source bucket sorts LAST regardless of size. It is not a better run than a
     // real one just because more orphans landed in it.
     /* v1717 — HARDEST FIRST, exactly as v1542/v1549 did for the uniques side. The comment on
@@ -53479,7 +53609,9 @@ function renderJournal(){
        ORDERS. A set with no known source sinks rather than leading, because "quick" is a claim we
        cannot make about it. */
     var _qsHrs=function(mp){ var sc=mp.src; if(!sc||!sc.chance) return 1e9;
-      var h=(typeof hoursFor==='function')?hoursFor(sc.chance,0.5,sc.kph||100,killsPerRun(sc.bossId)):null;
+      /* v3526 — sort on the ADJUSTED odds the card prints (_adjC), not the raw row: the order and
+         the hour beside it came from two different chances. */
+      var h=(typeof hoursFor==='function')?hoursFor(_adjC(sc, mp.name),0.5,sc.kph||100,killsPerRun(sc.bossId)):null;
       return (h===null||!isFinite(h))?1e9:h; };
     var quick=missingP.filter(function(mp){return mp.left===1;})
       .map(function(mp){ mp._qh=_qsHrs(mp); return mp; })
@@ -53529,7 +53661,7 @@ function renderJournal(){
         H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
           +'<div class="fh-artwrap"><div class="fh-art">'+_heroItemArt(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
           +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name"><span class="fs-piece" data-arttip="'+esc(qClean)+'" role="button" tabindex="0" aria-label="open '+esc(qClean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(qClean)+'\');}">'+esc(qClean)+'</span></div>'
-          +'<div class="fh-body">the LAST piece of <b class="fs-setname" data-arttip="'+esc(q0.set.replace(/\s*\(set\)$/,''))+'" style="cursor:help">'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b class="gf-boss">'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
+          +'<div class="fh-body">the LAST piece of <b class="fs-setname" data-arttip="'+esc(q0.set.replace(/\s*\(set\)$/,''))+'" style="cursor:help">'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b class="gf-boss">'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_adjC(q0.src, q0.name))+'</span>'+(function(){ var t=_ttf(_adjC(q0.src, q0.name), q0.src.kph, killsPerRun(q0.src.bossId)); return t?' <span class="gf-odds gf-ttf">~'+t+' to find</span>':''; })()+_kprChip(q0.src.bossId)+_hellClock(q0):'')+'</div></div>'
           +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
       } else if(runs.length){
         var t0=runs[0];
@@ -53562,7 +53694,7 @@ function renderJournal(){
           +'<div class="f-atomsubrow">'+(g.noRun
               ? '<b>'+g.items.length+'</b> pieces whose set has no verified farm source in this app — hunt them anywhere, and tap one the moment it drops'
               : 'can drop <b>'+g.items.length+'</b> of your missing pieces'
-                + (g.ev>0?' · expected <b>~1 every '+_fuRate(g.ev)+'</b> of running':'')
+                + _runClock(g)
                 + ' — tap a piece the moment it drops')+'</div>'
           +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
       });
@@ -53587,7 +53719,7 @@ function renderJournal(){
            run implies the odds improve with MF when we do not know that they drop there. */
         var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as Uniques; sets were baseline-only too
         var _ts=mp.src?_ttf(_sc,mp.src.kph,killsPerRun(mp.src.bossId)):'';
-        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
+        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+_kprChip(mp.src.bossId)+_hellClock(mp)+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
         /* v1644 ITEM2 — Konyo (Sets → QUICK WINS): "the little electric little stamp on the items
            i want removed .. leave only the items". The ⚡ was pure decoration pinned on the sprite
            corner: every card in this list is a quick win, so the stamp said nothing the section

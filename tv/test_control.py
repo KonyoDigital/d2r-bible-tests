@@ -6942,11 +6942,32 @@ class TestV2285PerKillOddsAreNotPerRunOdds(unittest.TestCase):
 
     def test_EVERY_eta_call_site_passes_it(self):
         """⚠ A MISSED CALL SITE IS A SURFACE STILL PRINTING THE OLD NUMBER, and it would be silent.
-        There were 21 of them across two helpers. [[the-unjoined-end]]"""
+        There were 21 of them across two helpers. [[the-unjoined-end]]
+
+        ⚠ v3526 — EACH CALL IS READ TO ITS BALANCED CLOSE. `[^)]*` stopped at the first ')' of a nested argument,
+        so `hoursFor(_adjC(sc, mp.name), 0.5, sc.kph||100, killsPerRun(sc.bossId))` was read as
+        `hoursFor(_adjC(sc, mp.name)` and reported bare while it passes kills-per-run — and a call that did NOT,
+        nested the same way, was being read just as short. A call that does not close within 600 characters is
+        reported, never skipped. [[source-reading-guard]]"""
         import re as _re
+        def _whole(i):
+            depth = 0
+            for j in range(i, min(len(self.b), i + 600)):
+                if self.b[j] == "(":
+                    depth += 1
+                elif self.b[j] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        return self.b[i:j + 1]
+            return None
         bad = []
-        for m in _re.finditer(r"(?:hoursFor|_ttf)\([^)]*\)", self.b):
-            call = m.group(0)
+        for m in _re.finditer(r"(?:hoursFor|_ttf)\(", self.b):
+            head = self.b[m.start():m.end() - 1]
+            call = _whole(m.end() - 1)
+            if call is None:
+                bad.append(head + "( ... does not close within 600 chars — UNKNOWN, not passing")
+                continue
+            call = head + call
             if call in ("hoursFor()",):                       # prose, not a call
                 continue
             if "function _ttf" in call or "const hoursFor" in call:
@@ -6965,9 +6986,14 @@ class TestV2285PerKillOddsAreNotPerRunOdds(unittest.TestCase):
                       "is invisible cannot be argued with, which is how 13,884h survived")
         self.assertIn(".gf-kpr{", self.b,
                       "the badge has no style rule, so it renders unstyled or not at all")
-        self.assertIn("killsPerRun(b.bossId)>1?", self.b,
+        # v3526 — the badge is ONE helper for both forges (_kprChip); pin its condition and every caller
+        chip = _between(self, self.b, "function _kprChip(bossId){", "\n  }", what="_kprChip")
+        self.assertIn("return n > 1 ?", chip,
                       "the caveat is unconditional, so every boss row would grow a '~1/run' badge "
                       "that means nothing")
+        self.assertIn('<span class="gf-odds gf-kpr"', chip, "the helper stopped rendering the badge")
+        for caller in ("+_kprChip(b.bossId)+", "+_kprChip(mp.src.bossId)+", "+_kprChip(q0.src.bossId)+"):
+            self.assertIn(caller, self.b, "a card lost its area-run badge: " + caller)
 
 
 
