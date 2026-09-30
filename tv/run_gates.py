@@ -8478,7 +8478,7 @@ GATES = [
              "carries it per PC, the worker's fixed key list keeps it, /api/fleet relays every peer's and his own row "
              "reads the local file, the click box prints 'picker offers N bases · database holds M' per PC with a "
              "red 'picker short' word on the row only on a disagreement, and the doctor row 'picker census' goes "
-             "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees. 23 cases, 9 red-proofs",
+             "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees. 28 cases, 21 red-proofs",
          skip_ok=()),
 ]
 
