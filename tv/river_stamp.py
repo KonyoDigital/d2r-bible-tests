@@ -187,11 +187,27 @@ def rows(path=None):
     return out
 
 
-def history(reel, path=None):
+def index(report):
+    """#109 — the stamp rows grouped by reel ONCE, in file order, kept on the report. -> the report
+
+    /api/river asked history() and current() about every reel, and each call re-read and re-parsed the WHOLE ledger:
+    twice per reel, quadratic in reels x rows. MEASURED on his ALT 2026-09-30: 266 reels on the shelf and the route did
+    not answer inside 60 s. A caller that walks many reels reads the ledger once (rows()), indexes it here, and hands
+    the report to history()/current() - one derivation, the same answers, one read. [[paid-work-with-no-memory]]"""
+    if isinstance(report, dict) and report.get("ok") and "byReel" not in report:
+        by = {}
+        for r in report.get("rows") or []:
+            by.setdefault(str(r.get("reel")), []).append(r)
+        report["byReel"] = by
+    return report
+
+
+def history(reel, path=None, report=None):
     """One reel's journey, oldest first. -> dict
 
     This is "the river" for a single fish: the ordered stations it has actually reached, each with
-    when, and with what moved it there.
+    when, and with what moved it there. `report` (#109) is a rows() result the caller already read -
+    indexed by index() when many reels are asked about - so a walk over the shelf reads the ledger once.
     """
     reel = str(reel or "").strip()
     out = {"ok": False, "reel": reel, "stations": [], "n": 0, "current": None,
@@ -199,11 +215,12 @@ def history(reel, path=None):
     if not reel:
         out["why"] = "no reel was named, so there is no journey to look up"
         return out
-    rep = rows(path)
-    if not rep["ok"]:
-        out["why"] = "UNKNOWN, not an empty journey — %s" % rep["why"]
+    rep = report if isinstance(report, dict) else rows(path)
+    if not rep.get("ok"):
+        out["why"] = "UNKNOWN, not an empty journey — %s" % (rep.get("why") or "the stamp store was not read")
         return out
-    mine = [r for r in rep["rows"] if str(r.get("reel")) == reel]
+    by = rep.get("byReel")
+    mine = list(by.get(reel) or []) if isinstance(by, dict) else [r for r in rep["rows"] if str(r.get("reel")) == reel]
     out.update({"ok": True, "stations": mine, "n": len(mine),
                 "current": (mine[-1].get("station") if mine else None),
                 "unparsed": rep["unparsed"], "outOfOrder": rep["outOfOrder"]})
@@ -219,14 +236,14 @@ def history(reel, path=None):
     return out
 
 
-def current(reel, path=None):
+def current(reel, path=None, report=None):
     """The station this reel was last stamped at. -> (station|None, why)
 
     ⚠ None HAS TWO CAUSES AND THE SENTENCE SEPARATES THEM: never stamped, or the store could not be
     read. Collapsing them would let an unreadable store read as a fresh shelf, and then `stamp()`
     would happily write a duplicate for every reel on it.
     """
-    h = history(reel, path)
+    h = history(reel, path, report=report)
     if not h["ok"]:
         return None, h["why"]
     return h["current"], h["why"]

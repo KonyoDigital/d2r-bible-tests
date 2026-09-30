@@ -39705,7 +39705,7 @@ class Handler(BaseHTTPRequestHandler):
                 # absent produces a clean-looking [] that means "nobody looked", and the shelf
                 # would have rendered "no reels" over a store holding 40. Verified against the
                 # real census keys before shipping. [[zero-needs-a-denominator]]
-                _raw = _RVS.rows()
+                _raw = _RVS.index(_RVS.rows())      # #109 - read ONCE, grouped by reel; every reel below asks this
                 _ids, _seen = [], set()
                 for _row in (_raw.get("rows") or []):
                     _rid = _row.get("reel")
@@ -39713,10 +39713,10 @@ class Handler(BaseHTTPRequestHandler):
                         _seen.add(_rid); _ids.append(_rid)
                 _reels = []
                 for _r in sorted(_ids):
-                    _cur = _RVS.current(_r)
+                    _cur = _RVS.current(_r, report=_raw)
                     # current() -> (station, why); keep BOTH — the why is what tells him a reel is
                     # waiting on a seal rather than merely sitting somewhere.
-                    _hops = (_RVS.history(_r) or {}).get("stations") or []
+                    _hops = (_RVS.history(_r, report=_raw) or {}).get("stations") or []
                     # ⚠ THE `why` COMES FROM THE LAST HOP, NOT FROM current().
                     # MEASURED ON REAL PIXELS: current() returns ("JOIN", "") — an EMPTY why — while
                     # the stamp row itself carries the real one ("sealed and 2 name(s) already read

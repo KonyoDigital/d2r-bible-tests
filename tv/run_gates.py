@@ -8500,6 +8500,13 @@ GATES = [
              "console was up on :17772 - but it runs from the main checkout and cannot write a worktree. Pins the tree "
              "reader (lsof/ps/cwd, UNKNOWN never read as 'elsewhere'; REG-1606 a path with a space read whole), the "
              "decision, and main()'s wiring; fixtures only."),
+    Gate("test_the_river_reads_its_ledger_once",
+         [sys.executable, os.path.join(HERE, "test_the_river_reads_its_ledger_once.py")], 180,
+         needs_app=False,
+         why="#109 (REG-1611, 2026-09-30) - the ALT's /api/river did not answer inside 60 s: every reel it listed "
+             "asked river_stamp.current() and history(), and each re-read and re-parsed the WHOLE ledger - two reads "
+             "per reel. The route now reads it once for its walk and indexes it by reel; the law pins the scaling "
+             "(the same reads for 12 reels as for 48), the same answers as asking the disk, and every reel listed."),
     Gate("test_a_pc_proves_itself_a_slice_at_a_time",
          [sys.executable, os.path.join(HERE, "test_a_pc_proves_itself_a_slice_at_a_time.py")], 120,
          needs_app=False,

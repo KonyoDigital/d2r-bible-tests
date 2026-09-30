@@ -405,6 +405,21 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1611 - /api/river RE-READ ITS WHOLE LEDGER TWICE PER REEL (#109, 2026-09-30)
+
+**Measured on his ALT (SSH, read-only):** 266 reels on the shelf, 145 MB of RAM free, and `/api/river` did not answer
+inside 60 s (`/api/doctor` took 13 s). For every reel it listed, the route asked `river_stamp.current()` and
+`history()`; each re-read and re-parsed the whole stamp ledger (current through history), so one request read it twice
+per reel - quadratic in reels x rows.
+
+**Now:** the route reads the ledger once for its walk, `river_stamp.index()` groups it by reel once, and history() /
+current() take that report - one derivation, the same answers (the never-stamped reel and the unreadable store stay two
+different sentences). Two other readers in the request (the census, the router's lane overlay) read it once each: a
+constant. Law: `tv/test_the_river_reads_its_ledger_once.py` pins the scaling (the same reads for 12 reels as for 48).
+
+**Not the whole minute, and said so:** the ALT's ledger is 141 KB / 480 rows, so this term cost it seconds. The rest of
+that route's time is measured on the ALT next (#109), not assumed to be this.
+
 ### REG-1607 - THE READER LAMPS TOOK THE TAB STRIP'S WIDTH AND SAT UNDER THE TYPE FLOOR (found before it shipped, 2026-09-30)
 
 **Was (REG-1604's first cut, never pushed):** the lamps were two "CLAUDE primary" / "GROK shadow" pills side by side at
