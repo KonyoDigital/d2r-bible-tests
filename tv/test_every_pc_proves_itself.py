@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -326,7 +327,13 @@ class TheConsoleAsks(unittest.TestCase):
     def test_the_rescue_loop_ticks_the_lane_and_status_publishes_it(self):
         import control_app as ca
         loop = inspect.getsource(ca._console_rescue_loop)
-        self.assertIn("_self_prove_tick()", loop, "nothing asks - no PC ever proves itself")
+        # REG-1624 - the loop reaches the lane through ONE dispatch (the tick every 10 min, the guard while a proof
+        # runs); driven here rather than read, so a dispatch that stopped ticking cannot pass on its words
+        self.assertIn("_self_prove_dispatch(", loop, "nothing asks - no PC ever proves itself")
+        ticked = []
+        with mock.patch.object(ca, "_self_prove_tick", lambda: ticked.append(1)):
+            ca._self_prove_dispatch(ca.SELF_PROVE_FIRST_TICK)
+        self.assertEqual(ticked, [1], "the loop's dispatch never ticks the lane")
         self.assertIn('"selfProve": dict(_SELF_PROVE)', inspect.getsource(ca), "the lane is invisible")
 
 
@@ -843,8 +850,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - nothing asks: no PC ever proves itself",
         "file": "tv/control_app.py",
-        "find": "                _self_prove_tick()          # #50 — has THIS PC proved its own instruments?\n",
-        "replace": "                pass\n",
+        "find": "        _self_prove_tick()          # #50 — has THIS PC proved its own instruments?\n",
+        "replace": "        pass\n",
         "matches": 1,
     },
     # ── REG-1511 (review of v3524) ─────────────────────────────────────────────────────────────────────────────

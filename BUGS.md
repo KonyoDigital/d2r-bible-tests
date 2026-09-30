@@ -405,6 +405,36 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1624 - A PROOF COULD RUN BESIDE HIS GAME FOR TEN MINUTES, AND THE IDLE ALT COULD NEVER START ONE (2026-09-30)
+
+**His words,** after closing Boosteroid on the ALT so it could prove: "future wise it needs to be working in parallel
+somehow so when logging off and the game is off ... it can do whats needed but shadow reader when game start should be
+triggered regardless. the shadow reader is always on when the game is on regardless of the console" - and "everything
+should work smoothly regardless of each other with an intelligent architecture that makes it all work consecutively".
+
+**Measured:** with the game closed and the console freshly relaunched, the ALT prover's own probes said `playing
+False` and 1,781 MB available - under its 2,048 MB start bar (set for a proof BESIDE a stream, REG-1502), so it could
+never start. And a running proof was asked to stand aside only on the lane's 10-minute tick. Nothing in the shadow
+reader's start path waits on the prover (only displays and the doctor read it), so the shadow reader always starts -
+the gap was the proof not getting out of its way.
+
+**Now:** the rescue loop's one dispatch runs the whole tick every 10 min and, while a proof runs, `self_prove.guard()`
+every 10 s: it asks only whether he is playing and how much memory is left, and when `stand_aside()` says go it runs
+the tick at once - the same kill, booking and cooldown as always. With the game off a proof starts at 1,536 MB (never
+while he plays, never within 512 MB of the 1,024 MB running floor). Law: `tv/test_a_proof_yields_the_moment_the_game_
+starts.py`; `test_every_pc_proves_itself.py` now drives the dispatch instead of reading the loop's words.
+
+### REG-1623 - A FULL RUN STAMPED THE CENSUS OVER A GATE IT COULD NOT MEASURE (the #231 eye on b135b25a, 2026-09-30)
+
+**Found by** the #231 Grok seat (its post was lost - its poster sent the file path - and recovered from its own
+session log). A full or push-time run (`stamp=True`) stamped the tree fingerprint whatever was owed, including a gate it
+TRIED and could not measure: `census_state` called that census current, `may()` stayed shut on the blind name, and
+the prover - which starts only on a census that is not current - never ran it again. It also stamped `verdictAt = now`
+for that gate, as though it had been tested. **Now** a run that left a gate unmeasured writes no fingerprint (keeping
+the prior one could equal the tree's and read current all the same) and says why (`unstampedWhy`); the gate keeps the
+stamp of when it WAS tested; the next slice measures it and completes the census. Law: the full-run case in
+`tv/test_a_pc_proves_itself_a_slice_at_a_time.py`, both sabotages seen RED.
+
 ### REG-1620 / REG-1621 / REG-1622 - THREE #231 FINDINGS ON THE SHIPPED BUILDER AND LOCK CODE (#114, 2026-09-30)
 
 Found by the #231 Grok seat on v3528, each reproduced before fixing; a fourth (the Characters section words not inset

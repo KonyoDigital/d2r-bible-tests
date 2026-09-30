@@ -2492,7 +2492,12 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
     # [[stale-reading]] [[inherited-claim-is-not-evidence]] [[unknown-stays-unknown]]
     _now_ms = int(__import__("time").time() * 1000)
     _seen = dict(prior.get("verdictAt") or {})
+    _unm = set(unmeasured or ())
     for _n in (results or {}):
+        # REG-1623 (the #231 eye on b135b25a) - a gate NOBODY MEASURED was not tested now: it keeps its old stamp (or
+        # none). A fresh stamp here is the "this run tested it" the comment above promises, and it was not.
+        if _n in _unm:
+            continue
         _seen[_n] = _now_ms
     # ⚠ #42 P3 — A GATE THAT STANDS ON REUSED PROOFS WAS NOT MEASURED NOW. `measured` (gate -> epoch ms) is the oldest
     # provedAt among the cached proofs a push-time run reused for that gate; stamping it `_now_ms` would make 40 gates
@@ -2512,7 +2517,6 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
     # self_prove proves the rest a slice at a time - which is how a PC he plays on ever finishes. [[unknown-stays-unknown]]
     _shas = gate_shas(gates)
     _gs = dict(prior.get("gateShas") or {}) if isinstance(prior.get("gateShas"), dict) else {}
-    _unm = set(unmeasured or ())
     for _n in (results or {}):
         # second eye on v3528 (reproduced by reading): BLIND is also what a gate NOBODY MEASURED is written as - the
         # missing-row sweep in _prove_gates, a lane that died holding it, a gate that raised outside its own proofs.
@@ -2526,12 +2530,24 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
         _gs[_n] = _shas.get(_n)
     _gs = {k: v for k, v in _gs.items() if k in _known}
     _owed = [n for n in have if not _shas.get(n) or _gs.get(n) != _shas.get(n)]
-    _fp_out = gates_fingerprint(gates) if (stamp or not _owed) else prior.get("gatesFingerprint")
+    # ⚠⚠ REG-1623 (the #231 eye on b135b25a) - A RUN THAT KNOWS IT LEFT A GATE UNMEASURED MAY NOT STAMP. `stamp` let a
+    # full or push-time run stamp the tree fingerprint whatever was owed - right for gates it simply did not run (the
+    # hook proves only what changed), wrong for a gate it TRIED and could not measure: census_state called that census
+    # current, may() stayed shut on the blind name, and the prover - which starts only on a census that is not
+    # current - never ran it again. Nor may the PRIOR stamp stand: it can equal the tree's and read current all the
+    # same. So no stamp at all: the census reads stale, the owed gate is named, and a slice measures it.
+    _unm_owed = [n for n in _owed if n in _unm]
+    if _unm_owed:
+        _fp_out = None
+    else:
+        _fp_out = gates_fingerprint(gates) if (stamp or not _owed) else prior.get("gatesFingerprint")
     out.update({
         "gateShas": _gs,
         "sliceOwed": len(_owed),
         "sliceOwedSample": _owed[:12],
-        "stampedBy": ("run" if stamp else ("slice-complete" if not _owed else None)),
+        "unstampedWhy": ("%d gate(s) this run could not measure are owed: %s"
+                         % (len(_unm_owed), ", ".join(_unm_owed[:6])) if _unm_owed else None),
+        "stampedBy": (None if _unm_owed else ("run" if stamp else ("slice-complete" if not _owed else None))),
         "proved": len(_proved),
         "provedGates": sorted(_proved),
         # v2858 — THE SPLIT, because one number hid a 93/7 one. See pixel_gates().

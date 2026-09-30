@@ -18350,6 +18350,42 @@ def _self_prove_tick():
     _SELF_PROVE.clear()
     _SELF_PROVE.update(r)
     return r
+def _self_prove_step(n, sp):
+    """REG-1624 — what the rescue loop asks the self-prove lane on tick `n`. -> "tick" | "guard" | None. Pure.
+
+    The whole tick every SELF_PROVE_EVERY_TICKS (10 min); between them, while a proof is RUNNING, the cheap guard on
+    every tick (10 s) - so the moment he starts playing, the proof is gone and the shadow reader has the machine."""
+    if n % SELF_PROVE_EVERY_TICKS == SELF_PROVE_FIRST_TICK:
+        return "tick"
+    if isinstance(sp, dict) and (sp.get("running") or sp.get("key") in ("running", "start", "aside-survived")):
+        return "guard"
+    return None
+
+
+def _self_prove_dispatch(n):
+    """REG-1624 — the rescue loop's one call into the self-prove lane on tick `n`. -> what ran ("tick"/"guard"/None)"""
+    step = _self_prove_step(n, _SELF_PROVE)
+    if step == "tick":
+        _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
+    elif step == "guard":
+        _self_prove_guard()         # REG-1624 — a running proof yields within 10 s of his game starting
+    return step
+
+
+def _self_prove_guard():
+    """REG-1624 — the 10-second stand-aside while a proof runs. Never raises; the rescue loop must keep going."""
+    try:
+        import self_prove as _sp
+        r = _sp.guard()
+    except Exception as e:
+        r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
+             "say": "the self-prove guard raised %s" % type(e).__name__}
+    if r:
+        _SELF_PROVE.clear()
+        _SELF_PROVE.update(r)
+    return r
+
+
 SELF_PROBE_STRIKES = 3              # three refusals in a row
 SELF_PROBE_ACT_EVERY_S = 600        # and never more than one relaunch per ten minutes
 
@@ -18445,8 +18481,7 @@ def _console_rescue_loop():
             _SELF_PROBE["tick"] = int(_SELF_PROBE.get("tick") or 0) + 1
             if _SELF_PROBE["tick"] % SELF_PROBE_EVERY_TICKS == 0:
                 _self_probe_tick()          # #71 — can this console still answer itself?
-            if _SELF_PROBE["tick"] % SELF_PROVE_EVERY_TICKS == SELF_PROVE_FIRST_TICK:
-                _self_prove_tick()          # #50 — has THIS PC proved its own instruments?
+            _self_prove_dispatch(_SELF_PROBE["tick"])   # #50 the proof tick / REG-1624 the 10 s guard while it runs
             if _SELF_PROBE["tick"] == SHELF_PREWARM_TICK:
                 _prewarm_shelf()            # REG-1459 — his first SHELF click is served warm
             if _SELF_PROBE["tick"] == CAPTURE_SWEEP_TICK:

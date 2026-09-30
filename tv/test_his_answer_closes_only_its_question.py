@@ -213,8 +213,8 @@ RED_PROOF = [
     {
         "why": "#223 - any page he has open can write his decisions (the Origin check is gone; _cors answers *)",
         "file": "control_app.py",
-        "find": "    if not origin or origin not in ok_origins:\n",
-        "replace": "    if False:\n",
+        "find": "    if not origin or origin not in ok_origins:\n        return 403, {\"ok\": False, \"refused\": \"origin\",\n",
+        "replace": "    if False:\n        return 403, {\"ok\": False, \"refused\": \"origin\",\n",
         "matches": 1,
     },
     {

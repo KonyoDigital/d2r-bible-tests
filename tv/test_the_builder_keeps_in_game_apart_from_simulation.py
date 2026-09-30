@@ -362,15 +362,15 @@ RED_PROOF = [
     {
         "why": "#103 - a build carrying a learned character's name is no longer under that character",
         "file": "bible.html",
-        "find": "(b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))",
-        "replace": "(b.from === x.t.key || false)",
+        "find": "      if (!g && fk) groups.forEach(function(x){ if (!g && fk === _cbFold(x.t.name)) g = x; });\n",
+        "replace": "      if (false) groups.forEach(function(x){ if (!g && fk === _cbFold(x.t.name)) g = x; });\n",
         "matches": 1,
     },
     {
         "why": "#103 - a build made from a learned character is no longer its card",
         "file": "bible.html",
-        "find": "(b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))",
-        "replace": "(false || (fk && fk === _cbFold(x.t.name)))",
+        "find": "      if (b.from) groups.forEach(function(x){ if (!g && b.from === x.t.key) g = x; });\n",
+        "replace": "      if (false) groups.forEach(function(x){ if (!g && b.from === x.t.key) g = x; });\n",
         "matches": 1,
     },
     {

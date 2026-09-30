@@ -54,7 +54,12 @@ _CREATE_NO_WINDOW = 0x08000000
 #: exe names (lowercased) that mean "he is playing on this PC" - the game, or a cloud client streaming it
 PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 #: available memory, in MB, a proof needs to START, and below which a RUNNING proof stands aside
-MIN_FREE_MB_TO_START = 2048
+#: ⚠ REG-1624 (2026-09-30) - 2048 was set for a proof BESIDE a stream. MEASURED on the ALT with the game off, the
+#: console relaunched and nothing else running: 1,781 MB available - so the one PC this lane exists for could never
+#: start a proof at all, and he had to close things by hand. A proof never starts while he plays (the question above
+#: this one), and guard() now stands a RUNNING proof aside within one rescue tick (10 s) of the game starting or
+#: memory falling under the running floor. So the start bar only has to leave the proof room above that floor.
+MIN_FREE_MB_TO_START = 1536
 MIN_FREE_MB_WHILE_RUNNING = 1024
 
 # ⚠⚠ REG-1511 — THE REVIEW OF v3524 FOUND THE STAND-ASIDE COULD KILL A STRANGER, FLAP, AND NEVER LET THE ALT PROVE.
@@ -761,6 +766,30 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
     except Exception as e:
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
+
+
+def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=None):
+    """REG-1624 — THE FAST STAND-ASIDE. -> None (no proof running, or nothing to do) | the tick's status
+
+    His words, 2026-09-30: "the shadow reader is always on when the game is on regardless of the console" - "everything
+    should work smoothly regardless of each other". The lane's tick runs every 10 minutes, so a proof could run beside
+    his game for up to ten of them. This is asked on every rescue tick (10 s) WHILE a proof this lane started is
+    running, and asks only the two cheap questions - is he playing, how much memory is left. When stand_aside() says
+    go, it runs the whole tick at once, which kills the prover, books the stand-aside and starts the cooldown exactly
+    as it always has: one door for the kill. Never raises."""
+    try:
+        mem = load(path)
+        if not (mem.get("pid") or _STARTED.get("pid")):
+            return None
+        play_now = _ask(playing, playing_state)
+        free_now = _ask(free, free_mb)
+        aside, _why = stand_aside(play_now, free_now)
+        if not aside:
+            return None
+        return (_tick or tick)(now_s=now_s, path=path, playing=play_now, free=free_now, kill_fn=kill_fn)
+    except Exception as e:
+        return {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
+                "say": "the self-prove guard raised %s - the tick will ask again" % type(e).__name__}
 
 
 def _int(v):

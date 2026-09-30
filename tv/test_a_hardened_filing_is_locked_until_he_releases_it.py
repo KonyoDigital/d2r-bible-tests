@@ -604,8 +604,8 @@ RED_PROOF = [
     {
         "why": "#98 - a refusal is said only on the 4.2 s status line again: the banner never shows",
         "file": "bible.html",
-        "find": "      if (box){\n        box.textContent = msg; box.hidden = false;\n",
-        "replace": "      if (false){\n        box.textContent = msg; box.hidden = false;\n",
+        "find": "      if (box){\n        box.textContent = msg; box.hidden = false; box._vlaItem = String(nm == null ? '' : nm);   /* #114: whose refusal */\n",
+        "replace": "      if (false){\n        box.textContent = msg; box.hidden = false; box._vlaItem = String(nm == null ? '' : nm);   /* #114: whose refusal */\n",
         "matches": 1,
     },
     {

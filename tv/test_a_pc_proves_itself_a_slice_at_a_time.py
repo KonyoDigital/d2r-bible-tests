@@ -159,6 +159,29 @@ class AGateNobodyMeasuredStaysOwed(_Fixture):
         self.assertEqual(self._census().get("gatesFingerprint"), H2.gates_fingerprint(),
                          "the slice that finally measured it did not complete the census")
 
+    def test_a_full_run_that_could_not_measure_a_gate_does_not_stamp(self):
+        # REG-1623 (the #231 eye on b135b25a): a full / push-time run stamped the fingerprint over a gate it tried and
+        # could not measure - census current, the gate blind, may() shut, and the prover never ran it again
+        with mock.patch("time.time", lambda: 1000.0):
+            H2._write_state({"g1": H2.PROVEN, "g2": H2.PROVEN, "g3": H2.PROVEN}, stamp=False)
+        self.assertEqual(self._census().get("gatesFingerprint"), H2.gates_fingerprint(), "premise: a complete census")
+        with mock.patch("time.time", lambda: 2000.0):
+            H2._write_state({"g1": H2.PROVEN, "g2": H2.PROVEN, "g3": H2.BLIND}, stamp=True, unmeasured={"g3"})
+        c = self._census()
+        self.assertIsNone(c.get("gatesFingerprint"),
+                          "a full run stamped the census over a gate it could not measure (the prior stamp is the "
+                          "tree's too, so keeping it reads current just the same)")
+        self.assertIsNone(c.get("stampedBy"))
+        self.assertIn("g3", c.get("unstampedWhy") or "")
+        self.assertEqual(SP.census_state()["state"], "stale", "the prover sees nothing owed and never runs g3 again")
+        self.assertEqual([n for n, _k in H2.slice_owed()["owed"]], ["g3"])
+        # and a gate nobody measured keeps the stamp of when it WAS tested
+        self.assertEqual(c["verdictAt"].get("g3"), 1000000, "a gate nobody measured was stamped as tested now")
+        self.assertEqual(c["verdictAt"].get("g1"), 2000000)
+        # the slice that measures it completes the census again
+        H2._write_state({"g3": H2.PROVEN}, stamp=False)
+        self.assertEqual(self._census().get("gatesFingerprint"), H2.gates_fingerprint())
+
     def test_a_measured_blind_still_completes_the_census(self):
         H2._write_state({"g1": H2.PROVEN, "g2": H2.PROVEN, "g3": H2.BLIND}, stamp=False, unmeasured=set())
         c = self._census()
@@ -306,6 +329,14 @@ class TheSlicePlan(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1623 - a full run stamps the census over a gate it could not measure",
+     "file": "tv/heart2.py",
+     "find": "    if _unm_owed:\n        _fp_out = None\n    else:\n",
+     "replace": "    if False:\n        _fp_out = None\n    else:\n", "matches": 1},
+    {"why": "REG-1623 - a gate nobody measured is stamped as tested now",
+     "file": "tv/heart2.py",
+     "find": "        if _n in _unm:\n            continue\n        _seen[_n] = _now_ms\n",
+     "replace": "        _seen[_n] = _now_ms\n", "matches": 1},
     {
         "why": "#99 - a slice stamps the gate fingerprint again: one slice of a PC's first census opens every lock",
         "file": "heart2.py",
@@ -332,8 +363,8 @@ RED_PROOF = [
         "why": "second eye on v3528 - every BLIND stays owed, measured or not: a gate blind on Windows keeps the census "
                "from ever finishing",
         "file": "heart2.py",
-        "find": "        if _n in _unm:\n",
-        "replace": "        if _n in _unm or results.get(_n) == BLIND:\n",
+        "find": "        if _n in _unm:\n            _gs.pop(_n, None)\n",
+        "replace": "        if _n in _unm or results.get(_n) == BLIND:\n            _gs.pop(_n, None)\n",
         "matches": 1,
     },
     {

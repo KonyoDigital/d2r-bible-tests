@@ -8647,6 +8647,15 @@ GATES = [
              "otherwise hide it - and one sign-in in flight at a time; the route answers only this console's own page and "
              "re-arms the probe; the lamp learns 'signed out' from the CLI, a good read outranks it; the header's SIGN IN "
              "pill shows only for needsLogin and the click posts the route."),
+    Gate("test_a_proof_yields_the_moment_the_game_starts",
+         [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
+         needs_app=False,
+         why="REG-1624 (2026-09-30) - his words: 'the shadow reader is always on when the game is on regardless of "
+             "the console' and 'everything should work smoothly regardless of each other'. A proof runs only while the "
+             "game is off and yields the moment it starts: the rescue loop's one dispatch runs the whole tick every "
+             "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
+             "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
+             "his game and never near the running floor."),
     Gate("test_each_lamp_links_its_own_reader",
          [sys.executable, os.path.join(HERE, "test_each_lamp_links_its_own_reader.py")], 60,
          needs_app=False,
