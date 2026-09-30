@@ -178,7 +178,9 @@ class TestTheBlueprintNamesTheEngine(unittest.TestCase):
             names |= {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)}
             for e in eps:
                 s = str(e).strip()
-                if re.search(r"\s:\d+\s*$", s):
+                # REG-1637 - the #231 eye on v3531: `\s:\d+\s*$` saw only a bare number at the end, so a range (:362-395),
+                # a number with a tail (:1094 (--apply --yes)) and a `->` line kept typing positions. Any position, anywhere.
+                if re.search(r"\s:\d+(?:-\d+)?(?![\d.])", s):
                     typed.append("%s: %s" % (mod, s))
                 if re.match(r"^(python3?|tvd|--|-|GET|POST|/)", s) or "\u2190" in s or "->" in s:
                     continue
@@ -207,6 +209,13 @@ class TestTheBlueprintNamesTheEngine(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1637 - the #231 eye on v3531: an entry point types a line RANGE again, which the old pattern never saw",
+        "file": "engine_index.json",
+        "find": "      \"mode()/set_mode()/is_primary()\",\n",
+        "replace": "      \"mode()/set_mode()/is_primary() :362-395\",\n",
+        "matches": 1,
+    },
     {
         "why": "second eye on v3528 - the index names console_settle.wait again, a function the file no longer has",
         "file": "engine_index.json",

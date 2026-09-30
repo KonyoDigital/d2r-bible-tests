@@ -250,7 +250,7 @@ class ARefusalIsAStatedCodeNotDigitsInANumber(unittest.TestCase):
               ('API error (status 402 Payment Required): Grok Build usage balance exhausted", "http_status": 402}',
                "balance"),
               ("insufficient credits on this team", "credit"), ("insufficient_quota", "credit"))
-    NEVER = ("grok CLI timed out after 1401 ms", "reel_s_1790401234567_15732: read failed (exit 1)",
+    NEVER = ("grok CLI timed out after 1401 ms", "session 1790401234567 read failed (exit 1)",
              "read 34020 bytes then EOF", "waited 401 s for an answer",
              "The system has insufficient system resources to complete the requested service", "status 429 rate limited")
 

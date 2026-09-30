@@ -405,6 +405,17 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1637 - FOUR ENTRY POINTS STILL TYPED A POSITION, AND THE LAW THAT FORBIDS IT COULD NOT SEE THEM (the #231 eye on v3531 70f041e4, 2026-09-30)
+
+`test_the_blueprint_names_the_engine` counted a typed line number only when an entry ENDED in a bare `:N`
+(`\s:\d+\s*$`), so a range (`mode()/set_mode()/is_primary() :362-395`, `READ_PROMPT / PROMPT_VER :385-387`), a number
+with a tail (`apply_plan() :1094 (--apply --yes)`) and a `->` line (`_parse_read() -> the schema dict :4941-4948`) all
+passed while claiming no entry types a position. **Now** any position anywhere counts (`\s:\d+(?:-\d+)?` not followed by a
+digit or dot - a URL's `host:port` has no space before its colon), the four entries name only their doors, and a
+red-proof re-types the range: RED. The pre-push fast-gate run also caught two of my own on this branch before they
+could reach CI: a reel-shaped id in a refusal fixture (`test_no_pinned_footage`) and a home path in the REG-1635 entry
+describing the home-path fix (`test_no_new_home_path_is_published`) - both rewritten.
+
 ### REG-1636 - A SIGN-IN CHECK WHOSE THREAD NEVER STARTED LEFT THE CLAUDE LAMP ASKING NOTHING, FOR GOOD (the Grok CLI look at v3534, 2026-09-30)
 
 `_claude_auth_state` sets `busy` BEFORE its worker starts; a `Thread.start()` that raises (no thread to be had - the
@@ -420,7 +431,7 @@ wait, REG-1620). Laws: `tv/test_each_lamp_links_its_own_reader.py`, the login la
 ### REG-1635 - THREE CORPUS LAWS WENT RED ON CI FOR v3534, NONE RUN BY THE PUSH GATE (2026-09-30)
 
 CI's agent-suite runs every registered gate; the push gate runs a subset. v3534's new laws tripped three corpus laws:
-`test_no_new_home_path_is_published` (a `/Users/x/...` fake CLI path in the sign-in law - now `/opt/claude/bin/claude`),
+`test_no_new_home_path_is_published` (a fake CLI path under a home folder in the sign-in law - now `/opt/claude/bin/claude`),
 `test_a_source_window_must_reach_its_subject` (three `ui[b:b + 400]` windows in the lamp law pushed the count 44 -> 47 -
 the case now anchors both ends: the function's close and the assignment itself, with only comment lines between) and
 `test_a_gate_names_its_subject_by_importing_it` (**measured** over 667 gates: `console_safe` 96%, `control_app` 26% - the

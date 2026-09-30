@@ -743,7 +743,7 @@
     "entryPoints": [
       "g5_vision_read()",
       "g5_chronicle_read()",
-      "mode()/set_mode()/is_primary() :362-395",
+      "mode()/set_mode()/is_primary()",
       "status()",
       "g5_shadow_log()"
     ],
@@ -1548,7 +1548,7 @@
   "reel_retention.py": {
     "entryPoints": [
       "plan()",
-      "apply_plan() :1094 (--apply --yes)",
+      "apply_plan() (--apply --yes)",
       "proof_reels()",
       "_tombstone()",
       "KEEP_RECENT = 8 (his 2026-09-10 ruling)",
@@ -2250,8 +2250,8 @@
   },
   "tv_diablo.py": {
     "entryPoints": [
-      "READ_PROMPT / PROMPT_VER :385-387",
-      "_parse_read() -> the schema dict :4941-4948",
+      "READ_PROMPT / PROMPT_VER",
+      "_parse_read() -> the schema dict",
       "--watch"
     ],
     "gotcha": "PROMPT_VER (p1839) must bump whenever READ_PROMPT changes or older seals never get reopened; _parse_read DROPS out-of-vocabulary values into _parse_audit rather than keeping them (names_loc only equipped|inventory|stash|floor, sockets only int 1..6) — 'what the model SAID vs what survived'.",
