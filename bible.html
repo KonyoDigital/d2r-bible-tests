@@ -56702,8 +56702,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var x = all[id]; sel += '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + (id === mainId ? '★ MAIN · ' : '') + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
     });
     var _lrn = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars.length : null;
+    /* #91 — a LEARNED level-1 character is almost always a mule (MEASURED on his reels: 10 of the first 12 learned
+       were level 1 — Armor, Crafter, Runewords …). They are his characters, so they are listed, but in their own
+       group at the end, so the build list leads with the characters he plays. A TYPED row is never moved. */
+    var _opt = function(t){ return '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.seen ? ' · seen ' + t.seen + '×' + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') : '') + '</option>'; };
+    var _mules = tpls.filter(function(t){ return t.key.indexOf('seen:') === 0 && t.level === 1; });
     sel += '<optgroup label="From your characters (class + level)' + (_lrn ? ' · ' + _lrn + ' learned from your reels' : '') + '">';
-    tpls.forEach(function(t){ sel += '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.seen ? ' · seen ' + t.seen + '×' + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') : '') + '</option>'; });
+    tpls.forEach(function(t){ if (_mules.indexOf(t) < 0) sel += _opt(t); });
+    if (_mules.length) { sel += '</optgroup><optgroup label="Level 1 — mules? (' + _mules.length + ', seen on your reels)">'; _mules.forEach(function(t){ sel += _opt(t); }); }
     sel += '</optgroup><option value="__new">+ New build…</option></select>';
     var ci = _cbClsIx(b.cls);
     var cls = '<select class="cb-sel" id="cb-cls" aria-label="class" onchange="window._cbSetField(\'cls\', this.value)">'

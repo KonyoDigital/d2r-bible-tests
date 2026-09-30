@@ -151,6 +151,15 @@ class OnlyAFewSightingsTeachIt(unittest.TestCase):
         self.assertEqual(self.d["chars"]["testlock"]["visitLevel"]["v1"], 88, "a visit claims the lower read")
         self.assertEqual(C.learned(self.d), [], "one visit read twice is still one visit")
 
+    def test_the_spelling_most_reads_agree_on_is_the_one_shown(self):
+        """MEASURED on his reels: one character came back 'SOCKET' (-> 'Socket') and 'SOcket'; last-read-wins
+        showed whichever was newest."""
+        for v, form in (("v1", "Socket"), ("v2", "SOcket"), ("v3", "Socket")):
+            C.record(self.d, v, [{"name": form, "key": "socket", "cls": "Amazon", "level": 1, "title": None}], {"ts": 1})
+        self.assertEqual(C.learned(self.d)[0]["name"], "Socket")
+        C.record(self.d, "v4", [{"name": "SOcket", "key": "socket", "cls": "Amazon", "level": 1, "title": None}], {"ts": 2})
+        self.assertEqual(C.learned(self.d)[0]["name"], "Socket", "a tie keeps the form seen first")
+
     def test_a_class_tie_teaches_nothing(self):
         C.record(self.d, "v1", _rows(("Twin", "Warlock", 10)), {"ts": 1})
         C.record(self.d, "v2", _rows(("Twin", "Paladin", 10)), {"ts": 2})
@@ -384,6 +393,13 @@ RED_PROOF = [
         "file": "tv/char_select.py",
         "find": "        return d\n    except Exception:\n        return None\n",
         "replace": "        return d\n    except Exception:\n        return _empty()\n",
+        "matches": 1,
+    },
+    {
+        "why": "#91 - the newest read's spelling is shown again, whatever most reads agreed on",
+        "file": "tv/char_select.py",
+        "find": "        c[\"name\"] = next(f for f in forms if forms[f] == best)\n",
+        "replace": "        c[\"name\"] = r[\"name\"]\n",
         "matches": 1,
     },
     {

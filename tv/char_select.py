@@ -239,7 +239,13 @@ def record(d, visit_id, rows, meta=None):
     for r in rows or []:
         c = d["chars"].setdefault(r["key"], {"name": r["name"], "cls": {}, "visitLevel": {}, "titles": {},
                                              "firstTs": None, "lastTs": None})
-        c["name"] = r["name"]
+        # the SPELLING is voted too: MEASURED on his reels one character came back "SOCKET" (-> "Socket") on one
+        # read and "SOcket" on another, and last-read-wins showed whichever was newest. The shown name is the form
+        # most reads agree on (the first seen on a tie); the KEY never depended on it.
+        forms = c.setdefault("forms", {})
+        forms[r["name"]] = int(forms.get(r["name"]) or 0) + 1
+        best = max(forms.values())
+        c["name"] = next(f for f in forms if forms[f] == best)
         if r.get("cls"):
             per = c["cls"].setdefault(r["cls"], [])
             if visit_id not in per:

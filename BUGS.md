@@ -34,10 +34,18 @@ cannot be read and never written over. A RIDER lane `tvd-char-learner` in `_vaul
 3x"), a new one joins, and with no console (the website) the typed list stands untouched. Nothing writes a build -
 #245's manual Characters store is not touched.
 
+**Run for real before shipping** (one tick over all 45,555 frames, a throwaway ledger, the real reader): 206 s, 150
+candidate frames, 8 reads (the hourly cap), 5 visits read, 13 characters seen, 12 learned - a level 81 Sorceress
+(MATRIARCH, the row the cursor hid on the first visit), a level 31 Warlock (CHAMPION) and 10 level-1 mules; one
+character seen on a single visit waits for its second. The reader spelled one name "SOCKET" and "SOcket" on two reads,
+so the shown spelling is now the one most reads agree on; and because 10 of 12 were level-1 mules, learned level-1
+characters sit in their own group at the end of the builder list ("Level 1 — mules?").
+
 **Guards:** `tv/test_characters_learn_from_the_reels.py` (gate `test_characters_learn_from_the_reels`) - synthetic
 frames and names only (the repo is public): the detector on every measured band and false alarm, the reader answer
 judged, the witness rule, a tick over a fixture reel store (visits, caps, budget, resume, pruning, refusals), an
-unreadable ledger in both shapes, the page merge in node, the rider lane and route; 20 cases, 7 red-proofs PROVEN.
+unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
+red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)

@@ -225,7 +225,7 @@ GATES = [
              "OCR cannot read the D2R font and was no detector: 3 px of crop swung it 4 rows to 1), reads the list "
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
-             "the 45 s loop, /api/chars_learned, merged into the builder list. 20 cases, 7 red-proofs"),
+             "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
     Gate("test_the_sets_ledger_keeps_its_history", [sys.executable,
          os.path.join(HERE, "test_the_sets_ledger_keeps_its_history.py")], 60,
          why="REG-1548 - 2026-09-29 his Mac store lost its one-shot flags, the Aug-21 set repair re-ran and took 16 "
