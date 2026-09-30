@@ -419,6 +419,17 @@ constant. Law: `tv/test_the_river_reads_its_ledger_once.py` pins the scaling (th
 
 **Not the whole minute, and said so:** the ALT's ledger is 141 KB / 480 rows, so this term cost it seconds. The rest of
 that route's time is measured on the ALT next (#109), not assumed to be this.
+### REG-1610 - A GATE'S WHY TYPED ITS COUNTS, AND A QUARTER OF THEM WERE WRONG (#104, 2026-09-30)
+
+**Was:** 284 of the 738 gate why-texts in run_gates.py typed "N cases, M red-proofs". Counted against each law file's
+own AST, 72 of the 230 countable ones were already wrong - a law grows a case and its why keeps the old number - and the
+second eye read one as a claim about the gate on v3528. His ruling: compute them, don't type them.
+
+**Now:** no why states a number of cases or red-proofs (260 whys cleaned, every gate kept; the few narrative mentions
+reworded - "Its second red-proof widens..."). A count lives with the law file and is read from it where it is shown.
+Law: `tv/test_a_gate_says_what_it_guards_not_how_many.py` - parsed, never grepped, and its pattern pinned against the
+shapes that were in the file (red-proof seen RED).
+
 ### REG-1608 - A SIGNED-OUT PC SAID SO ONLY ON ITS OWN SCREEN (#108, 2026-09-30)
 
 **His question:** *"maybe this happened to dean too?"* - after his ALT filmed a day and read nothing because Claude was

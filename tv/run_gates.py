@@ -193,7 +193,7 @@ GATES = [
              "REG-1558: the parse's failure arms, the journal row, a row with no readable stamp and a read whose "
              "slot words were never parsed all say UNKNOWN (None), never a measured empty or epoch 0; REG-1559: "
              "the doctor judges the OLDEST owed seal, not the newest seal of all reels. "
-             "Fixture frames and a throwaway journal only. 21 red-proofs"),
+             "Fixture frames and a throwaway journal only."),
     Gate("test_the_doctor_times_each_check", [sys.executable,
                                     os.path.join(HERE, "test_the_doctor_times_each_check.py")], 60,
          why="v3404c — cd.run() took >8 min while 93 checks timed standalone ~24s, and nothing "
@@ -211,35 +211,34 @@ GATES = [
          why="REG-1441 - the second eye on the v3522 screens merge: THE SHELF's triage line said 'no refusal since "
              "this console started' over a lane whose last tick WAS a refusal (raised, unworkable, cpu-loaded...), "
              "while the fleet card said 'last refusal: <word>' for the same object; and the refusal bit carried a "
-             "middot a wrap could strand. Driven in node on the reviewer's own object. 2 red-proofs"),
+             "middot a wrap could strand. Driven in node on the reviewer's own object."),
     Gate("test_the_fleet_says_where_a_river_is_stuck", [sys.executable,
          os.path.join(HERE, "test_the_fleet_says_where_a_river_is_stuck.py")], 120,
          why="REG-1461 - the ALT held 76 reels at EMPTY and 25 at PRINTER for two days and nothing on any screen "
              "said so; his ask: see every PC's river from his own, Dean's included. The beacon now names each "
              "station whose oldest reel waited > 6 h with the owning lane's reason (from the stamp log, never a "
              "router pass) and whether that PC proved its instruments; the worker shapes both; the fleet row shows "
-             "a red 'river stuck', the detail the stations and ages. Console, worker and card each driven. "
-             "3 red-proofs"),
+             "a red 'river stuck', the detail the stations and ages. Console, worker and card each driven. "),
     Gate("test_a_live_agent_never_reads_dead_under_contention", [sys.executable,
          os.path.join(HERE, "test_a_live_agent_never_reads_dead_under_contention.py")], 60,
          why="REG-1503 (#78) - under load a live SIM agent read DEAD 6 s after it answered: a status read that lost "
              "the lock race asked a 10 s port-scan cache holding a None from before the agent listened, and nothing "
              "told the cache the agent had started. Every start/stop now seeds it; driven with _lock held by another "
-             "thread, every assignment site checked per block by ast. 3 red-proofs"),
+             "thread, every assignment site checked per block by ast."),
     Gate("test_the_shelf_says_unknown_once", [sys.executable,
          os.path.join(HERE, "test_the_shelf_says_unknown_once.py")], 30,
          why="REG-1504 (#77) - the blueprint's river line said 'UNKNOWN, not an empty shelf' three times: five readers "
              "each prefixed it to a reason that already carried it. One helper now leads with it only when the "
              "reason does not already carry the PHRASE (REG-1512: the bare word, said about a lock or a ledger, "
              "swallowed the framing); reel_river, printer and reel_router are DRIVEN on their UNKNOWN paths and "
-             "counted, and the readers are parsed so no spelling of the prefix comes back. 6 red-proofs"),
+             "counted, and the readers are parsed so no spelling of the prefix comes back."),
     Gate("test_the_launcher_brings_a_running_console_forward", [sys.executable,
          os.path.join(HERE, "test_the_launcher_brings_a_running_console_forward.py")], 60,
          why="REG-1514 - the second eye on 4e22a57a: a Desktop double-click on a Mac console whose window was UP fell "
              "through to the kill of :17772 and replaced a healthy console (and its session). tv/launcher_decide.py "
              "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
-             "ephemeral port. 3 red-proofs. v3525 - and the SHELL block that calls it, run for real under "
-             "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. 4 red-proofs"),
+             "ephemeral port. v3525 - and the SHELL block that calls it, run for real under "
+             "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing."),
     Gate("test_one_hunt_clock", [sys.executable,
          os.path.join(HERE, "test_one_hunt_clock.py")], 60,
          why="v3526 - 2026-09-30 his Cow King's Hooves read '~1 every 20030h' on its Sets run row, '~40h' on its "
@@ -247,14 +246,14 @@ GATES = [
              "Bovines'. One engine now: pickFastest (shortest even-odds hour, kills-per-run aware; ties to the "
              "higher rate) behind _pickSrc AND both console bridges, runHoursFor for every run row, one spelling "
              "(_fmtHunt), the cow run named 'Cow Level'. Driven in node over code cut from bible.html and joined to "
-             "control_app._ev_rank. 10 cases, 6 red-proofs"),
+             "control_app._ev_rank."),
     Gate("test_the_sets_ledger_keeps_its_history", [sys.executable,
          os.path.join(HERE, "test_the_sets_ledger_keeps_its_history.py")], 60,
          why="REG-1548 - 2026-09-29 his Mac store lost its one-shot flags, the Aug-21 set repair re-ran and took 16 "
              "pieces found weeks later (133 -> 118), and nothing recorded when any piece arrived. LSR (the one door) "
              "now stamps each piece's first appearance and keeps a dated history of every shrink (newest 20, same "
              "world as the pieces); the boot repair removes only what a stamp proves predates the reading. Driven "
-             "in node over the real LSR IIFE; the page decision is driven on CI (v1938 spec). 4 red-proofs"),
+             "in node over the real LSR IIFE; the page decision is driven on CI (v1938 spec)."),
     Gate("test_one_capture_per_console", [sys.executable,
          os.path.join(HERE, "test_one_capture_per_console.py")], 120,
          why="REG-1502 - his Boosteroid kept crashing: FIVE capture_win.ps1 ran at once on the ALT, each PrintWindow-ing "
@@ -262,7 +261,7 @@ GATES = [
              "one at a time, the capture is told its console, a stop checks its kill landed, a boot sweep ends only "
              "orphans, and the capture leaves by itself when its lease or console is gone (real PowerShell where "
              "one exists). REG-1509 (review of v3524): End Session no longer races the capture lamp, the sweep never "
-             "counts its own query, a reused console pid is still an orphan. 19 red-proofs"),
+             "counts its own query, a reused console pid is still an orphan."),
     Gate("test_child_guard_one_tree_per_role", [sys.executable,
          os.path.join(HERE, "test_child_guard_one_tree_per_role.py")], 120,
          why="#83 (REG-1515) - his words after five capture_win.ps1 leaked at once and crashed his Boosteroid: 'architecture "
@@ -274,13 +273,13 @@ GATES = [
              "starts under the RAM floor - the stall reader releases its ~400 MB claude after each sweep. Driven on real "
              "temp processes (a fake role with a grandchild: a restart leaves one tree) and through the real "
              "_start_capture / VisionWorker / OcrWorker with the OS edges stubbed; a deaf reader is buried as a whole "
-             "tree. 23 red-proofs"),
+             "tree."),
     Gate("test_the_shelf_is_warm_before_he_clicks", [sys.executable,
          os.path.join(HERE, "test_the_shelf_is_warm_before_he_clicks.py")], 60,
          why="REG-1459 - his report 'the SHELF when clicked its not opening': /api/sessions took 11.2 s cold after a "
              "relaunch (2.7 s warm) and the shelf demo gives 15 s including the render. The console now asks its "
              "own /api/sessions once, 30 s after boot, off the rescue loop, through the real handler; the outcome "
-             "is published. Real loopback server. 2 red-proofs"),
+             "is published. Real loopback server."),
     Gate("test_every_pc_proves_itself", [sys.executable,
          os.path.join(HERE, "test_every_pc_proves_itself.py")], 180,
          why="REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak "
@@ -289,8 +288,7 @@ GATES = [
              "console (clean, at origin) with an absent or stale census now proves itself in the background - "
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
              "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
-             "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "
-             "9 red-proofs"),
+             "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "),
     Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
          os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
          why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "
@@ -298,7 +296,7 @@ GATES = [
              "`zero-pages` was never selected, the lane lamp read owed:0, and river_walk kept printing 'a seal "
              "nothing will write'. The ALT held 25 such reels since 09-27, his Mac 4. One rule "
              "(shelf_driver.vault_owes_read) now serves the sweeper, the SHELF count and the river probe; the "
-             "position is the river's own last stamp. 4 red-proofs"),
+             "position is the river's own last stamp."),
     Gate("test_a_pulse_that_never_fired_also_leaves_zero", [sys.executable,
          os.path.join(HERE, "test_a_pulse_that_never_fired_also_leaves_zero.py")], 120,
          why="REG-1518 (#80) - the v39 spec pulsed, slept 1100 ms and expected 0 .syncing: a pulse that early-returns "
@@ -306,7 +304,7 @@ GATES = [
              "window property, not the top-level `let` the pulse reads. The spec now seeds a synced cell and requires "
              "the class ON before OFF; three sibling blocks (v1599, v1520, v549) got their premise. The shipped pulse "
              "is driven in node (seeded / throttled / no cell), the spec text is joined to the pulse's own selector "
-             "list, and a ratchet counts zero-without-a-premise blocks across tests/. 5 red-proofs"),
+             "list, and a ratchet counts zero-without-a-premise blocks across tests/."),
     Gate("test_the_gates_load_on_windows", [sys.executable,
          os.path.join(HERE, "test_the_gates_load_on_windows.py")], 180,
          why="REG-1445 - run_gates imported fcntl (Unix-only) at top level, so on every Windows PC it would not "
@@ -316,14 +314,14 @@ GATES = [
              "sweep refuses any bare top-level import of a Unix-only module in tv/. Child python with fcntl absent. "
              "REG-1448: heart2 brought PROOF_NEEDS across with `cp -c` (no cp on Windows) so no ALT sandbox had "
              "`.git` and eye_declares_reach read BLIND; off the Mac `.git` is now a `git clone --shared` (borrowed, "
-             "never written, never 1.8 GB copied). 4 red-proofs"),
+             "never written, never 1.8 GB copied)."),
     Gate("test_a_deaf_console_relaunches_itself", [sys.executable,
          os.path.join(HERE, "test_a_deaf_console_relaunches_itself.py")], 60,
          why="REG-1435 - his console ran 24 h with its window up and every request accepted then RESET: the fleet "
              "read 'unreachable', THE SHELF would not open, W did nothing. He found it from four screenshots; nothing "
              "in the console did, because every watchdog it has talks over that port. It now asks its own port once a "
              "minute; three refusals relaunch it (never while a sweep or mini is in flight, never twice in ten "
-             "minutes), and a slow answer never counts. Real loopback sockets. 5 red-proofs"),
+             "minutes), and a slow answer never counts. Real loopback sockets."),
     Gate("test_closing_the_window_keeps_the_console_running", [sys.executable,
          os.path.join(HERE, "test_closing_the_window_keeps_the_console_running.py")], 60,
          why="REG-1430 - his words: 'background service running with the console hidden always by design ... "
@@ -333,7 +331,7 @@ GATES = [
              "this thing and window is completely hidden') and every lane keeps running; ⏻ quit still quits. "
              "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
              "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
-             "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434). 18 red-proofs"),
+             "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434)."),
     Gate("test_quit_attribution", [sys.executable,
                                    os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
          why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "
@@ -341,285 +339,438 @@ GATES = [
              "Not reproducible here - /api/quit has exactly ONE caller in the page - so it is "
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
-             "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+             "UNATTRIBUTED line IS the finding."),
     Gate("test_freshness_probe_window", [sys.executable,
                                         os.path.join(HERE, "test_a_freshness_probe_has_no_window.py")], 60,
-         why="v3294 - crest_loudness refuses to score until it can prove the document is NEW, which is right. Its proof was a CLOCK: sample performance.now() before the reload and wait for a reading below it. That is only observable for _before milliseconds after the navigation, so the probe reliability depended on how long the page happened to be open. MEASURED back to back with nothing else changing: run 1 exit 0 in 6s, run 2 exit 2 in 21s. It blocked two pushes on a tree that was fine, and a gate that intermittently cannot measure spends its credibility on noise - after which a real UNKNOWN is waved through as that flake again. A marker has no window: a new document does not carry it, for as long as it takes to look. Five consecutive runs green after. Pins the marker, that the OLD document is marked before the reload, and that a page which did NOT navigate is STILL refused - this fixed when it can see, not whether it insists. 3 red-proofs"),
+         why="v3294 - crest_loudness refuses to score until it can prove the document is NEW, which is right. Its proof was a CLOCK: sample performance.now() before the reload and wait for a reading below it. That is only observable for _before milliseconds after the navigation, so the probe reliability depended on how long the page happened to be open. MEASURED back to back with nothing else changing: run 1 exit 0 in 6s, run 2 exit 2 in 21s. It blocked two pushes on a tree that was fine, and a gate that intermittently cannot measure spends its credibility on noise - after which a real UNKNOWN is waved through as that flake again. A marker has no window: a new document does not carry it, for as long as it takes to look. Five consecutive runs green after. Pins the marker, that the OLD document is marked before the reload, and that a page which did NOT navigate is STILL refused - this fixed when it can see, not whether it insists."),
     Gate("test_ruling_index_honest", [sys.executable,
                                      os.path.join(HERE, "test_a_ruling_index_admits_what_it_cannot_see.py")], 60,
-         why="v3294 - three times in one session a recorded ruling stopped me shipping the obvious fix and each time I found it by luck of grep. EXTRACTION WAS TRIED AND MEASURED DEAD: the warning marker plus prohibition language gives 223 entries and finds 0 of the 3; prohibition language alone gives 13,974; topic plus prohibition finds v2397 and misses v1631, whose constraint is a plain fact in his own words with no prohibition word in it. A 223-row index that omits every ruling that matters is WORSE than none because it reads as complete. So it reads an explicit marker instead. The first marker RULING: collided with prose NINE times; @@RULING collides zero times and is ASCII so it cannot trip the encoding rule shipped one version earlier. Pins that the sigil cannot be weakened, that the four seeded rulings are FOUND, and that every answer says an UNMARKED ruling is invisible and absence is not permission. 3 red-proofs"),
+         why="v3294 - three times in one session a recorded ruling stopped me shipping the obvious fix and each time I found it by luck of grep. EXTRACTION WAS TRIED AND MEASURED DEAD: the warning marker plus prohibition language gives 223 entries and finds 0 of the 3; prohibition language alone gives 13,974; topic plus prohibition finds v2397 and misses v1631, whose constraint is a plain fact in his own words with no prohibition word in it. A 223-row index that omits every ruling that matters is WORSE than none because it reads as complete. So it reads an explicit marker instead. The first marker RULING: collided with prose NINE times; @@RULING collides zero times and is ASCII so it cannot trip the encoding rule shipped one version earlier. Pins that the sigil cannot be weakened, that the four seeded rulings are FOUND, and that every answer says an UNMARKED ruling is invisible and absence is not permission."),
     Gate("test_encoding_rule_one_def", [sys.executable,
                                        os.path.join(HERE, "test_the_encoding_rule_has_one_definition.py")], 60,
-         why="v3293 - a test of mine printed non-ASCII without console_safe.enable(); on his cp1255 console that crashes WHILE REPORTING, so a clean tree exits non-zero for a reason unrelated to the check. The RULE was never the problem - it refused mine, and three files in tv/ carry comments saying it refused them too. The defect was WHEN you learn: it lived inside test_control, ~500s in, at push time. Moved to console_safe.audit() beside the enable() it tells you to call, with a CLI that answers in under a second and a pre-push step that runs it FIRST. Pins one definition three callers, and is BEHAVIOURAL on fixtures - it catches an unsafe entry point and spares a safe one, an ASCII one and a non-entry-point module, because a rule that returns nothing passes every source law. 3 red-proofs"),
+         why="v3293 - a test of mine printed non-ASCII without console_safe.enable(); on his cp1255 console that crashes WHILE REPORTING, so a clean tree exits non-zero for a reason unrelated to the check. The RULE was never the problem - it refused mine, and three files in tv/ carry comments saying it refused them too. The defect was WHEN you learn: it lived inside test_control, ~500s in, at push time. Moved to console_safe.audit() beside the enable() it tells you to call, with a CLI that answers in under a second and a pre-push step that runs it FIRST. Pins one definition three callers, and is BEHAVIOURAL on fixtures - it catches an unsafe entry point and spares a safe one, an ASCII one and a non-entry-point module, because a rule that returns nothing passes every source law."),
     Gate("test_eagle_counts_drawn", [sys.executable,
                                     os.path.join(HERE, "test_the_eagle_counts_what_the_panel_draws.py")], 60,
-         why="v3293 - Grok Bots native eyes on v3291: CHILIAD not measured 23, panel 23-vs-25 disagree. That sentence is v3284s clause WORKING, and it caught a real defect. TWO divergences, both making the panel draw more than the figures admitted: the server counted state == unknown while the panel buckets unknown OR unmeasured, and console_doctor emits UNMEASURED for a SLOW check that never had a full pass; and slowRows was published and bucketed by the panel but counted by NONE of the three figures, so needsYou could drift too. Measured live: rows 61 + slow 1 = 62 drawn, unknown 6 under the old rule and 7 under the new. Fixed at the NOUN - the figures widen to the drawn population and the panel is untouched, because agreement bought by drawing less is the same silence in a new place. 3 red-proofs"),
+         why="v3293 - Grok Bots native eyes on v3291: CHILIAD not measured 23, panel 23-vs-25 disagree. That sentence is v3284s clause WORKING, and it caught a real defect. TWO divergences, both making the panel draw more than the figures admitted: the server counted state == unknown while the panel buckets unknown OR unmeasured, and console_doctor emits UNMEASURED for a SLOW check that never had a full pass; and slowRows was published and bucketed by the panel but counted by NONE of the three figures, so needsYou could drift too. Measured live: rows 61 + slow 1 = 62 drawn, unknown 6 under the old rule and 7 under the new. Fixed at the NOUN - the figures widen to the drawn population and the panel is untouched, because agreement bought by drawing less is the same silence in a new place."),
     Gate("test_inert_proof_exit", [sys.executable,
                                   os.path.join(HERE, "test_an_inert_proof_does_not_exit_zero.py")], 60,
-         why="v3292 - a red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause it targeted, and the law stayed GREEN, because it asserted phrases that occur three times elsewhere in the file. BLIND already exited 1. INVALID did NOT, and INVALID means the sabotage matched NOTHING - the proof changed no byte, so the gate has no working red-proof while reporting one. MEASURED with a throwaway gate whose find was absent: INVALID exited 0. Twice in one session a real proof went INVALID on a ROTTED anchor, once a line my own refactor deleted, and both recorded success. Pins that BLIND and INVALID fail and are NAMED, that UNPROVABLE is named but NOT failed because that is the suites finding rather than this tools, and that an empty run invents no verdict. Behavioural: calls prove_exit_code with fixtures, which is why that decision was lifted out of main - a decision reachable only by building a sandbox is one nothing will ever test. 3 red-proofs"),
+         why="v3292 - a red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause it targeted, and the law stayed GREEN, because it asserted phrases that occur three times elsewhere in the file. BLIND already exited 1. INVALID did NOT, and INVALID means the sabotage matched NOTHING - the proof changed no byte, so the gate has no working red-proof while reporting one. MEASURED with a throwaway gate whose find was absent: INVALID exited 0. Twice in one session a real proof went INVALID on a ROTTED anchor, once a line my own refactor deleted, and both recorded success. Pins that BLIND and INVALID fail and are NAMED, that UNPROVABLE is named but NOT failed because that is the suites finding rather than this tools, and that an empty run invents no verdict. Behavioural: calls prove_exit_code with fixtures, which is why that decision was lifted out of main - a decision reachable only by building a sandbox is one nothing will ever test."),
     Gate("test_pipeline_reading_age", [sys.executable,
                                       os.path.join(HERE, "test_the_pipeline_reading_carries_its_age.py")], 60,
-         why="v3291 - Konyo at the pipeline board: pipeline though might need some updated 8 releasable 3 not, make sure its not stale and its all moving along. MEASURED: stages reads banked 3 releasable 8 across onDisk 11 with reelsUnmeasured 0, and the numbers were never stale - story() re-reads reel_retention.plan() every request, nothing cached. But the board makes the STRONGEST claim on the screen, that the counts stand still by design and not by neglect, and carried NO timestamp of any kind to check it by. Stillness-by-design and stillness-by-neglect look identical. Pins that the server stamps when it looked and at how many reels, that the panel prints it, and that an ABSENT stamp reads as UNKNOWN rather than fresh - which is a real case, since an un-restarted console still serves the old payload. 3 red-proofs"),
+         why="v3291 - Konyo at the pipeline board: pipeline though might need some updated 8 releasable 3 not, make sure its not stale and its all moving along. MEASURED: stages reads banked 3 releasable 8 across onDisk 11 with reelsUnmeasured 0, and the numbers were never stale - story() re-reads reel_retention.plan() every request, nothing cached. But the board makes the STRONGEST claim on the screen, that the counts stand still by design and not by neglect, and carried NO timestamp of any kind to check it by. Stillness-by-design and stillness-by-neglect look identical. Pins that the server stamps when it looked and at how many reels, that the panel prints it, and that an ABSENT stamp reads as UNKNOWN rather than fresh - which is a real case, since an un-restarted console still serves the old payload."),
     Gate("test_shelf_accounts_for_every_run", [sys.executable,
                                                os.path.join(HERE, "test_the_shelf_accounts_for_every_run.py")], 60,
-         why="v3290 - Konyo: the shelf is showing 12 runs why not 8, what happened there. MEASURED: five surfaces, five numbers, each correct for a DIFFERENT question - 419 sessions, 63 reels with 11 on the shelf, 11 surveyed, 15 over a 14-DAY WINDOW, FIFO 8, 12 cards. They must NOT be forced equal: the 2026-09-13 ruling is that the number was never wrong, only the NOUN was, and the strip is not the defect. What WAS broken is a silent subtraction - a STUB was the one dropped bucket with no counter anywhere, 154 of his 419 runs. With it counted the population closes exactly: 12 shown + 8 fixtures + 232 retired + 154 stubs + 13 unknown = 419. Pins that stubs are counted, that the head names how many of how many, that the shown count is measured BEFORE join() while the population is still knowable, and that an unexplained remainder is PRINTED rather than absorbed. 3 red-proofs"),
+         why="v3290 - Konyo: the shelf is showing 12 runs why not 8, what happened there. MEASURED: five surfaces, five numbers, each correct for a DIFFERENT question - 419 sessions, 63 reels with 11 on the shelf, 11 surveyed, 15 over a 14-DAY WINDOW, FIFO 8, 12 cards. They must NOT be forced equal: the 2026-09-13 ruling is that the number was never wrong, only the NOUN was, and the strip is not the defect. What WAS broken is a silent subtraction - a STUB was the one dropped bucket with no counter anywhere, 154 of his 419 runs. With it counted the population closes exactly: 12 shown + 8 fixtures + 232 retired + 154 stubs + 13 unknown = 419. Pins that stubs are counted, that the head names how many of how many, that the shown count is measured BEFORE join() while the population is still knowable, and that an unexplained remainder is PRINTED rather than absorbed."),
     Gate("test_shelf_opens_on_a_reel", [sys.executable,
                                         os.path.join(HERE, "test_the_shelf_opens_on_a_reel.py")], 60,
-         why="v3289 - Konyo asked twice for the BEST RUN / STREAK strip at the tippy top of the SHELF with ACTIVITY under it. That reopens the v2965 scar where 1433px of furniture put all 530 cards off-screen and v3121 refused the same request. Granted WITH the guard that keeps the half he did not say out loud - the reels must be SEEN. MEASURED at his real 1120x660: order alone gave scrollTop 0 / firstCardTop 815 / visible FALSE; order plus guard gives scrollTop 476 / firstCardTop 235 / visible TRUE in a 390px viewport. The guard is a TIMING fix for a bug v3029 already had: it chose the opening scroll before _shTimeline ran, and sh-timeline ships hidden, so it measured 0px for a block that becomes 156px. Pins the ORDER, that the scroll is re-decided AFTER the chart is real, and that a healthy shelf is still left alone. 3 red-proofs"),
+         why="v3289 - Konyo asked twice for the BEST RUN / STREAK strip at the tippy top of the SHELF with ACTIVITY under it. That reopens the v2965 scar where 1433px of furniture put all 530 cards off-screen and v3121 refused the same request. Granted WITH the guard that keeps the half he did not say out loud - the reels must be SEEN. MEASURED at his real 1120x660: order alone gave scrollTop 0 / firstCardTop 815 / visible FALSE; order plus guard gives scrollTop 476 / firstCardTop 235 / visible TRUE in a 390px viewport. The guard is a TIMING fix for a bug v3029 already had: it chose the opening scroll before _shTimeline ran, and sh-timeline ships hidden, so it measured 0px for a block that becomes 156px. Pins the ORDER, that the scroll is re-decided AFTER the chart is real, and that a healthy shelf is still left alone."),
     Gate("test_stale_server_says_so", [sys.executable,
                                        os.path.join(HERE, "test_a_stale_server_says_so.py")], 60,
-         why="v3288 - Grok Bot LOOKED 5721820085: CHILIAD panel 283 / footer 284, two numbers on one screen each claiming to be the version. TWO EXISTING MECHANISMS CONTRADICTED EACH OTHER on one process in one second: pre-push compared listener PID start vs file mtime and said stale, while _drift_once compared a baked literal vs disk and said in sync on v3287. Neither is first-hand. module_freshness captures this file mtime AT IMPORT and compares it to the mtime now - no PID, no literal, no guess about ancestry. Pins BEHAVIOUR not names: it fires on a rewrite, says the gap in words, names the PAGE-live/SERVER-stale boundary, returns UNKNOWN rather than in-sync when the file cannot be read, and is actually published. Monkeypatches the clock rather than touching the file, so it cannot leave his live console believing it is stale. 4 red-proofs"),
+         why="v3288 - Grok Bot LOOKED 5721820085: CHILIAD panel 283 / footer 284, two numbers on one screen each claiming to be the version. TWO EXISTING MECHANISMS CONTRADICTED EACH OTHER on one process in one second: pre-push compared listener PID start vs file mtime and said stale, while _drift_once compared a baked literal vs disk and said in sync on v3287. Neither is first-hand. module_freshness captures this file mtime AT IMPORT and compares it to the mtime now - no PID, no literal, no guess about ancestry. Pins BEHAVIOUR not names: it fires on a rewrite, says the gap in words, names the PAGE-live/SERVER-stale boundary, returns UNKNOWN rather than in-sync when the file cannot be read, and is actually published. Monkeypatches the clock rather than touching the file, so it cannot leave his live console believing it is stale."),
     Gate("test_kpi_chip_names", [sys.executable,
                                  os.path.join(HERE, "test_a_kpi_chip_names_what_it_counts.py")], 60,
-         why="v3287 - Konyo: 'even top corner chronicles set uniques and runewords should color match the tabs in main console'. The Sessions header drew 99/99 CHRONICLE (runewords) and 309/403 CHRONICLE (uniques) - two different quantities under one word, four inches apart, both numbers right and the noun wrong. Pins that the chips name what they count, declare their room class, and take the SHARED tokens (--rune / --q-unique / --q-set) rather than a forked hex; and that the FULL BIBLE door spans the row and glows instead of hugging the end in --gold-dim. Runewords wears --rune not gold by v1631s ruling that a TAB labels a ROOM. 4 red-proofs"),
+         why="v3287 - Konyo: 'even top corner chronicles set uniques and runewords should color match the tabs in main console'. The Sessions header drew 99/99 CHRONICLE (runewords) and 309/403 CHRONICLE (uniques) - two different quantities under one word, four inches apart, both numbers right and the noun wrong. Pins that the chips name what they count, declare their room class, and take the SHARED tokens (--rune / --q-unique / --q-set) rather than a forked hex; and that the FULL BIBLE door spans the row and glows instead of hugging the end in --gold-dim. Runewords wears --rune not gold by v1631s ruling that a TAB labels a ROOM."),
     Gate("test_vault_population", [sys.executable,
                                    os.path.join(HERE, "test_the_vault_says_its_own_population.py")], 60,
-         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 2026-09-28 (§31.2): CARRIED joins as a part cut from the same pool, so filed+carried+loose==pool. 4 red-proofs"),
+         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 2026-09-28 (§31.2): CARRIED joins as a part cut from the same pool, so filed+carried+loose==pool."),
     Gate("test_guest_intake_door", [sys.executable,
                                     os.path.join(HERE, "test_a_guest_may_not_walk_through_his_door.py")], 60,
-         why="v3296 - Konyo authorised this while scoping the parallel-test console: 'yea do it obivously'. The intake endpoint expression was written out BY HAND AT TEN SITES in bible.html (24312, 26090, 26722, 26960, 27672, 37972, 39894, 46859, 47559, 52952), each carrying the production URL as its file:// fallback, and the copies had ALREADY DRIFTED - nine read localStorage, one read window.LSR. Over file:// that default was the production endpoint FOR EVERY BOARD, so a GUEST board (no ownerClaim - exactly what the Linux test console is) posted its intake into HIS REAL INTAKE, silently; running the two consoles in parallel is the precise activity that fires it. Pins both halves: the public door is named EXACTLY ONCE in executable source inside _d2rIntakeEndpoint, and the guest branch cannot reach it because the production return sits behind a _D2R_OWNER test with a relative fallback after it. Also pins that HIS OWN board still reaches his own live door, because breaking that is worse than the defect. 2 red-proofs. NOTE its call-site count is taken on RAW source on purpose - _executable_only drops bible.html L38004 (raw 10, stripped 9), tracked separately. CORRECTED v3299: the cause is NOT the regex literals above that line as first recorded, it is accept=image/* at bible.html:37910 whose /* opens a comment for the context-free scanner 94 lines upstream. 2 red-proofs"),
+         why="v3296 - Konyo authorised this while scoping the parallel-test console: 'yea do it obivously'. The intake endpoint expression was written out BY HAND AT TEN SITES in bible.html (24312, 26090, 26722, 26960, 27672, 37972, 39894, 46859, 47559, 52952), each carrying the production URL as its file:// fallback, and the copies had ALREADY DRIFTED - nine read localStorage, one read window.LSR. Over file:// that default was the production endpoint FOR EVERY BOARD, so a GUEST board (no ownerClaim - exactly what the Linux test console is) posted its intake into HIS REAL INTAKE, silently; running the two consoles in parallel is the precise activity that fires it. Pins both halves: the public door is named EXACTLY ONCE in executable source inside _d2rIntakeEndpoint, and the guest branch cannot reach it because the production return sits behind a _D2R_OWNER test with a relative fallback after it. Also pins that HIS OWN board still reaches his own live door, because breaking that is worse than the defect. NOTE its call-site count is taken on RAW source on purpose - _executable_only drops bible.html L38004 (raw 10, stripped 9), tracked separately. CORRECTED v3299: the cause is NOT the regex literals above that line as first recorded, it is accept=image/* at bible.html:37910 whose /* opens a comment for the context-free scanner 94 lines upstream."),
     Gate("test_eye_declares_reach", [sys.executable,
                                      os.path.join(HERE, "test_the_eye_declares_what_it_did_not_see.py")], 60,
-         why="v3299 - the second eye reviews the VERSION COMMIT, not what ships. payload_for runs `git show <sha>` on the one commit carrying the stamp, so every fix: commit landing after the bump and before the push is NEVER SEEN BY ANY EYE while the ledger row reads as though the push was reviewed. MEASURED 2026-09-18 on v3298: FOUR commits shipped in one push and the eye saw ONE; the unseen three included the membership discriminator, which took three cuts (two wrong) and was the most consequential change in the push - and the verdict then attacked `_fnew > _dm + 0.5`, code SUPERSEDED two commits later. That is not the eye being wrong, it is the gate handing it bytes that no longer ship. This law does NOT close the gap (closing it means a wider payload and the payload already truncates at ~35%, so the cost is HIS call) - it pins that the runner STATES ITS OWN REACH. Three states and collapsing any two is the defect: a LIST means these commits ship unreviewed, [] means MEASURED-AND-NONE, None means the range could not be listed and is UNKNOWN never nothing-was-missed. Pins the rule not today's shas (HEAD~1 and HEAD, so it survives the next ship) and pins that the CALLER branches on None rather than collapsing it. 2 red-proofs"),
+         why="v3299 - the second eye reviews the VERSION COMMIT, not what ships. payload_for runs `git show <sha>` on the one commit carrying the stamp, so every fix: commit landing after the bump and before the push is NEVER SEEN BY ANY EYE while the ledger row reads as though the push was reviewed. MEASURED 2026-09-18 on v3298: FOUR commits shipped in one push and the eye saw ONE; the unseen three included the membership discriminator, which took three cuts (two wrong) and was the most consequential change in the push - and the verdict then attacked `_fnew > _dm + 0.5`, code SUPERSEDED two commits later. That is not the eye being wrong, it is the gate handing it bytes that no longer ship. This law does NOT close the gap (closing it means a wider payload and the payload already truncates at ~35%, so the cost is HIS call) - it pins that the runner STATES ITS OWN REACH. Three states and collapsing any two is the defect: a LIST means these commits ship unreviewed, [] means MEASURED-AND-NONE, None means the range could not be listed and is UNKNOWN never nothing-was-missed. Pins the rule not today's shas (HEAD~1 and HEAD, so it survives the next ship) and pins that the CALLER branches on None rather than collapsing it."),
     Gate("test_empty_world_unknown", [sys.executable,
                                       os.path.join(HERE, "test_an_empty_world_says_unknown.py")], 60,
-         why="v3297 - FOUR readers, ONE defect shape, all measured 2026-09-18 against a guest board that is structurally JOURNAL-RICH AND LEDGER-EMPTY: every durable what-was-DONE store is gitignored (capture_doors, vault_swept, retro_triage, chronicle_swept, vault_accum, river_stamp...) while the journal SEED is tracked, so a fresh clone inherits his testimony about what HAPPENED and has no record of what was DONE. Each reader coerced that absence into 0 and reported a defect that did not exist. (1) the absent capture ledger: _capture_door_load swallows a missing file into {} and the report coerces int 0, and the invariant's UNKNOWN arm fires only on a NON-INT - a condition a missing FILE can never reach - which manufactured 'journal says 56, ledger says 0' where the 56 was HIS imported journal. (2) the printer-reach doctor discarded upstream's own state=UNKNOWN and re-manufactured the populated-case confession over an empty world. (3) the sweep verdict was never joined to gate_failures(), so a DEAD OCR TOOLCHAIN and a shelf with no stash panels printed the identical sentence. (4) route-lane runs==0 conflated stood-down-by-design, process-younger-than-the-90s-tick, and a tick that raises upstream of the counter for ever. Three of the four halves are BEHAVIOURAL - they call the reader against a genuinely empty world rather than asserting a name appears, because a presence-law would go green over any of these fixes being deleted. 4 red-proofs"),
+         why="v3297 - FOUR readers, ONE defect shape, all measured 2026-09-18 against a guest board that is structurally JOURNAL-RICH AND LEDGER-EMPTY: every durable what-was-DONE store is gitignored (capture_doors, vault_swept, retro_triage, chronicle_swept, vault_accum, river_stamp...) while the journal SEED is tracked, so a fresh clone inherits his testimony about what HAPPENED and has no record of what was DONE. Each reader coerced that absence into 0 and reported a defect that did not exist. (1) the absent capture ledger: _capture_door_load swallows a missing file into {} and the report coerces int 0, and the invariant's UNKNOWN arm fires only on a NON-INT - a condition a missing FILE can never reach - which manufactured 'journal says 56, ledger says 0' where the 56 was HIS imported journal. (2) the printer-reach doctor discarded upstream's own state=UNKNOWN and re-manufactured the populated-case confession over an empty world. (3) the sweep verdict was never joined to gate_failures(), so a DEAD OCR TOOLCHAIN and a shelf with no stash panels printed the identical sentence. (4) route-lane runs==0 conflated stood-down-by-design, process-younger-than-the-90s-tick, and a tick that raises upstream of the counter for ever. Three of the four halves are BEHAVIOURAL - they call the reader against a genuinely empty world rather than asserting a name appears, because a presence-law would go green over any of these fixes being deleted."),
     Gate("test_reel_door", [sys.executable,
                            os.path.join(HERE, "test_a_reel_says_which_door_opened_it.py")], 60,
-         why="v3312 (#65/#66) - Konyo: 'the shadow reels that get shadow recorder they too need to be within the river and seen visually just like the others'. THE FIRST HALF WAS ALREADY TRUE and it took three wrong instruments to establish that: shadow reaches its reel THROUGH start_agent, so a shadow reel is an ordinary reel with the same hist dir, index and seal, and nothing in shelf_driver/river/river_walk/reel_retention filters by door. What was missing is that NO SURFACE COULD SAY WHICH ONES THEY WERE - river.py mentioned door ZERO times, so shadow flowed every joint INVISIBLY and 'shadow contributed N' had no answer, which is exactly how an evening of play producing ZERO shadow reels stayed hidden until he noticed the absence himself. MEASURED on tv/sessions.jsonl, 5169 rows: shadow 761, onair 759, mini 2, with 1522 rows carrying BOTH sessionId and door; of the reels on disk onair 7, shadow 1, and 16 with no door row at all because they predate the v2687 stamp. THOSE STAY UNKNOWN AND MUST NEVER BECOME onair - absence of a record is not evidence of the common case and a manufactured provenance cannot be told from a real one afterwards. reel_door is ONE definition for the river and the shelf, per the v3308 lesson where the partition was written twice and the screen said 9 while the engine said 7. ALSO #66: pressing ON AIR while SHADOW rolls used to answer 'already on air' - true about a reel, misleading about WHOSE, with the reply carrying mode and omitting the door. There is NO race (shadow refuses to start on top of anything, and that branch spawns nothing); the defect was the SENTENCE, and the law pins that it still kills nothing, because the fold runs at seal so pre-empting a rolling reel orphans its frames. Pins four things: a doorless reel is UNKNOWN, an unreadable journal is UNKNOWN with a REASON rather than an empty map, the say line names the unknowns out loud, and the split is DECORATION that never changes the capture joint's grade. 4 red-proofs.",
+         why="v3312 (#65/#66) - Konyo: 'the shadow reels that get shadow recorder they too need to be within the river and seen visually just like the others'. THE FIRST HALF WAS ALREADY TRUE and it took three wrong instruments to establish that: shadow reaches its reel THROUGH start_agent, so a shadow reel is an ordinary reel with the same hist dir, index and seal, and nothing in shelf_driver/river/river_walk/reel_retention filters by door. What was missing is that NO SURFACE COULD SAY WHICH ONES THEY WERE - river.py mentioned door ZERO times, so shadow flowed every joint INVISIBLY and 'shadow contributed N' had no answer, which is exactly how an evening of play producing ZERO shadow reels stayed hidden until he noticed the absence himself. MEASURED on tv/sessions.jsonl, 5169 rows: shadow 761, onair 759, mini 2, with 1522 rows carrying BOTH sessionId and door; of the reels on disk onair 7, shadow 1, and 16 with no door row at all because they predate the v2687 stamp. THOSE STAY UNKNOWN AND MUST NEVER BECOME onair - absence of a record is not evidence of the common case and a manufactured provenance cannot be told from a real one afterwards. reel_door is ONE definition for the river and the shelf, per the v3308 lesson where the partition was written twice and the screen said 9 while the engine said 7. ALSO #66: pressing ON AIR while SHADOW rolls used to answer 'already on air' - true about a reel, misleading about WHOSE, with the reply carrying mode and omitting the door. There is NO race (shadow refuses to start on top of anything, and that branch spawns nothing); the defect was the SENTENCE, and the law pins that it still kills nothing, because the fold runs at seal so pre-empting a rolling reel orphans its frames. Pins four things: a doorless reel is UNKNOWN, an unreadable journal is UNKNOWN with a REASON rather than an empty map, the say line names the unknowns out loud, and the split is DECORATION that never changes the capture joint's grade.",
          ),
     Gate("test_clean_look_verdict", [sys.executable,
                           os.path.join(HERE, "test_a_clean_look_is_never_filed_as_findings.py")], 60,
-         why="v3315 (#67) - A LOOK THAT FOUND NOTHING WAS FILED AS ONE THAT FOUND SOMETHING, and this is the FIFTH phrasing to defeat the same check. _NO_DEFECT_RX is a NOUN-PHRASE pattern needing 'no <...> defects|issues|bugs|problems'; four versions widened its vocabulary (v3216 evident, v3216 present, v3267 meeting, v3268 the bare full stop) and the lesson drawn was that the declaration IS the noun phrase. This shape has no such noun at all. MEASURED on the real v3301 look: Grok answered '**Findings**' then 'none found' and the row was filed verdict=findings, findings=2 - the ledger asserting the eye found two things when it said the opposite. Of the three conditions in _verdict_for exactly ONE failed, the declaration never matching; _claims_a_defect was False for both blocks. The repo's own COLD_FRAMING asks reviewers to say 'none found', so the instrument was refusing the wording it requested. _NO_FINDING_RX is kept as a SEPARATE named pattern because the noun-phrase one has been corrected four times and restructuring it to carry a different part of speech is how a fifth correction becomes a sixth. Safe by construction and the asymmetry is pinned as a BASELINE: a declaration followed by a real P1 still files as findings. ALSO: every row now records WHICH parser generation judged it (824 predate it), and verdict_provenance() re-judges what it can while keeping FOUR reasons for 'cannot' apart - prefix-only, no answer, a HAND-WRITTEN verdict no parser produced, and unstamped. My first cut of that measurement compared a TUPLE to a string and reported 709 disagreements; my second re-judged hand-written annotations as though a parser wrote them, which is v3313's category error one file away. Honest figures: 540 agree, 133 disagree, 91+17+47 UNKNOWN. 3 red-proofs.",
+         why="v3315 (#67) - A LOOK THAT FOUND NOTHING WAS FILED AS ONE THAT FOUND SOMETHING, and this is the FIFTH phrasing to defeat the same check. _NO_DEFECT_RX is a NOUN-PHRASE pattern needing 'no <...> defects|issues|bugs|problems'; four versions widened its vocabulary (v3216 evident, v3216 present, v3267 meeting, v3268 the bare full stop) and the lesson drawn was that the declaration IS the noun phrase. This shape has no such noun at all. MEASURED on the real v3301 look: Grok answered '**Findings**' then 'none found' and the row was filed verdict=findings, findings=2 - the ledger asserting the eye found two things when it said the opposite. Of the three conditions in _verdict_for exactly ONE failed, the declaration never matching; _claims_a_defect was False for both blocks. The repo's own COLD_FRAMING asks reviewers to say 'none found', so the instrument was refusing the wording it requested. _NO_FINDING_RX is kept as a SEPARATE named pattern because the noun-phrase one has been corrected four times and restructuring it to carry a different part of speech is how a fifth correction becomes a sixth. Safe by construction and the asymmetry is pinned as a BASELINE: a declaration followed by a real P1 still files as findings. ALSO: every row now records WHICH parser generation judged it (824 predate it), and verdict_provenance() re-judges what it can while keeping FOUR reasons for 'cannot' apart - prefix-only, no answer, a HAND-WRITTEN verdict no parser produced, and unstamped. My first cut of that measurement compared a TUPLE to a string and reported 709 disagreements; my second re-judged hand-written annotations as though a parser wrote them, which is v3313's category error one file away. Honest figures: 540 agree, 133 disagree, 91+17+47 UNKNOWN.",
          ),
     Gate("test_look_records_commit", [sys.executable,
                           os.path.join(HERE, "test_a_look_records_the_commit_it_read.py")], 60,
-         why="v3316 (#69) - A LOOK IS RECORDED AGAINST THE COMMIT IT ACTUALLY READ. payload_for(sha) resolves a commit, builds the diff from it, and the sha was THROWN AWAY: measured across all 824 prior rows there is no sha key at all, so the ledger could answer 'was this VERSION looked at' and NOT 'was this COMMIT looked at' - and the second is the one that matters because this repo batches 3-4 versions per commit to pay the gate once. 0bf8cb6d is titled v3304-v3307 and ships FOUR versions; asking once per version sends the SAME 10,016-byte payload four times, four paid looks at one set of bytes filed as four independent reviews, which is n inflated by REPETITION and is fake confluence. ALSO the hyphen range was invisible: _VER_LEADING_RUN accepts + , and & but not -, so v3304-v3307 registered as v3304 alone and v3305/v3306 shipped with NO second-eye look at all. That is the v2862 scar - which added the + form for exactly this reason - repeating with a new separator. versions_in_run() is now the ONE parser for what a subject ships and the history walk calls it, so the backlog and any future range-aware gate cannot disagree. The em-dash title case and v2854's leading-run protection are both pinned. looked_at_commit returns None and NEVER False when no row carries a sha, because answering False would declare 824 real looks to have never happened. 2 red-proofs.",
+         why="v3316 (#69) - A LOOK IS RECORDED AGAINST THE COMMIT IT ACTUALLY READ. payload_for(sha) resolves a commit, builds the diff from it, and the sha was THROWN AWAY: measured across all 824 prior rows there is no sha key at all, so the ledger could answer 'was this VERSION looked at' and NOT 'was this COMMIT looked at' - and the second is the one that matters because this repo batches 3-4 versions per commit to pay the gate once. 0bf8cb6d is titled v3304-v3307 and ships FOUR versions; asking once per version sends the SAME 10,016-byte payload four times, four paid looks at one set of bytes filed as four independent reviews, which is n inflated by REPETITION and is fake confluence. ALSO the hyphen range was invisible: _VER_LEADING_RUN accepts + , and & but not -, so v3304-v3307 registered as v3304 alone and v3305/v3306 shipped with NO second-eye look at all. That is the v2862 scar - which added the + form for exactly this reason - repeating with a new separator. versions_in_run() is now the ONE parser for what a subject ships and the history walk calls it, so the backlog and any future range-aware gate cannot disagree. The em-dash title case and v2854's leading-run protection are both pinned. looked_at_commit returns None and NEVER False when no row carries a sha, because answering False would declare 824 real looks to have never happened.",
          ),
     Gate("test_heart_denominator", [sys.executable,
                           os.path.join(HERE, "test_the_heart_divides_by_the_population_it_counted.py")], 60,
-         why="v3318 (#73) - THE HEART DIVIDED BY THE POPULATION ITS NUMERATOR DID NOT COME FROM. self_arming._heart_says_watched printed 'instruments watched: 394 of 457 gates proved'. proved counts gates that DECLARE a red-proof and were proven; total counts EVERY registered gate including those declaring none. COUNTED INDEPENDENTLY from run_gates.GATES and the test files: 457 registered, 417 declaring a RED_PROOF, 394 proven - so 394/457 = 86.2% was printed where 394/417 = 94.5% is true of the population 394 came from. It UNDER-stated, which is the safe direction and exactly why it would have survived: a number that looks worse than reality never gets challenged. THE REAL LOSS WAS THE 40: forty registered gates declare NO red-proof, gates never SEEN to refuse, and folding them into a denominator turns 'we have not proven these' into 'we proved a smaller fraction'. They now get their own clause naming what it means. ONE FACT, TWO READERS, ONE WRONG - control_app.py:19460 has printed it correctly all along and the store already persisted declared/total/unproven, so nothing new had to be computed; only the consumer was wrong. The no-proof count is OMITTED, never zeroed, when a figure is missing, because '0 declare no proof' is the most reassuring possible lie. The BASELINE case pins that with declared == total the sentence says 457 of 457 and a MEASURED 0, without which a hardcoded '394 of 417' would pass. The fixture carries the LIVE gates fingerprint on purpose: a stale one is refused before the sentence is composed, so the case would prove nothing. 3 red-proofs.",
+         why="v3318 (#73) - THE HEART DIVIDED BY THE POPULATION ITS NUMERATOR DID NOT COME FROM. self_arming._heart_says_watched printed 'instruments watched: 394 of 457 gates proved'. proved counts gates that DECLARE a red-proof and were proven; total counts EVERY registered gate including those declaring none. COUNTED INDEPENDENTLY from run_gates.GATES and the test files: 457 registered, 417 declaring a RED_PROOF, 394 proven - so 394/457 = 86.2% was printed where 394/417 = 94.5% is true of the population 394 came from. It UNDER-stated, which is the safe direction and exactly why it would have survived: a number that looks worse than reality never gets challenged. THE REAL LOSS WAS THE 40: forty registered gates declare NO red-proof, gates never SEEN to refuse, and folding them into a denominator turns 'we have not proven these' into 'we proved a smaller fraction'. They now get their own clause naming what it means. ONE FACT, TWO READERS, ONE WRONG - control_app.py:19460 has printed it correctly all along and the store already persisted declared/total/unproven, so nothing new had to be computed; only the consumer was wrong. The no-proof count is OMITTED, never zeroed, when a figure is missing, because '0 declare no proof' is the most reassuring possible lie. The BASELINE case pins that with declared == total the sentence says 457 of 457 and a MEASURED 0, without which a hardcoded '394 of 417' would pass. The fixture carries the LIVE gates fingerprint on purpose: a stale one is refused before the sentence is composed, so the case would prove nothing.",
          ),
     Gate("test_roster_not_debt", [sys.executable,
                           os.path.join(HERE, "test_a_roster_arriving_is_not_new_debt.py")], 60,
-         why="v3328 (#71) - A ROSTER ARRIVING IS NOT NEW DEBT, AND THE FILE ALREADY KNEW IT. _verdict defines REFERENCE as a row with NO producer key AND NO clock, and line 20 says what that means: a roster or lookup table, no clock, so the question does not apply. A store the provenance question does not apply to cannot owe an answer to it. _compare's new-arrival branch reddened everything ranking below ANSWERS, so a roster arriving was filed as new debt. MEASURED 2026-09-18 on the live tree: engine_index.json SILENT (real debt, correctly red), heart_floor.json REFERENCE and test_reel_refs.json REFERENCE (both FALSE) - two of three reds were rosters being asked when they were last written and by whom, on a gate otherwise reporting 12 genuine improvements. ⚠⚠ THE SAME FALSE RED ALREADY BIT ONCE AND WAS PATCHED BY NAME: the ratchet's OWN baseline arrived REFERENCE and was reported as new debt on the very first clean run, and the fix excluded that one filename inside _split. That closed the instance and left the CLASS open, and the class re-fired the moment two more rosters landed - a rule learned once and generalised to nothing. ⚠ MY EARLIER DIAGNOSIS OF THIS TASK WAS WRONG AND IS CORRECTED IN THE SHIP: I claimed taking REFERENCE off the RANK axis would clear two false reds. There were THREE reds, none was a rank comparison, and RANK is only consulted when a store MOVES. The SILENT/REFERENCE tie is deliberate - the module says ranking one over the other would invent a distinction the census does not draw - and it is pinned here untouched. ⚠ SILENT AND PARTIAL STILL COUNT AS DEBT and the baseline half pins it: SILENT means the row HAS a clock and still names no writer, the question applies and went unanswered, which is engine_index.json today and must stay red. The exemption is for INAPPLICABILITY, never for inconvenience - exempting more would turn a ratchet into an off switch. Also pinned: a genuine ANSWERS->SILENT regression still reddens, and the empty-store sentence is unchanged because UNKNOWN had the honest shape first. 2 red-proofs, the second of which widens the exemption to every non-ANSWERS arrival and must go RED.",
+         why="v3328 (#71) - A ROSTER ARRIVING IS NOT NEW DEBT, AND THE FILE ALREADY KNEW IT. _verdict defines REFERENCE "
+             "as a row with NO producer key AND NO clock, and line 20 says what that means: a roster or lookup table, no "
+             "clock, so the question does not apply. A store the provenance question does not apply to cannot owe an "
+             "answer to it. _compare's new-arrival branch reddened everything ranking below ANSWERS, so a roster arriving "
+             "was filed as new debt. MEASURED 2026-09-18 on the live tree: engine_index.json SILENT (real debt, correctly "
+             "red), heart_floor.json REFERENCE and test_reel_refs.json REFERENCE (both FALSE) - two of three reds were "
+             "rosters being asked when they were last written and by whom, on a gate otherwise reporting 12 genuine "
+             "improvements. ⚠⚠ THE SAME FALSE RED ALREADY BIT ONCE AND WAS PATCHED BY NAME: the ratchet's OWN baseline "
+             "arrived REFERENCE and was reported as new debt on the very first clean run, and the fix excluded that one "
+             "filename inside _split. That closed the instance and left the CLASS open, and the class re-fired the moment "
+             "two more rosters landed - a rule learned once and generalised to nothing. ⚠ MY EARLIER DIAGNOSIS OF THIS "
+             "TASK WAS WRONG AND IS CORRECTED IN THE SHIP: I claimed taking REFERENCE off the RANK axis would clear two "
+             "false reds. There were THREE reds, none was a rank comparison, and RANK is only consulted when a store "
+             "MOVES. The SILENT/REFERENCE tie is deliberate - the module says ranking one over the other would invent a "
+             "distinction the census does not draw - and it is pinned here untouched. ⚠ SILENT AND PARTIAL STILL COUNT AS "
+             "DEBT and the baseline half pins it: SILENT means the row HAS a clock and still names no writer, the "
+             "question applies and went unanswered, which is engine_index.json today and must stay red. The exemption is "
+             "for INAPPLICABILITY, never for inconvenience - exempting more would turn a ratchet into an off switch. Also "
+             "pinned: a genuine ANSWERS->SILENT regression still reddens, and the empty-store sentence is unchanged "
+             "because UNKNOWN had the honest shape first. Its second red-proof widens the exemption to every non-ANSWERS "
+             "arrival and must go RED.",
          ),
     Gate("test_seed_vs_remaining", [sys.executable,
                           os.path.join(HERE, "test_a_seeded_name_is_never_one_the_game_says_he_lacks.py")], 60,
-         why="v3327 (#79) - A SEEDED NAME IS NEVER ONE THE GAME SAYS HE LACKS. MEASURED on bible.html: the game's own Remaining list holds 19 names and _SET_SEED carried 17 of them WITH FIRST-FOUND DATES - set pieces he does not have, on a page he acts on, published live because a push to main deploys. _GRAIL_SEED carried 0, so the unique half was always clean. ATTRIBUTED BY BISECT across seven ships: v3308/09/10/11/12 all read 108 seeded and 0 contradictions; 12bcb40c (v3313+v3314) reads 133 and 17, and neither bake_seed.py nor test_bake_seed.py changed in that range, so the gate went red on DATA. ROOT CAUSE PROVEN BY ELIMINATION: bake() rule 3 skips any name in the Remaining list, _SET_MISSING is untouched by that commit, and the list measures 19 at every ref - therefore no run of bake() produced these and the literal was HAND-WRITTEN past the baker's rules. ⚠ AND IT IS ONE-WAY: bake() asserts old_set <= new_set, so re-baking can never remove a contaminated name; only a deliberate edit can. THE 25 v3313 ADDED SPLIT THREE WAYS and the fix follows the split rather than the count: 15 share ONE stamp, Sep 16 2026 15:28, and ALL FIFTEEN are on the Remaining list - fifteen set pieces are not found in one minute, so that date orders against nothing and the name is UNDATABLE; those are REMOVED. 2 are on the Remaining list but carry their OWN distinct dates (Laying of Hands Aug 24 01:10, Taebaek's Glory Aug 23 17:46) and are NOT automatically wrong - first-found is a historical positive while Remaining is present ownership, and found-then-sold satisfies both, so they are DECLARED in bake_seed.SEED_EXEMPT with a reason and SURFACED for his ruling rather than deleted, because deleting a real find is the worse error. 8 are dated and uncontradicted and are KEPT. 133 -> 118. ⚠ THE DECLARATION IS NOT A LOOPHOLE: a declared name whose stamp is shared by 5 or more pieces is refused, which is exactly what would be needed to re-admit the 15. Every declaration must carry a reason, and a declaration naming a name no longer seeded is refused as a stale permission. 2 red-proofs.",
+         why="v3327 (#79) - A SEEDED NAME IS NEVER ONE THE GAME SAYS HE LACKS. MEASURED on bible.html: the game's own Remaining list holds 19 names and _SET_SEED carried 17 of them WITH FIRST-FOUND DATES - set pieces he does not have, on a page he acts on, published live because a push to main deploys. _GRAIL_SEED carried 0, so the unique half was always clean. ATTRIBUTED BY BISECT across seven ships: v3308/09/10/11/12 all read 108 seeded and 0 contradictions; 12bcb40c (v3313+v3314) reads 133 and 17, and neither bake_seed.py nor test_bake_seed.py changed in that range, so the gate went red on DATA. ROOT CAUSE PROVEN BY ELIMINATION: bake() rule 3 skips any name in the Remaining list, _SET_MISSING is untouched by that commit, and the list measures 19 at every ref - therefore no run of bake() produced these and the literal was HAND-WRITTEN past the baker's rules. ⚠ AND IT IS ONE-WAY: bake() asserts old_set <= new_set, so re-baking can never remove a contaminated name; only a deliberate edit can. THE 25 v3313 ADDED SPLIT THREE WAYS and the fix follows the split rather than the count: 15 share ONE stamp, Sep 16 2026 15:28, and ALL FIFTEEN are on the Remaining list - fifteen set pieces are not found in one minute, so that date orders against nothing and the name is UNDATABLE; those are REMOVED. 2 are on the Remaining list but carry their OWN distinct dates (Laying of Hands Aug 24 01:10, Taebaek's Glory Aug 23 17:46) and are NOT automatically wrong - first-found is a historical positive while Remaining is present ownership, and found-then-sold satisfies both, so they are DECLARED in bake_seed.SEED_EXEMPT with a reason and SURFACED for his ruling rather than deleted, because deleting a real find is the worse error. 8 are dated and uncontradicted and are KEPT. 133 -> 118. ⚠ THE DECLARATION IS NOT A LOOPHOLE: a declared name whose stamp is shared by 5 or more pieces is refused, which is exactly what would be needed to re-admit the 15. Every declaration must carry a reason, and a declaration naming a name no longer seeded is refused as a stale permission.",
          ),
     Gate("test_word_says_whose", [sys.executable,
                           os.path.join(HERE, "test_the_word_says_whose_row_it_is.py")], 60,
-         why="v3326 (#84) - THE STATUS WORD SAYS WHOSE ROW IT IS, INSTEAD OF SAYING MISSING FOUR TIMES. His #35 ruling gives WAITING ON YOU a precise meaning and v3321 built the sections for it; what v3321 did not touch was the WORD inside them. MEASURED on his console at v3323 from his own screenshots: END ROUTES REACHABLE and THE RIVER both read MISSING under a heading reading RED ON PURPOSE - RULED NOT A DEFECT, NOTHING FOR YOU TO DO; CONSOLE UI FAULTS read MISSING while its own sentence says the console healed itself from 3 faults in 24h and It recovered; LEDGER PROVENANCE read MISSING under WAITING ON CODE - NOT YOURS TO FIX. Absent, ruled-fine, already-recovered and owed-by-Claude are four different facts, and one word for all of them is the same collapse as a 0 standing in for UNKNOWN, one layer up in the vocabulary. ⚠ IT IS A JOIN, NOT A NEW JUDGEMENT: _sortRow already computed the bucket from mineWhat and byDesignWhat - the server has named the owner of every row since v3307 - but it did so on the line AFTER the word was chosen, so the word could not see it. The fix moves the bucket one line earlier and passes it in; nothing here decides ownership. ⚠ THE unmeasured and unknown WORDS ARE DELIBERATELY UNTOUCHED - CAN'T ASK, NEVER and NOT THIS TICK already say the right thing with a reason and an age, and v3309 earned that distinction after his screen said NEVER about a row asked two minutes earlier. ⚠⚠ THE BASELINE IS THE HALF THAT MATTERS: the cheap way to calm this panel is to stop saying MISSING at all, so a row that is genuinely his and genuinely absent is pinned to still read MISSING in the warn tone - a panel that has stopped reporting is worse than one that reports bluntly. The warn tone is now conditioned on the bucket so a closed ruling and my own backlog stop shouting in the fault colour. IT STRIPS COMMENTS BEFORE READING, load-bearing: the block explaining this change contains the literal words BY DESIGN, CLAUDE OWES and MISSING, so a law reading raw source would be satisfied by its own commentary. 3 red-proofs.",
+         why="v3326 (#84) - THE STATUS WORD SAYS WHOSE ROW IT IS, INSTEAD OF SAYING MISSING FOUR TIMES. His #35 ruling gives WAITING ON YOU a precise meaning and v3321 built the sections for it; what v3321 did not touch was the WORD inside them. MEASURED on his console at v3323 from his own screenshots: END ROUTES REACHABLE and THE RIVER both read MISSING under a heading reading RED ON PURPOSE - RULED NOT A DEFECT, NOTHING FOR YOU TO DO; CONSOLE UI FAULTS read MISSING while its own sentence says the console healed itself from 3 faults in 24h and It recovered; LEDGER PROVENANCE read MISSING under WAITING ON CODE - NOT YOURS TO FIX. Absent, ruled-fine, already-recovered and owed-by-Claude are four different facts, and one word for all of them is the same collapse as a 0 standing in for UNKNOWN, one layer up in the vocabulary. ⚠ IT IS A JOIN, NOT A NEW JUDGEMENT: _sortRow already computed the bucket from mineWhat and byDesignWhat - the server has named the owner of every row since v3307 - but it did so on the line AFTER the word was chosen, so the word could not see it. The fix moves the bucket one line earlier and passes it in; nothing here decides ownership. ⚠ THE unmeasured and unknown WORDS ARE DELIBERATELY UNTOUCHED - CAN'T ASK, NEVER and NOT THIS TICK already say the right thing with a reason and an age, and v3309 earned that distinction after his screen said NEVER about a row asked two minutes earlier. ⚠⚠ THE BASELINE IS THE HALF THAT MATTERS: the cheap way to calm this panel is to stop saying MISSING at all, so a row that is genuinely his and genuinely absent is pinned to still read MISSING in the warn tone - a panel that has stopped reporting is worse than one that reports bluntly. The warn tone is now conditioned on the bucket so a closed ruling and my own backlog stop shouting in the fault colour. IT STRIPS COMMENTS BEFORE READING, load-bearing: the block explaining this change contains the literal words BY DESIGN, CLAUDE OWES and MISSING, so a law reading raw source would be satisfied by its own commentary.",
          ),
     Gate("test_store_guard", [sys.executable,
                           os.path.join(HERE, "test_a_store_is_never_written_over_an_unread_one.py")], 60,
-         why="v3325 (#83) - A STORE IS NEVER WRITTEN OVER ONE THIS PROCESS COULD NOT READ. Three stores in this tree are READ-MODIFY-WRITTEN and the rule that protects them existed in exactly ONE. .vault_autoread.json is GUARDED and has been since v2904, its own comment carrying the lesson: never write memory over a store this process has not read, because an empty in-memory value written straight over a good store is strictly worse than not writing - the file then looks authoritative. It was learned once and generalised to nothing. MEASURED 2026-09-18 by the swallow ratchet, red 12 consecutive runs since 2026-09-17T09:51: .handoff_seen.json via _marks + --mark, and shadow_watch.json via _shadow_watch_stored + _shadow_watch_note, both collapsed a malformed file to {} and then wrote that back WHOLESALE. The handoff one is the QUEUE DRAIN: --mark reads the watermarks, adds one issue and writes them all back, so a corrupt file would have destroyed 179 and 180 while printing a normal success line. BOTH WERE LATENT NOT FIRED - the file measured readable, 332 bytes, keys 179/180/230 intact. ATTRIBUTED, not assumed: the control_app site is _shadow_watch_stored at 24081, introduced v2982, found by matching each candidate to its ENCLOSING FUNCTION across the baseline tree and today because line numbers drift 26,662 to 35,443 lines while function names do not; handoff.py:77 is v3301, mine. ⚠ MY FIRST BISECT USED THE WRONG REFERENCE and over-reported 10+ candidates against a +1 delta - the ratchet compares to the BASELINE FILE (1240f2a8, 2026-09-04), not the last green CI run, and against the right tree it reconciles exactly at 34 then 35. THREE STATES: {} is ABSENT and is a MEASUREMENT, a dict is read, None is UNREADABLE and no write may proceed on it. ⚠ THE LAW WAS PROVEN RED BEFORE THE FIX EXISTED - 2 failures showing the readers collapse malformed to {}, 2 errors showing the writers CRASH on None rather than refuse, and 1 PASS on the vault baseline, which is what proves it tells the guarded store apart from the unguarded ones rather than failing on everything. 3 red-proofs.",
+         why="v3325 (#83) - A STORE IS NEVER WRITTEN OVER ONE THIS PROCESS COULD NOT READ. Three stores in this tree are READ-MODIFY-WRITTEN and the rule that protects them existed in exactly ONE. .vault_autoread.json is GUARDED and has been since v2904, its own comment carrying the lesson: never write memory over a store this process has not read, because an empty in-memory value written straight over a good store is strictly worse than not writing - the file then looks authoritative. It was learned once and generalised to nothing. MEASURED 2026-09-18 by the swallow ratchet, red 12 consecutive runs since 2026-09-17T09:51: .handoff_seen.json via _marks + --mark, and shadow_watch.json via _shadow_watch_stored + _shadow_watch_note, both collapsed a malformed file to {} and then wrote that back WHOLESALE. The handoff one is the QUEUE DRAIN: --mark reads the watermarks, adds one issue and writes them all back, so a corrupt file would have destroyed 179 and 180 while printing a normal success line. BOTH WERE LATENT NOT FIRED - the file measured readable, 332 bytes, keys 179/180/230 intact. ATTRIBUTED, not assumed: the control_app site is _shadow_watch_stored at 24081, introduced v2982, found by matching each candidate to its ENCLOSING FUNCTION across the baseline tree and today because line numbers drift 26,662 to 35,443 lines while function names do not; handoff.py:77 is v3301, mine. ⚠ MY FIRST BISECT USED THE WRONG REFERENCE and over-reported 10+ candidates against a +1 delta - the ratchet compares to the BASELINE FILE (1240f2a8, 2026-09-04), not the last green CI run, and against the right tree it reconciles exactly at 34 then 35. THREE STATES: {} is ABSENT and is a MEASUREMENT, a dict is read, None is UNREADABLE and no write may proceed on it. ⚠ THE LAW WAS PROVEN RED BEFORE THE FIX EXISTED - 2 failures showing the readers collapse malformed to {}, 2 errors showing the writers CRASH on None rather than refuse, and 1 PASS on the vault baseline, which is what proves it tells the guarded store apart from the unguarded ones rather than failing on everything.",
          ),
     Gate("test_row_remembers_its_cap", [sys.executable,
                           os.path.join(HERE, "test_a_row_remembers_what_it_was_cut_to.py")], 60,
-         why="v3339 (#77) - A ROW REMEMBERS WHAT IT WAS CUT TO. The answer-head cap was written in FOUR places: three slices in second_eye_run (200 unreached, 400 reached, 200 unreached) and the writer's own ANSWER_HEAD_CAP of 600. The RUNNER cut first, so a row capped at 400 never reached 600 and the re-judger treated it as a whole answer. MEASURED on 843 rows: 381 sat at exactly 400 while prefixOnly reported 98, and the census - counting only the writer's 600 - reported 91. Two readings disagreeing because one number lived in four places. The runner now passes the FULL answer and DECLARES head_cap; the writer cuts ONCE and records headCap on the row; the re-judger asks the row. Re-measured on 847 rows: prefixOnly 478 and agree fell 554 to 192 - THREE HUNDRED AND SIXTY-TWO rows left agreement for UNKNOWN, which is the only honest direction. ⚠ A legacy row carries no headCap and nothing on disk says which cap applied, so 200, 400 and 600 are all treated as prefix-only: that can only REMOVE claimed agreement, never manufacture it. ⚠ The default resolves at CALL time because ANSWER_HEAD_CAP is defined BELOW record() - a signature default would not even import. 3 red-proofs.",
+         why="v3339 (#77) - A ROW REMEMBERS WHAT IT WAS CUT TO. The answer-head cap was written in FOUR places: three slices in second_eye_run (200 unreached, 400 reached, 200 unreached) and the writer's own ANSWER_HEAD_CAP of 600. The RUNNER cut first, so a row capped at 400 never reached 600 and the re-judger treated it as a whole answer. MEASURED on 843 rows: 381 sat at exactly 400 while prefixOnly reported 98, and the census - counting only the writer's 600 - reported 91. Two readings disagreeing because one number lived in four places. The runner now passes the FULL answer and DECLARES head_cap; the writer cuts ONCE and records headCap on the row; the re-judger asks the row. Re-measured on 847 rows: prefixOnly 478 and agree fell 554 to 192 - THREE HUNDRED AND SIXTY-TWO rows left agreement for UNKNOWN, which is the only honest direction. ⚠ A legacy row carries no headCap and nothing on disk says which cap applied, so 200, 400 and 600 are all treated as prefix-only: that can only REMOVE claimed agreement, never manufacture it. ⚠ The default resolves at CALL time because ANSWER_HEAD_CAP is defined BELOW record() - a signature default would not even import.",
          ),
     Gate("test_unparsed_answer_is_not_a_defect", [sys.executable,
                           os.path.join(HERE, "test_an_unparsed_answer_is_not_a_defect.py")], 90,
-         why="v3346 (#101) - AN UNPARSED ANSWER IS cannot-tell, NEVER A DEFECT. v3343's look said 'The diff is correct. No defects, races, contract mismatches, leaks, or unreachable states are present' and was filed verdict=findings with ONE finding whose text was THE WHOLE ANSWER, REACH line and clean verdict included. The cause is the PARSER not the declaration: _findings_from starts a block only on a numbered or bulleted line and joins everything else onto the block above, so an answer with no such line comes back as one block containing everything - a parse that found no structure, relabelled as the worse of two. _declares_none is NOT widened and must not be: the phrasing that slipped past it is a comma-tail between No defects and are present, exactly what #76 measured and REFUSED because _claims_a_defect covers only 103 of 628 findings-rows. THE BLAST RADIUS WAS MEASURED AND MY FIRST DESIGN WAS REFUTED BY IT: firing on structure-absence alone would have reclassified 172 of 637 findings-rows including v2180 FINDING 1 Saved OFF is overruled by an env ON, a real defect with no bullet at line start - the same wrong-in-both-directions trap _verdict_for already fell into at v2808 and v3198. With the phrase test the radius is 8 of 637 and reading them they are the SAME defect being corrected (v2805, v2850, v2851, v3147, v3207, v3266 all say the diff is correct or no defects found); ONE is a genuine wrong flip, v2837, and it lands on cannot-tell not clean so nothing is cleared and a re-read is prompted. The phrase test is DOWNGRADE-ONLY and a law pins structurally that it can never reach a clean return. cannot-tell is not a new word - it is already in PARSER_VERDICTS and 13 rows use it. 6 cases, 3 red-proofs"
+         why="v3346 (#101) - AN UNPARSED ANSWER IS cannot-tell, NEVER A DEFECT. v3343's look said 'The diff is correct. No defects, races, contract mismatches, leaks, or unreachable states are present' and was filed verdict=findings with ONE finding whose text was THE WHOLE ANSWER, REACH line and clean verdict included. The cause is the PARSER not the declaration: _findings_from starts a block only on a numbered or bulleted line and joins everything else onto the block above, so an answer with no such line comes back as one block containing everything - a parse that found no structure, relabelled as the worse of two. _declares_none is NOT widened and must not be: the phrasing that slipped past it is a comma-tail between No defects and are present, exactly what #76 measured and REFUSED because _claims_a_defect covers only 103 of 628 findings-rows. THE BLAST RADIUS WAS MEASURED AND MY FIRST DESIGN WAS REFUTED BY IT: firing on structure-absence alone would have reclassified 172 of 637 findings-rows including v2180 FINDING 1 Saved OFF is overruled by an env ON, a real defect with no bullet at line start - the same wrong-in-both-directions trap _verdict_for already fell into at v2808 and v3198. With the phrase test the radius is 8 of 637 and reading them they are the SAME defect being corrected (v2805, v2850, v2851, v3147, v3207, v3266 all say the diff is correct or no defects found); ONE is a genuine wrong flip, v2837, and it lands on cannot-tell not clean so nothing is cleared and a re-read is prompted. The phrase test is DOWNGRADE-ONLY and a law pins structurally that it can never reach a clean return. cannot-tell is not a new word - it is already in PARSER_VERDICTS and 13 rows use it."
          ),
     Gate("test_a_bare_name_cannot_price_an_item", [sys.executable,
                           os.path.join(HERE, "test_a_bare_name_cannot_price_an_item.py")], 120,
-         why="v3368 (#60) - A BARE NAME CANNOT PRICE AN ITEM. His ask was route to garbage vs HIGH QUALITY and he named the case outright, even base item with buffs socketed items, then gave the vocabulary: all these drop socketed item and ethereal items and base items with or without sockets white/blue/gold/unique/green for set. So a BASE ITEM VALUE IS DECIDED BY SOCKETS, ETHEREAL AND QUALITY, not by its name - and the pipeline kept NONE of the three. MEASURED on his real stores: a sighting row complete field list is name, lane, kind, witnesses, conf, lastSeenTs; socket/ethereal/quality occur ZERO times across all three vault stores over 44 rows; and the reader declared return contract is name, kind, count, conf, lane, throwOut, throwWhy. AND THE READER WAS ALREADY LOOKING - sockets appear in VAULT_READ_PROMPT but ONLY as throw-out criteria (sockets and no magical text, white base no sockets), so it used them to form a junk opinion and DISCARDED THE FACT. A plain Gorgon Crossbow and an ethereal 4-socket one arrived as the SAME ROW and no price list can separate them because the distinguishing information was never stored. That is heart-first rule 6 verbatim, the third instance of that exact shape already carved there after which SURFACE a frame showed stored as panel 1019, and which FRAMES carried a panel stored as panels 18 frames 2385. THE KEYS GO IN THE TEMPLATE OR THEY NEVER COME BACK: v2011 measured this on throwWhy - read by the parser, absent from the template, therefore never emitted, because a model told to reply with STRICT JSON matching a template emits the template keys. NULL IS NOT ZERO AT ALL THREE FIELDS: sockets 0 is a MEASUREMENT that it has none, null is could-not-tell; eth False is visibly-not-ethereal, null is unknown; collapsing either invents a fact about his loot and these feed a decision about what to throw away. Sockets are bounded 0..6 BY THE GAME, so 7 is a misread rather than a rare item. An unrecognised colour is UNKNOWN, never a nearest match. His own words map in: green to set, normal to white, magic to blue, rare to gold. Existing rows are NOT back-filled - they were read by a prompt that never asked, so they stay null, and VAULT_PROMPT_VER moves vp2017 to vp3368 so a row records which prompt produced it. PRICES ARE DOWNSTREAM OF THIS: an averaged price cannot be applied to a row that does not say whether the item is socketed. 4 red-proofs.",
+         why="v3368 (#60) - A BARE NAME CANNOT PRICE AN ITEM. His ask was route to garbage vs HIGH QUALITY and he named the case outright, even base item with buffs socketed items, then gave the vocabulary: all these drop socketed item and ethereal items and base items with or without sockets white/blue/gold/unique/green for set. So a BASE ITEM VALUE IS DECIDED BY SOCKETS, ETHEREAL AND QUALITY, not by its name - and the pipeline kept NONE of the three. MEASURED on his real stores: a sighting row complete field list is name, lane, kind, witnesses, conf, lastSeenTs; socket/ethereal/quality occur ZERO times across all three vault stores over 44 rows; and the reader declared return contract is name, kind, count, conf, lane, throwOut, throwWhy. AND THE READER WAS ALREADY LOOKING - sockets appear in VAULT_READ_PROMPT but ONLY as throw-out criteria (sockets and no magical text, white base no sockets), so it used them to form a junk opinion and DISCARDED THE FACT. A plain Gorgon Crossbow and an ethereal 4-socket one arrived as the SAME ROW and no price list can separate them because the distinguishing information was never stored. That is heart-first rule 6 verbatim, the third instance of that exact shape already carved there after which SURFACE a frame showed stored as panel 1019, and which FRAMES carried a panel stored as panels 18 frames 2385. THE KEYS GO IN THE TEMPLATE OR THEY NEVER COME BACK: v2011 measured this on throwWhy - read by the parser, absent from the template, therefore never emitted, because a model told to reply with STRICT JSON matching a template emits the template keys. NULL IS NOT ZERO AT ALL THREE FIELDS: sockets 0 is a MEASUREMENT that it has none, null is could-not-tell; eth False is visibly-not-ethereal, null is unknown; collapsing either invents a fact about his loot and these feed a decision about what to throw away. Sockets are bounded 0..6 BY THE GAME, so 7 is a misread rather than a rare item. An unrecognised colour is UNKNOWN, never a nearest match. His own words map in: green to set, normal to white, magic to blue, rare to gold. Existing rows are NOT back-filled - they were read by a prompt that never asked, so they stay null, and VAULT_PROMPT_VER moves vp2017 to vp3368 so a row records which prompt produced it. PRICES ARE DOWNSTREAM OF THIS: an averaged price cannot be applied to a row that does not say whether the item is socketed.",
          ),
     Gate("test_a_tally_cannot_be_asked_which", [sys.executable,
                           os.path.join(HERE, "test_a_tally_cannot_be_asked_which.py")], 120,
-         why="v3374 (#28/#121) - A TALLY CANNOT BE ASKED WHICH. His #28 ruling is WIDEN THE LAW so panel-sourced names auto-bank (the 96), and the heart row reported the 96 faithfully for versions while nothing could act on it: _named_sessions classified EVERY NAME as panel/floor/chronicle and then kept only the COUNTS. The verdict was computed per name and dropped at the aggregation, so 96 could be reported and never addressed - a widening has nothing to widen ONTO while the population is a number. That is heart-first rule 6, persist what you KNEW rather than a summary of it, and it is the fourth instance of that shape hit in this session alone. THIS LANE WAS ALREADY BITTEN BY THE COARSER VERSION: v3043 own comment records that cur[panel] += len(names) WAS THE WHOLE DEFECT because one frame carries stash and inventory together, so 11 names that can NEVER be a holding were counted as panel; it was fixed from per-FRAME to per-NAME and STILL only the tally survived. WHAT THE LIST SHOWED THE MOMENT IT EXISTED, AND IT RESIZED THE RULING: 96 sightings are only 26 DISTINCT names, and against his own rosters - uniques 398, runewords 105, set pieces 135, set names 34 - exactly 10 resolve. Five are Disciple SET pieces (Laying of Hands, Credendum, Dark Adherent, Rite of Passage, Telling of Beads), one is the SET NAME The Disciple which is a set name and not an item so the bankable figure is arguably 9, and four are UNIQUE (War Traveler, Dwarf Star, Magefist, Hellfire Torch). The other 86 sightings are Horadric Cube x31, Tome of Town Portal x18, Tome of Identify x18, potions, charms and bare bases. Taken literally, auto-bank the 96 writes 31 Horadric Cubes into his ownership records - so the measurement had to come before the build, and now it has. A LIST OF PAIRS AND NOT A DICT: the Horadric Cube is seen 31 times and a dict keyed by name folds repeat sightings into one, then quietly disagrees with the count sitting beside it. VERIFIED on his journal: 42 sessions, 0 mismatches against every counter. THE LOAD-BEARING CASE IS STRUCTURAL AND VENUE-INDEPENDENT because _named_sessions reads his journal ring which CI does not have: it PARSES the function and requires one placed-record for every counter increment, so a comment mentioning the key cannot satisfy it and a future branch that counts without recording goes red. The behavioural reconciliation case SKIPS HONESTLY off his machine and says so rather than passing vacuously. NOTHING HERE WRITES TO HIS OWNERSHIP RECORDS - it persists a verdict the function already reached; banking stays gated on witnesses, the door still re-gates every row, and his fences hold: 39 rares manual, floor sightings never become cells. 4 cases, 2 red-proofs.",
+         why="v3374 (#28/#121) - A TALLY CANNOT BE ASKED WHICH. His #28 ruling is WIDEN THE LAW so panel-sourced names auto-bank (the 96), and the heart row reported the 96 faithfully for versions while nothing could act on it: _named_sessions classified EVERY NAME as panel/floor/chronicle and then kept only the COUNTS. The verdict was computed per name and dropped at the aggregation, so 96 could be reported and never addressed - a widening has nothing to widen ONTO while the population is a number. That is heart-first rule 6, persist what you KNEW rather than a summary of it, and it is the fourth instance of that shape hit in this session alone. THIS LANE WAS ALREADY BITTEN BY THE COARSER VERSION: v3043 own comment records that cur[panel] += len(names) WAS THE WHOLE DEFECT because one frame carries stash and inventory together, so 11 names that can NEVER be a holding were counted as panel; it was fixed from per-FRAME to per-NAME and STILL only the tally survived. WHAT THE LIST SHOWED THE MOMENT IT EXISTED, AND IT RESIZED THE RULING: 96 sightings are only 26 DISTINCT names, and against his own rosters - uniques 398, runewords 105, set pieces 135, set names 34 - exactly 10 resolve. Five are Disciple SET pieces (Laying of Hands, Credendum, Dark Adherent, Rite of Passage, Telling of Beads), one is the SET NAME The Disciple which is a set name and not an item so the bankable figure is arguably 9, and four are UNIQUE (War Traveler, Dwarf Star, Magefist, Hellfire Torch). The other 86 sightings are Horadric Cube x31, Tome of Town Portal x18, Tome of Identify x18, potions, charms and bare bases. Taken literally, auto-bank the 96 writes 31 Horadric Cubes into his ownership records - so the measurement had to come before the build, and now it has. A LIST OF PAIRS AND NOT A DICT: the Horadric Cube is seen 31 times and a dict keyed by name folds repeat sightings into one, then quietly disagrees with the count sitting beside it. VERIFIED on his journal: 42 sessions, 0 mismatches against every counter. THE LOAD-BEARING CASE IS STRUCTURAL AND VENUE-INDEPENDENT because _named_sessions reads his journal ring which CI does not have: it PARSES the function and requires one placed-record for every counter increment, so a comment mentioning the key cannot satisfy it and a future branch that counts without recording goes red. The behavioural reconciliation case SKIPS HONESTLY off his machine and says so rather than passing vacuously. NOTHING HERE WRITES TO HIS OWNERSHIP RECORDS - it persists a verdict the function already reached; banking stays gated on witnesses, the door still re-gates every row, and his fences hold: 39 rares manual, floor sightings never become cells.",
          ),
     Gate("test_the_budget_is_shared_not_spent_alphabetically", [sys.executable,
                           os.path.join(HERE, "test_the_budget_is_shared_not_spent_alphabetically.py")], 120,
-         why="v3370 (#116) - THE EYE BUDGET IS SHARED, NOT SPENT ALPHABETICALLY. MEASURED on v3368 and verified as an exact prefix match: the admitted set was sorted(changed files minus the always-changing six)[:5]. Nothing weighed relevance, size or risk - git default sort decided who got reviewed. Diff 63,329 chars, cap admitted 8,934 (14%); reached console_doctor, control_app, corroborate, run_gates and the new test file; DROPPED tv/tv_diablo.py and tv/vault_retro.py, which were v3368 ENTIRE subject. The eye said so itself unprompted: the only consumer of the three new fields is the new doctor check, its producer lives in the missing files - it had been shown the READER and never the WRITER. TWENTY-THREE engine files sort behind all 460 tv/test_ files and are therefore structurally last in every payload: the whole vault lane plus tree_busy, tv_diablo, unknown_age, verdict_provenance, window_visibility, write_census, write_witness. THE FEEDBACK LOOP: the standing order is JOIN GATE HEART BANK so nearly every version adds a large new test file, which alphabetically lands AHEAD of the engine it protects - the law crowded out its own subject. CORROBORATED BY A RECORD WRITTEN BEFORE THE DIAGNOSIS EXISTED: 16 of 19 ledger rows carrying an absent list (84%) lost a .py file, tv_diablo.py alone 9 times, and #97 logged that v3330 lost tree_busy.py, its own subject - tree_busy.py is one of the 23. DESIGN CHOSEN BY MEASUREMENT over 30 real versions and 182 changed code files: alphabetical 68/182 37.4%; engine-first ordering 74/182 40.7% which was my first instinct and is REFUTED; fair share with no floor 182/182 but 26 slivers under 15%; fair share with floor 1500 gives 151/182 83.0% at 100% median coverage and 1 sliver. THE NO-FLOOR VARIANT IS A TRAP AND THIS FILE ALREADY RECORDS WHY TWICE: v2803 the payload ended at a bare return and the eye returned TWO high-severity defects about a function whose last two characters the cap had removed; v2850 reported drift as never declared when its declaration sat above the first changed line. A sliver MANUFACTURES findings and a false one costs more than a missed one. THREE DEFECTS THIS FIX HAD BEFORE IT SHIPPED, ALL FOUND BY RUNNING IT ON A REAL DIFF: a slice cut BEFORE its trailing newline merged two files so the second became invisible to the eye and to every parser including the absent accounting, and the note claimed vault_retro.py 45% while re-parsing the output could not find it at all; a line-boundary cut can COLLAPSE because WINDOWS_SHIP.json is one long line so the cut landed at 6%, meaning the floor must be judged on the slice AFTER the cut; and the engine-first ordering was measured and dropped. The law own sliver case also failed on its first run against a COMPLETE 20-line file at 691 chars - short is not truncated, so it now judges only the files the note names as cut. 9 cases, 4 red-proofs.",
+         why="v3370 (#116) - THE EYE BUDGET IS SHARED, NOT SPENT ALPHABETICALLY. MEASURED on v3368 and verified as an exact prefix match: the admitted set was sorted(changed files minus the always-changing six)[:5]. Nothing weighed relevance, size or risk - git default sort decided who got reviewed. Diff 63,329 chars, cap admitted 8,934 (14%); reached console_doctor, control_app, corroborate, run_gates and the new test file; DROPPED tv/tv_diablo.py and tv/vault_retro.py, which were v3368 ENTIRE subject. The eye said so itself unprompted: the only consumer of the three new fields is the new doctor check, its producer lives in the missing files - it had been shown the READER and never the WRITER. TWENTY-THREE engine files sort behind all 460 tv/test_ files and are therefore structurally last in every payload: the whole vault lane plus tree_busy, tv_diablo, unknown_age, verdict_provenance, window_visibility, write_census, write_witness. THE FEEDBACK LOOP: the standing order is JOIN GATE HEART BANK so nearly every version adds a large new test file, which alphabetically lands AHEAD of the engine it protects - the law crowded out its own subject. CORROBORATED BY A RECORD WRITTEN BEFORE THE DIAGNOSIS EXISTED: 16 of 19 ledger rows carrying an absent list (84%) lost a .py file, tv_diablo.py alone 9 times, and #97 logged that v3330 lost tree_busy.py, its own subject - tree_busy.py is one of the 23. DESIGN CHOSEN BY MEASUREMENT over 30 real versions and 182 changed code files: alphabetical 68/182 37.4%; engine-first ordering 74/182 40.7% which was my first instinct and is REFUTED; fair share with no floor 182/182 but 26 slivers under 15%; fair share with floor 1500 gives 151/182 83.0% at 100% median coverage and 1 sliver. THE NO-FLOOR VARIANT IS A TRAP AND THIS FILE ALREADY RECORDS WHY TWICE: v2803 the payload ended at a bare return and the eye returned TWO high-severity defects about a function whose last two characters the cap had removed; v2850 reported drift as never declared when its declaration sat above the first changed line. A sliver MANUFACTURES findings and a false one costs more than a missed one. THREE DEFECTS THIS FIX HAD BEFORE IT SHIPPED, ALL FOUND BY RUNNING IT ON A REAL DIFF: a slice cut BEFORE its trailing newline merged two files so the second became invisible to the eye and to every parser including the absent accounting, and the note claimed vault_retro.py 45% while re-parsing the output could not find it at all; a line-boundary cut can COLLAPSE because WINDOWS_SHIP.json is one long line so the cut landed at 6%, meaning the floor must be judged on the slice AFTER the cut; and the engine-first ordering was measured and dropped. The law own sliver case also failed on its first run against a COMPLETE 20-line file at 691 chars - short is not truncated, so it now judges only the files the note names as cut.",
          ),
     Gate("test_a_corrupt_source_is_not_an_empty_one", [sys.executable,
                           os.path.join(HERE, "test_a_corrupt_source_is_not_an_empty_one.py")], 120,
-         why="v3371 (#118) - A SOURCE THAT ARRIVED AND WOULD NOT PARSE IS NOT AN EMPTY ONE. CI swallow ratchet caught this ON THE DAY v3364 SHIPPED THE FILE and it was then ignored for five consecutive versions because nobody read CI: Routine M was success on v3363 (3b1d513d) and FAILURE on v3364 (5aaffe75), which is the version that added affix_lexicon.py, then failure on v3365, v3366, v3367 and v3368. The ratchet named it exactly - RANK 1, a failed read handed back as DATA, baseline 70 now 71, WHERE IT ROSE tv/affix_lexicon.py 0 to 1. THE SITE: _strings did except Exception return empty-dict. WHY THAT IS A LIE HERE: build() ALREADY distinguishes an ABSENT source and says so precisely, but a source that ARRIVES AND WILL NOT PARSE became an empty dict and sailed through - resolve finds no hits, the lexicon reports 0 affixes, and classify answers UNKNOWN for every name in the game. DEMONSTRATED END TO END rather than inferred: stubbing _pull to return garbage for every source returned a COMPLETE-LOOKING lexicon with no reason string, while stubbing it to return None correctly refused with no source could be pulled. On a screen that reads as the game has no such affixes rather than I could not read the file - a confident zero with no author, on the exact 269 magicPrefix / 298 magicSuffix / 690 baseType vocabulary the item work depends on. THE RATCHET OFFERED TWO WAYS OUT AND ONLY ONE IS HONEST: either make the failure report UNKNOWN, or if the caller genuinely treats the default as failure say so at the site and lower the baseline deliberately. The caller does NOT treat it as failure - it builds a lexicon from it - so lowering the baseline to 71 would have recorded a defect as a decision. ABSENT AND CORRUPT MUST NOT COLLAPSE INTO EACH OTHER EITHER: an absent blob is already counted in absent, and naming it unparseable would report the wrong cause and send the next reader hunting a corrupt file that does not exist, so the blob-is-not-None test keeps them apart and a case pins it. 7 cases, 3 red-proofs.",
+         why="v3371 (#118) - A SOURCE THAT ARRIVED AND WOULD NOT PARSE IS NOT AN EMPTY ONE. CI swallow ratchet caught this ON THE DAY v3364 SHIPPED THE FILE and it was then ignored for five consecutive versions because nobody read CI: Routine M was success on v3363 (3b1d513d) and FAILURE on v3364 (5aaffe75), which is the version that added affix_lexicon.py, then failure on v3365, v3366, v3367 and v3368. The ratchet named it exactly - RANK 1, a failed read handed back as DATA, baseline 70 now 71, WHERE IT ROSE tv/affix_lexicon.py 0 to 1. THE SITE: _strings did except Exception return empty-dict. WHY THAT IS A LIE HERE: build() ALREADY distinguishes an ABSENT source and says so precisely, but a source that ARRIVES AND WILL NOT PARSE became an empty dict and sailed through - resolve finds no hits, the lexicon reports 0 affixes, and classify answers UNKNOWN for every name in the game. DEMONSTRATED END TO END rather than inferred: stubbing _pull to return garbage for every source returned a COMPLETE-LOOKING lexicon with no reason string, while stubbing it to return None correctly refused with no source could be pulled. On a screen that reads as the game has no such affixes rather than I could not read the file - a confident zero with no author, on the exact 269 magicPrefix / 298 magicSuffix / 690 baseType vocabulary the item work depends on. THE RATCHET OFFERED TWO WAYS OUT AND ONLY ONE IS HONEST: either make the failure report UNKNOWN, or if the caller genuinely treats the default as failure say so at the site and lower the baseline deliberately. The caller does NOT treat it as failure - it builds a lexicon from it - so lowering the baseline to 71 would have recorded a defect as a decision. ABSENT AND CORRUPT MUST NOT COLLAPSE INTO EACH OTHER EITHER: an absent blob is already counted in absent, and naming it unparseable would report the wrong cause and send the next reader hunting a corrupt file that does not exist, so the blob-is-not-None test keeps them apart and a case pins it.",
          ),
     Gate("test_a_fact_the_reader_saw_must_reach_the_row", [sys.executable,
                           os.path.join(HERE, "test_a_fact_the_reader_saw_must_reach_the_row.py")], 120,
-         why="v3369 (#60) - A FACT THE READER SAW MUST REACH THE ROW. v3368 taught the prompt to ask for sockets/ethereal/quality and normalize_item to parse them, it shipped, and the facts STILL never reached his store, because the chain is SIX links and only the first two were built: the prompt asks and the parser parses, then the sight dict drops all four, then _witness_rows drops all four, then the owned and unsure rows drop all four, and vault_seen.json never receives them. MEASURED the day after v3368 shipped: 44 banked rows, 0 carrying sockets/eth/quality. The cross-family eye said the same from the other side unprompted - the only consumer of the three new fields is the new doctor check, its producer lives in the missing files - because it had been shown the READER and never the WRITER. THIS PROJECTION HAS EATEN A FIELD FOUR TIMES NOW and its own comments record the history: conf at v1786, the witness id at v2209, the crop at v2239, each found late and repaired by hand, each invisible until something downstream read a confident blank; v3368 four make it the fourth. THE CURE ALREADY EXISTED ONE BOUNDARY LOWER - v2074 hit the identical shape at apply_payload after FOUR silent drops (v1986, v1996, v2004, v2006) and closed it with APPLY_NOT_SHIPPED, a declared list so an omission is deliberate or it is a test failure, and nobody carried that discipline up to the projection above it. WITNESS_NOT_CARRIED does that here and the declared-field case is what makes a FIFTH drop loud instead of silent. THE ROW CARRIES A SET, NOT A VALUE: a stash holds TWO Gorgon Crossbow, one ethereal 4-socket and one plain, different items worth different money folding to the SAME (name, lane) key - measured on his live store, 4 of 44 rows already carry more than one witness (Horadric Cube 20, War Traveler 4, Magefist 2, Gheed Fortune 2). A row-level sockets would be a one-to-many fact in a one-to-one store where setdefault keeps the first and d[k]=v keeps the last and neither warns, so the SIGHTING carries what one look saw and the ROW carries the distinct variants. ZERO AND FALSE ARE ANSWERS: the carry loop tests is-not-None and never truthiness, because if e.get(eth) would throw away every definitely-not-ethereal reading as though nobody had looked, on a field that decides what gets thrown out. THE LAW FOUND ITS OWN FALSE POSITIVE ON ITS FIRST RUN: the declared-field case set every sight key at once, which forced the mutually exclusive crop and cropWhy arms into one state and accused cropWhy of being silently dropped when the elif is deliberate - the code was right and the fixture was not, so it now probes ONE FIELD AT A TIME. 11 cases, 5 red-proofs.",
+         why="v3369 (#60) - A FACT THE READER SAW MUST REACH THE ROW. v3368 taught the prompt to ask for sockets/ethereal/quality and normalize_item to parse them, it shipped, and the facts STILL never reached his store, because the chain is SIX links and only the first two were built: the prompt asks and the parser parses, then the sight dict drops all four, then _witness_rows drops all four, then the owned and unsure rows drop all four, and vault_seen.json never receives them. MEASURED the day after v3368 shipped: 44 banked rows, 0 carrying sockets/eth/quality. The cross-family eye said the same from the other side unprompted - the only consumer of the three new fields is the new doctor check, its producer lives in the missing files - because it had been shown the READER and never the WRITER. THIS PROJECTION HAS EATEN A FIELD FOUR TIMES NOW and its own comments record the history: conf at v1786, the witness id at v2209, the crop at v2239, each found late and repaired by hand, each invisible until something downstream read a confident blank; v3368 four make it the fourth. THE CURE ALREADY EXISTED ONE BOUNDARY LOWER - v2074 hit the identical shape at apply_payload after FOUR silent drops (v1986, v1996, v2004, v2006) and closed it with APPLY_NOT_SHIPPED, a declared list so an omission is deliberate or it is a test failure, and nobody carried that discipline up to the projection above it. WITNESS_NOT_CARRIED does that here and the declared-field case is what makes a FIFTH drop loud instead of silent. THE ROW CARRIES A SET, NOT A VALUE: a stash holds TWO Gorgon Crossbow, one ethereal 4-socket and one plain, different items worth different money folding to the SAME (name, lane) key - measured on his live store, 4 of 44 rows already carry more than one witness (Horadric Cube 20, War Traveler 4, Magefist 2, Gheed Fortune 2). A row-level sockets would be a one-to-many fact in a one-to-one store where setdefault keeps the first and d[k]=v keeps the last and neither warns, so the SIGHTING carries what one look saw and the ROW carries the distinct variants. ZERO AND FALSE ARE ANSWERS: the carry loop tests is-not-None and never truthiness, because if e.get(eth) would throw away every definitely-not-ethereal reading as though nobody had looked, on a field that decides what gets thrown out. THE LAW FOUND ITS OWN FALSE POSITIVE ON ITS FIRST RUN: the declared-field case set every sight key at once, which forced the mutually exclusive crop and cropWhy arms into one state and accused cropWhy of being silently dropped when the elif is deliberate - the code was right and the fixture was not, so it now probes ONE FIELD AT A TIME.",
          ),
     Gate("test_a_dead_folder_is_not_a_frozen_screen", [sys.executable,
                           os.path.join(HERE, "test_a_dead_folder_is_not_a_frozen_screen.py")], 120,
-         why="v3366 (#115) - A DEAD CAPTURE FOLDER IS NOT A FROZEN SCREEN. MEASURED 2026-09-19, same code, two roots, minutes apart: root=~/gb-shelf said FROZEN, 1 of 17 comparable window series stopped painting, 425 PNGs, newest capture 178.9 HOURS old; root=<where the seat writes> said MOVING, all painting, 2,692 PNGs, newest 0.4 h old. The seat moved where it writes, this tool kept reading the folder it left behind, and a folder nobody writes to has a newest-two that are BYTE-IDENTICAL BY CONSTRUCTION - so it reported a dead compositor for 7.5 days about a screen it was not looking at. NOTHING ERRORED: no exception, no empty result, no missing file; it ran every time it was asked and answered fluently about the wrong folder. THE FIX IS NOT THE PATH - repointing the constant fixes today and rots the next time the seat moves. newestAgeS now rides on EVERY verdict so a reader can judge a MOVING or FROZEN answer without rerunning anything, and a root staler than the bound answers UNKNOWN naming the age, because that is a statement about the RECORDER and it must never share a word with a statement about his screen. THE ARM SITS ABOVE THE FROZEN ARM ON PURPOSE - below it counts[frozen] wins first and the age is computed, stored and never consulted, which is computed-and-dropped, this repo most repeated defect. THE RESOLVER PICKS THE FRESHEST KNOWN ROOT, NOT THE FIRST, and the chosen root travels on every verdict beside its age, so the day the seat moves again this follows it and says so; it is memoised per process because report() resolves the root more than once and the live folder is ~6,000 files a walk. THE BOUND IS MEASURED WITH ITS DENOMINATOR: across 2,804 live captures the gap between consecutive frames is median 8.0s, p90 58.0s, p99 1,070s, worst-in-history 0.8 h; the dead folder sat at 178.9 h, 220x that worst live gap, so 2 h is ~2.5x the worst live case and ~1/90th of the dead one and separates them by a wide margin rather than splitting them finely. ALSO ONE RESOLVER FOR BOTH MODULES: frozen_frames hardcoded the same path with no env override while frozen_frame_watch honoured TV_GB_SHELF, so pointing one pointed only one. Fixtures fabricate PNG headers in a temp dir and never read his capture folders. 4 red-proofs.",
+         why="v3366 (#115) - A DEAD CAPTURE FOLDER IS NOT A FROZEN SCREEN. MEASURED 2026-09-19, same code, two roots, minutes apart: root=~/gb-shelf said FROZEN, 1 of 17 comparable window series stopped painting, 425 PNGs, newest capture 178.9 HOURS old; root=<where the seat writes> said MOVING, all painting, 2,692 PNGs, newest 0.4 h old. The seat moved where it writes, this tool kept reading the folder it left behind, and a folder nobody writes to has a newest-two that are BYTE-IDENTICAL BY CONSTRUCTION - so it reported a dead compositor for 7.5 days about a screen it was not looking at. NOTHING ERRORED: no exception, no empty result, no missing file; it ran every time it was asked and answered fluently about the wrong folder. THE FIX IS NOT THE PATH - repointing the constant fixes today and rots the next time the seat moves. newestAgeS now rides on EVERY verdict so a reader can judge a MOVING or FROZEN answer without rerunning anything, and a root staler than the bound answers UNKNOWN naming the age, because that is a statement about the RECORDER and it must never share a word with a statement about his screen. THE ARM SITS ABOVE THE FROZEN ARM ON PURPOSE - below it counts[frozen] wins first and the age is computed, stored and never consulted, which is computed-and-dropped, this repo most repeated defect. THE RESOLVER PICKS THE FRESHEST KNOWN ROOT, NOT THE FIRST, and the chosen root travels on every verdict beside its age, so the day the seat moves again this follows it and says so; it is memoised per process because report() resolves the root more than once and the live folder is ~6,000 files a walk. THE BOUND IS MEASURED WITH ITS DENOMINATOR: across 2,804 live captures the gap between consecutive frames is median 8.0s, p90 58.0s, p99 1,070s, worst-in-history 0.8 h; the dead folder sat at 178.9 h, 220x that worst live gap, so 2 h is ~2.5x the worst live case and ~1/90th of the dead one and separates them by a wide margin rather than splitting them finely. ALSO ONE RESOLVER FOR BOTH MODULES: frozen_frames hardcoded the same path with no env override while frozen_frame_watch honoured TV_GB_SHELF, so pointing one pointed only one. Fixtures fabricate PNG headers in a temp dir and never read his capture folders.",
          ),
     Gate("test_the_recorder_keeps_its_own_evidence", [sys.executable,
                           os.path.join(HERE, "test_the_recorder_keeps_its_own_evidence.py")], 120,
-         why="v3365 (#24) - THE RECORDER KEEPS ITS OWN EVIDENCE, AND KEEPS IT BEFORE IT DESTROYS IT. #24 sat unactionable across 27 events because every row says the same unusable sentence - the stage was open for 12s and had nothing on it - which records THAT nothing was there and never WHAT was there, the one fact separating a stage that never painted from one that painted where nobody looked. MEASURED on his real tv/ui_faults.jsonl: 200 rows, 8 carrying a `before` snapshot (4 percent), 11 ui_fault_record call sites, 1 passing before. A THREE-LINK CHAIN WITH THE MIDDLE AND FAR END BOTH CUT: ui_fault_record has STORED `before` since CF-4 whose own comment reads the reload destroys the only evidence; the /api/ui_fault route called it with (kind, why, where) and DROPPED before; the JS self-heal closed the stage FIRST and reported after. So the storage end was built and waiting while neither end that could fill it did - the third instance of that shape in one day. THE ORDER IS THE WHOLE FIX: classList.remove and th.hidden=true destroy the measurement, and a snapshot taken AFTER them is not a smaller snapshot, it is a snapshot OF THE DESTRUCTION - same fields, same shape, all zeroes forever, and it would look entirely correct in review. So the order is pinned by position within the bounded self-heal block, not by mere presence. The snapshot records cards, scrollH, clientH, innerH, sessions, thW/thH, scrollY, painted, loaded - cards>0 with scrollH>>clientH is painted-off-screen, cards==0 is never-painted, and without both the row still cannot tell them apart. It is wrapped and records measureFailed rather than throwing, because a stage that cannot close itself is worse than the fault being fixed. 4 red-proofs, and one of them was rewritten at authoring time because the first cut only appended a comment - an INERT sabotage that would have read BLIND against a perfectly sound case.",
+         why="v3365 (#24) - THE RECORDER KEEPS ITS OWN EVIDENCE, AND KEEPS IT BEFORE IT DESTROYS IT. #24 sat unactionable "
+             "across 27 events because every row says the same unusable sentence - the stage was open for 12s and had "
+             "nothing on it - which records THAT nothing was there and never WHAT was there, the one fact separating a "
+             "stage that never painted from one that painted where nobody looked. MEASURED on his real "
+             "tv/ui_faults.jsonl: 200 rows, 8 carrying a `before` snapshot (4 percent), 11 ui_fault_record call sites, 1 "
+             "passing before. A THREE-LINK CHAIN WITH THE MIDDLE AND FAR END BOTH CUT: ui_fault_record has STORED "
+             "`before` since CF-4 whose own comment reads the reload destroys the only evidence; the /api/ui_fault route "
+             "called it with (kind, why, where) and DROPPED before; the JS self-heal closed the stage FIRST and reported "
+             "after. So the storage end was built and waiting while neither end that could fill it did - the third "
+             "instance of that shape in one day. THE ORDER IS THE WHOLE FIX: classList.remove and th.hidden=true destroy "
+             "the measurement, and a snapshot taken AFTER them is not a smaller snapshot, it is a snapshot OF THE "
+             "DESTRUCTION - same fields, same shape, all zeroes forever, and it would look entirely correct in review. So "
+             "the order is pinned by position within the bounded self-heal block, not by mere presence. The snapshot "
+             "records cards, scrollH, clientH, innerH, sessions, thW/thH, scrollY, painted, loaded - cards>0 with "
+             "scrollH>>clientH is painted-off-screen, cards==0 is never-painted, and without both the row still cannot "
+             "tell them apart. It is wrapped and records measureFailed rather than throwing, because a stage that cannot "
+             "close itself is worse than the fault being fixed. One of its red-proofs was rewritten at authoring time "
+             "because the first cut only appended a comment - an INERT sabotage that would have read BLIND against a "
+             "perfectly sound case.",
          ),
     Gate("test_a_composed_name_is_not_an_unknown_one", [sys.executable,
                           os.path.join(HERE, "test_a_composed_name_is_not_an_unknown_one.py")], 120,
-         why="v3364 (#60) - THE VAULT CAN NOW NAME A MAGIC OR RARE ITEM. His ask: the vault and the AI item checker must know every item and must know what to route to garbage. The roster names uniques, sets and runewords - 1,059 names - and could name nothing magic or rare, because those names are COMPOSED at drop time from four affix tables plus a base type rather than drawn from a list. I told him magic and rare cannot have a roster and he corrected me: no finite NAME list, but a finite VOCABULARY, and his 28 GB install ships it. MEASURED off his own install: magicPrefix 269, magicSuffix 298, rarePrefix 42, rareSuffix 152, baseType 690. MEASURED over his 43 real unsure rows: GRAIL 14, BASE 12, MAGIC 8, RARE 4, UNKNOWN 5 - Chaotic Grand Charm of Greed parses as chaotic + grand charm + of greed, and Blood Gyre / Death Loop / Dread Grasp / Bone Visor as rare prefix + rare suffix. THE ASYMMETRY IS THE SAFETY MODEL: a consumable or bare base reading as PROTECTED means his stash never empties, so that direction is checked BY NAME and Sacred Rondache, Bone Knife, Horadric Cube, Super Mana Potion, Ring and Jewel all land BASE. classify() never returns a best PARTIAL - an unmatched token or two parses of differing kind is UNKNOWN. TWO TRAPS PINNED, both found by reading the real data: item-names.json is NOT a base-type list (1,593 names, uniques included - Spirit Ward and Death Cleaver are in it; the base TYPES are 690 from armor/weapons/misc), and the field is `vocab` not `kind` because the unsure row has carried a hardcoded kind:item since v2051. THE TAIL-STRIP WIDENING STAYS REFUSED on a measurement taken with BOTH SIDES CASE-FOLDED - the first cut compared lowercase roster names against TitleCase item names and agreed no matter what was in it, reporting a reassuring 0; folded properly it is death cleaver -> death, spirit ward -> spirit, venom ward -> venom, three uniques collapsing onto three runewords in vault_key AND chronicle_key, permanently. 5 red-proofs.",
+         why="v3364 (#60) - THE VAULT CAN NOW NAME A MAGIC OR RARE ITEM. His ask: the vault and the AI item checker must know every item and must know what to route to garbage. The roster names uniques, sets and runewords - 1,059 names - and could name nothing magic or rare, because those names are COMPOSED at drop time from four affix tables plus a base type rather than drawn from a list. I told him magic and rare cannot have a roster and he corrected me: no finite NAME list, but a finite VOCABULARY, and his 28 GB install ships it. MEASURED off his own install: magicPrefix 269, magicSuffix 298, rarePrefix 42, rareSuffix 152, baseType 690. MEASURED over his 43 real unsure rows: GRAIL 14, BASE 12, MAGIC 8, RARE 4, UNKNOWN 5 - Chaotic Grand Charm of Greed parses as chaotic + grand charm + of greed, and Blood Gyre / Death Loop / Dread Grasp / Bone Visor as rare prefix + rare suffix. THE ASYMMETRY IS THE SAFETY MODEL: a consumable or bare base reading as PROTECTED means his stash never empties, so that direction is checked BY NAME and Sacred Rondache, Bone Knife, Horadric Cube, Super Mana Potion, Ring and Jewel all land BASE. classify() never returns a best PARTIAL - an unmatched token or two parses of differing kind is UNKNOWN. TWO TRAPS PINNED, both found by reading the real data: item-names.json is NOT a base-type list (1,593 names, uniques included - Spirit Ward and Death Cleaver are in it; the base TYPES are 690 from armor/weapons/misc), and the field is `vocab` not `kind` because the unsure row has carried a hardcoded kind:item since v2051. THE TAIL-STRIP WIDENING STAYS REFUSED on a measurement taken with BOTH SIDES CASE-FOLDED - the first cut compared lowercase roster names against TitleCase item names and agreed no matter what was in it, reporting a reassuring 0; folded properly it is death cleaver -> death, spirit ward -> spirit, venom ward -> venom, three uniques collapsing onto three runewords in vault_key AND chronicle_key, permanently.",
          ),
     Gate("test_a_file_can_arrive_and_still_be_unread", [sys.executable,
                           os.path.join(HERE, "test_a_file_can_arrive_and_still_be_unread.py")], 120,
-         why="v3363 (#114) - A FILE CAN ARRIVE AND STILL BE UNREAD. absent_from asks whether a changed file reached the payload AT ALL and answers by looking for its `diff --git` header; truncation cuts MID-FILE, so a file whose header arrived and whose body was chopped is absent-clean, blind_to-clean and unread. MEASURED 2026-09-19 with the shipped function over 16 versions: 67 files ARRIVED and 8 came in under half their bytes - bible.html 259/8629 (3.0%), test_a_partial_look_is_not_agreement.py 428/11337 (3.8%), test_the_shelf_tabs_are_the_real_sessions.py 196/3406 (5.8%), test_the_shelf_shows_reels_before_analysis.py 1224/12586 (9.7%), visual_lock_invariant.py 64/516 (12.4%), prune_wilson.py 8318/27748 (30.0%), second_eye_ledger.py 3499/7200 (48.6%). AND THE FIRST CUT WAS 71% NOISE, caught only by pointing it at his real history: it flagged 41 of 100 with 33 at exactly 0.0%, files that did not arrive SHORT but did not arrive at all and were already in `absent` - the v3354 furniture defect re-created two versions after I fixed it, invisible to a fixture that by construction contains no wholly-cut file. v3354 settles it and is self-incriminating: second_eye_ledger.py is the file that version exists to change, its header arrived, and the row was filed blind_to [] verdict clean while the eye held under half its own subject. v3361 repeated it at maximum volume - the answer OPENED with \"REACH: 19/92 hunks\" naming the pre-push hook and the scoped walk, the entire version, as unjudgeable, and the row still read clean. THE FRACTION IS STORED, NEVER A FLAG: got/total per file keeps the bar in the READER (REACH_CUT_BAR, measured at 0.50 naming 4 of 47) where it can move without rewriting history - a bar baked into the store is the shape of the $5 he corrected me on and of the 0.22 threshold sitting above a signal maxing at 0.133, a branch that never ran. Measured against the PRE-TRUNCATION body so it charges the transport and not the comment/ship-note strips, which exist to BUY reach. absent and reach are kept as different questions with different remedies. The header walk is now ONE shared _file_sections used by both the strip and the measurement. 4 red-proofs.",
+         why="v3363 (#114) - A FILE CAN ARRIVE AND STILL BE UNREAD. absent_from asks whether a changed file reached the payload AT ALL and answers by looking for its `diff --git` header; truncation cuts MID-FILE, so a file whose header arrived and whose body was chopped is absent-clean, blind_to-clean and unread. MEASURED 2026-09-19 with the shipped function over 16 versions: 67 files ARRIVED and 8 came in under half their bytes - bible.html 259/8629 (3.0%), test_a_partial_look_is_not_agreement.py 428/11337 (3.8%), test_the_shelf_tabs_are_the_real_sessions.py 196/3406 (5.8%), test_the_shelf_shows_reels_before_analysis.py 1224/12586 (9.7%), visual_lock_invariant.py 64/516 (12.4%), prune_wilson.py 8318/27748 (30.0%), second_eye_ledger.py 3499/7200 (48.6%). AND THE FIRST CUT WAS 71% NOISE, caught only by pointing it at his real history: it flagged 41 of 100 with 33 at exactly 0.0%, files that did not arrive SHORT but did not arrive at all and were already in `absent` - the v3354 furniture defect re-created two versions after I fixed it, invisible to a fixture that by construction contains no wholly-cut file. v3354 settles it and is self-incriminating: second_eye_ledger.py is the file that version exists to change, its header arrived, and the row was filed blind_to [] verdict clean while the eye held under half its own subject. v3361 repeated it at maximum volume - the answer OPENED with \"REACH: 19/92 hunks\" naming the pre-push hook and the scoped walk, the entire version, as unjudgeable, and the row still read clean. THE FRACTION IS STORED, NEVER A FLAG: got/total per file keeps the bar in the READER (REACH_CUT_BAR, measured at 0.50 naming 4 of 47) where it can move without rewriting history - a bar baked into the store is the shape of the $5 he corrected me on and of the 0.22 threshold sitting above a signal maxing at 0.133, a branch that never ran. Measured against the PRE-TRUNCATION body so it charges the transport and not the comment/ship-note strips, which exist to BUY reach. absent and reach are kept as different questions with different remedies. The header walk is now ONE shared _file_sections used by both the strip and the measurement.",
          ),
     Gate("test_the_machine_banner_is_one_sentence", [sys.executable,
                           os.path.join(HERE, "test_the_machine_banner_is_one_sentence.py")], 120,
-         why='v3362 (#37) - ONE BANNER, ONE SENTENCE, ONE WRITER, AND IT NEVER CLAIMS A SEPARATE ECONOMY. His ruling: the machine-identity banner may claim its own world and must NOT claim separate economy. #37 was blocked all day on one value only the GrokBot seat could read; it arrived ~17:25 IDT - window.D2R_BUILD.id = v3360, banner rendering as LINUX - its own world - Mac untouched - and the value revealed there was NOTHING TO FIX. MEASURED in bible.html: its-own-world appears at L3840 COMMENT, L4274 COMMENT and L48984 CODE, so exactly ONE code writer; Mac-untouched at that same L48984; and all four separate-economy hits (L42631 comment, L42653, L42749, L48928) belong to the LADDER, a different feature. The ruling was already kept and this law exists so it cannot quietly stop being kept. ⚠⚠ THE LADDER RIBBON IS NOT THIS BANNER AND A FILE-WIDE BAN WOULD DELETE A CORRECT SENTENCE: the ladder ribbon says LADDER ACCOUNT - separate economy - your main account is untouched, and that claim is TRUE there because items forged on a ladder character do not sync to main. One phrase serving two features is the trap; this law pins the MACHINE banner by its own writer and a dedicated case PROVES it leaves the ladder alone, plus a case that refuses to judge at all if the two elements ever move within 200 chars of each other. ⚠ COMMENTS ARE NOT CLAIMS - two of the three its-own-world hits are prose explaining the feature, and grading them would make the law red on documentation, the defect that has cost this repo five versions. ⚠ THE BASELINE IS PINNED TOO: an empty banner is not compliance, so the law also requires the PERMITTED claim to still be there. 5 cases, 3 red-proofs'
+         why="v3362 (#37) - ONE BANNER, ONE SENTENCE, ONE WRITER, AND IT NEVER CLAIMS A SEPARATE ECONOMY. His ruling: the "
+             "machine-identity banner may claim its own world and must NOT claim separate economy. #37 was blocked all "
+             "day on one value only the GrokBot seat could read; it arrived ~17:25 IDT - window.D2R_BUILD.id = v3360, "
+             "banner rendering as LINUX - its own world - Mac untouched - and the value revealed there was NOTHING TO "
+             "FIX. MEASURED in bible.html: its-own-world appears at L3840 COMMENT, L4274 COMMENT and L48984 CODE, so "
+             "exactly ONE code writer; Mac-untouched at that same L48984; and all four separate-economy hits (L42631 "
+             "comment, L42653, L42749, L48928) belong to the LADDER, a different feature. The ruling was already kept and "
+             "this law exists so it cannot quietly stop being kept. ⚠⚠ THE LADDER RIBBON IS NOT THIS BANNER AND A "
+             "FILE-WIDE BAN WOULD DELETE A CORRECT SENTENCE: the ladder ribbon says LADDER ACCOUNT - separate economy - "
+             "your main account is untouched, and that claim is TRUE there because items forged on a ladder character do "
+             "not sync to main. One phrase serving two features is the trap; this law pins the MACHINE banner by its own "
+             "writer and a dedicated case PROVES it leaves the ladder alone, plus a case that refuses to judge at all if "
+             "the two elements ever move within 200 chars of each other. ⚠ COMMENTS ARE NOT CLAIMS - two of the three "
+             "its-own-world hits are prose explaining the feature, and grading them would make the law red on "
+             "documentation, the defect that has cost this repo five versions. ⚠ THE BASELINE IS PINNED TOO: an empty "
+             "banner is not compliance, so the law also requires the PERMITTED claim to still be there."
          ),
     Gate("test_the_hook_asks_the_console_not_its_pid", [sys.executable,
                           os.path.join(HERE, "test_the_hook_asks_the_console_not_its_pid.py")], 120,
-         why='v3361 (#98) - THE HOOK ASKS THE CONSOLE WHETHER IT IS STALE, IT DOES NOT TIME ITS PID. hooks/pre-push compared the LISTENER PROCESS START to tv/control_app.py mtime and warned on every push where the file was newer. MEASURED 2026-09-19 on his live console in one minute: the process started Fri Sep 18 23:37:38, control_app.py was written 2026-09-19 16:48:34 - 17 hours later, so the heuristic warned - and /api/status answered moduleFreshness {known true, stale FALSE, loadedAtMs > srcWrittenMs, say: this server is the file on disk}. A process can re-exec, a supervisor can reload it, and a module can be imported long after boot, so process age is not module age. v3288 built module_freshness() for exactly this reason and its own docstring says the PID heuristic can be fooled by a supervisor or a re-exec; the first-hand answer has been on /api/status ever since and this hook went on using the heuristic anyway - an answer built, published and never asked for. THREE STATES NOW, NOT TWO: stale warns and names tvd-scan.sh, fresh is silent, and an unreachable console or known=false prints UNKNOWN and explicitly NOT a warning, because a warning fired on a state nobody measured is the noise this block has been making for weeks. ⚠ THE HEURISTIC WAS WRONG IN BOTH DIRECTIONS, not merely noisy: a console restarted a second before a push would PASS it while serving a module imported hours earlier from a since-rewritten file. Process age can be wrong either way; import age cannot. ⚠ AND THIS LAW CAUGHT ITS OWN BAD WINDOW ON THE FIRST RUN: the unknown-branch case anchored on the bare token, which lands inside the EMBEDDED PYTHON that prints it, ~40 lines above the shell branch that reacts to it - so the window graded the stale branch and reported the unknown one missing. Both branches are now anchored on their shell case labels and bounded at the closing ;;. 5 cases, 3 red-proofs'
+         why="v3361 (#98) - THE HOOK ASKS THE CONSOLE WHETHER IT IS STALE, IT DOES NOT TIME ITS PID. hooks/pre-push "
+             "compared the LISTENER PROCESS START to tv/control_app.py mtime and warned on every push where the file was "
+             "newer. MEASURED 2026-09-19 on his live console in one minute: the process started Fri Sep 18 23:37:38, "
+             "control_app.py was written 2026-09-19 16:48:34 - 17 hours later, so the heuristic warned - and /api/status "
+             "answered moduleFreshness {known true, stale FALSE, loadedAtMs > srcWrittenMs, say: this server is the file "
+             "on disk}. A process can re-exec, a supervisor can reload it, and a module can be imported long after boot, "
+             "so process age is not module age. v3288 built module_freshness() for exactly this reason and its own "
+             "docstring says the PID heuristic can be fooled by a supervisor or a re-exec; the first-hand answer has been "
+             "on /api/status ever since and this hook went on using the heuristic anyway - an answer built, published and "
+             "never asked for. THREE STATES NOW, NOT TWO: stale warns and names tvd-scan.sh, fresh is silent, and an "
+             "unreachable console or known=false prints UNKNOWN and explicitly NOT a warning, because a warning fired on "
+             "a state nobody measured is the noise this block has been making for weeks. ⚠ THE HEURISTIC WAS WRONG IN "
+             "BOTH DIRECTIONS, not merely noisy: a console restarted a second before a push would PASS it while serving a "
+             "module imported hours earlier from a since-rewritten file. Process age can be wrong either way; import age "
+             "cannot. ⚠ AND THIS LAW CAUGHT ITS OWN BAD WINDOW ON THE FIRST RUN: the unknown-branch case anchored on the "
+             "bare token, which lands inside the EMBEDDED PYTHON that prints it, ~40 lines above the shell branch that "
+             "reacts to it - so the window graded the stale branch and reported the unknown one missing. Both branches "
+             "are now anchored on their shell case labels and bounded at the closing ;;."
          ),
     Gate("test_a_ship_note_is_not_code_the_eye_must_read", [sys.executable,
                           os.path.join(HERE, "test_a_ship_note_is_not_code_the_eye_must_read.py")], 120,
-         why='v3360 (#109) - A SHIP NOTE IS PROSE AND THE EYE BUDGET IS NOT FOR PROSE. run_gates.py carries one why= per gate, a paragraph explaining what a law is for, and _strip_comments cannot touch it because it is a string LITERAL - so the second eye pays full price for it out of a budget that truncates at 9,000 chars. MEASURED on v3354 by share of the 6,844 chars that reached the eye: corroborate.py 59.3%, run_gates.py 31.5% (almost entirely ONE why=), control_app.py 9.2%, and tv/second_eye_ledger.py - the file that version exists to change - 0%. #97 found the same shape on v3333 at 44.9% and nothing acted on it. Over the last 24 versions the strip recovers 7 changed files that never reached the eye: 65 missed -> 58, 6 versions better, ZERO worse. ⚠⚠ MY FIRST MEASUREMENT SAID IT MADE THREE VERSIONS BLINDER AND THAT WAS MY OWN TOOL: collapsing a multi-line why= onto one line pulls the next `diff --git` off the start of its own line, so a line-anchored file counter stops seeing a file that is present - for v3346 the header sat at offset 1,362 of a 9,000 cap, EARLIER than before. The newline count is now preserved and that is the whole trick. ⚠⚠⚠ AND THIS LAW CAUGHT A REAL DEFECT IN THE HELPER ON ITS FIRST RUN: the pattern allowed an optional paren after the string chunks and on `why="a one line note"),` it ATE THE CLOSING PAREN, handing the eye a diff whose Gate(...) call no longer closes - the gate-insert-missing-comma family, and invisible to the file-header count I was measuring with because a broken diff still has its diff --git lines. The pattern now touches why= and its string chunks and nothing else; a parenthesised note is left alone, which costs reach and cannot cost correctness, and the 65 -> 58 was RE-TAKEN on the narrowed pattern rather than carried over. ⚠ STATED LIMIT: in a diff every continuation line begins with + - or a space, which the pattern cannot cross, so a five-line note loses its first chunk and keeps the rest; widening to cross that marker would start eating ordinary string literals and has no measurement behind it. ⚠ It does NOT widen the cap - v3299 ruled that cost is HIS. 5 cases, 3 red-proofs'
+         why="v3360 (#109) - A SHIP NOTE IS PROSE AND THE EYE BUDGET IS NOT FOR PROSE. run_gates.py carries one why= per "
+             "gate, a paragraph explaining what a law is for, and _strip_comments cannot touch it because it is a string "
+             "LITERAL - so the second eye pays full price for it out of a budget that truncates at 9,000 chars. MEASURED "
+             "on v3354 by share of the 6,844 chars that reached the eye: corroborate.py 59.3%, run_gates.py 31.5% (almost "
+             "entirely ONE why=), control_app.py 9.2%, and tv/second_eye_ledger.py - the file that version exists to "
+             "change - 0%. #97 found the same shape on v3333 at 44.9% and nothing acted on it. Over the last 24 versions "
+             "the strip recovers 7 changed files that never reached the eye: 65 missed -> 58, 6 versions better, ZERO "
+             "worse. ⚠⚠ MY FIRST MEASUREMENT SAID IT MADE THREE VERSIONS BLINDER AND THAT WAS MY OWN TOOL: collapsing a "
+             "multi-line why= onto one line pulls the next `diff --git` off the start of its own line, so a line-anchored "
+             "file counter stops seeing a file that is present - for v3346 the header sat at offset 1,362 of a 9,000 cap, "
+             "EARLIER than before. The newline count is now preserved and that is the whole trick. ⚠⚠⚠ AND THIS LAW "
+             "CAUGHT A REAL DEFECT IN THE HELPER ON ITS FIRST RUN: the pattern allowed an optional paren after the string "
+             "chunks and on `why=\"a one line note\"),` it ATE THE CLOSING PAREN, handing the eye a diff whose Gate(...) "
+             "call no longer closes - the gate-insert-missing-comma family, and invisible to the file-header count I was "
+             "measuring with because a broken diff still has its diff --git lines. The pattern now touches why= and its "
+             "string chunks and nothing else; a parenthesised note is left alone, which costs reach and cannot cost "
+             "correctness, and the 65 -> 58 was RE-TAKEN on the narrowed pattern rather than carried over. ⚠ STATED "
+             "LIMIT: in a diff every continuation line begins with + - or a space, which the pattern cannot cross, so a "
+             "five-line note loses its first chunk and keeps the rest; widening to cross that marker would start eating "
+             "ordinary string literals and has no measurement behind it. ⚠ It does NOT widen the cap - v3299 ruled that "
+             "cost is HIS."
          ),
     Gate("test_an_unreadable_store_is_not_an_absent_one", [sys.executable,
                           os.path.join(HERE, "test_an_unreadable_store_is_not_an_absent_one.py")], 120,
-         why='v3355 (#108) - AN UNREADABLE STORE IS NOT AN ABSENT ONE, AND THE ERRNO IS THE WHOLE DIFFERENCE. v3325 was titled \'a store is never written over an unread one\' and put that rule in THREE loaders, all written as `except IOError: return {}` with `except Exception: return None` beneath, commented malformed/unreadable. In Python 3 `IOError is OSError` - measured True - and PermissionError, IsADirectoryError and the EMFILE family are subclasses, so an EXISTING GOOD store that merely could not be READ took the ABSENT arm. The second arm only ever saw MALFORMED: a JSON error is a ValueError, an unreadable FILE is an OSError. MEASURED on a real file holding watermarks 179, 180 and 230 at mode 000: `_marks()` returned {} and `--mark` would write {"999": 1} over it, destroying all three. The three sites are handoff._marks, control_app._shadow_watch_stored and control_app._rnf_load, and every one feeds a caller that writes the whole dict back. THE PROSE ABOVE EACH SITE ALREADY DESCRIBED THE DEFECT - _shadow_watch_stored\'s own comment says \'ABSENT vs UNREADABLE, and here it is destructive\' and the code beneath it did exactly that. THE CLASS WAS SWEPT AND THE UNSCOPED NUMBER IS ON THE RECORD: 127 handlers in tv/ catch IOError/OSError broadly, THREE are this defect, and the right idiom was already in the same file three times. AND THE RATCHET COULD NOT SEE ITS OWN FIX: swallow_census ranked on what a handler RETURNS and never on what it CATCHES, so the three repairs moved the count by ZERO - a ratchet whose number survives the repair of the thing it flagged teaches its reader to re-baseline. It now refuses the pass to a bare except, to `except Exception`, and to any tuple carrying a wider name; MEASURED 6 of 76 rank-1 sites catch absence only, rank1 76 -> 70, and the baseline moves down with it in this same commit (test_agent.py leaves rank1, control_app 34 -> 31). ⚠ CI HAD BEEN SHOUTING FOR TEN RUNS - Routine M reported 76 against 74 on every push since at least v3344 and nothing surfaced it, because the pre-push derives its gates from CHANGED TEST FILES and never runs the full set. A red nobody reads is the same as a green, so a console_doctor row now carries the count WITH its baseline. 11 cases, 5 red-proofs'
+         why="v3355 (#108) - AN UNREADABLE STORE IS NOT AN ABSENT ONE, AND THE ERRNO IS THE WHOLE DIFFERENCE. v3325 was "
+             "titled 'a store is never written over an unread one' and put that rule in THREE loaders, all written as "
+             "`except IOError: return {}` with `except Exception: return None` beneath, commented malformed/unreadable. "
+             "In Python 3 `IOError is OSError` - measured True - and PermissionError, IsADirectoryError and the EMFILE "
+             "family are subclasses, so an EXISTING GOOD store that merely could not be READ took the ABSENT arm. The "
+             "second arm only ever saw MALFORMED: a JSON error is a ValueError, an unreadable FILE is an OSError. "
+             "MEASURED on a real file holding watermarks 179, 180 and 230 at mode 000: `_marks()` returned {} and "
+             "`--mark` would write {\"999\": 1} over it, destroying all three. The three sites are handoff._marks, "
+             "control_app._shadow_watch_stored and control_app._rnf_load, and every one feeds a caller that writes the "
+             "whole dict back. THE PROSE ABOVE EACH SITE ALREADY DESCRIBED THE DEFECT - _shadow_watch_stored's own "
+             "comment says 'ABSENT vs UNREADABLE, and here it is destructive' and the code beneath it did exactly that. "
+             "THE CLASS WAS SWEPT AND THE UNSCOPED NUMBER IS ON THE RECORD: 127 handlers in tv/ catch IOError/OSError "
+             "broadly, THREE are this defect, and the right idiom was already in the same file three times. AND THE "
+             "RATCHET COULD NOT SEE ITS OWN FIX: swallow_census ranked on what a handler RETURNS and never on what it "
+             "CATCHES, so the three repairs moved the count by ZERO - a ratchet whose number survives the repair of the "
+             "thing it flagged teaches its reader to re-baseline. It now refuses the pass to a bare except, to `except "
+             "Exception`, and to any tuple carrying a wider name; MEASURED 6 of 76 rank-1 sites catch absence only, rank1 "
+             "76 -> 70, and the baseline moves down with it in this same commit (test_agent.py leaves rank1, control_app "
+             "34 -> 31). ⚠ CI HAD BEEN SHOUTING FOR TEN RUNS - Routine M reported 76 against 74 on every push since at "
+             "least v3344 and nothing surfaced it, because the pre-push derives its gates from CHANGED TEST FILES and "
+             "never runs the full set. A red nobody reads is the same as a green, so a console_doctor row now carries the "
+             "count WITH its baseline."
          ),
     Gate("test_a_stamp_is_not_a_blind_spot", [sys.executable,
                           os.path.join(HERE, "test_a_stamp_is_not_a_blind_spot.py")], 120,
-         why='v3354 (#106) - A VERSION STAMP IS NOT A BLIND SPOT. v3349 gave the ledger a `partial` counter - how many looks never saw part of the change - which was the right question pointed at everything. MEASURED 2026-09-19 over the 7 rows carrying `absent`: it flagged 7 of 7, and 12 of their 16 absent-file entries were bible.html or tv/tv_diablo.py changed by exactly two lines, both carrying a version token. Only TWO rows missed anything a reviewer could have held an opinion about - v3349, filed clean over a payload that never contained its own 218-line subject, and v3351. A warning that fires on every row carries no information, which is the same defect as a gate that is always green. THE FIX CLASSIFIES THE CHANGE, NEVER THE FILENAME, and an allow-list was measured and refused before building: across the last 120 version commits SIX files change in >=99% of them - WINDOWS_SHIP.json, TASKS.md, tv_diablo.py, bible.html, control_app.py, BLUEPRINT.md - and two of those are the files most often the real subject. One filename, opposite verdicts: bible.html at e850b847 is SUBSTANTIVE (37 lines, the apostrophe fold) and at c08875ad is STAMP (2 lines, both version tokens); control_app.py at d2b3f3cf is SUBSTANTIVE (8 lines, the rider route) and at c08875ad is STAMP. An allow-list would excuse the two substantive rows - a genuinely blind look waved through on the day one of those files IS the subject. THREE STATES, matching `absent` exactly: a dict is measured, {} is measured and nothing missing, null means reach was never established which is all 867 prior rows - and those are classified ON READ from their own sha, the same measurement from the same source taken later, never assumed to be stamps. UNKNOWN IS NEVER AN EXCUSE: the classifier only ever REMOVES a warning and may do so only where a stamp was MEASURED, so an unreadable diff stays outside it. THE FALSE-NEGATIVE DIRECTION WAS HUNTED, NOT ASSUMED AWAY: swept over 80 version commits, every stamp-classified change to a file this classifier can be handed is exactly 2 lines (bible.html 2/2/2 n=71, tv_diablo.py 2/2/2 n=80, control_app.py 2/2/2 n=52); the only large all-version-token diffs are TASKS.md at up to 9 lines and WINDOWS_SHIP.json at 4, and neither can ever reach here because absent_from asks git for *.py *.mjs *.sh *.html only - a bound this law pins rather than trusts. Classified AT THE DOOR inside record() so no caller can forget. LIVE EFFECT on his ledger: partial 7 of 7 down to 2 of 7, and both survivors now NAME the file nobody saw instead of counting. 10 cases, 4 red-proofs'
+         why="v3354 (#106) - A VERSION STAMP IS NOT A BLIND SPOT. v3349 gave the ledger a `partial` counter - how many "
+             "looks never saw part of the change - which was the right question pointed at everything. MEASURED "
+             "2026-09-19 over the 7 rows carrying `absent`: it flagged 7 of 7, and 12 of their 16 absent-file entries "
+             "were bible.html or tv/tv_diablo.py changed by exactly two lines, both carrying a version token. Only TWO "
+             "rows missed anything a reviewer could have held an opinion about - v3349, filed clean over a payload that "
+             "never contained its own 218-line subject, and v3351. A warning that fires on every row carries no "
+             "information, which is the same defect as a gate that is always green. THE FIX CLASSIFIES THE CHANGE, NEVER "
+             "THE FILENAME, and an allow-list was measured and refused before building: across the last 120 version "
+             "commits SIX files change in >=99% of them - WINDOWS_SHIP.json, TASKS.md, tv_diablo.py, bible.html, "
+             "control_app.py, BLUEPRINT.md - and two of those are the files most often the real subject. One filename, "
+             "opposite verdicts: bible.html at e850b847 is SUBSTANTIVE (37 lines, the apostrophe fold) and at c08875ad is "
+             "STAMP (2 lines, both version tokens); control_app.py at d2b3f3cf is SUBSTANTIVE (8 lines, the rider route) "
+             "and at c08875ad is STAMP. An allow-list would excuse the two substantive rows - a genuinely blind look "
+             "waved through on the day one of those files IS the subject. THREE STATES, matching `absent` exactly: a dict "
+             "is measured, {} is measured and nothing missing, null means reach was never established which is all 867 "
+             "prior rows - and those are classified ON READ from their own sha, the same measurement from the same source "
+             "taken later, never assumed to be stamps. UNKNOWN IS NEVER AN EXCUSE: the classifier only ever REMOVES a "
+             "warning and may do so only where a stamp was MEASURED, so an unreadable diff stays outside it. THE "
+             "FALSE-NEGATIVE DIRECTION WAS HUNTED, NOT ASSUMED AWAY: swept over 80 version commits, every "
+             "stamp-classified change to a file this classifier can be handed is exactly 2 lines (bible.html 2/2/2 n=71, "
+             "tv_diablo.py 2/2/2 n=80, control_app.py 2/2/2 n=52); the only large all-version-token diffs are TASKS.md at "
+             "up to 9 lines and WINDOWS_SHIP.json at 4, and neither can ever reach here because absent_from asks git for "
+             "*.py *.mjs *.sh *.html only - a bound this law pins rather than trusts. Classified AT THE DOOR inside "
+             "record() so no caller can forget. LIVE EFFECT on his ledger: partial 7 of 7 down to 2 of 7, and both "
+             "survivors now NAME the file nobody saw instead of counting."
          ),
     Gate("test_simulator_says_what_it_could_not_load", [sys.executable,
                           os.path.join(HERE, "test_a_simulator_says_what_it_could_not_load.py")], 120,
-         why="v3353 (#107) - A NAME THE SIMULATOR COULD NOT FIND IS UNKNOWN, NEVER A HOST DEPENDENCY. ci_sim exists to answer one question - does this test lean on something only his Mac has - and it was answering that question about names it had never loaded. MEASURED: asked for a class living in test_an_examined_panel_is_not_an_unread_one.py it raised AttributeError module test_control has no attribute, unittest wrapped that loader error as a _FailedTest, the runner counted it among errors, and the tail printed 🔴 1 test(s) depend on something only HIS machine has. THE TEST NEVER RAN. A name the tool cannot find is UNKNOWN; turning it into a confident claim about his machine is the exact collapse the file was written to prevent, committed by the file itself. SECOND HALF: main() did import test_control and loaded names from that module ALONE, under a banner reading CI SIMULATION - the suite as a runner sees it, so every other test file was outside its reach and always had been. Both are fixed: loader failures are detected BEFORE anything counts them and exit 2 saying could not LOAD ... that is UNKNOWN not a host dependency; the search falls through from test_control to whichever tv/test_*.py DEFINES the name; and every run now prints its REACH so no-known-host-dependency can be read against a population. Import failures during the search are swallowed on purpose - a module that cannot import here is not the subject of the question, and letting one bad file abort the scan would turn a findable class into an unfindable one. ⚠ IT ALSO CORRECTED A STANDING CLAIM OF MINE: I had recorded that #99's four seal ERRORs are CI-ONLY, a VENUE fact, because they pass on his Mac. With the loader fixed the class runs 6 tests and reports NO known host dependency - so passing locally plus tripping no known stub does not make it venue, it makes the cause UNMEASURED, which is a different word and the honest one. 5 cases, 3 red-proofs",
+         why="v3353 (#107) - A NAME THE SIMULATOR COULD NOT FIND IS UNKNOWN, NEVER A HOST DEPENDENCY. ci_sim exists to answer one question - does this test lean on something only his Mac has - and it was answering that question about names it had never loaded. MEASURED: asked for a class living in test_an_examined_panel_is_not_an_unread_one.py it raised AttributeError module test_control has no attribute, unittest wrapped that loader error as a _FailedTest, the runner counted it among errors, and the tail printed 🔴 1 test(s) depend on something only HIS machine has. THE TEST NEVER RAN. A name the tool cannot find is UNKNOWN; turning it into a confident claim about his machine is the exact collapse the file was written to prevent, committed by the file itself. SECOND HALF: main() did import test_control and loaded names from that module ALONE, under a banner reading CI SIMULATION - the suite as a runner sees it, so every other test file was outside its reach and always had been. Both are fixed: loader failures are detected BEFORE anything counts them and exit 2 saying could not LOAD ... that is UNKNOWN not a host dependency; the search falls through from test_control to whichever tv/test_*.py DEFINES the name; and every run now prints its REACH so no-known-host-dependency can be read against a population. Import failures during the search are swallowed on purpose - a module that cannot import here is not the subject of the question, and letting one bad file abort the scan would turn a findable class into an unfindable one. ⚠ IT ALSO CORRECTED A STANDING CLAIM OF MINE: I had recorded that #99's four seal ERRORs are CI-ONLY, a VENUE fact, because they pass on his Mac. With the loader fixed the class runs 6 tests and reports NO known host dependency - so passing locally plus tripping no known stub does not make it venue, it makes the cause UNMEASURED, which is a different word and the honest one.",
          ),
     Gate("test_partial_look_is_not_agreement", [sys.executable,
                           os.path.join(HERE, "test_a_partial_look_is_not_agreement.py")], 90,
-         why="v3349 (#104) - A LOOK THAT NEVER REACHED THE CHANGE IS NOT AN OPINION ABOUT IT. MEASURED ON v3347 THE DAY IT SHIPPED: the payload carried 8,967 of 92,115 diff chars and omitted 10 changed files INCLUDING tv/self_arming.py, the file the version exists to change; the eye answered REACH 2/2 hunks, all other listed files UNKNOWN, no concrete defect in the bytes shown; and the row stored verdict=clean. Clean means the eye looked and found nothing, and that eye said in its own first line that it could not look. THE INTENT WAS ALREADY RIGHT AND THE STORE WAS WRONG: payload_for has computed the omitted list since v3341 and used it to warn the EYE inside the prompt, and its own comment says the ROW must carry it too - which it did, as a 400-char-capped PROSE SUFFIX on `asked`. A one-to-many fact flattened into another field and truncated at the one moment keeping it was free; the fourth instance of that shape in this repo. So this version computes nothing new: it carries the LIST to the row and gives it a reader. THREE STATES ARE KEPT APART and the middle one is the point - a list means measured and these are missing, [] means measured and nothing is missing, and null or a missing key means nobody could ask, which is every one of the 860 rows written before now. Collapsing null into [] would turn we-never-checked into we-checked-and-it-was-fine. ⚠ I GOT `reached` WRONG FIRST and the correction is in the law: reached means THE SEAT ANSWERED, not that the payload reached the change - a reachable eye handed two hunks of a twelve-file change is reached=True and blind, which is exactly the v3347 row. Two questions, two fields; the second simply did not exist. ⚠ THE VERDICT RULE IS DELIBERATELY NOT IN THIS VERSION: #97 measured that 22 of 36 versions (61%) had a code file never reach the eye, so downgrading clean to cannot-tell would move a large population, and the radius CANNOT be sized from the ledger because the data was never stored - which is the defect itself. #101 already proved this session that a verdict rule designed without measurement gets refuted by the ledger, 172 of 637. Persist first, judge once there are rows to judge against. ⚠ PARTIAL LOOKS ARE NAMED, NEVER DISCARDED - what the eye said about the bytes it did see is real evidence; what must never happen is two partial looks reading as AGREEMENT about a change neither saw. 9 cases, 4 red-proofs",
+         why="v3349 (#104) - A LOOK THAT NEVER REACHED THE CHANGE IS NOT AN OPINION ABOUT IT. MEASURED ON v3347 THE DAY IT SHIPPED: the payload carried 8,967 of 92,115 diff chars and omitted 10 changed files INCLUDING tv/self_arming.py, the file the version exists to change; the eye answered REACH 2/2 hunks, all other listed files UNKNOWN, no concrete defect in the bytes shown; and the row stored verdict=clean. Clean means the eye looked and found nothing, and that eye said in its own first line that it could not look. THE INTENT WAS ALREADY RIGHT AND THE STORE WAS WRONG: payload_for has computed the omitted list since v3341 and used it to warn the EYE inside the prompt, and its own comment says the ROW must carry it too - which it did, as a 400-char-capped PROSE SUFFIX on `asked`. A one-to-many fact flattened into another field and truncated at the one moment keeping it was free; the fourth instance of that shape in this repo. So this version computes nothing new: it carries the LIST to the row and gives it a reader. THREE STATES ARE KEPT APART and the middle one is the point - a list means measured and these are missing, [] means measured and nothing is missing, and null or a missing key means nobody could ask, which is every one of the 860 rows written before now. Collapsing null into [] would turn we-never-checked into we-checked-and-it-was-fine. ⚠ I GOT `reached` WRONG FIRST and the correction is in the law: reached means THE SEAT ANSWERED, not that the payload reached the change - a reachable eye handed two hunks of a twelve-file change is reached=True and blind, which is exactly the v3347 row. Two questions, two fields; the second simply did not exist. ⚠ THE VERDICT RULE IS DELIBERATELY NOT IN THIS VERSION: #97 measured that 22 of 36 versions (61%) had a code file never reach the eye, so downgrading clean to cannot-tell would move a large population, and the radius CANNOT be sized from the ledger because the data was never stored - which is the defect itself. #101 already proved this session that a verdict rule designed without measurement gets refuted by the ledger, 172 of 637. Persist first, judge once there are rows to judge against. ⚠ PARTIAL LOOKS ARE NAMED, NEVER DISCARDED - what the eye said about the bytes it did see is real evidence; what must never happen is two partial looks reading as AGREEMENT about a change neither saw.",
          ),
     Gate("test_retired_lock_keeps_its_testimony", [sys.executable,
                           os.path.join(HERE, "test_a_retired_lock_keeps_its_testimony.py")], 90,
-         why="v3347 (#31) - A RETIRED LOCK KEEPS ITS TESTIMONY: READABLE, NEVER BANKABLE. His ruling was 'leave it off and surgically remove it we need pruning' - remove the prune.arm ceremony, do not silence it, do NOT touch _PRUNE_SAFE_TO_RUN, and KEEP self_arming for the other surfaces. The removal (lock out of LOCKS, prune_wilson.py deleted, its gate de-registered) obeyed the first half. Removing PROVES['prune_wilson'] alongside them looked like the same tidy-up and did the OPPOSITE of the last half: his ledger holds 19 rows banked by prune_wilson against prune.arm (newest n=18 k=18), one unreadable row fails the WHOLE read, so _rows() returned None and ALL NINE surviving locks answered 'UNKNOWN: an unreadable proof queue fails CLOSED' - vault.apply, miniauto.run, prune.reports and reel.route all sampled and all shut. One dictionary entry, every surface at once, silently, with the module behaving exactly as designed. RETIRED now means three things and each has a case: READABLE (the pair stays declared so _row_fault accepts his rows - testimony is not mine to drop), NEVER BANKABLE (needs no new code, bank() already refuses any lock absent from LOCKS - verified it raises 'no such lock or route is declared'), and REACHES NOTHING (the clause worth proving rather than believing: dropping all 19 rows moves 0 of 9 live scores, measured). STATED CONSEQUENCE, HIS TO OWN: test_printer_wilson asserted prune.arm.after contained printer.stream - his order 'printer + reels -> theatre + shelf -> routing -> the deleter' - and that rule lived ONLY there and in the lock's prerequisite list, so retiring the lock removes the only place code enforced that the deleter waits for the river. That is the intended effect; _PRUNE_SAFE_TO_RUN survives untouched at 53 refs across 20 files and is the actual safety, pinned here. The ordering MECHANISM survives too - vault.apply and vault.forget still wait on vault.sweep_start and TestHisOrderIsEnforced drives that live chain - but no chain is longer than one step now, so the advance-to-the-next arm is asserted UNMEASURED rather than left silently passing. 10 cases, 3 red-proofs"
+         why="v3347 (#31) - A RETIRED LOCK KEEPS ITS TESTIMONY: READABLE, NEVER BANKABLE. His ruling was 'leave it off and surgically remove it we need pruning' - remove the prune.arm ceremony, do not silence it, do NOT touch _PRUNE_SAFE_TO_RUN, and KEEP self_arming for the other surfaces. The removal (lock out of LOCKS, prune_wilson.py deleted, its gate de-registered) obeyed the first half. Removing PROVES['prune_wilson'] alongside them looked like the same tidy-up and did the OPPOSITE of the last half: his ledger holds 19 rows banked by prune_wilson against prune.arm (newest n=18 k=18), one unreadable row fails the WHOLE read, so _rows() returned None and ALL NINE surviving locks answered 'UNKNOWN: an unreadable proof queue fails CLOSED' - vault.apply, miniauto.run, prune.reports and reel.route all sampled and all shut. One dictionary entry, every surface at once, silently, with the module behaving exactly as designed. RETIRED now means three things and each has a case: READABLE (the pair stays declared so _row_fault accepts his rows - testimony is not mine to drop), NEVER BANKABLE (needs no new code, bank() already refuses any lock absent from LOCKS - verified it raises 'no such lock or route is declared'), and REACHES NOTHING (the clause worth proving rather than believing: dropping all 19 rows moves 0 of 9 live scores, measured). STATED CONSEQUENCE, HIS TO OWN: test_printer_wilson asserted prune.arm.after contained printer.stream - his order 'printer + reels -> theatre + shelf -> routing -> the deleter' - and that rule lived ONLY there and in the lock's prerequisite list, so retiring the lock removes the only place code enforced that the deleter waits for the river. That is the intended effect; _PRUNE_SAFE_TO_RUN survives untouched at 53 refs across 20 files and is the actual safety, pinned here. The ordering MECHANISM survives too - vault.apply and vault.forget still wait on vault.sweep_start and TestHisOrderIsEnforced drives that live chain - but no chain is longer than one step now, so the advance-to-the-next arm is asserted UNMEASURED rather than left silently passing."
          ),
     Gate("test_board_folds_the_apostrophe", [sys.executable,
                           os.path.join(HERE, "test_the_board_folds_the_apostrophe_too.py")], 90,
-         why="v3345 (#68) - THE BOARD FOLDS THE APOSTROPHE TOO, NOT JUST THE PYTHON STORE. His ruling was 'make it one word and unified'. v2760 fixed the PYTHON half (chron_evidence.json keyed the confluence store by RAW name so one item lived in two buckets and cross-reel corroboration could never fire) and its docstring already named the cause: bible.html spells these four items CURLY in the item rows and STRAIGHT in ITEM_VALUE, in the same file. THE BOARD HALF WAS NEVER FIXED: _chMapHas and _chSetHas decide whether a roster row reads as FOUND and they folded CASE and not the apostrophe, so _chNameKeys built [Atma's Scarab, atma's scarab] and looked them up in a map keyed with the typographic byte. MEASURED on his live board via POST /api/board_ownership: of 445 dated names exactly TWO carry that byte - Atma and Saracen - and BOTH his dates and gameFound stores key them that way consistently, so his board is not self-contradictory and the lookup simply could never reach his rows. An item he genuinely owns read as NOT FOUND. THE FOLD RUNS ON BOTH SIDES because folding only the query cannot match a map keyed with HIS byte, and the map scan runs only after a direct miss so the common path is untouched. HIS STORED BYTES ARE NOT TOUCHED - they are testimony, the reader is made tolerant. THE SAFETY HALF: item_identity already rules that the apostrophe is RENDERING and Latent/Renewed are IDENTITY, so a qualifier must never fold; verified in node that Latent Rotting Fissure does NOT match Rotting Fissure. The law strips BOTH comment kinds because its first run failed on the fix's own /* */ comment explaining the Latent rule, and the block strip is bounded at 4000 because an unbounded DOTALL removed 16.9% of this file once. 5 cases, 4 red-proofs"
+         why="v3345 (#68) - THE BOARD FOLDS THE APOSTROPHE TOO, NOT JUST THE PYTHON STORE. His ruling was 'make it one word and unified'. v2760 fixed the PYTHON half (chron_evidence.json keyed the confluence store by RAW name so one item lived in two buckets and cross-reel corroboration could never fire) and its docstring already named the cause: bible.html spells these four items CURLY in the item rows and STRAIGHT in ITEM_VALUE, in the same file. THE BOARD HALF WAS NEVER FIXED: _chMapHas and _chSetHas decide whether a roster row reads as FOUND and they folded CASE and not the apostrophe, so _chNameKeys built [Atma's Scarab, atma's scarab] and looked them up in a map keyed with the typographic byte. MEASURED on his live board via POST /api/board_ownership: of 445 dated names exactly TWO carry that byte - Atma and Saracen - and BOTH his dates and gameFound stores key them that way consistently, so his board is not self-contradictory and the lookup simply could never reach his rows. An item he genuinely owns read as NOT FOUND. THE FOLD RUNS ON BOTH SIDES because folding only the query cannot match a map keyed with HIS byte, and the map scan runs only after a direct miss so the common path is untouched. HIS STORED BYTES ARE NOT TOUCHED - they are testimony, the reader is made tolerant. THE SAFETY HALF: item_identity already rules that the apostrophe is RENDERING and Latent/Renewed are IDENTITY, so a qualifier must never fold; verified in node that Latent Rotting Fissure does NOT match Rotting Fissure. The law strips BOTH comment kinds because its first run failed on the fix's own /* */ comment explaining the Latent rule, and the block strip is bounded at 4000 because an unbounded DOTALL removed 16.9% of this file once."
          ),
     Gate("test_shelf_says_what_is_owed", [sys.executable,
                           os.path.join(HERE, "test_the_shelf_says_what_is_owed_not_who_owns_it.py")], 120,
-         why="v3344 (#81) - THE SHELF SAYS WHAT IS OWED, NOT WHO OWNS IT. His console read '3 waiting on a lane (vault: 3)': it grouped owed reels by the LANE THAT OWNS them and then printed the word WAITING, which is the READ_CLEARS question asked of the OWED_BY map. shelf_driver states the split in its own comment - OWED_BY is which lane OWNS this reel, READ_CLEARS is whether a READ can clear it. rows-not-banked proves they differ: v2878 kept it OUT of READ_CLEARS because it is owed a BANK not a read, queuing it spends his money and clears nothing, so NO sweep will ever clear it - and the screen filed it under 'waiting on a lane' with the other four anyway. THREE INDEPENDENT PROSE SITES ALREADY SAID BANK and only the rendered sentence disagreed: reel_census's own docstring (panels-never-banked 3, the VAULT still owes a bank), the law that pinned the sentence (3 the vault still owes a BANK, three lines above its own assertion), and the v2878 note. Every author who described this population got it right in prose and shipped a different word to the screen. THE ROOT is that the tag was READ, used to look up the lane, and DISCARDED - the richer fact in hand at the write, where keeping it is free, the same shape as v3339's cap and v3342's second stamp. The census now keeps owedTags beside owedBy (ownership is still a real question and existing laws pin it) and the wording comes from ONE map, shelf_driver.OWED_SAYS, beside the map it describes. MEASURED on his tree: the sentence went from '3 waiting on a lane (vault: 3)' to '3 still owed (3 panels on film, nothing banked)'. owed still counts all five tags so the reconciliation still sums, and a law pins that owedTags adds up to it - a per-tag breakdown that does not sum is the authoritative-and-wrong number the header refuses to print. The rows-not-banked case is LATENT on his tree (0 today), so the law drives it from the wording map rather than from today's population. 6 cases, 4 red-proofs"
+         why="v3344 (#81) - THE SHELF SAYS WHAT IS OWED, NOT WHO OWNS IT. His console read '3 waiting on a lane (vault: 3)': it grouped owed reels by the LANE THAT OWNS them and then printed the word WAITING, which is the READ_CLEARS question asked of the OWED_BY map. shelf_driver states the split in its own comment - OWED_BY is which lane OWNS this reel, READ_CLEARS is whether a READ can clear it. rows-not-banked proves they differ: v2878 kept it OUT of READ_CLEARS because it is owed a BANK not a read, queuing it spends his money and clears nothing, so NO sweep will ever clear it - and the screen filed it under 'waiting on a lane' with the other four anyway. THREE INDEPENDENT PROSE SITES ALREADY SAID BANK and only the rendered sentence disagreed: reel_census's own docstring (panels-never-banked 3, the VAULT still owes a bank), the law that pinned the sentence (3 the vault still owes a BANK, three lines above its own assertion), and the v2878 note. Every author who described this population got it right in prose and shipped a different word to the screen. THE ROOT is that the tag was READ, used to look up the lane, and DISCARDED - the richer fact in hand at the write, where keeping it is free, the same shape as v3339's cap and v3342's second stamp. The census now keeps owedTags beside owedBy (ownership is still a real question and existing laws pin it) and the wording comes from ONE map, shelf_driver.OWED_SAYS, beside the map it describes. MEASURED on his tree: the sentence went from '3 waiting on a lane (vault: 3)' to '3 still owed (3 panels on film, nothing banked)'. owed still counts all five tags so the reconciliation still sums, and a law pins that owedTags adds up to it - a per-tag breakdown that does not sum is the authoritative-and-wrong number the header refuses to print. The rows-not-banked case is LATENT on his tree (0 today), so the law drives it from the wording map rather than from today's population."
          ),
     Gate("test_rider_is_watched_not_a_vessel", [sys.executable,
                           os.path.join(HERE, "test_a_rider_is_watched_without_claiming_a_thread.py")], 120,
-         why="v3342 (#93) - A RIDER IS WATCHED WITHOUT CLAIMING A THREAD, and this closes a law I broke myself. tvd-read-names-feeder shipped in v3323 with its own lane name and its own lifetime counters and NOTHING surfaced it, against his #28 ruling that the feeder be built AND watched in the same version. MEASURED: _lane_stamps saw the beat every time (strings 21, feeder PRESENT) and discarded it every time (tick_by_encloser 21, no encloser maps to it), because that map is {def: ONE stamp} and setdefault keeps the FIRST - while ast over the live source shows exactly one def stamping two lanes, _vault_autoread_loop at 24289 tvd-vault-autoread and 24311 tvd-read-names-feeder. A one-to-many fact in a one-to-one store, the same shape as v3339's cap and the owedBy tag. AND A LAW WAS SHOUTING THE WHOLE TIME: test_every_lane_stamps_its_own_beat asserted `exactly one` beat per def and has been RED in CI on every run since v3323 - eighteen versions of ['tvd-vault-autoread (_vault_autoread_loop) stamps 2'] - which is what a permanently red gate costs. The law is repaired to its OWN stated intent (its docstring says zero is the dangerous number) and NOT weakened: zero beats still fails, and a new case refuses any beat that is not a tvd- lane or the loop's own name, so an invented stamp is still filed where nobody watches and still caught. The census now keeps every stamp and emits a RIDER row for the extras, in ONE post-loop pass because a roster lane gets its row from the expansion branch which continues - the first cut emitted 0 riders for exactly the lane that needed one. A rider is NOT a vessel: the census enumerates threads and it has none, so heart.NOT_A_VESSEL's reasoning stands and vessels stays 20/0/0/0, corroborated by his live screen; it gets its own shelf naming the vessel it rides. The first cut DID count it and vessels went 20 to 21 with the rider UNKNOWN, which is a thread claimed that does not exist - that is red-proof 3. 6 cases, 4 red-proofs"
+         why="v3342 (#93) - A RIDER IS WATCHED WITHOUT CLAIMING A THREAD, and this closes a law I broke myself. tvd-read-names-feeder shipped in v3323 with its own lane name and its own lifetime counters and NOTHING surfaced it, against his #28 ruling that the feeder be built AND watched in the same version. MEASURED: _lane_stamps saw the beat every time (strings 21, feeder PRESENT) and discarded it every time (tick_by_encloser 21, no encloser maps to it), because that map is {def: ONE stamp} and setdefault keeps the FIRST - while ast over the live source shows exactly one def stamping two lanes, _vault_autoread_loop at 24289 tvd-vault-autoread and 24311 tvd-read-names-feeder. A one-to-many fact in a one-to-one store, the same shape as v3339's cap and the owedBy tag. AND A LAW WAS SHOUTING THE WHOLE TIME: test_every_lane_stamps_its_own_beat asserted `exactly one` beat per def and has been RED in CI on every run since v3323 - eighteen versions of ['tvd-vault-autoread (_vault_autoread_loop) stamps 2'] - which is what a permanently red gate costs. The law is repaired to its OWN stated intent (its docstring says zero is the dangerous number) and NOT weakened: zero beats still fails, and a new case refuses any beat that is not a tvd- lane or the loop's own name, so an invented stamp is still filed where nobody watches and still caught. The census now keeps every stamp and emits a RIDER row for the extras, in ONE post-loop pass because a roster lane gets its row from the expansion branch which continues - the first cut emitted 0 riders for exactly the lane that needed one. A rider is NOT a vessel: the census enumerates threads and it has none, so heart.NOT_A_VESSEL's reasoning stands and vessels stays 20/0/0/0, corroborated by his live screen; it gets its own shelf naming the vessel it rides. The first cut DID count it and vessels went 20 to 21 with the rider UNKNOWN, which is a thread claimed that does not exist - that is red-proof 3."
          ),
     Gate("test_one_install_is_one_machine", [sys.executable,
                           os.path.join(HERE, "test_one_install_is_one_machine.py")], 60,
-         why="2026-09-28 - ONE INSTALL IS ONE MACHINE. His fleet panel showed a second GrokBot: the same install id (1bba07477e40) under machine 'cursor' (last seen 09-20, v3377) beside the live 'grok-bot-vm' row, because the worker keys records by machine name and a renamed host keeps its own row. /api/fleet now folds rows sharing an install into the newest, keeps the old name as formerMachines and states it in mergedInstalls; the stale lastGood roster is merged the same way. Driven through Handler.do_GET, 3 red-proofs"
+         why="2026-09-28 - ONE INSTALL IS ONE MACHINE. His fleet panel showed a second GrokBot: the same install id (1bba07477e40) under machine 'cursor' (last seen 09-20, v3377) beside the live 'grok-bot-vm' row, because the worker keys records by machine name and a renamed host keeps its own row. /api/fleet now folds rows sharing an install into the newest, keeps the old name as formerMachines and states it in mergedInstalls; the stale lastGood roster is merged the same way. Driven through Handler.do_GET."
          ),
     Gate("test_a_corrupt_mule_store_is_never_overwritten", [sys.executable,
                           os.path.join(HERE, "test_a_corrupt_mule_store_is_never_overwritten.py")], 60,
-         why="2026-09-29 - DATA LOSS found by the #41 heart audit (verified, rank 7): the vault module's load() answered {} for d2r_muleAssign bytes that would not parse, the picker said the mule holds nothing, and the next saveA() wrote {} over the corrupt bytes - every mule assignment gone while the doctor said UNKNOWN. An unparseable store now reads UNKNOWN on the picker and NO write goes over bytes that could not be read (both mule stores, every write in the module through one guard). Driven on the shipped code cut from bible.html, in node. 2 red-proofs"
+         why="2026-09-29 - DATA LOSS found by the #41 heart audit (verified, rank 7): the vault module's load() answered {} for d2r_muleAssign bytes that would not parse, the picker said the mule holds nothing, and the next saveA() wrote {} over the corrupt bytes - every mule assignment gone while the doctor said UNKNOWN. An unparseable store now reads UNKNOWN on the picker and NO write goes over bytes that could not be read (both mule stores, every write in the module through one guard). Driven on the shipped code cut from bible.html, in node."
          ),
     Gate("test_a_stale_git_lock_is_cleared_and_said", [sys.executable,
                           os.path.join(HERE, "test_a_stale_git_lock_is_cleared_and_said.py")], 120,
-         why="#64 (REG-1421, REG-1422) - his words: 'the windows needs proper care and attention'. MEASURED 2026-09-29 on his ALT: .git/index.lock from 2026-09-28 14:09, 0 bytes, no git process running, and every automatic pull after it failed 'Unable to create index.lock: File exists' - the ALT sat on v3521 for 11 h. _pull_once RECORDED the failure in _PULL.say and nothing read it or cleared it. Now the pull lane (and the /api/update door) removes an EMPTY lock older than 10 min when no git runs here (Windows asks the Toolhelp32 process table, Mac/Linux pgrep -x git; a probe that cannot answer never removes), before the fetch and again when git's error names index.lock, with a receipt on the lane; any other lock is left and SAID. The doctor row 'this checkout can update' reads the lane over /api/status (pullLane) - MISSING after failures past 1 h with the reason and since when, OK after a success or a deliberate stand-down, UNKNOWN when nobody tried - and the fleet beacon's pull.why says the pulls are failing. Driven on real git fixtures in a temp dir, never his checkout. FOLLOW-UP (REG-1425..1426, REG-1428, the review of #64): an update SIGKILLed mid-checkout (a 0-byte stale lock beside a half-written tree) read as 'dirty, standing down ON PURPOSE' and the row said OK - it is now its own outcome, 'interrupted', named with the lock and the file count, never cleared, MISSING on the doctor and named on the fleet beacon; the ROOT CAUSE is closed - every console git goes through the one door with GIT_OPTIONAL_LOCKS=0, so a read-only git status killed by its timeout cannot leave index.lock (seen on a real repo: a plain status takes the lock, the door's never does); and the two pull doors hold ONE lock, with the lock judge refusing a lock whose inode changed between its two looks. 19 red-proofs"
+         why="#64 (REG-1421, REG-1422) - his words: 'the windows needs proper care and attention'. MEASURED 2026-09-29 on his ALT: .git/index.lock from 2026-09-28 14:09, 0 bytes, no git process running, and every automatic pull after it failed 'Unable to create index.lock: File exists' - the ALT sat on v3521 for 11 h. _pull_once RECORDED the failure in _PULL.say and nothing read it or cleared it. Now the pull lane (and the /api/update door) removes an EMPTY lock older than 10 min when no git runs here (Windows asks the Toolhelp32 process table, Mac/Linux pgrep -x git; a probe that cannot answer never removes), before the fetch and again when git's error names index.lock, with a receipt on the lane; any other lock is left and SAID. The doctor row 'this checkout can update' reads the lane over /api/status (pullLane) - MISSING after failures past 1 h with the reason and since when, OK after a success or a deliberate stand-down, UNKNOWN when nobody tried - and the fleet beacon's pull.why says the pulls are failing. Driven on real git fixtures in a temp dir, never his checkout. FOLLOW-UP (REG-1425..1426, REG-1428, the review of #64): an update SIGKILLed mid-checkout (a 0-byte stale lock beside a half-written tree) read as 'dirty, standing down ON PURPOSE' and the row said OK - it is now its own outcome, 'interrupted', named with the lock and the file count, never cleared, MISSING on the doctor and named on the fleet beacon; the ROOT CAUSE is closed - every console git goes through the one door with GIT_OPTIONAL_LOCKS=0, so a read-only git status killed by its timeout cannot leave index.lock (seen on a real repo: a plain status takes the lock, the door's never does); and the two pull doors hold ONE lock, with the lock judge refusing a lock whose inode changed between its two looks."
          ),
     Gate("test_a_stub_agent_never_films_his_screen", [sys.executable,
                           os.path.join(HERE, "test_a_stub_agent_never_films_his_screen.py")], 240,
-         why="#63 (REG-1423, REG-1424) - his words: 'make sure nothing is running on my pc for nothing'. MEASURED 2026-09-28: under TV_STUB the agent's live loop called the REAL capture_mac first and used synthetic frames only when it failed, so with Screen Recording granted a stub agent filmed and OCR'd his desktop and test_roundtrip_sim passed 17:12 and failed 19:05 on one commit. MEASURED 2026-09-29: the roundtrip's own agent is not even a stub agent - /api/on pops TV_STUB - so a TV_STUB console now hands its live agent TV_CAPTURE=off. A stub agent synthesizes (live loop, film thread, farewell) unless TV_STUB_REAL_CAPTURE=1; on Windows its capture_win.ps1 is never spawned and the lamp reads OFF. Driven on a REAL agent process with every screen reader patched to record-and-raise. FOLLOW-UP (REG-1427, the review of #63): a stub agent and a TV_CAPTURE=off agent (the one a stub console hands to /api/on) still asked macOS for Screen Recording (CGRequestScreenCaptureAccess) at boot and in the capture-fail branch, which then opens System Settings, and the capture-off agent's game gate walked his windows - 'make sure nothing is running on my pc for nothing'. Neither asks nor walks now; driven on a real capture-off agent too, and in-process with the platform handed in so it is a law off a Mac. 10 red-proofs"
+         why="#63 (REG-1423, REG-1424) - his words: 'make sure nothing is running on my pc for nothing'. MEASURED 2026-09-28: under TV_STUB the agent's live loop called the REAL capture_mac first and used synthetic frames only when it failed, so with Screen Recording granted a stub agent filmed and OCR'd his desktop and test_roundtrip_sim passed 17:12 and failed 19:05 on one commit. MEASURED 2026-09-29: the roundtrip's own agent is not even a stub agent - /api/on pops TV_STUB - so a TV_STUB console now hands its live agent TV_CAPTURE=off. A stub agent synthesizes (live loop, film thread, farewell) unless TV_STUB_REAL_CAPTURE=1; on Windows its capture_win.ps1 is never spawned and the lamp reads OFF. Driven on a REAL agent process with every screen reader patched to record-and-raise. FOLLOW-UP (REG-1427, the review of #63): a stub agent and a TV_CAPTURE=off agent (the one a stub console hands to /api/on) still asked macOS for Screen Recording (CGRequestScreenCaptureAccess) at boot and in the capture-fail branch, which then opens System Settings, and the capture-off agent's game gate walked his windows - 'make sure nothing is running on my pc for nothing'. Neither asks nor walks now; driven on a real capture-off agent too, and in-process with the platform handed in so it is a law off a Mac."
          ),
     Gate("test_the_background_lane_never_shows_the_pin", [sys.executable,
                           os.path.join(HERE, "test_the_background_lane_never_shows_the_pin.py")], 60,
-         why="2026-09-28 - his v2362 words: 'shadow reader is suppose to be behind the scenes'. Second eye on v3520 (ca60116a), confirmed on main: the capture pin was hidden only for an ARMED reader, so turning the shadow switch off while a shadow reel still rolled showed the pin on the standby board until the reel stopped. The background lane, armed or still rolling, never shows the pin. 1 red-proof"
+         why="2026-09-28 - his v2362 words: 'shadow reader is suppose to be behind the scenes'. Second eye on v3520 (ca60116a), confirmed on main: the capture pin was hidden only for an ARMED reader, so turning the shadow switch off while a shadow reel still rolled showed the pin on the standby board until the reel stopped. The background lane, armed or still rolling, never shows the pin."
          ),
     Gate("test_a_frame_index_lists_each_folder_once", [sys.executable,
                           os.path.join(HERE, "test_a_frame_index_lists_each_folder_once.py")], 60,
-         why="2026-09-28 - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there thats the way we know it will work for dean too'. MEASURED on his ALT (Windows + Boosteroid, 14 reels): GET /api/river took 32.8 s there against 4.1 s for 66 reels on his Mac; a read-only profile put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in frame_ref.Index, and 1.7 s in 21,349 relpath calls. The index now lists each folder once (os.scandir - on Windows the listing carries the size) and builds each path from the folder prefix. Driven on a fixture tree: equals the old os.walk walk exactly (paths, stem lists, order, counts, bytes, symlinked folder not entered) and calls no getsize, no relpath and no per-file os.stat. 3 red-proofs"
+         why="2026-09-28 - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there thats the way we know it will work for dean too'. MEASURED on his ALT (Windows + Boosteroid, 14 reels): GET /api/river took 32.8 s there against 4.1 s for 66 reels on his Mac; a read-only profile put 4.1 s of an 8.2 s lane view in 34,143 nt.stat calls from os.path.getsize in frame_ref.Index, and 1.7 s in 21,349 relpath calls. The index now lists each folder once (os.scandir - on Windows the listing carries the size) and builds each path from the folder prefix. Driven on a fixture tree: equals the old os.walk walk exactly (paths, stem lists, order, counts, bytes, symlinked folder not entered) and calls no getsize, no relpath and no per-file os.stat."
          ),
     Gate("test_a_plan_is_computed_once", [sys.executable,
                           os.path.join(HERE, "test_a_plan_is_computed_once.py")], 180,
-         why="REG-1410..1414 (#66) - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there'. MEASURED on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522 landed, with py-spy dumps: ~15 min of /api/status at 11 s then timeouts while ONE thread, tvd-eagle-watch, held the GIL tokenizing every tv/*.py for frame_authority.test_referenced_reels (reached through reel_retention.plan; its key moves on every ship), then /api/river timing out at 90 s while THREE threads (tvd-retro-triage, tvd-eagle-watch, an HTTP request) each re-listed the whole shelf inside frame_ref.Index at once - plan() is called from ~62 places and remembered nothing. On the CONSOLE PATH (control_app.main marks it; laws, the gate and CI never do): the fixture set is the committed ratchet (the exact scan stays for the gate and for exact=True; an unreadable ratchet falls back to it, never to an empty set); a still reel folder is listed once and kept by its own stamp; plan() is SINGLE-FLIGHT and remembered until plan_fingerprint moves - every ledger and store it reads, the hist listing, every folder under it, each reel's index.json - and an input that moved less than RACY_S ago is computed fresh and never kept; plan() and plan(<the same tree>) (reel_story's and the eagle's call shapes) are one question while each ledger has one copy. MEASURED on an ALT-shaped fixture (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once): v3522 cold 114-154 s / 7,232 files tokenized / 4 index builds / 284 listings, warm 4.6 s; now cold 0.69 s / 0 tokenized / 1 build, unchanged 0.02 s / 0 listings, a live frame 0.58 s, and all five rounds' plans byte-identical to v3522's. Driven: 4 concurrent callers -> 1 computation; a DIFFERENTIAL over 12 moves of every input, each recomputed and equal to a from-scratch plan; a moving ledger never kept; only the changed folder re-listed; the console never tokenizes; two ledger copies keep two answers; reel_router's filmed-at reads the same kept listing. 16 cases, 10 red-proofs"
+         why="REG-1410..1414 (#66) - his words: 'the windows needs proper care and attention.. its needs to work perfectly and smoothly there'. MEASURED on his ALT (Windows + Boosteroid, ~30 reels, ~21,000 frames) right after v3522 landed, with py-spy dumps: ~15 min of /api/status at 11 s then timeouts while ONE thread, tvd-eagle-watch, held the GIL tokenizing every tv/*.py for frame_authority.test_referenced_reels (reached through reel_retention.plan; its key moves on every ship), then /api/river timing out at 90 s while THREE threads (tvd-retro-triage, tvd-eagle-watch, an HTTP request) each re-listed the whole shelf inside frame_ref.Index at once - plan() is called from ~62 places and remembered nothing. On the CONSOLE PATH (control_app.main marks it; laws, the gate and CI never do): the fixture set is the committed ratchet (the exact scan stays for the gate and for exact=True; an unreadable ratchet falls back to it, never to an empty set); a still reel folder is listed once and kept by its own stamp; plan() is SINGLE-FLIGHT and remembered until plan_fingerprint moves - every ledger and store it reads, the hist listing, every folder under it, each reel's index.json - and an input that moved less than RACY_S ago is computed fresh and never kept; plan() and plan(<the same tree>) (reel_story's and the eagle's call shapes) are one question while each ledger has one copy. MEASURED on an ALT-shaped fixture (31 reels, 21,205 files, 3 plan() callers + reel_story.story at once): v3522 cold 114-154 s / 7,232 files tokenized / 4 index builds / 284 listings, warm 4.6 s; now cold 0.69 s / 0 tokenized / 1 build, unchanged 0.02 s / 0 listings, a live frame 0.58 s, and all five rounds' plans byte-identical to v3522's. Driven: 4 concurrent callers -> 1 computation; a DIFFERENTIAL over 12 moves of every input, each recomputed and equal to a from-scratch plan; a moving ledger never kept; only the changed folder re-listed; the console never tokenizes; two ledger copies keep two answers; reel_router's filmed-at reads the same kept listing."
          ),
     Gate("test_payload_names_what_it_left_out", [sys.executable,
                           os.path.join(HERE, "test_a_payload_names_what_it_left_out.py")], 60,
-         why="v3341 (#97) - A PAYLOAD NAMES THE FILES IT LEFT OUT, NOT JUST HOW MANY CHARS IT CUT. payload_for declared its truncation as a CHARACTER COUNT - 'truncated to 8142 of 16736 diff chars' - which is true and unusable: a count cannot say WHICH FILES are missing, so the eye answers 'the diff is correct as shown' in good faith about a payload containing none of the change under review. MEASURED by rebuilding payload_for for every version v3300-v3340 and diffing what it would send against what each commit changed (version stamps excluded): 36 versions had code changes and 22 of them - 61% - had at least one changed code file never reach the eye. In several the dropped file is the version's whole subject: v3330 lost tree_busy.py, v3315 lost second_eye_run.py, v3333 lost control_ui.html AND its own 151-line law, v3339 lost its law. The mechanism, measured on v3333: run_gates.py took 44.9% of the payload and 84% of that hunk is one why= ship-note string, so ~38% of a code review was spent on prose the comment stripper cannot touch because it is a string LITERAL, not a comment - the exact failure payload_for's own docstring warns about for control_ui.html, arriving through a .py file instead. THE ROSTER COMES FROM GIT, NEVER FROM THE FETCHED TEXT: when the python diff alone exceeds the cap the *.html show is never run, so a dropped .html is missing from the QUESTION rather than from any buffer, and deriving the set from the payload would report a confident 0 for exactly the v3333 case. THREE STATES and collapsing any two is the defect: a LIST names what never arrived, [] means MEASURED-AND-NONE, None means the roster was unreadable and is UNKNOWN never nothing-was-missed. Pins the helper, the BASELINE that a complete payload stays silent (a warning that fires when nothing is wrong is an off switch), and the JOIN - a correct helper whose names never reach the prompt or the row fixes nothing. Does NOT widen the payload: v3299 ruled that cost HIS call and pinned that the runner STATES ITS OWN REACH; this is the same move one level down. 4 red-proofs"
+         why="v3341 (#97) - A PAYLOAD NAMES THE FILES IT LEFT OUT, NOT JUST HOW MANY CHARS IT CUT. payload_for declared its truncation as a CHARACTER COUNT - 'truncated to 8142 of 16736 diff chars' - which is true and unusable: a count cannot say WHICH FILES are missing, so the eye answers 'the diff is correct as shown' in good faith about a payload containing none of the change under review. MEASURED by rebuilding payload_for for every version v3300-v3340 and diffing what it would send against what each commit changed (version stamps excluded): 36 versions had code changes and 22 of them - 61% - had at least one changed code file never reach the eye. In several the dropped file is the version's whole subject: v3330 lost tree_busy.py, v3315 lost second_eye_run.py, v3333 lost control_ui.html AND its own 151-line law, v3339 lost its law. The mechanism, measured on v3333: run_gates.py took 44.9% of the payload and 84% of that hunk is one why= ship-note string, so ~38% of a code review was spent on prose the comment stripper cannot touch because it is a string LITERAL, not a comment - the exact failure payload_for's own docstring warns about for control_ui.html, arriving through a .py file instead. THE ROSTER COMES FROM GIT, NEVER FROM THE FETCHED TEXT: when the python diff alone exceeds the cap the *.html show is never run, so a dropped .html is missing from the QUESTION rather than from any buffer, and deriving the set from the payload would report a confident 0 for exactly the v3333 case. THREE STATES and collapsing any two is the defect: a LIST names what never arrived, [] means MEASURED-AND-NONE, None means the roster was unreadable and is UNKNOWN never nothing-was-missed. Pins the helper, the BASELINE that a complete payload stays silent (a warning that fires when nothing is wrong is an off switch), and the JOIN - a correct helper whose names never reach the prompt or the row fixes nothing. Does NOT widen the payload: v3299 ruled that cost HIS call and pinned that the runner STATES ITS OWN REACH; this is the same move one level down."
          ),
     Gate("test_the_world_band_leaves_room_for_the_ladder_ribbon", [sys.executable,
                           os.path.join(HERE, "test_the_world_band_leaves_room_for_the_ladder_ribbon.py")], 60,
-         why="#218 - THE WORLD BAND LEAVES ROOM FOR THE LADDER RIBBON. Found by LOOKING at Grok Bot's native Linux pack: the LINUX band covered the top half of LADDER ACCOUNT on every tick while every gate was green. MEASURED headless on the same seat: the band was declared `font:var(--fw-semibold) 11px/1 inherit`; `inherit` is not a family, the shorthand is invalid at computed-value time, the band fell back to 16px and stood 35px tall against a 24px stack offset -> 11px overlap at 1280/1120/901. Longhands: 22px, overlap 0 at all five widths. A PARSE, deterministic on every machine: the band's font is valid, its line box + padding fits inside the stack offset read from the same file, and the 9 other sites with the same shorthand (deliberately not resized) may only fall. 2 red-proofs"
+         why="#218 - THE WORLD BAND LEAVES ROOM FOR THE LADDER RIBBON. Found by LOOKING at Grok Bot's native Linux pack: the LINUX band covered the top half of LADDER ACCOUNT on every tick while every gate was green. MEASURED headless on the same seat: the band was declared `font:var(--fw-semibold) 11px/1 inherit`; `inherit` is not a family, the shorthand is invalid at computed-value time, the band fell back to 16px and stood 35px tall against a 24px stack offset -> 11px overlap at 1280/1120/901. Longhands: 22px, overlap 0 at all five widths. A PARSE, deterministic on every machine: the band's font is valid, its line box + padding fits inside the stack offset read from the same file, and the 9 other sites with the same shorthand (deliberately not resized) may only fall."
          ),
     Gate("test_a_reused_name_is_not_one_picture", [sys.executable,
                           os.path.join(HERE, "test_a_reused_name_is_not_one_picture.py")], 60,
-         why="#197 - A REUSED FILE NAME IS NOT ONE PICTURE. The shadow log stored only the basename and the reducer grouped its per-FRAME figures by it; read.jpg is one scratch path the capture loop rewrites every read, so 131 of 1,596 both-answered rows were published as ONE mixed frame disagreeing with itself. The writer now stores picture (hashed by the caller right after Claude's read, BEFORE the shadow thread) and picture_after (after Grok's read); frames key on that identity, fall back to the name only for f_<epoch-ms>.jpg, and place everything else in NO frame, counted. A row whose picture changed between the two reads is not a comparison of one frame. The doctor row names the unattributed reads. Measured on his store: 165 frames 84/66/15 -> 161 frames 81/66/14 with 135 reads unattributed. 6 red-proofs"
+         why="#197 - A REUSED FILE NAME IS NOT ONE PICTURE. The shadow log stored only the basename and the reducer grouped its per-FRAME figures by it; read.jpg is one scratch path the capture loop rewrites every read, so 131 of 1,596 both-answered rows were published as ONE mixed frame disagreeing with itself. The writer now stores picture (hashed by the caller right after Claude's read, BEFORE the shadow thread) and picture_after (after Grok's read); frames key on that identity, fall back to the name only for f_<epoch-ms>.jpg, and place everything else in NO frame, counted. A row whose picture changed between the two reads is not a comparison of one frame. The doctor row names the unattributed reads. Measured on his store: 165 frames 84/66/15 -> 161 frames 81/66/14 with 135 reads unattributed."
          ),
     Gate("test_session_card_has_a_clock", [sys.executable,
                           os.path.join(HERE, "test_a_session_card_always_has_a_clock.py")], 60,
-         why="v3333 (#80) - A SESSION CARD ALWAYS HAS A CLOCK. MEASURED on his live console: 2 of 422 sessions carry NO t0 - n=30 (s_1789330829280_66296, 753 frames, reel dated 13 Sep 23:20) and n=50 (s_1788879402448_41906, 10 frames, 08 Sep 17:56). Both hold real footage and both sit in the river, but every card site computed d0 = sm.t0 ? new Date(sm.t0) : null, so those two got a null clock: the date rendered as an em-dash and the title fell back to Session N. He reported it as cards that never paint. THE FALLBACK IS EVIDENCE, NOT A GUESS: a session id is s_<epoch-ms>_<n>, and on all 12 sessions checked where BOTH exist the embedded ms and t0 agree to the minute. ⚠ mtime CANNOT serve - all 19 reels on disk carry an mtime from one bulk pass on 16 Sep, skews 1.8 to 53.1 days, so it reports two months of footage as simultaneous; the law pins that mtime never appears in the helper. FOUR hand-rolled copies of the clock became ONE definition, and the law is a REACHABILITY check rather than a presence one: it fails if any site re-inlines the old expression. The baseline case pins that t0 STILL WINS when present, because a fallback that overrides a real reading is worse than none. ⚠ Three other t0-to-Date sites are deliberately EXCLUDED and named in the helper comment: a day-set builder and a today-filter feed COUNTS, and widening a clock that feeds a count changes the count. 2 red-proofs.",
+         why="v3333 (#80) - A SESSION CARD ALWAYS HAS A CLOCK. MEASURED on his live console: 2 of 422 sessions carry NO t0 - n=30 (s_1789330829280_66296, 753 frames, reel dated 13 Sep 23:20) and n=50 (s_1788879402448_41906, 10 frames, 08 Sep 17:56). Both hold real footage and both sit in the river, but every card site computed d0 = sm.t0 ? new Date(sm.t0) : null, so those two got a null clock: the date rendered as an em-dash and the title fell back to Session N. He reported it as cards that never paint. THE FALLBACK IS EVIDENCE, NOT A GUESS: a session id is s_<epoch-ms>_<n>, and on all 12 sessions checked where BOTH exist the embedded ms and t0 agree to the minute. ⚠ mtime CANNOT serve - all 19 reels on disk carry an mtime from one bulk pass on 16 Sep, skews 1.8 to 53.1 days, so it reports two months of footage as simultaneous; the law pins that mtime never appears in the helper. FOUR hand-rolled copies of the clock became ONE definition, and the law is a REACHABILITY check rather than a presence one: it fails if any site re-inlines the old expression. The baseline case pins that t0 STILL WINS when present, because a fallback that overrides a real reading is worse than none. ⚠ Three other t0-to-Date sites are deliberately EXCLUDED and named in the helper comment: a day-set builder and a today-filter feed COUNTS, and widening a clock that feeds a count changes the count.",
          ),
     Gate("test_version_not_banked_into_graded_tree", [sys.executable,
                           os.path.join(HERE, "test_a_version_is_never_banked_into_a_graded_tree.py")], 60,
-         why="v3330 (#72) - A VERSION IS NEVER BANKED INTO A TREE THAT IS BEING GRADED. The pre-push gate grades the WORKING TREE, not the commit, so a bump landing while a gate runs makes that green verdict describe bytes which are not the ones shipping. The tree lock was believed to be the signal and it is NOT SUFFICIENT: MEASURED 2026-09-18 during a live v3328 push, the gate flock read FREE while a pre-push had been grading for 15 minutes with Playwright smoke in flight, pid 59755. The lock is taken by run_gates, and the pre-push hook runs its browser smoke OUTSIDE that claim, so exactly the window that matters most reads as unlocked. tree_busy.why() therefore asks TWO independent questions - the flock AND a running pre-push - and returns a REASON, never a bare bool. THREE STATES: free is a measurement, busy names which signal fired, and UNKNOWN is NOT FREE, because a check that cannot tell refuses rather than waving the bank through. It RELEASES the flock immediately after testing it, since holding it would make the guard the collision it exists to prevent. The baseline case pins that a free tree still banks - a refusal that never passes is an off switch, not a guard - and the join case pins that bump_version actually consults it, because a module nobody calls is the defect this whole task is about. 3 red-proofs.",
+         why="v3330 (#72) - A VERSION IS NEVER BANKED INTO A TREE THAT IS BEING GRADED. The pre-push gate grades the WORKING TREE, not the commit, so a bump landing while a gate runs makes that green verdict describe bytes which are not the ones shipping. The tree lock was believed to be the signal and it is NOT SUFFICIENT: MEASURED 2026-09-18 during a live v3328 push, the gate flock read FREE while a pre-push had been grading for 15 minutes with Playwright smoke in flight, pid 59755. The lock is taken by run_gates, and the pre-push hook runs its browser smoke OUTSIDE that claim, so exactly the window that matters most reads as unlocked. tree_busy.why() therefore asks TWO independent questions - the flock AND a running pre-push - and returns a REASON, never a bare bool. THREE STATES: free is a measurement, busy names which signal fired, and UNKNOWN is NOT FREE, because a check that cannot tell refuses rather than waving the bank through. It RELEASES the flock immediately after testing it, since holding it would make the guard the collision it exists to prevent. The baseline case pins that a free tree still banks - a refusal that never passes is an off switch, not a guard - and the join case pins that bump_version actually consults it, because a module nobody calls is the defect this whole task is about.",
          ),
     Gate("test_feeder_to_the_door", [sys.executable,
                           os.path.join(HERE, "test_the_feeder_hands_owed_names_to_the_door.py")], 60,
-         why="v3323 (#28) - THE FEEDER THE AUTO LANE NEVER HAD, AND ITS ONE CALLER, IN THE SAME VERSION. read_names_lane.split() has always judged every journal-ring PANEL name through the REAL gate (vault_retro.gate, 0.55 conf / 2 witnesses) and separated HELD from OWED, and NOTHING called it to write - its own header said 'the accumulator has no other feeder ... they were never judged'. The module was written 2026-09-18 and lived ONLY in a scratch directory that deletes with the job: grep -rn read_names_feeder tv/*.py returned ZERO. Complete, correct, and run by nobody, which is this repo's single most repeated defect applied to his own authorised ruling. RE-MEASURED BEFORE SHIPPING, because his ruling named ~3 autoOwed and that has drained: split() state=MEASURED, names 60, auto 6, manual 54, autoOwed 0, autoHeld 1 (Crescent Moon, referents UNIQUE *and* RUNEWORD so it can never name one cell), and plan() answered ok=True bankable 0 declined 0. It banks NOTHING today - five of the six are already banked and the sixth is correctly held - and that is the honest state of the lane, not a broken feeder. ⚠⚠ WHICH IS EXACTLY WHY THE COUNTERS AND THE CALLER SHIP WITH IT: a lane that is ON with lifetime work 0 is the vault_autoreel_tick scar, so _RNF_STATE is LIFETIME (runs/banked/lastTs/owed) and owed starts None - UNKNOWN, never a confident 0. It ticks under its OWN lane name tvd-read-names-feeder and NOT vault-autoread's, because the tick it rides SPENDS money on paid sweeps while this one banks names already read and costs nothing; one supervisor row must never answer for two lanes. The door re-gates every row at the write and the board's vaultAccumApply does the landing - dated, merge-max, undoable, the same tick his hand uses - so the feeder invents no judgement of its own, and a refusal from the door is a RESULT branched on, never swallowed. THE JOIN CLASS IS NEW AND IS THE HALF THAT WAS MISSING: the recovered law's 6 cases pin what the feeder DOES when called and not one asks whether anything CALLS it. 3 red-proofs, one of which removes the caller and puts the module back exactly where it was found.",
+         why="v3323 (#28) - THE FEEDER THE AUTO LANE NEVER HAD, AND ITS ONE CALLER, IN THE SAME VERSION. "
+             "read_names_lane.split() has always judged every journal-ring PANEL name through the REAL gate "
+             "(vault_retro.gate, 0.55 conf / 2 witnesses) and separated HELD from OWED, and NOTHING called it to write - "
+             "its own header said 'the accumulator has no other feeder ... they were never judged'. The module was "
+             "written 2026-09-18 and lived ONLY in a scratch directory that deletes with the job: grep -rn "
+             "read_names_feeder tv/*.py returned ZERO. Complete, correct, and run by nobody, which is this repo's single "
+             "most repeated defect applied to his own authorised ruling. RE-MEASURED BEFORE SHIPPING, because his ruling "
+             "named ~3 autoOwed and that has drained: split() state=MEASURED, names 60, auto 6, manual 54, autoOwed 0, "
+             "autoHeld 1 (Crescent Moon, referents UNIQUE *and* RUNEWORD so it can never name one cell), and plan() "
+             "answered ok=True bankable 0 declined 0. It banks NOTHING today - five of the six are already banked and the "
+             "sixth is correctly held - and that is the honest state of the lane, not a broken feeder. ⚠⚠ WHICH IS "
+             "EXACTLY WHY THE COUNTERS AND THE CALLER SHIP WITH IT: a lane that is ON with lifetime work 0 is the "
+             "vault_autoreel_tick scar, so _RNF_STATE is LIFETIME (runs/banked/lastTs/owed) and owed starts None - "
+             "UNKNOWN, never a confident 0. It ticks under its OWN lane name tvd-read-names-feeder and NOT "
+             "vault-autoread's, because the tick it rides SPENDS money on paid sweeps while this one banks names already "
+             "read and costs nothing; one supervisor row must never answer for two lanes. The door re-gates every row at "
+             "the write and the board's vaultAccumApply does the landing - dated, merge-max, undoable, the same tick his "
+             "hand uses - so the feeder invents no judgement of its own, and a refusal from the door is a RESULT branched "
+             "on, never swallowed. THE JOIN CLASS IS NEW AND IS THE HALF THAT WAS MISSING: the recovered law's cases pin "
+             "what the feeder DOES when called and not one asks whether anything CALLS it. Its red-proofs include one "
+             "that removes the caller and puts the module back exactly where it was found.",
          ),
     Gate("test_lock_state_asked", [sys.executable,
                           os.path.join(HERE, "test_a_lock_state_is_asked_not_asserted.py")], 60,
-         why="v3322 (#78) - A LOCK STATE IS ASKED, NEVER ASSERTED IN PROSE. self_arming exists so a lock OPENS ITSELF once its witness survives enough distinct attacks, 'and never by anyone editing a file' - which guarantees every comment stating a lock state eventually goes false. MEASURED 2026-09-18: three production sites read 'IT SHIPS LOCKED ... may() returns False today' while may('console.pixel_rescue') answered True on 32 of 32 DISTINCT ATTACKS refused, wilson 0.893 >= 0.839, kinds 2.50 >= 1.80. It matters more than an ordinary stale comment because of WHICH lock: that block's own docstring says a wrong verdict here 'does not lose footage, it REPLACES THE WINDOW HE IS LOOKING AT'. A reader asking whether the console may replace his window reads 'ships locked' and stops - which is exactly what happened to me, caught only by calling may() instead of believing the sentence above it. IT IS A CORROBORATOR, NOT A WORD BAN: prose may say a lock is shut while it IS shut, and the law fails only when prose and may() DISAGREE, so it reds the day the lock moves and is quiet otherwise. ⚠ SENTENCE SCOPE, AND THE FIRST RUN PROVED WHY - judged per comment BLOCK it accused correct code, because a 40-line block in control_app names console.pixel_rescue in one paragraph and says 'ui_rescue_due returns False' in another about a DIFFERENT function. A claim binds to a lock only inside the same SENTENCE. REACH STATED: comments and docstrings only, run_gates why= strings NOT scanned because they are dated SHIP NOTES and 'it shipped locked' stays true of the ship forever - a law that reds on an accurate historical record is one someone deletes. 2 red-proofs.",
+         why="v3322 (#78) - A LOCK STATE IS ASKED, NEVER ASSERTED IN PROSE. self_arming exists so a lock OPENS ITSELF once its witness survives enough distinct attacks, 'and never by anyone editing a file' - which guarantees every comment stating a lock state eventually goes false. MEASURED 2026-09-18: three production sites read 'IT SHIPS LOCKED ... may() returns False today' while may('console.pixel_rescue') answered True on 32 of 32 DISTINCT ATTACKS refused, wilson 0.893 >= 0.839, kinds 2.50 >= 1.80. It matters more than an ordinary stale comment because of WHICH lock: that block's own docstring says a wrong verdict here 'does not lose footage, it REPLACES THE WINDOW HE IS LOOKING AT'. A reader asking whether the console may replace his window reads 'ships locked' and stops - which is exactly what happened to me, caught only by calling may() instead of believing the sentence above it. IT IS A CORROBORATOR, NOT A WORD BAN: prose may say a lock is shut while it IS shut, and the law fails only when prose and may() DISAGREE, so it reds the day the lock moves and is quiet otherwise. ⚠ SENTENCE SCOPE, AND THE FIRST RUN PROVED WHY - judged per comment BLOCK it accused correct code, because a 40-line block in control_app names console.pixel_rescue in one paragraph and says 'ui_rescue_due returns False' in another about a DIFFERENT function. A claim binds to a lock only inside the same SENTENCE. REACH STATED: comments and docstrings only, run_gates why= strings NOT scanned because they are dated SHIP NOTES and 'it shipped locked' stays true of the ship forever - a law that reds on an accurate historical record is one someone deletes.",
          ),
     Gate("test_waiting_on_you", [sys.executable,
                           os.path.join(HERE, "test_waiting_on_you_means_waiting_on_him.py")], 60,
-         why="v3321 (#82) - WAITING ON YOU CARRIES ONLY WHAT IS ACTUALLY HIS. His #35 ruling defines that column as action needed FROM HIM RIGHT NOW. MEASURED on his live console 2026-09-18 it carried EIGHT rows and owner_of() answered you for all eight, while exactly ONE was his - he read it and asked 'this is the missing on me?'. Six were mine by their own sentences: engines corroborate ('the one that is wrong is not knowable from the pair alone' - he cannot arbitrate a pair neither side settles), console UI faults ('the console healed itself ... It recovered' - a report, not an errand), ledger provenance (carries its own named fix), footage has a reel (orphan_fold.py shows the plan), names banked ('no paid read is owed here' so there is nothing to authorise), stage shows the dom ('a stale composite, which every rect/content guard reports as success' - and he must not be the detector). A column that cries for him on seven rows he cannot act on is the same defect as a gate that is always red: he stops reading it and the one row that IS his goes with it. ⚠ THE BASELINE IS THE HALF THAT MATTERS MOST: the cheap way to quiet this panel is to call everything mine, which would empty the one column he relies on while looking like a fix - so 'shadow gate' is pinned as still reaching him, because its own words are 'that list is the argument for or against switching, and it is yours to read'. CLASSIFYING IS NOT MUTING: MINE and BY_DESIGN rows still render at their real state and colour, only the name on the row changes, and every key must match a REGISTERED check or the entry is dead config that silently classifies nothing while looking like it handles the row. river joints is deliberately NOT moved: it is by-design TODAY and genuinely his the day something IS safe to delete, which needs the check to answer conditionally - named as open, not silenced. 2 red-proofs.",
+         why="v3321 (#82) - WAITING ON YOU CARRIES ONLY WHAT IS ACTUALLY HIS. His #35 ruling defines that column as action needed FROM HIM RIGHT NOW. MEASURED on his live console 2026-09-18 it carried EIGHT rows and owner_of() answered you for all eight, while exactly ONE was his - he read it and asked 'this is the missing on me?'. Six were mine by their own sentences: engines corroborate ('the one that is wrong is not knowable from the pair alone' - he cannot arbitrate a pair neither side settles), console UI faults ('the console healed itself ... It recovered' - a report, not an errand), ledger provenance (carries its own named fix), footage has a reel (orphan_fold.py shows the plan), names banked ('no paid read is owed here' so there is nothing to authorise), stage shows the dom ('a stale composite, which every rect/content guard reports as success' - and he must not be the detector). A column that cries for him on seven rows he cannot act on is the same defect as a gate that is always red: he stops reading it and the one row that IS his goes with it. ⚠ THE BASELINE IS THE HALF THAT MATTERS MOST: the cheap way to quiet this panel is to call everything mine, which would empty the one column he relies on while looking like a fix - so 'shadow gate' is pinned as still reaching him, because its own words are 'that list is the argument for or against switching, and it is yours to read'. CLASSIFYING IS NOT MUTING: MINE and BY_DESIGN rows still render at their real state and colour, only the name on the row changes, and every key must match a REGISTERED check or the entry is dead config that silently classifies nothing while looking like it handles the row. river joints is deliberately NOT moved: it is by-design TODAY and genuinely his the day something IS safe to delete, which needs the check to answer conditionally - named as open, not silenced.",
          ),
     Gate("test_remeasure_population", [sys.executable,
                           os.path.join(HERE, "test_a_remeasurement_covers_the_same_population.py")], 60,
-         why="v3320 (#75) - A RE-MEASUREMENT COVERS THE POPULATION OF THE FIRST MEASUREMENT. test_the_cheap_subset_is_actually_CHEAP prices the every-tick doctor roster and, when the total goes over budget, re-measures and keeps min(first, second) - correct reasoning, because a wall-clock figure moves 2.7x between runs of identical code and for a floor-bounded quantity the minimum is the honest estimator. The two passes measured DIFFERENT POPULATIONS: the first skips _skip = SLOW | PERIODIC (63 checks), the re-measure skipped SLOW only (65). MEASURED on his Mac 2026-09-18, one tick, unchanged code: first-pass population 4,134 ms, retry population 8,859 ms, the surcharge being engines corroborate 3,057 + sweep would find 1,667 = 4,725 ms that the every-tick path never pays. So min() ran over two different things and could only ever absolve a burst LARGER than 8,859 ms - while the block's own comment calls the retry 'what actually decides'. It decided nothing, and on 2026-09-18 it REFUSED A LEGITIMATE PUSH at 10,146 ms for a subset costing 4,134. The same defect sat in the 'measured almost nothing' denominator, counting 65 where 63 were timed. THIRD INSTANCE OF ONE SHAPE: v3313 a seed compared only to its own population, v3317 the heart dividing by the population it counted, now this - each time the numerator was right, the denominator was a different set, and the arithmetic ran anyway. IT ASKS THE COMPILER, NOT THE TEXT: every earlier cut of a law like this was a grep, and the docstring here names cd.SLOW four times, so a grep would read the explanation of the defect as the defect. ast cannot see a comment. AND IT PINS WHICH SET - a law asserting only that the two loops agree goes green when BOTH are narrowed back to cd.SLOW, which is the bug applied consistently, so _skip must still be built from SLOW and PERIODIC. The behavioural half refuses to pass if PERIODIC ever empties, because then the populations coincide and the law measures nothing - UNMEASURED, not clean. The four other cd.SLOW sites were swept and are NOT siblings: they count the EAGLE's rows, where include_slow=False genuinely means all-but-SLOW. 3 red-proofs.",
+         why="v3320 (#75) - A RE-MEASUREMENT COVERS THE POPULATION OF THE FIRST MEASUREMENT. test_the_cheap_subset_is_actually_CHEAP prices the every-tick doctor roster and, when the total goes over budget, re-measures and keeps min(first, second) - correct reasoning, because a wall-clock figure moves 2.7x between runs of identical code and for a floor-bounded quantity the minimum is the honest estimator. The two passes measured DIFFERENT POPULATIONS: the first skips _skip = SLOW | PERIODIC (63 checks), the re-measure skipped SLOW only (65). MEASURED on his Mac 2026-09-18, one tick, unchanged code: first-pass population 4,134 ms, retry population 8,859 ms, the surcharge being engines corroborate 3,057 + sweep would find 1,667 = 4,725 ms that the every-tick path never pays. So min() ran over two different things and could only ever absolve a burst LARGER than 8,859 ms - while the block's own comment calls the retry 'what actually decides'. It decided nothing, and on 2026-09-18 it REFUSED A LEGITIMATE PUSH at 10,146 ms for a subset costing 4,134. The same defect sat in the 'measured almost nothing' denominator, counting 65 where 63 were timed. THIRD INSTANCE OF ONE SHAPE: v3313 a seed compared only to its own population, v3317 the heart dividing by the population it counted, now this - each time the numerator was right, the denominator was a different set, and the arithmetic ran anyway. IT ASKS THE COMPILER, NOT THE TEXT: every earlier cut of a law like this was a grep, and the docstring here names cd.SLOW four times, so a grep would read the explanation of the defect as the defect. ast cannot see a comment. AND IT PINS WHICH SET - a law asserting only that the two loops agree goes green when BOTH are narrowed back to cd.SLOW, which is the bug applied consistently, so _skip must still be built from SLOW and PERIODIC. The behavioural half refuses to pass if PERIODIC ever empties, because then the populations coincide and the law measures nothing - UNMEASURED, not clean. The four other cd.SLOW sites were swept and are NOT siblings: they count the EAGLE's rows, where include_slow=False genuinely means all-but-SLOW.",
          ),
     Gate("test_seed_population", [sys.executable,
                           os.path.join(HERE, "test_a_seed_is_compared_only_to_its_own_population.py")], 60,
-         why="v3313 (#26) - A SEED IS COMPARED ONLY TO A FIGURE THAT COUNTS THE SAME POPULATION. 'uniques seed' carried a permanent '+N behind the live figure' that no action could close, because the subtraction was chronFound - len(_GRAIL_SEED) and those count different things: the seed is a list of NAMES the boot floor would write, while chronFound is funiScan().found, a walk of the ROSTER asking _ownedHas of each row, which resolves a store name to its canonical form before matching. So the seed legitimately carries alias spellings with no row of their own (the six Latent-sunder forms are dropped by _uniItems; 'Harlequin Crest (Shako)' resolves onto the row spelled 'Harlequin Crest') and his store legitimately holds rows the seed never listed. A PERMANENTLY RED ROW IS NOT MERELY IGNORED, IT IS OBEYED: it read +63 behind, so 67 names were written into _GRAIL_SEED, and it then read -3 behind. MEASURED afterwards on his live board: seed 312 names, chronFound 309, and 0 of those 312 names absent from his store - there was never any missing work. THE FACT WAS ALREADY RECORDED AND TWO SITES NEVER ASKED: every ledger declares usesStoreLength and canonical_figure already refuses this exact comparison on that field ('NOT A COMPARISON, AND SAYING SO MATTERS'), while _stale() and the FROZEN row builder both subtracted anyway - one fact, three readers, two of them wrong. seed_drift() is now the single definition and both call it. THE REAL FINDING SURVIVES AND IS PINNED AS A BASELINE: sets and runewords ARE store lengths, so Dean's runewords still read drift -5 against a seed of 99, five seeded rows genuinely missing from his store. Also: the doctor stops counting an exempt figure among the current ones in all four of its return branches, and NAMES the exemption out loud so it can be audited instead of growing silently. 3 red-proofs.",
+         why="v3313 (#26) - A SEED IS COMPARED ONLY TO A FIGURE THAT COUNTS THE SAME POPULATION. 'uniques seed' carried a permanent '+N behind the live figure' that no action could close, because the subtraction was chronFound - len(_GRAIL_SEED) and those count different things: the seed is a list of NAMES the boot floor would write, while chronFound is funiScan().found, a walk of the ROSTER asking _ownedHas of each row, which resolves a store name to its canonical form before matching. So the seed legitimately carries alias spellings with no row of their own (the six Latent-sunder forms are dropped by _uniItems; 'Harlequin Crest (Shako)' resolves onto the row spelled 'Harlequin Crest') and his store legitimately holds rows the seed never listed. A PERMANENTLY RED ROW IS NOT MERELY IGNORED, IT IS OBEYED: it read +63 behind, so 67 names were written into _GRAIL_SEED, and it then read -3 behind. MEASURED afterwards on his live board: seed 312 names, chronFound 309, and 0 of those 312 names absent from his store - there was never any missing work. THE FACT WAS ALREADY RECORDED AND TWO SITES NEVER ASKED: every ledger declares usesStoreLength and canonical_figure already refuses this exact comparison on that field ('NOT A COMPARISON, AND SAYING SO MATTERS'), while _stale() and the FROZEN row builder both subtracted anyway - one fact, three readers, two of them wrong. seed_drift() is now the single definition and both call it. THE REAL FINDING SURVIVES AND IS PINNED AS A BASELINE: sets and runewords ARE store lengths, so Dean's runewords still read drift -5 against a seed of 99, five seeded rows genuinely missing from his store. Also: the doctor stops counting an exempt figure among the current ones in all four of its return branches, and NAMES the exemption out loud so it can be audited instead of growing silently.",
          ),
     Gate("test_shadow_fed_like_live", [sys.executable,
                                       os.path.join(HERE, "test_the_shadow_is_fed_what_live_is_fed.py")], 60,
-         why="v3311 (#31) - TWO CORRECTIONS to the shadow gate, neither arming anything. SAFETY CHECKED FIRST: confluence() has exactly ONE caller (wilson_shadow) and the tier's own note says the weighting only reports, so nothing live grounds on these numbers. (1) WITNESS_TIER was written before three tags existed - hand v2462, cross-surface v2380, same-slot v2393 were all added to witnesses() afterwards and confluence() scores an unknown tag 0.0, so the LIVE gate counted his manual tick as a full witness while the SHADOW paid it NOTHING, against his own 2026-09-02 ruling 'manual anything is enough witness obivously'. A stale LAW, not a stale reading. Weights derived not picked: hand 1.00 because CONFLUENCE_FLOOR is 1.00 so 'enough witness on its own' has a number, and it keeps its OWN TAG because this file insists hand must never masquerade as cross-reel or printed - a reader asking WHY a name grounded must see 'he says so', which is about identity not magnitude; cross-surface 0.70 priced with cross-lane because his own description of the case is 'thats two witnesses'; same-slot 0.30 priced with cross-frame because slot_identity calls it A WITNESS NOT A NAME and it must never ground alone. (2) THE SHADOW WAS FED LESS THAN LIVE INSIDE ONE CALL: _gate_verdict_live got surface_of and wilson_shadow did not and had no such parameter, so a name grounded via cross-surface was invisible to the shadow and every resulting difference was filed as a POLICY disagreement when it was a difference in what each could SEE. MEASURED with the resolver as the only variable: without it tags ['cross-frame'] confluence 0.30 wouldPass False, with it ['cross-frame','cross-surface'] confluence 1.00 wouldPass True - the same evidence flips the verdict. A comparison whose sides are fed differently measures the feeding. Also pins the OTHER direction, that fixing a zero must not turn a witness into a name, and that the caller actually hands the resolver over rather than the parameter being decorative. ⚠ HIS RULING ON THE THIRD PIECE IS RECORDED IN THE LAW: the Wilson lock must NOT be wired to the prune - 'leave it off and surgically remove it we need pruning'. 4 red-proofs.",
+         why="v3311 (#31) - TWO CORRECTIONS to the shadow gate, neither arming anything. SAFETY CHECKED FIRST: confluence() has exactly ONE caller (wilson_shadow) and the tier's own note says the weighting only reports, so nothing live grounds on these numbers. (1) WITNESS_TIER was written before three tags existed - hand v2462, cross-surface v2380, same-slot v2393 were all added to witnesses() afterwards and confluence() scores an unknown tag 0.0, so the LIVE gate counted his manual tick as a full witness while the SHADOW paid it NOTHING, against his own 2026-09-02 ruling 'manual anything is enough witness obivously'. A stale LAW, not a stale reading. Weights derived not picked: hand 1.00 because CONFLUENCE_FLOOR is 1.00 so 'enough witness on its own' has a number, and it keeps its OWN TAG because this file insists hand must never masquerade as cross-reel or printed - a reader asking WHY a name grounded must see 'he says so', which is about identity not magnitude; cross-surface 0.70 priced with cross-lane because his own description of the case is 'thats two witnesses'; same-slot 0.30 priced with cross-frame because slot_identity calls it A WITNESS NOT A NAME and it must never ground alone. (2) THE SHADOW WAS FED LESS THAN LIVE INSIDE ONE CALL: _gate_verdict_live got surface_of and wilson_shadow did not and had no such parameter, so a name grounded via cross-surface was invisible to the shadow and every resulting difference was filed as a POLICY disagreement when it was a difference in what each could SEE. MEASURED with the resolver as the only variable: without it tags ['cross-frame'] confluence 0.30 wouldPass False, with it ['cross-frame','cross-surface'] confluence 1.00 wouldPass True - the same evidence flips the verdict. A comparison whose sides are fed differently measures the feeding. Also pins the OTHER direction, that fixing a zero must not turn a witness into a name, and that the caller actually hands the resolver over rather than the parameter being decorative. ⚠ HIS RULING ON THE THIRD PIECE IS RECORDED IN THE LAW: the Wilson lock must NOT be wired to the prune - 'leave it off and surgically remove it we need pruning'.",
          ),
     Gate("test_two_looks_two_rows", [sys.executable,
                                     os.path.join(HERE, "test_two_looks_are_two_rows.py")], 60,
-         why="v3310 (#56) - his ruling is ask the second eye TWICE and keep both, and wire the disagreement to the heart. THIS LAW EXISTS BECAUSE I CLAIMED TO BE OBEYING IT AND WAS NOT: through the whole v3301-v3309 arc I reported 'asked twice, both looks agree' while pasting the second look INTO the first answer's text, so record_answer wrote ONE row carrying both. The ledger has no pairs from that arc, nothing can compute agreement from it, and no disagreement could ever reach the heart. MEASURED on 817 rows: 767 versions have a look, 21 have two or more REACHED looks carrying a verdict (2.7%), and v3303/v3307/v3308 - the ones I reported as agreeing pairs - read SINGLE. It also refuted a second claim of mine: I repeatedly cited v3297 as opposite verdicts 18s apart, and the store shows THREE looks at v3297 all findings, AGREE. I stopped quoting it; a claim the store cannot show is UNKNOWN, not evidence. FOUR PROPERTIES: three states never two (AGREE/DISAGREE/SINGLE plus NONE, because collapsing SINGLE into AGREE lets one look pass as a corroborated pair, which is exactly what I did in prose); an EMPTY SEAT is not an opinion (reached=False is excluded from both sides or two failed calls read as unanimous); the census CARRIES ITS OWN REACH and states its rate is an UPPER BOUND, since a second ROW is not always a second OPINION - re-files and corrections against one version read as DISAGREE - so an unqualified percentage from a 2.7% sample containing artifacts would be the confident number this repo keeps learning to distrust; and the check is named in MINE so a look I failed to take never inflates the count HE acts on, per his #35 rule. Every case drives a THROWAWAY ledger, never the real store. 3 red-proofs.",
+         why="v3310 (#56) - his ruling is ask the second eye TWICE and keep both, and wire the disagreement to the heart. THIS LAW EXISTS BECAUSE I CLAIMED TO BE OBEYING IT AND WAS NOT: through the whole v3301-v3309 arc I reported 'asked twice, both looks agree' while pasting the second look INTO the first answer's text, so record_answer wrote ONE row carrying both. The ledger has no pairs from that arc, nothing can compute agreement from it, and no disagreement could ever reach the heart. MEASURED on 817 rows: 767 versions have a look, 21 have two or more REACHED looks carrying a verdict (2.7%), and v3303/v3307/v3308 - the ones I reported as agreeing pairs - read SINGLE. It also refuted a second claim of mine: I repeatedly cited v3297 as opposite verdicts 18s apart, and the store shows THREE looks at v3297 all findings, AGREE. I stopped quoting it; a claim the store cannot show is UNKNOWN, not evidence. FOUR PROPERTIES: three states never two (AGREE/DISAGREE/SINGLE plus NONE, because collapsing SINGLE into AGREE lets one look pass as a corroborated pair, which is exactly what I did in prose); an EMPTY SEAT is not an opinion (reached=False is excluded from both sides or two failed calls read as unanimous); the census CARRIES ITS OWN REACH and states its rate is an UPPER BOUND, since a second ROW is not always a second OPINION - re-files and corrections against one version read as DISAGREE - so an unqualified percentage from a 2.7% sample containing artifacts would be the confident number this repo keeps learning to distrust; and the check is named in MINE so a look I failed to take never inflates the count HE acts on, per his #35 rule. Every case drives a THROWAWAY ledger, never the real store.",
          ),
     Gate("test_screen_parity", [sys.executable,
                                os.path.join(HERE, "test_the_screen_bills_the_same_rows_the_engine_does.py")], 60,
-         why="v3309 - BOTH HALVES WERE VISIBLE IN HIS OWN SCREENSHOT. HALF 1: the PANEL was the FIFTH copy of the partition. His console at v3307 read '9 thing(s) are waiting on YOU ... the counter and this panel disagree (you 9 vs 11 shown) - a row was counted that this panel did not draw', and the arithmetic names it: 11 minus 9 is 2, the two BY_DESIGN rows. v3307 taught the ENGINE that a row ruled NOT-A-DEFECT stops billing him, v3308 taught the ROUTE, and the panel still bucketed by its own rule knowing only mineWhat. The v3284 disagreement warning is the SYSTEM WORKING - it caught this within minutes of the ship, and silencing it instead of closing the gap would have been the real failure. The rows MOVE to their own heading rather than vanishing, because a row that leaves his count with nothing showing where it went is silencing by another name, and the new bucket gets a gap check like the other three since a bucket nobody counts is the next place a row goes missing. HALF 2 (#35): NEVER was printed about a row asked TWO MINUTES EARLIER, directly above a sentence saying so - the panel mapped unmeasured to NEVER unconditionally because the payload gave it no way to tell genuinely-never from not-asked-this-tick. The engine now PERSISTS everAsked and lastState rather than leaving the screen to recover a fact the writer already had (heart-first rule 6), and the fallback stays NEVER when the field is absent because an older payload that cannot tell us must not be rounded down to the reassuring word. Order is pinned too: the by-design test must run BEFORE the youRows fallback or the rows reach his count regardless. 4 red-proofs.",
+         why="v3309 - BOTH HALVES WERE VISIBLE IN HIS OWN SCREENSHOT. HALF 1: the PANEL was the FIFTH copy of the partition. His console at v3307 read '9 thing(s) are waiting on YOU ... the counter and this panel disagree (you 9 vs 11 shown) - a row was counted that this panel did not draw', and the arithmetic names it: 11 minus 9 is 2, the two BY_DESIGN rows. v3307 taught the ENGINE that a row ruled NOT-A-DEFECT stops billing him, v3308 taught the ROUTE, and the panel still bucketed by its own rule knowing only mineWhat. The v3284 disagreement warning is the SYSTEM WORKING - it caught this within minutes of the ship, and silencing it instead of closing the gap would have been the real failure. The rows MOVE to their own heading rather than vanishing, because a row that leaves his count with nothing showing where it went is silencing by another name, and the new bucket gets a gap check like the other three since a bucket nobody counts is the next place a row goes missing. HALF 2 (#35): NEVER was printed about a row asked TWO MINUTES EARLIER, directly above a sentence saying so - the panel mapped unmeasured to NEVER unconditionally because the payload gave it no way to tell genuinely-never from not-asked-this-tick. The engine now PERSISTS everAsked and lastState rather than leaving the screen to recover a fact the writer already had (heart-first rule 6), and the fallback stays NEVER when the field is absent because an older payload that cannot tell us must not be rounded down to the reassuring word. Order is pinned too: the by-design test must run BEFORE the youRows fallback or the rows reach his count regardless.",
          ),
     Gate("test_one_partition", [sys.executable,
                                os.path.join(HERE, "test_one_partition_of_what_needs_him.py")], 60,
-         why="v3308 - I DRIFTED THIS RULE MYSELF WITHIN AN HOUR OF SHIPPING IT. v3307 taught the watchdog's _EAGLE partition about BY_DESIGN so rows already ruled NOT-DEFECTS (#29 end routes reachable, #30 the river) stop billing him, per his #35 standing rule that WAITING ON YOU means action is needed FROM HIM RIGHT NOW. The /api/eagle ROUTE - the one his console actually reads - kept its OWN copy and knew only about MINE. MEASURED on his live console minutes after the ship: the engine partitioned to 7 and the route still answered needsYou=9 with byDesign absent entirely. Two surfaces, one question, a number he acts on. And the route's comment CLAIMED it was fine - 'the SAME rule as the _EAGLE partition, and the only one any surface may quote from here on' - true when written, false after my change, because nobody edits the comment when they change the other copy. Third instance of this shape in one arc: v3295 lane_read_tags (three copies of a lane's work list), v3301/REG-1115 (/api/relaunch's third busy list, drifted into deadlocking the button after a crash), now this. eagle_partition() is the one definition and both callers use it. TWO HALVES: structural - no module partitions doctor rows by hand, with the OWNER exempt because a law that bans its own subject everywhere flags the fix as the defect (the first cut reported 3 hits, all three inside the definition); and behavioural - a BY_DESIGN row is kept out of bad AND still shown, because vanishing is silencing by another name. Plus the direction of failure: an UNREADABLE roster BILLS rather than silences, since a roster nobody can load must never quietly shrink the number he acts on. 3 red-proofs.",
+         why="v3308 - I DRIFTED THIS RULE MYSELF WITHIN AN HOUR OF SHIPPING IT. v3307 taught the watchdog's _EAGLE partition about BY_DESIGN so rows already ruled NOT-DEFECTS (#29 end routes reachable, #30 the river) stop billing him, per his #35 standing rule that WAITING ON YOU means action is needed FROM HIM RIGHT NOW. The /api/eagle ROUTE - the one his console actually reads - kept its OWN copy and knew only about MINE. MEASURED on his live console minutes after the ship: the engine partitioned to 7 and the route still answered needsYou=9 with byDesign absent entirely. Two surfaces, one question, a number he acts on. And the route's comment CLAIMED it was fine - 'the SAME rule as the _EAGLE partition, and the only one any surface may quote from here on' - true when written, false after my change, because nobody edits the comment when they change the other copy. Third instance of this shape in one arc: v3295 lane_read_tags (three copies of a lane's work list), v3301/REG-1115 (/api/relaunch's third busy list, drifted into deadlocking the button after a crash), now this. eagle_partition() is the one definition and both callers use it. TWO HALVES: structural - no module partitions doctor rows by hand, with the OWNER exempt because a law that bans its own subject everywhere flags the fix as the defect (the first cut reported 3 hits, all three inside the definition); and behavioural - a BY_DESIGN row is kept out of bad AND still shown, because vanishing is silencing by another name. Plus the direction of failure: an UNREADABLE roster BILLS rather than silences, since a roster nobody can load must never quietly shrink the number he acts on.",
          ),
     Gate("test_failure_attribution", [sys.executable,
                                      os.path.join(HERE, "test_a_failure_is_charged_to_the_thread_that_caused_it.py")], 60,
-         why="v3304 (#55) - _check_the_sweep_would_find_something measures its own density pass by snapshotting the stash gate's failure count before and after, and v3297 (mine) took that snapshot from gate_failures() - a PROCESS-WIDE counter - while the console gates frames on several threads at once. REPRODUCED, not argued: the doctor's window was opened, a separate thread broke exactly one gate inside it, and the delta came back 1 while the density pass had broken nothing. The check then answers UNKNOWN 'the stash gate FAILED 1 time(s) during the density pass', which is false - AND THE HARM IS NOT THE WRONG SENTENCE: returning UNKNOWN means the genuine MISSING ('N reels on disk and NONE shows a stash panel; a vault sweep would read nothing') is NEVER RAISED. A check suppresses the exact finding it exists to produce, and does so more often the busier the console is. The lesson was already carved THIRTY LINES AWAY in the same file - v2191 on the BLIND channel, 'THE BLIND STATE IS NOW A PER-CALL RECEIPT, NOT A PROCESS COUNTER', which Konyo called critical and asked for first - and the FAILURE channel was left as a process counter. Fix: _gate_broke also bumps a THREAD-LOCAL tally on _GATE_LAST (already a threading.local, right beside it) and gate_failures_here() is the attributable counterpart; gate_failures() keeps its process-wide meaning because a total is a legitimate thing to report. The defect was never the counter, it was using a total to ATTRIBUTE. Two of three cases are BEHAVIOURAL (drive a real thread). 2 red-proofs. NOTE its source check uses _executable_only(src, '.py') not '.js' - the .js branch strips // and /* */ and NOT Python #, so the first cut counted its own comment and read 3 instead of 2.",
+         why="v3304 (#55) - _check_the_sweep_would_find_something measures its own density pass by snapshotting the stash gate's failure count before and after, and v3297 (mine) took that snapshot from gate_failures() - a PROCESS-WIDE counter - while the console gates frames on several threads at once. REPRODUCED, not argued: the doctor's window was opened, a separate thread broke exactly one gate inside it, and the delta came back 1 while the density pass had broken nothing. The check then answers UNKNOWN 'the stash gate FAILED 1 time(s) during the density pass', which is false - AND THE HARM IS NOT THE WRONG SENTENCE: returning UNKNOWN means the genuine MISSING ('N reels on disk and NONE shows a stash panel; a vault sweep would read nothing') is NEVER RAISED. A check suppresses the exact finding it exists to produce, and does so more often the busier the console is. The lesson was already carved THIRTY LINES AWAY in the same file - v2191 on the BLIND channel, 'THE BLIND STATE IS NOW A PER-CALL RECEIPT, NOT A PROCESS COUNTER', which Konyo called critical and asked for first - and the FAILURE channel was left as a process counter. Fix: _gate_broke also bumps a THREAD-LOCAL tally on _GATE_LAST (already a threading.local, right beside it) and gate_failures_here() is the attributable counterpart; gate_failures() keeps its process-wide meaning because a total is a legitimate thing to report. The defect was never the counter, it was using a total to ATTRIBUTE. Two of three cases are BEHAVIOURAL (drive a real thread). NOTE its source check uses _executable_only(src, '.py') not '.js' - the .js branch strips // and /* */ and NOT Python #, so the first cut counted its own comment and read 3 instead of 2.",
          ),
     Gate("test_overtaken_open", [sys.executable,
                                  os.path.join(HERE, "test_an_overtaken_open_leaves_the_stage_alone.py")], 60,
-         why="v3305 (#59) - his report, five times: the theatre fails to open, and it is ALWAYS THE REOPEN AFTER A CLOSE, never the first open. That pattern is the whole diagnosis. thOpen() sets TH.open=true BEFORE awaiting /api/sessions (v859 'pixels BEFORE network', bounded to 8s by v2228), so for those 8 seconds the toggle 'if (TH.open) { thClose(); return; }' means A SECOND CLICK CLOSES the half-opened stage - correct and desirable. What is not correct is that the still-pending thOpen() then resolves and UNCONDITIONALLY re-runs TH.open=true, theatre.hidden=false, classList.add('theatre-open') - re-showing a stage whose state thClose() already tore down. Open, closed, then re-opened empty. AND THE MIRROR, found reading thClose: the CATCH branch is equally unguarded, so an open that times out at 8s tears down a stage that belongs to a LATER open. MEASURED: grep for thOpening/TH.opening/_thBusy/inFlight/TH.loading returns ZERO matches - no re-entry guard existed anywhere in the file. The fix is a GENERATION counter, deliberately not a busy flag: a bare 'if (TH.opening) return' makes the second click do nothing at all, silently dropping the close the user asked for, which is a different wrong behaviour. thOpen claims a generation on entry, both post-wait exits stand down if it moved, and thClose bumps it BEFORE tearing down so a resolve racing between the two cannot win. 3 red-proofs.",
+         why="v3305 (#59) - his report, five times: the theatre fails to open, and it is ALWAYS THE REOPEN AFTER A CLOSE, never the first open. That pattern is the whole diagnosis. thOpen() sets TH.open=true BEFORE awaiting /api/sessions (v859 'pixels BEFORE network', bounded to 8s by v2228), so for those 8 seconds the toggle 'if (TH.open) { thClose(); return; }' means A SECOND CLICK CLOSES the half-opened stage - correct and desirable. What is not correct is that the still-pending thOpen() then resolves and UNCONDITIONALLY re-runs TH.open=true, theatre.hidden=false, classList.add('theatre-open') - re-showing a stage whose state thClose() already tore down. Open, closed, then re-opened empty. AND THE MIRROR, found reading thClose: the CATCH branch is equally unguarded, so an open that times out at 8s tears down a stage that belongs to a LATER open. MEASURED: grep for thOpening/TH.opening/_thBusy/inFlight/TH.loading returns ZERO matches - no re-entry guard existed anywhere in the file. The fix is a GENERATION counter, deliberately not a busy flag: a bare 'if (TH.opening) return' makes the second click do nothing at all, silently dropping the close the user asked for, which is a different wrong behaviour. thOpen claims a generation on entry, both post-wait exits stand down if it moved, and thClose bumps it BEFORE tearing down so a resolve racing between the two cannot win.",
          ),
     Gate("test_new_film_buys_a_read", [sys.executable,
                                       os.path.join(HERE, "test_new_film_buys_a_read_not_a_smaller_reel.py")], 60,
-         why="v3303 (#57) - _chron_reel_owes_a_read states its contract in its own docstring: re-owe the moment the reel GROWS, because new frames are new evidence and THAT IS THE ONLY THING that makes a re-read worth paying for. The code disagreed in two places at once: `if len(_ff) != _at: return True` where != includes SHRINKAGE, and `return _old < _at` which fires on a look-era frame being GONE, i.e. deletion. So a PURE PRUNE - frames deleted, nothing captured - bought a paid read of a reel now holding LESS film than when it was last read, which can only find less than the answer already recorded. That is his money re-confirming a smaller version of what the ledger already says. v3298 did not introduce this and did not fix it; it made the second branch explicitly deletion-triggered while correcting a different defect. THE FIX IS ONE RULE that subsumes both branches without weakening either: new film = (frames now) - (look-era frames still present), re-owe iff > 0. Truth table measured against every case the gates already pin - nothing-moved 0 new no (REG-1111 keeps its verdict), pure growth yes, PURE DELETION 0 new NO (the only row that changes), prune-3-capture-3 under a stable count 3 new yes (TestV2202 keeps its verdict), prune-3-capture-1 1 new yes. v3298's 5ms pad and both measured bounds are untouched. BEHAVIOURAL and builds its own temp reel, so it runs on a runner rather than needing his tv/frames/hist - the exact defect v3300 had to repair. 2 red-proofs"),
+         why="v3303 (#57) - _chron_reel_owes_a_read states its contract in its own docstring: re-owe the moment the reel GROWS, because new frames are new evidence and THAT IS THE ONLY THING that makes a re-read worth paying for. The code disagreed in two places at once: `if len(_ff) != _at: return True` where != includes SHRINKAGE, and `return _old < _at` which fires on a look-era frame being GONE, i.e. deletion. So a PURE PRUNE - frames deleted, nothing captured - bought a paid read of a reel now holding LESS film than when it was last read, which can only find less than the answer already recorded. That is his money re-confirming a smaller version of what the ledger already says. v3298 did not introduce this and did not fix it; it made the second branch explicitly deletion-triggered while correcting a different defect. THE FIX IS ONE RULE that subsumes both branches without weakening either: new film = (frames now) - (look-era frames still present), re-owe iff > 0. Truth table measured against every case the gates already pin - nothing-moved 0 new no (REG-1111 keeps its verdict), pure growth yes, PURE DELETION 0 new NO (the only row that changes), prune-3-capture-3 under a stable count 3 new yes (TestV2202 keeps its verdict), prune-3-capture-1 1 new yes. v3298's 5ms pad and both measured bounds are untouched. BEHAVIOURAL and builds its own temp reel, so it runs on a runner rather than needing his tv/frames/hist - the exact defect v3300 had to repair."),
     Gate("test_relaunch_interlock", [sys.executable,
                                      os.path.join(HERE, "test_a_held_relaunch_gets_a_green_light.py")], 60,
-         why="v3301 - Konyo's #38 ruling: 'make sure to safegaurd the sweep so it cant relaunch until it does happen then a green light switch turns it on to relaunch when needed'. The HOLD already existed on both doors; THE GREEN LIGHT DID NOT. _exec_relaunch_soon read 'ABANDON, do not queue', so a relaunch refused mid-sweep was DROPPED and nothing ever re-fired it - the console kept its old build until some independent decision came round, at least one escalation period later and possibly never. MEASURED 2026-09-18 from the GrokBot seat's own GB-L-LOOKED rows: 8 mandatory relaunches in a day, gaps 84/42/30/21/28/14/40 min against a 60-110 min chronicle sweep, so the conflict is the NORMAL path not a corner. Four properties, each failing differently: it FIRES by itself when the work ends; it is BOUNDED FROM THE FIRST ASK and a re-ask must NOT refresh the deadline (otherwise pressing the button on any timer shorter than the TTL makes a bounded hold unbounded - the no-expiry scar wearing a new coat); UNKNOWN NEVER FIRES (ok=None means nobody could read the world, and firing then relaunches into a sweep it merely failed to see); and ONE DEFINITION of in-flight. That last one found a live defect: /api/relaunch kept a THIRD copy of the busy list which had drifted into appending 'ON AIR' from _agent_mode ALONE with no _agent_alive() test, while nothing_in_flight fixed exactly that in v2161 ('a STALE MODE DEADLOCKS IT FOREVER') on the automatic door only - so after an agent CRASH the relaunch BUTTON refused forever, and it is the button you press to recover from a crash. Seven of the eleven cases are BEHAVIOURAL, calling the pure module rather than reading source, so the law runs on a GitHub runner instead of needing his Mac. Carries a corroborator (the REGISTER against THE WORLD) that catches a green light which has stopped being ticked. 5 red-proofs"),
+         why="v3301 - Konyo's #38 ruling: 'make sure to safegaurd the sweep so it cant relaunch until it does happen then a green light switch turns it on to relaunch when needed'. The HOLD already existed on both doors; THE GREEN LIGHT DID NOT. _exec_relaunch_soon read 'ABANDON, do not queue', so a relaunch refused mid-sweep was DROPPED and nothing ever re-fired it - the console kept its old build until some independent decision came round, at least one escalation period later and possibly never. MEASURED 2026-09-18 from the GrokBot seat's own GB-L-LOOKED rows: 8 mandatory relaunches in a day, gaps 84/42/30/21/28/14/40 min against a 60-110 min chronicle sweep, so the conflict is the NORMAL path not a corner. Four properties, each failing differently: it FIRES by itself when the work ends; it is BOUNDED FROM THE FIRST ASK and a re-ask must NOT refresh the deadline (otherwise pressing the button on any timer shorter than the TTL makes a bounded hold unbounded - the no-expiry scar wearing a new coat); UNKNOWN NEVER FIRES (ok=None means nobody could read the world, and firing then relaunches into a sweep it merely failed to see); and ONE DEFINITION of in-flight. That last one found a live defect: /api/relaunch kept a THIRD copy of the busy list which had drifted into appending 'ON AIR' from _agent_mode ALONE with no _agent_alive() test, while nothing_in_flight fixed exactly that in v2161 ('a STALE MODE DEADLOCKS IT FOREVER') on the automatic door only - so after an agent CRASH the relaunch BUTTON refused forever, and it is the button you press to recover from a crash. Seven of the eleven cases are BEHAVIOURAL, calling the pure module rather than reading source, so the law runs on a GitHub runner instead of needing his Mac. Carries a corroborator (the REGISTER against THE WORLD) that catches a green light which has stopped being ticked."),
     Gate("test_one_work_list", [sys.executable,
                                 os.path.join(HERE, "test_a_lane_has_one_work_list.py")], 60,
-         why="v3295 - the vault lane's work list (OWED_BY intersect READ_CLEARS) was written out by hand in THREE places and the copies drifted: control_app's autoread candidates and its awaiting-a-sweep count were both correct since v2878, while river_walk's PRINTER probe still counted the single tag vault-owes. So the river printed 'the lane's queue is EMPTY ... this reel waits for a seal nothing will write' while the lane held 3 panels-never-banked reels - an instrument and the thing it measures disagreeing about what the lane is FOR, with the instrument believed because it is the one that renders. The THIRD copy was found by the grep that wrote the law, not by the investigation, which is why the structural half bans walking OWED_BY at all rather than checking the two known callers. Pins both halves: no production module iterates the map (all call shelf_driver.lane_read_tags), and the set still holds panels-never-banked while still refusing rows-not-banked per v2878 (owed a BANK, not a READ - queuing it spends his money and clears nothing). 2 red-proofs"),
+         why="v3295 - the vault lane's work list (OWED_BY intersect READ_CLEARS) was written out by hand in THREE places and the copies drifted: control_app's autoread candidates and its awaiting-a-sweep count were both correct since v2878, while river_walk's PRINTER probe still counted the single tag vault-owes. So the river printed 'the lane's queue is EMPTY ... this reel waits for a seal nothing will write' while the lane held 3 panels-never-banked reels - an instrument and the thing it measures disagreeing about what the lane is FOR, with the instrument believed because it is the one that renders. The THIRD copy was found by the grep that wrote the law, not by the investigation, which is why the structural half bans walking OWED_BY at all rather than checking the two known callers. Pins both halves: no production module iterates the map (all call shelf_driver.lane_read_tags), and the set still holds panels-never-banked while still refusing rows-not-banked per v2878 (owed a BANK, not a READ - queuing it spends his money and clears nothing)."),
     Gate("test_auto_lanes_no_switch", [sys.executable,
                                        os.path.join(HERE, "test_the_auto_lanes_have_no_switch.py")], 60,
-         why="v3285 - Konyo, 2026-09-18, on the Sessions strip: 'these should be toggled on by default no option to it'. v1975 built four REAL switches and its doctrine (OFF IS A REAL REFUSAL) was right WHILE OFF WAS REACHABLE. Pins the inverted law: the reader never consults d2r_autoLanes, so a stale {runes:false} from an old click cannot darken a lane silently; and the pill carries no onclick, role=switch, tabindex or knob, because a control that cannot move invites a click that does nothing. 3 red-proofs"),
+         why="v3285 - Konyo, 2026-09-18, on the Sessions strip: 'these should be toggled on by default no option to it'. v1975 built four REAL switches and its doctrine (OFF IS A REAL REFUSAL) was right WHILE OFF WAS REACHABLE. Pins the inverted law: the reader never consults d2r_autoLanes, so a stale {runes:false} from an old click cannot darken a lane silently; and the pill carries no onclick, role=switch, tabindex or knob, because a control that cannot move invites a click that does nothing."),
     Gate("test_world_ribbon", [sys.executable,
                                os.path.join(HERE, "test_the_world_ribbon_can_be_put_away.py")], 60,
-         why="REG-1082 - Grok Bot filed 'Trap: persistent LINUX toast' from his native seat: "
-             "#cousin-ribbon is fixed at top:0 z-index:2000, appended once on every non-Mac "
-             "machine and removed by NOTHING. It is the twin of the banner Konyo reported the "
-             "same day on the Mac. It now COLLAPSES rather than hides, because five CSS rules "
-             "reserve room for it and removing the element would leave all five holding empty "
-             "space. These laws pin: the badge is wired and toggles, the choice survives a "
-             "reload, the BAND keeps pointer-events:none so it can never eat the console click "
-             "v2061 measured it overlapping, collapsing sheds WIDTH ONLY so every clamp stays "
-             "valid, the world sentence is unchanged, and the glyph plus title keep the fact "
-             "reachable. 6 red-proofs, placement measured at 1440/901/375"),
+         why="REG-1082 - Grok Bot filed 'Trap: persistent LINUX toast' from his native seat: #cousin-ribbon is fixed at "
+             "top:0 z-index:2000, appended once on every non-Mac machine and removed by NOTHING. It is the twin of the "
+             "banner Konyo reported the same day on the Mac. It now COLLAPSES rather than hides, because five CSS rules "
+             "reserve room for it and removing the element would leave all five holding empty space. These laws pin: the "
+             "badge is wired and toggles, the choice survives a reload, the BAND keeps pointer-events:none so it can "
+             "never eat the console click v2061 measured it overlapping, collapsing sheds WIDTH ONLY so every clamp stays "
+             "valid, the world sentence is unchanged, and the glyph plus title keep the fact reachable. Placement "
+             "measured at 1440/901/375"),
     Gate("test_his_window", [sys.executable,
                              os.path.join(HERE, "test_his_window_is_his_on_every_platform.py")], 60,
          why="REG-1081 - he reported across three machines that the console cannot be minimised "
@@ -632,7 +783,7 @@ GATES = [
              "call each answer with their own reason, a bad action name is named as such even "
              "where there is no window, the route reaches the helper, both controls exist and "
              "POST to it, they stay HIDDEN until the console confirms it has a window, and "
-             "FULLSCREEN REMAINS THE DEFAULT he asked for. 7 red-proofs"),
+             "FULLSCREEN REMAINS THE DEFAULT he asked for."),
     Gate("test_no_footage_tracked", [sys.executable,
                                      os.path.join(HERE, "test_no_reel_footage_is_ever_tracked.py")], 60,
          why="REG-1066 - v3258 committed a 97.84MB tarball holding HIS JOURNAL and two of HIS "
@@ -640,7 +791,7 @@ GATES = [
              "Writing the gate then measured 552 files / 101.7MB of his footage ALREADY tracked, "
              "which predates the session and is his call to undo. So: no archives, no tracked "
              "file over 25MB, the ignore rules proven live, and a RATCHET on the existing "
-             "footage so the exposure cannot grow. 4 red-proofs"),
+             "footage so the exposure cannot grow."),
     Gate("test_name_rarity_colour", [sys.executable,
                                      os.path.join(HERE, "test_a_name_takes_its_colour_from_its_rarity.py")], 60,
          why="REG-1060 - four console surfaces painted an item name from the find TIER, and tier "
@@ -649,7 +800,7 @@ GATES = [
              "The palettes were innocent (every --rar-* equals its --q-* to the byte) and so was "
              "the classifier (135/135 sets, 397/398 uniques, measured through CDP). Pins the "
              "JOINT: a line that paints a quality class onto an interpolated .name must ask "
-             "_nameRarCls. Static, comment-free, 4 red-proofs"),
+             "_nameRarCls. Static, comment-free."),
     Gate("test_dock_says_why", [sys.executable,
                                 os.path.join(HERE, "test_the_dock_says_why_it_is_still_full.py")], 60,
          why="REG-1055 — the dock showed a count and an Auto-Sort button; he pressed it, nothing "
@@ -676,8 +827,7 @@ GATES = [
              "keeper. The count sounded like progress; the NAMES were the finding. Ledger fix "
              "2026-09-28: the door counted witness LIST ENTRIES (frames), so one visit held for 5 "
              "frames was admitted at 2; it now counts looks the way vault_retro.gate does, with the "
-             "raw rows beside it (his ruling: 'a look is a distinct visit, never a frame'). "
-             "2 red-proofs."),
+             "raw rows beside it (his ruling: 'a look is a distinct visit, never a frame'). "),
     Gate("test_live_store_skip", [sys.executable,
                                   os.path.join(HERE, "test_a_live_store_skip_is_counted.py")], 60,
          why="REG-1050 — eleven gates read stores that exist only on his Mac (chron_evidence.json "
@@ -1066,8 +1216,7 @@ GATES = [
              "and threading.Thread shut, so the lane states are driven at the REAL door for the "
              "first time. It found two more: the WORD claude inside a STRING passed `in`, and so "
              "did a DICT with that key. The BASELINE case asserts the door WOULD have started on "
-             "a real lane - without it a door jammed permanently shut passes every refusal. "
-             "4 red-proofs."),
+             "a real lane - without it a door jammed permanently shut passes every refusal. "),
     Gate("sweep-wilson", [sys.executable, os.path.join(HERE, "sweep_wilson.py")], 180,
          why="vault.sweep_start guards an action that SPENDS MONEY and no sabotage had ever been "
              "attempted against it, so it sat UNPROVEN at n=0 with nothing to move it. This "
@@ -1458,25 +1607,25 @@ GATES = [
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
     Gate("test_the_census_population_is_safe_to_name_by_file",
          [sys.executable, os.path.join(HERE, "test_the_census_population_is_safe_to_name_by_file.py")], 60,
-         why="v3433 (#177) - THE FILENAME RULE IS SAFE ONLY WHILE NO PRODUCTION MODULE IS NAMED LIKE A TEST. v3427 made lane_census skip test_*.py because a test FIXTURE defining def wait had flipped the live thread target target=wp.wait from FOREIGN to UNKNOWN. The second eye said, correctly, that classifying by FILENAME is the wrong axis. I was about to replace it with an import-graph rule and MEASURED FIRST: 705 local modules, 110 reachable from the production roots, 199 kept by the filename rule, NONE reachable-but-excluded, and ZERO of 33 census targets would change their answer. The graph rule changes nothing today and adds a failure mode the filename rule does not have - sensitivity to which roots you pick, with conftest landing inside the graph purely because run_gates imports it. So the rule stays and the UNEXAMINED ASSUMPTION becomes a pinned invariant: this fails the moment a production-reachable module is named like a test, which is the only moment the rule would start lying. Also pins that the roots exist (a reachability law over a missing root walks nothing and passes forever), that the v3427 fixture is still excluded, and that wait is still FOREIGN on this tree. 2 red-proofs."),
+         why="v3433 (#177) - THE FILENAME RULE IS SAFE ONLY WHILE NO PRODUCTION MODULE IS NAMED LIKE A TEST. v3427 made lane_census skip test_*.py because a test FIXTURE defining def wait had flipped the live thread target target=wp.wait from FOREIGN to UNKNOWN. The second eye said, correctly, that classifying by FILENAME is the wrong axis. I was about to replace it with an import-graph rule and MEASURED FIRST: 705 local modules, 110 reachable from the production roots, 199 kept by the filename rule, NONE reachable-but-excluded, and ZERO of 33 census targets would change their answer. The graph rule changes nothing today and adds a failure mode the filename rule does not have - sensitivity to which roots you pick, with conftest landing inside the graph purely because run_gates imports it. So the rule stays and the UNEXAMINED ASSUMPTION becomes a pinned invariant: this fails the moment a production-reachable module is named like a test, which is the only moment the rule would start lying. Also pins that the roots exist (a reachability law over a missing root walks nothing and passes forever), that the v3427 fixture is still excluded, and that wait is still FOREIGN on this tree."),
     Gate("test_the_code_running_is_the_code_on_disk",
          [sys.executable, os.path.join(HERE, "test_the_code_running_is_the_code_on_disk.py")], 60,
-         why="v3432 (#179) - A PROCESS MUST NOT GRADE A FILE IT IS NOT RUNNING. MEASURED: three pushes of the IDENTICAL tree minutes apart read tv suites green, then test_control FAILED, then tv suites green - and the failing traceback named test_control.py line 11902 with a variable fn, where the file on disk has that assertion at line 11938 using helper. That older shape is exactly the PRE-v3427 code, and the same run also reported an older second-eye version: three anomalies in ONE run, none explicable by the tree, and the full suite then ran 2238 tests OK on it. A suite executing code that is not on disk is WORSE than a red one because its verdict is about a file nobody has, and it cost a real push while pointing at a line that does not exist. It CANNOT be caught by comparing mtime and size - that is what CPython already uses to call a pyc fresh, so a check from the same two inputs agrees with it by construction including when they collide. co_firstlineno comes from the BYTECODE while the source is read fresh, and a disagreement is decisive. The central case CREATES the drift rather than describing it: import a module, rewrite its file 40 lines lower, and require the check to notice. Also pins the false positive this shipped with - functools.wraps copies __module__ onto a wrapper whose code lives in contextlib, which reported two unrelated modules as drifted at the SAME line 242. 3 red-proofs."),
+         why="v3432 (#179) - A PROCESS MUST NOT GRADE A FILE IT IS NOT RUNNING. MEASURED: three pushes of the IDENTICAL tree minutes apart read tv suites green, then test_control FAILED, then tv suites green - and the failing traceback named test_control.py line 11902 with a variable fn, where the file on disk has that assertion at line 11938 using helper. That older shape is exactly the PRE-v3427 code, and the same run also reported an older second-eye version: three anomalies in ONE run, none explicable by the tree, and the full suite then ran 2238 tests OK on it. A suite executing code that is not on disk is WORSE than a red one because its verdict is about a file nobody has, and it cost a real push while pointing at a line that does not exist. It CANNOT be caught by comparing mtime and size - that is what CPython already uses to call a pyc fresh, so a check from the same two inputs agrees with it by construction including when they collide. co_firstlineno comes from the BYTECODE while the source is read fresh, and a disagreement is decisive. The central case CREATES the drift rather than describing it: import a module, rewrite its file 40 lines lower, and require the check to notice. Also pins the false positive this shipped with - functools.wraps copies __module__ onto a wrapper whose code lives in contextlib, which reported two unrelated modules as drifted at the SAME line 242."),
     Gate("test_the_doctor_never_forks_a_quartz_process",
          [sys.executable, os.path.join(HERE, "test_the_doctor_never_forks_a_quartz_process.py")], 90,
-         why="v3429 (#150) - THE DOCTOR MUST NOT fork() A PROCESS THAT HAS LOADED THE OBJECTIVE-C RUNTIME. test_control HUNG killed after 1500s on an IDLE machine has refused FOUR pushes since 2026-09-20 and the standing diagnosis was wrong. MEASURED back to back on the same idle machine: cd.run(include_slow=False) hung 28 MINUTES at 0.0 percent CPU, then the SAME call finished in 15.4 SECONDS. So it is a DEADLOCK, not a cost, and RESUME_HERE 8-min-alone measured the HUNG case - its puzzle that the whole is minutes while every part is seconds dissolves. The stuck parent had ONE child at 0 percent CPU wearing the PARENTS OWN ARGV, the signature of a Popen caught between fork and exec, holding Quartz CoreGraphics PyObjC. The escape is PROVEN BY RECORDING WHICH SYSCALL CPYTHON TAKES rather than reading its conditions: close_fds default True gives fork_exec x1, absolute exe plus close_fds=False gives posix_spawn x1, and a BARE NAME plus close_fds=False forks again because the dirname condition bites. Both halves are load-bearing and close_fds DEFAULTS TO TRUE, which is why every ordinary call forks. Pins the driven syscall, the baseline premise, the bare-name trap, and a CLASS law over every subprocess call in console_doctor - which found five more forking shell-outs the single fix had missed. 2 red-proofs."),
+         why="v3429 (#150) - THE DOCTOR MUST NOT fork() A PROCESS THAT HAS LOADED THE OBJECTIVE-C RUNTIME. test_control HUNG killed after 1500s on an IDLE machine has refused FOUR pushes since 2026-09-20 and the standing diagnosis was wrong. MEASURED back to back on the same idle machine: cd.run(include_slow=False) hung 28 MINUTES at 0.0 percent CPU, then the SAME call finished in 15.4 SECONDS. So it is a DEADLOCK, not a cost, and RESUME_HERE 8-min-alone measured the HUNG case - its puzzle that the whole is minutes while every part is seconds dissolves. The stuck parent had ONE child at 0 percent CPU wearing the PARENTS OWN ARGV, the signature of a Popen caught between fork and exec, holding Quartz CoreGraphics PyObjC. The escape is PROVEN BY RECORDING WHICH SYSCALL CPYTHON TAKES rather than reading its conditions: close_fds default True gives fork_exec x1, absolute exe plus close_fds=False gives posix_spawn x1, and a BARE NAME plus close_fds=False forks again because the dirname condition bites. Both halves are load-bearing and close_fds DEFAULTS TO TRUE, which is why every ordinary call forks. Pins the driven syscall, the baseline premise, the bare-name trap, and a CLASS law over every subprocess call in console_doctor - which found five more forking shell-outs the single fix had missed."),
     Gate("test_a_live_build_read_is_never_the_banner",
          [sys.executable, os.path.join(HERE, "test_a_live_build_read_is_never_the_banner.py")], 60,
-         why="v3428 (#37) - THE BOARDS BUILD ID COMES FROM THE LIVE WINDOW OR IT COMES BACK UNKNOWN. #37 sat blocked for weeks on one value and the GrokBot seat finally said why, three ticks running: live typeof window.D2R_BUILD NOT EVALABLE, no evaluate_js HTTP door on the pywebview seat, /api/eval* -> 404. It could only read the SERVED HTML, which is the file and not the window - and I once reported that blocker LIFTED on exactly that source-only read, which was wrong. board_build() is a NARROW door: one FIXED expression, no parameters, nothing to inject, never a general eval endpoint on the console he is looking at. This pins that it NEVER substitutes the banner or /api/status (that substitution IS the defect 37 bans, and the seat spent weeks correctly refusing it), and that FOUR refusals - window shut, timeout, raise, non-JSON - stay distinguishable from ONE measured absence, because I could not look and it is not there are opposite facts. 2 red-proofs."),
+         why="v3428 (#37) - THE BOARDS BUILD ID COMES FROM THE LIVE WINDOW OR IT COMES BACK UNKNOWN. #37 sat blocked for weeks on one value and the GrokBot seat finally said why, three ticks running: live typeof window.D2R_BUILD NOT EVALABLE, no evaluate_js HTTP door on the pywebview seat, /api/eval* -> 404. It could only read the SERVED HTML, which is the file and not the window - and I once reported that blocker LIFTED on exactly that source-only read, which was wrong. board_build() is a NARROW door: one FIXED expression, no parameters, nothing to inject, never a general eval endpoint on the console he is looking at. This pins that it NEVER substitutes the banner or /api/status (that substitution IS the defect 37 bans, and the seat spent weeks correctly refusing it), and that FOUR refusals - window shut, timeout, raise, non-JSON - stay distinguishable from ONE measured absence, because I could not look and it is not there are opposite facts."),
     Gate("test_the_hunt_says_when_somewhere_else_is_quicker",
          [sys.executable, os.path.join(HERE, "test_the_hunt_says_when_somewhere_else_is_quicker.py")], 90,
-         why="v3426 (#175) - HIS REPORT 2026-09-23: MY HUNT says COW KINGS HOOVES must be hunted in HELL and calls it the fastest path, while the Sets chronicle sub-tabs rank the same piece in NORMAL with a different silospen find percent. The Hell-first headline is HIS OWN RULING (v1555: prioritized by HELL then Nightmare then Normal... i rather finish off Hell and then the others) and is untouched. What was missing is the other half that same comment promised - when something materially quicker exists at a lower difficulty the source line says so, so he is not choosing blind. v2281 built exactly that on the GRAIL hero and named this defect in its own words: the hint fires only when the fastest is a DIFFERENT ITEM, so for a piece whose Hell lead and global lead are the SAME ITEM at another difficulty nothing is said - item-vs-item where it had to be SOURCE-vs-SOURCE. Cow Kings Hooves reads of 1, one piece left, so the two leads are necessarily the same item. hubNextSet never got it. This gate EVALUATES THE SHIPPED PREDICATE in node, extracted from control_ui.html so it cannot drift from a retyped copy, and pins the mirror (silence when Hell is already quickest), the material threshold, UNKNOWN hours, one shared cutoff across both heroes, and that BOTH heroes carry the disclosure. 3 red-proofs."),
+         why="v3426 (#175) - HIS REPORT 2026-09-23: MY HUNT says COW KINGS HOOVES must be hunted in HELL and calls it the fastest path, while the Sets chronicle sub-tabs rank the same piece in NORMAL with a different silospen find percent. The Hell-first headline is HIS OWN RULING (v1555: prioritized by HELL then Nightmare then Normal... i rather finish off Hell and then the others) and is untouched. What was missing is the other half that same comment promised - when something materially quicker exists at a lower difficulty the source line says so, so he is not choosing blind. v2281 built exactly that on the GRAIL hero and named this defect in its own words: the hint fires only when the fastest is a DIFFERENT ITEM, so for a piece whose Hell lead and global lead are the SAME ITEM at another difficulty nothing is said - item-vs-item where it had to be SOURCE-vs-SOURCE. Cow Kings Hooves reads of 1, one piece left, so the two leads are necessarily the same item. hubNextSet never got it. This gate EVALUATES THE SHIPPED PREDICATE in node, extracted from control_ui.html so it cannot drift from a retyped copy, and pins the mirror (silence when Hell is already quickest), the material threshold, UNKNOWN hours, one shared cutoff across both heroes, and that BOTH heroes carry the disclosure."),
     Gate("test_the_default_eye_seat_is_the_subscription",
          [sys.executable, os.path.join(HERE, "test_the_default_eye_seat_is_the_subscription.py")], 60,
-         why="v3425 - HIS RULING 2026-09-23: the xAI CLI SUBSCRIPTION is the DEFAULT second-eye transport, said the hour the paid API lane went dark (mcp upload_file -> PERMISSION_DENIED, all credits used) while the CLI answered v3421 at 95 percent reach with a schema-constrained verdict. It restates 2026-08-05 - the CLI needs no MCP connection, so a seat still fills headless and in cron, and a subscription look cannot stop being affordable mid-arc. This pins that EYE_CLI resolves to an ABSOLUTE path (the G5 scar: shutil.which searched the caller PATH while the console runs under launchd with a bare /usr/bin:/bin, and G5 sat PRIMARY and dark for WEEKS reporting calls=0 errors=0 last_error=None - every lamp clean BECAUSE nobody was asking), that ask() execs it and reaches for no metered API, that the live row separates ABSENT from NOT-EXECUTABLE from UNKNOWN, and that no doc in this repo still carries the inverted claim that the CLI is out of balance and the MCP works. 3 red-proofs."),
+         why="v3425 - HIS RULING 2026-09-23: the xAI CLI SUBSCRIPTION is the DEFAULT second-eye transport, said the hour the paid API lane went dark (mcp upload_file -> PERMISSION_DENIED, all credits used) while the CLI answered v3421 at 95 percent reach with a schema-constrained verdict. It restates 2026-08-05 - the CLI needs no MCP connection, so a seat still fills headless and in cron, and a subscription look cannot stop being affordable mid-arc. This pins that EYE_CLI resolves to an ABSOLUTE path (the G5 scar: shutil.which searched the caller PATH while the console runs under launchd with a bare /usr/bin:/bin, and G5 sat PRIMARY and dark for WEEKS reporting calls=0 errors=0 last_error=None - every lamp clean BECAUSE nobody was asking), that ask() execs it and reaches for no metered API, that the live row separates ABSENT from NOT-EXECUTABLE from UNKNOWN, and that no doc in this repo still carries the inverted claim that the CLI is out of balance and the MCP works."),
     Gate("test_a_scratch_dir_is_not_made_by_reading_the_module",
          [sys.executable, os.path.join(HERE, "test_a_scratch_dir_is_not_made_by_reading_the_module.py")], 90,
-         why="v3422 (#170) - A DIRECTORY CREATED AT IMPORT IS CREATED BY EVERY READER. `EYE_CWD = tempfile.mkdtemp(...)` sat at module level, so it ran on IMPORT rather than on use - and 31 modules import second_eye_run, each gate in its own subprocess, so one full gate run left ~30 behind. MEASURED: three BARE imports, no look asked and no eye run, minted three directories; 115 were on his Mac from two days, 33 of them that day. #170 filed it as a dir per LOOK and the measurement refutes its own premise - a handful of looks a day cannot make 33, and fixing the runner would have left the import minting them. The law is driven in a real subprocess, because a second import in this process is a no-op that passes whatever the code says. Also pins the two halves that are easy to get wrong: a directory HE supplied via THIRD_EYE_CWD is never removed, and v3408s rule that the eye stands OUTSIDE the repo still holds. 3 red-proofs."),
+         why="v3422 (#170) - A DIRECTORY CREATED AT IMPORT IS CREATED BY EVERY READER. `EYE_CWD = tempfile.mkdtemp(...)` sat at module level, so it ran on IMPORT rather than on use - and 31 modules import second_eye_run, each gate in its own subprocess, so one full gate run left ~30 behind. MEASURED: three BARE imports, no look asked and no eye run, minted three directories; 115 were on his Mac from two days, 33 of them that day. #170 filed it as a dir per LOOK and the measurement refutes its own premise - a handful of looks a day cannot make 33, and fixing the runner would have left the import minting them. The law is driven in a real subprocess, because a second import in this process is a no-op that passes whatever the code says. Also pins the two halves that are easy to get wrong: a directory HE supplied via THIRD_EYE_CWD is never removed, and v3408s rule that the eye stands OUTSIDE the repo still holds."),
     Gate("test_a_broken_pipe_must_not_skip_the_reap",
          [sys.executable, os.path.join(HERE, "test_a_broken_pipe_must_not_skip_the_reap.py")], 60,
          why="v3421 (#166) - KILLING A CHILD IS NOT REAPING IT, AND A SILENT except HIDES "
@@ -1570,7 +1719,7 @@ GATES = [
              "go green-to-red, and the line dates to v3401. A gate's first run is not a "
              "regression. TWO BASELINE cases stop the opposite failure: a working git must still "
              "render the real counts and a genuinely clean tree must still read CLEAN, so a "
-             "generator hardwired to UNKNOWN cannot pass. 7 cases, 3 red-proofs."),
+             "generator hardwired to UNKNOWN cannot pass."),
     Gate("test_two_seats_cannot_render_the_same_label",
          [sys.executable, os.path.join(HERE, "test_two_seats_cannot_render_the_same_label.py")], 90,
          why="v3411 (#132) - HIS FINDING, CARRIED SINCE v3385: ambiguity must be measured on the "
@@ -1592,7 +1741,7 @@ GATES = [
              "blank rows, a solo row with no machine and an EMPTY roster. Without that join this "
              "is two rules wearing one name. THREE BASELINE CASES stop the opposite failure: his "
              "REAL pair, distinct names and a solo row must all stay clean, so a fix that called "
-             "everything ambiguous cannot pass. 10 cases, 3 red-proofs."),
+             "everything ambiguous cannot pass."),
     Gate("test_a_broken_tree_is_not_an_established_one",
          [sys.executable, os.path.join(HERE, "test_a_broken_tree_is_not_an_established_one.py")], 60,
          why="v3410 - BOTH LAWS NAMED BY THE CROSS-FAMILY REVIEW OF v3405, then verified and "
@@ -1620,32 +1769,26 @@ GATES = [
              "created/found stamp. ⚠ The review's THIRD finding was REFUTED by measurement: "
              "resolve()'s frames path and tv_diablo.FRAMES are the same path byte for byte, and "
              "routing HIST_DIR through footage_hist() would have redirected a replay child's "
-             "archive writes into his live footage. 10 cases incl. a BASELINE, 4 red-proofs."),
+             "archive writes into his live footage."),
     Gate("test_a_failed_pull_is_not_a_pull_that_found_nothing",
          [sys.executable, os.path.join(HERE, "test_a_failed_pull_is_not_a_pull_that_found_nothing.py")], 60,
-         why="v3409 - EVERY LAW HERE WAS NAMED BY THE CROSS-FAMILY REVIEW OF v3404, reading the "
-             "shipped diff cold, and all four were real. (1) _pull_once ran git fetch and git "
-             "merge --ff-only and read NEITHER return code; only a timeout reached its except, so "
-             "an offline fetch, a credential refusal, a FETCH_HEAD.lock held by "
-             "fleet_origin_status on the SAME 300s cadence, a diverged history or a refused "
-             "fast-forward all left HEAD unmoved - and moved = before != after is False for "
-             "nothing-to-do and for it-did-not-work ALIKE, so the lane published 'already level "
-             "with origin/main', the one sentence it must never say falsely. Its own None "
-             "(cannot ask) was unreachable code, and it is STICKY: a SIGKILLed fetch can leave a "
-             "lock behind so every later attempt takes the same false-clean path. (2) git status "
-             "exit 128 with EMPTY stdout is how git reports dubious ownership, a broken index or "
-             "a held lock, and reading only stdout turned each into 'nothing is modified, go "
-             "ahead and pull' - on a console that EXECS THE WORKING TREE. (3) the heart row dated "
-             "`behind` from FETCH_HEAD, which any fetch of any OTHER ref rewrites, so a machine "
-             "whose main was a day stale could read 'level, fetched 0.0h ago'. ⚠ AND THE OBVIOUS "
-             "FIX WAS WORSE, MEASURED BEFORE IT SHIPPED: swapping in the ref's mtime made the row "
-             "read MISSING 32.1h on a machine that had fetched minutes earlier, because a fetch "
-             "bringing nothing NEW does not rewrite the ref - a row crying wolf is a row someone "
-             "silences. Both ages are now reported and NEITHER answers the other's question. "
-             "(4) three checks added in ONE session shipped without a WATCHES declaration, which "
-             "reads ABSENT in the organ table - indistinguishable from a check nobody wrote. That "
-             "law is now executable rather than remembered. 7 cases incl. a BASELINE, 3 "
-             "red-proofs."),
+         why="v3409 - EVERY LAW HERE WAS NAMED BY THE CROSS-FAMILY REVIEW OF v3404, reading the shipped diff cold, and "
+             "all four were real. (1) _pull_once ran git fetch and git merge --ff-only and read NEITHER return code; only "
+             "a timeout reached its except, so an offline fetch, a credential refusal, a FETCH_HEAD.lock held by "
+             "fleet_origin_status on the SAME 300s cadence, a diverged history or a refused fast-forward all left HEAD "
+             "unmoved - and moved = before != after is False for nothing-to-do and for it-did-not-work ALIKE, so the lane "
+             "published 'already level with origin/main', the one sentence it must never say falsely. Its own None "
+             "(cannot ask) was unreachable code, and it is STICKY: a SIGKILLed fetch can leave a lock behind so every "
+             "later attempt takes the same false-clean path. (2) git status exit 128 with EMPTY stdout is how git reports "
+             "dubious ownership, a broken index or a held lock, and reading only stdout turned each into 'nothing is "
+             "modified, go ahead and pull' - on a console that EXECS THE WORKING TREE. (3) the heart row dated `behind` "
+             "from FETCH_HEAD, which any fetch of any OTHER ref rewrites, so a machine whose main was a day stale could "
+             "read 'level, fetched 0.0h ago'. ⚠ AND THE OBVIOUS FIX WAS WORSE, MEASURED BEFORE IT SHIPPED: swapping in "
+             "the ref's mtime made the row read MISSING 32.1h on a machine that had fetched minutes earlier, because a "
+             "fetch bringing nothing NEW does not rewrite the ref - a row crying wolf is a row someone silences. Both "
+             "ages are now reported and NEITHER answers the other's question. (4) three checks added in ONE session "
+             "shipped without a WATCHES declaration, which reads ABSENT in the organ table - indistinguishable from a "
+             "check nobody wrote. That law is now executable rather than remembered."),
     Gate("test_the_eye_is_a_cli_seat_outside_the_repo",
          [sys.executable, os.path.join(HERE, "test_the_eye_is_a_cli_seat_outside_the_repo.py")], 60,
          why="v3408 (#154) - EVERY EYE IS A CLI SEAT ON HIS OWN SUBSCRIPTION, AND IT STANDS "
@@ -1664,8 +1807,7 @@ GATES = [
              "to tv/ while a ship was mid-flight, caught by Konyo rather than by any guard. The "
              "eye now runs with cwd on a scratch dir, and its bound went 300s -> 1200s because "
              "300 was MEASURED too short for a real answer (a 22,519-char payload ran past it and "
-             "was filed an empty seat, blocking a ship for a look nobody waited for). 6 laws, "
-             "3 red-proofs."),
+             "was filed an empty seat, blocking a ship for a look nobody waited for). 6 laws, "),
     Gate("test_windows_git_spawns_hide_the_console",
          [sys.executable, os.path.join(HERE, "test_windows_git_spawns_hide_the_console.py")], 60,
          why="v3407 (#155) - GIT.EXE WINDOWS WERE ALT-TABBING HIM OFF THE GAME. MEASURED on the "
@@ -1684,24 +1826,21 @@ GATES = [
              "that keeps a machine current must not cost him the window he is playing in. The "
              "guard reads control_app.py as an AST, not a character window, so it names the "
              "OFFENDING LINE rather than passing because most sites are correct; it found 13 and "
-             "all 13 now route through _git_run. 3 red-proofs. Diagnosed and written on the "
+             "all 13 now route through _git_run. Diagnosed and written on the "
              "Windows box, brought over and re-proven here."),
     Gate("test_a_machine_pulls_itself_current",
          [sys.executable, os.path.join(HERE, "test_a_machine_pulls_itself_current.py")], 60,
-         why="v3404 (#149) - THE UPDATE MECHANISM LIVED IN THE LAUNCHERS AND A MACHINE CAN BE "
-             "STARTED ANOTHER WAY. start_tvd_mac.sh:126 pulls and start_tvd_win.ps1:254 pulls, "
-             "so Windows was never missing a launcher - but his KONYO ALT TEST box runs "
-             "pythonw console.py and pythonw control_app.py --open directly, bypassing every "
-             "automatic pull in the codebase. MEASURED over SSH minutes after origin moved: "
-             "BEHIND 5, zero scheduled tasks matching d2r/claude/konyo/pull/bible/tv, zero "
-             "startup entries. It was current only because a human kept pulling by hand, and "
-             "his report was exactly that - still not being updated automatically. The other "
-             "half was already built: _drift_once compares running against disk and "
-             "drift_may_relaunch owns the execv with sweep interlocks, so this is a JOIN, not a "
-             "feature, and it deliberately adds NO second re-exec path. 7 laws, 3 red-proofs. "
-             "The two that matter most: it REFUSES on tracked edits (his console execs the "
-             "working tree, so an unguarded pull lands on top of work in progress) and it "
-             "honours TV_NO_AUTO_PULL, the switch both launchers already obey."),
+         why="v3404 (#149) - THE UPDATE MECHANISM LIVED IN THE LAUNCHERS AND A MACHINE CAN BE STARTED ANOTHER WAY. "
+             "start_tvd_mac.sh:126 pulls and start_tvd_win.ps1:254 pulls, so Windows was never missing a launcher - but "
+             "his KONYO ALT TEST box runs pythonw console.py and pythonw control_app.py --open directly, bypassing every "
+             "automatic pull in the codebase. MEASURED over SSH minutes after origin moved: BEHIND 5, zero scheduled "
+             "tasks matching d2r/claude/konyo/pull/bible/tv, zero startup entries. It was current only because a human "
+             "kept pulling by hand, and his report was exactly that - still not being updated automatically. The other "
+             "half was already built: _drift_once compares running against disk and drift_may_relaunch owns the execv "
+             "with sweep interlocks, so this is a JOIN, not a feature, and it deliberately adds NO second re-exec path. "
+             "The two that matter most: it REFUSES on tracked edits (his console execs the working tree, so an unguarded "
+             "pull lands on top of work in progress) and it honours TV_NO_AUTO_PULL, the switch both launchers already "
+             "obey."),
     Gate("test_a_probe_licenses_only_what_it_tested",
          [sys.executable, os.path.join(HERE, "test_a_probe_licenses_only_what_it_tested.py")], 180,
          why="v3401 (#147) - A PROBE MAY ONLY LICENSE THE MECHANISM IT TESTED, and this wedged "
@@ -1883,7 +2022,7 @@ GATES = [
              "READ FROM A SUBPROCESS WITH NO DEADLINE, and both wedges are instances. Pins behaviour "
              "first: a deaf worker cannot hold the reader, a dying worker returns promptly, a "
              "healthy worker still delivers its payload (the baseline that lets the timeout case "
-             "discriminate), and no bare readline returns to the file. 9 cases, 4 red-proofs."),
+             "discriminate), and no bare readline returns to the file."),
     Gate("test_a_browser_is_killed_by_its_group",
          [sys.executable, os.path.join(HERE, "test_a_browser_is_killed_by_its_group.py")], 180,
          why="v3380 - FIVE CONSECUTIVE PUSHES WERE REFUSED BY A HANG THAT EVERY BOUND THEORY "
@@ -1912,7 +2051,7 @@ GATES = [
              "orphaned helper at PPID 1) to ELAPSED=194s RC=0 with ZERO surviving children. Pins "
              "behaviour first - a fake launcher that forks a pipe-holding child is killed by "
              "group within the timeout - plus a baseline that a normal launcher still returns its "
-             "output, so the timeout case can discriminate. 8 cases, 4 red-proofs."),
+             "output, so the timeout case can discriminate."),
     Gate("test_the_board_hands_its_stores_over",
          [sys.executable, os.path.join(HERE, "test_the_board_hands_its_stores_over.py")], 180,
          why="v3379 (#128) - A CONSOLE WITH NO NATIVE WINDOW COULD COUNT ITS ITEMS AND COULD "
@@ -1951,7 +2090,7 @@ GATES = [
              "- which refuses in six places - to hand it back, so a fallback wired at five of six "
              "fails here; the other pins that every store any ledger is composed of appears in "
              "the page's hand-over list, because the console asking for a store the board never "
-             "offers is the silent direction of that drift. 17 cases, 8 red-proofs"),
+             "offers is the silent direction of that drift."),
     Gate("test_a_reel_owes_what_its_engine_says",
          [sys.executable, os.path.join(HERE, "test_a_reel_owes_what_its_engine_says.py")], 180,
          why="v3378 (#28) - THE RIVER CONTRADICTED ITS OWN ENGINE ABOUT WHAT A REEL OWES. "
@@ -1989,7 +2128,7 @@ GATES = [
              "cover it, which is exactly the hole v2770 found for _routed_by_a_lane. Also pinned: "
              "the override never escapes JOIN, and NOTHING_OWED stays OUT of the OWES map because "
              "_label_of derives his shelf lane names from it and a per-reel sentence living there "
-             "would invent a tenth lane he never asked for. 13 cases, 7 red-proofs"),
+             "would invent a tenth lane he never asked for."),
     Gate("test_the_river_has_one_word_per_fact",
          [sys.executable, os.path.join(HERE, "test_the_river_has_one_word_per_fact.py")], 120,
          why="#227 section 2 - TOMBSTONE cannot mean two facts at once. MEASURED live from "
@@ -4610,7 +4749,7 @@ GATES = [
              "path ever stops routing through it, single removals go back to leaving no record "
              "while the batch count still looks healthy. #246 review: an undo and the socket-count "
              "rename put a filing back as a RESTORE - the witness row it had, verbatim, or none; one "
-             "undo had minted 'placed by hand' for 172 found-ever filings. 3 red-proofs"),
+             "undo had minted 'placed by hand' for 172 found-ever filings."),
     Gate("test_the_vault_receipt_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_vault_receipt_is_watched.py")], 120,
          why="HE ASKED FOR A RECEIPT ON A VAULT ITEM AND PUSHED BACK WHEN I SAID NOTHING WAS "
@@ -5402,15 +5541,13 @@ GATES = [
              "-- two other gates depend on it"),
     Gate("test_owner_resolution",
          [sys.executable, os.path.join(HERE, "test_owner_resolution.py")], 120,
-         why="`window._D2R_OWNER` is the most consequential boolean in bible.html -- "
-             "_isCousinShell is its negation, which gates _seedsBelongHere, which decides "
-             "whether 245 of HIS uniques appear in somebody else's chronicle. It has now broken "
-             "in BOTH directions: too generous gave Dean 243/403 of another man's finds; too "
-             "strict made an automated world unable to stop being the owner, so the claim bar "
-             "never rendered and the one spec about the stranger path died on `b.onclick is not "
-             "a function`. Runs the REAL fragment lifted out of bible.html in a vm sandbox "
-             "across 9 cases -- never a Python paraphrase of the rule. Proven RED three ways, "
-             "including a sabotage that reproduces the Dean defect exactly",
+         why="`window._D2R_OWNER` is the most consequential boolean in bible.html -- _isCousinShell is its negation, "
+             "which gates _seedsBelongHere, which decides whether 245 of HIS uniques appear in somebody else's chronicle. "
+             "It has now broken in BOTH directions: too generous gave Dean 243/403 of another man's finds; too strict "
+             "made an automated world unable to stop being the owner, so the claim bar never rendered and the one spec "
+             "about the stranger path died on `b.onclick is not a function`. Runs the REAL fragment lifted out of "
+             "bible.html in a vm sandbox across its cases -- never a Python paraphrase of the rule. Proven RED three "
+             "ways, including a sabotage that reproduces the Dean defect exactly",
          ),
     Gate("test_search_placeholder_fits",
          [sys.executable, os.path.join(HERE, "test_search_placeholder_fits.py")], 120,
@@ -5437,7 +5574,7 @@ GATES = [
          why="the drain holds 3 panels-never-banked reels whose seals say rows 0 and never "
              "declared examinedEmpty, so a seal was treated as an extraction and the solo pass "
              "never started. One pass per reader, remembered across a restart. A seal that "
-             "already took rows, or that declared examinedEmpty, is not bought again. 3 red-proofs"),
+             "already took rows, or that declared examinedEmpty, is not bought again."),
     Gate("test_a_missing_tombstone_is_none_yet",
          [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
          why="a console that has never retired a reel has no reel_tombstones.json. That is none "
@@ -5445,7 +5582,7 @@ GATES = [
              "said so; the census, the on-disk station and the river walk rewrote it as unreadable, "
              "so the ALT river read UNKNOWN for a ledger that was simply absent. A file that will "
              "not parse stays UNKNOWN. control_app's mouth and release history already kept the "
-             "two apart and this pins them. 4 red-proofs"),
+             "two apart and this pins them."),
     Gate("test_entry_door_stamp",
          [sys.executable, os.path.join(HERE, "test_entry_door_stamp.py")], 120,
          why="the door that opened a reel never reached the reel: 0 of 10,121 journal rows carried "
@@ -5574,7 +5711,7 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
-             "(8 of 9 lines were render_check's on day one). 12 cases, 6 red-proofs"),
+             "(8 of 9 lines were render_check's on day one)."),
     Gate("test_the_chronicle_inbox_asks_on_the_page",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
          why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
@@ -5583,76 +5720,75 @@ GATES = [
              "confirm() blocks the window; some webviews answer NO unseen), the chips' dim/danger variants "
              "styled outside the footer and the session dismiss labelled 'Dismiss' (a grok-4.7 look found "
              "them reading as disabled). Pixels: render target ch-inbox. The second eye on v3497: an answer "
-             "acts only on the queue it was asked about (a poll between question and click re-asks). "
-             "6 cases, 3 red-proofs"),
+             "acts only on the queue it was asked about (a poll between question and click re-asks). "),
     Gate("test_the_render_budget_is_not_spent_on_a_cold_cache",
          [sys.executable, os.path.join(HERE, "test_the_render_budget_is_not_spent_on_a_cold_cache.py")], 60,
          why="#236 - inside a push /api/heart cost 30.4s cold on the render gate's fresh console, a tenth "
              "of the 300s ceiling paid serially at load 6, and the render was killed four targets short. "
              "_prewarm warms every declared endpoint once, in the background, the moment the console "
-             "answers; each target still warms its own before it is judged. 2 cases, 1 red-proof"),
+             "answers; each target still warms its own before it is judged."),
     Gate("test_the_pop_carries_his_questions",
          [sys.executable, os.path.join(HERE, "test_the_pop_carries_his_questions.py")], 60,
          why="#223 - the 📥 pop is titled 'Waiting on you' and carried only the names the readers could not "
              "settle; his questions (the console's ASKS) were drawn in the inbox alone, and with no names it "
              "said 'Nothing is waiting' over an open question. One builder (_askCardsHtml) now reaches the "
              "inbox, the pop and the Sessions sticky through window._inboxAskCards; the badge counts asks. "
-             "Pixels: render target pop-asks. 6 cases, 4 red-proofs"),
+             "Pixels: render target pop-asks."),
     Gate("test_the_banner_reads_the_heap",
          [sys.executable, os.path.join(HERE, "test_the_banner_reads_the_heap.py")], 60,
          why="#178 (his ruling 2026-09-25: the banner reads the heap) - the host OS had two writers, the cousin "
              "ribbon's own UA test and the board_build door's raw navigator.platform, which is how GrokBot's "
              "Linux seat filed 'machine windows' beside a LINUX ribbon as a contradiction. Now window.D2R_HOST_OS "
              "is computed once on the heap; the ribbon renders it (pixels: 'LINUX - its own world') and the door "
-             "reports it. The real block driven in node for 4 hosts. 3 cases, 2 red-proofs"),
+             "reports it. The real block driven in node for 4 hosts."),
     Gate("test_a_fresh_install_is_not_a_lost_store",
          [sys.executable, os.path.join(HERE, "test_a_fresh_install_is_not_a_lost_store.py")], 60,
          why="REG-1275 (#165) - the v2988 loss detector read 'has run before' from keys THIS boot had just "
              "written, so every fresh install was filed as a lost store and the seed floor refused it for ever "
              "(measured: first load found 0 + d2r_storeEmptied). The reading is now a snapshot taken before any "
-             "write; a store that ran and then emptied is still caught (spec v3503). 2 cases, 1 red-proof"),
+             "write; a store that ran and then emptied is still caught (spec v3503)."),
     Gate("test_each_console_says_its_own_system",
          [sys.executable, os.path.join(HERE, "test_each_console_says_its_own_system.py")], 90,
          why="#229 - the roadmap's last build item: from the fleet, see each console stand on its own. The "
              "beacon sends {tree, reels} (the doctor's own tree verdict, the reel folders on its shelf; None "
              "is unread, never 0), the relay shapes it (a string '25' is not a count - the law caught my first "
-             "cut coercing it), the row's hover says it. All three ends driven for real. 8 cases, 3 red-proofs"),
+             "cut coercing it), the row's hover says it. All three ends driven for real."),
     Gate("test_a_headless_console_says_it_has_no_window",
          [sys.executable, os.path.join(HERE, "test_a_headless_console_says_it_has_no_window.py")], 90,
          why="#145 - the supervisor revives with --no-open, headless by construction; witnessed on a scratch port: "
              "0 windows for the process, while its banner read 'native window'. The banner now says HEADLESS and "
-             "drops the close-the-window line. Driven on a real isolated boot, killed by PID. 1 case, 1 red-proof"),
+             "drops the close-the-window line. Driven on a real isolated boot, killed by PID."),
     Gate("test_switching_views_closes_the_theatre",
          [sys.executable, os.path.join(HERE, "test_switching_views_closes_the_theatre.py")], 60,
          why="#172 - his ruling 2026-09-25: switching views closes the theatre. It deliberately covers every "
              "non-Sessions view while open, and the seat's 'dark glass' over the Vault was its film stage. The "
              "shipped header-tab guard runs in node: a different tab closes it, the same tab or a closed theatre "
-             "calls nothing; thClose is exported. The browser half is in v877. 4 cases, 2 red-proofs"),
+             "calls nothing; thClose is exported. The browser half is in v877."),
     Gate("test_the_theatre_never_waits_on_the_fixture_scan",
          [sys.executable, os.path.join(HERE, "test_the_theatre_never_waits_on_the_fixture_scan.py")], 120,
          why="REG-1284 (#165) - the theatre ran frame_authority's test-file scan inside /api/sessions; cold (a fresh "
              "world, or his console after every ship) it took 9.03 s and the page aborts at 8 s - the first open "
              "after a restart failed, and v877 was red in every Routine I run. A non-blocking accessor (None = "
-             "mark nothing) + a boot warm-up: 0.08 s cold. Driven on the real handler with a 5 s scan. 3 cases, 2 red-proofs"),
+             "mark nothing) + a boot warm-up: 0.08 s cold. Driven on the real handler with a 5 s scan."),
     Gate("test_a_scratch_console_leaves_no_trace_in_his_world",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_leaves_no_trace_in_his_world.py")], 120,
          why="REG-1283 - lane_trace.DIR was always his live tv/.lane_trace, so every scratch console (the render gate's "
              "each push) stamped the corroborator's second witness that HIS loops ran (measured: a scratch console "
              "booted 06:07:12 wrote _orphan_exit_loop.json at 06:07:18), and loop_corroborate read the same hard-coded "
-             "path. Both now follow tv_diablo._fixture_root. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
+             "path. Both now follow tv_diablo._fixture_root. Driven in fresh interpreters."),
     Gate("test_importing_a_suite_isolates_his_stores",
          [sys.executable, os.path.join(HERE, "test_importing_a_suite_isolates_his_stores.py")], 120,
          why="REG-1281 - test_control isolated control_app's chronicle/vault paths only in setUpModule, and a harness "
              "that ran its cases one by one (mine, 2026-09-25) wrote fixture evidence over his live chron_evidence.json "
              "(324 uniques / 2,714 pages; restored byte-exact). Importing a suite now isolates every _CHRON_*/_VAULT_* "
-             "path (8, discovered not listed) and the G5 stats path. Driven in fresh interpreters. 2 cases, 2 red-proofs"),
+             "path (8, discovered not listed) and the G5 stats path. Driven in fresh interpreters."),
     Gate("test_a_shared_stash_item_survives_the_vault_cleanse",
          [sys.executable, os.path.join(HERE, "test_a_shared_stash_item_survives_the_vault_cleanse.py")], 60,
          why="REG-1280 (#165) - the seed floor's vault cleanse deletes every unfiled _GRAIL_SEED name from owned, and a "
              "shared-stash item is never filed (tvVaultRegister('Bone Break') -> mule:null). Measured: a registered Bone "
              "Break vanished on reload, Black Cleft (no seed name) stayed. Since the review of bd976210 the cleanse is "
              "window._seedCleanse (one-time per world, journaled); the shipped door runs in node with the shipped "
-             "_SHARED_KEEP the floor hands it: shared kept, floor residue still stripped. 4 cases, 2 red-proofs"),
+             "_SHARED_KEEP the floor hands it: shared kept, floor residue still stripped."),
     Gate("test_a_live_witness_is_not_an_extraction",
          [sys.executable, os.path.join(HERE, "test_a_live_witness_is_not_an_extraction.py")], 90,
          why="REG-1277 (#221) - his ruling was DIG. The 18 unexplained tombstones were his console's own "
@@ -5660,61 +5796,59 @@ GATES = [
              "second later; 11 more that day). 13 had panels and a seal that took 0 rows, and went because "
              "one LIVE-lane row put the session in the durable stores - a 2,385-frame reel left on one row. "
              "A seal with 0 rows now holds; the deleter and the end-route doors are compared and the doctor "
-             "leads with any disagreement. 7 cases, 4 red-proofs"),
+             "leads with any disagreement."),
     Gate("test_the_seed_holds_no_one_shot_name",
          [sys.executable, os.path.join(HERE, "test_the_seed_holds_no_one_shot_name.py")], 60,
          why="REG-1271 (#165) - the v3313 bake seeded Fleshrender, Gloom's Trap and The Diggler, the names "
              "rule 4 refuses (each arrives by its own one-shot), because one_shot_owned scraped a line "
              "window that later swallowed 25,522 strings. It now reads each one-shot's own chronicleApply; "
-             "the seed may hold only the ruling nine. 3 cases, 2 red-proofs"),
+             "the seed may hold only the ruling nine."),
     Gate("test_a_drained_verdict_is_a_declared_one",
          [sys.executable, os.path.join(HERE, "test_a_drained_verdict_is_a_declared_one.py")], 60,
          why="REG-1267 (#222) - the row 'a verdict comes from a declared field' said 6 of 6 recent looks "
              "carried no declared verdict; all six were drained from #231, whose required `verdict:` field "
              "the drain reads as a FIELD. The check re-parsed the findings paragraph for a VERDICT line that "
-             "could never be there, and had no law at all. schema and #231 fields are declared; prose is not. "
-             "6 cases, 1 red-proof"),
+             "could never be there, and had no law at all. schema and #231 fields are declared; prose is not. "),
     Gate("test_the_closer_reads_frames_on_every_os",
          [sys.executable, os.path.join(HERE, "test_the_closer_reads_frames_on_every_os.py")], 60,
          why="REG-1266 (#229) - the Kai closer hard-coded bin/ocr_mac and ended at boot on Windows, while "
              "tv_diablo._ocr_worker_cmd() has returned ocr_win.ps1 (same protocol) since v818. MEASURED on "
              "the ALT: OS OCR present, ocr_win.ps1 read 'Harlequin Crest'/'Shako' in 208 ms. The closer asks "
-             "the one seam and spawns windowless. 4 cases, 2 red-proofs"),
+             "the one seam and spawns windowless."),
     Gate("test_a_windows_boot_is_checked_before_it_reaches_him",
          [sys.executable, os.path.join(HERE, "test_a_windows_boot_is_checked_before_it_reaches_him.py")], 90,
          why="#229 - the only Windows console anything ever booted was his ALT, so a Windows-only boot "
              "death (#225) reached his box first. tv/windows_boot_check.py boots a SCRATCH console and "
              "asks which build it runs; tv-windows-boot.yml runs it on windows-latest. Proven on the ALT "
              "over SSH before shipping (3.7s, shipped build, platform=windows). Driven here against fake "
-             "trees: shipped build 0, other build 1, boot death 1 with its last words, no manifest 77. "
-             "5 cases, 2 red-proofs"),
+             "trees: shipped build 0, other build 1, boot death 1 with its last words, no manifest 77. "),
     Gate("test_a_windows_console_asks_before_it_starts_at_sign_in",
          [sys.executable, os.path.join(HERE, "test_a_windows_console_asks_before_it_starts_at_sign_in.py")], 60,
          why="#229 - MEASURED on the ALT: zero scheduled tasks and zero startup entries, so the console "
              "survives its own relaunch but not a reboot. Starting it at sign-in is a standing change on "
              "his PC, so it is HIS call: a Windows row asks in his mailbox (yes = handoff to Claude, no = "
-             "his ruling). A failed schtasks query is UNKNOWN, never 'not set up'. 6 cases, 2 red-proofs"),
+             "his ruling). A failed schtasks query is UNKNOWN, never 'not set up'."),
     Gate("test_a_machine_that_died_restarting_is_asked_about",
          [sys.executable, os.path.join(HERE, "test_a_machine_that_died_restarting_is_asked_about.py")], 60,
          why="#223 / #227 item 2 - the fleet's only 'is it on?' question. MEASURED on his roster: "
              "relaunch.armed is True on EVERY console, so it cannot be the signal; a last beacon with a "
              "newer build on disk than running (diskVer != ver) and the restart allowed, then silence, is "
              "a machine that died restarting (the ALT, #225). Dean (off, v3404 on v3404) and Wife PC ask "
-             "nothing. The ask's identity carries the build. 7 cases, 2 red-proofs"),
+             "nothing. The ask's identity carries the build."),
     Gate("test_a_test_run_leaves_no_scratch_dirs",
          [sys.executable, os.path.join(HERE, "test_a_test_run_leaves_no_scratch_dirs.py")], 60,
          why="#171 - 138 mkdtemp sites across 46 test files had no teardown in their own function or "
              "class; one test_agent run left 70 entries in a $TMPDIR already holding 43,744. "
              "fixture_tmp.contain() holds a test process's scratch dirs in one parent removed at exit "
              "(and sweeps dead runs' day-old parents, never a live one's); every file with an unpaired "
-             "site must call it at import. Measured after: the same run leaves 0. 6 cases, 3 red-proofs"),
+             "site must call it at import. Measured after: the same run leaves 0."),
     Gate("test_a_self_updated_console_can_read_its_frames",
          [sys.executable, os.path.join(HERE, "test_a_self_updated_console_can_read_its_frames.py")], 60,
          why="REG-1260 (#227) - MEASURED on the ALT: tree at 6dab59f1 held the launcher's Pillow step, "
              "consoles started 20:26 and 21:06, no Pillow - the launcher's last run was 19:04; every later "
              "start was the console's own os.execv, which never runs start_tvd_win.ps1. The console now "
              "installs Pillow at boot (python.exe, hidden, user site added) and the doctor row quotes the "
-             "attempt instead of promising a launcher run. 6 cases, 2 red-proofs"),
+             "attempt instead of promising a launcher run."),
     # ══ #246 VAULT 2.0 — ONE DOOR INTO THE MULE MAP, AND EVERY LAW IT ANSWERS TO ══════════════════════
     # His words: "all those item inside the vault are falsely there ... make sure they dont get routed here
     # again" and "all the items getting vaulted and vaulted by AI READERS or manually should be to the
@@ -5733,7 +5867,7 @@ GATES = [
              "set door (L3), Chronicle Accept ticks the Chronicle only (L5), and his hand still files with a "
              "provenance row (the positive control). #246 review: the console's 'register as owned' press "
              "files nothing (it minted a hand witness from a route with no confirm), and the inbox's 'Both' "
-             "button, clicked for real, files as his hand while 'Chronicle' does not. 6 cases, 6 red-proofs",
+             "button, clicked for real, files as his hand while 'Chronicle' does not.",
          skip_ok=()),
     Gate("test_every_mule_filing_carries_its_witness",
          [sys.executable, os.path.join(HERE, "test_every_mule_filing_carries_its_witness.py")], 120,
@@ -5746,7 +5880,7 @@ GATES = [
              "reader never replaces his hand's row. Every key in the map has its row after every call; the tag "
              "reads the row (W5); the board's bars equal vault_retro's (his 2-look ruling). Source half: no "
              "assign[...] = outside the door, every wholesale re-bind named. #246 review: a hand must say WHEN "
-             "(a time that is no date, or none, is refused) and the row carries the spec's `main`. 11 cases, 6 red-proofs"),
+             "(a time that is no date, or none, is refused) and the row carries the spec's `main`."),
     Gate("test_a_hardened_filing_is_locked_until_he_releases_it",
          [sys.executable, os.path.join(HERE, "test_a_hardened_filing_is_locked_until_he_releases_it.py")], 120,
          why="#41 heart audit rank 17 (REG-1562) - vault_evidence.rebuild_plan said 'HARDENED is re-filed and locked' "
@@ -5760,14 +5894,14 @@ GATES = [
              "will not parse reads UNKNOWN and every hand door refuses 'prov-unreadable' rather than reading {} as "
              "unlocked. Evidence lanes stay free: vaultRemove takes a locked filing and vaultRestoreLast brings the row "
              "back lock included. Source half: the mule cell's x and both hand paths (drop, click) carry the Shift "
-             "release, code-only. The SHIPPED doors cut from bible.html and driven in node. seen on real pixels with CDP clicks: the refusal is said AT the cell he acted on (the header banner sat ~600 px above a lower locker) and a release takes its own refusal down. 22 cases, 24 red-proofs"),
+             "release, code-only. The SHIPPED doors cut from bible.html and driven in node. seen on real pixels with CDP clicks: the refusal is said AT the cell he acted on (the header banner sat ~600 px above a lower locker) and a release takes its own refusal down."),
     Gate("test_a_one_look_frameless_read_does_not_paint_the_vault_ring",
          [sys.executable, os.path.join(HERE, "test_a_one_look_frameless_read_does_not_paint_the_vault_ring.py")], 90,
          needs_app=False,
          why="CI Routine I, v712 - the board spec expected the vault ring on a stash read that is one look "
              "with no frame. Vault 2.0 refuses that witness, and the stage paints the ring only when the "
              "registrar filed. The ring stays off, the cast still shows the name, two framed looks still "
-             "file and light it, and a throw-out does not. The spec expects the ring off. 4 cases, 4 red-proofs",
+             "file and light it, and a throw-out does not. The spec expects the ring off.",
          skip_ok=()),
     Gate("test_the_witnessed_lane_files_its_own_rows",
          [sys.executable, os.path.join(HERE, "test_the_witnessed_lane_files_its_own_rows.py")], 240,
@@ -5780,7 +5914,7 @@ GATES = [
              "first; Magefist's frameless conf-0.0 shape and a found-ever name do not file; a set piece seen in "
              "the stash files through the set door; with no gate verdict travelling the board judges each look itself. "
              "#246 review: a witnessed shared-stash name is refused 'no-home' and its ledger row says so, never "
-             "'no witness ... a second look', and the sorter logs such a row 'no-home' too. 7 cases, 6 red-proofs",
+             "'no witness ... a second look', and the sorter logs such a row 'no-home' too.",
          skip_ok=()),
     Gate("test_a_look_without_a_frame_is_not_a_witness",
          [sys.executable, os.path.join(HERE, "test_a_look_without_a_frame_is_not_a_witness.py")], 60,
@@ -5788,18 +5922,17 @@ GATES = [
              "pile's BEST row, so Magefist passed on one real look plus a frameless conf-0.0 look (Wilson "
              "0.095). Each look now qualifies on its own frame and conf; looksSeen rides beside; two real looks "
              "still pass; the payload carries the verdict and a stamped, never-decisive bound (moving the bar "
-             "to Wilson is HIS call). 5 cases, 2 red-proofs"),
+             "to Wilson is HIS call)."),
     Gate("test_main_gear_never_files_to_a_mule",
          [sys.executable, os.path.join(HERE, "test_main_gear_never_files_to_a_mule.py")], 120,
          why="#246 L10/W4 - three sources each knew part of the MAIN lock (d2r_laneLock, the furniture law, "
-             "main_character.py - read 0 times by the board) and none reached the writer; the furniture law "
-             "locked Blackhand Key as a 'key'. The SHIPPED lock and door, cut and run in node: one predicate "
-             "joins all three (his 3-session bar kept), the door refuses every locked name even by hand and "
-             "files Blackhand Key, MAIN_LOCKS stays null until the console answers, the MAIN's name comes only "
-             "from his declaration or a .d2s he says is his (tag 'MAIN (name UNKNOWN)' until then), the panel "
-             "calls out a MAIN item in a mule, a reader never files a consumable, and the furniture and consumable lists equal inventory_law's. "
-             "#246 review: the panel carries the MAIN-name input, joined to the declare door that had no caller. 9 cases, 5 "
-             "red-proofs"),
+             "main_character.py - read 0 times by the board) and none reached the writer; the furniture law locked "
+             "Blackhand Key as a 'key'. The SHIPPED lock and door, cut and run in node: one predicate joins all three "
+             "(his 3-session bar kept), the door refuses every locked name even by hand and files Blackhand Key, "
+             "MAIN_LOCKS stays null until the console answers, the MAIN's name comes only from his declaration or a .d2s "
+             "he says is his (tag 'MAIN (name UNKNOWN)' until then), the panel calls out a MAIN item in a mule, a reader "
+             "never files a consumable, and the furniture and consumable lists equal inventory_law's. #246 review: the "
+             "panel carries the MAIN-name input, joined to the declare door that had no caller."),
     Gate("test_a_vault_reset_clears_only_the_mules",
          [sys.executable, os.path.join(HERE, "test_a_vault_reset_clears_only_the_mules.py")], 120,
          why="2026-09-27 - he pressed 'Reset everything' and it cleared d2r_muleAssign 174->0 (wanted) AND d2r_owned "
@@ -5810,8 +5943,7 @@ GATES = [
              "non-scope key is byte-identical after, the in-memory owned/set/Magic&Rare/copies are unchanged, the "
              "mule map is empty, Reset assignments leaves the log and folder alone, the full door unlinks the "
              "folder (v569), cancel moves nothing; the title, confirm and status say what is cleared and what "
-             "stays; the self-check names a kept store the reset changed and calls an unreadable one UNKNOWN. "
-             "7 cases, 9 red-proofs",
+             "stays; the self-check names a kept store the reset changed and calls an unreadable one UNKNOWN. ",
          skip_ok=()),
     Gate("test_every_locked_main_row_reaches_the_board",
          [sys.executable, os.path.join(HERE, "test_every_locked_main_row_reaches_the_board.py")], 120,
@@ -5819,19 +5951,19 @@ GATES = [
              "by the REAL Handler over a FIXTURE ledger and publishes exactly what the ledger locks; the SHIPPED "
              "lock block, fed that answer in node, locks every one and the door refuses it; the board fetches "
              "the path the console serves; an unreadable ledger is ok:false/locked:null and the board keeps "
-             "MAIN_LOCKS null. 4 cases, 3 red-proofs"),
+             "MAIN_LOCKS null."),
     Gate("test_a_filing_is_kept_by_its_witness_not_by_owned",
          [sys.executable, os.path.join(HERE, "test_a_filing_is_kept_by_its_witness_not_by_owned.py")], 60,
          why="#246 L12/W6 - the render prune kept a filing exactly as long as its name sat in `owned` "
              "(ticked or found-ever). The SHIPPED prune, run in node: a witnessed filing stands when its name "
              "leaves the pool; an unwitnessed one outside the pool goes; an unwitnessed one in the pool is "
-             "left for the NO WITNESS tag and the doctor (the fresh vault is his ruling). 1 case, 1 red-proof"),
+             "left for the NO WITNESS tag and the doctor (the fresh vault is his ruling)."),
     Gate("test_a_restored_set_piece_travels_as_a_set",
          [sys.executable, os.path.join(HERE, "test_a_restored_set_piece_travels_as_a_set.py")], 60,
          why="#246 L3/W0c - a ledger restore sent every foundLog key as a unique, set pieces included; on the "
              "board toggleOwned dropped each piece into d2r_owned and the sorter filed 19 of them (2026-09-16 "
              "15:28:34). plan() now carries the backup's set-piece list and proposal_from sends those names "
-             "through `sets` only, once. 3 cases, 1 red-proof"),
+             "through `sets` only, once."),
     Gate("test_the_vault_provenance_row_can_go_red",
          [sys.executable, os.path.join(HERE, "test_the_vault_provenance_row_can_go_red.py")], 60,
          why="#246 W7 - the one door, watched: the doctor row 'vault provenance' reads the board through the "
@@ -5839,7 +5971,7 @@ GATES = [
              "stash rows never filed, and the feeder's banked-of-runs; UNKNOWN without a board read. Each arm "
              "driven with a fixture and seen RED; furniture and consumables are never reported as unfiled; "
              "registered, declared and explained. #246 review: arm 3 never counts a shared-stash row or a set "
-             "piece filed under its slot name, and arm 2's OK is UNKNOWN when nothing locks. 10 cases, 7 red-proofs"),
+             "piece filed under its slot name, and arm 2's OK is UNKNOWN when nothing locks."),
     Gate("test_every_operator_door_keeps_its_contract",
          [sys.executable, os.path.join(HERE, "test_every_operator_door_keeps_its_contract.py")], 60,
          why="REG-1259 - Routine I's v1550 audit was red on four doors no page calls by design "
@@ -5848,67 +5980,65 @@ GATES = [
              "Handler with a recording board: no write door writes without confirm, each writes with "
              "it, the probe only reads. #246 L4: a confirmed possession door never presses the sorter, a "
              "chronicle restore never reaches the owned door, and the register button re-gates the stored "
-             "sweep row by row, naming what it holds back. 6 cases, 6 red-proofs"),
+             "sweep row by row, naming what it holds back."),
     Gate("test_the_gate_never_adopts_a_browser_it_did_not_start",
          [sys.executable, os.path.join(HERE, "test_the_gate_never_adopts_a_browser_it_did_not_start.py")], 60,
          why="REG-1258 - hooks/pre-push, render_check and crest_loudness all USED whatever answered on :9224; "
              "measured before a push, another session's research Chrome held it, and the gate would have "
              "graded the page in that browser. The hook now chooses the first port nothing listens on "
              "(bash /dev/tcp, any OS) and exports TV_RENDER_PORT to every child. The real snippet runs "
-             "in bash against a held socket. 5 cases, 2 red-proofs"),
+             "in bash against a held socket."),
     Gate("test_the_measured_bit_crosses_the_relay",
          [sys.executable, os.path.join(HERE, "test_the_measured_bit_crosses_the_relay.py")], 60,
          why="the doctor row 'a tally agrees with its own ledger verdict' read MISSING for every fleet row, v3499 "
              "consoles included: the tally seals measured/measuredWhy (v3389) and functions/api/console.js "
              "copied the tally through a fixed key list that dropped both - the sixth joint of the fleet tally. "
-             "The real shaper runs in node; a non-boolean arrives as null. 4 cases, 1 red-proof"),
+             "The real shaper runs in node; a non-boolean arrives as null."),
     Gate("test_the_ask_route_waits_for_its_question",
          [sys.executable, os.path.join(HERE, "test_the_ask_route_waits_for_its_question.py")], 60,
          why="#25 - his CHOOSE IN INBOX landed on a black Tools page. Not reproduced in Chrome; hardened against the "
              "one mechanism that yields that picture: a zero-size (not laid out) question is no longer 'landed', "
-             "and the route retries inside its 40 x 80 ms budget. 4 cases, 2 red-proofs"),
+             "and the route retries inside its 40 x 80 ms budget."),
     Gate("test_the_eye_workers_bound_their_writes",
          [sys.executable, os.path.join(HERE, "test_the_eye_workers_bound_their_writes.py")], 60,
          why="REG-1300 - v3391 bounded control_app's pipe WRITE and left its two twins in tv_diablo "
              "(VisionWorker.ask, OcrWorker.read): a worker that stops draining stdin held the vision/OCR lane "
              "for ever. The doctor row named both lines on the Mac and the ALT. The shipped classes are driven "
-             "against a stdin-deaf worker with a payload past the pipe buffer. 5 cases, 4 red-proofs"),
+             "against a stdin-deaf worker with a payload past the pipe buffer."),
     Gate("test_a_last_seen_is_aged_at_its_own_snapshot",
          [sys.executable, os.path.join(HERE, "test_a_last_seen_is_aged_at_its_own_snapshot.py")], 60,
          why="REG-1302 - the 'a present machine has a fresh last-seen' doctor row aged ONE cached roster against "
              "the check's own clock, so it measured the cache: 'GrokBot (57m); Konyo ALT TEST (58m); Konyo (59m)' "
-             "while the same rows were 133-226 s old. Now aged at the roster's own clock. 5 cases, 2 red-proofs"),
+             "while the same rows were 133-226 s old. Now aged at the roster's own clock."),
     Gate("test_a_windows_console_is_seen_by_its_own_os",
          [sys.executable, os.path.join(HERE, "test_a_windows_console_is_seen_by_its_own_os.py")], 60,
          why="REG-1303 - window_visibility asked only Quartz, so on the ALT (Windows) the console's covered/on-screen "
              "witness was always UNKNOWN and the silence rescue reloaded a console Citrix was covering: 13 rescues "
              "since 09-20, 7 in one night. A Win32 window list now feeds the same layer/union/95% arithmetic; the "
-             "shipped silence branch is driven through it. 10 cases, 4 red-proofs"),
+             "shipped silence branch is driven through it."),
     Gate("test_esc_on_a_console_panel_never_quits",
          [sys.executable, os.path.join(HERE, "test_esc_on_a_console_panel_never_quits.py")], 60,
          why="REG-1304 - Esc on THE STATE OF THIS CONSOLE (its own X says 'close (Esc)'), the fleet window, the heart "
              "or a receipt's full frame closed the panel AND quit his console: each listener closed its panel without "
              "marking the key, so the v1420 empty-page handler saw an empty page. What is open is now read at PRESS "
-             "time in a window-capture listener. The shipped listeners run in node in the page's own order. "
-             "7 cases, 3 red-proofs"),
+             "time in a window-capture listener. The shipped listeners run in node in the page's own order. "),
     Gate("test_the_console_serves_his_install_font",
          [sys.executable, os.path.join(HERE, "test_the_console_serves_his_install_font.py")], 60,
          why="#174 v-B2 - the d2planner sets item text in Blizzard's Exocet, which may never be committed to this public "
              "repo; his install carries it (68,596 bytes, OTTO), so the console streams it from there, in memory only, "
-             "404 + the reason without an install, never a non-font, never a name outside its table. 5 cases, 3 red-proofs"),
+             "404 + the reason without an install, never a non-font, never a name outside its table."),
     Gate("test_a_page_error_names_where_it_died",
          [sys.executable, os.path.join(HERE, "test_a_page_error_names_where_it_died.py")], 60,
          why="REG-1306 - the render gate refused a push on 'Cannot read properties of null (reading innerHTML)' "
              "and kept only that first line, so an intermittent red (clean alone and in a full rerun) named what "
              "died and never where. It now keeps the first stack frame. The shipped collector is driven on a fake "
-             "CDP socket. 3 cases, 2 red-proofs"),
+             "CDP socket."),
     Gate("test_no_child_opens_a_window_on_windows",
          [sys.executable, os.path.join(HERE, "test_no_child_opens_a_window_on_windows.py")], 60,
          why="REG-1307 - on Windows a terminal window kept jumping up and alt-tabbing him (and Dean) out of the game: "
              "pythonw has no console, so each console-subsystem child gets a visible one unless it passes "
              "CREATE_NO_WINDOW, and 82 spawn sites did not. win_quiet replaces subprocess.Popen once per process "
-             "(console + agent) so every spawn is windowless. Driven on a fake Windows subprocess module. "
-             "4 cases, 4 red-proofs"),
+             "(console + agent) so every spawn is windowless. Driven on a fake Windows subprocess module. "),
     Gate("test_no_new_home_path_is_published",
          [sys.executable, os.path.join(HERE, "test_no_new_home_path_is_published.py")], 60,
          why="#27 - the repo is PUBLIC and 113 /Users/<name>/ literals sat in 65 tracked files, two of them live code in "
@@ -5921,19 +6051,19 @@ GATES = [
          why="#242 - REG-1308's mule laws were green on his Mac and errored on every CI run: `node -e <program>` "
              "handed a 134 KB / 422 KB program as ONE argument and Linux caps one at 131,072 bytes. 27 more sites in "
              "25 law files carried the same trap and moved to stdin; this reads every tv/test_*.py (ast) and refuses "
-             "a node call that passes a non-literal program after -e. 2 cases, 2 red-proofs"),
+             "a node call that passes a non-literal program after -e."),
     Gate("test_a_killed_prover_leaves_no_sandbox",
          [sys.executable, os.path.join(HERE, "test_a_killed_prover_leaves_no_sandbox.py")], 60,
          why="MEASURED 2026-09-26: 11 heart2.* repo copies in the temp dir, one per interrupted --prove (the gate's "
              "bound, a perl alarm) - a finally never runs under a signal. heart2 now registers each sandbox with its "
              "owner's pid, removes them on SIGTERM/SIGALRM/SIGHUP, and sweeps a dead owner's (or an ownerless day-old "
-             "one) before every --prove. Driven with real signals on a real child. 5 cases, 4 red-proofs"),
+             "one) before every --prove. Driven with real signals on a real child."),
     Gate("test_no_harness_leaves_its_scratch",
          [sys.executable, os.path.join(HERE, "test_no_harness_leaves_its_scratch.py")], 300,
          why="#171's class in PRODUCTION code: MEASURED 2026-09-26, per day, 1,890 diskrep_* (the disk proof, every "
              "doctor pass), 196 heartlane_*, 77 sweep*_, 48 empty tvd-gates-* (minted at import), 26 killed-run Chrome "
              "profiles, 15 vault-sim-*, 5 rrw_*. The harnesses run end to end in a child with its own TMPDIR and must "
-             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix). 3 cases, 6 red-proofs"),
+             "leave it empty; the static list is #171's ratchet (lowered 24 -> 2 by this fix)."),
     Gate("test_the_affix_tables_are_the_installs",
          [sys.executable, os.path.join(HERE, "test_the_affix_tables_are_the_installs.py")], 90,
          why="#174 v-B3 - the Edit tab's ADD MOD and the sheet read the CB_DB block's af / rn / qm rows, generated from "
@@ -5945,7 +6075,7 @@ GATES = [
              "ROUND: a base's magic lvl (b[23]) beside its qlvl; an affix's class level requirement (of Magic Arrow: 11, "
              "an Amazon 1); every one of the 112 charged skills the table gives as negative is ONE UNKNOWN line, never "
              "\"Level -10\"; the six rare words the item strings miss are named by monsters.json / ui.json (Ghoul, "
-             "Wraith, Fiend, Crusher, Scarab, Strap). 7 cases, 10 red-proofs"),
+             "Wraith, Fiend, Crusher, Scarab, Strap)."),
     Gate("test_the_item_edit_tab_builds_magic_and_rare_items",
          [sys.executable, os.path.join(HERE, "test_the_item_edit_tab_builds_magic_and_rare_items.py")], 90,
          why="#174 v-B3 - their Select -> Quality -> Edit over the game's affix tables, driven on the SHIPPED modal in "
@@ -5958,8 +6088,7 @@ GATES = [
              "level-90 prefixes); an item born with Enhanced Defense sits at its base's max + 1 (a Godly Diadem +200% is "
              "183, its Defense box 61, fixed); a class's own level requirement; a negative charged skill is UNKNOWN; two "
              "affixes of one stat print one line (135 mana, not 67 twice); ADD MOD is a combobox (the active option "
-             "painted, ArrowDown moves it, Enter adds it) with no AUTOMOD header over nothing; the six rare words offered. "
-             "11 cases, 19 red-proofs"),
+             "painted, ArrowDown moves it, Enter adds it) with no AUTOMOD header over nothing; the six rare words offered. "),
     Gate("test_the_character_sheet_sums_picked_affixes",
          [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_picked_affixes.py")], 90,
          why="#174 v-B3 - D2R_CHAR_ENGINE sums the affixes he picked exactly like a unique's props (typed EXACT, "
@@ -5970,22 +6099,21 @@ GATES = [
              "rows. FIX ROUND: a magic / rare / superior item born with Enhanced Defense sits at its base's max + 1 "
              "(Godly Diadem +200% = 183 EXACT; superior +15% = 70, the typed base set aside); a negative charged level "
              "is UNKNOWN, never -10 EXACT; two affixes of one per-level stat are one stat, scaled once (135, not 134); "
-             "the sheet names the affix the item shows (Mojo, never the table key Vodoun). 16 cases, 12 red-proofs"),
+             "the sheet names the affix the item shows (Mojo, never the table key Vodoun)."),
     Gate("test_the_tooltip_is_the_games_tooltip",
          [sys.executable, os.path.join(HERE, "test_the_tooltip_is_the_games_tooltip.py")], 90,
-         why="#174 v-B4 - the SHIPPED tooltip (_cbTipEntry + d2Tip, in node) equals THEIR tooltip text, line for line, "
-             "on 203 measured rows (Breath of the Dying on 40 bases incl. the 7 of the brief, Grief, Spirit, Insight, "
-             "Call to Arms, Heart of the Oak; tv/the_tooltip_oracle.json, text only): damage with ED lo..hi floored, "
+         why="#174 v-B4 - the SHIPPED tooltip (_cbTipEntry + d2Tip, in node) equals THEIR tooltip text, line for line, on "
+             "203 measured rows (Breath of the Dying on 40 bases incl. the 7 of the brief, Grief, Spirit, Insight, Call "
+             "to Arms, Heart of the Oak; tv/the_tooltip_oracle.json, text only): damage with ED lo..hi floored, "
              "Durability, requirements base + trunc(base x pct / 100) (Hel: 94 -> 76), the rune string, '<Class> Class - "
              "<Speed> Attack Speed' from animdata frames + the game's formula + the measured bands (10-13 Very Fast, "
              "14-15 Fast, 16-19 Normal, 20-22 Slow, UNKNOWN outside), the runeword's and its runes' lines merged (+200% "
              "Damage to Undead, +30 to all Attributes) and ordered by descpriority / descfunc / stat id, their range "
-             "form. Three differences declared and asserted where they apply: a sword's class line (theirs none), a "
-             "blunt base's +50% undead (the game's code - ours UNKNOWN), an untyped IAS roll across two bands (ours "
-             "both words; typed at its top, theirs). Annihilus: Keep in Inventory + ONE all-Attributes roll; a unique "
-             "and a set item keep their own lines. REG-1560: the whole-oracle case drives tooltip_oracle_lane.measure(), "
-             "the SAME composition run and per-row judge the tvd-tooltip-oracle lane runs on the console. 12 cases, "
-             "16 red-proofs"),
+             "form. Three differences declared and asserted where they apply: a sword's class line (theirs none), a blunt "
+             "base's +50% undead (the game's code - ours UNKNOWN), an untyped IAS roll across two bands (ours both words; "
+             "typed at its top, theirs). Annihilus: Keep in Inventory + ONE all-Attributes roll; a unique and a set item "
+             "keep their own lines. REG-1560: the whole-oracle case drives tooltip_oracle_lane.measure(), the SAME "
+             "composition run and per-row judge the tvd-tooltip-oracle lane runs on the console."),
     Gate("test_their_tooltip_rows_are_ours",
          [sys.executable, os.path.join(HERE, "test_their_tooltip_rows_are_ours.py")], 120,
          why="#41 rank 16 (REG-1560) - THE RUNTIME JOINT for the builder's tooltip: the tvd-tooltip-oracle lane runs the "
@@ -5999,7 +6127,7 @@ GATES = [
              "UNKNOWN; an oracle row the lane never judged = MISSING and the joint parts 203 vs 202; the verdict "
              "counts ROWS, never the receipt's own tally; the lane is in the roster, stamps its beat, declares its "
              "scope, leaves its trace, and the row is explained (COVERED_BY) and declared (WATCHES). States the "
-             "oracle's limit (203 rows, 6 runewords) in every verdict. 11 red-proofs"),
+             "oracle's limit (203 rows, 6 runewords) in every verdict."),
     Gate("test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character",
          [sys.executable, os.path.join(HERE, "test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character.py")], 90,
          why="#253 (GrokBot ACT 5854814442, v3517) - (a) the item Edit panel of a white Crowbill said only 'Normal · "
@@ -6013,7 +6141,7 @@ GATES = [
              "build is UNKNOWN, an empty store says how to add one, an unreadable one is UNKNOWN; Esc closes the list "
              "first. #41 rank 11 (REG-1525): a runeword or unique whose base is not on record reads 'base UNKNOWN (not "
              "on record: <code>)' in the Base control and in the hover box's base line - never '<code> (0 sockets "
-             "max)' and never a silent gap. 8 cases, 23 red-proofs"),
+             "max)' and never a silent gap."),
     Gate("test_the_mule_rules_and_the_builder_agree_on_hands_and_class",
          [sys.executable, os.path.join(HERE, "test_the_mule_rules_and_the_builder_agree_on_hands_and_class.py")], 60,
          why="#41 rank 15 (REG-1528, 2026-09-29) - the mule window's MULE_BASE_* blocks (slot, hands, ammo, class - "
@@ -6023,7 +6151,7 @@ GATES = [
              "OK; a raise is UNKNOWN), declared in WATCHES and explained in NO_JOINT_YET; and this gate, with no "
              "install, compares the builder's CB_DB (b[14] hands, ty[t][2] class) against the mule block through its "
              "own embedded() for EVERY base - 692 compared, 0 mismatches, every rule name present (a missing one "
-             "would make it a sample). 3 cases, 6 red-proofs."),
+             "would make it a sample)."),
     Gate("test_the_console_tabs_gate_routes_every_board_door",
          [sys.executable, os.path.join(HERE, "test_the_console_tabs_gate_routes_every_board_door.py")], 60,
          why="#41 rank 14 (REG-1527, 2026-09-29) - render_check's console-tabs target routed SIX tabs after v3518 gave "
@@ -6032,7 +6160,7 @@ GATES = [
              "'chars' joined ROUTING and the why says Seven. This law drives the target's REAL activate program in node "
              "over a stub console + board: the doors it clicks are exactly control_ui.html's #head-tabs minus the "
              "console-native pair, a collapsed #tab-chars turns it red (with a collapsed #tab-vault as the baseline), "
-             "and the why counts what ROUTING counts. 3 cases, 3 red-proofs. Pixels stay the gate's own job, on CI."),
+             "and the why counts what ROUTING counts. Pixels stay the gate's own job, on CI."),
     Gate("test_the_characters_room_has_a_doctor_row",
          [sys.executable, os.path.join(HERE, "test_the_characters_room_has_a_doctor_row.py")], 60,
          why="#41 ranks 12 + 13 (REG-1526, 2026-09-29) - the 👤 Characters room's heart was one proven law and nothing "
@@ -6043,12 +6171,12 @@ GATES = [
              "naming both and the door (REG-1553: the planner names a build '<Class> build' and the vault's MAIN is a "
              "typed character name - two vocabularies, and a red he is told to leave carries nothing), because marking "
              "a build ★ MAIN locks no gear and nothing said so - the button and the help copy now do. Registered in "
-             "CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness). 9 cases, 8 red-proofs"),
+             "CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness)."),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
              "stat's bit width makes every import decode wrong while it still looks like items. Its doctor row "
-             "re-derives sourceHash: fresh OK, stale MISSING, no install UNKNOWN. 4 cases, 1 red-proof"),
+             "re-derives sourceHash: fresh OK, stale MISSING, no install UNKNOWN."),
     Gate("test_the_skill_trees_come_from_the_install",
          [sys.executable, os.path.join(HERE, "test_the_skill_trees_come_from_the_install.py")], 120,
          why="#174 - the planner's three skill trees per class come from his install's CASC (skills.txt, skilldesc, "
@@ -6058,30 +6186,30 @@ GATES = [
              "(Wearwolf), a page is not a tab position (the Druid's page 3 is Elemental, leftmost; the Warlock's "
              "leftmost key is Wa3), and a tab order the tables do not settle is UNKNOWN. A fake install runs "
              "everywhere; the json's sourceHash and content match a fresh build when the install is present, "
-             "UNMEASURED otherwise. 23 cases, 6 red-proofs"),
+             "UNMEASURED otherwise."),
     Gate("test_the_eye_reads_the_commit_read_only",
          [sys.executable, os.path.join(HERE, "test_the_eye_reads_the_commit_read_only.py")], 60,
          why="#169 Win 2 (his ruling: the Grok CLI) - the eye ran in an EMPTY folder on pasted text. It now gets the "
              "reviewed commit's changed files AS AT THAT COMMIT (git archive, never the live tree), read-only, oversized "
-             "files named not dropped, and a prompt that names them and bounds it. 5 cases, 4 red-proofs"),
+             "files named not dropped, and a prompt that names them and bounds it."),
     Gate("test_every_decision_file_is_ignored",
          [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
          why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
              "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
-             "asked of git check-ignore, primary and scratch form. 2 cases, 1 red-proof"),
+             "asked of git check-ignore, primary and scratch form."),
     Gate("test_the_console_window_claims_its_own_board",
          [sys.executable, os.path.join(HERE, "test_the_console_window_claims_its_own_board.py")], 60,
          why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
              "ledger name and nothing called it. Now one routine claims + names the ledger; it runs by itself only in "
              "a pywebview window on a store with no claim, and only when this machine never held a populated board "
-             "(no ledger snapshot, no banked count) - restore, never reseed. 12 cases, 6 red-proofs"),
+             "(no ledger snapshot, no banked count) - restore, never reseed."),
     Gate("test_each_console_shows_its_own_counts",
          [sys.executable, os.path.join(HERE, "test_each_console_shows_its_own_counts.py")], 60,
          why="#240 - from his ALT, Konyo's and GrokBot's fleet rows showed no numbers while Dean's did ('as if im "
              "the same person on all three'). The rows were individual; every v3504 tally sealed measured=False "
              "over SYNCED ledgers (the authority was asked before ok was sealed, and the seal keyed on 'EARNED', "
              "a word the authority never says), and the card blanks a False. Now per ledger (measuredBy) through "
-             "seal, relay, card and doctor. 11 cases, 6 red-proofs"),
+             "seal, relay, card and doctor."),
     Gate("test_a_character_save_reads_byte_exact",
          [sys.executable, os.path.join(HERE, "test_a_character_save_reads_byte_exact.py")], 60,
          why="tv/d2s_read.py reads a D2R .d2s (format 105): an item bitstream has no per-item length, so one "
@@ -6090,93 +6218,89 @@ GATES = [
              "count, a missing format-105 bit, truncation and a bad checksum all come back ok=False with the byte; "
              "a runeword past runes.txt row 79 is UNKNOWN, never guessed. His TESTCLAUDE.d2s (49 items, "
              "Jalal's Mane) and BLANK.d2s (28 items, none equipped, the study's sniffed pad read as a trailing bit) "
-             "are MEASURED when present, UNMEASURED otherwise. 21 cases, 7 red-proofs"),
+             "are MEASURED when present, UNMEASURED otherwise."),
     Gate("test_a_receipt_row_is_not_a_beat",
          [sys.executable, os.path.join(HERE, "test_a_receipt_row_is_not_a_beat.py")], 60,
          why="#238 - a `deep-owed` receipt row (a deep read committed to a frame) was journaled with no ts and "
              "emitted by the theatre session builder as a playable beat that sorted as 1970; test_roundtrip_sim "
              "errored wherever tv/frames exists (never on CI). The builder skips receipts (legacy rows have no ts) "
-             "and the writer stamps its time; each proven on its own. 4 cases, 2 red-proofs"),
+             "and the writer stamps its time; each proven on its own."),
     Gate("test_escape_answers_the_question_no",
          [sys.executable, os.path.join(HERE, "test_escape_answers_the_question_no.py")], 60,
          why="the second eye on v3497: Escape with an in-page inbox question up closed the INBOX (a capture-phase "
              "listener ran first and stopped the event), left 'Promote all N' armed, and the next Escape reached "
              "the empty-page handler and POSTed /api/quit. The real handlers run in node through a capture/bubble "
-             "dispatcher; on the shipped code the law reproduces the quit. 5 cases, 3 red-proofs"),
+             "dispatcher; on the shipped code the law reproduces the quit."),
     Gate("test_a_child_s_words_are_read_as_utf8_on_every_os",
          [sys.executable, os.path.join(HERE, "test_a_child_s_words_are_read_as_utf8_on_every_os.py")], 60,
          why="#229 - measured on his Windows ALT: the visual-lock row ran its child with text=True and no encoding, "
              "Python decoded the child's emoji with cp1255, and the reader thread died. 42 production calls had "
              "the shape (invisible on the Mac's UTF-8 locale); all pass encoding='utf-8' now. AST sweep with a "
-             "premise. 2 cases, 1 red-proof"),
+             "premise."),
     Gate("test_a_pass_says_which_check_it_is_in",
          [sys.executable, os.path.join(HERE, "test_a_pass_says_which_check_it_is_in.py")], 60,
-         why="#229 - his Windows ALT read 'not measured yet' for 14+ minutes after boot while the same checks "
-             "finished standalone in ~6 minutes, and nothing could name the check the pass sat in. The doctor "
-             "records the running check (CURRENT) and eagle_state() publishes it as `measuring`. 2 cases, "
-             "3 red-proofs"),
+         why="#229 - his Windows ALT read 'not measured yet' for 14+ minutes after boot while the same checks finished "
+             "standalone in ~6 minutes, and nothing could name the check the pass sat in. The doctor records the running "
+             "check (CURRENT) and eagle_state() publishes it as `measuring`."),
     Gate("test_free_space_is_measured_on_every_os",
          [sys.executable, os.path.join(HERE, "test_free_space_is_measured_on_every_os.py")], 60,
          why="#229 - river.py, safe_copy and space_warden measured free disk with os.statvfs, which does not "
              "exist on Windows: the river's disk joint read UNKNOWN on every Windows console and safe_copy "
              "could never prove its 4 GB floor there. shutil.disk_usage everywhere; driven with statvfs "
-             "removed, plus an AST sweep. 4 cases, 2 red-proofs"),
+             "removed, plus an AST sweep."),
     Gate("test_the_frozen_screen_watch_reads_only_recent_looks",
          [sys.executable, os.path.join(HERE, "test_the_frozen_screen_watch_reads_only_recent_looks.py")], 60,
          why="measured 2026-09-24: the evidence shelf grew to 9,325 PNGs / 3.2 GB and frozen_frame_watch walked "
              "all of it on every doctor pass - 'screen still painting' took 337.5 s and a push was refused as "
              "test_control HUNG at its 1500 s bound on an idle machine. It reads the newest 12 top-level "
-             "entries now (0.1 s, same verdict). 3 cases, 1 red-proof"),
+             "entries now (0.1 s, same verdict)."),
     Gate("test_this_machine_can_decode_a_frame",
          [sys.executable, os.path.join(HERE, "test_this_machine_can_decode_a_frame.py")], 60,
          why="#227 - measured over SSH: his Windows ALT ran Python 3.12.10 with pywebview and NO Pillow, so "
              "every frame it filmed was unreadable and nothing said so. The launcher and installer now "
              "install Pillow; the doctor row 'this machine can decode a frame' round-trips a BMP (the "
-             "Windows capture's format) pixel for pixel. 6 cases, 3 red-proofs"),
+             "Windows capture's format) pixel for pixel."),
     Gate("test_a_fresh_machine_establishes_its_tree_at_boot",
          [sys.executable, os.path.join(HERE, "test_a_fresh_machine_establishes_its_tree_at_boot.py")], 60,
          why="#227 - the one boot-shaped machine_tree.establish() sat inside _prewarm_seal_cache, which returns "
              "at once on Windows and otherwise runs only after a capture session STOPS - never at boot. A "
              "fresh machine established nothing until it filmed, and 'this console tree is established' "
              "read MISSING for as long as that took. main() now establishes at boot on every platform; a "
-             "scratch console provisions nothing. 4 cases, 3 red-proofs"),
+             "scratch console provisions nothing."),
     Gate("test_the_windows_eye_is_found_by_its_exe",
          [sys.executable, os.path.join(HERE, "test_the_windows_eye_is_found_by_its_exe.py")], 60,
          why="#227 - on his Windows ALT box grok.exe existed and was on PATH, the resolver listed no .exe and "
              "second_eye_run hardcoded ~/.grok/bin/grok, so the doctor said 'no binary there'. Driven on a "
-             "Windows-shaped home: the resolver, the second eye and the doctor row all find the .exe. "
-             "4 cases, 2 red-proofs"),
+             "Windows-shaped home: the resolver, the second eye and the doctor row all find the .exe. "),
     Gate("test_the_sets_count_asks_for_a_fresh_page",
          [sys.executable, os.path.join(HERE, "test_the_sets_count_asks_for_a_fresh_page.py")], 60,
-         why="#228 - his screenshot 2026-09-24 11:13: the chronicle-sweep panel drew 'the board and the game "
-             "do not add up' RED, reading as if he had done something wrong. Measured: it rested on a "
-             "Remaining page filmed 2026-08-21 (the card said 24.5 days; it was 34) while the game's own bar "
-             "agreed with his board, and its next-action said 'the two wrong rows' for 16. The card is calm "
-             "and folded, ages the page from readAt, and the one line that was his - film a new Remaining "
-             "page - is a WAITING ON YOU question (doctor 'a fresh remaining page', every tick). A grok-4.7 "
-             "look at the OPENED card found the raw alarm inside it; it shows the measurement; the eye on v3498 aligned card and doctor. 17 cases, "
-             "8 red-proofs"),
+         why="#228 - his screenshot 2026-09-24 11:13: the chronicle-sweep panel drew 'the board and the game do not add "
+             "up' RED, reading as if he had done something wrong. Measured: it rested on a Remaining page filmed "
+             "2026-08-21 (the card said 24.5 days; it was 34) while the game's own bar agreed with his board, and its "
+             "next-action said 'the two wrong rows' for 16. The card is calm and folded, ages the page from readAt, and "
+             "the one line that was his - film a new Remaining page - is a WAITING ON YOU question (doctor 'a fresh "
+             "remaining page', every tick). A grok-4.7 look at the OPENED card found the raw alarm inside it; it shows "
+             "the measurement; the eye on v3498 aligned card and doctor."),
     Gate("test_a_slow_census_is_still_remembered",
          [sys.executable, os.path.join(HERE, "test_a_slow_census_is_still_remembered.py")], 60,
-         why="#237 - the heart memo aged from when the census STARTED, so a census slower than its 45s "
-             "TTL was born expired: inside a push at load ~7 /api/heart took 48.3s, the panel's own fetch "
-             "one click later walked the source again, and the render gate refused the heart panel. "
-             "Reuse now counts from when it LANDED; the shown age is still the reading's. 6 cases, "
-             "3 red-proofs"),
+         why="#237 - the heart memo aged from when the census STARTED, so a census slower than its 45s TTL was born "
+             "expired: inside a push at load ~7 /api/heart took 48.3s, the panel's own fetch one click later walked the "
+             "source again, and the render gate refused the heart panel. Reuse now counts from when it LANDED; the shown "
+             "age is still the reading's."),
     Gate("test_a_scratch_console_never_films_his_screen",
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_films_his_screen.py")], 60,
          why="#236 - mid-push the render gate's private (stub) console went live, pinned HIS GeForce NOW "
              "stream and captured it frame after frame into its sandbox: console 84% CPU, render starved "
              "at load 12.6, push refused (earlier the same console filmed a Finder window). TV_CAPTURE=off "
              "now refuses every capture and calls nothing that reads a window; the harness spawns its "
-             "console with it (AST-checked). 3 cases, 2 red-proofs"),
+             "console with it (AST-checked)."),
     Gate("test_a_look_can_cover_a_batch",
          [sys.executable, os.path.join(HERE, "test_a_look_can_cover_a_batch.py")], 60,
          why="2026-09-27 - v3515-v3517 shipped as bump-only commits over code built on an integration "
              "branch, so v3517's bound commit was 2,692 chars of version strings: the eye said cannot-tell, "
              "no re-ask could say more, and the v3518 push was refused. --base REV widens the look to REV..sha, "
              "the eye is told it spans N commits, the row says what it covered, and a base that is not an "
-             "ancestor is never asked. Driven on a throwaway repo. 4 cases, 3 red-proofs"),
+             "ancestor is never asked. Driven on a throwaway repo."),
     Gate("test_a_bare_boosteroid_window_must_show_the_hud",
          [sys.executable, os.path.join(HERE, "test_a_bare_boosteroid_window_must_show_the_hud.py")], 90,
          why="2026-09-28 - Boosteroid's own window is titled only Boosteroid, and so is the launcher "
@@ -6185,7 +6309,7 @@ GATES = [
              "a zone name. Three reads with none is the launcher and does not start, and a reel "
              "already rolling seals. No reads yet is UNKNOWN, not the launcher. A window that names "
              "the game is not put through the check, and a reel he opened is not sealed for it. "
-             "Kai and intake rows are not reads. 18 cases, 7 red-proofs"),
+             "Kai and intake rows are not reads."),
     Gate("test_a_windows_door_sees_the_game",
          [sys.executable, os.path.join(HERE, "test_a_windows_door_sees_the_game.py")], 60,
          why="2026-09-27 - measured on his ALT: shadow on, the game streaming through Boosteroid, and the "
@@ -6194,7 +6318,7 @@ GATES = [
              "app titles its window only 'Boosteroid' (measured by the ALT's capture eye 09-25), so #232's "
              "name-the-game rule held that eye too. Windows finder over the proven Win32 walk, one judge for "
              "both OSes, the measured bare title native-only in Python and C#; a walk that sees no "
-             "desktop is UNKNOWN, never no-game. 12 cases, 9 red-proofs"),
+             "desktop is UNKNOWN, never no-game."),
     Gate("test_a_shadow_session_rolls_over_every_hour",
          [sys.executable, os.path.join(HERE, "test_a_shadow_session_rolls_over_every_hour.py")], 60,
          why="2026-09-27 - his order: 'each session shadow reader should automatically be hourly ... the "
@@ -6207,7 +6331,7 @@ GATES = [
              "later, reopens through the shadow door only while the game is seen. ON AIR/MINI are never cut; "
              "an orphan's door or an unreadable start is never cut and reads UNKNOWN; a stop that did not "
              "take is not counted; the shadowWatch row fires past the hour + 5 min. Driven with stubbed "
-             "edges on a TV_HIST fixture. 14 cases, 13 red-proofs"),
+             "edges on a TV_HIST fixture."),
     Gate("test_an_update_lands_beside_a_shadow_reel",
          [sys.executable, os.path.join(HERE, "test_an_update_lands_beside_a_shadow_reel.py")], 60,
          why="2026-09-28 - his words: 'the logic needs to be individually placed and working for each "
@@ -6222,32 +6346,31 @@ GATES = [
              "on the drift lane's own gate (one question, three askers). Doctor row 'the running build is "
              "behind the disk': MISSING past 2 h naming his session / shadow close failed / relaunch "
              "refused or did not take, UNKNOWN on an unreadable version. Driven on Windows- AND Mac-shaped "
-             "stubs. 28 cases, 14 red-proofs"),
+             "stubs."),
     Gate("test_the_eye_finds_d2r_however_he_runs_it",
          [sys.executable, os.path.join(HERE, "test_the_eye_finds_d2r_however_he_runs_it.py")], 60,
-         why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or "
-             "Boosteroid (their app or a browser tab), Windows local D2R.exe plus the same cloud routes, "
-             "and Linux pins nothing (they lock there). Before: every browser was blocked on the Mac and "
-             "Windows only enumerated D2R-process windows, so a streamed session fell through to FULL "
-             "SCREEN. A browser needs the service AND the game in its title; '\u00ae/\u2122' are "
-             "normalized; a service window without the game is reported, never pinned. Real cloud "
-             "titles UNMEASURED. The second eye on v3496: a game word is a WORD, a browser is its whole "
-             "name, a title naming two services never pins, the scorer normalizes first, a refused cloud "
-             "window is named. 19 cases, 9 red-proofs; the C# twin compiles and agrees on the Windows box"),
+         why="#232 - his order: the eye targets D2R however he runs it - Mac CrossOver, GeForce NOW or Boosteroid (their "
+             "app or a browser tab), Windows local D2R.exe plus the same cloud routes, and Linux pins nothing (they lock "
+             "there). Before: every browser was blocked on the Mac and Windows only enumerated D2R-process windows, so a "
+             "streamed session fell through to FULL SCREEN. A browser needs the service AND the game in its title; '®/™' "
+             "are normalized; a service window without the game is reported, never pinned. Real cloud titles UNMEASURED. "
+             "The second eye on v3496: a game word is a WORD, a browser is its whole name, a title naming two services "
+             "never pins, the scorer normalizes first, a refused cloud window is named. The C# twin compiles and agrees "
+             "on the Windows box"),
     Gate("test_a_title_is_not_an_owner",
          [sys.executable, os.path.join(HERE, "test_a_title_is_not_an_owner.py")], 60,
          why="#223 - with no game open, the eye pinned a FINDER window titled 'tv-diablo-mailbox' as the "
              "game (score 1602: 'diablo' in the title was the whole qualification) and a stub console "
              "filmed his desktop; the render gate then flaked on whichever window was in front. A title "
              "that mentions the game qualifies only with a game/wine/CrossOver/d2r-named owner or one he "
-             "named in TV_WINDOW_MATCH. 3 cases, 1 red-proof"),
+             "named in TV_WINDOW_MATCH."),
     Gate("test_a_resize_callback_defers_its_layout",
          [sys.executable, os.path.join(HERE, "test_a_resize_callback_defers_its_layout.py")], 60,
          why="#223 - the render gate's inbox target went red three runs straight on one uncaught "
              "'ResizeObserver loop completed with undelivered notifications' (and on v3493's page too: "
              "the loop was old, the load was new). _inboxSync re-sized the element it observes inside "
              "the delivery loop. Every observer in bible.html defers its layout one frame, coalesced. "
-             "Structural count + _roDefer driven in node. 2 cases, 2 red-proofs"),
+             "Structural count + _roDefer driven in node."),
     Gate("test_his_answer_closes_only_its_question",
          [sys.executable, os.path.join(HERE, "test_his_answer_closes_only_its_question.py")], 90,
          why="#223 - his answer from the mailbox: one per question with its fingerprint (a changed "
@@ -6255,7 +6378,7 @@ GATES = [
              "applied at read time so the count moves in the same request, in its own bucket (never "
              "CLAUDE OWES). POST /api/board_answer refuses a foreign/missing Origin (_cors answers *), "
              "an automated browser, no explicit yes, a guest board, nothing measured, an undeclared "
-             "question or answer, a stale fingerprint - each named, none writing. 15 cases, 6 red-proofs"),
+             "question or answer, a stale fingerprint - each named, none writing."),
     Gate("test_a_row_is_his_only_when_it_asks",
          [sys.executable, os.path.join(HERE, "test_a_row_is_his_only_when_it_asks.py")], 90,
          why="#226 - his ruling: 'it should only really be waiting on me if its something i need to do'. "
@@ -6264,46 +6387,46 @@ GATES = [
              "what is needed, why, the answers), and every other red row lands under Claude's work, still "
              "drawn. Fails loud: a pre-registry row or an unreadable registry bills him as before. The "
              "server publishes needsYouWhat and the mailbox reads it instead of re-deciding (it billed 7 "
-             "where the console billed 5). 8 cases, 4 red-proofs"),
+             "where the console billed 5)."),
     Gate("test_an_entrance_survives_endurance",
          [sys.executable, os.path.join(HERE, "test_an_entrance_survives_endurance.py")], 60,
          why="#228 - his ⚙ ADVANCED drawer read open with black under it and its tooltips answering from "
              "the black: after 10 minutes every console enters endurance and pauses `*`, so a one-shot "
              "fade-in that starts later starts PAUSED AT OPACITY 0 (the EYES switch, the shadow reader, "
              "and 27 other entrances). Every invisible-start entrance must be exempted from the pause; "
-             "derived from the keyframes, so a new fade-in without it goes red. 4 cases, 2 red-proofs. "
+             "derived from the keyframes, so a new fade-in without it goes red. "
              "The on-pixels half is render_check's ADVANCED targets, now judged UNDER endurance"),
     Gate("test_an_exec_leaves_no_corpse",
          [sys.executable, os.path.join(HERE, "test_an_exec_leaves_no_corpse.py")], 90,
          why="#224 - 35 <defunct> ocr_mac children under his console, one per in-place os.execv relaunch "
              "(measured by ucomm + start times, 36/36): every exec site now quiesces the warm workers "
              "first, and main() reaps inherited children BY PID before it spawns anything. Driven on "
-             "real processes with a baseline that reproduces the leak. 5 cases, 3 red-proofs"),
+             "real processes with a baseline that reproduces the leak."),
     Gate("test_a_mark_covers_only_what_was_shown",
          [sys.executable, os.path.join(HERE, "test_a_mark_covers_only_what_was_shown.py")], 60,
          why="the handoff watermark covers only what a drain SHOWED (2026-09-24 07:09Z: --mark filed "
              "an unseen GrokBot tick as read by taking the newest comment at mark time); --through "
              "names the last comment read; newer comments are named, never swallowed; and --summary, "
              "the line the prompt hook prints every turn, counts new and ACT/ASK-owed and says "
-             "UNKNOWN when the queue cannot be read. 5 cases, 2 red-proofs"),
+             "UNKNOWN when the queue cannot be read."),
     Gate("test_production_scratch_dirs_only_get_fewer",
          [sys.executable, os.path.join(HERE, "test_production_scratch_dirs_only_get_fewer.py")], 60,
          why="#171 - a production mkdtemp with no cleanup in its own function may only get FEWER: "
              "24 frozen by (file, function), the list must shrink the moment one is fixed, and the "
              "one cross-function teardown (render_check's Chrome profile) is declared with a reason "
-             "re-proven by AST. Read by the parser, never by text. 5 cases, 2 red-proofs"),
+             "re-proven by AST. Read by the parser, never by text."),
     Gate("test_a_conditional_reap_is_not_a_reaper",
          [sys.executable, os.path.join(HERE, "test_a_conditional_reap_is_not_a_reaper.py")], 60,
          why="#177 - a helper counts as a reaper only if it reaps its first parameter on EVERY path "
              "(its own level, first in a try, a finally, a with; never behind an exit, a branch or "
              "an earlier raising statement in the same try - the v3421 shape). The call site is read "
-             "by the parser, so keyword hand-offs count. 5 cases, 4 red-proofs"),
+             "by the parser, so keyword hand-offs count."),
     Gate("test_an_established_empty_shelf_is_not_footage",
          [sys.executable, os.path.join(HERE, "test_an_established_empty_shelf_is_not_footage.py")], 60,
          why="#123 - a directory machine_tree.establish() built is not his shelf: EMPTY skips like "
              "ABSENT only when this host's ledger never closed a reel; an emptied shelf or an "
              "unreadable ledger stays 'present' so the walked-nothing FAIL still fires. Both main() "
-             "exits ask the one SKIPPED decision. 9 cases, 4 red-proofs"),
+             "exits ask the one SKIPPED decision."),
     # v2570 — the printer had NO lock; fourteen were declared and not one named the river.
     Gate("test_printer_wilson", [sys.executable, os.path.join(HERE, "test_printer_wilson.py")], 90,
          why="the printer walks every reel he owns and nothing had ever attempted to break it. "
@@ -6460,13 +6583,12 @@ GATES = [
              "than the fields); a renamed host as a quiet 'formerly' line; the river panel's one triage line on every "
              "path of _shLanesRender. And the JOIN in a real headless Chrome (fetch stubbed at document start, its own "
              "port): _fleetRefresh draws every row's films / river / triage line and nothing goes sideways at 901 and "
-             "1280. 15 cases, 8 red-proofs. ROUND 2 ('make sure its all properly rendering everywhere'): REG-1377 no "
+             "1280. ROUND 2 ('make sure its all properly rendering everywhere'): REG-1377 no "
              "line of a fact row starts or ends with a middot at 375 or 1280 (each fact its own item, as the river's "
              "own line; it read '\u00b7 CAPTURE 4 \u00b7' at 375 and 'walking (53s ago) \u00b7' at 1280); REG-1378 "
              "an age the card cannot establish is 'age UNKNOWN' (a renamed host's unreadable or future lastSeen said "
              "'just now', and so did _fleetSince for any unreadable time), and a lane that has ticked with no readable "
-             "outcome is 'last outcome unreadable', never 'no tick yet' - on the fleet row and the river's line. "
-             "19 cases, 13 red-proofs"),
+             "outcome is 'last outcome unreadable', never 'no tick yet' - on the fleet row and the river's line. "),
     Gate("test_the_river_drains_every_pass",
          [sys.executable, os.path.join(HERE, "test_the_river_drains_every_pass.py")], 180,
          why="2026-09-27 — his 'FIFO first in first out ... allproeprly getting delted after the 8 "
@@ -6493,7 +6615,7 @@ GATES = [
              "past the console's declared 6 h bar (the river's arrival stamps, never a process clock), OK "
              "inside it. Pure half, the SHIPPED _retention_once on a temp shelf, and the doctor over the "
              "wire - each driven. v3526 (#231 second eye): a torn line in the river's record makes every "
-             "position a FLOOR (never CLEAR), carried as a number by river_stamp.last_stamps_read; 7 red-proofs"),
+             "position a FLOOR (never CLEAR), carried as a number by river_stamp.last_stamps_read."),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
@@ -7168,7 +7290,7 @@ GATES = [
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
              "with the bound at the vault bar is proven. About 20 is hardened (its row carries locked:true - recorded, "
              "enforced by no door yet, #41 rank 17). Twelve looks with five "
-             "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
+             "misses stay watched. Unreadable counts are unknown, never rebuilt as empty."),
     Gate("test_a_rare_item_stands_on_the_same_looks_as_a_unique",
          [sys.executable, os.path.join(HERE, "test_a_rare_item_stands_on_the_same_looks_as_a_unique.py")], 120,
          why="REG-1519 (#51) - his ask 2026-09-28: magic (blue) and rare (gold) items get the evidence chain uniques "
@@ -7179,7 +7301,7 @@ GATES = [
              "rebuiltByRarity is read (absent = UNKNOWN), and /api/evidence answers a vault-only name from the witness "
              "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). v3526 (#231 second eye): a "
              "vote is a VISIT, never a frame; a tally with an unreadable count, or empty beside a rebuild, is UNKNOWN; "
-             "a present row whose looks will not read is UNKNOWN. 14 cases, 13 red-proofs."),
+             "a present row whose looks will not read is UNKNOWN."),
     Gate("test_a_proven_rare_comes_back_to_the_magic_and_rare_locker",
          [sys.executable, os.path.join(HERE, "test_a_proven_rare_comes_back_to_the_magic_and_rare_locker.py")], 120,
          why="REG-1520 (#51) - the board half, driven in node over a plan the real route served: a proven rare or magic "
@@ -7188,7 +7310,7 @@ GATES = [
              "what came back. Now the door files a blue/gold row into the MAGIC & RARE locker (refuses in words when the "
              "board has none), the witness row carries the rarity, _artRarity paints from it (and a witness write empties "
              "its cache), and the status line + persisted receipt tally the rebuild by rarity - read back by "
-             "vault_evidence.reset_receipt. 6 red-proofs."),
+             "vault_evidence.reset_receipt."),
     Gate("test_the_vault_heart_says_what_the_reset_and_the_tiers_did",
          [sys.executable, os.path.join(HERE, "test_the_vault_heart_says_what_the_reset_and_the_tiers_did.py")], 120,
          why="2026-09-27 - the heart says what a vault reset rebuilt and how many items each "
@@ -7200,13 +7322,13 @@ GATES = [
              "the row names the retro flags. Round 2 (finding B): his reset wrote rebuiltFailed and "
              "nothing read it - the reset row now names every row the door refused, with the door's "
              "own why, and a receipt that does not say is UNKNOWN; a flagged row no visit saw is "
-             "named held, never 'kept filed'. 11 red-proofs."),
+             "named held, never 'kept filed'."),
     Gate("test_a_cited_frame_stays_and_the_evidence_line_opens_it",
          [sys.executable, os.path.join(HERE, "test_a_cited_frame_stays_and_the_evidence_line_opens_it.py")], 180,
          why="2026-09-27 - a frame a watched, proven or hardened item cites stays when its reel is "
              "released, and an uncited frame of that reel goes. The tombstone names what it kept. "
              "The vault evidence line opens those frame ids in the existing lightbox, and a picture "
-             "that cannot be served says so. 4 red-proofs."),
+             "that cannot be served says so."),
     Gate("test_a_reset_refiles_only_what_the_plan_says",
          [sys.executable, os.path.join(HERE, "test_a_reset_refiles_only_what_the_plan_says.py")], 180,
          why="2026-09-27 - the full vault reset clears the marks and then files back only what "
@@ -7218,7 +7340,7 @@ GATES = [
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
              "says UNKNOWN, never rebuilt 0. #41 rank 18 (REG-1529): the plan is asked of the console that "
              "SERVED the board (_consoleOrigin, the page's own origin - the stub serves it from :17999), never of "
-             ":17772 by name; a board nobody served asks nobody and says UNKNOWN. 8 cases, 10 red-proofs."),
+             ":17772 by name; a board nobody served asks nobody and says UNKNOWN."),
     Gate("test_every_owned_door_writes_provenance",
          [sys.executable, os.path.join(HERE, "test_every_owned_door_writes_provenance.py")], 120,
          why="2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read "
@@ -7236,7 +7358,7 @@ GATES = [
              "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. + #41 rank 18 "
              "sibling (REG-1552): the evidence panel's picture-status ask goes to the console that SERVED the board "
              "(_consoleOrigin, the harness serves it from :17999), never :17772 by name; a board nobody served asks "
-             "nobody and says UNKNOWN. 31 red-proofs."),
+             "nobody and says UNKNOWN."),
     Gate("test_an_evidence_picture_is_never_reaped",
          [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
          why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
@@ -7246,7 +7368,7 @@ GATES = [
              "refusal and every reap is recorded by name. Driven through archive_read_frame on a temp shelf. "
              "+ the review of 77d8d8b5: the read EVICTION asks the same shield and records what it takes (H2); the "
              "reel pick keeps the journal's read frames and a reel with no index is COULD NOT ASK (M1); a refused "
-             "picture no longer stops the shelf shedding (M2); an unreadable budget refuses (L2). 15 red-proofs."),
+             "picture no longer stops the shelf shedding (M2); an unreadable budget refuses (L2)."),
     Gate("test_a_vault_item_and_a_read_say_where_they_came_from",
          [sys.executable, os.path.join(HERE, "test_a_vault_item_and_a_read_say_where_they_came_from.py")], 60,
          why="2026-09-28 - the heart rows for the owned door: 'a vault item with no provenance' names every "
@@ -7254,7 +7376,7 @@ GATES = [
              "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
              "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
              "disk (the locator probes the stem, as frame_ref.Index.resolve does). + REG-1552: the board's "
-             "picture-status ask is the serving console's (_consoleOrigin), never a console by name. 9 red-proofs."),
+             "picture-status ask is the serving console's (_consoleOrigin), never a console by name."),
     Gate("test_carried_loot_keeps_its_order",
          [sys.executable, os.path.join(HERE, "test_carried_loot_keeps_its_order.py")], 120,
          why="2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings. "
@@ -7267,7 +7389,7 @@ GATES = [
              "carried, an already-carried item leaves with the drop's frame. M1 the per-name place decides and the "
              "register agrees with the board on every pair. M2 the backfill reads the same order (one function). M3 one "
              "fold for removals and owned names. M4 an unattributed strip is ONE row saying character UNKNOWN (#54). L2 no "
-             "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole. 27 cases, 17 red-proofs."),
+             "vendor/trade promise, and the empty dock beside carried loot no longer says every item has a home. L4 name and time read whole."),
     Gate("test_carried_loot_holds_its_time_and_its_name",
          [sys.executable, os.path.join(HERE, "test_carried_loot_holds_its_time_and_its_name.py")], 120,
          why="2026-09-29 - the review of 20c0df1e (vault evidence route, round 4), his §31 / §29 rulings. H-1 an OLDER "
@@ -7282,31 +7404,31 @@ GATES = [
              "names) and no pre-receipt name becomes droppable loot. L-4 an unreadable d2r_muleAssign is UNKNOWN on the "
              "strip and the population line, never '0 carried' / 'still loose'. L-5 the carried grid and the dock reserve "
              "the corner tray's band (pixels at 375/901/1280). Round 5 (M-1) re-pointed the stale-receipt case: `owned` "
-             "decides carried, a receipt that outlived its name is history. 24 cases, 16 red-proofs."),
+             "decides carried, a receipt that outlived its name is history."),
     Gate("test_carried_loot_is_decided_by_owned_and_lands_in_order",
          [sys.executable, os.path.join(HERE, "test_carried_loot_is_decided_by_owned_and_lands_in_order.py")], 120,
-         why="2026-09-29 - the review of 7cded0c1 (vault evidence route, round 5), his §31 / §29 rulings, each reproduced. "
-             "M-1 a receipt a door left behind when it un-owned the name stopped the next real pick-up from being carried, so "
-             "his later real drop never left: `owned` decides carried, the stale receipt is kept as history. M-2 a reclose "
-             "replayed an OLDER stash / worn sighting onto carried loot a NEWER session picked up and LANDED it there (a worn "
-             "one would have locked it): a holding look lands only what it postdates, an older one is history, an undated one "
-             "is UNKNOWN. M-3 'Delete unsorted', the menu-page import, the TV unvault and the unique card's un-tick took names "
-             "out beside the removal journal, so the next reclose re-owned what he deleted: every un-own goes through the "
-             "journaled door (three driven through the REAL door, the un-tick pinned as code). L-1 removals and leaves were "
-             "matched on the read's name while the register owns the resolved one (Worldstone Shard vs (any), Harlequin Crest "
-             "vs (Shako)): the read's name goes through the ONE published resolution slice first. L-2 an undated read was "
-             "stamped with the wall clock and real drops were then 'OLDER': its time is null, tsMeasured false, recordedAt "
-             "beside it, and UNKNOWN is said. L-3 with the mule map unreadable the line said '0 filed · N not filed': both "
-             "UNKNOWN, and Auto-Sort waits. L-4 a bare name several known items share (Crescent Moon the runeword beside the "
-             "amulet) was filed as one of them: ambiguity is not a match - refused, or settled by the read's kind, in the "
-             "register and the AI checker alike - and the refusal is an ASK held in the Chronicle inbox, never a silent "
-             "false. ROUND-5 REVIEW: ambiguity is about DIFFERENT items, not spellings - a bare Hellmouth is the one unique "
-             "the tables spell two ways, a bare Spirit is ONE item whose base is UNKNOWN, a bare Worldstone Shard is the "
-             "(any) bucket; driven through the REAL register head on the kind-less TV and hand witnesses. R-5 the ring "
-             "forgets, his word must not: every removal is noted per name (d2r_vaultRemovedAt, never evicted), the TV's "
-             "thrown items are ONE batch with the read's frame as proof, a machine claim with no frame outranks no older "
-             "read, and the unique card's un-tick keeps the mule filing (his 'never delete a mule filing'). 29 cases, "
-             "30 red-proofs."),
+         why="2026-09-29 - the review of 7cded0c1 (vault evidence route, round 5), his §31 / §29 rulings, each "
+             "reproduced. M-1 a receipt a door left behind when it un-owned the name stopped the next real pick-up from "
+             "being carried, so his later real drop never left: `owned` decides carried, the stale receipt is kept as "
+             "history. M-2 a reclose replayed an OLDER stash / worn sighting onto carried loot a NEWER session picked up "
+             "and LANDED it there (a worn one would have locked it): a holding look lands only what it postdates, an "
+             "older one is history, an undated one is UNKNOWN. M-3 'Delete unsorted', the menu-page import, the TV "
+             "unvault and the unique card's un-tick took names out beside the removal journal, so the next reclose "
+             "re-owned what he deleted: every un-own goes through the journaled door (three driven through the REAL door, "
+             "the un-tick pinned as code). L-1 removals and leaves were matched on the read's name while the register "
+             "owns the resolved one (Worldstone Shard vs (any), Harlequin Crest vs (Shako)): the read's name goes through "
+             "the ONE published resolution slice first. L-2 an undated read was stamped with the wall clock and real "
+             "drops were then 'OLDER': its time is null, tsMeasured false, recordedAt beside it, and UNKNOWN is said. L-3 "
+             "with the mule map unreadable the line said '0 filed · N not filed': both UNKNOWN, and Auto-Sort waits. L-4 "
+             "a bare name several known items share (Crescent Moon the runeword beside the amulet) was filed as one of "
+             "them: ambiguity is not a match - refused, or settled by the read's kind, in the register and the AI checker "
+             "alike - and the refusal is an ASK held in the Chronicle inbox, never a silent false. ROUND-5 REVIEW: "
+             "ambiguity is about DIFFERENT items, not spellings - a bare Hellmouth is the one unique the tables spell two "
+             "ways, a bare Spirit is ONE item whose base is UNKNOWN, a bare Worldstone Shard is the (any) bucket; driven "
+             "through the REAL register head on the kind-less TV and hand witnesses. R-5 the ring forgets, his word must "
+             "not: every removal is noted per name (d2r_vaultRemovedAt, never evicted), the TV's thrown items are ONE "
+             "batch with the read's frame as proof, a machine claim with no frame outranks no older read, and the unique "
+             "card's un-tick keeps the mule filing (his 'never delete a mule filing')."),
     Gate("test_a_still_screen_is_one_look",
          [sys.executable, os.path.join(HERE, "test_a_still_screen_is_one_look.py")], 60,
          why="2026-09-28 (Ledger P0) - a trial is a distinct VISIT, never a frame (his ruling "
@@ -7323,7 +7445,7 @@ GATES = [
              "Round 2 (finding D): 'a look that saw it' was two definitions - the gate refused a "
              "True or '0.9' conf the tier table took, and the tier table refused a miss the gate "
              "took; vault_retro.look_saw_it is now the one both call (0 of 150 looks on his ledger "
-             "moved). 14 red-proofs."),
+             "moved)."),
     Gate("test_the_retro_plan_keeps_them_filed",
          [sys.executable, os.path.join(HERE, "test_the_retro_plan_keeps_them_filed.py")], 60,
          why="2026-09-28 (Ledger P0) - his ruling §34.2, \"Keep filed, flag 'retro: WATCHED'\": "
@@ -7333,8 +7455,7 @@ GATES = [
              "board's reset never reads. The board's own record is compared when handed in; a "
              "filing with no readable evidence is UNJUDGED, never honest. Ledger fix: every "
              "flagged row also rides in `rebuilt` at its true tier, the field the reset files. "
-             "Round 2: a flagged row NO visit saw is keepFiled False and held with its why. "
-             "3 red-proofs."),
+             "Round 2: a flagged row NO visit saw is keepFiled False and held with its why. "),
     Gate("test_evidence_names_its_witnesses",
          [sys.executable, os.path.join(HERE, "test_evidence_names_its_witnesses.py")], 60,
          why="2026-09-28 (Ledger P0) - /api/evidence answered witnesses null for EVERY name: "
@@ -7345,14 +7466,14 @@ GATES = [
              "known count and an unplaced figure beside it - UNKNOWN is never 0. Round 2 (finding "
              "A): his hand tick has no reel BY DESIGN and his ruling is 'a manual tally is witness "
              "enough' - it is counted as `hand` beside the reels and never makes the count "
-             "unknown; only a non-manual row with no reel does. 6 red-proofs."),
+             "unknown; only a non-manual row with no reel does."),
     Gate("test_evidence_counts_a_reel_once",
          [sys.executable, os.path.join(HERE, "test_evidence_counts_a_reel_once.py")], 60,
          why="2026-09-28 (Ledger P0) - one reel is spelled s_... and reel_s_..., and trace_spine "
              "measured 3,914 of his 8,517 sightings as the same row twice, so /api/evidence ran about "
              "2x. Rows now dedupe on trace_spine.independence's key through chronicle_retro._reel_key; "
              "count is the deduped rows, rows keeps the raw figure beside it, and the route agrees "
-             "with the spine. 2 red-proofs."),
+             "with the spine."),
     Gate("test_a_drop_is_an_episode",
          [sys.executable, os.path.join(HERE, "test_a_drop_is_an_episode.py")], 60,
          why="2026-09-28 (Ledger P0) - board_tally_merge filed a drop on EVERY tally below the "
@@ -7366,7 +7487,7 @@ GATES = [
              "the doctor never prints '? None -> None'. Round 2 (finding C): his rule 'EVERY fall is "
              "recorded, as before' - a fall is measured from the lane's LAST reading, so fall, "
              "partial recovery, fall again is a recorded fall each time; sitting still files "
-             "nothing. 8 red-proofs."),
+             "nothing."),
     Gate("test_a_reset_keeps_the_retro_rows_filed",
          [sys.executable, os.path.join(HERE, "test_a_reset_keeps_the_retro_rows_filed.py")], 180,
          why="2026-09-28 (Ledger fix, finding 1) - his ruling §34.2, \"Keep filed, flag 'retro: "
@@ -7380,13 +7501,13 @@ GATES = [
              "was refused and un-filed with no message. The door now keeps a keepFiled retro row on "
              "1 look (nothing else gets the lower bar), a row no visit saw is held with its why, "
              "and every refusal is said - in the status line, in the receipt, and on the doctor's "
-             "reset row that reads it. 11 red-proofs."),
+             "reset row that reads it."),
     Gate("test_the_lane_counts_what_grokbot_owes",
          [sys.executable, os.path.join(HERE, "test_the_lane_counts_what_grokbot_owes.py")], 60,
          why="2026-09-27 - handoff._classify read the verb from the FIRST line, and the protocol makes the first "
              "line the seat tag, so every GrokBot ACT was filed 'pre-v2 (no lead verb)' and the LANES hook said "
              "0 owed while 2 ACTs for Claude sat on #230 (5854814442, 5855160685). The tag or routing header is "
-             "skipped, LOOKED/STATE ticks are FYI, 'ACTUALLY' is not ACT. Driven on #230's real shapes. 5 cases, 3 red-proofs"),
+             "skipped, LOOKED/STATE ticks are FYI, 'ACTUALLY' is not ACT. Driven on #230's real shapes."),
     Gate("test_handoff_queue", [sys.executable, os.path.join(HERE, "test_handoff_queue.py")], 90,
          why="v2289 — THE CONSOLE-TO-BOARD HANDOFF, DRIVEN END TO END RATHER THAN GREPPED. v2274 "
              "\"fixed\" register by preferring a _BOARD_WIN handle and pinned it with a SOURCE "
@@ -7852,15 +7973,15 @@ GATES = [
          needs_app=False,
          why="#42 (REG-1400) - his order, 2026-09-28: 'do #42 right after v3522 lands' - pushes take too long. MEASURED "
              "on the v3522 push: heart2 runs every proof of one gate serially in the lane that owns it, so the character "
-             "builder's width law (41 red-proofs, each a clean AND a tampered run of a ~100 s law) was ONE ~105-minute "
-             "thread and the gate took ~2h50m; attempt 1 ran 159 min and was refused on ONE blind proof a targeted run "
-             "finds in ~3 min. heart2 --prove --push (the hook's call, nothing else): a proof that declares the "
-             "'widths' its defect shows at runs its clean and tampered runs ONLY there, one that declares none runs at "
-             "every width; a declared width that stays green is BLIND, never PROVEN; the likeliest failures run first "
+             "builder's width law (dozens of red-proofs, each a clean AND a tampered run of a ~100 s law) was ONE "
+             "~105-minute thread and the gate took ~2h50m; attempt 1 ran 159 min and was refused on ONE blind proof a "
+             "targeted run finds in ~3 min. heart2 --prove --push (the hook's call, nothing else): a proof that declares "
+             "the 'widths' its defect shows at runs its clean and tampered runs ONLY there, one that declares none runs "
+             "at every width; a declared width that stays green is BLIND, never PROVEN; the likeliest failures run first "
              "and the run STOPS at the first BLIND / INVALID / clean-run red (NOT RUN is never banked, exit 1); a gate "
              "that starts a browser is proved one at a time (four parallel Chrome lanes drove his Mac to load 100). "
              "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
-             "Fixtures only - no browser. 18 cases, 17 red-proofs",
+             "Fixtures only - no browser.",
          skip_ok=()),
     Gate("test_a_proven_verdict_is_reused_only_on_identical_bytes",
          [sys.executable, os.path.join(HERE, "test_a_proven_verdict_is_reused_only_on_identical_bytes.py")], 180,
@@ -7877,7 +7998,7 @@ GATES = [
              "run_gates and CI never open it. Per machine, gitignored, beside .heart2.json. The second eye added: a "
              "reused proof keeps the time it was MEASURED in the census (never this run's clock); a law that lists a "
              "directory itself is unkeyable; the cache's own failure costs a re-prove, never a verdict; an undated "
-             "PROVEN is not reused. Fixtures only - no browser. 18 cases, 17 red-proofs",
+             "PROVEN is not reused. Fixtures only - no browser.",
          skip_ok=()),
     Gate("test_the_render_gate_runs_before_the_proving_stage",
          [sys.executable, os.path.join(HERE, "test_the_render_gate_runs_before_the_proving_stage.py")], 120,
@@ -7893,7 +8014,7 @@ GATES = [
              "moved the console demos the same way (v3523 push #3 was refused by them at 113m13s, 26 s after render "
              "passed): both call sites run after render and before the proving stage, at top level - and the move "
              "exposed two cancelling errors in the shell walker (a quoted python program's column-0 if; an uncounted "
-             "array opener), fixed and pinned here. 7 cases, 8 red-proofs",
+             "array opener), fixed and pinned here.",
          skip_ok=()),
     Gate("test_a_host_dependency_is_not_always_an_attribute",
          [sys.executable, os.path.join(HERE, "test_a_host_dependency_is_not_always_an_attribute.py")], 120,
@@ -7973,8 +8094,7 @@ GATES = [
              "#245 review: the Undo bar's countdown never replaces the Undo button (focus + slow clicks survive), a "
              "keyboard delete keeps focus (armed -> Undo -> the restored card), one double-click is not a delete, Undo "
              "is byte-identical in ANY order, nothing is deleted under the open planner and the planner says when its "
-             "build is gone (UNKNOWN when unreadable), and app context's row starts where a scroll reaches. "
-             "16 cases, 26 red-proofs",
+             "build is gone (UNKNOWN when unreadable), and app context's row starts where a scroll reaches. ",
          skip_ok=()),
     Gate("test_the_character_builder_is_their_builder",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_their_builder.py")], 90,
@@ -7995,40 +8115,39 @@ GATES = [
              "other class's items; sockets are what the item may hold (Crown of Ages' own Socketed 1-2 IS the stepper, "
              "another unique 0..1 by Larzuk); the inventory's All Items is charms; the stash tree's Jewels > Colossal "
              "Jewels and Melee / Ranged Weapons fold; the shipped block's per-level [L, lo, key, hi, shift] and random "
-             "class [C, ...]; the generator's --check where the install is; the doctor row 'builder item data'. "
-             "16 cases, 22 red-proofs",
+             "class [C, ...]; the generator's --check where the install is; the doctor row 'builder item data'. ",
          skip_ok=()),
     Gate("test_the_character_builder_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 300,
          needs_app=False,
-         why="#174 v-B2 - the Character Builder measured in a REAL browser (its own headless Chrome on a free port) at "
-             "7 widths in 5 states - as it opens, with Crown of Ages worn and Annihilus in the inventory, the helm's "
-             "picker open, the helm in Edit, the stash open: no word or control cut or outside its panel, nothing "
-             "sideways, no header title under its control, the modal on screen and NEVER over the glowing slot it "
-             "serves (it covered the helm at 1024 and 901 until the placement took the roomier side), 2000 = their "
-             "literal 322 | 716 | 300 columns with the doll filling the centre, and under 900 the character first. "
-             "The entry and the equip are REAL input (Tools tab, the card, the slot, the search box, typed keys, a "
-             "roll, a charm dropped and dragged). No browser binary = declared skip (77). FIX ROUND: at 375 and 2000 the "
-             "picker's list reaches its last row under a real wheel (the stacked pane was unbounded at 375), and an active "
-             "gold button under the pointer keeps its dark label. v-B3: the Edit tab of a base with its picked mods (a rare "
-             "Diadem with four, a magic Grand Charm with two) and its ADD MOD list open fit at 2000 / 1280 / 375. "
-             "v-B3 FIX ROUND: the open list lies inside the Edit tab's visible box and takes its room (it ran 137px "
-             "below the modal at 1280x800 and stopped at 158px on a phone); ADD MOD by REAL keys - focus stays in the "
-             "search box, ArrowDown makes the second option the painted, aria-activedescendant one, Enter adds exactly "
-             "it. v-B4: the doll and its 10x4 inventory are ONE carved-stone panel, the game's grid flush under the doll "
-             "(<= 12px, no word between; the caption and status line under the panel), 10 x 4 equal square cells edge to "
-             "edge, radius 0, never wider than the doll, >= 26px from 1280 up, every item inside its cells - in every "
-             "plain / worn state and with three charms (Annihilus, a Grand Charm, Gheed's Fortune) placed through the "
-             "cell's own picker at 2000 / 1280 / 1120 / 900 / 375, which move STATS. 18 cases, 23 red-proofs. "
-             "#29 ROUND 2 (his words kept - 'cap 75%' - and his 'Tighten both'): REG-1376 his cap words cost no "
-             "label a line - at every width, plain and worn, every capped STATS row's label has the lines it has with "
-             "the chip taken away (Physical Damage Reduction went 2 -> 3 lines at 1280x800, Lightning Resistance 1 -> 2), "
-             "the chip one line inside its row; REG-1379 the builder is as tall as what it holds - no band under its "
-             "content, STATS ends with the columns beside it, a scrolling window is the glass's height, and STRENGTHS "
-             "AND WEAKNESSES / NOTES are never stretched past their content (round 1 made them empty boxes). Timeout "
-             "150 -> 300: a full run measured 100-119s. Now 27 cases, 41 red-proofs (the #29(a) flex-wrap sabotage retired 2026-09-28: BLIND at every width once REG-1376 made a capped row display:block). "
-             "#42 (REG-1400): every red-proof declares the viewport its defect shows at, MEASURED one viewport at a time, and "
-             "a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate always measures every width",
+         why="#174 v-B2 - the Character Builder measured in a REAL browser (its own headless Chrome on a free port) at 7 "
+             "widths in 5 states - as it opens, with Crown of Ages worn and Annihilus in the inventory, the helm's picker "
+             "open, the helm in Edit, the stash open: no word or control cut or outside its panel, nothing sideways, no "
+             "header title under its control, the modal on screen and NEVER over the glowing slot it serves (it covered "
+             "the helm at 1024 and 901 until the placement took the roomier side), 2000 = their literal 322 | 716 | 300 "
+             "columns with the doll filling the centre, and under 900 the character first. The entry and the equip are "
+             "REAL input (Tools tab, the card, the slot, the search box, typed keys, a roll, a charm dropped and "
+             "dragged). No browser binary = declared skip (77). FIX ROUND: at 375 and 2000 the picker's list reaches its "
+             "last row under a real wheel (the stacked pane was unbounded at 375), and an active gold button under the "
+             "pointer keeps its dark label. v-B3: the Edit tab of a base with its picked mods (a rare Diadem with four, a "
+             "magic Grand Charm with two) and its ADD MOD list open fit at 2000 / 1280 / 375. v-B3 FIX ROUND: the open "
+             "list lies inside the Edit tab's visible box and takes its room (it ran 137px below the modal at 1280x800 "
+             "and stopped at 158px on a phone); ADD MOD by REAL keys - focus stays in the search box, ArrowDown makes the "
+             "second option the painted, aria-activedescendant one, Enter adds exactly it. v-B4: the doll and its 10x4 "
+             "inventory are ONE carved-stone panel, the game's grid flush under the doll (<= 12px, no word between; the "
+             "caption and status line under the panel), 10 x 4 equal square cells edge to edge, radius 0, never wider "
+             "than the doll, >= 26px from 1280 up, every item inside its cells - in every plain / worn state and with "
+             "three charms (Annihilus, a Grand Charm, Gheed's Fortune) placed through the cell's own picker at 2000 / "
+             "1280 / 1120 / 900 / 375, which move STATS. #29 ROUND 2 (his words kept - 'cap 75%' - and his 'Tighten "
+             "both'): REG-1376 his cap words cost no label a line - at every width, plain and worn, every capped STATS "
+             "row's label has the lines it has with the chip taken away (Physical Damage Reduction went 2 -> 3 lines at "
+             "1280x800, Lightning Resistance 1 -> 2), the chip one line inside its row; REG-1379 the builder is as tall "
+             "as what it holds - no band under its content, STATS ends with the columns beside it, a scrolling window is "
+             "the glass's height, and STRENGTHS AND WEAKNESSES / NOTES are never stretched past their content (round 1 "
+             "made them empty boxes). Timeout 150 -> 300: a full run measured 100-119s. flex-wrap sabotage retired "
+             "2026-09-28: BLIND at every width once REG-1376 made a capped row display:block). #42 (REG-1400): every "
+             "red-proof declares the viewport its defect shows at, MEASURED one viewport at a time, and a push proves it "
+             "only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_is_the_planner_shell",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_is_the_planner_shell.py")], 60,
@@ -8044,44 +8163,42 @@ GATES = [
              "moves (a phone keyboard is a height-only resize). #174 v-B2: the columns are their LITERAL 322 | 716 | "
              "300 again (v-B's 1.25x doll unit is gone - his 'literally the same'), the five stash tabs are buttons "
              "that switch the grid, and the unit also answers the height (a height-only resize at 1280 re-lays the "
-             "window exactly when it moves the unit). 25 cases, 17 red-proofs",
+             "window exactly when it moves the unit).",
          skip_ok=()),
     Gate("test_the_mule_window_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_fits_at_every_width.py")], 300,
          needs_app=False,
-         why="#174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed "
-             "green: every length was N*--u and the type was fixed px, so between 900 and 1250 wide the "
-             "MERCENARY note lost its (v-C) line (his 1120), STRENGTHS AND WEAKNESSES read TRENGTHS AND "
-             "WEAKNESSE and the Stash button covered EQUIPMENT; at 375 the gold box and the mule tabs scrolled "
-             "sideways; a phone keyboard (a height-only resize) rebuilt the window under the Stats search box. "
-             "Renders bible.html in its OWN headless Chrome on a free port at 7 widths: no word cut or outside "
-             "its panel, nothing sideways, no header title under its control, type = token x min(1,k) floored "
-             "at --fs-micro, 2000 = their measured rects, the caret survives a keyboard and a background "
-             "re-render. Seen RED on the pre-fix page (7 of 9 cases). No browser binary = declared skip (77), "
-             "never a pass. #174 v-B: every width measured AGAIN with three items worn through the picker and the "
+         why="#174 - the mule window's words were cut ON SCREEN while the node law, reading innerHTML, stayed green: "
+             "every length was N*--u and the type was fixed px, so between 900 and 1250 wide the MERCENARY note lost its "
+             "(v-C) line (his 1120), STRENGTHS AND WEAKNESSES read TRENGTHS AND WEAKNESSE and the Stash button covered "
+             "EQUIPMENT; at 375 the gold box and the mule tabs scrolled sideways; a phone keyboard (a height-only resize) "
+             "rebuilt the window under the Stats search box. Renders bible.html in its OWN headless Chrome on a free port "
+             "at 7 widths: no word cut or outside its panel, nothing sideways, no header title under its control, type = "
+             "token x min(1,k) floored at --fs-micro, 2000 = their measured rects, the caret survives a keyboard and a "
+             "background re-render. Seen RED on the pre-fix page (most of its cases). No browser binary = declared skip "
+             "(77), never a pass. #174 v-B: every width measured AGAIN with three items worn through the picker and the "
              "picker open (new words in new boxes). #174 v-B2: 2000 = their rects literally (DOLL_K = 1); 1280x695 (his "
-             "console's board) joins the widths and the part he packs from (header, mule bar, doll + inventory, "
-             "stash panel) plus STATS end inside the window (the Grok seat's 'bottoms sliced'); a worn item's hover "
-             "card never covers the mule bar ('ES IN THIS LOCKER'); and a REAL-INPUT drag pass: a ring dropped on a "
-             "cell locks there with a green footprint in the air and survives a reload (2000 stash, 1280x695 "
-             "inventory), a 2x4 past the edge is red and refused with nothing written, the keyboard carries an item, "
-             "a right-click unlocks it, a drop on the Gems tab moves it there. #174 v-B2 integration: the hover card "
-             "is the builder's in-game box (#cb-tip) - the worn weapon, the worn ring and a stash tile, hovered by a real "
-             "mouse at 2000 and 1280x695, each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar "
-             "and under their panel's header. FIX ROUND at 375, real input: a drag held at the top edge scrolls the window to "
-             "another mule's tab and the drop moves the item there; ] carries a keyboard item to the next mule; a real tap "
-             "beside a placed ring's 10px lock (coarse pointer) unlocks it. 19 cases, 21 red-proofs. #29 ROUND 2, his "
-             "'Tighten both': REG-1379 the window is as tall as what it holds - where it does not scroll it ends under "
-             "its content by its own padding (at 2000x1300 it ran 248px past their rects to the glass), where it "
-             "scrolls it is the glass's height, and no panel is stretched past what it holds (round 1 made STRENGTHS "
-             "AND WEAKNESSES ~330px of empty box and NOTES ~370px of empty textarea; at 2000 every panel is their rect "
-             "again, heights included); REG-1375 the mule window's own EQUIPMENT / STASH / SKILL TREE / CALCULATIONS "
-             "tabs stay in view while its Select or Edit modal is open, at every width in both arrangements (the "
-             "builder's tab rule skipped the mule host - the #174 Edit panel covered them everywhere). Timeout 120 -> "
-             "300: a full run measured 108-120s. TV_LAW_PORT pins its port as the builder's law does. Now 23 cases, "
-             "25 red-proofs. #42 (REG-1400): every red-proof declares the viewport(s) its defect shows at, MEASURED one "
-             "viewport at a time, and a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push alone); this gate "
-             "always measures every width",
+             "console's board) joins the widths and the part he packs from (header, mule bar, doll + inventory, stash "
+             "panel) plus STATS end inside the window (the Grok seat's 'bottoms sliced'); a worn item's hover card never "
+             "covers the mule bar ('ES IN THIS LOCKER'); and a REAL-INPUT drag pass: a ring dropped on a cell locks there "
+             "with a green footprint in the air and survives a reload (2000 stash, 1280x695 inventory), a 2x4 past the "
+             "edge is red and refused with nothing written, the keyboard carries an item, a right-click unlocks it, a "
+             "drop on the Gems tab moves it there. #174 v-B2 integration: the hover card is the builder's in-game box "
+             "(#cb-tip) - the worn weapon, the worn ring and a stash tile, hovered by a real mouse at 2000 and 1280x695, "
+             "each open #cb-tip naming the item, leave #arttip shut, keep off the mule bar and under their panel's "
+             "header. FIX ROUND at 375, real input: a drag held at the top edge scrolls the window to another mule's tab "
+             "and the drop moves the item there; ] carries a keyboard item to the next mule; a real tap beside a placed "
+             "ring's 10px lock (coarse pointer) unlocks it. #29 ROUND 2, his 'Tighten both': REG-1379 the window is as "
+             "tall as what it holds - where it does not scroll it ends under its content by its own padding (at 2000x1300 "
+             "it ran 248px past their rects to the glass), where it scrolls it is the glass's height, and no panel is "
+             "stretched past what it holds (round 1 made STRENGTHS AND WEAKNESSES ~330px of empty box and NOTES ~370px of "
+             "empty textarea; at 2000 every panel is their rect again, heights included); REG-1375 the mule window's own "
+             "EQUIPMENT / STASH / SKILL TREE / CALCULATIONS tabs stay in view while its Select or Edit modal is open, at "
+             "every width in both arrangements (the builder's tab rule skipped the mule host - the #174 Edit panel "
+             "covered them everywhere). Timeout 120 -> 300: a full run measured 108-120s. TV_LAW_PORT pins its port as "
+             "the builder's law does. #42 (REG-1400): every red-proof declares the viewport(s) its defect shows at, "
+             "MEASURED one viewport at a time, and a push proves it only there (TV_LAW_WIDTHS, set by heart2 --push "
+             "alone); this gate always measures every width",
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_mule_window_equips_and_says_its_source",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_equips_and_says_its_source.py")], 90,
@@ -8095,7 +8212,7 @@ GATES = [
              "picker first; a worn copy leaves the stash on both surfaces; one hover card on an equipped slot; "
              "NOTES saved on Enter/blur with its draft surviving a re-render. The slot table is the game's: "
              "checked against tv/item_tables.json kinds in CI, the subtypes against the install where it is "
-             "(UNMEASURED, never passed, elsewhere). 16 cases, 18 red-proofs",
+             "(UNMEASURED, never passed, elsewhere).",
          skip_ok=()),
     Gate("test_the_character_sheet_sums_the_game_data",
          [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_the_game_data.py")], 90,
@@ -8115,8 +8232,7 @@ GATES = [
              "(a second generator). The real install's --check runs where the install is, UNMEASURED elsewhere. FIX "
              "ROUND: Enhanced MAXIMUM Damage is its own row (Hellslayer ED 100, EMD 240 at 80); a class-locked base on "
              "another class counts nothing (Herald of Zakarum on a Sorceress); a set bonus with no switch blanks only what "
-             "it feeds; elemental absorb caps at 40; a magic charm blanks only its affix pool's stats (FCR stays 60). "
-             "35 cases, 20 red-proofs",
+             "it feeds; elemental absorb caps at 40; a magic charm blanks only its affix pool's stats (FCR stays 60). ",
          skip_ok=()),
     Gate("test_the_mule_picker_offers_the_whole_database",
          [sys.executable, os.path.join(HERE, "test_the_mule_picker_offers_the_whole_database.py")], 90,
@@ -8134,7 +8250,7 @@ GATES = [
              "then the window; a builder pick never writes d2r_muleEquip. v-B4 REVIEW: I / II swapped with a hand's picker "
              "open re-aims it (Edit showed set II and wrote set I - Windforce silently replaced, a pick onto set II landed "
              "in set I); a pick hides the hovered row's tooltip in the mule host as in the builder; a locker (no class) "
-             "lists second weapons for the left hand. 8 cases, 13 red-proofs",
+             "lists second weapons for the left hand.",
          skip_ok=()),
     Gate("test_the_mule_inventory_takes_items_like_the_doll",
          [sys.executable, os.path.join(HERE, "test_the_mule_inventory_takes_items_like_the_doll.py")], 90,
@@ -8220,7 +8336,7 @@ GATES = [
              "underlined; the weapon rail is itemtypes.txt's Equiv tree from CB_DB ty[code][4] (their parents, children "
              "and folds). v-B4 REVIEW: a non-Barbarian's left-hand tree keeps the flat rail's 'Second Weapons (Barbarian)' "
              "row, listing exactly the block's one-handed classless weapon bases, never drawn on her Base tab; a "
-             "Barbarian's carries the weapon types. 8 cases, 13 red-proofs",
+             "Barbarian's carries the weapon types.",
          skip_ok=()),
     Gate("test_the_rails_fold_is_a_chevron_not_a_dot",
          [sys.executable, os.path.join(HERE, "test_the_rails_fold_is_a_chevron_not_a_dot.py")], 120,
@@ -8230,7 +8346,7 @@ GATES = [
              "builder card, right-hand slot; Vault tab, a mule, its right-hand slot): every fold on the rail, at 2000x1300 "
              "and 375x812 and in the mule host, draws at least two thirds of their chevron in PIXELS (its clip shown vs "
              "hidden, decoded by frozen_frames.png_rows), open points up and folded down, and a pressed folded chevron "
-             "opens and turns up. No browser binary = declared skip (77). 4 cases, 2 red-proofs",
+             "opens and turns up. No browser binary = declared skip (77).",
          skip_ok=()),
     Gate("test_the_mule_window_places_by_hand",
          [sys.executable, os.path.join(HERE, "test_the_mule_window_places_by_hand.py")], 90,
@@ -8248,7 +8364,7 @@ GATES = [
              "one mule the same with gear worn (the Grok seat's v-B finding). And every mule-window harness hands "
              "node its program on STDIN: as one argv string (node -e) the cut passed Linux's 131,072-byte "
              "argument cap, so the shell and equip laws were RED on CI (main 1e1f946e: errors=19 / errors=26) "
-             "while green on the Mac. 15 cases, 13 red-proofs",
+             "while green on the Mac.",
          skip_ok=()),
     Gate("test_the_character_builder_is_joined_to_the_engine_and_the_mule_window",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_is_joined_to_the_engine_and_the_mule_window.py")], 90,
@@ -8269,7 +8385,7 @@ GATES = [
              "runeword keeps its base (Chains of Honor 697-890, never 892), a blank-par per-level line is its roll "
              "(Fortitude 80-120), the shift is the table's (Eaglehorn 480), Hellslayer's maximum is 602, Guardian Angel "
              "names four maximum resistances, Hellfire Torch rolls a CLASS, a class-locked item on another class is red "
-             "and counts nothing, a magic charm leaves FCR EXACT. 16 cases, 22 red-proofs",
+             "and counts nothing, a magic charm leaves FCR EXACT.",
          skip_ok=()),
     Gate("test_his_builds_are_watched_like_his_ledger",
          [sys.executable, os.path.join(HERE, "test_his_builds_are_watched_like_his_ledger.py")], 120,
@@ -8290,23 +8406,21 @@ GATES = [
              "And the quieter hole: the snapshot writer skipped a snapshot when the ledger COUNTS were unchanged, so a "
              "builds-only wipe never produced the file the watcher judges — the hand-made counts now ride beside "
              "the ledger's. cbMain is a declared POINTER (cleared with removeItem, a choice with an Undo), not a "
-             "counted store. 15 cases over fixture blobs in a temp dir, 6 red-proofs",
+             "counted store.",
          skip_ok=()),
     Gate("test_a_reel_carries_its_custody",
          [sys.executable, os.path.join(HERE, "test_a_reel_carries_its_custody.py")], 180,
          needs_app=False,
          why="#55 first slice (REG-1544, 2026-09-29) — his robot-vacuum map at REEL granularity: one record per reel "
-             "naming which of five hands hold it (recorder, triage, printer, vault, tombstone), each answer QUOTED "
-             "from the store that hand wrote, the river's journey beside them, and every reel on which two writers "
-             "contradict each other. MEASURED before it existed, read-only on his tree: 460 tombstones ALL say "
-             "'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE — five "
-             "stores keyed three ways and nothing joined them per reel. A hand is held True / False / None and the "
-             "three stay three: an unreadable store leaves that hand UNKNOWN and raises no contradiction; a reel no "
-             "store records is none yet, not nowhere; the census caps rows DRAWN and never a count; the console "
-             "serves /api/custody (one reel, or the census) and hands in the journal only when it read cleanly; the "
-             "doctor row 'reel custody' says MISSING with its denominators and UNKNOWN naming the unreadable file. "
-             "18 cases over a temp world laid out where each owner's own resolver says, 5 red-proofs (v3526: the "
-             "doctor names the first contradiction over ALL reels, never 'first: ?' past the draw cap)",
+             "naming which of five hands hold it (recorder, triage, printer, vault, tombstone), each answer QUOTED from "
+             "the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict "
+             "each other. MEASURED before it existed, read-only on his tree: 460 tombstones ALL say 'sealed by BOTH "
+             "lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE — five stores keyed three ways "
+             "and nothing joined them per reel. A hand is held True / False / None and the three stay three: an "
+             "unreadable store leaves that hand UNKNOWN and raises no contradiction; a reel no store records is none yet, "
+             "not nowhere; the census caps rows DRAWN and never a count; the console serves /api/custody (one reel, or "
+             "the census) and hands in the journal only when it read cleanly; the doctor row 'reel custody' says MISSING "
+             "with its denominators and UNKNOWN naming the unreadable file.",
          skip_ok=()),
     Gate("test_the_evidence_tiers_lane_says_what_it_owes",
          [sys.executable, os.path.join(HERE, "test_the_evidence_tiers_lane_says_what_it_owes.py")], 120,
@@ -8320,7 +8434,7 @@ GATES = [
              "measured makes owed None and says what WAS counted. The 'evidence tiers' doctor row carries the owed "
              "clause and the age of the newest look on the eagle line; control_app.evidence_tiers_state publishes the "
              "same dict on /api/status (evidenceTiers), cached by the ledger's mtime, an unreadable ledger never "
-             "remembered as an answer. Driven over a temp ledger; nothing writes it. 12 cases, 5 red-proofs",
+             "remembered as an answer. Driven over a temp ledger; nothing writes it.",
          skip_ok=()),
     Gate("test_a_dangling_main_and_a_set_without_slots_read_unknown",
          [sys.executable, os.path.join(HERE, "test_a_dangling_main_and_a_set_without_slots_read_unknown.py")], 120,
@@ -8332,7 +8446,7 @@ GATES = [
              "note naming the id, no card wears the badge, the cards still render, and window._charsList (what the "
              "mule window asks) carries mainDangling; a MAIN that names a build and no MAIN at all stay quiet; a set "
              "without a slots object reads 'items UNKNOWN', an empty slots object is a measured 0, a set missing only "
-             "swap/inv still counts its slots; a read never writes. 3 cases, 3 red-proofs",
+             "swap/inv still counts its slots; a read never writes.",
          skip_ok=()),
     Gate("test_the_mule_picker_refuses_while_the_builder_is_open",
          [sys.executable, os.path.join(HERE, "test_the_mule_picker_refuses_while_the_builder_is_open.py")], 120,
@@ -8345,19 +8459,18 @@ GATES = [
              "the builder opens and after it closes opens the host and says nothing. The mule window's own _mpHostSync "
              "and _mpPick (cut from bible.html, stubs at the seams) keep the slot picked and write the reason into "
              "_mpPickErr, the string the picker footer prints; once the builder closes the same pick opens the host "
-             "and clears it. 2 cases, 3 red-proofs",
+             "and clears it.",
          skip_ok=()),
     Gate("test_an_unreadable_database_draws_an_unknown_picture",
          [sys.executable, os.path.join(HERE, "test_an_unreadable_database_draws_an_unknown_picture.py")], 120,
          needs_app=False,
-         why="#41 rank 24 (REG-1536, 2026-09-29) — when the builder's CB_DB will not parse, the art rule fell back to "
-             "the item's OWN name (return b ? b[0] : (it ? it[1] : e.name)), and both mule callers did '|| p.n' / "
-             "': e.name' — the wrong picture #248 fixed, exactly when the database is unreadable. Now _cbArtName "
-             "answers NULL, window._cbArtUnknown draws a glyph marked data-art='unknown' carrying DB_ERR's own "
-             "sentence, the mule slot (_mpSlotArt, in the mule window's own span) and the inventory tile draw that "
-             "glyph, and the builder's doll says UNKNOWN. Positive control on the real database: a runeword draws its "
-             "BASE, a unique its own name. Driven in node with the database block broken by the fixture. 3 cases, "
-             "4 red-proofs",
+         why="#41 rank 24 (REG-1536, 2026-09-29) — when the builder's CB_DB will not parse, the art rule fell back to the "
+             "item's OWN name (return b ? b[0] : (it ? it[1] : e.name)), and both mule callers did '|| p.n' / ': e.name' "
+             "— the wrong picture #248 fixed, exactly when the database is unreadable. Now _cbArtName answers NULL, "
+             "window._cbArtUnknown draws a glyph marked data-art='unknown' carrying DB_ERR's own sentence, the mule slot "
+             "(_mpSlotArt, in the mule window's own span) and the inventory tile draw that glyph, and the builder's doll "
+             "says UNKNOWN. Positive control on the real database: a runeword draws its BASE, a unique its own name. "
+             "Driven in node with the database block broken by the fixture.",
          skip_ok=()),
     Gate("test_the_console_header_has_nine_doors_on_one_row",
          [sys.executable, os.path.join(HERE, "test_the_console_header_has_nine_doors_on_one_row.py")], 60,
@@ -8370,19 +8483,18 @@ GATES = [
              "prose); J10's `if (r.tabs !== N)` constant is read out of the mjs and must equal the markup's count (two "
              "sources); the base-level .head-tabs declarations are folded in source order (last wins, @media rules "
              "left out, CSS comments stripped) and overflow-x auto|scroll with scrollbar-width none may not stand "
-             "(#66). The pixel ROW count stays J10's. 6 cases, 3 red-proofs",
+             "(#66). The pixel ROW count stays J10's.",
          skip_ok=()),
     Gate("test_the_heart_map_covers_the_board",
          [sys.executable, os.path.join(HERE, "test_the_heart_map_covers_the_board.py")], 120,
          needs_app=False,
          why="#41 rank 25 (REG-1538, 2026-09-29) — heart_map read control_ui.html ONLY, so bible.html's builder, "
              "Characters and mule surfaces (513 ids, 81 of them cb-*/chars-*/mp-*/vault-*) could never be counted as "
-             "watched or unwatched: HEART.md said nothing about them and read like a map that had checked them. The "
-             "board is now a second page (PAGES), measured by the console's own rule, with its own table in HEART.md "
-             "and its own ratchet under 'board' in heart_floor.json: --check refuses a floor with no board entry "
-             "(never measured is UNKNOWN), refuses a fall naming the surface, and an unreadable bible.html is a "
-             "refusal naming bible.html — never a board table of zeros. The console's figures are unchanged. 6 cases, "
-             "4 red-proofs",
+             "watched or unwatched: HEART.md said nothing about them and read like a map that had checked them. The board "
+             "is now a second page (PAGES), measured by the console's own rule, with its own table in HEART.md and its "
+             "own ratchet under 'board' in heart_floor.json: --check refuses a floor with no board entry (never measured "
+             "is UNKNOWN), refuses a fall naming the surface, and an unreadable bible.html is a refusal naming bible.html "
+             "— never a board table of zeros. The console's figures are unchanged.",
          skip_ok=()),
     Gate("test_the_locker_list_says_when_the_main_is_gone",
          [sys.executable, os.path.join(HERE, "test_the_locker_list_says_when_the_main_is_gone.py")], 120,
@@ -8395,7 +8507,7 @@ GATES = [
              "the open list says it above the rows (data-state='main-dangling', naming the id, UNKNOWN); a MAIN "
              "that names a build and no MAIN at all stay quiet; the rows still list every build and a bind still "
              "works. Driven in node over the shipped mule window + the Characters room's reader (the edit-panel "
-             "law's stand-in, one copy). 3 cases, 2 red-proofs",
+             "law's stand-in, one copy).",
          skip_ok=()),
     Gate("test_the_heart_map_reads_code_not_prose",
          [sys.executable, os.path.join(HERE, "test_the_heart_map_reads_code_not_prose.py")], 120,
@@ -8409,32 +8521,30 @@ GATES = [
              "page), and a watcher that does not parse is named MISSING rather than read as prose. The floor was "
              "lowered to the measured 7 with the reason in heart_floor.json's own _why. Driven over a planted page "
              "and watcher through heart_map._read, plus the real tree corroborated by an independent word-boundary "
-             "reading. 4 cases, 4 red-proofs",
+             "reading.",
          skip_ok=()),
     Gate("test_a_session_says_what_it_yielded",
          [sys.executable, os.path.join(HERE, "test_a_session_says_what_it_yielded.py")], 180,
          needs_app=False,
-         why="#58 Ledger 3.0 first slice (REG-1541..1543, 2026-09-29) — no door answered 'what did reel X "
-             "yield': /api/session is keyed by POSITION, /api/forensics dies once a reel is released, the river "
-             "stamps carry a count of names and never the names, and the journal (sessionId), the chronicle book "
-             "(reel) and the vault ledger (session) each spell one reel their own way. tv/ledger3.py assembles "
-             "the per-session extraction record from those stores AS OBJECTS (control_app._ledger3_stores loads "
-             "them through its own path authorities; the module names no store) and GET /api/ledger3/session?id= "
-             "and /api/ledger3/sessions serve it: who read each name (the model, else the lane), on which frames, "
-             "where it was seen (names_loc), how the reader routed it, what the chronicle book banked from THIS "
-             "reel (one reel once, whichever way it was spelled), what the vault ledger witnessed in THIS visit "
-             "(visits, never frames — §34.2) with the item's tier today, the film or the tombstone, the river "
-             "station, the survey, and the reader-vs-vault agreement side by side. A provisional OCR-only name "
-             "is listed apart, never counted as named; an unreadable side is UNKNOWN, never 0; a session no store "
-             "knows is refused, never an empty record. The doctor's 'ledger3 sessions' row (PERIODIC) names a "
-             "sealed reel on the shelf whose journal rows rotated out — a trail that cannot be drawn for footage "
-             "he still has. w26 skeptic (REG-1556, REG-1557, 2026-09-30): the two doors say UNKNOWN for a "
-             "query they could not read (never '' -> 'no id given', never ?limit=abc -> 200 rows), and a "
-             "tombstone is a release EVENT - measured 3 of his 29 shelf reels carry them, 14 rows between "
-             "them, every row with a `kept` list, one reel alone four rows - so every pass is kept, the "
-             "LATEST act wins (reel_custody's "
-             "rule for the same store), the film says what the passes took and an uncounted pass leaves the "
-             "total UNKNOWN. 16 cases over temp stores, the real handler driven in-process, 16 red-proofs",
+         why="#58 Ledger 3.0 first slice (REG-1541..1543, 2026-09-29) — no door answered 'what did reel X yield': "
+             "/api/session is keyed by POSITION, /api/forensics dies once a reel is released, the river stamps carry a "
+             "count of names and never the names, and the journal (sessionId), the chronicle book (reel) and the vault "
+             "ledger (session) each spell one reel their own way. tv/ledger3.py assembles the per-session extraction "
+             "record from those stores AS OBJECTS (control_app._ledger3_stores loads them through its own path "
+             "authorities; the module names no store) and GET /api/ledger3/session?id= and /api/ledger3/sessions serve "
+             "it: who read each name (the model, else the lane), on which frames, where it was seen (names_loc), how the "
+             "reader routed it, what the chronicle book banked from THIS reel (one reel once, whichever way it was "
+             "spelled), what the vault ledger witnessed in THIS visit (visits, never frames — §34.2) with the item's tier "
+             "today, the film or the tombstone, the river station, the survey, and the reader-vs-vault agreement side by "
+             "side. A provisional OCR-only name is listed apart, never counted as named; an unreadable side is UNKNOWN, "
+             "never 0; a session no store knows is refused, never an empty record. The doctor's 'ledger3 sessions' row "
+             "(PERIODIC) names a sealed reel on the shelf whose journal rows rotated out — a trail that cannot be drawn "
+             "for footage he still has. w26 skeptic (REG-1556, REG-1557, 2026-09-30): the two doors say UNKNOWN for a "
+             "query they could not read (never '' -> 'no id given', never ?limit=abc -> 200 rows), and a tombstone is a "
+             "release EVENT - measured 3 of his 29 shelf reels carry them, 14 rows between them, every row with a `kept` "
+             "list, one reel alone four rows - so every pass is kept, the LATEST act wins (reel_custody's rule for the "
+             "same store), the film says what the passes took and an uncounted pass leaves the total UNKNOWN.the real "
+             "handler driven in-process.",
          skip_ok=()),
     Gate("test_characters_learn_from_the_reels", [sys.executable,
          os.path.join(HERE, "test_characters_learn_from_the_reels.py")], 60,
@@ -8443,7 +8553,7 @@ GATES = [
              "OCR cannot read the D2R font and was no detector: 3 px of crop swung it 4 rows to 1), reads the list "
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
-             "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
+             "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group)."),
     Gate("test_the_builder_keeps_in_game_apart_from_simulation", [sys.executable,
          os.path.join(HERE, "test_the_builder_keeps_in_game_apart_from_simulation.py")], 90,
          needs_app=False,
@@ -8453,19 +8563,18 @@ GATES = [
              "vault_evidence.tier (looks since it appeared: WATCHED <10, PROVEN 10, HARDENED 20; a character the screen "
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
-             "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such. 18 cases, 15 red-proofs"),
+             "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such."),
     Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
          os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
          needs_app=False,
          why="#103 step B (REG-1601) - his words: 'a sessions character selection then moving forward.. scenarios future "
              "wise are linked to that character.. same logic getting routed down' (the printer). The character-select "
              "reader is asked which row is HIGHLIGHTED (only a row that read listed counts); a visit that ran past its "
-             "reads gets ONE closing read of its last frame once the scan is past it, inside the hourly cap - so the "
-             "row he pressed Play on decides, not the one he arrived on; each login joins the gear ledger as the row its "
-             "reel splits at (the journal's own sessionId) and the rollover chain carries it; a sealed reel the learner "
-             "has not walked WAITS (6 h bound; frames gone never wait; another world's learner is never asked); the "
-             "doctor says waiting, not late; the console's learner nudges the gear ledger when it has news. 15 cases, "
-             "15 red-proofs"),
+             "reads gets ONE closing read of its last frame once the scan is past it, inside the hourly cap - so the row "
+             "he pressed Play on decides, not the one he arrived on; each login joins the gear ledger as the row its reel "
+             "splits at (the journal's own sessionId) and the rollover chain carries it; a sealed reel the learner has "
+             "not walked WAITS (6 h bound; frames gone never wait; another world's learner is never asked); the doctor "
+             "says waiting, not late; the console's learner nudges the gear ledger when it has news."),
     Gate("test_each_reader_says_whether_it_is_connected", [sys.executable,
          os.path.join(HERE, "test_each_reader_says_whether_it_is_connected.py")], 120,
          needs_app=False,
@@ -8486,6 +8595,13 @@ GATES = [
              "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
              "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
              "UNKNOWN never drawn lit or shut)."),
+    Gate("test_a_gate_says_what_it_guards_not_how_many",
+         [sys.executable, os.path.join(HERE, "test_a_gate_says_what_it_guards_not_how_many.py")], 60,
+         needs_app=False,
+         why="#104 (REG-1610, 2026-09-30) - a typed count in a gate's why went stale the day its law grew a case: "
+             "284 of 738 whys typed one and 72 of the 230 countable were already wrong (the second eye read one as a "
+             "claim). His ruling: compute them, don't type them. Parsed, never grepped: no why states a number of "
+             "cases or red-proofs, and the pattern itself is pinned against the shapes that were in the file."),
     Gate("test_the_fleet_shows_each_pcs_readers",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_each_pcs_readers.py")], 180,
          needs_app=False,
@@ -8547,7 +8663,7 @@ GATES = [
              "carries it per PC, the worker's fixed key list keeps it, /api/fleet relays every peer's and his own row "
              "reads the local file, the click box prints 'picker offers N bases · database holds M' per PC with a "
              "red 'picker short' word on the row only on a disagreement, and the doctor row 'picker census' goes "
-             "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees. 28 cases, 21 red-proofs",
+             "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees.",
          skip_ok=()),
 ]
 
