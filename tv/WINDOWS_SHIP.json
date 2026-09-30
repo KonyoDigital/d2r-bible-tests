@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3526",
+  "ver": "v3527",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3526: Sets and Sessions read ONE hunt clock for every piece (Hooves about 40h, Hell about 79h, one spelling, no more Hell Hell). Characters are learned from the reels character-select screen after two sightings and fill the builder, level-1 mules grouped. Heart audit ranks 11-21 and 23-25. The v3525 second-eye findings fixed. The child supervisor keeps one process tree per role. Test fixtures can no longer write his gear ledger or his roster.",
+  "note": "v3527: The heart audit is finished: rank 22 (the picker census, fixed against its reviewer before it shipped) and rank 26 (the mule filing gate re-proved). Claude reads every frame on every PC; Grok is only the + GROK layer when switched on, and nothing can put it first again. The fleet shows a shadow eye per PC: lit when its shadow reader runs even with the game closed, gold with a glint while it reads, hollow when on but stopped, shut when off, dashed when unknown. The lean Grok home is emptied before every read.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
