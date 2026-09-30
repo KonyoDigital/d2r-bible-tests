@@ -405,6 +405,17 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1627 - THE VAULT LANE OWED READS AND SAID NOTHING ABOUT WHY (2026-09-30)
+
+**Measured on his Mac** (fleet river chip "PRINTER 2 - vault lane: owes 3, 3809 read(s) on record"): the lane's
+status said on, owed 3, stale, last read 36 min earlier - with `owedWhy` null, `skipped` {} and `retired` []. Every
+`vault_autoreel_tick()` already returns a named reason (busy, deferred, requeued, retired, "N owed, none startable")
+and `_vault_autoread_loop` dropped it. **Now** the loop records each tick (`_vault_autoread_note`); the status carries
+`lastTick` and, whenever reels are owed and the tick started none, `owedWhy` says the last tick's own reason - which
+the river's sentence already appends, so the fleet chip names the link that holds it. Law:
+`tv/test_an_owing_lane_says_why_it_waits.py`, both sabotages seen RED. The cause of THIS stall is not yet named - the
+next reading will name it.
+
 ### REG-1626 - TWO PCs COULD NEVER FINISH PROVING THEMSELVES (2026-09-30)
 
 **His directive:** the same logic proven on the Mac, the ALT and GrokBot's PC - "then it should obviously work for

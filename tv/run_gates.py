@@ -8647,6 +8647,14 @@ GATES = [
              "otherwise hide it - and one sign-in in flight at a time; the route answers only this console's own page and "
              "re-arms the probe; the lamp learns 'signed out' from the CLI, a good read outranks it; the header's SIGN IN "
              "pill shows only for needsLogin and the click posts the route."),
+    Gate("test_an_owing_lane_says_why_it_waits",
+         [sys.executable, os.path.join(HERE, "test_an_owing_lane_says_why_it_waits.py")], 60,
+         needs_app=False,
+         why="REG-1627 (2026-09-30) - measured on his Mac: the vault lane said on, owes 3, stale, last read 36 min "
+             "earlier, and owedWhy null - every tick names its reason (busy, deferred, requeued, retired, none "
+             "startable) and the loop dropped it, so the river's PRINTER chip said only 'owes 3'. The loop records "
+             "each tick; an owing lane that started nothing says its last tick's reason; a read started or nothing "
+             "owed says nothing; UNKNOWN stays UNKNOWN."),
     Gate("test_every_pc_can_finish_its_own_proof",
          [sys.executable, os.path.join(HERE, "test_every_pc_can_finish_its_own_proof.py")], 60,
          needs_app=False,

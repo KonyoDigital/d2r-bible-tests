@@ -29574,6 +29574,7 @@ def _vault_autoread_state():
         _st_readable = _vault_autoread_load()
         d = _VAULT_AUTOREAD
         owed = _vault_owed_reels()
+        _lt = d.get("lastTick") if isinstance(d.get("lastTick"), dict) else None
         return {"on": bool(_VAULT_AUTOREEL_ON),
                 # ⚠⚠ THE STORE'S OWN STATE TRAVELS WITH THE ANSWER. True = restored · False = no
                 # store yet, a genuine fresh start · None = a store exists and could NOT be read,
@@ -29590,8 +29591,11 @@ def _vault_autoread_state():
                 "lastTs": d.get("lastTs") or None,
                 # None, never 0 — "we could not ask" and "nothing is owed" are opposite facts
                 "owed": (None if owed is None else len(owed)),
-                "owedWhy": ("the retention plan could not be read, so this is UNKNOWN"
-                            if owed is None else None),
+                # REG-1627 - an owing lane that started nothing says why, in its last tick's own words
+                "owedWhy": ("the retention plan could not be read, so this is UNKNOWN" if owed is None
+                            else (("its last tick (%s): %s" % (_lt.get("kind"), _lt.get("why") or "gave no reason"))
+                                  if (owed and _lt and not _lt.get("started")) else None)),
+                "lastTick": _lt,
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
                 "tries": {k: v for k, v in list((d.get("tries") or {}).items())[:6]}}
@@ -30690,12 +30694,31 @@ def _rnf_prime():
         _RNF_STATE["lastTs"] = d["lastTs"]
 
 
+def _vault_autoread_note(r, now_ms=None):
+    """REG-1627 — WHAT THE LANE'S LAST TICK DID, IN ITS OWN WORDS. -> the note, or None
+
+    MEASURED on his Mac 2026-09-30 23:1x: the vault lane said on, 3 owed, stale, last read 36 min earlier - and
+    owedWhy null, skipped {}, retired []. Every tick already returns a named reason (busy, deferred, requeued, retired,
+    "N owed, none startable") and the loop dropped it, so the river's PRINTER chip read "owes 3" and nothing else.
+    The status now carries the last tick and says its reason whenever reels are owed and none started."""
+    if not isinstance(r, dict):
+        return None
+    kind = ("started" if r.get("started") else "busy" if r.get("busy") else "deferred" if r.get("deferred")
+            else "requeued" if r.get("requeued") else "retired" if r.get("retired")
+            else "unknown" if r.get("unknown") else "idle")
+    note = {"at": int(now_ms if now_ms is not None else time.time() * 1000), "kind": kind,
+            "started": r.get("started"), "why": (str(r.get("why"))[:200] if r.get("why") else None)}
+    _VAULT_AUTOREAD["lastTick"] = note
+    return note
+
+
 def _vault_autoread_loop():
     while True:
         try:
             time.sleep(_VAULT_AUTOREAD_EVERY_S)
             _lane_tick('tvd-vault-autoread', _VAULT_AUTOREAD_EVERY_S)
             _r = vault_autoreel_tick()
+            _vault_autoread_note(_r)        # REG-1627 - the tick's own words, so an owing lane says why it waits
             # ⚠⚠ v3323 (#28) — THE FEEDER'S ONE CALLER. read_names_lane.split() has always judged
             # every journal-ring PANEL name through the REAL gate and separated HELD from OWED, and
             # NOTHING called it to write: its own header said "the accumulator has no other
