@@ -10,6 +10,7 @@ an unread window is not called the launcher. A reel he opened is never sealed fo
 
 RED_PROOF below.
 """
+import ast
 import io
 import json
 import os
@@ -116,8 +117,10 @@ class TheFirstReadsCarryTheHud(unittest.TestCase):
     def test_the_failed_read_row_says_it_failed_and_why(self):
         """the deep-read row the ALT journalled for a failed read now carries readFailed + the reader's words"""
         src = io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read()
-        i = src.index("def emit_deep_read(")
-        blk = src[i:i + 12000]
+        # the whole function, by its own boundaries - a fixed-size window measures a guess about its length
+        fn = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "emit_deep_read"]
+        self.assertEqual(len(fn), 1, "emit_deep_read is not one function any more")
+        blk = ast.get_source_segment(src, fn[0])
         self.assertIn('{"readFailed": True, "readErr": _first_line(', blk)
         self.assertEqual(tv._first_line("\n  Failed to authenticate: OAuth session expired\nmore"),
                          "Failed to authenticate: OAuth session expired")

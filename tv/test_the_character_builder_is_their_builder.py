@@ -218,7 +218,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         self.assertEqual(out["resAfter"], "All Resistances +20-30", "a cleared box must be the range again, never a default")
 
     def test_the_store_is_the_brief_shape_forked_and_backed_up(self):
-        out = _run(r"""
+        out = _run(_LEARNED_ON_THIS_CONSOLE + r"""
           window.openCharBuilder();
           window._cbOpenPick('slot', 'head');
           var d = window._cbDb(), pick = function(n){ var h = null; d.it.forEach(function(x){ if (x[1] === n) h = x; }); return h[0]; };
@@ -242,7 +242,8 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         b = out["build"]
         for k, t in (("name", str), ("cls", str), ("level", int), ("sets", list)):
             self.assertIsInstance(b.get(k), t, "build.%s: %r" % (k, b.get(k)))
-        self.assertEqual((b["cls"], b["level"]), ("Warlock", 88), "the first template is konyolock, Warlock 88")
+        self.assertEqual((b["cls"], b["level"]), ("Warlock", 88),
+                         "the first template is the character THIS console's reels learned (Konyolock, Warlock 88)")
         self.assertEqual(b["sets"][0]["name"], "Set 1")
         e = b["sets"][0]["slots"]["head"]
         for k, t in (("name", str), ("base", str), ("sockets", int), ("eth", bool), ("rolls", dict), ("socketed", list)):
@@ -363,7 +364,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
     def test_stats_are_the_engines_with_their_source_or_all_unknown(self):
         """STATS draws window.D2R_CHAR_ENGINE.sheet(build, {difficulty, quests}) when it is loaded — each number with
         its source, a range as a range — and when it is not, every row is UNKNOWN and no number is drawn at all."""
-        out = _run(r"""
+        out = _run(_LEARNED_ON_THIS_CONSOLE + r"""
           window.openCharBuilder();
           var stats = function(){ var h = ELS['cb-win']._html; return h.slice(h.indexOf('id="cb-stats"'), h.indexOf('id="cb-modal"')); };
           var none = stats();
@@ -535,6 +536,22 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         self.assertIn("color:#1a1208", rule.group(1))
         self.assertIn(".cb-sheet .cb-pane{min-height:0}", css, "the stacked picker's pane is unbounded, its list cannot scroll")
 
+
+# REG-1599 (2026-09-30, his rule: the builder is "a personal tool for each individual console"): a console's first
+# template is what ITS OWN reels learned - the page's typed CHARS are a lookup only, never offered. The cases below need
+# a real character to build on, so the console answers /api/chars_learned (a synchronous stub) with one it learned,
+# exactly the way the page asks it. Without this they would be testing the empty console, which
+# test_characters_learn_from_the_reels pins: "New build", class UNKNOWN.
+_LEARNED_ON_THIS_CONSOLE = r"""
+  (function(){
+    function SYNC(v){ return { then: function(f){ var x = f(v); return (x && typeof x.then === 'function') ? x : SYNC(x); },
+                               'catch': function(){ return this; } }; }
+    window.location = { protocol: 'http:' };
+    window.fetch = function(){ return SYNC({ ok: true, json: function(){ return SYNC({ ok: true, chars: [
+      { name: 'Konyolock', cls: 'Warlock', level: 88, visits: 3 } ] }); } }); };
+    window._cbLearnedFetch();
+  })();
+"""
 
 class TheDoctorWatchesThePickersBlock(unittest.TestCase):
     """'builder item data' - the CB_DB block's own doctor row, beside 'character sheet data'"""

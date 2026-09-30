@@ -313,8 +313,13 @@ class TheTierIsTheVaults(unittest.TestCase):
 
     def test_the_route_hands_the_page_the_bars(self):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.index('if path == "/api/chars_learned":')
-        self.assertIn('"tierBars": _cs.tier_bars()', src[i:i + 1400], "/api/chars_learned stopped carrying the bars")
+        # the route's own branch body, by the AST - an if/elif chain's segment would run on into the next routes
+        br = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.If) and isinstance(n.test, ast.Compare)
+              and getattr(n.test.left, "id", None) == "path" and len(n.test.comparators) == 1
+              and getattr(n.test.comparators[0], "value", None) == "/api/chars_learned"]
+        self.assertEqual(len(br), 1, "/api/chars_learned is not one route any more")
+        body = "\n".join(ast.get_source_segment(src, b) or "" for b in br[0].body)
+        self.assertIn('"tierBars": _cs.tier_bars()', body, "/api/chars_learned stopped carrying the bars")
 
 
 RED_PROOF = [

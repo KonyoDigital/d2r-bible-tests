@@ -8476,7 +8476,8 @@ GATES = [
              "Claude's newest read in 2 h decides - off with its own words and the /login step on a sign-in failure, "
              "UNKNOWN with no read; Grok off when switched off / not installed / signed out, else on with its counts. "
              "/api/status carries it, the page paints two lamps from it (driven in node - no answer is UNKNOWN), the "
-             "doctor row 'this machine\'s reader can read' asks the same one. 11 cases, 9 red-proofs"),
+             "doctor row 'this machine\'s reader can read' asks the same one. The lamps are the two names on the type "
+             "floor and cost the tab strip nothing (REG-1607)"),
     Gate("test_the_fleet_shows_the_shadow_eye",
          [sys.executable, os.path.join(HERE, "test_the_fleet_shows_the_shadow_eye.py")], 180,
          needs_app=False,

@@ -255,11 +255,17 @@ class TheConsoleRunsTheNextStation(unittest.TestCase):
 
     def test_the_learner_nudges_the_gear_ledger_when_it_has_news(self):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.index("_csr = _cs.tick()")
-        blk = src[i:i + 1500]
+        tree = ast.parse(src)
+        # from the tick to the END OF THE FUNCTION holding it - both ends anchored to the code, never a length guessed
+        at = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "_csr"
+              for t in n.targets) and "_cs.tick()" in (ast.get_source_segment(src, n.value) or "")]
+        self.assertEqual(len(at), 1, "the learner's tick is not one assignment any more")
+        fns = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and n.lineno <= at[0] <= n.end_lineno]
+        inner = min(fns, key=lambda n: n.end_lineno - n.lineno)
+        blk = "\n".join(src.splitlines()[at[0] - 1:inner.end_lineno])
         self.assertIn('elif _csr.get("finished") or _csr.get("reads") or _csr.get("closed"):', blk)
         self.assertIn("_equipped_ledger_nudge()", blk, "the learner never hands its news to the next station")
-        tree = ast.parse(src)
         self.assertTrue(any(isinstance(n, ast.FunctionDef) and n.name == "_equipped_ledger_nudge" for n in ast.walk(tree)))
 
 
