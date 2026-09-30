@@ -42,6 +42,10 @@ NODE = shutil.which("node")
 UI = os.path.join(HERE, "control_ui.html")
 
 RED_PROOF = [
+    {"why": "REG-1639 - the Mac's second click opens a second Terminal sign-in again (osascript leaves nothing to ask)",
+     "file": "claude_signin.py",
+     "find": "        if how == \"terminal\" and _PROC.get(\"proc\") is None and _at is not None and 0 <= now - float(_at) < TERMINAL_AGAIN_S:\n",
+     "replace": "        if False:\n", "matches": 1},
     {"why": "REG-1617 - the sign-in opens hidden: win_quiet's door would hide a console that hands in no STARTUPINFO",
      "file": "claude_signin.py",
      "find": "            kw.update(creationflags=CREATE_NEW_CONSOLE, startupinfo=si)\n",
@@ -145,6 +149,20 @@ class TheCliIsAskedAndDriven(unittest.TestCase):
         self.assertEqual(len(calls), 1, "a second click opened a second sign-in window")
         CS._PROC.update(proc=None)
         none = CS.start(None, "win32", _popen=pop)
+        # REG-1639 - the Mac: osascript exits at once, so there is no process to ask; a second click two seconds later
+        # opened a second Terminal sign-in (the #231 eye on 5979d7f3, reproduced). Now it says where the first one is.
+        mac = []
+        mpop = lambda argv, **kw: mac.append(argv) or _Proc(alive=False)   # noqa: E731
+        CS._PROC.update(proc=None, at=None)
+        m1 = CS.start("/opt/claude/bin/claude", "darwin", _popen=mpop, now=5000.0)
+        m2 = CS.start("/opt/claude/bin/claude", "darwin", _popen=mpop, now=5002.0)
+        self.assertTrue(m1["started"])
+        self.assertEqual((m2["started"], m2["reason"]), (False, "in-flight"), "a second click opened a second Terminal sign-in")
+        self.assertIn("Terminal", m2["why"])
+        m3 = CS.start("/opt/claude/bin/claude", "darwin", _popen=mpop, now=5000.0 + CS.TERMINAL_AGAIN_S + 1)
+        self.assertTrue(m3["started"], "a click long after the first could never open a fresh sign-in")
+        self.assertEqual(len(mac), 2)
+        CS._PROC.update(proc=None, at=None)
         self.assertEqual((none["started"], none["reason"]), (False, "no-cli"))
         self.assertEqual(len(calls), 1)
 

@@ -84,6 +84,12 @@ def inflight():
 #: the only clock there; on Windows the window's process is watched as well.
 WATCH_S = 600
 
+#: REG-1639 - the #231 eye on 5979d7f3, reproduced: on his Mac the sign-in runs in Terminal through osascript, which hands
+#: the command over and EXITS - there is no process left to ask whether the sign-in is still open, so inflight() was
+#: always False there and two clicks two seconds apart opened two Terminal sign-ins. A second click inside this window
+#: opens nothing and says where the first one is; after it a click opens a fresh one (he may have closed the first).
+TERMINAL_AGAIN_S = 90
+
 
 def watching(now=None, window_s=WATCH_S):
     """True while the sign-in this console opened is running, or was opened less than window_s ago."""
@@ -108,6 +114,11 @@ def start(bin_path, platform=None, _popen=None, now=None):
         if inflight():
             return {"ok": True, "started": False, "reason": "in-flight",
                     "why": "a sign-in window is already open on this PC - finish it in the browser"}
+        _at = _PROC.get("at")
+        if how == "terminal" and _PROC.get("proc") is None and _at is not None and 0 <= now - float(_at) < TERMINAL_AGAIN_S:
+            return {"ok": True, "started": False, "reason": "in-flight",
+                    "why": "a sign-in opened in Terminal %d s ago - finish it there (a new one can open after %d s)"
+                           % (int(now - float(_at)), TERMINAL_AGAIN_S)}
         kw = {"close_fds": True}
         if plat == "win32":
             si = subprocess.STARTUPINFO() if hasattr(subprocess, "STARTUPINFO") else None

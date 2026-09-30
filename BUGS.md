@@ -405,6 +405,17 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1639 - ON HIS MAC A SECOND CLICK OPENED A SECOND SIGN-IN (the #231 eye on 5979d7f3, 2026-10-01)
+
+`claude_signin.start()` guards "one sign-in at a time" with `inflight()`, which asks the process it kept. On his Mac the
+sign-in runs in Terminal through `osascript`, which hands the command over and EXITS, so `start()` keeps no process
+there and `inflight()` was always False. **Reproduced:** two clicks two seconds apart on darwin spawned two Terminal
+sign-ins. **Now** a second click inside `TERMINAL_AGAIN_S` (90 s) opens nothing and says the first one is in Terminal;
+after that a click opens a fresh one (he may have closed the first). The Windows path keeps its process and is
+unchanged. The same look's second finding - a lamp case asserting only inside `if state == "on"` - was already fixed
+before v3534 shipped: that case was rewritten to assert the good read's ON unconditionally. Law:
+`tv/test_claude_signs_in_from_the_console.py`, red-proof RED.
+
 ### REG-1638 - AN UN-TICK THEN A RE-TICK THREE SECONDS LATER ERASED A WITNESSED FIND (The Cat's Eye, 2026-09-30)
 
 His question, looking at F-Uniques' "last found: The Cat's Eye": "how did this get here? ... is there a ledger and
