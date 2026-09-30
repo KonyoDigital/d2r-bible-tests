@@ -128,6 +128,23 @@ class TheRoomHasTwoSections(unittest.TestCase):
         self.assertEqual(out["gIng"], ["seen:mulebox"], "a character WITH a build still shows as having none")
         self.assertNotIn("bFROST", out["sim"])
 
+    def test_the_link_decides_before_the_name(self):
+        # #114 (REG-1621) - the #231 eye on v3528: a build NAMED like one learned character but MADE from another went to
+        # whichever the roster listed first (HAMMERDIN before Frostnova), so the link lost to roster order
+        out = _run(r"""
+          seed(null);
+          var all = JSON.parse(RAW['d2r_charBuilds']);
+          all.bLINK = b('HAMMERDIN', 'Sorceress', 70, NOW - 60000, [set1()]); all.bLINK.from = 'seen:frostnova';
+          RAW['d2r_charBuilds'] = JSON.stringify(all);
+          LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          var S = window._cbSections(JSON.parse(RAW['d2r_charBuilds']));
+          OUT.groups = S.ingame.map(function(g){ return [g.t.key, g.ids]; });
+        """)
+        groups = dict((k, ids) for k, ids in out["groups"])
+        self.assertIn("bLINK", groups.get("seen:frostnova") or [],
+                      "a build made from Frostnova went to the character its NAME matched first: %r" % groups)
+        self.assertNotIn("bLINK", groups.get("seen:hammerdin") or [])
+
     def test_the_main_leads_its_own_section(self):
         out = _run(r"""
           seed('bDRU'); LEARNED_ANSWER = ROSTER; window.renderCharsTab();
@@ -323,6 +340,11 @@ class TheTierIsTheVaults(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#114 (REG-1621) - roster order decides again: the first template matching the link OR the name wins",
+     "file": "bible.html",
+     "find": "      if (b.from) groups.forEach(function(x){ if (!g && b.from === x.t.key) g = x; });\n",
+     "replace": "      groups.forEach(function(x){ if (!g && (b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))) g = x; });\n",
+     "matches": 1},
     {
         "why": "#103 (Grok eye) - an in-game card leads with the build's level, not the one the reels confirmed",
         "file": "bible.html",

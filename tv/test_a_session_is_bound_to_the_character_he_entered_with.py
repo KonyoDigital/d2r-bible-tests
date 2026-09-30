@@ -209,6 +209,40 @@ class AFailedCloseConfirmsNothing(_Reels):
         self.assertEqual([(x["character"], x.get("unconfirmed")) for x in L], [("Hammerdin", None)])
 
 
+class AWholeListOfNobodyIsALook(_Reels):
+    """#114 (REG-1620) - the #231 eye on v3528: a whole list that shows nobody was never stored (only `if rows:`
+    recorded), so it could never count against the characters it stopped showing."""
+
+    def _misses(self, how):
+        self.reel("reel_e_1", [(T0 + i * 1000, True) for i in range(2)] + [(T0 + 200000, False)])
+        self.reel("reel_e_2", [(T0 + 400000 + i * 1000, True) for i in range(2)] + [(T0 + 600000, False)])
+
+        def read(crop):
+            ts = CS._frame_ts(crop)
+            self.reads.append(ts)
+            if ts >= T0 + 300000:
+                if how == "other":
+                    return {"screen": "loading", "partial": False}
+                return {"screen": "character-select", "partial": how != "whole", "selected": None, "chars": []}
+            return {"screen": "character-select", "partial": False, "selected": "Hammerdin",
+                    "chars": [{"name": "Hammerdin", "cls": "Paladin", "level": 80},
+                              {"name": "Frostnova", "cls": "Sorceress", "level": 71}]}
+        CS.tick(root=self.hist, stats=self.stats, reader=read, now=(T0 + 900000) / 1000.0)
+        d = CS.load()
+        self.assertEqual(sorted(c["name"] for c in d["chars"].values()), ["Frostnova", "Hammerdin"])
+        return {c["name"]: CS.proof(d, c)["misses"] for c in d["chars"].values()}
+
+    def test_a_whole_list_of_nobody_counts_against_everyone_it_stopped_showing(self):
+        self.assertEqual(self._misses("whole"), {"Hammerdin": 1, "Frostnova": 1},
+                         "a whole list that showed nobody was no evidence against the characters it stopped showing")
+
+    def test_a_cut_off_empty_list_is_no_evidence(self):
+        self.assertEqual(self._misses("cut-off"), {"Hammerdin": 0, "Frostnova": 0})
+
+    def test_another_screen_is_no_list_at_all(self):
+        self.assertEqual(self._misses("other"), {"Hammerdin": 0, "Frostnova": 0})
+
+
 class TheGearAfterALoginIsThatCharacters(_World):
 
     LOGIN = {"reel": "reel_s_A", "sessionId": "s_A", "ts": T0 + 30000, "character": "Hammerdin",
@@ -321,6 +355,14 @@ class TheConsoleRunsTheNextStation(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#114 (REG-1620) - a whole list that shows nobody is never stored, so it counts against no one",
+     "file": "tv/char_select.py",
+     "find": "                elif _whole_and_empty(raw, rwhy):\n",
+     "replace": "                elif False:\n", "matches": 1},
+    {"why": "#114 (REG-1620) - another screen or a cut-off list is stored as a whole list of nobody",
+     "file": "tv/char_select.py",
+     "find": "    return rwhy != \"other screen\" and partial_of(raw) is False\n",
+     "replace": "    return True\n", "matches": 1},
     {"why": "#115 (REG-1619) - a close that was refused or named no row files the session under the ARRIVAL highlight",
      "file": "tv/char_select.py",
      "find": "        if v.get(\"closed\") and best.get(\"reader\") != \"vision-close\":\n",

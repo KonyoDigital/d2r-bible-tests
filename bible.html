@@ -39906,7 +39906,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       var box = document.getElementById('vault-lock-alert');
       if (box){
-        box.textContent = msg; box.hidden = false;
+        box.textContent = msg; box.hidden = false; box._vlaItem = String(nm == null ? '' : nm);   /* #114: whose refusal */
         box.classList.remove('vla-on'); void box.offsetWidth; box.classList.add('vla-on');
         clearTimeout(box._vlaT); box._vlaT = setTimeout(function(){ box.hidden = true; }, 9000);
       }
@@ -39931,7 +39931,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { var _tip = document.getElementById('arttip'); if (_tip && _tip.classList) _tip.classList.remove('on'); } catch (e) {}
         var pop = document.createElement('div');
         pop.id = 'vault-lock-pop'; pop.className = 'vault-lock-pop'; pop.setAttribute('aria-hidden', 'true');
-        pop.textContent = msg;
+        pop.textContent = msg; pop._vlaItem = String(nm == null ? '' : nm);
         document.body.appendChild(pop);
         var w = pop.offsetWidth || 320, h = pop.offsetHeight || 60, r = at.r;
         var x = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - w - 8));
@@ -39946,14 +39946,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window._vaultLockSay = _vaultLockSay;
   /* #98, SEEN ON PIXELS 2026-09-30: right after Shift released a filing, the refusal said a moment earlier ("... LOCKED in
      UNI-ARMOR ... Hold Shift") stayed up for up to 9 s beside the released item and contradicted what had just happened.
-     A release takes down its own item's refusal - the bubble and the banner - and nothing else. */
+     A release takes down its own item's refusal - the bubble and the banner - and nothing else.
+     #114 (REG-1622, the #231 eye on v3528): "its own" was a SUBSTRING of the refusal's words, so releasing a filing named
+     Mesh, Shift or Armor took Arachnid Mesh's refusal down, and an empty name (indexOf('') is 0) took every refusal down.
+     Each refusal now carries the item it is about (_vaultLockSay stamps _vlaItem) and only that exact name hushes it. */
   function _vaultLockHush(nm){
     try {
       var n = String(nm == null ? '' : nm);
+      if (!n) return;
       var pop = document.getElementById('vault-lock-pop');
-      if (pop && pop.parentNode && String(pop.textContent || '').indexOf(n) >= 0) pop.parentNode.removeChild(pop);
+      if (pop && pop.parentNode && pop._vlaItem === n) pop.parentNode.removeChild(pop);
       var box = document.getElementById('vault-lock-alert');
-      if (box && !box.hidden && String(box.textContent || '').indexOf(n) >= 0){ box.hidden = true; clearTimeout(box._vlaT); }
+      if (box && !box.hidden && box._vlaItem === n){ box.hidden = true; clearTimeout(box._vlaT); }
     } catch (e) {}
   }
   function _lookConf(e){
@@ -56565,7 +56569,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var groups = tpls.map(function(t){ return { t: t, ids: [] }; }), sim = [];
     ids.forEach(function(id){
       var b = all[id] || {}, fk = _cbFold(b.name), g = null;
-      groups.forEach(function(x){ if (!g && (b.from === x.t.key || (fk && fk === _cbFold(x.t.name)))) g = x; });
+      /* #114 (REG-1621, the #231 eye on v3528) - THE LINK DECIDES, THEN THE NAME. One pass took the first template that
+         matched EITHER, so a build NAMED like one character but MADE from another went to whichever the roster listed
+         first. The build's own link (b.from) is asked across every template first; its name only when no link holds. */
+      if (b.from) groups.forEach(function(x){ if (!g && b.from === x.t.key) g = x; });
+      if (!g && fk) groups.forEach(function(x){ if (!g && fk === _cbFold(x.t.name)) g = x; });
       if (g) g.ids.push(id); else sim.push(id);
     });
     return { state: state, why: why,

@@ -429,6 +429,15 @@ def _frame_ts(p):
     return int(m.group(1)) if m else None
 
 
+def _whole_and_empty(raw, rwhy):
+    """#114 (REG-1620) - did this read see the WHOLE character list, and nobody on it? -> bool
+
+    normalize() answers ([], "other screen") for a screen that is not the character select - that is no list at all.
+    A character-select read with no rows is a list of nobody, and it counts only when the reader said it saw it whole
+    (partial False): a cut-off or unsaid list is no evidence against anyone."""
+    return rwhy != "other screen" and partial_of(raw) is False
+
+
 def _close_owed(vid, v):
     """Does this visit still owe a closing read? Its last frame came CLOSE_READ_GAP_MS or more after its last read."""
     lf = v.get("lastFrame") if isinstance(v, dict) else None
@@ -482,6 +491,9 @@ def _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock):
             sel, _sw = selected_of(raw, rows)
             record(d, vid, rows, {"reel": lf.get("reel"), "ts": lts, "reader": "vision-close",
                                   "frames": [lf.get("frame")], "partial": partial_of(raw), "selected": sel})
+        elif _whole_and_empty(raw, rwhy):
+            record(d, vid, [], {"reel": lf.get("reel"), "ts": lts, "reader": "vision-close",
+                                "frames": [lf.get("frame")], "partial": False})
         v["closed"] = "read"
     return n, why
 
@@ -625,6 +637,13 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                     record(d, op["id"], rows, {"reel": name, "ts": ts, "reader": "vision",
                                                "frames": [os.path.basename(p)], "partial": partial_of(raw),
                                                "selected": sel})
+                    d["visits"][op["id"]]["lastFrame"] = {"reel": name, "frame": os.path.basename(p), "ts": ts}
+                elif _whole_and_empty(raw, rwhy):
+                    # #114 (REG-1620, the #231 eye on v3528) - A WHOLE LIST THAT SHOWS NOBODY IS A LOOK. It was never
+                    # stored (only `if rows:` recorded), so it could not count against the characters it stopped
+                    # showing; proof() needs the visit, with partial False, to call it a miss. Another screen is not.
+                    record(d, op["id"], [], {"reel": name, "ts": ts, "reader": "vision",
+                                             "frames": [os.path.basename(p)], "partial": False})
                     d["visits"][op["id"]]["lastFrame"] = {"reel": name, "frame": os.path.basename(p), "ts": ts}
             if pos0 < len(frames) <= int(rs.get("pos") or 0):
                 finished.append(name)

@@ -263,6 +263,15 @@ window.vaultUnassign('Arachnid Mesh');
 OUT.p11 = { popBefore: BODYKIDS.length, alertBefore: !ELS['vault-lock-alert'].hidden };
 OUT.p11.released = window.vaultUnassign('Arachnid Mesh', { unlock: true });
 OUT.p11.popAfter = BODYKIDS.length; OUT.p11.alertAfter = !ELS['vault-lock-alert'].hidden; OUT.p11.map = map();
+/* P12 — #114 (REG-1622): only the refused item's OWN release hushes it. A name inside its words (Mesh, Shift, Armor,
+   UNI) or no name at all leaves the bubble and the banner standing. */
+seed(); CELLS = [_cellAt(560)]; ELS['vault-lock-alert'] = _el();
+window.vaultUnassign('Arachnid Mesh');
+OUT.p12 = { before: [BODYKIDS.length, !ELS['vault-lock-alert'].hidden] };
+['Mesh', 'Shift', 'Armor', 'UNI', ''].forEach(function(n){ _vaultLockHush(n); });
+OUT.p12.others = [BODYKIDS.length, !ELS['vault-lock-alert'].hidden];
+_vaultLockHush('Arachnid Mesh');
+OUT.p12.own = [BODYKIDS.length, !ELS['vault-lock-alert'].hidden];
 process.stdout.write(JSON.stringify(OUT));
 """
 
@@ -495,6 +504,13 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
         self.assertEqual((p["popAfter"], p["alertAfter"]), (0, False),
                          "after Shift released it, the refusal still said LOCKED beside it: %r" % p)
 
+    def test_23_only_its_own_release_hushes_a_refusal(self):
+        p = self.out["p12"]
+        self.assertEqual(p["before"], [1, True], "the premise: Arachnid Mesh's refusal is up as a bubble and a banner")
+        self.assertEqual(p["others"], [1, True],
+                         "another release whose name sits inside the refusal's words (or no name) took it down: %r" % p)
+        self.assertEqual(p["own"], [0, False], "its own release no longer hushes it: %r" % p)
+
     def test_20_the_cell_wears_the_lock_and_the_header_holds_the_chip(self):
         """The render half, read in the source (the pixels are looked at by hand and by the Grok eye): the cell's class
         carries the lock, its badge sits before the ✕, both surfaces exist, and every render refreshes the chip."""
@@ -510,6 +526,11 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#114 (REG-1622) - a release hushes any refusal whose words CONTAIN its name (and an empty name hushes all)",
+     "file": "bible.html",
+     "find": "      if (pop && pop.parentNode && pop._vlaItem === n) pop.parentNode.removeChild(pop);\n",
+     "replace": "      if (pop && pop.parentNode && String(pop.textContent || '').indexOf(n) >= 0) pop.parentNode.removeChild(pop);\n",
+     "matches": 1},
     {
         "why": "#98 seen on pixels - after Shift released it, the refusal still says LOCKED beside it for 9 s",
         "file": "bible.html",

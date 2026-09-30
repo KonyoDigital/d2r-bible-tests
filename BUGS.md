@@ -405,6 +405,28 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1620 / REG-1621 / REG-1622 - THREE #231 FINDINGS ON THE SHIPPED BUILDER AND LOCK CODE (#114, 2026-09-30)
+
+Found by the #231 Grok seat on v3528, each reproduced before fixing; a fourth (the Characters section words not inset
+at 375) was already fixed by 80449430.
+
+- **REG-1620 - a whole character list that shows nobody was never a look.** The learner recorded a read only `if
+  rows:`, so a reader's "character select, whole list, nobody on it" was never stored, and `proof()` - which counts a
+  miss only for a stored whole-list visit - could never hold it against the characters it stopped showing. Now it is
+  recorded with no rows and `partial: False` (in the tick and in the closing read); another screen, or a cut-off /
+  unsaid list, is still no evidence.
+- **REG-1621 - roster order decided which character owned a build.** `_cbSections` took the first learned template
+  matching EITHER the build's link (`from`) or its name, so a build named HAMMERDIN but made from Frostnova went to
+  whichever the roster listed first. The link is now asked across every template first; the name only when no link
+  holds.
+- **REG-1622 - a release hushed refusals by substring.** `_vaultLockHush` took down any bubble/banner whose words
+  contained the released name, so releasing a filing named Mesh, Shift or Armor hushed Arachnid Mesh's refusal, and an
+  empty name hushed every refusal. Each refusal now carries the item it is about and only that exact name hushes it.
+
+Laws: the empty-list cases in `test_a_session_is_bound_to_the_character_he_entered_with.py`, the link-before-name
+case in `test_the_builder_keeps_in_game_apart_from_simulation.py`, P12 in
+`test_a_hardened_filing_is_locked_until_he_releases_it.py`; every new sabotage seen RED.
+
 ### REG-1619 - A FAILED CLOSING READ FILED THE SESSION UNDER THE ROW HE ARRIVED ON (#115, 2026-09-30)
 
 **Found by** the #231 Grok seat on v3529 (f57b2cd4), reproduced before fixing: a visit that ran past its reads owes
