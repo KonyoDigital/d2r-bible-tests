@@ -88,6 +88,10 @@ RED_PROOF = [
      "find": "        el.setAttribute('data-alert', '1');\n        say(NAME[p[0]] + ' disconnected on this PC - '",
      "replace": "        el.setAttribute('data-alert', '0');\n        say(NAME[p[0]] + ' disconnected on this PC - '",
      "matches": 1},
+    {"why": "REG-1618 - switching + GROK off himself rings and is announced as a disconnection",
+     "file": "control_ui.html",
+     "find": "      } else if (state === 'off' && (L && L.kind) === 'switched-off') {\n",
+     "replace": "      } else if (false) {\n", "matches": 1},
     {"why": "REG-1618 - an UNKNOWN poll between ON and OFF wipes the lamp's memory, so the drop is never said",
      "file": "control_ui.html",
      "find": "      if (state !== 'unknown') M.seen[p[0]] = state;\n",
@@ -368,6 +372,10 @@ _paintReaderLamps({ claude: C_OUT, grok: { state: 'off', kind: 'signed-out', nee
 out.grokDrop = { g: st('grok'), toasts: TOASTS.length };
 _paintReaderLamps({ claude: { state: 'off', kind: 'signed-out', needsLogin: true, signInOpen: true }, grok: ON });
 out.busy = st('claude')[2];
+var nToasts = TOASTS.length;
+_paintReaderLamps({ claude: C_OUT, grok: { state: 'off', kind: 'switched-off', why: 'the + GROK layer is switched off' } });
+out.hisSwitch = { g: st('grok'), toasts: TOASTS.length - nToasts };
+_paintReaderLamps({ claude: C_OUT, grok: ON });
 out.title = ELS['rl-claude'].title;
 Promise.resolve()
 .then(function(){ return _lampClick('claude', ELS['rl-claude']); })
@@ -400,6 +408,9 @@ Promise.resolve()
         self.assertEqual(o["grokDrop"]["g"][:2], ["off", "1"], "an UNKNOWN poll between ON and OFF hid GROK's drop")
         self.assertEqual(o["grokDrop"]["toasts"], 2)
         self.assertEqual(o["busy"], "1", "a sign-in being finished does not breathe")
+        # his own switch is his choice, never a disconnection: no ring, no "disconnected" (the pixel probe caught it)
+        self.assertEqual(o["hisSwitch"]["g"][:2], ["off", "0"], "switching + GROK off rang as a disconnect: %r" % o["hisSwitch"])
+        self.assertEqual(o["hisSwitch"]["toasts"], 0, "switching + GROK off was announced as a disconnect")
         self.assertIn("click to open Claude's sign-in", o["title"])
         # clicks: each reader its own door; a click answers the ring
         self.assertEqual(o["claudeClick"][:2], ["spawned", "0"], o["claudeClick"])

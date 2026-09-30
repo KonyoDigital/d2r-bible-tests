@@ -28519,6 +28519,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (state === 'on') {
         el.setAttribute('data-alert', '0');
         if (was === 'off') say(NAME[p[0]] + ' is linked again on this PC');
+      } else if (state === 'off' && (L && L.kind) === 'switched-off') {
+        el.setAttribute('data-alert', '0');     // he switched it off himself: his choice, not a disconnection
       } else if (state === 'off' && was === 'on') {
         el.setAttribute('data-alert', '1');
         say(NAME[p[0]] + ' disconnected on this PC - ' + ((L && L.why) || 'no reason given'));
