@@ -36,6 +36,7 @@ live cross-file reference, and the whole failure mode is that the string exists 
 """
 
 import ast
+import collections
 import os
 import re
 import sys
@@ -553,6 +554,31 @@ class TestLaw19ForPythonToo(unittest.TestCase):
         handed = set()
         for f in prod:
             handed |= names_handed_to_a_runner(text.get(f, ""))
+        # ⚠ 2026-09-30 — ONE PASS PER FILE, NOT ONE PER NAME PER FILE. This ran two regexes over every file for
+        # every public helper (the 6 MB bible.html once per helper), 77.7s of this gate's ~93s, and CI timed the
+        # gate out at 120s on v3525 AND v3526. Each file is indexed once now: every `name(`, which of those are
+        # `def name(`, and every `target=name`. MEASURED before it replaced the per-name scan: the same 5 orphans,
+        # 2.5s. The counts are the per-name regexes' own: `\bname\s*\(` matches exactly where the maximal
+        # identifier at a word start is `name` and a `(` follows, `(?<!def )` is the 4 chars before the match, and
+        # `target\s*=\s*name\b` is the maximal identifier after the `=`.
+        call_rx = re.compile(r"\b(\w+)\s*\(")
+        target_rx = re.compile(r"target\s*=\s*(?=(\w+))")
+        index = {}
+        for g, t in text.items():
+            calls_at, defs_at = collections.Counter(), collections.Counter()
+            for m in call_rx.finditer(t):
+                calls_at[m.group(1)] += 1
+                if t[max(0, m.start() - 4):m.start()] == "def ":
+                    defs_at[m.group(1)] += 1
+            # ⚠ v2309 — A THREAD TARGET IS A CALLER. This counted only `name(`, so a
+            # function reached ONLY as `threading.Thread(target=name, ...)` — which is how
+            # every background lane in this console is entered — read as dead code. It
+            # reported v2307's after_session_ended as having "NO production caller" while
+            # it was wired into stop_agent's finally, i.e. into the one door ON AIR, MINI
+            # and the shadow watcher all leave through.
+            # A gate that cannot see the codebase's own dominant call shape sends the next
+            # person to delete live wiring. [[source-reading-guard]]
+            index[g] = (calls_at, defs_at, collections.Counter(m.group(1) for m in target_rx.finditer(t)))
         found = []
         for f in self.WATCH:
             if f not in text:
@@ -561,18 +587,8 @@ class TestLaw19ForPythonToo(unittest.TestCase):
                 if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
                     continue
                 calls = 0
-                for g, t in text.items():
-                    pat = r"(?<!def )\b%s\s*\(" % node.name if g == f else r"\b%s\s*\(" % node.name
-                    calls += len(re.findall(pat, t))
-                    # ⚠ v2309 — A THREAD TARGET IS A CALLER. This counted only `name(`, so a
-                    # function reached ONLY as `threading.Thread(target=name, ...)` — which is how
-                    # every background lane in this console is entered — read as dead code. It
-                    # reported v2307's after_session_ended as having "NO production caller" while
-                    # it was wired into stop_agent's finally, i.e. into the one door ON AIR, MINI
-                    # and the shadow watcher all leave through.
-                    # A gate that cannot see the codebase's own dominant call shape sends the next
-                    # person to delete live wiring. [[source-reading-guard]]
-                    calls += len(re.findall(r"target\s*=\s*%s\b" % node.name, t))
+                for g, (calls_at, defs_at, targets_at) in index.items():
+                    calls += calls_at[node.name] - (defs_at[node.name] if g == f else 0) + targets_at[node.name]
                 if calls == 0 and node.name not in handed:
                     found.append("%s:%s" % (f, node.name))
         return found
