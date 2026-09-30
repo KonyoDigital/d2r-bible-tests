@@ -78,24 +78,26 @@ class TestARiderIsWatchedWithoutClaimingAThread(unittest.TestCase):
     # ── the rider row ─────────────────────────────────────────────────────────────────────────
     def test_the_census_emits_a_rider_for_the_extra_beat(self):
         """The feeder must reach the census as its own row, not as a second name on someone else's."""
+        # #91 (2026-09-30) — the loop now carries a SECOND rider, the character learner, with its own name and its
+        # own counters for the same reason the feeder has them: one supervisor row must never answer for two jobs.
         self.assertEqual(
-            len(self.riders), 1,
-            "expected exactly one RIDER row on this tree and got %d. Measured: precisely one def "
-            "(_vault_autoread_loop) stamps two lanes. %r"
+            sorted(r.get("lane") for r in self.riders), ["tvd-char-learner", "tvd-read-names-feeder"],
+            "expected exactly the two RIDER rows on this tree and got %d. Measured: precisely one def "
+            "(_vault_autoread_loop) stamps three lanes. %r"
             % (len(self.riders), [r.get("lane") for r in self.riders]))
-        self.assertEqual(self.riders[0].get("lane"), "tvd-read-names-feeder")
 
     def test_a_rider_names_the_vessel_it_rides(self):
         """⚠ LOAD-BEARING. A row that claims a lane without saying whose thread carries it is the
         roster claiming more runs than there are — exactly what NOT_A_VESSEL exists to prevent."""
-        r = self.riders[0]
-        self.assertEqual(
-            r.get("rides"), "tvd-vault-autoread",
-            "the rider does not name the vessel it rides (%r), so a reader cannot tell whether it "
-            "runs at all or what would have to be alive for it to run." % (r.get("rides"),))
-        self.assertTrue(r.get("supervised"), "a rider with a heartbeat is supervised")
-        self.assertEqual(r.get("credit"), "heartbeat",
-                         "a rider is credited by its BEAT, not by a roster row it does not have")
+        self.assertTrue(self.riders, "no rider rows at all — nothing below means anything")
+        for r in self.riders:
+            self.assertEqual(
+                r.get("rides"), "tvd-vault-autoread",
+                "the rider %s does not name the vessel it rides (%r), so a reader cannot tell whether it "
+                "runs at all or what would have to be alive for it to run." % (r.get("lane"), r.get("rides")))
+            self.assertTrue(r.get("supervised"), "a rider with a heartbeat is supervised")
+            self.assertEqual(r.get("credit"), "heartbeat",
+                             "a rider is credited by its BEAT, not by a roster row it does not have")
 
     def test_a_lane_with_one_beat_produces_no_rider(self):
         """⚠ THE BASELINE, and without it this law would pass over a census that riders everything.

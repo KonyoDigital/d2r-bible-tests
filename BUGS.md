@@ -338,6 +338,46 @@ run groupings cut from bible.html and driven in node, joined to `control_app._ev
 PROVEN. `tests/v3526_one_hunt_clock.spec.ts` (CI) drives the real forge and both bridges: one hour, one set of odds,
 one name for the Hooves everywhere, and 0 forge-vs-console naming mismatches across every grail row (the old page
 fails both: run row and hero carry no hour, hero odds 1:157.5k, 2 grail items named differently).
+### REG-1581 - HIS CHARACTER LIST WAS FOUR TYPED ROWS THAT NEVER MOVED; NOW HIS REELS TEACH IT (2026-09-30)
+
+**Asked** by Konyo with the builder's Build dropdown open ("From your characters (class + level)": Konyolock Warlock
+88, Konyodin Paladin 82, Konyoress Sorceress 37, Konyossin Assassin 1): "for character build based on the reels and
+character selection it should also learn the character and sync them in automatically after being witnessed a few
+times over." Those rows were the hand-typed `CHARS` literal; no code wrote them, so no level ever moved.
+
+**Measured before building** (his Mac, 30 reels, 45,555 frames): the character-select screen IS filmed (nine rows on
+one visit: name, "LEVEL <n> <CLASS>", titles). The local OCR cannot read it - the D2R font, as `_film_shrink`
+already records - and is no detector either: a 3-pixel crop shift swung it from 4 "LEVEL" rows to 1, and a whole-reel
+OCR hunt found nothing in 3,051 frames (the instrument, not the footage). The PIXELS separate it: 8 real visits read
+right-panel sat 0.022-0.052 / val 0.355-0.361 and left-column sat 0.086-0.109 / val 0.215-0.219; a right-panel-only
+test also flagged two white browser pages, a snow field in play and the lobby, each outside a band once BOTH panels
+are required (9 visits in 5 reels remain, all real). One real vision read of a list crop returned 8 rows exactly
+(classes, levels, a CHAMPION title) and LEFT OUT the row under the mouse cursor, marking the list partial.
+
+**Built (tv/char_select.py, per PC):** the two-panel pixel detector on every frame (~7 ms), the console's own vision
+reader on the list crop only (`tv_diablo.charselect_read`: throttle and subscription-cap refusals said out loud, a
+stub seam), at most 2 reads a visit and 8 an hour, inside an 8 s budget per 45 s tick. A character is LEARNED once 2
+separate visits read it with one class; its level is the highest level 2 visits saw it at or above, so a level-up
+waits one visit and a single misread (88 read as 98) never lands - it shows as a pending "(98?)". Two reads of one
+visit are one witness (the lower). The ledger `tv/.char_roster.json` is per machine (gitignored), UNKNOWN when it
+cannot be read and never written over. A RIDER lane `tvd-char-learner` in `_vault_autoread_loop`,
+`/api/chars_learned`, and the builder list merges it: a typed character gains the witnessed class and level ("seen
+3x"), a new one joins, and with no console (the website) the typed list stands untouched. Nothing writes a build -
+#245's manual Characters store is not touched.
+
+**Run for real before shipping** (one tick over all 45,555 frames, a throwaway ledger, the real reader): 206 s, 150
+candidate frames, 8 reads (the hourly cap), 5 visits read, 13 characters seen, 12 learned - a level 81 Sorceress
+(MATRIARCH, the row the cursor hid on the first visit), a level 31 Warlock (CHAMPION) and 10 level-1 mules; one
+character seen on a single visit waits for its second. The reader spelled one name "SOCKET" and "SOcket" on two reads,
+so the shown spelling is now the one most reads agree on; and because 10 of 12 were level-1 mules, learned level-1
+characters sit in their own group at the end of the builder list ("Level 1 — mules?").
+
+**Guards:** `tv/test_characters_learn_from_the_reels.py` (gate `test_characters_learn_from_the_reels`) - synthetic
+frames and names only (the repo is public): the detector on every measured band and false alarm, the reader answer
+judged, the witness rule, a tick over a fixture reel store (visits, caps, budget, resume, pruning, refusals), an
+unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
+red-proofs PROVEN.
+`test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 

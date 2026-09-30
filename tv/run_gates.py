@@ -8416,6 +8416,14 @@ GATES = [
              "rule for the same store), the film says what the passes took and an uncounted pass leaves the "
              "total UNKNOWN. 16 cases over temp stores, the real handler driven in-process, 16 red-proofs",
          skip_ok=()),
+    Gate("test_characters_learn_from_the_reels", [sys.executable,
+         os.path.join(HERE, "test_characters_learn_from_the_reels.py")], 60,
+         why="#91 - 2026-09-30 his builder's 'From your characters' list was four hand-typed rows and never moved. "
+             "tv/char_select.py finds the character-select screen in HIS OWN reels by its two stone panels (the "
+             "OCR cannot read the D2R font and was no detector: 3 px of crop swung it 4 rows to 1), reads the list "
+             "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
+             "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
+             "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group). 21 cases, 8 red-proofs"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

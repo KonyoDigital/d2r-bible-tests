@@ -30157,6 +30157,19 @@ def _vault_autoread_loop():
             except Exception as _rnfe:
                 _RNF_STATE["why"] = "the feeder raised %s" % type(_rnfe).__name__
                 _RNF_STATE["ok"] = False
+            # ⚠ #91 — HIS CHARACTERS LEARN THEMSELVES FROM THE REELS (tv/char_select.py). A RIDER with its OWN lane
+            # name, like the feeder above: this tick SPENDS paid sweeps, the learner spends at most
+            # char_select.READS_PER_HOUR vision reads and TICK_BUDGET_S of wall time, and one supervisor row must
+            # never answer for both. Its lifetime counters live in its own ledger, so ON never reads as WORKING.
+            # [[heart-first]] §2-3
+            try:
+                _lane_tick('tvd-char-learner', _VAULT_AUTOREAD_EVERY_S)
+                import char_select as _cs
+                _csr = _cs.tick()
+                if not _csr.get("ok"):
+                    print("   \u26a0 character learner: %s" % str(_csr.get("why"))[:140], flush=True)
+            except Exception as _cse:
+                print("   \u26a0 character learner raised %s" % type(_cse).__name__, flush=True)
             # v2225 — say it out loud when the lane retires a reel or cannot tell. Silence here is
             # what made a permanently-idle watchdog look identical to a busy one.
             if isinstance(_r, dict) and (_r.get("retired") or _r.get("unknown")):
@@ -39861,6 +39874,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, ledger3_session(_sid_l3, journal_rows=_jr))
             return
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
+        if path == "/api/chars_learned":
+            # #91 — the characters THIS PC's reels have witnessed enough (tv/char_select.py), for the builder's
+            # "From your characters" list. chars=None when the ledger cannot be read: UNKNOWN, never an empty list.
+            try:
+                import char_select as _cs
+                _d = _cs.load()
+                self._json(200, {"ok": _d is not None, "chars": _cs.learned(_d), "status": _cs.status(),
+                                 "minVisits": _cs.MIN_VISITS})
+            except Exception as e:
+                self._json(200, {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__})
+            return
         if path == "/api/g5_status":
             self._json(200, _g5_status())
             return
