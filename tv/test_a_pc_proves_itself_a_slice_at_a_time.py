@@ -182,7 +182,8 @@ class AGateNobodyMeasuredStaysOwed(_Fixture):
             if name == "g2":
                 raise RuntimeError("the browser slot would not open")
             return H2.PROVEN, [H2.PROVEN] * len(proofs)
-        box = tempfile.mkdtemp(prefix="slice_box_", dir=self.d)
+        box = os.path.join(self.d, "sandbox")       # inside the fixture dir, removed with it
+        os.makedirs(box, exist_ok=True)
         with mock.patch.object(H2, "make_sandbox", lambda say=print: (box, None)), \
                 mock.patch.object(H2, "_prove_gate", gate), \
                 mock.patch.object(H2, "prove_workers", lambda *a, **k: 1):
@@ -199,7 +200,8 @@ class AGateNobodyMeasuredStaysOwed(_Fixture):
 
         def gate(sandbox, name, filename, proofs, say):
             raise _Unprintable()
-        box = tempfile.mkdtemp(prefix="slice_box_", dir=self.d)
+        box = os.path.join(self.d, "sandbox")       # inside the fixture dir, removed with it
+        os.makedirs(box, exist_ok=True)
         with mock.patch.object(H2, "make_sandbox", lambda say=print: (box, None)), \
                 mock.patch.object(H2, "_prove_gate", gate), \
                 mock.patch.object(H2, "prove_workers", lambda *a, **k: 1):
