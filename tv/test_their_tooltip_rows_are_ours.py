@@ -329,6 +329,17 @@ class TheReceiptStaysHonest(unittest.TestCase):
                          "counters restarted over a history this process could not read")
         self.assertIn("unreadable", rec["countersWhy"])
         self.assertEqual(TOL.contract(path=p)["worked"], None, "a lost history is UNKNOWN work, never 0")
+        # 2026-09-30 (#231 5908899891) - and the NEXT write, which parses the receipt that stored the Nones, must not
+        # restart them: UNKNOWN + 1 is UNKNOWN. lastTs is the part that keeps moving.
+        later = dict(rep, measuredTs=rep["measuredTs"] + 60000)
+        self.assertTrue(TOL.write_receipt(later, p))
+        rec, _ = TOL.read_receipt(p)
+        self.assertEqual((rec["runs"], rec["runsMeasured"], rec["firstTs"]), (None, None, None),
+                         "the write after the loss restarted the counters - a lost history now reads as a young lane")
+        self.assertIn("unreadable", rec["countersWhy"])
+        c = TOL.contract(path=p)
+        self.assertEqual(c["worked"], None, "a lost history read as %r units of work" % c["worked"])
+        self.assertEqual(c["lastTs"], later["measuredTs"], "lastTs must still move after a loss")
 
     def test_a_directory_is_not_node_and_an_executable_file_is(self):
         d = tempfile.mkdtemp(prefix="tor-node-")
@@ -428,6 +439,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "2026-09-30 (#231 5908899891) - the write after a lost history restarts the counters at 1 again: the lost history reads as a young lane",
+        "file": "tooltip_oracle_lane.py",
+        "find": "        if prev.get(\"countersWhy\"):\n            # ⚠ 2026-09-30 — UNKNOWN + 1 IS STILL UNKNOWN.",
+        "replace": "        if False:\n            # ⚠ 2026-09-30 — UNKNOWN + 1 IS STILL UNKNOWN.",
+        "matches": 1,
+    },
     {
         "why": "REG-1560 - a receipt the page has moved from is read as FRESH: an old agreement reads as today's (stale-reading)",
         "file": "tooltip_oracle_lane.py",

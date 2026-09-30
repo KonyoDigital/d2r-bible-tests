@@ -340,11 +340,18 @@ def write_receipt(rep, path=None):
         def _n(k):
             v = prev.get(k)
             return v if (isinstance(v, int) and not isinstance(v, bool)) else None
-        rec["runs"] = (_n("runs") or 0) + 1
-        rec["runsMeasured"] = (_n("runsMeasured") or 0) + (1 if isinstance(rep.get("rows"), list) else 0)
-        rec["firstTs"] = prev.get("firstTs") or rep.get("measuredTs")
         if prev.get("countersWhy"):
+            # ⚠ 2026-09-30 — UNKNOWN + 1 IS STILL UNKNOWN. The write after a loss stored None, and the NEXT write read
+            # that None through `_n(...) or 0` and restarted the counters at 1, with firstTs = today: contract() then
+            # reported worked 1, a young lane, under a countersWhy that says the history was lost (#231 5908899891,
+            # reproduced before this changed). Once lost, the lifetime counters stay UNKNOWN; lastTs still moves, so a
+            # lane that stops measuring after a loss still reads stale.
+            rec["runs"] = rec["runsMeasured"] = rec["firstTs"] = None
             rec["countersWhy"] = prev["countersWhy"]     # the history was lost once; say so for ever
+        else:
+            rec["runs"] = (_n("runs") or 0) + 1
+            rec["runsMeasured"] = (_n("runsMeasured") or 0) + (1 if isinstance(rep.get("rows"), list) else 0)
+            rec["firstTs"] = prev.get("firstTs") or rep.get("measuredTs")
     try:
         d = os.path.dirname(p)
         if d and not os.path.isdir(d):
