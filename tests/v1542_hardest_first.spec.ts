@@ -130,8 +130,24 @@ test.describe('v1542 — Hell before Nightmare before Normal', () => {
     // NOT "every set must point at Hell" — that was the v1542 over-application, and it put all seven
     // resolvable set hunts on one card. What must hold is that the sets side uses the SAME helper as
     // the uniques side, so the two forges can never recommend by different rules.
-    const bosses = new Set(r.out.map((x: any) => x.boss));
-    expect(bosses.size, 'set hunts must stay spread across their real sources').toBeGreaterThan(1);
+    /* 2026-09-30 — THAT SENTENCE IS NOW THE ASSERTION. This asked for more than one boss across the resolved sets,
+     * a proxy for "not collapsed by a second rule". v3526's ONE picker (pickFastest, kills-per-run aware) is the
+     * rule both forges use, and it can honestly send every aggregate to the same area run; the proxy went red on a
+     * correct board. So every set aggregate is judged directly: the sets side's run must be the run pickFastest
+     * names for that aggregate - a second copy of the scan on the sets side differs from it and goes red here. */
+    const same = await page.evaluate(() => {
+      const w: any = window;
+      const pf = (0, eval)('pickFastest');
+      const aggs = (w._allDropItems() || []).filter((x: any) => x && x.tier === 'set');
+      const rows = aggs.map((a: any) => {
+        const side = w._setAggSrc(a.n);
+        const want = pf(a.sources, (s: any) => w._fAdjC(s, a.n));
+        return { set: a.n, side: side ? side.boss : null, want: want ? want.s.boss : null };
+      });
+      return { n: rows.length, bad: rows.filter((x: any) => x.side !== x.want) };
+    });
+    expect(same.n, 'no set aggregate to judge - the check would pass by being blind').toBeGreaterThan(0);
+    expect(same.bad, 'the sets side named a different run than the one picker for the same aggregate').toEqual([]);
   });
 
   test('an item that genuinely cannot drop in Hell is not invented into it', async ({ page }) => {

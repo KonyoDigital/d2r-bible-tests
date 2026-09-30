@@ -18,7 +18,15 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // one run, one hour, one set of odds, one name — everywhere. The engine itself is pinned by
 // tv/test_one_hunt_clock.py (node over the cut code + control_app._ev_rank).
 
-const boot = async (page: any) => { await page.goto(URL); await page.waitForTimeout(2200); };
+/* 2026-09-30 — BOOT IS A STATE, NOT A DELAY. Red on v3526's CI: 76 grail rows where a booted page writes 383 (372 matched,
+   0 mismatches, measured on a fresh headless page). _writeGrailFarm falls back to the old tier scan while the forge half
+   (window.funiScan) has not booted, and 2.2 s was not enough on a slower runner. It waits for the seam it reads. */
+const boot = async (page: any) => {
+  await page.goto(URL);
+  await page.waitForFunction(() => typeof (window as any).funiScan === 'function'
+    && typeof (window as any).fsetsScan === 'function', undefined, { timeout: 30000 });
+  await page.waitForTimeout(400);
+};
 
 test.describe('v3526 — one hunt clock', () => {
   test('★ the Hooves read ONE hour and ONE set of odds on the run row, the quick win, the hero and the bridge', async ({ page }) => {

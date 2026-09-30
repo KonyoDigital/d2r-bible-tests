@@ -227,6 +227,14 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
         owner: 'tv/test_every_operator_door_keeps_its_contract.py',
         why: 'v3222 - read-only histogram of why each item is unsorted.',
       },
+      /* 2026-09-30 — red on v3525's AND v3526's CI: the custody door (REG-1544) shipped with no owner entry. No page
+       * reads it yet (the per-item map that will is still to come, board #55); its law drives the one-reel and the
+       * census answers through the served console. */
+      '/api/custody': {
+        owner: 'tv/test_a_reel_carries_its_custody.py',
+        why: 'v3525 (REG-1544) - one reel\'s chain of custody and the census, asked by hand or by the GrokBot seat '
+           + 'until the per-item map reads it; its law drives both answers through the served console.',
+      },
       '/api/mini_preflight': {
         owner: 'tv/test_control.py',
         why: 'v2338 Accessibility preflight for MINI(AUTOMATIC) — proves the pointer obeys with a '

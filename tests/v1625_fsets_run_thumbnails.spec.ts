@@ -95,6 +95,7 @@ function readRuns() {
       firstChip: chip ? chip.textContent.trim() : '',
       expectUrl: expect_ && expect_.url ? abs(expect_.url) : null,
       expectName: expect_ ? expect_.name : null,
+      runName: bossId ? (((window as any)._RUN_NAMES || {})[bossId] || null) : null,
       expectEmoji: expect_ ? expect_.emoji : null,
       width: a ? a.getBoundingClientRect().width : null
     };
@@ -127,10 +128,13 @@ test.describe('v1625 — F·Sets best runs wear the boss, through the ONE helper
          to THIS row rather than a neighbour, so it accepts either the id or the display name —
          and an unrelated boss still matches neither. The sets board only started producing a
          Hell Bovines run at v1716 (per-piece routing), which is why this never fired before. */
-      const idOrName = [String(r.logo).toLowerCase(), String(r.expectName || '').toLowerCase()]
-        .filter(Boolean);
+      /* 2026-09-30 — v3526 (REG-1580) names a RUN for where he goes: the cow run reads "Normal TZ Cow Level" while the
+         boss keeps "Hell Bovines". The run name comes from the one record the registry build publishes (_RUN_NAMES),
+         so it still belongs to THIS row's boss and an unrelated boss still matches none of the three. */
+      const idOrName = [String(r.logo).toLowerCase(), String(r.expectName || '').toLowerCase(),
+        String(r.runName || '').toLowerCase()].filter(Boolean);
       expect(idOrName.some((v) => r.title.toLowerCase().includes(v)),
-        `${r.title}: names neither the boss id nor its display name (${idOrName.join(' / ')})`).toBe(true);
+        `${r.title}: names neither the boss id, its display name nor its run name (${idOrName.join(' / ')})`).toBe(true);
 
       // ...and it is NOT the arbitrary first drop. `art(g.items[0].name)` gave art/hd_amulet.png
       // here; _runBossArt gives art/reanimatedhorde-opt_graphic.png. This is the line that goes red.

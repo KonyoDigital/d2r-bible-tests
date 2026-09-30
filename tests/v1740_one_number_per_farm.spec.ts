@@ -52,7 +52,13 @@ test.describe('v1740 — the ops queue and F·Uniques agree about the same item'
       const item = (fu.missing || []).find((i: any) => i.n === g.op.item);
       if (!item) return { err: 'the op names an item funiScan does not carry: ' + g.op.item };
       const bs = w._pickSrc(item.sources, item.n);
-      const funiTtf = bs ? w._ttf(bs.chance != null ? bs.chance : bs.s.chance, bs.s.kph || 30) : null;
+      /* 2026-09-30 — THE CARD'S OWN EXPRESSION, kills-per-run included (_uniItemCard: _ttf(chance, kph,
+         killsPerRun(bossId))). This recomputed with two arguments and stayed right only while every pick was a
+         one-kill boss; v3526's one picker weighs an AREA run's kills, picked the Cow Level for Polaris Spear, and
+         the card and the ops row both said 19m while this said 33h. killsPerRun is a top-level const, not a
+         window property, so it is read through an indirect eval like the v3526 spec does. */
+      const kpr = (0, eval)('killsPerRun');
+      const funiTtf = bs ? w._ttf(bs.chance != null ? bs.chance : bs.s.chance, bs.s.kph, kpr(bs.s.bossId)) : null;
       return {
         item: g.op.item, opBoss: g.op.boss, opTtf: g.op.bestHours, opRoute: g.op.route,
         funiBoss: bs ? bs.s.boss : null, funiTtf,

@@ -18812,6 +18812,9 @@ BOSSES.forEach(boss => {
      d2r_grailFarm / d2r_setFarm are rebuilt from it on every render. (Declared INSIDE this loop:
      laws cut the registry build from its first two lines, and a name above them is not in the cut.) */
   const runName = ({ cows: 'Cow Level' })[boss.id] || boss.name;
+  /* 2026-09-30 — the name decided here is PUBLISHED, so a reader asks this record instead of keeping a copy of the
+     map (v1625's run-card check went red on the new spelling). Guarded: the laws' node cut has no window. */
+  try { (window._RUN_NAMES = window._RUN_NAMES || {})[boss.id] = runName; } catch(e){}
   boss.dropTable.forEach(d => {
     if (!ITEM_REGISTRY[d.n]) {
       ITEM_REGISTRY[d.n] = {n:d.n,tc:d.tc,qlvl:d.qlvl,tier:d.tier,sources:[]};

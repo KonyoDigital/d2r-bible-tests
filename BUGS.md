@@ -378,6 +378,21 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1598 - ROUTINE I RED ON v3525 AND v3526: FOUR STALE PREMISES, TWO BOOT RACES, ONE UNOWNED DOOR (2026-09-30)
+
+**Measured** from the CI logs, then on a fresh headless page (every http request blocked) before any spec changed:
+| spec | CI said | the page said | fixed |
+|---|---|---|---|
+| v1550 every /api route | `/api/custody` has no caller and no owner (since v3525) | its law drives both answers through the served console | the custody law named as its owner |
+| v1978 set piece ticks | sets [] and unknown [] for Laying of Hands | a booted page ticks it (held true) | waits until the board says the sets pipe is up; keeps the piece; asserts skip empty and the premise |
+| v3526 one hunt clock | 76 grail rows checked (> 100 wanted) | 383 rows, 372 matched, 0 mismatches | `boot` waits for the forge seam (funiScan) instead of 2.2 s: the grail bridge falls back to the old tier scan until it is up |
+| v1740 one number per farm | ops 19m vs F·Uniques 33h (Polaris Spear) | the card and the ops row both weigh kills-per-run; the spec re-derived without it | the spec uses the card's own expression |
+| v1625 best run is its boss | "Normal TZ Cow Level" names neither "cows" nor "hell bovines" | REG-1580 named the cow run "Cow Level" on purpose | the registry build publishes the name it decided (`window._RUN_NAMES`) and the spec accepts it |
+| v1542 sets side, one rule | every resolvable set on one boss | all 13 go to "Hell TZ The Pit" - the one picker's honest answer | the spread proxy replaced by the rule itself: each set aggregate's run is the one pickFastest names (148 aggregates, 0 differ) |
+
+**Guards:** the specs themselves (CI - browser suites never run on his Mac); each parses through Playwright's own
+transform; the measurements are in this entry.
+
 ### REG-1597 - THE v3527 SECOND EYE'S FINDINGS, EACH MEASURED: FOUR REFUTED, ONE STALE COMMENT (2026-09-30)
 
 `second_eye_run.py v3527` (Grok CLI over 0ba7a5ce..e79aed53, 19,427 chars sent of 110,692 - the eye names what it was

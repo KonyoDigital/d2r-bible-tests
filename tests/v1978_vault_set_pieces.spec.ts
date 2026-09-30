@@ -36,16 +36,32 @@ test('the split sends set pieces one way and uniques the other', async ({ page }
   expect(r.s[0]).toMatch(/\(/);
 });
 
+/* 2026-09-30 — WAIT FOR THE PIPE, NEVER DODGE THE PIECE. Red on v3525's and v3526's CI: sets [] and unknown [] for
+ * "Laying of Hands". Measured on a fresh headless page once the board had booted: the same apply ticks it (sets
+ * ["Laying of Hands (bramble mitts)"], held true). The spec fed the pipe 1.4 s after load, and a slower runner had not
+ * finished booting the sets half. It now waits until the board SAYS the pipe is up, keeps the piece, and asserts the
+ * skip is empty too - so a piece the page already holds is named as that, not read as a pipe that ignores it. */
 test('a set piece fed to the sets pipe TICKS — it is not filed as unknown', async ({ page }) => {
-  await page.goto(URL); await page.waitForTimeout(1400);
+  await page.goto(URL);
+  await page.waitForFunction(() => {
+    const w: any = window;
+    return typeof w.chronicleApply === 'function' && typeof w.findSetPiece === 'function'
+      && typeof w._setHave === 'function' && typeof w._chronSetPieceSet === 'function'
+      && w._chronSetPieceSet().size > 100;
+  }, undefined, { timeout: 30000 });
   const r = await page.evaluate(() => {
     const w: any = window;
     const sp = w.findSetPiece('Laying of Hands');
+    const before = w._setHave().has(sp.piece);
     const res = w.chronicleApply({ wouldAdd: { uniques: [], sets: [sp.piece] } });
-    return { sets: res.sets, unknown: res.unknown, canonical: sp.piece };
+    return { sets: res.sets, unknown: res.unknown, skipped: res.skipped, canonical: sp.piece, before,
+             held: w._setHave().has(sp.piece) };
   });
+  expect(r.before, 'premise: the page already held the piece, so an apply could only skip it').toBe(false);
+  expect(r.skipped, 'a piece this page had NOT found was skipped as already found').toEqual([]);
   expect(r.unknown, 'the canonical piece name must NOT land in unknown').toEqual([]);
   expect(r.sets, 'the set grail must actually tick').toContain(r.canonical);
+  expect(r.held, 'the sets ledger does not hold the piece after the tick').toBe(true);
 });
 
 /* The regression guard proper: the bare name must still be refused, so if anyone "simplifies" the
