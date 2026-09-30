@@ -419,6 +419,21 @@ constant. Law: `tv/test_the_river_reads_its_ledger_once.py` pins the scaling (th
 
 **Not the whole minute, and said so:** the ALT's ledger is 141 KB / 480 rows, so this term cost it seconds. The rest of
 that route's time is measured on the ALT next (#109), not assumed to be this.
+### REG-1608 - A SIGNED-OUT PC SAID SO ONLY ON ITS OWN SCREEN (#108, 2026-09-30)
+
+**His question:** *"maybe this happened to dean too?"* - after his ALT filmed a day and read nothing because Claude was
+signed out there. REG-1604's lamps sit under each console's own corner chip, so a signed-out PC told only whoever stood
+at it, and nobody stands at Dean's.
+
+**Now:** every beacon carries `readers` (`_readers_for_wire`: `_reader_health`'s two lamps - one measure - cut to
+state / needsLogin / why), the worker keeps it (an odd state is `unknown`, absent stays null) and a flip of a state or
+of needsLogin is news, so the record is rewritten at once instead of up to 15 min later. His fleet card's calm row says
+" · Claude signed out" / " · Claude not reading" only when that PC's primary reader cannot read, and " · Grok signed
+out" only when its + GROK layer is on and signed out; nothing when they read, when the layer is merely switched off,
+when the PC is offline or when an older build sends nothing. The box a click opens says both lamps in words with each
+reader's own reason. Also: `_reader_health` raised NameError when the Grok lane answered with no status (its reason was
+only set in the except branch) - it now reads UNKNOWN. Law: `tv/test_the_fleet_shows_each_pcs_readers.py` (every
+red-proof seen RED); the render gate's fleet stub photographs the words.
 
 ### REG-1607 - THE READER LAMPS TOOK THE TAB STRIP'S WIDTH AND SAT UNDER THE TYPE FLOOR (found before it shipped, 2026-09-30)
 

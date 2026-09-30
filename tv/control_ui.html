@@ -6617,6 +6617,8 @@
   .fleet-riverstuck { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
   /* #41 rank 22 (REG-1564) — the picker-disagrees chip, set exactly like the river-stuck one beside it */
   .fleet-pickerodd  { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
+  /* #108 — a PC whose reader cannot read: the same exception word as river stuck / picker short, and only then */
+  .fleet-readeroff  { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; cursor: help; }
   .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
@@ -24847,6 +24849,27 @@ function escC(s) {
     p.k = k; p.f = f; p.t = f.join(' · ');
     return p;
   };
+  /* #108 — THE READERS, IN THE BOX: both lamps in words, each reader's own reason in the hover. An older build sends no
+     field (UNKNOWN, said so); a lamp that is neither on nor off is UNKNOWN; the primary reader off, or Grok switched on
+     but signed out, is the warning. */
+  var _FLEET_RD_WORD = function (name, L) {
+    L = (L && typeof L === 'object') ? L : {};
+    return name + ' ' + (L.state === 'on' ? 'reads' : (L.state === 'off' ? (L.needsLogin ? 'signed out' : 'off') : 'UNKNOWN'));
+  };
+  var _fleetReadersPart = function (m) {
+    var rd = (m && m.readers && typeof m.readers === 'object') ? m.readers : null;
+    if (!rd) {
+      return _fleetPart('readers', ['UNKNOWN', 'an older build'], { unk: true,
+               why: 'this console did not say whether its readers can read (a build older than the field)' });
+    }
+    var c = (rd.claude && typeof rd.claude === 'object') ? rd.claude : {};
+    var g = (rd.grok && typeof rd.grok === 'object') ? rd.grok : {};
+    return _fleetPart('readers', [_FLEET_RD_WORD('CLAUDE', c), _FLEET_RD_WORD('GROK', g)], {
+             unk: c.state !== 'on' && c.state !== 'off',
+             warn: c.state === 'off' || (g.state === 'off' && g.needsLogin === true),
+             why: 'CLAUDE (primary): ' + String(c.why || 'no reason given') + ' | GROK (shadow): ' + String(g.why || 'no reason given') });
+  };
+  window._fleetReadersPart = _fleetReadersPart;
   var _fleetSysParts = function (m, nowMs) {
     var sy = (m && m.system && typeof m.system === 'object') ? m.system : null;
     var out = [];
@@ -24983,6 +25006,8 @@ function escC(s) {
                    : ('for the ' + pkLab + ' slot that PC\u2019s picker lists ' + pk.offers + ' base(s) while its own database holds '
                       + pk.holds + ' - the picker on that PC is hiding rows, or its rail names a type its tree does not; update and restart that console') }));
     }
+    /* #108 — its two readers, last in the box: can CLAUDE and GROK read on that PC */
+    out.push(_fleetReadersPart(m));
     return out;
   };
   /* #74 (REG-1461) — THE ONE WORD ON THE ROW: a red "river stuck" beside the name when any station on that PC has
@@ -25013,6 +25038,29 @@ function escC(s) {
          + ' base(s) for ' + String(pk.label || pk.slot || 'the slot') + ' while its own database holds ' + pk.holds)
          + '"> · ' + w + '</span>';
   };
+  /* #108 — THE ONE WORD ON THE ROW for its readers (his question: "maybe this happened to dean too?"): " · Claude signed
+     out" / " · Claude not reading" ONLY when that PC's PRIMARY reader reported it cannot read, and " · Grok signed out"
+     only when the + GROK layer is switched on and not signed in there. Nothing when they read, when the layer is simply
+     switched off, when the PC is offline (its last report is not the present) or when an older build sends nothing -
+     the click box says each of those in words. Exported so a law can put every state to it. [[unknown-stays-unknown]] */
+  var _fleetReaderChip = function (m, online) {
+    var rd = (m && m.readers && typeof m.readers === 'object') ? m.readers : null;
+    if (!online || !rd) return '';
+    var c = (rd.claude && typeof rd.claude === 'object') ? rd.claude : {};
+    var g = (rd.grok && typeof rd.grok === 'object') ? rd.grok : {};
+    var out = '';
+    if (c.state === 'off') {
+      out += '<span class="fleet-readeroff" title="' + escC('the primary reader (Claude) on this PC cannot read: '
+           + String(c.why || 'no reason given')) + '"> · ' + (c.needsLogin ? 'Claude signed out' : 'Claude not reading')
+           + '</span>';
+    }
+    if (g.state === 'off' && g.needsLogin === true) {
+      out += '<span class="fleet-readeroff" title="' + escC('the + GROK layer is on at this PC but cannot read: '
+           + String(g.why || 'no reason given')) + '"> · Grok signed out</span>';
+    }
+    return out;
+  };
+  window._fleetReaderChip = _fleetReaderChip;
   window._fleetPickerChip = _fleetPickerChip;
   window._fleetStuckChip = _fleetStuckChip;
   /* #93 — THE SHADOW EYE (its CSS above says what each state looks like and why). Its state is read from that PC's
@@ -25745,6 +25793,7 @@ function escC(s) {
           + _fleetEye(m.eye)
           + _fleetStuckChip(m)
           + _fleetPickerChip(m)
+          + _fleetReaderChip(m, online)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the
              information"*. The row carried `idle · v2874 · unpublished · just now`, and

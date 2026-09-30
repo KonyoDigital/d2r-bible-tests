@@ -352,6 +352,9 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True):
                         % (max(0, int((now - last_t) / 60000)), len(good), len(failed)))
     out["claude"] = lamp
     # ── Grok: its lane's own status
+    # #108 - the reason exists before the call: a lane that ANSWERS with something other than a dict is UNKNOWN too, and
+    # used to raise NameError here (gwhy was only set by the except) - the lamp then vanished instead of saying so.
+    gwhy = "the Grok lane answered with no status - whether Grok can read is UNKNOWN"
     try:
         g = g5 if g5 is not None else _g5_status()
     except Exception as e:
@@ -3931,6 +3934,9 @@ def _console_beacon(event="hb"):
             "eye": _eye_for_wire(),
             # #93 — the shadow reader for the fleet's eye: on / working even with the game closed
             "shadow": _shadow_for_wire(),
+            # #108 — this PC's two readers (CLAUDE primary, GROK shadow): can each one read here? so HIS fleet card can
+            # say a signed-out PC without anyone standing at it. None = this console cannot measure them (UNKNOWN).
+            "readers": _readers_for_wire(),
             # #229 — its OWN system: is its tree established, how many reels on its shelf. Counts only.
             "system": _system_for_wire(),
             # #41 rank 22 (REG-1564) — what THIS PC's character picker offers for the Body Armor slot, beside what
@@ -14868,6 +14874,32 @@ def _system_for_wire():
                            if n.startswith("reel_") and os.path.isdir(os.path.join(hist, n)))
     except Exception:
         out["reels"] = None
+    return out
+
+
+def _readers_for_wire():
+    """#108 — THIS PC's TWO READERS, FOR THE FLEET CARD. -> {claude: {state, needsLogin, why}, grok: {...}} | None
+
+    His question, 2026-09-30, after the ALT read nothing for a day with Claude signed out: "maybe this happened to dean
+    too?". The lamps under each console's corner chip (REG-1604) only answer it on THAT PC's own screen; the fleet card is
+    where he sees every PC at once. One measure, _reader_health's - never a second derivation - cut to what a peer row
+    needs: the state (on / off / unknown, anything else UNKNOWN), whether the fix is a sign-in, and the reason, capped.
+    None when this console cannot measure its readers at all, so the card says UNKNOWN rather than guessing.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+    try:
+        rd = _reader_health()
+    except Exception:
+        return None
+    if not isinstance(rd, dict):
+        return None
+    out = {}
+    for k in ("claude", "grok"):
+        lamp = rd.get(k) if isinstance(rd.get(k), dict) else {}
+        st = lamp.get("state")
+        why = lamp.get("why")
+        out[k] = {"state": st if st in ("on", "off") else "unknown",
+                  "needsLogin": lamp.get("needsLogin") is True,
+                  "why": " ".join(str(why).split())[:160] if why else None}
     return out
 
 

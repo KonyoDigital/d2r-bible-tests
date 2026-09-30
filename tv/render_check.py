@@ -2019,7 +2019,10 @@ TARGETS = {
                 // MEASURED its picker broken ("picker broken" on the row, the board's why in the box), the Wife PC is
                 // an older build (UNKNOWN in words). #93 - and every SHADOW EYE state: Dean lit (on, working, game
                 // closed), Konyo live (reading now), the Laptop shut (switched off), Box idle (on, watcher stopped),
-                // the Wife PC unknown (offline). ⚠ h22 verifier: the older build carries picker:null, the state the
+                // the Wife PC unknown (offline). #108 - and the READERS: the Laptop's Claude signed out ("Claude
+                // signed out" on its row), Box's Claude failing and its Grok signed out (both words), Dean and Konyo
+                // reading (no word - a calm row), the Wife PC readers:null (an older build, UNKNOWN in the box).
+                // ⚠ h22 verifier: the older build carries picker:null, the state the
                 // REAL worker stores for a console older than the field - an ABSENT key is a state the wire never
                 // produces. The payload is stubbed, so this proves the RENDER, not the wire — the wire is
                 // test_the_picker_census_reaches_the_fleet's.
@@ -2027,17 +2030,25 @@ TARGETS = {
                   ok: true,
                   online: [{machine:'Dean', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
                             picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 45, holds: 45, all: 134, ageS: 20, why: null},
-                            shadow: {on: true, available: true, recording: false, working: true, beatAgeS: 12, why: 'armed'}},
+                            shadow: {on: true, available: true, recording: false, working: true, beatAgeS: 12, why: 'armed'},
+                            readers: {claude: {state: 'on', needsLogin: false, why: 'Claude read on this PC 1 min ago'},
+                                      grok: {state: 'off', needsLogin: false, why: 'the + GROK layer is switched off on this PC'}}},
                            {machine:'Konyo', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
                             picker: {ok: true, slot: 'tors', label: 'Body Armor', offers: 40, holds: 45, all: 130, ageS: 20, why: null},
-                            shadow: {on: true, available: true, recording: true, working: true, beatAgeS: 4, why: 'watching'}},
+                            shadow: {on: true, available: true, recording: true, working: true, beatAgeS: 4, why: 'watching'},
+                            readers: {claude: {state: 'on', needsLogin: false, why: 'Claude read on this PC just now'},
+                                      grok: {state: 'on', needsLogin: false, why: 'Grok is on (shadow)'}}},
                            {machine:'Laptop', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
                             picker: {ok: false, broken: true, slot: 'tors', label: 'Body Armor', offers: null, holds: null, all: null,
                                      ageS: 20, why: 'the builder database would not parse'},
-                            shadow: {on: false, available: true, recording: false, working: true, beatAgeS: 9, why: 'off'}},
+                            shadow: {on: false, available: true, recording: false, working: true, beatAgeS: 9, why: 'off'},
+                            readers: {claude: {state: 'off', needsLogin: true, why: 'Claude cannot sign in on this PC: Failed to authenticate: OAuth session expired - run claude, type /login'},
+                                      grok: {state: 'unknown', needsLogin: false, why: null}}},
                            {machine:'Box', ver:'v3033', t: new Date(Date.now() - 40000).toISOString(),
-                            shadow: {on: true, available: true, recording: false, working: false, beatAgeS: 1400, why: 'armed'}}],
-                  offline: [{machine:'Wife PC', ver:'v2101', picker: null}]
+                            shadow: {on: true, available: true, recording: false, working: false, beatAgeS: 1400, why: 'armed'},
+                            readers: {claude: {state: 'off', needsLogin: false, why: 'Claude last read on this PC failed: timeout'},
+                                      grok: {state: 'off', needsLogin: true, why: 'Grok is not signed in on this PC'}}}],
+                  offline: [{machine:'Wife PC', ver:'v2101', picker: null, readers: null}]
                 }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
               }
               return _f.apply(this, arguments);
@@ -2102,7 +2113,9 @@ TARGETS = {
                # the row's one word, so the new line is measured and not merely present
                "#fleet-xref .fx-sys .fs-l, #fleet-list .fleet-pickerodd, "
                # #93 — every row's SHADOW EYE (lit / live / idle / off / unknown in the stub): painted, not merely present
-               "#fleet-list .fleet-shadow",
+               "#fleet-list .fleet-shadow, "
+               # #108 — the row's reader words (Claude signed out / not reading, Grok signed out): painted, not present
+               "#fleet-list .fleet-readeroff",
         "settles": False,
         "warmup": 10.0,
     },

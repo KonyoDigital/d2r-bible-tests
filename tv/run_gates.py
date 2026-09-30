@@ -8486,6 +8486,15 @@ GATES = [
              "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
              "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
              "UNKNOWN never drawn lit or shut)."),
+    Gate("test_the_fleet_shows_each_pcs_readers",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_shows_each_pcs_readers.py")], 180,
+         needs_app=False,
+         why="#108 (REG-1608, 2026-09-30) - his question after the ALT read nothing for a day signed out: 'maybe this "
+             "happened to dean too?'. Four joints driven: the console's _readers_for_wire (_reader_health's two lamps, "
+             "one measure, cut to state/needsLogin/why; UNKNOWN when it cannot measure), the beacon, the worker (odd "
+             "states UNKNOWN, a flip is news, the words are not), the card - a calm row says 'Claude signed out' only "
+             "when that PC's primary reader cannot read (never offline, never for an older build, never for a Grok "
+             "layer merely switched off), the click box says both lamps in words."),
     Gate("test_the_push_waits_for_a_settling_console",
          [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
          needs_app=False,

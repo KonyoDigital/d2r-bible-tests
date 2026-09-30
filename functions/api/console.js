@@ -494,6 +494,22 @@ export async function onRequestPost(context) {
         why: (typeof s.why === 'string' && s.why.trim()) ? s.why.replace(/\s+/g, ' ').trim().slice(0, 160) : null,
       };
     })(body.shadow),
+    /* #108 — THAT PC's TWO READERS (CLAUDE primary, GROK shadow): can each read there? His question, 2026-09-30, after
+       the ALT read nothing for a day signed out: "maybe this happened to dean too?". Shaped like shadow: a state is
+       on / off, anything else is 'unknown'; needsLogin is true only when that PC said so; the reason capped. Absent
+       stays null, so an older console reads UNKNOWN on the card, never a guessed lamp. [[unknown-stays-unknown]] */
+    readers: (function (r) {
+      if (!r || typeof r !== 'object') return null;
+      const lamp = (x) => {
+        if (!x || typeof x !== 'object') return { state: 'unknown', needsLogin: false, why: null };
+        return {
+          state: (x.state === 'on' || x.state === 'off') ? x.state : 'unknown',
+          needsLogin: x.needsLogin === true,
+          why: (typeof x.why === 'string' && x.why.trim()) ? x.why.replace(/\s+/g, ' ').trim().slice(0, 160) : null,
+        };
+      };
+      return { claude: lamp(r.claude), grok: lamp(r.grok) };
+    })(body.readers),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',
@@ -580,6 +596,15 @@ export async function onRequestPost(context) {
     const x = r && r.shadow;
     return (x && typeof x === 'object') ? JSON.stringify([x.on, x.available, x.recording, x.working]) : null;
   };
+  // #108 — a reader that stops (or starts) reading on a PC is what its row says, so a flip is news; the reason's words
+  // are not (the ok counts inside it move every read).
+  const readersNews = (r) => {
+    const x = r && r.readers;
+    return (x && typeof x === 'object')
+      ? JSON.stringify([x.claude && x.claude.state, x.claude && x.claude.needsLogin, x.grok && x.grok.state,
+                        x.grok && x.grok.needsLogin])
+      : null;
+  };
   const pickerNews = (r) => {
     const p = r && r.picker;
     return (p && typeof p === 'object') ? JSON.stringify([p.ok, p.slot, p.offers, p.holds, p.broken]) : null;
@@ -593,6 +618,7 @@ export async function onRequestPost(context) {
     || capRoute(prev) !== capRoute(rec)
     || pickerNews(prev) !== pickerNews(rec)
     || shadowNews(prev) !== shadowNews(rec)
+    || readersNews(prev) !== readersNews(rec)
     || !!(prev.eye && prev.eye.live) !== !!(rec.eye && rec.eye.live);
 
   try {
