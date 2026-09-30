@@ -471,6 +471,24 @@ def atomic_write(path, text, nl=""):
             pass
 
 
+#: the ship table's header - the newest row goes directly under it
+_SHIP_HEAD = "| version | commit | commit subject |\n|---|---|---|\n"
+
+
+def _ship_table(text):
+    """-> the ship table's rows (the contiguous `|` lines under its header), or "" when there is no table."""
+    s = text or ""
+    i = s.find(_SHIP_HEAD)
+    if i < 0:
+        return ""
+    rows = []
+    for ln in s[i + len(_SHIP_HEAD):].splitlines(True):
+        if not ln.startswith("|"):
+            break
+        rows.append(ln)
+    return "".join(rows)
+
+
 def _has_ship_row(text, ver):
     """Does the ship table carry a ROW for this version? -> bool
 
@@ -478,8 +496,13 @@ def _has_ship_row(text, ver):
     TASKS.md. The #174 task row said "R1 (v3507)" and then "v-B3 (v3509)" - each written just BEFORE its own bump - so
     both bumps read "already recorded by hand" and wrote no ship row; v3507 and v3509 were missing from the table, and
     test_the_newest_ships_appear_in_TASKS_md asked the same loose question and stayed green. Only a table row counts.
-    [[a-presence-law-is-not-a-reachability-law]]"""
-    return re.search(r"^\| \*\*%s\*\* \|" % re.escape(ver), text or "", re.M) is not None
+    [[a-presence-law-is-not-a-reachability-law]]
+
+    ⚠ 2026-09-30 — AND A ROW IN ANOTHER TABLE IS NOT ITS ROW EITHER. The fix above still matched `| **v3527** |`
+    anywhere in the file, and the open queue's IN FLIGHT table keys its rows the same way: "| **v3527** | integrating:
+    ..." was written before the bump, so the v3527 bump read it as the ship row and wrote none. Only a row INSIDE the
+    ship table counts now."""
+    return re.search(r"^\| \*\*%s\*\* \|" % re.escape(ver), _ship_table(text), re.M) is not None
 
 
 def _record_ship_in_tasks(ver, name, note, repo=None):
@@ -513,7 +536,7 @@ def _record_ship_in_tasks(ver, name, note, repo=None):
             return                              # already recorded by hand; do not duplicate
         # the newest row sits directly under the table header, so anchor on the header itself
         # rather than on whatever version happens to be top today.
-        head = "| version | commit | commit subject |\n|---|---|---|\n"
+        head = _SHIP_HEAD
         if head not in s:
             print("   \u26a0 TASKS.md ship table not found - record %s by hand" % ver)
             return

@@ -378,6 +378,25 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1588 - THE v3527 BUMP READ ITS OWN QUEUE ROW AS THE SHIP ROW AND RECORDED NOTHING (2026-09-30)
+
+**Measured:** `bump_version.py v3527` stamped the four surfaces and wrote no TASKS.md ship row. `_has_ship_row` asked for
+`| **v3527** |` anywhere in the file, and the open queue's IN FLIGHT table keys its rows the same way: `| **v3527** |
+integrating: ...` was written before the bump, so the bump read it as "already recorded by hand". The law asked the same
+question (`_missing_rows` searched the whole file), so it would have stayed green with the row missing - the 2026-09-26
+fix (a version named in prose is not its row) one table over.
+
+**Fixed:** both halves now read only the ship table - the contiguous `|` lines under `| version | commit | commit
+subject |`. The bump's writer (`_ship_table`) and the law (`_ship_table`, its own copy on purpose, so the checker and the
+writer cannot share one mistake) each scope to it. The v3527 row was then recorded by the bump's own writer, which also
+bound v3526's row to `0ba7a5ce`.
+
+**Guards:** `tv/test_tasks_ships_are_recorded.py` - new case `test_a_row_in_another_table_is_not_its_row` drives both
+halves on a fixture with an IN FLIGHT row above the ship table: the law must call the version missing, and the bump,
+aimed at a fixture tree, must write the row and leave the queue row and the real TASKS.md alone. 2 new red-proofs (5 in
+all); each tamper applied by hand turned the law red for its own reason and green again once restored. `heart2 --prove`
+reports this law UNPROVABLE from a worktree, because its `../.git` is a pointer file rather than a history.
+
 ### REG-1587 - THE v3526 SECOND EYE'S FINDINGS, EACH MEASURED BEFORE ANYTHING CHANGED (2026-09-30)
 
 `second_eye_run.py v3526` (Grok CLI over c6944e08..0ba7a5ce, 37 commits, 16,110 chars sent - the eye itself names
