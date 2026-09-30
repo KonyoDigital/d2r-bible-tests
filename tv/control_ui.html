@@ -7713,6 +7713,19 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
 .reader-lamps .rl[data-lamp="unknown"] i { width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
   font-style: normal; line-height: 1; color: var(--text-dim); }
 .reader-lamps .rl[data-lamp="unknown"] i::before { content: "?"; }
+/* REG-1618 - each lamp is a BUTTON now (keyboard and click), the same pill: it keeps every pixel REG-1607 measured.
+   data-busy = a sign-in he opened is being finished (the dot breathes); data-alert = it was ON and went OFF by itself,
+   so it rings until it is back or he clicks it. Motion is dropped for reduced-motion. */
+.reader-lamps button.rl { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; }
+.reader-lamps button.rl:hover { background: rgba(255,255,255,.07); }
+.reader-lamps button.rl:focus-visible { outline: 1px solid var(--mint); outline-offset: 1px; }
+.reader-lamps .rl[data-busy="1"] i { animation: rl-wait 1.2s ease-in-out infinite; }
+.reader-lamps .rl[data-alert="1"] { animation: rl-alert 1.6s ease-in-out infinite; }
+@keyframes rl-wait { 50% { opacity: .25; } }
+@keyframes rl-alert { 50% { box-shadow: 0 0 0 2px rgba(232,138,122,.55); } }
+@media (prefers-reduced-motion: reduce) {
+  .reader-lamps .rl[data-busy="1"] i, .reader-lamps .rl[data-alert="1"] { animation: none; }
+}
 </style>
 <body data-state="off">
   <div class="shell">
@@ -7787,8 +7800,12 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
       <div class="head-right">
         <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
         <div class="reader-lamps" id="reader-lamps" role="group" aria-label="readers on this PC">
-          <span class="rl" id="rl-claude" data-lamp="unknown" title="Claude (primary reader): not measured yet"><i></i>CLAUDE</span>
-          <span class="rl" id="rl-grok" data-lamp="unknown" title="Grok (shadow layer): not measured yet"><i></i>GROK</span>
+          <!-- REG-1618 - his "if clicking CLAUDE it should link me and open the browser ... and same for grok": each lamp
+               is its own reader's link - a click opens THAT reader's sign-in on this PC (window._lampClick) -->
+          <button type="button" class="rl" id="rl-claude" data-lamp="unknown" onclick="window._lampClick('claude', this)"
+                  title="Claude (primary reader): not measured yet - click to open Claude's sign-in on this PC"><i></i>CLAUDE</button>
+          <button type="button" class="rl" id="rl-grok" data-lamp="unknown" onclick="window._lampClick('grok', this)"
+                  title="Grok (shadow layer): not measured yet - click to open Grok's sign-in on this PC"><i></i>GROK</button>
         </div>
         <!-- REG-1617 - his "make a button there so i can click within the console": shown only while this PC's Claude
              is signed out; it opens the CLI's own sign-in on THIS PC and he finishes in the browser -->
@@ -9147,6 +9164,9 @@ window._lockMark = function(isOpen, px, label){
     clearTimeout(t._tm);
     t._tm = setTimeout(function(){ t.classList.remove('show'); }, Math.max(1200, ms || 2400));
   }
+  // REG-1618 - reachable from the other script block and from `if (window.toast)` callers: the relaunch refusal
+  // checked window.toast, found nothing, and fell through to alert() - a modal over his console.
+  window.toast = toast;
   // v801 (Grok R7) — surface every hard blocker from /api/doctor into the toast/ticker,
   // one line per block check: "id: detail -> fix". Minimal — no new panel; the toast
   // sits above the board and is never clobbered by the status poll.
@@ -28466,16 +28486,48 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
 
   /* #105 (REG-1604) - paint the two reader lamps from /api/status `readers` (control_app._reader_health). A lamp
      never guesses: no answer is UNKNOWN (dashed), a failure that is a sign-in says so and wears the fault ring. */
+  /* REG-1618 - EACH LAMP IS ITS OWN READER'S LINK, WITH ITS OWN MEMORY. His words: "if clicking CLAUDE it should link me
+     and open the browser ... and same for grok ... with its own individual logic if it gets disconnected suddenly".
+     window.__rl.seen holds each lamp's last KNOWN state (on / off - UNKNOWN never overwrites it), so a lamp that goes ON -> OFF by
+     itself says so ONCE and rings until it is back or he clicks it; the other lamp is never touched by it. */
+  /* ⚠ SELF-CONTAINED ON PURPOSE: the laws lift each of these three functions out of the page and run it alone, and a
+     call across the two script blocks is a dead render - so the memory lives on window.__rl, the words in _rlHint (found
+     through window), and the toast is looked up at call time. */
+  function _rlHint(k, L, state) {
+    var kind = (L && L.kind) || state;
+    if (state === 'on') return 'linked - nothing to sign in';
+    if (k === 'grok' && kind === 'switched-off') return 'you switched + GROK off - switch it on under Advanced > EYES';
+    if (k === 'grok' && kind === 'not-installed') return 'install the Grok CLI first - Advanced > EYES says how';
+    return 'click to open ' + (k === 'claude' ? "Claude's" : "Grok's") + ' sign-in on this PC';
+  }
+  window._rlHint = _rlHint;
   function _paintReaderLamps(rd) {
+    var M = window.__rl || (window.__rl = { seen: {}, last: {} });
+    var NAME = { claude: 'CLAUDE', grok: 'GROK' };
+    var hint = (typeof window._rlHint === 'function') ? window._rlHint : function () { return ''; };
+    var say = function (m) { try { (typeof toastC === 'function' ? toastC : window.toast)(m); } catch (e) {} };
     [['claude', 'Claude (primary reader)'], ['grok', 'Grok (shadow layer)']].forEach(function (p) {
       var el = document.getElementById('rl-' + p[0]);
       if (!el) return;
       var L = (rd && typeof rd === 'object') ? rd[p[0]] : null;
       var state = (L && (L.state === 'on' || L.state === 'off')) ? L.state : 'unknown';
+      M.last[p[0]] = L || null;
       el.setAttribute('data-lamp', state);
       el.setAttribute('data-fault', (state === 'off' && L && (L.needsLogin || /failed|cannot/i.test(String(L.why || '')))) ? '1' : '0');
+      el.setAttribute('data-busy', (L && L.signInOpen && state !== 'on') ? '1' : '0');
+      var was = M.seen[p[0]];
+      if (state === 'on') {
+        el.setAttribute('data-alert', '0');
+        if (was === 'off') say(NAME[p[0]] + ' is linked again on this PC');
+      } else if (state === 'off' && was === 'on') {
+        el.setAttribute('data-alert', '1');
+        say(NAME[p[0]] + ' disconnected on this PC - ' + ((L && L.why) || 'no reason given'));
+      }
+      if (state !== 'unknown') M.seen[p[0]] = state;
+      var h = hint(p[0], L, state);
       el.title = p[1] + ': ' + (state === 'on' ? 'CONNECTED' : state === 'off' ? 'NOT CONNECTED' : 'UNKNOWN')
-               + (L && L.why ? ' - ' + L.why : (rd ? '' : ' - the console did not say'));
+               + (L && L.why ? ' - ' + L.why : (rd ? '' : ' - the console did not say'))
+               + (h ? ' · ' + h : '');
     });
     /* REG-1617 - SIGN IN only while this PC's Claude says it is signed out (needsLogin), never for a read that merely
        failed and never on UNKNOWN; while a sign-in window is open it says so instead of offering a second one */
@@ -28540,6 +28592,50 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       });
   }
   window._claudeSignIn = _claudeSignIn;
+  /* REG-1618 - THE LAMP CLICK. Each reader, its own door, the command fixed on the server (nothing from here reaches it):
+       CLAUDE - linked: nothing opens. Otherwise POST /api/claude_login -> `claude auth login` on this PC, the browser
+                follows; the server re-asks the CLI every 10 s until it says signed in, and the lamp follows it.
+       GROK   - linked: nothing opens. Switched off by him / not installed: it says where, and changes nothing (a click
+                on a lamp never flips his switch). Otherwise POST /api/g5_login {oauth, keepSwitch} - the lane's own
+                start_login decides: already linked, one in flight, or the browser opens.
+     A click also answers a ringing lamp (data-alert back to 0): he has seen it. */
+  function _lampClick(k, el) {
+    el = el || document.getElementById('rl-' + k);
+    var M = window.__rl || (window.__rl = { seen: {}, last: {} });
+    var NAME = { claude: 'CLAUDE', grok: 'GROK' };
+    var hint = (typeof window._rlHint === 'function') ? window._rlHint : function () { return ''; };
+    var say = function (m) { try { (typeof toastC === 'function' ? toastC : window.toast)(m); } catch (e) {} };
+    var L = M.last[k] || null;
+    var state = (L && (L.state === 'on' || L.state === 'off')) ? L.state : 'unknown';
+    var kind = (L && L.kind) || state;
+    if (el && el.setAttribute) el.setAttribute('data-alert', '0');
+    if (state === 'on') {
+      say(NAME[k] + ' is linked on this PC - ' + ((L && L.why) || 'connected'));
+      return Promise.resolve({ ok: true, started: false, reason: 'linked' });
+    }
+    if (k === 'grok' && (kind === 'switched-off' || kind === 'not-installed')) {
+      say('GROK: ' + hint(k, L, state));
+      return Promise.resolve({ ok: true, started: false, reason: kind });
+    }
+    if (el && el.setAttribute) el.setAttribute('data-busy', '1');
+    var url = (k === 'claude') ? '/api/claude_login' : '/api/g5_login';
+    var body = (k === 'claude') ? {} : { oauth: true, keepSwitch: true };
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var said = (j && (j.why || j.msg)) || 'the console gave no answer';
+        var waiting = !!(j && (j.started || j.reason === 'in-flight'));
+        if (el && el.setAttribute) el.setAttribute('data-busy', waiting ? '1' : '0');
+        say(NAME[k] + ': ' + said);
+        return j;
+      })
+      .catch(function (e) {
+        if (el && el.setAttribute) el.setAttribute('data-busy', '0');
+        say(NAME[k] + ': the console did not answer (' + e + ')');
+        return null;
+      });
+  }
+  window._lampClick = _lampClick;
 
   function _swmAgo(ms) {
     if (!ms) return null;

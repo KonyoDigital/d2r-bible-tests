@@ -535,7 +535,8 @@ def start_login(*, prefer_oauth=True):
                    "curl -fsSL https://x.ai/cli/install.sh | bash   (Mac)",
             "hasSubscription": False, "cliInstalled": False,
         }
-    if _subscription_logged_in():
+    # REG-1618 - an auth file the far end has stopped accepting is NOT authorized: reopen the browser for it
+    if _subscription_logged_in() and not credentials_rejected():
         return {
             "ok": True, "started": False, "reason": "already-authorized",
             "msg": "Grok already authorized on this PC — no re-login needed",
@@ -610,6 +611,7 @@ def status():
     hourly, daily = _budget_counts()
     cli = bool(_grok_bin())
     authorized = _subscription_logged_in()
+    rejected = bool(cli and authorized and credentials_rejected())   # REG-1618: on disk, refused by the far end
     can_run = bool(cli and authorized)
     inflight = login_inflight()
     return {
@@ -655,7 +657,8 @@ def status():
         "cliInstalled": cli,
         "authorized": authorized,
         "needsInstall": not cli,
-        "needsLogin": bool(cli and not authorized),
+        "needsLogin": bool(cli and (not authorized or rejected)),
+        "credentialsRejected": rejected,
         "loginInflight": inflight,
         "grokBin": _grok_bin() or None,
         "model": "subscription-cli",
@@ -833,16 +836,20 @@ def _stats_flush():
         pass
 
 
+#: REG-1618 — the refusals that mean THE SIGN-IN ITSELF is dead. ~/.grok/auth.json can still be on disk while the
+#: session behind it has been revoked or has expired, and then every call answers 401: that is a disconnection, the
+#: only cure is signing in again, and the GROK lamp and the login button must both say so (they used to read "linked"
+#: and start_login refused to reopen the browser because the file was there). One list, used by both.
+_CRED_REJECT_SAY = "Grok rejected the credentials — sign in again"
+_CRED_REJECT_NEEDLES = ("401", "unauthorized", "invalid api key")
+
 _HARD_STOPS = (
     # each pattern is a refusal the FAR END stated; retrying cannot clear any of them
     ("402", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
     ("payment required", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
     ("balance exhausted", "the Grok balance is exhausted — the second eye cannot read until it is topped up"),
     ("insufficient", "the Grok account has no credit left for this lane"),
-    ("401", "Grok rejected the credentials — sign in again"),
-    ("unauthorized", "Grok rejected the credentials — sign in again"),
-    ("invalid api key", "Grok rejected the credentials — sign in again"),
-)
+) + tuple((_n, _CRED_REJECT_SAY) for _n in _CRED_REJECT_NEEDLES)
 
 
 # v2341 — how long a stated refusal stands before the lane probes once more. Long enough that a
@@ -874,6 +881,19 @@ def _hard_stop_why(last_error=_LOOK_IT_UP):
         if needle in blob:
             return say
     return ""
+
+
+def credentials_rejected(last_error=_LOOK_IT_UP):
+    """REG-1618 — did the far end reject this PC's sign-in on the LAST call? -> bool
+
+    Same one-call rule as _hard_stop_why: a lane that failed at noon and has read fine since is not signed out now."""
+    try:
+        if last_error is _LOOK_IT_UP:
+            last_error = (stats_view() or {}).get("last_error")
+    except Exception:
+        return False
+    blob = str(last_error or "").lower()
+    return bool(blob) and any(n in blob for n in _CRED_REJECT_NEEDLES)
 
 
 def stats_view():

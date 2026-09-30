@@ -8571,7 +8571,9 @@ GATES = [
              "wise are linked to that character.. same logic getting routed down' (the printer). The character-select "
              "reader is asked which row is HIGHLIGHTED (only a row that read listed counts); a visit that ran past its "
              "reads gets ONE closing read of its last frame once the scan is past it, inside the hourly cap - so the row "
-             "he pressed Play on decides, not the one he arrived on; each login joins the gear ledger as the row its reel "
+             "he pressed Play on decides, not the one he arrived on, and a close that names no row (refused, frame gone, "
+             "no highlight) confirms nothing - its session is unattributed, never the arrival guess (REG-1619); each "
+             "login joins the gear ledger as the row its reel "
              "splits at (the journal's own sessionId) and the rollover chain carries it; a sealed reel the learner has "
              "not walked WAITS (6 h bound; frames gone never wait; another world's learner is never asked); the doctor "
              "says waiting, not late; the console's learner nudges the gear ledger when it has news."),
@@ -8645,6 +8647,16 @@ GATES = [
              "otherwise hide it - and one sign-in in flight at a time; the route answers only this console's own page and "
              "re-arms the probe; the lamp learns 'signed out' from the CLI, a good read outranks it; the header's SIGN IN "
              "pill shows only for needsLogin and the click posts the route."),
+    Gate("test_each_lamp_links_its_own_reader",
+         [sys.executable, os.path.join(HERE, "test_each_lamp_links_its_own_reader.py")], 60,
+         needs_app=False,
+         why="REG-1618 (2026-09-30) - his ask: 'if clicking CLAUDE it should link me and open the browser ... and same "
+             "for grok ... with its own individual logic if it gets disconnected suddenly'. The corner lamps are buttons, "
+             "each wired to its own reader: a linked lamp opens nothing, a Grok he switched off or never installed says "
+             "where and never flips his switch (keepSwitch), otherwise that reader's own sign-in route. Each lamp "
+             "remembers its last known state - a drop rings and is said once, the other lamp untouched. Grok: only his "
+             "switch reads switched off, and a sign-in the far end refuses is signed out and reopens the browser. "
+             "Claude: re-asked every few seconds while a sign-in is being finished, and a changed answer repaints."),
     Gate("test_the_push_waits_for_a_settling_console",
          [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
          needs_app=False,

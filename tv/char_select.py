@@ -505,9 +505,19 @@ def logins(d):
             continue
         best = max(sel, key=lambda x: int(x.get("ts") or 0))
         reel = str(v.get("reel") or str(vid).split("#")[0])
-        out.append({"reel": reel, "sessionId": reel[5:] if reel.startswith("reel_") else reel,
-                    "ts": int(best.get("ts") or 0) or _visit_ts(vid, v), "character": best["name"],
-                    "visit": vid, "reader": best.get("reader")})
+        row = {"reel": reel, "sessionId": reel[5:] if reel.startswith("reel_") else reel,
+               "ts": int(best.get("ts") or 0) or _visit_ts(vid, v), "character": best["name"],
+               "visit": vid, "reader": best.get("reader")}
+        # #115 (REG-1619, the #231 eye on v3529) - A CLOSE THAT WAS TRIED AND NAMED NO ROW CONFIRMS NOTHING. `closed` is set
+        # only for a visit that ran past its reads; when the closing read was refused, its frame would not open, its reel
+        # was gone, or it saw no highlighted row, the newest name is still the ARRIVAL highlight - the one this wait
+        # exists to distrust. Said as `unconfirmed`, never as the character: login_rows skips it, so the session's gear
+        # is unattributed (with its denominator) instead of filed under a guess. [[unknown-stays-unknown]]
+        if v.get("closed") and best.get("reader") != "vision-close":
+            row.update(character=None, unconfirmed=best["name"],
+                       why="the closing read named no row (%s) - the first highlight may not be the character he entered "
+                           "with" % str(v.get("closed"))[:80])
+        out.append(row)
     out.sort(key=lambda r: (r["ts"] or 0))
     return out
 

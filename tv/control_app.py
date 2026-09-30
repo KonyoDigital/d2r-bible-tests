@@ -287,14 +287,28 @@ def _journal_tail_rows(max_bytes=600000):
 
 #: REG-1617 — the CLI's own word on its sign-in: asked on a daemon thread, at most every 5 min, never on a request path
 CLAUDE_AUTH_EVERY_S = 300
+#: REG-1618 — while a sign-in he clicked is being finished (claude_signin.watching), asked every 10 s instead, so the
+#: CLAUDE lamp turns green within seconds of the browser saying done - not up to 5 min later
+CLAUDE_AUTH_WATCH_EVERY_S = 10
 _CLAUDE_AUTH = {"at": 0.0, "val": None, "busy": False}
 
 
-def _claude_auth_state(now=None, _probe=None, _thread=None):
+def _claude_auth_state(now=None, _probe=None, _thread=None, _watching=None):
     """The last `claude auth status` answer (None until the first has come back). Starts a refresh when it is older than
-    CLAUDE_AUTH_EVERY_S and none is running - the caller never waits on the CLI. -> dict | None"""
+    its cadence and none is running - the caller never waits on the CLI. -> dict | None
+
+    Cadence: CLAUDE_AUTH_EVERY_S; CLAUDE_AUTH_WATCH_EVERY_S while a sign-in this console opened is being finished and
+    the CLI does not yet say signed in. A changed answer drops the lamps' cache, so the next poll paints it."""
     now = time.time() if now is None else now
-    if not _CLAUDE_AUTH["busy"] and now - float(_CLAUDE_AUTH["at"] or 0) >= CLAUDE_AUTH_EVERY_S:
+    _prev = _CLAUDE_AUTH.get("val")
+    try:
+        import claude_signin as _csi0
+        _watch = bool((_watching or _csi0.watching)(now))
+    except Exception:
+        _watch = False
+    _every = (CLAUDE_AUTH_WATCH_EVERY_S if _watch and not (isinstance(_prev, dict) and _prev.get("loggedIn") is True)
+              else CLAUDE_AUTH_EVERY_S)
+    if not _CLAUDE_AUTH["busy"] and now - float(_CLAUDE_AUTH["at"] or 0) >= _every:
         _CLAUDE_AUTH.update(busy=True, at=now)
 
         def _go():
@@ -306,6 +320,9 @@ def _claude_auth_state(now=None, _probe=None, _thread=None):
                                        "why": "claude auth status raised %s - UNKNOWN" % type(e).__name__}
             finally:
                 _CLAUDE_AUTH["busy"] = False
+                _new = _CLAUDE_AUTH.get("val")
+                if (_prev or {}).get("loggedIn") != (_new or {}).get("loggedIn"):
+                    _READER_CACHE["at"] = 0.0      # REG-1618: signed in / out just changed - repaint, do not wait 30 s
         if _thread is not None:
             _thread(_go)
         else:
@@ -328,6 +345,21 @@ def claude_login(origin, _start=None, _bin=None):
     if r.get("started"):
         _CLAUDE_AUTH["at"] = 0.0
     return 200, r
+
+
+def _g5_login_moves_switch(out, body):
+    """REG-1618 — does this Grok sign-in press switch the + GROK layer on (beside Claude) after its answer? -> bool
+
+    The Advanced ⚡ Authorize sends setOn (an older page setPrimary / primary), and an already-linked Grok it presses turns
+    on as the extra layer. The GROK lamp sends keepSwitch: a click on a lamp signs in and NEVER flips his switch - he
+    switched it off on purpose, or he did not, and the lamp is not where that is decided."""
+    if not isinstance(out, dict) or not out.get("ok"):
+        return False
+    body = body if isinstance(body, dict) else {}
+    if body.get("keepSwitch"):
+        return False
+    return bool(out.get("reason") == "already-authorized" or body.get("setOn") or body.get("setPrimary")
+                or body.get("primary"))
 
 
 def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
@@ -376,7 +408,7 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
     lamp = {"ok": len(good), "failed": len(failed), "lastOkTs": (good[-1][0] if good else None),
             "lastFailTs": (failed[-1][0] if failed else None), "needsLogin": False}
     if not mine:
-        lamp.update(state="unknown", why=("the journal could not be read, so whether Claude can read is UNKNOWN"
+        lamp.update(state="unknown", kind="unknown", why=("the journal could not be read, so whether Claude can read is UNKNOWN"
                                           if _unreadable else
                                           "no Claude read in the last 2 h on this PC - whether it can read is UNKNOWN"))
     else:
@@ -390,29 +422,32 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
                         break
             _why = _why or "the read returned nothing"
             lamp["needsLogin"] = any(w in _why.lower() for w in _READER_AUTH_WORDS)
-            lamp.update(state="off", why=("Claude cannot sign in on this PC: %s - press SIGN IN under the lamps, or "
-                                          "run `claude` and type /login" % _why) if lamp["needsLogin"]
-                        else ("Claude's last read on this PC failed: %s" % _why))
+            lamp.update(state="off", kind=("signed-out" if lamp["needsLogin"] else "read-failed"),
+                        why=("Claude cannot sign in on this PC: %s - click CLAUDE or SIGN IN at the top right, or run "
+                             "`claude` and type /login" % _why)
+                        if lamp["needsLogin"] else ("Claude's last read on this PC failed: %s" % _why))
         else:
-            lamp.update(state="on", why="Claude read on this PC %d min ago (%d ok, %d failed in 2 h)"
+            lamp.update(state="on", kind="on", why="Claude read on this PC %d min ago (%d ok, %d failed in 2 h)"
                         % (max(0, int((now - last_t) / 60000)), len(good), len(failed)))
     # REG-1617 — AND THE CLI'S OWN WORD ON ITS SIGN-IN, so SIGN IN shows before a read has to fail (a PC that is not
     # recording reads nothing, and its lamp would sit at UNKNOWN while it is signed out). A read that just SUCCEEDED
     # outranks it; a probe that cannot answer changes nothing - UNKNOWN is not "signed out".
     _au = auth if auth is not None else (_claude_auth_state() if _live else None)
     if isinstance(_au, dict) and _au.get("loggedIn") is False and lamp.get("state") != "on":
-        lamp.update(state="off", needsLogin=True,
-                    why="Claude is signed out on this PC (%s) - press SIGN IN under the lamps, or run `claude` and "
-                        "type /login" % (_au.get("why") or "claude auth status"))
+        lamp.update(state="off", kind="signed-out", needsLogin=True,
+                    why="Claude is signed out on this PC (%s) - click CLAUDE or SIGN IN at the top right, or run "
+                        "`claude` and type /login" % (_au.get("why") or "claude auth status"))
     elif isinstance(_au, dict) and _au.get("loggedIn") is True and lamp.get("state") == "unknown":
         # his "nothing is showing me the CLAUDE specifically on and off light" (2026-09-30): a PC that has not read
         # in 2 h sat at "?" while its CLI said signed in. Signed in is connected; the reads still decide once there
         # are any (a read that FAILED stays off, whatever the sign-in says).
-        lamp.update(state="on", why="Claude is signed in on this PC (%s) - no read in the last 2 h to judge it by"
-                                    % (_au.get("why") or "claude auth status"))
+        lamp.update(state="on", kind="on", why="Claude is signed in on this PC (%s) - no read in the last 2 h to judge it by"
+                                                % (_au.get("why") or "claude auth status"))
     try:
+        # REG-1618: "waiting" for as long as the sign-in he clicked is being finished - on the Mac the Terminal is not
+        # ours to watch, so the click's own clock (claude_signin.WATCH_S) - and never once the lamp is back on
         import claude_signin as _csi
-        lamp["signInOpen"] = bool(_csi.inflight())
+        lamp["signInOpen"] = bool(_csi.watching()) and lamp.get("state") != "on"
     except Exception:
         lamp["signInOpen"] = None
     out["claude"] = lamp
@@ -427,18 +462,33 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
         gwhy = "the Grok lane's status could not be read (%s) - UNKNOWN" % type(e).__name__
     st = (g or {}).get("stats") or {}
     glamp = {"ok": st.get("ok"), "failed": st.get("errors"), "lastOkTs": None,
-             "lastFailTs": st.get("last_error_ts"), "needsLogin": bool((g or {}).get("needsLogin"))}
+             "lastFailTs": st.get("last_error_ts"), "needsLogin": bool((g or {}).get("needsLogin")),
+             "signInOpen": bool((g or {}).get("loginInflight"))}
+    # REG-1618 — GROK'S OWN DISCONNECT LOGIC. His switch (`switch`, the intent) is the only thing that reads as
+    # "switched off": the lane's effective mode ALSO drops to off the moment its sign-in is gone, and this branch used
+    # to catch that first - a Grok that had just been signed out read "switched off", a state he chose, with nothing
+    # to click. An old status without `switch` falls back to the effective mode, as before.
+    _sw = g.get("switch") if isinstance(g, dict) else None
+    _his_off = (_sw == "off") if _sw is not None else (
+        isinstance(g, dict) and ((g.get("mode") == "off") or (g.get("on") is False)))
     if not isinstance(g, dict):
-        glamp.update(state="unknown", why=gwhy)
-    elif (g.get("mode") == "off") or (g.get("on") is False):
-        glamp.update(state="off", why="the + GROK layer is switched off on this PC")
+        glamp.update(state="unknown", kind="unknown", why=gwhy)
+    elif _his_off:
+        glamp.update(state="off", kind="switched-off", why="the + GROK layer is switched off on this PC")
     elif g.get("needsInstall") or g.get("cliInstalled") is False:
-        glamp.update(state="off", why="Grok is not installed on this PC")
+        glamp.update(state="off", kind="not-installed", why="Grok is not installed on this PC")
+    elif g.get("credentialsRejected"):
+        glamp.update(state="off", kind="signed-out", needsLogin=True,
+                     why="Grok refused this PC's sign-in on its last call (%s) - click GROK to sign in again"
+                         % (str(st.get("last_error") or "401")[:80]))
     elif g.get("needsLogin"):
-        glamp.update(state="off", why="Grok is not signed in on this PC")
+        glamp.update(state="off", kind="signed-out", why="Grok is not signed in on this PC - click GROK to sign in")
+    elif g.get("intentBlocked") or (g.get("mode") == "off") or (g.get("on") is False):
+        glamp.update(state="off", kind="blocked", why="Grok is switched on but cannot read: %s" % (
+            g.get("blockedWhy") or "the lane did not start"))
     else:
         _n_ok, _n_err = st.get("ok"), st.get("errors")
-        glamp.update(state="on", why="Grok is on (%s) - %s ok, %s errors%s" % (
+        glamp.update(state="on", kind="on", why="Grok is on (%s) - %s ok, %s errors%s" % (
             g.get("mode") or "?", _n_ok if _n_ok is not None else "?", _n_err if _n_err is not None else "?",
             (" - last error: %s" % st.get("last_error")) if st.get("last_error") else ""))
     out["grok"] = glamp
@@ -41256,8 +41306,8 @@ class Handler(BaseHTTPRequestHandler):
             # said set_mode("primary"), so every ⚡ Authorize on an already-linked PC made Grok the reader again; that
             # is how his Mac and ALT were measured on primary. `setPrimary` is still accepted from an older page and
             # means the same thing now: + GROK beside Claude.
-            if out.get("ok") and (out.get("reason") == "already-authorized"
-                                  or body.get("setOn") or body.get("setPrimary") or body.get("primary")):
+            # REG-1618 - the GROK lamp sends keepSwitch: a click on the lamp signs in, it never switches the layer on
+            if _g5_login_moves_switch(out, body):
                 try:
                     if out.get("hasSubscription") or out.get("reason") == "already-authorized":
                         _G5.set_mode("shadow")

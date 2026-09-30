@@ -405,6 +405,44 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1619 - A FAILED CLOSING READ FILED THE SESSION UNDER THE ROW HE ARRIVED ON (#115, 2026-09-30)
+
+**Found by** the #231 Grok seat on v3529 (f57b2cd4), reproduced before fixing: a visit that ran past its reads owes
+one closing read of its last frame, because the row highlighted on arrival may not be the one he pressed Play on. When
+that closing read was refused, its frame would not open, its reel was gone, or it saw no highlighted row, `closed` was
+set, the visit stopped being owed, and `logins()` named the ARRIVAL highlight as the session's character - the exact
+guess the wait exists to distrust. Measured: arrived on Hammerdin, closing read refused -> login "Hammerdin".
+
+**Now:** a visit whose close was tried and did not name the row says `character: None`, `unconfirmed: <the arrival
+name>` and why. `login_rows` skips it, so that session's gear lands in `unattributed` (with its denominator) instead
+of under a guess; a close that did name the row still decides. Law: `tv/test_a_session_is_bound_to_the_character_he_
+entered_with.py` (the failed-close cases), both new sabotages seen RED. The other two findings in the same #231 look
+were already fixed: `_reader_health`'s `gwhy` NameError (#108) and the law's case count (BUGS says 12).
+
+### REG-1618 - THE LAMPS COULD NOT BE CLICKED, AND A GROK THAT LOST ITS SIGN-IN READ "SWITCHED OFF" (2026-09-30)
+
+**His ask,** looking at the corner of his console: "if clicking CLAUDE it should link me and open the browser that way
+its dual working also backend and visual" - "and same for grok" - "with its own individual logic if it gets
+disconnected suddenly".
+
+**Measured before the change:** the CLAUDE and GROK lamps were labels. And the GROK lamp read the lane's EFFECTIVE mode
+first - which drops to off the moment Grok's sign-in is gone - so a Grok that had just been signed out said "the + GROK
+layer is switched off on this PC": a state he chooses, with nothing to click. A sign-in the far end refuses (401 behind
+an auth file still on disk) read as linked, and `start_login` answered "already authorized" from that file, so the
+browser could never be reopened for it. After a Claude sign-in, the lamp waited up to 5 min (the CLI probe) plus 30 s
+(the lamp cache) to turn green. Separately, block one's `toast` was local to its IIFE, so the relaunch refusal's
+`if (window.toast) ... else alert(...)` fell through to a modal `alert()` over his console.
+
+**Now:** each lamp is a button wired to its own reader. A linked lamp opens nothing. CLAUDE opens `claude auth login` on
+that PC; GROK opens `grok login --oauth` through the lane's own start_login, sent with `keepSwitch` so a click on a lamp
+never switches the + GROK layer on; a Grok he switched off or never installed says where instead. Each lamp keeps its
+own memory of its last KNOWN state: ON -> OFF by itself rings (a pulse, reduced-motion aware) and is said once in a
+toast, the other lamp untouched; an UNKNOWN poll between does not reset it; back ON says so. While a sign-in he clicked
+is being finished the lamp breathes, and the server re-asks `claude auth status` every 10 s (not 5 min), dropping the
+lamp cache when the answer changes. Grok: only his switch reads "switched off"; a refused sign-in is signed OUT in the
+lane's own status (`needsLogin`, `credentialsRejected`) and reopens the browser. `window.toast` is exposed where its
+callers look. Law: `tv/test_each_lamp_links_its_own_reader.py`, every sabotage in its RED_PROOF seen RED.
+
 ### REG-1617 - A SIGNED-OUT CLAUDE HAD NO WAY BACK IN FROM THE CONSOLE (2026-09-30)
 
 **His ask:** "how do i sign in on the console.. make a button there so i can click within the console.. where we said

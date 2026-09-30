@@ -158,6 +158,57 @@ class TheVisitsLastFrameDecides(_Reels):
         self.assertEqual(r2.get("closed"), 1, "the owed closing read never came back after the hour")
 
 
+class AFailedCloseConfirmsNothing(_Reels):
+    """#115 (REG-1619) - the #231 eye on v3529: "a failed close ends that wait". He arrived on Hammerdin and ran on past
+    the reads; when the one read that could say otherwise names no row, the session is not his arrival highlight's."""
+
+    LAST = T0 + 10000
+
+    def _close(self, reel, how):
+        self.reel(reel, [(T0 + i * 1000, True) for i in range(11)] + [(T0 + 20000 + i * 60000, False) for i in range(4)])
+        base = self.reader_for(lambda ts: "Hammerdin")
+
+        def read(crop):
+            ts = CS._frame_ts(crop)
+            if ts == self.LAST and how == "refused":
+                self.reads.append(ts)
+                return None
+            if ts == self.LAST and how == "no-highlight":
+                self.reads.append(ts)
+                return {"screen": "character-select", "partial": False, "selected": None,
+                        "chars": [{"name": "Hammerdin", "cls": "Paladin", "level": 80},
+                                  {"name": "Frostnova", "cls": "Sorceress", "level": 71}]}
+            return base(crop)
+        if how == "unopenable":
+            CS.panel_crop = lambda p, out: None if p.endswith("f_%d.jpg" % self.LAST) else p
+        CS.tick(root=self.hist, stats=self.stats, reader=read, now=(T0 + 400000) / 1000.0)
+        d = CS.load()
+        return [x for x in CS.logins(d) if x["reel"] == reel], d
+
+    def _unconfirmed(self, how):
+        L, d = self._close("reel_f_" + how.replace("-", "_"), how)
+        self.assertEqual(len(L), 1, L)
+        self.assertIsNone(L[0]["character"], "a %s close filed the session under the ARRIVAL highlight: %r" % (how, L[0]))
+        self.assertEqual(L[0].get("unconfirmed"), "Hammerdin")
+        self.assertIn("named no row", L[0].get("why") or "")
+        self.assertTrue(CS.scanned_reel(d, L[0]["reel"]), "the wait never ended: the reel could never be filed")
+        self.assertEqual(E.login_rows(L), [], "the gear ledger filed gear under an unconfirmed character")
+
+    def test_a_refused_close(self):
+        self._unconfirmed("refused")
+
+    def test_a_close_whose_frame_would_not_open(self):
+        self._unconfirmed("unopenable")
+
+    def test_a_close_that_saw_no_highlighted_row(self):
+        self._unconfirmed("no-highlight")
+
+    def test_a_close_that_named_the_row_still_decides(self):
+        # the same visit, read to its end: the closing read's own name is the login (and agreeing with arrival is fine)
+        L, _d = self._close("reel_f_read", "read")
+        self.assertEqual([(x["character"], x.get("unconfirmed")) for x in L], [("Hammerdin", None)])
+
+
 class TheGearAfterALoginIsThatCharacters(_World):
 
     LOGIN = {"reel": "reel_s_A", "sessionId": "s_A", "ts": T0 + 30000, "character": "Hammerdin",
@@ -270,6 +321,14 @@ class TheConsoleRunsTheNextStation(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#115 (REG-1619) - a close that was refused or named no row files the session under the ARRIVAL highlight",
+     "file": "tv/char_select.py",
+     "find": "        if v.get(\"closed\") and best.get(\"reader\") != \"vision-close\":\n",
+     "replace": "        if False:\n", "matches": 1},
+    {"why": "#115 (REG-1619) - every closed visit reads unconfirmed, even one whose closing read named the row",
+     "file": "tv/char_select.py",
+     "find": "        if v.get(\"closed\") and best.get(\"reader\") != \"vision-close\":\n",
+     "replace": "        if v.get(\"closed\"):\n", "matches": 1},
     {"why": "#103B - a highlighted name the list does not carry is taken as his character",
      "file": "tv/char_select.py",
      "find": "    for r in rows or []:\n        if r.get(\"key\") == _fold(name):\n            return r[\"name\"], None\n    return None, \"the highlighted name %r is not one of the rows this read listed\" % name\n",

@@ -79,6 +79,24 @@ def inflight():
         return False
 
 
+#: REG-1618 — how long after a click the console keeps saying "waiting" and re-asks the CLI every few seconds. On the Mac
+#: the Terminal window is not ours to watch (osascript hands the command over and exits), so the click's own time is
+#: the only clock there; on Windows the window's process is watched as well.
+WATCH_S = 600
+
+
+def watching(now=None, window_s=WATCH_S):
+    """True while the sign-in this console opened is running, or was opened less than window_s ago."""
+    if inflight():
+        return True
+    at = _PROC.get("at")
+    now = time.time() if now is None else now
+    try:
+        return bool(at) and 0 <= now - float(at) < window_s
+    except (TypeError, ValueError):
+        return False
+
+
 def start(bin_path, platform=None, _popen=None, now=None):
     """Open the sign-in, once. -> {ok, started, reason, why}. Never raises."""
     plat = sys.platform if platform is None else platform
