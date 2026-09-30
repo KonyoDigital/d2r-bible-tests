@@ -181,6 +181,11 @@ EQUIP_SLOTS = {
 # helm and gloves did not segment at all: their components merge with the torso and the weapon
 # through the dark gaps between slots, so every candidate touched the search boundary.
 UNMEASURED_SLOTS = ("helm", "off-hand", "gloves", "boots")
+# #54 — THE DOLL'S TEN SLOTS, one tuple: the six measured above plus the four refused. This is the
+# vocabulary the reader's `names_slot` is validated against (tv_diablo._parse_read) and the one
+# equipped_ledger files under — owned HERE because the geometry is what a slot name means. A reader
+# vocabulary written twice is the copy-drift this repo pays for. [[copy-drift]]
+DOLL_SLOTS = tuple(sorted(EQUIP_SLOTS)) + UNMEASURED_SLOTS
 
 
 def worn_slot_of(point, frame_w, frame_h):
