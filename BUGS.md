@@ -66,6 +66,50 @@ that cannot be read is UNKNOWN on the receipt, never '0 adopted').
 (a `_LIVE` that records every walk outside the lock), `APostExecvConsoleAdoptsItsPreviousLife` (4) in
 `tv/test_child_guard_one_tree_per_role.py`; 8 red-proofs, each PROVEN; `test_the_blueprint_cannot_go_stale`,
 `lane_census --vs-blueprint` (20/20) and the store-owner / scratch-dir laws green on the merged tree.
+### REG-1553 - THE CHARACTERS ROOM'S TWO-MAINS CLAUSE WOULD GO RED ON HIS FIRST REAL USE AND TELL HIM TO LEAVE IT (2026-09-30)
+
+**Found** by the skeptic of the #41 heart audit branch (ranks 11-18), driving `console_doctor.characters_room_verdict`
+against his real stores: the planner names a new build `<Class> build` (`_cbNewGo`; his one saved build is `Amazon
+build`) and the vault's MAIN is a character name he types in the lock panel - two hand-typed strings in two
+vocabularies. REG-1526's rank-13 clause compared them and answered MISSING "name different characters ... or leave it
+if the two are meant to differ": the moment he marks his first build ★ MAIN beside a named vault MAIN, the eagle goes
+red and stays red, and the row itself says he may ignore it. A red he is told to leave carries nothing (the
+always-red gate class). Nothing on his board trips it today (no ★ MAIN, no vault MAIN name) - it was measured by
+driving the verdict, not seen on his screen.
+
+**Fix (tv/console_doctor.py):** two differing names are SAID on the OK line - both names, "two stores under one word:
+★ MAIN locks no gear, the lock follows the vault's MAIN (d2r_mainCharacter, the Vault's lock panel)" - never MISSING.
+MISSING stays for the real breaks (an unparseable store, a dangling ★ MAIN). The ★ Set as MAIN sentence and the
+room's help copy (REG-1526) are unchanged.
+
+**Law:** `test_the_characters_room_has_a_doctor_row` - the rank-13 case asserts OK with both names and the door, with
+a BASELINE that the same name under both words reads "also the vault's MAIN" and two names never do; the live-row case
+follows. **Red-proofs, seen RED:** the clause going unsaid again (`and False`, the branch's own proof re-aimed by the
+new sentence) and the clause going MISSING again (new).
+
+### REG-1552 - THE EVIDENCE PANEL ASKED HIS LIVE CONSOLE FOR PICTURE STATUS WHATEVER CONSOLE SERVED THE BOARD (2026-09-30)
+
+**Found** by the skeptic of the #41 heart audit branch, sweeping the rank-18 class (REG-1529 moved the rebuild plan and
+the proof chip to `_consoleOrigin()`; its builder named this sibling and left it): `_vaultEvidencePicture` fetched
+`window.VAULT_PICTURE_STATUS_URL || <his console's /api/picture_status>` - a knob nothing in the repo sets, then :17772
+by name. A board served by a scratch console (a gate's :179xx, a second console) read HIS console's picture shelf, and
+control_app's CORS (`Access-Control-Allow-Origin *`) lets that answer through; a board nobody served (file://, the
+public site) asked his console too. Measured with acorn over every script block of the page: `_consoleOrigin` is
+declared in the vault block's function scope, which encloses this caller exactly as it encloses the two REG-1529 sites
+(0 out-of-scope references), so the one-line rule applies unchanged. Also measured before believing the branch: every
+one of the 697 database items and 692 bases driven through the shipped `_cbTipEntry` says UNKNOWN for none (rank 11
+has no false alarm), and the branch's 118 red-proofs across nine gates all went RED under `heart2 --prove`.
+
+**Fix (bible.html):** the ask goes to `_consoleOrigin() + '/api/picture_status?ids=...'`; with no serving console
+nobody is asked and the panel says "why is UNKNOWN (no console served this page, so nobody was asked)". The knob is
+gone with it.
+
+**Laws:** `test_every_owned_door_writes_provenance` - the harness now serves the board from :17999 and carries the
+shipped `_consoleOrigin` line (cut from bible.html by the reset law's own anchor, never re-typed); the picture case
+asserts every status ask goes to :17999 and never carries 17772, and a board with no origin asks nobody (0 fetches)
+and reads UNKNOWN. `test_a_vault_item_and_a_read_say_where_they_came_from` asserts the shipped ask line exactly once
+and the by-name form absent. **Red-proofs, seen RED:** the by-name fetch back (both laws); the origin guard dropped
+(`|| his console`).
 
 ### REG-1549 - EVERY GROK FRAME READ STARTED A CHROME AND LOADED HIS WHOLE CLAUDE SETUP (2026-09-29)
 
@@ -356,6 +400,134 @@ the agent's readers, the stall release and the OCR gate through the real classes
 test_one_capture_per_console (its fixture now starts each case with an empty door - the door remembered the previous
 case's fake capture), test_a_stub_agent_never_films_his_screen, test_agent (265).
 
+### REG-1532 - THE BUILDER'S LINKS WERE GATE-ONLY AND NOTHING SAID SO (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 16): no runtime invariant or doctor row covers the builder's picker,
+tooltip composition or art rule; the one independent engine (their planner's tooltip oracle, 203 rows over 6 runewords)
+is a frozen gate fixture, and no registry line stated that these pieces are gate-only by design - so silence read as
+coverage. **Fix (the record half):** corroborate.NO_JOINT_YET['builder item data'] now names the gate-only pieces, the
+oracle's limit (6 runewords, measured once, frozen) and why no joint runs unattended: the shipped composition needs node
+over bible.html and no lane writes a per-row verdict the eagle could read. **Not built, on the record:** the runtime
+joint itself - a lane that runs the composition over the oracle on its own cadence, persists a PER-ROW verdict (never a
+summary), and an invariant whose left side is the oracle's rows and right side the rows measured agreeing, UNKNOWN when
+the receipt is older than the page - is the #41 plan's rank 16. No behaviour changed; no law added.
+### REG-1531 - "HARDENED IS RE-FILED AND LOCKED" NAMED A LOCK NO DOOR READS (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 17): the rebuild door writes `locked: true` on a HARDENED row
+(vault_evidence.py) and the docstring, a gate why and the reset ruling's words all said the item is "locked" - while a
+grep of bible.html for readers of prov.locked finds only the write, the MAIN ledger's list and the picker's
+_mpLockRefusal (two different locks); the move, restore, unassign and remove doors read it nowhere. A label that
+outlived its referent; and the Ledger 3.0 design defines no item lock ("No surface shows HARDENED for an ITEM").
+**Fix (the honest half):** the words now say what is measured - recorded on the row, enforced by no door yet - in
+vault_evidence.rebuild_plan's docstring and the refile gate's why; the flag stays because the tier is real and the
+evidence line shows it (rank 10). **Not decided, on the record:** which door a locked row refuses and what releases it
+(his standing rule: a lock with no release is a trap) is a ruling on his filings, not a code choice - the #41 plan
+carries the two candidate designs. No behaviour changed; no law added.
+### REG-1530 - TWO RED-PROOFS MATCHED NOTHING: ONE MOVED BY THIS ARC, ONE LEFT BEHIND BY THE v3524 MERGE (2026-09-29)
+
+**Found** by the red-proof census (`test_the_heart_can_see_its_own_instruments`, the case hooks/pre-push runs at top
+level) on this branch, each attributed by delta against the v3524 base (00ece38d):
+- `test_an_inventory_hover_paints_the_games_colours[1]` (the runeword base painted in the name colour) anchored on d2Tip's
+  base line, which REG-1525 rewrote to carry the UNKNOWN class - 1 match at the base, 0 after. **Mine.** Re-aimed to the
+  new line; the tamper still drops the measured grey and nothing else. Seen RED.
+- `test_every_pc_proves_itself[34]` (REG-1511, the doctor warns through every stand-aside cooldown) anchored on the
+  healthy-states tuple `("playing", "stood-aside", "low-memory", "aside-cooldown")` - 0 matches at the base too: the
+  v3524 merge (fix24-selfprove, REG-1514) inserted `"running-unverified"` into that tuple after the proof was written,
+  so the census would have refused the integration push. **Not mine, swept anyway** ([[sweep-dont-ask]]): re-aimed to
+  the tuple as merged, the tamper still drops `"aside-cooldown"`. Seen RED.
+### REG-1529 - THE BOARD ASKED :17772 FOR THE REBUILD PLAN AND THE PROOF CHIP WHATEVER CONSOLE SERVED IT (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 18): `_vaultAskRebuildPlan` fetched `http://127.0.0.1:17772/api/vault_rebuild_plan`
+after checking only that the page's HOSTNAME was local, and control_app's CORS (`Access-Control-Allow-Origin *`, OPTIONS
+204) lets that answer through - so a board on a scratch console (a gate's :179xx) or a second console would have filed
+its vault from HIS REAL ledger. The audit's open question ("UNKNOWN whether CORS blocks it") is answered: it does not.
+The same shape sat on the proof chip (`_vaultAskProven`, `/api/vault_proven`), with no host guard at all.
+**Fix:** ONE rule, one line, `_consoleOrigin()` - the page's own `location.origin` when a local console served it (`http(s)://127.0.0.1|localhost[:port]`),
+null otherwise. The rebuild plan is asked of `origin + '/api/vault_rebuild_plan'` and an unserved board (file://, the
+public site) asks NOBODY and reads the plan UNKNOWN; the proof chip asks `origin + '/api/vault_proven'` and with no
+origin leaves the chip absent with its one-shot flag clear. ⚠ Not swept, on the record: `_vaultEvidencePicture` still
+falls back to `'http://127.0.0.1:17772/api/picture_status'` behind `window.VAULT_PICTURE_STATUS_URL` - a knob nothing
+sets - and `test_a_vault_item_and_a_read_say_where_they_came_from` pins that literal; the owned-door law drives that
+fetch through a harness whose `location` stub carries no origin. Its sweep needs both laws re-aimed with it.
+**Law:** `test_a_reset_refiles_only_what_the_plan_says` now serves the board from :17999 (`SERVING`): the full reset's one
+ask lands on `:17999/api/vault_rebuild_plan` and never on 17772, and a new case drives a board with no origin - no fetch,
+nothing filed, "rebuilt UNKNOWN". The reset harness (`test_a_vault_reset_clears_only_the_mules.LINES`) carries the
+helper's line, and the retro-rows law's two stubs carry the origin. **Red-proofs, each applied, run RED, restored
+byte-for-byte:** the plan asked of another path (re-aimed); :17772 hardcoded back; the origin guard dropped (an
+unserved board asks his console anyway) - 3 of 3; the law's 7 older proofs and the retro-rows law's 17 re-run RED under
+the new stubs.
+### REG-1528 - THE MULE WINDOW'S SLOT, HANDS AND CLASS BLOCKS WERE WATCHED BY NOTHING UNATTENDED (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 15): the MULE_BASE_SLOT / MULE_NAMED_BASE / MULE_BASE_RULES blocks that
+tv/mule_slot_map.py writes into bible.html from his install decide which slot a base is worn in, whether a second weapon
+may sit beside it, what a bow shoots and which class a base is locked to - and console_doctor.py had 0 references to
+mule_slot_map; the only caller of its check() was a gate that skips without an install; no test read both CB_DB and
+MULE_BASE_RULES. After a game patch they would drift silently while 'builder item data' went red on its sibling block.
+**Fix:** the PERIODIC doctor row `mule slot rules` (`_check_the_mule_slot_rules_match_the_install`) wraps
+mule_slot_map.check(): 0 OK · 1 MISSING with the generator's own sentence and the action (run --write) · 77 UNKNOWN,
+never OK · a raise UNKNOWN; in CHECKS, PERIODIC (it pulls four tables + itemtypes.txt from the install, like its
+siblings), WATCHES (empty tuple as a declaration) and NO_JOINT_YET (one install through one generator is not a second
+witness). **Law:** new `test_the_mule_rules_and_the_builder_agree_on_hands_and_class` - with no install, for EVERY base
+in CB_DB (b[14] hands 2 / 12 / 1, ty[t][2] the class lock) the mule block read through its own embedded() says the same
+hands and class: measured 692 bases, 0 mismatches, every rule name present in CB_DB (a missing one would make the
+compare a sample - red too); plus the row's three states and its registration. **Red-proofs, each applied, run RED,
+restored byte-for-byte:** Balrog Blade leaving the mule's one-or-two-handed list; the mule reader dropping every class
+lock; 77 reading as OK; the row out of CHECKS; out of PERIODIC; the NO_JOINT_YET line renamed - 6 of 6.
+### REG-1527 - THE console-tabs RENDER GATE ROUTED SIX TABS AFTER THE HEADER GOT A SEVENTH (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 14): render_check.py's console-tabs target still declared
+`ROUTING = ["forge","crafts","funi","fsets","tools","vault"]` and its why said "Six tabs" after v3518 gave the console
+header a 👤 Characters door, so no gate clicked that door in a real browser and checked that #tab-chars PAINTS in app
+context. The Characters law pins the app-ctx re-show list by source text, so a pane collapsed or hidden by CSS passed.
+**Fix:** `chars` joined ROUTING (the every-board-door rule is now stated beside it), the why says Seven, the comment
+says SEVEN ROUTE. **Law:** new `test_the_console_tabs_gate_routes_every_board_door` drives the target's REAL activate
+program (the string Chrome evaluates) in node over a stub console + board: the board doors it clicks are exactly
+control_ui.html's #head-tabs minus the console-native pair (derived from the real header, so a door added to the console
+and not to ROUTING goes red with no browser); the runnable sabotage - #tab-chars collapsed to 0x0 - turns it red, with a
+collapsed #tab-vault as the baseline proving the stub carries a collapse; and the why counts what ROUTING counts.
+Pixels stay the gate's own job, on Chrome, on CI. **Red-proofs, each applied, run RED, restored byte-for-byte:** chars
+out of ROUTING; the why back to Six; the pane-rect check dropped - 3 of 3.
+### REG-1526 - THE CHARACTERS ROOM HAD NO DOCTOR ROW, AND ITS TWO MAINS COULD NAME DIFFERENT CHARACTERS IN SILENCE (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, ranks 12 + 13): the 👤 Characters tab's heart was ONE proven law and nothing
+at runtime - a grep of console_doctor.py, corroborate.py and control_app.py for charBuild / cbMain found only the
+unrelated CB_DB row - while he has a real build in the store (backup 2026-09-29 01:10). An unparseable `d2r_charBuilds`
+(the room reads UNKNOWN and refuses every write), a `d2r_cbMain` pointing at a build that is gone (no card marked, the
+planner leads with none) and ★ MAIN (d2r_cbMain) naming a different character from the vault's MAIN (d2r_mainCharacter,
+what the #246 lock follows) all raised nothing. The name collision was never stated: marking a build ★ MAIN looked like
+it would lock its gear, and it locks none.
+**Fix:** `console_doctor.characters_room_verdict` (pure) + the row `characters room`, off the SHARED board read (the
+same fullStores the vault rows read, one read per tick): an absent / empty store is MEASURED empty (OK, "0 builds -
+the store is empty, not unread"), an unparseable one or a list is MISSING naming d2r_charBuilds and UNKNOWN (never
+"0 builds"), a dangling ★ MAIN is MISSING naming the id and the denominator, two MAINs naming different characters is
+MISSING naming both and the door (the Vault's lock panel), a vault MAIN with no name yet is said, never red; no console,
+a refused read or a read with no stores is UNKNOWN, not 0. Registered in CHECKS, declared in WATCHES, explained in
+NO_JOINT_YET ("his hand is the only witness"). Rank 13 on the page: the ★ Set as MAIN button carries the sentence as its
+title ("It does not lock gear: the Vault's lock follows the MAIN named in its lock panel") and the empty room's help
+copy says it too. ⚠ What the row cannot see: whether #tab-chars is on the rendered board (stores, not DOM).
+**Law:** new `test_the_characters_room_has_a_doctor_row` (9 cases): every verdict branch over fixtures, the live row
+with `_board_read` stubbed three ways, the row's registration in CHECKS / WATCHES / NO_JOINT_YET through `coverage()`,
+and the rendered button through the room's own harness. **Red-proofs, each applied, run RED, restored byte-for-byte:**
+an unparseable store reading as 0 builds; a dangling MAIN reading as none set; the two-MAIN clause dropped; the row
+dropped from CHECKS; the live row answering 0 builds with no console; the NO_JOINT_YET line renamed; the button's
+sentence removed - 7 of 7 RED.
+### REG-1525 - A RUNEWORD ON A BASE NOT ON RECORD READ "(0 SOCKETS MAX)" WITH THE BARE CODE, AND THE HOVER BOX SAID NOTHING (2026-09-29)
+
+**Found** by the heart audit (#41 / #256, rank 11), reproduced on the shipped code in node: a runeword whose stored
+base code the CB_DB block does not carry rendered its Base control as `zzz (0 sockets max) ▸` - `_cbMaxSock` answers 0
+for an unknown code and `_cbEditHtml` printed that 0 as if measured, beside the bare code - and the hover box printed
+NO base line at all (`_cbShown` fell back to the item's own name for its base, which equals the name, so d2Tip's base
+line was skipped). A grep of tv/test_*.py for 'sockets max' found 0 files: nothing drove the control.
+**Fix:** one `baseSay` in `_cbEditHtml` - the base's name and its ceiling when it is on record, `base UNKNOWN (not on
+record: <code>)` with no number otherwise - used by the runeword's Base button (text and aria-label) and by the
+unique / set item's fixed select; `_cbTipEntry` marks an unrecorded base `baseUnknown` and says it in the base line's
+own place, and d2Tip prints that line in the UNKNOWN class. [[unknown-stays-unknown]]
+**Law:** `test_the_edit_panel_shows_the_base_and_the_locker_binds_his_character` gains
+`test_a_base_not_on_record_is_unknown_never_zero_sockets`: a BASELINE (Crowbill on record reads "Crowbill (6 sockets
+max) ▸", no UNKNOWN in the box), then the same runeword re-based to a code not on record (the control's text and
+aria-label, no 'sockets max', no '(0'; the box's UNKNOWN row directly under the name), a runeword with no base at all,
+and a unique on an unrecorded base (the fixed select). **Red-proofs, each applied, run RED, restored byte-for-byte:**
+the control printing the code and 0 again; the box's base line silent again; the UNKNOWN line in the grey class - 3 of 3.
 ### REG-1513 - THE MERGE LEFT A RED-PROOF THAT REFUSES THE PUSH, TWO CITATIONS ON THE WRONG BUG, AND A REG LAW BLIND TO `###` (2026-09-29)
 
 **Found** by the review of v3524 (the merge-resolution cluster), each reproduced before it was fixed:

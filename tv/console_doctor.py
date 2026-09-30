@@ -5958,6 +5958,125 @@ def _check_the_builder_database_matches_the_install():
     return OK, say
 
 
+def _check_the_mule_slot_rules_match_the_install():
+    """#41 rank 15 (2026-09-29) — 'mule slot rules': DOES THE MULE WINDOW STILL WEAR, HOLD AND CLASS-LOCK WHAT THE GAME
+    SAYS?
+
+    The mule window's picker offers a slot only the bases the game wears there, refuses a second weapon beside a
+    two-hander, names a bow's quiver and locks an orb to the Sorceress - all from the MULE_BASE_SLOT / MULE_NAMED_BASE /
+    MULE_BASE_RULES blocks tv/mule_slot_map.py writes into bible.html from his install. They came from the SAME install
+    as the builder's CB_DB block and had no row: this file had 0 references to mule_slot_map, and the only caller of its
+    check() was a gate that skips without an install - so after a patch 'builder item data' would go MISSING while the
+    mule's slots, hands and class rules drifted with nothing watching. This is its sibling, PERIODIC for the same reason
+    (it pulls four tables plus itemtypes.txt from the install).
+    THREE STATES: OK the blocks are what the install says · MISSING they are not (STALE - run tv/mule_slot_map.py
+    --write) · UNKNOWN no install to compare against (a CI runner, the Mac) - never OK. What only a gate can hold, with
+    no install: that CB_DB's hands and class equal MULE_BASE_RULES for every base
+    (test_the_mule_rules_and_the_builder_agree_on_hands_and_class).
+    """
+    try:
+        import mule_slot_map as MS
+    except Exception as e:
+        return UNKNOWN, "the mule slot-map generator will not import: %s" % str(e)[:90]
+    try:
+        code, say = MS.check()
+    except Exception as e:
+        return UNKNOWN, "the mule slot-map check raised: %s" % str(e)[:110]
+    if code == getattr(MS, "SKIP", 77):
+        return UNKNOWN, say
+    if code != 0:
+        return MISSING, say + " - the mule picker's slots, hands and class locks are last patch's"
+    return OK, say
+
+
+def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
+    """#41 rank 12 + 13 (2026-09-29) — the 👤 Characters room's stores, judged: -> (status, why).
+
+    `builds_raw` is the board's d2r_charBuilds as stored (a JSON string, or None when the key is absent), `main_raw`
+    its d2r_cbMain (the ★ MAIN build's id, a bare string or None) and `vault_main_raw` its d2r_mainCharacter (the
+    vault's MAIN, {name, ...} JSON or None). Pure, so a law can drive every branch over fixtures.
+
+    THREE STATES, and what each means for HIM:
+      MISSING · d2r_charBuilds will not parse or is not a set of builds — the room reads UNKNOWN and refuses every
+                write (a delete over it would write {} over his builds), so nothing he does there lands until the
+                store is put back (the ledger backup carries it since REG-1481);
+              · d2r_cbMain names a build that is not saved — the room marks no card MAIN and the planner's dropdown
+                leads with none, while the pointer looks set;
+      OK      · an absent or empty store is MEASURED empty (the room itself reads null / '' as "No characters yet");
+                otherwise the count, the ★ MAIN and whether it is the vault's MAIN too;
+              · rank 13 — ★ MAIN (d2r_cbMain, a build) and the vault's MAIN (d2r_mainCharacter, the lock's owner)
+                NAMING DIFFERENT CHARACTERS is SAID, naming both, on the OK line. They are two stores under one
+                word, separated by his ruling (bible.html 'chars-tab-js'): marking a build ★ MAIN locks none of its
+                gear, the lock follows the vault's MAIN. Nothing said so anywhere; this does.
+                ⚠ REG-1553 — SAID, NEVER RED. The planner names a build '<Class> build' (his one saved build: 'Amazon
+                build') and the vault's MAIN is a character name he typed in the lock panel: two hand-typed strings in
+                two vocabularies, and no reader can tell whether they are one character. The first cut went MISSING
+                here and told him he could leave it — a red he is told to ignore carries nothing.
+    A vault MAIN with no name yet is not a disagreement: said, never red. [[unknown-stays-unknown]]
+    """
+    if builds_raw is None or builds_raw == "":
+        builds = {}
+    else:
+        try:
+            builds = builds_raw if isinstance(builds_raw, dict) else json.loads(builds_raw)
+        except Exception as e:
+            return MISSING, ("d2r_charBuilds would not parse (%s) — the 👤 Characters room reads UNKNOWN and refuses every "
+                             "write; put the store back from a ledger backup (the backup lane carries it)" % str(e)[:80])
+        if not isinstance(builds, dict):
+            return MISSING, ("d2r_charBuilds is %s, not a set of builds — the 👤 Characters room reads UNKNOWN and refuses "
+                             "every write; put the store back from a ledger backup" % type(builds).__name__)
+    n = len(builds)
+    vault_name = None
+    if vault_main_raw not in (None, ""):
+        try:
+            vm = vault_main_raw if isinstance(vault_main_raw, dict) else json.loads(vault_main_raw)
+            vault_name = str(vm.get("name")).strip() if isinstance(vm, dict) and vm.get("name") else None
+        except Exception:
+            vault_name = None
+    vault_say = ("the vault's MAIN is %s" % vault_name) if vault_name else "the vault's MAIN has no name yet (the lock panel takes one)"
+    main_id = None if main_raw in (None, "") else str(main_raw)
+    if main_id is not None and main_id not in builds:
+        return MISSING, ("d2r_cbMain names build %r, which is not among the %d saved build%s — the room marks no card "
+                         "★ MAIN and the planner leads with none; press ★ Set as MAIN on the build you play (%s)"
+                         % (main_id, n, "" if n == 1 else "s", vault_say))
+    if main_id is None:
+        return OK, ("%d build%s, none marked ★ MAIN · %s" % (n, "" if n == 1 else "s", vault_say)) if n else \
+            ("no builds yet (0 builds — the store is empty, not unread) · %s" % vault_say)
+    b = builds.get(main_id) if isinstance(builds.get(main_id), dict) else {}
+    main_name = str(b.get("name") or "").strip() or ("(unnamed build %s)" % main_id)
+    if vault_name and main_name.lower() != vault_name.lower():
+        # REG-1553 — said on the OK line, never MISSING (see the docstring): two vocabularies, one word, the door named
+        return OK, ("%d build%s · ★ MAIN %s · the vault's MAIN is %s — two stores under one word: ★ MAIN locks no gear, the "
+                    "lock follows the vault's MAIN (d2r_mainCharacter, the Vault's lock panel)"
+                    % (n, "" if n == 1 else "s", main_name, vault_name))
+    if vault_name:
+        return OK, "%d build%s · ★ MAIN %s is also the vault's MAIN" % (n, "" if n == 1 else "s", main_name)
+    return OK, "%d build%s · ★ MAIN %s · %s" % (n, "" if n == 1 else "s", main_name, vault_say)
+
+
+def _check_the_characters_room():
+    """#41 rank 12 (2026-09-29) — 'characters room': DOES THE 👤 CHARACTERS TAB STILL READ HIS BUILDS, AND DO ITS TWO
+    MAINS AGREE?
+
+    The feature's heart was one proven law (test_the_characters_tab_is_manual_and_separate) and nothing at runtime: no
+    doctor row named a broken link, nothing reached the eagle, and he has a real build in the store (backup 09-29
+    01:10). This row reads d2r_charBuilds, d2r_cbMain and d2r_mainCharacter off the shared board read (the same
+    fullStores the vault rows read — one read per tick, never a second) and judges them with characters_room_verdict.
+    No console, a refused read, or a read that carried no stores is UNKNOWN — never "0 builds".
+    ⚠ WHAT IT CANNOT SEE: whether #tab-chars is on the rendered board. The doctor reads stores, not the DOM; the tab's
+    presence and its console door are pinned by the room's own law, and a pixel look is the eye's.
+    """
+    got = _board_read()
+    if not got:
+        return UNKNOWN, "the console did not answer — nobody asked the board, so his builds are UNKNOWN, not 0"
+    if got.get("ok") is False:
+        return UNKNOWN, "the board refused the read (%s), so his builds are UNKNOWN, not 0" % str(got.get("why"))[:90]
+    fs = got.get("fullStores")
+    if not isinstance(fs, dict):
+        return UNKNOWN, "the board read carried no stores, so his builds are UNKNOWN, not 0"
+    return characters_room_verdict(fs.get("d2r_charBuilds"), fs.get("d2r_cbMain"), fs.get("d2r_mainCharacter"))
+
+
 def _check_the_item_vocabulary_can_name_his_loot():
     """v3364 (#60) — CAN THE VAULT NAME A MAGIC OR RARE ITEM, AND IS THE LEXICON STILL THE INSTALL'S?
 
@@ -9553,6 +9672,11 @@ CHECKS = [
     ("save reader tables", _check_the_save_reader_matches_the_install),
     ("character sheet data", _check_the_character_sheet_data_matches_the_install),
     ("builder item data", _check_the_builder_database_matches_the_install),
+    # #41 rank 15 (2026-09-29) — the mule window's slot / hands / class blocks, from the same install, had no row.
+    ("mule slot rules", _check_the_mule_slot_rules_match_the_install),
+    # #41 rank 12 + 13 (2026-09-29) — the 👤 Characters room had no row: an unparseable d2r_charBuilds, a dangling
+    # d2r_cbMain, and two MAINs naming different characters were all silent. Off the shared board read, every tick.
+    ("characters room", _check_the_characters_room),
     # #246 W7 — the one door into the mule map, watched: every filing carries its witness, no MAIN item in
     # a mule, no gate-passing stash row left unfiled, the feeder's banked vs runs.
     ("vault provenance", _check_vault_provenance),
@@ -9837,6 +9961,7 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "save reader tables",      # #174 — re-derives from the install, same reason as its sibling
             "character sheet data",    # #174 v-B2 — pulls 19 tables from the install (~3 s); a patch is monthly
             "builder item data",       # #174 v-B2 fix round — its sibling: 20 tables from the same install (~3.5 s)
+            "mule slot rules",         # #41 rank 15 — its sibling: 4 tables + itemtypes.txt from the same install
             "a worker read has a deadline",
             "no git child steals his screen",
             "the door and the writers agree",
@@ -10290,6 +10415,12 @@ WATCHES = {
     "character sheet data":        (),
     # #174 v-B2 fix round — the builder's CB_DB block, a generated block with no element of its own. DECLARED.
     "builder item data":           (),
+    # #41 rank 15 — the mule window's MULE_BASE_* blocks, generated into bible.html with no element of their own. DECLARED.
+    "mule slot rules":             (),
+    # #41 rank 12 — reads three of the board's stores through the shared tick read. Its elements (#tab-chars,
+    # #chars-list) live on the BOARD, which this registry (organ_matrix surfaces, console-side) does not list; it
+    # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
+    "characters room":             (),
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),

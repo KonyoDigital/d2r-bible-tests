@@ -5951,7 +5951,39 @@ GATES = [
              "is a button whose rendered handler opens HIS characters (the Characters room's builds, MAIN first, and the "
              "MAIN he named); a bind writes ONLY that locker's boundChar, Unbind removes it, a rename follows, a deleted "
              "build is UNKNOWN, an empty store says how to add one, an unreadable one is UNKNOWN; Esc closes the list "
-             "first. 7 cases, 20 red-proofs"),
+             "first. #41 rank 11 (REG-1525): a runeword or unique whose base is not on record reads 'base UNKNOWN (not "
+             "on record: <code>)' in the Base control and in the hover box's base line - never '<code> (0 sockets "
+             "max)' and never a silent gap. 8 cases, 23 red-proofs"),
+    Gate("test_the_mule_rules_and_the_builder_agree_on_hands_and_class",
+         [sys.executable, os.path.join(HERE, "test_the_mule_rules_and_the_builder_agree_on_hands_and_class.py")], 60,
+         why="#41 rank 15 (REG-1528, 2026-09-29) - the mule window's MULE_BASE_* blocks (slot, hands, ammo, class - "
+             "from his install via tv/mule_slot_map.py) were checked by nothing unattended: console_doctor had 0 "
+             "references to mule_slot_map, and no test read both CB_DB and MULE_BASE_RULES. Now the PERIODIC doctor "
+             "row 'mule slot rules' wraps mule_slot_map.check() (0 OK / 1 MISSING with the action / 77 UNKNOWN, never "
+             "OK; a raise is UNKNOWN), declared in WATCHES and explained in NO_JOINT_YET; and this gate, with no "
+             "install, compares the builder's CB_DB (b[14] hands, ty[t][2] class) against the mule block through its "
+             "own embedded() for EVERY base - 692 compared, 0 mismatches, every rule name present (a missing one "
+             "would make it a sample). 3 cases, 6 red-proofs."),
+    Gate("test_the_console_tabs_gate_routes_every_board_door",
+         [sys.executable, os.path.join(HERE, "test_the_console_tabs_gate_routes_every_board_door.py")], 60,
+         why="#41 rank 14 (REG-1527, 2026-09-29) - render_check's console-tabs target routed SIX tabs after v3518 gave "
+             "the console header a 👤 Characters door, so no gate clicked it and checked #tab-chars PAINTS in app "
+             "context (the Characters law asserts the re-show list by source text; a pane collapsed by CSS passed). "
+             "'chars' joined ROUTING and the why says Seven. This law drives the target's REAL activate program in node "
+             "over a stub console + board: the doors it clicks are exactly control_ui.html's #head-tabs minus the "
+             "console-native pair, a collapsed #tab-chars turns it red (with a collapsed #tab-vault as the baseline), "
+             "and the why counts what ROUTING counts. 3 cases, 3 red-proofs. Pixels stay the gate's own job, on CI."),
+    Gate("test_the_characters_room_has_a_doctor_row",
+         [sys.executable, os.path.join(HERE, "test_the_characters_room_has_a_doctor_row.py")], 60,
+         why="#41 ranks 12 + 13 (REG-1526, 2026-09-29) - the 👤 Characters room's heart was one proven law and nothing "
+             "at runtime. The doctor row 'characters room' reads d2r_charBuilds, d2r_cbMain and d2r_mainCharacter off "
+             "the shared board read: an unparseable store is MISSING saying UNKNOWN (never 0 builds), a dangling ★ MAIN "
+             "is MISSING naming the id, no console / a refusal / no stores are UNKNOWN; and rank 13 - ★ MAIN (the "
+             "room's) and the vault's MAIN (what the lock follows) naming different characters is SAID on the OK line "
+             "naming both and the door (REG-1553: the planner names a build '<Class> build' and the vault's MAIN is a "
+             "typed character name - two vocabularies, and a red he is told to leave carries nothing), because marking "
+             "a build ★ MAIN locks no gear and nothing said so - the button and the help copy now do. Registered in "
+             "CHECKS, WATCHES and NO_JOINT_YET (his hand is the only witness). 9 cases, 8 red-proofs"),
     Gate("test_the_save_reader_watches_its_tables",
          [sys.executable, os.path.join(HERE, "test_the_save_reader_watches_its_tables.py")], 60,
          why="#174 - the .d2s reader decodes against tables generated once from his install; a patch that moves a "
@@ -7073,7 +7105,8 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_evidence_rebuilds_what_is_proven.py")], 60,
          why="2026-09-27 - his ruling: a reset clears the marks, and an item comes back only when its own looks "
              "clear the Wilson bar, or when it is equipped or a kept charm. Under 10 trials is watched. About 10 "
-             "with the bound at the vault bar is proven. About 20 is hardened and locked. Twelve looks with five "
+             "with the bound at the vault bar is proven. About 20 is hardened (its row carries locked:true - recorded, "
+             "enforced by no door yet, #41 rank 17). Twelve looks with five "
              "misses stay watched. Unreadable counts are unknown, never rebuilt as empty. 2 red-proofs."),
     Gate("test_a_rare_item_stands_on_the_same_looks_as_a_unique",
          [sys.executable, os.path.join(HERE, "test_a_rare_item_stands_on_the_same_looks_as_a_unique.py")], 120,
@@ -7118,7 +7151,9 @@ GATES = [
              "Driven on a seeded witness ledger: 12 clean looks come back proven, 21 come back locked, "
              "12 with 5 misses and 2 looks stay cleared, an equipped item and a sunder come back, an "
              "unreadable count does not. The ledger file is byte-identical after. An unreadable plan "
-             "says UNKNOWN, never rebuilt 0. 5 red-proofs."),
+             "says UNKNOWN, never rebuilt 0. #41 rank 18 (REG-1529): the plan is asked of the console that "
+             "SERVED the board (_consoleOrigin, the page's own origin - the stub serves it from :17999), never of "
+             ":17772 by name; a board nobody served asks nobody and says UNKNOWN. 8 cases, 10 red-proofs."),
     Gate("test_every_owned_door_writes_provenance",
          [sys.executable, os.path.join(HERE, "test_every_owned_door_writes_provenance.py")], 120,
          why="2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read "
@@ -7133,7 +7168,10 @@ GATES = [
              "(M3); owned_restore and the un-seed Undo write receipts and every d2r_owned write is censused (M4); no "
              "claim on the bare predicate (L1); the backfill's side writes are journaled and undone (L2); and his "
              "§31.2 ruling - inventory loot is CARRIED, owned right away, never filed, lands on a stash look, leaves "
-             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. 29 red-proofs."),
+             "only on a floor/vendor/trade look with its frame, asks 'still have it?' after 3 sessions. + #41 rank 18 "
+             "sibling (REG-1552): the evidence panel's picture-status ask goes to the console that SERVED the board "
+             "(_consoleOrigin, the harness serves it from :17999), never :17772 by name; a board nobody served asks "
+             "nobody and says UNKNOWN. 31 red-proofs."),
     Gate("test_an_evidence_picture_is_never_reaped",
          [sys.executable, os.path.join(HERE, "test_an_evidence_picture_is_never_reaped.py")], 120,
          why="2026-09-28 - the recorder's disk floor took the pictures of the reads that named his items. The "
@@ -7150,7 +7188,8 @@ GATES = [
              "owned name nobody can account for, and 'a read left no picture' names who took each missing "
              "picture or says it was never written; both UNKNOWN, never 0, when the board or the shelf cannot "
              "be read. Registered, declared, explained. + M5: a reel-relative ref still loose at the top level is on "
-             "disk (the locator probes the stem, as frame_ref.Index.resolve does). 8 red-proofs."),
+             "disk (the locator probes the stem, as frame_ref.Index.resolve does). + REG-1552: the board's "
+             "picture-status ask is the serving console's (_consoleOrigin), never a console by name. 9 red-proofs."),
     Gate("test_carried_loot_keeps_its_order",
          [sys.executable, os.path.join(HERE, "test_carried_loot_keeps_its_order.py")], 120,
          why="2026-09-28 - the review of bd976210 (vault evidence route, round 3), his §31.2 / §29 / v2346 rulings. "

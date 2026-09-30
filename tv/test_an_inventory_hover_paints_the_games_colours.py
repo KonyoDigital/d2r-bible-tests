@@ -142,8 +142,8 @@ RED_PROOF = [
     {
         "why": "a runeword base is painted in the name colour instead of the measured grey",
         "file": "bible.html",
-        "find": "    if (entry.base && entry.base !== entry.name) h += '<div class=\"' + (entry.baseGrey ? 'd2t-g' : qc) + '\">' + esc(entry.base) + '</div>';\n",
-        "replace": "    if (entry.base && entry.base !== entry.name) h += '<div class=\"' + qc + '\">' + esc(entry.base) + '</div>';\n",
+        "find": "    if (entry.base && entry.base !== entry.name) h += '<div class=\"' + (entry.baseUnknown ? 'd2t-unk' : (entry.baseGrey ? 'd2t-g' : qc)) + '\">' + esc(entry.base) + '</div>';\n",
+        "replace": "    if (entry.base && entry.base !== entry.name) h += '<div class=\"' + (entry.baseUnknown ? 'd2t-unk' : qc) + '\">' + esc(entry.base) + '</div>';\n",
         "matches": 1,
     },
     {

@@ -2768,7 +2768,29 @@ NO_JOINT_YET = {
     # #174 v-B2 fix round - the same shape for the builder's CB_DB block: one install, one generator
     'builder item data': 'the row re-derives the CB_DB block from the install and compares it; a real second source '
                           'would be the game listing its own item database, which it never writes anywhere this '
-                          'console can read.',
+                          'console can read. #41 rank 16 (2026-09-29) - AND THE BUILDER\'S OTHER LINKS ARE GATE-ONLY '
+                          'BY DESIGN, said here so silence is not read as coverage: the picker (test_the_character_'
+                          'builder_is_their_builder, the mule picker law), the tooltip composition and the art rule '
+                          'have no runtime invariant or doctor row. The one independent engine is their planner\'s '
+                          'tooltip oracle (tv/the_tooltip_oracle.json: 203 rows over 6 runewords, measured once and '
+                          'frozen), compared by test_the_tooltip_is_the_games_tooltip in node - a gate, never a '
+                          'joint this console runs unattended, because the shipped composition needs node over '
+                          'bible.html and no lane writes a per-row verdict the eagle could read. A runtime joint '
+                          'would need that lane and its receipt (the #41 plan).',
+    # #41 rank 15 (2026-09-29) — NO_JOINT_YET, not COVERED_BY, the #174 v-B2 shape again: one install, one generator.
+    'mule slot rules': 'the row re-derives the MULE_BASE_* blocks from the install through ONE generator '
+                       '(tv/mule_slot_map.py) and compares them. The builder\'s CB_DB block is the same install through '
+                       'a second generator, and test_the_mule_rules_and_the_builder_agree_on_hands_and_class compares '
+                       'the two on hands and class for every base (a transform bug shows) - but one install read twice '
+                       'is not a second witness to what the game wears where. A real second source would be the game '
+                       'itself laying an item in a slot, which no read captures.',
+    # #41 rank 12 (2026-09-29) — NO_JOINT_YET, not COVERED_BY: his hand is the only witness.
+    'characters room': 'the row reads d2r_charBuilds and d2r_cbMain, which the 👤 room and the planner write from his '
+                       'own presses and nothing else — no reader, reel or ledger names a build, so there is no second '
+                       'source to pair them with. The one other fact it reads, the vault\'s MAIN (d2r_mainCharacter), '
+                       'is his declaration in the lock panel: two declarations by the same hand are one witness, not '
+                       'a joint. A real second source would be a .d2s of the build he says is his, read by the save '
+                       'reader; nothing files a build from a save yet.',
     # #246 W7 — the row already JOINS two sides (the board's map and witness store against the console's
     # gated stash ledger and MAIN ledger), but no registered builder returns that pair as a joint yet.
     'vault provenance': 'the row compares the board mule map and its d2r_vaultProv witness rows against the '
