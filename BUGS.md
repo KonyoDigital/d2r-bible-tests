@@ -378,6 +378,51 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1586 - CLAUDE READS EVERY FRAME; GROK IS ONLY THE + GROK LAYER, AND ONLY WHEN SWITCHED ON (2026-09-30)
+
+**His ruling:** *"make sure the subscription CLI is using claude and not grok.. grok is just an extra layer if toggled
+on.. dean does not use grok.. so it shouldnt need both to work obviously just make sure the coding and logic is
+correctly architured too"*.
+
+**Measured before anything changed:** his Mac and his ALT were both on G5 `primary` - Grok read every frame FIRST and
+Claude was only its fallback. The Mac's counters: 6,132 Grok calls, 3,150 errors, last error `grok -p timeout 140s`,
+so a failed Grok read held the frame that long before Claude read it. The ALT: 1,342 of 1,571 reads by Grok, 0 as a
+shadow. How they got there: ⚡ Authorize on an already-linked PC called `set_mode("primary")`, the page's login poll
+posted `{mode: 'primary'}`, the switch offered PRIMARY, and a legacy `{"on": true}` was read as primary.
+
+**Fixed live that morning:** both consoles set to shadow through `/api/g5_toggle` (the ALT only after its Claude CLI
+and credentials were confirmed present). **Fixed in the code:** ON = shadow everywhere (`set_on`, a legacy on:true,
+`TV_G5_GROK_EYES`, a saved or requested primary - which `status()` now SAYS as `primaryRetired`); the Grok-first
+branch in the frame reader is gone (every Grok read is a shadow job on its own thread); a missing Claude CLI BLOCKS on
+every PC (it softened "when G5 primary covers vision"); login turns Grok on beside Claude; `_intake_dual_runners`
+asks Claude first for any mode; the switch is OFF / + GROK. Law `test_claude_reads_every_frame` (10 cases, 8 red-proofs).
+
+### REG-1585 - THE FLEET SHOWS EVERY PC'S SHADOW READER AS AN EYE, WIRED TO WHETHER IT WORKS (2026-09-30)
+
+**His ask:** *"a cool design ... so i know and we know that the SHADOW READER/background process is on even after
+closing the game out"* - *"like glowing eye for the shadow reader to be on or off"* - *"connects to it visually if
+on/off.. that way we know if its working too"*. The beacon carried no shadow-reader state at all; its `eye` field is
+the live deep-read pulse, which goes dark the moment the game closes - the opposite question.
+
+**Built:** `_shadow_for_wire()` (his switch, local OCR, a reel rolling, and the watcher lane's own liveness verdict -
+FLOWING / LATE / not stamped - decided on that PC's clock, because the worker rewrites a peer's record only on news or
+every 15 min) rides every beacon; the worker keeps it and treats a flip as news; `_fleetShadowEye` draws one eye in
+the name cell: lit (on + alive, the game may be closed), live (reading now), idle (on but not working), shut (off),
+dashed UNKNOWN (offline / older build / not stamped). The glow never animates opacity (the paused-fade-in scar);
+reduced motion stops it. The render gate measures `.fleet-shadow` painted on every stubbed state. Law
+`test_the_fleet_shows_the_shadow_eye` (11 cases, 9 red-proofs).
+
+### REG-1584 - RANK 22'S PICKER CENSUS, FIXED AGAINST ITS VERIFIER BEFORE IT SHIPPED (2026-09-30)
+
+The w26 verifier refuted REG-1564 with 10 measured findings; the fixes, each with a law case and a red-proof: a
+console older than the field (stored `picker: null`) reads "an older build" on the card as the doctor already did,
+never "could not count"; a census the board MEASURED broken (`broken`) warns on the card and on the row ("picker
+broken") and is MISSING in the doctor, apart from the UNKNOWN of "not handed over"; a banked ok:false overlays his own
+row (the site's older ok:true 45/45 no longer stands over it) and carries the census's absolute `at`, so a 20 s census
+no longer reads "10m ago"; the worker treats a census change as news; a page whose scans all fail still hands its
+census over; the claim scope in REG-1564 is corrected (it counts the doll's Body Armor list, not the mule host).
+Law `test_the_picker_census_reaches_the_fleet` 28 cases, 21 red-proofs declared.
+
 ### REG-1583 - THREE NEW LAWS FED FIXTURE SIGHTINGS INTO HIS GEAR LEDGER, AND THE GATE CALLED IT A SUSPECT (2026-09-30)
 
 **Measured on the v3526 integration's full gate run** (the worktree, before any push): the live-state watch printed
