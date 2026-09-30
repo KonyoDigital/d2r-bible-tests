@@ -405,6 +405,16 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1625 - SLICES RAN ONE PER TEN MINUTES, SO AN IDLE PC TOOK HOURS TO PROVE ITSELF (2026-09-30)
+
+**Measured on the ALT** the moment its lane first started (game closed, console relaunched): the first slice, 40
+gates, finished in about a minute - 37 PROVEN, 3 UNPROVABLE on that venue (a verdict of its own, not blind, so they do
+not hold its locks) - and the lane then waited out the rest of its 10-minute tick. 663 owed gates at one slice a tick
+is about three hours of game-off time. **Now** the 10-second guard books a slice that has ENDED at once, and the tick
+starts the next one if the PC is still idle - every start rule unchanged (not playing, the memory bar, cooldowns,
+backoff). His word for it: "consecutively". Law: the ended-slice cases in `tv/test_a_proof_yields_the_moment_the_game_
+starts.py`, its sabotage seen RED.
+
 ### REG-1624 - A PROOF COULD RUN BESIDE HIS GAME FOR TEN MINUTES, AND THE IDLE ALT COULD NEVER START ONE (2026-09-30)
 
 **His words,** after closing Boosteroid on the ALT so it could prove: "future wise it needs to be working in parallel

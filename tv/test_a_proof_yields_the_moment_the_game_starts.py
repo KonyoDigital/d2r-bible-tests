@@ -63,10 +63,14 @@ RED_PROOF = [
      "file": "self_prove.py",
      "find": "MIN_FREE_MB_TO_START = 1536\n",
      "replace": "MIN_FREE_MB_TO_START = 2048\n", "matches": 1},
+    {"why": "REG-1625 - an ended slice waits out the 10-minute tick: slices are not consecutive",
+     "file": "self_prove.py",
+     "find": "        if not pid_alive(pid):\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n",
+     "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n", "matches": 1},
     {"why": "REG-1624 - the guard runs a tick even when no proof is running (a 10 s full tick on an idle PC)",
      "file": "self_prove.py",
-     "find": "        if not (mem.get(\"pid\") or _STARTED.get(\"pid\")):\n            return None\n",
-     "replace": "        if False:\n            return None\n", "matches": 1},
+     "find": "        pid = mem.get(\"pid\") or _STARTED.get(\"pid\")\n        if not pid:\n            return None\n",
+     "replace": "        pid = mem.get(\"pid\") or _STARTED.get(\"pid\")\n        if False:\n            return None\n", "matches": 1},
 ]
 
 
@@ -114,6 +118,10 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
     def _running(self):
         with io.open(self.store, "w", encoding="utf-8") as fh:
             json.dump({"pid": 4242, "pidBirth": 1234.5, "startedFor": "fp"}, fh)
+        # the fake prover is alive unless a case says it ended
+        p = mock.patch.object(SP, "pid_alive", lambda pid: True)
+        p.start()
+        self.addCleanup(p.stop)
 
     def _tick(self, **kw):
         self.ticks.append(kw)
@@ -139,6 +147,22 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
         self._running()
         SP.guard(path=self.store, playing=False, free=SP.MIN_FREE_MB_WHILE_RUNNING - 100, _tick=self._tick)
         self.assertEqual(len(self.ticks), 1)
+
+    def test_a_slice_that_ended_is_booked_now_and_the_next_can_start(self):
+        # REG-1625 - measured on the ALT: a 40-gate slice took about a minute, then the lane waited out its 10-minute
+        # tick. An ended slice is booked at once (the tick decides whether the next one starts)
+        self._running()
+        with mock.patch.object(SP, "pid_alive", lambda pid: False):
+            r = SP.guard(path=self.store, playing=False, free=3000, _tick=self._tick)
+        self.assertEqual(r["key"], "stood-aside")          # whatever the tick said, it was asked
+        self.assertEqual(len(self.ticks), 1, "an ended slice waited for the 10-minute tick")
+        self.assertNotIn("playing", self.ticks[0], "the tick must ask the machine itself when it books and starts")
+
+    def test_a_live_slice_beside_nothing_is_left_alone(self):
+        self._running()
+        with mock.patch.object(SP, "pid_alive", lambda pid: True):
+            self.assertIsNone(SP.guard(path=self.store, playing=False, free=3000, _tick=self._tick))
+        self.assertEqual(self.ticks, [], "a healthy running slice was ticked every 10 s")
 
     def test_the_real_tick_kills_through_its_one_door_and_books_it(self):
         self._running()

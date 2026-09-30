@@ -779,8 +779,15 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
     as it always has: one door for the kill. Never raises."""
     try:
         mem = load(path)
-        if not (mem.get("pid") or _STARTED.get("pid")):
+        pid = mem.get("pid") or _STARTED.get("pid")
+        if not pid:
             return None
+        # REG-1625 - CONSECUTIVE, NOT ONE A TICK. MEASURED on the ALT 2026-09-30: its first slice (40 gates) took about a
+        # minute, then the lane waited out the rest of its 10-minute tick - 663 owed gates would have needed ~3 hours of
+        # game-off time. A slice that has ENDED is booked now, and the tick starts the next one if the PC is still idle
+        # (every start rule still applies: not playing, the memory bar, cooldowns, backoff).
+        if not pid_alive(pid):
+            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)
         aside, _why = stand_aside(play_now, free_now)
