@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3536",
+  "ver": "v3537",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3536: an un-tick then a re-tick within ten minutes gives back the first date, the sightings and the vault entry; a second sign-in click on the Mac opens nothing while the first is open",
+  "note": "v3537: the doctor runs its sweep check in a child process so the vault lamp never freezes; a stack dump never kills the console; a shell law with no real bash says unmeasured; a reused pid is never read as the prover; an unreadable PROOF_NEEDS is never graded",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
