@@ -8436,6 +8436,14 @@ GATES = [
              "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
              "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
              "UNKNOWN never drawn lit or shut)."),
+    Gate("test_a_pc_proves_itself_a_slice_at_a_time",
+         [sys.executable, os.path.join(HERE, "test_a_pc_proves_itself_a_slice_at_a_time.py")], 120,
+         needs_app=False,
+         why="#99 (2026-09-30) - the ALT and GrokBot's PC read 'river stuck': no heart census, because self_prove only "
+             "ran a WHOLE heart2 --prove (~90 min) and he plays there most of the day, so it stood aside and wrote "
+             "nothing. Pins per-gate digests (gateShas), --slice stamping only a COMPLETE census, push-time stamping "
+             "unchanged, an atomic census write, and the lane proving owed gates a slice at a time with a landed "
+             "slice counted as progress. Fixture gates only; 6 red-proofs."),
     Gate("test_claude_reads_every_frame",
          [sys.executable, os.path.join(HERE, "test_claude_reads_every_frame.py")], 180,
          needs_app=False,

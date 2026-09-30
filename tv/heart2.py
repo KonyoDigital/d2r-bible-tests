@@ -393,6 +393,52 @@ def gates_fingerprint(gates=None):
     return h.hexdigest()[:32]
 
 
+def gate_shas(gates=None):
+    """#99 — each gate file's OWN content digest: the per-gate half of gates_fingerprint(). -> {name: sha | None}
+
+    None = the file would not read. UNKNOWN, never an empty file's digest - so an unreadable gate is owed a proof,
+    never counted as proved for a file nobody could read. [[unknown-stays-unknown]]"""
+    out = {}
+    for n, f in (gates if gates is not None else gate_files()):
+        src = _read_text(f if os.path.isabs(f) else os.path.join(HERE, f))
+        out[n] = None if src is None else hashlib.sha256(src.encode("utf-8", "replace")).hexdigest()[:16]
+    return out
+
+
+def slice_owed(gates=None, state=None):
+    """#99 — which gates that DECLARE a proof this census has not proved against the file on disk now. -> dict
+
+    {"owed": [(name, n_proofs)], "declared": int, "covered": int, "why": str}. `state` is a parsed census; None reads
+    STATE. An absent census owes every declaring gate; one that will not parse owes them all too and SAYS so - the
+    slices then rebuild it, and heart2 refuses to write over a file it cannot read, so that case is named, not hidden.
+    A census from before per-gate digests (no `gateShas`) owes everything once: nothing in it can say which gate
+    files changed since it ran."""
+    gates = gates if gates is not None else gate_files()
+    why = ""
+    if state is None:
+        state = {}
+        if os.path.exists(STATE):
+            try:
+                with io.open(STATE, encoding="utf-8") as fh:
+                    state = json.load(fh)
+            except Exception as e:
+                state, why = {}, "the census would not parse (%s)" % type(e).__name__
+    recorded = state.get("gateShas") if isinstance(state, dict) else None
+    recorded = recorded if isinstance(recorded, dict) else {}
+    shas = gate_shas(gates)
+    owed, declared = [], 0
+    for n, f in gates:
+        proofs = red_proofs_in(f)
+        if not proofs:
+            continue
+        declared += 1
+        if not shas.get(n) or recorded.get(n) != shas.get(n):
+            owed.append((n, len(proofs)))
+    owed.sort(key=lambda t: t[0])
+    return {"owed": owed, "declared": declared, "covered": declared - len(owed),
+            "why": why or ("%d of %d declaring gate(s) proved for the files on disk" % (declared - len(owed), declared))}
+
+
 def pixel_gates(gates=None, unclassified=None):
     """The gates that actually LOOK AT PIXELS, by their IMPORTS. -> set[str]
 
@@ -2303,7 +2349,7 @@ def _prove_gates(have, say=print, workers=None):
             {k: p for k, (_v, p) in out.items()})
 
 
-def prove(only=None, say=print, detail=None, push=False, stopped=None):
+def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
     gates = gate_files()
     todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
     with_proofs = [(n, f, red_proofs_in(f)) for n, f in todo]
@@ -2350,11 +2396,14 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None):
     # answers": a faster prove that flips ONE verdict is a broken gate, not a speedup.
     if detail is not None:
         detail.update(per_proof)
-    _write_state(results, measured=_ages)
+    if stamp:
+        _write_state(results, measured=_ages)
+    else:
+        _write_state(results, measured=_ages, stamp=False)     # #99 — the slice flag only with --slice, like --push
     return results
 
 
-def _write_state(results, measured=None):
+def _write_state(results, measured=None, stamp=True):
     """⚠ THE JOIN. Without this the whole loop is plumbing with no tap: `--prove` would measure
     beautifully and `_heart2_census()` in control_app.py would read an absent file and report
     UNKNOWN for ever, so the heart could never carry what the proving loop learned. This repo's
@@ -2446,14 +2495,31 @@ def _write_state(results, measured=None):
         if _n in (results or {}) and isinstance(_ms, (int, float)) and not isinstance(_ms, bool):
             _seen[_n] = min(_now_ms, int(_ms))
     _seen = {k: v for k, v in _seen.items() if k in _known}   # a gate that is gone keeps no stamp
+    # ⚠⚠ #99 — A SLICE MAY NOT SPEAK FOR THE GATES IT DID NOT RUN. Every run stamped the whole-tree fingerprint, which is
+    # right at push time (the hook proves exactly the gates that changed) and for a full run, and would be a lie from a
+    # slice: one slice of a PC's first census would open every lock with 400 gates never run there. So each gate keeps
+    # the digest of the file it was proved against (`gateShas`), and a slice (stamp=False) stamps the fingerprint only
+    # when no declaring gate is owed any more. Until then the census stays unstamped, may() stays closed, and
+    # self_prove proves the rest a slice at a time - which is how a PC he plays on ever finishes. [[unknown-stays-unknown]]
+    _shas = gate_shas(gates)
+    _gs = dict(prior.get("gateShas") or {}) if isinstance(prior.get("gateShas"), dict) else {}
+    for _n in (results or {}):
+        _gs[_n] = _shas.get(_n)
+    _gs = {k: v for k, v in _gs.items() if k in _known}
+    _owed = [n for n in have if not _shas.get(n) or _gs.get(n) != _shas.get(n)]
+    _fp_out = gates_fingerprint(gates) if (stamp or not _owed) else prior.get("gatesFingerprint")
     out.update({
+        "gateShas": _gs,
+        "sliceOwed": len(_owed),
+        "sliceOwedSample": _owed[:12],
+        "stampedBy": ("run" if stamp else ("slice-complete" if not _owed else None)),
         "proved": len(_proved),
         "provedGates": sorted(_proved),
         # v2858 — THE SPLIT, because one number hid a 93/7 one. See pixel_gates().
         "pixelTotal": len(_pixel),
         "pixelProved": len(_proved & _pixel),
         "pixelUnclassified": sorted(_pixel_unk),   # v2860 — NOT silently counted as backend
-        "gatesFingerprint": gates_fingerprint(gates),   # v2862 — content, not mtime
+        "gatesFingerprint": _fp_out,   # v2862 — content, not mtime; #99 — a slice stamps only a COMPLETE census
         "backendTotal": len(gates) - len(_pixel) - len(_pixel_unk),
         # ⚠⚠ v2862 — MINUS THE UNCLASSIFIED TOO, or these two disagree. A cross-family review
         # found it: a gate that is PROVED and is now unreadable leaves backendTotal (which
@@ -2471,8 +2537,20 @@ def _write_state(results, measured=None):
         "verdictAt": _seen,
         "ranAt": _now_ms,
     })
-    with io.open(STATE, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=1, sort_keys=True)
+    # #99 — tmp + os.replace. A stand-aside can end the prover at any moment and slices write often; a kill inside a
+    # plain open(..., "w") left the census truncated, and a census that will not parse is one this file then refuses
+    # to write over - every lock shut for good on that PC. [[open-for-write-truncates-first]]
+    _tmp = "%s.%d.tmp" % (STATE, os.getpid())
+    try:
+        with io.open(_tmp, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=1, sort_keys=True)
+        os.replace(_tmp, STATE)
+    except BaseException:
+        try:
+            os.unlink(_tmp)
+        except OSError:
+            pass
+        raise
 
 
 def resolve_proof_target(base, rel):
@@ -3036,6 +3114,9 @@ def main(argv):
     ap.add_argument("--push", action="store_true",
                     help="#42 push-time proving, what hooks/pre-push runs: declared 'widths' restrict a proof's runs, the "
                          "likeliest failures run first and the run stops at the first; one browser gate at a time")
+    ap.add_argument("--slice", action="store_true",
+                    help="#99 prove these gates as ONE SLICE of a census: the verdicts merge, and the gate fingerprint "
+                         "is stamped only once no declaring gate is owed (self_prove's runs on a PC he plays on)")
     ap.add_argument("--detect", action="store_true")
     ap.add_argument("--ratchet", action="store_true")
     ap.add_argument("--triage", action="store_true",
@@ -3061,7 +3142,8 @@ def main(argv):
         if a.push:
             results = prove(only=set(a.prove) or None, push=True, stopped=_stopped)
         else:
-            results = prove(only=set(a.prove) or None)
+            results = (prove(only=set(a.prove) or None, stamp=False) if a.slice
+                       else prove(only=set(a.prove) or None))
     if a.detect:
         print("")
         hits = detect()

@@ -67,6 +67,14 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #     proved and the doctor called it healthy. Now a cloud client plays only above CLOUD_STREAM_MIN_MB private bytes.
 #: after a proof stands aside, no new proof starts for this long (seconds) - whatever the reason was
 STAND_ASIDE_COOLDOWN_S = 1800
+#: #99 — ONE SLICE of a census: the owed gates, cheapest first, up to this many estimated seconds of proving (a gate's
+#: registered cost x its red-proofs + 1, from gate_costs.json) and at most SLICE_MAX_GATES. A PC he plays on most of the
+#: day never gave a whole census (~90 min on his Mac) one idle window, so it never wrote one and every lock stayed shut;
+#: a slice fits an idle gap, and a stand-aside costs only the slice it ends.
+SLICE_BUDGET_S = 600
+SLICE_MAX_GATES = 40
+#: a gate gate_costs.json has never timed is planned at this many seconds per run
+SLICE_UNKNOWN_COST_S = 30.0
 #: a proof whose census is ALREADY current for its gates is left to finish its cleanup this long (seconds) before a
 #: stand-aside may end it; one console tick is 600 s, so it gets exactly one tick
 FINISH_GRACE_S = 600
@@ -445,6 +453,18 @@ def pid_alive(pid):
     return True
 
 
+def _owed_of(h2, st):
+    """#99 — the gates this census owes a proof, for the slice planner. -> {"owed", "owedGates", "owedWhy"} or {} when
+    it cannot be asked (then the lane proves the whole census in one run, exactly as before - never a guess)."""
+    try:
+        so = h2.slice_owed(state=st)
+    except Exception:
+        return {}
+    owed = [(str(n), int(k)) for n, k in (so.get("owed") or [])]
+    return {"owed": len(owed), "owedGates": owed,
+            "owedWhy": "%s; %d owed - proved a slice at a time while this PC is idle" % (so.get("why"), len(owed))}
+
+
 def census_state():
     """Is THIS machine's census current for the gates on disk? -> dict
 
@@ -461,7 +481,8 @@ def census_state():
             fp = _h2.gates_fingerprint()
         except Exception:
             fp = None
-        return {"state": "missing", "why": "this PC has never proved its instruments", "fingerprint": fp}
+        return dict({"state": "missing", "why": "this PC has never proved its instruments", "fingerprint": fp},
+                    **_owed_of(_h2, {}))
     try:
         with io.open(p, encoding="utf-8") as fh:
             st = json.load(fh)
@@ -479,6 +500,7 @@ def census_state():
     if want != have:
         out.update(state="stale", why="the gates changed since this PC last proved them (%s != %s)"
                                       % (str(want)[:8], have[:8]))
+        out.update(_owed_of(_h2, st))
     else:
         out.update(state="current", why="proved for the gates on disk: %s of %s, %d blind"
                                         % (st.get("proved"), st.get("declared"), len(out["blind"])))
@@ -590,6 +612,59 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
             "why": "census %s (%s) on an idle installed console - proving" % (st, census.get("why"))}
 
 
+def _gate_costs(path=None):
+    """gate name -> measured seconds per run, from gate_costs.json. {} when it cannot be read (every gate then plans at
+    SLICE_UNKNOWN_COST_S - a slice still runs, it is only sized by a guess it SAYS is one)."""
+    try:
+        with io.open(path or os.path.join(HERE, "gate_costs.json"), encoding="utf-8") as fh:
+            c = json.load(fh).get("costs")
+        return c if isinstance(c, dict) else {}
+    except Exception:
+        return {}
+
+
+def plan_slice(owed, costs=None, budget_s=None, max_gates=None):
+    """#99 — ONE SLICE of the owed gates. Pure. -> [names]
+
+    `owed` is [(name, n_proofs)]. Cheapest first (a gate's cost x (n_proofs + 1): one clean run and one per tamper), up
+    to `budget_s` and `max_gates`, and never empty while anything is owed - a gate costlier than the whole budget is a
+    slice of its own rather than a gate no slice ever takes."""
+    costs = costs if costs is not None else {}
+    budget = SLICE_BUDGET_S if budget_s is None else budget_s
+    cap = SLICE_MAX_GATES if max_gates is None else max_gates
+
+    def est(item):
+        n, k = item
+        try:
+            c = float(costs.get(n))
+        except (TypeError, ValueError):
+            c = SLICE_UNKNOWN_COST_S
+        if not (c == c) or c < 0:
+            c = SLICE_UNKNOWN_COST_S
+        return c * (max(0, int(k)) + 1)
+    out, spent = [], 0.0
+    for item in sorted(owed or [], key=lambda t: (est(t), t[0])):
+        e = est(item)
+        if out and (spent + e > budget or len(out) >= cap):
+            break
+        out.append(item[0])
+        spent += e
+    return out
+
+
+def _slice_landed(census, names):
+    """#99 — how many of a slice's gates the census no longer owes. -> int | None (None: the census cannot say)"""
+    if not names:
+        return None
+    if (census or {}).get("state") == "current":
+        return len(names)
+    owed = (census or {}).get("owedGates")
+    if not isinstance(owed, list):
+        return None
+    still = {str(t[0]) for t in owed if isinstance(t, (list, tuple)) and t}
+    return sum(1 for n in names if n not in still)
+
+
 #: What the PROVER needs that a console does not: the browser laws drive Chrome over DevTools with
 #: websocket-client. MEASURED on the ALT (#50, REG-1457): once render_check could find Chrome there, all 8
 #: browser cases of test_mask_encoders_agree failed with "No module named 'websocket'" - the installer never
@@ -636,8 +711,9 @@ def ensure_prover_deps(find=None, run=None):
     return out
 
 
-def spawn(log_path, python=None, workers=1, popen=None):
-    """Start `heart2.py --prove` hidden and below everything he does. -> pid"""
+def spawn(log_path, python=None, workers=1, popen=None, names=None):
+    """Start `heart2.py --prove` hidden and below everything he does. -> pid
+    #99 — `names`: prove just these gates as ONE SLICE (`--prove NAMES --slice`); None proves the whole census."""
     py = python or sys.executable
     if IS_WIN and py.lower().endswith("pythonw.exe"):
         cand = py[:-len("pythonw.exe")] + "python.exe"   # pythonw has no stdout for the prover's log
@@ -654,7 +730,7 @@ def spawn(log_path, python=None, workers=1, popen=None):
         # ⚠ `nice` THE COMMAND, not preexec_fn: this runs inside the console's threaded server, and
         # Python documents preexec_fn as unsafe when threads are running.
         kw["start_new_session"] = True
-    cmd = [py, os.path.join(HERE, "heart2.py"), "--prove"]
+    cmd = [py, os.path.join(HERE, "heart2.py"), "--prove"] + ((list(names) + ["--slice"]) if names else [])
     if not IS_WIN and os.path.exists("/usr/bin/nice"):
         cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")
@@ -703,7 +779,7 @@ def _ask(v, probe):
 
 def _forget(mem):
     """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
-    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside"):
+    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates"):
         mem.pop(k, None)
     _STARTED.update(pid=None, birth=None)
 
@@ -766,6 +842,13 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             # told to stand aside, survived that tick, ended since: a stand-aside, never a failure
             mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
                        lastStoodAsideWhy=mem.get("standingAside"))
+        elif mem.get("sliceGates") and (_slice_landed(census, mem.get("sliceGates")) or 0) > 0:
+            # #99 — a SLICE that proved its gates is progress, not a failure: the census is still owed the rest, and
+            # the next slice starts on a later tick. (A slice that landed NONE falls through to the failure below.)
+            _got = _slice_landed(census, mem.get("sliceGates"))
+            mem.update(worked=_int(mem.get("worked")) + 1, lastTs=now_ms, slices=_int(mem.get("slices")) + 1,
+                       lastOk="a slice proved %d of its %d gate(s); %s still owed"
+                              % (_got, len(mem.get("sliceGates") or []), census.get("owed")))
         elif mem.get("startedFor") and census.get("fingerprint") != mem.get("startedFor"):
             # the console UPDATED while it proved: the proof spoke for the old gates. Not a failure -
             # the new gates are simply unproved, and are proved next, without the backoff.
@@ -796,7 +879,14 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             if spawn_fn is None:                           # a real start, not a law's recording spawn
                 mem["deps"] = ensure_prover_deps()
             log_path = _store_path(path) + ".log"
-            mem["pid"] = (spawn_fn or spawn)(log_path)
+            _owed_g = census.get("owedGates")
+            _slice = plan_slice(_owed_g, _gate_costs()) if isinstance(_owed_g, list) and _owed_g else None
+            if _slice:
+                mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
+                mem["sliceGates"] = _slice
+                d = dict(d, why="%s - this slice: %d gate(s)" % (census.get("owedWhy") or d["why"], len(_slice)))
+            else:
+                mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
             _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
             mem["startedFor"] = census.get("fingerprint")
@@ -812,7 +902,9 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         pass
     st = census.get("state")
     return {"on": on, "worked": _int(mem.get("worked")), "lastTs": mem.get("lastTs"),
-            "owed": (0 if st == "current" else (None if st == "unknown" else 1)),
+            "owed": (0 if st == "current" else (None if st == "unknown" else
+                     (census.get("owed") if isinstance(census.get("owed"), int) and census.get("owed") > 0 else 1))),
+            "slices": _int(mem.get("slices")),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
             "running": bool(mem.get("pid")), "playing": play_now, "freeMb": free_now,
             "stoodAside": _int(mem.get("stoodAside")), "asideSurvived": _int(mem.get("asideSurvived"))}

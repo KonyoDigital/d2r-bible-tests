@@ -378,6 +378,71 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1592 - A PC HE PLAYS ON NEVER FINISHED A CENSUS, SO ITS RIVER NEVER FLOWED (#99, 2026-09-30)
+
+**His words:** *"now only grokbot and ALT TEST is both river stuck"* - and *"make sure its architectured also so for dean is
+automatically works the same way without you needed to ssh there"*.
+
+**Measured:** the ALT has no `tv/.heart2.json`, so `self_arming.may()` refuses every self-arming lock (the river's routing
+among them). `self_prove` only ever started a WHOLE `heart2.py --prove` - 697 declaring gates, about 3.5 h of proving at
+his Mac's pace - and heart2 writes the census only when the whole run ends. He plays there most of the day, the proof
+stood aside, and a proof that stands aside writes nothing. His Mac stays current only because the pre-push gate proves
+exactly the changed gates and stamps the census.
+
+**Fixed:** each gate keeps the digest of the file it was proved against (`gateShas`); `heart2.py --prove NAMES --slice`
+merges one slice and stamps the gate fingerprint only when no declaring gate is owed (`slice_owed`), so one slice never
+speaks for gates it did not run; push-time and full runs stamp exactly as before. `self_prove` reads the owed gates and
+proves them a slice at a time in idle gaps (cheapest first, <= 600 s of estimated proving and <= 40 gates per slice); a
+landed slice is progress, never the 3 h failure backoff; a stand-aside costs only its slice. After the first census an
+update owes only the gates it changed. The census is now written tmp + os.replace, because slices write often and a kill
+inside the old plain write left a census heart2 then refuses to write over. It reaches every PC through the ordinary
+update: nothing is run by hand on the ALT or on Dean's PC.
+
+**Guards:** `tv/test_a_pc_proves_itself_a_slice_at_a_time.py` (gate of the same name) - fixture gates only: an unfinished
+slice does not stamp, the completing slice does, push-time stamping unchanged, a changed or unreadable gate file is owed
+again, the atomic write, the lane's slice start, progress booking, nothing-landed backoff, the last slice and the
+`--slice` argv; 15 cases, 6 red-proofs each seen red by hand. `test_every_pc_proves_itself` (43) and the heart's own laws
+stay green.
+
+### REG-1591 - AFTER A LOST HISTORY, THE NEXT WRITE RESTARTED THE LANE'S COUNTERS (#231 5908899891, 2026-09-30)
+
+**Found by** the Grok code seat on c2c7d9fb; **reproduced before anything changed**: a healthy receipt (2 runs), then an
+unreadable one, then two writes - the first stored runs/runsMeasured/firstTs as None with `countersWhy`, the SECOND read
+those Nones through `(_n(...) or 0) + 1` and stored 1 / 1 / today, and `contract()` reported worked 1: a lost history read
+as a young lane, under a `countersWhy` saying the history was lost.
+
+**Fixed:** `tooltip_oracle_lane.write_receipt` keeps the lifetime counters UNKNOWN once `countersWhy` is set - UNKNOWN + 1
+is still UNKNOWN - while `lastTs` keeps moving, so a lane that stops after a loss still reads stale.
+
+**Guards:** `test_their_tooltip_rows_are_ours` - the lost-history case now makes the next write and asserts None / None /
+None, `worked` None and `lastTs` moved; 1 new red-proof, seen red.
+
+### REG-1590 - THE REACHABILITY GATE TIMED OUT ON CI (v3525 AND v3526): ONE REGEX PASS PER HELPER PER FILE (2026-09-30)
+
+**Measured:** `test_reachability` ran ~93 s locally against a 120 s budget and timed out on CI's slower runner on both
+v3525 and v3526. 77.7 s of it was `_orphans_uncached`: two regexes over every production file (the 6 MB bible.html
+included) for every public helper in the watched files.
+
+**Fixed:** each file is indexed once - every `name(`, which of those are `def name(`, and every `target=name` - and each
+helper is looked up. Measured before it replaced the scan: the same 5 orphans, 2.5 s; the gate now runs in ~13 s.
+
+**Guards:** the gate itself (22 cases green); the equivalence was measured old-vs-new on the real tree before the swap.
+
+### REG-1589 - TWO CAPTURE LAWS RED ON CI ONLY: THE DOOR'S BIRTH READ STARTED `ps` ON LINUX (2026-09-30)
+
+**Measured** on v3526's CI (agent-suite shard 2): `test_one_capture_per_console` (5 failures, e.g. "two starts at once
+spawned 2 captures") and `test_a_stub_agent_never_films_his_screen` ("2 != 1"), green on his Mac. The child supervisor
+(#83, v3526) records each spawn's birth time; on Linux `_birth_posix` read `/proc/<pid>/stat` and, for a pid /proc does not
+list - every fake pid a law hands the door - fell through to `ps`, which runs through the `subprocess.Popen` those laws
+stub, so it was counted as a second capture. His Mac reads birth through sysctl and starts nothing (the trap
+`_birth_darwin`'s own docstring names).
+
+**Fixed:** with /proc present, a pid it does not list has no birth (None, UNKNOWN) and `ps` is never run; `ps` stays only
+for a POSIX system with no /proc.
+
+**Guards:** `test_child_guard_one_tree_per_role` - new `TheBirthReaderStartsNoProcess` (Linux shape driven on any machine:
+a missing pid is None and starts nothing; the /proc arithmetic; this machine's reader starts nothing); 1 red-proof, seen red.
+
 ### REG-1588 - THE v3527 BUMP READ ITS OWN QUEUE ROW AS THE SHIP ROW AND RECORDED NOTHING (2026-09-30)
 
 **Measured:** `bump_version.py v3527` stamped the four surfaces and wrote no TASKS.md ship row. `_has_ship_row` asked for
