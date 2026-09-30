@@ -8663,6 +8663,15 @@ GATES = [
              "fleet's own origin view uses (GrokBot's prover said tree-unknown while its pull lane said level with "
              "origin). A gate whose PROOF_NEEDS subject is not on this PC is UNPROVABLE there and nothing runs - the "
              "ALT filed a Mac-footage law BLIND, which would keep every lock on that PC shut for good."),
+    Gate("test_an_untick_then_a_retick_is_one_misclick",
+         [sys.executable, os.path.join(HERE, "test_an_untick_then_a_retick_is_one_misclick.py")], 60,
+         needs_app=False,
+         why="REG-1638 (2026-09-30) - his question about F-Uniques' last find, The Cat's Eye: read from his shared stash at "
+             "01:13 with its frame, un-ticked on its item card at 23:14:57 and ticked again at 23:15:00 - the un-tick took "
+             "the date, the game date, the sightings and the vault entry, and the re-tick stamped a new date with no "
+             "evidence. A re-tick inside the misclick window of its own un-tick gets back exactly what it took, the vault "
+             "removal only while it is still the newest; past the window a re-tick is a new find. Driven on the page code "
+             "in node; the tick handler's join is read from its code in order."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

@@ -405,6 +405,24 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1638 - AN UN-TICK THEN A RE-TICK THREE SECONDS LATER ERASED A WITNESSED FIND (The Cat's Eye, 2026-09-30)
+
+His question, looking at F-Uniques' "last found: The Cat's Eye": "how did this get here? ... is there a ledger and
+proof image of this? was it really a chronicle?". **Measured on a read-only copy of his board:** the Grok reader read
+The Cat's Eye from his SHARED stash at 01:13:59 (its own frame shows the tooltip, Shared tab page 2 of 5), the vault
+filed it with that witness (inbox-auto, tvVaultRegister) and the Chronicle inbox accepted it (safe-auto-grail:tipOf).
+At 23:14:57 it was un-ticked on its item card; at 23:15:00 ticked again. The un-tick did what v1891/v1964 rule it must -
+the found date, the game date and the sightings went, and the removal door took it out of d2r_owned - and the re-tick
+stamped "found 23:15" with no evidence and never put it back in the vault. v1964 had written the cost down: "a plain
+toggle has no redo, so an accidental un-tick loses a legitimate date with no recovery". **Now** an un-tick keeps what
+it takes (in memory), and a re-tick inside TICK_REDO_MS (10 min) of it gets it all back - the FIRST date, the game date,
+the sightings (through a new `_foundEvidencePut` door that never writes over a later read's row or an unparseable
+store), and the vault removal it made, undone only while that removal is still the newest (another removal in between
+is said, never reversed). Past the window, or with no un-tick before it, a re-tick is a new find, as v1891 ruled. His
+board's own Cat's Eye is not touched by this - putting it back is his call. Law:
+`tv/test_an_untick_then_a_retick_is_one_misclick.py` (the page code in node + the handler's join in order), 5
+red-proofs RED.
+
 ### REG-1637 - FOUR ENTRY POINTS STILL TYPED A POSITION, AND THE LAW THAT FORBIDS IT COULD NOT SEE THEM (the #231 eye on v3531 70f041e4, 2026-09-30)
 
 `test_the_blueprint_names_the_engine` counted a typed line number only when an entry ENDED in a bare `:N`

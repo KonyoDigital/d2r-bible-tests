@@ -4547,6 +4547,53 @@ window._markLastTick = function(name, kind, on){
     }
   } catch(e){}
 };
+/* ⟦TICK REDO BEGIN⟧ REG-1638 — AN UN-TICK THEN A RE-TICK IS ONE MISCLICK, NOT A NEW FIND.
+   MEASURED on his board, 2026-09-30: The Cat's Eye, read from his shared stash at 01:13 (the reader's own frame, the
+   vault's receipt), was un-ticked on its item card at 23:14:57 and ticked again at 23:15:00. The un-tick did what
+   v1891/v1964 rule it must - the date, the game date and the sightings went ("the reason he un-ticks is usually that the
+   READ WAS WRONG") - and it took the item out of the vault; the re-tick three seconds later stamped a NEW date with no
+   evidence and never put it back. v1964 wrote the cost down: "a plain toggle has no redo, so an accidental un-tick loses
+   a legitimate date with no recovery". This is that redo, for the accident only: a re-tick inside TICK_REDO_MS of its own
+   un-tick puts back exactly what the un-tick took - the first date, the game date, the sightings, and the vault removal
+   it made (only while that removal is still the newest one, so nothing else is ever undone). Past the window the old
+   rule stands: a re-tick is a new find. Kept in memory only - a reload is not a misclick. */
+window.TICK_REDO_MS = 10 * 60 * 1000;
+window._TICK_REDO = {};
+window._tickRedoKeep = function(name, found, now){
+  var r = { at: (now == null ? Date.now() : now), found: (found == null ? null : found) };
+  try { var g = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+        if (Object.prototype.hasOwnProperty.call(g, name)) r.gameFound = g[name]; } catch(e){}
+  try { var ev = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}') || {};
+        if (Object.prototype.hasOwnProperty.call(ev, name)) r.evidence = ev[name]; } catch(e){}
+  window._TICK_REDO[String(name)] = r;
+  return r;
+};
+window._tickRedoTake = function(name, now){
+  var k = String(name), r = window._TICK_REDO[k];
+  delete window._TICK_REDO[k];
+  if (!r) return null;
+  if (((now == null ? Date.now() : now) - r.at) > window.TICK_REDO_MS) return null;   // past the window: a new find
+  return r;
+};
+window._tickRedoRestore = function(name, r){
+  var out = { gameFound: false, evidence: false, vault: null };
+  if (!r) return out;
+  try { if (r.gameFound !== undefined && typeof window._gameFoundSet === 'function')
+          out.gameFound = !!window._gameFoundSet(name, r.gameFound); } catch(e){}
+  try { if (r.evidence !== undefined && typeof window._foundEvidencePut === 'function')
+          out.evidence = !!window._foundEvidencePut(name, r.evidence); } catch(e){}
+  try {
+    if (r.vaultTs){
+      var log = (typeof window.vaultRemovalLog === 'function') ? (window.vaultRemovalLog() || []) : [];
+      var last = log.length ? log[log.length - 1] : null;
+      out.vault = (last && last.ts === r.vaultTs && typeof window.vaultRestoreLast === 'function')
+        ? window.vaultRestoreLast()
+        : { restored: 0, why: 'another removal came after the un-tick - put it back from the vault removal list' };
+    }
+  } catch(e){}
+  return out;
+};
+/* ⟦TICK REDO END⟧ */
 window._lastTick = function(){
   try { return JSON.parse(window.LSR.getItem('d2r_lastTick') || 'null'); } catch(e){ return null; }
 };
@@ -25017,7 +25064,8 @@ function toggleOwned(name, prov) {
     wasOwned = _gFound(name);
     try {
       const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
-      if (wasOwned){ delete fl[name];
+      var _rdt = null;
+      if (wasOwned){ var _rdo = window._tickRedoKeep ? window._tickRedoKeep(name, fl[name]) : null; delete fl[name];
         /* M-3 (review of 7cded0c1, reproduced) — THE UN-TICK IS HIS WORD ABOUT THE ITEM. It deleted the name from `owned`
            with no journal row and no receipt drop, so the next reclose replayed the older read that produced the wrong tick
            and owned it again, and the receipt it left behind blocked a later real pick-up from being carried (M-1). Through
@@ -25029,6 +25077,7 @@ function toggleOwned(name, prov) {
           var _vrUT = null;
           try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, keepFiling: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
           if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }
+          if (_rdo && _vrUT && _vrUT.ts) _rdo.vaultTs = _vrUT.ts;   // REG-1638 - a re-tick in the window undoes exactly this removal
         }
         /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
            delete d2r_gameFound, because "the reason he un-ticks is usually that the READ WAS WRONG, so
@@ -25055,11 +25104,13 @@ function toggleOwned(name, prov) {
         try { if (typeof window._foundEvidenceDrop === 'function')
                 window._foundEvidenceDrop(name); } catch(e){}
       }   // un-tick also clears any legacy vault entry
+      else if ((_rdt = window._tickRedoTake ? window._tickRedoTake(name) : null) && _rdt.found) fl[name] = _rdt.found;   // REG-1638
       else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
       /* v2814 — the same marker on the uniques door. `wasOwned` is _gFound(name) read
          before this write, so !wasOwned is a TICK. This bar serves BOTH forges. */
       try { window._markLastTick(name, 'uni', !wasOwned); } catch(e){}
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
+      if (_rdt){ try { window._tickRedoRestore(name, _rdt); } catch(e){} }   // REG-1638 - the misclick's game date, sightings, vault
       _gFoundDirty();
     } catch(e){}
   } else {
@@ -52581,6 +52632,23 @@ function renderJournal(){
       return ch;
     } catch(e){ return false; }
   };
+  /* ⟦FOUND EVIDENCE PUT BEGIN⟧ REG-1638 — the one door that puts a found row's sightings BACK, exactly as an un-tick took
+     them (window._tickRedoRestore, a re-tick inside the misclick window). It never overwrites a row a later read wrote,
+     and a store that will not parse is never written over - "nobody looked" and "unreadable" are not a blank to fill. */
+  window._foundEvidencePut = function(name, row){
+    try {
+      if (!name || row == null) return false;
+      var raw = window.LSR.getItem('d2r_foundEvidence');
+      var map = {};
+      if (raw){ try { map = JSON.parse(raw); } catch(e){ return false; } }
+      if (!map || typeof map !== 'object' || Array.isArray(map)) return false;
+      if (Object.prototype.hasOwnProperty.call(map, name)) return false;
+      map[name] = row;
+      window.LSR.setItem('d2r_foundEvidence', JSON.stringify(map));
+      return true;
+    } catch(e){ return false; }
+  };
+  /* ⟦FOUND EVIDENCE PUT END⟧ */
 
   /* v2195 — is this name already in the vault? An in-memory lookup, so the common case in a
      hundreds-long loop costs nothing and no dictionary is rewritten for a no-op. */
