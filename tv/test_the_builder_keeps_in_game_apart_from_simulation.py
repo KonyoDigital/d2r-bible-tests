@@ -34,6 +34,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 import char_select as CS  # noqa: E402
 import test_the_characters_tab_is_manual_and_separate as ROOM  # noqa: E402
 
