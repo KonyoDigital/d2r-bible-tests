@@ -120,6 +120,13 @@ tv/auto_relaunch.json
 # too. Live state, and it names his progress: never committed to a PUBLIC repo.
 tv/board_tally.json
 tv/board_tally.json.tmp
+# rank 22 (v3527): the board's picker census, banked per PC by the console - live state, never a commit
+tv/board_picker.json
+tv/board_picker.json.tmp
+# #54 (v3526): his gear ledger, per PC - not written on his Mac yet, ignored before it is
+tv/equipped_ledger.json
+tv/equipped_ledger.json.*.tmp
+tv/equipped_ledger.json.tmp
 # v3379 - the STORES the board hands over, beside the TALLY above. It holds his actual
 # item NAMES - measured on his tree 445 foundLog + 222 owned + 133 setPieces = 800 - and
 # his install id. THIS REPO IS PUBLIC. The tally was ignored and this was not, so one

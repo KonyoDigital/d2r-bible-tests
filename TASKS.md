@@ -15,7 +15,7 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-30 (10:4x) · 9 in flight · 3 new asks · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-30 (15:4x) · 3 in flight · 4 asks · viewer :17955
 
 > The live surfaces are the viewer (:17955) and the session board it reads. This section mirrors them; rewritten
 > 2026-09-30 after his "is the panel list and task list updated". IN PROGRESS carries only what is moving right now.
@@ -24,18 +24,18 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 | # | where it stands |
 |---|---|
-| **v3526 landed** | 12:04, origin `0ba7a5ce`, push #2 (103m50s gate). Push #1 was refused by one console demo that ran 7 s after his console re-exec'd itself onto v3526; the push now waits for that relaunch to settle (#42c) |
-| **#256** | heart audit, all 26 ranks: 1-10 shipped (v3523/v3524), 11-21 + 23-25 in v3526, **22 + 26 in v3527** (rank 22 fixed against its verifier's 10 findings: law 28/28, 21 red-proofs PROVEN) |
-| **shadow eye** (board #93) | his ask 09-30: one glowing eye per PC, leading its name, wired to that PC's shadow reader: lit red (on + its watcher alive, even with the game closed), gold with a glint (reading now), hollow (on but idle), shut lid (off), dashed UNKNOWN (offline / older build). Law 11/11, 9 red-proofs PROVEN; pixels looked at and a Grok eye on them (round 2 confirmed the states read apart). Ships in v3527 |
-| **v3527 push** | full gates green, bumped, ship row recorded (REG-1588: the bump had read this very table's row as the ship row). Carries #256 22 + 26, the shadow eye, Claude reads every frame (REG-1586), #89 closed NOT REPRODUCED |
+| **v3527 landed** | 14:53, origin `e79aed53`, push #1 (103m21s gate). #256 heart audit COMPLETE: all 26 ranks shipped |
+| **v3528 push** | full gate run: 5 reds, all mine, fixed (a new `def wait` flipped the thread census's FOREIGN `wp.wait`; four new files never made stdout cp1255-safe). Carries v3526's CI reds (Linux `ps` phantom spawn REG-1589, the reachability scan 77.7 s -> 2.5 s REG-1590, six Routine I specs REG-1598), #99 a PC proves its census a slice at a time between his games (REG-1592), #94 a move in a tree no console runs from is a verdict (REG-1593), #42c the push waits for his console to settle (REG-1594), the #231 findings (REG-1591, REG-1595, the picker census counts) |
+| **v3529** (next) | the rank-17 lock rebuilt against its 13 findings and made visible - and, seen on pixels, the refusal now said AT the cell (REG-1596); the builder personal per console (REG-1599); #103 step A, the builder in his two sections (REG-1600) |
 
-### 🆕 ASKED TODAY — queued behind v3527
+### 🆕 ASKED TODAY
 
 | # | the ask |
 |---|---|
-| **crafted editor** (board #95) | the builder's crafted-item editor: regular mods (Add Mod, prefixes/suffixes like the maxroll planner), totals the game shows (his crafted caster amulet reads +20% FCR = crafted 5-10 + a regular mod), the doubled "Amulet Amulet" name. GrokBot briefed on #230 to test the panel all-round |
-| **gate verdict** (board #94) | run_gates: a live-state move in a tree no console runs from is a VERDICT, not a suspect (REG-1583's blind spot) |
-| **lock enforcement** | the rank-17 lock ENFORCEMENT (w26 branch 7's 941993f5) rebuilt against its verifier's 13 findings - incl. UNKNOWN + Shift overwriting an unreadable vault store (REG-1420 class) |
+| **builder: in game + simulation** (board #103) | his words: "the characters that are known by the console and are legit my character.. they slowly prove themselves from reels sessions and harden same way as vault" / "an area to create and test other builds like simulation style.. the add character and everything stays as is.. a section for each" / "a session's character selection then moving forward.. linked to that character.. same logic getting routed down" (the printer). Step A (sections + the vault's tier per character) in v3529; step B binds each session to the character selected at its char-select and routes its equipped items down to it; step C fills the in-game build from them |
+| **ALT extraction** | verify on the ALT that every session's stash reels extract to their tombstone and the items are read, tallied and cross-referenced with the console - waits on v3528 (the ALT cannot prove its census while he plays; #99 lets it prove a slice at a time) |
+| **crafted editor** (board #95) | the builder's crafted-item editor: Add Mod = the planner's searchable list for THAT item and nothing it does not show, a pick lands at the top of its range, a crafted variant fills its name (e.g. Grim Noose Amulet) and top-of-range numbers |
+| **gate counts** (board #104) | 87 of the 255 gates that state "N cases, M red-proofs" are stale (the second eye named one) - compute them, do not type them |
 
 ### ⏳ WAITING — on the eyes, the ALT, or a verifier re-run
 
