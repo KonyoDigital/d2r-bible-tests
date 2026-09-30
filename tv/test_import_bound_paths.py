@@ -234,6 +234,17 @@ REGISTRY = {
         "TV_OCR_BIN", "call-time",
         "1 call-time reader (_ocr_worker_cmd). A binary that is executed, never written."),
 
+    # ---- #83 child supervisor + its node harness (v3526). Measured 2026-09-30 by co_consts, not by text.
+    "child_guard.py:LEDGER_DIR": (
+        "TV_CHILD_GUARD_DIR", "import-bound",
+        "0 call-time readers; 5 consumers (the per-parent ledger file, its makedirs, the census listdir). A temp dir "
+        "keyed on this checkout, never his tree. test_child_guard_one_tree_per_role redirects it the only way that "
+        "takes - it assigns cg.LEDGER_DIR and restores it in tearDown."),
+    "cb_node_harness.py:NODE_KNOWN": (
+        "LOCALAPPDATA", "import-bound",
+        "0 call-time readers of LOCALAPPDATA or ProgramFiles (the same tuple reads both); 1 consumer (node_path, the LAST fallback after TV_NODE "
+        "and PATH, which ARE read per call). A list of executables to try - read, never a write target."),
+
     # ---- extract_ui_icons: an offline art tool, no live state.
     "extract_ui_icons.py:D2R": (
         "D2R_INSTALL", "import-bound",

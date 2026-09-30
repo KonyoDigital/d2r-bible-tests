@@ -354,7 +354,7 @@ def _drive():
                         "tvms": TV_MS_LINE, "tv": _door(s, DOOR_TV), "tv1": _door(s, DOOR_TV1), "hold": _door(s, DOOR_HOLD),
                         "reghead": "\n".join(head[2:])}
     head = "var T0 = %d;\n" % T
-    prog = P.HARNESS % {"lanes": P._lanes(s) + "\n" + R4._names_js(s) + "\n" + R4._resolver_js(s),
+    prog = P.HARNESS % {"origin": P._origin_line(s), "lanes": P._lanes(s) + "\n" + R4._names_js(s) + "\n" + R4._resolver_js(s),
                         "furn": P._between(s, P.FURN_FROM, P.FURN_TO), "region": P.owned_prov_region(s),
                         "evidence": P._marked(s, P.EV_BEGIN, P.EV_END), "rec": P._between(s, P.REC_FROM, P.REC_TO),
                         "script": head + extra + doors + SCRIPT}

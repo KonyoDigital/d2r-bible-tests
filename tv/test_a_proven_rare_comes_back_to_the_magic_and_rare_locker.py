@@ -95,7 +95,7 @@ function muleById(id){
 
 BODY = r"""
 var PLAN = __PLAN__;
-var location = { hostname: '127.0.0.1' };
+var location = { hostname: '127.0.0.1', origin: 'http://127.0.0.1:17999' };   /* #41 rank 18: a SERVED board asks its console */
 var RESULT = {};
 globalThis.fetch = function(url, opt){
   return Promise.resolve({ ok: true, json: function(){ return Promise.resolve(PLAN); } });

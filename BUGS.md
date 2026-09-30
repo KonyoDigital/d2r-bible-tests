@@ -378,6 +378,44 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1583 - THREE NEW LAWS FED FIXTURE SIGHTINGS INTO HIS GEAR LEDGER, AND THE GATE CALLED IT A SUSPECT (2026-09-30)
+
+**Measured on the v3526 integration's full gate run** (the worktree, before any push): the live-state watch printed
+
+```
+state moved during `test_every_owned_door_writes_provenance`: main_character.json (absent -> 82e846cc…)
+state moved during `test_carried_loot_keeps_its_order`: main_character.json (82e846cc… -> 9ebf4312…)
+state moved during `test_carried_loot_holds_its_time_and_its_name`: main_character.json (9ebf4312… -> f242fe09…)
+state moved during `test_roundtrip_sim`: .char_roster.json (absent -> 5597daef…)
+```
+
+and graded all four as SUSPECTS, because "the console is running". His console runs from the MAIN checkout and
+cannot write the worktree, so every one was the gate's own write. The file it left held fixture sightings
+(sessions `s_2`, `s_h3`, `s_pick`, `s_old`), each `_prov.at` a real wall-clock stamp (08:59:56 during the run, and
+09:10:12 when I re-ran the carried-loot laws by hand, matching the file's mtime to the second). The pre-push gate
+runs in HIS tree, so the push would have fed those sightings into his real `tv/main_character.json`: what he
+wears, Wilson-scored from sightings. His real ledger was checked: 23 items, every session a real reel id, clean.
+
+**Cause, two writers:**
+1. `_kai_compile_register` feeds `main_character.saw()` BY DESIGN (v2361). `saw()` writes `main_character.LEDGER`,
+   bound to `tv/main_character.json` at import. The three new laws called the compiler bare.
+2. `char_select.store_path()` (REG-1581, mine) resolved `tv/.char_roster.json` from HERE, ignoring the fixture
+   world. A fixture console's learner wrote into the tree it ran from. It would also have dropped every reel
+   position the fixture world does not hold.
+
+**Fix:**
+1. `compile_register(rows)` in the owned-door harness is now the ONE way a law compiles the register. It points
+   `main_character.LEDGER` at a throwaway dir, asserts the redirect took, compiles, restores, and removes the dir.
+   All three call sites use it. LEDGER is import-bound (no env var moves it), so the attribute is the only
+   redirect that takes.
+2. The roster follows `tv_diablo._fixture_root`: his tree, or the fixture's when `TV_HIST` names one. A law case
+   pins both directions, with a red-proof that PROVED red (9/9 for the law).
+
+**Re-measured:** the five laws plus `test_roundtrip_sim` ran green and left no `main_character.json` or
+`.char_roster.json` in the tree. **Left for v3527 (#94):** the watch should compare the running console's tree
+to its own. A different tree means the move IS the gate's, and that is a FAIL, not a suspect.
+[[feedback-fixtures-never-touch-live-data]] [[the-green-that-lies]]
+
 ### REG-1582 - THE v3525 SECOND EYE'S FINDINGS, EACH REPRODUCED BEFORE IT WAS FIXED (2026-09-30)
 
 `second_eye_run.py v3525 --base 47a5ac37` (Grok CLI, covers 47a5ac37..c6944e08) plus two per-commit looks on #231

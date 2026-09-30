@@ -352,6 +352,37 @@ class TheConsoleCarriesIt(unittest.TestCase):
         self.assertIn('"ok": _d is not None', body)
 
 
+class AFixtureWorldKeepsItsOwnRoster(unittest.TestCase):
+    """MEASURED 2026-09-30: the v3526 gate run's live-state watch caught test_roundtrip_sim's fixture console
+    creating .char_roster.json in the tree it ran from. On his checkout that file is HIS roster. The roster follows
+    the world tv_diablo._fixture_root names - his tree, or the fixture's when TV_HIST is one."""
+
+    def setUp(self):
+        self.saved = {k: os.environ.get(k) for k in ("TV_HIST", "TV_CHARS_LEARNED")}
+        os.environ.pop("TV_CHARS_LEARNED", None)
+        self.world = tempfile.mkdtemp(prefix="cs_world_")
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(self.world, ignore_errors=True)
+
+    def test_a_fixture_console_writes_its_roster_in_its_own_world(self):
+        import char_select as mod
+        os.environ["TV_HIST"] = self.world
+        got = os.path.realpath(mod.store_path())
+        self.assertTrue(got.startswith(os.path.realpath(self.world) + os.sep),
+                        "a fixture world's roster landed at %s, outside the fixture (%s)" % (got, self.world))
+
+    def test_his_console_keeps_the_roster_in_his_tree(self):
+        import char_select as mod
+        os.environ.pop("TV_HIST", None)
+        self.assertEqual(os.path.dirname(os.path.realpath(mod.store_path())), os.path.realpath(HERE))
+
+
 RED_PROOF = [
     {
         "why": "#91 - one visit teaches a character (the witness rule he asked for is gone)",
@@ -407,6 +438,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      var seen = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars : [];\n",
         "replace": "      var seen = [];\n",
+        "matches": 1,
+    },
+    {
+        "why": "#91 - a fixture console's learner writes the roster in HIS tree (the v3526 gate run caught it)",
+        "file": "tv/char_select.py",
+        "find": "    return os.environ.get(\"TV_CHARS_LEARNED\") or os.path.join(_world(), \".char_roster.json\")\n",
+        "replace": "    return os.environ.get(\"TV_CHARS_LEARNED\") or os.path.join(HERE, \".char_roster.json\")\n",
         "matches": 1,
     },
 ]

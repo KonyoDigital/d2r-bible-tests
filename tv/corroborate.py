@@ -2539,6 +2539,12 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # #54 (v3526 integration) — the equipped lane's own row: one source today, said so rather than claimed covered.
+    'equipped ledger files every seal':
+        "the row reads equipped_ledger.contract() — the lane's own store against the journal ring the same console "
+        "writes, so a lane that files and a row that checks it read one writer's two halves. An independent second "
+        "source would be the reel's own frames (a worn-item panel seen on film) or the vault's witness ledger naming "
+        "the same character's gear; no joint walks either against the equipped ledger yet.",
     # 2026-09-28 — the owned door's heart rows. Each is one source today, said so rather than claimed covered.
     'a vault item with no provenance':
         "the row compares the board's owned list against its own d2r_vaultProv store — two stores written by the "

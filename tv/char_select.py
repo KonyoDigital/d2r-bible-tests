@@ -36,6 +36,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import tempfile
 import time
 
@@ -66,8 +67,22 @@ TICK_BUDGET_S = 8.0      # wall time one tick may spend scanning (it rides a 45 
 _FRAME_TS = re.compile(r"f_(\d{10,})\.(?:jpg|jpeg|png)$", re.I)
 
 
+def _world():
+    """His tree, or the fixture's when TV_HIST names one (tv_diablo._fixture_root - called, not copied).
+
+    ⚠ REG-1583, MEASURED 2026-09-30 on the v3526 gate run: test_roundtrip_sim's fixture console created .char_roster.json in
+    the tree it ran from - on his checkout that is HIS roster, and the tick would also have dropped every reel
+    position the fixture world does not hold. A fixture console keeps its own roster."""
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        _h = (os.environ.get("TV_HIST") or "").strip()
+        return _h if (_h and os.path.isabs(_h)) else HERE
+
+
 def store_path():
-    return os.environ.get("TV_CHARS_LEARNED") or os.path.join(HERE, ".char_roster.json")
+    return os.environ.get("TV_CHARS_LEARNED") or os.path.join(_world(), ".char_roster.json")
 
 
 def hist_root():
@@ -373,15 +388,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
             if why == "tick budget spent":
                 break
     finally:
-        for f in glob.glob(os.path.join(work, "*")):
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-        try:
-            os.rmdir(work)
-        except OSError:
-            pass
+        shutil.rmtree(work, ignore_errors=True)   # the crops are throwaway; a nested dir must not strand it
     st["frames"] = int(st.get("frames") or 0) + scanned
     st["lastTs"] = int(now_s * 1000)
     if why:

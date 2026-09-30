@@ -10584,6 +10584,9 @@ WATCHES = {
 
     # #41 rank 16 (REG-1560) — reads the receipt the tvd-tooltip-oracle lane writes; that loop is the vessel it watches.
     "their tooltip rows":          ("_tooltip_oracle_loop",),
+    # #54 — reads the equipped ledger against the console's own journal ring (equipped_ledger.contract); it owns no
+    # element of its own and reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
+    "equipped ledger files every seal": (),
     # #246 W7 — reads the board's stores through the shared tick read; it owns no element of its own and
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "vault provenance":            (),

@@ -216,7 +216,7 @@ def _birth_posix(pid):
         pass
     try:
         out = subprocess.run(["ps", "-p", str(int(pid)), "-o", "lstart="], capture_output=True, text=True,
-                             timeout=5).stdout.strip()
+                             encoding="utf-8", errors="replace", timeout=5).stdout.strip()
         if not out:
             return None
         return int(time.mktime(time.strptime(out, "%a %b %d %H:%M:%S %Y")))
@@ -822,7 +822,7 @@ def _rows_posix():
     None = UNKNOWN. `ps -axo lstart` is five tokens; the command is the rest of the line."""
     try:
         out = subprocess.run(["ps", "-axo", "pid=,ppid=,lstart=,command="], capture_output=True, text=True,
-                             timeout=15)
+                             encoding="utf-8", errors="replace", timeout=15)
     except Exception:
         return None
     if out.returncode != 0:
@@ -1163,7 +1163,8 @@ def _free_ram_mb_read():
                     if line.startswith("MemAvailable:"):
                         return int(int(line.split()[1]) // 1024)
             return None
-        out = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5).stdout
+        out = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             timeout=5).stdout
         return parse_vm_stat(out)
     except Exception:
         return None

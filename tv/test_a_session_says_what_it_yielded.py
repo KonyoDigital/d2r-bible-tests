@@ -96,10 +96,10 @@ def _chron_book():
             {"reel": "reel_" + A, "frame": "f_1.jpg", "witness": "none", "conf": 0.9, "lane": "claude"},
             {"reel": "s_1790000000000_1", "frame": "f_2.jpg", "witness": "none", "conf": 0.8, "lane": "grok"},
             {"reel": "reel_" + A, "frame": "f_2.jpg", "witness": "none", "conf": 0.8, "lane": "grok"},
-            {"reel": "reel_s_1780000000000_7", "frame": "f_9.jpg", "witness": "none", "conf": 0.7, "lane": "claude"},
+            {"reel": "reel_s_1500000000000_7", "frame": "f_9.jpg", "witness": "none", "conf": 0.7, "lane": "claude"},
         ],
         "Tal Rasha's Horadric Crest": [
-            {"reel": "reel_s_1780000000000_7", "frame": "f_3.jpg", "witness": "none", "conf": 0.7, "lane": "claude"},
+            {"reel": "reel_s_1500000000000_7", "frame": "f_3.jpg", "witness": "none", "conf": 0.7, "lane": "claude"},
         ]}, "sets": {}}
 
 

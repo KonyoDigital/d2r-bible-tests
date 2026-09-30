@@ -278,7 +278,7 @@ def _drive():
             % (T, T + 400000, T + 500000, json.dumps(old), json.dumps(pick), json.dumps(BF_LOG), json.dumps(PAIRS),
                json.dumps(JOINS), json.dumps(_doors(s))))
     # the lists and the resolver sit at the TOP of the program (the region asks `typeof ITEMS` at call time)
-    prog = P.HARNESS % {"lanes": P._lanes(s) + "\n" + _names_js(s) + "\n" + _resolver_js(s),
+    prog = P.HARNESS % {"origin": P._origin_line(s), "lanes": P._lanes(s) + "\n" + _names_js(s) + "\n" + _resolver_js(s),
                         "furn": P._between(s, P.FURN_FROM, P.FURN_TO), "region": P.owned_prov_region(s),
                         "evidence": P._marked(s, P.EV_BEGIN, P.EV_END), "rec": P._between(s, P.REC_FROM, P.REC_TO),
                         "script": head + extra + SCRIPT}

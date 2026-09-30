@@ -76,6 +76,10 @@ EXEMPT = {
     # attributed like any other work. Writing "free" here would have been the convenient lie.
     "_status_worst_load":       "epilogue-only, after _total is taken; at most once per boot",
     "_status_worst_save":       "epilogue-only, after _total is taken; only on a new worst",
+    # #83 — READ BEFORE EXEMPTING: it copies three module-level dicts of child_guard (RECEIPT, WATCHDOG, RAM,
+    # defined at import). The census that DOES touch disk (lists LEDGER_DIR, asks every pid) is deliberately
+    # NOT called from here — its docstring says so — and runs in the doctor's one_of_each row instead.
+    "_child_guard_status":      "copies three in-memory child_guard dicts; the disk census is not called here",
 }
 
 

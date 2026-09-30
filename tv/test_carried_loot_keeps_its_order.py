@@ -305,8 +305,7 @@ BACKFILL_LOG = (
 def _register_items(rows):
     """The SHIPPED register compiles `rows`; the items are built exactly as control_app's propose builder builds them
     (held and latest tuples beside the first sighting, no character — nothing produces one yet)."""
-    import control_app as ca
-    reg = ca._kai_compile_register(rows)
+    reg = P.compile_register(rows)
     out = []
     for x in reg:
         it = {"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"), "frameId": x.get("frameId"), "tier": x.get("tier"),
@@ -351,7 +350,7 @@ def _drive():
     extra = EXTRA % {"locks": P._between(s, LOCK_FROM, LOCK_TO), "main": P._between(s, MAIN_FROM, MAIN_TO)}
     script = ("var REGISTER_ITEMS = %s;\nvar PROD_ITEMS = %s;\nvar BACKFILL_LOG = %s;\n"
               % (json.dumps(items), json.dumps(prod), json.dumps(BACKFILL_LOG))) + extra + SCRIPT
-    prog = P.HARNESS % {"lanes": P._lanes(s), "furn": P._between(s, P.FURN_FROM, P.FURN_TO), "region": P.owned_prov_region(s),
+    prog = P.HARNESS % {"origin": P._origin_line(s), "lanes": P._lanes(s), "furn": P._between(s, P.FURN_FROM, P.FURN_TO), "region": P.owned_prov_region(s),
                         "evidence": P._marked(s, P.EV_BEGIN, P.EV_END), "rec": P._between(s, P.REC_FROM, P.REC_TO),
                         "script": script}
     out = P._node(prog, "order")
@@ -541,7 +540,7 @@ class M1ThePerNamePlaceDecides(unittest.TestCase):
         for a, b, c, route, leave in sec("m1"):
             if ca._kai_sighting_leaves(a, b) != leave:
                 bad.append(("leave", a, b, leave))
-            reg = ca._kai_compile_register([{"lane": "deep", "ts": 5, "frameId": "f", "sessionId": "s", "scene": b,
+            reg = P.compile_register([{"lane": "deep", "ts": 5, "frameId": "f", "sessionId": "s", "scene": b,
                                              "names": ["Magefist"], "names_loc": ({"Magefist": a} if a else {})}])
             held = bool(reg and reg[0].get("heldLoc"))
             if c and held != (route in ("vault", "carried", "kit")):

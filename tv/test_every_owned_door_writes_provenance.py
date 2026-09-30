@@ -657,10 +657,33 @@ def _node(prog, tag):
     return json.loads(r.stdout)
 
 
+def compile_register(rows):
+    """The console's register compile, with main_character's LEDGER redirected into a throwaway dir. -> the register
+
+    ⚠ REG-1583, MEASURED 2026-09-30 by the v3526 gate run's live-state watch: _kai_compile_register feeds main_character.saw()
+    BY DESIGN (v2361) and saw() writes main_character.LEDGER - tv/main_character.json, bound at import. Three laws that
+    called the compiler bare created that file in the tree they ran from, and on his checkout that file is HIS gear
+    ledger (what he wears, Wilson-scored from sightings): fixture sightings would have counted as his. LEDGER is
+    import-bound - no env var moves it - so the only redirect that takes is the attribute, asserted before the compile
+    runs and restored after. Every law that compiles the register comes through here. [[feedback-fixtures-never-touch-live-data]]
+    """
+    import control_app as ca
+    import main_character as mc
+    d = tempfile.mkdtemp(prefix="owned_mc_")
+    saved = mc.LEDGER
+    mc.LEDGER = os.path.join(d, "main_character.json")
+    try:
+        if not mc.LEDGER.startswith(d):
+            raise AssertionError("the main_character redirect did not take - refusing to compile into his ledger")
+        return ca._kai_compile_register(rows)
+    finally:
+        mc.LEDGER = saved
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def _register_items():
     """H1, END TO END: the SHIPPED register compiles a Chronicle-page sighting followed by a WORN one, and the item it hands
     the board is built exactly as the console's propose builder builds it (held fields beside the first sighting)."""
-    import control_app as ca
     rows = [{"lane": "deep", "ts": 1790551000000, "frameId": "20_1790551000000", "sessionId": "s_2", "scene": "chronicle",
              "names": ["String of Ears"], "names_loc": {}},
             {"lane": "deep", "ts": 1790551926547, "frameId": "17_1790551926547", "sessionId": "s_2", "scene": "inventory",
@@ -674,7 +697,7 @@ def _register_items():
              "names": ["War Traveler"], "names_loc": {"War Traveler": "equipped"}},
             {"lane": "deep", "ts": 1790550000000, "frameId": "19_1790550000000", "sessionId": "s_2", "scene": "chronicle",
              "names": ["War Traveler"], "names_loc": {}}]
-    reg = ca._kai_compile_register(rows)
+    reg = compile_register(rows)
     out = []
     for x in reg:
         it = {"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"), "frameId": x.get("frameId"), "tier": x.get("tier"),

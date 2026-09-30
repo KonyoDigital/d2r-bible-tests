@@ -344,6 +344,8 @@ LANES = {
 #:     tvd-version-drift   announces a stale process
 #:     tvd-eagle-watch     a supervisor, not a worker
 #:     tvd-runaway-watch   a supervisor, not a worker
+#:     tvd-tooltip-oracle  #41 rank 16 - runs the shipped tooltip code over a FIXED oracle (203 rows) and writes
+#:                         only its own receipt; no reel, no frame, no ledger is on its work-list
 #: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 # ⚠⚠ v3018 — "tvd-retro-triage" REMOVED FROM THIS LIST, because it is now a declared shelf lane.
 # It sat here because every lane the driver supervised took its work-list from retention TAGS, and
@@ -353,7 +355,7 @@ LANES = {
 # true. Declared AND excused is the one state this census must never be in.
 NOT_SHELF_LANES = ("tvd-shadow-watch", "tvd-stash-watch", "tvd-rolling-prune",
                    "tvd-ledger-backup", "tvd-space-warden", "tvd-version-drift",
-                   "tvd-eagle-watch", "tvd-runaway-watch")
+                   "tvd-eagle-watch", "tvd-runaway-watch", "tvd-tooltip-oracle")
 
 
 def declared_covers_the_map(owed_by=None, lanes=None):

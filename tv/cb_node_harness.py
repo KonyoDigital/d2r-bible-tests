@@ -163,7 +163,8 @@ def _run(body, db=None):
     prog = (HARNESS.replace("__DB__", json.dumps(db if db is not None else _db_json(s)))
             + lp + wp + lsr + chars + backup + _builder_js(s) + "\n;(function(){ var OUT = {};\n" + body
             + "\nprocess.stdout.write(JSON.stringify(OUT)); })();\n")
-    r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=120)
+    r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=120)
     if r.returncode != 0:
         raise AssertionError("node failed: " + (r.stderr or r.stdout)[-2000:])
     return json.loads(r.stdout)

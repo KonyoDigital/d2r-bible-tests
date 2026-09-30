@@ -159,6 +159,24 @@
     "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
     "territory": "vault"
   },
+  "char_select.py": {
+    "entryPoints": [
+      "tick",
+      "status",
+      "learned",
+      "owed",
+      "looks_like_char_select",
+      "panel_stats",
+      "panel_crop",
+      "normalize",
+      "record",
+      "load",
+      "save"
+    ],
+    "gotcha": "A character is LEARNED only after MIN_VISITS=2 separate visits (frames >90 s apart split visits) - one misread never becomes a character. Level = the highest level two visits saw; two reads inside ONE visit keep the lower; the shown spelling is the one most reads agree on. The paid reader is capped (2 reads per visit, 8 per hour) and a tick is bounded to 8 s of scanning. load() returns None for a ledger that exists and cannot be read, and tick() then writes NOTHING - an empty ledger saved over the real one is the defect it refuses. The FIFO deletes reels; their visits stay in the ledger.",
+    "purpose": "#91 (REG-1581) - learns his characters from the reels' own CHARACTER-SELECT screen. A two-panel pixel test finds the screen (right list panel near-grey, left panel a dim warm grey; the crop is 0.385 x the frame HEIGHT because D2R scales its UI with height), the list crop is read by tv_diablo.charselect_read, and every read is folded into a per-PC ledger (tv/.char_roster.json, gitignored). Rides the vault autoread loop as rider lane tvd-char-learner; GET /api/chars_learned feeds the character builder, which groups level-1 characters as mules.",
+    "territory": "ledger-profile"
+  },
   "child_guard.py": {
     "entryPoints": [
       "spawn",
