@@ -13,8 +13,8 @@ FOUR JOINTS, each DRIVEN here through the shipped code (never re-implemented):
   2. THE BEACON - `readers` rides every beacon beside `shadow`.
   3. THE WORKER - the shaper keeps state / needsLogin / why (absent stays null, an odd state is 'unknown'), and a flip
      of a state or of needsLogin is news - the words are not (their counts move every read).
-  4. THE CARD - the calm row says " · Claude signed out" / " · Claude not reading" ONLY when that PC's primary reader
-     cannot read, and " · Grok signed out" only when the + GROK layer is on and signed out there; nothing when they
+  4. THE CARD - the calm row says "Claude signed out" / "Claude not reading" ONLY when that PC's primary reader
+     cannot read, and "Grok signed out" only when the + GROK layer is on and signed out there; nothing when they
      read, when the layer is simply switched off, when the PC is offline or when an older build sends nothing. The box
      a click opens says both lamps in words, each reader's reason in its hover.
 [[heart-first]] [[unknown-stays-unknown]] [[the-unjoined-end]] [[stale-reading]]
@@ -110,8 +110,8 @@ RED_PROOF = [
     {
         "why": "#108 - the row stops asking for its readers (the helper stays, the join is gone)",
         "file": "control_ui.html",
-        "find": "          + _fleetReaderChip(m, online)\n",
-        "replace": "",
+        "find": "    var s = _fleetStuckChip(m) + _fleetPickerChip(m) + _fleetReaderChip(m, online);\n",
+        "replace": "    var s = _fleetStuckChip(m) + _fleetPickerChip(m);\n",
         "matches": 1,
     },
     {
@@ -277,11 +277,11 @@ class TheWordOnTheRowAndTheBox(unittest.TestCase):
 
     def test_a_signed_out_pc_says_so_on_its_row_and_names_the_fix(self):
         c = _chip(SIGNED_OUT)
-        self.assertEqual(c["text"], "· Claude signed out", c)
+        self.assertEqual(c["text"], "Claude signed out", c)
         self.assertIn("/login", c["h"], "the hover does not carry the reader's own reason")
         failed = _chip(dict(SIGNED_OUT, claude=dict(SIGNED_OUT["claude"], needsLogin=False,
                                                     why="Claude's last read on this PC failed: timeout")))
-        self.assertEqual(failed["text"], "· Claude not reading", failed)
+        self.assertEqual(failed["text"], "Claude not reading", failed)
 
     def test_a_calm_row_stays_calm(self):
         for label, readers, online in (("reading", READING, True), ("offline", SIGNED_OUT, False),
@@ -292,7 +292,7 @@ class TheWordOnTheRowAndTheBox(unittest.TestCase):
 
     def test_grok_signed_out_while_its_layer_is_on_is_said(self):
         g = _chip(dict(READING, grok={"state": "off", "needsLogin": True, "why": "Grok is not signed in on this PC"}))
-        self.assertEqual(g["text"], "· Grok signed out", g)
+        self.assertEqual(g["text"], "Grok signed out", g)
 
     def test_the_box_says_both_lamps_in_words(self):
         p = _part(SIGNED_OUT)
@@ -305,12 +305,19 @@ class TheWordOnTheRowAndTheBox(unittest.TestCase):
         self.assertIn("UNKNOWN", old["t"])
 
     def test_the_row_asks_for_its_readers(self):
-        """The join. The helper is driven above; this pins that the ROW calls it, after the picker's word, like every
-        exception chip on the calm row."""
-        with io.open(UI, encoding="utf-8") as f:
-            src = f.read()
-        self.assertEqual(src.count("          + _fleetPickerChip(m)\n          + _fleetReaderChip(m, online)\n"), 1,
-                         "the fleet row does not say its PC's readers")
+        """The join, DRIVEN (REG-1613): the row's exception line - _fleetRowChips, the one item the row places under its
+        name - carries the readers' word beside the river's, and is nothing at all on a calm row. That the ROW draws
+        that line is rendered in a browser by test_the_fleet_row_keeps_its_name_whole and render_check fleet-xref."""
+        stuck = {"river": {"stuck": [{"station": "EMPTY", "n": 3, "oldestS": 90000, "why": "route lane: law"}]}}
+        loud = {"nickname": "Dean", "machine": "dean-pc", "ver": "v3531", "readers": SIGNED_OUT, "system": stuck}
+        calm = {"nickname": "Dean", "machine": "dean-pc", "ver": "v3531", "readers": READING}
+        out = _ui_run("OUT.h = _fleetRowChips(%s, true); OUT.calm = _fleetRowChips(%s, true); OUT.off = _fleetRowChips(%s, false);"
+                      % (json.dumps(loud), json.dumps(calm), json.dumps(dict(loud, system=None))))
+        self.assertIn('class="fleet-chips"', out["h"], "the row's words are not one line item")
+        self.assertIn("Claude signed out", out["h"], "the row's line does not say its PC's readers")
+        self.assertIn("river stuck", out["h"], "premise: the river's word shares the line")
+        self.assertEqual(out["calm"], "", "a calm PC grew an exception line")
+        self.assertEqual(out["off"], "", "an offline PC's last report was said as the present")
 
 
 if __name__ == "__main__":

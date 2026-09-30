@@ -45,9 +45,61 @@ def _stamp(reel, station, ago_s, seq):
 
 class TheConsoleNamesItsStuckStations(unittest.TestCase):
 
-    def _stuck(self, rows):
+    def _stuck(self, rows, shelf=None, fixtures=()):
+        """every reel in `rows` is on the shelf unless `shelf` names which are (REG-1614)"""
         import control_app as ca
-        return ca._river_stuck_for_wire(now_ms=NOW, _rows=rows)
+        on = set(r["reel"] for r in rows) if shelf is None else shelf
+        return ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _shelf=on, _fixtures=fixtures)
+
+    def test_a_reel_gone_from_the_shelf_or_pinned_by_the_suite_is_never_stuck(self):
+        """REG-1614 - his Mac on 2026-09-30: 27 'stuck', of which 16 were closed out by retention, 1 reaped by the disk
+        floor and 4 were suite fixtures. A reel that has left the shelf cannot be stuck on it, and a fixture never
+        moves by design - neither is an alarm. PREMISE: the same rows with every reel on the shelf DO alarm."""
+        rows = [_stamp("reel_s_1_on", "EMPTY", 40 * H, 1), _stamp("reel_s_2_gone", "JOIN", 30 * H, 2),
+                _stamp("reel_s_3_pin", "TRIAGE", 20 * H, 3), _stamp("reel_s_4_on", "PRINTER", 10 * H, 4)]
+        every = {e["station"] for e in self._stuck(rows)}
+        self.assertEqual(every, {"EMPTY", "JOIN", "TRIAGE", "PRINTER"}, "PREMISE: the rows do not alarm at all")
+        got = {e["station"]: e["n"] for e in self._stuck(rows, shelf={"reel_s_1_on", "reel_s_3_pin", "reel_s_4_on"},
+                                                          fixtures=("reel_s_3_pin",))}
+        self.assertEqual(got, {"EMPTY": 1, "PRINTER": 1}, "a reel off the shelf or a suite fixture was called stuck")
+
+    def test_the_real_shelf_is_asked_and_an_unreadable_one_is_unknown(self):
+        """the default path asks the console's own shelf folder, one reel at a time; no shelf folder at all is None
+        (UNKNOWN), never an empty list that reads as a river draining"""
+        import shutil
+        import tempfile
+        from unittest import mock
+        import control_app as ca
+        d = tempfile.mkdtemp(prefix="stuck_shelf_")
+        self.addCleanup(shutil.rmtree, d, True)
+        os.makedirs(os.path.join(d, "reel_s_1_on"))
+        rows = [_stamp("reel_s_1_on", "EMPTY", 40 * H, 1), _stamp("reel_s_2_gone", "EMPTY", 30 * H, 2)]
+        with mock.patch.object(ca, "HIST_DIR", d):
+            got = ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _fixtures=())
+        self.assertEqual([(e["station"], e["n"]) for e in got], [("EMPTY", 1)], got)
+        with mock.patch.object(ca, "HIST_DIR", os.path.join(d, "no_such_shelf")):
+            self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _fixtures=()),
+                              "a shelf that is not there read as a river draining")
+
+    def test_a_route_this_pc_never_proved_names_what_its_prover_waits_for(self):
+        """REG-1614 - the ALT on 2026-09-30: its row said 'Run python3 tv/heart2.py --prove', the one thing a prove beside
+        his game must never be (REG-1502). With the route locked and this PC's census not current, the reason is its own
+        prover's word; with the census current, a locked route still says the lane's own reason."""
+        from unittest import mock
+        import control_app as ca
+        locked = {"why": "reel.route is LOCKED — the heart has never run here, so nothing has shown that the gates "
+                         "watching this surface can still go red. Run `python3 tv/heart2.py --prove`. UNKNOWN fails CLOSED."}
+        playing = "he is playing on this PC (the game or its cloud client) - a proof never starts beside it"
+        with mock.patch.object(ca, "_ROUTE_LANE", locked), \
+                mock.patch.object(ca, "_SELF_PROVE", {"census": "absent", "key": "playing", "say": playing}):
+            w = ca._river_stuck_why("EMPTY")
+        self.assertIn("proves its own gates", w)
+        self.assertIn(playing, w)
+        self.assertNotIn("heart2.py --prove", w, "the ALT is told to run a prove beside his game")
+        merit = {"why": "reel.route is LOCKED — 3 of 7 refusals seen; the bar is 0.510"}
+        with mock.patch.object(ca, "_ROUTE_LANE", merit), \
+                mock.patch.object(ca, "_SELF_PROVE", {"census": "current", "key": "current", "say": "current"}):
+            self.assertEqual(ca._river_stuck_why("EMPTY"), "route lane: " + merit["why"])
 
     def test_the_alts_shape_is_named_with_ages(self):
         rows = [_stamp("reel_s_1_a", "TRIAGE", 50 * H, 1), _stamp("reel_s_1_a", "EMPTY", 40 * H, 2),
@@ -145,6 +197,34 @@ RED_PROOF = [
         "file": "functions/api/console.js",
         "find": "        if (Array.isArray(rv.stuck)) {\n",
         "replace": "        if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1614 - reels that left the shelf are counted again: his Mac's 17 deleted reels read as stuck",
+        "file": "tv/control_app.py",
+        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
+        "replace": "        if reel in _pinned:\n            continue\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1614 - the suite's fixture reels are counted again: reels that never move by design read as stuck",
+        "file": "tv/control_app.py",
+        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
+        "replace": "        if not _on(reel):\n            continue\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1614 - a shelf that is not there reads as a river draining (an empty list, not UNKNOWN)",
+        "file": "tv/control_app.py",
+        "find": "        if not os.path.isdir(HIST_DIR):\n            return None\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1614 - the ALT's locked route tells him to run a prove beside his game again",
+        "file": "tv/control_app.py",
+        "find": "            if w.startswith(\"reel.route is LOCKED\") and _sp.get(\"census\") not in (None, \"current\"):\n",
+        "replace": "            if False:\n",
         "matches": 1,
     },
 ]

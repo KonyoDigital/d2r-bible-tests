@@ -5712,8 +5712,13 @@
      between the title and the description. MEASURED: 147x14 against the vault tab
      stamp's 17x13. align-self keeps it honest if it is ever reparented. */
   .lockchip.lc-inline { align-self: flex-start; flex: 0 0 auto; }
+  /* #107 (REG-1609) - top:1px put the lock on the label's ink whenever the strip ran tight: MEASURED on v3528 with the
+     real tab icons, 6-10px of the padlock on "Vault" at 900-1600 (it read "Vaul" with a lock on the t). Reserving its
+     room inside the tab would cost the strip ~14px it does not have at 900, so the stamp sits ON the tab's top edge, a
+     badge clear of the label at every width - still out of flow, still costing nothing. The brand above it clips only
+     sideways now (overflow-x: clip), or the badge was cut to a sliver wherever the tabs wrap. */
   .lockchip.lc-tab {
-    position: absolute; top: 1px; right: 3px;
+    position: absolute; top: -10px; right: 3px;
     margin: 0; padding: 0; border: 0; line-height: 1;
     /* ⚠ v2443 — THIS WAS `9px` AND TWO GATES REFUSED IT: visual-lock ('every size must be a
        var(--fs-*) token') and TestV1504TypeFloor ('[9.0] != []'). The floor exists so
@@ -6607,18 +6612,30 @@
      the gap is the separator, and a fact that wraps takes the indent whole. The key (films / river / triage) hangs in
      the indent on the first line; no child is nowrap. */
   .fleet-sys > .fs-l { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.6ch;
-                       min-width: 0; padding-left: 7ch; }
-  .fleet-sys .fs-k { position: absolute; left: 0; top: 0; width: 6.4ch; font-style: normal; color: #5d685f; }
+                       min-width: 0; padding-left: 8ch; }
+  /* #108 - 8ch, not 7: 'readers' is the first seven-letter key and ran into its value ("readersCLAUDE") */
+  .fleet-sys .fs-k { position: absolute; left: 0; top: 0; width: 7.4ch; font-style: normal; color: #5d685f; }
   .fleet-sys .fs-f { min-width: 0; overflow-wrap: anywhere; }
   .fleet-row > .fleet-sys.fleet-former > .fs-l { padding-left: 0; }
   .fleet-sys .fs-unk { color: var(--muted, #8b8071); font-style: italic; }
   .fleet-sys .fs-stand { color: #d8b36a; }
   .fleet-sys .fs-warn { color: #e0795f; }
-  .fleet-riverstuck { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
+  /* ══ 2026-09-30 (REG-1613) — THE EXCEPTION WORDS GET THEIR OWN LINE, UNDER THE NAME ══════════════════════════════
+     Each word (river stuck · picker short · Claude signed out) was its own GRID ITEM with nowrap and no column, so
+     auto-placement dropped them into tracks 3 and 4 and the `auto` tracks grew to their full width before the name's
+     1fr got anything: in the 227px rail the name shrank to one letter a line ("K o n y o", "L a p t o p") and two
+     words printed over each other ("picker broken" through "Claude signed"). MEASURED on his console the same
+     minute: every online row carried "river stuck". So the words are ONE item on the row's second line, spanning
+     the name's column to the verdict's (placed after the verdict in the markup, so the verdict keeps row one), and
+     each word wraps whole: the gap is the separator, no glyph to strand (REG-1377). [[visual-regression-detector]] */
+  .fleet-row > .fleet-chips { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: baseline;
+                              gap: 0 1.6ch; min-width: 0; }
+  .fleet-chips > span { min-width: 0; overflow-wrap: anywhere; }
+  .fleet-riverstuck { color: #e0795f; font-weight: var(--fw-medium); }
   /* #41 rank 22 (REG-1564) — the picker-disagrees chip, set exactly like the river-stuck one beside it */
-  .fleet-pickerodd  { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; }
+  .fleet-pickerodd  { color: #e0795f; font-weight: var(--fw-medium); }
   /* #108 — a PC whose reader cannot read: the same exception word as river stuck / picker short, and only then */
-  .fleet-readeroff  { color: #e0795f; font-weight: var(--fw-medium); white-space: nowrap; cursor: help; }
+  .fleet-readeroff  { color: #e0795f; font-weight: var(--fw-medium); cursor: help; }
   .fleet-row > .fleet-sys.fleet-former { font-style: italic; opacity: .72; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
@@ -7443,7 +7460,7 @@
   }
 
   @media (max-width: 1250px){
-    .topbar .brand { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+    .topbar .brand { flex: 1 1 auto; min-width: 0; overflow-x: clip; overflow-y: visible; }   /* #107 - sideways only: v2120 clipped here so a squeezed brand never scrolled or spilled into the corner; a clip on the y axis also cut the vault tab's lock badge wherever the tabs wrapped */
     /* v2120 (#66) — NO SILENT SCROLL AT ANY WIDTH. `overflow-x:auto` with `scrollbar-width:none`
        is the exact pair that hid TV·D (v2093): a tab that runs out of room does not shrink, wrap
        or hint — it is simply NOT THERE. This rule is (0,2,0) and v2093's fix on `.head-tabs` is
@@ -25020,7 +25037,7 @@ function escC(s) {
     var tip = sk.map(function (e) {
       return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ': ' + (e.why || 'no reason given');
     }).join(' | ');
-    return '<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '"> · river stuck</span>';
+    return '<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>';
   };
   /* #41 rank 22 (REG-1564) — THE ONE WORD ON THE ROW for the picker: a red "picker short" (or "picker over") beside the
      name ONLY when that PC's picker and its own database disagree, both numbers in its hover; nothing when they agree
@@ -25029,14 +25046,14 @@ function escC(s) {
     var pk = (m && m.picker && typeof m.picker === 'object') ? m.picker : null;
     if (pk && pk.ok !== true && pk.broken === true) {
       return '<span class="fleet-pickerodd" title="' + escC('the character picker on this PC failed its own count: '
-           + String(pk.why || 'no reason given')) + '"> · picker broken</span>';
+           + String(pk.why || 'no reason given')) + '">picker broken</span>';
     }
     if (!pk || pk.ok !== true || typeof pk.offers !== 'number' || typeof pk.holds !== 'number') return '';
     if (pk.offers === pk.holds) return '';
     var w = pk.offers < pk.holds ? 'picker short' : 'picker over';
     return '<span class="fleet-pickerodd" title="' + escC('the character picker on this PC offers ' + pk.offers
          + ' base(s) for ' + String(pk.label || pk.slot || 'the slot') + ' while its own database holds ' + pk.holds)
-         + '"> · ' + w + '</span>';
+         + '">' + w + '</span>';
   };
   /* #108 — THE ONE WORD ON THE ROW for its readers (his question: "maybe this happened to dean too?"): " · Claude signed
      out" / " · Claude not reading" ONLY when that PC's PRIMARY reader reported it cannot read, and " · Grok signed out"
@@ -25051,15 +25068,21 @@ function escC(s) {
     var out = '';
     if (c.state === 'off') {
       out += '<span class="fleet-readeroff" title="' + escC('the primary reader (Claude) on this PC cannot read: '
-           + String(c.why || 'no reason given')) + '"> · ' + (c.needsLogin ? 'Claude signed out' : 'Claude not reading')
+           + String(c.why || 'no reason given')) + '">' + (c.needsLogin ? 'Claude signed out' : 'Claude not reading')
            + '</span>';
     }
     if (g.state === 'off' && g.needsLogin === true) {
       out += '<span class="fleet-readeroff" title="' + escC('the + GROK layer is on at this PC but cannot read: '
-           + String(g.why || 'no reason given')) + '"> · Grok signed out</span>';
+           + String(g.why || 'no reason given')) + '">Grok signed out</span>';
     }
     return out;
   };
+  /* REG-1613 — the row's exception words as ONE item on its second line (see .fleet-chips): nothing when all are calm */
+  var _fleetRowChips = function (m, online) {
+    var s = _fleetStuckChip(m) + _fleetPickerChip(m) + _fleetReaderChip(m, online);
+    return s ? '<span class="fleet-chips">' + s + '</span>' : '';
+  };
+  window._fleetRowChips = _fleetRowChips;
   window._fleetReaderChip = _fleetReaderChip;
   window._fleetPickerChip = _fleetPickerChip;
   window._fleetStuckChip = _fleetStuckChip;
@@ -25791,9 +25814,6 @@ function escC(s) {
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + _fleetShadowEye(m, online) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
-          + _fleetStuckChip(m)
-          + _fleetPickerChip(m)
-          + _fleetReaderChip(m, online)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the
              information"*. The row carried `idle · v2874 · unpublished · just now`, and
@@ -25831,7 +25851,9 @@ function escC(s) {
               } catch (_) {}
               return '<span class="fleet-meta fleet-word ' + w.c + '" title="'
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
-                + escC(w.w) + '</span>' + _rw;
+                + escC(w.w) + '</span>'
+                /* REG-1613 — AFTER the verdict, so the verdict keeps row one and the words take row two */
+                + _fleetRowChips(m, online) + _rw;
             })()
           /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
              clicked on or something like a backdoor to the informational background". The films / river / triage lines

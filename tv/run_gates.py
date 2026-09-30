@@ -8611,6 +8611,22 @@ GATES = [
              "states UNKNOWN, a flip is news, the words are not), the card - a calm row says 'Claude signed out' only "
              "when that PC's primary reader cannot read (never offline, never for an older build, never for a Grok "
              "layer merely switched off), the click box says both lamps in words."),
+    Gate("test_the_vault_tab_lock_never_sits_on_its_label",
+         [sys.executable, os.path.join(HERE, "test_the_vault_tab_lock_never_sits_on_its_label.py")], 180,
+         needs_app=False,
+         why="#107 (REG-1609, 2026-09-30) - the Vault tab's padlock sat 6-10px on its own label ('Vaul' with a lock on the "
+             "t) at every width he uses, and the render gate could not see it: it samples label points with "
+             "elementFromPoint and the stamp is pointer-events:none. RENDERS the shipped header in headless Chrome over a "
+             "scratch localhost server (so the tab icons load as on his console) at seven widths and measures geometry: "
+             "the stamp never meets the label's ink, no clipping ancestor cuts it, and it is shown at all."),
+    Gate("test_the_fleet_row_keeps_its_name_whole",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_row_keeps_its_name_whole.py")], 180,
+         needs_app=False,
+         why="REG-1613 (2026-09-30) - his fleet rail with 'river stuck' on every online row; with the render gate's own "
+             "stub the names broke one letter a line ('K o n y o') and 'picker broken' printed through 'Claude signed', "
+             "while that gate said painted, unclipped and uncovered. RENDERS the shipped rail in headless Chrome with every "
+             "exception word at four widths and measures from the characters' own rects: no name breaks inside a word, no "
+             "two words of a row overlap, nothing runs past the rail."),
     Gate("test_the_push_waits_for_a_settling_console",
          [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
          needs_app=False,

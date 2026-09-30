@@ -405,6 +405,56 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1614 - "RIVER STUCK" ON EVERY PC: 21 OF THE MAC'S 27 WERE REELS NO LONGER ON ITS SHELF (2026-09-30)
+
+**His screenshot at 19:55:** "river stuck" on all three online PCs. **Measured the same minute:**
+
+| PC | what the chip counted | what is really there |
+|---|---|---|
+| his Mac | 27 reels past 6 h (JOIN 19, STATION 2, PRINTER 4, TRIAGE 2) | 16 closed out by retention (its closure ledger names them), 1 reaped by the recorder's disk floor (its reap log names it), 4 suite fixtures (never move by design, hidden on every other surface) - **6 real: JOIN 4, PRINTER 2** |
+| the ALT | EMPTY 195, PRINTER 42, STATION 1 | all 286 stamped reels ARE on its shelf - real; its route is locked because the ALT has never proved its own gates |
+| GrokBot | EMPTY 11, PRINTER 1 | real; it never proves ("not proving here" - its tree is not read as installed) |
+
+**Cause:** `_river_stuck_for_wire` kept every reel's LAST stamp for ever. The deleters write their own records
+(closure ledger, reap log), never a stamp, so a deleted reel read as stuck at its last station permanently. The drain's
+own blocked-upstream reading (reel_retention) already asked "is it on the shelf, is it pinned"; the fleet census was the
+reader that drifted.
+
+**Now:** a reel counts only while it is on this PC's shelf (one stat each, still no router pass) and never when the
+suite pins it (its cached fixture list). An unreadable shelf is UNKNOWN, never "flowing". And the ALT's hover no longer
+says "Run heart2.py --prove" - the one thing a prove beside Boosteroid must never be (REG-1502): with its route locked
+and its census not current, the reason is its own prover's word ("he is playing on this PC ... a proof never starts
+beside it"). Boosteroid had been open 28 h, 423 MB free. The lock stays: a trial prove found the river-outlet law
+BLIND on the ALT while red on the Mac. Law: `test_the_fleet_says_where_a_river_is_stuck` (+4 cases), all red-proofs
+seen RED. Open: the Mac's 6 real (#111) and the ALT/GrokBot proof windows (#112).
+
+### REG-1613 - THE FLEET ROW'S EXCEPTION WORDS SQUEEZED THE PC'S NAME TO ONE LETTER A LINE (2026-09-30)
+
+**Was:** each word (river stuck · picker short · Claude signed out) was its own grid item with nowrap and no column.
+Auto-placement put them in the row's `auto` tracks, which grow to full width before the name's `1fr` gets anything, so
+in the 227px rail the name broke one letter a line ("K o n y o", "L a p t o p") and two words printed over each other
+("picker broken" through "Claude signed"). The render gate called it green - painted, unclipped, uncovered - because a
+word painted over a word is still painted. His console showed the milder form: "river stuck" on every online row and
+the verdict pushed down a line.
+
+**Now:** the words are ONE item on the row's second line (`.fleet-chips`, name column to verdict column, placed after
+the verdict so the verdict keeps row one), each word wrapping whole with the gap as its separator (no middot to strand,
+REG-1377). New law `test_the_fleet_row_keeps_its_name_whole` renders the shipped rail in Chrome at four widths and
+measures from the characters' rects: no name broken inside a word, no two words overlapping, nothing past the rail.
+Both red-proofs seen RED; the readers law's source-count case is now DRIVEN (`_fleetRowChips` in node).
+
+### REG-1609 - THE VAULT TAB'S PADLOCK SAT ON ITS OWN LABEL (#107, 2026-09-30)
+
+**Was:** the out-of-flow 🔒 stamp (v2443, top:1px right:3px) sat 6-10px on the "Vault" label's ink at 900-1600 -
+"Vaul" with a padlock on the t, on every width he uses. The render gate samples label points with elementFromPoint and
+the stamp is pointer-events:none, so it could not see the one thing covering the label.
+
+**Now:** the stamp is lifted onto the tab's top edge (top:-10px, still out of flow), and the brand above it clips only
+sideways (overflow-x: clip), because a y-clip cut the badge to a sliver wherever the tabs wrap. Tab rows and corner
+widths measured identical to v3528. Law `test_the_vault_tab_lock_never_sits_on_its_label` (seven widths, the real
+icons served): the stamp never meets the label's ink, nothing clips it, it is shown. Both red-proofs seen RED; a cold
+Grok CLI look at four crops: the padlock clear of every letter, nothing cut.
+
 ### REG-1612 - THE ENGINE INDEX NAMED DOORS ITS MODULES NO LONGER HAD (second eye on v3528, 2026-09-30)
 
 **Was:** v3528 renamed `console_settle.wait` to `wait_until_settled`, and `tv/engine_index.json` went on naming `wait`

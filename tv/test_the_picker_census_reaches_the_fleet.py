@@ -687,9 +687,9 @@ class TheCardPrintsItPerPc(unittest.TestCase):
         self.assertTrue(pk["warn"], "a disagreement did not warn: %r" % pk)
         self.assertFalse(pk["unk"])
         self.assertIn("hiding rows", pk["why"])
-        self.assertEqual(chip.strip(), "· picker short", "the row carries no word for a disagreeing PC: %r" % chip)
+        self.assertEqual(chip.strip(), "picker short", "the row carries no word for a disagreeing PC: %r" % chip)
         _p, over = _ui_parts(_ui_row({"ok": True, "slot": "tors", "offers": 50, "holds": 45, "ageS": 1.0}))
-        self.assertEqual(over.strip(), "· picker over")
+        self.assertEqual(over.strip(), "picker over")
 
     def test_unread_and_older_builds_read_unknown_in_words(self):
         p, chip = _ui_parts(_ui_row("absent"))
@@ -718,7 +718,7 @@ class TheCardPrintsItPerPc(unittest.TestCase):
         self.assertTrue(p["picker"]["warn"], "a measured broken picker did not warn: %r" % p["picker"])
         self.assertFalse(p["picker"]["unk"], "a measured broken picker read UNKNOWN: %r" % p["picker"])
         self.assertIn(why, p["picker"]["t"])
-        self.assertEqual(chip.strip(), "· picker broken", "the row carries no word for a broken picker: %r" % chip)
+        self.assertEqual(chip.strip(), "picker broken", "the row carries no word for a broken picker: %r" % chip)
 
     def test_his_own_row_ages_the_census_on_its_own_clock(self):
         """h22 verifier: his own row carries the board's absolute `at` (read off this disk seconds ago); adding the site

@@ -14768,11 +14768,23 @@ _RIVER_OWNER = {"TRIAGE": "triage", "EMPTY": "route", "JOIN": "route", "STATION"
 
 
 def _river_stuck_why(station):
-    """The OWNING lane's own last word on why a station is not draining. -> str (never raises)"""
+    """The OWNING lane's own last word on why a station is not draining. -> str (never raises)
+
+    ⚠ 2026-09-30 (REG-1614) — A ROUTE SHUT BY THIS PC'S OWN MISSING PROOF SAYS WHAT THE PROOF IS WAITING FOR. The
+    ALT's row read "reel.route is LOCKED — the heart has never run here ... Run `python3 tv/heart2.py --prove`" -
+    the one thing that must never be done beside his game (REG-1502: a prove beside Boosteroid crashed it). MEASURED
+    the same minute over SSH: Boosteroid open 28 h straight, 423 MB free, and its self-prove lane answering every
+    tick "he is playing on this PC ... a proof never starts beside it". The lock is right to hold (self_prove's own
+    note: the river-outlet law measured BLIND on the ALT while red on the Mac); the sentence was wrong about what
+    opens it. So when the route lane is locked and this PC's census is not current, the reason is its prover's."""
     lane = _RIVER_OWNER.get(station)
     try:
         if lane == "route":
             w = str((_ROUTE_LANE or {}).get("why") or "")
+            _sp = dict(_SELF_PROVE)
+            if w.startswith("reel.route is LOCKED") and _sp.get("census") not in (None, "current"):
+                return ("route shut until this PC proves its own gates - its prover: %s"
+                        % (_sp.get("say") or "has not said why"))
             return ("route lane: " + w) if w else "the route lane has not run since this console started"
         if lane == "vault":
             v = _vault_autoread_state_cached() or {}
@@ -14788,14 +14800,26 @@ def _river_stuck_why(station):
     return "no lane has moved these on"
 
 
-def _river_stuck_for_wire(now_ms=None, _rows=None):
+def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     """#74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THIS PC, AND WHY. -> list | None
 
     His ask 2026-09-29, after the ALT was found with 76 reels at EMPTY and 25 at PRINTER for two days and
     NOTHING on any screen said so: see every console's river from his own, "so for deans pc it will do the
     same". Read from the river's own stamp log (the time each reel ARRIVED at its current station) - one
     file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
-    oldest first; [] is measured-and-flowing; None is an unreadable log (UNKNOWN, never "flowing")."""
+    oldest first; [] is measured-and-flowing; None is an unreadable log (UNKNOWN, never "flowing").
+
+    ⚠⚠ 2026-09-30 (REG-1614) — ONLY A REEL STILL ON THE SHELF CAN BE STUCK, AND A TEST FIXTURE NEVER IS. His
+    screenshot at 19:55: "river stuck" on all three online PCs. MEASURED on his Mac the same minute: the stamp log
+    put 27 reels at an owned station past 6 h, and 17 of them were no longer on the shelf at all - 16 closed out by
+    the retention pass (its closure ledger names them) and 1 reaped by the recorder's disk floor (its reap log names
+    it). The log keeps a reel's last station for ever, because the deleters write their own records and never a
+    stamp (river_stamp: TOMBSTONE stays "reachable by hand and unreachable by the river"). 4 more were reels the
+    suite opens by name, which never move by design and which every console surface already hides. So 21 of 27
+    were phantoms, and the drain's own blocked-upstream reading (reel_retention) already asked "is it on the shelf,
+    is it pinned" - this reader was the one that drifted. The shelf answers the first question (one stat per
+    reel, still no router pass); the suite's cached fixture list answers the second and is never computed here.
+    `_shelf` / `_fixtures` are a law's seams (reel ids); an unreadable shelf is None, never "flowing"."""
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
     try:
         if _rows is None:
@@ -14806,13 +14830,29 @@ def _river_stuck_for_wire(now_ms=None, _rows=None):
             _rows = rep.get("rows") or []
     except Exception:
         return None
+    if _shelf is None:
+        if not os.path.isdir(HIST_DIR):
+            return None
+        _on = lambda reel: os.path.isdir(os.path.join(HIST_DIR, reel))   # noqa: E731
+    else:
+        _ids = set(str(x) for x in _shelf)
+        _on = _ids.__contains__
+    if _fixtures is None:
+        try:
+            import frame_authority as _fa
+            _fixtures = _fa.test_referenced_reels_nowait() or ()   # None while its first scan runs: hide nothing yet
+        except Exception:
+            _fixtures = ()
+    _pinned = set(str(x) for x in _fixtures)
     last = {}
     for r in _rows:
         last[str(r.get("reel"))] = r
     by = {}
-    for r in last.values():
+    for reel, r in last.items():
         st = str(r.get("station"))
         if st not in _RIVER_OWNER:
+            continue
+        if reel in _pinned or not _on(reel):
             continue
         try:
             age = max(0.0, (now - int(r.get("at"))) / 1000.0)
