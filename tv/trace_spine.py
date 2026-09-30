@@ -416,9 +416,11 @@ def board_would_file(sightings, loc):
     None (never False) when node or the cut is unavailable — "nobody asked the board" is not a refusal.
     [[the-unjoined-end]] [[unknown-stays-unknown]]
     """
-    import shutil
     import subprocess
-    node = shutil.which("node")
+    # REG-1561 — ONE resolver for node (env TV_NODE, PATH, then the known install locations), never PATH alone:
+    # under launchd's bare PATH a which()-only lookup reads "node absent" on a Mac that has node. [[copy-drift]]
+    from cb_node_harness import node_path
+    node = node_path()
     if not node:
         return None, "node is not on this machine, so the board's door could not be asked"
     try:

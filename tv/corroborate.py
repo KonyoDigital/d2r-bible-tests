@@ -2391,7 +2391,68 @@ def _inv_a_reset_hold_is_not_a_register_prompt():
             "the doctor's verdict: gate-passing rows counted as reset-held", right, "==")
 
 
-BUILDERS = (_inv_a_reset_hold_is_not_a_register_prompt,
+def _inv_their_tooltip_rows_are_ours():
+    """#41 rank 16 (REG-1560, 2026-09-30) — THEIR PLANNER'S TOOLTIP ROWS AGAINST OURS, FROM THE LANE'S RECEIPT.
+
+    The character builder's tooltip had ONE independent engine - their planner's in-game tooltip, measured on
+    headless Chrome and frozen as text (tv/the_tooltip_oracle.json: 203 rows over 6 runewords) - and it was
+    compared only by a gate, at push time, in node. Nothing on his console asked, unattended, whether the shipped
+    composition was still theirs. The tvd-tooltip-oracle lane now runs the composition over every oracle row on
+    its own cadence and receipts a verdict PER ROW; this joint compares the two counts.
+
+    THE TWO SIDES:
+      LEFT   rows the oracle holds - THEIRS, counted straight off the fixture file (every runeword's `bases`),
+             never through the lane's reader, so a reader that drops a row cannot move both sides
+      RIGHT  of the rows in the lane's receipt, those measured as OURS (agree is True) - and ONLY when the receipt
+             is FRESH for the bible.html on disk (same sha1) and carries rows, not a summary
+    Independent by ENGINE: the left is their planner's text; the right is our composition, run by node and
+    receipted by the lane. The relation is `==`: every one of their rows is ours.
+
+    ⚠ UNKNOWN (None), never 0, when there is no receipt, when the receipt says `node absent` (a PC without node),
+    when it carries a summary in place of rows, or when bible.html has moved since it was measured - an old
+    agreement is not today's. [[stale-reading]] [[unknown-stays-unknown]]
+    ⚠ THE LIMIT: 203 rows over SIX runewords, one class, one level. A green here vouches for those rows and
+    nothing beyond them.
+    """
+    def left():
+        with io.open(os.path.join(HERE, "the_tooltip_oracle.json"), encoding="utf-8") as fh:
+            fx = json.load(fh)
+        rw = fx.get("runewords") if isinstance(fx, dict) else None
+        if not isinstance(rw, dict) or not rw:
+            return None
+        n = 0
+        for v in rw.values():
+            b = v.get("bases") if isinstance(v, dict) else None
+            if not isinstance(b, dict):
+                return None
+            n += len(b)
+        # an oracle with no rows is not a measurement of theirs: UNKNOWN, not a zero to agree with
+        return n or None
+
+    def right():
+        import tooltip_oracle_lane as tol
+        rec, _why = tol.read_receipt()
+        if rec is None:
+            return None
+        rows = rec.get("rows")
+        if not isinstance(rows, list):
+            return None                   # node absent, or a summary: nothing was judged per row
+        fresh, _fwhy = tol.freshness(rec)
+        if fresh is not True:
+            return None                   # stale or undatable: an old agreement is not today's
+        return sum(1 for r in rows if isinstance(r, dict) and r.get("agree") is True)
+
+    return ("their-tooltip-rows-are-ours",
+            "every row of their planner's tooltip oracle is composed line for line by the shipped tooltip on the "
+            "bible.html on disk (203 rows over 6 runewords - the oracle's limit)",
+            "delete `if (J.s > 0) L = _cbTipMerge(L, rolls);` in bible.html and let the lane re-measure "
+            "(python3 tv/tooltip_oracle_lane.py --force): the receipt agrees on fewer rows than the oracle holds "
+            "- or drop a base in tooltip_oracle_lane.oracle_rows() so a row never reaches the composition",
+            "their oracle rows", left, "rows the lane's receipt measured as ours", right, "==")
+
+
+BUILDERS = (_inv_their_tooltip_rows_are_ours,
+            _inv_a_reset_hold_is_not_a_register_prompt,
             _inv_a_tier_stands_on_the_looks_the_gate_counts,
             _inv_the_router_and_the_shelf_count_the_SAME_reels,
             _inv_a_tombstone_is_never_ahead_of_extraction,
@@ -2471,6 +2532,10 @@ COVERED_BY = {
     # cover, said so the claim cannot over-reach: the broken-picture half of the row (cited frames
     # gone from the shelf) has no second source yet.
     "evidence tiers":    ("a-tier-stands-on-its-looks",),
+    # #41 rank 16 (REG-1560) — the doctor row reads the lane's per-row receipt; the joint compares that receipt
+    # (ours, fresh for the page on disk) against the oracle file (theirs). What it does NOT cover, said so the
+    # claim cannot over-reach: any runeword, class or level the 6-runeword oracle never held.
+    "their tooltip rows": ("their-tooltip-rows-are-ours",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {

@@ -115,6 +115,64 @@
     "purpose": "Writes one vNNNN into all four stamps at once - bible.html D2R_BUILD.id, tv_diablo.VERSION, WINDOWS_SHIP.json ver, control_app /api/status ver - verifying each; refuses apostrophes and var(--x).",
     "territory": "routines-infra"
   },
+  "cb_node_harness.py": {
+    "territory": "gates-proofs",
+    "purpose": "The character builder's node stand-in: a localStorage + document harness with spies on the vault and the mules, the cutters that lift the CHARACTER BUILDER JS block, the CB_DB block and the board pieces it stands on out of bible.html between their own anchors, and _run(body) which executes all of it in ONE node process. Moved verbatim out of the builder law (REG-1561) so a production lane can run the shipped tooltip composition; the ten builder laws keep importing it through that law's re-exports.",
+    "entryPoints": [
+      "node_path",
+      "NODE",
+      "_run",
+      "_src",
+      "_between",
+      "_builder_js",
+      "_db_json",
+      "_stage",
+      "_db",
+      "HARNESS"
+    ],
+    "gotcha": "NODE is resolved by env (TV_NODE), then PATH, then the known install locations - his console runs under launchd with a bare PATH, so shutil.which alone reads 'node absent' on a Mac that has node. A candidate counts only as an executable FILE (a directory is not node). None means UNKNOWN to every caller: a declared skip in a law, a receipt saying 'node absent' in the lane - never a pass. _between refuses an anchor that is not unique; the cut for the forked-name set ends at its own ']));' because the old ');' marker once ran on into LSR."
+  },
+  "char_builder_db.py": {
+    "entryPoints": [
+      "build",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the two ⟦CB_DB⟧ markers and nowhere else, as a <script type=\"application/json\"> the builder parses on first open. Every property line is rendered from the game's own words (properties.txt -> itemstatcost.txt descfunc / descstrpos -> item-modifiers.json), and each rolled value keeps the COLUMN it came from (p3 = prop3 / T1Code3 / mod 3, a2b = a set item's aprop2b) - the key the builder stores a typed roll under. A property the tables name but do not describe becomes an UNKNOWN line naming its code, never dropped. Without an install --check is 77 = UNKNOWN; CI checks the block's names against tv/item_tables.json instead. The duplicate display names are the game's (8 Rainbow Facets, the Colossal Jewel printing \"Jewel\"): they are told apart by the property that differs, or by the table name - never by position.",
+    "purpose": "#174 v-B2: generates the Character Builder's item database from his install's CASC - every base (type, tier family, sockets, requirements, defense / damage, hands, size, whether it can be ethereal), every unique, set item, runeword (with the item types it may be made in and those it excludes) and crafted cube recipe, each with its property lines rendered from the game's own strings and every rolled value a range; the runes and gems that fill a socket; the classes' skill-tab strings; and per doll slot the rail of base categories (itemtypes.txt UICategory + class locks). The doctor row 'builder item data' runs its --check (#174 v-B2 fix round). A per-level line is [\"L\", lo, key, hi, shift] (the par, or the min..max roll, and itemstatcost's op param), a random class [\"C\", lo, key, hi].",
+    "territory": "vault"
+  },
+  "char_props.py": {
+    "entryPoints": [
+      "assemble",
+      "build",
+      "render",
+      "embedded",
+      "check",
+      "write",
+      "main"
+    ],
+    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
+    "territory": "vault"
+  },
+  "child_guard.py": {
+    "entryPoints": [
+      "spawn",
+      "end",
+      "census",
+      "watchdog_tick",
+      "free_ram_mb",
+      "secondary_spawn_allowed",
+      "status"
+    ],
+    "gotcha": "spawn(role, argv) ENDS the role's previous tree first (verified by pid + creation time; a reused pid is dropped, never killed) and waits a bounded END_WAIT_S - a role holds one process, ever. Windows children go into a Job Object with KILL_ON_JOB_CLOSE (ctypes), POSIX children lead their own session (killpg); the Mac AGENT must not come through it (v779, the Screen Recording TCC chain). The birth reader never spawns a subprocess (sysctl / /proc / GetProcessTimes): a `ps` here was counted as a capture by every console law that stubs subprocess.Popen. UNKNOWN free RAM never refuses a spawn. REG-1550: a LIVE parent's child is never the watchdog's to end (ours -> bypass, said; a stranger's -> counted; measured on his Mac, the first cut named the console's own closer OCR worker and warm reader TO_END); a kill needs a table row carrying this checkout's path and a known role, a birth match through ONE reader (the table's lstart/CIM clock is re-read through sysctl/GetProcessTimes - the DST hour disagrees by 3600 s), and the birth re-asked at the kill; an UNKNOWN table, parent birth or pid birth ends nothing. REG-1551: ceilings are per OWNER except the capture's (checkout-wide); `owed` is the survivors still alive; a post-execv console adopts its own previous life's records (same pid, same birth) before its first ledger write.",
+    "purpose": "#83 (REG-1515) the child supervisor: one spawn door per role (capture, vision readers, the stall reader, OCR) that ends the previous instance's whole tree before starting the next, a per-parent ledger so a restarted console ends its dead predecessor's children, a rescue-loop watchdog for unrecorded processes of known roles, a census by family for the doctor's one_of_each row, and the memory floor under which no secondary worker starts.",
+    "territory": "heart-organs"
+  },
   "chronicle_calibrate.py": {
     "entryPoints": [
       "bar_fill",
@@ -407,6 +465,15 @@
     "gotcha": "",
     "purpose": "CLI lookup over bible.html's top-level <style> rules: for a selector (and optionally one property) it lists every declaring block and says which last declaration actually wins.",
     "territory": "console-ui"
+  },
+  "d2s_read.py": {
+    "entryPoints": [
+      "read",
+      "main"
+    ],
+    "gotcha": "A PARTIAL ITEM LIST IS NEVER COMPLETE: the bitstream has no per-item length, so ok is True only when the declared TOP-LEVEL count (socketed children ride inside their parent) ends exactly on the corpse 'JM', the stats block ends on 'if', and the file's size and checksum hold. Format 105 adds ONE bit after the type-specific block and ONE bit after the last property list before byte-align - the study decoder's '8 bits after a runeword list' and sniffed '0x00 pad' are that same trailing bit on a list that ends on a byte boundary. A runeword past runes.txt row 79 is named None with both candidates, because row and key disagree there and no save has told which the game means.",
+    "purpose": "Reads a D2R character save (.d2s, format 105) byte-exact: header (name, class, level, last played), the stats block by name, the 30 skill bytes, every item with location/slot/panel/x/y, code, name, quality, unique/set/runeword names, sockets and socketed children, ethereal, ilvl, defense, durability and properties as [{stat, param, value}], plus merc/golem presence and a verify block (bytesConsumed, endsOnCorpseTag, itemCount, stoppedAt).",
+    "territory": "vault"
   },
   "dead_field.py": {
     "entryPoints": [
@@ -760,6 +827,19 @@
     "purpose": "Derives HEART.md from the tree: every `id` the console PAINTS (the honest unit — a class may be shared by forty nodes, an id names one thing), and which of them any watcher mentions. UNWATCHED is not a defect; what is refused is a surface going unwatched SILENTLY, so the count is a ratchet that may not fall without a reason in heart_floor.json.",
     "territory": "heart-organs"
   },
+  "his_answers.py": {
+    "entryPoints": [
+      "load",
+      "record",
+      "withdraw",
+      "standing",
+      "apply",
+      "entry_for"
+    ],
+    "gotcha": "A changed fingerprint REOPENS the question and keeps the old answer as stale history; ruled holds 30 days, snooze 7, handoff until the question changes. An unreadable store is reported and NEVER written over. The path is chosen by the console (_decision_path), so each machine keeps its own answers.",
+    "purpose": "Keeps his answers to the questions THIS console asked him (console_doctor.ASKS), one per question with the question's fingerprint, and applies them at read time so an answered question stops billing him and the row says what he chose.",
+    "territory": "console-ui"
+  },
   "hover_calibration.py": {
     "entryPoints": [
       "record_step",
@@ -852,6 +932,17 @@
     ],
     "gotcha": "Two vocabularies for one item, on one axis: a QUALIFIER (Latent/Renewed) is IDENTITY and never folds; an apostrophe byte, a base-type tail and an unambiguous parenthetical are RENDERING and do. ⚠ The parenthetical is decided by MEASUREMENT, not punctuation — 'Athena's Wrath' is a unique and nothing else so '(set piece)' folds, while 'Crescent Moon' is a unique AND a runeword so '(amulet)' is the only thing separating two real items.",
     "purpose": "The two vocabularies for one item: what the VAULT calls a physical thing and what the CHRONICLE calls a grail line, separating identity from rendering so a Latent charm never witnesses a renewed one and an apostrophe byte never splits a row in two.",
+    "territory": "vault"
+  },
+  "item_tables.py": {
+    "entryPoints": [
+      "build",
+      "load",
+      "verify",
+      "main"
+    ],
+    "gotcha": "THE STATS BLOCK AND AN ITEM USE DIFFERENT WIDTHS for the same stat: csvBits (character 'gf' section) vs saveBits (item bitstream) - strength is 10 bits in one and 8 in the other, and reading one with the other derails. A table KEY is not a display name: 97 unique keys differ from what the game prints (Thudergod's Vigor is Thundergod's Vigor), so names come from item-names.json / item-runes.json and `namesFrom` says which. runes.txt has no Runeword80, so the row and the RunewordN key disagree from row 80 on; both are stored and neither is picked. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "Generates tv/item_tables.json from the D2R CASC: exactly what tv/d2s_read.py needs to decode a character save - per stat id its item and character-save bit widths, per item code its display name, kind (armor/weapon/misc) and stackable flag, uniques and set items by *ID, and runewords by 1-based runes.txt row. load() returns None, never an empty dict, when it has not been generated.",
     "territory": "vault"
   },
   "journal_drain.py": {
@@ -965,6 +1056,20 @@
     "purpose": "The one reader of TV_LAW_WIDTHS (#42): at push time heart2 --prove --push hands a width-law red-proof the viewports its defect was MEASURED to show at, and the width laws restrict every width loop to that set.",
     "territory": "gates"
   },
+  "ledger3.py": {
+    "entryPoints": [
+      "session_record ← GET /api/ledger3/session?id=",
+      "sessions ← GET /api/ledger3/sessions",
+      "session_summary",
+      "session_rows",
+      "census ← console_doctor 'ledger3 sessions'",
+      "reel_key",
+      "name_key"
+    ],
+    "gotcha": "It opens NO file and names NO store: control_app._ledger3_stores hands it the loaded objects (journal ring, chronicle book, vault ledger, shelf path, river stamps, survey, tombstones), each resolved through that module's own path authority, so a fixture never reaches his tree and a law drives the whole record over temp stores. Every key is borrowed, never copied: chronicle_retro._reel_key (one reel, two spellings), item_identity.vault_key + trace_spine.name_key (one name), vault_retro.look_id folded by _fold_bare_sessions (one VISIT per trial, never a frame - his §34.2 ruling), vault_evidence.tier (the one table), chronicle_retro.witnesses (the one independence verdict). A provisional OCR-only name is listed apart and never counted as named (measured: 'Your Gamlng Rlg Is Readyl' x4 rides his journal as names). An unreadable side is None with a sentence in `unknown`, never 0; a session no store knows is ok:False. The reader-vs-vault agreement is two engines shown side by side and never averaged. A tombstone is a release EVENT, not a grave (REG-1557, measured: 3 of his 29 shelf reels carry them, 14 rows between them, every row with a `kept` list, one reel alone four rows): every pass is kept, `tombstone` is the LATEST act (reel_custody's rule for the same store), `releases {n, lastTs, released, kept}` rides beside it and the film says what the passes took; a pass nobody counted leaves `released` UNKNOWN. The two doors answer UNKNOWN for a query they could not read (REG-1556), never '' or a default. It writes nothing; the 📒 room, per-item proof cards, the scenario view and the surgical fixes are later slices (LEDGER3_DESIGN.md).",
+    "purpose": "#58 Ledger 3.0 first slice: assembles the per-session EXTRACTION RECORD - what one reel yielded (names, who read each one, on which frames, where it was seen, how it was routed), what the chronicle book banked from it, what the vault ledger witnessed in that visit with the item's tier today, the film or tombstone, the river station and the survey - read-only from the existing stores, for GET /api/ledger3/session and /api/ledger3/sessions and the doctor's lost-trail row.",
+    "territory": "ledger-profile"
+  },
   "ledger_authority.py": {
     "entryPoints": [
       "authority",
@@ -1020,20 +1125,6 @@
     "gotcha": "BELOW-FOLD is REPORTED and never failed — his 660px console window is deliberate design, so content below the fold is normal; only ZERO-HEIGHT and OFF-SIDE are RED. A console it cannot reach is UNKNOWN (exit 2), NOT a pass. It exists because render_check.py grades a seeded FIXTURE that lays out differently from the app — at 1120x628 the gate saw taskforce at y=224 h=30 while the live console had it at y=1050 h=502; both instruments were right about different pages. The second question (advFill absent / refresher MISSING or FAILED / fleet placeholder on an open drawer) exists because a panel can be flawlessly rendered and carry nothing that was ever fetched.",
     "purpose": "Grades the LIVE console's /api/status uiBeat — panel geometry (ZERO-HEIGHT / OFF-SIDE / BELOW-FOLD / ON-SCREEN) plus whether the Advanced drawer's fill and refreshers actually ran.",
     "territory": "console-ui"
-  },
-  "ledger3.py": {
-    "entryPoints": [
-      "session_record ← GET /api/ledger3/session?id=",
-      "sessions ← GET /api/ledger3/sessions",
-      "session_summary",
-      "session_rows",
-      "census ← console_doctor 'ledger3 sessions'",
-      "reel_key",
-      "name_key"
-    ],
-    "gotcha": "It opens NO file and names NO store: control_app._ledger3_stores hands it the loaded objects (journal ring, chronicle book, vault ledger, shelf path, river stamps, survey, tombstones), each resolved through that module's own path authority, so a fixture never reaches his tree and a law drives the whole record over temp stores. Every key is borrowed, never copied: chronicle_retro._reel_key (one reel, two spellings), item_identity.vault_key + trace_spine.name_key (one name), vault_retro.look_id folded by _fold_bare_sessions (one VISIT per trial, never a frame - his §34.2 ruling), vault_evidence.tier (the one table), chronicle_retro.witnesses (the one independence verdict). A provisional OCR-only name is listed apart and never counted as named (measured: 'Your Gamlng Rlg Is Readyl' x4 rides his journal as names). An unreadable side is None with a sentence in `unknown`, never 0; a session no store knows is ok:False. The reader-vs-vault agreement is two engines shown side by side and never averaged. A tombstone is a release EVENT, not a grave (REG-1557, measured: 3 of his 29 shelf reels carry them, 14 rows between them, every row with a `kept` list, one reel alone four rows): every pass is kept, `tombstone` is the LATEST act (reel_custody's rule for the same store), `releases {n, lastTs, released, kept}` rides beside it and the film says what the passes took; a pass nobody counted leaves `released` UNKNOWN. The two doors answer UNKNOWN for a query they could not read (REG-1556), never '' or a default. It writes nothing; the 📒 room, per-item proof cards, the scenario view and the surgical fixes are later slices (LEDGER3_DESIGN.md).",
-    "purpose": "#58 Ledger 3.0 first slice: assembles the per-session EXTRACTION RECORD - what one reel yielded (names, who read each one, on which frames, where it was seen, how it was routed), what the chronicle book banked from it, what the vault ledger witnessed in that visit with the item's tier today, the film or tombstone, the river station and the survey - read-only from the existing stores, for GET /api/ledger3/session and /api/ledger3/sessions and the doctor's lost-trail row.",
-    "territory": "ledger-profile"
   },
   "live_store.py": {
     "entryPoints": [
@@ -1354,6 +1445,18 @@
     "purpose": "Decides from the AST whether a function reaps its first parameter (wait/poll/Thread(target=p.wait)) on EVERY path it can take, and whether a call hands a Popen to such a helper. Used by test_control's test_no_ASSIGNED_popen_goes_unreaped; driven by test_a_conditional_reap_is_not_a_reaper.",
     "gotcha": "A reap counts only at the function's own level, as the FIRST statement of a try body, in a finally, or in a with body — never inside an if/loop/except and never behind a return/raise. 'First in the try' is the v3421 lesson: a BrokenPipeError on stdin.close() earlier in the same try skipped the reap for three weeks. Nested defs are not the function's own path.",
     "territory": "heart-organs"
+  },
+  "reel_custody.py": {
+    "entryPoints": [
+      "custody",
+      "census",
+      "doctor",
+      "sources",
+      "world"
+    ],
+    "gotcha": "It RE-DERIVES NOTHING: the four dict stores come through end_routes.sources (which asks retro_triage and reel_retention for their paths), every keyed-both-ways lookup is reel_retention.lookup_either_way, a seal's meaning is frame_authority.seal_verdict, the journey is river_stamp.history, the door a tombstoned reel left by is end_routes.verdict. A hand is held True / False / None and the three are three: None (the store exists and will not read) never becomes False, and a contradiction is NEVER raised on a None side. The census lists no reel's frames (a listing per reel on every doctor tick is the a_watcher_over_a_growing_folder scar); only the per-reel record does. `reads` and `plan` are handed IN by the caller (the console's journal and reel_retention.plan) — None means not asked, never 'no reads'. MEASURED 2026-09-29 before it existed: 460 tombstones all say 'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE.",
+    "purpose": "#55 first slice — ONE reel's chain of custody: which of five hands (recorder, triage, printer, vault, tombstone) hold a record of it, each quoted from the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict each other. Behind /api/custody and the doctor row 'reel custody'.",
+    "territory": "river-reels"
   },
   "reel_demo.py": {
     "entryPoints": [
@@ -1862,6 +1965,18 @@
     "purpose": "Scripted fake session through tv_diablo's real bridge — timed reads plus a simulated heartbeat — so the bible's TV receiver (connect, feed, routing, apply, offline) can be debugged with no game.",
     "territory": "routines-infra"
   },
+  "skill_tables.py": {
+    "entryPoints": [
+      "assemble",
+      "build",
+      "load",
+      "verify",
+      "main"
+    ],
+    "gotcha": "A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\\base\\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
+    "purpose": "Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.",
+    "territory": "vault"
+  },
   "slot_identity.py": {
     "entryPoints": [
       "footprint(col,row,w,h,container) :481",
@@ -2036,6 +2151,27 @@
     "gotcha": "It finds the tooltip by TEXT DENSITY, not darkness and not a border — the D2R tooltip is semi-transparent with soft edges and 48.7% of his frame is near-black. Below `min_lines` it returns None deliberately (an unhovered frame and an empty one are the same honest answer). `bank(named=None)` is PENDING and counts in neither side. tooltip_find.json is live state, not a test artifact.",
     "purpose": "Locates the D2R tooltip in one frame by OCR text density over a tile grid, returning a crop rect or a refusal, and banks a Wilson score on whether a located tooltip was really one.",
     "territory": "capture-vision"
+  },
+  "tooltip_oracle_lane.py": {
+    "territory": "heart-organs",
+    "purpose": "#41 rank 16 (REG-1560): the runtime joint for the character builder's tooltip. Runs the SHIPPED composition (node over the bible.html on disk, through cb_node_harness) over their planner's measured tooltip oracle (203 rows over 6 runewords) on the console's own cadence (the tvd-tooltip-oracle lane) and writes a PER-ROW receipt - {runeword, base, agree, why} per row, the bible.html stamp it measured, the oracle's limit, lifetime counters. verdict() feeds the doctor row 'their tooltip rows', contract() speaks the shared lane vocabulary, and the corroborate joint 'their-tooltip-rows-are-ours' compares the receipt against the oracle file.",
+    "entryPoints": [
+      "measure",
+      "judge",
+      "compose",
+      "oracle_rows",
+      "oracle_limit",
+      "run_once",
+      "verdict",
+      "contract",
+      "read_receipt",
+      "write_receipt",
+      "freshness",
+      "bible_stamp",
+      "HELP",
+      "main"
+    ],
+    "gotcha": "UNKNOWN is never 0 or OK: no receipt, node absent (a PC without node), a receipt whose bible.html sha1 is not the file on disk (stale-reading), a summary in place of rows, or an oracle it cannot read now all read UNKNOWN; a row never judged or not theirs reads MISSING and is NAMED. The gate test_the_tooltip_is_the_games_tooltip drives the SAME measure(), so the gate and the lane share one composition run and one judge. The limit is stated in every verdict: six runewords, one class, one level - a green vouches for those rows and nothing beyond them. It writes only its own receipt (tmp + os.replace) in the lane's world; an unreadable previous receipt carries the counters as None with countersWhy, never restarted at zero silently."
   },
   "trace_spine.py": {
     "entryPoints": [
@@ -2268,6 +2404,15 @@
     "purpose": "Reads the last commit SUBJECT: if it names vNNNN, the four stamps (D2R_BUILD.id, tv_diablo.VERSION, WINDOWS_SHIP.json, control_app ver) must equal the HIGHEST named. Writes nothing; silent when none.",
     "territory": "gates-proofs"
   },
+  "win_quiet.py": {
+    "entryPoints": [
+      "install",
+      "installed"
+    ],
+    "gotcha": "pythonw.exe owns no console, so EVERY console-subsystem child (git, powershell, schtasks, tasklist, python.exe) allocates a visible window that steals focus from a full-screen game unless the spawn passes CREATE_NO_WINDOW. MEASURED 2026-09-26: 82 spawn sites in 38 tv/ modules passed no creationflags. This replaces subprocess.Popen ONCE per process (run/call/check_output build Popen from the module's globals), so it must be installed BEFORE the first spawn - control_app and tv_diablo do it at import. A deliberate CREATE_NEW_CONSOLE / DETACHED_PROCESS is kept. git_quiet.py still owns git (its wrapper respawns the real git, so the binary is called directly).",
+    "purpose": "The one door that makes every child of a Windows console/agent process windowless (REG-1307).",
+    "territory": "routines-infra"
+  },
   "win_relaunch.py": {
     "entryPoints": [
       "boot_log",
@@ -2317,112 +2462,5 @@
     "gotcha": "It ONLY observes — it records and calls straight through to the originals, never redirecting, blocking or fabricating a write. ⚠ And it PROVES NOTHING UNTIL SOMETHING RUNS under `with watching()`: enabling it does not gather evidence, so the per-store answer is a measurement nobody has taken yet — which is not the same fact as 'one writer'. It exists because two static detectors (filename-adjacency grep, AST constant-resolution) both returned ZERO writers for all four stores, measuring the instruments rather than the code. Related trap recorded in write_census.py: patching only `open` also yields 0 — this codebase writes via io.open.",
     "purpose": "Runtime witness that patches open/io.open/os.replace to RECORD which module actually writes each watched reel store (vault_swept, vault_accum, reel_tombstones, retro_triage, chron_evidence).",
     "territory": "vault"
-  },
-  "his_answers.py": {
-    "entryPoints": [
-      "load",
-      "record",
-      "withdraw",
-      "standing",
-      "apply",
-      "entry_for"
-    ],
-    "gotcha": "A changed fingerprint REOPENS the question and keeps the old answer as stale history; ruled holds 30 days, snooze 7, handoff until the question changes. An unreadable store is reported and NEVER written over. The path is chosen by the console (_decision_path), so each machine keeps its own answers.",
-    "purpose": "Keeps his answers to the questions THIS console asked him (console_doctor.ASKS), one per question with the question's fingerprint, and applies them at read time so an answered question stops billing him and the row says what he chose.",
-    "territory": "console-ui"
-  },
-  "item_tables.py": {
-    "entryPoints": [
-      "build",
-      "load",
-      "verify",
-      "main"
-    ],
-    "gotcha": "THE STATS BLOCK AND AN ITEM USE DIFFERENT WIDTHS for the same stat: csvBits (character 'gf' section) vs saveBits (item bitstream) - strength is 10 bits in one and 8 in the other, and reading one with the other derails. A table KEY is not a display name: 97 unique keys differ from what the game prints (Thudergod's Vigor is Thundergod's Vigor), so names come from item-names.json / item-runes.json and `namesFrom` says which. runes.txt has no Runeword80, so the row and the RunewordN key disagree from row 80 on; both are stored and neither is picked. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
-    "purpose": "Generates tv/item_tables.json from the D2R CASC: exactly what tv/d2s_read.py needs to decode a character save - per stat id its item and character-save bit widths, per item code its display name, kind (armor/weapon/misc) and stackable flag, uniques and set items by *ID, and runewords by 1-based runes.txt row. load() returns None, never an empty dict, when it has not been generated.",
-    "territory": "vault"
-  },
-  "d2s_read.py": {
-    "entryPoints": [
-      "read",
-      "main"
-    ],
-    "gotcha": "A PARTIAL ITEM LIST IS NEVER COMPLETE: the bitstream has no per-item length, so ok is True only when the declared TOP-LEVEL count (socketed children ride inside their parent) ends exactly on the corpse 'JM', the stats block ends on 'if', and the file's size and checksum hold. Format 105 adds ONE bit after the type-specific block and ONE bit after the last property list before byte-align - the study decoder's '8 bits after a runeword list' and sniffed '0x00 pad' are that same trailing bit on a list that ends on a byte boundary. A runeword past runes.txt row 79 is named None with both candidates, because row and key disagree there and no save has told which the game means.",
-    "purpose": "Reads a D2R character save (.d2s, format 105) byte-exact: header (name, class, level, last played), the stats block by name, the 30 skill bytes, every item with location/slot/panel/x/y, code, name, quality, unique/set/runeword names, sockets and socketed children, ethereal, ilvl, defense, durability and properties as [{stat, param, value}], plus merc/golem presence and a verify block (bytesConsumed, endsOnCorpseTag, itemCount, stoppedAt).",
-    "territory": "vault"
-  },
-  "skill_tables.py": {
-    "entryPoints": [
-      "assemble",
-      "build",
-      "load",
-      "verify",
-      "main"
-    ],
-    "gotcha": "A PAGE IS NOT A TAB POSITION: skilldesc SkillPage 3 is the Druid's Elemental, which the panel shows LEFTMOST, and the Warlock's leftmost tab string is SkillCategoryWa3 - so 'tab i = page i+1' and 'read the key's number' are both wrong. The order is derived per class from charstats StrSkillTab1..3 (the page's item modifier) against the layout's textTab0..2, kept only as the unique best agreement, else index/name null with tabWhy. A skills.txt KEY is not a name (Wearwolf is Werewolf; 27 of 240 differ) and a skill with no string is null, never its key. Filter trees on skills.txt charclass: monster skills carry SkillPage too. excel\\base\\ is the non-RotW copy (its Warlock rows are placeholders) and is not pulled. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
-    "purpose": "Generates tv/skill_tables.json from the D2R CASC for the planner's skill-tree panel: per class code (8 on his install - the classic seven and the Warlock) its id, name, icon sheet and three tabs in panel order, each {index, page, name, skills}, every skill {id, key, name, row, col, reqlevel, prereqs (ids), prereqKeys, iconIndex, maxlvl}, plus the 6 x 3 grid and its pixel rows/columns from the HD layout. assemble() is the pure part (a fake install drives it in the law); load() returns None, never an empty dict, when it has not been generated.",
-    "territory": "vault"
-  },
-  "win_quiet.py": {
-    "entryPoints": [
-      "install",
-      "installed"
-    ],
-    "gotcha": "pythonw.exe owns no console, so EVERY console-subsystem child (git, powershell, schtasks, tasklist, python.exe) allocates a visible window that steals focus from a full-screen game unless the spawn passes CREATE_NO_WINDOW. MEASURED 2026-09-26: 82 spawn sites in 38 tv/ modules passed no creationflags. This replaces subprocess.Popen ONCE per process (run/call/check_output build Popen from the module's globals), so it must be installed BEFORE the first spawn - control_app and tv_diablo do it at import. A deliberate CREATE_NEW_CONSOLE / DETACHED_PROCESS is kept. git_quiet.py still owns git (its wrapper respawns the real git, so the binary is called directly).",
-    "purpose": "The one door that makes every child of a Windows console/agent process windowless (REG-1307).",
-    "territory": "routines-infra"
-  },
-  "char_builder_db.py": {
-    "entryPoints": [
-      "build",
-      "render",
-      "embedded",
-      "check",
-      "write",
-      "main"
-    ],
-    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the two ⟦CB_DB⟧ markers and nowhere else, as a <script type=\"application/json\"> the builder parses on first open. Every property line is rendered from the game's own words (properties.txt -> itemstatcost.txt descfunc / descstrpos -> item-modifiers.json), and each rolled value keeps the COLUMN it came from (p3 = prop3 / T1Code3 / mod 3, a2b = a set item's aprop2b) - the key the builder stores a typed roll under. A property the tables name but do not describe becomes an UNKNOWN line naming its code, never dropped. Without an install --check is 77 = UNKNOWN; CI checks the block's names against tv/item_tables.json instead. The duplicate display names are the game's (8 Rainbow Facets, the Colossal Jewel printing \"Jewel\"): they are told apart by the property that differs, or by the table name - never by position.",
-    "purpose": "#174 v-B2: generates the Character Builder's item database from his install's CASC - every base (type, tier family, sockets, requirements, defense / damage, hands, size, whether it can be ethereal), every unique, set item, runeword (with the item types it may be made in and those it excludes) and crafted cube recipe, each with its property lines rendered from the game's own strings and every rolled value a range; the runes and gems that fill a socket; the classes' skill-tab strings; and per doll slot the rail of base categories (itemtypes.txt UICategory + class locks). The doctor row 'builder item data' runs its --check (#174 v-B2 fix round). A per-level line is [\"L\", lo, key, hi, shift] (the par, or the min..max roll, and itemstatcost's op param), a random class [\"C\", lo, key, hi].",
-    "territory": "vault"
-  },
-  "char_props.py": {
-    "entryPoints": [
-      "assemble",
-      "build",
-      "render",
-      "embedded",
-      "check",
-      "write",
-      "main"
-    ],
-    "gotcha": "It WRITES bible.html (atomic, refuses when bible.html.EDIT_LOCK is held) between the CHAR_PROPS:BEGIN / CHAR_PROPS:END markers inside the v174-char-engine-js script and nowhere else. --check without an install is 77 = UNKNOWN, never green; it compares the WHOLE derived block, so a hand edit under an unchanged sourceHash is still STALE. Anya's +10 resistance scroll is in no table - the engine applies it as a named rule. Never wrap the pull in the perl alarm idiom (see affix_lexicon).",
-    "purpose": "#174 v-B2: generates the character sheet's property data from his install - uniqueitems / setitems / sets / runes / gems prop lines with par-min-max, properties.txt code -> (func, stat, val), itemstatcost per-level shifts and description strings, difficultylevels ResistPenalty (0 / -40 / -100), the base tables' defense / sockets / level, the class and skill-tab strings - into one CHAR_PROPS block that window.D2R_CHAR_ENGINE.sheet() sums. The doctor row 'character sheet data' runs its --check.",
-    "territory": "vault"
-  },
-  "reel_custody.py": {
-    "entryPoints": [
-      "custody",
-      "census",
-      "doctor",
-      "sources",
-      "world"
-    ],
-    "gotcha": "It RE-DERIVES NOTHING: the four dict stores come through end_routes.sources (which asks retro_triage and reel_retention for their paths), every keyed-both-ways lookup is reel_retention.lookup_either_way, a seal's meaning is frame_authority.seal_verdict, the journey is river_stamp.history, the door a tombstoned reel left by is end_routes.verdict. A hand is held True / False / None and the three are three: None (the store exists and will not read) never becomes False, and a contradiction is NEVER raised on a None side. The census lists no reel's frames (a listing per reel on every doctor tick is the a_watcher_over_a_growing_folder scar); only the per-reel record does. `reads` and `plan` are handed IN by the caller (the console's journal and reel_retention.plan) — None means not asked, never 'no reads'. MEASURED 2026-09-29 before it existed: 460 tombstones all say 'sealed by BOTH lanes', 44 have a vault seal, 56 have neither, 0 river stamps say TOMBSTONE.",
-    "purpose": "#55 first slice — ONE reel's chain of custody: which of five hands (recorder, triage, printer, vault, tombstone) hold a record of it, each quoted from the store that hand wrote, the river's journey beside them, and every reel on which two writers contradict each other. Behind /api/custody and the doctor row 'reel custody'.",
-    "territory": "river-reels"
-  },
-  "child_guard.py": {
-    "entryPoints": [
-      "spawn",
-      "end",
-      "census",
-      "watchdog_tick",
-      "free_ram_mb",
-      "secondary_spawn_allowed",
-      "status"
-    ],
-    "gotcha": "spawn(role, argv) ENDS the role's previous tree first (verified by pid + creation time; a reused pid is dropped, never killed) and waits a bounded END_WAIT_S - a role holds one process, ever. Windows children go into a Job Object with KILL_ON_JOB_CLOSE (ctypes), POSIX children lead their own session (killpg); the Mac AGENT must not come through it (v779, the Screen Recording TCC chain). The birth reader never spawns a subprocess (sysctl / /proc / GetProcessTimes): a `ps` here was counted as a capture by every console law that stubs subprocess.Popen. UNKNOWN free RAM never refuses a spawn. REG-1550: a LIVE parent's child is never the watchdog's to end (ours -> bypass, said; a stranger's -> counted; measured on his Mac, the first cut named the console's own closer OCR worker and warm reader TO_END); a kill needs a table row carrying this checkout's path and a known role, a birth match through ONE reader (the table's lstart/CIM clock is re-read through sysctl/GetProcessTimes - the DST hour disagrees by 3600 s), and the birth re-asked at the kill; an UNKNOWN table, parent birth or pid birth ends nothing. REG-1551: ceilings are per OWNER except the capture's (checkout-wide); `owed` is the survivors still alive; a post-execv console adopts its own previous life's records (same pid, same birth) before its first ledger write.",
-    "purpose": "#83 (REG-1515) the child supervisor: one spawn door per role (capture, vision readers, the stall reader, OCR) that ends the previous instance's whole tree before starting the next, a per-parent ledger so a restarted console ends its dead predecessor's children, a rescue-loop watchdog for unrecorded processes of known roles, a census by family for the doctor's one_of_each row, and the memory floor under which no secondary worker starts.",
-    "territory": "heart-organs"
   }
 }

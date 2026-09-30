@@ -51,7 +51,9 @@ except Exception:
 SURFACES = ("_ledger_backup_loop", "_vault_autoread_loop",
             # v3076 — four more, once they were given something to witness. Each now writes
             # WHAT IT DECIDED via lane_trace, so there is a second, cross-process witness.
-            "_drift_loop", "_shadow_watch_loop", "_orphan_exit_loop", "_orphan_watch")
+            "_drift_loop", "_shadow_watch_loop", "_orphan_exit_loop", "_orphan_watch",
+            # #41 rank 16 (REG-1560) — it leaves a real trace (what it measured, and its receipt)
+            "_tooltip_oracle_loop")
 
 #: vessel -> (lane the tick is stamped under, glob for its trace, declared period in seconds)
 #: ⚠ THE LANE NAME IS NOT THE VESSEL NAME. `_ledger_backup_loop` stamps under
@@ -84,6 +86,10 @@ LOOPS = {
                           _lt.path_of("_orphan_exit_loop"), 30.0),
     "_orphan_watch": ("_orphan_watch",
                       _lt.path_of("_orphan_watch"), 20.0),
+    # #41 rank 16 (REG-1560) — writes its trace on EVERY tick (no throttle), so the trace period is the tick
+    # period: 900 s, and a first look 60 s after boot.
+    "_tooltip_oracle_loop": ("tvd-tooltip-oracle",
+                             _lt.path_of("tvd-tooltip-oracle"), 900.0),
 }
 
 #: how many declared periods a trace may fall behind before the pair is a contradiction. Generous

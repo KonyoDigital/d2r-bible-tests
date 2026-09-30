@@ -143,6 +143,15 @@ STORES = {
                                  "second writer of it",
         },
     },
+    # #41 rank 16 (REG-1560) — the tooltip oracle lane's receipt: one verdict per oracle row, the bible.html it
+    # measured, the lane's lifetime counters. Written by ONE module; the doctor row and the corroborate joint read
+    # it only through that module's read_receipt(), so no other module names the file.
+    ".tooltip_oracle_receipt.json": {
+        "owner": "tooltip_oracle_lane",
+        "holds": "per oracle row: is the shipped tooltip theirs (runeword, base, agree, why) + the bible.html "
+                 "stamp it measured + node + lifetime runs",
+        "readers": {},
+    },
     "vault_accum.json": {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",

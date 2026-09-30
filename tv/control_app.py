@@ -7749,6 +7749,9 @@ def start_background_watchers(why):
         ("tvd-ledger-backup", _ledger_backup_loop),
         # v2053 — reclaims regenerable test output when the disk gets short. Never his footage.
         ("tvd-space-warden", _warden_loop),
+        # #41 rank 16 (REG-1560) — their planner's tooltip rows against the SHIPPED composition, on this
+        # console's cadence, receipted per row. Reads bible.html, writes only its own receipt. No node = UNKNOWN.
+        ("tvd-tooltip-oracle", _tooltip_oracle_loop),
         # v2072 — say it out loud when the process is behind the disk. ANNOUNCES ONLY unless
         # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
         # orphans the frames of the session it kills.
@@ -24918,6 +24921,47 @@ def _warden_loop():
                 _WARDEN_STATE["freedBytes"] += int(out.get("freedBytes") or 0)
                 _WARDEN_STATE["last"] = time.strftime("%Y-%m-%d_%H%M%S")
                 print("  \U0001f9f9 space warden: %s" % out["why"], flush=True)
+        except Exception:
+            pass
+
+
+#: #41 rank 16 (REG-1560) — the tooltip oracle lane's period, and its first look after boot
+_TOOLTIP_ORACLE_EVERY_S = 900.0
+_TOOLTIP_ORACLE_FIRST_S = 60.0
+
+
+def _tooltip_oracle_loop():
+    """#41 rank 16 (REG-1560) — THEIR TOOLTIP ROWS ARE OURS, measured on this console's own cadence.
+
+    Runs the SHIPPED tooltip composition (window._cbTipEntry + d2Tip and the ⟦CB_DB⟧ block, cut from the bible.html
+    on disk and run in node through the builder law's stand-in) over their planner's oracle (203 rows over 6
+    runewords, measured once) and writes a PER-ROW receipt the doctor row 'their tooltip rows' and the corroborate
+    joint 'their-tooltip-rows-are-ours' read. The whole of it lives in tooltip_oracle_lane; this loop only keeps
+    the cadence, stamps its beat and leaves its trace.
+
+    ⚠ IT WRITES ONLY ITS OWN RECEIPT (in this console's world) and its lane trace - never bible.html, never a
+    ledger, never a reel. Without node it writes a receipt saying `node absent`, which every reader takes as
+    UNKNOWN: not 0 rows, not agreement. A first look a minute after boot, then every 15 min; the module itself
+    re-measures only when bible.html moved or the receipt is 6 h old, so the cost is one 0.3 s node run per ship.
+    """
+    _first = True
+    while True:
+        try:
+            if _first:
+                time.sleep(_TOOLTIP_ORACLE_FIRST_S)
+            else:
+                time.sleep(_TOOLTIP_ORACLE_EVERY_S)
+            _first = False
+            _lane_tick('tvd-tooltip-oracle', _TOOLTIP_ORACLE_EVERY_S)
+            import tooltip_oracle_lane as _tol
+            r = _tol.run_once()
+            import lane_trace as _lt
+            _lt.note('tvd-tooltip-oracle', measured=bool(r.get("measured")), ok=r.get("ok"),
+                     agreed=r.get("agreed"), owed=r.get("owed"), node=bool(r.get("node")),
+                     why=str(r.get("why") or "")[:200])
+            if r.get("measured") and (r.get("owed") or r.get("ok") is not True):
+                # a row that is not theirs, or a run that could not judge, speaks once per measurement
+                print("   ⚠ tooltip oracle: %s" % str(r.get("why"))[:200], flush=True)
         except Exception:
             pass
 

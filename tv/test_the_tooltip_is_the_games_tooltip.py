@@ -49,6 +49,9 @@ FIX ROUND (the #174 v-B4 review, four defects, each reproduced before it was fix
     apart; the game prints ONE line, its number the game's code over per-frame values no line carries - said UNKNOWN,
     naming both sources, never two lines and never a guessed sum.
 ⚠ WHAT THIS LAW CANNOT SEE: pixels - the tooltip was looked at on real pixels (headless Chrome, 2000x1300) when built.
+REG-1560 (#41 rank 16): the composition run and the per-row judge live in tv/tooltip_oracle_lane.py (measure / judge),
+which the console's tvd-tooltip-oracle lane runs on its own cadence and receipts per row; this law drives the SAME
+measure(), so the gate and the lane share one composition run. [[copy-drift]]
 RED_PROOF below: the requirement step, the merge, the order (and its tie rule), the speed rule (its bands and EIAS), the
 range form, the rune string, the charm line, the durability rule; and the fix round's four: the join for one socket,
 the stat groups (off, equality ignored, four equal members never collapsed), one order for every item, the poison line.
@@ -71,6 +74,7 @@ except Exception:
 
 import test_the_character_builder_is_their_builder as CB  # noqa: E402  the builder's own harness
 import test_the_character_builder_is_joined_to_the_engine_and_the_mule_window as J  # noqa: E402  its picker + STATS
+import tooltip_oracle_lane as TOL  # noqa: E402  REG-1560: the composition run + the per-row judge the LANE runs
 
 ORACLE = os.path.join(HERE, "the_tooltip_oracle.json")
 #: base_dump's seven, the rows the brief measured first - they must be theirs with NO declared difference
@@ -83,40 +87,17 @@ def _oracle():
 
 
 def _rows(fx):
-    """[(runeword, base, their lines)] - head + the runeword's props, or the base's own props"""
-    out = []
-    for rw, v in fx["runewords"].items():
-        for base, e in v["bases"].items():
-            out.append((rw, base, list(e["head"]) + list(e.get("props") or v["props"])))
-    return out
+    """[(runeword, base, their lines)] - the LANE's reader (tooltip_oracle_lane.oracle_rows), never a copy"""
+    return TOL.oracle_rows(fx)
 
 
 def _norm(s):
-    return re.sub(r"\s+", " ", s.replace(u"\u2013", "-")).strip()
+    return TOL._norm(s)
 
 
-#: helpers every case shares: the tooltip of a named item on a named base, as [class, text] rows
-HELP = r"""
-window.openCharBuilder();
-var d = window._cbDb();
-function baseCode(n){ var h = null; Object.keys(d.b).forEach(function(c){ if (!h && d.b[c][0] === n && d.b[c][20]) h = c; }); return h; }
-function rows(h){ var out = [], re = /<div class="([^"]+)"[^>]*>([\s\S]*?)<\/div>/g, m;
-  while ((m = re.exec(h))) out.push([m[1], m[2].replace(/<[^>]+>/g, '').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')]);
-  return out; }
-function entry(name, base, o){
-  o = o || {}; var it = d.byName[name.toLowerCase()]; if (!it) return null;
-  var e = window._cbEntryFor(it); if (base){ var bc = baseCode(base); if (!bc) return null; e.base = bc; }
-  if (o.rolls) e.rolls = o.rolls;
-  var t = window._cbTipEntry(e, it, o.lvl == null ? 99 : o.lvl, o.slot || 'rarm', o.cls === undefined ? 'Sorceress' : o.cls);
-  if (o.attrs) t.attrs = o.attrs;
-  return { it: it, e: e, t: t };
-}
-function tip(name, base, o){ var x = entry(name, base, o); return x ? rows(window.d2Tip(x.t)) : null; }
-/* the roll key and the top of the item's own Increased Attack Speed line, when it is a range */
-function iasRoll(name){ var it = d.byName[name.toLowerCase()], sid = d.tip.st.item_fasterattackrate, hit = null;
-  (it[6] || []).forEach(function(l){ var r = l[1] && l[1][0]; if (!hit && d.TK[l[0]][2] === sid && r && r[0] !== r[1]) hit = [r[2], Math.max(r[0], r[1])]; });
-  return hit; }
-"""
+#: helpers every case shares (openCharBuilder, baseCode, rows, entry, tip, iasRoll) live with the composition
+#: run in tooltip_oracle_lane.HELP - REG-1560: the lane runs the same helpers, so they exist once
+HELP = TOL.HELP
 
 
 def _run(body):
@@ -147,70 +128,27 @@ class TheTooltipIsTheGamesTooltip(unittest.TestCase):
             self.assertTrue(all(isinstance(x, str) and x.strip() for x in lines))
 
     def test_every_oracle_row_is_the_shipped_tooltip(self):
+        """REG-1560 — driven through tooltip_oracle_lane.measure(): ONE composition run over every oracle row and
+        ONE per-row judge, shared with the lane that runs it on the console's cadence. This case asserts the same
+        three things it always did (every row theirs after only its declared difference, most rows theirs exactly,
+        every declared difference met at least once) plus the receipt's shape: a verdict PER ROW, never a summary."""
         fx = _oracle()
         rows = _rows(fx)
-        out = _run(r"""
-          var CASES = %s, B = CASES.map(function(c){ return c[1]; });
-          OUT.r = CASES.map(function(c){
-            var x = entry(c[0], c[1]);
-            if (!x) return { err: 'no item or base ' + c[0] + ' / ' + c[1] };
-            var bt = d.b[x.e.base][1], anc = d.anc[bt] || {};
-            return { rows: rows(window.d2Tip(x.t)), sword: !!anc.swor, blunt: !!anc.blun };
-          });
-        """ % json.dumps([[r, b] for r, b, _ in rows]))
-        bad, kinds, equal = [], {"sword": 0, "blunt": 0, "speed": 0}, 0
-        for (rw, base, theirs), got in zip(rows, out["r"]):
-            if "err" in got:
-                bad.append(got["err"])
-                continue
-            notes = [t for c, t in got["rows"] if c == "d2t-note"]
-            for n in notes:
-                if not n.startswith("strength / dexterity: UNKNOWN until the character has attributes"):
-                    bad.append("%s / %s: an unexpected note %r" % (rw, base, n))
-            ours = [(c, _norm(t)) for c, t in got["rows"] if c != "d2t-note"]
-            th = [_norm(x) for x in theirs]
-            ot = [t for _, t in ours]
-            if ot == th:
-                equal += 1
-                continue
-            # (a) SWORD: ours has the game's sword class line where theirs has none - on a sword, and only there
-            if got["sword"]:
-                k = [i for i, t in enumerate(ot) if t.startswith("Sword Class - ")]
-                if len(k) != 1 or [t for t in th if " Class - " in t]:
-                    bad.append("%s / %s: a sword must print exactly one 'Sword Class - ' line (theirs none): %s" % (rw, base, k))
-                    continue
-                if not (ot[k[0] - 1].startswith("Required Level: ") and (re.search(r" Attack Speed$", ot[k[0]])
-                                                                         or "attack speed UNKNOWN" in ot[k[0]])):
-                    bad.append("%s / %s: the sword's class line is out of place or not the game's form: %r" % (rw, base, ot[k[0]]))
-                    continue
-                del ot[k[0]]
-                del ours[k[0]]
-                kinds["sword"] += 1
-            # (b) BLUNT: theirs "+50% Damage to Undead" before Socketed; ours the UNKNOWN in the same place
-            if got["blunt"] and "+50% Damage to Undead" in th:
-                i = th.index("+50% Damage to Undead")
-                if i >= len(ours) or ours[i][0] != "d2t-unk" or not ours[i][1].startswith("Damage to Undead: UNKNOWN"):
-                    bad.append("%s / %s: the blunt bonus is not said UNKNOWN in its place: %r" % (rw, base, ours[i:i + 1]))
-                    continue
-                if any("Damage to Undead" in t and not t.startswith("Damage to Undead: UNKNOWN") for t in ot):
-                    bad.append("%s / %s: a blunt base with its own undead stat must not say the bonus" % (rw, base))
-                    continue
-                ot[i] = th[i]
-                kinds["blunt"] += 1
-            # (c) an untyped rolled IAS whose ends fall in two bands: ours "(A-B) Attack Speed", theirs B (the top roll)
-            for i, (a, b) in enumerate(zip(th, ot)):
-                m = re.match(r"^(\w+ Class - )\((.+)-(.+)\) Attack Speed$", b)
-                if a != b and m and a == m.group(1) + m.group(3) + " Attack Speed":
-                    ot[i] = a
-                    kinds["speed"] += 1
-            if ot != th:
-                bad.append("%s / %s:\n      theirs %s\n      ours   %s" % (rw, base, th, ot))
+        rep = TOL.measure(fx=fx, run=CB._run)
+        self.assertIsInstance(rep.get("rows"), list, "the composition did not run: %s" % rep.get("why"))
+        self.assertEqual(rep["measured"], len(rows), "a row never reached the composition: %s" % rep.get("why"))
+        for r in rep["rows"]:
+            self.assertEqual(sorted(k for k in ("runeword", "base", "agree", "why") if k in r),
+                             ["agree", "base", "runeword", "why"], "a row verdict is missing a field: %r" % (r,))
+        bad = ["%s / %s: %s" % (r["runeword"], r["base"], r["why"]) for r in rep["rows"] if not r["agree"]]
         self.assertEqual(bad, [], "\n  ".join(bad[:12]) + ("\n  ... %d rows in all" % len(bad) if len(bad) > 12 else ""))
         # the declared differences stayed where their rules put them (each one exercised, so none absorbs a defect
         # unseen), and most rows are theirs line for line with nothing declared at all
-        self.assertGreater(equal, len(rows) // 2, "only %d of %d rows are theirs exactly" % (equal, len(rows)))
+        kinds = rep["kinds"]
+        self.assertGreater(kinds["equal"], len(rows) // 2, "only %d of %d rows are theirs exactly" % (kinds["equal"], len(rows)))
         for k in ("sword", "blunt", "speed"):
             self.assertGreater(kinds[k], 0, "the declared difference %r was never met - the fixture lost its rows" % k)
+        self.assertEqual((rep["agreed"], rep["ok"]), (len(rows), True), "the report's own summary disagrees with its rows")
 
     def test_the_seven_measured_rows_are_theirs_with_nothing_declared(self):
         fx = _oracle()
