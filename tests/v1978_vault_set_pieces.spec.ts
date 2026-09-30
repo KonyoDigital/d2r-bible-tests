@@ -39,8 +39,16 @@ test('the split sends set pieces one way and uniques the other', async ({ page }
 /* 2026-09-30 — WAIT FOR THE PIPE, NEVER DODGE THE PIECE. Red on v3525's and v3526's CI: sets [] and unknown [] for
  * "Laying of Hands". Measured on a fresh headless page once the board had booted: the same apply ticks it (sets
  * ["Laying of Hands (bramble mitts)"], held true). The spec fed the pipe 1.4 s after load, and a slower runner had not
- * finished booting the sets half. It now waits until the board SAYS the pipe is up, keeps the piece, and asserts the
- * skip is empty too - so a piece the page already holds is named as that, not read as a pipe that ignores it. */
+ * finished booting the sets half. It now waits until the board SAYS the pipe is up, and asserts the skip is empty too
+ * - so a piece the page already holds is named as that, not read as a pipe that ignores it.
+ * 2026-09-30 (later) — AND THE PIECE IS ONE THIS PAGE HAS NOT FOUND, ASKED OF THE PAGE. Red on v3527, v3528 and
+ * v3531's CI on the premise itself ("the page already held the piece"): a Playwright page is navigator.webdriver on
+ * file:, which bible.html resolves as the OWNER's world on purpose (v2694), and the owner's seeds land there - 118 of
+ * the 135 pieces, Laying of Hands among them. My earlier measurement was a plain headless Chrome, not flagged as
+ * automated, so it booted an EMPTY store: a different world, and the premise looked true. Measured again with the
+ * flag set: 118 held, 17 not. So the spec takes the first slot-suffixed piece the page does not hold, goes in through
+ * the BARE name (findSetPiece must hand back the canonical form, the point of v1978), and a named constant can never
+ * go stale under the seeds again. */
 test('a set piece fed to the sets pipe TICKS — it is not filed as unknown', async ({ page }) => {
   await page.goto(URL);
   await page.waitForFunction(() => {
@@ -51,12 +59,19 @@ test('a set piece fed to the sets pipe TICKS — it is not filed as unknown', as
   }, undefined, { timeout: 30000 });
   const r = await page.evaluate(() => {
     const w: any = window;
-    const sp = w.findSetPiece('Laying of Hands');
-    const before = w._setHave().has(sp.piece);
-    const res = w.chronicleApply({ wouldAdd: { uniques: [], sets: [sp.piece] } });
-    return { sets: res.sets, unknown: res.unknown, skipped: res.skipped, canonical: sp.piece, before,
-             held: w._setHave().has(sp.piece) };
+    const have = w._setHave();
+    const all: string[] = Array.from(w._chronSetPieceSet());
+    const canonical = all.find((p) => !have.has(p) && /\(/.test(p));
+    if (!canonical) return { none: true, heldN: have.size, allN: all.length } as any;
+    const bare = canonical.replace(/\s*\([^)]*\)\s*$/, '');
+    const sp = w.findSetPiece(bare);
+    const before = w._setHave().has(canonical);
+    const res = w.chronicleApply({ wouldAdd: { uniques: [], sets: [sp && sp.piece] } });
+    return { sets: res.sets, unknown: res.unknown, skipped: res.skipped, canonical, bare, resolved: sp && sp.piece,
+             before, held: w._setHave().has(canonical), heldN: have.size, allN: all.length };
   });
+  expect(r.none, `PREMISE: this page holds every set piece (${r.heldN} of ${r.allN}) - nothing is left to tick`).toBeFalsy();
+  expect(r.resolved, `the bare name "${r.bare}" did not resolve to its canonical, slot-suffixed piece`).toBe(r.canonical);
   expect(r.before, 'premise: the page already held the piece, so an apply could only skip it').toBe(false);
   expect(r.skipped, 'a piece this page had NOT found was skipped as already found').toEqual([]);
   expect(r.unknown, 'the canonical piece name must NOT land in unknown').toEqual([]);

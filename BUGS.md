@@ -405,6 +405,38 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1616 - TWO CI SPECS MEASURED THE WRONG WORLD, SO THEIR PREMISES FAILED ON EVERY RUN SINCE v3527 (2026-09-30)
+
+**Was:** Routine I red on e79aed53, 93bd7289 and ac2be8d7 with the same two specs. `v1978_vault_set_pieces` asserted
+the page had not found "Laying of Hands" before ticking it; `v3526_one_hunt_clock` asserted the console ranks more than
+100 grail rows (it ranked 76). Both premises had been "measured on a fresh headless page" - a plain Chrome, not flagged
+as automated, which boots an EMPTY store. A Playwright page is `navigator.webdriver` on `file:`, which bible.html
+resolves as the OWNER's world on purpose (v2694), with the owner's seeds: 118 of 135 set pieces held (Laying of Hands
+among them), and 82 grail items missing, not ~384. Waiting longer (the earlier fix) could never change either number.
+And the hunt-clock spec compared only 76 of its 81 rows: it looked rows up in `_allDropItems()`, which spells five
+of them differently ("Seraph's Hymn" / "Seraph’s Hymn", "Gull (dagger)" / "Gull", "Cranium Basher" / "The Cranium
+Basher"), and skipped any row it could not find.
+
+**Now:** the set spec ticks the first slot-suffixed piece THIS page has not found, entering through its bare name; the
+hunt spec looks rows up in `funiScan().missing` (the universe `_writeGrailFarm` walks), fails on any row it cannot
+name, and takes its premise from the page's own denominator (the console ranks what the forge can time - 81 of 81 in
+the owner world). Both measured green with the automation flag set before shipping; CI is the verdict.
+
+### REG-1615 - NO DELETER EVER STAMPED THE RIVER, SO 64 DELETED REELS STAYED "ON" IT - AND THE HEART NOW WATCHES (2026-09-30)
+
+**His ask, after REG-1614:** "connect it to the heart so it doesnt happen". **Measured on his Mac:** the stamp log
+placed 64 reels on the river whose folders were gone - every one recorded by its deleter (the retention pass's
+closure ledger, or the recorder disk floor's reap log), and none ever stamped: river_stamp's docstring promised a
+TOMBSTONE writer "inside the deleter" that never existed (the w26 audit: 0 TOMBSTONE rows against 47 ROUTED).
+
+**Now:** `river_stamp.close_out` stamps TOMBSTONE, once, as an OBSERVER row carrying the deleter's own record, for a
+reel whose folder is gone AND a deleter names; the triage tick runs it after its walk. A reel gone with no record is
+never stamped - it is returned as a deletion nobody logged, and the heart's corroborator (`river-log-matches-the-
+shelf`: the log against the shelf and every deleter's record, read DRY) goes red on it. An unreadable record, log or
+shelf is UNKNOWN. The recorder's reap-log path is one function now (`tv_diablo._reap_log_path`), shared by its writer
+and this reader. Law `test_a_deleted_reel_is_closed_out_on_the_river`, every red-proof seen RED. On his Mac the first
+tick after this ships closes out 64 and the invariant reads 0 unrecorded.
+
 ### REG-1614 - "RIVER STUCK" ON EVERY PC: 21 OF THE MAC'S 27 WERE REELS NO LONGER ON ITS SHELF (2026-09-30)
 
 **His screenshot at 19:55:** "river stuck" on all three online PCs. **Measured the same minute:**

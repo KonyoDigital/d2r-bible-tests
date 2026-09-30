@@ -82,6 +82,17 @@ test.describe('v3526 — one hunt clock', () => {
     expect(r.text).not.toContain('Hell Hell');
   });
 
+  /* 2026-09-30 (later) — THE PREMISE IS THE PAGE'S OWN DENOMINATOR, AND EVERY ROW IS COMPARED. Still red on v3527,
+     v3528 and v3531's CI after the boot fix: 76 rows, every run, however long it waited. A Playwright page is
+     navigator.webdriver on file:, which bible.html resolves as the OWNER's world on purpose (v2694), with the owner's
+     seeds: most of the grail is found there, and _writeGrailFarm ranks only what is MISSING. MEASURED with the flag
+     set: the forge lists 82 missing, times 81, and the console writes exactly 81 rows (the 383 above was a plain
+     headless page - an empty world, the wrong one). And 5 of the 81 were never compared at all: this spec looked rows
+     up in _allDropItems(), which spells them differently ("Seraph's Hymn" / "Seraph’s Hymn", "Gull (dagger)" / "Gull",
+     "Cranium Basher" / "The Cranium Basher"), and skipped any row it could not find. The rows come from
+     funiScan().missing, so that is where they are looked up - the same universe on both sides, and a row the forge
+     cannot name is a failure, never a skip. (In the empty world the console ranks 383 of the forge's 384 timeable
+     items: the coverage floor below is a ratio, not a count, and that one item is a separate question.) */
   test('★ every grail item: the forge names the SAME best run and Hell run the console hero ranks', async ({ page }) => {
     await boot(page);
     const r = await page.evaluate(() => {
@@ -93,11 +104,13 @@ test.describe('v3526 — one hunt clock', () => {
         const gf = JSON.parse(localStorage.getItem('d2r_grailFarm') || w.LSR.getItem('d2r_grailFarm') || 'null');
         rows = (gf && (gf.items || gf)) || [];
       } catch (e) {}
+      const missing: any[] = (w.funiScan().missing || []);
       const byName: any = {};
-      w._allDropItems().forEach((x: any) => { byName[x.n] = x; });
-      const bad: string[] = []; let checked = 0;
+      missing.forEach((x: any) => { byName[x.n] = x; });
+      const timed = missing.filter((x: any) => !!w._pickSrc(x.sources, x.n)).length;
+      const bad: string[] = [], unmatched: string[] = []; let checked = 0;
       (rows.filter ? rows : []).forEach((row: any) => {
-        const it = byName[row.name]; if (!it) return;
+        const it = byName[row.name]; if (!it) { unmatched.push(row.name); return; }
         checked++;
         const p = w._pickSrc(it.sources, it.n);
         if (!p || p.s.boss !== row.source) bad.push(row.name + ': forge ' + (p && p.s.boss) + ' vs console ' + row.source);
@@ -106,9 +119,15 @@ test.describe('v3526 — one hunt clock', () => {
         if ((row.hellSource || null) !== want) bad.push(row.name + ': forge Hell ' + want + ' vs console Hell ' + row.hellSource);
       });
       const board = document.getElementById('funi-body');
-      return { checked, bad: bad.slice(0, 12), nBad: bad.length, text: board ? (board.textContent || '') : '' };
+      return { checked, rows: (rows.filter ? rows.length : 0), timed, unmatched, bad: bad.slice(0, 12), nBad: bad.length,
+               text: board ? (board.textContent || '') : '' };
     });
-    expect(r.checked, 'grail rows the console ranks').toBeGreaterThan(100);
+    expect(r.timed, 'PREMISE: the forge times no missing grail item on this page - nothing could be compared').toBeGreaterThan(0);
+    expect(r.rows, `the console ranks ${r.rows} of the ${r.timed} missing items the forge can time`)
+      .toBeGreaterThanOrEqual(Math.floor(r.timed * 0.95));
+    expect(r.rows).toBeLessThanOrEqual(r.timed);
+    expect(r.unmatched, 'rows the forge cannot name were skipped, not compared').toEqual([]);
+    expect(r.checked, 'grail rows compared').toBe(r.rows);
     expect(r.bad, r.nBad + ' item(s) named differently on the forge and the console').toEqual([]);
     expect(r.text).not.toContain('~1 every');
   });
