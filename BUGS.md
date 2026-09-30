@@ -405,6 +405,18 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1634 - TWO VAULT GATES WERE BLIND ON EVERY PC WITHOUT HIS VAULT DATA (2026-09-30)
+
+**Measured on the ALT's own census:** `test_the_vault_proposal_is_watched[2]` and `test_the_vault_receipt_is_watched[1]`
+were filed BLIND - "stayed GREEN through its own defeat" - and one blind gate keeps `may()` shut on that PC for good. The
+cases that pin those proofs asked HIS data: the proposal case skipped wherever `vault_accum.json` is absent and then only
+grepped the row's source; the receipt case compared the row against the REAL frame bank, which is empty on the ALT, so a
+row that stopped measuring and a row that measured nothing read the same. **Reproduced in a venue with neither** (this
+branch's worktree): under each sabotage the old law is GREEN, the new law RED. **Now** the proposal case asks the row
+itself, with an empty proposal and with no store at all (fixture paths); the receipt law gains a case with a pinned
+bank (126 of 450) that must carry the count on every PC. The live-bank case stays as the measurement it was. All 6
+red-proofs RED.
+
 ### REG-1633 - A LAW PINNED ON HIS MAC'S NAMES FAILED ON THE ALT, WHICH NEVER SAW THEM (2026-09-30)
 
 **Measured on the ALT, the law run by hand:** `test_the_auto_door_says_why_it_holds_a_name` failed one case - "Crescent

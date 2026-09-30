@@ -212,13 +212,30 @@ class TheVaultProposalIsWatched(unittest.TestCase):
 
     def test_an_EMPTY_proposal_says_so_rather_than_claiming_agreement(self):
         """[[zero-needs-a-denominator]] — 'nothing stored' and 'everything agrees' are different
-        facts and must not share a sentence."""
-        self._needs_store()
-        blk = _blk()
-        self.assertIn("empty proposal, not a disagreement", blk,
-                      "an empty proposal has no wording of its own, so it reads as a clean bill")
-        self.assertIn("empty queue, not a measured agreement", blk,
-                      "a missing store has no wording of its own")
+        facts and must not share a sentence.
+
+        REG-1634 — DRIVEN with fixture stores, never his. This case asked his ledger first and grepped
+        the row's source: wherever his vault_accum.json is absent (the ALT, measured) it skipped, so
+        the red-proof that deletes the empty-proposal wording was filed BLIND there - and one blind
+        gate keeps may() shut on that PC. The row itself is now asked, on every PC, with an empty
+        proposal and with no store at all."""
+        import json
+        import shutil
+        import tempfile
+        from unittest import mock
+        import control_app as _ca
+        d = tempfile.mkdtemp(prefix="vault_proposal_")
+        self.addCleanup(shutil.rmtree, d, True)
+        empty, absent = os.path.join(d, "vault_accum.json"), os.path.join(d, "never_written.json")
+        with io.open(empty, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"owned": []}))
+        for path, words, what in ((empty, "empty proposal, not a disagreement", "an empty proposal"),
+                                  (absent, "empty queue, not a measured agreement", "a missing store")):
+            with mock.patch.object(_ca, "VAULT_LEDGER_PATH", path):
+                st, say = _row()()
+            self.assertEqual(st, D.OK, "%s is not a fault: %r" % (what, say))
+            self.assertIn(words, say, "%s has no wording of its own, so it reads as a clean bill: %r"
+                          % (what, say))
 
     # ── ⛔ THE THING IT MUST NEVER DO ───────────────────────────────────────────────────────
     def test_it_never_writes_and_never_moves_the_bar(self):

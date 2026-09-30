@@ -135,6 +135,18 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
                           "the bank could not be read and the row does not say so — an "
                           "unmeasured resolution must never read as a clean one")
 
+    def test_a_readable_bank_is_said_in_the_row_on_every_pc(self):
+        """REG-1634 — the resolution, driven with a PINNED bank and a fixture backup. The case above
+        measures the REAL bank, and where that bank is empty (the ALT, measured) a row that stopped
+        measuring and a row that measured nothing read the same, so the red-proof that deletes the
+        measurement was filed BLIND there. Pinned, the row must carry the count on every PC."""
+        _backup(self.d, ["A"], {"A": {"sightings": [{"reel": "r", "frame": "f.jpg"}]}}, {"A": "x"})
+        self._pin_the_bank()                                   # 126 of 450 open
+        r = HE.check_vault_receipts(backup_dir=self.d)
+        self.assertIn("receiptFrames 126 of 450 open on disk", r.get("evidence") or [],
+                      "the bank was readable and the row does not carry how many receipts open: %r"
+                      % (r.get("evidence"),))
+
     def test_it_says_when_the_vault_cannot_show_a_receipt_at_all(self):
         """The join is the finding. Counting sightings while the vault emits no hook would report
         a number about evidence that can never reach his screen."""
