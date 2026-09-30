@@ -29382,6 +29382,17 @@ def _retro_triage_loop():
                 elif not _rv.get("ok"):
                     # UNKNOWN, never silence — an unreadable river must say so once per tick.
                     print("\U0001f30a river: NOT WALKED - %s" % str(_rv.get("why"))[:140], flush=True)
+                # REG-1615 — AND THE END OF THE RIVER, WHICH NO DELETER EVER STAMPED. A reel the shelf no longer has
+                # and a deleter's own record names (closure ledger or reap log) is stamped TOMBSTONE, once; one gone
+                # with no record is left for the heart's corroborator to name. Measured on his Mac the day this was
+                # written: 64 reels still "on the river" in the log, all 64 gone from the shelf and recorded.
+                _co = _rvs.close_out("loop:tvd-retro-triage", HIST_DIR)
+                _RIVER_WALK["closedOut"] = len(_co.get("closed") or []) if _co.get("ok") else None
+                _RIVER_WALK["unrecorded"] = len(_co.get("unrecorded") or []) if _co.get("ok") else None
+                if _co.get("closed") or _RIVER_WALK["unrecorded"] != _RIVER_WALK.get("unrecordedSaid"):
+                    # once per change, never per tick - a line every 90 s is its own silence
+                    _RIVER_WALK["unrecordedSaid"] = _RIVER_WALK["unrecorded"]
+                    print("\U0001f30a river: %s" % str(_co.get("why"))[:180], flush=True)
             except Exception as _rve:
                 # ⚠ the RAISE path also updates the state. Leaving the previous tick's numbers in
                 # place would make a crashed walk read as a healthy one that found nothing.

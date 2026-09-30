@@ -56,12 +56,14 @@ happen. [[unknown-stays-unknown]]
 ⛔ IT ARMS NOTHING, READS NO FOOTAGE, SPENDS NO MONEY AND DELETES NOTHING. It records where the
 router already said a reel was. It cannot move a reel; `river_walk.CANNOT` explains why nothing in
 this family can (all five lane ticks take no argument and each picks its own reel).
-⛔ IT CANNOT STAMP TOMBSTONE FROM THE FLEET WALK, and that is a property of the tree, not a
-shortcoming here: the only writer of a tombstone row runs INSIDE the deleter, milliseconds before
-the bytes go, so a reel is recorded as closed out and removed in one act. `run()` walks the SHELF,
-and a tombstoned reel is by definition off the shelf — so it is absent from the walk that would
-stamp it. `stamp(reel, "TOMBSTONE", by=...)` works and is the honest entry point the day that weld
-is separated; until then TOMBSTONE stays reachable by hand and unreachable by the river.
+⛔ `run()` CANNOT STAMP TOMBSTONE, because it walks the SHELF and a deleted reel is by definition off
+it. ⚠⚠ REG-1615 — AND THE WRITER THIS PARAGRAPH ONCE PROMISED NEVER EXISTED. It said "the only
+writer of a tombstone row runs INSIDE the deleter"; no deleter ever stamped this store (the w26 audit:
+0 TOMBSTONE rows against 47 ROUTED on his Mac), so every reel the retention pass closed out or the
+disk floor reaped stayed "on the river" here for ever, and the fleet counted them as stuck (REG-1614).
+`close_out()` joins that end: a reel whose folder is gone AND a deleter's OWN record names (closure
+ledger, reap log) is stamped TOMBSTONE once, as an observer; one gone with no record is left for the
+heart's corroborator (`river-log-matches-the-shelf`) to name. Deleting stays the deleters' alone.
 
     python3 tv/river_stamp.py                     # the census — where the fleet has been
     python3 tv/river_stamp.py <reel>              # one reel's journey, oldest first
@@ -526,6 +528,118 @@ def run(by, rep=None, path=None):
                 "shelf": len(rep.get("reels") or [])})
     out["why"] = ("%d reel(s) changed station and were stamped · %d were already where the store "
                   "said · %d refused" % (moved, unchanged, refused))
+    return out
+
+
+def _deleter_records(hist):
+    """Every reel a deleter recorded removing, read from EACH DELETER'S OWN RECORD. -> (dict reel -> why, list unread)
+
+    Two deleters, two records, and neither ever stamped this store (REG-1615): the retention pass writes its closure
+    ledger (reel_tombstones.json, keyed by reel dir or bare session id) and the recorder's disk floor writes its reap
+    log (reel_reaps.jsonl, `removed: true`). Each path comes from its writer's own resolver, never re-derived here -
+    two spellings of one path is how a reader ends up in a different world than the writer. A record that exists and
+    will not read is NAMED in `unread`: "I could not read it" is never "nothing was deleted". [[unknown-stays-unknown]]"""
+    recs, unread = {}, []
+    cp = rp = None
+    try:
+        import reel_retention as _rr
+        cp = _rr._tombstone_path(hist)
+    except Exception as e:
+        unread.append("the closure ledger's path could not be resolved (%s)" % type(e).__name__)
+    if cp and os.path.exists(cp):
+        try:
+            with open(cp, encoding="utf-8") as fh:
+                d = json.load(fh)
+            reels = (d or {}).get("reels")
+            for t in (list(reels.values()) if isinstance(reels, dict) else reels or []):
+                if not isinstance(t, dict):
+                    continue
+                sid = str(t.get("session") or "")
+                why = "closed out by the retention pass (%s) - its closure ledger" % (
+                    time.strftime("%Y-%m-%d %H:%M", time.localtime(t["deletedTs"] / 1000.0))
+                    if isinstance(t.get("deletedTs"), (int, float)) else "time unrecorded")
+                for nm in (str(t.get("reel") or ""), ("reel_" + sid) if sid and not sid.startswith("reel_") else sid):
+                    if nm:
+                        recs.setdefault(nm, why)
+        except Exception as e:
+            unread.append("the closure ledger would not read (%s)" % type(e).__name__)
+    try:
+        import tv_diablo as _tvd
+        rp = _tvd._reap_log_path(hist)
+    except Exception as e:
+        unread.append("the reap log's path could not be resolved (%s)" % type(e).__name__)
+    if rp and os.path.exists(rp):
+        torn = 0
+        try:
+            with open(rp, encoding="utf-8") as fh:
+                for ln in fh:
+                    if not ln.strip():
+                        continue
+                    try:
+                        r = json.loads(ln)
+                    except ValueError:
+                        torn += 1          # counted below: a torn line may be the record of a deletion
+                        continue
+                    if isinstance(r, dict) and r.get("removed") is True and r.get("reel"):
+                        recs.setdefault(str(r["reel"]), "reaped by %s (%s) - its reap log" % (
+                            r.get("by") or "the recorder", time.strftime("%Y-%m-%d %H:%M", time.localtime(
+                                r["ts"] / 1000.0)) if isinstance(r.get("ts"), (int, float)) else "time unrecorded"))
+        except Exception as e:
+            unread.append("the reap log would not read (%s)" % type(e).__name__)
+        if torn:
+            unread.append("%d line(s) of the reap log would not parse" % torn)
+    return recs, unread
+
+
+def close_out(by, hist, path=None, records=None, dry=False, limit=200):
+    """REG-1615 — A REEL THE SHELF NO LONGER HAS, AND A DELETER RECORDED REMOVING, IS STAMPED TOMBSTONE. -> dict
+
+    ⚠⚠ THE UNJOINED END. This store keeps a reel's last station for ever, and no deleter ever stamped it: the
+    docstring above promised "the only writer of a tombstone row runs INSIDE the deleter" and no such writer existed
+    (the w26 audit: 0 TOMBSTONE rows against 47 ROUTED on his Mac). So every reel the retention pass closed out or the
+    disk floor reaped stayed "at" JOIN or ROUTED here for ever, and the fleet read 21 of his Mac's 27 "stuck" reels
+    off reels that were gone (REG-1614). This joins the end WITHOUT a second authority on deleting: a reel is closed
+    out only when (1) its folder is gone from the shelf AND (2) a deleter's OWN record names it. The row is an
+    OBSERVER row (the walk saw it gone; the deleter's record says who took it), carried in `why`.
+
+    A reel gone with NO record is never stamped - it is returned in `unrecorded`, a deletion nobody logged, which is
+    what the heart's corroborator goes red on. `dry=True` classifies and writes nothing (the corroborator never
+    writes). -> {ok, closed, wouldClose, unrecorded, unread, why}; ok=False is UNKNOWN (no readable store or shelf)."""
+    out = {"ok": False, "closed": [], "wouldClose": [], "unrecorded": [], "unread": [], "why": ""}
+    by = str(by or "").strip()
+    if not by:
+        out["why"] = "close_out() needs a `by` - a stamp must say who wrote it"
+        return out
+    if not hist or not os.path.isdir(hist):
+        out["why"] = "the shelf is not there, so which reels have left it is UNKNOWN"
+        return out
+    rep = rows(path)
+    if not rep.get("ok"):
+        out["why"] = "the stamp store would not read: %s" % rep.get("why")
+        return out
+    last = {}
+    for r in rep.get("rows") or []:
+        last[str(r.get("reel"))] = r
+    gone = sorted(reel for reel, r in last.items()
+                  if r.get("station") != "TOMBSTONE" and not os.path.isdir(os.path.join(hist, reel)))
+    if gone:
+        if records is None:
+            records, out["unread"] = _deleter_records(hist)
+        for reel in gone:
+            why = records.get(reel)
+            if why is None:
+                out["unrecorded"].append(reel)
+            elif dry:
+                out["wouldClose"].append(reel)
+            elif len(out["closed"]) < limit:
+                s = stamp(reel, "TOMBSTONE", by, why="left the shelf: " + why, path=path, observed=True)
+                if s.get("wrote"):
+                    out["closed"].append(reel)
+    out["ok"] = True
+    out["why"] = ("%d reel(s) the stamp log still placed on the river have left the shelf: %d closed out from a "
+                  "deleter's own record%s, %d with no record at all%s"
+                  % (len(gone), len(out["closed"]) + len(out["wouldClose"]), " (dry)" if dry else "",
+                     len(out["unrecorded"]), (" - and " + "; ".join(out["unread"])) if out["unread"] else ""))
     return out
 
 

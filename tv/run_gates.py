@@ -8627,6 +8627,15 @@ GATES = [
              "while that gate said painted, unclipped and uncovered. RENDERS the shipped rail in headless Chrome with every "
              "exception word at four widths and measures from the characters' own rects: no name breaks inside a word, no "
              "two words of a row overlap, nothing runs past the rail."),
+    Gate("test_a_deleted_reel_is_closed_out_on_the_river",
+         [sys.executable, os.path.join(HERE, "test_a_deleted_reel_is_closed_out_on_the_river.py")], 60,
+         needs_app=False,
+         why="REG-1615 (2026-09-30) - his fleet read 'river stuck' on every PC, and on his Mac the stamp log still placed 64 "
+             "deleted reels on the river: neither deleter ever stamped it. Drives river_stamp.close_out over a throwaway "
+             "shelf, ledger, closure ledger and reap log at the paths their own writers resolve: a reel gone AND named by "
+             "a deleter's record is closed out once, one still on the shelf never, one gone with no record is named and "
+             "never stamped; dry writes nothing; an unreadable record is UNKNOWN. The heart's corroborator goes red on "
+             "an unlogged deletion and agrees once it is logged; the triage tick closes out after its walk."),
     Gate("test_the_push_waits_for_a_settling_console",
          [sys.executable, os.path.join(HERE, "test_the_push_waits_for_a_settling_console.py")], 60,
          needs_app=False,

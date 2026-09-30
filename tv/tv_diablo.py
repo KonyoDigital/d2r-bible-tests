@@ -3282,6 +3282,12 @@ def _test_pinned_reels():
         return None
 
 
+def _reap_log_path(hist=None):
+    """Where the recorder's reap log lives, for its writer AND its readers (REG-1615: the river closes a reaped reel out
+    from this log, so the path is one function, never two spellings). -> path, beside the shelf's parent."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(hist or HIST_DIR))), "reel_reaps.jsonl")
+
+
 def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=None, kept=None, spared=None):
     """A durable line for every emergency reel deletion. -> None
 
@@ -3293,8 +3299,7 @@ def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=N
     ⚠ `frames=-1` means the count could not be taken — never a confident 0.
     """
     try:
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(HIST_DIR))),
-                            "reel_reaps.jsonl")
+        path = _reap_log_path()
         row = {"ts": int(time.time() * 1000), "reel": str(reel), "frames": int(frames),
                "removed": bool(removed), "shelfBefore": int(shelf), "by": str(by),
                "agentVer": VERSION, "minFreeGB": MIN_FREE_GB}

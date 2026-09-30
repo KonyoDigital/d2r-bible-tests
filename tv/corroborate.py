@@ -2451,6 +2451,38 @@ def _inv_their_tooltip_rows_are_ours():
             "their oracle rows", left, "rows the lane's receipt measured as ours", right, "==")
 
 
+def _inv_the_river_log_places_only_reels_the_shelf_has_or_a_deleter_recorded():
+    """REG-1615 — THE RIVER'S STAMP LOG AGAINST THE SHELF ITSELF, AND AGAINST EVERY DELETER'S OWN RECORD.
+
+    His fleet card read "river stuck" on every PC (2026-09-30), and on his Mac 21 of the 27 reels it counted were
+    gone: the log kept each reel's last station for ever, because neither deleter (the retention pass, the
+    recorder's disk floor) ever stamped it. Each engine was right by its own lights - the log about what it was
+    told, the shelf about what is on disk, each deleter about what it removed - and nothing asked whether they
+    AGREE. This does: a reel the log still places on the river whose folder is gone must be named by a deleter's own
+    record (the triage tick then closes it out, river_stamp.close_out). A reel gone with NO record is a deletion
+    nobody logged - a third deleter, or a folder removed by hand - and that is this invariant's red.
+    Left: the log + the shelf + the deleters' records (river_stamp.close_out, DRY - this file never writes).
+    Right: 0 allowed. An unreadable log, shelf or record is UNKNOWN, never 0."""
+
+    def left():
+        import river_stamp as _rs
+        hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        r = _rs.close_out("corroborate", hist, dry=True)
+        if not r.get("ok") or r.get("unread"):
+            return None
+        return len(r.get("unrecorded") or [])
+
+    def right():
+        return 0
+
+    return ("river-log-matches-the-shelf",
+            "every reel the river's stamp log still places on the river is on the shelf, or a deleter's own record "
+            "names its removal",
+            "remove a reel's folder with no closure-ledger row and no reap-log row and this goes red naming it",
+            "reels the stamp log places on the river, gone from the shelf, recorded by no deleter", left,
+            "0 allowed", right, "==")
+
+
 BUILDERS = (_inv_their_tooltip_rows_are_ours,
             _inv_a_reset_hold_is_not_a_register_prompt,
             _inv_a_tier_stands_on_the_looks_the_gate_counts,
@@ -2482,7 +2514,8 @@ BUILDERS = (_inv_their_tooltip_rows_are_ours,
             _inv_chronicle_owed_agrees,
             _inv_shadow_switch_matches_the_watcher,
             _inv_the_two_deleters_stay_at_their_own_granularity,
-            _inv_the_two_readers_measure_the_same_screen)
+            _inv_the_two_readers_measure_the_same_screen,
+            _inv_the_river_log_places_only_reels_the_shelf_has_or_a_deleter_recorded)
 
 
 
