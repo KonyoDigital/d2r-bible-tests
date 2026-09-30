@@ -18,6 +18,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 import console_settle as CS  # noqa: E402
 
 NOW = 1_790_000_000_000
@@ -76,7 +79,7 @@ class TheWait(unittest.TestCase):
                                                                "loadedAtMs": int((t0 - 3600) * 1000)})
             return {"moduleFreshness": {"known": True, "stale": False, "loadedAtMs": int(reexec_at * 1000)},
                     "drift": {"relaunch": None}, "engineReady": True}
-        state, why, waited = CS.wait(fetch=fetch, clock=clock, sleep=sleep, max_wait_s=360, min_age_s=30, poll_s=5)
+        state, why, waited = CS.wait_until_settled(fetch=fetch, clock=clock, sleep=sleep, max_wait_s=360, min_age_s=30, poll_s=5)
         self.assertEqual(state, "go")
         self.assertGreaterEqual(waited, 50, "the demos were let at a console %.0f s after its re-exec" % (waited - 20))
         self.assertLess(waited, 60)
@@ -84,13 +87,13 @@ class TheWait(unittest.TestCase):
 
     def test_the_bound_holds(self):
         t, clock, sleep = self._clock()
-        state, why, waited = CS.wait(fetch=lambda: _st(stale=True), clock=clock, sleep=sleep, max_wait_s=40, poll_s=5)
+        state, why, waited = CS.wait_until_settled(fetch=lambda: _st(stale=True), clock=clock, sleep=sleep, max_wait_s=40, poll_s=5)
         self.assertEqual(state, "timeout")
         self.assertLessEqual(waited, 45, "the wait ran past its bound")
 
     def test_a_settled_console_costs_nothing(self):
         t, clock, sleep = self._clock()
-        state, _why, waited = CS.wait(fetch=lambda: _st(), clock=clock, sleep=sleep)
+        state, _why, waited = CS.wait_until_settled(fetch=lambda: _st(), clock=clock, sleep=sleep)
         self.assertEqual((state, waited), ("go", 0))
 
 

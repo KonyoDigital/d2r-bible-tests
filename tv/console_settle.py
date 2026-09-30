@@ -15,9 +15,17 @@ hook's own freshness warning says what they tested. This never refuses a push by
 """
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.request
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 
 #: a console younger than this (seconds since its server module loaded) is still settling
 MIN_AGE_S = 30
@@ -58,7 +66,9 @@ def verdict(st, now_ms, min_age_s=MIN_AGE_S):
     return "go", "settled"
 
 
-def wait(port=17772, max_wait_s=MAX_WAIT_S, min_age_s=MIN_AGE_S, poll_s=POLL_S, fetch=None, clock=None, sleep=None):
+# named wait_until_settled, never `wait`: a production `def wait` anywhere flips lane_census's thread target
+# `target=wp.wait` (a Popen's) from FOREIGN to UNKNOWN - measured on this very file's first gate run (v3528)
+def wait_until_settled(port=17772, max_wait_s=MAX_WAIT_S, min_age_s=MIN_AGE_S, poll_s=POLL_S, fetch=None, clock=None, sleep=None):
     """Poll until the console is settled or the bound runs out. -> (state, why, waited_s); state is "go" | "timeout"."""
     fetch = fetch or (lambda: read(port))
     clock = clock or time.time
@@ -81,7 +91,7 @@ def main(argv=None):
     ap.add_argument("--wait", type=float, default=MAX_WAIT_S)
     ap.add_argument("--min-age", type=float, default=MIN_AGE_S)
     a = ap.parse_args(argv)
-    state, why, waited = wait(a.port, a.wait, a.min_age)
+    state, why, waited = wait_until_settled(a.port, a.wait, a.min_age)
     print("console settle: %s after %.0f s - %s" % (state, waited, why))
     return 0
 
