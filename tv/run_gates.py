@@ -218,6 +218,14 @@ GATES = [
              "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
              "ephemeral port. 3 red-proofs. v3525 - and the SHELL block that calls it, run for real under "
              "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. 4 red-proofs"),
+    Gate("test_characters_learn_from_the_reels", [sys.executable,
+         os.path.join(HERE, "test_characters_learn_from_the_reels.py")], 60,
+         why="#91 - 2026-09-30 his builder's 'From your characters' list was four hand-typed rows and never moved. "
+             "tv/char_select.py finds the character-select screen in HIS OWN reels by its two stone panels (the "
+             "OCR cannot read the D2R font and was no detector: 3 px of crop swung it 4 rows to 1), reads the list "
+             "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
+             "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
+             "the 45 s loop, /api/chars_learned, merged into the builder list. 20 cases, 7 red-proofs"),
     Gate("test_the_sets_ledger_keeps_its_history", [sys.executable,
          os.path.join(HERE, "test_the_sets_ledger_keeps_its_history.py")], 60,
          why="REG-1548 - 2026-09-29 his Mac store lost its one-shot flags, the Aug-21 set repair re-ran and took 16 "

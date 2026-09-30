@@ -55923,6 +55923,25 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbNewBuild = _cbNewBuild;
   /* the board's CHARS as templates: class + level only, read from the roster's own words */
+  /* #91 — WHAT THE REELS HAVE SEEN. Konyo, 2026-09-30: "for character build based on the reels and character
+     selection it should also learn the character and sync them in automatically after being witnessed a few times
+     over." This list was only the hand-typed CHARS, so a level he gained stayed unsaid. The console that serves this
+     page scans ITS OWN reels for the character-select screen (tv/char_select.py) and answers /api/chars_learned with
+     every character read on 2+ separate visits. Merged here: a learned character updates the typed row of the same
+     name (class, and the level 2+ visits confirmed) and a new one joins the list; nothing is written — the saved
+     builds stay his (#245). On the website there is no console: the list stays the typed one, and says so. */
+  var _cbLearned = null;   // null = never answered (UNKNOWN); {ok, chars:[...]} once the console answers
+  function _cbFold(n){ return String(n || '').toLowerCase().replace(/\u2295/g, 'o').replace(/[^a-z0-9]/g, ''); }
+  function _cbLearnedFetch(then){
+    try {
+      if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
+      fetch('/api/chars_learned', { cache: 'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){ if (d && typeof d === 'object') { _cbLearned = d; if (then) then(); } })
+        .catch(function(){ /* no console behind this page (the website): the typed list stands */ });
+    } catch (e) {}
+  }
+  window._cbLearnedFetch = _cbLearnedFetch;
   function _cbTemplates(){
     var out = [];
     try {
@@ -55934,6 +55953,23 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         if (CB_CLASS_ALIAS[word]) cls = CB_CLASS_ALIAS[word];
         out.push({ key: k, name: c.name || k, cls: cls, level: lvl, words: w,
                    strengths: (c.strengths || []).slice(), weaknesses: (c.weaknesses || []).slice() });
+      });
+    } catch (e) {}
+    try {
+      var seen = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars : [];
+      seen.forEach(function(L){
+        if (!L || !L.name) return;
+        var cls = CB_CLASS_ALIAS[String(L.cls || '').toLowerCase()] || L.cls || null;
+        var hit = null; out.forEach(function(t){ if (_cbFold(t.name) === _cbFold(L.name)) hit = t; });
+        if (hit){
+          if (cls) hit.cls = cls;
+          if (L.level) hit.level = L.level;
+          hit.seen = L.visits | 0; hit.pendingLevel = L.pendingLevel || null;
+        } else {
+          out.push({ key: 'seen:' + _cbFold(L.name), name: L.name, cls: cls, level: L.level || null,
+                     words: (L.cls || '') + (L.level ? ' ' + L.level : ''), strengths: [], weaknesses: [],
+                     seen: L.visits | 0, pendingLevel: L.pendingLevel || null });
+        }
       });
     } catch (e) {}
     return out;
@@ -56665,8 +56701,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     ids.sort(function(a, c){ return (a === mainId ? -1 : c === mainId ? 1 : 0) || ((all[c].at || 0) - (all[a].at || 0)); }).forEach(function(id){
       var x = all[id]; sel += '<option value="' + esc(id) + '"' + (id === st.bid && !st.draft ? ' selected' : '') + '>' + (id === mainId ? '★ MAIN · ' : '') + esc(x.name) + ' — ' + esc(x.cls || 'class UNKNOWN') + ' ' + (x.level | 0) + '</option>';
     });
-    sel += '<optgroup label="From your characters (class + level)">';
-    tpls.forEach(function(t){ sel += '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + '</option>'; });
+    var _lrn = (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) ? _cbLearned.chars.length : null;
+    sel += '<optgroup label="From your characters (class + level)' + (_lrn ? ' · ' + _lrn + ' learned from your reels' : '') + '">';
+    tpls.forEach(function(t){ sel += '<option value="tpl:' + esc(t.key) + '">' + esc(t.name) + ' — ' + esc(t.cls || ('"' + t.words + '": class UNKNOWN')) + (t.level ? ' ' + t.level : '') + (t.seen ? ' · seen ' + t.seen + '×' + (t.pendingLevel ? ' (' + t.pendingLevel + '?)' : '') : '') + '</option>'; });
     sel += '</optgroup><option value="__new">+ New build…</option></select>';
     var ci = _cbClsIx(b.cls);
     var cls = '<select class="cb-sel" id="cb-cls" aria-label="class" onchange="window._cbSetField(\'cls\', this.value)">'
@@ -58221,6 +58258,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     box.hidden = false;
     document.documentElement.classList.add('cb-lock');
     _cbRender();
+    // #91 — ask this PC's console what its reels have learned; the list repaints when it answers (still open)
+    _cbLearnedFetch(function(){ if (st.open) _cbRender(); });
     try { var c = document.getElementById('cb-close'); if (c) c.focus({ preventScroll: true }); } catch (e) {}
     return true;
   };

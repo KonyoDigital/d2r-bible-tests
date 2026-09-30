@@ -7029,6 +7029,52 @@ def claude_chronicle_read(image_path, kind, timeout=None):
     return _cr.normalize_page(raw, kind, "claude", framing=_framing)
 
 
+# ── #91 — THE CHARACTER-SELECT LIST, READ ON HIS SUBSCRIPTION (tv/char_select.py decides WHICH frames) ────────
+# The local OCR cannot read the D2R font (see _film_shrink's note), but it finds the screen for free; this is the
+# one paid read per visit that turns the panel crop into names, classes and levels. Same refusals as the chronicle
+# read: throttled and capped say so out loud, and the stub seam drives it with zero vision cost.
+CHARSEL_READ_PROMPT = (
+    "Image {path} is cropped from a Diablo II: Resurrected screenshot.\n"
+    "If it shows the CHARACTER SELECTION list (a stone panel with ONLINE / OFFLINE tabs, one row per character: the "
+    "character NAME, under it 'LEVEL <n> <CLASS>', sometimes a title such as SLAYER, CHAMPION, PATRIARCH or "
+    "MATRIARCH above the name, and a CREATE NEW button at the bottom), reply with STRICT JSON only:\n"
+    '{{"screen":"character-select","tab":"online","chars":[{{"name":"","cls":"","level":0,"title":null}}],'
+    '"partial":false}}\n'
+    "Rules: the game font draws the letter O as a circle with a cross in it - write it as the letter O. Copy each "
+    "NAME letter for letter as shown; never correct or complete a name. cls is one of Amazon, Assassin, Barbarian, "
+    "Druid, Necromancer, Paladin, Sorceress, Warlock. A row you cannot read with certainty (covered by the mouse "
+    "cursor, cut off, blurred): leave it OUT - never guess. tab is online, offline or unknown. partial is true when "
+    "the list is scrolled, cut off or a row is covered.\n"
+    'If the image is NOT the character selection list, reply {{"screen":"other","chars":[]}}. JSON only, no prose.'
+)
+
+
+def charselect_read(image_path, timeout=None):
+    """One character-select panel crop -> the reader's JSON (char_select.normalize() judges it), or a {"note"} that
+    says why it was NOT read. Never an empty list for a read that did not happen."""
+    if _is_throttled():
+        return {"note": "reader throttled - not read"}
+    _blocked = _sub_budget_check("oneshot")
+    if _blocked:
+        return {"note": "not read - %s" % _blocked}
+    if os.environ.get("TV_STUB"):
+        try:
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except Exception as e:
+            # an unreadable stub is NOT a stub with no answer — say which, never hand back {} as if it were read
+            return {"note": "stub manifest unreadable (%s) - not read" % type(e).__name__}
+        raw = man.get(os.path.basename(str(image_path or "")) + "#charselect") or man.get("*#charselect")
+        return raw if raw is not None else {"note": "stub has no #charselect answer"}
+    ap = os.path.abspath(str(image_path or ""))
+    if not os.path.isfile(ap):
+        return {"note": "no such frame"}
+    raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
+                   prompt=CHARSEL_READ_PROMPT.format(path=ap), raw_json=True)
+    return raw if raw is not None else {"note": "the reader returned nothing"}
+
+
 def _maybe_genius(ap, parsed, t0, mode):
     """v723 — automatic Sonnet escalate when Haiku looks weak (session-capped)."""
     if not _needs_escalate(parsed):
