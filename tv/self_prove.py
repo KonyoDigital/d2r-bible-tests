@@ -775,7 +775,7 @@ def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
 
 
-def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=None):
+def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=None, busy=None):
     """REG-1624 — THE FAST STAND-ASIDE. -> None (no proof running, or nothing to do) | the tick's status
 
     His words, 2026-09-30: "the shadow reader is always on when the game is on regardless of the console" - "everything
@@ -793,8 +793,11 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         # minute, then the lane waited out the rest of its 10-minute tick - 663 owed gates would have needed ~3 hours of
         # game-off time. A slice that has ENDED is booked now, and the tick starts the next one if the PC is still idle
         # (every start rule still applies: not playing, the memory bar, cooldowns, backoff).
+        # REG-1628 - AND IT IS HANDED THE LOAD PROBE THE LANE'S OWN TICK USES. MEASURED on the ALT on v3534: slices still
+        # started only on the 10-minute tick (23:13:24, then 23:23:32). This call booked the ended slice and then decide()
+        # met busy=None - "load-unknown", never started on a guess - so the next slice waited for the tick after all.
         if not pid_alive(pid):
-            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)
+            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)
         aside, _why = stand_aside(play_now, free_now)

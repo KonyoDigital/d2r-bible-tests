@@ -405,6 +405,25 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1628 - AN ENDED SLICE WAS BOOKED AT ONCE, AND THE NEXT ONE STILL WAITED FOR THE 10-MINUTE TICK (2026-09-30)
+
+**Measured on the ALT, live on v3534** (its console restarted onto af82ff37 at 23:07:59): slices still started only on
+the lane's 10-minute tick - 23:13:24, then 23:23:32 - with the PC idle between them. REG-1625's guard did book each
+ended slice the moment its prover was gone, but the tick it chained was handed no load probe, so `decide()` met
+`busy=None` and answered `load-unknown` ("a proof is not started on a guess"). The law for REG-1625 recorded the call
+with a fake tick and never asked whether a slice could START - the joint that broke was the one it stubbed. **Now**
+the console hands the guard the same `_cpu_busy_pct` its own tick uses and the guard passes it through. Law:
+`tv/test_a_proof_yields_the_moment_the_game_starts.py` gains the JOINED chain - `_self_prove_guard()` -> the real guard
+-> the real tick, only the machine faked: idle starts the next slice at once, busy books and waits, an unmeasured load
+is never read as idle. All 8 red-proofs RED.
+
+**Found on the way, in my own instrument, not the gate:** my in-place red-proof runner (a scratch script, used because
+a worktree cannot run `heart2 --prove`) swapped `if _gone:` for the same-length `if False:`, ran a sub-second law and
+restored inside the same second - so the sabotaged `.pyc` stayed VALID against the restored source (CPython checks the
+source's whole-second mtime and size), and REG-1626's law read RED an hour later on a correct tree. `heart2._run_gate`
+has always set `PYTHONDONTWRITEBYTECODE` for exactly this ("no stale .pyc can outlive a tamper"); the runner now does
+too, and every proof above was re-run on fresh bytecode.
+
 ### REG-1627 - THE VAULT LANE OWED READS AND SAID NOTHING ABOUT WHY (2026-09-30)
 
 **Measured on his Mac** (fleet river chip "PRINTER 2 - vault lane: owes 3, 3809 read(s) on record"): the lane's

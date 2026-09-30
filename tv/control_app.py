@@ -18376,7 +18376,7 @@ def _self_prove_guard():
     """REG-1624 — the 10-second stand-aside while a proof runs. Never raises; the rescue loop must keep going."""
     try:
         import self_prove as _sp
-        r = _sp.guard()
+        r = _sp.guard(busy=_cpu_busy_pct)       # REG-1628 — the same load probe as the tick, or no next slice starts
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove guard raised %s" % type(e).__name__}

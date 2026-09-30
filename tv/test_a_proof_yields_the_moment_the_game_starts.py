@@ -18,6 +18,10 @@ Driven, joint by joint:
      whole tick at once, which kills, books the stand-aside and cools down through the one door it always had.
   3. the bar - with the game off, a proof starts at MIN_FREE_MB_TO_START (1,536), still never while he plays and never
      under the running floor.
+  4. REG-1628, the whole chain JOINED: the console's own guard call -> the real guard -> the real tick, with only the
+     machine faked. MEASURED on the ALT on v3534: the guard booked each ended slice and the tick it chained met
+     busy=None ("load-unknown"), so the next slice still waited for the 10-minute tick. Case 2's fake tick could not
+     see that - it recorded the call and never asked whether a slice could start.
 Nothing here kills a process or starts a prover: every kill and every tick is a recorded fake. RED_PROOF below.
 """
 import ast
@@ -65,8 +69,17 @@ RED_PROOF = [
      "replace": "MIN_FREE_MB_TO_START = 2048\n", "matches": 1},
     {"why": "REG-1625 - an ended slice waits out the 10-minute tick: slices are not consecutive",
      "file": "self_prove.py",
-     "find": "        if not pid_alive(pid):\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n",
-     "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n", "matches": 1},
+     "find": "        if not pid_alive(pid):\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
+     "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
+     "matches": 1},
+    {"why": "REG-1628 - the guard's chained tick is not handed the load probe: load-unknown, the next slice waits",
+     "file": "self_prove.py",
+     "find": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
+     "replace": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n", "matches": 1},
+    {"why": "REG-1628 - the console asks the guard without its load probe (the measured ALT defect)",
+     "file": "control_app.py",
+     "find": "        r = _sp.guard(busy=_cpu_busy_pct)       # REG-1628",
+     "replace": "        r = _sp.guard()                          # REG-1628", "matches": 1},
     {"why": "REG-1624 - the guard runs a tick even when no proof is running (a 10 s full tick on an idle PC)",
      "file": "self_prove.py",
      "find": "        pid = mem.get(\"pid\") or _STARTED.get(\"pid\")\n        if not pid:\n            return None\n",
@@ -177,6 +190,66 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
         mem = SP.load(self.store)
         self.assertEqual(mem.get("stoodAside"), 1, "the stand-aside was not booked (it would read as a failure)")
         self.assertIsNone(mem.get("pid"))
+
+
+class TheNextSliceStartsTheMomentOneEnds(unittest.TestCase):
+    """REG-1628 - ca._self_prove_guard() -> SP.guard -> SP.tick, real all the way; only the machine is faked: the ended
+    prover (4242), the census, the tree, the spawn (a recorder, never a process), and how busy the CPU is."""
+
+    OLD, NEW = 4242, 5151
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="chain_store_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.store = os.path.join(self.d, ".self_prove.json")
+        with io.open(self.store, "w", encoding="utf-8") as fh:
+            json.dump({"pid": self.OLD, "pidBirth": 1234.5, "startedFor": "fp", "sliceGates": ["gate_a", "gate_b"]}, fh)
+        self._started = dict(SP._STARTED)
+        SP._STARTED.update(pid=None, birth=None)
+        self.addCleanup(lambda: (SP._STARTED.clear(), SP._STARTED.update(self._started)))
+        self._lane = dict(ca._SELF_PROVE)
+        self.addCleanup(lambda: (ca._SELF_PROVE.clear(), ca._SELF_PROVE.update(self._lane)))
+        ca._SELF_PROVE.clear()
+        ca._SELF_PROVE.update({"key": "start", "running": True})
+        self.spawned = []
+        census = {"state": "stale", "why": "fixture", "fingerprint": "fp", "owed": 2,
+                  "owedGates": [("gate_c", 1), ("gate_d", 1)], "owedWhy": "fixture; 2 owed"}
+        for name, fake in (("_store_path", lambda path=None: path or self.store),
+                           ("pid_alive", lambda pid: pid == self.NEW),
+                           ("proc_birth", lambda pid: 77.0 if pid == self.NEW else None),
+                           ("census_state", lambda: dict(census)),
+                           ("tree_state", lambda git=None: ("installed", "fixture")),
+                           ("spawn", lambda log_path, names=None, **k: self.spawned.append(names) or self.NEW),
+                           ("ensure_prover_deps", lambda *a, **k: {"ok": True, "installed": [], "why": "fixture"}),
+                           ("_gate_costs", lambda path=None: None),
+                           ("playing_state", lambda: False),
+                           ("free_mb", lambda: 3000.0)):
+            p = mock.patch.object(SP, name, fake)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def _guard(self, busy):
+        with mock.patch.object(ca, "_cpu_busy_pct", lambda *a, **k: busy):
+            return ca._self_prove_guard()
+
+    def test_an_idle_pc_starts_the_next_slice_at_once(self):
+        r = self._guard(5.0)
+        self.assertEqual(len(self.spawned), 1, "the slice ended on an idle PC and the next one did not start: %r" % (r,))
+        self.assertTrue(set(self.spawned[0]) <= {"gate_c", "gate_d"}, "the next slice is not the owed gates")
+        self.assertEqual(ca._SELF_PROVE.get("key"), "start", "the console's lane state does not say it started")
+        mem = SP.load(self.store)
+        self.assertEqual((mem.get("pid"), mem.get("slices")), (self.NEW, 1),
+                         "the ended slice was not booked, or the new prover is not tracked")
+
+    def test_a_busy_pc_books_the_slice_and_waits(self):
+        r = self._guard(90.0)
+        self.assertEqual(self.spawned, [], "a slice started on a busy PC")
+        self.assertEqual(r.get("key"), "busy")
+        self.assertEqual(SP.load(self.store).get("slices"), 1, "the ended slice was not booked")
+
+    def test_an_unmeasured_load_is_never_read_as_idle(self):
+        self.assertEqual(self._guard(None).get("key"), "load-unknown")
+        self.assertEqual(self.spawned, [])
 
 
 class AProofStartsWhenTheGameIsOffAndMemoryAllows(unittest.TestCase):
