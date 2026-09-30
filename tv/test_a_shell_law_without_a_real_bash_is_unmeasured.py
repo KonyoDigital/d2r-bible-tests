@@ -31,6 +31,11 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 import fixture_ledgers as _fx_ledgers  # noqa: E402  the children inherit the redirect
 _fx_ledgers.redirect()
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 import posix_shell as PS  # noqa: E402
 

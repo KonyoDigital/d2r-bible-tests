@@ -142,7 +142,7 @@ class TheRemovalJournalForksLikeTheStore(unittest.TestCase):
         """The other half of the door's promise: restore refuses a different world."""
         with io.open(BIBLE, encoding="utf-8") as fh:
             src = fh.read()
-        i = src.find("window.vaultRestoreLast")
+        i = src.find("window.vaultRestoreLast = function")   # the DEFINITION - REG-1638 added a caller above it
         self.assertGreater(i, 0, "the undo door is gone")
         blk = src[i:i + 2600]
         code = re.sub(r"/\*.*?\*/", " ", blk, flags=re.S)

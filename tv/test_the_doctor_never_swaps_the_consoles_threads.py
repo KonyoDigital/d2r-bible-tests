@@ -213,14 +213,14 @@ RED_PROOF = [
      "file": "console_doctor.py",
      "find": "        p = subprocess.run([sys.executable, os.path.join(HERE, \"sweep_wilson.py\"), \"--reach-probe\", d],\n"
              "                           capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\",\n"
-             "                           close_fds=False, timeout=REACH_PROBE_S, cwd=HERE)\n",
+             "                           close_fds=False, timeout=REACH_PROBE_S)   # no cwd: spawn, never fork (Quartz law)\n",
      "replace": "        import control_app as _ca\n"
                 "        p = type(\"P\", (), {\"returncode\": 0, \"stdout\": json.dumps({\"reach\": _sw.reach_probe(_ca, d)})})()\n",
      "matches": 1},
     {"why": "REG-1640 - the child is unbounded: a hung harness child hangs the eagle's tick",
      "file": "console_doctor.py",
-     "find": "                           close_fds=False, timeout=REACH_PROBE_S, cwd=HERE)\n",
-     "replace": "                           close_fds=False, cwd=HERE)\n",
+     "find": "                           close_fds=False, timeout=REACH_PROBE_S)   # no cwd: spawn, never fork (Quartz law)\n",
+     "replace": "                           close_fds=False)   # no cwd: spawn, never fork (Quartz law)\n",
      "matches": 1},
     {"why": "REG-1640 - the row stops removing the scratch dir it hands the child (853 heartlane_* once)",
      "file": "console_doctor.py",

@@ -8449,7 +8449,7 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
     try:
         p = subprocess.run([sys.executable, os.path.join(HERE, "sweep_wilson.py"), "--reach-probe", d],
                            capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           close_fds=False, timeout=REACH_PROBE_S, cwd=HERE)
+                           close_fds=False, timeout=REACH_PROBE_S)   # no cwd: spawn, never fork (Quartz law)
     except subprocess.TimeoutExpired:
         return UNKNOWN, ("the sweep harness child did not answer within %d s, so whether its attacks "
                          "reach the door is UNKNOWN, not fine" % REACH_PROBE_S)
