@@ -219,7 +219,7 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         real = (heart2.gate_files, heart2._prove_gates, heart2._write_state)
         try:
             heart2.gate_files = lambda *a, **k: list(planted)
-            heart2._prove_gates = lambda have, say=None, workers=None: (
+            heart2._prove_gates = lambda have, say=None, workers=None, blank=None: (
                 seen.setdefault("have", [n for n, _f, _p in have]) and
                 ({n: heart2.PROVEN for n, _f, _p in have}, {n: [heart2.PROVEN] for n, _f, _p in have}))
             heart2._write_state = lambda *a, **k: None

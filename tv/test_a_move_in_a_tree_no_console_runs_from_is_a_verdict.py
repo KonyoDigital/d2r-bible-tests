@@ -62,6 +62,25 @@ class WhichTreeTheConsoleRunsFrom(unittest.TestCase):
             raise OSError("no lsof on this machine")
         self.assertIsNone(RG._console_tree(run=boom), "a machine with no lsof must read UNKNOWN")
 
+    def test_a_path_with_a_space_is_read_whole(self):
+        # second eye on v3528: split on whitespace, this read `bar/tv/control_app.py`, joined it to the cwd and named a
+        # tree the console does not run from - a false verdict where the rule says the tree is its own
+        got = RG._console_tree(run=_runner(cmd="/usr/bin/python3 /trees/foo bar/tv/control_app.py --open",
+                                           cwd="/elsewhere"))
+        self.assertEqual(got, os.path.realpath("/trees/foo bar/tv"))
+
+    def test_the_script_path_in_every_launch_shape(self):
+        sp = RG._console_script_path
+        self.assertEqual(sp("python3 tv/control_app.py --no-open"), "tv/control_app.py")
+        self.assertEqual(sp("/usr/bin/python3 tv/control_app.py"), "tv/control_app.py",
+                         "an interpreter named by its absolute path made a RELATIVE script read as absolute")
+        self.assertEqual(sp("/Library/My Python/python3 tv/control_app.py"), "tv/control_app.py")
+        self.assertEqual(sp("/usr/bin/python3 -X pycache_prefix=/tmp/x /t/foo bar/tv/control_app.py"),
+                         "/t/foo bar/tv/control_app.py")
+        self.assertEqual(sp("/trees/main/tv/control_app.py --open"), "/trees/main/tv/control_app.py")
+        self.assertIsNone(sp("python3 something_else.py"))
+        self.assertIsNone(sp(""))
+
 
 class AConsoleElsewhereIsNotTheWriter(unittest.TestCase):
 
@@ -114,6 +133,21 @@ RED_PROOF = [
         "file": "run_gates.py",
         "find": "    _console_live, _console_why = _console_writes_here()\n",
         "replace": "    _console_live, _console_why = _console_is_running(), \"\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - the console's command line is split on whitespace again: a path with a space names "
+               "another tree",
+        "file": "run_gates.py",
+        "find": "    j = cmd.rfind(\" /\", 0, i)\n",
+        "replace": "    j = -1\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - an interpreter named by its absolute path makes a relative script read as absolute",
+        "file": "run_gates.py",
+        "find": "    if cmd.startswith(\"/\") and (\" \" not in cmd[:end] or os.path.isfile(cmd[:end])):\n",
+        "replace": "    if cmd.startswith(\"/\"):\n",
         "matches": 1,
     },
 ]

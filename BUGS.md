@@ -405,6 +405,32 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1606 - A CONSOLE PATH WITH A SPACE NAMED A TREE THE CONSOLE DOES NOT RUN FROM (second eye on v3528, 2026-09-30)
+
+**Was:** run_gates asked which tree the console on :17772 runs from by splitting its `ps` command line on whitespace, so
+`/Users/foo bar/tv/control_app.py` was read as the RELATIVE `bar/tv/control_app.py`, joined to the console's cwd, and named
+another tree - "a move here is a verdict" on the strength of a path that was never read. The rule is that a tree nobody
+could read is UNKNOWN.
+
+**Now:** `_console_script_path` reads an absolute script from the last " /" before `control_app.py`, spaces and all; a
+relative script is its own token (an interpreter named by its absolute path no longer makes it read absolute); a script
+run directly is taken whole only when it has no space or the file is really there. Law:
+`tv/test_a_move_in_a_tree_no_console_runs_from_is_a_verdict.py` (+2 cases, +2 red-proofs, seen RED).
+
+### REG-1605 - A GATE NOBODY MEASURED WAS BANKED AS PROVED AGAINST ITS FILE (second eye on v3528, 2026-09-30)
+
+**Was:** heart2 writes BLIND for a gate no proof measured - never reached by any lane, held by a lane that died, raised
+before any proof judged it - so it exits non-zero and is never dropped. #99's `gateShas` then banked that row's digest
+like any other, so the census stopped owing a gate that never ran: no slice ran it again, the census read current with it
+blind, and every lock on that PC stayed shut for good over a sandbox that failed once.
+
+**Now:** the prover names the rows it wrote without measuring (`blank`, filled by the missing-row sweep, a lane that died
+holding a gate, a gate that raised outside its own proofs) and `_write_state(..., unmeasured=)` leaves them OWED; the next
+slice runs them. A MEASURED blind (the tamper ran and the law stayed green) is still banked - otherwise one gate that is
+blind on Windows would keep that PC's census from ever finishing and re-run every idle gap. Law:
+`tv/test_a_pc_proves_itself_a_slice_at_a_time.py` (+5 cases, +6 red-proofs, all seen RED); four laws that fake the prover
+follow the new keyword, their red-proofs re-seen RED.
+
 ### REG-1604 - EACH READER SAYS WHETHER IT IS CONNECTED, AND THE CORNER IS GREEN ONLY WHILE IT RECORDS (#105, 2026-09-30)
 
 **His words:** *"should be green when its recording.. not simply when its toggled on"* and *"a button showing this like if
@@ -418,7 +444,7 @@ whether a PC's reader could read - the ALT read nothing for hours (REG-1603) und
 Under it, two lamps - CLAUDE primary, GROK shadow - lights on when connected, off when not (a fault ring and the reader's
 own words, with the /login step when it is a sign-in), dashed when UNKNOWN. One measure, `_reader_health` (Claude's newest
 read in 2 h decides; Grok from its lane's switch, install and sign-in), carried on /api/status and asked by the new doctor
-row "this machine's reader can read". Law: `tv/test_each_reader_says_whether_it_is_connected.py` (11 cases, 9 red-proofs)
+row "this machine's reader can read". Law: `tv/test_each_reader_says_whether_it_is_connected.py` (12 cases, 9 red-proofs)
 + test_control's corner case rewritten to the new ruling.
 
 ### REG-1603 - A READ THAT DID NOT HAPPEN SEALED EVERY SHADOW REEL AS "THE LAUNCHER" - A DAY OF HOLES ON THE ALT (#105, 2026-09-30)

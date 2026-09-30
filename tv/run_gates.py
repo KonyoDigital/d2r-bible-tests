@@ -8497,7 +8497,8 @@ GATES = [
          needs_app=False,
          why="#94 (REG-1593, 2026-09-30) - REG-1583's run in a worktree called its own fixture leaks 'suspects' because his "
              "console was up on :17772 - but it runs from the main checkout and cannot write a worktree. Pins the tree "
-             "reader (lsof/ps/cwd, UNKNOWN never read as 'elsewhere'), the decision, and main()'s wiring; fixtures only."),
+             "reader (lsof/ps/cwd, UNKNOWN never read as 'elsewhere'; REG-1606 a path with a space read whole), the "
+             "decision, and main()'s wiring; fixtures only."),
     Gate("test_a_pc_proves_itself_a_slice_at_a_time",
          [sys.executable, os.path.join(HERE, "test_a_pc_proves_itself_a_slice_at_a_time.py")], 120,
          needs_app=False,
@@ -8505,7 +8506,9 @@ GATES = [
              "ran a WHOLE heart2 --prove (~90 min) and he plays there most of the day, so it stood aside and wrote "
              "nothing. Pins per-gate digests (gateShas), --slice stamping only a COMPLETE census, push-time stamping "
              "unchanged, an atomic census write, and the lane proving owed gates a slice at a time with a landed "
-             "slice counted as progress. Fixture gates only; 6 red-proofs."),
+             "slice counted as progress. REG-1605: a gate the prover wrote BLIND without measuring (never reached, a "
+             "lane that died holding it, raised before any proof) stays owed; a measured blind is banked. Fixture "
+             "gates only."),
     Gate("test_claude_reads_every_frame",
          [sys.executable, os.path.join(HERE, "test_claude_reads_every_frame.py")], 180,
          needs_app=False,
@@ -9020,7 +9023,8 @@ def _console_tree(port=17772, run=None):
     """#94 — the tv/ directory the console listening on `port` runs from. -> realpath | None (UNKNOWN)
 
     lsof names the listener, ps its command line, lsof its cwd (for a relative script path). Any step that cannot answer
-    is UNKNOWN - Windows has no lsof, a path with spaces does not split - and UNKNOWN is never read as "another tree"."""
+    is UNKNOWN - Windows has no lsof - and UNKNOWN is never read as "another tree". A path with spaces is read whole
+    (_console_script_path)."""
     import subprocess
     run = run or subprocess.run
     try:
@@ -9031,12 +9035,38 @@ def _console_tree(port=17772, run=None):
         for ln in (run(["lsof", "-a", "-nP", "-p", str(pid), "-d", "cwd", "-Fn"], **kw).stdout or "").splitlines():
             if ln.startswith("n") and len(ln) > 1:
                 cwd = ln[1:]
-        for tok in cmd.split():
-            if tok.endswith("control_app.py"):
-                path = tok if os.path.isabs(tok) else (os.path.join(cwd, tok) if cwd else None)
-                return os.path.realpath(os.path.dirname(path)) if path else None
+        path = _console_script_path(cmd)
+        if path is None:
+            return None
+        if not os.path.isabs(path):
+            path = os.path.join(cwd, path) if cwd else None
+        return os.path.realpath(os.path.dirname(path)) if path else None
     except Exception:
         return None
+
+
+def _console_script_path(cmd):
+    """The console's script path in a `ps` command line, SPACES AND ALL. -> str | None
+
+    Second eye on v3528 (reproduced by reading): splitting on whitespace turned `/Users/foo bar/tv/control_app.py` into the
+    relative `bar/tv/control_app.py`, which was then joined to the cwd and read as ANOTHER tree - a false verdict where
+    the rule says UNKNOWN. An absolute path runs from the last " /" before control_app.py to its end; a relative one is a
+    single token. None when there is no control_app.py in the line."""
+    cmd = str(cmd or "")
+    i = cmd.find("control_app.py")
+    if i < 0:
+        return None
+    end = i + len("control_app.py")
+    j = cmd.rfind(" /", 0, i)
+    if j >= 0:
+        return cmd[j + 1:end]
+    # a script run directly (no interpreter word in front): the whole prefix is its path - but only when it holds no space
+    # or the file is really there; `/usr/bin/python3 tv/control_app.py` also starts with "/" and is a RELATIVE script
+    if cmd.startswith("/") and (" " not in cmd[:end] or os.path.isfile(cmd[:end])):
+        return cmd[:end]
+    for tok in cmd[:end].split():
+        if tok.endswith("control_app.py"):
+            return tok
     return None
 
 

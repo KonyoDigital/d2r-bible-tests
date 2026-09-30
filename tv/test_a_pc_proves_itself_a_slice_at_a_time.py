@@ -138,6 +138,78 @@ class ASliceNeverSpeaksForGatesItDidNotRun(_Fixture):
         self.assertEqual([f for f in os.listdir(self.d) if f.endswith(".tmp")], [], "a temp file was left behind")
 
 
+class AGateNobodyMeasuredStaysOwed(_Fixture):
+    """Second eye on v3528: BLIND is also what a gate NOBODY MEASURED is written as - never reached by a lane, a lane
+    that died holding it, a gate that raised before any proof judged it. Banking its digest told the census it was
+    proved against its file, so no slice ran it again and the census read current with it blind: every lock on that PC
+    shut for good over a sandbox that failed once. A MEASURED blind is still banked, or one gate that is blind on Windows
+    would keep the census from ever finishing."""
+
+    def _prove(self):
+        return H2.prove(only=["g1", "g2", "g3"], say=lambda *a, **k: None, stamp=False)
+
+    def test_an_unmeasured_blind_is_owed_and_the_census_waits_for_it(self):
+        H2._write_state({"g1": H2.PROVEN, "g2": H2.PROVEN, "g3": H2.BLIND}, stamp=False, unmeasured={"g3"})
+        c = self._census()
+        self.assertNotIn("g3", c["gateShas"], "a gate nobody measured was banked as proved against its file")
+        self.assertEqual([n for n, _k in H2.slice_owed()["owed"]], ["g3"])
+        self.assertIsNone(c.get("gatesFingerprint"), "the census was stamped over a gate that never ran")
+        self.assertEqual(c["blind"], ["g3"], "while it is owed it still reads blind - the locks stay shut meanwhile")
+        H2._write_state({"g3": H2.PROVEN}, stamp=False)
+        self.assertEqual(self._census().get("gatesFingerprint"), H2.gates_fingerprint(),
+                         "the slice that finally measured it did not complete the census")
+
+    def test_a_measured_blind_still_completes_the_census(self):
+        H2._write_state({"g1": H2.PROVEN, "g2": H2.PROVEN, "g3": H2.BLIND}, stamp=False, unmeasured=set())
+        c = self._census()
+        self.assertEqual(c["sliceOwed"], 0, "a gate MEASURED blind stayed owed - one gate blind on a PC would keep its "
+                                           "census from ever finishing, and re-run it every idle gap")
+        self.assertEqual(c.get("gatesFingerprint"), H2.gates_fingerprint())
+
+    def test_the_gates_no_lane_reached_are_owed(self):
+        def lane(i, work, out, lock, sink, built, buffered=True, blank=None):
+            built.append(True)                   # built its sandbox, then took nothing
+        with mock.patch.object(H2, "_prove_lane", lane):
+            res = self._prove()
+        self.assertEqual(res, {"g1": H2.BLIND, "g2": H2.BLIND, "g3": H2.BLIND})
+        c = self._census()
+        self.assertEqual(c["gateShas"], {}, "the missing-row sweep's rows were banked as proved: %s" % c["gateShas"])
+        self.assertEqual(c["sliceOwed"], 3)
+        self.assertIsNone(c.get("gatesFingerprint"))
+
+    def test_a_gate_that_raised_before_any_proof_is_owed(self):
+        def gate(sandbox, name, filename, proofs, say):
+            if name == "g2":
+                raise RuntimeError("the browser slot would not open")
+            return H2.PROVEN, [H2.PROVEN] * len(proofs)
+        box = tempfile.mkdtemp(prefix="slice_box_", dir=self.d)
+        with mock.patch.object(H2, "make_sandbox", lambda say=print: (box, None)), \
+                mock.patch.object(H2, "_prove_gate", gate), \
+                mock.patch.object(H2, "prove_workers", lambda *a, **k: 1):
+            res = self._prove()
+        self.assertEqual(res, {"g1": H2.PROVEN, "g2": H2.BLIND, "g3": H2.PROVEN})
+        self.assertEqual(sorted(self._census()["gateShas"]), ["g1", "g3"],
+                         "a gate that raised before any proof judged it was banked as proved against its file")
+        self.assertEqual([n for n, _k in H2.slice_owed()["owed"]], ["g2"])
+
+    def test_a_lane_that_died_holding_a_gate_leaves_it_owed(self):
+        class _Unprintable(Exception):
+            def __str__(self):
+                raise ValueError("cannot even say why")       # the lane's own handler raises -> the lane dies
+
+        def gate(sandbox, name, filename, proofs, say):
+            raise _Unprintable()
+        box = tempfile.mkdtemp(prefix="slice_box_", dir=self.d)
+        with mock.patch.object(H2, "make_sandbox", lambda say=print: (box, None)), \
+                mock.patch.object(H2, "_prove_gate", gate), \
+                mock.patch.object(H2, "prove_workers", lambda *a, **k: 1):
+            res = self._prove()
+        self.assertEqual(res, {"g1": H2.BLIND, "g2": H2.BLIND, "g3": H2.BLIND})
+        self.assertNotIn("g1", self._census()["gateShas"],
+                         "the gate a dying lane was holding was banked as proved against its file")
+        self.assertEqual(self._census()["gateShas"], {})
+
+
 class TheLaneProvesASliceAtATime(unittest.TestCase):
 
     INSTALLED = ("installed", "a clean installed tree")
@@ -242,8 +314,52 @@ RED_PROOF = [
     {
         "why": "#99 - a slice's gates are no longer recorded against their files: the census can never be completed",
         "file": "heart2.py",
-        "find": "    for _n in (results or {}):\n        _gs[_n] = _shas.get(_n)\n",
-        "replace": "    for _n in (results or {}):\n        pass\n",
+        "find": "        _gs[_n] = _shas.get(_n)\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - a gate nobody measured is banked as proved against its file: the census stops "
+               "owing it and reads current over a gate that never ran",
+        "file": "heart2.py",
+        "find": "        if _n in _unm:\n            _gs.pop(_n, None)\n            continue\n",
+        "replace": "        if False:\n            _gs.pop(_n, None)\n            continue\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - every BLIND stays owed, measured or not: a gate blind on Windows keeps the census "
+               "from ever finishing",
+        "file": "heart2.py",
+        "find": "        if _n in _unm:\n",
+        "replace": "        if _n in _unm or results.get(_n) == BLIND:\n",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - the missing-row sweep no longer names what it wrote without measuring",
+        "file": "heart2.py",
+        "find": "            blank.add(nm)                      # never reached",
+        "replace": "            pass                               # never reached",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - a gate that raised before any proof judged it is banked as proved",
+        "file": "heart2.py",
+        "find": "                        blank.add(name)        # raised before any proof judged it",
+        "replace": "                        pass                   # raised before any proof judged it",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - the gate a dying lane was holding is banked as proved",
+        "file": "heart2.py",
+        "find": "                        blank.add(_n)          # the lane died holding it",
+        "replace": "                        pass                   # the lane died holding it",
+        "matches": 1,
+    },
+    {
+        "why": "second eye on v3528 - prove() drops what the prover said it never measured before the census write",
+        "file": "heart2.py",
+        "find": "        _write_state(results, measured=_ages, stamp=False, unmeasured=_blank)",
+        "replace": "        _write_state(results, measured=_ages, stamp=False, unmeasured=None)",
         "matches": 1,
     },
     {

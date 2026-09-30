@@ -449,17 +449,17 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
                          "the plain --prove path served a verdict from the cache: %s" % runs)
         seen = []
 
-        def fake_push(have, say, stopped=None, cache=None):
+        def fake_push(have, say, stopped=None, cache=None, blank=None):
             seen.append(("push", type(cache).__name__ if cache is not None else None))
             return {_GATE: H.PROVEN}, {_GATE: [H.PROVEN]}
 
-        def fake_gates(have, say=print, workers=None):
+        def fake_gates(have, say=print, workers=None, blank=None):
             seen.append(("plain", None))
             return {_GATE: H.PROVEN}, {_GATE: [H.PROVEN]}
 
         with _Patch(gate_files=lambda say=None: [(_GATE, _FILE)], red_proofs_in=lambda f: [_proof()],
                     red_proof_unreadable=lambda f: False, _prove_push=fake_push, _prove_gates=fake_gates,
-                    _write_state=lambda r, measured=None: None, CACHE=self.cache_path):
+                    _write_state=lambda r, measured=None, unmeasured=None: None, CACHE=self.cache_path):
             with _Env(HEART2_PROVE_CACHE=None):
                 H.prove(only={_GATE}, say=self.said.append, push=True, stopped=[])
                 H.prove(only={_GATE}, say=self.said.append)
@@ -612,8 +612,8 @@ RED_PROOF = [
     {
         "why": "the plain --prove path (run_gates' and CI's verdict of record) opens the cache too",
         "file": "heart2.py",
-        "find": "        results, per_proof = _prove_gates(have, say)\n",
-        "replace": "        results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say))\n",
+        "find": "        results, per_proof = _prove_gates(have, say, blank=_blank)\n",
+        "replace": "        results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say), blank=_blank)\n",
         "matches": 1,
     },
     {

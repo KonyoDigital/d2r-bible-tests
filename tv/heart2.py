@@ -2117,7 +2117,7 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     return _push_gate_verdict(per), per
 
 
-def _prove_push(have, say, stopped=None, cache=None):
+def _prove_push(have, say, stopped=None, cache=None, blank=None):
     """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
     OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on.
     `cache` (P3) is the _VerdictCache prove(push=True) opened; None - every other caller - runs every proof."""
@@ -2145,7 +2145,7 @@ def _prove_push(have, say, stopped=None, cache=None):
     run = _PushRun(order, browser, cache)
     _prev, _PUSH = _PUSH, run
     try:
-        results, per_proof = _prove_gates([by[n] for n in gates], say)
+        results, per_proof = _prove_gates([by[n] for n in gates], say, blank=blank)
     finally:
         _PUSH = _prev
     if cache is not None:
@@ -2220,7 +2220,7 @@ def _prove_gate(sandbox, name, filename, proofs, say):
             else PROVEN), verdicts
 
 
-def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
+def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
     """ONE lane: build a sandbox nobody else touches, then drain the shared queue into `out`.
 
     ⚠⚠ EVERY GATE THIS LANE TAKES COMES BACK WITH A ROW, INCLUDING WHEN THE LANE DIES HOLDING IT.
@@ -2266,6 +2266,9 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
                 say("    %s raised %s outside its own proofs — recorded BLIND, the run continues: "
                     "%s" % (name, type(_ge).__name__, str(_ge)[:120]))
                 v, per = BLIND, [BLIND] * len(proofs)
+                if blank is not None:
+                    with lock:
+                        blank.add(name)        # raised before any proof judged it: BLIND, and still owed
             with lock:
                 out[name] = (v, per)
             holding = []
@@ -2274,14 +2277,17 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True):
         say("  ⚠ lane %d died: %s: %s" % (lane, type(_le).__name__, str(_le)[:140]))
         for _n, _p in holding:
             with lock:
-                out.setdefault(_n, (BLIND, [BLIND] * len(_p)))
+                if _n not in out:
+                    out[_n] = (BLIND, [BLIND] * len(_p))
+                    if blank is not None:
+                        blank.add(_n)          # the lane died holding it: BLIND, and still owed
     finally:
         say.flush()
         if root:
             _drop_sandbox(root)
 
 
-def _prove_gates(have, say=print, workers=None):
+def _prove_gates(have, say=print, workers=None, blank=None):
     """Prove every gate in `have` across isolated lanes. -> ({name: verdict}, {name: [verdicts]})
 
     (None, None) means NOT ONE lane could build a sandbox — the same "nothing was proven" answer
@@ -2300,6 +2306,7 @@ def _prove_gates(have, say=print, workers=None):
     for item in have:
         work.put(item)
     out, lock, built = {}, threading.Lock(), []
+    blank = blank if blank is not None else set()      # filled under `lock` by the lanes, and by the sweep below
     say("  proving %d gate(s) in %d lane(s), one throwaway sandbox each" % (len(have), n))
     # ⚠ RESTORED IN A `finally`, because a module global left widened would silently extend every
     # later single-lane deadline in the same process — control_app.py imports this module and
@@ -2309,12 +2316,12 @@ def _prove_gates(have, say=print, workers=None):
     DEADLINE_SCALE = _deadline_scale(n, say=say)
     try:
         if n == 1:
-            _prove_lane(1, work, out, lock, say, built, buffered=False)
+            _prove_lane(1, work, out, lock, say, built, buffered=False, blank=blank)
         else:
             say("  every gate's deadline is x%d while %d lanes are running, because the lanes "
                 "make the load themselves" % (DEADLINE_SCALE, n))
             with ThreadPoolExecutor(max_workers=n) as ex:
-                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)
+                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built, True, blank)
                         for i in range(n)]
                 for f in futs:
                     _e = f.exception()
@@ -2345,6 +2352,7 @@ def _prove_gates(have, say=print, workers=None):
             % (len(missing), ", ".join(nm for nm, _p in missing[:6])))
         for nm, prs in missing:
             out[nm] = (BLIND, [BLIND] * len(prs))
+            blank.add(nm)                      # never reached: nothing measured it, so the census still owes it
     return ({k: v for k, (v, _p) in out.items()},
             {k: p for k, (_v, p) in out.items()})
 
@@ -2375,11 +2383,12 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
         return {}
     _ages = {}
+    _blank = set()      # gates written BLIND that no proof measured - never banked as proved against their file
     if push:
         # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time,
         # and (P3) a PROVEN reused only over byte-identical inputs - the cache is opened HERE and nowhere else
         _cache = open_cache(say)
-        results, per_proof = _prove_push(have, say, stopped, cache=_cache)
+        results, per_proof = _prove_push(have, say, stopped, cache=_cache, blank=_blank)
         _ages = dict(getattr(_cache, "measured", None) or {})     # gate -> oldest provedAt among its reused proofs
         if results is not None and not results:
             # ⚠ A STOP BEFORE ANY GATE WAS JUDGED TO THE END IS NOT AN EMPTY RUN. _write_state reads an empty result as a
@@ -2388,7 +2397,7 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
             say("  #42 no gate was judged to the end, so the census is left exactly as it was")
             return {}
     else:
-        results, per_proof = _prove_gates(have, say)
+        results, per_proof = _prove_gates(have, say, blank=_blank)
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
@@ -2397,13 +2406,13 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
     if detail is not None:
         detail.update(per_proof)
     if stamp:
-        _write_state(results, measured=_ages)
+        _write_state(results, measured=_ages, unmeasured=_blank)
     else:
-        _write_state(results, measured=_ages, stamp=False)     # #99 — the slice flag only with --slice, like --push
+        _write_state(results, measured=_ages, stamp=False, unmeasured=_blank)  # #99 — the slice flag only with --slice
     return results
 
 
-def _write_state(results, measured=None, stamp=True):
+def _write_state(results, measured=None, stamp=True, unmeasured=None):
     """⚠ THE JOIN. Without this the whole loop is plumbing with no tap: `--prove` would measure
     beautifully and `_heart2_census()` in control_app.py would read an absent file and report
     UNKNOWN for ever, so the heart could never carry what the proving loop learned. This repo's
@@ -2503,7 +2512,17 @@ def _write_state(results, measured=None, stamp=True):
     # self_prove proves the rest a slice at a time - which is how a PC he plays on ever finishes. [[unknown-stays-unknown]]
     _shas = gate_shas(gates)
     _gs = dict(prior.get("gateShas") or {}) if isinstance(prior.get("gateShas"), dict) else {}
+    _unm = set(unmeasured or ())
     for _n in (results or {}):
+        # second eye on v3528 (reproduced by reading): BLIND is also what a gate NOBODY MEASURED is written as - the
+        # missing-row sweep in _prove_gates, a lane that died holding it, a gate that raised outside its own proofs.
+        # Banking its digest said "proved against this file" about a gate that never ran, so it stopped being owed, no
+        # slice ever ran it again, and the census read current with it blind - every lock on that PC shut for good over
+        # a sandbox that failed once. An unmeasured row stays OWED; a MEASURED blind (the tamper ran and the law stayed
+        # green) is banked, or one gate blind on Windows would keep the census from ever finishing. [[unknown-stays-unknown]]
+        if _n in _unm:
+            _gs.pop(_n, None)
+            continue
         _gs[_n] = _shas.get(_n)
     _gs = {k: v for k, v in _gs.items() if k in _known}
     _owed = [n for n in have if not _shas.get(n) or _gs.get(n) != _shas.get(n)]

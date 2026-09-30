@@ -284,7 +284,7 @@ class LanesAgreeWithTheSerialLoop(unittest.TestCase):
         have = _fixture_gates(6)
         drained = {"n": 0}
 
-        def _lazy_lane(lane, work, out, lock, sink, built, buffered=True):
+        def _lazy_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
             built.append(True)
             try:
                 name, _fn, proofs = work.get_nowait()
@@ -711,10 +711,10 @@ RED_PROOF = [
                "the docstring measured: a neighbour's tamper reddens an innocent gate and the "
                "restores race. #195 — only the law on the REAL prover sees the verdicts move",
         "file": "heart2.py",
-        "find": "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)\n",
+        "find": "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built, True, blank)\n",
         "replace": "                _one = make_sandbox(say)\n"
                    "                globals()[\"make_sandbox\"] = lambda _say=None: (_one[0], None)\n"
-                   "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built)\n",
+                   "                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built, True, blank)\n",
         "matches": 1,
     },
     {
