@@ -110,7 +110,61 @@ class ALookCanCoverABatch(unittest.TestCase):
             os.remove(os.path.join(self.repo, "TASKS.md"))
 
 
+class WithoutABaseTheLookIsTheVersionsRange(unittest.TestCase):
+    """v3526 (#42): without --base every version was looked at through its bump alone - v3523, v3524 and v3525 each
+    came back cannot-tell on their first ask; v3525 with --base returned five findings. The default look is now the
+    range from the commit that shipped the version before it; --bump-only keeps the keyhole."""
+
+    @classmethod
+    def setUpClass(cls):
+        ALookCanCoverABatch.setUpClass.__func__(cls)      # its own copy of the same two-commit batch
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.repo, ignore_errors=True)
+
+    def setUp(self):
+        self._saved = (SER.REPO, SER.REVIEW_BASE, SER.BUMP_ONLY)
+        SER.REPO = self.repo
+        self.tasks = os.path.join(SER.REPO, "TASKS.md")
+        with open(self.tasks, "w") as fh:
+            fh.write("| **v9001** | `%s` | v9001 - base |\n| **v9002** | `%s` | v9002 - stamp |\n"
+                     % (self.base[:8], self.bump[:8]))
+        self.seen = []
+        self._pf = SER.payload_for
+        SER.payload_for = lambda sha, *a, **k: (self.seen.append(SER.REVIEW_BASE) or self._pf(sha, *a, **k))
+
+    def tearDown(self):
+        SER.payload_for = self._pf
+        SER.REPO, SER.REVIEW_BASE, SER.BUMP_ONLY = self._saved
+        os.remove(self.tasks)
+
+    def test_the_default_look_starts_where_the_previous_version_shipped(self):
+        SER.REVIEW_BASE, SER.BUMP_ONLY = None, False
+        self.assertTrue(SER.run_one("v9002", dry=True))
+        self.assertEqual(self.seen, [self.base],
+                         "the look was not widened to the version's range: %r" % (self.seen,))
+        self.assertIsNone(SER.REVIEW_BASE, "the range must be this look's alone, never left behind for the next")
+
+    def test_bump_only_keeps_the_keyhole(self):
+        SER.REVIEW_BASE, SER.BUMP_ONLY = None, True
+        self.assertTrue(SER.run_one("v9002", dry=True))
+        self.assertEqual(self.seen, [None])
+
+    def test_a_version_with_no_predecessor_falls_back_to_its_own_commit(self):
+        SER.REVIEW_BASE, SER.BUMP_ONLY = None, False
+        self.assertTrue(SER.run_one("v9001", dry=True), "v9000 never shipped, so the look is the bound commit alone")
+        self.assertEqual(self.seen, [None])
+
+
 RED_PROOF = [
+    {
+        "why": "v3526 (#42) - the default look is the bump commit alone again",
+        "file": "tv/second_eye_run.py",
+        "find": "    elif not BUMP_ONLY:\n        _db, _dwhy = _default_base(version, sha)\n",
+        "replace": "    elif False:\n        _db, _dwhy = _default_base(version, sha)\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-27 - --base is ignored: a batch shipped as bump-only commits can never be shown to the eye",
         "file": "second_eye_run.py",

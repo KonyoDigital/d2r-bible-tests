@@ -246,7 +246,13 @@ def rarity_of(name, rows):
                     "why": "the %s roster names it" % roster}
         return {"rarity": None, "by": None, "votes": None,
                 "why": "vault_retro could not be read, so what the looks saw is UNKNOWN"}
-    votes = {}
+    # ⚠ v3526 (#231 second eye on v3525, reproduced: one blue visit + one gold visit banked as TWO frames read
+    # "gold 2, blue 1" -> gold) — A VOTE IS A VISIT, NOT A FRAME, exactly as the tier this stands beside is
+    # (_measure: "a look is a distinct visit, never a frame of a still screen"). Each visit casts one vote for
+    # each quality its looks saw, with vault_retro's own fold (a bare prior "sA" is its bucket "sA#0"); a look
+    # that names no visit cannot be shown to be a separate one and casts none — the tier does not count it either.
+    fold = _visit_fold()
+    by_visit, order = {}, []
     for row in (rows or []):
         if not isinstance(row, dict):
             continue
@@ -255,7 +261,29 @@ def rarity_of(name, rows):
             if not isinstance(look, dict) or look.get("quality") is None:
                 continue
             q = qual(look.get("quality"))
-            if q:
+            if not q:
+                continue
+            try:
+                visit = _visit_of(look)
+            except Exception:
+                visit = ""
+            if not visit:
+                continue
+            if visit not in by_visit:
+                by_visit[visit] = set()
+                order.append(visit)
+            by_visit[visit].add(q)
+    kept = set(fold(order)) if (fold and order) else set(order)
+    for v in order:
+        if v in kept:
+            continue
+        home = next((k for k in kept if k.startswith(v + "#")), None)   # a bare prior folded into its bucket
+        if home:
+            by_visit[home] |= by_visit[v]
+    votes = {}
+    for v in order:
+        if v in kept:
+            for q in by_visit[v]:
                 votes[q] = votes.get(q, 0) + 1
     seen = ""
     if votes:
@@ -1094,8 +1122,10 @@ def _rebuilt_by_rarity(receipt):
     """#51 — what the reset filed back, by rarity, as the board's receipt carries it.
 
     -> {rarity: n} | None when the receipt does not say (an older board), which is UNKNOWN,
-    never {}. A count that is not a non-negative int is dropped, and a receipt whose tally is
-    not a mapping is UNKNOWN.
+    never {}. A receipt whose tally is not a mapping is UNKNOWN — and so, v3526 (#231 second eye on
+    v3525), is one whose tally holds ANY count that is not a non-negative int: dropping it and keeping
+    the rest printed a SHORTER tally as if it were the whole one ("rebuilt by rarity: none" over a
+    reset that rebuilt four).
     """
     raw = receipt.get("rebuiltByRarity")
     if not isinstance(raw, dict):
@@ -1103,7 +1133,7 @@ def _rebuilt_by_rarity(receipt):
     out = {}
     for k, v in raw.items():
         if isinstance(v, bool) or not isinstance(v, int) or v < 0:
-            continue
+            return None
         out[str(k)] = v
     return out
 
@@ -1114,14 +1144,23 @@ def rebuilt_rarity_say(tally, rebuilt_n=None):
         return ("rebuilt by rarity UNKNOWN (the receipt does not say)" if rebuilt_n
                 else "rebuilt by rarity: n/a (nothing rebuilt)" if rebuilt_n == 0
                 else "rebuilt by rarity UNKNOWN (the receipt does not say)")
-    if not tally:
-        return "rebuilt by rarity: none"
+    total = sum(tally.values())
+    if not total:
+        # v3526 — an empty tally is "none" ONLY for a reset that rebuilt nothing; beside a rebuild it is a tally
+        # that was not kept, which is UNKNOWN, never a measured none
+        if rebuilt_n == 0:
+            return "rebuilt by rarity: none"
+        return ("rebuilt by rarity UNKNOWN (the receipt tallies none of the %s rebuilt)"
+                % (rebuilt_n if isinstance(rebuilt_n, int) else "?"))
     # the board's own key for a row the plan could not place is "unknown" (bible.html _vaultRefileFromPlan);
     # said as such, in the same words the status line uses, never as a colour
     say = dict(RARITY_SAY, unknown="rarity UNKNOWN")
     order = list(RARITY_ORDER) + sorted(k for k in tally if k not in RARITY_ORDER)
-    return "rebuilt by rarity: " + " · ".join("%d %s" % (tally[k], say.get(k, "rarity " + k))
-                                             for k in order if k in tally)
+    out = "rebuilt by rarity: " + " · ".join("%d %s" % (tally[k], say.get(k, "rarity " + k))
+                                            for k in order if k in tally)
+    if isinstance(rebuilt_n, int) and not isinstance(rebuilt_n, bool) and total != rebuilt_n:
+        out += " — the tally covers %d of the %d rebuilt; the rest is UNKNOWN" % (total, rebuilt_n)
+    return out
 
 
 def _refusals_say(rows):

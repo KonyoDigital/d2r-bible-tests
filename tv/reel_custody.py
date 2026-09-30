@@ -561,7 +561,7 @@ def census(src=None, plan=None, hist=None, stamp_path=None, limit=200):
     """
     src = src if src is not None else sources(hist, stamp_path)
     out = {"ok": False, "n": 0, "shelf": None, "tombstoned": None, "rows": [], "truncated": False,
-           "byCurrent": {}, "contradictions": 0, "contradicted": 0, "byKind": {},
+           "byCurrent": {}, "contradictions": 0, "contradicted": 0, "byKind": {}, "firstContradicted": None,
            "unreadable": list(src.get("unreadable") or []), "absent": list(src.get("absent") or []),
            "unknownHands": 0, "duplicateTombstones": None, "namelessTombstones": None, "why": ""}
     shelf = src.get("shelf")
@@ -589,6 +589,10 @@ def census(src=None, plan=None, hist=None, stamp_path=None, limit=200):
         if c["contradictions"]:
             out["contradicted"] += 1
             out["contradictions"] += len(c["contradictions"])
+            # v3526 (#231 second eye on v3525) — the FIRST contradicted reel over ALL reels, not over the rows kept:
+            # past the draw cap the doctor named "first: ?" while its own count said there were some
+            if out["firstContradicted"] is None:
+                out["firstContradicted"] = {"reel": nm, "contradictions": [k["kind"] for k in c["contradictions"]]}
             for k in c["contradictions"]:
                 out["byKind"][k["kind"]] = out["byKind"].get(k["kind"], 0) + 1
         if len(out["rows"]) < limit:
@@ -626,7 +630,7 @@ def doctor(src=None, hist=None, stamp_path=None):
     if not c.get("ok"):
         return UNKNOWN, c.get("why") or "the census could not be taken"
     if c["contradicted"]:
-        first = next((r for r in c["rows"] if r["contradictions"]), None)
+        first = c.get("firstContradicted") or next((r for r in c["rows"] if r["contradictions"]), None)
         return MISSING, ("%d of %d reel(s) carry a custody contradiction (%s) — first: %s (%s). Two writers "
                          "disagree about the same reel; the record shows both"
                          % (c["contradicted"], c["n"],

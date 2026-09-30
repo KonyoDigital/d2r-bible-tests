@@ -6388,7 +6388,8 @@ GATES = [
              "UNKNOWN, never CLEAR), an unreadable or unread river is UNKNOWN, and the doctor row goes MISSING "
              "past the console's declared 6 h bar (the river's arrival stamps, never a process clock), OK "
              "inside it. Pure half, the SHIPPED _retention_once on a temp shelf, and the doctor over the "
-             "wire - each driven; 5 red-proofs"),
+             "wire - each driven. v3526 (#231 second eye): a torn line in the river's record makes every "
+             "position a FLOOR (never CLEAR), carried as a number by river_stamp.last_stamps_read; 7 red-proofs"),
     Gate("test_vault_retro", [sys.executable, os.path.join(HERE, "test_vault_retro.py")], 120,
          why="the vault accumulator's laws: merge-max never subtracts, throw-out needs more "
              "evidence than keep, order cannot change the ledger, missing is never zero"),
@@ -7071,7 +7072,9 @@ GATES = [
              "quality vote for a rolled name; a tie or a blank is UNKNOWN, never white), every plan row carries it, "
              "tier_census splits the same count by rarity, the doctor's line says the tally, the reset receipt's "
              "rebuiltByRarity is read (absent = UNKNOWN), and /api/evidence answers a vault-only name from the witness "
-             "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). 9 red-proofs."),
+             "ledger with its tier and rarity (unreadable = UNKNOWN, never nothing banked). v3526 (#231 second eye): a "
+             "vote is a VISIT, never a frame; a tally with an unreadable count, or empty beside a rebuild, is UNKNOWN; "
+             "a present row whose looks will not read is UNKNOWN. 14 cases, 13 red-proofs."),
     Gate("test_a_proven_rare_comes_back_to_the_magic_and_rare_locker",
          [sys.executable, os.path.join(HERE, "test_a_proven_rare_comes_back_to_the_magic_and_rare_locker.py")], 120,
          why="REG-1520 (#51) - the board half, driven in node over a plan the real route served: a proven rare or magic "
@@ -8189,7 +8192,8 @@ GATES = [
              "store records is none yet, not nowhere; the census caps rows DRAWN and never a count; the console "
              "serves /api/custody (one reel, or the census) and hands in the journal only when it read cleanly; the "
              "doctor row 'reel custody' says MISSING with its denominators and UNKNOWN naming the unreadable file. "
-             "17 cases over a temp world laid out where each owner's own resolver says, 4 red-proofs",
+             "18 cases over a temp world laid out where each owner's own resolver says, 5 red-proofs (v3526: the "
+             "doctor names the first contradiction over ALL reels, never 'first: ?' past the draw cap)",
          skip_ok=()),
 ]
 

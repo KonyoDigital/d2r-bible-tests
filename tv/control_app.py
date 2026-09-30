@@ -24014,14 +24014,15 @@ def _retention_drain(stop_why=None, unknown_why=None, plan=None, keep_recent=Non
     # alarm makes), against this pass's plan. A store that will not read is None -> UNKNOWN upstream.
     try:
         import river_stamp as _rvs_dr
-        _last, _lwhy = _rvs_dr.last_stamps()
+        _lr = _rvs_dr.last_stamps_read()
+        _last, _lwhy, _ltorn = _lr["last"], _lr["why"], _lr["unparsed"]
     except Exception as e:
-        _last, _lwhy = None, "the stamp store could not be asked (%s)" % type(e).__name__
+        _last, _lwhy, _ltorn = None, "the stamp store could not be asked (%s)" % type(e).__name__, None
     try:
         _up = _rr_dr.blocked_upstream(
             _last, plan, upstream=tuple(_RIVER_OWNER), why_of=_river_stuck_why,
             keep_recent=(keep_recent if keep_recent is not None else _rr_dr.KEEP_RECENT),
-            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy)
+            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy, river_unparsed=_ltorn)
     except Exception as e:
         _up = {"n": None, "why": ("the upstream reading raised %s, so what waits above the mouth "
                                   "is UNKNOWN" % type(e).__name__)}
@@ -32773,9 +32774,14 @@ def _vault_evidence_for(name):
     if not mine:
         return None
     sightings = []
+    # v3526 (#231 second eye on v3525) — a matched row whose looks would not read is PRESENT and UNREADABLE. It was
+    # skipped, and when nothing else remained this answered None — "nothing banked" — while the tier path beside it
+    # (vault_evidence.stand) already called the same row UNKNOWN. Counted, and said.
+    torn = 0
     for r in mine:
         looks = r.get("witnesses")
         if not isinstance(looks, list):
+            torn += 1
             continue
         for w in looks:
             if not isinstance(w, dict):
@@ -32789,6 +32795,9 @@ def _vault_evidence_for(name):
                     row[k] = w.get(k)
             sightings.append(row)
     if not sightings:
+        if torn:
+            return ("vault", None, "the vault witness ledger holds %d row(s) for this name whose looks could not be "
+                                   "read, so what it saw is UNKNOWN — not 'nothing banked'" % torn)
         return None
     try:
         import vault_evidence as _VE
@@ -32798,6 +32807,10 @@ def _vault_evidence_for(name):
                  "rarityBy": None, "rarityWhy": None,
                  "why": "the tier table could not be read (%s), so the tier is UNKNOWN" % type(e).__name__}
     extra = dict(extra, visits=extra.get("trials"), countedBy="vault_evidence.stand (a trial is a visit)")
+    if torn:
+        extra = dict(extra, unreadableRows=torn,
+                     why=(str(extra.get("why") or "") + ("; " if extra.get("why") else "")
+                          + "%d more row(s) for this name could not be read, so the looks above are a floor" % torn))
     return ("vault", sightings, extra)
 
 

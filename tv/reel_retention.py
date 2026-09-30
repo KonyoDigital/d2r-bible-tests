@@ -1798,7 +1798,7 @@ DRAIN_BLOCKED = "BLOCKED"
 
 
 def blocked_upstream(last, plan, upstream=None, why_of=None, keep_recent=KEEP_RECENT, now_ms=None,
-                     after_s=None, river_why=None):
+                     after_s=None, river_why=None, river_unparsed=None):
     """WHAT THE DRAIN CANNOT SEE FROM ITS OWN STAGE — reels older than the newest `keep_recent` that
     are still waiting UPSTREAM of the mouth, read from the river's own positions. -> dict
 
@@ -1903,13 +1903,20 @@ def blocked_upstream(last, plan, upstream=None, why_of=None, keep_recent=KEEP_RE
         if w:
             reasons[s] = w[:200]
     n = sum(ordered.values())
-    complete = (unplaced == 0 and unknown == 0)
+    # v3526 (#231 second eye on v3525) — a torn line in the river's record may be ANY reel's newest move, so a
+    # record with one is a floor for every position in it: never complete, never CLEAR, and said.
+    torn = river_unparsed if (isinstance(river_unparsed, int) and not isinstance(river_unparsed, bool)
+                              and river_unparsed > 0) else 0
+    complete = (unplaced == 0 and unknown == 0 and not torn)
     out.update({"n": n, "stations": ordered, "oldestS": oldest,
                 "byDesign": dict((s, by_design[s]) for s in order if s in by_design),
                 "unplaced": unplaced, "unknown": unknown, "atMouth": at_mouth, "older": len(older),
                 "complete": complete, "reasons": reasons})
     _tails = []
-    if not complete:
+    if torn:
+        _tails.append("%d line(s) of the river's record would not parse and any of them may be a reel's "
+                      "newest move, so every position here is a FLOOR" % torn)
+    if unplaced + unknown:
         _tails.append("%d older reel(s) have no readable position in the river (%d never stamped, "
                       "%d stamped UNKNOWN), so this count is a FLOOR"
                       % (unplaced + unknown, unplaced, unknown))

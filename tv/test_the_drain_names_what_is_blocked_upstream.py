@@ -165,6 +165,44 @@ class TheUpstreamReading(unittest.TestCase):
                                   upstream=OWNED, now_ms=NOW)
         self.assertEqual((upu["n"], upu["unknown"], upu["complete"]), (0, 4, False), upu)
 
+    def test_a_torn_line_in_the_rivers_record_makes_every_position_a_floor(self):
+        """v3526 (#231 second eye on v3525): a readable store whose newest line would not parse still answered a
+        dict, and the floor sentence was dropped — CLEAR while that line was a reel's move back to PRINTER."""
+        names = _names(RR.KEEP_RECENT + 2)
+        routed = dict((n, _row("ROUTED", 1 * H)) for n in names)
+        up = RR.blocked_upstream(routed, _plan(names), upstream=OWNED, now_ms=NOW, river_unparsed=1)
+        self.assertEqual((up["n"], up["complete"]), (0, False), up)
+        self.assertIn("1 line(s) of the river's record would not parse", up["why"])
+        st = RR.drain_state([{"owed": 2}, {"released": 2}], beat={"works": 2}, now_ms=NOW, upstream=up)
+        self.assertEqual(st["state"], "UNKNOWN", "a torn record certified a drained river: %s" % st)
+        held = dict((n, _row("EMPTY", 20 * H)) for n in names)
+        upb = RR.blocked_upstream(held, _plan(names), upstream=OWNED, why_of=_why_of, now_ms=NOW, river_unparsed=2)
+        self.assertEqual((upb["n"], upb["complete"]), (2, False))
+        self.assertIn("every position here is a FLOOR", upb["why"], "BLOCKED dropped the floor sentence")
+        clean = RR.blocked_upstream(routed, _plan(names), upstream=OWNED, now_ms=NOW, river_unparsed=0)
+        self.assertTrue(clean["complete"], "a record with no torn line must stay a total")
+
+    def test_the_river_hands_its_torn_count_to_the_drain(self):
+        """The join: last_stamps_read() carries `unparsed` as a NUMBER, and the console passes it on."""
+        import tempfile, json as _json
+        d = tempfile.mkdtemp(prefix="river_torn_")
+        try:
+            p = os.path.join(d, "stamps.jsonl")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write(_json.dumps({"reel": "reel_s_1", "station": "PRINTER", "at": 1}) + "\n")
+                fh.write('{"reel": "reel_s_1", "station": "ROU')              # the newest move, torn
+            import river_stamp as RS
+            got = RS.last_stamps_read(p)
+            self.assertEqual(got["unparsed"], 1)
+            self.assertEqual(got["last"]["reel_s_1"]["station"], "PRINTER")
+            self.assertEqual(RS.last_stamps(p), (got["last"], got["why"]))
+        finally:
+            import shutil as _sh
+            _sh.rmtree(d, ignore_errors=True)
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("river_why=_lwhy, river_unparsed=_ltorn)", src, "the console never hands the torn count on")
+
     def test_the_shield_the_fixtures_the_mouth_and_by_design_are_beside_n(self):
         names = _names(RR.KEEP_RECENT + 5)
         older = names[:5]
@@ -327,6 +365,20 @@ class TheConsoleSaysItOnTheWire(D._Base):
 
 RED_PROOF = [
     {
+        "why": "v3526 - a torn line in the river's record no longer makes the reading a floor (CLEAR again)",
+        "file": "tv/reel_retention.py",
+        "find": "    complete = (unplaced == 0 and unknown == 0 and not torn)\n",
+        "replace": "    complete = (unplaced == 0 and unknown == 0)\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3526 - the console stops handing the torn count to the drain",
+        "file": "tv/control_app.py",
+        "find": "            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy, river_unparsed=_ltorn)\n",
+        "replace": "            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy, river_unparsed=None)\n",
+        "matches": 1,
+    },
+    {
         "why": "2026-09-29 #84 (REG-1517) - reels waiting upstream of the mouth no longer make the drain BLOCKED; "
                "the ALT's 110 read CLEAR again",
         "file": "reel_retention.py",
@@ -354,8 +406,8 @@ RED_PROOF = [
         "why": "2026-09-29 #84 (REG-1517) - the console declares no bar, so the doctor can never call a blocked "
                "river MISSING",
         "file": "control_app.py",
-        "find": "            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy)",
-        "replace": "            after_s=None, river_why=_lwhy)",
+        "find": "            after_s=RIVER_STUCK_AFTER_S, river_why=_lwhy, river_unparsed=_ltorn)",
+        "replace": "            after_s=None, river_why=_lwhy, river_unparsed=_ltorn)",
         "matches": 1,
     },
     {
