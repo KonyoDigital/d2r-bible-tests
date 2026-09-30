@@ -40,8 +40,20 @@ RED_PROOF = [
      "replace": "            pass                            # REG-1627", "matches": 1},
     {"why": "REG-1627 - the status ignores the last tick: owes 3 and no reason",
      "file": "control_app.py",
-     "find": "                                  if (owed and _lt and not _lt.get(\"started\")) else None)),\n",
-     "replace": "                                  if False else None)),\n", "matches": 1},
+     "find": "                                  if (owed and _lt and not _lt.get(\"started\"))\n",
+     "replace": "                                  if False\n", "matches": 1},
+    {"why": "REG-1646 - an owing lane with no recorded tick says nothing again (null reads as nothing to explain)",
+     "file": "control_app.py",
+     "find": "                                  else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646\n",
+     "replace": "                                  else None)),   # REG-1646\n", "matches": 1},
+    {"why": "REG-1646 - a lane silent for ten minutes still reads as 'the first tick is coming'",
+     "file": "control_app.py",
+     "find": "    if up < 2 * _VAULT_AUTOREAD_EVERY_S:\n",
+     "replace": "    if True:\n", "matches": 1},
+    {"why": "REG-1646 - a tick that raises leaves no trace again",
+     "file": "control_app.py",
+     "find": "                _vault_autoread_note({\"ok\": False, \"raised\": True, \"why\": \"the tick raised %s\" % type(_vte).__name__})\n",
+     "replace": "                pass\n", "matches": 1},
 ]
 
 OWED = [{"reel": "reel_s_1_1"}, {"reel": "reel_s_2_2"}, {"reel": "reel_s_3_3"}]
@@ -77,6 +89,64 @@ class AnOwingLaneSaysWhyItWaits(unittest.TestCase):
         ca._vault_autoread_note({"ok": False, "busy": True, "why": "a vault sweep is already running"})
         self.assertIsNone(self._state([])["owedWhy"], "a lane that owes nothing was given an excuse")
         self.assertIn("UNKNOWN", self._state(None)["owedWhy"])
+
+    def test_no_recorded_tick_right_after_a_start_says_so(self):
+        """REG-1646 - owed, and no tick recorded yet: the first one is up to an interval away, and that is SAID"""
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        with mock.patch.object(ca, "_BOOT_AT", __import__("time").time() - 10):
+            why = self._state(OWED)["owedWhy"]
+        self.assertIsNotNone(why, "an owing lane with no recorded tick said nothing - it reads as nothing to explain")
+        self.assertIn("no tick yet", why)
+
+    def test_no_recorded_tick_long_after_a_start_is_a_lane_that_is_not_ticking(self):
+        """REG-1646 - past two intervals with nothing recorded, the loop is not ticking: REG-1640's frozen lane"""
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        with mock.patch.object(ca, "_BOOT_AT", __import__("time").time() - 600):
+            why = self._state(OWED)["owedWhy"]
+        self.assertIn("not ticking", why or "")
+        self.assertIn("UNKNOWN", why or "")
+
+    def test_a_tick_that_returns_is_recorded_in_its_own_words(self):
+        """One real pass of the loop with a tick that RETURNS: its words are recorded. The pass is stopped at the
+        next lane's own start (the names feeder), so nothing past the note runs. REG-1646's raise branch also calls
+        the note, so "the loop calls it somewhere" can no longer prove this - only the recorded kind can."""
+        class _Stop(BaseException):
+            pass
+
+        def lane_tick(name, *a, **k):
+            if name == "tvd-read-names-feeder":
+                raise _Stop()
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        with mock.patch.object(ca.time, "sleep", lambda _s: None), mock.patch.object(ca, "_lane_tick", lane_tick), \
+                mock.patch.object(ca, "vault_autoreel_tick",
+                                  lambda: {"ok": False, "busy": True, "why": "a vault sweep is already running"}):
+            with self.assertRaises(_Stop):
+                ca._vault_autoread_loop()
+        lt = ca._VAULT_AUTOREAD.get("lastTick") or {}
+        self.assertEqual(lt.get("kind"), "busy", "the loop did not record what its tick said: %r" % (lt,))
+
+    def test_a_tick_that_raises_is_recorded_as_raised(self):
+        """REG-1646 - the loop's outer swallow used to leave no trace of a raising tick. One real pass of the loop."""
+        class _Stop(BaseException):
+            pass
+        calls = []
+
+        def sleep(_s):
+            calls.append(1)
+            if len(calls) > 1:
+                raise _Stop()
+
+        def boom():
+            raise KeyError("x")
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        with mock.patch.object(ca.time, "sleep", sleep), mock.patch.object(ca, "_lane_tick", lambda *a, **k: None), \
+                mock.patch.object(ca, "vault_autoreel_tick", boom):
+            with self.assertRaises(_Stop):
+                ca._vault_autoread_loop()
+        lt = ca._VAULT_AUTOREAD.get("lastTick") or {}
+        self.assertEqual(lt.get("kind"), "raised", "a tick that raised left no trace: %r" % (lt,))
+        self.assertIn("KeyError", lt.get("why") or "")
+        self.assertIn("raised", self._state(OWED)["owedWhy"] or "")
 
     def test_the_loop_records_every_tick(self):
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:

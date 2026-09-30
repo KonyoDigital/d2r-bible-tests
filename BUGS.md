@@ -405,6 +405,19 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1646 - AN OWING LANE WITH NO RECORDED TICK STILL SAID NOTHING (REG-1627's gap, 2026-10-01)
+
+REG-1627 gave an owing vault lane its last tick's own words - and left `owedWhy` null whenever there was NO last
+tick, which reads exactly like "nothing to explain". Two ways to get there: right after a start (the first tick is up
+to 45 s away), and a loop that is not ticking at all - REG-1640's shape, a thread started inside a swapped window that
+never ran and so records nothing, ever. And a tick that RAISED left no trace: the loop's outer `except: pass` swallowed
+it before the note. **Now** an owing lane with no recorded tick says "no tick yet ... the first runs within 45 s" for
+two intervals after a start, and after that "not ticking ... UNKNOWN"; a raising tick is recorded as `raised` with its
+exception type, and the loop carries on exactly as before. Law: `tv/test_an_owing_lane_says_why_it_waits.py` - both
+no-tick windows, and two real passes of the loop (a returning tick and a raising one, stopped at the next lane's own
+start). The REG-1627 red-proofs are re-anchored and one strengthened: "the loop calls the note somewhere" could no
+longer prove the returning path once the raise branch also calls it. 5 red-proofs RED.
+
 ### REG-1645 - THE VISUAL PASS COULD NOT TELL AN OPENED DOSSIER FROM A SHELF TILE (GrokBot, 2026-10-01)
 
 GrokBot's rotating visual pass (on its own PC, relayed by him): the route rotated - zone, scroll depth and card index

@@ -29614,7 +29614,8 @@ def _vault_autoread_state():
                 # REG-1627 - an owing lane that started nothing says why, in its last tick's own words
                 "owedWhy": ("the retention plan could not be read, so this is UNKNOWN" if owed is None
                             else (("its last tick (%s): %s" % (_lt.get("kind"), _lt.get("why") or "gave no reason"))
-                                  if (owed and _lt and not _lt.get("started")) else None)),
+                                  if (owed and _lt and not _lt.get("started"))
+                                  else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646
                 "lastTick": _lt,
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
@@ -30723,8 +30724,8 @@ def _vault_autoread_note(r, now_ms=None):
     The status now carries the last tick and says its reason whenever reels are owed and none started."""
     if not isinstance(r, dict):
         return None
-    kind = ("started" if r.get("started") else "busy" if r.get("busy") else "deferred" if r.get("deferred")
-            else "requeued" if r.get("requeued") else "retired" if r.get("retired")
+    kind = ("started" if r.get("started") else "raised" if r.get("raised") else "busy" if r.get("busy")
+            else "deferred" if r.get("deferred") else "requeued" if r.get("requeued") else "retired" if r.get("retired")
             else "unknown" if r.get("unknown") else "idle")
     note = {"at": int(now_ms if now_ms is not None else time.time() * 1000), "kind": kind,
             "started": r.get("started"), "why": (str(r.get("why"))[:200] if r.get("why") else None)}
@@ -30732,12 +30733,33 @@ def _vault_autoread_note(r, now_ms=None):
     return note
 
 
+def _vault_no_tick_why(now_s=None):
+    """REG-1646 — AN OWING LANE WITH NO RECORDED TICK IS NOT A LANE WITH NOTHING TO SAY. -> str
+
+    REG-1627 gave an owing lane its last tick's words, and left `owedWhy` null when there was no last tick - which reads
+    exactly like "nothing to explain". Right after a start the first tick is up to one interval away and that is said
+    plainly. Past two intervals with nothing recorded, the loop is not ticking - REG-1640's shape, a thread started
+    inside a swapped window that never ran records nothing, ever - and why it waits is UNKNOWN. [[unknown-stays-unknown]]"""
+    now_s = time.time() if now_s is None else now_s
+    up = max(0, int(now_s - _BOOT_AT))
+    if up < 2 * _VAULT_AUTOREAD_EVERY_S:
+        return ("no tick yet since this console started %d s ago - the first runs within %d s"
+                % (up, _VAULT_AUTOREAD_EVERY_S))
+    return ("no tick has been recorded in the %d s since this console started - the lane is not ticking (it should, "
+            "every %d s), so why it waits is UNKNOWN" % (up, _VAULT_AUTOREAD_EVERY_S))
+
+
 def _vault_autoread_loop():
     while True:
         try:
             time.sleep(_VAULT_AUTOREAD_EVERY_S)
             _lane_tick('tvd-vault-autoread', _VAULT_AUTOREAD_EVERY_S)
-            _r = vault_autoreel_tick()
+            try:
+                _r = vault_autoreel_tick()
+            except Exception as _vte:
+                # REG-1646 - a tick that RAISES says so; the outer swallow used to leave no trace at all
+                _vault_autoread_note({"ok": False, "raised": True, "why": "the tick raised %s" % type(_vte).__name__})
+                continue
             _vault_autoread_note(_r)        # REG-1627 - the tick's own words, so an owing lane says why it waits
             # ⚠⚠ v3323 (#28) — THE FEEDER'S ONE CALLER. read_names_lane.split() has always judged
             # every journal-ring PANEL name through the REAL gate and separated HELD from OWED, and
