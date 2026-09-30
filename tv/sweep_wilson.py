@@ -226,6 +226,47 @@ def _refused_quiet(ca, **kw):
     return _refused_unstarted(r) and n == 0
 
 
+def reach_probe(ca, hist_dir):
+    """REG-1640 — the doctor's one lane attack, for a CHILD process to run. -> as _refused_quiet.
+
+    ⚠⚠ NEVER CALL THIS INSIDE HIS CONSOLE. `_guarded` swaps `threading.Thread` for the WHOLE
+    PROCESS while the door is called, and the doctor's eagle runs every row inside the console
+    (`_eagle_once` -> `console_doctor.run`). So a thread the console started in that window got a
+    stand-in that never runs: the vault lamp's refresh (`_vault_autoread_kick`) set its
+    one-at-a-time flag, its thread never started, the flag never cleared, and the lamp froze on
+    his Mac until a restart. MEASURED 2026-10-01 in a separate process: swap, kick, restore ->
+    `running` True forever. The doctor now runs `sweep_wilson.py --reach-probe <dir>` and reads
+    one JSON line; the swap lives and dies in that child. [[the-cure-that-kills-the-patient]]
+    """
+    real = ca._chron_lanes
+    ca._chron_lanes = lambda *a, **k: None
+    try:
+        return _refused_quiet(ca, hist_dir=hist_dir, limit=1)
+    finally:
+        ca._chron_lanes = real
+
+
+def _reach_probe_cli(args):
+    """`--reach-probe <dir>` -> prints ONE JSON line and exits. The parent owns <dir> and removes it,
+    so a child killed at its bound leaves nothing behind."""
+    import json
+    if len(args) != 1 or not os.path.isdir(args[0]):
+        print(json.dumps({"usage": "--reach-probe <an existing scratch dir>"}))
+        return 2
+    try:
+        import control_app as ca
+    except Exception as e:
+        print(json.dumps({"unimportable": type(e).__name__}))
+        return 1
+    try:
+        v = reach_probe(ca, args[0])
+    except Exception as e:
+        print(json.dumps({"raised": type(e).__name__}))
+        return 1
+    print(json.dumps({"reach": v}))
+    return 0
+
+
 def _attempt_hist_int(ca, n=2):
     return _tally(_refused_quiet(ca, hist_dir=i + 3, limit=1) for i in range(n))
 
@@ -616,6 +657,8 @@ def bank_into_proof_queue(rows):
 
 def main(argv=None):
     argv = list(argv if argv is not None else sys.argv[1:])
+    if argv[:1] == ["--reach-probe"]:
+        return _reach_probe_cli(argv[1:])     # REG-1640 — the doctor's row, asked from a child
     rows = score()
     # ⚠⚠ v2940 (#75) — BANKING IS NOW DELIBERATE, BECAUSE AN AUDIT THAT WRITES EVIDENCE IS NOT AN
     # AUDIT. MEASURED 2026-09-11: all four wilson harnesses called bank_into_proof_queue()

@@ -1741,12 +1741,16 @@ _ART_MIME = {
 # available to Python code. So:  kill -USR1 <console pid>  ->  full stack of all 60 threads on
 # stderr, naming the exact frame that holds the lock. py-spy is not installed on this Mac and
 # installing it is a change to his machine; this is free and permanent.
+# ⚠⚠ REG-1641 (2026-10-01) — `chain=True` KILLED HIS CONSOLE. After the dump, a chained handler
+# restores the PREVIOUS action and re-raises the signal - and SIGUSR1's previous action is the
+# default one, which TERMINATES the process. The one `kill -USR1` ever sent to his console for a
+# stack took it down mid-evening. `chain=False` dumps and returns; nothing else here handles SIGUSR1.
 try:
     import faulthandler as _fh
     import signal as _sig
     _fh.enable()
     if hasattr(_sig, "SIGUSR1"):
-        _fh.register(_sig.SIGUSR1, all_threads=True, chain=True)
+        _fh.register(_sig.SIGUSR1, all_threads=True, chain=False)
 except Exception:
     pass
 

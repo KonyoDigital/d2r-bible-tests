@@ -8672,6 +8672,23 @@ GATES = [
              "evidence. A re-tick inside the misclick window of its own un-tick gets back exactly what it took, the vault "
              "removal only while it is still the newest; past the window a re-tick is a new find. Driven on the page code "
              "in node; the tick handler's join is read from its code in order."),
+    Gate("test_the_doctor_never_swaps_the_consoles_threads",
+         [sys.executable, os.path.join(HERE, "test_the_doctor_never_swaps_the_consoles_threads.py")], 120,
+         needs_app=False,
+         why="REG-1640 (2026-10-01) - his Mac's vault lamp froze and never refreshed again. The eagle runs every "
+             "doctor row inside the console process, and the row 'sweep attack reaches its door' ran the sweep "
+             "harness there, whose stub swaps threading.Thread for the whole process while it calls the door. The "
+             "lamp's refresh set its one-at-a-time flag inside that window, its thread never ran, and the flag "
+             "never cleared. The row now asks a bounded child and reads one JSON line; the law spies the door in "
+             "this process, runs a lamp-shaped kicker against a slowed door, and maps every child answer to its "
+             "row."),
+    Gate("test_a_stack_dump_never_kills_the_console",
+         [sys.executable, os.path.join(HERE, "test_a_stack_dump_never_kills_the_console.py")], 120,
+         needs_app=False,
+         why="REG-1641 (2026-10-01) - the one SIGUSR1 ever sent to his console for a stack dump KILLED it. "
+             "faulthandler was registered with chain=True, which after the dump restores SIGUSR1's previous action "
+             "and re-raises it, and that action is the default one: terminate. A child imports the real module, "
+             "parks a worker thread, signals itself, and must live to print ALIVE with every thread's stack."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

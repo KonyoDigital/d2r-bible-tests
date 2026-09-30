@@ -405,6 +405,37 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1641 - ASKING HIS CONSOLE FOR ITS STACKS KILLED IT (2026-10-01)
+
+control_app registers faulthandler on SIGUSR1 so a wedged console can name the frame that holds its lock
+(`kill -USR1 <pid>` -> every thread's stack on stderr). It registered with `chain=True`: after the dump a chained
+handler restores the signal's PREVIOUS action and re-raises it, and SIGUSR1's previous action is the default one,
+which TERMINATES the process. **Measured:** the one SIGUSR1 sent to his live console tonight, to see why the vault lamp
+was frozen, took it down; it was relaunched through `tv/start_tvd_mac.sh` in about 9 s with the Screen Recording grant
+intact. **Now** `chain=False` - the dump prints and the console carries on; nothing else in the tree handles SIGUSR1.
+Law: `tv/test_a_stack_dump_never_kills_the_console.py` - a child imports the real module, parks a worker thread,
+signals itself and must print ALIVE with a stack naming the parked worker. 3 red-proofs RED (`chain=True` dies with
+exit -30, `all_threads=False` names only the signalled thread, no registration dies stackless). Skipped with its reason
+where there is no SIGUSR1 (Windows).
+
+### REG-1640 - THE DOCTOR FROZE HIS VAULT LAMP BY RUNNING A THREAD-SWAPPING HARNESS INSIDE HIS CONSOLE (2026-10-01)
+
+His Mac's vault lamp stopped refreshing and stayed frozen. `_vault_autoread_kick` sets
+`_VAULT_AUTOREAD_REFRESH["running"]`, starts a thread, and only that thread clears the flag. The eagle runs every
+doctor row INSIDE the console process (`_eagle_once` -> `console_doctor.run`), and the row "sweep attack reaches its
+door" called `sweep_wilson._refused_quiet` right there - whose `_guarded` swaps `threading.Thread` for the WHOLE
+PROCESS while it calls the sweep door, so a stubbed door can never start a paid sweep. Any thread the console started
+inside that window got a stand-in whose `start()` does nothing. **Reproduced in a separate process:** swap, kick,
+restore -> `running` True forever, the lamp never refreshes. The same window could swallow any lane's thread (the
+Claude sign-in check's too) and an HTTP request's handler thread. **Now** the row runs
+`sweep_wilson.py --reach-probe <dir>` as a bounded child (30 s, killed on the bound) and reads one JSON line; the swap
+lives and dies in the child, and the scratch dir is made and removed by the parent so a killed child leaves nothing.
+Every answer maps to its old row: refused OK, lock first UNKNOWN, leaked or raised MISSING, unreadable, unimportable
+or no answer UNKNOWN. Also removed 166 empty `heartlane_*` dirs (25-26 Sep, before the 09-26 scratch fix) from his temp
+dir. Law: `tv/test_the_doctor_never_swaps_the_consoles_threads.py` (13 cases: a door spy in this process, a lamp-shaped
+kicker against a slowed door, every child answer, the bound and the scratch dir), 4 red-proofs RED - the in-process
+revert fails the spy with `[False]` and leaves the kicker's flag STUCK after six clean kicks.
+
 ### REG-1639 - ON HIS MAC A SECOND CLICK OPENED A SECOND SIGN-IN (the #231 eye on 5979d7f3, 2026-10-01)
 
 `claude_signin.start()` guards "one sign-in at a time" with `inflight()`, which asks the process it kept. On his Mac the

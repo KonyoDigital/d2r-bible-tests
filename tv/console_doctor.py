@@ -8395,6 +8395,11 @@ def _check_his_window_can_be_measured():
                 % (_w, _h))
 
 
+#: REG-1640 — the bound on the sweep harness child (one console-module import + one stubbed door
+#: call). A child that has not answered by then is UNKNOWN, never a pass, and it is killed.
+REACH_PROBE_S = 30
+
+
 def _check_an_attack_can_still_reach_the_door_it_scores():
     """v3406 — CAN THE SWEEP HARNESS STILL REACH THE DOOR IT CLAIMS TO HAVE PROVEN?
 
@@ -8415,11 +8420,20 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
     ⚠ SHUT IS NOT BROKEN. A closed lock is the system working; the row says UNKNOWN and names what
     re-opens it, because a heart row that reds on a correct refusal is one someone silences.
     [[zero-needs-a-denominator]] [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
+
+    ⚠⚠ REG-1640 (2026-10-01) — THE ATTACK RUNS IN A CHILD, NEVER IN HIS CONSOLE. This row called
+    `_refused_quiet` right here, and the eagle runs every row INSIDE the console process. `_guarded`
+    swaps `threading.Thread` for the whole process while the door is called, so any thread the
+    console started in that window got a stand-in that never runs — the vault lamp's refresh set its
+    one-at-a-time flag, never started, never cleared it, and his Mac's vault lamp froze until a
+    restart. A doctor that breaks what it watches is worse than none. The child is bounded, and the
+    scratch dir is made and removed HERE so a child killed at its bound leaves nothing behind.
+    [[the-cure-that-kills-the-patient]]
     """
+    import shutil as _sh
     import tempfile
     try:
         import sweep_wilson as _sw
-        import control_app as _ca
     except Exception as e:
         return UNKNOWN, ("the sweep harness would not import (%s), so whether its attacks reach "
                          "the door is UNKNOWN, not fine" % type(e).__name__)
@@ -8427,19 +8441,45 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
         if not hasattr(_sw, _n):
             return MISSING, ("sweep_wilson has no %s, so a refusal issued by the LOCK is counted as a "
                           "refusal by the DOOR again — the v3406 defect, restored" % _n)
+    if not hasattr(_sw, "reach_probe"):
+        return UNKNOWN, ("sweep_wilson has no child-side probe, so asking would mean running its thread "
+                         "swap inside this console — not asked, and UNKNOWN is what that is")
+    # 2026-09-26 — the throwaway history dir was never removed: 853 heartlane_* in his temp dir, 196 in a day
     d = tempfile.mkdtemp(prefix="heartlane_")
-    _real = _ca._chron_lanes
-    _ca._chron_lanes = lambda *a, **k: None
     try:
-        verdict = _sw._refused_quiet(_ca, hist_dir=d, limit=1)
+        p = subprocess.run([sys.executable, os.path.join(HERE, "sweep_wilson.py"), "--reach-probe", d],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           close_fds=False, timeout=REACH_PROBE_S, cwd=HERE)
+    except subprocess.TimeoutExpired:
+        return UNKNOWN, ("the sweep harness child did not answer within %d s, so whether its attacks "
+                         "reach the door is UNKNOWN, not fine" % REACH_PROBE_S)
     except Exception as e:
-        return MISSING, ("driving one lane attack raised %s, so the harness cannot answer for itself"
-                      % type(e).__name__)
+        return UNKNOWN, ("the sweep harness child would not start (%s), so whether its attacks reach "
+                         "the door is UNKNOWN, not fine" % type(e).__name__)
     finally:
-        _ca._chron_lanes = _real
-        # 2026-09-26 — the throwaway history dir was never removed: 853 heartlane_* in his temp dir, 196 in a day
-        import shutil as _sh
         _sh.rmtree(d, ignore_errors=True)
+    ans = None
+    for _line in reversed((p.stdout or "").splitlines()):
+        try:
+            ans = json.loads(_line)
+        except ValueError:
+            continue
+        if isinstance(ans, dict):
+            break
+        ans = None
+    if not isinstance(ans, dict):
+        return UNKNOWN, ("the sweep harness child answered nothing readable (exit %s), so whether its "
+                         "attacks reach the door is UNKNOWN, not fine" % p.returncode)
+    if "unimportable" in ans:
+        return UNKNOWN, ("the console module would not import in the harness child (%s), so whether its "
+                         "attacks reach the door is UNKNOWN, not fine" % ans["unimportable"])
+    if "raised" in ans:
+        return MISSING, ("driving one lane attack raised %s, so the harness cannot answer for itself"
+                      % ans["raised"])
+    if "reach" not in ans:
+        return UNKNOWN, ("the sweep harness child refused the question (%s), so whether its attacks "
+                         "reach the door is UNKNOWN, not fine" % str(ans)[:80])
+    verdict = ans["reach"]
     if verdict is None:
         return UNKNOWN, ("the sweep harness cannot currently REACH the door it scores — "
                          "vault.sweep_start answers first, so its four lane claims are UNPROVEN, "

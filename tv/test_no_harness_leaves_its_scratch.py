@@ -167,10 +167,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # re-anchored for REG-1640: the row now hands the dir to a child and removes it in its own finally
         "why": "the doctor's lane row leaves its heartlane_ dir on every pass again",
         "file": "console_doctor.py",
-        "find": "        import shutil as _sh\n        _sh.rmtree(d, ignore_errors=True)\n",
-        "replace": "        pass\n",
+        "find": "    finally:\n        _sh.rmtree(d, ignore_errors=True)\n    ans = None\n",
+        "replace": "    finally:\n        pass\n    ans = None\n",
         "matches": 1,
     },
     {
