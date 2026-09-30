@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3533",
+  "ver": "v3534",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3533: A reel removed by a deleter now leaves the river: it is stamped as closed out from the record that deleter kept, and the heart goes red on any reel that vanished with no record at all. Two browser checks now measure the world they really run in.",
+  "note": "v3534: click CLAUDE or GROK to open that readers own sign-in on this PC; each lamp rings once when it drops by itself and never for his own switch; a Grok sign-in the far end refuses reads signed out and reopens the browser; plus four second-eye fixes (a failed close confirms nothing, an empty whole list is a look, the link decides a build, a release hushes only its own refusal)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
