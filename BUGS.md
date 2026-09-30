@@ -378,6 +378,23 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1593 - A GATE RUN IN A WORKTREE CALLED ITS OWN LEAKS "SUSPECTS" BECAUSE HIS CONSOLE WAS UP (#94, 2026-09-30)
+
+**Measured** on the v3526 integration run (REG-1583): run_gates watches the live-state files of the tree it runs in,
+saw four move, and printed them as SUSPECTS - "the console is running on :17772". The console runs from the main
+checkout; it cannot write a worktree's files, so the moves were the suite's own fixture leaks and a verdict was
+downgraded to a maybe.
+
+**Fixed:** `run_gates._console_writes_here()` asks which tree the console on :17772 runs from (lsof names the listener, ps
+its script, lsof its cwd for a relative path). A console proven to run elsewhere is not a writer, so a move there is a
+verdict and says why; UNKNOWN (Windows has no lsof, a path that will not split) keeps the old reading, because a false red
+on his real tree is the cry-wolf the guard was built to avoid. Measured from the v3528 worktree: "the console on :17772
+runs from another tree".
+
+**Guards:** `tv/test_a_move_in_a_tree_no_console_runs_from_is_a_verdict.py` (gate of the same name) - the reader
+(absolute and relative script, unreadable answers UNKNOWN), the decision (elsewhere / here / unknown / none) and main()'s
+wiring, all on fixture lsof/ps answers; 8 cases, 2 red-proofs seen red.
+
 ### REG-1592 - A PC HE PLAYS ON NEVER FINISHED A CENSUS, SO ITS RIVER NEVER FLOWED (#99, 2026-09-30)
 
 **His words:** *"now only grokbot and ALT TEST is both river stuck"* - and *"make sure its architectured also so for dean is

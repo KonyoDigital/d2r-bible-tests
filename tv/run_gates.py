@@ -8436,6 +8436,12 @@ GATES = [
              "local OCR, a reel rolling + the watcher lane's own liveness verdict, decided on that PC's clock), the "
              "beacon, the worker (kept; a flip is news), the card's _fleetShadowEye (lit/live/idle/off/unknown - "
              "UNKNOWN never drawn lit or shut)."),
+    Gate("test_a_move_in_a_tree_no_console_runs_from_is_a_verdict",
+         [sys.executable, os.path.join(HERE, "test_a_move_in_a_tree_no_console_runs_from_is_a_verdict.py")], 60,
+         needs_app=False,
+         why="#94 (REG-1593, 2026-09-30) - REG-1583's run in a worktree called its own fixture leaks 'suspects' because his "
+             "console was up on :17772 - but it runs from the main checkout and cannot write a worktree. Pins the tree "
+             "reader (lsof/ps/cwd, UNKNOWN never read as 'elsewhere'), the decision, and main()'s wiring; fixtures only."),
     Gate("test_a_pc_proves_itself_a_slice_at_a_time",
          [sys.executable, os.path.join(HERE, "test_a_pc_proves_itself_a_slice_at_a_time.py")], 120,
          needs_app=False,
@@ -8954,6 +8960,49 @@ def _console_is_running(port=17772):
             pass
 
 
+def _console_tree(port=17772, run=None):
+    """#94 — the tv/ directory the console listening on `port` runs from. -> realpath | None (UNKNOWN)
+
+    lsof names the listener, ps its command line, lsof its cwd (for a relative script path). Any step that cannot answer
+    is UNKNOWN - Windows has no lsof, a path with spaces does not split - and UNKNOWN is never read as "another tree"."""
+    import subprocess
+    run = run or subprocess.run
+    try:
+        kw = dict(capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
+        pid = int((run(["lsof", "-nP", "-tiTCP:%d" % port, "-sTCP:LISTEN"], **kw).stdout or "").split()[0])
+        cmd = run(["ps", "-o", "command=", "-p", str(pid)], **kw).stdout or ""
+        cwd = None
+        for ln in (run(["lsof", "-a", "-nP", "-p", str(pid), "-d", "cwd", "-Fn"], **kw).stdout or "").splitlines():
+            if ln.startswith("n") and len(ln) > 1:
+                cwd = ln[1:]
+        for tok in cmd.split():
+            if tok.endswith("control_app.py"):
+                path = tok if os.path.isabs(tok) else (os.path.join(cwd, tok) if cwd else None)
+                return os.path.realpath(os.path.dirname(path)) if path else None
+    except Exception:
+        return None
+    return None
+
+
+def _console_writes_here(port=17772, here=HERE):
+    """#94 — can the console on `port` be what writes THIS tree's live state? -> (bool, why)
+
+    REG-1583: a gate run in a worktree while his console ran from the main checkout called its own fixture leaks
+    "suspects" - the console was up, so every move might have been its write. It cannot write a tree it does not run
+    from, so there a move is a VERDICT. Only a console PROVEN to run elsewhere changes anything: UNKNOWN keeps the old
+    reading (it might be writing here), because a false red on his real tree is the cry-wolf this guard was built to
+    avoid. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]"""
+    if not _console_is_running(port):
+        return False, "no console on :%d" % port
+    tree = _console_tree(port)
+    if tree is None:
+        return True, "a console is on :%d and which tree it runs from could not be read" % port
+    if os.path.realpath(tree) == os.path.realpath(here):
+        return True, "the console on :%d runs from this tree" % port
+    return False, ("the console on :%d runs from another tree (%s) - it cannot write this one's state, so a move "
+                   "here is a verdict" % (port, os.path.basename(os.path.dirname(tree)) or "?"))
+
+
 _SWEEP_LOCK = os.path.join(HERE, ".sweep.lock")
 
 
@@ -9228,7 +9277,10 @@ def main(argv):
         return 2
 
     print("══ GATE SET ══")
-    _console_live = _console_is_running()
+    # #94 — a console that runs from ANOTHER tree cannot be what moved this one's state (REG-1583's blind spot)
+    _console_live, _console_why = _console_writes_here()
+    if _console_is_running() and not _console_live:
+        print("· %s" % _console_why)
     _sweep_live = _external_writer()
     if _sweep_in_progress():
         _sweep_live = _sweep_live or ["a chronicle sweep (tv/.sweep.lock)"]
