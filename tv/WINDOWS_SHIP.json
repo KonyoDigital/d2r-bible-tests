@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3530",
+  "ver": "v3531",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3530: A session is bound to the character he entered it with: the char-select read names the highlighted row, and everything after it routes to that character, like the printer. A read that failed is no longer a look: a signed-out reader no longer seals every shadow reel as the launcher, and the log says why. Under the corner chip, CLAUDE and GROK lamps say whether each reader can read on this PC, and the corner is green only while a shadow reel records. A machine-wide lock no longer retires reels.",
+  "note": "v3531: A heart gate that no lane measured stays owed instead of being banked as proved, so a PC finishes its census honestly. A console path with a space is read whole. The reader lamps fit under the chip without squeezing the tab strip, on the type floor, and a lamp nobody has measured shows a question mark. The vault lock styles use the type tokens.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

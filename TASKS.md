@@ -15,7 +15,7 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-30 (15:4x) · 3 in flight · 4 asks · viewer :17955
+## 📋 OPEN QUEUE — 2026-09-30 (17:3x) · 1 in flight · 6 asks · viewer :17955
 
 > The live surfaces are the viewer (:17955) and the session board it reads. This section mirrors them; rewritten
 > 2026-09-30 after his "is the panel list and task list updated". IN PROGRESS carries only what is moving right now.
@@ -24,23 +24,25 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 | # | where it stands |
 |---|---|
-| **v3527 landed** | 14:53, origin `e79aed53`, push #1 (103m21s gate). #256 heart audit COMPLETE: all 26 ranks shipped |
-| **v3528 push** | full gate run: 5 reds, all mine, fixed (a new `def wait` flipped the thread census's FOREIGN `wp.wait`; four new files never made stdout cp1255-safe). Carries v3526's CI reds (Linux `ps` phantom spawn REG-1589, the reachability scan 77.7 s -> 2.5 s REG-1590, six Routine I specs REG-1598), #99 a PC proves its census a slice at a time between his games (REG-1592), #94 a move in a tree no console runs from is a verdict (REG-1593), #42c the push waits for his console to settle (REG-1594), the #231 findings (REG-1591, REG-1595, the picker census counts) |
-| **v3529** (next) | the rank-17 lock rebuilt against its 13 findings and made visible - and, seen on pixels, the refusal now said AT the cell (REG-1596); the builder personal per console (REG-1599); #103 step A, the builder in his two sections (REG-1600) |
+| **v3528 landed** | 16:15, origin `93bd7289` (21m20s gate): #99 a PC proves its census a slice at a time between his games, #94, #42c the push waits for his console to settle, v3526's CI reds, the #231 findings |
+| **v3529-v3531 push** | **v3529** the rank-17 lock rebuilt and its refusal said AT the cell (REG-1596), the builder personal per console (REG-1599), #103 step A its two sections (REG-1600) · **v3530** #103 step B a session bound to the character he entered with (REG-1601); the ALT's day of holes: a failed read is not a look (REG-1603), a lock refusal no longer retires reels (REG-1602), CLAUDE / GROK lamps under the chip and the corner green only while recording (REG-1604) · **v3531** the v3528 second-eye findings (REG-1605 a gate nobody measured stays owed, REG-1606 a console path with a space), the lamps cost the tab strip nothing (REG-1607, caught on pixels before shipping). v3530's full gate run refused 6: 4 mine, fixed in v3531 (the lock styles off the type tokens, the lamps under the type floor, three fixed source windows, the builder law still pinning the typed-template seeding REG-1599 removed); BLUEPRINT and HEART cleared by the bumps |
 
 ### 🆕 ASKED TODAY
 
 | # | the ask |
 |---|---|
-| **builder: in game + simulation** (board #103) | his words: "the characters that are known by the console and are legit my character.. they slowly prove themselves from reels sessions and harden same way as vault" / "an area to create and test other builds like simulation style.. the add character and everything stays as is.. a section for each" / "a session's character selection then moving forward.. linked to that character.. same logic getting routed down" (the printer). Step A (sections + the vault's tier per character) in v3529; step B binds each session to the character selected at its char-select and routes its equipped items down to it; step C fills the in-game build from them |
-| **ALT extraction** | verify on the ALT that every session's stash reels extract to their tombstone and the items are read, tallied and cross-referenced with the console - waits on v3528 (the ALT cannot prove its census while he plays; #99 lets it prove a slice at a time) |
+| **builder: in game + simulation** (board #103) | his words: "the characters that are known by the console and are legit my character.. they slowly prove themselves from reels sessions and harden same way as vault" / "an area to create and test other builds like simulation style.. the add character and everything stays as is.. a section for each" / "a session's character selection then moving forward.. linked to that character.. same logic getting routed down" (the printer). Step A (v3529) and step B (v3530) ship in this push; step C fills the in-game build from the gear the reels witnessed, hardening per slot |
+| **reader lamps** (board #105) | his words: "a button showing this like if synced or not under the toggle button ... claude for primary and the shadow for grok ... lights on lights off style ... so we know that they are connected" - built in v3530, fitted in v3531. The ALT's Claude is SIGNED OUT, so its CLAUDE lamp will read off until he signs in there |
+| **ALT extraction** | verify on the ALT that every session's stash reels extract to their tombstone and the items are read, tallied and cross-referenced with the console - waits on his `/login` on the ALT (every read failed while signed out) and on the ALT pulling v3531 |
 | **crafted editor** (board #95) | the builder's crafted-item editor: Add Mod = the planner's searchable list for THAT item and nothing it does not show, a pick lands at the top of its range, a crafted variant fills its name (e.g. Grim Noose Amulet) and top-of-range numbers |
 | **gate counts** (board #104) | 87 of the 255 gates that state "N cases, M red-proofs" are stale (the second eye named one) - compute them, do not type them |
+| **vault tab lock on its label** (board #107) | pre-existing since v2443: the tab's 🔒 sits 6-10px on the "Vault" label at 900-1600. Lifting it onto the tab's edge cleared it at 1000-1600 but the brand's deliberate clip hid it at 900 - to be fixed against his real window width |
 
-### ⏳ WAITING — on the eyes, the ALT, or a verifier re-run
+### ⏳ WAITING — on him, the eyes, the ALT, or a verifier re-run
 
 | # | on what |
 |---|---|
+| **HIS: sign Claude in on the ALT** | the ALT's Claude CLI answers "Failed to authenticate: OAuth session expired" - on the ALT, in PowerShell: `claude`, then `/login`. Nothing on the ALT reads until then |
 | **w26 branches 9-12** | 10 fleet river-stuck (counts deleted reels; flags retention-held reels), 11 theatre (doctor row ignores the beat's age), 12 doctor (a printed orange verdict read as UNKNOWN), 9 locks (its verifier died) - findings in `~/d2r_session_carry/w26_verify/` |
 | **#174 / vault rulings** | GrokBot's answers to the v3523 ACT (#230 5892384978) |
 | **ALT re-measures** | river extract → tombstone, lean Grok reads start no Chrome, the WebView2 growth |
@@ -1727,7 +1729,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3530** | `(this commit)` | v3530 — A session is bound to the character he entered it with: the char-select read names the highlighted row, and everything after it routes to that character, like the printer. A read that failed is no longer a look: a signed-out reader no longer seals every shadow reel as the launcher, and the log says why. Under the corner chip, CLAUDE and GROK lamps say whether each reader can read on this PC, and the corner is green only while a shadow reel records. A machine-wide lock no longer retires reels. |
+| **v3531** | `(this commit)` | v3531 — A heart gate that no lane measured stays owed instead of being banked as proved, so a PC finishes its census honestly. A console path with a space is read whole. The reader lamps fit under the chip without squeezing the tab strip, on the type floor, and a lamp nobody has measured shows a question mark. The vault lock styles use the type tokens. |
+| **v3530** | `63ffd8d6` | v3530 — A session is bound to the character he entered it with: the char-select read names the highlighted row, and everything after it routes to that character, like the printer. A read that failed is no longer a look: a signed-out reader no longer seals every shadow reel as the launcher, and the log says why. Under the corner chip, CLAUDE and GROK lamps say whether each reader can read on this PC, and the corner is green only while a shadow reel records. A machine-wide lock no longer retires reels. |
 | **v3529** | `0f3b1937` | v3529 — A hardened filing is locked until he releases it: the lock shows on the vault, a refusal is said at the cell he tried, and a release clears it. The character builder is personal to each console: it offers only the characters its own reels learned, in two sections - In game, proving toward hardened like the vault, and Simulation builds, where adding a character works as before. |
 | **v3528** | `93bd7289` | v3528 — A PC he plays on proves its heart census a slice at a time between his games, so the river locks can open on the ALT. A move in a tree no console runs from is a verdict. The push waits for his console to finish moving onto the pushed code before the demos. The v3526 CI reds are fixed: the Linux phantom capture spawn, the reachability scan (77.7 s to 2.5 s), six Playwright specs. The tooltip receipt keeps UNKNOWN after a loss, the character learner stops at its hourly cap instead of walking past unread frames, and the picker census and the gear ledger are never committed. |
 | **v3527** | `e79aed53` | v3527 — The heart audit is finished: rank 22 (the picker census, fixed against its reviewer before it shipped) and rank 26 (the mule filing gate re-proved). Claude reads every frame on every PC; Grok is only the + GROK layer when switched on, and nothing can put it first again. The fleet shows a shadow eye per PC: lit when its shadow reader runs even with the game closed, gold with a glint while it reads, hollow when on but stopped, shut when off, dashed when unknown. The lean Grok home is emptied before every read. |
