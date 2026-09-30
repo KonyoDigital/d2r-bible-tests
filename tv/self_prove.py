@@ -613,14 +613,14 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
 
 
 def _gate_costs(path=None):
-    """gate name -> measured seconds per run, from gate_costs.json. {} when it cannot be read (every gate then plans at
-    SLICE_UNKNOWN_COST_S - a slice still runs, it is only sized by a guess it SAYS is one)."""
+    """gate name -> measured seconds per run, from gate_costs.json. None when it cannot be read - UNKNOWN, not "no gate
+    costs anything": every gate then plans at SLICE_UNKNOWN_COST_S and the slice's why says its sizes are a guess."""
     try:
         with io.open(path or os.path.join(HERE, "gate_costs.json"), encoding="utf-8") as fh:
             c = json.load(fh).get("costs")
-        return c if isinstance(c, dict) else {}
+        return c if isinstance(c, dict) else None
     except Exception:
-        return {}
+        return None
 
 
 def plan_slice(owed, costs=None, budget_s=None, max_gates=None):
@@ -880,11 +880,14 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                 mem["deps"] = ensure_prover_deps()
             log_path = _store_path(path) + ".log"
             _owed_g = census.get("owedGates")
-            _slice = plan_slice(_owed_g, _gate_costs()) if isinstance(_owed_g, list) and _owed_g else None
+            _costs = _gate_costs() if isinstance(_owed_g, list) and _owed_g else None
+            _slice = plan_slice(_owed_g, _costs) if isinstance(_owed_g, list) and _owed_g else None
             if _slice:
                 mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
                 mem["sliceGates"] = _slice
-                d = dict(d, why="%s - this slice: %d gate(s)" % (census.get("owedWhy") or d["why"], len(_slice)))
+                d = dict(d, why="%s - this slice: %d gate(s)%s" % (
+                    census.get("owedWhy") or d["why"], len(_slice),
+                    "" if _costs is not None else " (gate costs unread - sized by the default guess)"))
             else:
                 mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
