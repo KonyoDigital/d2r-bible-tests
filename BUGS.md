@@ -378,6 +378,19 @@ judged, the witness rule, a tick over a fixture reel store (visits, caps, budget
 unreadable ledger in both shapes, the spelling vote, the page merge in node, the rider lane and route; 21 cases, 8
 red-proofs PROVEN.
 `test_a_rider_is_watched_without_claiming_a_thread` now expects the loop's two riders.
+### REG-1597 - THE v3527 SECOND EYE'S FINDINGS, EACH MEASURED: FOUR REFUTED, ONE STALE COMMENT (2026-09-30)
+
+`second_eye_run.py v3527` (Grok CLI over 0ba7a5ce..e79aed53, 19,427 chars sent of 110,692 - the eye names what it was
+not shown). Every finding was put to the code before anything changed:
+
+| finding | measured | outcome |
+|---|---|---|
+| a census that claimed ok but arrived without counts is silent in the fleet verdict | `picker_census_verdict` names that PC under UNKNOWN with its own why ("the census arrived without its counts") - the honest state when the numbers never came; its docstring says so | REFUTED |
+| the picker bank's "independent of a refused tally" promise is dead; the console requires `all` | the route banks stores and the picker census BEFORE and independently of the tally counts, and answers `pickerSaved` when the tally half is refused; `accept_handed_picker` requires offers, holds and slot, never `all` | REFUTED |
+| the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
+| non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
+| NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+
 ### REG-1595 - THE CHARACTER READER'S HOURLY CAP SKIPPED EVERY VISIT AFTER IT FOR GOOD (#231 5909410674, 2026-09-30)
 
 **Found by** the Grok code seat on 8d420bba; **reproduced before anything changed**: a reel of 8 character-select visits

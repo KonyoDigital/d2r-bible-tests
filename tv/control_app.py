@@ -41160,7 +41160,8 @@ class Handler(BaseHTTPRequestHandler):
             # the locally-authorized `claude` CLI. Website proxy = fallback only.
             # v1380.1 — DUAL RECEIVER (G5): optional SuperGrok `grok -p` lane (intake_grok_sub.mjs)
             # same contract, NO API keys. Order by G5 mode: off=claude only; shadow=claude then
-            # grok; primary=grok then claude. Both are subscription-CLI only.
+            # grok (a failover, only when Claude's answer is an error). "primary" is RETIRED (2026-09-30, REG-1586) and
+            # _intake_dual_runners reads it as shadow, so Claude leads on every mode. Both are subscription-CLI only.
             # v1379 — server-side gate so a stuck engine driver cannot stampede intake:
             # max 1 in-flight + min gap between starts (also enforced inside intake_local.mjs).
             _now_i = time.time()
