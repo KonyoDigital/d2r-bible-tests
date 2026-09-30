@@ -418,6 +418,17 @@
     "purpose": "enable() rewraps stdout/stderr with errors='replace' so a cp1255 console cannot turn a passing gate's own verdict print into exit 1.",
     "territory": "routines-infra"
   },
+  "console_settle.py": {
+    "entryPoints": [
+      "wait",
+      "verdict",
+      "read",
+      "main"
+    ],
+    "gotcha": "Called by hooks/pre-push right before the console demos (#42c): it waits, bounded at 360 s, while his console runs older code than the file on disk and its relaunch is not held, relaunched under 30 s ago, or reports its engine not ready. A held relaunch, no answer or the bound all go on - it never refuses a push; the demos decide.",
+    "purpose": "Let his console finish moving onto the pushed code before the pre-push demos drive it (v3526 push #1 was refused by a demo 7 s after the re-exec).",
+    "territory": "push"
+  },
   "control_app.py": {
     "entryPoints": [
       "main",
