@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3535",
+  "ver": "v3536",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3535: an idle PC proves slice after slice; shell laws run a real bash on Windows; the vault gates prove on every PC; a Grok refusal is a stated code",
+  "note": "v3536: an un-tick then a re-tick within ten minutes gives back the first date, the sightings and the vault entry; a second sign-in click on the Mac opens nothing while the first is open",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
