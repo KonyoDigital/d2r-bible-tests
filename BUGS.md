@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1701 - EVERY CLEAN VERDICT THE #231 SEAT EVER POSTED COUNTED AS NOTHING, AND THE PUSH GATE STOOD ON IT (2026-10-02)
+
+**Found** when the v3550-v3553 push was refused: "v3552 may not ship while v3549 has never been looked at". The #231 code
+seat (grok-4.7) HAD looked - v3549's stamp commit at 7,058 chars, "full first-parent diff, 7 files, read whole", verdict
+clean - and `second_eye_drain` had filed it. **Measured:** a clean look has no `findings:` line (its judgement is prose
+after `reach:`), the drain passed `answer_head=findings or ""`, so the row carried NO words; `_has_evidence` counts only a
+row with an answer, an image or a finding, so `looked_at()` excluded it. Every clean #231 verdict was recorded and
+counted as nothing (v3548 had passed only on a CLI look WITH findings). Meanwhile the CLI seat timed out twice on v3549
+(420 s, even at 9.8k chars) while answering a probe instantly, and the MCP seat had no API credits - both EMPTY, not clean.
+**Now:** the drain keeps the seat's comment WHOLE as its answer (persist what was said), and a row that names its public
+comment (`gh#231 comment <id>`) is evidence - anyone can open it; a row with neither still does not count. Law:
+`tv/test_a_look_on_github_is_not_a_look_in_the_ledger.py` +2 cases (a drained clean look keeps the seat's words and
+counts; a comment-bound row is evidence, a bare or free-text one is not), 7/7 PROVEN; 9 other eye-ledger laws green.
+
 ### REG-1700 - "STILL BUSY AFTER 20 MINUTES? ... WHY DIDNT IT AUTO RELAUNCH ITSELF": THE BAR NEVER ASKED, AND THE CONSOLE NEVER SAID (#150, 2026-10-01)
 
 **His words:** "still busy after 20 minutes? should i just hit relaunch? why didnt it auto relaunch itself".

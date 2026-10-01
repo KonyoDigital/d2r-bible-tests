@@ -139,6 +139,7 @@ def drain(limit=None, dry=False, say=print):
         if not got:
             continue
         got["_id"] = str(c.get("id"))
+        got["_body"] = str(c.get("body") or "")      # v3553 - the seat's own words, kept whole (see answer_head below)
         got["_at"] = c.get("created_at")
         looks.append(got)
         # ⚠⚠ A LOOK THAT SAYS `version: unknown` IS HONEST AND MUST NOT BECOME A VERSION.
@@ -215,7 +216,11 @@ def drain(limit=None, dry=False, say=print):
             # v3464 — WHAT THE SEAT DID NOT SEE. Omitted, blind_to() returned None for every
             # drained look (0 of 41 carried it). None stays None when the line never said.
             absent=absent,
-            answer_head=got.get("findings") or "",
+            # v3553 - THE SEAT'S OWN WORDS, WHOLE. This was `findings or ""`, so a CLEAN look - no findings line,
+            # its whole judgement folded into the prose after `reach:` - was filed with NO answer at all, and the
+            # ledger's evidence rule then never counted it: v3549 sat "owed" behind the push gate while the seat had
+            # read its full diff and judged it clean. Persist what was said, not a summary of it. [[heart-first]] §6
+            answer_head=got.get("_body") or got.get("findings") or "",
             asked="posted by the #%d seat; this row is a COPY of what it said, not a re-judgement"
                   % ISSUE,
             verdict_from="gh#%d comment %s" % (ISSUE, got["_id"]),

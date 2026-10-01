@@ -629,7 +629,16 @@ def _has_evidence(row):
         return True
     if any(str(f or "").strip() for f in (row.get("findings") or [])):
         return True
+    # v3553 - A LOOK DRAINED FROM A PUBLIC COMMENT IS BOUND TO THAT COMMENT. Anyone can open `gh#231 comment <id>` and
+    # read the seat's whole judgement there; until v3553 the drain stored no words for a CLEAN look, so every clean
+    # #231 verdict sat in the ledger counted as nothing. A row with neither words nor a comment still does not count.
+    if _COMMENT_REF_RX.match(str(row.get("verdictFrom") or "").strip()):
+        return True
     return False
+
+
+#: a drained row names the public comment it copies, e.g. "gh#231 comment 5940881185"
+_COMMENT_REF_RX = re.compile(r"^gh#\d+ comment \d+$")
 
 
 def looked_at(version, path=None):

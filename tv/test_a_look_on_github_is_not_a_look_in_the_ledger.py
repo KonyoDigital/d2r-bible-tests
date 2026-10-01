@@ -293,11 +293,75 @@ class ADrainedLookKeepsItsReach(unittest.TestCase):
                          % (said,))
 
 
+
+_CLEAN = """SECOND-EYE
+
+version: v3999
+sha: bcfc1328986f08e28173305bf7503f270012bbbd
+verdict: clean
+model: grok-4.7
+chars: 7058
+reach: full first-parent diff, 7 files, read whole. Single parent 1c433b94. Not a merge.
+
+The four stamps carry v3999. The bible note, the WINDOWS_SHIP.json note and the new TASKS.md row share one sentence."""
+
+
+class ACleanLookOnGithubCountsAsALook(unittest.TestCase):
+    """v3553 - MEASURED: the #231 seat judged v3549's stamp commit CLEAN at 7,058 chars, the drain filed it, and the push
+    gate still said "v3549 OWES A LOOK": a clean look has no `findings:` line, so the drain stored NO answer, and the
+    ledger counts only a row bound to evidence. Every clean #231 verdict had been counted as nothing."""
+
+    def setUp(self):
+        import tempfile, shutil
+        self.td = tempfile.mkdtemp(prefix="clean_look_")
+        self.addCleanup(shutil.rmtree, self.td, True)
+        self.saved = L.LEDGER_PATH
+        L.LEDGER_PATH = os.path.join(self.td, "ledger.jsonl")
+        self.addCleanup(setattr, L, "LEDGER_PATH", self.saved)
+
+    def test_a_drained_clean_look_keeps_the_seats_words_and_counts(self):
+        real_gh, real_seen = D._handoff._gh, D.already_recorded
+        try:
+            D._handoff._gh = lambda *_a, **_k: [{"id": 5940881185, "created_at": "2026-10-01T21:31:00Z",
+                                                 "body": _CLEAN}]
+            D.already_recorded = lambda: set()
+            D.drain(say=lambda *_a: None)
+        finally:
+            D._handoff._gh, D.already_recorded = real_gh, real_seen
+        rows = L._rows()
+        self.assertEqual(len(rows), 1, rows)
+        self.assertIn("The four stamps carry v3999", str(rows[0].get("answerHead") or ""),
+                      "the drain kept no words of a clean look - the seat's judgement is nowhere in the ledger")
+        self.assertEqual(len(L.looked_at("v3999")), 1, "a clean look the seat posted is not counted as a look")
+
+    def test_a_row_bound_to_its_comment_is_evidence_and_a_bare_row_is_not(self):
+        base = {"version": "v3998", "model": "grok-4.7", "verdict": "clean", "reached": True, "answerHead": None,
+                "findings": [], "images": []}
+        self.assertTrue(L._has_evidence(dict(base, verdictFrom="gh#231 comment 5940881185")),
+                        "a look drained from a public comment was not counted - anyone can open that comment")
+        self.assertFalse(L._has_evidence(dict(base, verdictFrom="")), "a row with no words and no comment counted")
+        self.assertFalse(L._has_evidence(dict(base, verdictFrom="trust me, comment 12")))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "v3553 - the drain keeps no words of a clean look again (findings only)",
+        "file": "tv/second_eye_drain.py",
+        "find": "            answer_head=got.get(\"_body\") or got.get(\"findings\") or \"\",\n",
+        "replace": "            answer_head=got.get(\"findings\") or \"\",\n",
+        "matches": 1,
+    },
+    {
+        "why": "v3553 - a look bound to its public comment is not evidence again: every clean #231 verdict counts as nothing",
+        "file": "tv/second_eye_ledger.py",
+        "find": "    if _COMMENT_REF_RX.match(str(row.get(\"verdictFrom\") or \"\").strip()):\n        return True\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "v3464 — back to storing the LINE only: per-file sizes invisible to agreement()",
         "file": "tv/second_eye_drain.py",
