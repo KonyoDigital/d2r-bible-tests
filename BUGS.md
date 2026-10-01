@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1671 - AN ENDED SLICE CHAINED THE NEXT ONE WITHOUT THE CONSOLE'S "IS HE PLAYING" JUDGE (the v3542 eye, 2026-10-01)
+
+**Found by** the Grok seat's wider look at v3542 (37,470 chars). **Was:** when the 10-second guard saw a census slice
+had ended, it ran the tick to book it and start the next one - but handed that tick only the load probe. The tick then
+asked `playing_state()` with no screen judge, so Boosteroid or GeForce NOW merely open in the tray read as playing
+(REG-1666's conservative answer for "nobody could look"), and the next slice waited for the 10-minute tick - REG-1625
+again, on the very PC REG-1666 was for. The stand-aside path already passed the judge. **Now** the ended-slice path
+hands the tick the console's own probes (`playing`, `free`) to ask at its own moment. Law:
+`tv/test_a_proof_yields_the_moment_the_game_starts.py` - the whole chain driven with Boosteroid in the tray and no game
+on screen (the next slice starts) and with the game on screen (nothing starts); its old "the tick asks the machine
+itself" case now asserts the tick is handed the console's probes. 1 new red-proof, 2 re-anchored; all 10 PROVEN.
+**Not a defect** (the same look's other note): the armed-prune law stubs the verdict "unknown" with no broke receipt -
+which is exactly how `_prune_once` spells SILENT.
+
 ### REG-1670 - EVERY PC PROVED ON ONE LANE, WHATEVER ROOM IT HAD (his "yea good idea", 2026-10-01)
 
 **His words:** "yea good idea", then "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or

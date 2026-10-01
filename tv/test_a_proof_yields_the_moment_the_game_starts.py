@@ -73,13 +73,19 @@ RED_PROOF = [
      "replace": "MIN_FREE_MB_TO_START = 2048\n", "matches": 1},
     {"why": "REG-1625 - an ended slice waits out the 10-minute tick: slices are not consecutive",
      "file": "self_prove.py",
-     "find": "        if not alive:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
-     "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
+     "find": "        if not alive:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)\n",     # REG-1671 re-anchor
+     "replace": "        if False:\n            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)\n",
      "matches": 1},
     {"why": "REG-1628 - the guard's chained tick is not handed the load probe: load-unknown, the next slice waits",
      "file": "self_prove.py",
-     "find": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)\n",
-     "replace": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n", "matches": 1},
+     "find": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)\n",     # REG-1671 re-anchor
+     "replace": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, playing=playing, free=free)\n",
+     "matches": 1},
+    {"why": "REG-1671 - the chained tick is not handed the console's play judge: a cloud client in the tray is play",
+     "file": "self_prove.py",
+     "find": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)\n",
+     "replace": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, free=free)\n",
+     "matches": 1},
     {"why": "REG-1628 - the console asks the guard without its load probe (the measured ALT defect)",
      "file": "control_app.py",
      "find": "        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)\n",     # REG-1666 re-anchor
@@ -170,12 +176,16 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
     def test_a_slice_that_ended_is_booked_now_and_the_next_can_start(self):
         # REG-1625 - measured on the ALT: a 40-gate slice took about a minute, then the lane waited out its 10-minute
         # tick. An ended slice is booked at once (the tick decides whether the next one starts)
+        # REG-1671 - it is handed the console's own probes, to ask at its own moment: never an answer the guard read
+        # earlier, and never none at all (then a cloud client in the tray read as play - the v3542 eye's finding)
         self._running()
+        judge, room = (lambda: False), (lambda: 3000)
         with mock.patch.object(SP, "pid_alive", lambda pid: False):
-            r = SP.guard(path=self.store, playing=False, free=3000, _tick=self._tick)
+            r = SP.guard(path=self.store, playing=judge, free=room, _tick=self._tick)
         self.assertEqual(r["key"], "stood-aside")          # whatever the tick said, it was asked
         self.assertEqual(len(self.ticks), 1, "an ended slice waited for the 10-minute tick")
-        self.assertNotIn("playing", self.ticks[0], "the tick must ask the machine itself when it books and starts")
+        self.assertIs(self.ticks[0].get("playing"), judge, "the chained tick was not handed the console's play judge")
+        self.assertIs(self.ticks[0].get("free"), room, "the chained tick was not handed the console's memory probe")
 
     def test_a_live_slice_beside_nothing_is_left_alone(self):
         self._running()
@@ -267,6 +277,28 @@ class TheNextSliceStartsTheMomentOneEnds(unittest.TestCase):
                                                "the next slice waits for the 10-minute tick: %r" % (r,))
         mem = SP.load(self.store)
         self.assertEqual((mem.get("pid"), mem.get("slices")), (self.NEW, 1))
+
+    def test_a_cloud_client_in_the_tray_does_not_hold_the_next_slice(self):
+        """REG-1671 (the v3542 cross-family eye) - the ALT's steady state: Boosteroid open in the tray, the console's shadow
+        watch saying the GAME is not on his screen. The tick the guard chains must ask that judge; a bare process list
+        reads the tray client as play and the next slice waits for the 10-minute tick."""
+        def boosteroid_running(game_on_screen=None):          # REG-1666's real rule for a running cloud client
+            return SP.is_play_proc("Boosteroid.exe", SP._ask(game_on_screen, lambda: None))
+        with mock.patch.object(SP, "playing_state", boosteroid_running), \
+                mock.patch.object(ca, "shadow_game_on_screen", lambda *a, **k: False):
+            r = self._guard(5.0)
+        self.assertEqual(len(self.spawned), 1, "Boosteroid in the tray with no game on his screen held the next slice "
+                                               "(the chained tick never asked the console's judge): %r" % (r,))
+
+    def test_the_game_on_his_screen_still_holds_the_next_slice(self):
+        """REG-1671 - the other side: the same tray client WITH the game on his screen is play, and nothing starts"""
+        def boosteroid_running(game_on_screen=None):
+            return SP.is_play_proc("Boosteroid.exe", SP._ask(game_on_screen, lambda: None))
+        with mock.patch.object(SP, "playing_state", boosteroid_running), \
+                mock.patch.object(ca, "shadow_game_on_screen", lambda *a, **k: True):
+            r = self._guard(5.0)
+        self.assertEqual(self.spawned, [], "a slice started beside his game: %r" % (r,))
+        self.assertEqual(r.get("key"), "playing", r)
 
     def test_a_live_pid_with_no_recorded_birth_is_left_alone(self):
         """a store from before REG-1511: no birth to check - the fast path keeps the old answer and starts nothing"""

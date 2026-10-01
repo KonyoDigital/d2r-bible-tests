@@ -850,8 +850,11 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         # met busy=None - "load-unknown", never started on a guess - so the next slice waited for the tick after all.
         # REG-1652 - only a DEFINITE "not ours" is an ended proof; alive-but-unreadable is still running
         alive = identity(pid, birth) is not False
+        # REG-1671 (the v3542 cross-family eye) - AND THE CONSOLE'S OWN "is he playing" JUDGE. Without it the chained tick
+        # asked playing_state() with no screen judge, so Boosteroid or GeForce NOW merely open in the tray read as
+        # playing and the next slice waited for the 10-minute tick - REG-1625 again, on the machine REG-1666 was for.
         if not alive:
-            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)
+            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)
         aside, _why = stand_aside(play_now, free_now)
