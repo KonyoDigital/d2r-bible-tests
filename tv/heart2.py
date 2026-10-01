@@ -1457,6 +1457,13 @@ class _LaneSay(object):
 # The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
 NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
 _PUSH = None            # the running push-time context (_PushRun) while prove(push=True) runs; None otherwise
+# REG-1669 (#42) — ONE CLEAN RUN SERVES A GATE'S PROOFS. Every proof ran the untampered law first, so a gate with N
+# proofs paid 2N runs where N+2 do: MEASURED on his ALT 2026-10-01, a 40-gate census slice took 82 minutes. While
+# _prove_gate holds a gate, its lane thread keeps that gate's clean verdict here and every later proof reuses it; a
+# CLOSING clean run after the last proof must still be green, or no PROVEN of the gate is kept (the sandbox did not
+# stay clean across its proofs). Per thread, because lanes run gates side by side. None outside a gate: a direct
+# _prove_one call still runs its own clean run, as it always has.
+_CLEAN = threading.local()
 
 
 class _PushRun(object):
@@ -2195,6 +2202,41 @@ def _prove_gate(sandbox, name, filename, proofs, say):
     if _PUSH is not None:
         return _prove_gate_push(sandbox, name, filename, proofs, say, _PUSH)
     verdicts = []
+    _CLEAN.runs = {}                                     # REG-1669 — this gate's proofs share one clean run
+    try:
+        verdicts = _prove_gate_proofs(sandbox, name, filename, proofs, say)
+        verdicts = _closing_clean(name, verdicts, say)
+    finally:
+        _CLEAN.runs = None
+    return (BLIND if BLIND in verdicts
+            else INVALID if INVALID in verdicts
+            else UNPROVABLE if UNPROVABLE in verdicts
+            else PROVEN), verdicts
+
+
+def _closing_clean(name, verdicts, say):
+    """REG-1669 — the gate's proofs shared one clean run; it must still be green after the last of them. -> verdicts
+
+    A law whose state drifted across its proofs could otherwise go red for the drift and be credited with catching
+    the tamper. Only when a clean run WAS shared and something was PROVEN; a red or unknown closing run keeps no
+    PROVEN of this gate (UNPROVABLE, said), and every other verdict stands."""
+    runs = getattr(_CLEAN, "runs", None) or {}
+    shared = [r for r in runs.values() if r.get("reused")]
+    if not shared or PROVEN not in verdicts:
+        return verdicts
+    for r in shared:
+        ok, tail = r["again"]()
+        if not ok:
+            say("     %-52s %s - the CLOSING clean run is %s (%s): its proofs shared one clean run and the sandbox did "
+                "not stay clean across them, so no PROVEN of this gate is kept"
+                % (name, UNPROVABLE, "UNKNOWN" if ok is None else "RED", str(tail)[:60]))
+            return [UNPROVABLE if v == PROVEN else v for v in verdicts]
+    return verdicts
+
+
+def _prove_gate_proofs(sandbox, name, filename, proofs, say):
+    """Every proof of ONE gate, serially. -> [verdict per proof] (the loop _prove_gate has always run)"""
+    verdicts = []
     for i, pr in enumerate(proofs):
         # ⚠⚠ ONE BAD PROOF MAY NOT TAKE THE WHOLE RUN WITH IT. This loop sits inside a
         # `try: ... finally:` with NO `except`, so an exception from _prove_one escaped
@@ -2214,10 +2256,7 @@ def _prove_gate(sandbox, name, filename, proofs, say):
                 % (i, type(_pe).__name__, str(_pe)[:120]))
             v = BLIND
         verdicts.append(v)
-    return (BLIND if BLIND in verdicts
-            else INVALID if INVALID in verdicts
-            else UNPROVABLE if UNPROVABLE in verdicts
-            else PROVEN), verdicts
+    return verdicts
 
 
 def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
@@ -2749,7 +2788,18 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     # single-lane path, so that path is unchanged; with lanes running it widens by a measured
     # factor so a verdict can never be decided by how many copies of the prover are busy.
     _to = int(_to * DEADLINE_SCALE) if _to else _to
-    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
+    _runs = getattr(_CLEAN, "runs", None)
+    _ck = (filename, repr(_extra), repr(_script), _at_widths(widths), _to)
+    _hit = _runs.get(_ck) if isinstance(_runs, dict) else None
+    if _hit is not None:
+        ok_clean, tail = _hit["ok"], _hit["tail"]           # REG-1669 — this gate's one clean run
+        _hit["reused"] += 1
+    else:
+        ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
+        if isinstance(_runs, dict) and ok_clean is not None:
+            _runs[_ck] = {"ok": ok_clean, "tail": tail, "reused": 0,
+                          "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
+                                                      script=_script, **_w))}
     if ok_clean is None:
         say("     %-52s %s — clean run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail))
         return UNPROVABLE

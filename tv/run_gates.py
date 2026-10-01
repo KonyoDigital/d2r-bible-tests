@@ -8780,6 +8780,13 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_one_clean_run_serves_a_gates_proofs",
+         [sys.executable, os.path.join(HERE, "test_one_clean_run_serves_a_gates_proofs.py")], 60,
+         needs_app=False,
+         why="REG-1669 (#42, 2026-10-01) - measured on his ALT: a 40-gate census slice took 82 minutes because every "
+             "red-proof ran the untampered law again before its tampered run (2N runs for N proofs). A gate's proofs "
+             "now share one clean run, and a closing clean run after the last proof must still be green or no PROVEN "
+             "of the gate is kept. Real _prove_gate and _prove_one on a real directory; the law run is a stand-in."),
     Gate("test_the_game_on_screen_decides_play_not_the_app",
          [sys.executable, os.path.join(HERE, "test_the_game_on_screen_decides_play_not_the_app.py")], 60,
          needs_app=False,

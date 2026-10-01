@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1670 - A PC WITH ROOM FOR TWO STILL PROVED ON ONE LANE (his "yea good idea", 2026-10-01)
+
+**Was:** the self-prove lane always started heart2 with one lane. **Now** `self_prove.spawn` asks `lanes_for()` with the
+memory free at that moment: two lanes only with 3 GB free and 4 cores (each lane runs one law at a time, a few hundred MB,
+so both stay well above the 1,024 MB running floor - and the 10-second guard still stands the proof aside if memory
+falls there anyway); unknown memory or cores is one lane. **His ALT, at ~1.9 GB free, stays on one lane** - REG-1669 is
+what speeds it up today. Law: `tv/test_every_pc_proves_itself.py` (TwoLanesOnlyWithRoom); 2 red-proofs RED.
+
+### REG-1669 - EVERY PROOF RAN THE CLEAN LAW AGAIN: AN 82-MINUTE CENSUS SLICE ON HIS ALT (#42, 2026-10-01)
+
+**Measured:** his ALT's first census slice of the day, 40 gates, ran 10:57 -> 12:19 - every red-proof ran the untampered
+law before its tampered run, so a gate with N proofs paid 2N runs. **Now** the proofs of one gate share the first clean
+run (kept per lane thread while `_prove_gate` holds the gate), and a CLOSING clean run after the last proof must still be
+green - a law whose state drifted across its proofs could otherwise go red for the drift and be credited with the
+tamper, so then no PROVEN of that gate is kept. N + 2 runs instead of 2N; a one-proof gate pays no closing run; a law
+already red untampered is judged once. A direct `_prove_one` (and the push path, which has #42's own cache) is
+unchanged. Law: `tv/test_one_clean_run_serves_a_gates_proofs.py` - the real `_prove_gate` / `_prove_one` against a real
+directory, the law run a stand-in reading the subject's bytes; 3 red-proofs RED. heart2's other laws (lanes, verdict
+reuse, slices, census, blind wording) all green.
+
 ### REG-1668 - FIVE CHECKS HIS ALT CALLED BLIND - TWO WERE BLIND ON THE MAC TOO (#128, 2026-10-01)
 
 **Was:** his Windows ALT's prover filed five gates BLIND, and one BLIND closes every lock there - the river could never

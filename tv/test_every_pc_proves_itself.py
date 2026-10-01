@@ -739,6 +739,37 @@ def _int0(v):
     return int(v or 0)
 
 
+
+class TwoLanesOnlyWithRoom(unittest.TestCase):
+    """REG-1670 — two proving lanes only when the PC clearly has room for both (his ALT, ~1.9 GB free, stays on one)."""
+
+    def test_the_rule(self):
+        self.assertEqual(SP.lanes_for(8000, 8), 2)
+        self.assertEqual(SP.lanes_for(SP.TWO_LANES_MIN_FREE_MB, SP.TWO_LANES_MIN_CPUS), 2)
+        self.assertEqual(SP.lanes_for(1900, 8), 1, "his ALT at ~1.9 GB free was given two lanes")
+        self.assertEqual(SP.lanes_for(8000, 2), 1, "a two-core PC was given two lanes")
+        self.assertEqual(SP.lanes_for(None, 8), 1, "an unmeasured memory read as room")
+        self.assertEqual(SP.lanes_for(float("nan"), 8), 1)
+        self.assertEqual(SP.lanes_for(8000, None), 1, "an unknown core count read as enough")
+
+    def test_spawn_asks_the_memory_free_now(self):
+        seen = []
+
+        class _P(object):
+            pid = 4242
+
+        def popen(cmd, **kw):
+            seen.append(kw["env"]["HEART2_PROVE_WORKERS"])
+            return _P()
+        with tempfile.TemporaryDirectory() as d:
+            log = os.path.join(d, "p.log")
+            with mock.patch.object(SP, "free_mb", lambda: 8000), mock.patch.object(SP.os, "cpu_count", lambda: 8):
+                SP.spawn(log, popen=popen)
+            with mock.patch.object(SP, "free_mb", lambda: 1900), mock.patch.object(SP.os, "cpu_count", lambda: 8):
+                SP.spawn(log, popen=popen)
+            SP.spawn(log, popen=popen, workers=1)
+        self.assertEqual(seen, ["2", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
+
 RED_PROOF = [
     {
         "why": "2026-09-29 (skeptic on fix24-selfprove) - a corrupt stand-aside time re-arms the cooldown every tick, for ever",
@@ -987,6 +1018,20 @@ RED_PROOF = [
         # anchor is the tuple as the tree holds it; the tamper still drops only "aside-cooldown".
         "find": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\", \"aside-cooldown\")",
         "replace": "\"playing\", \"stood-aside\", \"running-unverified\", \"low-memory\")",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-01 (REG-1670) - two proving lanes whatever the memory, so his 8 GB ALT is pushed under its floor",
+        "file": "tv/self_prove.py",
+        "find": "    return 2 if (f >= TWO_LANES_MIN_FREE_MB and c >= TWO_LANES_MIN_CPUS) else 1\n",
+        "replace": "    return 2\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-01 (REG-1670) - the prover always starts one lane, whatever room the PC has",
+        "file": "tv/self_prove.py",
+        "find": "    if workers is None:\n        workers = lanes_for(free_mb(), os.cpu_count())\n",
+        "replace": "    if workers is None:\n        workers = 1\n",
         "matches": 1,
     },
 ]
