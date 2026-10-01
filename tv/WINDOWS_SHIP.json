@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3552",
+  "ver": "v3553",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3552: the reader is asked each named item point and doll slot from now on; p1839 seals and read counts still stand (forward only); a point carries the size of its picture and the gear ledger scales it to the frame. HEART: the gear ledger word-vs-geometry corroborator and its doctor row now receive points; no new surface",
+  "note": "v3553: the update bar asks the console every tick and shows its reason, keeps watching past 20 minutes instead of giving up, and the console logs each change of its relaunch decision. HEART: the relaunch decision now lands in control_app.log on every change; the update-wait render target watches the bar",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

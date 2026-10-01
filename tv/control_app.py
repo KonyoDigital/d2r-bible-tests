@@ -22637,8 +22637,24 @@ def _relaunch_waiting_why(blocker, why, parts=None):
 _RELAUNCH_RETRY_AFTER_S = 30 * 60
 
 
+#: #150 — the last relaunch decision WRITTEN to the log, so a decision is printed when it changes, never per tick
+_RELAUNCH_SAID = {"key": None}
+
+
 def _drift_publish_relaunch(may, why, blocker):
-    """Put the drift lane's relaunch decision where /api/status (and so the doctor) can read it."""
+    """Put the drift lane's relaunch decision where /api/status (and so the doctor) can read it.
+
+    #150 — AND WRITE IT DOWN WHEN IT CHANGES. On 2026-10-01 an update waited from 21:13 to 22:32 and the clause that held
+    it lived only in _DRIFT, in memory, so his relaunch erased the one answer to "why did it not relaunch itself". One
+    line per CHANGE of (may, blocker, why) - not per tick - keeps the reason in control_app.log beyond the process."""
+    _key = (bool(may), str(blocker or ""), str(why or "")[:240])
+    if _key != _RELAUNCH_SAID.get("key"):
+        _RELAUNCH_SAID["key"] = _key
+        try:
+            print("  ⟲ relaunch %s - %s" % ("MAY FIRE" if may else "HELD (%s)" % (blocker or "unknown"),
+                                              str(why or "no reason given")[:200]), flush=True)
+        except Exception:
+            pass
     _waiting = {"shadow": _WAITING_FOR_SHADOW, "his-session": _BLOCKED_BY_HIM}.get(blocker)
     with _PRUNE_LOCK:
         _DRIFT["relaunch"] = {"may": bool(may), "blocker": blocker, "waiting": _waiting,
@@ -37862,7 +37878,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3552",
+        "ver": "v3553",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

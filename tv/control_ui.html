@@ -6034,9 +6034,12 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 0 1 auto; min-width: 0;
   }
-  /* while the meter is up the message is redundant — let it shrink first */
-  .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { flex: 0 1 auto; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* #150 (2026-10-01) - this used to say "while the meter is up the message is redundant — let it shrink first", and
+     cut it to one ellipsised line. Since #150 the message is the CONSOLE'S OWN REASON for waiting ("not now — only the
+     shadow reader's reel is rolling…"), which the meter does not say: the update-wait render target measured it cut
+     mid-word at every width. So it WRAPS while the meter is up - the reason is the one thing he needs to read. */
+  .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { flex: 1 1 auto; min-width: 0;
+    white-space: normal; overflow-wrap: anywhere; }
   @media (max-width: 760px) { .fb-eta .fbe-say { display: none; } }
 .fleet-row.has-ftt { position: relative; cursor: default; }
   /* v2455 — the unit that says what a denominator is OVER. Dimmed and italic so it reads as a
@@ -19688,31 +19691,37 @@ window._lockMark = function(isOpen, px, label){
         busy = true;
         try {
           _updWaitTries += 1;                 // ⚠ counted HERE, so every path is bounded
-          if (_updWaitTries > 480) {          // ~20 minutes
-            _updWaitStop('still busy after 20 minutes — press RELAUNCH NOW when you are ready');
-            return;
-          }
-          var r = await fetch(API + '/api/chronicle_sweep', { cache: 'no-store' });
-          var st = await r.json();
+          /* #150 (2026-10-01) - HE WAITED 20 MINUTES, THE BAR GAVE UP, AND THE CONSOLE WOULD HAVE LET IT THROUGH.
+             This used to wait for the Chronicle sweep to stop before it ever asked, then quit at 20 minutes. His
+             sweep ran 3 h 45 min; the console stops counting a sweep past its 45-minute ceiling, but the bar never
+             asked it. Now the CONSOLE decides on every tick (its refusal names what holds it), and past ~20 minutes
+             the bar keeps watching every 30 s instead of stopping - it relaunches by itself the moment nothing holds it. */
+          var _slow = _updWaitTries > 480;   // ~20 minutes
+          if (_slow && (_updWaitTries % 12)) return;   // past it: one ask every 30 s, never a stop
+          var st = null;
+          try {
+            var r = await fetch(API + '/api/chronicle_sweep', { cache: 'no-store' });
+            st = await r.json();
+          } catch (e0) { st = null; }        // the sweep's meter is a picture, never the gate
           var e = (st && st.eta) || {};
-          if (st && st.running) {
-            var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
-            wrap.classList.toggle('fbe-unk', pct === null);
-            if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
-            if (say) say.textContent = e.say || 'reading';
-            return;                          // still reading — the interval brings us back
-          }
-          /* the read is done. Try the relaunch ONCE per tick; a refusal is not a reason to
-             hammer, so we fall out and the SAME interval tries again in 2.5s. */
-          if (say) say.textContent = 'the read finished — relaunching…';
           var rr = await fetch(API + '/api/relaunch', { method: 'POST' });
           var rj = await rr.json();
           if (rj && rj.ok) { _updWaitStop(); return; }   // the process is replacing itself
           if (rj && rj.busy) {
-            txt.textContent = 'not now — ' + (rj.why || 'something is still running');
-            wrap.classList.add('fbe-unk');
-            if (fill) fill.style.width = '100%';
-            if (say) say.textContent = 'waiting for it to finish';
+            var _mins = Math.round(_updWaitTries * 2.5 / 60);
+            txt.textContent = 'not now — ' + (rj.why || 'something is still running')
+              + (_slow ? ' · still watching (' + _mins + ' min) - it relaunches by itself when that clears' : '');
+            txt.title = txt.textContent;      // the whole reason one hover away, whatever the width
+            if (st && st.running) {
+              var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
+              wrap.classList.toggle('fbe-unk', pct === null);
+              if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
+              if (say) say.textContent = e.say || 'reading';
+            } else {
+              wrap.classList.add('fbe-unk');
+              if (fill) fill.style.width = '100%';
+              if (say) say.textContent = 'waiting for it to finish';
+            }
             return;                          // NO recursion. The interval is still running.
           }
           _updWaitStop('could not relaunch — ' + ((rj && (rj.why || rj.msg)) || 'unknown reason'));

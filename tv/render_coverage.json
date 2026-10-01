@@ -138,6 +138,14 @@
       "375x800": 3,
       "901x900": 3
     },
+    "update-wait": {
+      "1120x628": 3,
+      "1120x900": 3,
+      "1280x720": 3,
+      "1440x1000": 3,
+      "375x800": 3,
+      "901x900": 3
+    },
     "vault": {
       "1120x628": 11,
       "1120x900": 11,
@@ -3504,6 +3512,38 @@
         "div.sc-card-h|🗓 Daily Task Force · Thursday, Sep 24",
         "div.sc-tf-row|✶📜 Runewords · 0/99 — 99 runewords still",
         "div.sc-tf-row|📼0 runs recorded today · reader idleTODA"
+      ]
+    },
+    "update-wait": {
+      "1120x628": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
+      ],
+      "1120x900": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
+      ],
+      "1280x720": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
+      ],
+      "1440x1000": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
+      ],
+      "375x800": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
+      ],
+      "901x900": [
+        "div.fleet-bar|⟳ not now — only the shadow reader's ree",
+        "span.fb-txt|not now — only the shadow reader's reel ",
+        "button.fb-go|RELAUNCH NOW"
       ]
     },
     "vault": {

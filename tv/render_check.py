@@ -1878,6 +1878,29 @@ TARGETS = {
         "warmup": 12.0,     # long enough for the label poll that once destroyed one of them
     },
 
+    "update-wait": {
+        "serve": True,
+        "why": "#150 - the update bar while it WAITS: the console's own reason (it can be long), 'still watching (N min)', "
+               "the wait meter and RELAUNCH NOW, all on one bar. v2174's scar: this bar once laid itself 1287px wide in a "
+               "1120px window and pushed its own button off the edge",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var b = document.getElementById('fleet-bar'), t = document.getElementById('fleet-txt'),
+                e = document.getElementById('fleet-eta'), s = document.getElementById('fleet-eta-say'),
+                g = document.getElementById('fleet-go');
+            if (!b || !t || !e || !s || !g) return false;
+            b.hidden = false; e.hidden = false; g.hidden = false;
+            t.textContent = "not now \u2014 only the shadow reader's reel is rolling - an update would be held, not refused, "
+              + "and land when that reel closes at its next clean point \u00b7 still watching (21 min) - it relaunches by "
+              + "itself when that clears";
+            s.textContent = 'waiting for it to finish';
+            g.textContent = 'RELAUNCH NOW';
+            var r = b.getBoundingClientRect();
+            return !!(r.width > 50 && r.height > 10 && !b.hidden); })()""",
+        "sel": "#fleet-bar, #fleet-txt, #fleet-go",
+        "settles": False,
+        "warmup": 4.0,
+    },
     "advanced": {
         "serve": True,
         "why": "the ⚙ ADVANCED drawer — the EYES switch, the shadow reader and THE FLEET. It sits "

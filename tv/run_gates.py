@@ -8794,6 +8794,13 @@ GATES = [
              "alt and also on deans' - four routes (local, crossover, boosteroid, geforce-now). A bare GeForce NOW app "
              "window was a near-miss on every PC and the bare-window HUD check asked Boosteroid by name. One table "
              "now goes through BOTH finders and every row names the same route on the Mac and on Windows."),
+    Gate("test_the_relaunch_bar_keeps_asking",
+         [sys.executable, os.path.join(HERE, "test_the_relaunch_bar_keeps_asking.py")], 90,
+         needs_app=False,
+         why="#150 - his words: 'still busy after 20 minutes? ... why didnt it auto relaunch itself'. The update bar waited "
+             "for the Chronicle sweep to stop before it ever asked the console, and quit at 20 minutes; his sweep read for "
+             "3 h 45 min while the console had stopped counting it at 45. The bar now asks the console every tick, shows "
+             "its reason, keeps watching past 20 minutes, and the console writes each change of its decision to the log."),
     Gate("test_every_witness_says_where_it_was_seen",
          [sys.executable, os.path.join(HERE, "test_every_witness_says_where_it_was_seen.py")], 60,
          needs_app=False,

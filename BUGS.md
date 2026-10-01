@@ -406,6 +406,25 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1700 - "STILL BUSY AFTER 20 MINUTES? ... WHY DIDNT IT AUTO RELAUNCH ITSELF": THE BAR NEVER ASKED, AND THE CONSOLE NEVER SAID (#150, 2026-10-01)
+
+**His words:** "still busy after 20 minutes? should i just hit relaunch? why didnt it auto relaunch itself".
+**Measured:** control_app.log shows v3541->v3546 each auto-relaunched ("nothing in flight"); from v3547 (21:13) none did
+until he pressed relaunch at ~22:32, while a Chronicle sweep read for 51->225 minutes - past its 45-minute ceiling, so the
+console no longer counted it ("it no longer blocks a relaunch", every 15 minutes in the log). The update bar's waiter
+(`_updWaitForRead`) waited while /api/chronicle_sweep said running and only THEN asked /api/relaunch, so for the whole
+evening it never asked; at 480 ticks (~20 min) it stopped for good. And the clause that DID hold the console's own
+auto-relaunch lived only in `_DRIFT["relaunch"]`, in memory - his relaunch erased the one answer to his question.
+**Now:** the bar asks the console on every tick, sweep or not (the console decides; its refusal names what holds it, and
+the bar shows that reason, full text on hover); past ~20 minutes it keeps watching every 30 s and says "still watching (N
+min) - it relaunches by itself when that clears", never stopping itself. `_drift_publish_relaunch` writes one line to the
+log per CHANGE of decision ("relaunch HELD (shadow) - ..." / "MAY FIRE - ...") - none per repeat. **Seen on pixels:** a new
+render target `update-wait` paints the bar waiting with the console's longest reason; its first run found the reason CUT
+mid-word at every width (a v2158-era rule ellipsised the message "while the meter is up" when it only echoed the meter) -
+it now wraps; 0 clipped at 6 sizes; the Grok CLI read the crop cold, all five lines and both controls in full. Law:
+`tv/test_the_relaunch_bar_keeps_asking.py` (4 cases; the REAL waiter cut from control_ui.html and run in node with a fake
+fetch and timer; 4/4 PROVEN).
+
 ### REG-1699 - "THE ITEMS BEING WITNESSED ALSO NEED COORDINATES BASED ON WHERE THEY WERE WITNESSED": THE READER WAS NEVER ASKED WHERE (#234 step 3, 2026-10-01)
 
 **His words:** "are you sure? i remember we said that the items being witnessed also need coordinates based on where they
