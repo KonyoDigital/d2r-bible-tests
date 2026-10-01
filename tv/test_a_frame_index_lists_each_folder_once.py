@@ -83,12 +83,33 @@ class AFrameIndexListsEachFolderOnce(unittest.TestCase):
         self.assertEqual((got.files, got.bytes), (want_files, want_bytes))
 
     def test_a_symlinked_folder_is_not_entered(self):
+        link = "a_link_dir"
         if not self.linked:
-            self.skipTest("this PC cannot make a symlink - the case is not measured here")
+            # REG-1668 - MEASURED on his ALT: Windows refuses a symlink without a privilege, this case skipped, and the
+            # heart filed the gate BLIND there (its sabotage is caught by this case alone). A directory junction needs
+            # no privilege and is the linked folder that PC can make; the index must not walk into it either.
+            link = self._junction()
+            if link is None:
+                self.skipTest("this PC can make neither a symlink nor a junction - the case is not measured here")
         got = FR.Index(self.root)
-        self.assertFalse(any(p.startswith("a_link_dir/") for p in got.by_path),
-                         "the index walked INTO a symlinked folder, which os.walk never did")
-        self.assertIn("a_link_file.png", got.by_path, "a symlinked FILE is a file, as os.walk lists it")
+        self.assertFalse(any(p.startswith(link + "/") for p in got.by_path),
+                         "the index walked INTO a linked folder (%s) - a reel listed twice, or a loop" % link)
+        if self.linked:
+            self.assertIn("a_link_file.png", got.by_path, "a symlinked FILE is a file, as os.walk lists it")
+
+    def _junction(self):
+        """A Windows directory junction onto a real reel, made inside this case only (the walk-parity case must not
+        see it: os.walk enters junctions). -> its name, or None where none can be made."""
+        if os.name != "nt":
+            return None
+        path = os.path.join(self.root, "a_junction_dir")
+        try:
+            import _winapi
+            _winapi.CreateJunction(os.path.join(self.root, "reel_s_1790000000000"), path)
+        except Exception:
+            return None
+        self.addCleanup(os.rmdir, path)          # removes the junction itself, never what it points at
+        return "a_junction_dir"
 
     def test_it_asks_no_file_for_its_size_one_by_one(self):
         real_stat = os.stat
@@ -143,9 +164,9 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-28 - a symlinked folder is walked into, which os.walk never did",
+        "why": "2026-09-28 - a symlinked folder (a junction on Windows, REG-1668) is walked into",
         "file": "frame_ref.py",
-        "find": "                if not e.is_symlink():\n",
+        "find": "                if not (e.is_symlink() or _is_junction(e)):\n",
         "replace": "                if True:\n",
         "matches": 1,
     },

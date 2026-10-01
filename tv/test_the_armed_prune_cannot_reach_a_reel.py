@@ -84,7 +84,28 @@ class TheArmedPruneCannotReachAReel(unittest.TestCase):
             os.utime(q, (old, old))
             sealed.append(q)
 
-        dropped, freed, why = CA._prune_once(hist_dir=self.d)
+        # ⚠⚠ REG-1668 - THE PASS MUST REALLY DELETE, OR CONTAINMENT IS NEVER TESTED. Since v2197 the prune frees only
+        # frames the panel gate was SILENT on, and only while the OCR lane is proven live around them. Here the lane
+        # proved nothing ("the OCR lane passed 0 of 2 deliberate probe(s)"), so the honest pass and the containment
+        # break BOTH deleted nothing and this stayed green through its own defeat - MEASURED BLIND on his ALT, and then
+        # on the Mac. The subject here is WHERE the pass may reach, so the gate answers "silent" and the lane is live;
+        # the files are deleted for real. [[feedback-blind-fixture-green-gate]]
+        class _LaneLive(object):
+            def probe(self, *a, **k):
+                return True
+
+            def live_at(self, t):
+                return True
+
+            def say(self):
+                return "fixture: the lane proven live"
+        from unittest import mock
+        with mock.patch.object(CA, "LaneCanary", _LaneLive), \
+                mock.patch.object(CA, "stash_panel_verdict", lambda q: "unknown"), \
+                mock.patch.object(CA, "_gate_receipt", lambda: None):
+            dropped, freed, why = CA._prune_once(hist_dir=self.d)
+        self.assertGreater(dropped, 0, "PREMISE: the pass deleted nothing, so where it may reach was never tested "
+                                       "(why=%r)" % (why,))
 
         alive = [q for q in sealed if os.path.exists(q)]
         self.assertEqual(

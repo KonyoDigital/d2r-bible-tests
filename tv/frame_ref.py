@@ -79,10 +79,28 @@ def still(st, now_ns=None):
     return now_ns - newest >= int(RACY_S * 1e9)
 
 
+def _is_junction(e):
+    """REG-1668 - is this DirEntry a Windows directory JUNCTION? -> bool. Never raises.
+
+    A junction is a linked folder exactly as a symlink is, and the index never enters either. os.walk DOES walk into
+    one (os.path.islink is False for it), so this is the one place the index is deliberately stricter than the walk
+    it replaced: a junction under the shelf would list a reel twice, and one pointing at an ancestor would never end.
+    MEASURED on his ALT: Windows refuses an ordinary symlink without a privilege, so the symlink case skipped there
+    and the heart called the gate BLIND - the junction is the linked folder that PC can actually make.
+    DirEntry.is_junction is Python 3.12+; on an older Python (his Mac's 3.9) there are no junctions to find."""
+    f = getattr(e, "is_junction", None)
+    if f is None:
+        return False
+    try:
+        return bool(f())
+    except OSError:
+        return False
+
+
 def _scan(folder):
     """One folder, listed once. -> tuple of (name, kind, size) | None when it cannot be listed.
 
-    kind: 'd' a folder to walk into, 'l' a symlinked folder (never entered, as os.walk does not), 'f' a file
+    kind: 'd' a folder to walk into, 'l' a symlinked folder or a Windows junction (never entered), 'f' a file
     (and anything whose type cannot be read, as before). size: from the listing, None when it cannot be read.
     ⚠ 2026-09-28 — ONE LISTING PER FOLDER, NEVER ONE STAT PER FILE: on Windows the listing already carries each
     file's size, so DirEntry.stat() costs nothing (REG-1360, 34,143 nt.stat calls on his ALT)."""
@@ -99,7 +117,7 @@ def _scan(folder):
             is_dir = False
         if is_dir:
             try:
-                if not e.is_symlink():
+                if not (e.is_symlink() or _is_junction(e)):
                     out.append((e.name, "d", None))
                 else:
                     out.append((e.name, "l", None))

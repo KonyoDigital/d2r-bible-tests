@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1668 - FIVE CHECKS HIS ALT CALLED BLIND - TWO WERE BLIND ON THE MAC TOO (#128, 2026-10-01)
+
+**Was:** his Windows ALT's prover filed five gates BLIND, and one BLIND closes every lock there - the river could never
+leave ROUTE however many proofs it finished. A census re-owes a gate only when its FILE changes, so none of the five
+would ever have been asked again. Re-proved on the Mac with today's code, they split three ways:
+
+| gate (proof) | measured | cause | fix |
+|---|---|---|---|
+| keep floors [3] | BLIND on the Mac too | `keep_recent=_keep` now appears 7 times in `_retention_once` (the drain calls carry it), so "the text is in the body" held with the plan call stripped of it; the Mac's PROVEN predated those calls | the law asks the `_rr.plan(...)` call's own keyword (AST) |
+| armed prune [0] | BLIND on the Mac too | since v2197 the prune frees only frames the gate was silent on with the OCR lane proven live; in the law the lane proved nothing, so the honest pass and the containment break both deleted nothing | the law gives the pass a live lane and a silent gate, deletes for real, and refuses a pass that deleted nothing |
+| journal-ring drain [5] | Windows only | `os.chmod(path, 0)` cannot make a file unreadable on Windows - it sets read-only, which then blocked the rename either way | the drain's own read of that file raises, on every OS |
+| frame index [2] | Windows only | Windows refuses a symlink without a privilege, so the one case that catches the sabotage skipped | a directory junction (no privilege needed) on Windows - and the index now treats a junction as the linked folder it is: never entered (os.walk does enter one; a junction under the shelf would list a reel twice, or loop) |
+| chronicle template [0] | stale | filed BLIND ("all 12 skipped") before REG-1626 made an absent subject UNPROVABLE; the gate file never changed, so it was never re-asked | a dated note in the gate re-owes it; re-proven it reads UNPROVABLE where his footage is not |
+
+**Now** every one of the five laws changed, so his ALT owes them again and proves them with the new laws. Each red-proof
+of the four changed laws seen RED on the Mac. The Windows halves (the junction, the raising read) run first on the ALT.
+
 ### REG-1667 - A SIGN-IN START COULD STILL POP THE CONSOLE, AND ITS PULL COULD THROW AWAY LOCAL COMMITS (the v3541 eye, 2026-10-01)
 
 Found by the Grok CLI's look at v3541 (4 findings), each checked against the code before acting:

@@ -100,6 +100,9 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         ⚠ IT PATCHES `JD.io`, NEVER `io.open` ITSELF. Rebinding the global would put a hook under
         every reader in the process, including this test's own assertions."""
         real_io, want, fired = io, path + ".part", []
+        # REG-1668 - paths whose next READ through the drain raises, as an unreadable file does. chmod(0) cannot make a
+        # file unreadable on Windows (it sets read-only, which instead blocks the rename) - MEASURED BLIND on his ALT.
+        unreadable = self._unreadable = set()
 
         class _Fires(object):
             def __init__(self, fh):
@@ -120,8 +123,10 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                 return getattr(real_io, k)
 
             def open(self, *a, **kw):
-                fh = real_io.open(*a, **kw)
                 mode = a[1] if len(a) > 1 else kw.get("mode", "r")
+                if a and a[0] in unreadable and not any(c in mode for c in "wax+"):
+                    raise PermissionError(13, "Permission denied (fixture: unreadable)", a[0])
+                fh = real_io.open(*a, **kw)
                 if a and a[0] == want and "w" in mode:
                     return _Fires(fh)
                 return fh
@@ -419,13 +424,13 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         n_before = len(self._ids(self.live))
 
         def _make_it_unreadable():
-            # ⚠ the SAME inode — so identity still matches and only the READ can fail
-            os.chmod(self.live, 0)
+            # ⚠ the SAME inode — so identity still matches and only the READ can fail. REG-1668: the drain's own open
+            # of it raises, on every OS (chmod(0) does not make a file unreadable on Windows).
+            self._unreadable.add(self.live)
 
-        self.addCleanup(lambda: os.path.exists(self.live) and os.chmod(self.live, 0o644))
         fired = self._during_the_rewrite_of(self.live, _make_it_unreadable)
         r = JD.apply_plan(p, yes=True)
-        os.chmod(self.live, 0o644)
+        self._unreadable.discard(self.live)
         after = self._ids(self.live)
         print("   re-read raises: fired=%d ok=%s live rows=%d (was %d)"
               % (len(fired), r.get("ok"), len(after), n_before))

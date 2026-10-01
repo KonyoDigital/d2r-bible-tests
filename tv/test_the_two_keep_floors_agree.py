@@ -129,7 +129,17 @@ class TheTwoKeepFloorsAgree(unittest.TestCase):
         body = src[i:src.index("\ndef ", i + 10)]
         self.assertIn("_rr.keep_recent_for(free_gb, ON_AIR_FLOOR_GB)", body,
                       "the deleting pass does not ask the disk - the pressure rule has no tap")
-        self.assertIn("keep_recent=_keep", body, "the pass asks the disk and then ignores the answer")
+        # ⚠⚠ REG-1668 - ASK THE PLAN CALL ITSELF. `keep_recent=_keep` appears SEVEN times in this function now (every
+        # drain call carries it too), so "the text is somewhere in the body" stayed true with the plan call stripped
+        # of it. MEASURED: this proof went BLIND on his ALT first, and then on the Mac too once it was re-run - the
+        # Mac's PROVEN was from before the drain calls existed. [[a-presence-law-is-not-a-reachability-law]]
+        fn = next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "_retention_once")
+        plans = [c for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                 and c.func.attr == "plan" and isinstance(c.func.value, ast.Name) and c.func.value.id == "_rr"]
+        self.assertEqual(len(plans), 1, "PREMISE: the deleting pass plans once - re-point this law")
+        kw = {k.arg: k.value for k in plans[0].keywords}
+        self.assertTrue(isinstance(kw.get("keep_recent"), ast.Name) and kw["keep_recent"].id == "_keep",
+                        "the pass asks the disk and then plans without the answer")
 
     def test_the_modules_AGREE_at_runtime_too(self):
         """★ Source and import must say the same thing — a constant can be reassigned below its

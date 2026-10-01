@@ -94,6 +94,10 @@ _FRAMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 #: Without it all 12 laws skip and the gate exits 0 having graded NOTHING — which heart2 correctly
 #: reported as BLIND. It stays gitignored and never leaves his Mac; this only crosses tmp.
 PROOF_NEEDS = ["frames/hist/reel_s_1786385768689_67392"]
+#: REG-1668 - his ALT still carried this gate as BLIND ("ALL 12 law(s) SKIPPED") from a prove that ran before REG-1626
+#: taught heart2 that an absent subject is UNPROVABLE there; a census re-owes a gate only when its file changes, so
+#: that verdict could never be re-asked and it shut every lock on the PC. This note is that change - re-proven, the
+#: gate reads UNPROVABLE on a PC without his footage, as it should.
 
 _HAVE_FOOTAGE = os.path.isdir(_FRAMES_DIR)
 _NO_FOOTAGE_WHY = ("the pinned reel %s is not on this machine — this suite grades HAND-READ ground "
