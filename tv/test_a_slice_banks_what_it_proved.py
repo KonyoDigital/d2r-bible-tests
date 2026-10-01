@@ -78,10 +78,14 @@ class EveryFinishedGateIsHandedToTheBanker(_Census):
             self.addCleanup(p.stop)
         self.addCleanup(shutil.rmtree, self.box, True)
 
+    def _hook(self, fn):
+        H._GATE_HOOK["fn"] = fn
+        self.addCleanup(H._GATE_HOOK.__setitem__, "fn", None)
+
     def test_the_lane_hands_each_finished_gate_to_the_banker(self):
         seen = []
-        results, _per = H._prove_gates(self.have, _quiet, workers=1, blank=set(),
-                                       on_gate=lambda out, lock: seen.append(sorted(out)))
+        self._hook(lambda out, lock: seen.append(sorted(out)))
+        results, _per = H._prove_gates(self.have, _quiet, workers=1, blank=set())
         self.assertEqual(results, {n: H.PROVEN for n in GATES})
         self.assertEqual(len(seen), len(GATES), "the banker was not handed every finished gate: %r" % seen)
         self.assertEqual(seen[-1], sorted(GATES))
@@ -89,7 +93,8 @@ class EveryFinishedGateIsHandedToTheBanker(_Census):
     def test_a_banker_that_raises_never_kills_the_lane(self):
         def boom(out, lock):
             raise IOError("disk full")
-        results, _per = H._prove_gates(self.have, _quiet, workers=1, blank=set(), on_gate=boom)
+        self._hook(boom)
+        results, _per = H._prove_gates(self.have, _quiet, workers=1, blank=set())
         self.assertEqual(results, {n: H.PROVEN for n in GATES},
                          "a failed bank killed the lane and turned proved gates BLIND: %r" % results)
 
@@ -118,26 +123,27 @@ class TheBankerBanksTheVerdictsSoFar(_Census):
                          % calls)
         wired = {}
 
-        def fake_gates(have, say=print, workers=None, blank=None, on_gate=None):
-            wired["on_gate"] = on_gate
+        def fake_gates(have, say=print, workers=None, blank=None):
+            wired["on_gate"] = H._GATE_HOOK.get("fn")
             return {n: H.PROVEN for n, _f, _p in have}, {n: [H.PROVEN] for n, _f, _p in have}
         with mock.patch.object(H, "_prove_gates", fake_gates), mock.patch.object(H, "_write_state", lambda *a, **k: None):
             H.prove(only=list(GATES), say=_quiet, stamp=False)
             self.assertTrue(callable(wired.get("on_gate")), "a SLICE ran without banking as it goes")
             H.prove(only=list(GATES), say=_quiet, stamp=True)
             self.assertIsNone(wired.get("on_gate"), "a full run banks mid-run - its one write at the end is the rule")
+        self.assertIsNone(H._GATE_HOOK.get("fn"), "the slice's banker outlived the slice into the next run")
 
 
 RED_PROOF = [
     {"why": "REG-1676 - the lane never hands a finished gate to the banker: a stand-aside throws the slice away again",
      "file": "heart2.py",
-     "find": "            if on_gate is not None:\n                try:\n                    on_gate(out, lock)\n",
-     "replace": "            if False:\n                try:\n                    on_gate(out, lock)\n",
+     "find": "            _hook = _GATE_HOOK.get(\"fn\")\n",
+     "replace": "            _hook = None\n",
      "matches": 1},
     {"why": "REG-1676 - a failed bank kills the lane and turns the gates it proved BLIND",
      "file": "heart2.py",
-     "find": "                try:\n                    on_gate(out, lock)\n                except Exception as _be:\n",
-     "replace": "                try:\n                    on_gate(out, lock)\n                except ZeroDivisionError as _be:\n",
+     "find": "                    _hook(out, lock)\n                except Exception as _be:\n",
+     "replace": "                    _hook(out, lock)\n                except ZeroDivisionError as _be:\n",
      "matches": 1},
     {"why": "REG-1676 - the banker writes nothing: the census learns a slice's verdicts only at its end",
      "file": "heart2.py",
@@ -151,8 +157,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1676 - a slice is run without the banker",
      "file": "heart2.py",
-     "find": "                                          on_gate=(None if stamp else _slice_banker(_blank, say)))\n",
-     "replace": "                                          on_gate=None)\n",
+     "find": "        _GATE_HOOK[\"fn\"] = None if stamp else _slice_banker(_blank, say)\n",
+     "replace": "        _GATE_HOOK[\"fn\"] = None\n",
      "matches": 1},
 ]
 
